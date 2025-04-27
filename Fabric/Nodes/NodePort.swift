@@ -129,7 +129,12 @@ protocol AnyPort
     
     func color() -> Color
     {
-        if type(of: value) == Satin.Geometry?.self
+        if type(of: value) == (MTLTexture & AnyObject)?.self
+        {
+            return Color.nodeTexture
+        }
+
+        else if type(of: value) == Satin.Geometry?.self
         {
             return Color.nodeGeometry
         }
@@ -158,6 +163,11 @@ protocol AnyPort
     }
     
     func direction() -> PortDirection {
+        
+        if type(of: value) == (MTLTexture & AnyObject)?.self
+        {
+            return .Vertical
+        }
         
         if type(of: value) == Satin.Geometry?.self
         {

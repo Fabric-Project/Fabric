@@ -15,8 +15,9 @@ struct ContentView: View {
     
     @State private var finalMagnification = 1.0
     
-    @State private var columnVisibility = NavigationSplitViewVisibility.detailOnly
+    @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
 
+    @State private var searchString:String = ""
    
     var body: some View {
 //        TextEditor(text: $document.text)
@@ -29,10 +30,14 @@ struct ContentView: View {
                     Section(header: Text("\(nodeType)")) {
                         
                         let nodesForType = NodeRegistry.shared.nodesClasses.filter( { $0.type == nodeType })
-                        
-                        ForEach( 0 ..< nodesForType.count, id:\.self ) { idx in
+                        let filteredNodes = self.searchString.isEmpty ? nodesForType :
+                        nodesForType.filter {  $0.name.localizedCaseInsensitiveContains(self.searchString) }
                             
-                            let nodeType = nodesForType[idx]
+            
+                        
+                        ForEach( 0 ..< filteredNodes.count, id:\.self ) { idx in
+                            
+                            let nodeType = filteredNodes[idx]
                             
                             Text(nodeType.name)
                                 .font( .system(size: 11) )
@@ -45,9 +50,10 @@ struct ContentView: View {
                     
                 }
             }
-            
-        }
-        detail: {
+            .searchable(text: $searchString, placement:.sidebar)
+            .controlSize(.small)
+
+        } content: {
             
             ZStack
             {
@@ -67,7 +73,11 @@ struct ContentView: View {
                 }
                 .defaultScrollAnchor(UnitPoint(x: 0.5, y: 0.5))
             }
+        } detail:
+        {
+            Text("Params go here")
         }
+
     }
 }
 
