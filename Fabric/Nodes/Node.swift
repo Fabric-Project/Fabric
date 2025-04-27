@@ -90,27 +90,7 @@ protocol NodeProtocol
     }
     
     
-    var nodeSize:CGSize {
-        
-        get {
-            
-            let horizontalInputsCount = self.ports.filter { $0.direction() == .Horizontal && $0.kind != .Inlet  }.count
-            let horizontalOutputsCount = self.ports.filter { $0.direction() == .Horizontal && $0.kind != .Outlet  }.count
-
-            let verticalInputsCount = self.ports.filter { $0.direction() == .Vertical && $0.kind != .Inlet  }.count
-            let verticalOutputsCount = self.ports.filter { $0.direction() == .Vertical && $0.kind != .Outlet  }.count
-
-            let horizontalMax = max(horizontalInputsCount, horizontalOutputsCount)
-            let verticalMax = max(verticalInputsCount, verticalOutputsCount)
-            
-            let height:CGFloat = 20 + (CGFloat(horizontalMax) * 25)
-            let width:CGFloat = 20 + (CGFloat(verticalMax) * 25)
-            
-            return CGSize(width: max(width, 150), height: max(height, 60) )
-            
-//            CGSizeMake(150, 100)
-        }
-    }
+     var nodeSize:CGSize = CGSizeMake(150, 100)
     
     let id = UUID()
     let type:NodeType
@@ -165,8 +145,7 @@ protocol NodeProtocol
             port.node = self
         }
         
-//        self.cacheInletPoints()
-//        self.cacheOutletPoints()
+        self.nodeSize = self.computeNodeSize()
     }
     
     deinit
@@ -191,50 +170,20 @@ protocol NodeProtocol
         
     }
    
-    
-//    // MARK: - Node Drawing
-//    
-//    private func cacheInletPoints()
-//    {
-//        let rangeOfInputs = 0 ..< self.numberOfInputs
-//        let indexOfLastInput = self.numberOfInputs - 1
-//        
-//        let halfWidth:Double = Self.nodeSize.width/2.0
-//        
-//        self.localInletPositions = rangeOfInputs.map( {
-//            
-//            var x = remap(input: Double($0),
-//                          inMin: 0,
-//                          inMax: Double(indexOfLastInput),
-//                          outMin: halfWidth - Double(indexOfLastInput * 15),
-//                          outMax: halfWidth + Double(indexOfLastInput * 15) )
-//            
-//            x = x.isNaN ? halfWidth : x
-//            
-//            return CGPoint(x:x , y: 0.0)
-//        } )
-//        
-//    }
-//    
-//    private func cacheOutletPoints()
-//    {
-//        let rangeOfOutputs = 0 ..< self.numberOfOutputs
-//        let indexOfLastOutput = self.numberOfOutputs - 1
-//        
-//        let halfWidth:Double = Self.nodeSize.width/2.0
-//
-//        self.localOutletPositions = rangeOfOutputs.map( {
-//            
-//            var x = remap(input: Double($0),
-//                          inMin: 0,
-//                          inMax: Double(indexOfLastOutput),
-//                          outMin: halfWidth - Double(indexOfLastOutput * 15) ,
-//                          outMax: halfWidth + Double(indexOfLastOutput * 15) )
-//            
-//            x = x.isNaN ? halfWidth : x
-//            
-//            return CGPoint(x:x , y: Self.nodeSize.height)
-//        } )
-//        
-//    }
+    private func computeNodeSize() -> CGSize
+    {
+        let horizontalInputsCount = self.ports.filter { $0.direction() == .Horizontal && $0.kind != .Inlet  }.count
+        let horizontalOutputsCount = self.ports.filter { $0.direction() == .Horizontal && $0.kind != .Outlet  }.count
+
+        let verticalInputsCount = self.ports.filter { $0.direction() == .Vertical && $0.kind != .Inlet  }.count
+        let verticalOutputsCount = self.ports.filter { $0.direction() == .Vertical && $0.kind != .Outlet  }.count
+
+        let horizontalMax = max(horizontalInputsCount, horizontalOutputsCount)
+        let verticalMax = max(verticalInputsCount, verticalOutputsCount)
+        
+        let height:CGFloat = 20 + (CGFloat(horizontalMax) * 25)
+        let width:CGFloat = 20 + (CGFloat(verticalMax) * 25)
+        
+        return CGSize(width: max(width, 150), height: max(height, 60) )
+    }
 }

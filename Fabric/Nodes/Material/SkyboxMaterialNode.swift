@@ -30,6 +30,8 @@ class SkyboxMaterialNode : Node, NodeProtocol
     {
         super.init(context: context, type: .Material, name: SkyboxMaterialNode.name)
         
+        self.material.setup()
+        
         self.material.color = simd_float4(1.0, 0.0, 0.0, 1.0)
     }
     

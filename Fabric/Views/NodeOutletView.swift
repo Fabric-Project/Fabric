@@ -21,7 +21,7 @@ struct NodeOutletView: View
                 OutletData(portID: self.port.id)
                             
             )
-            .help( "\(port.name): \(port.valueType())")
+//            .help( "\(port.name): \(port.valueType())")
             .anchorPreference(
                 key: PortAnchorKey.self,
                 value: .center,

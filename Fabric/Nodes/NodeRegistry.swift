@@ -12,13 +12,16 @@ class NodeRegistry {
     let nodesClasses: [any NodeProtocol.Type] = [
          PerspectiveCameraNode.self,
          
+         LoadTextureNode.self,
          HDRTextureNode.self,
          
+         PlaneGeometryNode.self,
          BoxGeometryNode.self,
          SkyboxGeometryNode.self,
          
-         SkyboxMaterialNode.self,
          BasicColorMaterialNode.self,
+         BasicTextureMaterialNode.self,
+         SkyboxMaterialNode.self,
          DepthMaterialNode.self,
          
          MeshNode.self,

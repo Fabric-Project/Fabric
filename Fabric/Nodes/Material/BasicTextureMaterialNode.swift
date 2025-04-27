@@ -1,33 +1,38 @@
 //
-//  BasicColorMaterialNode.swift
+//  BasicTextureMaterialNode.swift
 //  Fabric
 //
-//  Created by Anton Marini on 4/26/25.
+//  Created by Anton Marini on 4/27/25.
 //
+
 
 import Foundation
 import Satin
 import simd
 import Metal
 
-class BasicColorMaterialNode : Node, NodeProtocol
+class BasicTextureMaterialNode : Node, NodeProtocol
 {
-    static let name = "Color Material"
+    static let name = "Texture Material"
     static var type = Node.NodeType.Material
 
     // Ports
+    let inputTexture = NodePort<(any MTLTexture)>(name: "Texture", kind: .Inlet)
     let inputColor = NodePort<simd_float4>(name: "Color", kind: .Inlet)
     let outputMaterial = NodePort<Material>(name: "Material", kind: .Outlet)
 
-    private let material = BasicColorMaterial()
+    private let material = BasicTextureMaterial()
     
-    override var ports: [any AnyPort] { [inputColor, outputMaterial] }
+    override var ports: [any AnyPort] { [inputTexture, inputColor, outputMaterial] }
     
     required init(context:Context)
     {
-        super.init(context: context, type: .Material, name: BasicColorMaterialNode.name)
+        super.init(context: context, type: .Material, name: BasicTextureMaterialNode.name)
         
-        self.material.color = simd_float4(1.0, 0.0, 0.0, 1.0)
+        self.material.setup()
+        self.material.flipped = true
+        self.material.color = simd_float4(1.0, 1.0, 1.0, 1.0)
+        
     }
     
     override  func evaluate(atTime:TimeInterval,
@@ -37,6 +42,11 @@ class BasicColorMaterialNode : Node, NodeProtocol
         if let color = self.inputColor.value
         {
             self.material.color = color
+        }
+        
+        if let tex = self.inputTexture.value
+        {
+            self.material.texture = tex
         }
         
 //        self.material.color = simd_float4( cosf(Float(atTime.remainder(dividingBy: 1) )  * Float.pi ) , 0.0, 0.0, 1.0)

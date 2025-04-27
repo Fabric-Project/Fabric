@@ -14,7 +14,8 @@ struct ContentView: View {
     @GestureState private var magnifyBy = 1.0
     
     @State private var finalMagnification = 1.0
-    
+
+    @State private var hitTestEnable:Bool = true
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
     @State private var inspectorVisibility:Bool = false
    
@@ -29,8 +30,6 @@ struct ContentView: View {
             
             ZStack
             {
-                Color.black.opacity(0.2)
-                
                 SatinMetalView(renderer: document.graphRenderer)
                 
                 ScrollView([.horizontal, .vertical])
@@ -38,12 +37,18 @@ struct ContentView: View {
                     NodeCanvas()
                         .frame(width: 10000 , height: 10000)
                         .environment(self.document.graph)
+                        .allowsHitTesting(self.hitTestEnable)
+
                     //                        .scaleEffect(self.magnifyBy + self.finalMagnification)
                     
                     //                        .gesture(magnification)
                     
                 }
                 .defaultScrollAnchor(UnitPoint(x: 0.5, y: 0.5))
+                .onScrollPhaseChange { oldPhase, newPhase in
+                    self.hitTestEnable = !newPhase.isScrolling
+                }
+                .scrollIndicators(.never, axes: [.horizontal, .vertical])
                 
             }
             .inspector(isPresented: self.$inspectorVisibility)

@@ -40,7 +40,7 @@ struct NodeInletView: View
             } isTargeted: {
                 isDropTargeted = $0
             }
-            .help("\(port.name): \(port.valueType())")
+//            .help("\(port.name): \(port.valueType())")
             .anchorPreference(
                 key: PortAnchorKey.self,
                 value: .center,
