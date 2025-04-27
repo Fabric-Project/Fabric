@@ -56,6 +56,7 @@ protocol AnyPort
     var node: Node? { get set }
     
     func connect(to other: any AnyPort)
+    func discconnect(from other: any AnyPort)
 
     func color() -> Color
     func backgroundColor() -> Color
@@ -97,6 +98,21 @@ protocol AnyPort
         }
     }
 
+    func discconnect(from other: any AnyPort)
+    {
+        if let other = other as? NodePort<Value>
+        {
+            self.discconnect(from: other)
+        }
+    }
+    
+    func discconnect(from other: NodePort<Value>)
+    {
+        if let index = self.connections.firstIndex(where: { $0.id == other.id } )
+        {
+            self.connections.remove(at: index)
+        }
+    }
     
     func connect(to other: NodePort<Value>)
     {
@@ -107,12 +123,21 @@ protocol AnyPort
         
         if self.kind == .Inlet && other.kind == .Outlet
         {
+            self.connections.forEach {
+                $0.discconnect(from: self)
+            }
+            
             self.connections.removeAll()
             self.connections.append(other)
+            
             other.connections.append(self)
         }
         else if self.kind == .Outlet && other.kind == .Inlet
         {
+            other.connections.forEach {
+                $0.discconnect(from: other)
+            }
+            
             other.connections.removeAll()
             other.connections.append(self)
             self.connections.append(other)
