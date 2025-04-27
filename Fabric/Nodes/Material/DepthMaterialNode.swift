@@ -11,11 +11,14 @@ import Satin
 import simd
 import Metal
 
-class DepthMaterialNode : Node
+class DepthMaterialNode : Node, NodeProtocol
 {
+    static let name = "Depth Material"
+    static var type = Node.NodeType.Material
+
     // Ports
 //    let inputColor = NodePort<simd_float4>(name: "Color", kind: .Inlet)
-    let outputMaterial = NodePort<Material>(name: "Material", kind: .Outlet)
+    let outputMaterial = NodePort<Material>(name: DepthMaterialNode.name , kind: .Outlet)
 
     private let material = DepthMaterial()
     
@@ -23,7 +26,7 @@ class DepthMaterialNode : Node
     
     required init(context:Context)
     {
-        super.init(context: context, type: .Material, name:"Depth Material")
+        super.init(context: context, type: .Material, name: DepthMaterialNode.name)
         
         self.material.near = 2
         self.material.far = 7

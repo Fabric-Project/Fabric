@@ -12,15 +12,12 @@ import UniformTypeIdentifiers
 
 struct OutletData : Codable
 {
-    let nodeID: UUID
-    let outletIndex: Int
-    
-    init(nodeID: UUID, outletIndex: Int) {
-        self.nodeID = nodeID
-        self.outletIndex = outletIndex
+    let portID: UUID
+    init(portID: UUID)
+    {
+        self.portID = portID
         
-        print("init drag source")
-
+        print("OutletData")
     }
 }
 

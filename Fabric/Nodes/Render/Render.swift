@@ -10,8 +10,11 @@ import Satin
 import simd
 import Metal
 
-class RenderNode : Node
+class RenderNode : Node, NodeProtocol
 {
+    static let name = "Scene Render"
+    static var type = Node.NodeType.Renderer
+
     // Ports
     let inputCamera = NodePort<Camera>(name: "Camera", kind: .Inlet)
     let inputScene = NodePort<Object>(name: "Scene", kind: .Inlet)
@@ -28,7 +31,7 @@ class RenderNode : Node
     required init(context:Context)
     {
         self.renderer = Renderer(context: context)
-        super.init(context: context, type: .Renderer, name:"Scene Render")
+        super.init(context: context, type: .Renderer, name: RenderNode.name)
         
 //        self.renderer.setClearColor(simd_float4(0.0, 1.0, 0.0, 1.0))
         self.renderer.setClearColor(.zero)

@@ -47,23 +47,67 @@ struct NodeCanvas : View
             .backgroundPreferenceValue(PortAnchorKey.self) { portAnchors in
                 
                 let ports = self.graph.nodes.flatMap(\.ports)
-                
-                ForEach( ports, id: \.id) { port in
+                                
+                ForEach( ports.filter({ $0.kind == .Outlet }), id: \.id) { port in
                     
-                    ForEach(port.connections, id: \.id) { connectedPort in
+                    ForEach( port.connections.filter({ $0.kind == .Inlet }), id: \.id) { connectedPort in
                         
                         if let sourceAnchor = portAnchors[port.id],
                            let destAnchor = portAnchors[connectedPort.id]
                         {
-                            let sourcePoint = geom[ sourceAnchor ]
+                            let start = geom[ sourceAnchor ]
+                            let end = geom[ destAnchor ]
 
-                            let destPoint = geom[ destAnchor ]
+                            // Min 5 stem height
+                            let stemHeight = self.clamp( abs( end.y - start.y) / 4.0 , lowerBound: 5, upperBound: 35)
+                            let stemOffset =  self.clamp( self.dist(p1: start, p2:end) / 4.0, lowerBound: 5, upperBound: 35) /*min( max(5, self.dist(p1: start, p2:end)), 40 )*/
 
-                            Path { path in
-                                path.move(to: sourcePoint)
-                                path.addLine(to: destPoint)
+                            switch port.direction()
+                            {
+                            case .Vertical:
+                                var start1:CGPoint = CGPoint(x: start.x,
+                                                             y: start.y + stemHeight)
+                                
+                                let end1:CGPoint = CGPoint(x: end.x,
+                                                           y: end.y - stemHeight)
+                                
+                                let controlOffset = max(stemHeight + stemOffset, abs(end1.y - start1.y) / 2.4)
+                                let control1 = CGPoint(x: start1.x, y: start1.y + controlOffset )
+                                let control2 = CGPoint(x: end1.x, y:end1.y - controlOffset  )
+                                
+                                Path { path in
+                                    
+                                    path.move(to: start )
+                                    path.addLine(to: start1)
+                                    
+                                    path.addCurve(to: end1, control1: control1, control2: control2)
+                                    
+                                    path.addLine(to: end)
+                                }
+                                .stroke(port.color() , lineWidth: 2)
+                                
+                            case .Horizontal:
+                                var start1:CGPoint = CGPoint(x: start.x + stemHeight,
+                                                             y: start.y)
+                                
+                                let end1:CGPoint = CGPoint(x: end.x - stemHeight,
+                                                           y: end.y)
+                                
+                                let controlOffset = max(stemHeight + stemOffset, abs(end1.y - start1.y) / 2.4)
+                                let control1 = CGPoint(x: start1.x + controlOffset, y: start1.y  )
+                                let control2 = CGPoint(x: end1.x - controlOffset, y:end1.y   )
+                                
+                                Path { path in
+                                    
+                                    path.move(to: start )
+                                    path.addLine(to: start1)
+                                    
+                                    path.addCurve(to: end1, control1: control1, control2: control2)
+                                    
+                                    path.addLine(to: end)
+                                }
+                                .stroke(port.color() , lineWidth: 2)
                             }
-                            .stroke(Color.blue, lineWidth: 2)
 
                         }
                         
@@ -80,7 +124,17 @@ struct NodeCanvas : View
 
     }
     
- 
+    private func clamp(_ x:CGFloat, lowerBound:CGFloat, upperBound:CGFloat) -> CGFloat
+    {
+        return max(min(x, upperBound), lowerBound)
+    }
+    
+    private func dist(p1:CGPoint, p2:CGPoint) -> CGFloat
+    {
+        let distance = hypot(p1.x - p2.x, p1.y - p2.y)
+        return distance
+    }
+    
     private func keys() -> Set<KeyEquivalent>
     {
 //        if self.focusedView == .canvas

@@ -9,15 +9,18 @@ import Foundation
 import simd
 import Metal
 
-class BoxGeometryNode : Node
+class BoxGeometryNode : Node, NodeProtocol
 {
+    static let name = "Box Geometry"
+    static var type = Node.NodeType.Geometery
+
     // Ports
     let inputWidth = NodePort<Float>(name: "Width", kind: .Inlet)
     let inputHeight = NodePort<Float>(name: "Height", kind: .Inlet)
     let inputDepth = NodePort<Float>(name: "Depth", kind: .Inlet)
     let inputResolution = NodePort<simd_int3>(name: "Resolution", kind: .Inlet)
     
-    let outputGeometry = NodePort<Geometry>(name: "Geometry", kind: .Outlet)
+    let outputGeometry = NodePort<Geometry>(name: BoxGeometryNode.name, kind: .Outlet)
 
     private let geometry = BoxGeometry(width: 1, height: 1, depth: 1)
     
@@ -29,7 +32,7 @@ class BoxGeometryNode : Node
 
     required init(context:Context)
     {
-        super.init(context: context, type: .Geometery, name:"Box Geometry")
+        super.init(context: context, type: .Geometery, name: BoxGeometryNode.name)
     }
     
     override func evaluate(atTime:TimeInterval,
@@ -55,9 +58,7 @@ class BoxGeometryNode : Node
         {
             self.geometry.resolution = resolution
         }
-        
-//        self.geometry.update()
-        
+                
         self.outputGeometry.send(self.geometry)
      }
 }

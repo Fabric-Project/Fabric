@@ -13,7 +13,7 @@ struct NodeInletView: View
     
     @Environment(Graph.self) var graph:Graph
 
-    let port: (any AnyPort)
+    var port: (any AnyPort)
 
     @State private var isDropTargeted = false
 
@@ -28,11 +28,19 @@ struct NodeInletView: View
             .dropDestination(for: OutletData.self) { outletData, location in
 //                return animateDrop(at: location)
                 print("drop destination \(self.port.name)")
+                                
+                if let firstOutlet = outletData.first,
+                    let outletPort = self.graph.nodePort(forID: firstOutlet.portID)
+                {
+                    
+                    self.port.connect(to: outletPort)
+                }
 //                return true
                 return self.processDrop(outletData)
             } isTargeted: {
                 isDropTargeted = $0
             }
+            .help("\(port.name): \(port.valueType())")
             .anchorPreference(
                 key: PortAnchorKey.self,
                 value: .center,

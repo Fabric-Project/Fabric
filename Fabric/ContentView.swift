@@ -15,23 +15,40 @@ struct ContentView: View {
     
     @State private var finalMagnification = 1.0
     
-//    @State private var position = ScrollPosition( anchor: UnitPoint(x: 0.5, y: 0.5))
-//    @State private var position = ScrollPosition( anchor: UnitPoint(x: 0.5, y: 0.5))
+    @State private var columnVisibility = NavigationSplitViewVisibility.detailOnly
 
-    
-//    var magnification: some Gesture {
-//        MagnifyGesture()
-//            .updating($magnifyBy) { value, gestureState, transaction in
-//                gestureState = value.magnification
-//            }
-//            .onEnded { value in
-//                self.finalMagnification = value.magnification
-//            }
-//    }
    
     var body: some View {
 //        TextEditor(text: $document.text)
         
+        NavigationSplitView(columnVisibility: self.$columnVisibility)
+        {
+            List {
+                ForEach(Node.NodeType.allCases, id: \.self) { nodeType in
+                        
+                    Section(header: Text("\(nodeType)")) {
+                        
+                        let nodesForType = NodeRegistry.shared.nodesClasses.filter( { $0.type == nodeType })
+                        
+                        ForEach( 0 ..< nodesForType.count, id:\.self ) { idx in
+                            
+                            let nodeType = nodesForType[idx]
+                            
+                            Text(nodeType.name)
+                                .font( .system(size: 11) )
+                                .onTapGesture {
+                                    self.document.graph.addNodeType(nodeType) 
+                                }
+                        }
+                        
+                    }
+                    
+                }
+            }
+            
+        }
+        detail: {
+            
             ZStack
             {
                 Color.black.opacity(0.2)
@@ -43,16 +60,13 @@ struct ContentView: View {
                     NodeCanvas()
                         .frame(width: 10000 , height: 10000)
                         .environment(self.document.graph)
-//                        .scaleEffect(self.magnifyBy + self.finalMagnification)
+                    //                        .scaleEffect(self.magnifyBy + self.finalMagnification)
                     
-//                        .gesture(magnification)
+                    //                        .gesture(magnification)
                     
                 }
                 .defaultScrollAnchor(UnitPoint(x: 0.5, y: 0.5))
-
-                
-                
-            
+            }
         }
     }
 }

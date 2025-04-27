@@ -10,14 +10,17 @@ import Satin
 import simd
 import Metal
 
-class MeshNode : Node
+class MeshNode : Node, NodeProtocol
 {
+    static let name = "Mesh"
+    static var type = Node.NodeType.Mesh
+
     // Ports
     let inputGeometry = NodePort<Geometry>(name: "geometry", kind: .Inlet)
     let inputMaterial = NodePort<Material>(name: "Material", kind: .Inlet)
     let inputOrientation = NodePort<simd_quatf>(name: "Orientation", kind: .Inlet)
 
-    let outputMesh = NodePort<Object>(name: "Mesh", kind: .Outlet)
+    let outputMesh = NodePort<Object>(name: MeshNode.name, kind: .Outlet)
     
     private var mesh: Mesh? = nil
     
@@ -29,7 +32,7 @@ class MeshNode : Node
     
     required init(context:Context)
     {
-        super.init(context: context, type: .Mesh, name:"Mesh")
+        super.init(context: context, type: .Mesh, name: MeshNode.name)
     }
     
     override func evaluate(atTime:TimeInterval,
@@ -49,7 +52,6 @@ class MeshNode : Node
             else
             {
                 self.mesh = Mesh(geometry: geometery, material: material)
-                
             }
             
             if let mesh = mesh

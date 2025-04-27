@@ -66,6 +66,15 @@ import Satin
     //    }
     //
     //
+    
+    func addNodeType(_ nodeType: any NodeProtocol.Type )
+    {
+        if let node = nodeType.init(context: self.context) as? Node
+        {
+            self.addNode(node)
+        }
+    }
+    
     func addNode(_ node:Node)
     {
         print("Add Node", node.name)
@@ -77,6 +86,18 @@ import Satin
         self.nodes.append(node)
         
         //        self.autoConnect(node: node)
+    }
+    
+    func node(forID:UUID) -> Node?
+    {
+        return self.nodes.first(where: { $0.id == forID })
+    }
+    
+    func nodePort(forID:UUID) -> (any AnyPort)?
+    {
+        let allPorts = self.nodes.flatMap(\.ports)
+        
+        return allPorts.first(where: { $0.id == forID })
     }
 }
 //

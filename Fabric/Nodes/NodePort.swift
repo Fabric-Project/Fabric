@@ -47,7 +47,7 @@ struct PortAnchorKey: PreferenceKey
     }
 }
 
-protocol AnyPort: Identifiable
+protocol AnyPort
 {
     var id: UUID { get }
     var name: String { get }
@@ -55,11 +55,14 @@ protocol AnyPort: Identifiable
     var kind:PortKind { get }
     var node: Node? { get set }
     
+    func connect(to other: any AnyPort)
+
     func color() -> Color
     func direction() -> PortDirection
+    func valueType() -> String
 }
 
-@Observable final class NodePort<Value>: AnyPort,  Hashable, Equatable
+@Observable final class NodePort<Value>: AnyPort, Identifiable, Hashable, Equatable
 {
     public static func == (lhs: NodePort, rhs: NodePort) -> Bool
     {
@@ -84,6 +87,15 @@ protocol AnyPort: Identifiable
         self.kind = kind
         self.name = name
     }
+    
+    func connect(to other: any AnyPort)
+    {
+        if let other = other as? NodePort<Value>
+        {
+            self.connect(to: other)
+        }
+    }
+
     
     func connect(to other: NodePort<Value>)
     {
@@ -173,5 +185,10 @@ protocol AnyPort: Identifiable
         }
         
         return .Horizontal
+    }
+    
+    func valueType() -> String
+    {
+        return "\(type(of: self.value))"
     }
 }

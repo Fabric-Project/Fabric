@@ -18,6 +18,11 @@ protocol NodeDelegate : AnyObject
 
 protocol NodeProtocol
 {
+    init(context:Context)
+    
+    static var name:String { get }
+    static var type:Node.NodeType { get }
+    
     var ports: [any AnyPort] { get }
     func evaluate(atTime:TimeInterval,
                   renderPassDescriptor: MTLRenderPassDescriptor,
@@ -29,9 +34,9 @@ protocol NodeProtocol
 
 }
 
-@Observable class Node: NodeProtocol, Equatable, Identifiable, Hashable
+@Observable class Node: Equatable, Identifiable, Hashable
 {
-    enum NodeType
+    enum NodeType : CaseIterable
     {
         case Texture // Rendered output of a Renderer
         case Renderer // Renders a scene graph
@@ -41,6 +46,9 @@ protocol NodeProtocol
         case Geometery
         case Material
         case Shader
+        
+        
+        case Parameter
     }
     
     

@@ -59,12 +59,21 @@ struct NodeView : View
                 VStack(alignment: .leading, spacing: 10) {
                     Spacer(minLength: 0)
                     ForEach(self.node.ports.filter({$0.kind == .Inlet && $0.direction() == .Horizontal}), id: \.id) { port in
-                        NodeOutletView(port: port)
+                        NodeInletView(port: port)
                     }
                     Spacer(minLength: 0)
                 }
                 .frame(width: Node.nodeSize.width + NodeInletView.radius, height: Node.nodeSize.height , alignment: .leading)
                 
+                
+                VStack(alignment: .trailing, spacing: 10) {
+                    Spacer(minLength: 0)
+                    ForEach(self.node.ports.filter({$0.kind == .Outlet && $0.direction() == .Horizontal}), id: \.id) { port in
+                        NodeOutletView(port: port)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .frame(width: Node.nodeSize.width + NodeInletView.radius, height: Node.nodeSize.height , alignment: .trailing)
                 
                 
             }
