@@ -25,8 +25,9 @@ struct NodeView : View
             // Param List
             ZStack
             {
-                Color( (self.node.isSelected) ? "NodeBackgroundColorSelected" : "NodeBackgroundColor")
-                
+//                Color( (self.node.isSelected) ? "NodeBackgroundColorSelected" : "NodeBackgroundColor")
+                Color( (self.node.isSelected) ? self.node.type.backgroundColor() : self.node.type.backgroundColor().opacity(0.5) )
+
                 VStack
                 {
                     // Name
@@ -43,8 +44,8 @@ struct NodeView : View
                     }
                     Spacer(minLength: 0)
                 }
-                .frame(width: Node.nodeSize.width, height: Node.nodeSize.height + NodeInletView.radius, alignment: .top)
-//                
+                .frame(width: self.node.nodeSize.width, height: self.node.nodeSize.height + NodeInletView.radius, alignment: .top)
+//
                 HStack(alignment: .bottom, spacing: 10) {
                     Spacer(minLength: 0)
                     ForEach(self.node.ports.filter({$0.kind == .Outlet && $0.direction() == .Vertical}), id: \.id) { port in
@@ -52,7 +53,7 @@ struct NodeView : View
                     }
                     Spacer(minLength: 0)
                 }
-                .frame(width: Node.nodeSize.width, height: Node.nodeSize.height + NodeInletView.radius, alignment: .bottom)
+                .frame(width: self.node.nodeSize.width, height: self.node.nodeSize.height + NodeInletView.radius, alignment: .bottom)
                 
                 
                 
@@ -63,7 +64,7 @@ struct NodeView : View
                     }
                     Spacer(minLength: 0)
                 }
-                .frame(width: Node.nodeSize.width + NodeInletView.radius, height: Node.nodeSize.height , alignment: .leading)
+                .frame(width: self.node.nodeSize.width + NodeInletView.radius, height: self.node.nodeSize.height , alignment: .leading)
                 
                 
                 VStack(alignment: .trailing, spacing: 10) {
@@ -73,15 +74,15 @@ struct NodeView : View
                     }
                     Spacer(minLength: 0)
                 }
-                .frame(width: Node.nodeSize.width + NodeInletView.radius, height: Node.nodeSize.height , alignment: .trailing)
+                .frame(width: self.node.nodeSize.width + NodeInletView.radius, height: self.node.nodeSize.height , alignment: .trailing)
                 
                 
             }
-            .frame(width: Node.nodeSize.width, height: Node.nodeSize.height)
+            .frame(width: self.node.nodeSize.width, height: self.node.nodeSize.height)
             .cornerRadius(15.0)
             .overlay {
                 RoundedRectangle(cornerRadius: 15.0)
-                    .stroke( (self.node.isSelected) ? .orange : .gray, lineWidth: 1.0)
+                    .stroke( (self.node.isSelected) ? self.node.type.color() : .gray, lineWidth: 1.0)
                 
             }
             .offset( self.node.isDragging ?  CGSize(

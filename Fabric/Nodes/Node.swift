@@ -36,7 +36,7 @@ protocol NodeProtocol
 
 @Observable class Node: Equatable, Identifiable, Hashable
 {
-    enum NodeType : CaseIterable
+    enum NodeType : String, CaseIterable
     {
         case Texture // Rendered output of a Renderer
         case Renderer // Renders a scene graph
@@ -49,10 +49,68 @@ protocol NodeProtocol
         
         
         case Parameter
+        
+        func color() -> Color
+        {
+            switch self
+            {
+            case .Texture:
+                return Color.nodeTexture
+
+            case .Geometery:
+                return Color.nodeGeometry
+
+            case .Camera:
+                return Color.nodeCamera
+
+            case .Material:
+                return Color.nodeMaterial
+
+            case .Mesh:
+                return Color.nodeMesh
+                
+            case .Renderer:
+                return Color.nodeRender
+
+            case .Shader:
+                return Color.nodeShader
+                
+            case .Object:
+                return Color.nodeObject
+                
+            case .Parameter:
+                return Color.gray
+            }
+        }
+        
+        func backgroundColor() -> Color
+        {
+            return self.color().opacity(0.4)
+        }
     }
     
     
-    static let nodeSize = CGSizeMake(150, 100)
+    var nodeSize:CGSize {
+        
+        get {
+            
+            let horizontalInputsCount = self.ports.filter { $0.direction() == .Horizontal && $0.kind != .Inlet  }.count
+            let horizontalOutputsCount = self.ports.filter { $0.direction() == .Horizontal && $0.kind != .Outlet  }.count
+
+            let verticalInputsCount = self.ports.filter { $0.direction() == .Vertical && $0.kind != .Inlet  }.count
+            let verticalOutputsCount = self.ports.filter { $0.direction() == .Vertical && $0.kind != .Outlet  }.count
+
+            let horizontalMax = max(horizontalInputsCount, horizontalOutputsCount)
+            let verticalMax = max(verticalInputsCount, verticalOutputsCount)
+            
+            let height:CGFloat = 20 + (CGFloat(horizontalMax) * 25)
+            let width:CGFloat = 20 + (CGFloat(verticalMax) * 25)
+            
+            return CGSize(width: max(width, 150), height: max(height, 60) )
+            
+//            CGSizeMake(150, 100)
+        }
+    }
     
     let id = UUID()
     let type:NodeType
@@ -120,8 +178,7 @@ protocol NodeProtocol
     {
         return lhs.id == rhs.id
     }
-          
-    
+             
     public func evaluate(atTime:TimeInterval,
                          renderPassDescriptor: MTLRenderPassDescriptor,
                          commandBuffer: MTLCommandBuffer)

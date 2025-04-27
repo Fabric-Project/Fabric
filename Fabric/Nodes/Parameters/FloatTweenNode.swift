@@ -41,7 +41,7 @@ class FloatTweenNode : Node, NodeProtocol
 //
 //        self.material.color = simd_float4( cosf(Float( atTime.remainder(dividingBy: 1) )  * Float.pi ) , 0.0, 0.0, 1.0)
 
-        let val = easeOutElastic( Float(( atTime / 10.0 ) .remainder(dividingBy: 1)) )
+        let val = easeOutElastic( Float(( atTime / 10.0 ) .truncatingRemainder(dividingBy: 1)) )
         print(val)
         self.outputNumber.send( val )
      }

@@ -28,26 +28,26 @@ struct FabricDocument: FileDocument {
         self.graph = Graph(context: self.context)
         self.graphRenderer = GraphExecutionEngine(context: self.context, graph: self.graph)
 
-//        let boxNode = BoxGeometryNode(context: self.context)
-////        let materialNode = BasicColorMaterialNode(context: self.context)
-//        let materialNode = DepthMaterialNode(context: self.context)
-//
-//        let meshNode = MeshNode(context: self.context)
-//        let cameraNode = PerspectiveCameraNode(context: self.context)
-//
-//        let renderNode = RenderNode(context: self.context)
-//        
-//        materialNode.outputMaterial.connect(to: meshNode.inputMaterial)
-//        boxNode.outputGeometry.connect(to: meshNode.inputGeometry)
-//
-//        meshNode.outputMesh.connect(to: renderNode.inputScene)
-//        cameraNode.outputCamera.connect(to: renderNode.inputCamera)
-//
-//        self.graph.addNode(boxNode)
-//        self.graph.addNode(materialNode)
-//        self.graph.addNode(meshNode)
-//        self.graph.addNode(cameraNode)
-//        self.graph.addNode(renderNode)
+        let boxNode = BoxGeometryNode(context: self.context)
+//        let materialNode = BasicColorMaterialNode(context: self.context)
+        let materialNode = DepthMaterialNode(context: self.context)
+
+        let meshNode = MeshNode(context: self.context)
+        let cameraNode = PerspectiveCameraNode(context: self.context)
+
+        let renderNode = RenderNode(context: self.context)
+        
+        materialNode.outputMaterial.connect(to: meshNode.inputMaterial)
+        boxNode.outputGeometry.connect(to: meshNode.inputGeometry)
+
+        meshNode.outputMesh.connect(to: renderNode.inputScene)
+        cameraNode.outputCamera.connect(to: renderNode.inputCamera)
+
+        self.graph.addNode(boxNode)
+        self.graph.addNode(materialNode)
+        self.graph.addNode(meshNode)
+        self.graph.addNode(cameraNode)
+        self.graph.addNode(renderNode)
     }
 
     static var readableContentTypes: [UTType] { [.exampleText] }

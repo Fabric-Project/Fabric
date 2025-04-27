@@ -84,7 +84,7 @@ struct NodeCanvas : View
                                     
                                     path.addLine(to: end)
                                 }
-                                .stroke(port.color() , lineWidth: 2)
+                                .stroke(port.backgroundColor() , lineWidth: 2)
                                 
                             case .Horizontal:
                                 var start1:CGPoint = CGPoint(x: start.x + stemHeight,

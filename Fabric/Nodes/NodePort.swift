@@ -58,6 +58,7 @@ protocol AnyPort
     func connect(to other: any AnyPort)
 
     func color() -> Color
+    func backgroundColor() -> Color
     func direction() -> PortDirection
     func valueType() -> String
 }
@@ -161,6 +162,12 @@ protocol AnyPort
         
         return Color.gray
     }
+    
+    func backgroundColor() -> Color
+    {
+        return self.color().opacity(0.7)
+    }
+   
     
     func direction() -> PortDirection {
         
