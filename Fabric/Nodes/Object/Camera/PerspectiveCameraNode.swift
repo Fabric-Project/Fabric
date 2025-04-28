@@ -12,7 +12,7 @@ import Metal
 
 class PerspectiveCameraNode : Node, NodeProtocol
 {
-    static var type = Node.NodeType.Camera
+    static var nodeType = Node.NodeType.Camera
     
     static let name = "Perspective Camera"
     
@@ -25,11 +25,8 @@ class PerspectiveCameraNode : Node, NodeProtocol
     
     required init(context:Context)
     {
-        super.init(context: context,
-                   type: PerspectiveCameraNode.type,
-                   name: PerspectiveCameraNode.name)
+        super.init(context: context)
         
-        //        self.camera.position = simd_float3(0, 0, 5)
         self.camera.lookAt(target: simd_float3(repeating: 0))
     }
     

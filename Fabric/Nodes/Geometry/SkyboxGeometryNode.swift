@@ -13,7 +13,7 @@ import Metal
 class SkyboxGeometryNode : Node, NodeProtocol
 {
     static let name = "Skybox Geometry"
-    static var type = Node.NodeType.Geometery
+    static var nodeType = Node.NodeType.Geometery
 
     // Ports
     
@@ -25,7 +25,7 @@ class SkyboxGeometryNode : Node, NodeProtocol
 
     required init(context:Context)
     {
-        super.init(context: context, type: .Geometery, name: SkyboxGeometryNode.name)
+        super.init(context: context)
         
         self.geometry.setup()
     }

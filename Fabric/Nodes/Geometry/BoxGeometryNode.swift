@@ -12,7 +12,7 @@ import Metal
 class BoxGeometryNode : Node, NodeProtocol
 {
     static let name = "Box Geometry"
-    static var type = Node.NodeType.Geometery
+    static var nodeType = Node.NodeType.Geometery
 
     // Ports
     let inputWidth = NodePort<Float>(name: "Width", kind: .Inlet)
@@ -29,11 +29,8 @@ class BoxGeometryNode : Node, NodeProtocol
                                inputDepth,
                                inputResolution,
                                outputGeometry] }
-
-    required init(context:Context)
-    {
-        super.init(context: context, type: .Geometery, name: BoxGeometryNode.name)
-    }
+    
+  
     
     override func evaluate(atTime:TimeInterval,
                            renderPassDescriptor: MTLRenderPassDescriptor,

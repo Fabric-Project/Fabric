@@ -21,8 +21,9 @@ protocol NodeProtocol
     init(context:Context)
     
     static var name:String { get }
-    static var type:Node.NodeType { get }
-    
+    static var nodeType:Node.NodeType { get }
+    var nodeType:Node.NodeType { get }
+
     var ports: [any AnyPort] { get }
     func evaluate(atTime:TimeInterval,
                   renderPassDescriptor: MTLRenderPassDescriptor,
@@ -42,11 +43,11 @@ protocol NodeProtocol
         case Renderer // Renders a scene graph
         case Object // Scene graph, owns transforms
         case Camera // Scene graph object
+        case Light // Scene graph object
         case Mesh // Scene graph object
         case Geometery
         case Material
         case Shader
-        
         
         case Parameter
         
@@ -62,6 +63,9 @@ protocol NodeProtocol
 
             case .Camera:
                 return Color.nodeCamera
+                
+            case .Light:
+                return Color.nodeObject
 
             case .Material:
                 return Color.nodeMaterial
@@ -79,24 +83,22 @@ protocol NodeProtocol
                 return Color.nodeObject
                 
             case .Parameter:
-                return Color.gray
+                return Color(hue: 0, saturation: 0, brightness: 0.3)
             }
         }
         
         func backgroundColor() -> Color
         {
-            return self.color().opacity(0.4)
+            return self.color().opacity(0.6)
         }
     }
     
     
-     var nodeSize:CGSize = CGSizeMake(150, 100)
-    
     let id = UUID()
-    let type:NodeType
-    let name:String
     var ports:[any AnyPort] { [ ] }
     
+    var nodeSize:CGSize = CGSizeMake(150, 100)
+
     @ObservationIgnored var context:Context
     
     @ObservationIgnored weak var delegate:(any NodeDelegate)? = nil
@@ -109,7 +111,17 @@ protocol NodeProtocol
     var isSelected:Bool = false
     var isDragging:Bool = false
     var showParams:Bool = false
-    var parameterGroup:ParameterGroup
+    //    var parameterGroup:ParameterGroup
+
+    public var nodeType:NodeType {
+        let myType = type(of: self) as! (any NodeProtocol.Type)
+        return  myType.nodeType
+    }
+    
+    var name : String {
+        let myType = type(of: self) as! (any NodeProtocol.Type)
+        return  myType.name
+    }
     
     var offset: CGSize = .zero
     {
@@ -128,17 +140,13 @@ protocol NodeProtocol
                 delegate.didUpdate(node: self)
             }
         }
-    }    
+    }
     
-    init (context:Context,
-          type: NodeType,
-          name:String,
-          parameterGroup:ParameterGroup = ParameterGroup() )
+    
+    required init (context:Context)
     {
         self.context = context
-        self.type = type
-        self.name = name
-        self.parameterGroup = parameterGroup
+       
         
         for var port in self.ports
         {
@@ -146,7 +154,11 @@ protocol NodeProtocol
         }
         
         self.nodeSize = self.computeNodeSize()
+        
+        
     }
+    
+    
     
     deinit
     {
@@ -172,11 +184,11 @@ protocol NodeProtocol
    
     private func computeNodeSize() -> CGSize
     {
-        let horizontalInputsCount = self.ports.filter { $0.direction() == .Horizontal && $0.kind != .Inlet  }.count
-        let horizontalOutputsCount = self.ports.filter { $0.direction() == .Horizontal && $0.kind != .Outlet  }.count
+        let horizontalInputsCount = self.ports.filter { $0.direction == .Horizontal && $0.kind != .Inlet  }.count
+        let horizontalOutputsCount = self.ports.filter { $0.direction == .Horizontal && $0.kind != .Outlet  }.count
 
-        let verticalInputsCount = self.ports.filter { $0.direction() == .Vertical && $0.kind != .Inlet  }.count
-        let verticalOutputsCount = self.ports.filter { $0.direction() == .Vertical && $0.kind != .Outlet  }.count
+        let verticalInputsCount = self.ports.filter { $0.direction == .Vertical && $0.kind != .Inlet  }.count
+        let verticalOutputsCount = self.ports.filter { $0.direction == .Vertical && $0.kind != .Outlet  }.count
 
         let horizontalMax = max(horizontalInputsCount, horizontalOutputsCount)
         let verticalMax = max(verticalInputsCount, verticalOutputsCount)

@@ -13,7 +13,7 @@ import Metal
 class PlaneGeometryNode : Node, NodeProtocol
 {
     static let name = "Plane Geometry"
-    static var type = Node.NodeType.Geometery
+    static var nodeType = Node.NodeType.Geometery
 
     // Ports
     let inputWidth = NodePort<Float>(name: "Width", kind: .Inlet)
@@ -29,10 +29,7 @@ class PlaneGeometryNode : Node, NodeProtocol
                                inputResolution,
                                outputGeometry] }
 
-    required init(context:Context)
-    {
-        super.init(context: context, type: .Geometery, name: PlaneGeometryNode.name)
-    }
+   
     
     override func evaluate(atTime:TimeInterval,
                            renderPassDescriptor: MTLRenderPassDescriptor,

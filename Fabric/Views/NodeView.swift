@@ -22,11 +22,13 @@ struct NodeView : View
     {
         GeometryReader { geom in
             
+            let nodeClass = self.node 
+            
             // Param List
             ZStack
             {
 //                Color( (self.node.isSelected) ? "NodeBackgroundColorSelected" : "NodeBackgroundColor")
-                Color( (self.node.isSelected) ? self.node.type.backgroundColor() : self.node.type.backgroundColor().opacity(0.5) )
+                Color( (self.node.isSelected) ? self.node.nodeType.backgroundColor() : self.node.nodeType.backgroundColor().opacity(0.5) )
 
                 VStack
                 {
@@ -39,7 +41,7 @@ struct NodeView : View
                 
                 HStack(alignment: .top, spacing: 10) {
                     Spacer(minLength: 0)
-                    ForEach(self.node.ports.filter({$0.kind == .Inlet && $0.direction() == .Vertical}), id: \.id) { port in
+                    ForEach(self.node.ports.filter({$0.kind == .Inlet && $0.direction == .Vertical}), id: \.id) { port in
                         NodeInletView(port: port)
                     }
                     Spacer(minLength: 0)
@@ -48,7 +50,7 @@ struct NodeView : View
 //
                 HStack(alignment: .bottom, spacing: 10) {
                     Spacer(minLength: 0)
-                    ForEach(self.node.ports.filter({$0.kind == .Outlet && $0.direction() == .Vertical}), id: \.id) { port in
+                    ForEach(self.node.ports.filter({$0.kind == .Outlet && $0.direction == .Vertical}), id: \.id) { port in
                         NodeOutletView(port: port)
                     }
                     Spacer(minLength: 0)
@@ -59,7 +61,7 @@ struct NodeView : View
                 
                 VStack(alignment: .leading, spacing: 10) {
                     Spacer(minLength: 0)
-                    ForEach(self.node.ports.filter({$0.kind == .Inlet && $0.direction() == .Horizontal}), id: \.id) { port in
+                    ForEach(self.node.ports.filter({$0.kind == .Inlet && $0.direction == .Horizontal}), id: \.id) { port in
                         NodeInletView(port: port)
                     }
                     Spacer(minLength: 0)
@@ -69,7 +71,7 @@ struct NodeView : View
                 
                 VStack(alignment: .trailing, spacing: 10) {
                     Spacer(minLength: 0)
-                    ForEach(self.node.ports.filter({$0.kind == .Outlet && $0.direction() == .Horizontal}), id: \.id) { port in
+                    ForEach(self.node.ports.filter({$0.kind == .Outlet && $0.direction == .Horizontal}), id: \.id) { port in
                         NodeOutletView(port: port)
                     }
                     Spacer(minLength: 0)
@@ -82,7 +84,7 @@ struct NodeView : View
             .cornerRadius(15.0)
             .overlay {
                 RoundedRectangle(cornerRadius: 15.0)
-                    .stroke( (self.node.isSelected) ? self.node.type.color() : .gray, lineWidth: 1.0)
+                    .stroke( (self.node.isSelected) ? self.node.nodeType.color() : .gray, lineWidth: 1.0)
                 
             }
             .offset( self.node.isDragging ?  CGSize(

@@ -15,7 +15,7 @@ import ImageIO
 class LoadTextureNode : Node, NodeProtocol
 {
     static let name = "Texture Loader"
-    static var type = Node.NodeType.Texture
+    static var nodeType = Node.NodeType.Texture
 
     // Ports
     let inputURL = NodePort<URL>(name: "File URL", kind: .Inlet)
@@ -28,7 +28,7 @@ class LoadTextureNode : Node, NodeProtocol
     
     required init(context:Context)
     {
-        super.init(context: context, type: .Texture, name: LoadTextureNode.name)
+        super.init(context: context)
         
         self.texture = self.loadTexture(device: self.context.device, url: URL(fileURLWithPath: "/Users/vade/Downloads/Contract-Card-09.png") )
 

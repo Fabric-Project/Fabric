@@ -11,10 +11,10 @@ import Satin
 import simd
 import Metal
 
-class DepthMaterialNode : Node, NodeProtocol
+class DepthMaterialNode : BaseMaterialNode, NodeProtocol
 {
     static let name = "Depth Material"
-    static var type = Node.NodeType.Material
+    static var nodeType = Node.NodeType.Material
 
     // Ports
 //    let inputColor = NodePort<simd_float4>(name: "Color", kind: .Inlet)
@@ -22,11 +22,11 @@ class DepthMaterialNode : Node, NodeProtocol
 
     private let material = DepthMaterial()
     
-    override var ports: [any AnyPort] { [outputMaterial] }
+    override var ports: [any AnyPort] {  super.ports + [outputMaterial] }
     
     required init(context:Context)
     {
-        super.init(context: context, type: .Material, name: DepthMaterialNode.name)
+        super.init(context: context)
         
         self.material.near = 2
         self.material.far = 7
@@ -38,6 +38,8 @@ class DepthMaterialNode : Node, NodeProtocol
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)
     {
+        self.evaluate(material: self.material, atTime: atTime)
+
 //        if let color = self.inputColor.value
 //        {
 //            self.material.color = color

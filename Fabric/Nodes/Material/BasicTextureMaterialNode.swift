@@ -11,10 +11,10 @@ import Satin
 import simd
 import Metal
 
-class BasicTextureMaterialNode : Node, NodeProtocol
+class BasicTextureMaterialNode : BaseMaterialNode, NodeProtocol
 {
     static let name = "Texture Material"
-    static var type = Node.NodeType.Material
+    static var nodeType = Node.NodeType.Material
 
     // Ports
     let inputTexture = NodePort<(any MTLTexture)>(name: "Texture", kind: .Inlet)
@@ -23,11 +23,11 @@ class BasicTextureMaterialNode : Node, NodeProtocol
 
     private let material = BasicTextureMaterial()
     
-    override var ports: [any AnyPort] { [inputTexture, inputColor, outputMaterial] }
+    override var ports: [any AnyPort] {  super.ports + [inputTexture, inputColor, outputMaterial] }
     
     required init(context:Context)
     {
-        super.init(context: context, type: .Material, name: BasicTextureMaterialNode.name)
+        super.init(context: context)
         
         self.material.setup()
         self.material.flipped = true
@@ -39,6 +39,8 @@ class BasicTextureMaterialNode : Node, NodeProtocol
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)
     {
+        self.evaluate(material: self.material, atTime: atTime)
+
         if let color = self.inputColor.value
         {
             self.material.color = color

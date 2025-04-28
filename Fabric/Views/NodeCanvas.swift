@@ -62,7 +62,7 @@ struct NodeCanvas : View
                             let stemHeight = self.clamp( abs( end.y - start.y) / 4.0 , lowerBound: 5, upperBound: 35)
                             let stemOffset =  self.clamp( self.dist(p1: start, p2:end) / 4.0, lowerBound: 5, upperBound: 35) /*min( max(5, self.dist(p1: start, p2:end)), 40 )*/
 
-                            switch port.direction()
+                            switch port.direction
                             {
                             case .Vertical:
                                 var start1:CGPoint = CGPoint(x: start.x,
@@ -84,7 +84,7 @@ struct NodeCanvas : View
                                     
                                     path.addLine(to: end)
                                 }
-                                .stroke(port.backgroundColor() , lineWidth: 2)
+                                .stroke(port.backgroundColor , lineWidth: 2)
                                 
                             case .Horizontal:
                                 var start1:CGPoint = CGPoint(x: start.x + stemHeight,
@@ -106,7 +106,7 @@ struct NodeCanvas : View
                                     
                                     path.addLine(to: end)
                                 }
-                                .stroke(port.color() , lineWidth: 2)
+                                .stroke(port.backgroundColor , lineWidth: 2)
                             }
 
                         }

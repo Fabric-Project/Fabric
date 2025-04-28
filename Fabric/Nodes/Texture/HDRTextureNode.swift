@@ -13,7 +13,7 @@ import Metal
 class HDRTextureNode : Node, NodeProtocol
 {
     static let name = "HDR Texture"
-    static var type = Node.NodeType.Texture
+    static var nodeType = Node.NodeType.Texture
 
     // Ports
     let inputURL = NodePort<URL>(name: "File URL", kind: .Inlet)
@@ -26,7 +26,7 @@ class HDRTextureNode : Node, NodeProtocol
     
     required init(context:Context)
     {
-        super.init(context: context, type: .Texture, name: HDRTextureNode.name)
+        super.init(context: context)
         
         self.texture = loadHDR(device: context.device, url: URL(fileURLWithPath: "/Users/vade/Library/Developer/Xcode/DerivedData/Fabric-dnhnuqgtaddjmfddawsitzbzeuqr/SourcePackages/checkouts/Satin/Example/Assets/Shared/Textures/brown_photostudio_02_2k.hdr") )
 

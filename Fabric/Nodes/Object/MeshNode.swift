@@ -13,27 +13,24 @@ import Metal
 class MeshNode : Node, NodeProtocol
 {
     static let name = "Mesh"
-    static var type = Node.NodeType.Mesh
+    static var nodeType = Node.NodeType.Mesh
 
     // Ports
-    let inputGeometry = NodePort<Geometry>(name: "geometry", kind: .Inlet)
+    let inputGeometry = NodePort<Geometry>(name: "Geometry", kind: .Inlet)
     let inputMaterial = NodePort<Material>(name: "Material", kind: .Inlet)
+    let inputPosition = NodePort<simd_float3>(name: "Position", kind: .Inlet)
     let inputOrientation = NodePort<simd_quatf>(name: "Orientation", kind: .Inlet)
 
     let outputMesh = NodePort<Object>(name: MeshNode.name, kind: .Outlet)
     
     private var mesh: Mesh? = nil
     
-    override var ports: [any AnyPort] { [inputGeometry,
+    override var ports: [any AnyPort] { super.ports +  [inputGeometry,
                                          inputMaterial,
+                                         inputPosition,
                                          inputOrientation,
                                          outputMesh] }
     
-    
-    required init(context:Context)
-    {
-        super.init(context: context, type: .Mesh, name: MeshNode.name)
-    }
     
     override func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,
@@ -59,9 +56,15 @@ class MeshNode : Node, NodeProtocol
                 let angle = cosf( Float( (atTime * 0.01).remainder(dividingBy: 1) ) * Float.pi * 4 )
                 mesh.orientation = simd_quatf(angle:angle, axis:simd_make_float3(0.2, 1, -0.3))
 
+                
+                if let v = self.inputPosition.value
+                {
+                    mesh.position = v
+                }
+                
+                
                 self.outputMesh.send(mesh)
             }
-
         }
      }
 }

@@ -21,13 +21,22 @@ class NodeRegistry {
          
          BasicColorMaterialNode.self,
          BasicTextureMaterialNode.self,
+         BasicDiffuseMaterialNode.self,
          SkyboxMaterialNode.self,
          DepthMaterialNode.self,
          
+         DirectionalLightNode.self,
+         
          MeshNode.self,
+         SceneBuilderNode.self,
          RenderNode.self,
          
+         TrueNode.self,
+         FalseNode.self ,
+         
          FloatTweenNode.self,
-         RGBAColorNode.self
+
+         MakeVector4Node.self,
+         MakeVector3Node.self,
     ]
 }

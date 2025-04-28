@@ -21,7 +21,7 @@ struct NodeInletView: View
     var body: some View
     {
         Circle()
-            .fill( port.color() )
+            .fill( port.color )
             .frame(width: 15)
 //            .padding(.leading, 20)
 //            .position(node.localInletPositions[index])
@@ -40,7 +40,7 @@ struct NodeInletView: View
             } isTargeted: {
                 isDropTargeted = $0
             }
-//            .help("\(port.name): \(port.valueType())")
+            .help("\(port.name): \(port.valueType())")
             .anchorPreference(
                 key: PortAnchorKey.self,
                 value: .center,

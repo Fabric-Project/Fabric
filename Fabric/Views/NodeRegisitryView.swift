@@ -21,7 +21,7 @@ struct NodeRegisitryView: View {
                 
                 Section(header: Text("\(nodeType)")) {
                     
-                    let nodesForType = NodeRegistry.shared.nodesClasses.filter( { $0.type == nodeType })
+                    let nodesForType = NodeRegistry.shared.nodesClasses.filter( { $0.nodeType == nodeType })
                     let filteredNodes = self.searchString.isEmpty ? nodesForType :
                     nodesForType.filter {  $0.name.localizedCaseInsensitiveContains(self.searchString) }
                     

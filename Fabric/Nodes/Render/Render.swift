@@ -13,7 +13,7 @@ import Metal
 class RenderNode : Node, NodeProtocol
 {
     static let name = "Scene Render"
-    static var type = Node.NodeType.Renderer
+    static var nodeType = Node.NodeType.Renderer
 
     // Ports
     let inputCamera = NodePort<Camera>(name: "Camera", kind: .Inlet)
@@ -31,7 +31,7 @@ class RenderNode : Node, NodeProtocol
     required init(context:Context)
     {
         self.renderer = Renderer(context: context)
-        super.init(context: context, type: .Renderer, name: RenderNode.name)
+        super.init(context: context)
         
 //        self.renderer.setClearColor(simd_float4(0.0, 1.0, 0.0, 1.0))
         self.renderer.setClearColor(.zero)

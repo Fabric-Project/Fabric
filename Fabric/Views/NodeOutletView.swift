@@ -14,14 +14,14 @@ struct NodeOutletView: View
     var body: some View 
     {
         Circle()
-            .fill(port.color())
+            .fill(port.color)
             .frame(width: 15)
             .draggable<OutletData>(
                 
                 OutletData(portID: self.port.id)
                             
             )
-//            .help( "\(port.name): \(port.valueType())")
+            .help( "\(port.name): \(port.valueType())")
             .anchorPreference(
                 key: PortAnchorKey.self,
                 value: .center,

@@ -32,7 +32,7 @@ class GraphExecutionEngine : MetalViewRenderer
         var nodesWeAreExecuting:[Node] = []
         let delta = time - self.lastGraphExecutionTime
 
-        let renderNodes = graph.nodes.filter( { $0.type == .Renderer })
+        let renderNodes = graph.nodes.filter( { $0.nodeType == .Renderer })
         
         for renderNode in renderNodes
         {

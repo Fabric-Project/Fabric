@@ -57,14 +57,16 @@ protocol AnyPort
     
     func connect(to other: any AnyPort)
     func discconnect(from other: any AnyPort)
-
-    func color() -> Color
-    func backgroundColor() -> Color
-    func direction() -> PortDirection
+    
+    var color: Color { get }
+    var backgroundColor: Color { get }
+    var direction:PortDirection { get }
+    
+    
     func valueType() -> String
 }
 
-@Observable final class NodePort<Value>: AnyPort, Identifiable, Hashable, Equatable
+final class NodePort<Value>: AnyPort, Identifiable, Hashable, Equatable
 {
     public static func == (lhs: NodePort, rhs: NodePort) -> Bool
     {
@@ -80,14 +82,22 @@ protocol AnyPort
 
     let name: String
     private(set) var value: Value?
+
     var connections: [any AnyPort] = []
     var kind: PortKind
     weak var node: Node?
 
+    var direction:PortDirection
+    var color:Color
+    var backgroundColor:Color
+    
     init(name: String, kind: PortKind)
     {
         self.kind = kind
         self.name = name
+        self.color = Self.calcColor(forType: Value.self)
+        self.backgroundColor = Self.calcBackgroundColor(forType: Value.self )
+        self.direction = Self.calcDirection(forType: Value.self )
     }
     
     func connect(to other: any AnyPort)
@@ -153,34 +163,34 @@ protocol AnyPort
         }
     }
     
-    func color() -> Color
+    static func calcColor(forType: Any.Type ) -> Color
     {
-        if type(of: value) == (MTLTexture & AnyObject)?.self
+        if forType == (MTLTexture & AnyObject).self
         {
             return Color.nodeTexture
         }
 
-        else if type(of: value) == Satin.Geometry?.self
+        else if forType == Satin.Geometry.self
         {
             return Color.nodeGeometry
         }
         
-        else if type(of: value) == Satin.Camera?.self
+        else if forType == Satin.Camera.self
         {
             return Color.nodeCamera
         }
         
-        else if type(of: value) == Satin.Material?.self
+        else if forType == Satin.Material.self
         {
             return Color.nodeMaterial
         }
         
-        else if type(of: value) == Satin.Object?.self
+        else if forType == Satin.Object.self
         {
             return Color.nodeMesh
         }
         
-        else if type(of: value) == Satin.Renderer?.self
+        else if forType == Satin.Renderer.self
         {
             return Color.nodeRender
         }
@@ -188,40 +198,41 @@ protocol AnyPort
         return Color.gray
     }
     
-    func backgroundColor() -> Color
+    static func calcBackgroundColor(forType: Any.Type ) -> Color
     {
-        return self.color().opacity(0.7)
+        return Self.calcColor(forType: forType).opacity(0.7)
     }
    
     
-    func direction() -> PortDirection {
+    static func calcDirection(forType: Any.Type ) -> PortDirection
+    {
         
-        if type(of: value) == (MTLTexture & AnyObject)?.self
+        if forType == (MTLTexture & AnyObject).self
+        {
+            return .Vertical
+        }
+
+        else if forType == Satin.Geometry.self
         {
             return .Vertical
         }
         
-        if type(of: value) == Satin.Geometry?.self
+        else if forType == Satin.Camera.self
         {
             return .Vertical
         }
         
-        else if type(of: value) == Satin.Camera?.self
+        else if forType == Satin.Material.self
         {
             return .Vertical
         }
         
-        else if type(of: value) == Satin.Material?.self
+        else if forType == Satin.Object.self
         {
             return .Vertical
         }
         
-        else if type(of: value) == Satin.Object?.self
-        {
-            return .Vertical
-        }
-        
-        else if type(of: value) == Satin.Renderer?.self
+        else if forType == Satin.Renderer.self
         {
             return .Vertical
         }
