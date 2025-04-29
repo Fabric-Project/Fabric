@@ -24,6 +24,8 @@ class NodeRegistry {
          BasicDiffuseMaterialNode.self,
          SkyboxMaterialNode.self,
          DepthMaterialNode.self,
+         ShadowMaterialNode.self,
+         StandardMaterialNode.self,
          
          DirectionalLightNode.self,
          

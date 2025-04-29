@@ -21,10 +21,13 @@ class LoadTextureNode : Node, NodeProtocol
     let inputURL = NodePort<URL>(name: "File URL", kind: .Inlet)
     let outputTexture = NodePort<(any MTLTexture)>(name: "Texture", kind: .Outlet)
 
+    // Parameters
+//    let inputURLParam = StringParameter("InputParam", "", .dropdown)
+    
     private var texture: (any MTLTexture)? = nil
     private var url: URL? = nil
     
-    override var ports: [any AnyPort] { [inputURL, outputTexture] }
+    override var ports: [any AnyPort] { [outputTexture] }
     
     required init(context:Context)
     {

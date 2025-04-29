@@ -66,7 +66,7 @@ protocol AnyPort
     func valueType() -> String
 }
 
-final class NodePort<Value>: AnyPort, Identifiable, Hashable, Equatable
+final class NodePort<Value>: AnyPort, Identifiable, Hashable, Equatable 
 {
     public static func == (lhs: NodePort, rhs: NodePort) -> Bool
     {
@@ -81,7 +81,16 @@ final class NodePort<Value>: AnyPort, Identifiable, Hashable, Equatable
     let id = UUID()
 
     let name: String
-    private(set) var value: Value?
+    private(set) var value: Value? {
+        didSet
+        {
+            self.shouldSendLatestValue = true
+        }
+    }
+    
+    // tracks value updates / changes
+    private var shouldSendLatestValue:Bool = false
+    
 
     var connections: [any AnyPort] = []
     var kind: PortKind
@@ -157,12 +166,14 @@ final class NodePort<Value>: AnyPort, Identifiable, Hashable, Equatable
     func send(_ v: Value)
     {
         value = v
+        
         for case let p as NodePort<Value> in connections
         {
             p.value = v
         }
+        
     }
-    
+        
     static func calcColor(forType: Any.Type ) -> Color
     {
         if forType == (MTLTexture & AnyObject).self

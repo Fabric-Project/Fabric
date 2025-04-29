@@ -100,7 +100,8 @@ struct NodeView : View
                                 state = value.translation
 
                                 self.node.isDragging = true
-                                self.node.isSelected = true
+
+                                self.graph.selectNode(node: self.node, expandSelection: false)
 
                                 self.node.offset = self.offset + self.dragOffset
 //                                self.node.offset = CGSize(
@@ -114,7 +115,6 @@ struct NodeView : View
                                 self.offset.width += value.translation.width
                                 self.offset.height += value.translation.height
                                 
-//                                self.graph.selectNode(node: self.node, expandSelection: false)
 
                                 self.node.offset = self.offset
                                 

@@ -53,7 +53,9 @@ struct ContentView: View {
             }
             .inspector(isPresented: self.$inspectorVisibility)
             {
-                Text("Node params go here")
+                NodeSelectionInspector()
+                    .environment(self.document.graph)
+
             }
             .toolbar()
             {

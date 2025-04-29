@@ -1,8 +1,8 @@
 //
-//  DepthMaterialNode.swift
+//  ShadowMaterialNode.swift
 //  Fabric
 //
-//  Created by Anton Marini on 4/26/25.
+//  Created by Anton Marini on 4/28/25.
 //
 
 
@@ -11,15 +11,15 @@ import Satin
 import simd
 import Metal
 
-class DepthMaterialNode : BaseMaterialNode, NodeProtocol
+class ShadowMaterialNode : BaseMaterialNode, NodeProtocol
 {
-    static let name = "Depth Material"
+    static let name = "Shadow Material"
     static var nodeType = Node.NodeType.Material
 
     // Ports
-    let outputMaterial = NodePort<Material>(name: DepthMaterialNode.name , kind: .Outlet)
+    let outputMaterial = NodePort<Material>(name: ShadowMaterialNode.name , kind: .Outlet)
 
-    private let material = DepthMaterial()
+    private let material = ShadowMaterial()
     
     override var ports: [any AnyPort] {  super.ports + [outputMaterial] }
     
@@ -27,8 +27,6 @@ class DepthMaterialNode : BaseMaterialNode, NodeProtocol
     {
         super.init(context: context)
         
-        self.material.near = 2
-        self.material.far = 7
     }
     
     override  func evaluate(atTime:TimeInterval,

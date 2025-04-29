@@ -16,6 +16,7 @@ class SceneBuilderNode : Node, NodeProtocol
     static var nodeType = Node.NodeType.Object
 
     // Ports
+    let inputEnvironment = NodePort<(any MTLTexture)>(name: "Environment", kind: .Inlet)
     let inputObject1 = NodePort<Object>(name: "Input 1", kind: .Inlet)
     let inputObject2 = NodePort<Object>(name: "Input 2", kind: .Inlet)
     let inputObject3 = NodePort<Object>(name: "Input 3", kind: .Inlet)
@@ -24,15 +25,15 @@ class SceneBuilderNode : Node, NodeProtocol
 
     let outputScene = NodePort<Object>(name: SceneBuilderNode.name, kind: .Outlet)
     
-    private var object = Object()
+    private var object = IBLScene()
     
-    override var ports: [any AnyPort] { super.ports +  [
-        inputObject1,
-        inputObject2,
-        inputObject3,
-        inputObject4,
-        inputObject5,
-        outputScene] }
+    override var ports: [any AnyPort] { super.ports +  [ inputEnvironment,
+                                                         inputObject1,
+                                                         inputObject2,
+                                                         inputObject3,
+                                                         inputObject4,
+                                                         inputObject5,
+                                                         outputScene] }
     
     
     override func evaluate(atTime:TimeInterval,
@@ -40,7 +41,17 @@ class SceneBuilderNode : Node, NodeProtocol
                             commandBuffer: MTLCommandBuffer)
     {
         var scene:[Object] = []
-        
+        if let v = inputEnvironment.value {
+            
+            if let _ = object.environment
+            {
+            }
+            else
+            {
+                object.setEnvironment(texture: v)
+            }
+        }
+
         if let v = inputObject1.value { scene.append(v) }
         if let v = inputObject2.value { scene.append(v) }
         if let v = inputObject3.value { scene.append(v) }

@@ -49,6 +49,8 @@ class MeshNode : Node, NodeProtocol
             else
             {
                 self.mesh = Mesh(geometry: geometery, material: material)
+                self.mesh?.receiveShadow = true
+                self.mesh?.castShadow = true
             }
             
             if let mesh = mesh

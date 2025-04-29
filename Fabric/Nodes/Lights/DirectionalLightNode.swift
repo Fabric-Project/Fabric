@@ -22,28 +22,50 @@ class DirectionalLightNode : Node, NodeProtocol
 
     let outputLight = NodePort<Object>(name: MeshNode.name, kind: .Outlet)
     
-    private var light: DirectionalLight = DirectionalLight(color: simd_float3(repeating: 1) )
+    private var light: DirectionalLight =  DirectionalLight(color: [1.0, 1.0, 1.0], intensity: 1.0)
     
     override var ports: [any AnyPort] { super.ports +  [
                                          inputPosition,
                                          inputOrientation,
                                                         outputLight] }
     
-    
-//    required init(context:Context)
-//    {
-//        super.init(context: context)
-    //    }
+    let lightHelperGeo = BoxGeometry(width: 0.1, height: 0.1, depth: 0.5)
+    let lightHelperMat = BasicDiffuseMaterial(hardness: 0.7)
+
+//    lazy var lightHelperMesh0 = Mesh(geometry: lightHelperGeo, material: lightHelperMat)
+
+    required init(context:Context)
+    {
+        super.init(context: context)
+        
+        light.castShadow = true
+        light.shadow.resolution = (2048, 2048)
+        light.shadow.bias = 0.0005
+        light.shadow.strength = 0.5
+        light.shadow.radius = 2
+        light.position.y = 5.0
+
+        light.lookAt(target: .zero, up: Satin.worldUpDirection)
+//        light.add(lightHelperMesh0)
+
+    }
     
     override func evaluate(atTime:TimeInterval,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {
         
-        if let v = self.inputPosition.value
-        {
-            light.position = v
-        }
+        let radius: Float = 5.0
+
+        let time = atTime + .pi * 0.5
+        self.light.position = simd_make_float3(radius * Float(sin(time)), 5.0, radius * cos(Float(time)))
+        self.light.lookAt(target: .zero, up: Satin.worldUpDirection)
+
+        
+//        if let v = self.inputPosition.value
+//        {
+//            light.position = v
+//        }
         
         self.outputLight.send(light)
         

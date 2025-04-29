@@ -18,11 +18,9 @@ class RenderNode : Node, NodeProtocol
     // Ports
     let inputCamera = NodePort<Camera>(name: "Camera", kind: .Inlet)
     let inputScene = NodePort<Object>(name: "Scene", kind: .Inlet)
-//    let cameraIn  = Port<Camera>(name: "cameraIn")
-//    let lightsIn  = Port<[Light]>(name: "lightsIn")
     
-    let outputColorTexture  = NodePort<MTLTexture>(name: "Color Texture", kind: .Inlet)
-    let outputDepthTexture  = NodePort<MTLTexture>(name: "Depth Texture", kind: .Inlet)
+//    let outputColorTexture  = NodePort<MTLTexture>(name: "Color Texture", kind: .Inlet)
+//    let outputDepthTexture  = NodePort<MTLTexture>(name: "Depth Texture", kind: .Inlet)
     
     private let renderer:Renderer
     
@@ -33,8 +31,8 @@ class RenderNode : Node, NodeProtocol
         self.renderer = Renderer(context: context)
         super.init(context: context)
         
-//        self.renderer.setClearColor(simd_float4(0.0, 1.0, 0.0, 1.0))
-        self.renderer.setClearColor(.zero)
+        self.renderer.clearColor = .init(red: 0.75, green: 0.75, blue: 0.75, alpha: 1.0)
+//        self.renderer.setClearColor(.zero)
   }
     
     override func evaluate(atTime:TimeInterval,

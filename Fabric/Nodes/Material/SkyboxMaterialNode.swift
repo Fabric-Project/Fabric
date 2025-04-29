@@ -32,7 +32,7 @@ class SkyboxMaterialNode : BaseMaterialNode, NodeProtocol
         
         self.material.setup()
         
-        self.material.color = simd_float4(1.0, 0.0, 0.0, 1.0)
+//        self.material.color = simd_float4(1.0, 0.0, 0.0, 1.0)
     }
     
     override  func evaluate(atTime:TimeInterval,
@@ -41,8 +41,6 @@ class SkyboxMaterialNode : BaseMaterialNode, NodeProtocol
     {
        
         self.evaluate(material: self.material, atTime: atTime)
-
-//        self.material.color = simd_float4( cosf(Float(atTime.remainder(dividingBy: 1) )  * Float.pi ) , 0.0, 0.0, 1.0)
 
         
         self.outputMaterial.send(self.material)

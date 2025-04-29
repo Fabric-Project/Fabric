@@ -26,8 +26,6 @@ class SkyboxGeometryNode : Node, NodeProtocol
     required init(context:Context)
     {
         super.init(context: context)
-        
-        self.geometry.setup()
     }
     
     override func evaluate(atTime:TimeInterval,

@@ -19,7 +19,7 @@ class PerspectiveCameraNode : Node, NodeProtocol
     // Ports
     let outputCamera = NodePort<Camera>(name: PerspectiveCameraNode.name, kind: .Outlet)
     
-    private let camera = PerspectiveCamera(position: [0, 0, 5], near: 0.1, far: 100.0, fov: 30)
+    private let camera = PerspectiveCamera(position: .init(repeating: 5.0), near: 0.1, far: 1000.0, fov: 30)
     
     override var ports: [any AnyPort] { [outputCamera] }
     
