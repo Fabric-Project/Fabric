@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		1BE007542DBB30A30061EAFD /* AnyCodable in Frameworks */ = {isa = PBXBuildFile; productRef = 1BE007532DBB30A30061EAFD /* AnyCodable */; };
-		1BE007622DBC37CE0061EAFD /* Satin in Frameworks */ = {isa = PBXBuildFile; productRef = 1BE007612DBC37CE0061EAFD /* Satin */; };
+		1BE008E12DC1DEF80061EAFD /* AnyCodable in Frameworks */ = {isa = PBXBuildFile; productRef = 1BE008E02DC1DEF80061EAFD /* AnyCodable */; };
+		1BE008E32DC1DF1B0061EAFD /* Satin in Frameworks */ = {isa = PBXBuildFile; productRef = 1BE008E22DC1DF1B0061EAFD /* Satin */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -42,8 +42,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1BE007622DBC37CE0061EAFD /* Satin in Frameworks */,
-				1BE007542DBB30A30061EAFD /* AnyCodable in Frameworks */,
+				1BE008E32DC1DF1B0061EAFD /* Satin in Frameworks */,
+				1BE008E12DC1DEF80061EAFD /* AnyCodable in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -94,8 +94,8 @@
 			);
 			name = Fabric;
 			packageProductDependencies = (
-				1BE007532DBB30A30061EAFD /* AnyCodable */,
-				1BE007612DBC37CE0061EAFD /* Satin */,
+				1BE008E02DC1DEF80061EAFD /* AnyCodable */,
+				1BE008E22DC1DF1B0061EAFD /* Satin */,
 			);
 			productName = Fabric;
 			productReference = 1BE007222DBB1FBC0061EAFD /* Fabric.app */;
@@ -126,8 +126,8 @@
 			mainGroup = 1BE007192DBB1FBC0061EAFD;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				1BE007382DBB29620061EAFD /* XCRemoteSwiftPackageReference "Satin" */,
-				1BE007522DBB30A30061EAFD /* XCRemoteSwiftPackageReference "AnyCodable" */,
+				1BE0085C2DC1DE790061EAFD /* XCLocalSwiftPackageReference "../Satin" */,
+				1BE008DF2DC1DEF80061EAFD /* XCLocalSwiftPackageReference "../AnyCodable" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1BE007232DBB1FBC0061EAFD /* Products */;
@@ -353,34 +353,25 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		1BE007382DBB29620061EAFD /* XCRemoteSwiftPackageReference "Satin" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/Fabric-Project/Satin";
-			requirement = {
-				branch = main;
-				kind = branch;
-			};
+/* Begin XCLocalSwiftPackageReference section */
+		1BE0085C2DC1DE790061EAFD /* XCLocalSwiftPackageReference "../Satin" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../Satin;
 		};
-		1BE007522DBB30A30061EAFD /* XCRemoteSwiftPackageReference "AnyCodable" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/Flight-School/AnyCodable";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.6.7;
-			};
+		1BE008DF2DC1DEF80061EAFD /* XCLocalSwiftPackageReference "../AnyCodable" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../AnyCodable;
 		};
-/* End XCRemoteSwiftPackageReference section */
+/* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		1BE007532DBB30A30061EAFD /* AnyCodable */ = {
+		1BE008E02DC1DEF80061EAFD /* AnyCodable */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 1BE007522DBB30A30061EAFD /* XCRemoteSwiftPackageReference "AnyCodable" */;
 			productName = AnyCodable;
 		};
-		1BE007612DBC37CE0061EAFD /* Satin */ = {
+		1BE008E22DC1DF1B0061EAFD /* Satin */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 1BE007382DBB29620061EAFD /* XCRemoteSwiftPackageReference "Satin" */;
+			package = 1BE0085C2DC1DE790061EAFD /* XCLocalSwiftPackageReference "../Satin" */;
 			productName = Satin;
 		};
 /* End XCSwiftPackageProductDependency section */
