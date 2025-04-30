@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Satin
 
 struct NodeSelectionInspector: View {
     
@@ -23,14 +24,25 @@ struct NodeSelectionInspector: View {
             
                 Section(header: Text( node.name ) )
                 {
-                    ForEach(node.ports, id: \.id) { port in
+                    
+                    ForEach(node.parameterGroup.params, id: \.id) { param in
                         
-                        Text(port.name + ": " + port.valueType() )
+                        Text("\(param.label)")
+                            .font( .system(size: 11) )
+//
                     }
+                    
+//                    ForEach(node.ports, id: \.id) { port in
+//                        
+//                        Text(port.name + ": " + port.valueType() )
+//                            .font( .system(size: 11) )
+//
+//                    }
                 }
                 
             }
         }
+        .listStyle(.sidebar)
         
     }
 }

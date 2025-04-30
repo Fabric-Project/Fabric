@@ -20,7 +20,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-				Views/NodeConnectionView.swift,
+				Views/Nodes/NodeConnectionView.swift,
 			);
 			target = 1BE007212DBB1FBC0061EAFD /* Fabric */;
 		};

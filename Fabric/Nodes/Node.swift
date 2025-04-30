@@ -25,6 +25,7 @@ protocol NodeProtocol
     var nodeType:Node.NodeType { get }
 
     var ports: [any AnyPort] { get }
+    var parameterGroup:ParameterGroup { get }
     func evaluate(atTime:TimeInterval,
                   renderPassDescriptor: MTLRenderPassDescriptor,
                   commandBuffer: MTLCommandBuffer)
@@ -93,9 +94,13 @@ protocol NodeProtocol
         }
     }
     
+    var parameterGroup: Satin.ParameterGroup  {
+        ParameterGroup("Parameters", [])
+    }
+
     
     let id = UUID()
-    var ports:[any AnyPort] { [ ] }
+    var ports:[any AnyPort] { self.parametersGroupToPorts() }
     
     var nodeSize:CGSize = CGSizeMake(150, 100)
 
@@ -197,5 +202,50 @@ protocol NodeProtocol
         let width:CGFloat = 20 + (CGFloat(verticalMax) * 25)
         
         return CGSize(width: max(width, 150), height: max(height, 60) )
+    }
+    
+    // Mark - Private helper
+    
+    private func parametersGroupToPorts() -> [any AnyPort]
+    {
+        return self.parameterGroup.params.compactMap( {
+            self.parameterToPort(parameter:$0) })
+    }
+    
+    private func parameterToPort(parameter:(any Parameter)) -> (any AnyPort)?
+    {
+        switch parameter.type
+        {
+        case .string:
+            return NodePort<String>(name: parameter.label, kind: PortKind.Inlet)
+
+        case .bool:
+            return NodePort<Bool>(name: parameter.label, kind: PortKind.Inlet)
+
+        case .float, .double:
+            return NodePort<Float>(name: parameter.label, kind: PortKind.Inlet)
+
+        case .float2:
+            return NodePort<simd_float2>(name: parameter.label, kind: PortKind.Inlet)
+
+        case .float3:
+            return NodePort<simd_float3>(name: parameter.label, kind: PortKind.Inlet)
+            
+        case .float4:
+            return NodePort<simd_float4>(name: parameter.label, kind: PortKind.Inlet)
+            
+        case .float2x2:
+            return NodePort<simd_float2x2>(name: parameter.label, kind: PortKind.Inlet)
+
+        case .float3x3:
+            return NodePort<simd_float3x3>(name: parameter.label, kind: PortKind.Inlet)
+
+        case .float4x4:
+            return NodePort<simd_float4x4>(name: parameter.label, kind: PortKind.Inlet)
+
+        default:
+            return nil
+
+        }
     }
 }

@@ -10,7 +10,7 @@ import simd
 import Metal
 
 class BoxGeometryNode : Node, NodeProtocol
-{
+{    
     static let name = "Box Geometry"
     static var nodeType = Node.NodeType.Geometery
 
