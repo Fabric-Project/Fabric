@@ -10,7 +10,7 @@ import Satin
 
 struct InputFieldView: View {
  
-    @ObservedObject var parameter:StringParameter
+    @Bindable var parameter:StringParameter
 
     init(param:StringParameter)
     {

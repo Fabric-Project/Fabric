@@ -14,7 +14,7 @@ struct FileGridView: View, Equatable
         return lhs.stringParameter.id == rhs.stringParameter.id
     }
     
-    @ObservedObject var stringParameter:StringParameter
+    @Bindable var stringParameter:StringParameter
 
     @State private var isImporting: Bool = false
 

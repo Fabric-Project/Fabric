@@ -40,9 +40,7 @@ struct ParameterGroupView : View
             case .double, .float:
                 return  AnyView(self.buildSlider(param: param))
             default:
-                return AnyView(self.buildLabel(param: param))
-                
-            
+                return AnyView(self.buildLabel(param: param))            
             }
             
         case .xypad:
@@ -86,21 +84,6 @@ struct ParameterGroupView : View
     
     private func buildSlider(param:any Satin.Parameter) -> any View
     {
-             
-//        if let doubleParam = param as? DoubleParameter
-//        {
-////            let valueBinding = Binding( get: { doubleParam.value },
-////                                        set: { newValue in
-////                doubleParam.value = newValue
-////            })
-//
-//            return  DragableWrapperView<EquatableView<FloatSlider>>(bindingManager:self.bindingManager,
-//                                                                    content: {  FloatSlider(param:doubleParam,
-//                                                                                            clock: self.clock,
-//                                                                                            metaParameterState: self.metaParameterState)
-//                                                                    .equatable()
-//            } )
-//        }
         if let floatParam = param as? FloatParameter
         {
     

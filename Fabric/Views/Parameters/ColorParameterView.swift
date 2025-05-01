@@ -16,7 +16,7 @@ struct ColorParameterView: View, Equatable
         return lhs.parameter.id == rhs.parameter.id
     }
     
-    @ObservedObject var parameter:Float4Parameter
+    @Bindable var parameter:Float4Parameter
     @State var color:Color = .purple
     
     var body: some View {

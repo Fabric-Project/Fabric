@@ -15,7 +15,7 @@ struct FloatSlider: View, Equatable
         return lhs.param.id == lhs.param.id
     }
 
-    @ObservedObject var param:FloatParameter
+    @Bindable var param:FloatParameter
     
     @State var sliderForgroundColor:Color = .black.opacity(0.25)
     @State var recorderForgroundColor:Color = .orange

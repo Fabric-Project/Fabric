@@ -17,7 +17,7 @@ struct XYPad: View, Equatable {
     }
     
     
-    @ObservedObject var parameter:Float2Parameter
+    @Bindable var parameter:Float2Parameter
 
     init(param:Float2Parameter)
     {
