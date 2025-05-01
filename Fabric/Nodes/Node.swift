@@ -94,13 +94,15 @@ protocol NodeProtocol
         }
     }
     
-    var parameterGroup: Satin.ParameterGroup  {
-        ParameterGroup("Parameters", [])
-    }
 
     
     let id = UUID()
-    var ports:[any AnyPort] { self.parametersGroupToPorts() }
+    
+    var inputParameters:[any Parameter] { [] }
+    let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
+                                                        
+    private var inputParameterPorts:[any AnyPort] = []
+    var ports:[any AnyPort] { self.inputParameterPorts  }
     
     var nodeSize:CGSize = CGSizeMake(150, 100)
 
@@ -116,7 +118,6 @@ protocol NodeProtocol
     var isSelected:Bool = false
     var isDragging:Bool = false
     var showParams:Bool = false
-    //    var parameterGroup:ParameterGroup
 
     public var nodeType:NodeType {
         let myType = type(of: self) as! (any NodeProtocol.Type)
@@ -151,7 +152,9 @@ protocol NodeProtocol
     required init (context:Context)
     {
         self.context = context
-       
+        self.inputParameterPorts = self.parametersGroupToPorts(self.inputParameters)
+        self.parameterGroup.append(self.inputParameters)
+
         
         for var port in self.ports
         {
@@ -206,14 +209,21 @@ protocol NodeProtocol
     
     // Mark - Private helper
     
-    private func parametersGroupToPorts() -> [any AnyPort]
+    private func parametersGroupToPorts(_ parameters:[(any Parameter)]) -> [any AnyPort]
     {
-        return self.parameterGroup.params.compactMap( {
+        print(self.name, "parametersGroupToPorts")
+        return parameters.compactMap( {
             self.parameterToPort(parameter:$0) })
     }
     
     private func parameterToPort(parameter:(any Parameter)) -> (any AnyPort)?
     {
+        print(self.name, "parameterToPort", parameter.label)
+
+        
+        
+        parameter.value
+        
         switch parameter.type
         {
         case .string:
@@ -223,7 +233,14 @@ protocol NodeProtocol
             return NodePort<Bool>(name: parameter.label, kind: PortKind.Inlet)
 
         case .float, .double:
-            return NodePort<Float>(name: parameter.label, kind: PortKind.Inlet)
+            let port =  NodePort<Float>(name: parameter.label, kind: PortKind.Inlet)
+            
+//            let binding = Binding(get: parameter.value as! () throws -> Float) { v in
+//                parameter.value as! () throws -> Float = { v }
+//            }
+            
+            //port.value.publisher.sink(receiveValue: binding.set) = binding.set
+            return port
 
         case .float2:
             return NodePort<simd_float2>(name: parameter.label, kind: PortKind.Inlet)
