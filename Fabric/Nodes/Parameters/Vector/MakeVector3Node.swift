@@ -22,12 +22,16 @@ class MakeVector3Node : Node, NodeProtocol
 
     let outputVector = NodePort<simd_float3>(name: "Vector 3" , kind: .Outlet)
 
+    // Params
+    let inputXParam = FloatParameter("X", 1.0, -10, 10, .slider)
+    let inputYParam = FloatParameter("Y", 1.0, -10, 10, .slider)
+    let inputZParam = FloatParameter("Z", 1.0, -10, 10, .slider)
+
+    override var inputParameters: [any Parameter] {  [inputXParam, inputYParam, inputZParam]}
+    
     private var vector = simd_float3(repeating: 0)
     
-    override var ports: [any AnyPort] { [inputX,
-                                         inputY,
-                                         inputZ,
-                                         outputVector] }
+    override var ports: [any AnyPort] { super.ports + [outputVector] }
     
     override  func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,
@@ -45,6 +49,7 @@ class MakeVector3Node : Node, NodeProtocol
             vector.z = v
         }
                
+        
         self.outputVector.send( self.vector )
      }
 }

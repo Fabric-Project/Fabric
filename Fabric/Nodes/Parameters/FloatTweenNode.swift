@@ -13,22 +13,32 @@ import Metal
 
 class FloatTweenNode : Node, NodeProtocol
 {
+    
     static let name = "Number Tween"
     static var nodeType = Node.NodeType.Parameter
 
     // Ports
-    let inputDuration = NodePort<Float>(name: "Duration" , kind: .Inlet)
     let outputNumber = NodePort<Float>(name: FloatTweenNode.name , kind: .Outlet)
+    override var ports: [any AnyPort] { super.ports + [ outputNumber] }
+
+    // Params
+    let inputDurationParam = FloatParameter("Duration", 10.0, 0.1, 60.0, .slider)
     
-    override var ports: [any AnyPort] { [inputDuration, outputNumber] }
+    override var inputParameters:[any Parameter]  { [inputDurationParam] }
     
     override  func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)
     {
+        
+        let duration = Double(self.inputDurationParam.value)
 
-        let val = easeOutElastic( Float(( atTime / 10.0 ) .truncatingRemainder(dividingBy: 1)) )
+        let loopedTime = atTime.truncatingRemainder(dividingBy: duration)
 
-        self.outputNumber.send( val )
+        let easeTime = loopedTime / duration
+        
+        let val = easeOutElastic( easeTime)
+        
+        self.outputNumber.send( Float(val) )
      }
 }

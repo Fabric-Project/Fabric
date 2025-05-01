@@ -24,9 +24,7 @@ class LoadTextureNode : Node, NodeProtocol
     // Parameters
     let inputURLParam = StringParameter("InputParam", "", .dropdown)
     
-    override var parameterGroup: ParameterGroup  {
-        ParameterGroup("Parameters", [self.inputURLParam])
-    }
+    override var inputParameters: [any Parameter] {  [inputURLParam]}
     
     private var texture: (any MTLTexture)? = nil
     private var url: URL? = nil

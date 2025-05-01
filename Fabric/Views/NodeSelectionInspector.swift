@@ -25,20 +25,16 @@ struct NodeSelectionInspector: View {
                 Section(header: Text( node.name ) )
                 {
                     
-                    ParameterGroupView(parameterGroup: node.parameterGroup)
-//                    ForEach(node.parameterGroup.params, id: \.id) { param in
-//                        
-//                        Text("\(param.label)")
-//                            .font( .system(size: 11) )
-////
-//                    }
+    
+                    ForEach(node.ports, id: \.id) { port in
+                        
+                        Text(port.name + ": " + port.valueType() )
+                            .font( .system(size: 11) )
+
+                    }
                     
-//                    ForEach(node.ports, id: \.id) { port in
-//                        
-//                        Text(port.name + ": " + port.valueType() )
-//                            .font( .system(size: 11) )
-//
-//                    }
+                    //ParameterGroupView(parameterGroup: node.parameterGroup)
+                
                 }
                 
             }
