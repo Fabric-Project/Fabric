@@ -30,7 +30,6 @@ class BoxGeometryNode : Node, NodeProtocol
                                inputResolution,
                                outputGeometry] }
     
-  
     
     override func evaluate(atTime:TimeInterval,
                            renderPassDescriptor: MTLRenderPassDescriptor,

@@ -13,9 +13,9 @@ import Satin
 import simd
 import Metal
 
-class NumberAddNode : Node, NodeProtocol
+class NumberNode : Node, NodeProtocol
 {
-    static let name = "Number Add"
+    static let name = "Number"
     static var nodeType = Node.NodeType.Parameter
 
     // Ports
@@ -24,15 +24,14 @@ class NumberAddNode : Node, NodeProtocol
     override var ports: [any AnyPort] { super.ports + [ outputNumber] }
 
     // Params
-    let inputAParam = GenericParameter<Float>("A", 0.0, .inputfield)
-    let inputBParam = GenericParameter<Float>("B", 0.0, .inputfield)
+    let inputNumberParam = GenericParameter<Float>("Number", 0.0, .inputfield)
 
-    override var inputParameters:[any Parameter]  { [inputAParam, inputBParam] }
+    override var inputParameters:[any Parameter]  { [inputNumberParam] }
     
     override  func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)
     {
-        self.outputNumber.send(self.inputAParam.value + self.inputBParam.value )
+        self.outputNumber.send(self.inputNumberParam.value)
     }
 }

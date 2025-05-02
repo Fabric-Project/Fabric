@@ -76,13 +76,6 @@ class ParameterNode<ParamValue : Codable & Equatable> : NodePort<ParamValue>
         self.parameter = parameter
         
         super.init(name: parameter.label, kind: .Inlet)
-
-//        self.binding = Binding(get: { self.value ?? parameter.value },
-//                               set: { newValue in
-//            parameter.value = newValue
-//            self.value = newValue
-//        })
-        
     }
 
     override var value: ParamValue?
@@ -98,7 +91,6 @@ class ParameterNode<ParamValue : Codable & Equatable> : NodePort<ParamValue>
                 parameter.value = newValue
             }
         }
-        
     }
 }
 
@@ -119,7 +111,6 @@ class NodePort<Value>: AnyPort, Identifiable, Hashable, Equatable
     let name: String
     var value: Value?
         
-
     var connections: [any AnyPort] = []
     var kind: PortKind
     weak var node: Node?

@@ -37,6 +37,7 @@ class NodeRegistry {
          FalseNode.self ,
          
          CurrentTimeNode.self,
+         NumberNode.self,
          NumberAddNode.self,
          NumberSubtractNode.self ,
          NumberMultiplyNode.self,
