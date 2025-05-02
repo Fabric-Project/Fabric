@@ -15,10 +15,10 @@ class MakeVector3Node : Node, NodeProtocol
     static let name = "Vector 3"
     static var nodeType = Node.NodeType.Parameter
 
-    // Ports
-    let inputX = NodePort<Float>(name: "X" , kind: .Inlet)
-    let inputY = NodePort<Float>(name: "Y" , kind: .Inlet)
-    let inputZ = NodePort<Float>(name: "Z" , kind: .Inlet)
+//    // Ports
+//    let inputX = NodePort<Float>(name: "X" , kind: .Inlet)
+//    let inputY = NodePort<Float>(name: "Y" , kind: .Inlet)
+//    let inputZ = NodePort<Float>(name: "Z" , kind: .Inlet)
 
     let outputVector = NodePort<simd_float3>(name: "Vector 3" , kind: .Outlet)
 
@@ -37,18 +37,12 @@ class MakeVector3Node : Node, NodeProtocol
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)
     {
-        if let v = self.inputX.value {
-            vector.x = v
-        }
         
-        if let v = self.inputY.value {
-            vector.y = v
-        }
-        
-        if let v = self.inputZ.value {
-            vector.z = v
-        }
-               
+        self.vector.x = inputXParam.value
+
+        self.vector.y = inputYParam.value
+
+        self.vector.z = inputZParam.value
         
         self.outputVector.send( self.vector )
      }

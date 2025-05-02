@@ -59,6 +59,7 @@ struct ParameterGroupView : View
             return AnyView(self.buildColorPicler(param: param))
 
         case .inputfield:
+            
             return AnyView(self.buildInputField(param: param))
 
         default:
@@ -132,10 +133,20 @@ struct ParameterGroupView : View
     
     private func buildInputField(param:any Satin.Parameter) -> any View
     {
-        guard let stringParam = param as? StringParameter else { return Text(param.label) }
-        
-        return InputFieldView(param: stringParam)
+        if let stringParam = param as? StringParameter {
+            return InputFieldView(param: stringParam)
                 .frame(height:20)
+        }
+        
+        if let floatParam = param as? GenericParameter<Float> {
+            return FloatInputFieldView(param: floatParam)
+                .frame(height:20)
+
+        }
+        
+        else {
+            return Text(param.label)
+        }
     }
     
     private func buildFilePicker(param:any Satin.Parameter) -> any View

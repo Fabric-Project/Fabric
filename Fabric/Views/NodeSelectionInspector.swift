@@ -17,26 +17,14 @@ struct NodeSelectionInspector: View {
         
         let selectedNodes = self.graph.nodes.filter( { $0.isSelected } )
         
-        
         List {
             
             ForEach(selectedNodes) { node in
             
                 Section(header: Text( node.name ) )
                 {
-                    
-    
-                    ForEach(node.ports, id: \.id) { port in
-                        
-                        Text(port.name + ": " + port.valueType() )
-                            .font( .system(size: 11) )
-
-                    }
-                    
-                    //ParameterGroupView(parameterGroup: node.parameterGroup)
-                
+                    ParameterGroupView(parameterGroup: node.parameterGroup)
                 }
-                
             }
         }
         .listStyle(.sidebar)

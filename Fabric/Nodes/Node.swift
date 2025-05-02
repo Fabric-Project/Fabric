@@ -103,7 +103,7 @@ protocol NodeProtocol
                                                         
     private var inputParameterPorts:[any AnyPort] = []
     var ports:[any AnyPort] { self.inputParameterPorts  }
-    
+        
     var nodeSize:CGSize = CGSizeMake(150, 100)
 
     @ObservationIgnored var context:Context
@@ -218,51 +218,85 @@ protocol NodeProtocol
     
     private func parameterToPort(parameter:(any Parameter)) -> (any AnyPort)?
     {
+
         print(self.name, "parameterToPort", parameter.label)
 
         
-        
-        parameter.value
-        
+                
         switch parameter.type
         {
+            
+        case .generic:
+            
+            if let genericParam = parameter as? GenericParameter<Float>
+            {
+                return ParameterNode(parameter: genericParam)
+            }
+            
         case .string:
-            return NodePort<String>(name: parameter.label, kind: PortKind.Inlet)
+            
+            if let genericParam = parameter as? StringParameter
+            {
+                return ParameterNode(parameter: genericParam)
+            }
 
         case .bool:
-            return NodePort<Bool>(name: parameter.label, kind: PortKind.Inlet)
+            if let genericParam = parameter as? BoolParameter
+            {
+                return ParameterNode(parameter: genericParam)
+            }
+        case .float:
+            
+            if let genericParam = parameter as? FloatParameter
+            {
+                return ParameterNode(parameter: genericParam)
+            }
 
-        case .float, .double:
-            let port =  NodePort<Float>(name: parameter.label, kind: PortKind.Inlet)
-            
-//            let binding = Binding(get: parameter.value as! () throws -> Float) { v in
-//                parameter.value as! () throws -> Float = { v }
-//            }
-            
-            //port.value.publisher.sink(receiveValue: binding.set) = binding.set
-            return port
+            else if let genericParam = parameter as? GenericParameter<Float>
+            {
+                return ParameterNode(parameter: genericParam)
+            }
 
         case .float2:
-            return NodePort<simd_float2>(name: parameter.label, kind: PortKind.Inlet)
-
+            if let genericParam = parameter as? Float2Parameter
+            {
+                return ParameterNode(parameter: genericParam)
+            }
         case .float3:
-            return NodePort<simd_float3>(name: parameter.label, kind: PortKind.Inlet)
+            if let genericParam = parameter as? Float3Parameter
+            {
+                return ParameterNode(parameter: genericParam)
+            }
             
         case .float4:
-            return NodePort<simd_float4>(name: parameter.label, kind: PortKind.Inlet)
+            if let genericParam = parameter as? Float4Parameter
+            {
+                return ParameterNode(parameter: genericParam)
+            }
             
         case .float2x2:
-            return NodePort<simd_float2x2>(name: parameter.label, kind: PortKind.Inlet)
-
+            if let genericParam = parameter as? Float2x2Parameter
+            {
+                return ParameterNode(parameter: genericParam)
+            }
         case .float3x3:
-            return NodePort<simd_float3x3>(name: parameter.label, kind: PortKind.Inlet)
+            if let genericParam = parameter as? Float3x3Parameter
+            {
+                return ParameterNode(parameter: genericParam)
+            }
 
         case .float4x4:
-            return NodePort<simd_float4x4>(name: parameter.label, kind: PortKind.Inlet)
+            if let genericParam = parameter as? Float4x4Parameter
+            {
+                return ParameterNode(parameter: genericParam)
+            }
 
         default:
             return nil
 
         }
+        
+        return nil
+
     }
 }

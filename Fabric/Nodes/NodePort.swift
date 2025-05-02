@@ -66,7 +66,43 @@ protocol AnyPort
     func valueType() -> String
 }
 
-final class NodePort<Value>: AnyPort, Identifiable, Hashable, Equatable 
+class ParameterNode<ParamValue : Codable & Equatable> : NodePort<ParamValue>
+{
+//    var binding: Binding<ParamValue>? = nil
+    private let parameter: GenericParameter<ParamValue>
+    
+    init(parameter: GenericParameter<ParamValue>)
+    {
+        self.parameter = parameter
+        
+        super.init(name: parameter.label, kind: .Inlet)
+
+//        self.binding = Binding(get: { self.value ?? parameter.value },
+//                               set: { newValue in
+//            parameter.value = newValue
+//            self.value = newValue
+//        })
+        
+    }
+
+    override var value: ParamValue?
+    {
+        get
+        {
+            self.parameter.value
+        }
+        set
+        {
+            if let newValue = newValue
+            {
+                parameter.value = newValue
+            }
+        }
+        
+    }
+}
+
+class NodePort<Value>: AnyPort, Identifiable, Hashable, Equatable
 {
     public static func == (lhs: NodePort, rhs: NodePort) -> Bool
     {
@@ -81,16 +117,8 @@ final class NodePort<Value>: AnyPort, Identifiable, Hashable, Equatable
     let id = UUID()
 
     let name: String
-    private(set) var value: Value? {
-        didSet
-        {
-            self.shouldSendLatestValue = true
-        }
-    }
-    
-    // tracks value updates / changes
-    private var shouldSendLatestValue:Bool = false
-    
+    var value: Value?
+        
 
     var connections: [any AnyPort] = []
     var kind: PortKind
@@ -148,7 +176,6 @@ final class NodePort<Value>: AnyPort, Identifiable, Hashable, Equatable
             
             self.connections.removeAll()
             self.connections.append(other)
-            
             other.connections.append(self)
         }
         else if self.kind == .Outlet && other.kind == .Inlet

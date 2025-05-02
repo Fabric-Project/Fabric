@@ -36,7 +36,13 @@ class NodeRegistry {
          TrueNode.self,
          FalseNode.self ,
          
-         FloatTweenNode.self,
+         CurrentTimeNode.self,
+         NumberAddNode.self,
+         NumberSubtractNode.self ,
+         NumberMultiplyNode.self,
+         NumberDivideNode.self ,
+         NumberModuloNode.self,
+         NumberEaseNode.self,
 
          MakeVector4Node.self,
          MakeVector3Node.self,
