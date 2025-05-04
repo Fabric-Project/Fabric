@@ -14,46 +14,33 @@ class BoxGeometryNode : Node, NodeProtocol
     static let name = "Box Geometry"
     static var nodeType = Node.NodeType.Geometery
 
-    // Ports
-    let inputWidth = NodePort<Float>(name: "Width", kind: .Inlet)
-    let inputHeight = NodePort<Float>(name: "Height", kind: .Inlet)
-    let inputDepth = NodePort<Float>(name: "Depth", kind: .Inlet)
-    let inputResolution = NodePort<simd_int3>(name: "Resolution", kind: .Inlet)
+    // Params
+
+    let inputWidthParam = GenericParameter<Float>("Width", 1.0, .inputfield)
+    let inputHeightParam = GenericParameter<Float>("Height", 1.0, .inputfield)
+    let inputDepthParam = GenericParameter<Float>("Depth", 1.0, .inputfield)
+    let inputResolutionParam = GenericParameter<simd_int3>("Resolution", simd_int3(repeating: 1), .inputfield)
+
     
     let outputGeometry = NodePort<Geometry>(name: BoxGeometryNode.name, kind: .Outlet)
 
     private let geometry = BoxGeometry(width: 1, height: 1, depth: 1)
     
-    override var ports:[any AnyPort] { [inputWidth,
-                               inputHeight,
-                               inputDepth,
-                               inputResolution,
-                               outputGeometry] }
+    override var inputParameters: [any Parameter] { [inputWidthParam, inputHeightParam, inputDepthParam, inputResolutionParam] }
+    override var ports:[any AnyPort] { super.ports + [outputGeometry] }
     
     
     override func evaluate(atTime:TimeInterval,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {
-        if let width = self.inputWidth.value
-        {
-            self.geometry.width = width
-        }
+        self.geometry.width = self.inputWidthParam.value
         
-        if let height = self.inputHeight.value
-        {
-            self.geometry.height = height
-        }
+        self.geometry.height =  self.inputHeightParam.value
         
-        if let depth = self.inputDepth.value
-        {
-            self.geometry.depth = depth
-        }
+        self.geometry.depth = self.inputDepthParam.value
         
-        if let resolution = self.inputResolution.value
-        {
-            self.geometry.resolution = resolution
-        }
+        self.geometry.resolution =  self.inputResolutionParam.value
                 
         self.outputGeometry.send(self.geometry)
      }

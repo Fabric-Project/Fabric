@@ -45,7 +45,11 @@ class NodeRegistry {
          NumberModuloNode.self,
          NumberEaseNode.self,
 
-         MakeVector4Node.self,
+
+         MakeVector2Node.self,
          MakeVector3Node.self,
+         MakeVector4Node.self,
+         
+         MakeQuaternionNode.self
     ]
 }

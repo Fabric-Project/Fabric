@@ -93,16 +93,14 @@ protocol NodeProtocol
             return self.color().opacity(0.6)
         }
     }
-    
-
-    
+        
     let id = UUID()
     
-    var inputParameters:[any Parameter] { [] }
-    let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
+    @ObservationIgnored var inputParameters:[any Parameter] { [] }
+    @ObservationIgnored let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
                                                         
-    private var inputParameterPorts:[any AnyPort] = []
-    var ports:[any AnyPort] { self.inputParameterPorts  }
+    @ObservationIgnored private var inputParameterPorts:[any AnyPort] = []
+    @ObservationIgnored var ports:[any AnyPort] { self.inputParameterPorts  }
         
     var nodeSize:CGSize = CGSizeMake(150, 100)
 
@@ -119,7 +117,7 @@ protocol NodeProtocol
     var isDragging:Bool = false
     var showParams:Bool = false
 
-    public var nodeType:NodeType {
+    @ObservationIgnored public var nodeType:NodeType {
         let myType = type(of: self) as! (any NodeProtocol.Type)
         return  myType.nodeType
     }
@@ -148,25 +146,19 @@ protocol NodeProtocol
         }
     }
     
-    
     required init (context:Context)
     {
         self.context = context
         self.inputParameterPorts = self.parametersGroupToPorts(self.inputParameters)
         self.parameterGroup.append(self.inputParameters)
 
-        
         for var port in self.ports
         {
             port.node = self
         }
         
         self.nodeSize = self.computeNodeSize()
-        
-        
     }
-    
-    
     
     deinit
     {
@@ -229,6 +221,16 @@ protocol NodeProtocol
         case .generic:
             
             if let genericParam = parameter as? GenericParameter<Float>
+            {
+                return ParameterNode(parameter: genericParam)
+            }
+            
+            if let genericParam = parameter as? GenericParameter<simd_float3>
+            {
+                return ParameterNode(parameter: genericParam)
+            }
+            
+            if let genericParam = parameter as? GenericParameter<simd_quatf>
             {
                 return ParameterNode(parameter: genericParam)
             }

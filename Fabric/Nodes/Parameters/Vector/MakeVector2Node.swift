@@ -10,21 +10,20 @@ import Satin
 import simd
 import Metal
 
-class MakeVector3Node : Node, NodeProtocol
+class MakeVector2Node : Node, NodeProtocol
 {
-    static let name = "Vector 3"
+    static let name = "Vector 2"
     static var nodeType = Node.NodeType.Parameter
 
-    let outputVector = NodePort<simd_float3>(name: "Vector 3" , kind: .Outlet)
+    let outputVector = NodePort<simd_float2>(name: "Vector 2" , kind: .Outlet)
 
     // Params
     let inputXParam = FloatParameter("X", 0.0, -10, 10, .slider)
     let inputYParam = FloatParameter("Y", 0.0, -10, 10, .slider)
-    let inputZParam = FloatParameter("Z", 0.0, -10, 10, .slider)
 
-    override var inputParameters: [any Parameter] {  [inputXParam, inputYParam, inputZParam]}
+    override var inputParameters: [any Parameter] {  [inputXParam, inputYParam,]}
     
-    private var vector = simd_float3(repeating: 0)
+    private var vector = simd_float2(repeating: 0)
     
     override var ports: [any AnyPort] { super.ports + [outputVector] }
     
@@ -32,9 +31,8 @@ class MakeVector3Node : Node, NodeProtocol
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)
     {
-        self.vector = simd_float3(inputXParam.value,
-                                  inputYParam.value,
-                                  inputZParam.value)
+        self.vector = simd_float2(inputXParam.value,
+                                  inputYParam.value)
         
         self.outputVector.send( self.vector )
      }
