@@ -10,7 +10,7 @@ import Satin
 import simd
 import Metal
 
-class SceneBuilderNode : Node, NodeProtocol
+class SceneBuilderNode : BaseObjectNode, NodeProtocol
 {
     static let name = "Scene Builder"
     static var nodeType = Node.NodeType.Object
@@ -59,6 +59,9 @@ class SceneBuilderNode : Node, NodeProtocol
         if let v = inputObject5.value { scene.append(v) }
         
         self.object.children = scene
+        
+        self.evaluate(object: self.object, atTime: atTime)
+        
         outputScene.send(self.object)
     }
 }

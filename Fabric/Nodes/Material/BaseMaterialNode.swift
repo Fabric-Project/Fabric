@@ -12,30 +12,26 @@ import Metal
 
 class BaseMaterialNode : Node
 {
-    override var ports: [any AnyPort] { [ inputReceivesLighting,
-                                          inputCastsShadow,
-                                          inputWriteDepth, ] }
 
-    let inputReceivesLighting = NodePort<Bool>(name: "Recieves Lighting", kind: .Inlet)
-    let inputCastsShadow = NodePort<Bool>(name: "Cast Shadow", kind: .Inlet)
-    let inputWriteDepth = NodePort<Bool>(name: "Write Depth", kind: .Inlet)
+    // Params
+    let inputReceivesLighting = BoolParameter("Receives Lighting", true, .button)
+//    let inputCastsShadow = BoolParameter("Cast Shadow", false, .button)
+//    let inputReceiveShadow = BoolParameter("Receive Shadow", false, .button)
+    let inputWriteDepth = BoolParameter("Write Depth", false, .button)
+    
+    override var inputParameters: [any Parameter] { super.inputParameters + [ self.inputReceivesLighting,
+//                                                                              self.inputCastsShadow,
+//                                                                              self.inputReceiveShadow, 
+                                                                              self.inputWriteDepth, ] }
         
     func evaluate(material:Material, atTime:TimeInterval)
     {
-        if let v = self.inputReceivesLighting.value
-        {
-            material.lighting = v
-        }
-        
-        if let v = self.inputCastsShadow.value
-        {
-            material.castShadow = v
-        }
-        
-        if let v = self.inputWriteDepth.value
-        {
-            material.depthWriteEnabled = v
-        }
+        material.lighting = self.inputReceivesLighting.value
+                
+//        material.castShadow = self.inputCastsShadow.value
+//        material.receiveShadow = self.inputReceiveShadow.value
+
+        material.depthWriteEnabled = self.inputWriteDepth.value
     }
     
    

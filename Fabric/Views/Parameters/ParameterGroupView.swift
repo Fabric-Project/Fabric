@@ -39,6 +39,7 @@ struct ParameterGroupView : View
             {
             case .double, .float:
                 return  AnyView(self.buildSlider(param: param))
+                                
             default:
                 return AnyView(self.buildLabel(param: param))            
             }
@@ -87,6 +88,17 @@ struct ParameterGroupView : View
     {
         if let floatParam = param as? FloatParameter
         {
+            return EquatableView<FloatSlider>( content: FloatSlider(param:floatParam) )
+                .frame(height:20)
+        }
+        
+        return Text(param.label)
+    }
+    
+    private func build3Slider(param:any Satin.Parameter) -> any View
+    {
+        if let floatParam = param as? FloatParameter
+        {
     
             return EquatableView<FloatSlider>( content: FloatSlider(param:floatParam) )
                 .frame(height:20)
@@ -107,7 +119,6 @@ struct ParameterGroupView : View
         }
         
         return Text(param.label)
-
     }
     
     private func buildDropDown(param:any Satin.Parameter) -> any View
@@ -125,24 +136,43 @@ struct ParameterGroupView : View
     
     private func buildColorPicler(param:any Satin.Parameter) -> any View
     {
-        guard let float4Param = param as? Float4Parameter else { return Text(param.label) }
-
+        if let float4Param = param as? Float4Parameter ?? param as? GenericParameter<simd_float4>
+        {
+            return Color4ParameterView(parameter: float4Param).frame(height:20)
+        }
         
-        return ColorParameterView(parameter: float4Param).frame(height:20)
+        else if let float3Param = param as? Float3Parameter ?? param as? GenericParameter<simd_float3>
+        {
+            return Color3ParameterView(parameter: float3Param).frame(height:20)
+        }
+        
+        else
+        {
+            return Text(param.label)
+        }
     }
     
     private func buildInputField(param:any Satin.Parameter) -> any View
     {
         if let stringParam = param as? StringParameter {
             return InputFieldView(param: stringParam)
-                .frame(height:20)
+//                .frame(height:20)
         }
         
         if let floatParam = param as? GenericParameter<Float> {
             return FloatInputFieldView(param: floatParam)
-                .frame(height:20)
+//                .frame(height:20)
 
         }
+        
+        if let floatParam = param as? GenericParameter<simd_float3> {
+            return Float3InputFieldView(param: floatParam)
+        }
+
+        if let floatParam = param as? GenericParameter<simd_float4> {
+            return Float4InputFieldView(param: floatParam)
+        }
+
         
         else {
             return Text(param.label)

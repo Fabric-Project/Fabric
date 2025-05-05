@@ -36,7 +36,6 @@ class LoadTextureNode : Node, NodeProtocol
         super.init(context: context)
         
         self.texture = self.loadTexture(device: self.context.device, url: URL(fileURLWithPath: "/Users/vade/Downloads/Contract-Card-09.png") )
-
     }
 
     override  func evaluate(atTime:TimeInterval,

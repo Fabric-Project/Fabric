@@ -10,16 +10,33 @@ import Satin
 import simd
 import Metal
 
-class MeshNode : Node, NodeProtocol
+class MeshNode : BaseObjectNode, NodeProtocol
 {
     static let name = "Mesh"
     static var nodeType = Node.NodeType.Mesh
 
+    // Params
+    let inputCastsShadow = BoolParameter("Shadow", false, .button)
+//    let inputReceiveShadow = BoolParameter("Receive Shadow", false, .button)
+    
+    override var inputParameters: [any Parameter] { super.inputParameters + [
+                                                                              self.inputCastsShadow,
+//                                                                              self.inputReceiveShadow,
+                                                                             ] }
+        
+//    func evaluate(material:Material, atTime:TimeInterval)
+//    {
+//        material.lighting = self.inputReceivesLighting.value
+//                
+//        material.castShadow = self.inputCastsShadow.value
+//        material.receiveShadow = self.inputReceiveShadow.value
+//
+//        material.depthWriteEnabled = self.inputWriteDepth.value
+//    }
+    
     // Ports
     let inputGeometry = NodePort<Geometry>(name: "Geometry", kind: .Inlet)
     let inputMaterial = NodePort<Material>(name: "Material", kind: .Inlet)
-    let inputPosition = NodePort<simd_float3>(name: "Position", kind: .Inlet)
-    let inputOrientation = NodePort<simd_quatf>(name: "Orientation", kind: .Inlet)
 
     let outputMesh = NodePort<Object>(name: MeshNode.name, kind: .Outlet)
     
@@ -27,8 +44,6 @@ class MeshNode : Node, NodeProtocol
     
     override var ports: [any AnyPort] { super.ports +  [inputGeometry,
                                          inputMaterial,
-                                         inputPosition,
-                                         inputOrientation,
                                          outputMesh] }
     
     
@@ -49,22 +64,17 @@ class MeshNode : Node, NodeProtocol
             else
             {
                 self.mesh = Mesh(geometry: geometery, material: material)
-                self.mesh?.receiveShadow = true
-                self.mesh?.castShadow = true
+//                self.mesh?.receiveShadow = true
+//                self.mesh?.castShadow = true
             }
             
             if let mesh = mesh
             {
-                let angle = cosf( Float( (atTime * 0.01).remainder(dividingBy: 1) ) * Float.pi * 4 )
-                mesh.orientation = simd_quatf(angle:angle, axis:simd_make_float3(0.2, 1, -0.3))
+                self.evaluate(object: mesh, atTime: atTime)
+                
+                mesh.castShadow = self.inputCastsShadow.value
+                mesh.receiveShadow = self.inputCastsShadow.value
 
-                
-                if let v = self.inputPosition.value
-                {
-                    mesh.position = v
-                }
-                
-                
                 self.outputMesh.send(mesh)
             }
         }

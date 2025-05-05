@@ -19,7 +19,7 @@ class BoxGeometryNode : Node, NodeProtocol
     let inputWidthParam = GenericParameter<Float>("Width", 1.0, .inputfield)
     let inputHeightParam = GenericParameter<Float>("Height", 1.0, .inputfield)
     let inputDepthParam = GenericParameter<Float>("Depth", 1.0, .inputfield)
-    let inputResolutionParam = GenericParameter<simd_int3>("Resolution", simd_int3(repeating: 1), .inputfield)
+    let inputResolutionParam = GenericParameter<simd_int3>("Resolution", simd_int3(repeating: 5), .inputfield)
 
     
     let outputGeometry = NodePort<Geometry>(name: BoxGeometryNode.name, kind: .Outlet)

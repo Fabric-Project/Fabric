@@ -18,7 +18,7 @@ extension UTType {
 
 struct FabricDocument: FileDocument {
 
-    @ObservationIgnored let context = Context(device: MTLCreateSystemDefaultDevice()!, sampleCount: 1, colorPixelFormat: MTLPixelFormat.bgra8Unorm)
+    @ObservationIgnored let context = Context(device: MTLCreateSystemDefaultDevice()!, sampleCount: 1, colorPixelFormat: MTLPixelFormat.bgra8Unorm, depthPixelFormat: .depth32Float)
     
     let graph:Graph
     @ObservationIgnored let graphRenderer:GraphExecutionEngine
@@ -30,7 +30,7 @@ struct FabricDocument: FileDocument {
 
         let boxNode = BoxGeometryNode(context: self.context)
 //        let materialNode = BasicColorMaterialNode(context: self.context)
-        let materialNode = DepthMaterialNode(context: self.context)
+        let materialNode = StandardMaterialNode(context: self.context)
 
         let meshNode = MeshNode(context: self.context)
         let cameraNode = PerspectiveCameraNode(context: self.context)
