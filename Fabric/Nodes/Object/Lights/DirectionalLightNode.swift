@@ -42,17 +42,16 @@ class DirectionalLightNode : BaseObjectNode, NodeProtocol
         super.init(context: context)
         
         light.castShadow = true
-        light.shadow.resolution = (2048, 2048)
+        light.shadow.resolution = (1024, 1024)
         light.shadow.bias = 0.0005
         light.shadow.strength = 0.5
         light.shadow.radius = 2
         light.position.y = 5.0
 
-        
-        if let shadowCamera = light.shadow.camera as? OrthographicCamera {
-            shadowCamera.update(left: -2, right: 2, bottom: -2, top: 2)
-        }
-        
+//        if let shadowCamera = light.shadow.camera as? OrthographicCamera {
+//            shadowCamera.update(left: -2, right: 2, bottom: -2, top: 2)
+//        }
+
         light.lookAt(target: .zero, up: Satin.worldUpDirection)
 //        light.add(lightHelperMesh0)
 

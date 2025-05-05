@@ -21,26 +21,15 @@ struct NodeCanvas : View
     {
         // Movable Canvas
         GeometryReader { geom in
-            
-//            let width = geom.size
-                        
+
             ZStack
             {
-                //                    // image size is 225
-                //                Image("background")
-                //                    .resizable(resizingMode: .tile)// Need this pattern image repeated throughout the page
-                //                    .frame(maxWidth:.infinity, maxHeight:.infinity)
-                
-               
-                
                 // Nodes
                 ForEach(self.graph.nodes) { currentNode in
                     
                     NodeView(node: currentNode, offset: currentNode.offset)
                     
                 }
-               
-
             }
             .offset(geom.size / 2)
             .coordinateSpace(name: "graph")    // make sure all anchors share this space
@@ -58,70 +47,65 @@ struct NodeCanvas : View
                             let start = geom[ sourceAnchor ]
                             let end = geom[ destAnchor ]
 
-                            // Min 5 stem height
-                            let stemHeight = self.clamp( abs( end.y - start.y) / 4.0 , lowerBound: 5, upperBound: 35)
-                            let stemOffset =  self.clamp( self.dist(p1: start, p2:end) / 4.0, lowerBound: 5, upperBound: 35) /*min( max(5, self.dist(p1: start, p2:end)), 40 )*/
-
-                            switch port.direction
-                            {
-                            case .Vertical:
-                                var start1:CGPoint = CGPoint(x: start.x,
-                                                             y: start.y + stemHeight)
-                                
-                                let end1:CGPoint = CGPoint(x: end.x,
-                                                           y: end.y - stemHeight)
-                                
-                                let controlOffset = max(stemHeight + stemOffset, abs(end1.y - start1.y) / 2.4)
-                                let control1 = CGPoint(x: start1.x, y: start1.y + controlOffset )
-                                let control2 = CGPoint(x: end1.x, y:end1.y - controlOffset  )
-                                
-                                Path { path in
-                                    
-                                    path.move(to: start )
-                                    path.addLine(to: start1)
-                                    
-                                    path.addCurve(to: end1, control1: control1, control2: control2)
-                                    
-                                    path.addLine(to: end)
-                                }
+                            self.calcPathUsing(port:port, start: start, end: end)
                                 .stroke(port.backgroundColor , lineWidth: 2)
-                                
-                            case .Horizontal:
-                                var start1:CGPoint = CGPoint(x: start.x + stemHeight,
-                                                             y: start.y)
-                                
-                                let end1:CGPoint = CGPoint(x: end.x - stemHeight,
-                                                           y: end.y)
-                                
-                                let controlOffset = max(stemHeight + stemOffset, abs(end1.y - start1.y) / 2.4)
-                                let control1 = CGPoint(x: start1.x + controlOffset, y: start1.y  )
-                                let control2 = CGPoint(x: end1.x - controlOffset, y:end1.y   )
-                                
-                                Path { path in
-                                    
-                                    path.move(to: start )
-                                    path.addLine(to: start1)
-                                    
-                                    path.addCurve(to: end1, control1: control1, control2: control2)
-                                    
-                                    path.addLine(to: end)
-                                }
-                                .stroke(port.backgroundColor , lineWidth: 2)
-                            }
-
                         }
-                        
                     }
-                    
                 }
             }
-               
-                
+        } // Pan Canvas
+    }
     
-                
-            } // Pan Canvas
-            
+    private func calcPathUsing(port:(any AnyPort), start:CGPoint, end:CGPoint) -> Path
+    {
+        // Min 5 stem height
+        let stemHeight:CGFloat = self.clamp( abs( end.y - start.y) / 4.0 , lowerBound: 5.0, upperBound: 35.0)
+        let stemOffset:CGFloat =  self.clamp( self.dist(p1: start, p2:end) / 4.0, lowerBound: 5.0, upperBound: 35.0) /*min( max(5, self.dist(p1: start, p2:end)), 40 )*/
 
+        switch port.direction
+        {
+        case .Vertical:
+            var start1:CGPoint = CGPoint(x: start.x,
+                                         y: start.y + stemHeight)
+            
+            let end1:CGPoint = CGPoint(x: end.x,
+                                       y: end.y - stemHeight)
+            
+            let controlOffset:CGFloat = max(stemHeight + stemOffset, abs(end1.y - start1.y) / 2.4)
+            let control1 = CGPoint(x: start1.x, y: start1.y + controlOffset )
+            let control2 = CGPoint(x: end1.x, y:end1.y - controlOffset  )
+            
+            return Path { path in
+                
+                path.move(to: start )
+                path.addLine(to: start1)
+                
+                path.addCurve(to: end1, control1: control1, control2: control2)
+                
+                path.addLine(to: end)
+            }
+            
+        case .Horizontal:
+            var start1:CGPoint = CGPoint(x: start.x + stemHeight,
+                                         y: start.y)
+            
+            let end1:CGPoint = CGPoint(x: end.x - stemHeight,
+                                       y: end.y)
+            
+            let controlOffset:CGFloat = max(stemHeight + stemOffset, abs(end1.y - start1.y) / 2.4)
+            let control1 = CGPoint(x: start1.x + controlOffset, y: start1.y  )
+            let control2 = CGPoint(x: end1.x - controlOffset, y:end1.y   )
+            
+            return Path { path in
+                
+                path.move(to: start )
+                path.addLine(to: start1)
+                
+                path.addCurve(to: end1, control1: control1, control2: control2)
+                
+                path.addLine(to: end)
+            }
+        }
     }
     
     private func clamp(_ x:CGFloat, lowerBound:CGFloat, upperBound:CGFloat) -> CGFloat

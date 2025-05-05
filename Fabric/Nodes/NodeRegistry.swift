@@ -18,6 +18,7 @@ class NodeRegistry {
          PlaneGeometryNode.self,
          BoxGeometryNode.self,
          SkyboxGeometryNode.self,
+         SuperShapeGeometryNode.self,
          
          BasicColorMaterialNode.self,
          BasicTextureMaterialNode.self,

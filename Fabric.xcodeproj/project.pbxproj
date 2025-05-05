@@ -8,11 +8,52 @@
 
 /* Begin PBXBuildFile section */
 		1BE008E12DC1DEF80061EAFD /* AnyCodable in Frameworks */ = {isa = PBXBuildFile; productRef = 1BE008E02DC1DEF80061EAFD /* AnyCodable */; };
-		1BE008E32DC1DF1B0061EAFD /* Satin in Frameworks */ = {isa = PBXBuildFile; productRef = 1BE008E22DC1DF1B0061EAFD /* Satin */; };
+		1BE00A562DC935C70061EAFD /* Satin.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A532DC935C00061EAFD /* Satin.framework */; };
+		1BE00A572DC935C70061EAFD /* Satin.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A532DC935C00061EAFD /* Satin.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		1BE00A5D2DC936A50061EAFD /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5B2DC936A50061EAFD /* CoreFoundation.framework */; };
+		1BE00A5E2DC936A50061EAFD /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5C2DC936A50061EAFD /* Foundation.framework */; };
+		1BE00A612DC936AC0061EAFD /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5F2DC936AC0061EAFD /* MetalKit.framework */; };
+		1BE00A622DC936AC0061EAFD /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A602DC936AC0061EAFD /* Metal.framework */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		1BE00A522DC935C00061EAFD /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1BE009A92DC935A50061EAFD /* Satin.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 66D7DD332C06A23000B5A6C8;
+			remoteInfo = Satin;
+		};
+		1BE00A592DC9364F0061EAFD /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1BE009A92DC935A50061EAFD /* Satin.xcodeproj */;
+			proxyType = 1;
+			remoteGlobalIDString = 66D7DD322C06A23000B5A6C8;
+			remoteInfo = Satin;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		1BE00A582DC935C80061EAFD /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				1BE00A572DC935C70061EAFD /* Satin.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		1BE007222DBB1FBC0061EAFD /* Fabric.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Fabric.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1BE009A92DC935A50061EAFD /* Satin.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = Satin.xcodeproj; path = ../Satin/Satin.xcodeproj; sourceTree = SOURCE_ROOT; };
+		1BE00A5B2DC936A50061EAFD /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
+		1BE00A5C2DC936A50061EAFD /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		1BE00A5F2DC936AC0061EAFD /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
+		1BE00A602DC936AC0061EAFD /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -42,8 +83,12 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1BE008E32DC1DF1B0061EAFD /* Satin in Frameworks */,
+				1BE00A562DC935C70061EAFD /* Satin.framework in Frameworks */,
 				1BE008E12DC1DEF80061EAFD /* AnyCodable in Frameworks */,
+				1BE00A5D2DC936A50061EAFD /* CoreFoundation.framework in Frameworks */,
+				1BE00A612DC936AC0061EAFD /* MetalKit.framework in Frameworks */,
+				1BE00A622DC936AC0061EAFD /* Metal.framework in Frameworks */,
+				1BE00A5E2DC936A50061EAFD /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -53,6 +98,7 @@
 		1BE007192DBB1FBC0061EAFD = {
 			isa = PBXGroup;
 			children = (
+				1BE009A92DC935A50061EAFD /* Satin.xcodeproj */,
 				1BE007242DBB1FBC0061EAFD /* Fabric */,
 				1BE007602DBC37CE0061EAFD /* Frameworks */,
 				1BE007232DBB1FBC0061EAFD /* Products */,
@@ -70,8 +116,20 @@
 		1BE007602DBC37CE0061EAFD /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				1BE00A602DC936AC0061EAFD /* Metal.framework */,
+				1BE00A5F2DC936AC0061EAFD /* MetalKit.framework */,
+				1BE00A5B2DC936A50061EAFD /* CoreFoundation.framework */,
+				1BE00A5C2DC936A50061EAFD /* Foundation.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		1BE00A4E2DC935C00061EAFD /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1BE00A532DC935C00061EAFD /* Satin.framework */,
+			);
+			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -84,10 +142,12 @@
 				1BE0071E2DBB1FBC0061EAFD /* Sources */,
 				1BE0071F2DBB1FBC0061EAFD /* Frameworks */,
 				1BE007202DBB1FBC0061EAFD /* Resources */,
+				1BE00A582DC935C80061EAFD /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				1BE00A5A2DC9364F0061EAFD /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				1BE007242DBB1FBC0061EAFD /* Fabric */,
@@ -95,7 +155,6 @@
 			name = Fabric;
 			packageProductDependencies = (
 				1BE008E02DC1DEF80061EAFD /* AnyCodable */,
-				1BE008E22DC1DF1B0061EAFD /* Satin */,
 			);
 			productName = Fabric;
 			productReference = 1BE007222DBB1FBC0061EAFD /* Fabric.app */;
@@ -113,6 +172,7 @@
 				TargetAttributes = {
 					1BE007212DBB1FBC0061EAFD = {
 						CreatedOnToolsVersion = 16.0;
+						LastSwiftMigration = 1600;
 					};
 				};
 			};
@@ -126,18 +186,33 @@
 			mainGroup = 1BE007192DBB1FBC0061EAFD;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				1BE0085C2DC1DE790061EAFD /* XCLocalSwiftPackageReference "../Satin" */,
 				1BE008DF2DC1DEF80061EAFD /* XCLocalSwiftPackageReference "../AnyCodable" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1BE007232DBB1FBC0061EAFD /* Products */;
 			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = 1BE00A4E2DC935C00061EAFD /* Products */;
+					ProjectRef = 1BE009A92DC935A50061EAFD /* Satin.xcodeproj */;
+				},
+			);
 			projectRoot = "";
 			targets = (
 				1BE007212DBB1FBC0061EAFD /* Fabric */,
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXReferenceProxy section */
+		1BE00A532DC935C00061EAFD /* Satin.framework */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			path = Satin.framework;
+			remoteRef = 1BE00A522DC935C00061EAFD /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+/* End PBXReferenceProxy section */
 
 /* Begin PBXResourcesBuildPhase section */
 		1BE007202DBB1FBC0061EAFD /* Resources */ = {
@@ -159,12 +234,22 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		1BE00A5A2DC9364F0061EAFD /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = Satin;
+			targetProxy = 1BE00A592DC9364F0061EAFD /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
 		1BE007342DBB1FBD0061EAFD /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = NO;
 				CODE_SIGN_ENTITLEMENTS = Fabric/Fabric.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -182,6 +267,8 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "io.hi-rez.Fabric";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "Fabric/Fabric-Bridging-Header.h";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
@@ -191,6 +278,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = NO;
 				CODE_SIGN_ENTITLEMENTS = Fabric/Fabric.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -208,6 +297,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "io.hi-rez.Fabric";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "Fabric/Fabric-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
@@ -354,10 +444,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		1BE0085C2DC1DE790061EAFD /* XCLocalSwiftPackageReference "../Satin" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = ../Satin;
-		};
 		1BE008DF2DC1DEF80061EAFD /* XCLocalSwiftPackageReference "../AnyCodable" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../AnyCodable;
@@ -368,11 +454,6 @@
 		1BE008E02DC1DEF80061EAFD /* AnyCodable */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = AnyCodable;
-		};
-		1BE008E22DC1DF1B0061EAFD /* Satin */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 1BE0085C2DC1DE790061EAFD /* XCLocalSwiftPackageReference "../Satin" */;
-			productName = Satin;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
