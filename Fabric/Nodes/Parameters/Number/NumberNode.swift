@@ -26,7 +26,7 @@ class NumberNode : Node, NodeProtocol
     // Params
     let inputNumberParam = GenericParameter<Float>("Number", 0.0, .inputfield)
 
-    override var inputParameters:[any Parameter]  { [inputNumberParam] }
+    override var inputParameters:[any Parameter]  { super .inputParameters + [inputNumberParam] }
     
     override  func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,

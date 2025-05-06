@@ -47,18 +47,6 @@ class GraphExecutionEngine : MetalViewRenderer
         self.lastGraphExecutionTime = time
     }
 
-    private func inputNodesFor(graph:Graph, node:Node, pruningNodes:[Node] = []) -> [Node]
-    {
-        let nodeInputs = node.ports.filter( { $0.kind == .Inlet } )
-//
-        let inputNodes = nodeInputs.compactMap { $0.connections.compactMap(\.node) }.flatMap(\.self)
-        
-            
-        
-        return inputNodes
-    }
-    
-    
     private func processGraph(graph:Graph,
                               node: Node,
                               renderPassDescriptor: MTLRenderPassDescriptor,
@@ -69,8 +57,7 @@ class GraphExecutionEngine : MetalViewRenderer
     {
         
         // get the connection for
-        let inputNodes = self.inputNodesFor(graph:graph, node:node, pruningNodes: pruningNodes)
-        
+        let inputNodes = node.inputNodes()
                 
         for node in inputNodes
         {
@@ -83,7 +70,14 @@ class GraphExecutionEngine : MetalViewRenderer
                          pruningNodes:inputNodes)
         }
         
-        node.evaluate(atTime: time, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+        if node.isDirty
+        {
+            node.evaluate(atTime: time, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+            
+            node.isDirty = false
+
+            node.lastEvaluationTime = time
+        }
     }
     
     override  func draw(renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)

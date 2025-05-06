@@ -27,7 +27,7 @@ class NumberSubtractNode : Node, NodeProtocol
     let inputAParam = GenericParameter<Float>("A", 0.0, .inputfield)
     let inputBParam = GenericParameter<Float>("B", 0.0, .inputfield)
 
-    override var inputParameters:[any Parameter]  { [inputAParam, inputBParam] }
+    override var inputParameters:[any Parameter]  { super.inputParameters + [inputAParam, inputBParam] }
     
     override  func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,

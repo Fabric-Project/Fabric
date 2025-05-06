@@ -21,7 +21,7 @@ class MakeVector2Node : Node, NodeProtocol
     let inputXParam = FloatParameter("X", 0.0, -10, 10, .slider)
     let inputYParam = FloatParameter("Y", 0.0, -10, 10, .slider)
 
-    override var inputParameters: [any Parameter] {  [inputXParam, inputYParam,]}
+    override var inputParameters: [any Parameter] { super.inputParameters + [inputXParam, inputYParam,]}
     
     private var vector = simd_float2(repeating: 0)
     

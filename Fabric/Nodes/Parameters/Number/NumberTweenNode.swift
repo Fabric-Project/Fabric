@@ -28,7 +28,7 @@ class NumberEaseNode : Node, NodeProtocol
     private let easingMap = Dictionary(uniqueKeysWithValues: zip(Easing.allCases.map( {$0.title()}), Easing.allCases)  )
     
     
-    override var inputParameters:[any Parameter]  { [inputTimeParam, inputEasingParam] }
+    override var inputParameters:[any Parameter]  { super.inputParameters + [inputTimeParam, inputEasingParam] }
     
     override  func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,

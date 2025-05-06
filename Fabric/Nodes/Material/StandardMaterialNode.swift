@@ -30,8 +30,8 @@ class StandardMaterialNode : BaseMaterialNode, NodeProtocol
     override var inputParameters: [any Parameter] { super.inputParameters + [inputBaseColor, inputEmissiveColor, inputSpecular, inputMetallic, inputRoughness, inputOcclusion, ] }
 
     // Ports
-    let inputDiffuseTexture = NodePort<(any MTLTexture)>(name: "Diffuse Texture", kind: .Inlet)
-    let inputNormalTexture = NodePort<(any MTLTexture)>(name: "Normal Texture", kind: .Inlet)
+    let inputDiffuseTexture = NodePort<EquatableTexture>(name: "Diffuse Texture", kind: .Inlet)
+    let inputNormalTexture = NodePort<EquatableTexture>(name: "Normal Texture", kind: .Inlet)
     let outputMaterial = NodePort<Material>(name: "Material", kind: .Outlet)
 
     private let material = StandardMaterial()
@@ -59,12 +59,12 @@ class StandardMaterialNode : BaseMaterialNode, NodeProtocol
         
         if let tex = self.inputDiffuseTexture.value
         {
-            self.material.setTexture(tex, type: .baseColor)
+            self.material.setTexture(tex.texture, type: .baseColor)
         }
         
         if let tex = self.inputNormalTexture.value
         {
-            self.material.setTexture(tex, type: .normal)
+            self.material.setTexture(tex.texture, type: .normal)
         }
         
 //        if let tex = self.inputHardness.value

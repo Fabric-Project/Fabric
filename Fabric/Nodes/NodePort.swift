@@ -66,7 +66,7 @@ protocol AnyPort
     func valueType() -> String
 }
 
-class ParameterNode<ParamValue : Codable & Equatable> : NodePort<ParamValue>
+class ParameterNode<ParamValue : Codable & Equatable & Hashable> : NodePort<ParamValue>
 {
 //    var binding: Binding<ParamValue>? = nil
     private let parameter: GenericParameter<ParamValue>
@@ -88,13 +88,18 @@ class ParameterNode<ParamValue : Codable & Equatable> : NodePort<ParamValue>
         {
             if let newValue = newValue
             {
-                parameter.value = newValue
+                if  parameter.value != newValue
+                {
+                    parameter.value = newValue
+                    node?.markDirty()
+                }
             }
         }
+        
     }
 }
 
-class NodePort<Value>: AnyPort, Identifiable, Hashable, Equatable
+class NodePort<Value : Equatable>: AnyPort, Identifiable, Hashable, Equatable
 {
     public static func == (lhs: NodePort, rhs: NodePort) -> Bool
     {
@@ -109,7 +114,13 @@ class NodePort<Value>: AnyPort, Identifiable, Hashable, Equatable
     let id = UUID()
 
     let name: String
-    var value: Value?
+    var value: Value? {
+        didSet {
+            if oldValue != value {
+                   node?.markDirty()
+               }
+           }
+    }
         
     var connections: [any AnyPort] = []
     var kind: PortKind
@@ -134,6 +145,7 @@ class NodePort<Value>: AnyPort, Identifiable, Hashable, Equatable
         {
             self.connect(to: other)
         }
+        
     }
 
     func discconnect(from other: any AnyPort)
@@ -179,6 +191,10 @@ class NodePort<Value>: AnyPort, Identifiable, Hashable, Equatable
             other.connections.append(self)
             self.connections.append(other)
         }
+        
+        self.node?.markDirty()
+        other.node?.markDirty()
+
     }
     
     func send(_ v: Value)
@@ -194,7 +210,7 @@ class NodePort<Value>: AnyPort, Identifiable, Hashable, Equatable
         
     static func calcColor(forType: Any.Type ) -> Color
     {
-        if forType == (MTLTexture & AnyObject).self
+        if forType == EquatableTexture.self
         {
             return Color.nodeTexture
         }
@@ -236,7 +252,7 @@ class NodePort<Value>: AnyPort, Identifiable, Hashable, Equatable
     static func calcDirection(forType: Any.Type ) -> PortDirection
     {
         
-        if forType == (MTLTexture & AnyObject).self
+        if forType == EquatableTexture.self
         {
             return .Vertical
         }

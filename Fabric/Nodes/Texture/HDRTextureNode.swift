@@ -17,7 +17,7 @@ class HDRTextureNode : Node, NodeProtocol
 
     // Ports
     let inputURL = NodePort<URL>(name: "File URL", kind: .Inlet)
-    let outputTexture = NodePort<(any MTLTexture)>(name: "Texture", kind: .Outlet)
+    let outputTexture = NodePort<EquatableTexture>(name: "Texture", kind: .Outlet)
 
     private var texture: (any MTLTexture)? = nil
     private var url: URL? = nil
@@ -45,7 +45,7 @@ class HDRTextureNode : Node, NodeProtocol
         
         if let texture = self.texture
         {
-            self.outputTexture.send(texture)
+            self.outputTexture.send( EquatableTexture(texture: texture) )
         }
      }
 }

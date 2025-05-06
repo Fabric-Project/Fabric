@@ -189,7 +189,7 @@ import Satin
         
         self.lastNode = node
         self.lastNode?.isSelected = true
-        print("selected node:", self.lastNode?.name ?? "No Node")
+//        print("selected node:", self.lastNode?.name ?? "No Node")
         
         
     }

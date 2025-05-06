@@ -16,7 +16,7 @@ class SceneBuilderNode : BaseObjectNode, NodeProtocol
     static var nodeType = Node.NodeType.Object
 
     // Ports
-    let inputEnvironment = NodePort<(any MTLTexture)>(name: "Environment", kind: .Inlet)
+    let inputEnvironment = NodePort<EquatableTexture>(name: "Environment", kind: .Inlet)
     let inputObject1 = NodePort<Object>(name: "Input 1", kind: .Inlet)
     let inputObject2 = NodePort<Object>(name: "Input 2", kind: .Inlet)
     let inputObject3 = NodePort<Object>(name: "Input 3", kind: .Inlet)
@@ -48,7 +48,7 @@ class SceneBuilderNode : BaseObjectNode, NodeProtocol
             }
             else
             {
-                object.setEnvironment(texture: v)
+                object.setEnvironment(texture: v.texture)
             }
         }
 

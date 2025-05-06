@@ -8,6 +8,7 @@
 import SwiftUI
 import Metal
 import Satin
+import Combine
 
 protocol NodeDelegate : AnyObject
 {
@@ -94,9 +95,23 @@ protocol NodeProtocol
         }
     }
         
+    // Equatable
     let id = UUID()
     
-    @ObservationIgnored var inputParameters:[any Parameter] { [] }
+    // Hashable
+    public func hash(into hasher: inout Hasher)
+    {
+        hasher.combine(id)
+    }
+    
+    // Equatable
+    public static func == (lhs: Node, rhs: Node) -> Bool
+    {
+        return lhs.id == rhs.id
+    }
+    
+    
+    @ObservationIgnored var inputParameters:[any Parameter] { []  }
     @ObservationIgnored let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
                                                         
     @ObservationIgnored private var inputParameterPorts:[any AnyPort] = []
@@ -107,12 +122,7 @@ protocol NodeProtocol
     @ObservationIgnored var context:Context
     
     @ObservationIgnored weak var delegate:(any NodeDelegate)? = nil
-
-    public func hash(into hasher: inout Hasher)
-    {
-        hasher.combine(id)
-    }
-    
+        
     var isSelected:Bool = false
     var isDragging:Bool = false
     var showParams:Bool = false
@@ -146,12 +156,48 @@ protocol NodeProtocol
         }
     }
     
+    // Dirty Handling
+    @ObservationIgnored var lastEvaluationTime: TimeInterval = -1
+    @ObservationIgnored var isDirty: Bool = true
+    
+    @ObservationIgnored var inputParamCancellables: [AnyCancellable] = []
+    public func markDirty() {
+        isDirty = true
+        
+        self.outputNodes().forEach( { $0.markDirty() } )
+        
+//        print(self.name, "is dirty")
+    }
+    
+    func inputNodes() -> [Node]
+    {
+        let nodeInputs = self.ports.filter( { $0.kind == .Inlet } )
+        let inputNodes = nodeInputs.compactMap { $0.connections.compactMap(\.node) }.flatMap(\.self)
+        
+        return inputNodes
+    }
+    
+    func outputNodes() -> [Node]
+    {
+        let nodeOutputs = self.ports.filter( { $0.kind == .Outlet } )
+        let outputNodes = nodeOutputs.compactMap { $0.connections.compactMap(\.node) }.flatMap(\.self)
+        
+        return outputNodes
+    }
+    
     required init (context:Context)
     {
         self.context = context
         self.inputParameterPorts = self.parametersGroupToPorts(self.inputParameters)
         self.parameterGroup.append(self.inputParameters)
 
+        for parameter in self.inputParameters
+        {
+            let cancellable = self.makeCancelable(parameter: parameter)
+//
+            self.inputParamCancellables.append(cancellable)
+        }
+        
         for var port in self.ports
         {
             port.node = self
@@ -162,19 +208,24 @@ protocol NodeProtocol
     
     deinit
     {
+        self.inputParamCancellables.forEach { $0.cancel() }
+        
         print("Deleted node \(id)")
     }
     
-    public static func == (lhs: Node, rhs: Node) -> Bool
+    private func makeCancelable(parameter: some Parameter) -> AnyCancellable
     {
-        return lhs.id == rhs.id
+        let cancellable = parameter.valuePublisher.eraseToAnyPublisher().sink{ [weak self] _ in
+            self?.markDirty()
+        }
+        
+        return cancellable
     }
-             
     public func evaluate(atTime:TimeInterval,
                          renderPassDescriptor: MTLRenderPassDescriptor,
                          commandBuffer: MTLCommandBuffer)
     {
-     
+
     }
     
     public func resize(size: (width: Float, height: Float), scaleFactor: Float)

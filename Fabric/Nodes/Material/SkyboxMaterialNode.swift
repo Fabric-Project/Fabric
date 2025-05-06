@@ -18,7 +18,7 @@ class SkyboxMaterialNode : BaseMaterialNode, NodeProtocol
     static var nodeType = Node.NodeType.Material
 
     // Ports
-    let inputTexture = NodePort<MTLTexture>(name: "Texture", kind: .Inlet)
+    let inputTexture = NodePort<EquatableTexture>(name: "Texture", kind: .Inlet)
 
     let outputMaterial = NodePort<Material>(name: "Material", kind: .Outlet)
 

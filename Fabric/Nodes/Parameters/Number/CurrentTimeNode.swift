@@ -17,7 +17,9 @@ class CurrentTimeNode : Node, NodeProtocol
 {
     static let name = "Current Time"
     static var nodeType = Node.NodeType.Parameter
-    
+
+    override var isDirty:Bool { get {  true  } set { } }
+
     private let startTime = Date.timeIntervalSinceReferenceDate
     
     // Ports

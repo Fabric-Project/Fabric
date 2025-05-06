@@ -17,7 +17,7 @@ class BasicTextureMaterialNode : BaseMaterialNode, NodeProtocol
     static var nodeType = Node.NodeType.Material
 
     // Ports
-    let inputTexture = NodePort<(any MTLTexture)>(name: "Texture", kind: .Inlet)
+    let inputTexture = NodePort<EquatableTexture>(name: "Texture", kind: .Inlet)
     let inputColor = NodePort<simd_float4>(name: "Color", kind: .Inlet)
     let outputMaterial = NodePort<Material>(name: "Material", kind: .Outlet)
 
@@ -48,7 +48,7 @@ class BasicTextureMaterialNode : BaseMaterialNode, NodeProtocol
         
         if let tex = self.inputTexture.value
         {
-            self.material.texture = tex
+            self.material.texture = tex.texture
         }
         
 //        self.material.color = simd_float4( cosf(Float(atTime.remainder(dividingBy: 1) )  * Float.pi ) , 0.0, 0.0, 1.0)

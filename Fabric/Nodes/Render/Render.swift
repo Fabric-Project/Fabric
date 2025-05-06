@@ -20,6 +20,7 @@ class RenderNode : Node, NodeProtocol
 
     override var inputParameters: [any Parameter] { super.inputParameters + [inputClearColor] }
     
+    override var isDirty:Bool { get {  true  } set { } }
     
     // Ports
     let inputCamera = NodePort<Camera>(name: "Camera", kind: .Inlet)
