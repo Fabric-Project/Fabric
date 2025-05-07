@@ -38,10 +38,8 @@ struct ContentView: View {
                         .frame(width: 10000 , height: 10000)
                         .environment(self.document.graph)
                         .allowsHitTesting(self.hitTestEnable)
-
-                    //                        .scaleEffect(self.magnifyBy + self.finalMagnification)
-                    
-                    //                        .gesture(magnification)
+//                        .scaleEffect(self.magnifyBy + self.finalMagnification)
+//                        .gesture(magnification)
                     
                 }
                 .defaultScrollAnchor(UnitPoint(x: 0.5, y: 0.5))

@@ -22,13 +22,13 @@ struct NodeView : View
     {
         GeometryReader { geom in
             
-            let nodeClass = self.node 
+//            let nodeClass = self.node 
             
             // Param List
             ZStack
             {
-//                Color( (self.node.isSelected) ? "NodeBackgroundColorSelected" : "NodeBackgroundColor")
-                Color( (self.node.isSelected) ? self.node.nodeType.backgroundColor() : self.node.nodeType.backgroundColor().opacity(0.5) )
+                Color( (self.node.isSelected) ? "NodeBackgroundColorSelected" : "NodeBackgroundColor")
+//                Color( (self.node.isSelected) ? self.node.nodeType.backgroundColor() : self.node.nodeType.backgroundColor().opacity(0.5) )
 
                 VStack
                 {
@@ -84,8 +84,9 @@ struct NodeView : View
             .cornerRadius(15.0)
             .overlay {
                 RoundedRectangle(cornerRadius: 15.0)
-                    .stroke( (self.node.isSelected) ? self.node.nodeType.color() : .gray, lineWidth: 1.0)
-                
+//                    .stroke( (self.node.isSelected) ? self.node.nodeType.color() : .gray, lineWidth: 1.0)
+                    .stroke( (self.node.isSelected) ? self.node.nodeType.color() : self.node.nodeType.backgroundColor(), lineWidth: 1.0)
+
             }
             .offset( self.node.isDragging ?  CGSize(
                 width: self.offset.width + self.dragOffset.width,// + self.dragOffset.width,

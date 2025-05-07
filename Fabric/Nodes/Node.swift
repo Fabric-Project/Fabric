@@ -281,6 +281,11 @@ protocol NodeProtocol
                 return ParameterNode(parameter: genericParam)
             }
             
+            if let genericParam = parameter as? GenericParameter<simd_float4>
+            {
+                return ParameterNode(parameter: genericParam)
+            }
+            
             if let genericParam = parameter as? GenericParameter<simd_quatf>
             {
                 return ParameterNode(parameter: genericParam)
@@ -294,10 +299,12 @@ protocol NodeProtocol
             }
 
         case .bool:
+
             if let genericParam = parameter as? BoolParameter
             {
                 return ParameterNode(parameter: genericParam)
             }
+            
         case .float:
             
             if let genericParam = parameter as? FloatParameter
@@ -315,6 +322,7 @@ protocol NodeProtocol
             {
                 return ParameterNode(parameter: genericParam)
             }
+            
         case .float3:
             if let genericParam = parameter as? Float3Parameter
             {
@@ -327,11 +335,17 @@ protocol NodeProtocol
                 return ParameterNode(parameter: genericParam)
             }
             
+            else if let genericParam = parameter as? GenericParameter<simd_float4>
+            {
+                return ParameterNode(parameter: genericParam)
+            }
+            
         case .float2x2:
             if let genericParam = parameter as? Float2x2Parameter
             {
                 return ParameterNode(parameter: genericParam)
             }
+            
         case .float3x3:
             if let genericParam = parameter as? Float3x3Parameter
             {

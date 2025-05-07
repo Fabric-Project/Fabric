@@ -33,6 +33,7 @@ class NodeRegistry {
          MeshNode.self,
          SceneBuilderNode.self,
          RenderNode.self,
+         DeferredRenderNode.self,
          
          TrueNode.self,
          FalseNode.self ,

@@ -20,26 +20,21 @@ class RenderNode : Node, NodeProtocol
 
     override var inputParameters: [any Parameter] { super.inputParameters + [inputClearColor] }
     
+    // Ensure we always render!
     override var isDirty:Bool { get {  true  } set { } }
     
     // Ports
     let inputCamera = NodePort<Camera>(name: "Camera", kind: .Inlet)
     let inputScene = NodePort<Object>(name: "Scene", kind: .Inlet)
     
-//    let outputColorTexture  = NodePort<MTLTexture>(name: "Color Texture", kind: .Inlet)
-//    let outputDepthTexture  = NodePort<MTLTexture>(name: "Depth Texture", kind: .Inlet)
-    
     private let renderer:Renderer
     
-    override var ports: [any AnyPort] { [inputScene, inputCamera] }
+    override var ports: [any AnyPort] { super.ports +  [inputCamera, inputScene] }
     
     required init(context:Context)
     {
         self.renderer = Renderer(context: context)
         super.init(context: context)
-        
-        self.renderer.clearColor = .init(red: 0.75, green: 0.75, blue: 0.75, alpha: 1.0)
-//        self.renderer.setClearColor(.zero)
   }
     
     override func evaluate(atTime:TimeInterval,
@@ -59,8 +54,6 @@ class RenderNode : Node, NodeProtocol
      }
     
     override func resize(size: (width: Float, height: Float), scaleFactor: Float) {
-
         renderer.resize(size)
-
     }
 }
