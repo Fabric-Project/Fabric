@@ -16,9 +16,10 @@ class DeferredRenderNode : Node, NodeProtocol
     static var nodeType = Node.NodeType.Renderer
     
     // Parameters
+    let inputResolution = GenericParameterWithMinMax<simd_int2>("Resolution", simd_int2(x:1920, y:1080), simd_int2(x:1, y:1), simd_int2(x:8192, y:8192), .inputfield)
     let inputClearColor = GenericParameter<simd_float4>("Clear Color", simd_float4(repeating:0), .colorpicker)
     
-    override var inputParameters: [any Parameter] { super.inputParameters + [inputClearColor] }
+    override var inputParameters: [any Parameter] { super.inputParameters + [inputResolution, inputClearColor] }
     
     // Ensure we always render!
     override var isDirty:Bool { get {  true  } set { } }

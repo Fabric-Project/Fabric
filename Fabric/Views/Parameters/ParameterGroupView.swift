@@ -156,21 +156,38 @@ struct ParameterGroupView : View
     {
         if let stringParam = param as? StringParameter {
             return InputFieldView(param: stringParam)
-//                .frame(height:20)
         }
         
-        if let floatParam = param as? GenericParameter<Float> {
+        else if let floatParam = param as? GenericParameter<Float> {
             return FloatInputFieldView(param: floatParam)
-//                .frame(height:20)
-
         }
         
-        if let floatParam = param as? GenericParameter<simd_float3> {
+        else if let floatParam = param as? GenericParameter<simd_float2> {
+            return Float2InputFieldView(param: floatParam)
+        }
+
+        else if let floatParam = param as? GenericParameter<simd_float3> {
             return Float3InputFieldView(param: floatParam)
         }
 
-        if let floatParam = param as? GenericParameter<simd_float4> {
+        else if let floatParam = param as? GenericParameter<simd_float4> {
             return Float4InputFieldView(param: floatParam)
+        }
+        
+        else if let intParam = param as? GenericParameter<Int> {
+            return IntInputFieldView(param: intParam)
+        }
+        
+        else if let intParam = param as? GenericParameter<simd_int2> {
+            return Int2InputFieldView(param: intParam)
+        }
+
+        else if let intParam = param as? GenericParameter<simd_int3> {
+            return Int3InputFieldView(param: intParam)
+        }
+
+        else if let intParam = param as? GenericParameter<simd_int4> {
+            return Int4InputFieldView(param: intParam)
         }
 
         
