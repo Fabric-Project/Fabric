@@ -27,6 +27,7 @@ class NodeRegistry {
          DepthMaterialNode.self,
          ShadowMaterialNode.self,
          StandardMaterialNode.self,
+         PBRMaterialNode.self,
          
          DirectionalLightNode.self,
          

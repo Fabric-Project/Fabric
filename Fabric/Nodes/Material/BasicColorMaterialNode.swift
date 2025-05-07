@@ -16,13 +16,17 @@ class BasicColorMaterialNode : BaseMaterialNode, NodeProtocol
     static let name = "Color Material"
     static var nodeType = Node.NodeType.Material
 
+    // Parameters    
+    let inputColor = GenericParameterWithMinMax<simd_float4>("Color", .one, .zero, .one, .colorpicker)
+    
+    override var inputParameters: [any Parameter] { super.inputParameters + [inputColor] }
+    
     // Ports
-    let inputColor = NodePort<simd_float4>(name: "Color", kind: .Inlet)
     let outputMaterial = NodePort<Material>(name: "Material", kind: .Outlet)
 
     private let material = BasicColorMaterial()
     
-    override var ports: [any AnyPort] { super.ports + [inputColor, outputMaterial] }
+    override var ports: [any AnyPort] { super.ports + [ outputMaterial] }
     
     required init(context:Context)
     {
@@ -37,11 +41,7 @@ class BasicColorMaterialNode : BaseMaterialNode, NodeProtocol
     {
         self.evaluate(material: self.material, atTime: atTime)
         
-        if let color = self.inputColor.value
-        {
-            self.material.color = color
-        }
-        
+        self.material.color = self.inputColor.value
         
         self.outputMaterial.send(self.material)
      }
