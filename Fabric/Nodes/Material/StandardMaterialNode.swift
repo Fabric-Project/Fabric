@@ -19,9 +19,6 @@ class StandardMaterialNode : BaseMaterialNode, NodeProtocol
     let inputBaseColor = GenericParameter<simd_float4>("Base Color", simd_float4(repeating:1), .colorpicker)
     let inputEmissiveColor = GenericParameter<simd_float4>("Emissive Color", simd_float4(repeating:0), .colorpicker)
     
-    //Float4Parameter("Base Color", simd_float4(repeating: 1), simd_float4(repeating: 0), simd_float4(repeating: 1), .slider)
-    //let inputEmissiveColor = Float4Parameter("Emissive Color", simd_float4(repeating: 0), simd_float4(repeating: 0), simd_float4(repeating: 1), .slider)
-
     let inputSpecular = FloatParameter("Specular", 0.25, 0.0, 1.0, .slider)
     let inputRoughness = FloatParameter("Roughness", 0.25, 0.0, 1.0, .slider)
     let inputMetallic = FloatParameter("Metallic", 0.75, 0.0, 1.0, .slider)

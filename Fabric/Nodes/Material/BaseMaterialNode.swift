@@ -12,7 +12,6 @@ import Metal
 
 class BaseMaterialNode : Node
 {
-
     // Params
     let inputReceivesLighting = BoolParameter("Receives Lighting", true, .button)
     let inputWriteDepth = BoolParameter("Write Depth", true, .button)
