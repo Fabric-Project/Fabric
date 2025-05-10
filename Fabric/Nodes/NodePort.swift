@@ -7,8 +7,9 @@
 
 import SwiftUI
 import Satin
+import CoreMedia
 
-enum PortKind
+enum PortKind : Codable
 {
     case Inlet
     case Outlet
@@ -19,19 +20,12 @@ enum PortKind
 // for value types (ie float, simd_float2, bool etc) we draw left / right
 // this allows for control params to go horizontal while scene content go vertical
 
-enum PortDirection
+enum PortDirection : Codable
 {
     case Vertical
     case Horizontal
 }
 
-///// uniquely identifies a node’s inlet or outlet
-//struct PortID: Hashable
-//{
-//    let nodeID: UUID
-//    let portUUID: UUID
-//    //… or however you distinguish each inlet/outlet
-//}
 
 struct PortAnchorKey: PreferenceKey
 {
@@ -77,7 +71,21 @@ class ParameterNode<ParamValue : Codable & Equatable & Hashable> : NodePort<Para
         
         super.init(name: parameter.label, kind: .Inlet)
     }
+    
+    required init(from decoder: any Decoder) throws {
+        self.parameter = try GenericParameter(from: decoder)
 
+        try super.init(from: decoder)
+        
+    }
+    
+    override func encode(to encoder: any Encoder) throws {
+        
+        try super.encode(to: encoder)
+        
+        try self.parameter.encode(to: encoder)
+    }
+    
     override var value: ParamValue?
     {
         get
@@ -99,7 +107,7 @@ class ParameterNode<ParamValue : Codable & Equatable & Hashable> : NodePort<Para
     }
 }
 
-class NodePort<Value : Equatable>: AnyPort, Identifiable, Hashable, Equatable
+class NodePort<Value : Equatable>: AnyPort, Identifiable, Hashable, Equatable, Codable
 {
     public static func == (lhs: NodePort, rhs: NodePort) -> Bool
     {
@@ -111,7 +119,9 @@ class NodePort<Value : Equatable>: AnyPort, Identifiable, Hashable, Equatable
         hasher.combine(id)
     }
     
-    let id = UUID()
+    
+    
+    let id:UUID
 
     let name: String
     var value: Value? {
@@ -130,8 +140,59 @@ class NodePort<Value : Equatable>: AnyPort, Identifiable, Hashable, Equatable
     var color:Color
     var backgroundColor:Color
     
+    
+    enum CodingKeys : String, CodingKey
+    {
+        case valueType
+        case id
+        case name
+        case connections
+        case kind
+        case direction
+    }
+
+    required init(from decoder: any Decoder) throws
+    {
+//        guard let decodeContext = decoder.context else
+//        {
+//            fatalError("Required Decode Context Not set")
+//        }
+        
+//        guard let currentNodes = decodeContext.currentGraphNodes else
+//        {
+//            fatalError("Required Current Graph Nodes Not set")
+//        }
+        
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        self.id = try container.decode(UUID.self, forKey: .id)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.kind = try container.decode(PortKind.self, forKey: .kind)
+        
+        self.color = Self.calcColor(forType: Value.self)
+        self.backgroundColor = Self.calcBackgroundColor(forType: Value.self)
+        self.direction = Self.calcDirection(forType: Value.self )
+
+    }
+    
+    func encode(to encoder:Encoder) throws
+    {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+//        try container.encode(type(of: self.value ?? Value(), forKey: .valueType)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+//        try container.encode(connections, forKey: .connections)
+        try container.encode(kind, forKey: .kind)
+        
+        let connectedPortIds = self.connections.map( { $0.id } )
+        
+        try container.encode(connectedPortIds, forKey: .connections)
+    }
+    
     init(name: String, kind: PortKind)
     {
+        self.id = UUID()
         self.kind = kind
         self.name = name
         self.color = Self.calcColor(forType: Value.self)

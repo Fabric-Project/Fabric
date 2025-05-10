@@ -37,7 +37,7 @@ protocol NodeProtocol
 
 }
 
-@Observable class Node: Equatable, Identifiable, Hashable
+@Observable class Node: Equatable, Identifiable, Hashable, Codable
 {
     enum NodeType : String, CaseIterable
     {
@@ -96,7 +96,7 @@ protocol NodeProtocol
     }
         
     // Equatable
-    let id = UUID()
+    let id:UUID
     
     // Hashable
     public func hash(into hasher: inout Hasher)
@@ -187,6 +187,7 @@ protocol NodeProtocol
     
     required init (context:Context)
     {
+        self.id = UUID()
         self.context = context
         self.inputParameterPorts = self.parametersGroupToPorts(self.inputParameters)
         self.parameterGroup.append(self.inputParameters)
