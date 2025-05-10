@@ -24,8 +24,8 @@ class NumberDivideNode : Node, NodeProtocol
     override var ports: [any AnyPort] { super.ports + [ outputNumber] }
 
     // Params
-    let inputAParam = GenericParameter<Float>("A", 0.0, .inputfield)
-    let inputBParam = GenericParameter<Float>("B", 0.0, .inputfield)
+    let inputAParam = FloatParameter("A", 0.0, .inputfield)
+    let inputBParam = FloatParameter("B", 0.0, .inputfield)
 
     override var inputParameters:[any Parameter]  { [inputAParam, inputBParam] }
     

@@ -61,6 +61,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				Nodes/Parameters/Quaternion/MakeQuaternionNode.swift,
 				Views/Nodes/NodeConnectionView.swift,
 			);
 			target = 1BE007212DBB1FBC0061EAFD /* Fabric */;

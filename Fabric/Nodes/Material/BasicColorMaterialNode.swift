@@ -17,7 +17,7 @@ class BasicColorMaterialNode : BaseMaterialNode, NodeProtocol
     static var nodeType = Node.NodeType.Material
 
     // Parameters
-    let inputColor = GenericParameterWithMinMax<simd_float4>("Color", .one, .zero, .one, .colorpicker)
+    let inputColor = Float4Parameter("Color", .one, .zero, .one, .colorpicker)
     
     override var inputParameters: [any Parameter] { super.inputParameters + [inputColor] }
     

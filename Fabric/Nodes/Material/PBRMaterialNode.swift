@@ -21,7 +21,7 @@ class PBRMaterialNode : BaseMaterialNode, NodeProtocol
     let inputMetallic = FloatParameter("Metallic", 0.75, 0.0, 1.0, .slider)
     let inputSpecular = FloatParameter("Specular", 0.25, 0.0, 1.0, .slider)
     let inputRoughness = FloatParameter("Roughness", 0.25, 0.0, 1.0, .slider)
-    let inputEmissiveColor = GenericParameter<simd_float4>("Emissive Color", simd_float4(repeating:0), .colorpicker)
+    let inputEmissiveColor = Float4Parameter("Emissive Color", simd_float4(repeating:0), .colorpicker)
     let inputSubsurface = FloatParameter("Sub Surface", 0.0, 0.0, 1.0, .slider)
     let inputAnisotropic = FloatParameter("Anisotropic", 0.0, 0.0, 1.0, .slider)
     let inputAnisotropicAngle = FloatParameter("Anisotropic Angle", 0.0, 0.0, 1.0, .slider)

@@ -41,7 +41,7 @@ struct PortAnchorKey: PreferenceKey
     }
 }
 
-protocol AnyPort
+protocol AnyPort : Identifiable, Hashable, Equatable, Codable
 {
     var id: UUID { get }
     var name: String { get }
@@ -57,10 +57,15 @@ protocol AnyPort
     var direction:PortDirection { get }
     
     
+//    var value: (any Codable & Equatable & Hashable) { get set }
     func valueType() -> String
 }
 
-class ParameterNode<ParamValue : Codable & Equatable & Hashable> : NodePort<ParamValue>
+protocol ParameterPortProtocol : AnyPort
+{
+}
+    
+class ParameterPort<ParamValue : Codable & Equatable & Hashable> : NodePort<ParamValue>, ParameterPortProtocol
 {
 //    var binding: Binding<ParamValue>? = nil
     private let parameter: GenericParameter<ParamValue>
@@ -107,7 +112,7 @@ class ParameterNode<ParamValue : Codable & Equatable & Hashable> : NodePort<Para
     }
 }
 
-class NodePort<Value : Equatable>: AnyPort, Identifiable, Hashable, Equatable, Codable
+class NodePort<Value : Equatable>: AnyPort
 {
     public static func == (lhs: NodePort, rhs: NodePort) -> Bool
     {

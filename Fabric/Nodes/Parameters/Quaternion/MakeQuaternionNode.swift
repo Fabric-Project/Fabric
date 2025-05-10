@@ -19,7 +19,7 @@ class MakeQuaternionNode : Node, NodeProtocol
 
     // Params
     let inputAngle = FloatParameter("Angle", 0.0, -180, 180, .slider)
-    let inputAxisParam = GenericParameter<simd_float3>("Axis", simd_float3(0, 1, 0))
+    let inputAxisParam = Float3Parameter("Axis", simd_float3(0, 1, 0) )
 
     override var inputParameters: [any Parameter] { super.inputParameters + [inputAngle, inputAxisParam,]}
     

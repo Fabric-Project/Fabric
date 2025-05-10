@@ -16,7 +16,7 @@ class RenderNode : Node, NodeProtocol
     static var nodeType = Node.NodeType.Renderer
 
     // Parameters
-    let inputClearColor = GenericParameter<simd_float4>("Clear Color", simd_float4(repeating:0), .colorpicker)
+    let inputClearColor = Float4Parameter("Clear Color", simd_float4(repeating:0), .colorpicker)
 
     override var inputParameters: [any Parameter] { super.inputParameters + [inputClearColor] }
     
@@ -24,16 +24,25 @@ class RenderNode : Node, NodeProtocol
     override var isDirty:Bool { get {  true  } set { } }
     
     // Ports
-    let inputCamera = NodePort<Camera>(name: "Camera", kind: .Inlet)
-    let inputScene = NodePort<Object>(name: "Scene", kind: .Inlet)
+    let inputCamera: NodePort<Camera>
+    let inputScene: NodePort<Object>
     
     private let renderer:Renderer
     
     override var ports: [any AnyPort] { super.ports +  [inputCamera, inputScene] }
     
+    enum CodingKeys : String, CodingKey
+    {
+        case inputCameraPort
+        case inputScenePort
+    }
+    
     required init(context:Context)
     {
         self.renderer = Renderer(context: context)
+        self.inputCamera = NodePort<Camera>(name: "Camera", kind: .Inlet)
+        self.inputScene =  NodePort<Object>(name: "Scene", kind: .Inlet)
+        
         super.init(context: context)
     }
     
@@ -45,8 +54,23 @@ class RenderNode : Node, NodeProtocol
         }
         
         self.renderer = Renderer(context: decodeContext.documentContext, frameBufferOnly:false)
-            
+        
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        self.inputCamera = try container.decode(NodePort<Camera>.self , forKey:.inputCameraPort)
+        self.inputScene =  try container.decode(NodePort<Object>.self , forKey:.inputScenePort)
+        
         try super.init(from:decoder)
+    }
+    
+    override func encode(to encoder:Encoder) throws
+    {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(self.inputCamera, forKey: .inputCameraPort)
+        try container.encode(self.inputScene, forKey: .inputScenePort)
+        
+        try super.encode(to: encoder)
     }
     
     override func evaluate(atTime:TimeInterval,

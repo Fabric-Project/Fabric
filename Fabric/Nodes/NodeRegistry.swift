@@ -9,6 +9,16 @@ class NodeRegistry {
     
     static let shared = NodeRegistry()
     
+    var nodesClassLookup: [String: any NodeProtocol.Type] {
+        self.nodesClasses.reduce(into: [:]) { result, nodeClass in
+            result[String(describing: nodeClass)] = nodeClass
+        }
+    }
+    
+    func nodeClass(for nodeName: String) -> (any NodeProtocol.Type)? {
+        return self.nodesClassLookup[nodeName]
+    }
+    
     let nodesClasses: [any NodeProtocol.Type] = [
          PerspectiveCameraNode.self,
          
@@ -53,6 +63,6 @@ class NodeRegistry {
          MakeVector3Node.self,
          MakeVector4Node.self,
          
-         MakeQuaternionNode.self
+//         MakeQuaternionNode.self
     ]
 }

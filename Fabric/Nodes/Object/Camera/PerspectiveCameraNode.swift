@@ -16,7 +16,7 @@ class PerspectiveCameraNode : BaseObjectNode, NodeProtocol
     static let name = "Perspective Camera"
     
     // Params
-    public var inputLookAt = GenericParameter<simd_float3>("Look At", simd_float3(repeating:0), .inputfield )
+    public var inputLookAt = Float3Parameter("Look At", simd_float3(repeating:0), .inputfield )
 
     override var inputParameters: [any Parameter] { super.inputParameters + [inputLookAt] }
     // Ports

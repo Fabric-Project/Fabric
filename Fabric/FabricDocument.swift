@@ -52,20 +52,32 @@ struct FabricDocument: FileDocument {
 
     static var readableContentTypes: [UTType] { [.exampleText] }
 
-    init(configuration: ReadConfiguration) throws {
-        
-        self.graph = Graph(context: self.context)
-        self.graphRenderer = GraphExecutionEngine(context: self.context, graph: self.graph)
+    init(configuration: ReadConfiguration) throws
+    {
 
-        guard let data = configuration.file.regularFileContents,
-              let string = String(data: data, encoding: .utf8)
-        else {
+        guard let data = configuration.file.regularFileContents
+        else
+        {
             throw CocoaError(.fileReadCorruptFile)
         }
+        
+        let decoder = JSONDecoder()
+
+        let decodeContext = DecoderContext(documentContext: self.context)
+        decoder.context = decodeContext
+        
+        self.graph =  try decoder.decode(Graph.self, from: data)
+
+        self.graphRenderer = GraphExecutionEngine(context: self.context, graph: self.graph)
     }
     
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        let data = "foo".data(using: .utf8)!
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper
+    {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted]
+        
+        let data = try encoder.encode(self.graph)
+        
         return .init(regularFileWithContents: data)
     }
 }

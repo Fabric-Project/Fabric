@@ -17,7 +17,7 @@ protocol NodeDelegate : AnyObject
     func shouldDelete(node:Node)
 }
 
-protocol NodeProtocol
+protocol NodeProtocol : Codable
 {
     init(context:Context)
     
@@ -37,7 +37,7 @@ protocol NodeProtocol
 
 }
 
-@Observable class Node: Equatable, Identifiable, Hashable, Codable
+@Observable class Node :  Equatable, Identifiable, Hashable
 {
     enum NodeType : String, CaseIterable
     {
@@ -110,7 +110,6 @@ protocol NodeProtocol
         return lhs.id == rhs.id
     }
     
-    
     @ObservationIgnored var inputParameters:[any Parameter] { []  }
     @ObservationIgnored let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
                                                         
@@ -168,6 +167,7 @@ protocol NodeProtocol
         case id
         case inputParameters
         case nodeOffset
+        case valuePorts
     }
 
     
@@ -211,6 +211,8 @@ protocol NodeProtocol
 
         try container.encode(self.id, forKey: .id)
         try container.encode(self.offset, forKey: .nodeOffset)
+
+        try container.encode(self.parameterGroup, forKey: .inputParameters)
     }
     
     required init (context:Context)
@@ -326,89 +328,89 @@ protocol NodeProtocol
             
             if let genericParam = parameter as? GenericParameter<Float>
             {
-                return ParameterNode(parameter: genericParam)
+                return ParameterPort(parameter: genericParam)
             }
             
             if let genericParam = parameter as? GenericParameter<simd_float3>
             {
-                return ParameterNode(parameter: genericParam)
+                return ParameterPort(parameter: genericParam)
             }
             
             if let genericParam = parameter as? GenericParameter<simd_float4>
             {
-                return ParameterNode(parameter: genericParam)
+                return ParameterPort(parameter: genericParam)
             }
             
             if let genericParam = parameter as? GenericParameter<simd_quatf>
             {
-                return ParameterNode(parameter: genericParam)
+                return ParameterPort(parameter: genericParam)
             }
             
         case .string:
             
             if let genericParam = parameter as? StringParameter
             {
-                return ParameterNode(parameter: genericParam)
+                return ParameterPort(parameter: genericParam)
             }
 
         case .bool:
 
             if let genericParam = parameter as? BoolParameter
             {
-                return ParameterNode(parameter: genericParam)
+                return ParameterPort(parameter: genericParam)
             }
             
         case .float:
             
             if let genericParam = parameter as? FloatParameter
             {
-                return ParameterNode(parameter: genericParam)
+                return ParameterPort(parameter: genericParam)
             }
 
             else if let genericParam = parameter as? GenericParameter<Float>
             {
-                return ParameterNode(parameter: genericParam)
+                return ParameterPort(parameter: genericParam)
             }
 
         case .float2:
             if let genericParam = parameter as? Float2Parameter
             {
-                return ParameterNode(parameter: genericParam)
+                return ParameterPort(parameter: genericParam)
             }
             
         case .float3:
             if let genericParam = parameter as? Float3Parameter
             {
-                return ParameterNode(parameter: genericParam)
+                return ParameterPort(parameter: genericParam)
             }
             
         case .float4:
             if let genericParam = parameter as? Float4Parameter
             {
-                return ParameterNode(parameter: genericParam)
+                return ParameterPort(parameter: genericParam)
             }
             
             else if let genericParam = parameter as? GenericParameter<simd_float4>
             {
-                return ParameterNode(parameter: genericParam)
+                return ParameterPort(parameter: genericParam)
             }
             
         case .float2x2:
             if let genericParam = parameter as? Float2x2Parameter
             {
-                return ParameterNode(parameter: genericParam)
+                return ParameterPort(parameter: genericParam)
             }
             
         case .float3x3:
             if let genericParam = parameter as? Float3x3Parameter
             {
-                return ParameterNode(parameter: genericParam)
+                return ParameterPort(parameter: genericParam)
             }
 
         case .float4x4:
             if let genericParam = parameter as? Float4x4Parameter
             {
-                return ParameterNode(parameter: genericParam)
+                return ParameterPort(parameter: genericParam)
             }
 
         default:

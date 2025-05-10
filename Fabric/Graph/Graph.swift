@@ -6,8 +6,16 @@
 //
 import SwiftUI
 import Satin
+import AnyCodable
+
 @Observable class Graph : Codable, Identifiable, Hashable, Equatable
 {
+    enum Version : Codable
+    {
+        case alpha1
+    }
+    
+    
     public static func == (lhs: Graph, rhs: Graph) -> Bool
     {
         return lhs.id == rhs.id
@@ -19,7 +27,7 @@ import Satin
     }
     
     let id:UUID
-    
+    let version: Graph.Version
     @ObservationIgnored let context:Context
     
     private(set) var nodes: [Node]
@@ -28,15 +36,18 @@ import Satin
     
     @ObservationIgnored weak var lastNode:Node? = nil
     
-    enum CodingKeys : String, CodingKey {
+    enum CodingKeys : String, CodingKey
+    {
         case id
-        case nodes
+        case nodeMap
+        case version
     }
     
     init(context:Context)
     {
         print("Init Graph Execution Engine")
         self.id = UUID()
+        self.version = .alpha1
         self.context = context
         self.nodes = []
     }
@@ -54,12 +65,50 @@ import Satin
 
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
-        self.nodes = try container.decode([Node].self, forKey: .nodes)
         self.id = try container.decode(UUID.self, forKey: .id)
+        self.version = try container.decode(Graph.Version.self, forKey: .version)
+
+        self.nodes = []
+
+        // get a single value container
+        var nestedContainer = try container.nestedUnkeyedContainer( forKey: .nodeMap)
+        
+        while !nestedContainer.isAtEnd
+        {
+            do {
+                
+                let anyCodableMap = try nestedContainer.decode(AnyCodableMap.self)
+                
+                print(anyCodableMap.type)
+                print(anyCodableMap.value)
+                
+                if let nodeClass = NodeRegistry.shared.nodeClass(for: anyCodableMap.type)
+                {
+                    // this is stupid but works!
+                    // We make a new encoder to re-encode the data
+                    // we pass to the intospected types class decoder based initialier
+                    // since they all conform to NodeProtocol we can do this
+                    
+                    let encoder = JSONEncoder()
+                    let jsonData = try encoder.encode(anyCodableMap.value)
+                    
+                    let decoder = JSONDecoder()
+                    decoder.context = decodeContext
+                    
+                    let node = try decoder.decode(nodeClass, from: jsonData)
+                    
+                    if let node = node as? Node {
+                        self.nodes.append(node)
+                    }
+                }
+            }
+            catch
+            {
+                print("Failed to decode node: \(error)")
+            }
+        }
         
         decodeContext.currentGraphNodes = self.nodes
-
-        
         
     }
     
@@ -68,7 +117,14 @@ import Satin
         var container = encoder.container(keyedBy: CodingKeys.self)
 
         try container.encode(self.id, forKey: .id)
-        try container.encode(self.nodes, forKey: .nodes)
+        try container.encode(self.version, forKey: .version)
+
+        let nodeMap:[ AnyCodableMap ] = self.nodes.compactMap {
+            return AnyCodableMap(type: String(describing: type(of: $0)),
+                                   value: AnyCodable($0))
+        }
+        
+        try container.encode( nodeMap, forKey: .nodeMap)
     }
     //
     //
