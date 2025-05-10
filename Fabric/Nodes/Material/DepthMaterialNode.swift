@@ -31,12 +31,17 @@ class DepthMaterialNode : BaseMaterialNode, NodeProtocol
         self.material.far = 7
     }
     
+    required init(from decoder: any Decoder) throws
+    {
+        try super.init(from: decoder)
+    }
+    
     override  func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)
     {
         self.evaluate(material: self.material, atTime: atTime)
-
+        
         self.outputMaterial.send(self.material)
-     }
+    }
 }

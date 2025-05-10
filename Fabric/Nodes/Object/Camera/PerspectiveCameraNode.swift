@@ -35,6 +35,11 @@ class PerspectiveCameraNode : BaseObjectNode, NodeProtocol
         self.camera.lookAt(target: simd_float3(repeating: 0))
     }
     
+    required init(from decoder: any Decoder) throws
+    {
+        try super.init(from: decoder)
+    }
+
     override  func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)

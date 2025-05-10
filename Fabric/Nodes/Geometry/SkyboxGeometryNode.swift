@@ -21,11 +21,15 @@ class SkyboxGeometryNode : Node, NodeProtocol
 
     private let geometry = SkyboxGeometry(size: 50)
     
-    override var ports:[any AnyPort] { [outputGeometry] }
+    override var ports:[any AnyPort] { super.ports + [outputGeometry] }
 
     required init(context:Context)
     {
         super.init(context: context)
+    }
+    
+    required init(from decoder: any Decoder) throws {
+        try super.init(from: decoder)
     }
     
     override func evaluate(atTime:TimeInterval,

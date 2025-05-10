@@ -35,7 +35,19 @@ class RenderNode : Node, NodeProtocol
     {
         self.renderer = Renderer(context: context)
         super.init(context: context)
-  }
+    }
+    
+    required init(from decoder: any Decoder) throws
+    {
+        guard let decodeContext = decoder.context else
+        {
+            fatalError("Required Decode Context Not set")
+        }
+        
+        self.renderer = Renderer(context: decodeContext.documentContext, frameBufferOnly:false)
+            
+        try super.init(from:decoder)
+    }
     
     override func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,

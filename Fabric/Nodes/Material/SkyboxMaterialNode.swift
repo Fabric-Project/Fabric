@@ -35,6 +35,11 @@ class SkyboxMaterialNode : BaseMaterialNode, NodeProtocol
 //        self.material.color = simd_float4(1.0, 0.0, 0.0, 1.0)
     }
     
+    required init(from decoder: any Decoder) throws
+    {
+        try super.init(from: decoder)
+    }
+
     override  func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)

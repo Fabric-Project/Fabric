@@ -28,10 +28,13 @@ class BasicDiffuseMaterialNode : BaseMaterialNode, NodeProtocol
     {
         super.init(context: context)
         
-        self.material.setup()
         self.material.color = simd_float4(1.0, 1.0, 1.0, 1.0)
 //        self.material. = 0.7
         
+    }
+    
+    required init(from decoder: any Decoder) throws {
+        try super.init(from: decoder)
     }
     
     override  func evaluate(atTime:TimeInterval,

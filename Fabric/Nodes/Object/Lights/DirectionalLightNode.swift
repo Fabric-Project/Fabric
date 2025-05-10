@@ -57,6 +57,13 @@ class DirectionalLightNode : BaseObjectNode, NodeProtocol
 
     }
     
+    required init(from decoder: any Decoder) throws
+    {
+        try super.init(from: decoder)
+    }
+
+    
+    
     override func evaluate(atTime:TimeInterval,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)

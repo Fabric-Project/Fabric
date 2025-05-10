@@ -6,7 +6,7 @@
 //
 import SwiftUI
 import Satin
-@Observable class Graph : /*Codable,*/ Identifiable, Hashable, Equatable
+@Observable class Graph : Codable, Identifiable, Hashable, Equatable
 {
     public static func == (lhs: Graph, rhs: Graph) -> Bool
     {
@@ -18,7 +18,7 @@ import Satin
         hasher.combine(id)
     }
     
-    let id = UUID()
+    let id:UUID
     
     @ObservationIgnored let context:Context
     
@@ -29,41 +29,47 @@ import Satin
     @ObservationIgnored weak var lastNode:Node? = nil
     
     enum CodingKeys : String, CodingKey {
+        case id
         case nodes
-        case connections
     }
     
     init(context:Context)
     {
         print("Init Graph Execution Engine")
+        self.id = UUID()
         self.context = context
         self.nodes = []
     }
     
     
-    //    required init(from decoder: any Decoder) throws
-    //    {
-    //        guard let decodeContext = decoder.context else
-    //        {
-    //            fatalError("Required Decode Context Not set")
-    //        }
-    //
-    //        self.context = decodeContext.documentContext
-    //
-    //        let container = try decoder.container(keyedBy: CodingKeys.self)
-    ////        let nodes = container.decode([Node].self, forKey: .nodes)
-    //
-    //        let nodes:[Node] = []
-    //        self.nodes = nodes
-    //
-    //        // set this prior to decoding
-    //        decodeContext.currentGraphNodes = nodes
-    //    }
-    //
-    //    func encode(to encoder:Encoder) throws
-    //    {
-    //        var container = encoder.container(keyedBy: CodingKeys.self)
-    //    }
+    required init(from decoder: any Decoder) throws
+    {
+        guard let decodeContext = decoder.context else
+        {
+            fatalError("Required Decode Context Not set")
+        }
+        
+        self.context = decodeContext.documentContext
+
+
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        self.nodes = try container.decode([Node].self, forKey: .nodes)
+        self.id = try container.decode(UUID.self, forKey: .id)
+        
+        decodeContext.currentGraphNodes = self.nodes
+
+        
+        
+    }
+    
+    func encode(to encoder:Encoder) throws
+    {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+
+        try container.encode(self.id, forKey: .id)
+        try container.encode(self.nodes, forKey: .nodes)
+    }
     //
     //
     

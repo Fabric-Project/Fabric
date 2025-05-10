@@ -46,6 +46,23 @@ class DeferredRenderNode : Node, NodeProtocol
         super.init(context: context)
     }
     
+    required init(from decoder: any Decoder) throws
+    {
+        guard let decodeContext = decoder.context else
+        {
+            fatalError("Required Decode Context Not set")
+        }
+        
+        self.renderer = Renderer(context: decodeContext.documentContext, frameBufferOnly:false)
+        self.renderer.depthStoreAction = .store
+        self.renderer.depthLoadAction = .clear
+        self.renderer.size.width = 1920
+        self.renderer.size.height = 1080
+
+        
+        try super.init(from: decoder)
+    }
+
     override func evaluate(atTime:TimeInterval,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)

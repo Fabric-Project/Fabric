@@ -16,7 +16,7 @@ class BasicColorMaterialNode : BaseMaterialNode, NodeProtocol
     static let name = "Color Material"
     static var nodeType = Node.NodeType.Material
 
-    // Parameters    
+    // Parameters
     let inputColor = GenericParameterWithMinMax<simd_float4>("Color", .one, .zero, .one, .colorpicker)
     
     override var inputParameters: [any Parameter] { super.inputParameters + [inputColor] }
@@ -34,6 +34,11 @@ class BasicColorMaterialNode : BaseMaterialNode, NodeProtocol
         
         self.material.color = simd_float4(1.0, 0.0, 0.0, 1.0)
     }
+    
+    required init(from decoder: any Decoder) throws {
+        try super.init(from: decoder)
+    }
+    
     
     override  func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,

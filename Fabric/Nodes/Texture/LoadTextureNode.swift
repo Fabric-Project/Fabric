@@ -38,6 +38,17 @@ class LoadTextureNode : Node, NodeProtocol
         self.texture = self.loadTexture(device: self.context.device, url: URL(fileURLWithPath: "/Users/vade/Downloads/Contract-Card-09.png") )
     }
 
+    required init(from decoder: any Decoder) throws
+    {
+        guard let decodeContext = decoder.context else
+        {
+            fatalError("Required Decode Context Not set")
+        }
+        
+        
+        try super.init(from:decoder)
+    }
+    
     override  func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)

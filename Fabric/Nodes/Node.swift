@@ -160,29 +160,57 @@ protocol NodeProtocol
     @ObservationIgnored var lastEvaluationTime: TimeInterval = -1
     @ObservationIgnored var isDirty: Bool = true
     
+    // Input Parameter update tracking:
     @ObservationIgnored var inputParamCancellables: [AnyCancellable] = []
-    public func markDirty() {
-        isDirty = true
-        
-        self.outputNodes().forEach( { $0.markDirty() } )
-        
-//        print(self.name, "is dirty")
-    }
     
-    func inputNodes() -> [Node]
+    enum CodingKeys : String, CodingKey
     {
-        let nodeInputs = self.ports.filter( { $0.kind == .Inlet } )
-        let inputNodes = nodeInputs.compactMap { $0.connections.compactMap(\.node) }.flatMap(\.self)
-        
-        return inputNodes
+        case id
+        case inputParameters
+        case nodeOffset
     }
+
     
-    func outputNodes() -> [Node]
+    required init(from decoder: any Decoder) throws
     {
-        let nodeOutputs = self.ports.filter( { $0.kind == .Outlet } )
-        let outputNodes = nodeOutputs.compactMap { $0.connections.compactMap(\.node) }.flatMap(\.self)
+        guard let decodeContext = decoder.context else
+        {
+            fatalError("Required Decode Context Not set")
+        }
         
-        return outputNodes
+        self.context = decodeContext.documentContext
+        
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        self.id = try container.decode(UUID.self, forKey: .id)
+        self.offset = try container.decode(CGSize.self, forKey: .nodeOffset)
+        
+        let parameterGroup = try container.decode(ParameterGroup.self, forKey: .inputParameters)
+        self.parameterGroup.copy( parameterGroup )
+        
+        self.inputParameterPorts = self.parametersGroupToPorts(self.inputParameters)
+
+        for parameter in self.inputParameters
+        {
+            let cancellable = self.makeCancelable(parameter: parameter)
+//
+            self.inputParamCancellables.append(cancellable)
+        }
+        
+        for var port in self.ports
+        {
+            port.node = self
+        }
+        
+        self.nodeSize = self.computeNodeSize()
+    }
+
+    func encode(to encoder:Encoder) throws
+    {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+
+        try container.encode(self.id, forKey: .id)
+        try container.encode(self.offset, forKey: .nodeOffset)
     }
     
     required init (context:Context)
@@ -212,6 +240,30 @@ protocol NodeProtocol
         self.inputParamCancellables.forEach { $0.cancel() }
         
         print("Deleted node \(id)")
+    }
+    
+    
+    func inputNodes() -> [Node]
+    {
+        let nodeInputs = self.ports.filter( { $0.kind == .Inlet } )
+        let inputNodes = nodeInputs.compactMap { $0.connections.compactMap(\.node) }.flatMap(\.self)
+        
+        return inputNodes
+    }
+    
+    func outputNodes() -> [Node]
+    {
+        let nodeOutputs = self.ports.filter( { $0.kind == .Outlet } )
+        let outputNodes = nodeOutputs.compactMap { $0.connections.compactMap(\.node) }.flatMap(\.self)
+        
+        return outputNodes
+    }
+    
+    public func markDirty()
+    {
+        isDirty = true
+        
+        self.outputNodes().forEach( { $0.markDirty() } )
     }
     
     private func makeCancelable(parameter: some Parameter) -> AnyCancellable

@@ -16,8 +16,6 @@ struct OutletData : Codable
     init(portID: UUID)
     {
         self.portID = portID
-        
-        print("OutletData")
     }
 }
 

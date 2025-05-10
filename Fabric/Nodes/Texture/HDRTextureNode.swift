@@ -29,7 +29,16 @@ class HDRTextureNode : Node, NodeProtocol
         super.init(context: context)
         
         self.texture = loadHDR(device: context.device, url: URL(fileURLWithPath: "/Users/vade/Library/Developer/Xcode/DerivedData/Fabric-dnhnuqgtaddjmfddawsitzbzeuqr/SourcePackages/checkouts/Satin/Example/Assets/Shared/Textures/brown_photostudio_02_2k.hdr") )
-
+    }
+    
+    required init(from decoder: any Decoder) throws
+    {
+        guard let decodeContext = decoder.context else
+        {
+            fatalError("Required Decode Context Not set")
+        }
+                    
+        try super.init(from:decoder)
     }
 
     override  func evaluate(atTime:TimeInterval,
