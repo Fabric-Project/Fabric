@@ -23,7 +23,7 @@ class BasicTextureMaterialNode : BaseMaterialNode, NodeProtocol
 
     private let material = BasicTextureMaterial()
     
-    override var ports: [any AnyPort] {  super.ports + [inputTexture, inputColor, outputMaterial] }
+    override var ports: [any NodePortProtocol] {  super.ports + [inputTexture, inputColor, outputMaterial] }
     
     required init(context:Context)
     {

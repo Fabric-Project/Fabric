@@ -21,7 +21,7 @@ class DepthMaterialNode : BaseMaterialNode, NodeProtocol
 
     private let material = DepthMaterial()
     
-    override var ports: [any AnyPort] {  super.ports + [outputMaterial] }
+    override var ports: [any NodePortProtocol] {  super.ports + [outputMaterial] }
     
     required init(context:Context)
     {

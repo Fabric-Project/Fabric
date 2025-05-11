@@ -16,24 +16,24 @@ class DeferredRenderNode : Node, NodeProtocol
     static var nodeType = Node.NodeType.Renderer
     
     // Parameters
-    let inputResolution = Int2Parameter("Resolution", simd_int2(x:1920, y:1080), simd_int2(x:1, y:1), simd_int2(x:8192, y:8192), .inputfield)
-    let inputClearColor = Float4Parameter("Clear Color", simd_float4(repeating:0), .colorpicker)
-    
+    let inputResolution:Int2Parameter
+    let inputClearColor:Float4Parameter
+
     override var inputParameters: [any Parameter] { super.inputParameters + [inputResolution, inputClearColor] }
     
+    // Ports
+    let inputCamera: NodePort<Camera>
+    let inputScene: NodePort<Object>
+
+    let outputColorTexture:NodePort<EquatableTexture>
+    let outputDepthTexture:NodePort<EquatableTexture>
+
     // Ensure we always render!
     override var isDirty:Bool { get {  true  } set { } }
     
-    // Ports
-    let inputCamera = NodePort<Camera>(name: "Camera", kind: .Inlet)
-    let inputScene = NodePort<Object>(name: "Scene", kind: .Inlet)
-    
-    let outputColorTexture = NodePort<EquatableTexture>(name: "Color Texture", kind: .Outlet)
-    let outputDepthTexture = NodePort<EquatableTexture>(name: "Depth Texture", kind: .Outlet)
-
     private let renderer:Renderer
     
-    override var ports: [any AnyPort] { super.ports +  [inputCamera, inputScene, outputColorTexture, outputDepthTexture] }
+    override var ports: [any NodePortProtocol] { super.ports +  [inputCamera, inputScene, outputColorTexture, outputDepthTexture] }
     
     required init(context:Context)
     {
@@ -43,7 +43,25 @@ class DeferredRenderNode : Node, NodeProtocol
         self.renderer.size.width = 1920
         self.renderer.size.height = 1080
 
+        self.inputResolution = Int2Parameter("Resolution", simd_int2(x:1920, y:1080), simd_int2(x:1, y:1), simd_int2(x:8192, y:8192), .inputfield)
+        self.inputClearColor = Float4Parameter("Clear Color", simd_float4(repeating:0), .colorpicker)
+
+        self.inputCamera = NodePort<Camera>(name: "Camera", kind: .Inlet)
+        self.inputScene =  NodePort<Object>(name: "Scene", kind: .Inlet)
+        self.outputColorTexture = NodePort<EquatableTexture>(name: "Color Texture", kind: .Outlet)
+        self.outputDepthTexture = NodePort<EquatableTexture>(name: "Depth Texture", kind: .Outlet)
+        
         super.init(context: context)
+    }
+    
+    enum CodingKeys : String, CodingKey
+    {
+        case inputClearColorParam
+        case inputResolution
+        case inputCameraPort
+        case inputScenePort
+        case outputColorTexturePort
+        case outputDepthTexturePort
     }
     
     required init(from decoder: any Decoder) throws
@@ -59,8 +77,32 @@ class DeferredRenderNode : Node, NodeProtocol
         self.renderer.size.width = 1920
         self.renderer.size.height = 1080
 
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        self.inputCamera = try container.decode(NodePort<Camera>.self , forKey:.inputCameraPort)
+        self.inputScene =  try container.decode(NodePort<Object>.self , forKey:.inputScenePort)
+
+        self.outputColorTexture = try container.decode(NodePort<EquatableTexture>.self , forKey:.outputColorTexturePort)
+        self.outputDepthTexture =  try container.decode(NodePort<EquatableTexture>.self , forKey:.outputDepthTexturePort)
+
+        self.inputClearColor = try container.decode(Float4Parameter.self , forKey:.inputClearColorParam)
+        self.inputResolution = try container.decode(Int2Parameter.self, forKey: .inputResolution)
         
         try super.init(from: decoder)
+    }
+    
+    override func encode(to encoder:Encoder) throws
+    {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(self.inputClearColor, forKey: .inputClearColorParam)
+        try container.encode(self.inputResolution, forKey: .inputResolution)
+        try container.encode(self.inputCamera, forKey: .inputCameraPort)
+        try container.encode(self.inputScene, forKey: .inputScenePort)
+        try container.encode(self.outputColorTexture, forKey: .outputColorTexturePort)
+        try container.encode(self.outputDepthTexture, forKey: .outputDepthTexturePort)
+
+        try super.encode(to: encoder)
     }
 
     override func evaluate(atTime:TimeInterval,

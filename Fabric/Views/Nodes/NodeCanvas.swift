@@ -56,7 +56,7 @@ struct NodeCanvas : View
         } // Pan Canvas
     }
     
-    private func calcPathUsing(port:(any AnyPort), start:CGPoint, end:CGPoint) -> Path
+    private func calcPathUsing(port:(any NodePortProtocol), start:CGPoint, end:CGPoint) -> Path
     {
         // Min 5 stem height
         let stemHeight:CGFloat = self.clamp( abs( end.y - start.y) / 4.0 , lowerBound: 5.0, upperBound: 35.0)

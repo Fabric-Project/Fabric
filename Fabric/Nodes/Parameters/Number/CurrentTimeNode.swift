@@ -23,11 +23,38 @@ class CurrentTimeNode : Node, NodeProtocol
     private let startTime = Date.timeIntervalSinceReferenceDate
     
     // Ports
-    let outputNumber = NodePort<Float>(name: CurrentTimeNode.name , kind: .Outlet)
+    let outputNumber:NodePort<Float>
+    override var ports: [any NodePortProtocol] { super.ports + [ outputNumber] }
     
-    override var ports: [any AnyPort] { super.ports + [ outputNumber] }
+    required init(context: Context)
+    {
+        self.outputNumber =  NodePort<Float>(name: CurrentTimeNode.name , kind: .Outlet)
+
+        super.init(context: context)
+    }
+        
+    enum CodingKeys : String, CodingKey
+    {
+        case outputNumberPort
+    }
     
-    override var inputParameters:[any Parameter]  { [] }
+    override func encode(to encoder:Encoder) throws
+    {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(self.outputNumber, forKey: .outputNumberPort)
+        
+        try super.encode(to: encoder)
+    }
+    
+    required init(from decoder: any Decoder) throws
+    {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        self.outputNumber = try container.decode(NodePort<Float>.self, forKey: .outputNumberPort)
+        
+        try super.init(from: decoder)
+    }
     
     override  func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,

@@ -27,7 +27,7 @@ class SceneBuilderNode : BaseObjectNode, NodeProtocol
     
     private var object = IBLScene()
     
-    override var ports: [any AnyPort] { super.ports +  [ inputEnvironment,
+    override var ports: [any NodePortProtocol] { super.ports +  [ inputEnvironment,
                                                          inputObject1,
                                                          inputObject2,
                                                          inputObject3,

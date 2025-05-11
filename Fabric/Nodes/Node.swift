@@ -25,7 +25,7 @@ protocol NodeProtocol : Codable
     static var nodeType:Node.NodeType { get }
     var nodeType:Node.NodeType { get }
 
-    var ports: [any AnyPort] { get }
+    var ports: [any NodePortProtocol] { get }
     var parameterGroup:ParameterGroup { get }
     func evaluate(atTime:TimeInterval,
                   renderPassDescriptor: MTLRenderPassDescriptor,
@@ -113,8 +113,8 @@ protocol NodeProtocol : Codable
     @ObservationIgnored var inputParameters:[any Parameter] { []  }
     @ObservationIgnored let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
                                                         
-    @ObservationIgnored private var inputParameterPorts:[any AnyPort] = []
-    @ObservationIgnored var ports:[any AnyPort] { self.inputParameterPorts  }
+    @ObservationIgnored private var inputParameterPorts:[any NodePortProtocol] = []
+    @ObservationIgnored var ports:[any NodePortProtocol] { self.inputParameterPorts  }
         
     var nodeSize:CGSize = CGSizeMake(150, 100)
 
@@ -307,14 +307,14 @@ protocol NodeProtocol : Codable
     
     // Mark - Private helper
     
-    private func parametersGroupToPorts(_ parameters:[(any Parameter)]) -> [any AnyPort]
+    private func parametersGroupToPorts(_ parameters:[(any Parameter)]) -> [any NodePortProtocol]
     {
         print(self.name, "parametersGroupToPorts")
         return parameters.compactMap( {
             self.parameterToPort(parameter:$0) })
     }
     
-    private func parameterToPort(parameter:(any Parameter)) -> (any AnyPort)?
+    private func parameterToPort(parameter:(any Parameter)) -> (any NodePortProtocol)?
     {
 
         print(self.name, "parameterToPort", parameter.label)
@@ -413,6 +413,9 @@ protocol NodeProtocol : Codable
                 return ParameterPort(parameter: genericParam)
             }
 
+        
+            
+            
         default:
             return nil
 

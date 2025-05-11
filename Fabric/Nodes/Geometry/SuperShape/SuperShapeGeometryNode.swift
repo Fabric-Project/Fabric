@@ -185,7 +185,7 @@ class SuperShapeGeometryNode : Node, NodeProtocol
         res: resParam.value
     )
     
-    override var ports:[any AnyPort] { super.ports + [outputGeometry] }
+    override var ports:[any NodePortProtocol] { super.ports + [outputGeometry] }
     
     
     override func evaluate(atTime:TimeInterval,

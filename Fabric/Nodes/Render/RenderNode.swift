@@ -16,34 +16,36 @@ class RenderNode : Node, NodeProtocol
     static var nodeType = Node.NodeType.Renderer
 
     // Parameters
-    let inputClearColor = Float4Parameter("Clear Color", simd_float4(repeating:0), .colorpicker)
-
+    let inputClearColor:Float4Parameter
     override var inputParameters: [any Parameter] { super.inputParameters + [inputClearColor] }
-    
-    // Ensure we always render!
-    override var isDirty:Bool { get {  true  } set { } }
     
     // Ports
     let inputCamera: NodePort<Camera>
     let inputScene: NodePort<Object>
+    override var ports: [any NodePortProtocol] { super.ports +  [inputCamera, inputScene] }
+
+    // Ensure we always render!
+    override var isDirty:Bool { get {  true  } set { } }
     
     private let renderer:Renderer
-    
-    override var ports: [any AnyPort] { super.ports +  [inputCamera, inputScene] }
-    
-    enum CodingKeys : String, CodingKey
-    {
-        case inputCameraPort
-        case inputScenePort
-    }
-    
+       
     required init(context:Context)
     {
         self.renderer = Renderer(context: context)
+
+        self.inputClearColor = Float4Parameter("Clear Color", simd_float4(repeating:0), .colorpicker)
+
         self.inputCamera = NodePort<Camera>(name: "Camera", kind: .Inlet)
         self.inputScene =  NodePort<Object>(name: "Scene", kind: .Inlet)
         
         super.init(context: context)
+    }
+    
+    enum CodingKeys : String, CodingKey
+    {
+        case inputClearColorParam
+        case inputCameraPort
+        case inputScenePort
     }
     
     required init(from decoder: any Decoder) throws
@@ -59,7 +61,9 @@ class RenderNode : Node, NodeProtocol
 
         self.inputCamera = try container.decode(NodePort<Camera>.self , forKey:.inputCameraPort)
         self.inputScene =  try container.decode(NodePort<Object>.self , forKey:.inputScenePort)
-        
+
+        self.inputClearColor = try container.decode(Float4Parameter.self , forKey:.inputClearColorParam)
+
         try super.init(from:decoder)
     }
     
@@ -67,6 +71,7 @@ class RenderNode : Node, NodeProtocol
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
+        try container.encode(self.inputClearColor, forKey: .inputClearColorParam)
         try container.encode(self.inputCamera, forKey: .inputCameraPort)
         try container.encode(self.inputScene, forKey: .inputScenePort)
         

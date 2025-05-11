@@ -30,7 +30,7 @@ class DirectionalLightNode : BaseObjectNode, NodeProtocol
     
     private var light: DirectionalLight =  DirectionalLight(color: [1.0, 1.0, 1.0], intensity: 1.0)
     
-    override var ports: [any AnyPort] { super.ports +  [outputLight] }
+    override var ports: [any NodePortProtocol] { super.ports +  [outputLight] }
     
     let lightHelperGeo = BoxGeometry(width: 0.1, height: 0.1, depth: 0.5)
     let lightHelperMat = BasicDiffuseMaterial(hardness: 0.7)

@@ -22,7 +22,7 @@ class BasicDiffuseMaterialNode : BaseMaterialNode, NodeProtocol
 
     private let material = BasicDiffuseMaterial()
     
-    override var ports: [any AnyPort] {  super.ports + [ inputColor, inputHardness, outputMaterial] }
+    override var ports: [any NodePortProtocol] {  super.ports + [ inputColor, inputHardness, outputMaterial] }
     
     required init(context:Context)
     {

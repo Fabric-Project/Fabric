@@ -16,17 +16,44 @@ class FalseNode : Node, NodeProtocol
     static var nodeType = Node.NodeType.Parameter
 
     // Ports
-    let outputBoolean = NodePort<Bool>(name: "False" , kind: .Outlet)
-
-//    private let tween = Tween(duration: 10)
+    let outputBoolean: NodePort<Bool>
+    override var ports: [any NodePortProtocol] { super.ports +  [self.outputBoolean] }
     
-    override var ports: [any AnyPort] { [outputBoolean] }
+    required init(context: Context)
+    {
+        self.outputBoolean = NodePort<Bool>(name: "False" , kind: .Outlet)
         
+        super.init(context: context)
+    }
+    
+    enum CodingKeys : String, CodingKey
+    {
+        case outputBooleanPort
+    }
+    
+    override func encode(to encoder:Encoder) throws
+    {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(self.outputBoolean, forKey: .outputBooleanPort)
+        
+        try super.encode(to: encoder)
+    }
+    
+    required init(from decoder: any Decoder) throws
+    {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        self.outputBoolean = try container.decode(NodePort<Bool>.self, forKey: .outputBooleanPort)
+        
+        try super.init(from: decoder)
+    }
+            
     override  func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)
     {
-
+        
         self.outputBoolean.send( false )
-     }
+    }
 }

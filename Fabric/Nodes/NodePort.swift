@@ -41,47 +41,43 @@ struct PortAnchorKey: PreferenceKey
     }
 }
 
-protocol AnyPort : Identifiable, Hashable, Equatable, Codable
+protocol NodePortProtocol : Identifiable, Hashable, Equatable, Codable
 {
     var id: UUID { get }
     var name: String { get }
-    var connections: [any AnyPort] { get set }
+    var connections: [any NodePortProtocol] { get set }
     var kind:PortKind { get }
     var node: Node? { get set }
     
-    func connect(to other: any AnyPort)
-    func discconnect(from other: any AnyPort)
+    func connect(to other: any NodePortProtocol)
+    func discconnect(from other: any NodePortProtocol)
     
     var color: Color { get }
     var backgroundColor: Color { get }
     var direction:PortDirection { get }
-    
-    
-//    var value: (any Codable & Equatable & Hashable) { get set }
+        
     func valueType() -> String
 }
 
-protocol ParameterPortProtocol : AnyPort
+protocol ParameterPortProtocol : NodePortProtocol
 {
 }
     
 class ParameterPort<ParamValue : Codable & Equatable & Hashable> : NodePort<ParamValue>, ParameterPortProtocol
 {
-//    var binding: Binding<ParamValue>? = nil
     private let parameter: GenericParameter<ParamValue>
     
     init(parameter: GenericParameter<ParamValue>)
     {
         self.parameter = parameter
         
-        super.init(name: parameter.label, kind: .Inlet)
+        super.init(name: parameter.label, kind: .Inlet, id:parameter.id)
     }
     
     required init(from decoder: any Decoder) throws {
         self.parameter = try GenericParameter(from: decoder)
 
         try super.init(from: decoder)
-        
     }
     
     override func encode(to encoder: any Encoder) throws {
@@ -112,7 +108,7 @@ class ParameterPort<ParamValue : Codable & Equatable & Hashable> : NodePort<Para
     }
 }
 
-class NodePort<Value : Equatable>: AnyPort
+class NodePort<Value : Equatable>: NodePortProtocol
 {
     public static func == (lhs: NodePort, rhs: NodePort) -> Bool
     {
@@ -123,9 +119,7 @@ class NodePort<Value : Equatable>: AnyPort
     {
         hasher.combine(id)
     }
-    
-    
-    
+        
     let id:UUID
 
     let name: String
@@ -137,7 +131,7 @@ class NodePort<Value : Equatable>: AnyPort
            }
     }
         
-    var connections: [any AnyPort] = []
+    var connections: [any NodePortProtocol] = []
     var kind: PortKind
     weak var node: Node?
 
@@ -195,9 +189,9 @@ class NodePort<Value : Equatable>: AnyPort
         try container.encode(connectedPortIds, forKey: .connections)
     }
     
-    init(name: String, kind: PortKind)
+    init(name: String, kind: PortKind, id:UUID = UUID())
     {
-        self.id = UUID()
+        self.id = id
         self.kind = kind
         self.name = name
         self.color = Self.calcColor(forType: Value.self)
@@ -205,7 +199,7 @@ class NodePort<Value : Equatable>: AnyPort
         self.direction = Self.calcDirection(forType: Value.self )
     }
     
-    func connect(to other: any AnyPort)
+    func connect(to other: any NodePortProtocol)
     {
         if let other = other as? NodePort<Value>
         {
@@ -214,7 +208,7 @@ class NodePort<Value : Equatable>: AnyPort
         
     }
 
-    func discconnect(from other: any AnyPort)
+    func discconnect(from other: any NodePortProtocol)
     {
         if let other = other as? NodePort<Value>
         {

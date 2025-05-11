@@ -24,7 +24,7 @@ class PerspectiveCameraNode : BaseObjectNode, NodeProtocol
     
     private let camera = PerspectiveCamera(position: .init(repeating: 5.0), near: 0.01, far: 500.0, fov: 30)
     
-    override var ports: [any AnyPort] { super.ports + [outputCamera] }
+    override var ports: [any NodePortProtocol] { super.ports + [outputCamera] }
     
     required init(context:Context)
     {

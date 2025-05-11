@@ -15,17 +15,54 @@ class MakeVector2Node : Node, NodeProtocol
     static let name = "Vector 2"
     static var nodeType = Node.NodeType.Parameter
 
-    let outputVector = NodePort<simd_float2>(name: "Vector 2" , kind: .Outlet)
-
     // Params
-    let inputXParam = FloatParameter("X", 0.0, -10, 10, .slider)
-    let inputYParam = FloatParameter("Y", 0.0, -10, 10, .slider)
-
+    let inputXParam:FloatParameter
+    let inputYParam:FloatParameter
     override var inputParameters: [any Parameter] { super.inputParameters + [inputXParam, inputYParam,]}
     
+    // Ports
+    let outputVector:NodePort<simd_float2>
+    override var ports: [any NodePortProtocol] { super.ports + [outputVector] }
+
     private var vector = simd_float2(repeating: 0)
+
+    required init(context: Context)
+    {
+        self.inputXParam = FloatParameter("X", 0.0, .inputfield)
+        self.inputYParam = FloatParameter("Y", 0.0, .inputfield)
+        self.outputVector = NodePort<simd_float2>(name: "Vector 2" , kind: .Outlet)
+        
+        super.init(context: context)
+    }
+        
+    enum CodingKeys : String, CodingKey
+    {
+        case inputXParameter
+        case inputYParameter
+        case outputVectorPort
+    }
     
-    override var ports: [any AnyPort] { super.ports + [outputVector] }
+    override func encode(to encoder:Encoder) throws
+    {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(self.inputXParam, forKey: .inputXParameter)
+        try container.encode(self.inputYParam, forKey: .inputYParameter)
+        try container.encode(self.outputVector, forKey: .outputVectorPort)
+        
+        try super.encode(to: encoder)
+    }
+    
+    required init(from decoder: any Decoder) throws
+    {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        self.inputXParam = try container.decode(FloatParameter.self, forKey: .inputXParameter)
+        self.inputYParam = try container.decode(FloatParameter.self, forKey: .inputYParameter)
+        self.outputVector = try container.decode(NodePort<simd_float2>.self, forKey: .outputVectorPort)
+        
+        try super.init(from: decoder)
+    }
     
     override  func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,

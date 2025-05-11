@@ -24,7 +24,7 @@ class PlaneGeometryNode : Node, NodeProtocol
 
     private let geometry = PlaneGeometry(width: 1, height: 1)
     
-    override var ports:[any AnyPort] { [inputWidth,
+    override var ports:[any NodePortProtocol] { [inputWidth,
                                inputHeight,
                                inputResolution,
                                outputGeometry] }

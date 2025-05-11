@@ -17,34 +17,49 @@ class LoadTextureNode : Node, NodeProtocol
     static let name = "Texture Loader"
     static var nodeType = Node.NodeType.Texture
 
-    // Ports
-    let inputURL = NodePort<URL>(name: "File URL", kind: .Inlet)
-    let outputTexture = NodePort<EquatableTexture>(name: "Texture", kind: .Outlet)
-
     // Parameters
-    let inputURLParam = StringParameter("InputParam", "", .dropdown)
-    
-    override var inputParameters: [any Parameter] {  [inputURLParam]}
-    
+    let inputFilePathParam:StringParameter
+    override var inputParameters: [any Parameter] { super.inputParameters + [self.inputFilePathParam]}
+
+    // Ports
+    let outputTexturePort:NodePort<EquatableTexture>
+    override var ports: [any NodePortProtocol] { super.ports + [outputTexturePort] }
+
     private var texture: (any MTLTexture)? = nil
     private var url: URL? = nil
     
-    override var ports: [any AnyPort] { super.ports + [outputTexture] }
-    
     required init(context:Context)
     {
+        self.inputFilePathParam = StringParameter("File Path", "", .filepicker)
+        self.outputTexturePort = NodePort<EquatableTexture>(name: "Texture", kind: .Outlet)
+
         super.init(context: context)
         
         self.texture = self.loadTexture(device: self.context.device, url: URL(fileURLWithPath: "/Users/vade/Downloads/Contract-Card-09.png") )
     }
 
+    enum CodingKeys : String, CodingKey
+    {
+        case inputFilePathParameter
+        case outputTexturePort
+    }
+    
+    override func encode(to encoder:Encoder) throws
+    {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(self.inputFilePathParam, forKey: .inputFilePathParameter)
+        try container.encode(self.outputTexturePort, forKey: .outputTexturePort)
+
+        try super.encode(to: encoder)
+    }
+    
     required init(from decoder: any Decoder) throws
     {
-        guard let decodeContext = decoder.context else
-        {
-            fatalError("Required Decode Context Not set")
-        }
-        
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        self.inputFilePathParam = try container.decode(StringParameter.self, forKey: .inputFilePathParameter)
+        self.outputTexturePort = try container.decode(NodePort<EquatableTexture>.self, forKey: .outputTexturePort)
         
         try super.init(from:decoder)
     }
@@ -53,16 +68,16 @@ class LoadTextureNode : Node, NodeProtocol
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)
     {
-        if let inputURL = self.inputURL.value
-        {
-            self.url = inputURL
-            
-            self.texture = self.loadTexture(device: self.context.device, url: inputURL )
-        }
+//        if let inputFilePath = self.inputFilePathParam.value
+//        {
+//            self.url = URL(fileURLWithPath: inputFilePath)
+//            
+//            self.texture = self.loadTexture(device: self.context.device, url: inputURL )
+//        }
         
         if let texture = self.texture
         {
-            self.outputTexture.send(EquatableTexture(texture: texture))
+            self.outputTexturePort.send(EquatableTexture(texture: texture))
         }
      }
     

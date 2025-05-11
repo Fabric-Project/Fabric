@@ -18,16 +18,52 @@ class NumberModuloNode : Node, NodeProtocol
     static let name = "Number Modulo"
     static var nodeType = Node.NodeType.Parameter
 
-    // Ports
-    let outputNumber = NodePort<Float>(name: NumberModuloNode.name , kind: .Outlet)
-   
-    override var ports: [any AnyPort] { super.ports + [ outputNumber] }
-
     // Params
-    let inputAParam = FloatParameter("A", 0.0, .inputfield)
-    let inputBParam = FloatParameter("B", 0.0, .inputfield)
+    let inputAParam:FloatParameter
+    let inputBParam:FloatParameter
+    override var inputParameters:[any Parameter] { super.inputParameters + [inputAParam, inputBParam] }
 
-    override var inputParameters:[any Parameter]  { [inputAParam, inputBParam] }
+    // Ports
+    let outputNumber:NodePort<Float>
+    override var ports: [any NodePortProtocol] { super.ports + [ outputNumber] }
+
+    required init(context: Context)
+    {
+        self.inputAParam = FloatParameter("A", 0.0, .inputfield)
+        self.inputBParam = FloatParameter("B", 0.0, .inputfield)
+        self.outputNumber = NodePort<Float>(name: NumberAddNode.name , kind: .Outlet)
+        
+        super.init(context: context)
+    }
+        
+    enum CodingKeys : String, CodingKey
+    {
+        case inputAParameter
+        case inputBParameter
+        case outputNumberPort
+    }
+    
+    override func encode(to encoder:Encoder) throws
+    {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(self.inputAParam, forKey: .inputAParameter)
+        try container.encode(self.inputBParam, forKey: .inputBParameter)
+        try container.encode(self.outputNumber, forKey: .outputNumberPort)
+        
+        try super.encode(to: encoder)
+    }
+    
+    required init(from decoder: any Decoder) throws
+    {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        self.inputAParam = try container.decode(FloatParameter.self, forKey: .inputAParameter)
+        self.inputBParam = try container.decode(FloatParameter.self, forKey: .inputBParameter)
+        self.outputNumber = try container.decode(NodePort<Float>.self, forKey: .outputNumberPort)
+        
+        try super.init(from: decoder)
+    }
     
     override  func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,

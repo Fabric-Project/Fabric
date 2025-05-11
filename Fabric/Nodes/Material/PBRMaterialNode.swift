@@ -62,7 +62,7 @@ class PBRMaterialNode : BaseMaterialNode, NodeProtocol
 
     private let material = PhysicalMaterial()
     
-    override var ports: [any AnyPort] {  super.ports + [ inputDiffuseTexture,
+    override var ports: [any NodePortProtocol] {  super.ports + [ inputDiffuseTexture,
                                                          inputNormalTexture,
                                                          outputMaterial] }
     

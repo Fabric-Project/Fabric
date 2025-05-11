@@ -39,8 +39,9 @@ import AnyCodable
     enum CodingKeys : String, CodingKey
     {
         case id
-        case nodeMap
         case version
+        case nodeMap
+        case portConnectionMap
     }
     
     init(context:Context)
@@ -61,7 +62,6 @@ import AnyCodable
         }
         
         self.context = decodeContext.documentContext
-
 
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -88,6 +88,7 @@ import AnyCodable
                     // We make a new encoder to re-encode the data
                     // we pass to the intospected types class decoder based initialier
                     // since they all conform to NodeProtocol we can do this
+                    // this is better than the alternative switch for each class..
                     
                     let encoder = JSONEncoder()
                     let jsonData = try encoder.encode(anyCodableMap.value)
@@ -97,7 +98,8 @@ import AnyCodable
                     
                     let node = try decoder.decode(nodeClass, from: jsonData)
                     
-                    if let node = node as? Node {
+                    if let node = node as? Node
+                    {
                         self.nodes.append(node)
                     }
                 }
@@ -109,6 +111,25 @@ import AnyCodable
         }
         
         decodeContext.currentGraphNodes = self.nodes
+        
+        let portMap = try container.decode([UUID:[UUID]].self, forKey: .portConnectionMap)
+        
+        for portID in portMap.keys
+        {
+            if let port = self.nodePort(forID: portID)
+            {
+                let portConnections = portMap[portID] ?? []
+                
+                for connectedPortID in portConnections
+                {
+                    if let connectedPort = self.nodePort(forID: connectedPortID)
+                    {
+                        port.connect(to: connectedPort)
+                    }
+                }
+            }
+        }
+
         
     }
     
@@ -125,6 +146,20 @@ import AnyCodable
         }
         
         try container.encode( nodeMap, forKey: .nodeMap)
+        
+        // encode a connection map for each port
+        
+        let allPorts = self.nodes.flatMap( { $0.ports } )
+        
+        let allPortConnections:[UUID:[UUID]] = allPorts.reduce(into: [:]) { map, port in
+            
+            if port.connections.isEmpty { return }
+            
+            map[port.id] = port.connections.map( { $0.id } )
+        }
+        
+        try container.encode(allPortConnections, forKey: .portConnectionMap)
+        
     }
     //
     //
@@ -155,7 +190,7 @@ import AnyCodable
         return self.nodes.first(where: { $0.id == forID })
     }
     
-    func nodePort(forID:UUID) -> (any AnyPort)?
+    func nodePort(forID:UUID) -> (any NodePortProtocol)?
     {
         let allPorts = self.nodes.flatMap(\.ports)
         

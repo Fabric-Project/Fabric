@@ -42,7 +42,7 @@ class MeshNode : BaseObjectNode, NodeProtocol
     
     private var mesh: Mesh? = nil
     
-    override var ports: [any AnyPort] { super.ports +  [inputGeometry,
+    override var ports: [any NodePortProtocol] { super.ports +  [inputGeometry,
                                          inputMaterial,
                                          outputMesh] }
     

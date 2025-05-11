@@ -27,7 +27,7 @@ class BoxGeometryNode : Node, NodeProtocol
     private let geometry = BoxGeometry(width: 1, height: 1, depth: 1)
     
     override var inputParameters: [any Parameter] { [inputWidthParam, inputHeightParam, inputDepthParam, inputResolutionParam] }
-    override var ports:[any AnyPort] { super.ports + [outputGeometry] }
+    override var ports:[any NodePortProtocol] { super.ports + [outputGeometry] }
     
     
     override func evaluate(atTime:TimeInterval,
