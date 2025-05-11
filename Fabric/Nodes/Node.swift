@@ -185,10 +185,15 @@ protocol NodeProtocol : Codable
         self.id = try container.decode(UUID.self, forKey: .id)
         self.offset = try container.decode(CGSize.self, forKey: .nodeOffset)
         
-        let parameterGroup = try container.decode(ParameterGroup.self, forKey: .inputParameters)
-        self.parameterGroup.copy( parameterGroup )
+        //let parameterGroup = try container.decode(ParameterGroup.self, forKey: .inputParameters)
+
+//        self.parameterGroup.clear()
+//        parameterGroup.params.forEach { self.parameterGroup.append($0) }
+        
+        //        self.parameterGroup.setFrom( parameterGroup, setValues: true, setOptions: true, setControls: true )
         
         self.inputParameterPorts = self.parametersGroupToPorts(self.inputParameters)
+        self.parameterGroup.append(self.inputParameters)
 
         for parameter in self.inputParameters
         {
