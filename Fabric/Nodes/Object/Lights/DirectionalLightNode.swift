@@ -16,8 +16,8 @@ class DirectionalLightNode : BaseObjectNode, NodeProtocol
     static let name = "Directional Light"
     static var nodeType = Node.NodeType.Light
 
-    public var inputLookAt = GenericParameter<simd_float3>("Look At", simd_float3(repeating:0), .inputfield )
-    public var inputColor = GenericParameter<simd_float3>("Color", simd_float3(repeating:1), .inputfield )
+    public var inputLookAt = Float3Parameter("Look At", simd_float3(repeating:0), .inputfield )
+    public var inputColor = Float3Parameter("Color", simd_float3(repeating:1), .inputfield )
     public var inputIntensity = FloatParameter("Intensity", 1.0, 0.0, 10.0, .slider)
     public var inputShadowStrength = FloatParameter("Shadow Strength", 0.5, 0.0, 1.0, .slider)
     public var inputShadowRadius = FloatParameter("Shadow Radius", 2.0, 0.0, 10.0, .slider)

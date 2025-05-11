@@ -24,7 +24,6 @@ class BaseMaterialNode : Node
         self.inputReceivesLighting = BoolParameter("Receives Lighting", true, .button)
         self.inputWriteDepth = BoolParameter("Write Depth", true, .button)
         
-        
         super.init(context: context)
     }
     

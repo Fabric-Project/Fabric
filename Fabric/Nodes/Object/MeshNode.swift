@@ -16,29 +16,15 @@ class MeshNode : BaseObjectNode, NodeProtocol
     static var nodeType = Node.NodeType.Mesh
 
     // Params
-    let inputCastsShadow = BoolParameter("Shadow", false, .button)
-//    let inputReceiveShadow = BoolParameter("Receive Shadow", false, .button)
-    
+    let inputCastsShadow:BoolParameter
     override var inputParameters: [any Parameter] { super.inputParameters + [
                                                                               self.inputCastsShadow,
-//                                                                              self.inputReceiveShadow,
                                                                              ] }
-        
-//    func evaluate(material:Material, atTime:TimeInterval)
-//    {
-//        material.lighting = self.inputReceivesLighting.value
-//                
-//        material.castShadow = self.inputCastsShadow.value
-//        material.receiveShadow = self.inputReceiveShadow.value
-//
-//        material.depthWriteEnabled = self.inputWriteDepth.value
-//    }
-    
-    // Ports
-    let inputGeometry = NodePort<Geometry>(name: "Geometry", kind: .Inlet)
-    let inputMaterial = NodePort<Material>(name: "Material", kind: .Inlet)
 
-    let outputMesh = NodePort<Object>(name: MeshNode.name, kind: .Outlet)
+    // Ports
+    let inputGeometry:NodePort<Geometry>
+    let inputMaterial:NodePort<Material>
+    let outputMesh:NodePort<Object>
     
     private var mesh: Mesh? = nil
     
@@ -46,7 +32,48 @@ class MeshNode : BaseObjectNode, NodeProtocol
                                          inputMaterial,
                                          outputMesh] }
     
+    required init(context: Context)
+    {
+        self.inputCastsShadow = BoolParameter("Shadow", false, .button)
+        
+        self.inputGeometry = NodePort<Geometry>(name: "Geometry", kind: .Inlet)
+        self.inputMaterial = NodePort<Material>(name: "Material", kind: .Inlet)
+        self.outputMesh = NodePort<Object>(name: MeshNode.name, kind: .Outlet)
+        
+        super.init(context: context)
+    }
+        
+    enum CodingKeys : String, CodingKey
+    {
+        case inputCastsShadowParameter
+        case inputGeometryPort
+        case inputMaterialPort
+        case outputMeshPort
+    }
     
+    override func encode(to encoder:Encoder) throws
+    {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(self.inputCastsShadow, forKey: .inputCastsShadowParameter)
+        try container.encode(self.inputGeometry, forKey: .inputGeometryPort)
+        try container.encode(self.inputMaterial, forKey: .inputMaterialPort)
+        try container.encode(self.outputMesh, forKey: .outputMeshPort)
+        
+        try super.encode(to: encoder)
+    }
+    
+    required init(from decoder: any Decoder) throws
+    {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        self.inputCastsShadow = try container.decode(BoolParameter.self, forKey: .inputCastsShadowParameter)
+        self.inputGeometry = try container.decode(NodePort<Geometry>.self, forKey: .inputGeometryPort)
+        self.inputMaterial = try container.decode(NodePort<Material>.self, forKey: .inputMaterialPort)
+        self.outputMesh = try container.decode(NodePort<Object>.self, forKey: .outputMeshPort)
+        
+        try super.init(from: decoder)
+    }
     override func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)
