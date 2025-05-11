@@ -15,20 +15,64 @@ class BoxGeometryNode : Node, NodeProtocol
     static var nodeType = Node.NodeType.Geometery
 
     // Params
+    let inputWidthParam:FloatParameter
+    let inputHeightParam:FloatParameter
+    let inputDepthParam:FloatParameter
+    let inputResolutionParam:Int3Parameter
+    override var inputParameters: [any Parameter] { [inputWidthParam, inputHeightParam, inputDepthParam, inputResolutionParam] }
 
-    let inputWidthParam = FloatParameter("Width", 1.0, .inputfield)
-    let inputHeightParam = FloatParameter("Height", 1.0, .inputfield)
-    let inputDepthParam = FloatParameter("Depth", 1.0, .inputfield)
-    let inputResolutionParam = Int3Parameter("Resolution", simd_int3(repeating: 5), .inputfield)
-
-    
-    let outputGeometry = NodePort<Geometry>(name: BoxGeometryNode.name, kind: .Outlet)
+    // Ports
+    let outputGeometry:NodePort<Geometry>
+    override var ports:[any NodePortProtocol] { super.ports + [outputGeometry] }
 
     private let geometry = BoxGeometry(width: 1, height: 1, depth: 1)
+
+    required init(context: Context)
+    {
+        self.inputWidthParam = FloatParameter("Width", 1.0, .inputfield)
+        self.inputHeightParam = FloatParameter("Height", 1.0, .inputfield)
+        self.inputDepthParam = FloatParameter("Depth", 1.0, .inputfield)
+        self.inputResolutionParam = Int3Parameter("Resolution", simd_int3(repeating: 1), .inputfield)
+
+        self.outputGeometry = NodePort<Geometry>(name: BoxGeometryNode.name, kind: .Outlet)
+
+        super.init(context: context)
+    }
+        
+    enum CodingKeys : String, CodingKey
+    {
+        case inputWidthParameter
+        case inputHeightParameter
+        case inputDepthParameter
+        case inputResolutionParameter
+        case outputGeometryPort
+    }
     
-    override var inputParameters: [any Parameter] { [inputWidthParam, inputHeightParam, inputDepthParam, inputResolutionParam] }
-    override var ports:[any NodePortProtocol] { super.ports + [outputGeometry] }
+    override func encode(to encoder:Encoder) throws
+    {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(self.inputWidthParam, forKey: .inputWidthParameter)
+        try container.encode(self.inputHeightParam, forKey: .inputHeightParameter)
+        try container.encode(self.inputDepthParam, forKey: .inputDepthParameter)
+        try container.encode(self.inputResolutionParam, forKey: .inputResolutionParameter)
+        try container.encode(self.outputGeometry, forKey: .outputGeometryPort)
+        
+        try super.encode(to: encoder)
+    }
     
+    required init(from decoder: any Decoder) throws
+    {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        self.inputWidthParam = try container.decode(FloatParameter.self, forKey: .inputWidthParameter)
+        self.inputHeightParam = try container.decode(FloatParameter.self, forKey: .inputHeightParameter)
+        self.inputDepthParam = try container.decode(FloatParameter.self, forKey: .inputDepthParameter)
+        self.inputResolutionParam = try container.decode(Int3Parameter.self, forKey: .inputResolutionParameter)
+        self.outputGeometry = try container.decode(NodePort<Geometry>.self, forKey: .outputGeometryPort)
+        
+        try super.init(from: decoder)
+    }
     
     override func evaluate(atTime:TimeInterval,
                            renderPassDescriptor: MTLRenderPassDescriptor,

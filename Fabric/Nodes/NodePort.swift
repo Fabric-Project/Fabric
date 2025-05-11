@@ -123,12 +123,15 @@ class NodePort<Value : Equatable>: NodePortProtocol
     let id:UUID
 
     let name: String
-    var value: Value? {
-        didSet {
-            if oldValue != value {
-                   node?.markDirty()
-               }
-           }
+    var value: Value?
+    {
+        didSet
+        {
+            if oldValue != value
+            {
+                node?.markDirty()
+            }
+        }
     }
         
     var connections: [any NodePortProtocol] = []

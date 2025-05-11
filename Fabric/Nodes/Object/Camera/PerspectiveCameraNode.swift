@@ -52,6 +52,7 @@ class PerspectiveCameraNode : BaseObjectNode, NodeProtocol
         
         try super.encode(to: encoder)
     }
+    
     required init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
