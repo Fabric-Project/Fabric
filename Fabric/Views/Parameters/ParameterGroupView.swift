@@ -19,13 +19,11 @@ struct ParameterGroupView : View
             Spacer()
             
             ForEach(self.parameterGroup.params.indices, id: \.self) { index in
-                    
+                
                 self.parameterViewFromParameter(self.parameterGroup.params[index])
-
-                }
+            }
             
             Spacer(minLength: 0)
-
         }
     }
     
@@ -213,7 +211,7 @@ struct ParameterGroupView : View
 //        })
 
 
-        return FileGridView(stringParameter: stringParam )
+        return FileImportParameterView(stringParameter: stringParam )
             .equatable()
     }
 }

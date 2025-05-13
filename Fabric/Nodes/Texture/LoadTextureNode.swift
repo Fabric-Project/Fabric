@@ -68,13 +68,20 @@ class LoadTextureNode : Node, NodeProtocol
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)
     {
-//        if let inputFilePath = self.inputFilePathParam.value
-//        {
-//            self.url = URL(fileURLWithPath: inputFilePath)
-//            
-//            self.texture = self.loadTexture(device: self.context.device, url: inputURL )
-//        }
         
+        if  self.inputFilePathParam.value.isEmpty == false
+        {
+            self.url = URL(string: self.inputFilePathParam.value)
+            
+            if FileManager.default.fileExists(atPath: self.url!.standardizedFileURL.path(percentEncoded: false) )
+            {
+                self.texture = self.loadTexture(device: self.context.device, url: self.url! )
+            }
+            else
+            {
+                print("wtf")
+            }
+        }
         if let texture = self.texture
         {
             self.outputTexturePort.send(EquatableTexture(texture: texture))

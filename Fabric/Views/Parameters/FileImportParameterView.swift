@@ -8,15 +8,20 @@
 
 import SwiftUI
 import Satin
-struct FileGridView: View, Equatable
+import UniformTypeIdentifiers
+
+struct FileImportParameterView: View, Equatable
 {
-    static func == (lhs: FileGridView, rhs: FileGridView) -> Bool {
+    static func == (lhs: FileImportParameterView, rhs: FileImportParameterView) -> Bool {
         return lhs.stringParameter.id == rhs.stringParameter.id
     }
     
     @Bindable var stringParameter:StringParameter
 
+    let allowedContentTypes:[UTType] = [.image, .jpeg, .tiff, .heic, .heif, .png,]
+    
     @State private var isImporting: Bool = false
+    @State private var selectedOption: String? = nil
 
     var columns:[GridItem] = [ GridItem(.flexible(minimum: 50, maximum: 250), spacing: 3),
 //                               GridItem(.flexible(minimum: 50, maximum: 250), spacing: 3),
@@ -26,13 +31,23 @@ struct FileGridView: View, Equatable
     {
         VStack {
             
+            Menu(self.selectedOption ?? "No File Selected")
+            {
+                ForEach(self.stringParameter.options, id:\.self) { option in
+                    Button(option, action: {
+                        selectedOption = option
+                        self.stringParameter.value = option
+                    })
+                }
+            }
+            
             Button(action: {
                 isImporting = true
             }, label: {
                 Text("Load Videos")
             })
             .fileImporter(isPresented: $isImporting,
-                          allowedContentTypes: [.quickTimeMovie, .mpeg4Movie],
+                          allowedContentTypes: self.allowedContentTypes,
                           allowsMultipleSelection: false,
                           onCompletion: { result in
                 
