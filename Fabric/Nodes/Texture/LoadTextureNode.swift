@@ -60,8 +60,10 @@ class LoadTextureNode : Node, NodeProtocol
 
         self.inputFilePathParam = try container.decode(StringParameter.self, forKey: .inputFilePathParameter)
         self.outputTexturePort = try container.decode(NodePort<EquatableTexture>.self, forKey: .outputTexturePort)
-        
+
         try super.init(from:decoder)
+        
+        self.loadTextureFromInputValue()
     }
     
     override  func evaluate(atTime:TimeInterval,
@@ -69,6 +71,17 @@ class LoadTextureNode : Node, NodeProtocol
                             commandBuffer: MTLCommandBuffer)
     {
         
+        self.loadTextureFromInputValue()
+
+        if let texture = self.texture
+        {
+            self.outputTexturePort.send(EquatableTexture(texture: texture))
+        }
+     }
+    
+    
+    private func loadTextureFromInputValue()
+    {
         if  self.inputFilePathParam.value.isEmpty == false
         {
             self.url = URL(string: self.inputFilePathParam.value)
@@ -82,12 +95,7 @@ class LoadTextureNode : Node, NodeProtocol
                 print("wtf")
             }
         }
-        if let texture = self.texture
-        {
-            self.outputTexturePort.send(EquatableTexture(texture: texture))
-        }
-     }
-    
+    }
     
     func loadTexture(device: MTLDevice, url: URL) -> MTLTexture? {
         let cfURLString = url.path as CFString
