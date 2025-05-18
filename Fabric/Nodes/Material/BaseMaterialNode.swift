@@ -16,7 +16,7 @@ class BaseMaterialNode : Node
     let inputReceivesLighting:BoolParameter
     let inputWriteDepth:BoolParameter
     
-    override var inputParameters: [any Parameter] { super.inputParameters + [ self.inputReceivesLighting,
+    override var inputParameters: [any Parameter] { super.inputParameters + [self.inputReceivesLighting,
                                                                               self.inputWriteDepth, ] }
     
     required init(context: Context) {
