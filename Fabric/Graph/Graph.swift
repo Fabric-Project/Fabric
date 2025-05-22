@@ -299,6 +299,7 @@ import AnyCodable
     func delete(node:Node)
     {
         node.delegate = nil
+        node.ports.forEach { $0.disconnectAll() }
         self.nodes.removeAll { $0.id == node.id }
     }
 }

@@ -51,6 +51,7 @@ protocol NodePortProtocol : Identifiable, Hashable, Equatable, Codable
     
     func connect(to other: any NodePortProtocol)
     func discconnect(from other: any NodePortProtocol)
+    func disconnectAll()
     
     var color: Color { get }
     var backgroundColor: Color { get }
@@ -202,6 +203,11 @@ class NodePort<Value : Equatable>: NodePortProtocol
         self.direction = Self.calcDirection(forType: Value.self )
     }
     
+    func disconnectAll()
+    {
+        self.connections.removeAll()
+        self.node?.markDirty()
+    }
 
     func discconnect(from other: any NodePortProtocol)
     {

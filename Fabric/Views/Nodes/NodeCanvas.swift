@@ -55,11 +55,12 @@ struct NodeCanvas : View
 
                             self.calcPathUsing(port:port, start: start, end: end)
                                 .stroke(port.backgroundColor , lineWidth: 2)
-                                .clipShape(
+                                .contentShape(
                                     self.calcPathUsing(port:port, start: start, end: end)
                                         .stroke(style: StrokeStyle(lineWidth: 5))
                                 )
-                                .onTapGesture(count: 2) {
+                                .onTapGesture(count: 2)
+                                {
                                     port.discconnect(from:connectedPort)
                                     self.needsRedraw.toggle()
                                 }
@@ -73,7 +74,6 @@ struct NodeCanvas : View
                 
                 let selectedNodes = self.graph.nodes.filter({ $0.isSelected })
                 selectedNodes.forEach( { self.graph.delete(node: $0) } )
-//                return .handled
             }
             .onTapGesture {
                 self.graph.deselectAllNodes()
