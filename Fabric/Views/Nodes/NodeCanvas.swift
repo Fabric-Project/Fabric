@@ -13,6 +13,8 @@ struct NodeCanvas : View
 {    
     @SwiftUI.Environment(Graph.self) var graph:Graph
 
+    @State var activityMonitor = NodeCanvasUserActivityMonitor()
+
     // Drag to Offset bullshit
     @State private var offset:CGSize = CGSize(width: 50, height: 50) // CGSize(width: 50, height: SourceGrid.sourceGridHeight + 45)
     @GestureState private var dragOffset: CGSize = .zero
@@ -76,6 +78,8 @@ struct NodeCanvas : View
             .onTapGesture {
                 self.graph.deselectAllNodes()
             }
+            .opacity(activityMonitor.isActive ? 1.0 : 0.0)
+                           .animation(.easeInOut(duration: 0.5), value: activityMonitor.isActive)
 
         } // Pan Canvas
     }

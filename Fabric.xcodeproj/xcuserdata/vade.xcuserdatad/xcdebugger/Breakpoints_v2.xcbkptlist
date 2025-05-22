@@ -110,8 +110,8 @@
             filePath = "Fabric/Views/Nodes/NodeCanvas.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "74"
-            endingLineNumber = "74"
+            startingLineNumber = "76"
+            endingLineNumber = "76"
             landmarkName = "NodeCanvas"
             landmarkType = "14">
          </BreakpointContent>

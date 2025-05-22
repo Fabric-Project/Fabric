@@ -33,7 +33,7 @@ struct NodeRegisitryView: View {
                     ForEach(Node.NodeTypeGroups.allCases, id: \.self) { nodeType in
                         //Label(nodeType.rawValue, systemImage: nodeType.imageName())
                         nodeType.image()
-                            .foregroundStyle( nodeType == selection ? Color.primary : Color.secondary)
+                            .foregroundStyle( nodeType == selection ? Color.accentColor : Color.secondary.opacity(0.5))
                             .tag(nodeType)
                             .help(nodeType.rawValue)
                             .onTapGesture {
@@ -90,7 +90,7 @@ struct NodeRegisitryView: View {
 
                     TextField("Search", text: $searchString)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
-//                        .padding(.leading, 3)
+                        .controlSize(.small)
                     
                     Spacer()
                     
@@ -99,15 +99,12 @@ struct NodeRegisitryView: View {
                         .onTapGesture {
                             self.searchString = ""
                         }
-//                        .padding(.trailing, 3)
                     
                     Spacer()
 
                 }
-                .padding(.bottom, 5)
-
+                .padding(.bottom, 3)
             }
-
         })
     }
 }
