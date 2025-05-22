@@ -34,12 +34,13 @@ struct NodeCanvas : View
                 }
             }
             .offset(geom.size / 2)
-//            .clipShape(Rectangle())
-//            .contentShape(Rectangle())
+            .clipShape(Rectangle())
+            .contentShape(Rectangle())
            
             .coordinateSpace(name: "graph")    // make sure all anchors share this space
-            .backgroundPreferenceValue(PortAnchorKey.self) { portAnchors in
-                
+//            .backgroundPreferenceValue(PortAnchorKey.self) { portAnchors in
+            .overlayPreferenceValue(PortAnchorKey.self) { portAnchors in
+
                 let ports = self.graph.nodes.flatMap(\.ports)
                                 
                 ForEach( ports.filter({ $0.kind == .Outlet }), id: \.id) { port in
@@ -66,10 +67,18 @@ struct NodeCanvas : View
                     }
                 }
             }
-            
-//            .onTapGesture {
-//                self.graph.deselectAllNodes()
-//            }
+            .focusable(true, interactions: .edit)
+            .focusEffectDisabled()
+            .onDeleteCommand {
+                
+                let selectedNodes = self.graph.nodes.filter({ $0.isSelected })
+                selectedNodes.forEach( { self.graph.delete(node: $0) } )
+//                return .handled
+            }
+            .onTapGesture {
+                self.graph.deselectAllNodes()
+            }
+
         } // Pan Canvas
     }
     

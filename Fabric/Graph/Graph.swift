@@ -295,6 +295,12 @@ import AnyCodable
         self.nodes.forEach { $0.isSelected = false }
         
     }
+    
+    func delete(node:Node)
+    {
+        node.delegate = nil
+        self.nodes.removeAll { $0.id == node.id }
+    }
 }
 //
 //// MARK: - NodeDelegate
