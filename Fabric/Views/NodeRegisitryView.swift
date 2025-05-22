@@ -14,31 +14,61 @@ struct NodeRegisitryView: View {
 
     @State private var searchString:String = ""
 
+    @State private var selection: Node.NodeTypeGroups = .SceneGraph
+
     var body: some View
     {
-        List {
-            ForEach(Node.NodeType.allCases, id: \.self) { nodeType in
+        VStack(spacing: 0)
+        {
+            HStack
+            {
+                Spacer()
                 
-                Section(header: Text("\(nodeType)")) {
+                Picker("", selection: $selection) {
                     
-                    let nodesForType = NodeRegistry.shared.nodesClasses.filter( { $0.nodeType == nodeType })
-                    let filteredNodes = self.searchString.isEmpty ? nodesForType :
-                    nodesForType.filter {  $0.name.localizedCaseInsensitiveContains(self.searchString) }
+                    ForEach(Node.NodeTypeGroups.allCases, id: \.self) { nodeType in
+                        //Label(nodeType.rawValue, systemImage: nodeType.imageName())
+                        nodeType.image()
+                            .tag(nodeType)
+                            .help(nodeType.rawValue)
+                    }
+                }
+                .pickerStyle(.palette)
+                .paletteSelectionEffect(.symbolVariant(.fill))
+                
+                Spacer()
+            }
+            
+            Spacer()
+            
+            List
+            {
+                ForEach(selection.nodeTypes(), id: \.self) { nodeType in
                     
-                    ForEach( 0 ..< filteredNodes.count, id:\.self ) { idx in
+                    Section(header: Text("\(nodeType)")) {
                         
-                        let nodeType = filteredNodes[idx]
+                        let nodesForType = NodeRegistry.shared.nodesClasses.filter( { $0.nodeType == nodeType })
+                        let filteredNodes = self.searchString.isEmpty ? nodesForType :
+                        nodesForType.filter {  $0.name.localizedCaseInsensitiveContains(self.searchString) }
                         
-                        Text(nodeType.name)
-                            .font( .system(size: 11) )
-                            .onTapGesture {
-                                self.document.graph.addNodeType(nodeType)
-                            }
+                        ForEach( 0 ..< filteredNodes.count, id:\.self ) { idx in
+                            
+                            let nodeType = filteredNodes[idx]
+                            
+                            Text(nodeType.name)
+                                .font( .system(size: 11) )
+                                .onTapGesture {
+                                    self.document.graph.addNodeType(nodeType)
+                                }
+                        }
                     }
                 }
             }
         }
-        .searchable(text: $searchString, placement:.sidebar)
-        .controlSize(.small)
+        .safeAreaInset(edge: VerticalEdge.bottom, content: {
+            TextField("Search", text: $searchString)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .padding()
+        })        
     }
 }

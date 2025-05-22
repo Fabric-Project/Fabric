@@ -34,7 +34,7 @@ class HDRTextureNode : Node, NodeProtocol
 
         super.init(context: context)
         
-        self.texture = loadHDR(device: context.device, url: URL(fileURLWithPath: "/Users/vade/Library/Developer/Xcode/DerivedData/Fabric-dnhnuqgtaddjmfddawsitzbzeuqr/SourcePackages/checkouts/Satin/Example/Assets/Shared/Textures/brown_photostudio_02_2k.hdr") )
+        self.texture = loadHDR(device: context.device, url: URL(fileURLWithPath: "/Users/vade/Downloads/IndoorEnvironmentHDRI011_1K-HDR.exr") )
     }
     
     enum CodingKeys : String, CodingKey
@@ -61,6 +61,9 @@ class HDRTextureNode : Node, NodeProtocol
         self.outputTexturePort = try container.decode(NodePort<EquatableTexture>.self, forKey: .outputTexturePort)
         
         try super.init(from:decoder)
+        
+        self.loadTextureFromInputValue()
+
     }
 
     override  func evaluate(atTime:TimeInterval,
@@ -74,9 +77,28 @@ class HDRTextureNode : Node, NodeProtocol
 //            self.texture = self.loadTexture(device: self.context.device, url: inputURL )
 //        }
        
+        self.loadTextureFromInputValue()
+
         if let texture = self.texture
         {
             self.outputTexturePort.send( EquatableTexture(texture: texture) )
         }
      }
+    
+    private func loadTextureFromInputValue()
+    {
+        if  self.inputFilePathParam.value.isEmpty == false
+        {
+            self.url = URL(string: self.inputFilePathParam.value)
+            
+            if FileManager.default.fileExists(atPath: self.url!.standardizedFileURL.path(percentEncoded: false) )
+            {
+                self.texture = loadHDR(device: self.context.device, url: self.url! )
+            }
+            else
+            {
+                print("wtf")
+            }
+        }
+    }
 }

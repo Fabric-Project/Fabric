@@ -288,6 +288,11 @@ import AnyCodable
         self.lastNode?.isSelected = true
 //        print("selected node:", self.lastNode?.name ?? "No Node")
         
+    }
+    
+    func deselectAllNodes()
+    {
+        self.nodes.forEach { $0.isSelected = false }
         
     }
 }

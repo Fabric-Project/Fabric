@@ -33,15 +33,52 @@ protocol NodeProtocol : Codable
     
 //    func update()
     func resize(size: (width: Float, height: Float), scaleFactor: Float)
-    
 
 }
 
 @Observable class Node :  Equatable, Identifiable, Hashable
 {
+    // Only really used in the UI
+    enum NodeTypeGroups: String, CaseIterable
+    {
+        case All
+        case SceneGraph // Renderer, Object, Camera, Light, Mesh
+        case Mesh
+        case Image // Texture / Shader
+        case Parameter
+            
+        func nodeTypes() -> [Node.NodeType]
+        {
+            switch self
+            {
+            case .All: return Node.NodeType.allCases
+            case .SceneGraph: return [.Renderer, .Object, .Camera, .Light]
+            case .Mesh: return [.Mesh, .Geometery, .Material]
+            case .Image: return [.Texture, .Shader]
+            case .Parameter: return [.Parameter]
+            }
+        }
+        
+        func imageName() -> String
+        {
+            switch self
+            {
+            case .All: return "circle.hexagongrid"
+            case .SceneGraph: return "scale.3d"
+            case .Mesh: return "cube.transparent"
+            case .Image: return "camera.filters"
+            case .Parameter: return "beziercurve"
+            }
+        }
+        
+        func image() -> Image
+        {
+            return SwiftUI.Image(systemName: imageName())
+        }
+    }
+    
     enum NodeType : String, CaseIterable
     {
-        case Texture // Rendered output of a Renderer
         case Renderer // Renders a scene graph
         case Object // Scene graph, owns transforms
         case Camera // Scene graph object
@@ -50,8 +87,10 @@ protocol NodeProtocol : Codable
         case Geometery
         case Material
         case Shader
-        
+        case Texture
         case Parameter
+        
+       
         
         func color() -> Color
         {

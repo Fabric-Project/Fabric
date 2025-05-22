@@ -202,14 +202,6 @@ class NodePort<Value : Equatable>: NodePortProtocol
         self.direction = Self.calcDirection(forType: Value.self )
     }
     
-    func connect(to other: any NodePortProtocol)
-    {
-        if let other = other as? NodePort<Value>
-        {
-            self.connect(to: other)
-        }
-        
-    }
 
     func discconnect(from other: any NodePortProtocol)
     {
@@ -224,6 +216,17 @@ class NodePort<Value : Equatable>: NodePortProtocol
         if let index = self.connections.firstIndex(where: { $0.id == other.id } )
         {
             self.connections.remove(at: index)
+        }
+        
+        self.node?.markDirty()
+        other.node?.markDirty()
+    }
+    
+    func connect(to other: any NodePortProtocol)
+    {
+        if let other = other as? NodePort<Value>
+        {
+            self.connect(to: other)
         }
     }
     

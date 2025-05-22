@@ -58,6 +58,4 @@ class BaseMaterialNode : Node
         material.lighting = self.inputReceivesLighting.value
         material.depthWriteEnabled = self.inputWriteDepth.value
     }
-    
-   
 }

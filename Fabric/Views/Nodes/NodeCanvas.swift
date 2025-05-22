@@ -16,6 +16,8 @@ struct NodeCanvas : View
     // Drag to Offset bullshit
     @State private var offset:CGSize = CGSize(width: 50, height: 50) // CGSize(width: 50, height: SourceGrid.sourceGridHeight + 45)
     @GestureState private var dragOffset: CGSize = .zero
+    
+    @State private var needsRedraw:Bool = false
 
     var body: some View
     {
@@ -32,6 +34,9 @@ struct NodeCanvas : View
                 }
             }
             .offset(geom.size / 2)
+//            .clipShape(Rectangle())
+//            .contentShape(Rectangle())
+           
             .coordinateSpace(name: "graph")    // make sure all anchors share this space
             .backgroundPreferenceValue(PortAnchorKey.self) { portAnchors in
                 
@@ -49,10 +54,22 @@ struct NodeCanvas : View
 
                             self.calcPathUsing(port:port, start: start, end: end)
                                 .stroke(port.backgroundColor , lineWidth: 2)
+                                .clipShape(
+                                    self.calcPathUsing(port:port, start: start, end: end)
+                                        .stroke(style: StrokeStyle(lineWidth: 5))
+                                )
+                                .onTapGesture(count: 2) {
+                                    port.discconnect(from:connectedPort)
+                                    self.needsRedraw.toggle()
+                                }
                         }
                     }
                 }
             }
+            
+//            .onTapGesture {
+//                self.graph.deselectAllNodes()
+//            }
         } // Pan Canvas
     }
     
@@ -65,7 +82,7 @@ struct NodeCanvas : View
         switch port.direction
         {
         case .Vertical:
-            var start1:CGPoint = CGPoint(x: start.x,
+            let start1:CGPoint = CGPoint(x: start.x,
                                          y: start.y + stemHeight)
             
             let end1:CGPoint = CGPoint(x: end.x,
@@ -86,7 +103,7 @@ struct NodeCanvas : View
             }
             
         case .Horizontal:
-            var start1:CGPoint = CGPoint(x: start.x + stemHeight,
+            let start1:CGPoint = CGPoint(x: start.x + stemHeight,
                                          y: start.y)
             
             let end1:CGPoint = CGPoint(x: end.x - stemHeight,

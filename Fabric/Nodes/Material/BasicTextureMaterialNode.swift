@@ -11,55 +11,64 @@ import Satin
 import simd
 import Metal
 
-class BasicTextureMaterialNode : BaseMaterialNode, NodeProtocol
+class BasicTextureMaterialNode : BasicDiffuseMaterialNode
 {
-    static let name = "Texture Material"
-    static var nodeType = Node.NodeType.Material
+    override class var name:String {  "Texture Material" }
 
     // Ports
-    let inputTexture = NodePort<EquatableTexture>(name: "Texture", kind: .Inlet)
-    let inputColor = NodePort<simd_float4>(name: "Color", kind: .Inlet)
-    let outputMaterial = NodePort<Material>(name: "Material", kind: .Outlet)
-
+    let inputTexture:NodePort<EquatableTexture>
+    override var ports: [any NodePortProtocol] {  super.ports + [inputTexture] }
+    
     private let material = BasicTextureMaterial()
-    
-    override var ports: [any NodePortProtocol] {  super.ports + [inputTexture, inputColor, outputMaterial] }
-    
+
     required init(context:Context)
     {
+        self.inputTexture = NodePort<EquatableTexture>(name: "Texture", kind: .Inlet)
+        
         super.init(context: context)
         
         self.material.flipped = true
-        self.material.color = simd_float4(1.0, 1.0, 1.0, 1.0)
-        
     }
     
-    required init(from decoder: any Decoder) throws {
+    enum CodingKeys : String, CodingKey
+    {
+        case inputTexturePort
+    }
+    
+    required init(from decoder: any Decoder) throws
+    {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        self.inputTexture = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputTexturePort)
+
         try super.init(from: decoder)
 
         self.material.flipped = true
-        self.material.color = simd_float4(1.0, 1.0, 1.0, 1.0)
     }
 
+    override func encode(to encoder: any Encoder) throws
+    {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(self.inputTexture, forKey: .inputTexturePort)
+        try super.encode(to: encoder)
+    }
+    
+    override func evaluate(material:Material, atTime:TimeInterval)
+    {
+        super.evaluate(material: material, atTime: atTime)
+        material.depthWriteEnabled = self.inputWriteDepth.value
+    }
+    
     override  func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)
     {
         self.evaluate(material: self.material, atTime: atTime)
-
-        if let color = self.inputColor.value
-        {
-            self.material.color = color
-        }
         
-        if let tex = self.inputTexture.value
-        {
-            self.material.texture = tex.texture
-        }
-        
-//        self.material.color = simd_float4( cosf(Float(atTime.remainder(dividingBy: 1) )  * Float.pi ) , 0.0, 0.0, 1.0)
-
+        self.material.texture =  self.inputTexture.value?.texture
         
         self.outputMaterial.send(self.material)
-     }
+    }
+
+    
 }

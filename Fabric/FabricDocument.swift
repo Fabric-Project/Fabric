@@ -18,6 +18,7 @@ extension UTType {
 
 struct FabricDocument: FileDocument {
 
+    
     @ObservationIgnored let context = Context(device: MTLCreateSystemDefaultDevice()!, sampleCount: 1, colorPixelFormat: MTLPixelFormat.bgra8Unorm, depthPixelFormat: .depth32Float)
     
     let graph:Graph
