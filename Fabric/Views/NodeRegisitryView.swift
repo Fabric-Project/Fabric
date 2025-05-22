@@ -20,27 +20,40 @@ struct NodeRegisitryView: View {
     {
         VStack(spacing: 0)
         {
+            Divider()
+            
+            Spacer()
+
             HStack
             {
                 Spacer()
                 
-                Picker("", selection: $selection) {
+//                Picker("", selection: $selection) {
                     
                     ForEach(Node.NodeTypeGroups.allCases, id: \.self) { nodeType in
                         //Label(nodeType.rawValue, systemImage: nodeType.imageName())
                         nodeType.image()
+                            .foregroundStyle( nodeType == selection ? Color.primary : Color.secondary)
                             .tag(nodeType)
                             .help(nodeType.rawValue)
+                            .onTapGesture {
+                                self.selection = nodeType
+                            }
                     }
-                }
-                .pickerStyle(.palette)
-                .paletteSelectionEffect(.symbolVariant(.fill))
+//                }
+//                .pickerStyle(.segmented)
+//                .segme
+//                .paletteSelectionEffect(.custom)
                 
                 Spacer()
             }
             
             Spacer()
-            
+
+            Divider()
+
+            Spacer()
+
             List
             {
                 ForEach(selection.nodeTypes(), id: \.self) { nodeType in
@@ -66,9 +79,35 @@ struct NodeRegisitryView: View {
             }
         }
         .safeAreaInset(edge: VerticalEdge.bottom, content: {
-            TextField("Search", text: $searchString)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .padding()
-        })        
+            
+            VStack
+            {
+                Divider()
+                
+                HStack
+                {
+                    Spacer()
+
+                    TextField("Search", text: $searchString)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+//                        .padding(.leading, 3)
+                    
+                    Spacer()
+                    
+                    Image(systemName: "xmark.circle")
+                        .foregroundStyle(Color.secondary)
+                        .onTapGesture {
+                            self.searchString = ""
+                        }
+//                        .padding(.trailing, 3)
+                    
+                    Spacer()
+
+                }
+                .padding(.bottom, 5)
+
+            }
+
+        })
     }
 }

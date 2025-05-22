@@ -63,7 +63,7 @@ protocol NodeProtocol : Codable
         {
             switch self
             {
-            case .All: return "circle.hexagongrid"
+            case .All: return "circle.dotted.circle"
             case .SceneGraph: return "scale.3d"
             case .Mesh: return "cube.transparent"
             case .Image: return "camera.filters"

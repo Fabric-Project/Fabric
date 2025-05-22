@@ -36,9 +36,7 @@ struct NodeCanvas : View
             .offset(geom.size / 2)
             .clipShape(Rectangle())
             .contentShape(Rectangle())
-           
             .coordinateSpace(name: "graph")    // make sure all anchors share this space
-//            .backgroundPreferenceValue(PortAnchorKey.self) { portAnchors in
             .overlayPreferenceValue(PortAnchorKey.self) { portAnchors in
 
                 let ports = self.graph.nodes.flatMap(\.ports)
