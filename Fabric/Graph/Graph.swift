@@ -46,7 +46,7 @@ import AnyCodable
     
     init(context:Context)
     {
-        print("Init Graph Execution Engine")
+        print("Init Graph")
         self.id = UUID()
         self.version = .alpha1
         self.context = context

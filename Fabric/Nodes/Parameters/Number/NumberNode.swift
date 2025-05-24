@@ -1,12 +1,9 @@
 //
-//  FloatAddNode.swift
+//  NumberNode.swift
 //  Fabric
 //
 //  Created by Anton Marini on 5/2/25.
 //
-
-import Foundation
-
 
 import Foundation
 import Satin

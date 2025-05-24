@@ -60,6 +60,9 @@ class NumberEaseNode : Node, NodeProtocol
 
         self.inputTimeParam = try container.decode(FloatParameter.self, forKey: .inputTimeParameter)
         self.inputEasingParam = try container.decode(StringParameter.self, forKey: .inputEasingParameter)
+        
+        self.inputEasingParam.options = Easing.allCases.map( {$0.title()} )
+        
         self.outputNumber = try container.decode(NodePort<Float>.self, forKey: .outputNumberPort)
         
         try super.init(from: decoder)

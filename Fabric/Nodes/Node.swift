@@ -90,10 +90,10 @@ protocol NodeProtocol : Codable
         case Texture
         case Parameter
         
-       
-        
         func color() -> Color
         {
+//            return [Color.red, .blue, .green, .yellow, .orange, .pink, .purple, .gray].randomElement( ) ?? .gray
+            
             switch self
             {
             case .Texture:
@@ -287,7 +287,7 @@ protocol NodeProtocol : Codable
         let nodeInputs = self.ports.filter( { $0.kind == .Inlet } )
         let inputNodes = nodeInputs.compactMap { $0.connections.compactMap(\.node) }.flatMap(\.self)
         
-        return inputNodes
+        return Array(Set(inputNodes))
     }
     
     func outputNodes() -> [Node]
@@ -295,14 +295,15 @@ protocol NodeProtocol : Codable
         let nodeOutputs = self.ports.filter( { $0.kind == .Outlet } )
         let outputNodes = nodeOutputs.compactMap { $0.connections.compactMap(\.node) }.flatMap(\.self)
         
-        return outputNodes
+        return Array(Set(outputNodes))
     }
     
     public func markDirty()
     {
         isDirty = true
         
-        self.outputNodes().forEach( { $0.markDirty() } )
+        // Might not strictly be necrssary?
+        // self.outputNodes().forEach( { $0.markDirty() } )
     }
     
     private func makeCancelable(parameter: some Parameter) -> AnyCancellable

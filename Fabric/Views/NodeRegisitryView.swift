@@ -27,23 +27,17 @@ struct NodeRegisitryView: View {
             HStack
             {
                 Spacer()
-                
-//                Picker("", selection: $selection) {
-                    
-                    ForEach(Node.NodeTypeGroups.allCases, id: \.self) { nodeType in
-                        //Label(nodeType.rawValue, systemImage: nodeType.imageName())
-                        nodeType.image()
-                            .foregroundStyle( nodeType == selection ? Color.accentColor : Color.secondary.opacity(0.5))
-                            .tag(nodeType)
-                            .help(nodeType.rawValue)
-                            .onTapGesture {
-                                self.selection = nodeType
-                            }
-                    }
-//                }
-//                .pickerStyle(.segmented)
-//                .segme
-//                .paletteSelectionEffect(.custom)
+                                    
+                ForEach(Node.NodeTypeGroups.allCases, id: \.self) { nodeType in
+                    //Label(nodeType.rawValue, systemImage: nodeType.imageName())
+                    nodeType.image()
+                        .foregroundStyle( nodeType == selection ? Color.accentColor : Color.secondary.opacity(0.5))
+                        .tag(nodeType)
+                        .help(nodeType.rawValue)
+                        .onTapGesture {
+                            self.selection = nodeType
+                        }
+                }
                 
                 Spacer()
             }
@@ -95,7 +89,7 @@ struct NodeRegisitryView: View {
                     Spacer()
                     
                     Image(systemName: "xmark.circle")
-                        .foregroundStyle(Color.secondary)
+                        .foregroundStyle(Color.secondary.opacity(0.5))
                         .onTapGesture {
                             self.searchString = ""
                         }

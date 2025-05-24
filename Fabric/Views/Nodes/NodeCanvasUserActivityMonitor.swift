@@ -32,7 +32,7 @@ final class NodeCanvasUserActivityMonitor {
 
     private func startMonitoring()
     {
-        self.monitor = NSEvent.addLocalMonitorForEvents(matching: .mouseMoved) { [weak self] event in
+        self.monitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .scrollWheel] ) { [weak self] event in
             self?.resetActivity()
             return event
         }

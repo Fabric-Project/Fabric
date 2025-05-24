@@ -132,7 +132,7 @@ class SuperShapeGeometryNode : Node, NodeProtocol
     static var nodeType = Node.NodeType.Geometery
 
     // Params
-    var r1Param = FloatParameter("R1", 1.0, 0, 2, .inputfield)
+    var r1Param = FloatParameter("R1", 1.0, 0, 2, .slider)
     var a1Param = FloatParameter("A1", 1.0, 0.0, 5.0, .slider)
     var b1Param = FloatParameter("B1", 1.0, 0.0, 5.0, .slider)
     var m1Param = FloatParameter("M1", 10, 0, 20, .slider)
@@ -146,7 +146,7 @@ class SuperShapeGeometryNode : Node, NodeProtocol
     var n12Param = FloatParameter("N12", 1.0, 0.0, 100.0, .slider)
     var n22Param = FloatParameter("N22", 1.371561, 0.0, 100.0, .slider)
     var n32Param = FloatParameter("N32", 0.651718, 0.0, 100.0, .slider)
-    var resParam = IntParameter("Resolution", 300, 3, 300, .slider)
+    var resParam = IntParameter("Resolution", 300, 3, 300, .inputfield)
 
     override var inputParameters: [any Parameter] { super.inputParameters +
                                                     [ resParam,

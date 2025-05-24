@@ -58,7 +58,6 @@ class GraphExecutionEngine : MetalViewRenderer
         
         // get the connection for
         let inputNodes = node.inputNodes()
-                
         for node in inputNodes
         {
             processGraph(graph: graph,

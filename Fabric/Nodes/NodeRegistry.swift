@@ -57,7 +57,8 @@ class NodeRegistry {
          NumberDivideNode.self ,
          NumberModuloNode.self,
          NumberEaseNode.self,
-
+         NumberRemapNode.self,
+         NumberIntegralNode.self,
 
          MakeVector2Node.self,
          MakeVector3Node.self,

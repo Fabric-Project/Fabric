@@ -19,11 +19,19 @@ struct InputFieldView: View {
     
     var body: some View
     {
-        TextField(parameter.label, text: $parameter.value)
-            .font(.system(size: 10))
-            .textFieldStyle(.roundedBorder)
-            .lineLimit(1)
-            .padding()
+        HStack
+        {
+            Text(parameter.label)
+                .font(.system(size: 10))
+                .lineLimit(1)
+            Spacer()
+            
+            TextField(parameter.label, text: $parameter.value)
+                .font(.system(size: 10))
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(1)
+                .padding()
+        }
         
     }
 }
@@ -37,7 +45,7 @@ struct FloatInputFieldView: View {
     let decimalFormatter: NumberFormatter = {
           let formatter = NumberFormatter()
           formatter.numberStyle = .decimal
-          formatter.maximumFractionDigits = 3
+        formatter.maximumFractionDigits = 5
           return formatter
       }()
     
@@ -48,11 +56,20 @@ struct FloatInputFieldView: View {
     
     var body: some View
     {
-        TextField(parameter.label, value: $parameter.value, formatter:decimalFormatter)
-            .font(.system(size: 10))
-            .textFieldStyle(.roundedBorder)
-            .lineLimit(1)
-            .padding()
+        HStack
+        {
+            Text(parameter.label)
+                .font(.system(size: 10))
+                .lineLimit(1)
+            
+            Spacer()
+            
+            TextField(parameter.label, value: $parameter.value, formatter:decimalFormatter)
+                .font(.system(size: 10))
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(1)
+                .padding()
+        }
         
     }
 }
@@ -64,7 +81,7 @@ struct Float2InputFieldView: View {
     let decimalFormatter: NumberFormatter = {
           let formatter = NumberFormatter()
           formatter.numberStyle = .decimal
-          formatter.maximumFractionDigits = 3
+        formatter.maximumFractionDigits = 5
           return formatter
       }()
     
@@ -101,7 +118,7 @@ struct Float3InputFieldView: View {
     let decimalFormatter: NumberFormatter = {
           let formatter = NumberFormatter()
           formatter.numberStyle = .decimal
-          formatter.maximumFractionDigits = 3
+        formatter.maximumFractionDigits = 5
           return formatter
       }()
     
@@ -143,7 +160,7 @@ struct Float4InputFieldView: View {
     let decimalFormatter: NumberFormatter = {
           let formatter = NumberFormatter()
           formatter.numberStyle = .decimal
-          formatter.maximumFractionDigits = 3
+          formatter.maximumFractionDigits = 5
           return formatter
       }()
     
@@ -204,11 +221,19 @@ struct IntInputFieldView: View {
     
     var body: some View
     {
-        TextField(parameter.label, value: $parameter.value, formatter:formatter)
-            .font(.system(size: 10))
-            .textFieldStyle(.roundedBorder)
-            .lineLimit(1)
-            .padding()
+        HStack
+        {
+            Text(parameter.label)
+                .font(.system(size: 10))
+                .lineLimit(1)
+            Spacer()
+            
+            TextField(parameter.label, value: $parameter.value, formatter:formatter)
+                .font(.system(size: 10))
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(1)
+                .padding()
+        }
         
     }
 }
