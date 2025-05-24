@@ -11,8 +11,8 @@ import Satin
 import Metal
 
 extension UTType {
-    static var exampleText: UTType {
-        UTType(importedAs: "com.example.plain-text")
+    static var fabricDocument: UTType {
+        UTType(importedAs: "info.HiRez.fabric")
     }
 }
 
@@ -51,7 +51,7 @@ struct FabricDocument: FileDocument {
 //        self.graph.addNode(renderNode)
     }
 
-    static var readableContentTypes: [UTType] { [.exampleText] }
+    static var readableContentTypes: [UTType] { [.fabricDocument] }
 
     init(configuration: ReadConfiguration) throws
     {
