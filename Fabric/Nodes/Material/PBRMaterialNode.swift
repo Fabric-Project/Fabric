@@ -10,17 +10,11 @@ import Satin
 import simd
 import Metal
 
-class PBRMaterialNode : BaseMaterialNode
+class PBRMaterialNode : StandardMaterialNode
 {
     override class var name:String {  "Physical Material" }
 
     // Params
-    let inputBaseColor = GenericParameter<simd_float4>("Base Color", simd_float4(repeating:1), .colorpicker)
-    
-    let inputMetallic = FloatParameter("Metallic", 0.75, 0.0, 1.0, .slider)
-    let inputSpecular = FloatParameter("Specular", 0.25, 0.0, 1.0, .slider)
-    let inputRoughness = FloatParameter("Roughness", 0.25, 0.0, 1.0, .slider)
-    let inputEmissiveColor = Float4Parameter("Emissive Color", simd_float4(repeating:0), .colorpicker)
     let inputSubsurface = FloatParameter("Sub Surface", 0.0, 0.0, 1.0, .slider)
     let inputAnisotropic = FloatParameter("Anisotropic", 0.0, 0.0, 1.0, .slider)
     let inputAnisotropicAngle = FloatParameter("Anisotropic Angle", 0.0, 0.0, 1.0, .slider)
@@ -30,17 +24,11 @@ class PBRMaterialNode : BaseMaterialNode
     let inputSheen = FloatParameter("Sheen", 0.0, 0.0, 1.0, .slider)
     let inputSheenTint = FloatParameter("Sheen Tint", 0.0, 0.0, 1.0, .slider)
     let inputTransmission = FloatParameter("Transmission", 0.0, 0.0, 1.0, .slider)
-    let inputOcclusion = FloatParameter("Occlusion", 1.0, 0.0, 1.0, .slider)
     let inputThickness = FloatParameter("Thickness", 1.0, 0.0, 1.0, .slider)
     let inputIOR = FloatParameter("Index of Refraction", 1.5, 0.0, 10.0, .slider)
 
     override var inputParameters: [any Parameter] { super.inputParameters +
         [
-            inputBaseColor,
-            inputMetallic,
-            inputSpecular,
-            inputRoughness,
-            inputEmissiveColor,
             inputSubsurface,
             inputAnisotropic,
             inputAnisotropicAngle,
@@ -50,23 +38,34 @@ class PBRMaterialNode : BaseMaterialNode
             inputSheen,
             inputSheenTint,
             inputTransmission,
-            inputOcclusion,
             inputThickness,
             inputIOR,
         ] }
 
     // Ports
-    let inputDiffuseTexture = NodePort<EquatableTexture>(name: "Diffuse Texture", kind: .Inlet)
-    let inputNormalTexture = NodePort<EquatableTexture>(name: "Normal Texture", kind: .Inlet)
-    let outputMaterial = NodePort<Material>(name: "Material", kind: .Outlet)
+    let inputBumpTexture = NodePort<EquatableTexture>(name: "Bump Texture", kind: .Inlet)
 
+    let inputDisplacementTexture = NodePort<EquatableTexture>(name: "Displacement Texture", kind: .Inlet)
+    let inputOcclusionTexture = NodePort<EquatableTexture>(name: "Occlusion Texture", kind: .Inlet)
+    let inputSubsurfaceTexture = NodePort<EquatableTexture>(name: "Subsurface Texture", kind: .Inlet)
+    let inputClearcoatTexture = NodePort<EquatableTexture>(name: "Clearcoat Texture", kind: .Inlet)
+    let inputClearcoatRoughTexture = NodePort<EquatableTexture>(name: "Clearcoat Roughness Texture", kind: .Inlet)
+    let inputClearcoatGlossTexture = NodePort<EquatableTexture>(name: "Clearcoat Gloss Texture", kind: .Inlet)
+    let inputTransmissionTexture = NodePort<EquatableTexture>(name: "Transmission Texture", kind: .Inlet)
+    
+    override var ports: [any NodePortProtocol] {  super.ports + [
+        inputBumpTexture,
+        inputDisplacementTexture,
+        inputOcclusionTexture,
+        inputSubsurfaceTexture,
+        inputClearcoatTexture,
+        inputClearcoatRoughTexture,
+        inputClearcoatGlossTexture,
+        inputTransmissionTexture,
+        ] }
+    
     private let material = PhysicalMaterial()
-    
-    override var ports: [any NodePortProtocol] {  super.ports + [ inputDiffuseTexture,
-                                                         inputNormalTexture,
-                                                         outputMaterial] }
-    
-    
+
     override  func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)
@@ -74,19 +73,23 @@ class PBRMaterialNode : BaseMaterialNode
         
         self.evaluate(material: self.material, atTime: atTime)
 
-//        self.material.baseColor = self.inputBaseColor.value
-//        self.material.emissiveColor = self.inputEmissiveColor.value
-//        
-//        self.material.specular = self.inputSpecular.value
-//        self.material.metallic = self.inputMetallic.value
-//        self.material.roughness = self.inputRoughness.value
-//        self.material.occlusion = self.inputOcclusion.value
-       
         self.material.baseColor = self.inputBaseColor.value
-        self.material.metallic = self.inputMetallic.value
-        self.material.specular = self.inputSpecular.value
-        self.material.roughness = self.inputRoughness.value
         self.material.emissiveColor = self.inputEmissiveColor.value
+        
+        self.material.specular = self.inputSpecular.value
+        self.material.metallic = self.inputMetallic.value
+        self.material.roughness = self.inputRoughness.value
+        self.material.occlusion = self.inputOcclusion.value
+        self.material.environmentIntensity = self.inputEnvironmentIntensity.value
+        self.material.gammaCorrection = self.inputGammaCorrection.value
+
+        self.material.setTexture(self.inputDiffuseTexture.value?.texture, type: .baseColor)
+        self.material.setTexture(self.inputNormalTexture.value?.texture, type: .normal)
+        self.material.setTexture(self.inputEmissiveTexture.value?.texture, type: .emissive)
+        self.material.setTexture(self.inputSpecularTexture.value?.texture, type: .specular)
+        self.material.setTexture(self.inputRoughnessTexture.value?.texture, type: .roughness)
+        self.material.setTexture(self.inputMetalicTexture.value?.texture, type: .metallic)
+                
         self.material.subsurface = self.inputSubsurface.value
         self.material.anisotropic = self.inputAnisotropic.value
         self.material.anisotropicAngle = self.inputAnisotropicAngle.value
@@ -100,15 +103,22 @@ class PBRMaterialNode : BaseMaterialNode
         self.material.thickness = self.inputThickness.value
         self.material.ior = self.inputIOR.value
         
-        if let tex = self.inputDiffuseTexture.value
-        {
-            self.material.setTexture(tex.texture, type: .baseColor)
-        }
-        
-        if let tex = self.inputNormalTexture.value
-        {
-            self.material.setTexture(tex.texture, type: .normal)
-        }
+        self.material.setTexture(self.inputDiffuseTexture.value?.texture, type: .baseColor)
+        self.material.setTexture(self.inputNormalTexture.value?.texture, type: .normal)
+        self.material.setTexture(self.inputEmissiveTexture.value?.texture, type: .emissive)
+        self.material.setTexture(self.inputSpecularTexture.value?.texture, type: .specular)
+        self.material.setTexture(self.inputRoughnessTexture.value?.texture, type: .roughness)
+        self.material.setTexture(self.inputMetalicTexture.value?.texture, type: .metallic)
+
+        self.material.setTexture(self.inputBumpTexture.value?.texture, type: .bump)
+        self.material.setTexture(self.inputDisplacementTexture.value?.texture, type: .displacement)
+        self.material.setTexture(self.inputOcclusionTexture.value?.texture, type: .occlusion)
+        self.material.setTexture(self.inputSubsurfaceTexture.value?.texture, type: .subsurface)
+        self.material.setTexture(self.inputClearcoatTexture.value?.texture, type: .clearcoat)
+        self.material.setTexture(self.inputClearcoatRoughTexture.value?.texture, type: .clearcoatRoughness)
+        self.material.setTexture(self.inputClearcoatGlossTexture.value?.texture, type: .clearcoatGloss)
+        self.material.setTexture(self.inputTransmissionTexture.value?.texture, type: .transmission)
+
         
 //        if let tex = self.inputHardness.value
 //        {

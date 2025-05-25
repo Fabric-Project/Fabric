@@ -42,8 +42,6 @@ class StandardMaterialNode : BaseMaterialNode
     let inputSpecularTexture: NodePort<EquatableTexture>
     let inputRoughnessTexture: NodePort<EquatableTexture>
     let inputMetalicTexture: NodePort<EquatableTexture>
-//    let inputBumpTexture: NodePort<EquatableTexture>
-//    let inputOcclusionTexture: NodePort<EquatableTexture>
 
     let outputMaterial: NodePort<Material>
     
