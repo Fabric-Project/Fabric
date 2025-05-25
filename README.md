@@ -20,8 +20,8 @@ Fabric is intended to be used as
 
 An early alpha of Satin rendering a Super Shape with an HDRI environment and a PBR Shader at 120Hz:
  
-<img width="1000" alt="image" src="https://github.com/user-attachments/assets/b1d707b3-dcfe-48e7-88e1-324950842be3" />
-<img width="1000" alt="image" src="https://github.com/user-attachments/assets/1cd56919-e110-4ff1-bb06-37e7509525a9" />
+<img width="800" alt="image" src="https://github.com/user-attachments/assets/b1d707b3-dcfe-48e7-88e1-324950842be3" />
+<img width="800" alt="image" src="https://github.com/user-attachments/assets/1cd56919-e110-4ff1-bb06-37e7509525a9" />
 
 Fabric supports, thanks to Satin, high fidelity modern rendering techniques including
 
@@ -56,6 +56,12 @@ Fabric supports, thanks to Satin, high fidelity modern rendering techniques incl
     - String
 
 In Fabric, unlike Quartz Composer, Objects run top to bottom, and Parameters left to right. We think this helps with organization and legibility, but to be honest, we're shooting from the proverbial hip here. 
+
+A simple Fabric Scene rendering a Cube
+
+<img width="800" alt="image" src="https://github.com/user-attachments/assets/cbc39e56-d9e5-4c42-888a-f6bf696028c8" />
+
+
 
 ### Tomorrow
 * Expand on available Nodes and expose features of Satin in a thoughtful way. There is a *lot* of ground to cover. 
