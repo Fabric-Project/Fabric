@@ -14,7 +14,7 @@ Fabric  and aims to
 * Provide an SDK to add nodes via a plugin architecture
 
 Fabric is intended to be used as 
-* A Creative coding tool requires littl to no programming experience.
+* A Creative coding tool requires little to no programming experience.
 * Pro User tool to create reusable documents (similar to Quartz Composer Compositions) that can be loaded in the Fabric runtime and embedded into 3rd party applications.
 * Developer environment built on Satin that can render high fidelity visual output in a procedural way, using modern rendering techniques.
 
@@ -36,7 +36,7 @@ Fabric supports, thanks to Satin, high fidelity modern rendering techniques incl
 ### Today:
 
 * Fabric exposes Satin's scene graph and parameter system in a node based metaphor.
-- Scene Graph `Objects`:
+- Scene Graph `Objects` and `Parameters`:
   - Cameras
     - Perspective / Orthographic   
   - Renderers
@@ -47,7 +47,7 @@ Fabric supports, thanks to Satin, high fidelity modern rendering techniques incl
     - Shaders
   - Textures
 
-- Object nodes have Parameters which can be adjusted, such as
+- `Object` nodes have Parameters which can be adjusted, such as
   - Parameters    
     - Numbers
     - Vectors
@@ -55,9 +55,9 @@ Fabric supports, thanks to Satin, high fidelity modern rendering techniques incl
     - Colors
     - String
 
-In Fabric, unlike Quartz Composer, Objects run top to bottom, and Parameters left to right. We think this helps with organization and legibility, but to be honest, we're shooting from the proverbial hip here. 
+In Fabric, unlike Quartz Composer, `Objects` run top to bottom, and `Parameters` left to right. We think this helps with organization and legibility, but to be honest, we're shooting from the proverbial hip here. 
 
-A simple Fabric Scene rendering a Cube
+A simple Fabric Scene rendering a Cube:
 
 <img width="800" alt="image" src="https://github.com/user-attachments/assets/cbc39e56-d9e5-4c42-888a-f6bf696028c8" />
 
