@@ -26,7 +26,7 @@ struct ButtonParameterView: View, Equatable {
     var body: some View
     {
         Toggle(self.parameter.label, isOn: self.$parameter.value)
-            .controlSize( .mini )
+            .controlSize( .small )
     }
 }
 //#Preview {

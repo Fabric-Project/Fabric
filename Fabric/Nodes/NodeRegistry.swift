@@ -35,7 +35,7 @@ class NodeRegistry {
          BasicDiffuseMaterialNode.self,
          SkyboxMaterialNode.self,
          DepthMaterialNode.self,
-         ShadowMaterialNode.self,
+         //ShadowMaterialNode.self,
          StandardMaterialNode.self,
          PBRMaterialNode.self,
          

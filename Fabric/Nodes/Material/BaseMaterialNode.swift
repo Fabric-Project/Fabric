@@ -10,8 +10,12 @@ import Satin
 import simd
 import Metal
 
-class BaseMaterialNode : Node
+class BaseMaterialNode : Node, NodeProtocol
 {
+    
+    class var name:String {  "Material" }
+    class var nodeType:Node.NodeType { .Material }
+
     // Params
     let inputReceivesLighting:BoolParameter
     let inputWriteDepth:BoolParameter

@@ -11,10 +11,12 @@ import Satin
 import simd
 import Metal
 
-class ShadowMaterialNode : BaseMaterialNode, NodeProtocol
+// Not sure we need this node TBH?
+// Its disabled in registry for now
+// And needs codable additions
+class ShadowMaterialNode : BaseMaterialNode
 {
-    static let name = "Shadow Material"
-    static var nodeType = Node.NodeType.Material
+    override class var name:String {  "Shadow Material" }
 
     // Ports
     let outputMaterial = NodePort<Material>(name: ShadowMaterialNode.name , kind: .Outlet)

@@ -11,10 +11,9 @@ import Satin
 import simd
 import Metal
 
-class DepthMaterialNode : BaseMaterialNode, NodeProtocol
+class DepthMaterialNode : BaseMaterialNode
 {
-    class var name:String {  "Depth Material" }
-    class var nodeType:Node.NodeType { .Material }
+    override class var name:String {  "Depth Material" }
 
     let inputNear:FloatParameter
     let inputFar:FloatParameter

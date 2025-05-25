@@ -10,10 +10,9 @@ import Satin
 import simd
 import Metal
 
-class StandardMaterialNode : BaseMaterialNode, NodeProtocol
+class StandardMaterialNode : BaseMaterialNode
 {
-    static let name = "Standard Material"
-    static var nodeType = Node.NodeType.Material
+    override class var name:String {  "Standard Material" }
 
     // Params
     let inputBaseColor: Float4Parameter

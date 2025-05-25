@@ -10,10 +10,9 @@ import Satin
 import simd
 import Metal
 
-class PBRMaterialNode : BaseMaterialNode, NodeProtocol
+class PBRMaterialNode : BaseMaterialNode
 {
-    static let name = "Physical Material"
-    static var nodeType = Node.NodeType.Material
+    override class var name:String {  "Physical Material" }
 
     // Params
     let inputBaseColor = GenericParameter<simd_float4>("Base Color", simd_float4(repeating:1), .colorpicker)
@@ -37,6 +36,7 @@ class PBRMaterialNode : BaseMaterialNode, NodeProtocol
 
     override var inputParameters: [any Parameter] { super.inputParameters +
         [
+            inputBaseColor,
             inputMetallic,
             inputSpecular,
             inputRoughness,
@@ -82,7 +82,7 @@ class PBRMaterialNode : BaseMaterialNode, NodeProtocol
 //        self.material.roughness = self.inputRoughness.value
 //        self.material.occlusion = self.inputOcclusion.value
        
-        
+        self.material.baseColor = self.inputBaseColor.value
         self.material.metallic = self.inputMetallic.value
         self.material.specular = self.inputSpecular.value
         self.material.roughness = self.inputRoughness.value

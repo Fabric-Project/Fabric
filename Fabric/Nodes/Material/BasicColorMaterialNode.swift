@@ -10,12 +10,9 @@ import Satin
 import simd
 import Metal
 
-class BasicColorMaterialNode : BaseMaterialNode, NodeProtocol
+class BasicColorMaterialNode : BaseMaterialNode
 {
-    //    override static func foo() -> String  { "foo" }
-    
-    class var name:String {  "Color Material" }
-    class var nodeType:Node.NodeType { .Material }
+    override class var name:String {  "Color Material" }
     
     // Parameters
     let inputColor:Float4Parameter
