@@ -19,9 +19,9 @@ Fabric is intended to be used as
 * Developer environment built on Satin that can render high fidelity visual output in a procedural way, using modern rendering techniques.
 
 An early alpha of Satin rendering a Super Shape with an HDRI environment and a PBR Shader at 120Hz:
- 
-<img width="800" alt="image" src="https://github.com/user-attachments/assets/b1d707b3-dcfe-48e7-88e1-324950842be3" />
-<img width="800" alt="image" src="https://github.com/user-attachments/assets/1cd56919-e110-4ff1-bb06-37e7509525a9" />
+
+<img width="800" alt="Fabric" src="https://github.com/user-attachments/assets/0c0f3a88-5c22-4ad5-88cb-c05602b548a5" />
+<img width="800" alt="Fabric" src="https://github.com/user-attachments/assets/a649647a-a948-460c-827f-09b3fa6b1eee" />
 
 Fabric supports, thanks to Satin, high fidelity modern rendering techniques including
 
