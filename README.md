@@ -45,7 +45,7 @@ Build and run.
 
 # Roadmap
 
-## Today:
+## Alpha Goals:
 
 * Fabric exposes Satin's scene graph and parameter system in a node based metaphor.
 - Scene Graph `Objects` and `Parameters`:
@@ -73,14 +73,14 @@ A simple Fabric Scene rendering a Cube:
 
 <img width="800" alt="image" src="https://github.com/user-attachments/assets/cbc39e56-d9e5-4c42-888a-f6bf696028c8" />
 
-## Tomorrow
+## Beta Goals
 * Expand on available Nodes and expose features of Satin in a thoughtful way. There is a *lot* of ground to cover. 
 * UI Improvements
 * Determine how to handle 'Structure' like nodes, and casting nodes. 
 * Optimize the run time and enable basic features like Undo / Redo
 * Collect community feedback
 
-## The Future
+## 1.0 Goals
 * Make a public plugin API and ensure the existing nodes are implemented via dog-fooding (no private api)
 * Create a Fabric framework that allows for rendering Fabric documents into a host application in a standard way.
 * Allow procedural building of Fabric graphs via API
