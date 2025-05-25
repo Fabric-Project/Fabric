@@ -30,8 +30,6 @@ struct FloatSlider: View, Equatable
     
     var body: some View
     {
-//        let _ = Self._printChanges()
-
         GeometryReader
         { geometry in
             
@@ -91,17 +89,5 @@ struct FloatSlider: View, Equatable
             .cornerRadius(cornerRadius)
 
         }
-//        .frame(height: sliderHeight)
-//            .keyboardShortcut(KeyEquivalent("r"), modifiers: /*@START_MENU_TOKEN@*/.command/*@END_MENU_TOKEN@*/)
-//            {
-////                $recording = !$recording
-//            }
-        
     }
 }
-
-
-//#Preview {
-//    @State var value:Float = 0.5
-//    vSlider(valueMin: 0, valueMax: 1, value: $value)
-//}

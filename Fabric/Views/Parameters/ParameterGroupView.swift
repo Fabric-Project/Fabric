@@ -37,7 +37,7 @@ struct ParameterGroupView : View
             {
             case .double, .float:
                 return  AnyView(self.buildSlider(param: param))
-                                
+                            
             default:
                 return AnyView(self.buildLabel(param: param))            
             }
@@ -58,11 +58,14 @@ struct ParameterGroupView : View
             return AnyView(self.buildColorPicler(param: param))
 
         case .inputfield:
-            
             return AnyView(self.buildInputField(param: param))
-
+            
+        case .toggle, .button:
+            return AnyView(self.buildToggleButton(param:param))
+            
         default:
             return AnyView(self.buildLabel(param: param))
+            
             
 //        case .none:
 //            return nil
@@ -80,6 +83,17 @@ struct ParameterGroupView : View
     private func buildLabel(param:any Satin.Parameter) -> any View
     {
         return Text(param.label)
+    }
+    
+    private func buildToggleButton(param: any Satin.Parameter) -> any View
+    {
+        if let boolParam = param as? BoolParameter
+        {
+            return EquatableView<ButtonParameterView>( content: ButtonParameterView(param:boolParam) )
+        }
+        
+        return Text(param.label)
+
     }
     
     private func buildSlider(param:any Satin.Parameter) -> any View
