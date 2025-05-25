@@ -39,7 +39,6 @@ class HDRTextureNode : Node, NodeProtocol
         super.init(context: context)
   
         self.loadTextureFromInputValue()
-//        self.texture = loadHDR(device: context.device, url: URL(fileURLWithPath: "/Users/vade/Downloads/IndoorEnvironmentHDRI011_1K-HDR.exr") )
     }
     
     enum CodingKeys : String, CodingKey
@@ -69,7 +68,7 @@ class HDRTextureNode : Node, NodeProtocol
         
         self.inputFilePathParam = try container.decode(StringParameter.self, forKey: .inputFilePathParameter)
         self.outputTexturePort = try container.decode(NodePort<EquatableTexture>.self, forKey: .outputTexturePort)
-        
+
         self.textureLoader = MTKTextureLoader(device: decodeContext.documentContext.device)
 
         try super.init(from:decoder)
@@ -106,7 +105,7 @@ class HDRTextureNode : Node, NodeProtocol
             if FileManager.default.fileExists(atPath: self.url!.standardizedFileURL.path(percentEncoded: false) )
             {
                 
-                self.texture = try! self.textureLoader.newTexture(URL: self.url!, options: [.generateMipmaps : true, .allocateMipmaps : true])
+                self.texture = try! self.textureLoader.newTexture(URL: self.url!, options: [.generateMipmaps : true, .allocateMipmaps : true, .SRGB : false])
                     
                     //.newTexture(url: self.url!, options: [:])
 //                self.texture = loadHDR(device: self.context.device, url: self.url! )

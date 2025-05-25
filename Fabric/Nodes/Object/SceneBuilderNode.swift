@@ -15,6 +15,11 @@ class SceneBuilderNode : BaseObjectNode, NodeProtocol
     static let name = "Scene Builder"
     static var nodeType = Node.NodeType.Object
 
+    // Params
+    let inputEnvironmentIntensity: FloatParameter
+
+    override var inputParameters: [any Parameter] { super.inputParameters + [inputEnvironmentIntensity,] }
+
     // Ports
     let inputEnvironment:NodePort<EquatableTexture>
     let inputObject1:NodePort<Object>
@@ -46,6 +51,7 @@ class SceneBuilderNode : BaseObjectNode, NodeProtocol
 
     required init(context: Context)
     {
+        self.inputEnvironmentIntensity = FloatParameter("Environment Intensity", 1.0, 0.0, 1.0, .slider)
         self.inputEnvironment = NodePort<EquatableTexture>(name: "Environment", kind: .Inlet)
         self.inputObject1 = NodePort<Object>(name: "Input 1", kind: .Inlet)
         self.inputObject2 = NodePort<Object>(name: "Input 2", kind: .Inlet)
@@ -64,6 +70,7 @@ class SceneBuilderNode : BaseObjectNode, NodeProtocol
         
     enum CodingKeys : String, CodingKey
     {
+        case inputEnvironmentIntensityParameter
         case inputEnvironmentParameter
         case inputObject1Parameter
         case inputObject2Parameter
@@ -83,6 +90,7 @@ class SceneBuilderNode : BaseObjectNode, NodeProtocol
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
+        try container.encode(self.inputEnvironmentIntensity, forKey: .inputEnvironmentIntensityParameter)
         try container.encode(self.inputEnvironment, forKey: .inputEnvironmentParameter)
         try container.encode(self.inputObject1, forKey: .inputObject1Parameter)
         try container.encode(self.inputObject2, forKey: .inputObject2Parameter)
@@ -102,6 +110,8 @@ class SceneBuilderNode : BaseObjectNode, NodeProtocol
     required init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        self.inputEnvironmentIntensity = try container.decode(FloatParameter.self, forKey: .inputEnvironmentIntensityParameter)
 
         self.inputEnvironment = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputEnvironmentParameter)
 
@@ -136,6 +146,8 @@ class SceneBuilderNode : BaseObjectNode, NodeProtocol
                 object.setEnvironment(texture: v.texture, cubemapSize: 2048, reflectionSize:2048, irradianceSize:1024)
             }
         }
+        
+        self.object.environmentIntensity = self.inputEnvironmentIntensity.value
 
         if let v = inputObject1.value { scene.append(v) }
         if let v = inputObject2.value { scene.append(v) }

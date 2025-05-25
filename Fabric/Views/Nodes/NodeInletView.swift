@@ -20,35 +20,42 @@ struct NodeInletView: View
     
     var body: some View
     {
-        Circle()
-            .fill( port.color )
-            .frame(width: 15)
-//            .padding(.leading, 20)
-//            .position(node.localInletPositions[index])
-            .dropDestination(for: OutletData.self) { outletData, location in
-//                return animateDrop(at: location)
-                print("drop destination \(self.port.name)")
-                                
-                if let firstOutlet = outletData.first,
-                    let outletPort = self.graph.nodePort(forID: firstOutlet.portID)
-                {
+        HStack {
+            Circle()
+                .fill( port.color )
+                .frame(width: 15)
+            //            .padding(.leading, 20)
+            //            .position(node.localInletPositions[index])
+                .dropDestination(for: OutletData.self) { outletData, location in
+                    //                return animateDrop(at: location)
+                    print("drop destination \(self.port.name)")
                     
-                    self.port.connect(to: outletPort)
+                    if let firstOutlet = outletData.first,
+                       let outletPort = self.graph.nodePort(forID: firstOutlet.portID)
+                    {
+                        
+                        self.port.connect(to: outletPort)
+                    }
+                    //                return true
+                    return self.processDrop(outletData)
+                } isTargeted: {
+                    isDropTargeted = $0
                 }
-//                return true
-                return self.processDrop(outletData)
-            } isTargeted: {
-                isDropTargeted = $0
-            }
-            .help("\(port.name): \(port.valueType())")
-            .anchorPreference(
-                key: PortAnchorKey.self,
-                value: .center,
-                transform: {  anchor in
-                    
-                    [ port.id : anchor ]
-                }
-              )
+                .help("\(port.name): \(port.valueType())")
+                .anchorPreference(
+                    key: PortAnchorKey.self,
+                    value: .center,
+                    transform: {  anchor in
+                        
+                        [ port.id : anchor ]
+                    }
+                )
+            
+            Text(self.port.name)
+                .foregroundStyle(Color.secondary)
+                .font(.system(size: 9))
+                .lineLimit(1)
+        }
     }
     
     private func processDrop(_ outletData :[OutletData]) -> Bool

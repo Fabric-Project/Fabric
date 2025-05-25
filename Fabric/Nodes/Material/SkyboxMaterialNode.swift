@@ -83,6 +83,8 @@ class SkyboxMaterialNode : BaseMaterialNode
        
         self.evaluate(material: self.material, atTime: atTime)
 
+        self.material.environmentIntensity = self.inputEnvironmentIntensity.value
+        self.material.blur = self.inputBlur.value
         
         self.outputMaterial.send(self.material)
      }

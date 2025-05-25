@@ -324,35 +324,35 @@ class NodePort<Value : Equatable>: NodePortProtocol
     static func calcDirection(forType: Any.Type ) -> PortDirection
     {
         
-        if forType == EquatableTexture.self
-        {
-            return .Vertical
-        }
-
-        else if forType == Satin.Geometry.self
-        {
-            return .Vertical
-        }
-        
-        else if forType == Satin.Camera.self
-        {
-            return .Vertical
-        }
-        
-        else if forType == Satin.Material.self
-        {
-            return .Vertical
-        }
-        
-        else if forType == Satin.Object.self
-        {
-            return .Vertical
-        }
-        
-        else if forType == Satin.Renderer.self
-        {
-            return .Vertical
-        }
+//        if forType == EquatableTexture.self
+//        {
+//            return .Vertical
+//        }
+//
+//        else if forType == Satin.Geometry.self
+//        {
+//            return .Vertical
+//        }
+//        
+//        else if forType == Satin.Camera.self
+//        {
+//            return .Vertical
+//        }
+//        
+//        else if forType == Satin.Material.self
+//        {
+//            return .Vertical
+//        }
+//        
+//        else if forType == Satin.Object.self
+//        {
+//            return .Vertical
+//        }
+//        
+//        else if forType == Satin.Renderer.self
+//        {
+//            return .Vertical
+//        }
         
         return .Horizontal
     }

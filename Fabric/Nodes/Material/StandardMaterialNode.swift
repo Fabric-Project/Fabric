@@ -21,17 +21,43 @@ class StandardMaterialNode : BaseMaterialNode
     let inputRoughness: FloatParameter
     let inputMetallic: FloatParameter
     let inputOcclusion: FloatParameter
+    let inputEnvironmentIntensity: FloatParameter
+    let inputGammaCorrection: FloatParameter
 
-    override var inputParameters: [any Parameter] { super.inputParameters + [inputBaseColor, inputEmissiveColor, inputSpecular, inputMetallic, inputRoughness, inputOcclusion, ] }
+    override var inputParameters: [any Parameter] { super.inputParameters + [inputBaseColor,
+                                                                             inputEmissiveColor,
+                                                                             inputSpecular,
+                                                                             inputMetallic,
+                                                                             inputRoughness,
+                                                                             inputOcclusion,
+                                                                             inputEnvironmentIntensity,
+                                                                             inputGammaCorrection,
+                                                                             
+    ] }
 
     // Ports
     let inputDiffuseTexture: NodePort<EquatableTexture>
     let inputNormalTexture: NodePort<EquatableTexture>
+    let inputEmissiveTexture: NodePort<EquatableTexture>
+    let inputSpecularTexture: NodePort<EquatableTexture>
+    let inputRoughnessTexture: NodePort<EquatableTexture>
+    let inputMetalicTexture: NodePort<EquatableTexture>
+//    let inputBumpTexture: NodePort<EquatableTexture>
+//    let inputOcclusionTexture: NodePort<EquatableTexture>
+
     let outputMaterial: NodePort<Material>
     
-    override var ports: [any NodePortProtocol] {  super.ports + [ inputDiffuseTexture,
-                                                         inputNormalTexture,
-                                                         outputMaterial] }
+    override var ports: [any NodePortProtocol] {  super.ports + [
+        inputDiffuseTexture,
+        inputNormalTexture,
+        inputEmissiveTexture,
+        inputSpecularTexture,
+        inputRoughnessTexture,
+        inputMetalicTexture,
+//        inputBumpTexture,
+//        inputOcclusionTexture,
+        outputMaterial] }
+    
     private let material = StandardMaterial()
 
     
@@ -43,10 +69,19 @@ class StandardMaterialNode : BaseMaterialNode
         self.inputRoughness = FloatParameter("Roughness", 0.25, 0.0, 1.0, .slider)
         self.inputMetallic = FloatParameter("Metallic", 0.75, 0.0, 1.0, .slider)
         self.inputOcclusion = FloatParameter("Occlusion", 0.75, 0.0, 1.0, .slider)
+        self.inputEnvironmentIntensity = FloatParameter("Environment Intensity", 1.0, 0.0, 1.0, .slider)
+        self.inputGammaCorrection = FloatParameter("Gamma Correction", 1.0, 0.0, 2.4, .slider)
 
         // Ports
         self.inputDiffuseTexture = NodePort<EquatableTexture>(name: "Diffuse Texture", kind: .Inlet)
         self.inputNormalTexture = NodePort<EquatableTexture>(name: "Normal Texture", kind: .Inlet)
+        self.inputEmissiveTexture = NodePort<EquatableTexture>(name: "Emissive Texture", kind: .Inlet)
+        self.inputSpecularTexture = NodePort<EquatableTexture>(name: "Specular Texture", kind: .Inlet)
+        self.inputRoughnessTexture = NodePort<EquatableTexture>(name: "Roughness Texture", kind: .Inlet)
+        self.inputMetalicTexture = NodePort<EquatableTexture>(name: "Metallic Texture", kind: .Inlet)
+//        self.inputBumpTexture = NodePort<EquatableTexture>(name: "Bump Texture", kind: .Inlet)
+//        self.inputOcclusionTexture = NodePort<EquatableTexture>(name: "Occlusion Texture", kind: .Inlet)
+
         self.outputMaterial = NodePort<Material>(name: "Material", kind: .Outlet)
         
         super.init(context: context)
@@ -60,9 +95,18 @@ class StandardMaterialNode : BaseMaterialNode
         case inputRoughnessParameter
         case inputMetallicParameter
         case inputOcclusionParameter
+        case inputEnvironmentIntensityParameter
+        case inputGammaCorrectionParameter
 
         case inputDiffuseTexturePort
         case inputNormalTexturePort
+        case inputEmissiveTexturePort
+        case inputSpecularTexturePort
+        case inputRoughnessTexturePort
+        case inputMetalicTexturePort
+//        case inputBumpTexturePort
+//        case inputOcclusionTexturePort
+        
         case outputMaterialPort
     }
     
@@ -76,9 +120,18 @@ class StandardMaterialNode : BaseMaterialNode
         try container.encode(self.inputRoughness, forKey: .inputRoughnessParameter)
         try container.encode(self.inputMetallic, forKey: .inputMetallicParameter)
         try container.encode(self.inputOcclusion, forKey: .inputOcclusionParameter)
+        try container.encode(self.inputEnvironmentIntensity, forKey: .inputEnvironmentIntensityParameter)
+        try container.encode(self.inputGammaCorrection, forKey: .inputGammaCorrectionParameter)
 
         try container.encode(self.inputDiffuseTexture, forKey: .inputDiffuseTexturePort)
         try container.encode(self.inputNormalTexture, forKey: .inputNormalTexturePort)
+        try container.encode(self.inputEmissiveTexture, forKey: .inputEmissiveTexturePort)
+        try container.encode(self.inputSpecularTexture, forKey: .inputSpecularTexturePort)
+        try container.encode(self.inputRoughnessTexture, forKey: .inputRoughnessTexturePort)
+        try container.encode(self.inputMetalicTexture, forKey: .inputMetalicTexturePort)
+//        try container.encode(self.inputBumpTexture, forKey: .inputBumpTexturePort)
+//        try container.encode(self.inputOcclusionTexture, forKey: .inputOcclusionTexturePort)
+
         try container.encode(self.outputMaterial, forKey: .outputMaterialPort)
         
         try super.encode(to: encoder)
@@ -95,9 +148,17 @@ class StandardMaterialNode : BaseMaterialNode
         self.inputRoughness = try container.decode(FloatParameter.self, forKey: .inputRoughnessParameter)
         self.inputMetallic = try container.decode(FloatParameter.self, forKey: .inputMetallicParameter)
         self.inputOcclusion = try container.decode(FloatParameter.self, forKey: .inputOcclusionParameter)
+        self.inputEnvironmentIntensity = try container.decode(FloatParameter.self, forKey: .inputEnvironmentIntensityParameter)
+        self.inputGammaCorrection = try container.decode(FloatParameter.self, forKey: .inputGammaCorrectionParameter)
 
         self.inputDiffuseTexture = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputDiffuseTexturePort)
         self.inputNormalTexture = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputNormalTexturePort)
+        self.inputEmissiveTexture = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputEmissiveTexturePort)
+        self.inputSpecularTexture = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputSpecularTexturePort)
+        self.inputRoughnessTexture = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputRoughnessTexturePort)
+        self.inputMetalicTexture = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputMetalicTexturePort)
+//        self.inputBumpTexture = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputBumpTexturePort)
+//        self.inputOcclusionTexture = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputOcclusionTexturePort)
 
         self.outputMaterial = try container.decode(NodePort<Material>.self, forKey: .outputMaterialPort)
         
@@ -119,25 +180,19 @@ class StandardMaterialNode : BaseMaterialNode
         self.material.metallic = self.inputMetallic.value
         self.material.roughness = self.inputRoughness.value
         self.material.occlusion = self.inputOcclusion.value
-        
-        
-        if let tex = self.inputDiffuseTexture.value
-        {
-            self.material.setTexture(tex.texture, type: .baseColor)
-        }
-        
-        if let tex = self.inputNormalTexture.value
-        {
-            self.material.setTexture(tex.texture, type: .normal)
-        }
-        
-//        if let tex = self.inputHardness.value
-//        {
-//            self.material.ha = tex
-//        }
-        
-//        self.material.color = simd_float4( cosf(Float(atTime.remainder(dividingBy: 1) )  * Float.pi ) , 0.0, 0.0, 1.0)
+        self.material.environmentIntensity = self.inputEnvironmentIntensity.value
+        self.material.gammaCorrection = self.inputGammaCorrection.value
 
+        self.material.setTexture(self.inputDiffuseTexture.value?.texture, type: .baseColor)
+        self.material.setTexture(self.inputNormalTexture.value?.texture, type: .normal)
+        self.material.setTexture(self.inputEmissiveTexture.value?.texture, type: .emissive)
+        self.material.setTexture(self.inputSpecularTexture.value?.texture, type: .specular)
+        self.material.setTexture(self.inputRoughnessTexture.value?.texture, type: .roughness)
+        self.material.setTexture(self.inputMetalicTexture.value?.texture, type: .metallic)
+        
+//        self.material.setTexture(self.inputBumpTexture.value?.texture, type: .displacement)
+//        self.material.setTexture(self.inputOcclusionTexture.value?.texture, type: .occlusion)
+                
         
         self.outputMaterial.send(self.material)
      }

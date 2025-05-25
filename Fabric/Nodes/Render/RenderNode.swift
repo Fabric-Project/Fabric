@@ -22,7 +22,7 @@ class RenderNode : Node, NodeProtocol
     // Ports
     let inputCamera: NodePort<Camera>
     let inputScene: NodePort<Object>
-    override var ports: [any NodePortProtocol] { super.ports +  [inputCamera, inputScene] }
+    override var ports: [any NodePortProtocol] { super.ports +  [inputScene, inputCamera] }
 
     // Ensure we always render!
     override var isDirty:Bool { get {  true  } set { } }

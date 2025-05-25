@@ -27,6 +27,8 @@ class NodeRegistry {
          
          PlaneGeometryNode.self,
          BoxGeometryNode.self,
+         SphereGeometryNode.self,
+         IcoSphereGeometryNode.self,
          SkyboxGeometryNode.self,
          SuperShapeGeometryNode.self,
          

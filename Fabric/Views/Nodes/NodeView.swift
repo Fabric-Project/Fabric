@@ -30,43 +30,50 @@ struct NodeView : View
                 Color( (self.node.isSelected) ? "NodeBackgroundColorSelected" : "NodeBackgroundColor")
 //                Color( (self.node.isSelected) ? self.node.nodeType.backgroundColor() : self.node.nodeType.backgroundColor().opacity(0.5) )
 
-                VStack
-                {
+//                VStack
+//                {
+//                    // Name
+//                    Text( self.node.name )
+//                        .font(.system(size: 9))
+//                        .bold()
+//                        .frame(maxHeight: 20)
+//                }
+                
+//                HStack(alignment: .top, spacing: 10) {
+//                    Spacer(minLength: 0)
+//                    ForEach(self.node.ports.filter({$0.kind == .Inlet && $0.direction == .Vertical}), id: \.id) { port in
+//                        NodeInletView(port: port)
+//                    }
+//                    Spacer(minLength: 0)
+//                }
+//                .frame(width: self.node.nodeSize.width + NodeInletView.radius, alignment: .top)
+//
+//                HStack(alignment: .bottom, spacing: 10) {
+//                    Spacer(minLength: 0)
+//                    ForEach(self.node.ports.filter({$0.kind == .Outlet && $0.direction == .Vertical}), id: \.id) { port in
+//                        NodeOutletView(port: port)
+//                    }
+//                    Spacer(minLength: 0)
+//                }
+//                .frame(width: self.node.nodeSize.width + NodeInletView.radius, alignment: .bottom)
+                
+                VStack(alignment: .leading, spacing: 10) {
+                    
                     // Name
                     Text( self.node.name )
                         .font(.system(size: 9))
                         .bold()
                         .frame(maxHeight: 20)
-                }
-                
-                HStack(alignment: .top, spacing: 10) {
-                    Spacer(minLength: 0)
-                    ForEach(self.node.ports.filter({$0.kind == .Inlet && $0.direction == .Vertical}), id: \.id) { port in
-                        NodeInletView(port: port)
-                    }
-                    Spacer(minLength: 0)
-                }
-                .frame(width: self.node.nodeSize.width, height: self.node.nodeSize.height + NodeInletView.radius, alignment: .top)
-//
-                HStack(alignment: .bottom, spacing: 10) {
-                    Spacer(minLength: 0)
-                    ForEach(self.node.ports.filter({$0.kind == .Outlet && $0.direction == .Vertical}), id: \.id) { port in
-                        NodeOutletView(port: port)
-                    }
-                    Spacer(minLength: 0)
-                }
-                .frame(width: self.node.nodeSize.width, height: self.node.nodeSize.height + NodeInletView.radius, alignment: .bottom)
-                
-                
-                
-                VStack(alignment: .leading, spacing: 10) {
-                    Spacer(minLength: 0)
+                        .padding(.horizontal, 20)
+                    
+//                    Spacer()
+                    
                     ForEach(self.node.ports.filter({$0.kind == .Inlet && $0.direction == .Horizontal}), id: \.id) { port in
                         NodeInletView(port: port)
                     }
                     Spacer(minLength: 0)
                 }
-                .frame(width: self.node.nodeSize.width + NodeInletView.radius, height: self.node.nodeSize.height , alignment: .leading)
+                .frame(width: self.node.nodeSize.width + NodeInletView.radius, alignment: .leading)
                 
                 
                 VStack(alignment: .trailing, spacing: 10) {
@@ -76,7 +83,7 @@ struct NodeView : View
                     }
                     Spacer(minLength: 0)
                 }
-                .frame(width: self.node.nodeSize.width + NodeInletView.radius, height: self.node.nodeSize.height , alignment: .trailing)
+                .frame(width: self.node.nodeSize.width + NodeInletView.radius, alignment: .trailing)
                 
                 
             }
