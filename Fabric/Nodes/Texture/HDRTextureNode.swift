@@ -9,6 +9,7 @@ import Foundation
 import Satin
 import simd
 import Metal
+import MetalKit
 
 class HDRTextureNode : Node, NodeProtocol
 {
@@ -25,6 +26,7 @@ class HDRTextureNode : Node, NodeProtocol
 
 
     private var texture: (any MTLTexture)? = nil
+    private var textureLoader:MTKTextureLoader
     private var url: URL? = nil
     
     required init(context:Context)
@@ -32,9 +34,12 @@ class HDRTextureNode : Node, NodeProtocol
         self.inputFilePathParam = StringParameter("File Path", "", .filepicker)
         self.outputTexturePort = NodePort<EquatableTexture>(name: "Texture", kind: .Outlet)
 
+        self.textureLoader = MTKTextureLoader(device: context.device)
+
         super.init(context: context)
-        
-        self.texture = loadHDR(device: context.device, url: URL(fileURLWithPath: "/Users/vade/Downloads/IndoorEnvironmentHDRI011_1K-HDR.exr") )
+  
+        self.loadTextureFromInputValue()
+//        self.texture = loadHDR(device: context.device, url: URL(fileURLWithPath: "/Users/vade/Downloads/IndoorEnvironmentHDRI011_1K-HDR.exr") )
     }
     
     enum CodingKeys : String, CodingKey
@@ -56,10 +61,17 @@ class HDRTextureNode : Node, NodeProtocol
     required init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-
+       
+        guard let decodeContext = decoder.context else
+        {
+            fatalError("Required Decode Context Not set")
+        }
+        
         self.inputFilePathParam = try container.decode(StringParameter.self, forKey: .inputFilePathParameter)
         self.outputTexturePort = try container.decode(NodePort<EquatableTexture>.self, forKey: .outputTexturePort)
         
+        self.textureLoader = MTKTextureLoader(device: decodeContext.documentContext.device)
+
         try super.init(from:decoder)
         
         self.loadTextureFromInputValue()
@@ -93,7 +105,11 @@ class HDRTextureNode : Node, NodeProtocol
             
             if FileManager.default.fileExists(atPath: self.url!.standardizedFileURL.path(percentEncoded: false) )
             {
-                self.texture = loadHDR(device: self.context.device, url: self.url! )
+                
+                self.texture = try! self.textureLoader.newTexture(URL: self.url!, options: [.generateMipmaps : true, .allocateMipmaps : true])
+                    
+                    //.newTexture(url: self.url!, options: [:])
+//                self.texture = loadHDR(device: self.context.device, url: self.url! )
             }
             else
             {

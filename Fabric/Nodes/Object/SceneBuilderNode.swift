@@ -58,7 +58,7 @@ class SceneBuilderNode : BaseObjectNode, NodeProtocol
         self.inputObject9 = NodePort<Object>(name: "Input 9", kind: .Inlet)
         self.inputObject10 = NodePort<Object>(name: "Input 10", kind: .Inlet)
         self.outputScene = NodePort<Object>(name: SceneBuilderNode.name, kind: .Outlet)
-        
+                
         super.init(context: context)
     }
         
@@ -133,7 +133,7 @@ class SceneBuilderNode : BaseObjectNode, NodeProtocol
             }
             else
             {
-                object.setEnvironment(texture: v.texture)
+                object.setEnvironment(texture: v.texture, cubemapSize: 2048, reflectionSize:2048, irradianceSize:1024)
             }
         }
 
