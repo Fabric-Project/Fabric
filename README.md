@@ -14,14 +14,14 @@ Fabric  and aims to
 * Provide an SDK to add nodes via a plugin architecture
 
 Fabric is intended to be used as 
-* A Creative coding tool requires littl to no programming experience.
+* A Creative coding tool requires little to no programming experience.
 * Pro User tool to create reusable documents (similar to Quartz Composer Compositions) that can be loaded in the Fabric runtime and embedded into 3rd party applications.
 * Developer environment built on Satin that can render high fidelity visual output in a procedural way, using modern rendering techniques.
 
 An early alpha of Satin rendering a Super Shape with an HDRI environment and a PBR Shader at 120Hz:
- 
-<img width="1000" alt="image" src="https://github.com/user-attachments/assets/b1d707b3-dcfe-48e7-88e1-324950842be3" />
-<img width="1000" alt="image" src="https://github.com/user-attachments/assets/1cd56919-e110-4ff1-bb06-37e7509525a9" />
+
+<img width="800" alt="Fabric" src="https://github.com/user-attachments/assets/0c0f3a88-5c22-4ad5-88cb-c05602b548a5" />
+<img width="800" alt="Fabric" src="https://github.com/user-attachments/assets/a649647a-a948-460c-827f-09b3fa6b1eee" />
 
 Fabric supports, thanks to Satin, high fidelity modern rendering techniques including
 
@@ -30,13 +30,25 @@ Fabric supports, thanks to Satin, high fidelity modern rendering techniques incl
 - Lighting and Shadow casting
 - Realtime shader editing (live coding, hot reloading)
 
+# Getting Started
 
-## Roadmap
+Because Fabric is under heavy development, we do not provide a prebuilt binary just yet. 
 
-### Today:
+## Requirements
+- macOS 14 +
+- XCode
+
+Checkout Fabric and ensure you check out with submodules enabled, as Satin is a depdnency.
+Open the XCode project
+Build and run. 
+
+
+# Roadmap
+
+## Today:
 
 * Fabric exposes Satin's scene graph and parameter system in a node based metaphor.
-- Scene Graph `Objects`:
+- Scene Graph `Objects` and `Parameters`:
   - Cameras
     - Perspective / Orthographic   
   - Renderers
@@ -47,7 +59,7 @@ Fabric supports, thanks to Satin, high fidelity modern rendering techniques incl
     - Shaders
   - Textures
 
-- Object nodes have Parameters which can be adjusted, such as
+- `Object` nodes have Parameters which can be adjusted, such as
   - Parameters    
     - Numbers
     - Vectors
@@ -55,16 +67,20 @@ Fabric supports, thanks to Satin, high fidelity modern rendering techniques incl
     - Colors
     - String
 
-In Fabric, unlike Quartz Composer, Objects run top to bottom, and Parameters left to right. We think this helps with organization and legibility, but to be honest, we're shooting from the proverbial hip here. 
+In Fabric, unlike Quartz Composer, `Objects` run top to bottom, and `Parameters` left to right. We think this helps with organization and legibility, but to be honest, we're shooting from the proverbial hip here. 
 
-### Tomorrow
+A simple Fabric Scene rendering a Cube:
+
+<img width="800" alt="image" src="https://github.com/user-attachments/assets/cbc39e56-d9e5-4c42-888a-f6bf696028c8" />
+
+## Tomorrow
 * Expand on available Nodes and expose features of Satin in a thoughtful way. There is a *lot* of ground to cover. 
 * UI Improvements
 * Determine how to handle 'Structure' like nodes, and casting nodes. 
 * Optimize the run time and enable basic features like Undo / Redo
 * Collect community feedback
 
-### The Future
+## The Future
 * Make a public plugin API and ensure the existing nodes are implemented via dog-fooding (no private api)
 * Create a Fabric framework that allows for rendering Fabric documents into a host application in a standard way.
 * Allow procedural building of Fabric graphs via API
@@ -73,7 +89,7 @@ In Fabric, unlike Quartz Composer, Objects run top to bottom, and Parameters lef
 
 # Community
 
-I (vade / aka Anton Marini) are looking to build a community of developers who long for the ease of use and interoperabilty of Quartz Composer, its ecosystem and plugin comminity. 
+I ( [Anton Marini](https://github.com/vade) ) are looking to build a community of developers who long for the ease of use and interoperabilty of Quartz Composer, its ecosystem and plugin comminity. 
 
 If you are interested in contributing, please do not hesitate to reach out / comment in the git repository.
 
