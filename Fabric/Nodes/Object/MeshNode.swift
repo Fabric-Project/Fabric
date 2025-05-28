@@ -12,29 +12,36 @@ import Metal
 
 class MeshNode : BaseObjectNode, NodeProtocol
 {
-    static let name = "Mesh"
-    static var nodeType = Node.NodeType.Mesh
+    class var name:String { "Mesh" }
+    class var nodeType:Node.NodeType  { .Mesh }
 
     // Params
     let inputCastsShadow:BoolParameter
+    let inputDoubleSided:BoolParameter
+    let inputCullingMode:StringParameter
+    
     override var inputParameters: [any Parameter] { super.inputParameters + [
-                                                                              self.inputCastsShadow,
-                                                                             ] }
+        self.inputCastsShadow,
+        self.inputDoubleSided,
+        self.inputCullingMode
+    ] }
 
     // Ports
     let inputGeometry:NodePort<Geometry>
     let inputMaterial:NodePort<Material>
     let outputMesh:NodePort<Object>
     
-    private var mesh: Mesh? = nil
-    
     override var ports: [any NodePortProtocol] { super.ports +  [inputGeometry,
                                          inputMaterial,
                                          outputMesh] }
     
+    private var mesh: Mesh? = nil
+
     required init(context: Context)
     {
-        self.inputCastsShadow = BoolParameter("Shadow", false, .button)
+        self.inputCastsShadow = BoolParameter("Enable Shadows", true, .button)
+        self.inputDoubleSided = BoolParameter("Double Sided", false, .button)
+        self.inputCullingMode = StringParameter("Culling Mode", "Back", ["Back", "Front", "None"], .dropdown)
         
         self.inputGeometry = NodePort<Geometry>(name: "Geometry", kind: .Inlet)
         self.inputMaterial = NodePort<Material>(name: "Material", kind: .Inlet)
@@ -42,10 +49,13 @@ class MeshNode : BaseObjectNode, NodeProtocol
         
         super.init(context: context)
     }
+    
         
     enum CodingKeys : String, CodingKey
     {
         case inputCastsShadowParameter
+        case inputDoubleSidedParemeter
+        case inputCullModeParameter
         case inputGeometryPort
         case inputMaterialPort
         case outputMeshPort
@@ -56,6 +66,8 @@ class MeshNode : BaseObjectNode, NodeProtocol
         var container = encoder.container(keyedBy: CodingKeys.self)
         
         try container.encode(self.inputCastsShadow, forKey: .inputCastsShadowParameter)
+        try container.encode(self.inputDoubleSided, forKey: .inputDoubleSidedParemeter)
+        try container.encode(self.inputCullingMode, forKey: .inputCullModeParameter)
         try container.encode(self.inputGeometry, forKey: .inputGeometryPort)
         try container.encode(self.inputMaterial, forKey: .inputMaterialPort)
         try container.encode(self.outputMesh, forKey: .outputMeshPort)
@@ -68,6 +80,11 @@ class MeshNode : BaseObjectNode, NodeProtocol
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
         self.inputCastsShadow = try container.decode(BoolParameter.self, forKey: .inputCastsShadowParameter)
+        self.inputDoubleSided = try container.decode(BoolParameter.self, forKey: .inputDoubleSidedParemeter)
+        self.inputCullingMode = try container.decode(StringParameter.self, forKey: .inputCullModeParameter)
+        
+        self.inputCullingMode.options = ["Back", "Front", "None"]
+        
         self.inputGeometry = try container.decode(NodePort<Geometry>.self, forKey: .inputGeometryPort)
         self.inputMaterial = try container.decode(NodePort<Material>.self, forKey: .inputMaterialPort)
         self.outputMesh = try container.decode(NodePort<Object>.self, forKey: .outputMeshPort)
@@ -83,6 +100,7 @@ class MeshNode : BaseObjectNode, NodeProtocol
         {
             if let mesh = mesh
             {
+//                mesh.cullMode = .none
                 mesh.geometry = geometery
                 mesh.material = material
                 
@@ -101,9 +119,23 @@ class MeshNode : BaseObjectNode, NodeProtocol
                 
                 mesh.castShadow = self.inputCastsShadow.value
                 mesh.receiveShadow = self.inputCastsShadow.value
-
+                mesh.cullMode = self.cullMode()
+                
                 self.outputMesh.send(mesh)
             }
         }
      }
+    
+    private func cullMode() -> MTLCullMode
+    {
+        switch self.inputCullingMode.value
+        {
+        case "Front":
+            return .front
+        case "Back":
+            return .back
+            
+        default: return .none
+        }
+    }
 }

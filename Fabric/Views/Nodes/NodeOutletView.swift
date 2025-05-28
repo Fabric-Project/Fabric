@@ -16,11 +16,6 @@ struct NodeOutletView: View
         Circle()
             .fill(port.color)
             .frame(width: 15)
-            .draggable<OutletData>(
-                
-                OutletData(portID: self.port.id)
-                            
-            )
             .help( "\(port.name): \(port.valueType())")
             .anchorPreference(
                 key: PortAnchorKey.self,
@@ -29,5 +24,10 @@ struct NodeOutletView: View
                    
                     [  port.id : anchor ]
                 })
+            .draggable(
+                
+                OutletData(portID: self.port.id)
+                            
+            )
     }
 }

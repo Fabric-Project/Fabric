@@ -314,6 +314,7 @@ protocol NodeProtocol : Codable
         
         return cancellable
     }
+    
     public func evaluate(atTime:TimeInterval,
                          renderPassDescriptor: MTLRenderPassDescriptor,
                          commandBuffer: MTLCommandBuffer)
@@ -354,10 +355,7 @@ protocol NodeProtocol : Codable
     
     private func parameterToPort(parameter:(any Parameter)) -> (any NodePortProtocol)?
     {
-
         print(self.name, "parameterToPort", parameter.label)
-
-        
                 
         switch parameter.type
         {

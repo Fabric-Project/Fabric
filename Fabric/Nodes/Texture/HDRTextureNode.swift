@@ -94,6 +94,10 @@ class HDRTextureNode : Node, NodeProtocol
         {
             self.outputTexturePort.send( EquatableTexture(texture: texture) )
         }
+//        else
+//        {
+//            self.outputTexturePort.send( nil )
+//        }
      }
     
     private func loadTextureFromInputValue()
@@ -105,7 +109,12 @@ class HDRTextureNode : Node, NodeProtocol
             if FileManager.default.fileExists(atPath: self.url!.standardizedFileURL.path(percentEncoded: false) )
             {
                 
-                self.texture = try! self.textureLoader.newTexture(URL: self.url!, options: [.generateMipmaps : true, .allocateMipmaps : true, .SRGB : false])
+                self.texture = try! self.textureLoader.newTexture(URL: self.url!, options: [
+                    .generateMipmaps : true,
+                    .allocateMipmaps : true,
+                    .SRGB : false,
+//                    .origin: MTKTextureLoader.Origin.flippedVertically,
+                ])
                     
                     //.newTexture(url: self.url!, options: [:])
 //                self.texture = loadHDR(device: self.context.device, url: self.url! )

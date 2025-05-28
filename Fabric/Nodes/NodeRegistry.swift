@@ -44,6 +44,7 @@ class NodeRegistry {
          DirectionalLightNode.self,
          
          MeshNode.self,
+         ModelMeshNode.self,
          SceneBuilderNode.self,
          RenderNode.self,
          DeferredRenderNode.self,
@@ -61,7 +62,8 @@ class NodeRegistry {
          NumberEaseNode.self,
          NumberRemapNode.self,
          NumberIntegralNode.self,
-
+         GradientNoiseNode.self,
+         
          MakeVector2Node.self,
          MakeVector3Node.self,
          MakeVector4Node.self,

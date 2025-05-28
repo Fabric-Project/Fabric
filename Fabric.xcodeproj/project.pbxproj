@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1BAC11652DE6615F008438BC /* Noise in Frameworks */ = {isa = PBXBuildFile; productRef = 1BAC11642DE6615F008438BC /* Noise */; };
 		1BE008E12DC1DEF80061EAFD /* AnyCodable in Frameworks */ = {isa = PBXBuildFile; productRef = 1BE008E02DC1DEF80061EAFD /* AnyCodable */; };
 		1BE00A562DC935C70061EAFD /* Satin.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A532DC935C00061EAFD /* Satin.framework */; };
 		1BE00A572DC935C70061EAFD /* Satin.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A532DC935C00061EAFD /* Satin.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -86,6 +87,7 @@
 			files = (
 				1BE00A562DC935C70061EAFD /* Satin.framework in Frameworks */,
 				1BE008E12DC1DEF80061EAFD /* AnyCodable in Frameworks */,
+				1BAC11652DE6615F008438BC /* Noise in Frameworks */,
 				1BE00A5D2DC936A50061EAFD /* CoreFoundation.framework in Frameworks */,
 				1BE00A612DC936AC0061EAFD /* MetalKit.framework in Frameworks */,
 				1BE00A622DC936AC0061EAFD /* Metal.framework in Frameworks */,
@@ -156,6 +158,7 @@
 			name = Fabric;
 			packageProductDependencies = (
 				1BE008E02DC1DEF80061EAFD /* AnyCodable */,
+				1BAC11642DE6615F008438BC /* Noise */,
 			);
 			productName = Fabric;
 			productReference = 1BE007222DBB1FBC0061EAFD /* Fabric.app */;
@@ -188,6 +191,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				1BE008DF2DC1DEF80061EAFD /* XCLocalSwiftPackageReference "../AnyCodable" */,
+				1BAC11632DE6615F008438BC /* XCRemoteSwiftPackageReference "swift-noise" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1BE007232DBB1FBC0061EAFD /* Products */;
@@ -453,7 +457,23 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		1BAC11632DE6615F008438BC /* XCRemoteSwiftPackageReference "swift-noise" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/tayloraswift/swift-noise";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.1.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
+		1BAC11642DE6615F008438BC /* Noise */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1BAC11632DE6615F008438BC /* XCRemoteSwiftPackageReference "swift-noise" */;
+			productName = Noise;
+		};
 		1BE008E02DC1DEF80061EAFD /* AnyCodable */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = AnyCodable;

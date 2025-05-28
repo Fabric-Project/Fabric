@@ -41,7 +41,6 @@ struct NodeInletView: View
                 } isTargeted: {
                     isDropTargeted = $0
                 }
-                .help("\(port.name): \(port.valueType())")
                 .anchorPreference(
                     key: PortAnchorKey.self,
                     value: .center,
@@ -50,12 +49,14 @@ struct NodeInletView: View
                         [ port.id : anchor ]
                     }
                 )
-            
+                .help("\(port.name): \(port.valueType())")
+
             Text(self.port.name)
                 .foregroundStyle(Color.secondary)
                 .font(.system(size: 9))
                 .lineLimit(1)
         }
+        .frame(height: 15)
     }
     
     private func processDrop(_ outletData :[OutletData]) -> Bool
