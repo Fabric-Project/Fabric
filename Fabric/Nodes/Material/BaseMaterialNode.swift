@@ -48,6 +48,7 @@ class BaseMaterialNode : Node, NodeProtocol
         
         try container.encode(self.inputReceivesLighting, forKey: .inputReceivesLightingParam)
         try container.encode(self.inputWriteDepth, forKey: .inputWriteDepthParam)
+        try container.encode(self.inputBlending, forKey: .inputBlendingParam)
 
         try super.encode(to: encoder)
     }
