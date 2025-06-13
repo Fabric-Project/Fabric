@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1B9ECA512DFBB2CB00D32B4C /* AnyCodable in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9ECA502DFBB2CB00D32B4C /* AnyCodable */; };
 		1BAC11652DE6615F008438BC /* Noise in Frameworks */ = {isa = PBXBuildFile; productRef = 1BAC11642DE6615F008438BC /* Noise */; };
 		1BE008E12DC1DEF80061EAFD /* AnyCodable in Frameworks */ = {isa = PBXBuildFile; productRef = 1BE008E02DC1DEF80061EAFD /* AnyCodable */; };
 		1BE00A562DC935C70061EAFD /* Satin.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A532DC935C00061EAFD /* Satin.framework */; };
@@ -89,6 +90,7 @@
 				1BE008E12DC1DEF80061EAFD /* AnyCodable in Frameworks */,
 				1BAC11652DE6615F008438BC /* Noise in Frameworks */,
 				1BE00A5D2DC936A50061EAFD /* CoreFoundation.framework in Frameworks */,
+				1B9ECA512DFBB2CB00D32B4C /* AnyCodable in Frameworks */,
 				1BE00A612DC936AC0061EAFD /* MetalKit.framework in Frameworks */,
 				1BE00A622DC936AC0061EAFD /* Metal.framework in Frameworks */,
 				1BE00A5E2DC936A50061EAFD /* Foundation.framework in Frameworks */,
@@ -159,6 +161,7 @@
 			packageProductDependencies = (
 				1BE008E02DC1DEF80061EAFD /* AnyCodable */,
 				1BAC11642DE6615F008438BC /* Noise */,
+				1B9ECA502DFBB2CB00D32B4C /* AnyCodable */,
 			);
 			productName = Fabric;
 			productReference = 1BE007222DBB1FBC0061EAFD /* Fabric.app */;
@@ -190,8 +193,8 @@
 			mainGroup = 1BE007192DBB1FBC0061EAFD;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				1BE008DF2DC1DEF80061EAFD /* XCLocalSwiftPackageReference "../AnyCodable" */,
 				1BAC11632DE6615F008438BC /* XCRemoteSwiftPackageReference "swift-noise" */,
+				1B9ECA4F2DFBB2CB00D32B4C /* XCRemoteSwiftPackageReference "AnyCodable" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1BE007232DBB1FBC0061EAFD /* Products */;
@@ -450,14 +453,15 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		1BE008DF2DC1DEF80061EAFD /* XCLocalSwiftPackageReference "../AnyCodable" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = ../AnyCodable;
-		};
-/* End XCLocalSwiftPackageReference section */
-
 /* Begin XCRemoteSwiftPackageReference section */
+		1B9ECA4F2DFBB2CB00D32B4C /* XCRemoteSwiftPackageReference "AnyCodable" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Flight-School/AnyCodable";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.6.7;
+			};
+		};
 		1BAC11632DE6615F008438BC /* XCRemoteSwiftPackageReference "swift-noise" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/tayloraswift/swift-noise";
@@ -469,6 +473,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		1B9ECA502DFBB2CB00D32B4C /* AnyCodable */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B9ECA4F2DFBB2CB00D32B4C /* XCRemoteSwiftPackageReference "AnyCodable" */;
+			productName = AnyCodable;
+		};
 		1BAC11642DE6615F008438BC /* Noise */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 1BAC11632DE6615F008438BC /* XCRemoteSwiftPackageReference "swift-noise" */;

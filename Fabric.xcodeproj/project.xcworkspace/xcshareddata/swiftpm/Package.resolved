@@ -1,6 +1,15 @@
 {
-  "originHash" : "3d8873524bf64af766be6e24b358fbe01696866d5c37728c76c7d0c810a83b1e",
+  "originHash" : "7f68c930ba793fe7dc226ca31cbd895d48dcf160f6c4eded53d7c21e1927ab3d",
   "pins" : [
+    {
+      "identity" : "anycodable",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Flight-School/AnyCodable",
+      "state" : {
+        "revision" : "862808b2070cd908cb04f9aafe7de83d35f81b05",
+        "version" : "0.6.7"
+      }
+    },
     {
       "identity" : "swift-hash",
       "kind" : "remoteSourceControl",
