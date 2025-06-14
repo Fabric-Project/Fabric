@@ -8,10 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		1B9ECA512DFBB2CB00D32B4C /* AnyCodable in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9ECA502DFBB2CB00D32B4C /* AnyCodable */; };
+		1B9ECA5D2DFE435F00D32B4C /* Satin.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1B9ECA582DFE434400D32B4C /* Satin.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		1BAC11652DE6615F008438BC /* Noise in Frameworks */ = {isa = PBXBuildFile; productRef = 1BAC11642DE6615F008438BC /* Noise */; };
 		1BE008E12DC1DEF80061EAFD /* AnyCodable in Frameworks */ = {isa = PBXBuildFile; productRef = 1BE008E02DC1DEF80061EAFD /* AnyCodable */; };
-		1BE00A562DC935C70061EAFD /* Satin.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A532DC935C00061EAFD /* Satin.framework */; };
-		1BE00A572DC935C70061EAFD /* Satin.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A532DC935C00061EAFD /* Satin.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		1BE00A5D2DC936A50061EAFD /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5B2DC936A50061EAFD /* CoreFoundation.framework */; };
 		1BE00A5E2DC936A50061EAFD /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5C2DC936A50061EAFD /* Foundation.framework */; };
 		1BE00A612DC936AC0061EAFD /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5F2DC936AC0061EAFD /* MetalKit.framework */; };
@@ -19,16 +18,16 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		1BE00A522DC935C00061EAFD /* PBXContainerItemProxy */ = {
+		1B9ECA572DFE434400D32B4C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
-			containerPortal = 1BE009A92DC935A50061EAFD /* Satin.xcodeproj */;
+			containerPortal = 1B9ECA522DFE434400D32B4C /* Satin.xcodeproj */;
 			proxyType = 2;
 			remoteGlobalIDString = 66D7DD332C06A23000B5A6C8;
 			remoteInfo = Satin;
 		};
-		1BE00A592DC9364F0061EAFD /* PBXContainerItemProxy */ = {
+		1B9ECA5B2DFE435600D32B4C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
-			containerPortal = 1BE009A92DC935A50061EAFD /* Satin.xcodeproj */;
+			containerPortal = 1B9ECA522DFE434400D32B4C /* Satin.xcodeproj */;
 			proxyType = 1;
 			remoteGlobalIDString = 66D7DD322C06A23000B5A6C8;
 			remoteInfo = Satin;
@@ -42,7 +41,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				1BE00A572DC935C70061EAFD /* Satin.framework in Embed Frameworks */,
+				1B9ECA5D2DFE435F00D32B4C /* Satin.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -50,8 +49,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		1B9ECA522DFE434400D32B4C /* Satin.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = Satin.xcodeproj; path = Satin/Satin.xcodeproj; sourceTree = "<group>"; };
 		1BE007222DBB1FBC0061EAFD /* Fabric.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Fabric.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		1BE009A92DC935A50061EAFD /* Satin.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = Satin.xcodeproj; path = ../Satin/Satin.xcodeproj; sourceTree = SOURCE_ROOT; };
 		1BE00A5B2DC936A50061EAFD /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		1BE00A5C2DC936A50061EAFD /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		1BE00A5F2DC936AC0061EAFD /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
@@ -86,7 +85,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1BE00A562DC935C70061EAFD /* Satin.framework in Frameworks */,
 				1BE008E12DC1DEF80061EAFD /* AnyCodable in Frameworks */,
 				1BAC11652DE6615F008438BC /* Noise in Frameworks */,
 				1BE00A5D2DC936A50061EAFD /* CoreFoundation.framework in Frameworks */,
@@ -100,13 +98,21 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		1B9ECA532DFE434400D32B4C /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1B9ECA582DFE434400D32B4C /* Satin.framework */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 		1BE007192DBB1FBC0061EAFD = {
 			isa = PBXGroup;
 			children = (
-				1BE009A92DC935A50061EAFD /* Satin.xcodeproj */,
 				1BE007242DBB1FBC0061EAFD /* Fabric */,
 				1BE007602DBC37CE0061EAFD /* Frameworks */,
 				1BE007232DBB1FBC0061EAFD /* Products */,
+				1B9ECA522DFE434400D32B4C /* Satin.xcodeproj */,
 			);
 			sourceTree = "<group>";
 		};
@@ -129,14 +135,6 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		1BE00A4E2DC935C00061EAFD /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				1BE00A532DC935C00061EAFD /* Satin.framework */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -152,7 +150,7 @@
 			buildRules = (
 			);
 			dependencies = (
-				1BE00A5A2DC9364F0061EAFD /* PBXTargetDependency */,
+				1B9ECA5C2DFE435600D32B4C /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				1BE007242DBB1FBC0061EAFD /* Fabric */,
@@ -201,8 +199,8 @@
 			projectDirPath = "";
 			projectReferences = (
 				{
-					ProductGroup = 1BE00A4E2DC935C00061EAFD /* Products */;
-					ProjectRef = 1BE009A92DC935A50061EAFD /* Satin.xcodeproj */;
+					ProductGroup = 1B9ECA532DFE434400D32B4C /* Products */;
+					ProjectRef = 1B9ECA522DFE434400D32B4C /* Satin.xcodeproj */;
 				},
 			);
 			projectRoot = "";
@@ -213,11 +211,11 @@
 /* End PBXProject section */
 
 /* Begin PBXReferenceProxy section */
-		1BE00A532DC935C00061EAFD /* Satin.framework */ = {
+		1B9ECA582DFE434400D32B4C /* Satin.framework */ = {
 			isa = PBXReferenceProxy;
 			fileType = wrapper.framework;
 			path = Satin.framework;
-			remoteRef = 1BE00A522DC935C00061EAFD /* PBXContainerItemProxy */;
+			remoteRef = 1B9ECA572DFE434400D32B4C /* PBXContainerItemProxy */;
 			sourceTree = BUILT_PRODUCTS_DIR;
 		};
 /* End PBXReferenceProxy section */
@@ -243,10 +241,10 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		1BE00A5A2DC9364F0061EAFD /* PBXTargetDependency */ = {
+		1B9ECA5C2DFE435600D32B4C /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = Satin;
-			targetProxy = 1BE00A592DC9364F0061EAFD /* PBXContainerItemProxy */;
+			targetProxy = 1B9ECA5B2DFE435600D32B4C /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 

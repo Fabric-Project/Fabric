@@ -1,0 +1,3 @@
+[submodule "Satin"]
+	path = Satin
+	url = https://github.com/Fabric-Project/Satin
