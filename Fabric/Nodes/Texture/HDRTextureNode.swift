@@ -94,10 +94,10 @@ class HDRTextureNode : Node, NodeProtocol
         {
             self.outputTexturePort.send( EquatableTexture(texture: texture) )
         }
-//        else
-//        {
-//            self.outputTexturePort.send( nil )
-//        }
+        else
+        {
+            self.outputTexturePort.send( nil )
+        }
      }
     
     private func loadTextureFromInputValue()

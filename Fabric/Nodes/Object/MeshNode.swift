@@ -123,6 +123,14 @@ class MeshNode : BaseObjectNode, NodeProtocol
                 
                 self.outputMesh.send(mesh)
             }
+            else
+            {
+                self.outputMesh.send(nil)
+            }
+        }
+        else
+        {
+            self.outputMesh.send(nil)
         }
      }
     

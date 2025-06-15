@@ -63,8 +63,8 @@ struct NodeCanvas : View
                                 )
                                 .onTapGesture(count: 2)
                                 {
-                                    connectedPort.discconnect(from:port)
-                                    port.discconnect(from:connectedPort)
+                                    connectedPort.disconnect(from:port)
+                                    port.disconnect(from:connectedPort)
                                     self.needsRedraw.toggle()
                                 }
                         }

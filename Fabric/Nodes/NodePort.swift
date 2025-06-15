@@ -50,7 +50,7 @@ protocol NodePortProtocol : Identifiable, Hashable, Equatable, Codable
     var node: Node? { get set }
     
     func connect(to other: any NodePortProtocol)
-    func discconnect(from other: any NodePortProtocol)
+    func disconnect(from other: any NodePortProtocol)
     func disconnectAll()
     
     var color: Color { get }
@@ -203,22 +203,29 @@ class NodePort<Value : Equatable>: NodePortProtocol
         self.direction = Self.calcDirection(forType: Value.self )
     }
     
+    deinit
+    {
+        self.disconnectAll()
+    }
+    
+    
     func disconnectAll()
     {
-        self.connections.removeAll()
-        self.node?.markDirty()
+        self.connections.forEach { self.disconnect(from: $0) }
     }
 
-    func discconnect(from other: any NodePortProtocol)
+    func disconnect(from other: any NodePortProtocol)
     {
         if let other = other as? NodePort<Value>
         {
-            self.discconnect(from: other)
+            self.disconnect(from: other)
         }
     }
     
-    func discconnect(from other: NodePort<Value>)
+    func disconnect(from other: NodePort<Value>)
     {
+        self.send(nil)
+        
         if let index = self.connections.firstIndex(where: { $0.id == other.id } )
         {
             self.connections.remove(at: index)
@@ -246,7 +253,7 @@ class NodePort<Value : Equatable>: NodePortProtocol
         if self.kind == .Inlet && other.kind == .Outlet
         {
             self.connections.forEach {
-                $0.discconnect(from: self)
+                $0.disconnect(from: self)
             }
             
             self.connections.removeAll()
@@ -256,7 +263,7 @@ class NodePort<Value : Equatable>: NodePortProtocol
         else if self.kind == .Outlet && other.kind == .Inlet
         {
             other.connections.forEach {
-                $0.discconnect(from: other)
+                $0.disconnect(from: other)
             }
             
             other.connections.removeAll()
@@ -266,10 +273,9 @@ class NodePort<Value : Equatable>: NodePortProtocol
         
         self.node?.markDirty()
         other.node?.markDirty()
-
     }
     
-    func send(_ v: Value)
+    func send(_ v: Value?)
     {
         value = v
         

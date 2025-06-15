@@ -125,20 +125,20 @@ class DeferredRenderNode : Node, NodeProtocol
             {
                 self.outputColorTexture.send( EquatableTexture(texture: texture) )
             }
-//            else
-//            {
-//                self.outputColorTexture.send( nil )
-//
-//            }
+            else
+            {
+                self.outputColorTexture.send( nil )
+
+            }
             
             if let texture = renderer.depthTexture
             {
                 self.outputDepthTexture.send( EquatableTexture(texture: texture) )
             }
-//            else
-//            {
-//                self.outputDepthTexture.send( nil )
-//            }
+            else
+            {
+                self.outputDepthTexture.send( nil )
+            }
         }
     }
     
