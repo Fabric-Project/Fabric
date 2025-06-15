@@ -16,6 +16,8 @@ struct NodeRegisitryView: View {
 
     @State private var selection: Node.NodeTypeGroups = .SceneGraph
 
+    @Binding var scrollOffset: CGPoint
+    
     var body: some View
     {
         VStack(spacing: 0)
@@ -65,7 +67,7 @@ struct NodeRegisitryView: View {
                             Text(nodeType.name)
                                 .font( .system(size: 11) )
                                 .onTapGesture {
-                                    self.document.graph.addNodeType(nodeType)
+                                    self.document.graph.addNodeType(nodeType, initialOffset:self.scrollOffset)
                                 }
                         }
                     }

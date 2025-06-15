@@ -223,6 +223,8 @@ protocol NodeProtocol : Codable
         
         didSet
         {
+            print(offset)
+            
             if let delegate = self.delegate
             {
                 delegate.didUpdate(node: self)

@@ -18,13 +18,14 @@ struct ContentView: View {
     @State private var hitTestEnable:Bool = true
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
     @State private var inspectorVisibility:Bool = false
-   
+    @State private var scrollOffset: CGPoint = .zero
+    
     var body: some View {
 //        TextEditor(text: $document.text)
         
         NavigationSplitView(columnVisibility: self.$columnVisibility)
         {
-            NodeRegisitryView(document: $document)
+            NodeRegisitryView(document: $document, scrollOffset: $scrollOffset)
 
         } detail: {
             
@@ -45,10 +46,19 @@ struct ContentView: View {
                     
                 }
                 .defaultScrollAnchor(UnitPoint(x: 0.5, y: 0.5))
+                .onScrollGeometryChange(for: CGPoint.self) { geometry in
+                    let center = CGPoint(x: geometry.contentSize.width / 2,
+                                            y: geometry.contentSize.height / 2)
+                    let offset = (geometry.contentOffset - center) + (geometry.containerSize / 2)
+                    return offset
+
+                } action: { oldScrollOffset, newScrollOffset in
+                        self.scrollOffset =  newScrollOffset
+                    }
                 .onScrollPhaseChange { oldPhase, newPhase in
                     self.hitTestEnable = !newPhase.isScrolling
                 }
-                .scrollIndicators(.never, axes: [.horizontal, .vertical])
+//                .scrollIndicators(.never, axes: [.horizontal, .vertical])
                 
             }
             .inspector(isPresented: self.$inspectorVisibility)

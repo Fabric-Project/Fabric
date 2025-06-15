@@ -164,10 +164,15 @@ import AnyCodable
     //
     //
     
-    func addNodeType(_ nodeType: any NodeProtocol.Type )
+    func addNodeType(_ nodeType: any NodeProtocol.Type, initialOffset:CGPoint? )
     {
         if let node = nodeType.init(context: self.context) as? Node
         {
+            if let initialOffset = initialOffset
+            {
+                node.offset = CGSize(width: initialOffset.x, height: initialOffset.y)
+            }
+            
             self.addNode(node)
         }
     }
