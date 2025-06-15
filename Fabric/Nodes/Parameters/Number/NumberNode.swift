@@ -27,7 +27,7 @@ class NumberNode : Node, NodeProtocol
     required init(context: Context)
     {
         self.inputNumberParam = FloatParameter("Number", 0.0, .inputfield)
-        self.outputNumber = NodePort<Float>(name: NumberAddNode.name , kind: .Outlet)
+        self.outputNumber = NodePort<Float>(name: NumberNode.name , kind: .Outlet)
         
         super.init(context: context)
     }

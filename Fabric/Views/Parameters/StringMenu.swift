@@ -18,7 +18,7 @@ struct StringMenu: View
     var body: some View
     {
         Menu {
-            ForEach(self.options.sorted(), id: \.self) { option in
+            ForEach(self.options, id: \.self) { option in
                 Button {
                     self.value = option
                     print("Selected Option \(option)")

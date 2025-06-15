@@ -54,6 +54,7 @@ class NodeRegistry {
          
          CurrentTimeNode.self,
          NumberNode.self,
+         NumberUnnaryOperator.self,
          NumberBinaryOperator.self,
          
 //         NumberAddNode.self,

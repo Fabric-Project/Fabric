@@ -62,6 +62,11 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				Nodes/Parameters/Number/Deprecated/NumberAddNode.swift,
+				Nodes/Parameters/Number/Deprecated/NumberDivideNode.swift,
+				Nodes/Parameters/Number/Deprecated/NumberModuloNode.swift,
+				Nodes/Parameters/Number/Deprecated/NumberMultiplyNode.swift,
+				Nodes/Parameters/Number/Deprecated/NumberSubtractNode.swift,
 				Nodes/Parameters/Quaternion/MakeQuaternionNode.swift,
 				Views/Nodes/NodeConnectionView.swift,
 			);

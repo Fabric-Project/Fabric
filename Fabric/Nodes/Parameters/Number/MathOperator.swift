@@ -7,50 +7,33 @@
 
 import Foundation
 
-enum UnaryMathOperator: CaseIterable, CustomStringConvertible
+enum UnaryMathOperator: String, CaseIterable
 {
-    case sine
-    case cosine
-    case tangent
-    case arcsine
-    case arccosine
-    case arctangent
-    case log
-    case log10
-    case exp
-    case abs
-  
-    var description: String
-    {
-        switch self
-        {
-        case .sine: return "Sin"
-        case .cosine: return "Cos"
-        case .tangent: return "Tan"
-        case .arcsine: return "Asin"
-        case .arccosine: return "Acos"
-        case .arctangent: return "Atan"
-        case .log: return "Log (Natural)"
-        case .log10: return "Log10"
-        case .exp: return "Exp"
-        case .abs: return "Abs"
-        }
-    }
+    case Sine
+    case Cosine
+    case Tangent
+    case Arcsine
+    case Arccosine
+    case Arctangent
+    case Log
+    case Log10
+    case Exp
+    case Abs
     
-    func perform(lhs: Float) -> Float
+    func perform(_ lhs: Float) -> Float
     {
         switch self
         {
-        case .sine: return sin(lhs)
-        case .cosine: return cos(lhs)
-        case .tangent: return tan(lhs)
-        case .arcsine: return asin(lhs)
-        case .arccosine: return acos(lhs)
-        case .arctangent: return atan(lhs)
-        case .log: return lhs > 0 ? logf(lhs) : 0
-        case .log10: return lhs > 0 ? log10f(lhs) : 0
-        case .exp: return expf(lhs)
-        case .abs: return fabsf(lhs)
+        case .Sine: return sin(lhs)
+        case .Cosine: return cos(lhs)
+        case .Tangent: return tan(lhs)
+        case .Arcsine: return asin(lhs)
+        case .Arccosine: return acos(lhs)
+        case .Arctangent: return atan(lhs)
+        case .Log: return lhs > 0 ? logf(lhs) : 0
+        case .Log10: return lhs > 0 ? log10f(lhs) : 0
+        case .Exp: return expf(lhs)
+        case .Abs: return fabsf(lhs)
         }
     }
 }
@@ -65,9 +48,7 @@ enum BinaryMathOperator: String, CaseIterable
     case Minimum
     case Maximum
     case Modulo
-    
-
-    
+        
     func perform(lhs: Float, rhs: Float) -> Float
     {
         switch self
