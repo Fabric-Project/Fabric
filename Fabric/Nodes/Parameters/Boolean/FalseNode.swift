@@ -13,7 +13,7 @@ import Metal
 class FalseNode : Node, NodeProtocol
 {
     static let name = "False"
-    static var nodeType = Node.NodeType.Parameter
+    static var nodeType = Node.NodeType.Parameter(parameterType: .Boolean)
 
     // Ports
     let outputBoolean: NodePort<Bool>

@@ -16,7 +16,7 @@ import Metal
 class NumberSubtractNode : Node, NodeProtocol
 {
     static let name = "Number Subtract"
-    static var nodeType = Node.NodeType.Parameter
+    static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
 
     // Params
     let inputAParam:FloatParameter

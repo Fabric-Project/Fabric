@@ -55,7 +55,7 @@ protocol NodeProtocol : Codable
             case .SceneGraph: return [.Renderer, .Object, .Camera, .Light]
             case .Mesh: return [.Mesh, .Geometery, .Material]
             case .Image: return [.Texture, .Shader]
-            case .Parameter: return [.Parameter]
+            case .Parameter: return Node.NodeType.ParameterType.nodeTypes()
             }
         }
         
@@ -77,8 +77,24 @@ protocol NodeProtocol : Codable
         }
     }
     
-    enum NodeType : String, CaseIterable
+    enum NodeType : CustomStringConvertible, CaseIterable, Equatable, Hashable
     {
+        
+        enum ParameterType : String, CaseIterable, Equatable, Hashable
+        {
+            case Boolean
+            case Number
+            case Vector
+            case Quaternion
+            case Matrix
+            case Color
+            case String
+            
+            static func nodeTypes() -> [Node.NodeType] {
+                return Self.allCases.map{ Node.NodeType.Parameter(parameterType:$0) }
+            }
+        }
+        
         case Renderer // Renders a scene graph
         case Object // Scene graph, owns transforms
         case Camera // Scene graph object
@@ -88,7 +104,27 @@ protocol NodeProtocol : Codable
         case Material
         case Shader
         case Texture
-        case Parameter
+        case Parameter(parameterType:ParameterType)
+        
+        static var allCases: [Node.NodeType] { return [.Renderer, .Object, .Camera, .Light, .Mesh, .Geometery, .Material, .Shader, .Texture] + ParameterType.nodeTypes() }
+        
+        var description: String
+        {
+            switch self
+            {
+            case .Renderer: return "Renderer"
+            case .Object: return "Object"
+            case .Camera: return "Camera"
+            case .Light: return "Light"
+            case .Mesh: return "Mesh"
+            case .Geometery: return "Geometery"
+            case .Material: return "Material"
+            case .Shader: return "Shader"
+            case .Texture: return "Texture"
+            case .Parameter(let paramType): return "\(paramType.rawValue) Parameter"
+//            case .Parameter(_): return "Parameter"
+            }
+      }
         
         func color() -> Color
         {
@@ -123,7 +159,7 @@ protocol NodeProtocol : Codable
             case .Object:
                 return Color.nodeObject
                 
-            case .Parameter:
+            case .Parameter(let paramType):
                 return Color(hue: 0, saturation: 0, brightness: 0.3)
             }
         }

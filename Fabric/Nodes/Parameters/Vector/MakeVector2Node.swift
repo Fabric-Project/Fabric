@@ -13,7 +13,7 @@ import Metal
 class MakeVector2Node : Node, NodeProtocol
 {
     static let name = "Vector 2"
-    static var nodeType = Node.NodeType.Parameter
+    static var nodeType = Node.NodeType.Parameter(parameterType: .Vector)
 
     // Params
     let inputXParam:FloatParameter

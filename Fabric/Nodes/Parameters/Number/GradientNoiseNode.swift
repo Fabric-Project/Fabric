@@ -13,7 +13,7 @@ import Noise
 class GradientNoiseNode : Node, NodeProtocol
 {
     static let name = "Gradient Noise"
-    static var nodeType = Node.NodeType.Parameter
+    static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
 
     // Params
     let inputFrequency:FloatParameter

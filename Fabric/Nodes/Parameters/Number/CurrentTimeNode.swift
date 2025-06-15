@@ -16,7 +16,7 @@ import Metal
 class CurrentTimeNode : Node, NodeProtocol
 {
     static let name = "Current Time"
-    static var nodeType = Node.NodeType.Parameter
+    static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
 
     override var isDirty:Bool { get {  true  } set { } }
 

@@ -13,7 +13,7 @@ import Metal
 class NumberIntegralNode : Node, NodeProtocol
 {
     static let name = "Number Integral"
-    static var nodeType = Node.NodeType.Parameter
+    static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
 
     // Params
     let inputNumberParam:FloatParameter

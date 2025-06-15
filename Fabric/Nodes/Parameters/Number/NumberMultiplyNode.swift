@@ -16,7 +16,7 @@ import Metal
 class NumberMultiplyNode : Node, NodeProtocol
 {
     static let name = "Number Multiply"
-    static var nodeType = Node.NodeType.Parameter
+    static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
 
     // Params
     let inputAParam:FloatParameter

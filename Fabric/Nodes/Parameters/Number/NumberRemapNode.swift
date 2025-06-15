@@ -12,7 +12,7 @@ import Metal
 class NumberRemapNode : Node, NodeProtocol
 {
     static let name = "Number Remap"
-    static var nodeType = Node.NodeType.Parameter
+    static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
 
     // Params
     let inputNumber:GenericParameter<Float>
