@@ -55,44 +55,31 @@ enum UnaryMathOperator: CaseIterable, CustomStringConvertible
     }
 }
 
-enum BinaryMathOperator: CaseIterable, CustomStringConvertible
+enum BinaryMathOperator: String, CaseIterable
 {
-    case add
-    case subtract
-    case multiply
-    case divide
-    case power
-    case minimum
-    case maximum
-    case modulo
+    case Add
+    case Subtract
+    case Multiply
+    case Divide
+    case Power
+    case Minimum
+    case Maximum
+    case Modulo
     
-    var description: String
-    {
-        switch self
-        {
-        case .add: return "Add"
-        case .subtract: return "Subtract"
-        case .multiply: return "Multiply"
-        case .divide: return "Divide"
-        case .power: return "Power"
-        case .minimum: return "Min"
-        case .maximum: return "Max"
-        case .modulo: return "Modulo"
-        }
-    }
+
     
     func perform(lhs: Float, rhs: Float) -> Float
     {
         switch self
         {
-        case .add: return lhs + rhs
-        case .subtract: return lhs - rhs
-        case .multiply: return lhs * rhs
-        case .divide: return rhs != 0 ? lhs / rhs : 0
-        case .power: return pow(lhs, rhs)
-        case .minimum: return min(lhs, rhs)
-        case .maximum: return max(lhs, rhs)
-        case .modulo: return fmod(lhs, rhs)
+        case .Add: return lhs + rhs
+        case .Subtract: return lhs - rhs
+        case .Multiply: return lhs * rhs
+        case .Divide: return rhs != 0 ? lhs / rhs : 0
+        case .Power: return pow(lhs, rhs)
+        case .Minimum: return min(lhs, rhs)
+        case .Maximum: return max(lhs, rhs)
+        case .Modulo: return fmod(lhs, rhs)
         }
     }
 }

@@ -54,11 +54,14 @@ class NodeRegistry {
          
          CurrentTimeNode.self,
          NumberNode.self,
-         NumberAddNode.self,
-         NumberSubtractNode.self ,
-         NumberMultiplyNode.self,
-         NumberDivideNode.self ,
-         NumberModuloNode.self,
+         NumberBinaryOperator.self,
+         
+//         NumberAddNode.self,
+//         NumberSubtractNode.self ,
+//         NumberMultiplyNode.self,
+//         NumberDivideNode.self ,
+//         NumberModuloNode.self,
+         
          NumberEaseNode.self,
          NumberRemapNode.self,
          NumberIntegralNode.self,
