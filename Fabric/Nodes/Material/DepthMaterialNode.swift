@@ -30,8 +30,12 @@ class DepthMaterialNode : BaseMaterialNode
     let outputMaterial:NodePort<Material>
     override var ports: [any NodePortProtocol] { super.ports + [ outputMaterial] }
 
-    private let material = DepthMaterial()
-
+    override var material: DepthMaterial {
+        return _material
+    }
+    
+    private var _material = DepthMaterial()
+    
     required init(context:Context)
     {
         self.inputNear = FloatParameter("Near", 0.001, 0.0, 1000.0, .slider)

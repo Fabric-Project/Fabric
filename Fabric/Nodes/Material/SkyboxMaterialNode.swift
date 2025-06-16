@@ -31,8 +31,12 @@ class SkyboxMaterialNode : BaseMaterialNode
     let outputMaterial:NodePort<Material>
     override var ports: [any NodePortProtocol] {  super.ports + [outputMaterial] }
 
-    private let material = SkyboxMaterial()
-
+    override var material: SkyboxMaterial {
+        return _material
+    }
+    
+    private var _material = SkyboxMaterial()
+    
     required init(context:Context)
     {
         // self.inputTexture =  NodePort<EquatableTexture>(name: "Texture", kind: .Inlet)

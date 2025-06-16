@@ -56,8 +56,11 @@ class StandardMaterialNode : BaseMaterialNode
 //        inputOcclusionTexture,
         outputMaterial] }
     
-    private let material = StandardMaterial()
-
+    override var material: StandardMaterial {
+        return _material
+    }
+    
+    private var _material = StandardMaterial()
     
     required init(context: Context)
     {

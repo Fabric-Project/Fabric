@@ -16,7 +16,7 @@ struct Color4ParameterView: View, Equatable
         return lhs.parameter.id == rhs.parameter.id
     }
     
-    @Bindable var parameter:GenericParameter<simd_float4>
+    @Bindable var parameter:Float4Parameter
     
     var body: some View {
         
@@ -53,7 +53,7 @@ struct Color3ParameterView: View, Equatable
         return lhs.parameter.id == rhs.parameter.id
     }
     
-    @Bindable var parameter:GenericParameter<simd_float3>
+    @Bindable var parameter:Float3Parameter
     
     var body: some View {
         

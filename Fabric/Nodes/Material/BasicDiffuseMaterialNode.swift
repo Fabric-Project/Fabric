@@ -18,9 +18,11 @@ class BasicDiffuseMaterialNode : BasicColorMaterialNode
     let inputHardness:FloatParameter
     override var inputParameters:[any Parameter] { [inputHardness] + super.inputParameters }
     
-
-    private let material = BasicDiffuseMaterial()
+    override var material: BasicDiffuseMaterial {
+        return _material
+    }
     
+    private var _material = BasicDiffuseMaterial()
     
     required init(context:Context)
     {
@@ -51,7 +53,6 @@ class BasicDiffuseMaterialNode : BasicColorMaterialNode
     override func evaluate(material:Material, atTime:TimeInterval)
     {
         super.evaluate(material: material, atTime: atTime)
-        material.depthWriteEnabled = self.inputWriteDepth.value
     }
     
     override  func evaluate(atTime:TimeInterval,
@@ -59,6 +60,8 @@ class BasicDiffuseMaterialNode : BasicColorMaterialNode
                             commandBuffer: MTLCommandBuffer)
     {
         self.evaluate(material: self.material, atTime: atTime)
+        self.material.hardness = self.inputHardness.value
+
         self.outputMaterial.send(self.material)
     }
 }

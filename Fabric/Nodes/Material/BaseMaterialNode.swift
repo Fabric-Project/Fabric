@@ -26,6 +26,11 @@ class BaseMaterialNode : Node, NodeProtocol
                                                                              self.inputBlending,
     ] }
     
+    open var material: Material {
+        fatalError("Subclasses must override material")
+    }
+
+    
     required init(context: Context) {
         
         self.inputReceivesLighting = BoolParameter("Receives Lighting", true, .button)

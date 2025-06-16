@@ -11,7 +11,7 @@ import Satin
 import simd
 import Metal
 
-class BasicTextureMaterialNode : BasicDiffuseMaterialNode
+class BasicTextureMaterialNode : BasicColorMaterialNode
 {
     override class var name:String {  "Texture Material" }
 
@@ -19,8 +19,12 @@ class BasicTextureMaterialNode : BasicDiffuseMaterialNode
     let inputTexture:NodePort<EquatableTexture>
     override var ports: [any NodePortProtocol] {  super.ports + [inputTexture] }
     
-    private let material = BasicTextureMaterial()
-
+    override var material: BasicTextureMaterial {
+        return _material
+    }
+    
+    private var _material = BasicTextureMaterial()
+    
     required init(context:Context)
     {
         self.inputTexture = NodePort<EquatableTexture>(name: "Texture", kind: .Inlet)

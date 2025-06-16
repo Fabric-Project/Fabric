@@ -64,7 +64,11 @@ class PBRMaterialNode : StandardMaterialNode
         inputTransmissionTexture,
         ] }
     
-    private let material = PhysicalMaterial()
+    override var material: PhysicalMaterial {
+        return _material
+    }
+    
+    private var _material = PhysicalMaterial()
 
     override  func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,

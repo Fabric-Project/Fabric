@@ -58,7 +58,6 @@ struct ContentView: View {
                 .onScrollPhaseChange { oldPhase, newPhase in
                     self.hitTestEnable = !newPhase.isScrolling
                 }
-//                .scrollIndicators(.never, axes: [.horizontal, .vertical])
                 
             }
             .inspector(isPresented: self.$inspectorVisibility)

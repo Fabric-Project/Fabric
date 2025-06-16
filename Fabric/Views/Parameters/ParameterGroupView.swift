@@ -148,12 +148,12 @@ struct ParameterGroupView : View
     
     private func buildColorPicler(param:any Satin.Parameter) -> any View
     {
-        if let float4Param = param as? Float4Parameter ?? param as? GenericParameter<simd_float4>
+        if let float4Param = param as? Float4Parameter// ?? param as? GenericParameter<simd_float4>
         {
             return Color4ParameterView(parameter: float4Param).frame(height:20)
         }
         
-        else if let float3Param = param as? Float3Parameter ?? param as? GenericParameter<simd_float3>
+        else if let float3Param = param as? Float3Parameter// ?? param as? GenericParameter<simd_float3>
         {
             return Color3ParameterView(parameter: float3Param).frame(height:20)
         }

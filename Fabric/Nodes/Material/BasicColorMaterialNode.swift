@@ -22,8 +22,12 @@ class BasicColorMaterialNode : BaseMaterialNode
     let outputMaterial:NodePort<Material>
     override var ports: [any NodePortProtocol] { super.ports + [ outputMaterial] }
     
-    private let material = BasicColorMaterial()
+    override var material: BasicColorMaterial {
+        return _material
+    }
     
+    private var _material = BasicColorMaterial()
+
     required init(context:Context)
     {
         self.inputColor = Float4Parameter("Color", .one, .zero, .one, .colorpicker)

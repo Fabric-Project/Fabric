@@ -170,7 +170,8 @@ import AnyCodable
         {
             if let initialOffset = initialOffset
             {
-                node.offset = CGSize(width: initialOffset.x, height: initialOffset.y)
+                node.offset = CGSize(width:  initialOffset.x - node.nodeSize.width / 2.0,
+                                     height: initialOffset.y - node.nodeSize.height / 4.0)
             }
             
             self.addNode(node)

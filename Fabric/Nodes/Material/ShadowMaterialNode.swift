@@ -20,10 +20,14 @@ class ShadowMaterialNode : BaseMaterialNode
 
     // Ports
     let outputMaterial = NodePort<Material>(name: ShadowMaterialNode.name , kind: .Outlet)
-
-    private let material = ShadowMaterial()
     
     override var ports: [any NodePortProtocol] {  super.ports + [outputMaterial] }
+
+    override var material: ShadowMaterial {
+        return _material
+    }
+    
+    private var _material = ShadowMaterial()
     
     required init(context:Context)
     {
