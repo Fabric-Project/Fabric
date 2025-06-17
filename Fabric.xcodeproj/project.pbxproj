@@ -50,7 +50,7 @@
 
 /* Begin PBXFileReference section */
 		1B9ECA522DFE434400D32B4C /* Satin.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = Satin.xcodeproj; path = Satin/Satin.xcodeproj; sourceTree = "<group>"; };
-		1BE007222DBB1FBC0061EAFD /* Fabric.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Fabric.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1BE007222DBB1FBC0061EAFD /* Fabric Editor.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Fabric Editor.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1BE00A5B2DC936A50061EAFD /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		1BE00A5C2DC936A50061EAFD /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		1BE00A5F2DC936AC0061EAFD /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
@@ -58,7 +58,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		1BE007322DBB1FBD0061EAFD /* Exceptions for "Fabric" folder in "Fabric" target */ = {
+		1BE007322DBB1FBD0061EAFD /* Exceptions for "Fabric Editor" folder in "Fabric Editor" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -70,17 +70,17 @@
 				Nodes/Parameters/Quaternion/MakeQuaternionNode.swift,
 				Views/Nodes/NodeConnectionView.swift,
 			);
-			target = 1BE007212DBB1FBC0061EAFD /* Fabric */;
+			target = 1BE007212DBB1FBC0061EAFD /* Fabric Editor */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		1BE007242DBB1FBC0061EAFD /* Fabric */ = {
+		1BE007242DBB1FBC0061EAFD /* Fabric Editor */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				1BE007322DBB1FBD0061EAFD /* Exceptions for "Fabric" folder in "Fabric" target */,
+				1BE007322DBB1FBD0061EAFD /* Exceptions for "Fabric Editor" folder in "Fabric Editor" target */,
 			);
-			path = Fabric;
+			path = "Fabric Editor";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -114,7 +114,7 @@
 		1BE007192DBB1FBC0061EAFD = {
 			isa = PBXGroup;
 			children = (
-				1BE007242DBB1FBC0061EAFD /* Fabric */,
+				1BE007242DBB1FBC0061EAFD /* Fabric Editor */,
 				1BE007602DBC37CE0061EAFD /* Frameworks */,
 				1BE007232DBB1FBC0061EAFD /* Products */,
 				1B9ECA522DFE434400D32B4C /* Satin.xcodeproj */,
@@ -124,7 +124,7 @@
 		1BE007232DBB1FBC0061EAFD /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				1BE007222DBB1FBC0061EAFD /* Fabric.app */,
+				1BE007222DBB1FBC0061EAFD /* Fabric Editor.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -143,9 +143,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		1BE007212DBB1FBC0061EAFD /* Fabric */ = {
+		1BE007212DBB1FBC0061EAFD /* Fabric Editor */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 1BE007332DBB1FBD0061EAFD /* Build configuration list for PBXNativeTarget "Fabric" */;
+			buildConfigurationList = 1BE007332DBB1FBD0061EAFD /* Build configuration list for PBXNativeTarget "Fabric Editor" */;
 			buildPhases = (
 				1BE0071E2DBB1FBC0061EAFD /* Sources */,
 				1BE0071F2DBB1FBC0061EAFD /* Frameworks */,
@@ -158,16 +158,16 @@
 				1B9ECA5C2DFE435600D32B4C /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				1BE007242DBB1FBC0061EAFD /* Fabric */,
+				1BE007242DBB1FBC0061EAFD /* Fabric Editor */,
 			);
-			name = Fabric;
+			name = "Fabric Editor";
 			packageProductDependencies = (
 				1BE008E02DC1DEF80061EAFD /* AnyCodable */,
 				1BAC11642DE6615F008438BC /* Noise */,
 				1B9ECA502DFBB2CB00D32B4C /* AnyCodable */,
 			);
 			productName = Fabric;
-			productReference = 1BE007222DBB1FBC0061EAFD /* Fabric.app */;
+			productReference = 1BE007222DBB1FBC0061EAFD /* Fabric Editor.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -210,7 +210,7 @@
 			);
 			projectRoot = "";
 			targets = (
-				1BE007212DBB1FBC0061EAFD /* Fabric */,
+				1BE007212DBB1FBC0061EAFD /* Fabric Editor */,
 			);
 		};
 /* End PBXProject section */
@@ -261,15 +261,15 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
 				CLANG_ENABLE_MODULES = NO;
-				CODE_SIGN_ENTITLEMENTS = Fabric/Fabric.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "Fabric Editor/Fabric.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_VIEW = TRUE;
-				DEVELOPMENT_ASSET_PATHS = "\"Fabric/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"Fabric Editor/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Fabric/Info.plist;
+				INFOPLIST_FILE = "Fabric Editor/Info.plist";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -279,7 +279,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "io.hi-rez.Fabric";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "Fabric/Fabric-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "Fabric Editor/Fabric-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 			};
@@ -292,15 +292,15 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
 				CLANG_ENABLE_MODULES = NO;
-				CODE_SIGN_ENTITLEMENTS = Fabric/Fabric.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "Fabric Editor/Fabric.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_VIEW = TRUE;
-				DEVELOPMENT_ASSET_PATHS = "\"Fabric/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"Fabric Editor/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Fabric/Info.plist;
+				INFOPLIST_FILE = "Fabric Editor/Info.plist";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -310,7 +310,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "io.hi-rez.Fabric";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "Fabric/Fabric-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "Fabric Editor/Fabric-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
@@ -445,7 +445,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		1BE007332DBB1FBD0061EAFD /* Build configuration list for PBXNativeTarget "Fabric" */ = {
+		1BE007332DBB1FBD0061EAFD /* Build configuration list for PBXNativeTarget "Fabric Editor" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				1BE007342DBB1FBD0061EAFD /* Debug */,

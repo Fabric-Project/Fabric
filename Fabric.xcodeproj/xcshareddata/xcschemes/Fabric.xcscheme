@@ -16,8 +16,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "1BE007212DBB1FBC0061EAFD"
-               BuildableName = "Fabric.app"
-               BlueprintName = "Fabric"
+               BuildableName = "Fabric Editor.app"
+               BlueprintName = "Fabric Editor"
                ReferencedContainer = "container:Fabric.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -48,8 +48,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1BE007212DBB1FBC0061EAFD"
-            BuildableName = "Fabric.app"
-            BlueprintName = "Fabric"
+            BuildableName = "Fabric Editor.app"
+            BlueprintName = "Fabric Editor"
             ReferencedContainer = "container:Fabric.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -65,8 +65,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1BE007212DBB1FBC0061EAFD"
-            BuildableName = "Fabric.app"
-            BlueprintName = "Fabric"
+            BuildableName = "Fabric Editor.app"
+            BlueprintName = "Fabric Editor"
             ReferencedContainer = "container:Fabric.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
