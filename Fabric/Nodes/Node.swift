@@ -122,7 +122,6 @@ protocol NodeProtocol : Codable
             case .Shader: return "Shader"
             case .Texture: return "Texture"
             case .Parameter(let paramType): return "\(paramType.rawValue) Parameter"
-//            case .Parameter(_): return "Parameter"
             }
       }
         
@@ -222,7 +221,7 @@ protocol NodeProtocol : Codable
         }
         
         didSet
-        {            
+        {
             if let delegate = self.delegate
             {
                 delegate.didUpdate(node: self)
