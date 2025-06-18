@@ -9,24 +9,24 @@ import Foundation
 import simd
 import Metal
 
-class SphereGeometryNode : Node, NodeProtocol
+public class SphereGeometryNode : Node, NodeProtocol
 {
-    static let name = "Sphere Geometry"
-    static var nodeType = Node.NodeType.Geometery
+    public static let name = "Sphere Geometry"
+    public static var nodeType = Node.NodeType.Geometery
 
     // Params
-    let inputRadius:FloatParameter
-    let inputAngularResolutionParam:IntParameter
-    let inputVerticalResolutionParam:IntParameter
-    override var inputParameters: [any Parameter] { [inputRadius, inputAngularResolutionParam, inputVerticalResolutionParam] }
+    public let inputRadius:FloatParameter
+    public let inputAngularResolutionParam:IntParameter
+    public let inputVerticalResolutionParam:IntParameter
+    public override var inputParameters: [any Parameter] { [inputRadius, inputAngularResolutionParam, inputVerticalResolutionParam] }
 
     // Ports
-    let outputGeometry:NodePort<Geometry>
-    override var ports:[any NodePortProtocol] { super.ports + [outputGeometry] }
+    public let outputGeometry:NodePort<Geometry>
+    public override var ports:[any NodePortProtocol] { super.ports + [outputGeometry] }
 
     private let geometry = SphereGeometry(radius: 1.0, angularResolution: 60, verticalResolution: 30)
 
-    required init(context: Context)
+    public required init(context: Context)
     {
         self.inputRadius = FloatParameter("Radius", 1.0, .inputfield)
         self.inputAngularResolutionParam = IntParameter("Angular Resolution", 60, .inputfield)
@@ -45,7 +45,7 @@ class SphereGeometryNode : Node, NodeProtocol
         case outputGeometryPort
     }
     
-    override func encode(to encoder:Encoder) throws
+    public override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -57,7 +57,7 @@ class SphereGeometryNode : Node, NodeProtocol
         try super.encode(to: encoder)
     }
     
-    required init(from decoder: any Decoder) throws
+    public required init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -69,7 +69,7 @@ class SphereGeometryNode : Node, NodeProtocol
         try super.init(from: decoder)
     }
     
-    override func evaluate(atTime:TimeInterval,
+    public override func evaluate(atTime:TimeInterval,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {

@@ -10,29 +10,46 @@ import Foundation
 import simd
 import Metal
 
-class SkyboxGeometryNode : Node, NodeProtocol
+public class SkyboxGeometryNode : Node, NodeProtocol
 {
-    static let name = "Skybox Geometry"
-    static var nodeType = Node.NodeType.Geometery
+    public static let name = "Skybox Geometry"
+    public static var nodeType = Node.NodeType.Geometery
 
     // Ports
     
-    let outputGeometry = NodePort<Geometry>(name: SkyboxGeometryNode.name, kind: .Outlet)
+    public let outputGeometry:NodePort<Geometry>
+    
+    public override var ports:[any NodePortProtocol] { super.ports + [outputGeometry] }
 
     private let geometry = SkyboxGeometry(size: 50)
-    
-    override var ports:[any NodePortProtocol] { super.ports + [outputGeometry] }
 
-    required init(context:Context)
+    public required init(context:Context)
     {
+        self.outputGeometry = NodePort<Geometry>(name: SkyboxGeometryNode.name, kind: .Outlet)
         super.init(context: context)
     }
     
-    required init(from decoder: any Decoder) throws {
+    enum CodingKeys : String, CodingKey
+    {
+        case outputGeometryPort
+    }
+    
+    public required init(from decoder: any Decoder) throws
+    {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.outputGeometry = try container.decode(NodePort<Geometry>.self, forKey: .outputGeometryPort)
         try super.init(from: decoder)
     }
     
-    override func evaluate(atTime:TimeInterval,
+    public override func encode(to encoder:Encoder) throws
+    {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(self.outputGeometry, forKey: .outputGeometryPort)
+        try super.encode(to: encoder)
+    }
+
+    
+    public override func evaluate(atTime:TimeInterval,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {
