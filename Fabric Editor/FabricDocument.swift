@@ -9,6 +9,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 import Satin
 import Metal
+import Fabric
 
 extension UTType {
     static var fabricDocument: UTType {

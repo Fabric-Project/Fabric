@@ -7,10 +7,16 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		1B9ECA512DFBB2CB00D32B4C /* AnyCodable in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9ECA502DFBB2CB00D32B4C /* AnyCodable */; };
-		1B9ECA5D2DFE435F00D32B4C /* Satin.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1B9ECA582DFE434400D32B4C /* Satin.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		1BAC11652DE6615F008438BC /* Noise in Frameworks */ = {isa = PBXBuildFile; productRef = 1BAC11642DE6615F008438BC /* Noise */; };
-		1BE008E12DC1DEF80061EAFD /* AnyCodable in Frameworks */ = {isa = PBXBuildFile; productRef = 1BE008E02DC1DEF80061EAFD /* AnyCodable */; };
+		1BB12B362E0234FC0075C276 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BB12B332E0234FC0075C276 /* Foundation.framework */; };
+		1BB12B372E0234FC0075C276 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BB12B342E0234FC0075C276 /* AVFoundation.framework */; };
+		1BB12B382E0234FC0075C276 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BB12B352E0234FC0075C276 /* CoreFoundation.framework */; };
+		1BB12B482E0267420075C276 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BB12B472E0267420075C276 /* Accelerate.framework */; };
+		1BC06A872E0231520019808C /* Fabric.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BC06A7F2E0231520019808C /* Fabric.framework */; };
+		1BC06A882E0231520019808C /* Fabric.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1BC06A7F2E0231520019808C /* Fabric.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		1BC06AEA2E0232810019808C /* Satin.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1B9ECA582DFE434400D32B4C /* Satin.framework */; };
+		1BC06AEB2E0232810019808C /* Satin.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1B9ECA582DFE434400D32B4C /* Satin.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		1BC06AF22E0233DC0019808C /* Noise in Frameworks */ = {isa = PBXBuildFile; productRef = 1BC06AF12E0233DC0019808C /* Noise */; };
+		1BC06AF42E0233E00019808C /* AnyCodable in Frameworks */ = {isa = PBXBuildFile; productRef = 1BC06AF32E0233E00019808C /* AnyCodable */; };
 		1BE00A5D2DC936A50061EAFD /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5B2DC936A50061EAFD /* CoreFoundation.framework */; };
 		1BE00A5E2DC936A50061EAFD /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5C2DC936A50061EAFD /* Foundation.framework */; };
 		1BE00A612DC936AC0061EAFD /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5F2DC936AC0061EAFD /* MetalKit.framework */; };
@@ -25,23 +31,41 @@
 			remoteGlobalIDString = 66D7DD332C06A23000B5A6C8;
 			remoteInfo = Satin;
 		};
-		1B9ECA5B2DFE435600D32B4C /* PBXContainerItemProxy */ = {
+		1BB12B3F2E023F2B0075C276 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 1B9ECA522DFE434400D32B4C /* Satin.xcodeproj */;
 			proxyType = 1;
 			remoteGlobalIDString = 66D7DD322C06A23000B5A6C8;
 			remoteInfo = Satin;
 		};
+		1BC06AEE2E0232880019808C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1BE0071A2DBB1FBC0061EAFD /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1BC06A7E2E0231520019808C;
+			remoteInfo = Fabric;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		1BC06AEC2E0232810019808C /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				1BC06AEB2E0232810019808C /* Satin.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1BE00A582DC935C80061EAFD /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				1B9ECA5D2DFE435F00D32B4C /* Satin.framework in Embed Frameworks */,
+				1BC06A882E0231520019808C /* Fabric.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -50,6 +74,13 @@
 
 /* Begin PBXFileReference section */
 		1B9ECA522DFE434400D32B4C /* Satin.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = Satin.xcodeproj; path = Satin/Satin.xcodeproj; sourceTree = "<group>"; };
+		1BB12B332E0234FC0075C276 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.4.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		1BB12B342E0234FC0075C276 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.4.sdk/System/Library/Frameworks/AVFoundation.framework; sourceTree = DEVELOPER_DIR; };
+		1BB12B352E0234FC0075C276 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.4.sdk/System/Library/Frameworks/CoreFoundation.framework; sourceTree = DEVELOPER_DIR; };
+		1BB12B412E0251B20075C276 /* libswiftObjectiveC.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libswiftObjectiveC.tbd; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.4.sdk/usr/lib/swift/libswiftObjectiveC.tbd; sourceTree = DEVELOPER_DIR; };
+		1BB12B422E0251BE0075C276 /* libobjc.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libobjc.tbd; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.4.sdk/usr/lib/libobjc.tbd; sourceTree = DEVELOPER_DIR; };
+		1BB12B472E0267420075C276 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.4.sdk/System/Library/Frameworks/Accelerate.framework; sourceTree = DEVELOPER_DIR; };
+		1BC06A7F2E0231520019808C /* Fabric.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Fabric.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		1BE007222DBB1FBC0061EAFD /* Fabric Editor.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Fabric Editor.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1BE00A5B2DC936A50061EAFD /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		1BE00A5C2DC936A50061EAFD /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
@@ -58,23 +89,117 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		1BE007322DBB1FBD0061EAFD /* Exceptions for "Fabric Editor" folder in "Fabric Editor" target */ = {
+		1BC06A992E0231920019808C /* Exceptions for "Fabric" folder in "Fabric" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Info.plist,
+				Extensions/CGAffineTransform.swift,
+				Extensions/CGPoint.swift,
+				Extensions/CGRect.swift,
+				Extensions/CGSize.swift,
+				Extensions/CGVector.swift,
+				"Extensions/MTLTexture+Equatable.swift",
+				"Extensions/simd+hashable.swift",
+				Fabric.docc,
+				Fabric.h,
+				Fabric.xcassets,
+				Graph/Graph.swift,
+				Graph/GraphExecution.swift,
+				Graph/TimeStampedFrameCache.swift,
+				Nodes/Geometry/BoxGeometryNode.swift,
+				Nodes/Geometry/IcoSphereGeometryNode.swift,
+				Nodes/Geometry/PlaneGeometryNode.swift,
+				Nodes/Geometry/SkyboxGeometryNode.swift,
+				Nodes/Geometry/SphereGeometryNode.swift,
+				Nodes/Geometry/SuperShape/SuperShapeGenerator.h,
+				Nodes/Geometry/SuperShape/SuperShapeGenerator.mm,
+				Nodes/Geometry/SuperShape/SuperShapeGeometryNode.swift,
+				Nodes/Material/BaseMaterialNode.swift,
+				Nodes/Material/BasicColorMaterialNode.swift,
+				Nodes/Material/BasicDiffuseMaterialNode.swift,
+				Nodes/Material/BasicTextureMaterialNode.swift,
+				Nodes/Material/DepthMaterialNode.swift,
+				Nodes/Material/PBRMaterialNode.swift,
+				Nodes/Material/ShadowMaterialNode.swift,
+				Nodes/Material/SkyboxMaterialNode.swift,
+				Nodes/Material/StandardMaterialNode.swift,
+				Nodes/Node.swift,
+				Nodes/NodeConnection.swift,
+				Nodes/NodePort.swift,
+				Nodes/NodeRegistry.swift,
+				Nodes/Object/BaseObjectNode.swift,
+				Nodes/Object/Camera/PerspectiveCameraNode.swift,
+				Nodes/Object/Lights/DirectionalLightNode.swift,
+				Nodes/Object/MeshNode.swift,
+				Nodes/Object/ModelMeshNode.swift,
+				Nodes/Object/SceneBuilderNode.swift,
+				Nodes/Parameters/Boolean/FalseNode.swift,
+				Nodes/Parameters/Boolean/TrueNode.swift,
+				"Nodes/Parameters/Number/Audio Spectrum/AudioInput.swift",
+				"Nodes/Parameters/Number/Audio Spectrum/FFT.swift",
+				Nodes/Parameters/Number/CurrentTimeNode.swift,
 				Nodes/Parameters/Number/Deprecated/NumberAddNode.swift,
 				Nodes/Parameters/Number/Deprecated/NumberDivideNode.swift,
 				Nodes/Parameters/Number/Deprecated/NumberModuloNode.swift,
 				Nodes/Parameters/Number/Deprecated/NumberMultiplyNode.swift,
 				Nodes/Parameters/Number/Deprecated/NumberSubtractNode.swift,
-				Nodes/Parameters/Quaternion/MakeQuaternionNode.swift,
-				Views/Nodes/NodeConnectionView.swift,
+				Nodes/Parameters/Number/GradientNoiseNode.swift,
+				Nodes/Parameters/Number/MathOperator.swift,
+				Nodes/Parameters/Number/NumberBinaryOperator.swift,
+				Nodes/Parameters/Number/NumberIntegralNode.swift,
+				Nodes/Parameters/Number/NumberNode.swift,
+				Nodes/Parameters/Number/NumberRemapNode.swift,
+				Nodes/Parameters/Number/NumberTweenNode.swift,
+				Nodes/Parameters/Number/NumberUnaryOperator.swift,
+				Nodes/Parameters/Vector/MakeVector2Node.swift,
+				Nodes/Parameters/Vector/MakeVector3Node.swift,
+				Nodes/Parameters/Vector/MakeVector4Node.swift,
+				Nodes/Render/DeferredRenderNode.swift,
+				Nodes/Render/RenderNode.swift,
+				Nodes/Texture/HDRTextureNode.swift,
+				Nodes/Texture/LoadTextureNode.swift,
+				Utils/AnyEncodable.swift,
+				Views/NodeRegisitryView.swift,
+				Views/Nodes/NodeCanvas.swift,
+				Views/Nodes/NodeCanvasUserActivityMonitor.swift,
+				Views/Nodes/NodeInletView.swift,
+				Views/Nodes/NodeOutletView.swift,
+				Views/Nodes/NodeView.swift,
+				Views/NodeSelectionInspector.swift,
+				Views/Parameters/ButtonParameterView.swift,
+				Views/Parameters/ColorParameterView.swift,
+				Views/Parameters/FileImportParameterView.swift,
+				Views/Parameters/FloatSlider.swift,
+				Views/Parameters/InputFieldView.swift,
+				Views/Parameters/ParameterGroupView.swift,
+				Views/Parameters/StringMenu.swift,
+				Views/Parameters/XYPad.swift,
+			);
+			privateHeaders = (
+				Nodes/Geometry/SuperShape/SuperShapeGenerator.h,
+			);
+			publicHeaders = (
+				Fabric.h,
+			);
+			target = 1BC06A7E2E0231520019808C /* Fabric */;
+		};
+		1BE007322DBB1FBD0061EAFD /* Exceptions for "Fabric Editor" folder in "Fabric Editor" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
 			);
 			target = 1BE007212DBB1FBC0061EAFD /* Fabric Editor */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		1BC06A952E0231920019808C /* Fabric */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				1BC06A992E0231920019808C /* Exceptions for "Fabric" folder in "Fabric" target */,
+			);
+			path = Fabric;
+			sourceTree = "<group>";
+		};
 		1BE007242DBB1FBC0061EAFD /* Fabric Editor */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -86,14 +211,26 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		1BC06A7C2E0231520019808C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1BC06AEA2E0232810019808C /* Satin.framework in Frameworks */,
+				1BB12B482E0267420075C276 /* Accelerate.framework in Frameworks */,
+				1BC06AF42E0233E00019808C /* AnyCodable in Frameworks */,
+				1BB12B382E0234FC0075C276 /* CoreFoundation.framework in Frameworks */,
+				1BB12B372E0234FC0075C276 /* AVFoundation.framework in Frameworks */,
+				1BC06AF22E0233DC0019808C /* Noise in Frameworks */,
+				1BB12B362E0234FC0075C276 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1BE0071F2DBB1FBC0061EAFD /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1BE008E12DC1DEF80061EAFD /* AnyCodable in Frameworks */,
-				1BAC11652DE6615F008438BC /* Noise in Frameworks */,
 				1BE00A5D2DC936A50061EAFD /* CoreFoundation.framework in Frameworks */,
-				1B9ECA512DFBB2CB00D32B4C /* AnyCodable in Frameworks */,
+				1BC06A872E0231520019808C /* Fabric.framework in Frameworks */,
 				1BE00A612DC936AC0061EAFD /* MetalKit.framework in Frameworks */,
 				1BE00A622DC936AC0061EAFD /* Metal.framework in Frameworks */,
 				1BE00A5E2DC936A50061EAFD /* Foundation.framework in Frameworks */,
@@ -115,6 +252,7 @@
 			isa = PBXGroup;
 			children = (
 				1BE007242DBB1FBC0061EAFD /* Fabric Editor */,
+				1BC06A952E0231920019808C /* Fabric */,
 				1BE007602DBC37CE0061EAFD /* Frameworks */,
 				1BE007232DBB1FBC0061EAFD /* Products */,
 				1B9ECA522DFE434400D32B4C /* Satin.xcodeproj */,
@@ -125,6 +263,7 @@
 			isa = PBXGroup;
 			children = (
 				1BE007222DBB1FBC0061EAFD /* Fabric Editor.app */,
+				1BC06A7F2E0231520019808C /* Fabric.framework */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -132,6 +271,12 @@
 		1BE007602DBC37CE0061EAFD /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				1BB12B472E0267420075C276 /* Accelerate.framework */,
+				1BB12B422E0251BE0075C276 /* libobjc.tbd */,
+				1BB12B412E0251B20075C276 /* libswiftObjectiveC.tbd */,
+				1BB12B342E0234FC0075C276 /* AVFoundation.framework */,
+				1BB12B352E0234FC0075C276 /* CoreFoundation.framework */,
+				1BB12B332E0234FC0075C276 /* Foundation.framework */,
 				1BE00A602DC936AC0061EAFD /* Metal.framework */,
 				1BE00A5F2DC936AC0061EAFD /* MetalKit.framework */,
 				1BE00A5B2DC936A50061EAFD /* CoreFoundation.framework */,
@@ -142,7 +287,41 @@
 		};
 /* End PBXGroup section */
 
+/* Begin PBXHeadersBuildPhase section */
+		1BC06A7A2E0231520019808C /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
 /* Begin PBXNativeTarget section */
+		1BC06A7E2E0231520019808C /* Fabric */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1BC06A892E0231520019808C /* Build configuration list for PBXNativeTarget "Fabric" */;
+			buildPhases = (
+				1BC06A7A2E0231520019808C /* Headers */,
+				1BC06A7B2E0231520019808C /* Sources */,
+				1BC06A7C2E0231520019808C /* Frameworks */,
+				1BC06A7D2E0231520019808C /* Resources */,
+				1BC06AEC2E0232810019808C /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				1BB12B402E023F2B0075C276 /* PBXTargetDependency */,
+			);
+			name = Fabric;
+			packageProductDependencies = (
+				1BC06AF12E0233DC0019808C /* Noise */,
+				1BC06AF32E0233E00019808C /* AnyCodable */,
+			);
+			productName = Fabric;
+			productReference = 1BC06A7F2E0231520019808C /* Fabric.framework */;
+			productType = "com.apple.product-type.framework";
+		};
 		1BE007212DBB1FBC0061EAFD /* Fabric Editor */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 1BE007332DBB1FBD0061EAFD /* Build configuration list for PBXNativeTarget "Fabric Editor" */;
@@ -155,16 +334,13 @@
 			buildRules = (
 			);
 			dependencies = (
-				1B9ECA5C2DFE435600D32B4C /* PBXTargetDependency */,
+				1BC06AEF2E0232880019808C /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				1BE007242DBB1FBC0061EAFD /* Fabric Editor */,
 			);
 			name = "Fabric Editor";
 			packageProductDependencies = (
-				1BE008E02DC1DEF80061EAFD /* AnyCodable */,
-				1BAC11642DE6615F008438BC /* Noise */,
-				1B9ECA502DFBB2CB00D32B4C /* AnyCodable */,
 			);
 			productName = Fabric;
 			productReference = 1BE007222DBB1FBC0061EAFD /* Fabric Editor.app */;
@@ -177,9 +353,12 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1600;
+				LastSwiftUpdateCheck = 1630;
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
+					1BC06A7E2E0231520019808C = {
+						CreatedOnToolsVersion = 16.3;
+					};
 					1BE007212DBB1FBC0061EAFD = {
 						CreatedOnToolsVersion = 16.0;
 						LastSwiftMigration = 1600;
@@ -211,6 +390,7 @@
 			projectRoot = "";
 			targets = (
 				1BE007212DBB1FBC0061EAFD /* Fabric Editor */,
+				1BC06A7E2E0231520019808C /* Fabric */,
 			);
 		};
 /* End PBXProject section */
@@ -226,6 +406,13 @@
 /* End PBXReferenceProxy section */
 
 /* Begin PBXResourcesBuildPhase section */
+		1BC06A7D2E0231520019808C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1BE007202DBB1FBC0061EAFD /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -236,6 +423,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		1BC06A7B2E0231520019808C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1BE0071E2DBB1FBC0061EAFD /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -246,14 +440,113 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		1B9ECA5C2DFE435600D32B4C /* PBXTargetDependency */ = {
+		1BB12B402E023F2B0075C276 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = Satin;
-			targetProxy = 1B9ECA5B2DFE435600D32B4C /* PBXContainerItemProxy */;
+			targetProxy = 1BB12B3F2E023F2B0075C276 /* PBXContainerItemProxy */;
+		};
+		1BC06AEF2E0232880019808C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1BC06A7E2E0231520019808C /* Fabric */;
+			targetProxy = 1BC06AEE2E0232880019808C /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		1BC06A8A2E0231520019808C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALLOW_TARGET_PLATFORM_SPECIALIZATION = YES;
+				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
+				CLANG_LINK_OBJC_RUNTIME = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.4;
+				MARKETING_VERSION = 1.0;
+				MODULEMAP_FILE = Fabric/module.modulemap;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				OTHER_SWIFT_FLAGS = "-Xcc -Wno-error=non-modular-include-in-framework-module";
+				PRODUCT_BUNDLE_IDENTIFIER = "io.hi-rez.Fabric";
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_INSTALL_MODULE = YES;
+				SWIFT_INSTALL_OBJC_HEADER = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+				XROS_DEPLOYMENT_TARGET = 2.4;
+			};
+			name = Debug;
+		};
+		1BC06A8B2E0231520019808C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALLOW_TARGET_PLATFORM_SPECIALIZATION = YES;
+				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
+				CLANG_LINK_OBJC_RUNTIME = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.4;
+				MARKETING_VERSION = 1.0;
+				MODULEMAP_FILE = Fabric/module.modulemap;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				OTHER_SWIFT_FLAGS = "-Xcc -Wno-error=non-modular-include-in-framework-module";
+				PRODUCT_BUNDLE_IDENTIFIER = "io.hi-rez.Fabric";
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_INSTALL_MODULE = YES;
+				SWIFT_INSTALL_OBJC_HEADER = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+				XROS_DEPLOYMENT_TARGET = 2.4;
+			};
+			name = Release;
+		};
 		1BE007342DBB1FBD0061EAFD /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -279,7 +572,6 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "io.hi-rez.Fabric";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "Fabric Editor/Fabric-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 			};
@@ -310,7 +602,6 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "io.hi-rez.Fabric";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "Fabric Editor/Fabric-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
@@ -436,6 +727,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		1BC06A892E0231520019808C /* Build configuration list for PBXNativeTarget "Fabric" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1BC06A8A2E0231520019808C /* Debug */,
+				1BC06A8B2E0231520019808C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		1BE0071D2DBB1FBC0061EAFD /* Build configuration list for PBXProject "Fabric" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -476,18 +776,14 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		1B9ECA502DFBB2CB00D32B4C /* AnyCodable */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 1B9ECA4F2DFBB2CB00D32B4C /* XCRemoteSwiftPackageReference "AnyCodable" */;
-			productName = AnyCodable;
-		};
-		1BAC11642DE6615F008438BC /* Noise */ = {
+		1BC06AF12E0233DC0019808C /* Noise */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 1BAC11632DE6615F008438BC /* XCRemoteSwiftPackageReference "swift-noise" */;
 			productName = Noise;
 		};
-		1BE008E02DC1DEF80061EAFD /* AnyCodable */ = {
+		1BC06AF32E0233E00019808C /* AnyCodable */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = 1B9ECA4F2DFBB2CB00D32B4C /* XCRemoteSwiftPackageReference "AnyCodable" */;
 			productName = AnyCodable;
 		};
 /* End XCSwiftPackageProductDependency section */

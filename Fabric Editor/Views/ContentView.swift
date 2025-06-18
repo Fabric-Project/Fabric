@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Satin
+import Fabric
 
 struct ContentView: View {
     @Binding var document: FabricDocument
@@ -20,12 +21,14 @@ struct ContentView: View {
     @State private var inspectorVisibility:Bool = false
     @State private var scrollOffset: CGPoint = .zero
     
+    
+    
     var body: some View {
 //        TextEditor(text: $document.text)
         
         NavigationSplitView(columnVisibility: self.$columnVisibility)
         {
-            NodeRegisitryView(document: $document, scrollOffset: $scrollOffset)
+            NodeRegisitryView(graph: document.graph, scrollOffset: $scrollOffset)
 
         } detail: {
             

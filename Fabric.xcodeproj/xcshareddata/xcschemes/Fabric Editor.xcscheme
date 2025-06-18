@@ -15,9 +15,9 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "1BC06A7E2E0231520019808C"
-               BuildableName = "Fabric.framework"
-               BlueprintName = "Fabric"
+               BlueprintIdentifier = "1BE007212DBB1FBC0061EAFD"
+               BuildableName = "Fabric Editor.app"
+               BlueprintName = "Fabric Editor"
                ReferencedContainer = "container:Fabric.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -34,12 +34,25 @@
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      disableMainThreadChecker = "YES"
+      disablePerformanceAntipatternChecker = "YES"
       launchStyle = "0"
       useCustomWorkingDirectory = "NO"
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
+      enableGPUFrameCaptureMode = "1"
       allowLocationSimulation = "YES">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "1BE007212DBB1FBC0061EAFD"
+            BuildableName = "Fabric Editor.app"
+            BlueprintName = "Fabric Editor"
+            ReferencedContainer = "container:Fabric.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
@@ -47,15 +60,16 @@
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"
       debugDocumentVersioning = "YES">
-      <MacroExpansion>
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "1BC06A7E2E0231520019808C"
-            BuildableName = "Fabric.framework"
-            BlueprintName = "Fabric"
+            BlueprintIdentifier = "1BE007212DBB1FBC0061EAFD"
+            BuildableName = "Fabric Editor.app"
+            BlueprintName = "Fabric Editor"
             ReferencedContainer = "container:Fabric.xcodeproj">
          </BuildableReference>
-      </MacroExpansion>
+      </BuildableProductRunnable>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">

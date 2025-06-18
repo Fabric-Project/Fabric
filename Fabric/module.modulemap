@@ -1,0 +1,21 @@
+//
+//  module.modulemap
+//  Fabric
+//
+//  Created by Anton Marini on 6/17/25.
+//
+
+framework module Fabric {
+
+    umbrella header "Fabric.h"
+    export Satin                 // re-export Satin module
+
+    requires objc
+
+
+    
+    private header "SuperShapeGenerator.h"
+
+    export *
+    module * { export * }
+}
