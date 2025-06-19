@@ -10,26 +10,26 @@ import Satin
 import simd
 import Metal
 
-class NumberIntegralNode : Node, NodeProtocol
+public class NumberIntegralNode : Node, NodeProtocol
 {
-    static let name = "Number Integral"
-    static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
+    public static let name = "Number Integral"
+    public static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
 
     // Params
-    let inputNumberParam:FloatParameter
+    public let inputNumberParam:FloatParameter
 
-    override var inputParameters:[any Parameter]  { super .inputParameters + [inputNumberParam] }
+    public override var inputParameters:[any Parameter]  { super .inputParameters + [inputNumberParam] }
 
     // Ports
-    let outputNumber:NodePort<Float>
-    override var ports: [any NodePortProtocol] { super.ports + [ outputNumber] }
+    public let outputNumber:NodePort<Float>
+    public override var ports: [any NodePortProtocol] { super.ports + [ outputNumber] }
     
     // Ensure we always render!
-    override var isDirty:Bool { get {  true  } set { } }
+    public override var isDirty:Bool { get {  true  } set { } }
 
     private var state:Float = 0.0
     
-    required init(context: Context)
+    public required init(context: Context)
     {
         self.inputNumberParam = FloatParameter("Number", 0.0, .inputfield)
         self.outputNumber = NodePort<Float>(name: NumberIntegralNode.name , kind: .Outlet)
@@ -43,7 +43,7 @@ class NumberIntegralNode : Node, NodeProtocol
         case outputNumberPort
     }
     
-    override func encode(to encoder:Encoder) throws
+    public override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -53,7 +53,7 @@ class NumberIntegralNode : Node, NodeProtocol
         try super.encode(to: encoder)
     }
     
-    required init(from decoder: any Decoder) throws
+    public required init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -63,9 +63,9 @@ class NumberIntegralNode : Node, NodeProtocol
         try super.init(from: decoder)
     }
     
-    override  func evaluate(atTime:TimeInterval,
-                            renderPassDescriptor: MTLRenderPassDescriptor,
-                            commandBuffer: MTLCommandBuffer)
+    public override func evaluate(atTime:TimeInterval,
+                                  renderPassDescriptor: MTLRenderPassDescriptor,
+                                  commandBuffer: MTLCommandBuffer)
     {
         self.state += self.inputNumberParam.value
         

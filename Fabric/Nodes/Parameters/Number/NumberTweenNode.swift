@@ -11,23 +11,24 @@ import Satin
 import simd
 import Metal
 
-class NumberEaseNode : Node, NodeProtocol
+public class NumberEaseNode : Node, NodeProtocol
 {
-    static let name = "Number Ease"
-    static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
+    public static let name = "Number Ease"
+    public static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
 
     // Params
-    let inputTimeParam:FloatParameter
-    let inputEasingParam:StringParameter
-    override var inputParameters:[any Parameter]  { super.inputParameters + [inputTimeParam, inputEasingParam] }
+    public let inputTimeParam:FloatParameter
+    public let inputEasingParam:StringParameter
+    public override var inputParameters:[any Parameter]  { super.inputParameters + [inputTimeParam, inputEasingParam] }
 
     // Ports
-    let outputNumber:NodePort<Float>
-    override var ports: [any NodePortProtocol] { super.ports + [ outputNumber] }
+    public let outputNumber:NodePort<Float>
+    public override var ports: [any NodePortProtocol] { super.ports + [ outputNumber] }
 
     private let easingMap = Dictionary(uniqueKeysWithValues: zip(Easing.allCases.map( {$0.title()}), Easing.allCases)  )
     
-    required init(context: Context) {
+    public required init(context: Context)
+    {
         self.inputTimeParam = FloatParameter("Time", 0.0, 0.0, 1.0, .slider)
         self.inputEasingParam = StringParameter("Easing", "Linear", Easing.allCases.map( {$0.title()} ), .dropdown )
         
@@ -43,7 +44,7 @@ class NumberEaseNode : Node, NodeProtocol
         case outputNumberPort
     }
     
-    override func encode(to encoder:Encoder) throws
+    public override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -54,7 +55,7 @@ class NumberEaseNode : Node, NodeProtocol
         try super.encode(to: encoder)
     }
     
-    required init(from decoder: any Decoder) throws
+    public required init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -68,12 +69,10 @@ class NumberEaseNode : Node, NodeProtocol
         try super.init(from: decoder)
     }
     
-    override  func evaluate(atTime:TimeInterval,
-                            renderPassDescriptor: MTLRenderPassDescriptor,
-                            commandBuffer: MTLCommandBuffer)
-    {
-        
-        
+    public override func evaluate(atTime:TimeInterval,
+                                  renderPassDescriptor: MTLRenderPassDescriptor,
+                                  commandBuffer: MTLCommandBuffer)
+    {        
         let loopedTime = self.inputTimeParam.value//.truncatingRemainder(dividingBy: duration)
 
         if let easeFunc = easingMap[self.inputEasingParam.value]

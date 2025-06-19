@@ -13,20 +13,20 @@ import Satin
 import simd
 import Metal
 
-class CurrentTimeNode : Node, NodeProtocol
+public class CurrentTimeNode : Node, NodeProtocol
 {
-    static let name = "Current Time"
-    static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
+    public static let name = "Current Time"
+    public static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
 
-    override var isDirty:Bool { get {  true  } set { } }
+    public override var isDirty:Bool { get {  true  } set { } }
 
     private let startTime = Date.timeIntervalSinceReferenceDate
     
     // Ports
-    let outputNumber:NodePort<Float>
-    override var ports: [any NodePortProtocol] { super.ports + [ outputNumber] }
+    public let outputNumber:NodePort<Float>
+    public override var ports: [any NodePortProtocol] { super.ports + [ outputNumber] }
     
-    required init(context: Context)
+    public required init(context: Context)
     {
         self.outputNumber =  NodePort<Float>(name: CurrentTimeNode.name , kind: .Outlet)
 
@@ -38,7 +38,7 @@ class CurrentTimeNode : Node, NodeProtocol
         case outputNumberPort
     }
     
-    override func encode(to encoder:Encoder) throws
+    public override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -47,7 +47,7 @@ class CurrentTimeNode : Node, NodeProtocol
         try super.encode(to: encoder)
     }
     
-    required init(from decoder: any Decoder) throws
+    public required init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -56,9 +56,9 @@ class CurrentTimeNode : Node, NodeProtocol
         try super.init(from: decoder)
     }
     
-    override  func evaluate(atTime:TimeInterval,
-                            renderPassDescriptor: MTLRenderPassDescriptor,
-                            commandBuffer: MTLCommandBuffer)
+    public override func evaluate(atTime:TimeInterval,
+                                  renderPassDescriptor: MTLRenderPassDescriptor,
+                                  commandBuffer: MTLCommandBuffer)
     {
         self.outputNumber.send( Float(atTime - startTime) )
     }

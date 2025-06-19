@@ -10,23 +10,23 @@ import Satin
 import simd
 import Metal
 
-class MakeVector2Node : Node, NodeProtocol
+public class MakeVector2Node : Node, NodeProtocol
 {
-    static let name = "Vector 2"
-    static var nodeType = Node.NodeType.Parameter(parameterType: .Vector)
+    public static let name = "Vector 2"
+    public static var nodeType = Node.NodeType.Parameter(parameterType: .Vector)
 
     // Params
-    let inputXParam:FloatParameter
-    let inputYParam:FloatParameter
-    override var inputParameters: [any Parameter] { super.inputParameters + [inputXParam, inputYParam,]}
+    public let inputXParam:FloatParameter
+    public let inputYParam:FloatParameter
+    public override var inputParameters: [any Parameter] { super.inputParameters + [inputXParam, inputYParam,]}
     
     // Ports
-    let outputVector:NodePort<simd_float2>
-    override var ports: [any NodePortProtocol] { super.ports + [outputVector] }
+    public let outputVector:NodePort<simd_float2>
+    public override var ports: [any NodePortProtocol] { super.ports + [outputVector] }
 
     private var vector = simd_float2(repeating: 0)
 
-    required init(context: Context)
+    public required init(context: Context)
     {
         self.inputXParam = FloatParameter("X", 0.0, .inputfield)
         self.inputYParam = FloatParameter("Y", 0.0, .inputfield)
@@ -42,7 +42,7 @@ class MakeVector2Node : Node, NodeProtocol
         case outputVectorPort
     }
     
-    override func encode(to encoder:Encoder) throws
+    public override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -53,7 +53,7 @@ class MakeVector2Node : Node, NodeProtocol
         try super.encode(to: encoder)
     }
     
-    required init(from decoder: any Decoder) throws
+    public required init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -64,9 +64,9 @@ class MakeVector2Node : Node, NodeProtocol
         try super.init(from: decoder)
     }
     
-    override  func evaluate(atTime:TimeInterval,
-                            renderPassDescriptor: MTLRenderPassDescriptor,
-                            commandBuffer: MTLCommandBuffer)
+    public override func evaluate(atTime:TimeInterval,
+                                  renderPassDescriptor: MTLRenderPassDescriptor,
+                                  commandBuffer: MTLCommandBuffer)
     {
         self.vector = simd_float2(inputXParam.value,
                                   inputYParam.value)

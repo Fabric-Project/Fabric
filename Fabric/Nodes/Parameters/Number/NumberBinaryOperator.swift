@@ -13,25 +13,25 @@ import Satin
 import simd
 import Metal
 
-class NumberBinaryOperator : Node, NodeProtocol
+public class NumberBinaryOperator : Node, NodeProtocol
 {
-    static let name = "Number Binary Operator"
-    static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
+    public static let name = "Number Binary Operator"
+    public static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
 
     // Params
-    let inputAParam:FloatParameter
-    let inputBParam:FloatParameter
-    let inputOperatorParam:StringParameter
-    override var inputParameters:[any Parameter] { super.inputParameters + [inputAParam, inputBParam, inputOperatorParam] }
+    public let inputAParam:FloatParameter
+    public let inputBParam:FloatParameter
+    public let inputOperatorParam:StringParameter
+    public override var inputParameters:[any Parameter] { super.inputParameters + [inputAParam, inputBParam, inputOperatorParam] }
 
     // Ports
-    let outputNumber:NodePort<Float>
-    var mathOperator = BinaryMathOperator.Add
+    public let outputNumber:NodePort<Float>
+    private var mathOperator = BinaryMathOperator.Add
     
     
-    override var ports: [any NodePortProtocol] { super.ports + [ outputNumber] }
+    public override var ports: [any NodePortProtocol] { super.ports + [ outputNumber] }
 
-    required init(context: Context)
+    public required init(context: Context)
     {
         self.inputAParam = FloatParameter("A", 0.0, .inputfield)
         self.inputBParam = FloatParameter("B", 0.0, .inputfield)
@@ -50,7 +50,7 @@ class NumberBinaryOperator : Node, NodeProtocol
         case outputNumberPort
     }
     
-    override func encode(to encoder:Encoder) throws
+    public override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -62,7 +62,7 @@ class NumberBinaryOperator : Node, NodeProtocol
         try super.encode(to: encoder)
     }
     
-    required init(from decoder: any Decoder) throws
+    public required init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -76,9 +76,9 @@ class NumberBinaryOperator : Node, NodeProtocol
         try super.init(from: decoder)
     }
     
-    override  func evaluate(atTime:TimeInterval,
-                            renderPassDescriptor: MTLRenderPassDescriptor,
-                            commandBuffer: MTLCommandBuffer)
+    public override func evaluate(atTime:TimeInterval,
+                                  renderPassDescriptor: MTLRenderPassDescriptor,
+                                  commandBuffer: MTLCommandBuffer)
     {
         if let mathOp = BinaryMathOperator(rawValue: self.inputOperatorParam.value)
         {

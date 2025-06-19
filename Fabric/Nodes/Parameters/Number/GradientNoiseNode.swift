@@ -8,33 +8,33 @@
 import Foundation
 import Satin
 import Metal
-import Noise
+internal import Noise
 
-class GradientNoiseNode : Node, NodeProtocol
+public class GradientNoiseNode : Node, NodeProtocol
 {
-    static let name = "Gradient Noise"
-    static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
+    public static let name = "Gradient Noise"
+    public static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
 
     // Params
-    let inputFrequency:FloatParameter
+    public let inputFrequency:FloatParameter
 //    let inputMinNumber:GenericParameter<Float>
 //    let inputMaxNumber:GenericParameter<Float>
 //    let inputNewMinNumber:GenericParameter<Float>
 //    let inputNewMaxNumber:GenericParameter<Float>
 
-    override var inputParameters:[any Parameter]  { super.inputParameters + [ inputFrequency ] }
+    public override var inputParameters:[any Parameter]  { super.inputParameters + [ inputFrequency ] }
 
     // Ports
-    let outputNumber:NodePort<Float>
-    override var ports: [any NodePortProtocol] { super.ports + [ outputNumber] }
+    public let outputNumber:NodePort<Float>
+    public override var ports: [any NodePortProtocol] { super.ports + [ outputNumber] }
 
     // Ensure we always render!
-    override var isDirty:Bool { get {  true  } set { } }
+    public override var isDirty:Bool { get {  true  } set { } }
 
     
     private let fbm = GradientNoise2D(amplitude: 1.0, frequency: 1.0, seed: time(nil) )
     
-    required init(context: Context) {
+    public required init(context: Context) {
         self.inputFrequency = FloatParameter("Frequency", 1.0, 0.0, 10.0, .slider)
         
         self.outputNumber = NodePort<Float>(name: "Output Number" , kind: .Outlet)
@@ -48,7 +48,7 @@ class GradientNoiseNode : Node, NodeProtocol
         case outputNumberPort
     }
     
-    override func encode(to encoder:Encoder) throws
+    public override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -59,7 +59,7 @@ class GradientNoiseNode : Node, NodeProtocol
         try super.encode(to: encoder)
     }
     
-    required init(from decoder: any Decoder) throws
+    public required init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -69,12 +69,10 @@ class GradientNoiseNode : Node, NodeProtocol
         try super.init(from: decoder)
     }
     
-    override  func evaluate(atTime:TimeInterval,
-                            renderPassDescriptor: MTLRenderPassDescriptor,
-                            commandBuffer: MTLCommandBuffer)
+    public override func evaluate(atTime:TimeInterval,
+                                  renderPassDescriptor: MTLRenderPassDescriptor,
+                                  commandBuffer: MTLCommandBuffer)
     {
-        
-        
         //self.fbm.frequency_scaled(by: Double(self.inputFrequency.value) )
         
         self.outputNumber.send( Float( self.fbm.evaluate(atTime, 0.0) )  )

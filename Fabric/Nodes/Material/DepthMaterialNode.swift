@@ -11,15 +11,15 @@ import Satin
 import simd
 import Metal
 
-class DepthMaterialNode : BaseMaterialNode
+public class DepthMaterialNode : BaseMaterialNode
 {
-    override class var name:String {  "Depth Material" }
+    public override class var name:String {  "Depth Material" }
 
-    let inputNear:FloatParameter
-    let inputFar:FloatParameter
-    let inputInvert:BoolParameter
-    let inputColor:BoolParameter
-    override var inputParameters: [any Parameter] { super.inputParameters + [
+    public let inputNear:FloatParameter
+    public let inputFar:FloatParameter
+    public let inputInvert:BoolParameter
+    public let inputColor:BoolParameter
+    public override var inputParameters: [any Parameter] { super.inputParameters + [
         inputNear,
         inputFar,
         inputInvert,
@@ -27,16 +27,16 @@ class DepthMaterialNode : BaseMaterialNode
     ] }
     
     // Ports
-    let outputMaterial:NodePort<Material>
-    override var ports: [any NodePortProtocol] { super.ports + [ outputMaterial] }
+    public let outputMaterial:NodePort<Material>
+    public override var ports: [any NodePortProtocol] { super.ports + [ outputMaterial] }
 
-    override var material: DepthMaterial {
+    public override var material: DepthMaterial {
         return _material
     }
     
     private var _material = DepthMaterial()
     
-    required init(context:Context)
+    public required init(context:Context)
     {
         self.inputNear = FloatParameter("Near", 0.001, 0.0, 1000.0, .slider)
         self.inputFar = FloatParameter("Far", 10.0, 0.0, 1000.0, .slider)
@@ -61,7 +61,7 @@ class DepthMaterialNode : BaseMaterialNode
         case outputMaterialPort
     }
 
-    required init(from decoder: any Decoder) throws
+    public required init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -75,7 +75,7 @@ class DepthMaterialNode : BaseMaterialNode
         try super.init(from: decoder)
     }
     
-    override func encode(to encoder:Encoder) throws
+    public override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -89,7 +89,7 @@ class DepthMaterialNode : BaseMaterialNode
         try super.encode(to: encoder)
     }
     
-    override  func evaluate(atTime:TimeInterval,
+    public override func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)
     {

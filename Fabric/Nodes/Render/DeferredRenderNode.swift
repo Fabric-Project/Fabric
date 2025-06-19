@@ -10,32 +10,32 @@ import Satin
 import simd
 import Metal
 
-class DeferredRenderNode : Node, NodeProtocol
+public class DeferredRenderNode : Node, NodeProtocol
 {
-    static let name = "Deferred Render"
-    static var nodeType = Node.NodeType.Renderer
+    public static let name = "Deferred Render"
+    public static var nodeType = Node.NodeType.Renderer
     
     // Parameters
-    let inputResolution:Int2Parameter
-    let inputClearColor:Float4Parameter
+    public let inputResolution:Int2Parameter
+    public let inputClearColor:Float4Parameter
 
-    override var inputParameters: [any Parameter] { super.inputParameters + [inputResolution, inputClearColor] }
+    public override var inputParameters: [any Parameter] { super.inputParameters + [inputResolution, inputClearColor] }
     
     // Ports
-    let inputCamera: NodePort<Camera>
-    let inputScene: NodePort<Object>
+    public let inputCamera: NodePort<Camera>
+    public let inputScene: NodePort<Object>
 
-    let outputColorTexture:NodePort<EquatableTexture>
-    let outputDepthTexture:NodePort<EquatableTexture>
+    public let outputColorTexture:NodePort<EquatableTexture>
+    public let outputDepthTexture:NodePort<EquatableTexture>
 
     // Ensure we always render!
-    override var isDirty:Bool { get {  true  } set { } }
+    public override var isDirty:Bool { get {  true  } set { } }
     
     private let renderer:Renderer
     
-    override var ports: [any NodePortProtocol] { super.ports +  [inputCamera, inputScene, outputColorTexture, outputDepthTexture] }
+    public override var ports: [any NodePortProtocol] { super.ports +  [inputCamera, inputScene, outputColorTexture, outputDepthTexture] }
     
-    required init(context:Context)
+    public required init(context:Context)
     {
         self.renderer = Renderer(context: context, frameBufferOnly:false)
         self.renderer.depthStoreAction = .store
@@ -64,7 +64,7 @@ class DeferredRenderNode : Node, NodeProtocol
         case outputDepthTexturePort
     }
     
-    required init(from decoder: any Decoder) throws
+    public required init(from decoder: any Decoder) throws
     {
         guard let decodeContext = decoder.context else
         {
@@ -91,7 +91,7 @@ class DeferredRenderNode : Node, NodeProtocol
         try super.init(from: decoder)
     }
     
-    override func encode(to encoder:Encoder) throws
+    public override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -105,7 +105,7 @@ class DeferredRenderNode : Node, NodeProtocol
         try super.encode(to: encoder)
     }
 
-    override func evaluate(atTime:TimeInterval,
+    public override func evaluate(atTime:TimeInterval,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {
@@ -142,7 +142,7 @@ class DeferredRenderNode : Node, NodeProtocol
         }
     }
     
-    override func resize(size: (width: Float, height: Float), scaleFactor: Float) {
+    public override func resize(size: (width: Float, height: Float), scaleFactor: Float) {
         //        renderer.resize(size)
     }
 }

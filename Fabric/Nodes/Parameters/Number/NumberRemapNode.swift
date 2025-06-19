@@ -9,19 +9,19 @@ import Foundation
 import Satin
 import Metal
 
-class NumberRemapNode : Node, NodeProtocol
+public class NumberRemapNode : Node, NodeProtocol
 {
-    static let name = "Number Remap"
-    static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
+    public static let name = "Number Remap"
+    public static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
 
     // Params
-    let inputNumber:GenericParameter<Float>
-    let inputMinNumber:GenericParameter<Float>
-    let inputMaxNumber:GenericParameter<Float>
-    let inputNewMinNumber:GenericParameter<Float>
-    let inputNewMaxNumber:GenericParameter<Float>
+    public let inputNumber:GenericParameter<Float>
+    public let inputMinNumber:GenericParameter<Float>
+    public let inputMaxNumber:GenericParameter<Float>
+    public let inputNewMinNumber:GenericParameter<Float>
+    public let inputNewMaxNumber:GenericParameter<Float>
 
-    override var inputParameters:[any Parameter]  { super.inputParameters + [inputNumber,
+    opublic verride var inputParameters:[any Parameter]  { super.inputParameters + [inputNumber,
                                                                              inputMinNumber,
                                                                              inputMaxNumber,
                                                                              inputNewMinNumber,
@@ -29,12 +29,13 @@ class NumberRemapNode : Node, NodeProtocol
     ] }
 
     // Ports
-    let outputNumber:NodePort<Float>
-    override var ports: [any NodePortProtocol] { super.ports + [ outputNumber] }
+    public let outputNumber:NodePort<Float>
+    public override var ports: [any NodePortProtocol] { super.ports + [ outputNumber] }
 
     private let easingMap = Dictionary(uniqueKeysWithValues: zip(Easing.allCases.map( {$0.title()}), Easing.allCases)  )
     
-    required init(context: Context) {
+    public required init(context: Context)
+    {
         self.inputNumber = GenericParameter<Float>("Number", 0.0, .inputfield)
         self.inputMinNumber = GenericParameter<Float>("Input Min", 0.0, .inputfield)
         self.inputMaxNumber = GenericParameter<Float>("Input Max", 1.0, .inputfield)
@@ -56,7 +57,7 @@ class NumberRemapNode : Node, NodeProtocol
         case outputNumberPort
     }
     
-    override func encode(to encoder:Encoder) throws
+    public override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -71,7 +72,7 @@ class NumberRemapNode : Node, NodeProtocol
         try super.encode(to: encoder)
     }
     
-    required init(from decoder: any Decoder) throws
+    public required init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -86,9 +87,9 @@ class NumberRemapNode : Node, NodeProtocol
         try super.init(from: decoder)
     }
     
-    override  func evaluate(atTime:TimeInterval,
-                            renderPassDescriptor: MTLRenderPassDescriptor,
-                            commandBuffer: MTLCommandBuffer)
+    public override func evaluate(atTime:TimeInterval,
+                                  renderPassDescriptor: MTLRenderPassDescriptor,
+                                  commandBuffer: MTLCommandBuffer)
     {
         self.outputNumber.send( remap(self.inputNumber.value,
                                       self.inputMinNumber.value,

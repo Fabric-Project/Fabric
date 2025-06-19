@@ -11,22 +11,22 @@ import simd
 import Metal
 import MetalKit
 
-class ModelMeshNode : MeshNode
+public class ModelMeshNode : MeshNode
 {
-    override class var name:String { "Model Mesh" }
+    public override class var name:String { "Model Mesh" }
 
-    let inputModelPath:StringParameter
-    override var inputParameters: [any Parameter] { super.inputParameters + [self.inputModelPath]}
+    public let inputModelPath:StringParameter
+    public override var inputParameters: [any Parameter] { super.inputParameters + [self.inputModelPath]}
 
     
     // Ports - Skip Geom and Material
-    override var ports: [any NodePortProtocol] { [
+    public override var ports: [any NodePortProtocol] { [
                                          outputMesh] }
 
     private var mesh: Object? = nil
     private var textureLoader:MTKTextureLoader
 
-    required init(context: Context)
+    public required init(context: Context)
     {
         self.inputModelPath = StringParameter("Model Path", "", [], .filepicker)
         self.textureLoader = MTKTextureLoader(device: context.device)
@@ -42,7 +42,7 @@ class ModelMeshNode : MeshNode
         case inputModelPathParameter
     }
     
-    override func encode(to encoder:Encoder) throws
+    public override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.inputModelPath, forKey: .inputModelPathParameter)
@@ -50,7 +50,7 @@ class ModelMeshNode : MeshNode
 
     }
     
-    required init(from decoder: any Decoder) throws
+    public required init(from decoder: any Decoder) throws
     {
         guard let decodeContext = decoder.context else
         {
@@ -65,7 +65,7 @@ class ModelMeshNode : MeshNode
         try super.init(from: decoder)
     }
     
-    override func evaluate(atTime:TimeInterval,
+    public override func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)
     {

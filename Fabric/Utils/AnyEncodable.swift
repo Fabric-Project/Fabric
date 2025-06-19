@@ -9,7 +9,7 @@
 // https://martiancraft.com/blog/2020/03/going-deep-with-decodable/
 
 import Foundation
-import AnyCodable
+internal import AnyCodable
 import Satin
 
 // Custom Read Write content in our UserInfo we leverage

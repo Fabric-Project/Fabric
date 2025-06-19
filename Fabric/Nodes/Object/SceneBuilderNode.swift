@@ -10,31 +10,31 @@ import Satin
 import simd
 import Metal
 
-class SceneBuilderNode : BaseObjectNode, NodeProtocol
+public class SceneBuilderNode : BaseObjectNode, NodeProtocol
 {
-    static let name = "Scene Builder"
-    static var nodeType = Node.NodeType.Object
+    public static let name = "Scene Builder"
+    public static var nodeType = Node.NodeType.Object
 
     // Params
-    let inputEnvironmentIntensity: FloatParameter
+    public let inputEnvironmentIntensity: FloatParameter
 
-    override var inputParameters: [any Parameter] { super.inputParameters + [inputEnvironmentIntensity,] }
+    public override var inputParameters: [any Parameter] { super.inputParameters + [inputEnvironmentIntensity,] }
 
     // Ports
-    let inputEnvironment:NodePort<EquatableTexture>
-    let inputObject1:NodePort<Object>
-    let inputObject2:NodePort<Object>
-    let inputObject3:NodePort<Object>
-    let inputObject4:NodePort<Object>
-    let inputObject5:NodePort<Object>
-    let inputObject6:NodePort<Object>
-    let inputObject7:NodePort<Object>
-    let inputObject8:NodePort<Object>
-    let inputObject9:NodePort<Object>
-    let inputObject10:NodePort<Object>
-    let outputScene:NodePort<Object>
+    public let inputEnvironment:NodePort<EquatableTexture>
+    public let inputObject1:NodePort<Object>
+    public let inputObject2:NodePort<Object>
+    public let inputObject3:NodePort<Object>
+    public let inputObject4:NodePort<Object>
+    public let inputObject5:NodePort<Object>
+    public let inputObject6:NodePort<Object>
+    public let inputObject7:NodePort<Object>
+    public let inputObject8:NodePort<Object>
+    public let inputObject9:NodePort<Object>
+    public let inputObject10:NodePort<Object>
+    public let outputScene:NodePort<Object>
     
-    override var ports: [any NodePortProtocol] { super.ports +  [ inputEnvironment,
+    public override var ports: [any NodePortProtocol] { super.ports +  [ inputEnvironment,
                                                                   inputObject1,
                                                                   inputObject2,
                                                                   inputObject3,
@@ -49,7 +49,7 @@ class SceneBuilderNode : BaseObjectNode, NodeProtocol
     
     private var object = IBLScene()
 
-    required init(context: Context)
+    public required init(context: Context)
     {
         self.inputEnvironmentIntensity = FloatParameter("Environment Intensity", 1.0, 0.0, 1.0, .slider)
         self.inputEnvironment = NodePort<EquatableTexture>(name: "Environment", kind: .Inlet)
@@ -86,7 +86,7 @@ class SceneBuilderNode : BaseObjectNode, NodeProtocol
         case outputScenePort
     }
     
-    override func encode(to encoder:Encoder) throws
+    public override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -107,7 +107,7 @@ class SceneBuilderNode : BaseObjectNode, NodeProtocol
         try super.encode(to: encoder)
     }
     
-    required init(from decoder: any Decoder) throws
+    public required init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -131,7 +131,7 @@ class SceneBuilderNode : BaseObjectNode, NodeProtocol
         try super.init(from: decoder)
     }
     
-    override func evaluate(atTime:TimeInterval,
+    public override func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)
     {

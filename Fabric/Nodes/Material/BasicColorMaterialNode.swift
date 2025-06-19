@@ -10,25 +10,25 @@ import Satin
 import simd
 import Metal
 
-class BasicColorMaterialNode : BaseMaterialNode
+public class BasicColorMaterialNode : BaseMaterialNode
 {
-    override class var name:String {  "Color Material" }
+    public override class var name:String {  "Color Material" }
     
     // Parameters
-    let inputColor:Float4Parameter
-    override var inputParameters: [any Parameter] { super.inputParameters + [inputColor] }
+    public let inputColor:Float4Parameter
+    public override var inputParameters: [any Parameter] { super.inputParameters + [inputColor] }
     
     // Ports
-    let outputMaterial:NodePort<Material>
-    override var ports: [any NodePortProtocol] { super.ports + [ outputMaterial] }
+    public let outputMaterial:NodePort<Material>
+    public override var ports: [any NodePortProtocol] { super.ports + [ outputMaterial] }
     
-    override var material: BasicColorMaterial {
+    public override var material: BasicColorMaterial {
         return _material
     }
     
     private var _material = BasicColorMaterial()
 
-    required init(context:Context)
+    public required init(context:Context)
     {
         self.inputColor = Float4Parameter("Color", .one, .zero, .one, .colorpicker)
         self.outputMaterial = NodePort<Material>(name: "Material", kind: .Outlet)
@@ -44,7 +44,7 @@ class BasicColorMaterialNode : BaseMaterialNode
         case outputMaterialPort
     }
     
-    required init(from decoder: any Decoder) throws {
+    public required init(from decoder: any Decoder) throws {
         
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
@@ -55,7 +55,7 @@ class BasicColorMaterialNode : BaseMaterialNode
         try super.init(from: decoder)
     }
     
-    override func encode(to encoder:Encoder) throws
+    public override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -65,13 +65,13 @@ class BasicColorMaterialNode : BaseMaterialNode
         try super.encode(to: encoder)
     }
     
-    override func evaluate(material:Material, atTime:TimeInterval)
+    public override func evaluate(material:Material, atTime:TimeInterval)
     {
         super.evaluate(material: material, atTime: atTime)
         self.material.color = self.inputColor.value
     }
     
-    override  func evaluate(atTime:TimeInterval,
+    public override func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)
     {

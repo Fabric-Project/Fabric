@@ -12,14 +12,14 @@ import Satin
 import simd
 import Metal
 
-class SkyboxMaterialNode : BaseMaterialNode
+public class SkyboxMaterialNode : BaseMaterialNode
 {
-    override class var name:String {  "Skybox Material" }
+    public override class var name:String {  "Skybox Material" }
 
     // Parameters
-    let inputEnvironmentIntensity:FloatParameter
-    let inputBlur:FloatParameter
-    override var inputParameters: [any Parameter] { [inputEnvironmentIntensity, inputBlur] + super.inputParameters }
+    public let inputEnvironmentIntensity:FloatParameter
+    public let inputBlur:FloatParameter
+    public override var inputParameters: [any Parameter] { [inputEnvironmentIntensity, inputBlur] + super.inputParameters }
     
     // Ports
 
@@ -28,16 +28,16 @@ class SkyboxMaterialNode : BaseMaterialNode
     // Hrm?
     
 //    let inputTexture:NodePort<EquatableTexture> = NodePort<EquatableTexture>(name: "Texture", kind: .Inlet)
-    let outputMaterial:NodePort<Material>
-    override var ports: [any NodePortProtocol] {  super.ports + [outputMaterial] }
+    public let outputMaterial:NodePort<Material>
+    public override var ports: [any NodePortProtocol] {  super.ports + [outputMaterial] }
 
-    override var material: SkyboxMaterial {
+    public override var material: SkyboxMaterial {
         return _material
     }
     
     private var _material = SkyboxMaterial()
     
-    required init(context:Context)
+    public required init(context:Context)
     {
         // self.inputTexture =  NodePort<EquatableTexture>(name: "Texture", kind: .Inlet)
         self.inputEnvironmentIntensity = FloatParameter("Environment Intensity", 1.0, 0.0, 1.0, .slider)
@@ -58,7 +58,7 @@ class SkyboxMaterialNode : BaseMaterialNode
         case outputMaterialPort
     }
 
-    required init(from decoder: any Decoder) throws
+    public required init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
@@ -69,7 +69,7 @@ class SkyboxMaterialNode : BaseMaterialNode
         try super.init(from: decoder)
     }
     
-    override func encode(to encoder:Encoder) throws
+    public override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -80,7 +80,7 @@ class SkyboxMaterialNode : BaseMaterialNode
         try super.encode(to: encoder)
     }
     
-    override  func evaluate(atTime:TimeInterval,
+    public override func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)
     {

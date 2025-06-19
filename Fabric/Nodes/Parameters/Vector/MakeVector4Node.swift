@@ -10,26 +10,26 @@ import Satin
 import simd
 import Metal
 
-class MakeVector4Node : Node, NodeProtocol
+public class MakeVector4Node : Node, NodeProtocol
 {
-    static let name = "Vector 4"
-    static var nodeType = Node.NodeType.Parameter(parameterType: .Vector)
+    public static let name = "Vector 4"
+    public static var nodeType = Node.NodeType.Parameter(parameterType: .Vector)
 
     // Params
-    let inputXParam:FloatParameter
-    let inputYParam:FloatParameter
-    let inputZParam:FloatParameter
-    let inputWParam:FloatParameter
+    public let inputXParam:FloatParameter
+    public let inputYParam:FloatParameter
+    public let inputZParam:FloatParameter
+    public let inputWParam:FloatParameter
 
     override var inputParameters: [any Parameter] {  [inputXParam, inputYParam, inputZParam, inputWParam]}
 
     // Ports
-    let outputVector:NodePort<simd_float4>
-    override var ports: [any NodePortProtocol] { super.ports + [outputVector] }
+    public let outputVector:NodePort<simd_float4>
+    public override var ports: [any NodePortProtocol] { super.ports + [outputVector] }
     
     private var vector = simd_float4(repeating: 0)
 
-    required init(context: Context)
+    public required init(context: Context)
     {
         self.inputXParam = FloatParameter("X", 0.0, .inputfield)
         self.inputYParam = FloatParameter("Y", 0.0, .inputfield)
@@ -49,7 +49,7 @@ class MakeVector4Node : Node, NodeProtocol
         case outputVectorPort
     }
     
-    override func encode(to encoder:Encoder) throws
+    public override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -62,7 +62,7 @@ class MakeVector4Node : Node, NodeProtocol
         try super.encode(to: encoder)
     }
     
-    required init(from decoder: any Decoder) throws
+    public required init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -75,9 +75,9 @@ class MakeVector4Node : Node, NodeProtocol
         try super.init(from: decoder)
     }
     
-    override  func evaluate(atTime:TimeInterval,
-                            renderPassDescriptor: MTLRenderPassDescriptor,
-                            commandBuffer: MTLCommandBuffer)
+    public override func evaluate(atTime:TimeInterval,
+                                  renderPassDescriptor: MTLRenderPassDescriptor,
+                                  commandBuffer: MTLCommandBuffer)
     {
         self.vector = simd_float4(inputXParam.value,
                                   inputYParam.value,

@@ -11,21 +11,21 @@ import Satin
 import simd
 import Metal
 
-class BasicTextureMaterialNode : BasicColorMaterialNode
+public class BasicTextureMaterialNode : BasicColorMaterialNode
 {
-    override class var name:String {  "Texture Material" }
+    public override class var name:String {  "Texture Material" }
 
     // Ports
-    let inputTexture:NodePort<EquatableTexture>
-    override var ports: [any NodePortProtocol] {  super.ports + [inputTexture] }
+    public let inputTexture:NodePort<EquatableTexture>
+    public override var ports: [any NodePortProtocol] {  super.ports + [inputTexture] }
     
-    override var material: BasicTextureMaterial {
+    public override var material: BasicTextureMaterial {
         return _material
     }
     
     private var _material = BasicTextureMaterial()
     
-    required init(context:Context)
+    public required init(context:Context)
     {
         self.inputTexture = NodePort<EquatableTexture>(name: "Texture", kind: .Inlet)
         
@@ -39,7 +39,7 @@ class BasicTextureMaterialNode : BasicColorMaterialNode
         case inputTexturePort
     }
     
-    required init(from decoder: any Decoder) throws
+    public required init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -50,20 +50,20 @@ class BasicTextureMaterialNode : BasicColorMaterialNode
         self.material.flipped = true
     }
 
-    override func encode(to encoder: any Encoder) throws
+    public override func encode(to encoder: any Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.inputTexture, forKey: .inputTexturePort)
         try super.encode(to: encoder)
     }
     
-    override func evaluate(material:Material, atTime:TimeInterval)
+    public  override func evaluate(material:Material, atTime:TimeInterval)
     {
         super.evaluate(material: material, atTime: atTime)
         material.depthWriteEnabled = self.inputWriteDepth.value
     }
     
-    override  func evaluate(atTime:TimeInterval,
+    public override func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)
     {

@@ -11,24 +11,24 @@ import Satin
 import simd
 import Metal
 
-class DirectionalLightNode : BaseObjectNode, NodeProtocol
+public class DirectionalLightNode : BaseObjectNode, NodeProtocol
 {
-    static let name = "Directional Light"
-    static var nodeType = Node.NodeType.Light
+    public static let name = "Directional Light"
+    public static var nodeType = Node.NodeType.Light
 
     // Params
-    let inputLookAt: Float3Parameter
-    let inputColor: Float3Parameter
-    let inputIntensity: FloatParameter
-    let inputShadowStrength: FloatParameter
-    let inputShadowRadius: FloatParameter
-    let inputShadowBias: FloatParameter
+    public let inputLookAt: Float3Parameter
+    public let inputColor: Float3Parameter
+    public let inputIntensity: FloatParameter
+    public let inputShadowStrength: FloatParameter
+    public let inputShadowRadius: FloatParameter
+    public let inputShadowBias: FloatParameter
     
-    override var inputParameters: [any Parameter] { super.inputParameters + [inputLookAt, inputColor, inputIntensity, inputShadowStrength, inputShadowRadius, inputShadowBias] }
+    public override var inputParameters: [any Parameter] { super.inputParameters + [inputLookAt, inputColor, inputIntensity, inputShadowStrength, inputShadowRadius, inputShadowBias] }
     
     // Ports
-    let outputLight: NodePort<Object>
-    override var ports: [any NodePortProtocol] { super.ports +  [outputLight] }
+    public let outputLight: NodePort<Object>
+    public override var ports: [any NodePortProtocol] { super.ports +  [outputLight] }
     
     private var light: DirectionalLight =  DirectionalLight(color: [1.0, 1.0, 1.0], intensity: 1.0)
 
@@ -36,7 +36,7 @@ class DirectionalLightNode : BaseObjectNode, NodeProtocol
 //    let lightHelperMat = BasicDiffuseMaterial(hardness: 0.7)
 //    lazy var lightHelperMesh0 = Mesh(geometry: lightHelperGeo, material: lightHelperMat)
 
-    required init(context:Context)
+    public required init(context:Context)
     {
         self.inputLookAt = Float3Parameter("Look At", simd_float3(repeating:0), .inputfield )
         self.inputColor = Float3Parameter("Color", simd_float3(repeating:1), .inputfield )
@@ -77,7 +77,7 @@ class DirectionalLightNode : BaseObjectNode, NodeProtocol
         case outputLightPort
     }
     
-    override func encode(to encoder:Encoder) throws
+    public override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -93,7 +93,7 @@ class DirectionalLightNode : BaseObjectNode, NodeProtocol
         try super.encode(to: encoder)
     }
 
-    required init(from decoder: any Decoder) throws
+    public required init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -108,7 +108,7 @@ class DirectionalLightNode : BaseObjectNode, NodeProtocol
         try super.init(from: decoder)
     }
 
-    override func evaluate(atTime:TimeInterval,
+    public override func evaluate(atTime:TimeInterval,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {

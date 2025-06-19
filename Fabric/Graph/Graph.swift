@@ -6,7 +6,7 @@
 //
 import SwiftUI
 import Satin
-import AnyCodable
+internal import AnyCodable
 
 @Observable public class Graph : Codable, Identifiable, Hashable, Equatable
 {
@@ -14,7 +14,6 @@ import AnyCodable
     {
         case alpha1
     }
-    
     
     public static func == (lhs: Graph, rhs: Graph) -> Bool
     {

@@ -10,17 +10,17 @@ import Satin
 import simd
 import Metal
 
-class TrueNode : Node, NodeProtocol
+public class TrueNode : Node, NodeProtocol
 {
-    static let name = "True"
-    static var nodeType = Node.NodeType.Parameter(parameterType: .Boolean)
+    public static let name = "True"
+    public static var nodeType = Node.NodeType.Parameter(parameterType: .Boolean)
 
     // Ports
-    let outputBoolean: NodePort<Bool>
+    public let outputBoolean: NodePort<Bool>
 
-    override var ports: [any NodePortProtocol] { [outputBoolean] }
+    public override var ports: [any NodePortProtocol] { [outputBoolean] }
     
-    required init(context: Context)
+    public required init(context: Context)
     {
         outputBoolean = NodePort<Bool>(name: "True" , kind: .Outlet)
 
@@ -32,7 +32,7 @@ class TrueNode : Node, NodeProtocol
         case outputBooleanPort
     }
     
-    override func encode(to encoder:Encoder) throws
+    public override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -41,7 +41,7 @@ class TrueNode : Node, NodeProtocol
         try super.encode(to: encoder)
     }
     
-    required init(from decoder: any Decoder) throws
+    public required init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -50,7 +50,7 @@ class TrueNode : Node, NodeProtocol
         try super.init(from: decoder)
     }
     
-    override  func evaluate(atTime:TimeInterval,
+    public override func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)
     {
