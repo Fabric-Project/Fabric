@@ -21,7 +21,7 @@ public class NumberRemapNode : Node, NodeProtocol
     public let inputNewMinNumber:GenericParameter<Float>
     public let inputNewMaxNumber:GenericParameter<Float>
 
-    opublic verride var inputParameters:[any Parameter]  { super.inputParameters + [inputNumber,
+    public override var inputParameters:[any Parameter]  { super.inputParameters + [inputNumber,
                                                                              inputMinNumber,
                                                                              inputMaxNumber,
                                                                              inputNewMinNumber,

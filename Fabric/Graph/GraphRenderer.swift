@@ -10,7 +10,7 @@ import Metal
 import Satin
 
 // Graph Execution Engine
-public class GraphExecutionEngine : MetalViewRenderer
+public class GraphRenderer : MetalViewRenderer
 {
     private var lastGraphExecutionTime = Date.timeIntervalSinceReferenceDate
 
@@ -27,7 +27,11 @@ public class GraphExecutionEngine : MetalViewRenderer
     
     // MARK: - Rendering
 
-    public func execute(graph:Graph, atTime time:TimeInterval, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer:MTLCommandBuffer)
+    public func execute(graph:Graph,
+                        atTime time:TimeInterval,
+                        evalutationContext:GraphEvaluationContext,
+                        renderPassDescriptor: MTLRenderPassDescriptor,
+                        commandBuffer:MTLCommandBuffer)
     {
         var nodesWeAreExecuting:[Node] = []
         let delta = time - self.lastGraphExecutionTime
@@ -38,6 +42,7 @@ public class GraphExecutionEngine : MetalViewRenderer
         {
             let _ = processGraph(graph:graph,
                                  node: renderNode,
+                                 evalutationContext:evalutationContext,
                                  renderPassDescriptor: renderPassDescriptor,
                                  commandBuffer: commandBuffer,
                                  atTime:time,
@@ -49,6 +54,7 @@ public class GraphExecutionEngine : MetalViewRenderer
 
     private func processGraph(graph:Graph,
                               node: Node,
+                              evalutationContext:GraphEvaluationContext,
                               renderPassDescriptor: MTLRenderPassDescriptor,
                               commandBuffer: MTLCommandBuffer,
                               atTime time:TimeInterval,
@@ -62,6 +68,7 @@ public class GraphExecutionEngine : MetalViewRenderer
         {
             processGraph(graph: graph,
                          node: node,
+                         evalutationContext:evalutationContext,
                          renderPassDescriptor: renderPassDescriptor,
                          commandBuffer: commandBuffer,
                          atTime: time,
@@ -79,10 +86,13 @@ public class GraphExecutionEngine : MetalViewRenderer
         }
     }
     
-    public override  func draw(renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
+    public override func draw(renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
     {
+        let evaluationContext = GraphEvaluationContext()
+        
         self.execute(graph:self.graph,
                      atTime: Date.timeIntervalSinceReferenceDate,
+                     evalutationContext: evaluationContext,
                      renderPassDescriptor: renderPassDescriptor,
                      commandBuffer: commandBuffer)
     }

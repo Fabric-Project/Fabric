@@ -23,12 +23,12 @@ struct FabricDocument: FileDocument {
     @ObservationIgnored let context = Context(device: MTLCreateSystemDefaultDevice()!, sampleCount: 1, colorPixelFormat: MTLPixelFormat.bgra8Unorm, depthPixelFormat: .depth32Float)
     
     let graph:Graph
-    @ObservationIgnored let graphRenderer:GraphExecutionEngine
+    @ObservationIgnored let graphRenderer:GraphRenderer
     
     init()
     {
         self.graph = Graph(context: self.context)
-        self.graphRenderer = GraphExecutionEngine(context: self.context, graph: self.graph)
+        self.graphRenderer = GraphRenderer(context: self.context, graph: self.graph)
 
         let boxNode = BoxGeometryNode(context: self.context)
 //        let materialNode = BasicColorMaterialNode(context: self.context)
@@ -70,7 +70,7 @@ struct FabricDocument: FileDocument {
         
         self.graph =  try decoder.decode(Graph.self, from: data)
 
-        self.graphRenderer = GraphExecutionEngine(context: self.context, graph: self.graph)
+        self.graphRenderer = GraphRenderer(context: self.context, graph: self.graph)
     }
     
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper
