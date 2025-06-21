@@ -75,15 +75,15 @@ public class MakeVector4Node : Node, NodeProtocol
         try super.init(from: decoder)
     }
     
-    public override func evaluate(atTime:TimeInterval,
-                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                  commandBuffer: MTLCommandBuffer)
+    public override func execute(context:GraphExecutionContext,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         self.vector = simd_float4(inputXParam.value,
                                   inputYParam.value,
                                   inputZParam.value,
                                   inputWParam.value)
-
+        
         self.outputVector.send( self.vector )
-     }
+    }
 }

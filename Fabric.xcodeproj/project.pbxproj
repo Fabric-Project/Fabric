@@ -103,7 +103,7 @@
 				Fabric.h,
 				Fabric.xcassets,
 				Graph/Graph.swift,
-				Graph/GraphEvaluationContext.swift,
+				Graph/GraphExecutionContext.swift,
 				Graph/GraphRenderer.swift,
 				Graph/TimeStampedFrameCache.swift,
 				Nodes/Geometry/BoxGeometryNode.swift,

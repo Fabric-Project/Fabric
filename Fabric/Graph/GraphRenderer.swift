@@ -13,7 +13,7 @@ import Satin
 public class GraphRenderer : MetalViewRenderer
 {
     private var lastGraphExecutionTime = Date.timeIntervalSinceReferenceDate
-
+    private var executionCount = 0
     public var context:Context!
     
     public let graph:Graph
@@ -28,13 +28,13 @@ public class GraphRenderer : MetalViewRenderer
     // MARK: - Rendering
 
     public func execute(graph:Graph,
-                        atTime time:TimeInterval,
-                        evalutationContext:GraphEvaluationContext,
+                        executionContext:GraphExecutionContext,
                         renderPassDescriptor: MTLRenderPassDescriptor,
                         commandBuffer:MTLCommandBuffer)
     {
+        self.executionCount += 1
+        
         var nodesWeAreExecuting:[Node] = []
-        let delta = time - self.lastGraphExecutionTime
 
         let renderNodes = graph.nodes.filter( { $0.nodeType == .Renderer })
         
@@ -42,22 +42,19 @@ public class GraphRenderer : MetalViewRenderer
         {
             let _ = processGraph(graph:graph,
                                  node: renderNode,
-                                 evalutationContext:evalutationContext,
+                                 executionContext:executionContext,
                                  renderPassDescriptor: renderPassDescriptor,
                                  commandBuffer: commandBuffer,
-                                 atTime:time,
                                  nodesWeAreExecuting:&nodesWeAreExecuting)
         }
         
-        self.lastGraphExecutionTime = time
     }
 
     private func processGraph(graph:Graph,
                               node: Node,
-                              evalutationContext:GraphEvaluationContext,
+                              executionContext:GraphExecutionContext,
                               renderPassDescriptor: MTLRenderPassDescriptor,
                               commandBuffer: MTLCommandBuffer,
-                              atTime time:TimeInterval,
                               nodesWeAreExecuting:inout  [Node],
                               pruningNodes:[Node] = [])
     {
@@ -68,33 +65,48 @@ public class GraphRenderer : MetalViewRenderer
         {
             processGraph(graph: graph,
                          node: node,
-                         evalutationContext:evalutationContext,
+                         executionContext:executionContext,
                          renderPassDescriptor: renderPassDescriptor,
                          commandBuffer: commandBuffer,
-                         atTime: time,
                          nodesWeAreExecuting: &nodesWeAreExecuting,
                          pruningNodes:inputNodes)
         }
         
         if node.isDirty
         {
-            node.evaluate(atTime: time, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+            node.execute(context: executionContext,
+                         renderPassDescriptor: renderPassDescriptor,
+                         commandBuffer: commandBuffer)
             
+            // TODO: This should be handled inside of the base node class no?
             node.isDirty = false
-
-            node.lastEvaluationTime = time
+            node.lastEvaluationTime = executionContext.timing.time
         }
     }
     
     public override func draw(renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
     {
-        let evaluationContext = GraphEvaluationContext()
+        let currentRenderTime = Date.timeIntervalSinceReferenceDate
+        
+        // TODO: This becomes more semantically correct later
+        let timing = GraphExecutionTiming(time: currentRenderTime,
+                                          deltaTime: currentRenderTime - self.lastGraphExecutionTime,
+                                          displayTime: currentRenderTime,
+                                          systemTime: currentRenderTime,
+                                          frameNumber: self.executionCount)
+        
+        let graphExecutionContext = GraphExecutionContext(context: self.context,
+                                                          timing: timing,
+                                                          iterationInfo: nil,
+                                                          eventInfo: nil)
         
         self.execute(graph:self.graph,
-                     atTime: Date.timeIntervalSinceReferenceDate,
-                     evalutationContext: evaluationContext,
+                     executionContext: graphExecutionContext,
                      renderPassDescriptor: renderPassDescriptor,
                      commandBuffer: commandBuffer)
+        
+        self.lastGraphExecutionTime = currentRenderTime
+
     }
     
     override public func resize(size: (width: Float, height: Float), scaleFactor: Float)

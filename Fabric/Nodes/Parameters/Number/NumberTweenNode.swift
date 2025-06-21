@@ -69,9 +69,9 @@ public class NumberEaseNode : Node, NodeProtocol
         try super.init(from: decoder)
     }
     
-    public override func evaluate(atTime:TimeInterval,
-                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                  commandBuffer: MTLCommandBuffer)
+    public override func execute(context:GraphExecutionContext,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {        
         let loopedTime = self.inputTimeParam.value//.truncatingRemainder(dividingBy: duration)
 

@@ -65,25 +65,20 @@ public class ModelMeshNode : MeshNode
         try super.init(from: decoder)
     }
     
-    public override func evaluate(atTime:TimeInterval,
-                            renderPassDescriptor: MTLRenderPassDescriptor,
-                            commandBuffer: MTLCommandBuffer)
+    public override func execute(context:GraphExecutionContext,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
-        
-        
-        
         if let mesh = mesh
         {
-            self.evaluate(object: mesh, atTime: atTime)
-
-//            self.mesh.
-//            
-//            mesh.castShadow = self.inputCastsShadow.value
-//            mesh.receiveShadow = self.inputCastsShadow.value
+            self.evaluate(object: mesh, atTime: context.timing.time)
 
             self.outputMesh.send(mesh)
         }
+        else
+        {
+            self.outputMesh.send(nil)
+        }
     }
-    
 }
 

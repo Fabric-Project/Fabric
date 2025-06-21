@@ -104,10 +104,10 @@ public class DeferredRenderNode : Node, NodeProtocol
 
         try super.encode(to: encoder)
     }
-
-    public override func evaluate(atTime:TimeInterval,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    
+    public override func execute(context:GraphExecutionContext,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         if let object = self.inputScene.value,
            let camera = self.inputCamera.value

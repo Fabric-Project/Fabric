@@ -69,12 +69,12 @@ public class GradientNoiseNode : Node, NodeProtocol
         try super.init(from: decoder)
     }
     
-    public override func evaluate(atTime:TimeInterval,
+    public override func execute(context:GraphExecutionContext,
                                   renderPassDescriptor: MTLRenderPassDescriptor,
                                   commandBuffer: MTLCommandBuffer)
     {
         //self.fbm.frequency_scaled(by: Double(self.inputFrequency.value) )
         
-        self.outputNumber.send( Float( self.fbm.evaluate(atTime, 0.0) )  )
+        self.outputNumber.send( Float( self.fbm.evaluate(context.timing.time, 0.0) )  )
     }
 }

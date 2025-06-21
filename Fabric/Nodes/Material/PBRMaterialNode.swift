@@ -70,12 +70,12 @@ class PBRMaterialNode : StandardMaterialNode
     
     private var _material = PhysicalMaterial()
 
-    override  func evaluate(atTime:TimeInterval,
+    override  func execute(context:GraphExecutionContext,
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)
     {
         
-        self.evaluate(material: self.material, atTime: atTime)
+        self.evaluate(material: self.material, atTime: context.timing.time)
 
         self.material.baseColor = self.inputBaseColor.value
         self.material.emissiveColor = self.inputEmissiveColor.value

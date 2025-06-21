@@ -49,9 +49,9 @@ public class SkyboxGeometryNode : Node, NodeProtocol
     }
 
     
-    public override func evaluate(atTime:TimeInterval,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    public override func execute(context:GraphExecutionContext,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
             
         self.outputGeometry.send(self.geometry)

@@ -66,11 +66,10 @@ class LoadTextureNode : Node, NodeProtocol
         self.loadTextureFromInputValue()
     }
     
-    override  func evaluate(atTime:TimeInterval,
-                            renderPassDescriptor: MTLRenderPassDescriptor,
-                            commandBuffer: MTLCommandBuffer)
+    override  func execute(context:GraphExecutionContext,
+                           renderPassDescriptor: MTLRenderPassDescriptor,
+                           commandBuffer: MTLCommandBuffer)
     {
-        
         self.loadTextureFromInputValue()
 
         if let texture = self.texture

@@ -74,9 +74,9 @@ public class BoxGeometryNode : Node, NodeProtocol
         try super.init(from: decoder)
     }
     
-    override public func evaluate(atTime:TimeInterval,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    override public func execute(context:GraphExecutionContext,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         self.geometry.width = self.inputWidthParam.value
         

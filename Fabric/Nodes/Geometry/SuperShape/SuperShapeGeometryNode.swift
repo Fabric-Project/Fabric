@@ -189,11 +189,10 @@ class SuperShapeGeometryNode : Node, NodeProtocol
     override var ports:[any NodePortProtocol] { super.ports + [outputGeometry] }
     
     
-    override func evaluate(atTime:TimeInterval,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    override func execute(context:GraphExecutionContext,
+                          renderPassDescriptor: MTLRenderPassDescriptor,
+                          commandBuffer: MTLCommandBuffer)
     {
-       
         self.geometry.r1 = r1Param.value
         self.geometry.a1 = a1Param.value
         self.geometry.b1 = b1Param.value

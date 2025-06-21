@@ -56,10 +56,10 @@ public class CurrentTimeNode : Node, NodeProtocol
         try super.init(from: decoder)
     }
     
-    public override func evaluate(atTime:TimeInterval,
-                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                  commandBuffer: MTLCommandBuffer)
+    public override func execute(context:GraphExecutionContext,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
-        self.outputNumber.send( Float(atTime - startTime) )
+        self.outputNumber.send( Float(context.timing.time - startTime) )
     }
 }

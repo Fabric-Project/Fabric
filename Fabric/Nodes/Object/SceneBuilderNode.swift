@@ -131,9 +131,9 @@ public class SceneBuilderNode : BaseObjectNode, NodeProtocol
         try super.init(from: decoder)
     }
     
-    public override func evaluate(atTime:TimeInterval,
-                            renderPassDescriptor: MTLRenderPassDescriptor,
-                            commandBuffer: MTLCommandBuffer)
+    public override func execute(context:GraphExecutionContext,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         var scene:[Object] = []
         if let v = inputEnvironment.value {
@@ -160,10 +160,9 @@ public class SceneBuilderNode : BaseObjectNode, NodeProtocol
         if let v = inputObject9.value { scene.append(v) }
         if let v = inputObject10.value { scene.append(v) }
 
-        
         self.object.children = scene
         
-        self.evaluate(object: self.object, atTime: atTime)
+        self.evaluate(object: self.object, atTime: context.timing.time)
         
         outputScene.send(self.object)
     }

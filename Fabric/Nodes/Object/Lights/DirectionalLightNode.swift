@@ -108,9 +108,9 @@ public class DirectionalLightNode : BaseObjectNode, NodeProtocol
         try super.init(from: decoder)
     }
 
-    public override func evaluate(atTime:TimeInterval,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    public override func execute(context:GraphExecutionContext,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         self.light.color = self.inputColor.value
         self.light.intensity = self.inputIntensity.value
@@ -118,7 +118,7 @@ public class DirectionalLightNode : BaseObjectNode, NodeProtocol
         self.light.shadow.radius = self.inputShadowRadius.value
         self.light.shadow.bias = self.inputShadowBias.value
 
-        self.evaluate(object: self.light, atTime: atTime)
+        self.evaluate(object: self.light, atTime: context.timing.time)
         
         self.light.lookAt(target: self.inputLookAt.value)
         

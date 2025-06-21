@@ -39,13 +39,13 @@ class ShadowMaterialNode : BaseMaterialNode
     {
         try super.init(from: decoder)
     }
-
-    override  func evaluate(atTime:TimeInterval,
-                            renderPassDescriptor: MTLRenderPassDescriptor,
-                            commandBuffer: MTLCommandBuffer)
+    
+    override  func execute(context:GraphExecutionContext,
+                           renderPassDescriptor: MTLRenderPassDescriptor,
+                           commandBuffer: MTLCommandBuffer)
     {
-        self.evaluate(material: self.material, atTime: atTime)
-
+        self.evaluate(material: self.material, atTime: context.timing.time)
+        
         self.outputMaterial.send(self.material)
-     }
+    }
 }

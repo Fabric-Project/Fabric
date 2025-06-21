@@ -27,7 +27,12 @@ public protocol NodeProtocol : Codable
 
     var ports: [any NodePortProtocol] { get }
     var parameterGroup:ParameterGroup { get }
-    func evaluate(atTime:TimeInterval,
+    
+//    func startEvaluation(context:Context, evaluationContext:GraphEvaluationContext)
+//    func enableEvaluation(context:Context, evaluationContext:GraphEvaluationContext)
+
+    /// Performs the processing or rendering tasks appropriate for the custom patch.
+    func execute(context:GraphExecutionContext,
                   renderPassDescriptor: MTLRenderPassDescriptor,
                   commandBuffer: MTLCommandBuffer)
     
@@ -158,7 +163,7 @@ public protocol NodeProtocol : Codable
             case .Object:
                 return Color.nodeObject
                 
-            case .Parameter(let paramType):
+            case .Parameter(_):
                 return Color(hue: 0, saturation: 0, brightness: 0.3)
             }
         }
@@ -350,7 +355,7 @@ public protocol NodeProtocol : Codable
         return cancellable
     }
     
-    public func evaluate(atTime:TimeInterval,
+    public func execute(context:GraphExecutionContext,
                          renderPassDescriptor: MTLRenderPassDescriptor,
                          commandBuffer: MTLCommandBuffer)
     {

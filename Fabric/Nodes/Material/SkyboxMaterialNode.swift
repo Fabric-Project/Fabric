@@ -80,12 +80,11 @@ public class SkyboxMaterialNode : BaseMaterialNode
         try super.encode(to: encoder)
     }
     
-    public override func evaluate(atTime:TimeInterval,
-                            renderPassDescriptor: MTLRenderPassDescriptor,
-                            commandBuffer: MTLCommandBuffer)
+    public override func execute(context:GraphExecutionContext,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
-       
-        self.evaluate(material: self.material, atTime: atTime)
+        self.evaluate(material: self.material, atTime: context.timing.time)
 
         self.material.environmentIntensity = self.inputEnvironmentIntensity.value
         self.material.blur = self.inputBlur.value

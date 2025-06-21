@@ -65,9 +65,9 @@ class NumberModuloNode : Node, NodeProtocol
         try super.init(from: decoder)
     }
     
-    override  func evaluate(atTime:TimeInterval,
-                            renderPassDescriptor: MTLRenderPassDescriptor,
-                            commandBuffer: MTLCommandBuffer)
+    override  func execute(context:GraphExecutionContext,
+                           renderPassDescriptor: MTLRenderPassDescriptor,
+                           commandBuffer: MTLCommandBuffer)
     {
         self.outputNumber.send(self.inputAParam.value.truncatingRemainder(dividingBy:self.inputBParam.value) )
     }

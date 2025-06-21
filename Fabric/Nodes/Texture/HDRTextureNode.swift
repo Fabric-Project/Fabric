@@ -76,12 +76,12 @@ class HDRTextureNode : Node, NodeProtocol
         self.loadTextureFromInputValue()
 
     }
-
-    override  func evaluate(atTime:TimeInterval,
-                            renderPassDescriptor: MTLRenderPassDescriptor,
-                            commandBuffer: MTLCommandBuffer)
+    
+    override func execute(context:GraphExecutionContext,
+                           renderPassDescriptor: MTLRenderPassDescriptor,
+                           commandBuffer: MTLCommandBuffer)
     {
-//        if let inputFilePath = self.inputFilePathParam.value
+        //        if let inputFilePath = self.inputFilePathParam.value
 //        {
 //            self.url = URL(fileURLWithPath: inputFilePath)
 //

@@ -92,9 +92,9 @@ public class MeshNode : BaseObjectNode, NodeProtocol
         try super.init(from: decoder)
     }
     
-    public override func evaluate(atTime:TimeInterval,
-                            renderPassDescriptor: MTLRenderPassDescriptor,
-                            commandBuffer: MTLCommandBuffer)
+    public override func execute(context:GraphExecutionContext,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         if let geometery = self.inputGeometry.value,
            let material = self.inputMaterial.value
@@ -116,7 +116,7 @@ public class MeshNode : BaseObjectNode, NodeProtocol
             
             if let mesh = mesh
             {
-                self.evaluate(object: mesh, atTime: atTime)
+                self.evaluate(object: mesh, atTime: context.timing.time)
                 
                 mesh.castShadow = self.inputCastsShadow.value
                 mesh.receiveShadow = self.inputCastsShadow.value

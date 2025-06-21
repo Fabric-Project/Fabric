@@ -64,9 +64,9 @@ public class IcoSphereGeometryNode : Node, NodeProtocol
         try super.init(from: decoder)
     }
     
-    override public func evaluate(atTime:TimeInterval,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    override public func execute(context:GraphExecutionContext,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         self.geometry.radius = self.inputRadius.value
                 
