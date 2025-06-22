@@ -9,7 +9,7 @@ import SwiftUI
 import Satin
 import CoreMedia
 
-public enum PortKind : Codable
+public enum PortKind : String, Codable
 {
     case Inlet
     case Outlet
@@ -20,7 +20,7 @@ public enum PortKind : Codable
 // for value types (ie float, simd_float2, bool etc) we draw left / right
 // this allows for control params to go horizontal while scene content go vertical
 
-public enum PortDirection : Codable
+public enum PortDirection : String, Codable
 {
     case Vertical
     case Horizontal
@@ -47,7 +47,10 @@ public protocol NodePortProtocol : Identifiable, Hashable, Equatable, Codable
     var name: String { get }
     var connections: [any NodePortProtocol] { get set }
     var kind:PortKind { get }
-    var node: Node? { get set }
+    
+    var published:Bool { get set }
+    
+    var node: (any NodeProtocol)? { get set }
 
     func connect(to other: any NodePortProtocol)
     func disconnect(from other: any NodePortProtocol)
@@ -134,10 +137,12 @@ public class NodePort<Value : Equatable>: NodePortProtocol
             }
         }
     }
+    
+    public var published: Bool = false
         
     public var connections: [any NodePortProtocol] = []
     public var kind: PortKind
-    public weak var node: Node?
+    public weak var node: (any NodeProtocol)?
 
     public var direction:PortDirection
     public var color:Color
@@ -151,6 +156,7 @@ public class NodePort<Value : Equatable>: NodePortProtocol
         case name
         case connections
         case kind
+        case published
         case direction
     }
 
@@ -171,7 +177,8 @@ public class NodePort<Value : Equatable>: NodePortProtocol
         self.id = try container.decode(UUID.self, forKey: .id)
         self.name = try container.decode(String.self, forKey: .name)
         self.kind = try container.decode(PortKind.self, forKey: .kind)
-        
+        self.published = try container.decode(Bool.self, forKey: .published)
+
         self.color = Self.calcColor(forType: Value.self)
         self.backgroundColor = Self.calcBackgroundColor(forType: Value.self)
         self.direction = Self.calcDirection(forType: Value.self )
@@ -187,7 +194,8 @@ public class NodePort<Value : Equatable>: NodePortProtocol
         try container.encode(name, forKey: .name)
 //        try container.encode(connections, forKey: .connections)
         try container.encode(kind, forKey: .kind)
-        
+        try container.encode(published, forKey: .published)
+
         let connectedPortIds = self.connections.map( { $0.id } )
         
         try container.encode(connectedPortIds, forKey: .connections)

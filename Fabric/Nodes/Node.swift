@@ -17,163 +17,56 @@ public protocol NodeDelegate : AnyObject
     func shouldDelete(node:Node)
 }
 
-public protocol NodeProtocol : Codable
+public protocol NodeProtocol : AnyObject, Codable, Identifiable
 {
-    init(context:Context)
-    
     static var name:String { get }
     static var nodeType:Node.NodeType { get }
+    
+    var id: UUID { get }
+    
     var nodeType:Node.NodeType { get }
+    var name:String { get }
 
+    init(context:Context)
+
+    var delegate:(any NodeDelegate)? { get set }
+    
     var ports: [any NodePortProtocol] { get }
     var parameterGroup:ParameterGroup { get }
-    
-//    func startEvaluation(context:Context, evaluationContext:GraphEvaluationContext)
-//    func enableEvaluation(context:Context, evaluationContext:GraphEvaluationContext)
-
+      
     /// Performs the processing or rendering tasks appropriate for the custom patch.
     func execute(context:GraphExecutionContext,
-                  renderPassDescriptor: MTLRenderPassDescriptor,
-                  commandBuffer: MTLCommandBuffer)
+                 renderPassDescriptor: MTLRenderPassDescriptor,
+                 commandBuffer: MTLCommandBuffer)
     
-//    func update()
     func resize(size: (width: Float, height: Float), scaleFactor: Float)
+    
+    func markDirty()
+    var isDirty:Bool { get }
 
+    func inputNodes() -> [any NodeProtocol]
+    func outputNodes() -> [any NodeProtocol]
+    
+    var offset: CGSize { get set }
+    var nodeSize: CGSize { get }
+    
+    var isSelected:Bool { get set}
+    var isDragging:Bool { get set }
+
+}
+
+// Optional
+public extension NodeProtocol
+{
+    func startExecution(context:GraphExecutionContext) { }
+    func stopExecution(context:GraphExecutionContext) { }
+
+    func enableExecution(context:GraphExecutionContext) { }
+    func disableExecution(context:GraphExecutionContext) { }
 }
 
 @Observable public class Node :  Equatable, Identifiable, Hashable
 {
-    // Only really used in the UI
-    public enum NodeTypeGroups: String, CaseIterable
-    {
-        case All
-        case SceneGraph // Renderer, Object, Camera, Light, Mesh
-        case Mesh
-        case Image // Texture / Shader
-        case Parameter
-            
-        func nodeTypes() -> [Node.NodeType]
-        {
-            switch self
-            {
-            case .All: return Node.NodeType.allCases
-            case .SceneGraph: return [.Renderer, .Object, .Camera, .Light]
-            case .Mesh: return [.Mesh, .Geometery, .Material]
-            case .Image: return [.Texture, .Shader]
-            case .Parameter: return Node.NodeType.ParameterType.nodeTypes()
-            }
-        }
-        
-        func imageName() -> String
-        {
-            switch self
-            {
-            case .All: return "circle.dotted.circle"
-            case .SceneGraph: return "scale.3d"
-            case .Mesh: return "cube.transparent"
-            case .Image: return "camera.filters"
-            case .Parameter: return "beziercurve"
-            }
-        }
-        
-        func image() -> Image
-        {
-            return SwiftUI.Image(systemName: imageName())
-        }
-    }
-    
-    public enum NodeType : CustomStringConvertible, CaseIterable, Equatable, Hashable
-    {
-        
-        public enum ParameterType : String, CaseIterable, Equatable, Hashable
-        {
-            case Boolean
-            case Number
-            case Vector
-            case Quaternion
-            case Matrix
-            case Color
-            case String
-            
-            static func nodeTypes() -> [Node.NodeType] {
-                return Self.allCases.map{ Node.NodeType.Parameter(parameterType:$0) }
-            }
-        }
-        
-        case Renderer // Renders a scene graph
-        case Object // Scene graph, owns transforms
-        case Camera // Scene graph object
-        case Light // Scene graph object
-        case Mesh // Scene graph object
-        case Geometery
-        case Material
-        case Shader
-        case Texture
-        case Parameter(parameterType:ParameterType)
-        
-        public static var allCases: [Node.NodeType] { return [.Renderer, .Object, .Camera, .Light, .Mesh, .Geometery, .Material, .Shader, .Texture] + ParameterType.nodeTypes() }
-        
-        public var description: String
-        {
-            switch self
-            {
-            case .Renderer: return "Renderer"
-            case .Object: return "Object"
-            case .Camera: return "Camera"
-            case .Light: return "Light"
-            case .Mesh: return "Mesh"
-            case .Geometery: return "Geometery"
-            case .Material: return "Material"
-            case .Shader: return "Shader"
-            case .Texture: return "Texture"
-            case .Parameter(let paramType): return "\(paramType.rawValue) Parameter"
-            }
-      }
-        
-        public func color() -> Color
-        {
-//            return [Color.red, .blue, .green, .yellow, .orange, .pink, .purple, .gray].randomElement( ) ?? .gray
-            
-            switch self
-            {
-            case .Texture:
-                return Color.nodeTexture
-
-            case .Geometery:
-                return Color.nodeGeometry
-
-            case .Camera:
-                return Color.nodeCamera
-                
-            case .Light:
-                return Color.nodeObject
-
-            case .Material:
-                return Color.nodeMaterial
-
-            case .Mesh:
-                return Color.nodeMesh
-                
-            case .Renderer:
-                return Color.nodeRender
-
-            case .Shader:
-                return Color.nodeShader
-                
-            case .Object:
-                return Color.nodeObject
-                
-            case .Parameter(_):
-                return Color(hue: 0, saturation: 0, brightness: 0.3)
-            }
-        }
-        
-        public func backgroundColor() -> Color
-        {
-            return self.color().opacity(0.6)
-        }
-    }
-        
     // Equatable
     public let id:UUID
     
@@ -194,28 +87,28 @@ public protocol NodeProtocol : Codable
                                                         
     @ObservationIgnored private var inputParameterPorts:[any NodePortProtocol] = []
     @ObservationIgnored public var ports:[any NodePortProtocol] { self.inputParameterPorts  }
-        
-    var nodeSize:CGSize = CGSizeMake(150, 100)
 
     @ObservationIgnored var context:Context
     
-    @ObservationIgnored weak var delegate:(any NodeDelegate)? = nil
+    @ObservationIgnored public weak var delegate:(any NodeDelegate)? = nil
         
-    var isSelected:Bool = false
-    var isDragging:Bool = false
-    var showParams:Bool = false
+    public var isSelected:Bool = false
+    public var isDragging:Bool = false
+//    var showParams:Bool = false
 
     @ObservationIgnored public var nodeType:NodeType {
         let myType = type(of: self) as! (any NodeProtocol.Type)
         return  myType.nodeType
     }
     
-    var name : String {
+    public var name : String {
         let myType = type(of: self) as! (any NodeProtocol.Type)
         return  myType.name
     }
     
-    var offset: CGSize = .zero
+    public var nodeSize:CGSize = CGSizeMake(150, 100)
+
+    public var offset: CGSize = .zero
     {
         willSet
         {
@@ -235,7 +128,7 @@ public protocol NodeProtocol : Codable
     }
     
     // Dirty Handling
-    @ObservationIgnored var lastEvaluationTime: TimeInterval = -1
+//    @ObservationIgnored var lastEvaluationTime: TimeInterval = -1
     @ObservationIgnored public var isDirty: Bool = true
     
     // Input Parameter update tracking:
@@ -276,7 +169,7 @@ public protocol NodeProtocol : Codable
         
         for var port in self.ports
         {
-            port.node = self
+            port.node = self as? NodeProtocol
         }
         
         self.nodeSize = self.computeNodeSize()
@@ -308,7 +201,7 @@ public protocol NodeProtocol : Codable
         
         for var port in self.ports
         {
-            port.node = self
+            port.node = self as? NodeProtocol
         }
         
         self.nodeSize = self.computeNodeSize()
@@ -322,20 +215,22 @@ public protocol NodeProtocol : Codable
     }
     
     
-    func inputNodes() -> [Node]
+    public func inputNodes() -> [any NodeProtocol]
     {
         let nodeInputs = self.ports.filter( { $0.kind == .Inlet } )
         let inputNodes = nodeInputs.compactMap { $0.connections.compactMap(\.node) }.flatMap(\.self)
-        
-        return Array(Set(inputNodes))
+  
+        return inputNodes
+//        return Array(Set(inputNodes))
     }
     
-    func outputNodes() -> [Node]
+    public func outputNodes() -> [any NodeProtocol]
     {
         let nodeOutputs = self.ports.filter( { $0.kind == .Outlet } )
         let outputNodes = nodeOutputs.compactMap { $0.connections.compactMap(\.node) }.flatMap(\.self)
-        
-        return Array(Set(outputNodes))
+  
+        return outputNodes
+//        return Array(Set(outputNodes))
     }
     
     public func markDirty()

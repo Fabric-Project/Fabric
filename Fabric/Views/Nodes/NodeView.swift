@@ -12,7 +12,7 @@ struct NodeView : View
 {
     @SwiftUI.Environment(Graph.self) var graph:Graph
 
-    let node:Node
+    let node:(any NodeProtocol)
     
     // Drag to Offset bullshit
     @State var offset = CGSize.zero
@@ -101,7 +101,7 @@ struct NodeView : View
                 ) : self.node.offset
             )
             .gesture(
-                SimultaneousGesture(
+//                SimultaneousGesture(
                     SimultaneousGesture(
                         DragGesture(minimumDistance: 3)
                             .updating($dragOffset) { value, state, _ in
@@ -136,13 +136,13 @@ struct NodeView : View
                             self.node.isSelected.toggle()
 
                         })
-                        ),
+//                        )
                     
-                    TapGesture(count: 2)
-                        .onEnded( { value in
-                            self.node.showParams.toggle()
-//                            self.graph.selectNode(node: self.node, expandSelection: false)
-                        })
+//                    TapGesture(count: 2)
+//                        .onEnded( { value in
+//                            self.node.showParams.toggle()
+////                            self.graph.selectNode(node: self.node, expandSelection: false)
+//                        })
                     
                 )
             )

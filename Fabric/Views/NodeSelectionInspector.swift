@@ -20,7 +20,7 @@ public struct NodeSelectionInspector: View {
         
         List {
             
-            ForEach(selectedNodes) { node in
+            ForEach(selectedNodes, id: \.id) { node in
             
                 Section(header: Text( node.name ) )
                 {

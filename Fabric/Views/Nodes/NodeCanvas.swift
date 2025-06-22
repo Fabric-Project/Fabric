@@ -31,9 +31,9 @@ public struct NodeCanvas : View
             ZStack
             {
                 // Nodes
-                ForEach(self.graph.nodes) { currentNode in
+                ForEach(self.graph.nodes, id: \.id) { currentNode in
                     
-                    NodeView(node: currentNode, offset: currentNode.offset)
+                    NodeView(node: currentNode , offset: currentNode.offset)
                     
                 }
             }

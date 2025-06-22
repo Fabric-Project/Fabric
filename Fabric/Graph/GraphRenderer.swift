@@ -25,8 +25,22 @@ public class GraphRenderer : MetalViewRenderer
         print("Init Graph Execution Engine")
     }
     
-    // MARK: - Rendering
+    public func disableExecution(graph:Graph)
+    {
+        let executionContext = self.currentGraphExecutionContext()
 
+        self.graph.nodes.forEach({ $0.disableExecution(context: executionContext) })
+    }
+    
+    public func enableExecution(graph:Graph)
+    {
+        let executionContext = self.currentGraphExecutionContext()
+
+        self.graph.nodes.forEach({ $0.enableExecution(context: executionContext) })
+    }
+    
+    // MARK: - Rendering
+    
     public func execute(graph:Graph,
                         executionContext:GraphExecutionContext,
                         renderPassDescriptor: MTLRenderPassDescriptor,
@@ -51,12 +65,12 @@ public class GraphRenderer : MetalViewRenderer
     }
 
     private func processGraph(graph:Graph,
-                              node: Node,
+                              node: any NodeProtocol,
                               executionContext:GraphExecutionContext,
                               renderPassDescriptor: MTLRenderPassDescriptor,
                               commandBuffer: MTLCommandBuffer,
                               nodesWeAreExecuting:inout  [Node],
-                              pruningNodes:[Node] = [])
+                              pruningNodes:[any NodeProtocol] = [])
     {
         
         // get the connection for
@@ -79,12 +93,29 @@ public class GraphRenderer : MetalViewRenderer
                          commandBuffer: commandBuffer)
             
             // TODO: This should be handled inside of the base node class no?
-            node.isDirty = false
-            node.lastEvaluationTime = executionContext.timing.time
+            node.markDirty()
+//            node.lastEvaluationTime = executionContext.timing.time
         }
     }
     
     public override func draw(renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
+    {
+        let executionContext = self.currentGraphExecutionContext()
+        self.execute(graph:self.graph,
+                     executionContext: executionContext,
+                     renderPassDescriptor: renderPassDescriptor,
+                     commandBuffer: commandBuffer)
+        
+        self.lastGraphExecutionTime = executionContext.timing.time
+
+    }
+    
+    override public func resize(size: (width: Float, height: Float), scaleFactor: Float)
+    {
+        self.graph.nodes.forEach { $0.resize(size: size, scaleFactor: scaleFactor)}
+    }
+    
+    private func currentGraphExecutionContext() -> GraphExecutionContext
     {
         let currentRenderTime = Date.timeIntervalSinceReferenceDate
         
@@ -95,23 +126,10 @@ public class GraphRenderer : MetalViewRenderer
                                           systemTime: currentRenderTime,
                                           frameNumber: self.executionCount)
         
-        let graphExecutionContext = GraphExecutionContext(context: self.context,
-                                                          timing: timing,
-                                                          iterationInfo: nil,
-                                                          eventInfo: nil)
-        
-        self.execute(graph:self.graph,
-                     executionContext: graphExecutionContext,
-                     renderPassDescriptor: renderPassDescriptor,
-                     commandBuffer: commandBuffer)
-        
-        self.lastGraphExecutionTime = currentRenderTime
-
-    }
-    
-    override public func resize(size: (width: Float, height: Float), scaleFactor: Float)
-    {
-        self.graph.nodes.forEach { $0.resize(size: size, scaleFactor: scaleFactor)}
+        return GraphExecutionContext(context: self.context,
+                                     timing: timing,
+                                     iterationInfo: nil,
+                                     eventInfo: nil)
     }
             
 //            if let inputFrame = self.frameCache.cachedFrame(fromNode: source, atTime: time)

@@ -29,11 +29,11 @@ internal import AnyCodable
     public let version: Graph.Version
     @ObservationIgnored public let context:Context
     
-    private(set) var nodes: [Node]
+    private(set) var nodes: [any NodeProtocol]
     
     var shouldUpdateConnections = false // New property to trigger view update
     
-    @ObservationIgnored weak var lastNode:Node? = nil
+    @ObservationIgnored weak var lastNode:(any NodeProtocol)? = nil
     
     enum CodingKeys : String, CodingKey
     {
@@ -96,11 +96,13 @@ internal import AnyCodable
                     decoder.context = decodeContext
                     
                     let node = try decoder.decode(nodeClass, from: jsonData)
-                    
-                    if let node = node as? Node
-                    {
-                        self.nodes.append(node)
-                    }
+
+                    self.nodes.append(node)
+
+//                    if let node = node as? Node
+//                    {
+//                        self.nodes.append(node as! (any NodeProtocol))
+//                    }
                 }
             }
             catch
@@ -165,19 +167,19 @@ internal import AnyCodable
     
     public func addNodeType(_ nodeType: any NodeProtocol.Type, initialOffset:CGPoint? )
     {
-        if let node = nodeType.init(context: self.context) as? Node
+        let node = nodeType.init(context: self.context)
+        
+        if let initialOffset = initialOffset
         {
-            if let initialOffset = initialOffset
-            {
-                node.offset = CGSize(width:  initialOffset.x - node.nodeSize.width / 2.0,
-                                     height: initialOffset.y - node.nodeSize.height / 4.0)
-            }
-            
-            self.addNode(node)
+            node.offset = CGSize(width:  initialOffset.x - node.nodeSize.width / 2.0,
+                                 height: initialOffset.y - node.nodeSize.height / 4.0)
         }
+        
+        self.addNode(node)
+        
     }
     
-    public func addNode(_ node:Node)
+    public func addNode(_ node:(any NodeProtocol))
     {
         print("Add Node", node.name)
         
@@ -190,7 +192,7 @@ internal import AnyCodable
         //        self.autoConnect(node: node)
     }
     
-    public func node(forID:UUID) -> Node?
+    public func node(forID:UUID) -> (any NodeProtocol)?
     {
         return self.nodes.first(where: { $0.id == forID })
     }
@@ -240,7 +242,7 @@ internal import AnyCodable
 
             let relevantNodes = self.nodes.filter { $0.id != referenceNode.id }
             
-            let distanceDirectionNodeTuples:[(Distance:Double, Direction:NodeSelectionDirection, Node:Node)] = relevantNodes.map {
+            let distanceDirectionNodeTuples:[(Distance:Double, Direction:NodeSelectionDirection, Node:(any NodeProtocol))] = relevantNodes.map {
                 let nodePoint = CGPoint(x: $0.offset.width, y: $0.offset.height)
                 
                 let distance = nodePoint.distance(from: referenceNodePoint)
@@ -282,7 +284,7 @@ internal import AnyCodable
         }
     }
     
-    func selectNode(node:Node, expandSelection:Bool)
+    func selectNode(node:(any NodeProtocol), expandSelection:Bool)
     {
         if !expandSelection
         {
@@ -301,7 +303,7 @@ internal import AnyCodable
         
     }
     
-    func delete(node:Node)
+    func delete(node:(any NodeProtocol))
     {
         node.delegate = nil
         node.ports.forEach { $0.disconnectAll() }
