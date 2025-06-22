@@ -49,7 +49,7 @@
             startingLineNumber = "174"
             endingLineNumber = "174"
             landmarkName = "addNodeType(_:initialOffset:)"
-            landmarkType = "9">
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -65,7 +65,7 @@
             startingLineNumber = "172"
             endingLineNumber = "172"
             landmarkName = "addNodeType(_:initialOffset:)"
-            landmarkType = "9">
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -248,7 +248,7 @@
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "4CDC1CB7-A430-422A-9DD8-4405E9274BFA"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "Satin/Sources/Satin/Core/Material.swift"
@@ -264,7 +264,7 @@
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "E96D41C1-A44C-4AF5-8D49-E587762A05E0"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "Satin/Sources/Satin/Core/Material.swift"
@@ -289,6 +289,22 @@
             startingLineNumber = "55"
             endingLineNumber = "55"
             landmarkName = "evaluate(material:atTime:)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "5C8D37E3-0518-4F05-ACBC-47A6AB9A103E"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Fabric/Nodes/Render/RenderNode.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "34"
+            endingLineNumber = "34"
+            landmarkName = "init(context:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

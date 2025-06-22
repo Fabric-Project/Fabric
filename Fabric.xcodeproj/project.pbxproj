@@ -157,6 +157,7 @@
 				Nodes/Parameters/Vector/MakeVector4Node.swift,
 				Nodes/Render/DeferredRenderNode.swift,
 				Nodes/Render/RenderNode.swift,
+				Nodes/Render/SubgraphNode.swift,
 				Nodes/Texture/HDRTextureNode.swift,
 				Nodes/Texture/LoadTextureNode.swift,
 				Utils/AnyEncodable.swift,

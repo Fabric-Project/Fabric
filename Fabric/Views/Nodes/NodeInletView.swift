@@ -49,6 +49,7 @@ struct NodeInletView: View
                         [ port.id : anchor ]
                     }
                 )
+               
                 .help("\(port.name): \(port.valueType())")
 
             Text(self.port.name)
@@ -57,6 +58,16 @@ struct NodeInletView: View
                 .lineLimit(1)
         }
         .frame(height: 15)
+//        .contextMenu {
+//            
+//            Toggle( self.port.isPublished() ? "Unpublish \(self.port.name)" : "Publish \(self.port.name)",
+//                    isOn: Binding<Bool>.init(get: { return self.port.isPublished() },
+//                                                            set: { val in
+//                
+//                self.port.setPublished(self.port.isPublished() ? false : true)
+//            }))
+//            .toggleStyle(CheckboxToggleStyle())
+//        }
     }
     
     private func processDrop(_ outletData :[OutletData]) -> Bool

@@ -51,8 +51,9 @@ public class GraphRenderer : MetalViewRenderer
         var nodesWeAreExecuting:[Node] = []
 
         let renderNodes = graph.nodes.filter( { $0.nodeType == .Renderer })
-        
-        for renderNode in renderNodes
+        let subgraphNodes = graph.nodes.filter( { $0.nodeType == .Subgraph })
+
+        for renderNode in renderNodes + subgraphNodes
         {
             let _ = processGraph(graph:graph,
                                  node: renderNode,

@@ -29,5 +29,12 @@ struct NodeOutletView: View
                 OutletData(portID: self.port.id)
                             
             )
+//            .contextMenu {
+//                
+//                Toggle("Publish Port", isOn: Binding<Bool>.init(get: { return self.port.isPublished() },
+//                                                                set: { val in
+//                    self.port.setPublished(val)
+//                }))
+//            }
     }
 }

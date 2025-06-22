@@ -169,7 +169,7 @@ public extension NodeProtocol
         
         for var port in self.ports
         {
-            port.node = self as? NodeProtocol
+            port.node = self as? (any NodeProtocol)
         }
         
         self.nodeSize = self.computeNodeSize()
@@ -201,7 +201,7 @@ public extension NodeProtocol
         
         for var port in self.ports
         {
-            port.node = self as? NodeProtocol
+            port.node = self as? (any NodeProtocol)
         }
         
         self.nodeSize = self.computeNodeSize()

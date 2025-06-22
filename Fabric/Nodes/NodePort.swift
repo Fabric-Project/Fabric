@@ -48,7 +48,8 @@ public protocol NodePortProtocol : Identifiable, Hashable, Equatable, Codable
     var connections: [any NodePortProtocol] { get set }
     var kind:PortKind { get }
     
-    var published:Bool { get set }
+//    func setPublished(_ value:Bool)
+//    func isPublished() -> Bool
     
     var node: (any NodeProtocol)? { get set }
 
@@ -138,8 +139,11 @@ public class NodePort<Value : Equatable>: NodePortProtocol
         }
     }
     
-    public var published: Bool = false
-        
+//    private var published: Bool = false
+//    public func setPublished(_ value:Bool) { self.published = value}
+//    public func isPublished() -> Bool { self.published }
+
+    
     public var connections: [any NodePortProtocol] = []
     public var kind: PortKind
     public weak var node: (any NodeProtocol)?
@@ -156,8 +160,8 @@ public class NodePort<Value : Equatable>: NodePortProtocol
         case name
         case connections
         case kind
-        case published
         case direction
+//        case published
     }
 
     required public  init(from decoder: any Decoder) throws
@@ -177,7 +181,7 @@ public class NodePort<Value : Equatable>: NodePortProtocol
         self.id = try container.decode(UUID.self, forKey: .id)
         self.name = try container.decode(String.self, forKey: .name)
         self.kind = try container.decode(PortKind.self, forKey: .kind)
-        self.published = try container.decode(Bool.self, forKey: .published)
+//        self.published = try container.decode(Bool.self, forKey: .published)
 
         self.color = Self.calcColor(forType: Value.self)
         self.backgroundColor = Self.calcBackgroundColor(forType: Value.self)
@@ -187,14 +191,11 @@ public class NodePort<Value : Equatable>: NodePortProtocol
     
     public func encode(to encoder:Encoder) throws
     {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-//        try container.encode(type(of: self.value ?? Value(), forKey: .valueType)
+        var container = encoder.container(keyedBy: CodingKeys.self)        
         try container.encode(id, forKey: .id)
         try container.encode(name, forKey: .name)
-//        try container.encode(connections, forKey: .connections)
         try container.encode(kind, forKey: .kind)
-        try container.encode(published, forKey: .published)
+//        try container.encode(published, forKey: .published)
 
         let connectedPortIds = self.connections.map( { $0.id } )
         

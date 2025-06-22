@@ -65,7 +65,7 @@ extension Node
                 return Self.allCases.map{ Node.NodeType.Parameter(parameterType:$0) }
             }
         }
-        
+        case Subgraph // A graph with exposed published ports
         case Renderer // Renders a scene graph
         case Object // Scene graph, owns transforms
         case Camera // Scene graph object
@@ -83,6 +83,7 @@ extension Node
         {
             switch self
             {
+            case .Subgraph: return "Subgraph"
             case .Renderer: return "Renderer"
             case .Object: return "Object"
             case .Camera: return "Camera"
@@ -123,6 +124,9 @@ extension Node
             case .Renderer:
                 return Color.nodeRender
 
+            case .Subgraph:
+                return Color.nodeRender
+                
             case .Shader:
                 return Color.nodeShader
                 
