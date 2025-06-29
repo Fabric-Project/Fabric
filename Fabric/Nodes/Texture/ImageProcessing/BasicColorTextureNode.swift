@@ -31,7 +31,10 @@ class BasicColorTextureNode : BaseTexturePostProcessNode
         let shaderURL = bundle.url(forResource: "BasicColorTextureNode", withExtension: "metal", subdirectory: "Shaders")
         
         self.postMaterial = PostMaterial(pipelineURL:shaderURL!)
-        self.postProcessor = PostProcessor(context: context)
+        self.postProcessor = PostProcessor(context: context,
+                                           material: self.postMaterial,
+                                           frameBufferOnly: false)
+        self.postProcessor.renderer.colorTextureStorageMode = .private
         super.init(context: context)
     }
     
@@ -43,11 +46,14 @@ class BasicColorTextureNode : BaseTexturePostProcessNode
         }
 
         let bundle = Bundle(for: Self.self)
-        let shaderURL = bundle.url(forResource: "BasicCOlorTexureNode", withExtension: "metal", subdirectory: "Shaders")
+        let shaderURL = bundle.url(forResource: "BasicColorTextureNode", withExtension: "metal", subdirectory: "Shaders")
         
         self.postMaterial = PostMaterial(pipelineURL:shaderURL!)
-        self.postProcessor = PostProcessor(context: decodeContext.documentContext)
-
+        self.postProcessor = PostProcessor(context: decodeContext.documentContext,
+                                           material: self.postMaterial,
+                                           frameBufferOnly: false)
+        self.postProcessor.renderer.colorTextureStorageMode = .private
+        
         try super.init(from: decoder)
     }
     
@@ -67,7 +73,7 @@ class BasicColorTextureNode : BaseTexturePostProcessNode
             self.postProcessor.renderer.size.width = Float(inTex.width)
             self.postProcessor.renderer.size.height = Float(inTex.height)
             
-            self.postProcessor.draw(renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+            self.postProcessor.draw(renderPassDescriptor: MTLRenderPassDescriptor(), commandBuffer: commandBuffer)
             
             if let outTex = self.postProcessor.renderer.colorTexture
             {
@@ -75,5 +81,10 @@ class BasicColorTextureNode : BaseTexturePostProcessNode
                 self.outputTexturePort.send( outputTexture )
             }
         }
+        else
+        {
+            self.outputTexturePort.send( nil )
+        }
+
     }
 }

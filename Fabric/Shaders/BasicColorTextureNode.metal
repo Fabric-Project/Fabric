@@ -6,7 +6,6 @@
 //
 
 #include <metal_stdlib>
-//#include <Satin/Pipelines/FragmentConstants.metal>
 
 using namespace metal;
 
@@ -23,13 +22,8 @@ fragment float4 postFragment( VertexData in [[stage_in]],
     const float aspect = float(renderTex.get_width()) / float(renderTex.get_height());
     
     float2 uv = in.texcoord;
-    uv.x *= aspect;
-    
-    float div = 0.01;
-    int2 cell = repeat( uv, div );
-    
-    float2 suv = float2(cell) * div;
-    suv.x /= aspect;
+//    uv.x *= aspect;
+       
 
-    return renderTex.sample( s, suv );
+    return renderTex.sample( s, uv );
 }
