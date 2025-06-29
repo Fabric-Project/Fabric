@@ -130,8 +130,6 @@ internal import AnyCodable
                 }
             }
         }
-
-        
     }
     
     public func encode(to encoder:Encoder) throws

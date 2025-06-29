@@ -24,6 +24,7 @@ class NodeRegistry {
          
          LoadTextureNode.self,
          HDRTextureNode.self,
+         BasicColorTextureNode.self,
          
          PlaneGeometryNode.self,
          BoxGeometryNode.self,
