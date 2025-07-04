@@ -34,8 +34,6 @@ struct ContentView: View {
             
             ZStack
             {
-                Color.black
-                
                 SatinMetalView(renderer: document.graphRenderer)
                 
                 ScrollView([.horizontal, .vertical])

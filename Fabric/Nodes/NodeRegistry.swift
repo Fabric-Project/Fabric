@@ -21,6 +21,7 @@ class NodeRegistry {
     
     let nodesClasses: [any NodeProtocol.Type] = [
          PerspectiveCameraNode.self,
+         OrthographicCameraNode.self,
          
          LoadTextureNode.self,
          HDRTextureNode.self,

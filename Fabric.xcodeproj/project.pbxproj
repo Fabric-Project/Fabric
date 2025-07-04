@@ -131,6 +131,7 @@
 				Nodes/NodeRegistry.swift,
 				Nodes/NodeType.swift,
 				Nodes/Object/BaseObjectNode.swift,
+				Nodes/Object/Camera/OrthographicCameraNode.swift,
 				Nodes/Object/Camera/PerspectiveCameraNode.swift,
 				Nodes/Object/Lights/DirectionalLightNode.swift,
 				Nodes/Object/MeshNode.swift,
