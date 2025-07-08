@@ -65,6 +65,21 @@ extension Node
                 return Self.allCases.map{ Node.NodeType.Parameter(parameterType:$0) }
             }
         }
+        
+        // Inspired by CIFilter Categories, but uh, different
+        public enum TextureType : String, CaseIterable, Equatable, Hashable
+        {
+            case Loader
+            case ColorAdjust
+            case ColorEffect
+            case Composite
+            case Mix
+            case TileEffect
+            case DistortionEffect
+            case GeometryEffect
+            
+        }
+        
         case Subgraph // A graph with exposed published ports
         case Renderer // Renders a scene graph
         case Object // Scene graph, owns transforms
