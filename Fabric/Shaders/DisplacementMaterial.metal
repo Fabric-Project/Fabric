@@ -59,13 +59,13 @@ vertex CustomVertexData displacementVertex(Vertex in [[stage_in]],
     return out;
 }
 
-fragment half4 displacementFragment( CustomVertexData in [[stage_in]],
-                                     const float2 puv [[point_coord]],
-//                                     const half4 existingColor [[color(0)]],
-
-                                     constant DisplacementUniforms &uniforms [[buffer( FragmentBufferMaterialUniforms )]],
-                                     texture2d<half, access::sample> colorTex [[texture( FragmentTextureCustom0 )]],
-                                     texture2d<half, access::sample> pointSpriteTex [[texture( FragmentTextureCustom1 )]] )
+[[early_fragment_tests]] fragment half4 displacementFragment( CustomVertexData in [[stage_in]],
+                                                             const float2 puv [[point_coord]],
+                                                             //                                     const half4 existingColor [[color(0)]],
+                                                             
+                                                             constant DisplacementUniforms &uniforms [[buffer( FragmentBufferMaterialUniforms )]],
+                                                             texture2d<half, access::sample> colorTex [[texture( FragmentTextureCustom0 )]],
+                                                             texture2d<half, access::sample> pointSpriteTex [[texture( FragmentTextureCustom1 )]] )
 {
     
 //    if (length(puv - float2(0.5)) > 0.5)
