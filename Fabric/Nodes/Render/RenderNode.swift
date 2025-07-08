@@ -31,7 +31,7 @@ public class RenderNode : Node, NodeProtocol
        
     public required init(context:Context)
     {
-        self.renderer = Renderer(context: context)
+        self.renderer = Renderer(context: context, stencilStoreAction: .store, frameBufferOnly:false)
 
         self.inputClearColor = Float4Parameter("Clear Color", simd_float4(repeating:0), .colorpicker)
 
@@ -55,7 +55,7 @@ public class RenderNode : Node, NodeProtocol
             fatalError("Required Decode Context Not set")
         }
         
-        self.renderer = Renderer(context: decodeContext.documentContext, frameBufferOnly:false)
+        self.renderer = Renderer(context: decodeContext.documentContext, stencilStoreAction: .store, frameBufferOnly:false)
         
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -86,7 +86,7 @@ public class RenderNode : Node, NodeProtocol
            let camera = self.inputCamera.value
         {
             self.renderer.clearColor = .init( self.inputClearColor.value )
-                        
+                                 
             renderer.draw(renderPassDescriptor: renderPassDescriptor,
                           commandBuffer: commandBuffer,
                           scene: object,
