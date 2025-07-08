@@ -20,7 +20,11 @@ extension UTType {
 struct FabricDocument: FileDocument {
 
     
-    @ObservationIgnored let context = Context(device: MTLCreateSystemDefaultDevice()!, sampleCount: 1, colorPixelFormat: MTLPixelFormat.bgra8Unorm, depthPixelFormat: .depth32Float)
+    @ObservationIgnored let context = Context(device: MTLCreateSystemDefaultDevice()!,
+                                              sampleCount: 1,
+                                              colorPixelFormat: .rgba16Float,
+                                              depthPixelFormat: .depth32Float,
+                                              stencilPixelFormat: .stencil8)
     
     let graph:Graph
     @ObservationIgnored let graphRenderer:GraphRenderer

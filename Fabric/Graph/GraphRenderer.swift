@@ -18,6 +18,11 @@ public class GraphRenderer : MetalViewRenderer
     
     public let graph:Graph
     
+    override public var sampleCount: Int { self.context.sampleCount }
+    override public var colorPixelFormat: MTLPixelFormat { self.context.colorPixelFormat }
+    override public var depthPixelFormat: MTLPixelFormat { self.context.depthPixelFormat }
+    override public var stencilPixelFormat: MTLPixelFormat { self.context.stencilPixelFormat }
+    
     public init(context:Context, graph:Graph)
     {
         self.context = context
