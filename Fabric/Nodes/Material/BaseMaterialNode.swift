@@ -16,6 +16,10 @@ public class BaseMaterialNode : Node, NodeProtocol
     public class var name:String {  "Material" }
     public class var nodeType:Node.NodeType { .Material }
 
+    // Ports
+    public let outputMaterial:NodePort<Material>
+    public override var ports: [any NodePortProtocol] { super.ports + [ self.outputMaterial] }
+    
     // Params
     public let inputReceivesLighting:BoolParameter
     public let inputWriteDepth:BoolParameter
@@ -26,6 +30,8 @@ public class BaseMaterialNode : Node, NodeProtocol
                                                                              self.inputBlending,
     ] }
     
+    
+    
     open var material: Material {
         fatalError("Subclasses must override material")
     }
@@ -33,9 +39,12 @@ public class BaseMaterialNode : Node, NodeProtocol
     
     public required init(context: Context) {
         
+        
         self.inputReceivesLighting = BoolParameter("Receives Lighting", true, .button)
         self.inputWriteDepth = BoolParameter("Write Depth", true, .button)
         self.inputBlending = StringParameter("Blending Mode", "Disabled", ["Disabled", "Alpha", "Additive", "Subtractive"], .dropdown)
+
+        self.outputMaterial = NodePort<Material>(name: "Material", kind: .Outlet)
 
         super.init(context: context)
     }
@@ -45,6 +54,7 @@ public class BaseMaterialNode : Node, NodeProtocol
         case inputReceivesLightingParam
         case inputWriteDepthParam
         case inputBlendingParam
+        case outputMaterialPort
     }
     
     public override func encode(to encoder:Encoder) throws
@@ -54,6 +64,7 @@ public class BaseMaterialNode : Node, NodeProtocol
         try container.encode(self.inputReceivesLighting, forKey: .inputReceivesLightingParam)
         try container.encode(self.inputWriteDepth, forKey: .inputWriteDepthParam)
         try container.encode(self.inputBlending, forKey: .inputBlendingParam)
+        try container.encode(self.outputMaterial, forKey: .outputMaterialPort)
 
         try super.encode(to: encoder)
     }
@@ -69,6 +80,8 @@ public class BaseMaterialNode : Node, NodeProtocol
         
         self.inputBlending.options = ["Disabled", "Alpha", "Additive", "Subtractive"]
         
+        self.outputMaterial = try container.decode(NodePort<Material>.self, forKey: .outputMaterialPort)
+
         try super.init(from: decoder)
     }
     
@@ -77,6 +90,7 @@ public class BaseMaterialNode : Node, NodeProtocol
         material.blending = self.blendingMode()
         material.lighting = self.inputReceivesLighting.value
         material.depthWriteEnabled = self.inputWriteDepth.value
+        material.depthCompareFunction = (self.inputWriteDepth.value) ? .greaterEqual : .always
     }
     
     private func blendingMode() -> Blending

@@ -86,7 +86,7 @@ public class RenderNode : Node, NodeProtocol
            let camera = self.inputCamera.value
         {
             self.renderer.clearColor = .init( self.inputClearColor.value )
-            
+                        
             renderer.draw(renderPassDescriptor: renderPassDescriptor,
                           commandBuffer: commandBuffer,
                           scene: object,

@@ -21,16 +21,7 @@ public class SkyboxMaterialNode : BaseMaterialNode
     public let inputBlur:FloatParameter
     public override var inputParameters: [any Parameter] { [inputEnvironmentIntensity, inputBlur] + super.inputParameters }
     
-    // Ports
-
-    // I cant tell if this is a good idea
-    // We can either use the Scene Builder or an Dedicated Environment node?
-    // Hrm?
     
-//    let inputTexture:NodePort<EquatableTexture> = NodePort<EquatableTexture>(name: "Texture", kind: .Inlet)
-    public let outputMaterial:NodePort<Material>
-    public override var ports: [any NodePortProtocol] {  super.ports + [outputMaterial] }
-
     public override var material: SkyboxMaterial {
         return _material
     }
@@ -42,7 +33,6 @@ public class SkyboxMaterialNode : BaseMaterialNode
         // self.inputTexture =  NodePort<EquatableTexture>(name: "Texture", kind: .Inlet)
         self.inputEnvironmentIntensity = FloatParameter("Environment Intensity", 1.0, 0.0, 1.0, .slider)
         self.inputBlur = FloatParameter("Blur", 0.0, 0.0, 5.0, .slider)
-        self.outputMaterial = NodePort<Material>(name: "Material", kind: .Outlet)
         super.init(context: context)
         
         self.material.setup()
@@ -55,7 +45,6 @@ public class SkyboxMaterialNode : BaseMaterialNode
         case inputTexturePort
         case inputEnvironmentIntensityParameter
         case inputBlurParameter
-        case outputMaterialPort
     }
 
     public required init(from decoder: any Decoder) throws
@@ -64,7 +53,6 @@ public class SkyboxMaterialNode : BaseMaterialNode
         
         self.inputEnvironmentIntensity = try container.decode(FloatParameter.self, forKey: .inputEnvironmentIntensityParameter)
         self.inputBlur = try container.decode(FloatParameter.self, forKey: .inputBlurParameter)
-        self.outputMaterial = try container.decode(NodePort<Material>.self, forKey: .outputMaterialPort)
         
         try super.init(from: decoder)
     }
@@ -75,7 +63,6 @@ public class SkyboxMaterialNode : BaseMaterialNode
         
         try container.encode(self.inputEnvironmentIntensity, forKey: .inputEnvironmentIntensityParameter)
         try container.encode(self.inputBlur, forKey: .inputBlurParameter)
-        try container.encode(self.outputMaterial, forKey: .outputMaterialPort)
         
         try super.encode(to: encoder)
     }

@@ -102,7 +102,7 @@ class HDRTextureNode : Node, NodeProtocol
     
     private func loadTextureFromInputValue()
     {
-        if  self.inputFilePathParam.value.isEmpty == false
+        if  self.inputFilePathParam.value.isEmpty == false && self.url != URL(string: self.inputFilePathParam.value)
         {
             self.url = URL(string: self.inputFilePathParam.value)
             
@@ -113,7 +113,7 @@ class HDRTextureNode : Node, NodeProtocol
                     .generateMipmaps : true,
                     .allocateMipmaps : true,
                     .SRGB : false,
-//                    .origin: MTKTextureLoader.Origin.flippedVertically,
+                    .origin: MTKTextureLoader.Origin.flippedVertically,
                 ])
                     
                     //.newTexture(url: self.url!, options: [:])

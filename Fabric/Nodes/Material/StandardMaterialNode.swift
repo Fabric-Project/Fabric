@@ -43,7 +43,6 @@ public class StandardMaterialNode : BaseMaterialNode
     public let inputRoughnessTexture: NodePort<EquatableTexture>
     public let inputMetalicTexture: NodePort<EquatableTexture>
 
-    public let outputMaterial: NodePort<Material>
     
     public override var ports: [any NodePortProtocol] {  super.ports + [
         inputDiffuseTexture,
@@ -54,7 +53,7 @@ public class StandardMaterialNode : BaseMaterialNode
         inputMetalicTexture,
 //        inputBumpTexture,
 //        inputOcclusionTexture,
-        outputMaterial] }
+        ] }
     
     public override var material: StandardMaterial {
         return _material
@@ -82,8 +81,6 @@ public class StandardMaterialNode : BaseMaterialNode
         self.inputMetalicTexture = NodePort<EquatableTexture>(name: "Metallic Texture", kind: .Inlet)
 //        self.inputBumpTexture = NodePort<EquatableTexture>(name: "Bump Texture", kind: .Inlet)
 //        self.inputOcclusionTexture = NodePort<EquatableTexture>(name: "Occlusion Texture", kind: .Inlet)
-
-        self.outputMaterial = NodePort<Material>(name: "Material", kind: .Outlet)
         
         super.init(context: context)
     }
@@ -108,7 +105,6 @@ public class StandardMaterialNode : BaseMaterialNode
 //        case inputBumpTexturePort
 //        case inputOcclusionTexturePort
         
-        case outputMaterialPort
     }
     
     public override func encode(to encoder:Encoder) throws
@@ -133,7 +129,6 @@ public class StandardMaterialNode : BaseMaterialNode
 //        try container.encode(self.inputBumpTexture, forKey: .inputBumpTexturePort)
 //        try container.encode(self.inputOcclusionTexture, forKey: .inputOcclusionTexturePort)
 
-        try container.encode(self.outputMaterial, forKey: .outputMaterialPort)
         
         try super.encode(to: encoder)
     }
@@ -161,7 +156,6 @@ public class StandardMaterialNode : BaseMaterialNode
 //        self.inputBumpTexture = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputBumpTexturePort)
 //        self.inputOcclusionTexture = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputOcclusionTexturePort)
 
-        self.outputMaterial = try container.decode(NodePort<Material>.self, forKey: .outputMaterialPort)
         
         try super.init(from: decoder)
     }

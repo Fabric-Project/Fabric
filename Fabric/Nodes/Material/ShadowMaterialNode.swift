@@ -19,9 +19,6 @@ class ShadowMaterialNode : BaseMaterialNode
     override class var name:String {  "Shadow Material" }
 
     // Ports
-    let outputMaterial = NodePort<Material>(name: ShadowMaterialNode.name , kind: .Outlet)
-    
-    override var ports: [any NodePortProtocol] {  super.ports + [outputMaterial] }
 
     override var material: ShadowMaterial {
         return _material

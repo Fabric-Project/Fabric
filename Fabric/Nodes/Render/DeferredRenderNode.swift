@@ -114,6 +114,12 @@ public class DeferredRenderNode : Node, NodeProtocol
         {
             let rpd1 = MTLRenderPassDescriptor()
 
+            if (self.renderer.size.width != Float(self.inputResolution.value.x)) ||  (self.renderer.size.height != Float(self.inputResolution.value.y))
+            {
+                self.renderer.resize( (width:Float(self.inputResolution.value.x), height:Float(self.inputResolution.value.y) ) )
+            }
+           
+            
             self.renderer.clearColor = .init( self.inputClearColor.value )
                         
             renderer.draw(renderPassDescriptor: rpd1,

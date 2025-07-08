@@ -26,9 +26,6 @@ public class DepthMaterialNode : BaseMaterialNode
         inputColor,
     ] }
     
-    // Ports
-    public let outputMaterial:NodePort<Material>
-    public override var ports: [any NodePortProtocol] { super.ports + [ outputMaterial] }
 
     public override var material: DepthMaterial {
         return _material
@@ -44,8 +41,6 @@ public class DepthMaterialNode : BaseMaterialNode
         self.inputInvert = BoolParameter("Invert", false, .toggle)
         self.inputColor = BoolParameter("Color", true, .toggle)
         
-        self.outputMaterial = NodePort<Material>(name: "Material", kind: .Outlet)
-
         super.init(context: context)
         
         self.material.near = 0.001
@@ -58,7 +53,6 @@ public class DepthMaterialNode : BaseMaterialNode
         case inputFarParameter
         case inputInvertParameter
         case inputColorParameter
-        case outputMaterialPort
     }
 
     public required init(from decoder: any Decoder) throws
@@ -70,7 +64,6 @@ public class DepthMaterialNode : BaseMaterialNode
         self.inputInvert = try container.decode(BoolParameter.self, forKey: .inputInvertParameter)
         self.inputColor = try container.decode(BoolParameter.self, forKey: .inputColorParameter)
         
-        self.outputMaterial = try container.decode(NodePort<Material>.self, forKey: .outputMaterialPort)
 
         try super.init(from: decoder)
     }
@@ -84,8 +77,6 @@ public class DepthMaterialNode : BaseMaterialNode
         try container.encode(self.inputInvert, forKey: .inputInvertParameter)
         try container.encode(self.inputColor, forKey: .inputColorParameter)
         
-        try container.encode(self.outputMaterial, forKey: .outputMaterialPort)
-
         try super.encode(to: encoder)
     }
     

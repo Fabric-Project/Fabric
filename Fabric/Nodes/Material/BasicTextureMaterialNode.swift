@@ -57,7 +57,7 @@ public class BasicTextureMaterialNode : BasicColorMaterialNode
         try super.encode(to: encoder)
     }
     
-    public  override func evaluate(material:Material, atTime:TimeInterval)
+    public override func evaluate(material:Material, atTime:TimeInterval)
     {
         super.evaluate(material: material, atTime: atTime)
         material.depthWriteEnabled = self.inputWriteDepth.value

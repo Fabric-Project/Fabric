@@ -62,6 +62,7 @@ public class BaseObjectNode : Node
     {
         object.scale = self.inputScale.value
         object.position = self.inputPosition.value
-        object.orientation = simd_quatf(vector:  self.inputOrientation.value )
+        object.orientation = simd_quatf(angle: self.inputOrientation.value.w,
+                                        axis: simd_float3(x: self.inputOrientation.value.x, y: self.inputOrientation.value.y, z: self.inputOrientation.value.z) )
     }
 }

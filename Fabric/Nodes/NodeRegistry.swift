@@ -25,7 +25,8 @@ class NodeRegistry {
          
          LoadTextureNode.self,
          HDRTextureNode.self,
-         BasicColorTextureNode.self,
+         BrightnessContrastImageNode.self,
+         GaussianBlurImageNode.self,
          
          PlaneGeometryNode.self,
          BoxGeometryNode.self,
@@ -42,6 +43,7 @@ class NodeRegistry {
          //ShadowMaterialNode.self,
          StandardMaterialNode.self,
          PBRMaterialNode.self,
+         DisplacementMaterialNode.self,
          
          DirectionalLightNode.self,
          

@@ -18,9 +18,6 @@ public class BasicColorMaterialNode : BaseMaterialNode
     public let inputColor:Float4Parameter
     public override var inputParameters: [any Parameter] { super.inputParameters + [inputColor] }
     
-    // Ports
-    public let outputMaterial:NodePort<Material>
-    public override var ports: [any NodePortProtocol] { super.ports + [ outputMaterial] }
     
     public override var material: BasicColorMaterial {
         return _material
@@ -31,7 +28,6 @@ public class BasicColorMaterialNode : BaseMaterialNode
     public required init(context:Context)
     {
         self.inputColor = Float4Parameter("Color", .one, .zero, .one, .colorpicker)
-        self.outputMaterial = NodePort<Material>(name: "Material", kind: .Outlet)
         
         super.init(context: context)
         
@@ -41,7 +37,6 @@ public class BasicColorMaterialNode : BaseMaterialNode
     enum CodingKeys : String, CodingKey
     {
         case inputColorParameter
-        case outputMaterialPort
     }
     
     public required init(from decoder: any Decoder) throws {
@@ -49,9 +44,7 @@ public class BasicColorMaterialNode : BaseMaterialNode
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
         self.inputColor = try container.decode(Float4Parameter.self, forKey: .inputColorParameter)
-        
-        self.outputMaterial = try container.decode(NodePort<Material>.self, forKey: .outputMaterialPort)
-        
+                
         try super.init(from: decoder)
     }
     
@@ -60,7 +53,6 @@ public class BasicColorMaterialNode : BaseMaterialNode
         var container = encoder.container(keyedBy: CodingKeys.self)
         
         try container.encode(self.inputColor, forKey: .inputColorParameter)
-        try container.encode(self.outputMaterial, forKey: .outputMaterialPort)
         
         try super.encode(to: encoder)
     }
