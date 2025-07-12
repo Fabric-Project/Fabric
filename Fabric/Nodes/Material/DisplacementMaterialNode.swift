@@ -48,6 +48,8 @@ public class DisplacementMaterialNode: BaseMaterialNode
     
     private var _material:DisplacementMaterial
     
+    private var depthStencilDescriptor:MTLDepthStencilDescriptor
+        
     required public init(context: Context)
     {
         let bundle = Bundle(for: Self.self)
@@ -65,7 +67,17 @@ public class DisplacementMaterialNode: BaseMaterialNode
         self.inputDisplacementTexture = NodePort<EquatableTexture>(name: "Displacement Texture", kind: .Inlet)
         self.inputPointSpriteTexture = NodePort<EquatableTexture>(name: "Point Sprite Texture", kind: .Inlet)
 
+        self.depthStencilDescriptor = Self.setupDepthStencil()
+
         super.init(context: context)
+
+        self.material.setup()
+
+        self.material.depthStencilState = context.device.makeDepthStencilState(descriptor: self.depthStencilDescriptor)
+        self.material.onBind = { renderEncoder in
+            renderEncoder.setStencilReferenceValue(99)
+        }
+        
     }
     
     enum CodingKeys : String, CodingKey
@@ -82,6 +94,11 @@ public class DisplacementMaterialNode: BaseMaterialNode
     
     public required init(from decoder: any Decoder) throws
     {
+        guard let decodeContext = decoder.context else
+        {
+            fatalError("Required Decode Context Not set")
+        }
+        
         let bundle = Bundle(for: Self.self)
         let shaderURL = bundle.url(forResource: "DisplacementMaterial", withExtension: "metal", subdirectory: "Shaders")
         
@@ -99,7 +116,59 @@ public class DisplacementMaterialNode: BaseMaterialNode
         self.inputDisplacementTexture = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputDisplacementTexturePort)
         self.inputPointSpriteTexture = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputPointSpriteTexturePort)
 
+        self.depthStencilDescriptor = Self.setupDepthStencil()
+
         try super.init(from: decoder)
+
+        self.material.context = decodeContext.documentContext
+//        self.material.setup()
+
+        self.material.blending = .additive
+        self.material.rgbBlendOperation = .add
+        self.material.depthWriteEnabled = false
+        self.material.depthCompareFunction = .always
+//        self.material.blending
+        
+        self.material.onBind = { renderEncoder in
+            renderEncoder.setStencilReferenceValue(127)
+        }
+        
+    }
+    
+    class private func setupDepthStencil() -> MTLDepthStencilDescriptor
+    {
+        let stencil = MTLStencilDescriptor()
+        stencil.stencilCompareFunction = .greaterEqual           // Pass if current count <= 4
+        stencil.stencilFailureOperation = .keep             // If stencil test fails
+        stencil.depthFailureOperation = .keep               // If depth test fails
+        stencil.depthStencilPassOperation = .incrementClamp // If both pass: increment
+
+        let depthStencil = MTLDepthStencilDescriptor()
+        depthStencil.frontFaceStencil = stencil
+        depthStencil.backFaceStencil = stencil
+        depthStencil.isDepthWriteEnabled = false            // Optional with blending
+        depthStencil.depthCompareFunction = .always
+
+        depthStencil.label = "DisplacementMaterialNode.depthStencil"
+        return depthStencil
+        
+//        let stencil = MTLStencilDescriptor()
+//        stencil.writeMask = 0xFF
+//        stencil.readMask = 0xFF
+//        stencil.stencilCompareFunction = .never
+//        stencil.stencilFailureOperation = .replace
+//        stencil.depthFailureOperation = .replace               // If depth test fails
+//        stencil.depthStencilPassOperation = .replace // If both pass: increment
+//
+//
+//        let depthStencil = MTLDepthStencilDescriptor()
+//        depthStencil.frontFaceStencil = stencil
+//        depthStencil.backFaceStencil = stencil
+//        depthStencil.isDepthWriteEnabled = false
+//        depthStencil.depthCompareFunction = .always
+//        depthStencil.label = "DisplacementMaterialNode.depthStencil"
+
+//        return depthStencil
     }
     
     public override func encode(to encoder:Encoder) throws
@@ -120,7 +189,22 @@ public class DisplacementMaterialNode: BaseMaterialNode
     
     override public func execute(context: GraphExecutionContext, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: any MTLCommandBuffer) {
 
+//        renderPassDescriptor.stencilAttachment.loadAction = .clear
+//        renderPassDescriptor.stencilAttachment.storeAction = .store
+//        renderPassDescriptor.stencilAttachment.clearStencil = 0
+
         self.evaluate(material: self.material, atTime: context.timing.time)
+
+        self.material.depthStencilState = context.context.device.makeDepthStencilState(descriptor: self.depthStencilDescriptor)
+
+        assert(renderPassDescriptor.stencilAttachment.texture != nil)
+        assert(renderPassDescriptor.stencilAttachment.texture?.pixelFormat != .invalid)
+        assert(renderPassDescriptor.stencilAttachment.loadAction == .clear)
+        assert(renderPassDescriptor.stencilAttachment.storeAction == .store)
+//        assert(renderPassDescriptor.stencilAttachment.clearStencil == 0)
+        
+        assert(self.material.depthStencilState != nil)
+        
         
         if let texture = self.inputDisplacementTexture.value?.texture ?? self.inputTexture.value?.texture {
             self.material.set(texture, index: VertexTextureIndex.Custom0)

@@ -35,11 +35,6 @@ vertex CustomVertexData displacementVertex(Vertex in [[stage_in]],
 {
     CustomVertexData out;
 
-//    const uint width = rdTex.get_width();
-//    const uint height = rdTex.get_height();
-//    const float2 reslution = float2(width, height);
-//
-//    const half4 sample = rdTex.read( uint2(in.texcoord * reslution) );
     const half4 sample = rdTex.sample( s, in.texcoord );
     const half luma = dot(lumcoeff, sample);
 
@@ -59,8 +54,12 @@ vertex CustomVertexData displacementVertex(Vertex in [[stage_in]],
     return out;
 }
 
-[[early_fragment_tests]] fragment half4 displacementFragment( CustomVertexData in [[stage_in]],
+[[early_fragment_tests]]
+fragment half4 displacementFragment( CustomVertexData in [[stage_in]],
                                                              const float2 puv [[point_coord]],
+//                                                                uint stencilValue [[stencil_value]],
+//                                                                uint refValue [[stencil_ref_value]],
+
                                                              //                                     const half4 existingColor [[color(0)]],
                                                              
                                                              constant DisplacementUniforms &uniforms [[buffer( FragmentBufferMaterialUniforms )]],
@@ -83,8 +82,10 @@ vertex CustomVertexData displacementVertex(Vertex in [[stage_in]],
 //          discard_fragment();
 //    
     
+//    const half4 blendFactor = 1.0 - half4(stencilValue) / half4(refValue); // fade out at limit
+
     const half4 color = colorTex.sample( s, in.uv );
     const half4 sprite = pointSpriteTex.sample( p, puv ) ;
         
-    return sprite * color * uniforms.brightness;
+    return sprite;// * color * uniforms.brightness;
 }
