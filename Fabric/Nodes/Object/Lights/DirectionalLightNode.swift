@@ -28,7 +28,7 @@ public class DirectionalLightNode : BaseObjectNode, NodeProtocol
     
     // Ports
     public let outputLight: NodePort<Object>
-    public override var ports: [any NodePortProtocol] { super.ports +  [outputLight] }
+    public override var ports: [any NodePortProtocol] {  [outputLight] + super.ports }
     
     private var light: DirectionalLight =  DirectionalLight(color: [1.0, 1.0, 1.0], intensity: 1.0)
 

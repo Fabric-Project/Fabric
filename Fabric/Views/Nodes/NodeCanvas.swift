@@ -13,7 +13,7 @@ public struct NodeCanvas : View
 {
     @SwiftUI.Environment(Graph.self) var graph:Graph
 
-    @State var activityMonitor = NodeCanvasUserActivityMonitor()
+//    @State var activityMonitor = NodeCanvasUserActivityMonitor()
     
     // Drag to Offset bullshit
     @State private var offset:CGSize = CGSize(width: 50, height: 50) // CGSize(width: 50, height: SourceGrid.sourceGridHeight + 45)
@@ -30,6 +30,7 @@ public struct NodeCanvas : View
 
             ZStack
             {
+                
                 // Nodes
                 ForEach(self.graph.nodes, id: \.id) { currentNode in
                     
@@ -83,8 +84,8 @@ public struct NodeCanvas : View
             .onTapGesture {
                 self.graph.deselectAllNodes()
             }
-            .opacity(self.activityMonitor.isActive ? 1.0 : 0.0)
-                           .animation(.easeInOut(duration: 0.5), value: self.activityMonitor.isActive)
+//            .opacity(self.activityMonitor.isActive ? 1.0 : 0.0)
+//                           .animation(.easeInOut(duration: 0.5), value: self.activityMonitor.isActive)
 
         } // Pan Canvas
     }

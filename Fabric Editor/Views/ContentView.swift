@@ -9,6 +9,11 @@ import SwiftUI
 import Satin
 import Fabric
 
+enum SelectedTab {
+    case renderer
+    case editor
+}
+
 struct ContentView: View {
     @Binding var document: FabricDocument
 
@@ -21,7 +26,8 @@ struct ContentView: View {
     @State private var inspectorVisibility:Bool = false
     @State private var scrollOffset: CGPoint = .zero
     
-    
+    @State private var selectedTab = SelectedTab.editor
+
     
     var body: some View {
 //        TextEditor(text: $document.text)
@@ -32,49 +38,74 @@ struct ContentView: View {
 
         } detail: {
             
-            ZStack
+            Group
             {
-                SatinMetalView(renderer: document.graphRenderer)
-                
-                ScrollView([.horizontal, .vertical])
-                {
-                    NodeCanvas()
-                        .frame(width: 10000 , height: 10000)
-                        .environment(self.document.graph)
-                        .allowsHitTesting(self.hitTestEnable)
-//                        .scaleEffect(self.magnifyBy + self.finalMagnification)
-//                        .gesture(magnification)
+                switch self.selectedTab {
+                case .renderer:
+                    SatinMetalView(renderer: document.graphRenderer)
+                    
+                case .editor:
+                    ZStack
+                    {
+                        GeometryReader { geom in
+                            RadialGradient(colors: [.clear, .black.opacity(0.75)], center: .center, startRadius: 0, endRadius: geom.size.width * 1.5)
+                                .allowsHitTesting(false)
+                        }
+
+                        ScrollView([.horizontal, .vertical])
+                        {
+                            NodeCanvas()
+                                .frame(width: 10000 , height: 10000)
+                                .environment(self.document.graph)
+                            //                            .allowsHitTesting(self.hitTestEnable)
+                            
+                        }
+                        .tag(SelectedTab.editor)
+                        .defaultScrollAnchor(UnitPoint(x: 0.5, y: 0.5))
+                        //                    .onScrollGeometryChange(for: CGPoint.self) { geometry in
+                        //                        let center = CGPoint(x: geometry.contentSize.width / 2,
+                        //                                             y: geometry.contentSize.height / 2)
+                        //                        let offset = (geometry.contentOffset - center) + (geometry.containerSize / 2)
+                        //                        return offset
+                        //
+                        //                    } action: { oldScrollOffset, newScrollOffset in
+                        //                        self.scrollOffset =  newScrollOffset
+                        //                    }
+                        //                    .onScrollPhaseChange { oldPhase, newPhase in
+                        //                        self.hitTestEnable = !newPhase.isScrolling
+                        //                    }
+                    }
                     
                 }
-                .defaultScrollAnchor(UnitPoint(x: 0.5, y: 0.5))
-                .onScrollGeometryChange(for: CGPoint.self) { geometry in
-                    let center = CGPoint(x: geometry.contentSize.width / 2,
-                                            y: geometry.contentSize.height / 2)
-                    let offset = (geometry.contentOffset - center) + (geometry.containerSize / 2)
-                    return offset
-
-                } action: { oldScrollOffset, newScrollOffset in
-                        self.scrollOffset =  newScrollOffset
-                    }
-                .onScrollPhaseChange { oldPhase, newPhase in
-                    self.hitTestEnable = !newPhase.isScrolling
-                }
-                
             }
+            
             .inspector(isPresented: self.$inspectorVisibility)
             {
                 NodeSelectionInspector()
                     .environment(self.document.graph)
 
             }
-            .toolbar()
+            .toolbar
             {
+                ToolbarItem(placement: .automatic) {
+                    Button("Renderer") {
+                        self.selectedTab = .renderer
+                    }
+                }
+                
+                ToolbarItem(placement: .automatic) {
+                    Button("Editor") {
+                        self.selectedTab = .editor
+                    }
+                }
+                
                 ToolbarItem(placement: .automatic)
                 {
                     Button("Parameters", systemImage: "info.circle") {
                         self.inspectorVisibility.toggle()
                     }
                 }
+                
             }
         }
 

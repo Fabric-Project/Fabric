@@ -31,7 +31,7 @@ struct NodeView : View
                 Color( (self.node.isSelected) ? "NodeBackgroundColorSelected" : "NodeBackgroundColor")
                 
                 Rectangle()
-                    .fill( (self.node.isSelected) ? self.node.nodeType.color() : self.node.nodeType.backgroundColor() )
+                    .fill( (self.node.isSelected) ? self.node.nodeType.color().gradient : self.node.nodeType.backgroundColor().gradient )
                     .frame(height: 30)
                
 

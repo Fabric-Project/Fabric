@@ -87,5 +87,5 @@ fragment half4 displacementFragment( CustomVertexData in [[stage_in]],
     const half4 color = colorTex.sample( s, in.uv );
     const half4 sprite = pointSpriteTex.sample( p, puv ) ;
         
-    return sprite;// * color * uniforms.brightness;
+    return sprite * color * uniforms.brightness;
 }

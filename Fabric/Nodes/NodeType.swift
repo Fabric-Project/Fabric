@@ -77,7 +77,6 @@ extension Node
             case TileEffect
             case DistortionEffect
             case GeometryEffect
-            
         }
         
         case Subgraph // A graph with exposed published ports
@@ -110,7 +109,7 @@ extension Node
             case .Texture: return "Texture"
             case .Parameter(let paramType): return "\(paramType.rawValue) Parameter"
             }
-      }
+        }
         
         public func color() -> Color
         {

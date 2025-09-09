@@ -31,9 +31,9 @@ public class MeshNode : BaseObjectNode, NodeProtocol
     public let inputMaterial:NodePort<Material>
     public let outputMesh:NodePort<Object>
     
-    public override var ports: [any NodePortProtocol] { super.ports +  [inputGeometry,
-                                         inputMaterial,
-                                         outputMesh] }
+    public override var ports: [any NodePortProtocol] {   [inputGeometry,
+                                                           inputMaterial,
+                                                           outputMesh] + super.ports}
     
     private var mesh: Mesh? = nil
 

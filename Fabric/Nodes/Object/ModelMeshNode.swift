@@ -21,7 +21,7 @@ public class ModelMeshNode : MeshNode
     
     // Ports - Skip Geom and Material
     public override var ports: [any NodePortProtocol] { [
-                                         outputMesh] }
+                                         outputMesh] + super.ports}
 
     private var mesh: Object? = nil
     private var textureLoader:MTKTextureLoader

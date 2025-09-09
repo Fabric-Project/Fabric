@@ -167,6 +167,7 @@
 				Nodes/Texture/ImageProcessing/BasicColorTextureNode.swift,
 				Nodes/Texture/ImageProcessing/GaussianBlurImageNode.swift,
 				Nodes/Texture/LoadTextureNode.swift,
+				Nodes/Texture/MovieTextureNode.swift,
 				Shaders,
 				Utils/AnyEncodable.swift,
 				Views/NodeRegisitryView.swift,

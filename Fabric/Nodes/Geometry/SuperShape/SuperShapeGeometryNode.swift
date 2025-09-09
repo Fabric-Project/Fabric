@@ -186,8 +186,7 @@ class SuperShapeGeometryNode : Node, NodeProtocol
         res: resParam.value
     )
     
-    override var ports:[any NodePortProtocol] { super.ports + [outputGeometry] }
-    
+    public override var ports:[any NodePortProtocol] {  [outputGeometry] + super.ports}
     
     override func execute(context:GraphExecutionContext,
                           renderPassDescriptor: MTLRenderPassDescriptor,

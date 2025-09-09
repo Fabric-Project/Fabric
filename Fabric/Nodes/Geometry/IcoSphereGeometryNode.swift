@@ -21,7 +21,7 @@ public class IcoSphereGeometryNode : Node, NodeProtocol
 
     // Ports
     let outputGeometry:NodePort<Geometry>
-    override public var ports:[any NodePortProtocol] { super.ports + [outputGeometry] }
+    public override var ports:[any NodePortProtocol] {  [outputGeometry] + super.ports}
 
     private let geometry = IcoSphereGeometry(radius: 1.0, resolution: 1)
 

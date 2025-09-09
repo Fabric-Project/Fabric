@@ -28,7 +28,7 @@ class BaseColorEffectNode : Node, NodeProtocol
     // Ports
     let inputTexturePort:NodePort<EquatableTexture>
     let outputTexturePort:NodePort<EquatableTexture>
-    override var ports: [any NodePortProtocol] { super.ports + [inputTexturePort, outputTexturePort] }
+    override var ports: [any NodePortProtocol] { [inputTexturePort, outputTexturePort] + super.ports}
 
     
     required init(context:Context)

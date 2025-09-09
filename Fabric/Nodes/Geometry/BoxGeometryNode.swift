@@ -23,7 +23,7 @@ public class BoxGeometryNode : Node, NodeProtocol
 
     // Ports
     public let outputGeometry:NodePort<Geometry>
-    public override var ports:[any NodePortProtocol] { super.ports + [outputGeometry] }
+    public override var ports:[any NodePortProtocol] {  [outputGeometry] + super.ports}
 
     private let geometry = BoxGeometry(width: 1, height: 1, depth: 1)
 

@@ -34,18 +34,18 @@ public class SceneBuilderNode : BaseObjectNode, NodeProtocol
     public let inputObject10:NodePort<Object>
     public let outputScene:NodePort<Object>
     
-    public override var ports: [any NodePortProtocol] { super.ports +  [ inputEnvironment,
-                                                                  inputObject1,
-                                                                  inputObject2,
-                                                                  inputObject3,
-                                                                  inputObject4,
-                                                                  inputObject5,
-                                                                  inputObject6,
-                                                                  inputObject7,
-                                                                  inputObject8,
-                                                                  inputObject9,
-                                                                  inputObject10,
-                                                                  outputScene] }
+    public override var ports: [any NodePortProtocol] {  [ inputEnvironment,
+                                                           inputObject1,
+                                                           inputObject2,
+                                                           inputObject3,
+                                                           inputObject4,
+                                                           inputObject5,
+                                                           inputObject6,
+                                                           inputObject7,
+                                                           inputObject8,
+                                                           inputObject9,
+                                                           inputObject10,
+                                                           outputScene] + super.ports}
     
     private var object = IBLScene()
 

@@ -23,9 +23,9 @@ public class PlaneGeometryNode : Node, NodeProtocol
 
     // Ports
     public let outputGeometry:NodePort<Geometry>
-    public override var ports:[any NodePortProtocol] { super.ports + [outputGeometry] }
+    public override var ports:[any NodePortProtocol] {  [outputGeometry] + super.ports}
 
-    private let geometry = PlaneGeometry(width: 1, height: 1)
+    private let geometry = PlaneGeometry(width: 1, height: 1, orientation: .xy)
 
     required public init(context: Context)
     {
@@ -35,6 +35,8 @@ public class PlaneGeometryNode : Node, NodeProtocol
 
         self.outputGeometry = NodePort<Geometry>(name: BoxGeometryNode.name, kind: .Outlet)
 
+        self.geometry.primitiveType = .point
+        
         super.init(context: context)
     }
         
@@ -67,6 +69,8 @@ public class PlaneGeometryNode : Node, NodeProtocol
         self.inputResolutionParam = try container.decode(Int2Parameter.self, forKey: .inputResolutionParameter)
         self.outputGeometry = try container.decode(NodePort<Geometry>.self, forKey: .outputGeometryPort)
         
+        self.geometry.primitiveType = .point
+
         try super.init(from: decoder)
     }
     

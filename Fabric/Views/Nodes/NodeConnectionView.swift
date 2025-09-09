@@ -67,8 +67,10 @@ struct NodeConnectionView :View
                                   y:  localStart.y + connection.destination.offset.height)
 
         // Min 5 stem height
-        let stemHeight = self.clamp( abs( end.y - start.y) / 4.0 , lowerBound: 5, upperBound: 35)
-        let stemOffset =  self.clamp( self.dist(p1: start, p2:end) / 4.0, lowerBound: 5, upperBound: 35) /*min( max(5, self.dist(p1: start, p2:end)), 40 )*/
+        let boundMin = 5
+        let boundMax = 10
+        let stemHeight = self.clamp( abs( end.y - start.y) / 4.0 , lowerBound: boundMin, upperBound: boundMax)
+        let stemOffset =  self.clamp( self.dist(p1: start, p2:end) / 4.0, lowerBound: boundMin, upperBound: boundMax) /*min( max(5, self.dist(p1: start, p2:end)), 40 )*/
 
         let start1:CGPoint = CGPoint(x: start.x,
                                      y: start.y + stemHeight)

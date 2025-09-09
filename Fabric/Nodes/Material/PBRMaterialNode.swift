@@ -53,7 +53,7 @@ class PBRMaterialNode : StandardMaterialNode
     let inputClearcoatGlossTexture = NodePort<EquatableTexture>(name: "Clearcoat Gloss Texture", kind: .Inlet)
     let inputTransmissionTexture = NodePort<EquatableTexture>(name: "Transmission Texture", kind: .Inlet)
     
-    override var ports: [any NodePortProtocol] {  super.ports + [
+    override var ports: [any NodePortProtocol] {  [
         inputBumpTexture,
         inputDisplacementTexture,
         inputOcclusionTexture,
@@ -62,7 +62,7 @@ class PBRMaterialNode : StandardMaterialNode
         inputClearcoatRoughTexture,
         inputClearcoatGlossTexture,
         inputTransmissionTexture,
-        ] }
+        ] + super.ports }
     
     override var material: PhysicalMaterial {
         return _material
