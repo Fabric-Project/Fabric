@@ -273,7 +273,7 @@ public extension NodeProtocol
         let horizontalMax = max(horizontalInputsCount, horizontalOutputsCount)
         let verticalMax = max(verticalInputsCount, verticalOutputsCount)
         
-        let height:CGFloat = 20 + (CGFloat(horizontalMax) * 25)
+        let height:CGFloat = 40 + (CGFloat(horizontalMax) * 25)
         let width:CGFloat = 20 + (CGFloat(verticalMax) * 25)
         
         return CGSize(width: max(width, 150), height: max(height, 60) )
