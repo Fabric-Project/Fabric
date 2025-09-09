@@ -25,9 +25,16 @@ struct NodeView : View
 //            let nodeClass = self.node 
             
             // Param List
-            ZStack
+            ZStack(alignment: .topLeading)
             {
+                
                 Color( (self.node.isSelected) ? "NodeBackgroundColorSelected" : "NodeBackgroundColor")
+                
+                Rectangle()
+                    .fill( (self.node.isSelected) ? self.node.nodeType.color() : self.node.nodeType.backgroundColor() )
+                    .frame(height: 30)
+               
+
 //                Color( (self.node.isSelected) ? self.node.nodeType.backgroundColor() : self.node.nodeType.backgroundColor().opacity(0.5) )
 
 //                VStack
@@ -64,6 +71,7 @@ struct NodeView : View
                         .font(.system(size: 9))
                         .bold()
                         .frame(maxHeight: 20)
+                        .padding(.top, 5)
                         .padding(.horizontal, 20)
                     
 //                    Spacer()
@@ -78,6 +86,8 @@ struct NodeView : View
                 
                 VStack(alignment: .trailing, spacing: 10) {
                     Spacer(minLength: 0)
+                        .frame(height: 25)
+                    
                     ForEach(self.node.ports.filter({$0.kind == .Outlet && $0.direction == .Horizontal}), id: \.id) { port in
                         NodeOutletView(port: port)
                     }
@@ -92,7 +102,8 @@ struct NodeView : View
             .overlay {
                 RoundedRectangle(cornerRadius: 15.0)
 //                    .stroke( (self.node.isSelected) ? self.node.nodeType.color() : .gray, lineWidth: 1.0)
-                    .stroke( (self.node.isSelected) ? self.node.nodeType.color() : self.node.nodeType.backgroundColor(), lineWidth: 1.0)
+//                    .stroke( (self.node.isSelected) ? self.node.nodeType.color() : self.node.nodeType.backgroundColor(), lineWidth: 1.0)
+                    .stroke( .gray, lineWidth: 1.0)
 
             }
             .offset( self.node.isDragging ?  CGSize(
