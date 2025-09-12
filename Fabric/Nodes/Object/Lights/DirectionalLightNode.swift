@@ -24,7 +24,13 @@ public class DirectionalLightNode : BaseObjectNode, NodeProtocol
     public let inputShadowRadius: FloatParameter
     public let inputShadowBias: FloatParameter
     
-    public override var inputParameters: [any Parameter] { super.inputParameters + [inputLookAt, inputColor, inputIntensity, inputShadowStrength, inputShadowRadius, inputShadowBias] }
+    public override var inputParameters: [any Parameter] {  [
+        inputLookAt,
+        inputColor,
+        inputIntensity,
+        inputShadowStrength,
+        inputShadowRadius,
+        inputShadowBias] + super.inputParameters }
     
     // Ports
     public let outputLight: NodePort<Object>

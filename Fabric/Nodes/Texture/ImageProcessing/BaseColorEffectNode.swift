@@ -23,7 +23,7 @@ class BaseColorEffectNode : Node, NodeProtocol
     let postProcessor:PostProcessor
     
     // Parameters
-    override var inputParameters: [any Parameter] { super.inputParameters  + self.postMaterial.parameters.params }
+    override var inputParameters: [any Parameter] { self.postMaterial.parameters.params + super.inputParameters }
 
     // Ports
     let inputTexturePort:NodePort<EquatableTexture>

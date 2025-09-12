@@ -19,11 +19,11 @@ public class NumberEaseNode : Node, NodeProtocol
     // Params
     public let inputTimeParam:FloatParameter
     public let inputEasingParam:StringParameter
-    public override var inputParameters:[any Parameter]  { super.inputParameters + [inputTimeParam, inputEasingParam] }
+    public override var inputParameters:[any Parameter]  { [inputTimeParam, inputEasingParam] + super.inputParameters}
 
     // Ports
     public let outputNumber:NodePort<Float>
-    public override var ports: [any NodePortProtocol] { super.ports + [ outputNumber] }
+    public override var ports: [any NodePortProtocol] {  [outputNumber] + super.ports}
 
     private let easingMap = Dictionary(uniqueKeysWithValues: zip(Easing.allCases.map( {$0.title()}), Easing.allCases)  )
     

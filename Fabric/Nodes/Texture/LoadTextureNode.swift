@@ -19,7 +19,7 @@ class LoadTextureNode : Node, NodeProtocol
 
     // Parameters
     let inputFilePathParam:StringParameter
-    override var inputParameters: [any Parameter] { super.inputParameters + [self.inputFilePathParam]}
+    override var inputParameters: [any Parameter] { [self.inputFilePathParam] + super.inputParameters}
 
     // Ports
     let outputTexturePort:NodePort<EquatableTexture>

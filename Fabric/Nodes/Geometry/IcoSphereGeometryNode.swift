@@ -17,7 +17,7 @@ public class IcoSphereGeometryNode : Node, NodeProtocol
     // Params
     public let inputRadius:FloatParameter
     public let inputResolutionParam:IntParameter
-    override public var inputParameters: [any Parameter] { [inputRadius, inputResolutionParam] }
+    override public var inputParameters: [any Parameter] { [inputRadius, inputResolutionParam] + super.inputParameters}
 
     // Ports
     let outputGeometry:NodePort<Geometry>

@@ -18,7 +18,7 @@ public class SphereGeometryNode : Node, NodeProtocol
     public let inputRadius:FloatParameter
     public let inputAngularResolutionParam:IntParameter
     public let inputVerticalResolutionParam:IntParameter
-    public override var inputParameters: [any Parameter] { [inputRadius, inputAngularResolutionParam, inputVerticalResolutionParam] }
+    public override var inputParameters: [any Parameter] { [inputRadius, inputAngularResolutionParam, inputVerticalResolutionParam] + super.inputParameters}
 
     // Ports
     public let outputGeometry:NodePort<Geometry>

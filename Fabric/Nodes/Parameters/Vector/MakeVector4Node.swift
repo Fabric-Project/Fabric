@@ -21,11 +21,11 @@ public class MakeVector4Node : Node, NodeProtocol
     public let inputZParam:FloatParameter
     public let inputWParam:FloatParameter
 
-    public override var inputParameters: [any Parameter] {  [inputXParam, inputYParam, inputZParam, inputWParam]}
+    public override var inputParameters: [any Parameter] {  [inputXParam, inputYParam, inputZParam, inputWParam] + super.inputParameters}
 
     // Ports
     public let outputVector:NodePort<simd_float4>
-    public override var ports: [any NodePortProtocol] { super.ports + [outputVector] }
+    public override var ports: [any NodePortProtocol] { [outputVector] + super.ports }
     
     private var vector = simd_float4(repeating: 0)
 

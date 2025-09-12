@@ -18,7 +18,7 @@ public class SceneBuilderNode : BaseObjectNode, NodeProtocol
     // Params
     public let inputEnvironmentIntensity: FloatParameter
 
-    public override var inputParameters: [any Parameter] { super.inputParameters + [inputEnvironmentIntensity,] }
+    public override var inputParameters: [any Parameter] { [inputEnvironmentIntensity] + super.inputParameters }
 
     // Ports
     public let inputEnvironment:NodePort<EquatableTexture>

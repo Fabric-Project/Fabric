@@ -18,11 +18,11 @@ public class NumberNode : Node, NodeProtocol
     // Params
     public let inputNumberParam:FloatParameter
 
-    public override var inputParameters:[any Parameter]  { super .inputParameters + [inputNumberParam] }
+    public override var inputParameters:[any Parameter]  {  [inputNumberParam] + super.inputParameters }
 
     // Ports
     public let outputNumber:NodePort<Float>
-    public override var ports: [any NodePortProtocol] { super.ports + [ outputNumber] }
+    public override var ports: [any NodePortProtocol] {  [outputNumber] + super.ports }
 
     public required init(context: Context)
     {

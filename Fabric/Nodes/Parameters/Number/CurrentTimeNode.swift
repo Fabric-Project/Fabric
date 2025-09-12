@@ -24,7 +24,7 @@ public class CurrentTimeNode : Node, NodeProtocol
     
     // Ports
     public let outputNumber:NodePort<Float>
-    public override var ports: [any NodePortProtocol] { super.ports + [ outputNumber] }
+    public override var ports: [any NodePortProtocol] { [ outputNumber] + super.ports}
     
     public required init(context: Context)
     {

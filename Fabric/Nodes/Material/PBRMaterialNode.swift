@@ -27,7 +27,7 @@ class PBRMaterialNode : StandardMaterialNode
     let inputThickness = FloatParameter("Thickness", 1.0, 0.0, 1.0, .slider)
     let inputIOR = FloatParameter("Index of Refraction", 1.5, 0.0, 10.0, .slider)
 
-    override var inputParameters: [any Parameter] { super.inputParameters +
+    override var inputParameters: [any Parameter] {
         [
             inputSubsurface,
             inputAnisotropic,
@@ -40,7 +40,7 @@ class PBRMaterialNode : StandardMaterialNode
             inputTransmission,
             inputThickness,
             inputIOR,
-        ] }
+        ] + super.inputParameters }
 
     // Ports
     let inputBumpTexture = NodePort<EquatableTexture>(name: "Bump Texture", kind: .Inlet)

@@ -29,6 +29,7 @@ class NodeRegistry {
          GaussianBlurImageNode.self,
          
          PlaneGeometryNode.self,
+         PointPlaneGeometryNode.self,
          BoxGeometryNode.self,
          SphereGeometryNode.self,
          IcoSphereGeometryNode.self,

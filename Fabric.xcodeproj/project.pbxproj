@@ -111,6 +111,7 @@
 				Nodes/Geometry/BoxGeometryNode.swift,
 				Nodes/Geometry/IcoSphereGeometryNode.swift,
 				Nodes/Geometry/PlaneGeometryNode.swift,
+				Nodes/Geometry/PointPlaneGeometry.swift,
 				Nodes/Geometry/SkyboxGeometryNode.swift,
 				Nodes/Geometry/SphereGeometryNode.swift,
 				Nodes/Geometry/SuperShape/SuperShapeGenerator.h,

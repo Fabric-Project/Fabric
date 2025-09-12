@@ -19,12 +19,12 @@ public class DepthMaterialNode : BaseMaterialNode
     public let inputFar:FloatParameter
     public let inputInvert:BoolParameter
     public let inputColor:BoolParameter
-    public override var inputParameters: [any Parameter] { super.inputParameters + [
+    public override var inputParameters: [any Parameter] { [
         inputNear,
         inputFar,
         inputInvert,
         inputColor,
-    ] }
+    ] + super.inputParameters}
     
 
     public override var material: DepthMaterial {

@@ -18,7 +18,7 @@ public class BaseObjectNode : Node
     public var inputScale:Float3Parameter
     public var inputOrientation:Float4Parameter
 
-    public override var inputParameters: [any Parameter] { super.inputParameters + [self.inputPosition, self.inputScale, self.inputOrientation] }
+    public override var inputParameters: [any Parameter] { [self.inputPosition, self.inputScale, self.inputOrientation] + super.inputParameters}
     
     public required init(context: Context)
     {

@@ -22,11 +22,11 @@ public class GradientNoiseNode : Node, NodeProtocol
 //    let inputNewMinNumber:GenericParameter<Float>
 //    let inputNewMaxNumber:GenericParameter<Float>
 
-    public override var inputParameters:[any Parameter]  { super.inputParameters + [ inputFrequency ] }
+    public override var inputParameters:[any Parameter]  {  [ inputFrequency ] + super.inputParameters }
 
     // Ports
     public let outputNumber:NodePort<Float>
-    public override var ports: [any NodePortProtocol] { super.ports + [ outputNumber] }
+    public override var ports: [any NodePortProtocol] { [ outputNumber ] + super.ports}
 
     // Ensure we always render!
     public override var isDirty:Bool { get {  true  } set { } }

@@ -24,16 +24,16 @@ public class StandardMaterialNode : BaseMaterialNode
     public let inputEnvironmentIntensity: FloatParameter
     public let inputGammaCorrection: FloatParameter
 
-    public override var inputParameters: [any Parameter] { super.inputParameters + [inputBaseColor,
-                                                                             inputEmissiveColor,
-                                                                             inputSpecular,
-                                                                             inputMetallic,
-                                                                             inputRoughness,
-                                                                             inputOcclusion,
-                                                                             inputEnvironmentIntensity,
-                                                                             inputGammaCorrection,
-                                                                             
-    ] }
+    public override var inputParameters: [any Parameter] { [
+        inputBaseColor,
+        inputEmissiveColor,
+        inputSpecular,
+        inputMetallic,
+        inputRoughness,
+        inputOcclusion,
+        inputEnvironmentIntensity,
+        inputGammaCorrection,
+    ] + super.inputParameters}
 
     // Ports
     public let inputDiffuseTexture: NodePort<EquatableTexture>

@@ -20,11 +20,11 @@ public class MeshNode : BaseObjectNode, NodeProtocol
     public let inputDoubleSided:BoolParameter
     public let inputCullingMode:StringParameter
     
-    public override var inputParameters: [any Parameter] { super.inputParameters + [
+    public override var inputParameters: [any Parameter] { [
         self.inputCastsShadow,
         self.inputDoubleSided,
         self.inputCullingMode
-    ] }
+    ] + super.inputParameters}
 
     // Ports
     public let inputGeometry:NodePort<Geometry>

@@ -1,41 +1,43 @@
+
 //
-//  BoxGeometryNode.swift
+//  PlaneGeometryNode.swift
 //  Fabric
 //
-//  Created by Anton Marini on 4/25/25.
+//  Created by Anton Marini on 4/27/25.
 //
+
 import Satin
 import Foundation
 import simd
 import Metal
 
-public class BoxGeometryNode : Node, NodeProtocol
-{    
-    public static let name = "Box Geometry"
+public class PointPlaneGeometryNode : Node, NodeProtocol
+{
+    public static let name = "Point Plane Geometry"
     public static var nodeType = Node.NodeType.Geometery
 
     // Params
     public let inputWidthParam:FloatParameter
     public let inputHeightParam:FloatParameter
-    public let inputDepthParam:FloatParameter
-    public let inputResolutionParam:Int3Parameter
-    public override var inputParameters: [any Parameter] { [inputWidthParam, inputHeightParam, inputDepthParam, inputResolutionParam] + super.inputParameters }
+    public let inputResolutionParam:Int2Parameter
+    public override var inputParameters: [any Parameter] { [inputWidthParam, inputHeightParam, inputResolutionParam] + super.inputParameters }
 
     // Ports
     public let outputGeometry:NodePort<Geometry>
     public override var ports:[any NodePortProtocol] {  [outputGeometry] + super.ports}
 
-    private let geometry = BoxGeometry(width: 1, height: 1, depth: 1)
+    private let geometry = PlaneGeometry(width: 1, height: 1, orientation: .xy)
 
     required public init(context: Context)
     {
         self.inputWidthParam = FloatParameter("Width", 1.0, .inputfield)
         self.inputHeightParam = FloatParameter("Height", 1.0, .inputfield)
-        self.inputDepthParam = FloatParameter("Depth", 1.0, .inputfield)
-        self.inputResolutionParam = Int3Parameter("Resolution", simd_int3(repeating: 1), .inputfield)
+        self.inputResolutionParam = Int2Parameter("Resolution", simd_int2(repeating: 1), .inputfield)
 
-        self.outputGeometry = NodePort<Geometry>(name: BoxGeometryNode.name, kind: .Outlet)
+        self.outputGeometry = NodePort<Geometry>(name: PointPlaneGeometryNode.name, kind: .Outlet)
 
+        self.geometry.primitiveType = .triangle
+        
         super.init(context: context)
     }
         
@@ -43,7 +45,6 @@ public class BoxGeometryNode : Node, NodeProtocol
     {
         case inputWidthParameter
         case inputHeightParameter
-        case inputDepthParameter
         case inputResolutionParameter
         case outputGeometryPort
     }
@@ -54,7 +55,6 @@ public class BoxGeometryNode : Node, NodeProtocol
         
         try container.encode(self.inputWidthParam, forKey: .inputWidthParameter)
         try container.encode(self.inputHeightParam, forKey: .inputHeightParameter)
-        try container.encode(self.inputDepthParam, forKey: .inputDepthParameter)
         try container.encode(self.inputResolutionParam, forKey: .inputResolutionParameter)
         try container.encode(self.outputGeometry, forKey: .outputGeometryPort)
         
@@ -67,10 +67,11 @@ public class BoxGeometryNode : Node, NodeProtocol
 
         self.inputWidthParam = try container.decode(FloatParameter.self, forKey: .inputWidthParameter)
         self.inputHeightParam = try container.decode(FloatParameter.self, forKey: .inputHeightParameter)
-        self.inputDepthParam = try container.decode(FloatParameter.self, forKey: .inputDepthParameter)
-        self.inputResolutionParam = try container.decode(Int3Parameter.self, forKey: .inputResolutionParameter)
+        self.inputResolutionParam = try container.decode(Int2Parameter.self, forKey: .inputResolutionParameter)
         self.outputGeometry = try container.decode(NodePort<Geometry>.self, forKey: .outputGeometryPort)
         
+        self.geometry.primitiveType = .point
+
         try super.init(from: decoder)
     }
     
@@ -79,13 +80,9 @@ public class BoxGeometryNode : Node, NodeProtocol
                                  commandBuffer: MTLCommandBuffer)
     {
         self.geometry.width = self.inputWidthParam.value
+        self.geometry.height = self.inputHeightParam.value        
+        self.geometry.resolution = self.inputResolutionParam.value
         
-        self.geometry.height =  self.inputHeightParam.value
-        
-        self.geometry.depth = self.inputDepthParam.value
-        
-        self.geometry.resolution =  self.inputResolutionParam.value
-                
         self.outputGeometry.send(self.geometry)
      }
 }

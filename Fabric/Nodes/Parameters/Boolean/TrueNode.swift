@@ -18,7 +18,7 @@ public class TrueNode : Node, NodeProtocol
     // Ports
     public let outputBoolean: NodePort<Bool>
 
-    public override var ports: [any NodePortProtocol] { [outputBoolean] }
+    public override var ports: [any NodePortProtocol] { [outputBoolean] + super.ports }
     
     public required init(context: Context)
     {

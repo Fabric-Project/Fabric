@@ -25,10 +25,11 @@ public class BaseMaterialNode : Node, NodeProtocol
     public let inputWriteDepth:BoolParameter
     public let inputBlending:StringParameter
 
-    public override var inputParameters: [any Parameter] { super.inputParameters + [self.inputReceivesLighting,
-                                                                              self.inputWriteDepth,
-                                                                             self.inputBlending,
-    ] }
+    public override var inputParameters: [any Parameter] {
+        [self.inputReceivesLighting,
+         self.inputWriteDepth,
+         self.inputBlending,
+    ] + super.inputParameters}
     
     
     

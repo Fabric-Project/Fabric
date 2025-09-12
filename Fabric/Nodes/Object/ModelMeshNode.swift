@@ -16,7 +16,7 @@ public class ModelMeshNode : MeshNode
     public override class var name:String { "Model Mesh" }
 
     public let inputModelPath:StringParameter
-    public override var inputParameters: [any Parameter] { super.inputParameters + [self.inputModelPath]}
+    public override var inputParameters: [any Parameter] { [self.inputModelPath] + super.inputParameters}
 
     
     // Ports - Skip Geom and Material

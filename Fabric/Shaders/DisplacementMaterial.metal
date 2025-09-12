@@ -54,7 +54,7 @@ vertex CustomVertexData displacementVertex(Vertex in [[stage_in]],
     return out;
 }
 
-[[early_fragment_tests]]
+//[[early_fragment_tests]]
 fragment half4 displacementFragment( CustomVertexData in [[stage_in]],
                                                              const float2 puv [[point_coord]],
 //                                                                uint stencilValue [[stencil_value]],

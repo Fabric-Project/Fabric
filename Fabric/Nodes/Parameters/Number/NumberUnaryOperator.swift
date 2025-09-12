@@ -21,11 +21,11 @@ public class NumberUnnaryOperator : Node, NodeProtocol
     // Params
     public let inputAParam:FloatParameter
     public let inputOperatorParam:StringParameter
-    public override var inputParameters:[any Parameter] { super.inputParameters + [inputAParam, inputOperatorParam] }
+    public override var inputParameters:[any Parameter] { [inputAParam, inputOperatorParam] + super.inputParameters }
 
     // Ports
     public let outputNumber:NodePort<Float>
-    public override var ports: [any NodePortProtocol] { super.ports + [ outputNumber] }
+    public override var ports: [any NodePortProtocol] {  [outputNumber] + super.ports}
 
     private var mathOperator = UnaryMathOperator.Sine
 

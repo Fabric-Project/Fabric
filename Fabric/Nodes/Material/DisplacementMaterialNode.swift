@@ -22,13 +22,13 @@ public class DisplacementMaterialNode: BaseMaterialNode
     public let inputMinPointSize:FloatParameter
     public let inputMaxPointSize:FloatParameter
     public let inputBrightness:FloatParameter
-    public override var inputParameters: [any Parameter] { super.inputParameters +
+    public override var inputParameters: [any Parameter] {
         [
         self.inputAmount,
         self.inputLumaVsRGBAmount,
         self.inputMinPointSize,
         self.inputMaxPointSize,
-        self.inputBrightness]
+        self.inputBrightness] + super.inputParameters
     }
     
     // Ports
@@ -48,7 +48,7 @@ public class DisplacementMaterialNode: BaseMaterialNode
     
     private var _material:DisplacementMaterial
     
-    private var depthStencilDescriptor:MTLDepthStencilDescriptor
+//    private var depthStencilDescriptor:MTLDepthStencilDescriptor
         
     required public init(context: Context)
     {
@@ -67,16 +67,16 @@ public class DisplacementMaterialNode: BaseMaterialNode
         self.inputDisplacementTexture = NodePort<EquatableTexture>(name: "Displacement Texture", kind: .Inlet)
         self.inputPointSpriteTexture = NodePort<EquatableTexture>(name: "Point Sprite Texture", kind: .Inlet)
 
-        self.depthStencilDescriptor = Self.setupDepthStencil()
+//        self.depthStencilDescriptor = Self.setupDepthStencil()
 
         super.init(context: context)
 
         self.material.setup()
 
-        self.material.depthStencilState = context.device.makeDepthStencilState(descriptor: self.depthStencilDescriptor)
-        self.material.onBind = { renderEncoder in
-            renderEncoder.setStencilReferenceValue(99)
-        }
+//        self.material.depthStencilState = context.device.makeDepthStencilState(descriptor: self.depthStencilDescriptor)
+//        self.material.onBind = { renderEncoder in
+//            renderEncoder.setStencilReferenceValue(99)
+//        }
         
     }
     
@@ -116,22 +116,22 @@ public class DisplacementMaterialNode: BaseMaterialNode
         self.inputDisplacementTexture = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputDisplacementTexturePort)
         self.inputPointSpriteTexture = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputPointSpriteTexturePort)
 
-        self.depthStencilDescriptor = Self.setupDepthStencil()
+//        self.depthStencilDescriptor = Self.setupDepthStencil()
 
         try super.init(from: decoder)
 
         self.material.context = decodeContext.documentContext
 //        self.material.setup()
 
-        self.material.blending = .additive
-        self.material.rgbBlendOperation = .add
-        self.material.depthWriteEnabled = false
-        self.material.depthCompareFunction = .always
+//        self.material.blending = .additive
+//        self.material.rgbBlendOperation = .add
+//        self.material.depthWriteEnabled = false
+//        self.material.depthCompareFunction = .always
 //        self.material.blending
-        
-        self.material.onBind = { renderEncoder in
-            renderEncoder.setStencilReferenceValue(127)
-        }
+//        
+//        self.material.onBind = { renderEncoder in
+//            renderEncoder.setStencilReferenceValue(127)
+//        }
         
     }
     
@@ -195,15 +195,15 @@ public class DisplacementMaterialNode: BaseMaterialNode
 
         self.evaluate(material: self.material, atTime: context.timing.time)
 
-        self.material.depthStencilState = context.context.device.makeDepthStencilState(descriptor: self.depthStencilDescriptor)
+//        self.material.depthStencilState = context.context.device.makeDepthStencilState(descriptor: self.depthStencilDescriptor)
 
-        assert(renderPassDescriptor.stencilAttachment.texture != nil)
-        assert(renderPassDescriptor.stencilAttachment.texture?.pixelFormat != .invalid)
-        assert(renderPassDescriptor.stencilAttachment.loadAction == .clear)
-        assert(renderPassDescriptor.stencilAttachment.storeAction == .store)
+//        assert(renderPassDescriptor.stencilAttachment.texture != nil)
+//        assert(renderPassDescriptor.stencilAttachment.texture?.pixelFormat != .invalid)
+//        assert(renderPassDescriptor.stencilAttachment.loadAction == .clear)
+//        assert(renderPassDescriptor.stencilAttachment.storeAction == .store)
 //        assert(renderPassDescriptor.stencilAttachment.clearStencil == 0)
         
-        assert(self.material.depthStencilState != nil)
+//        assert(self.material.depthStencilState != nil)
         
         
         if let texture = self.inputDisplacementTexture.value?.texture ?? self.inputTexture.value?.texture {

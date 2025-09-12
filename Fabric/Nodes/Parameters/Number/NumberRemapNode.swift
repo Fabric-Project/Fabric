@@ -21,16 +21,17 @@ public class NumberRemapNode : Node, NodeProtocol
     public let inputNewMinNumber:GenericParameter<Float>
     public let inputNewMaxNumber:GenericParameter<Float>
 
-    public override var inputParameters:[any Parameter]  { super.inputParameters + [inputNumber,
-                                                                             inputMinNumber,
-                                                                             inputMaxNumber,
-                                                                             inputNewMinNumber,
-                                                                             inputNewMaxNumber,
-    ] }
+    public override var inputParameters:[any Parameter]  {  [
+        inputNumber,
+        inputMinNumber,
+        inputMaxNumber,
+        inputNewMinNumber,
+        inputNewMaxNumber,
+    ] + super.inputParameters}
 
     // Ports
     public let outputNumber:NodePort<Float>
-    public override var ports: [any NodePortProtocol] { super.ports + [ outputNumber] }
+    public override var ports: [any NodePortProtocol] { [outputNumber] + super.ports }
 
     private let easingMap = Dictionary(uniqueKeysWithValues: zip(Easing.allCases.map( {$0.title()}), Easing.allCases)  )
     

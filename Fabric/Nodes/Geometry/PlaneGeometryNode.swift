@@ -19,7 +19,7 @@ public class PlaneGeometryNode : Node, NodeProtocol
     public let inputWidthParam:FloatParameter
     public let inputHeightParam:FloatParameter
     public let inputResolutionParam:Int2Parameter
-    public override var inputParameters: [any Parameter] { [inputWidthParam, inputHeightParam, inputResolutionParam] }
+    public override var inputParameters: [any Parameter] { [inputWidthParam, inputHeightParam, inputResolutionParam] + super.inputParameters}
 
     // Ports
     public let outputGeometry:NodePort<Geometry>
@@ -33,9 +33,7 @@ public class PlaneGeometryNode : Node, NodeProtocol
         self.inputHeightParam = FloatParameter("Height", 1.0, .inputfield)
         self.inputResolutionParam = Int2Parameter("Resolution", simd_int2(repeating: 1), .inputfield)
 
-        self.outputGeometry = NodePort<Geometry>(name: BoxGeometryNode.name, kind: .Outlet)
-
-        self.geometry.primitiveType = .point
+        self.outputGeometry = NodePort<Geometry>(name: PlaneGeometryNode.name, kind: .Outlet)
         
         super.init(context: context)
     }
@@ -69,8 +67,6 @@ public class PlaneGeometryNode : Node, NodeProtocol
         self.inputResolutionParam = try container.decode(Int2Parameter.self, forKey: .inputResolutionParameter)
         self.outputGeometry = try container.decode(NodePort<Geometry>.self, forKey: .outputGeometryPort)
         
-        self.geometry.primitiveType = .point
-
         try super.init(from: decoder)
     }
     

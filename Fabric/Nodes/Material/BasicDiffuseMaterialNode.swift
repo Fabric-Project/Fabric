@@ -60,8 +60,12 @@ public class BasicDiffuseMaterialNode : BasicColorMaterialNode
                                  commandBuffer: MTLCommandBuffer)
     {
         self.evaluate(material: self.material, atTime: context.timing.time)
-        self.material.hardness = self.inputHardness.value
         
+        if self.inputHardness.valueDidChangeSinceLastGet
+        {
+            self.material.hardness = self.inputHardness.value
+        }
+
         self.outputMaterial.send(self.material)
     }
 }

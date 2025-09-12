@@ -19,7 +19,7 @@ public class DeferredRenderNode : Node, NodeProtocol
     public let inputResolution:Int2Parameter
     public let inputClearColor:Float4Parameter
 
-    public override var inputParameters: [any Parameter] { super.inputParameters + [inputResolution, inputClearColor] }
+    public override var inputParameters: [any Parameter] {  [inputResolution, inputClearColor] + super.inputParameters }
     
     // Ports
     public let inputCamera: NodePort<Camera>

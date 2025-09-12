@@ -19,7 +19,7 @@ public struct NodeCanvas : View
     @State private var offset:CGSize = CGSize(width: 50, height: 50) // CGSize(width: 50, height: SourceGrid.sourceGridHeight + 45)
     @GestureState private var dragOffset: CGSize = .zero
     
-    @State private var needsRedraw:Bool = false
+//    @State private var needsRedraw:Bool = false
 
     public init() { }
     
@@ -30,6 +30,11 @@ public struct NodeCanvas : View
 
             ZStack
             {
+                // image size is 225
+                Image("background")
+                    .resizable(resizingMode: .tile)// Need this pattern image repeated throughout the page
+                    .offset(-geom.size / 2)
+
                 
                 // Nodes
                 ForEach(self.graph.nodes, id: \.id) { currentNode in
@@ -58,17 +63,17 @@ public struct NodeCanvas : View
                             let start = geom[ sourceAnchor ]
                             let end = geom[ destAnchor ]
 
-                            self.calcPathUsing(port:port, start: start, end: end)
-                                .stroke(port.backgroundColor , lineWidth: 2)
+                            let path = self.calcPathUsing(port:port, start: start, end: end)
+                            
+                            path.stroke(port.backgroundColor , lineWidth: 2)
                                 .contentShape(
-                                    self.calcPathUsing(port:port, start: start, end: end)
-                                        .stroke(style: StrokeStyle(lineWidth: 5))
+                                    path.stroke(style: StrokeStyle(lineWidth: 5))
                                 )
                                 .onTapGesture(count: 2)
                                 {
                                     connectedPort.disconnect(from:port)
                                     port.disconnect(from:connectedPort)
-                                    self.needsRedraw.toggle()
+                                    self.graph.shouldUpdateConnections.toggle()
                                 }
                         }
                     }

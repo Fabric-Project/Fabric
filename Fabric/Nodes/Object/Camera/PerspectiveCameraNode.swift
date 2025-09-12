@@ -17,7 +17,7 @@ public class PerspectiveCameraNode : BaseObjectNode, NodeProtocol
     
     // Params
     public var inputLookAt:Float3Parameter
-    public override var inputParameters: [any Parameter] { super.inputParameters + [inputLookAt] }
+    public override var inputParameters: [any Parameter] {  [inputLookAt] + super.inputParameters}
 
     // Ports
     public let outputCamera:NodePort<Camera>

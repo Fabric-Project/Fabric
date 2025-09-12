@@ -16,7 +16,7 @@ public class BasicColorMaterialNode : BaseMaterialNode
     
     // Parameters
     public let inputColor:Float4Parameter
-    public override var inputParameters: [any Parameter] { super.inputParameters + [inputColor] }
+    public override var inputParameters: [any Parameter] { [inputColor] + super.inputParameters }
     
     
     public override var material: BasicColorMaterial {

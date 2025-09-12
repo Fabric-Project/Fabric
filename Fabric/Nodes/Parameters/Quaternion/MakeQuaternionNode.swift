@@ -21,11 +21,11 @@ class MakeQuaternionNode : Node, NodeProtocol
     let inputAngle = FloatParameter("Angle", 0.0, -180, 180, .slider)
     let inputAxisParam = Float3Parameter("Axis", simd_float3(0, 1, 0) )
 
-    override var inputParameters: [any Parameter] { super.inputParameters + [inputAngle, inputAxisParam,]}
+    override var inputParameters: [any Parameter] {  [inputAngle, inputAxisParam] + super.inputParameters}
     
     private var quat = simd_quatf(angle: 0, axis: simd_float3(0, 1, 0))
     
-    override var ports: [any NodePortProtocol] { super.ports + [outputVector] }
+    override var ports: [any NodePortProtocol] {  [outputVector] + super.ports }
     
     override  func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,

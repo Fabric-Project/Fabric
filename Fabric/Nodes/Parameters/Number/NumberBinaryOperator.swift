@@ -22,14 +22,14 @@ public class NumberBinaryOperator : Node, NodeProtocol
     public let inputAParam:FloatParameter
     public let inputBParam:FloatParameter
     public let inputOperatorParam:StringParameter
-    public override var inputParameters:[any Parameter] { super.inputParameters + [inputAParam, inputBParam, inputOperatorParam] }
+    public override var inputParameters:[any Parameter] {  [inputAParam, inputBParam, inputOperatorParam] + super.inputParameters}
 
     // Ports
     public let outputNumber:NodePort<Float>
     private var mathOperator = BinaryMathOperator.Add
     
     
-    public override var ports: [any NodePortProtocol] { super.ports + [ outputNumber] }
+    public override var ports: [any NodePortProtocol] { [outputNumber] + super.ports }
 
     public required init(context: Context)
     {

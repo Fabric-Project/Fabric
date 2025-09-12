@@ -17,7 +17,7 @@ public class RenderNode : Node, NodeProtocol
 
     // Parameters
     public let inputClearColor:Float4Parameter
-    public override var inputParameters: [any Parameter] { super.inputParameters + [inputClearColor] }
+    public override var inputParameters: [any Parameter] { [inputClearColor] + super.inputParameters }
     
     // Ports
     public let inputCamera: NodePort<Camera>
