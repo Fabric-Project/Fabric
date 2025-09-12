@@ -98,31 +98,39 @@ class BaseColorEffectNode : Node, NodeProtocol
                           renderPassDescriptor: MTLRenderPassDescriptor,
                           commandBuffer: MTLCommandBuffer)
     {
+        let anyParamDidChange =  self.inputParameters.reduce(false, { partialResult, next in
+           return partialResult || next.valueDidChange
+        })
         
-        if  self.inputTexturePort.valueDidChangeSinceLastGet,
-            let inTex = self.inputTexturePort.value?.texture
-        {
-            self.postProcessor.mesh.preDraw = { renderEncoder in
-                
-                renderEncoder.setFragmentTexture(inTex, index: FragmentTextureIndex.Custom0.rawValue)
-            }
-            
-            self.postProcessor.renderer.size.width = Float(inTex.width)
-            self.postProcessor.renderer.size.height = Float(inTex.height)
-            
-            self.postProcessor.draw(renderPassDescriptor: MTLRenderPassDescriptor(), commandBuffer: commandBuffer)
-            
-            if let outTex = self.postProcessor.renderer.colorTexture
-            {
-                let outputTexture = EquatableTexture(texture: outTex)
-                self.outputTexturePort.send( outputTexture )
-            }
-        }
-        else
-        {
-            self.outputTexturePort.send( nil )
-        }
+        print("Any Param did Change", anyParamDidChange)
 
+        
+        if  self.inputTexturePort.valueDidChange || anyParamDidChange
+        {
+            if let inTex = self.inputTexturePort.value?.texture
+            {
+                self.postProcessor.mesh.preDraw = { renderEncoder in
+                    
+                    renderEncoder.setFragmentTexture(inTex, index: FragmentTextureIndex.Custom0.rawValue)
+                }
+                
+                self.postProcessor.renderer.size.width = Float(inTex.width)
+                self.postProcessor.renderer.size.height = Float(inTex.height)
+                
+                self.postProcessor.draw(renderPassDescriptor: MTLRenderPassDescriptor(), commandBuffer: commandBuffer)
+                
+                if let outTex = self.postProcessor.renderer.colorTexture
+                {
+                    let outputTexture = EquatableTexture(texture: outTex)
+                    self.outputTexturePort.send( outputTexture )
+                }
+            }
+            else
+            {
+                self.outputTexturePort.send( nil )
+
+            }
+        }
     }
     
 //    override func execute(context:GraphExecutionContext,

@@ -205,21 +205,21 @@ public class DisplacementMaterialNode: BaseMaterialNode
         
 //        assert(self.material.depthStencilState != nil)
         
-        if self.inputDisplacementTexture.valueDidChangeSinceLastGet
+        if self.inputDisplacementTexture.valueDidChange
         {
             if let texture = self.inputDisplacementTexture.value?.texture ?? self.inputTexture.value?.texture {
                 self.material.set(texture, index: VertexTextureIndex.Custom0)
             }
         }
         
-        if self.inputTexture.valueDidChangeSinceLastGet
+        if self.inputTexture.valueDidChange
         {
             if let texture = self.inputTexture.value?.texture {
                 self.material.set(texture, index: FragmentTextureIndex.Custom0)
             }
         }
         
-        if  self.inputPointSpriteTexture.valueDidChangeSinceLastGet
+        if  self.inputPointSpriteTexture.valueDidChange
         {
             if let texture = self.inputPointSpriteTexture.value?.texture {
                 self.material.set(texture, index: FragmentTextureIndex.Custom1)

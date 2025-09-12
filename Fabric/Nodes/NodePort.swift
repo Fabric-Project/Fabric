@@ -62,7 +62,7 @@ public protocol NodePortProtocol : Identifiable, Hashable, Equatable, Codable
     var direction:PortDirection { get }
 
     func valueType() -> String
-    var valueDidChangeSinceLastGet:Bool { get }
+    var valueDidChange:Bool { get }
     
 }
 
@@ -131,26 +131,35 @@ public class NodePort<Value : Equatable>: NodePortProtocol
 
     public let name: String
     
-    public var valueDidChangeSinceLastGet:Bool = false
-
-    private var internalValue: Value?
+    // Maybe a bit too verbose?
+    private var intervalValueDidChange : Bool = true
+    public var valueDidChange:Bool
+    {
+        get
+        {
+            let val = self.intervalValueDidChange
+            self.intervalValueDidChange = false
+            return val
+        }
+        set
+        {
+            self.intervalValueDidChange = newValue
+        }
+    }
     
+    private var internalValue:Value?
+   
     public var value: Value?
     {
         get
         {
-            if self.valueDidChangeSinceLastGet
-            {
-                self.valueDidChangeSinceLastGet = false
-            }
-            
             return self.internalValue
         }
         set
         {
             if self.internalValue != newValue
             {
-                self.valueDidChangeSinceLastGet = true
+                self.valueDidChange = true
                 node?.markDirty()
             }
             
