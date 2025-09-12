@@ -73,9 +73,20 @@ public class SphereGeometryNode : Node, NodeProtocol
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        self.geometry.radius = self.inputRadius.value
-        self.geometry.angularResolution =  self.inputAngularResolutionParam.value
-        self.geometry.verticalResolution =  self.inputVerticalResolutionParam.value
+        if self.inputRadius.valueDidChange
+        {
+            self.geometry.radius = self.inputRadius.value
+        }
+        
+        if self.inputAngularResolutionParam.valueDidChange
+        {
+            self.geometry.angularResolution = self.inputAngularResolutionParam.value
+        }
+        
+        if self.inputVerticalResolutionParam.valueDidChange
+        {
+            self.geometry.verticalResolution = self.inputVerticalResolutionParam.value
+        }
 
         self.outputGeometry.send(self.geometry)
      }

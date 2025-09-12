@@ -25,6 +25,8 @@ public class NumberEaseNode : Node, NodeProtocol
     public let outputNumber:NodePort<Float>
     public override var ports: [any NodePortProtocol] {  [outputNumber] + super.ports}
 
+    private var lastOutput:Float = 0.0
+    
     private let easingMap = Dictionary(uniqueKeysWithValues: zip(Easing.allCases.map( {$0.title()}), Easing.allCases)  )
     
     public required init(context: Context)

@@ -69,7 +69,10 @@ public class BasicTextureMaterialNode : BasicColorMaterialNode
     {
         self.evaluate(material: self.material, atTime: context.timing.time)
         
-        self.material.texture =  self.inputTexture.value?.texture
+        if self.inputTexture.valueDidChangeSinceLastGet
+        {
+            self.material.texture =  self.inputTexture.value?.texture
+        }
         
         self.outputMaterial.send(self.material)
     }

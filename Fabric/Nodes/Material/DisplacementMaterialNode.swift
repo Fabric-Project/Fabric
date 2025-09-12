@@ -205,23 +205,51 @@ public class DisplacementMaterialNode: BaseMaterialNode
         
 //        assert(self.material.depthStencilState != nil)
         
-        
-        if let texture = self.inputDisplacementTexture.value?.texture ?? self.inputTexture.value?.texture {
-            self.material.set(texture, index: VertexTextureIndex.Custom0)
-        }
-
-        if let texture = self.inputTexture.value?.texture {
-            self.material.set(texture, index: FragmentTextureIndex.Custom0)
-        }
-        if let texture = self.inputPointSpriteTexture.value?.texture {
-            self.material.set(texture, index: FragmentTextureIndex.Custom1)
+        if self.inputDisplacementTexture.valueDidChangeSinceLastGet
+        {
+            if let texture = self.inputDisplacementTexture.value?.texture ?? self.inputTexture.value?.texture {
+                self.material.set(texture, index: VertexTextureIndex.Custom0)
+            }
         }
         
-        self.material.set("amount", self.inputAmount.value)
-        self.material.set("lumaVPosMix", self.inputLumaVsRGBAmount.value)
-        self.material.set("minPointSize", self.inputMinPointSize.value)
-        self.material.set("maxPointSize", self.inputMaxPointSize.value)
-        self.material.set("brightness", self.inputBrightness.value)
+        if self.inputTexture.valueDidChangeSinceLastGet
+        {
+            if let texture = self.inputTexture.value?.texture {
+                self.material.set(texture, index: FragmentTextureIndex.Custom0)
+            }
+        }
+        
+        if  self.inputPointSpriteTexture.valueDidChangeSinceLastGet
+        {
+            if let texture = self.inputPointSpriteTexture.value?.texture {
+                self.material.set(texture, index: FragmentTextureIndex.Custom1)
+            }
+        }
+        
+        if self.inputAmount.valueDidChange
+        {
+            self.material.set("amount", self.inputAmount.value)
+        }
+        
+        if self.inputLumaVsRGBAmount.valueDidChange
+        {
+            self.material.set("lumaVPosMix", self.inputLumaVsRGBAmount.value)
+        }
+        
+        if self.inputMinPointSize.valueDidChange
+        {
+            self.material.set("minPointSize", self.inputMinPointSize.value)
+        }
+        
+        if  self.inputMaxPointSize.valueDidChange
+        {
+            self.material.set("maxPointSize", self.inputMaxPointSize.value)
+        }
+        
+        if self.inputBrightness.valueDidChange
+        {
+            self.material.set("brightness", self.inputBrightness.value)
+        }
 
         self.outputMaterial.send(self.material)
     }

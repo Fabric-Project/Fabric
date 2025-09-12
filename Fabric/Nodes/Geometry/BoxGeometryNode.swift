@@ -78,14 +78,26 @@ public class BoxGeometryNode : Node, NodeProtocol
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        self.geometry.width = self.inputWidthParam.value
+        if self.inputWidthParam.valueDidChange
+        {
+            self.geometry.width = self.inputWidthParam.value
+        }
         
-        self.geometry.height =  self.inputHeightParam.value
+        if self.inputHeightParam.valueDidChange
+        {
+            self.geometry.height = self.inputHeightParam.value
+        }
         
-        self.geometry.depth = self.inputDepthParam.value
+        if self.inputDepthParam.valueDidChange
+        {
+            self.geometry.depth = self.inputDepthParam.value
+        }
         
-        self.geometry.resolution =  self.inputResolutionParam.value
-                
+        if self.inputResolutionParam.valueDidChange
+        {
+            self.geometry.resolution =  self.inputResolutionParam.value
+        }
+        
         self.outputGeometry.send(self.geometry)
      }
 }

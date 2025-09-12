@@ -61,7 +61,7 @@ public class BasicDiffuseMaterialNode : BasicColorMaterialNode
     {
         self.evaluate(material: self.material, atTime: context.timing.time)
         
-        if self.inputHardness.valueDidChangeSinceLastGet
+        if self.inputHardness.valueDidChange
         {
             self.material.hardness = self.inputHardness.value
         }

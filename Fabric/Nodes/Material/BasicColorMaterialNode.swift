@@ -60,7 +60,11 @@ public class BasicColorMaterialNode : BaseMaterialNode
     public override func evaluate(material:Material, atTime:TimeInterval)
     {
         super.evaluate(material: material, atTime: atTime)
-        self.material.color = self.inputColor.value
+        
+        if self.inputColor.valueDidChange
+        {
+            self.material.color = self.inputColor.value
+        }
     }
     
     public override func execute(context:GraphExecutionContext,

@@ -28,7 +28,8 @@ public class NumberUnnaryOperator : Node, NodeProtocol
     public override var ports: [any NodePortProtocol] {  [outputNumber] + super.ports}
 
     private var mathOperator = UnaryMathOperator.Sine
-
+    private var lastOutput:Float = .nan
+    
     public required init(context: Context)
     {
         self.inputAParam = FloatParameter("A", 0.0, .inputfield)
@@ -74,11 +75,17 @@ public class NumberUnnaryOperator : Node, NodeProtocol
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        if let mathOp = UnaryMathOperator(rawValue: self.inputOperatorParam.value)
+        if  self.inputOperatorParam.valueDidChange,
+            let mathOp = UnaryMathOperator(rawValue: self.inputOperatorParam.value)
         {
             self.mathOperator = mathOp
         }
         
-        self.outputNumber.send( self.mathOperator.perform(self.inputAParam.value) )
+        if self.inputAParam.valueDidChange
+        {
+            self.lastOutput = self.mathOperator.perform(self.inputAParam.value)
+        }
+        
+        self.outputNumber.send( self.lastOutput )
     }
 }

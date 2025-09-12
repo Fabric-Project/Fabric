@@ -88,8 +88,11 @@ class HDRTextureNode : Node, NodeProtocol
 //            self.texture = self.loadTexture(device: self.context.device, url: inputURL )
 //        }
        
-        self.loadTextureFromInputValue()
-
+        if self.inputFilePathParam.valueDidChange
+        {
+            self.loadTextureFromInputValue()
+        }
+        
         if let texture = self.texture
         {
             self.outputTexturePort.send( EquatableTexture(texture: texture) )

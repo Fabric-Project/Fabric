@@ -88,10 +88,25 @@ public class BaseMaterialNode : Node, NodeProtocol
     
     public func evaluate(material:Material, atTime:TimeInterval)
     {
-        material.blending = self.blendingMode()
-        material.lighting = self.inputReceivesLighting.value
-        material.depthWriteEnabled = self.inputWriteDepth.value
-        material.depthCompareFunction = (self.inputWriteDepth.value) ? .greaterEqual : .always
+        if self.inputBlending.valueDidChange
+        {
+            material.blending = self.blendingMode()
+        }
+        
+        if self.inputReceivesLighting.valueDidChange
+        {
+            material.lighting = self.inputReceivesLighting.value
+        }
+        
+        if  self.inputWriteDepth.valueDidChange
+        {
+            material.depthWriteEnabled = self.inputWriteDepth.value
+        }
+        
+        if self.inputWriteDepth.valueDidChange
+        {
+            material.depthCompareFunction = (self.inputWriteDepth.value) ? .greaterEqual : .always
+        }
     }
     
     private func blendingMode() -> Blending

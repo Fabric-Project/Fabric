@@ -68,10 +68,16 @@ public class IcoSphereGeometryNode : Node, NodeProtocol
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        self.geometry.radius = self.inputRadius.value
+        if self.inputRadius.valueDidChange
+        {
+            self.geometry.radius = self.inputRadius.value
+        }
                 
-        self.geometry.resolution =  self.inputResolutionParam.value
-                
+        if  self.inputResolutionParam.valueDidChange
+        {
+            self.geometry.resolution =  self.inputResolutionParam.value
+        }
+        
         self.outputGeometry.send(self.geometry)
      }
 }

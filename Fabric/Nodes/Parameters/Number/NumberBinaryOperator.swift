@@ -27,7 +27,7 @@ public class NumberBinaryOperator : Node, NodeProtocol
     // Ports
     public let outputNumber:NodePort<Float>
     private var mathOperator = BinaryMathOperator.Add
-    
+    private var output:Float = 0.0
     
     public override var ports: [any NodePortProtocol] { [outputNumber] + super.ports }
 
@@ -80,12 +80,18 @@ public class NumberBinaryOperator : Node, NodeProtocol
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        if let mathOp = BinaryMathOperator(rawValue: self.inputOperatorParam.value)
+        if self.inputOperatorParam.valueDidChange,
+           let mathOp = BinaryMathOperator(rawValue: self.inputOperatorParam.value)
         {
             self.mathOperator = mathOp
         }
         
-        self.outputNumber.send( self.mathOperator.perform(lhs: self.inputAParam.value,
-                                                          rhs: self.inputBParam.value) )
+        if self.inputAParam.valueDidChange || self.inputBParam.valueDidChange
+        {
+            self.output = self.mathOperator.perform(lhs: self.inputAParam.value,
+                                                     rhs: self.inputBParam.value)
+        }
+        
+        self.outputNumber.send(self.output)
     }
 }

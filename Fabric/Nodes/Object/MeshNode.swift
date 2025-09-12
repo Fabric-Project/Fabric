@@ -104,23 +104,31 @@ public class MeshNode : BaseObjectNode, NodeProtocol
 //                mesh.cullMode = .none
                 mesh.geometry = geometery
                 mesh.material = material
-                
-                self.outputMesh.send(mesh)
             }
             else
             {
                 self.mesh = Mesh(geometry: geometery, material: material)
-//                self.mesh?.receiveShadow = true
-//                self.mesh?.castShadow = true
             }
             
             if let mesh = mesh
             {
                 self.evaluate(object: mesh, atTime: context.timing.time)
                 
-                mesh.castShadow = self.inputCastsShadow.value
-                mesh.receiveShadow = self.inputCastsShadow.value
-                mesh.cullMode = self.cullMode()
+                if self.inputCastsShadow.valueDidChange
+                {
+                    mesh.castShadow = self.inputCastsShadow.value
+                }
+                
+                if self.inputCastsShadow.valueDidChange
+                {
+                    mesh.receiveShadow = self.inputCastsShadow.value
+                    
+                }
+                
+                if self.inputCullingMode.valueDidChange
+                {
+                    mesh.cullMode = self.cullMode()
+                }
                 
                 self.outputMesh.send(mesh)
             }

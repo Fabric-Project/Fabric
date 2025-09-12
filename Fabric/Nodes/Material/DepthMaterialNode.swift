@@ -86,10 +86,25 @@ public class DepthMaterialNode : BaseMaterialNode
     {
         self.evaluate(material: self.material, atTime: context.timing.time)
         
-        self.material.far = self.inputFar.value
-        self.material.near = self.inputNear.value
-        self.material.invert = self.inputInvert.value
-        self.material.color = self.inputColor.value
+        if self.inputFar.valueDidChange
+        {
+            self.material.far = self.inputFar.value
+        }
+        
+        if self.inputNear.valueDidChange
+        {
+            self.material.near = self.inputNear.value
+        }
+        
+        if self.inputInvert.valueDidChange
+        {
+            self.material.invert = self.inputInvert.value
+        }
+        
+        if self.inputColor.valueDidChange
+        {
+            self.material.color = self.inputColor.value
+        }
         
         self.outputMaterial.send(self.material)
     }

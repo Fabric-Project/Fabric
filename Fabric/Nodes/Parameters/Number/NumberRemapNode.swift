@@ -21,6 +21,8 @@ public class NumberRemapNode : Node, NodeProtocol
     public let inputNewMinNumber:GenericParameter<Float>
     public let inputNewMaxNumber:GenericParameter<Float>
 
+    private var lastValue:Float = 0.0
+    
     public override var inputParameters:[any Parameter]  {  [
         inputNumber,
         inputMinNumber,
@@ -92,10 +94,20 @@ public class NumberRemapNode : Node, NodeProtocol
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        self.outputNumber.send( remap(self.inputNumber.value,
-                                      self.inputMinNumber.value,
-                                      self.inputMaxNumber.value,
-                                      self.inputNewMinNumber.value,
-                                      self.inputNewMaxNumber.value) )
+        if self.inputNumber.valueDidChange ||
+            self.inputMinNumber.valueDidChange ||
+            self.inputMaxNumber.valueDidChange ||
+            self.inputNewMinNumber.valueDidChange ||
+            self.inputNewMaxNumber.valueDidChange
+        {
+            self.lastValue = remap(self.inputNumber.value,
+                               self.inputMinNumber.value,
+                               self.inputMaxNumber.value,
+                               self.inputNewMinNumber.value,
+                               self.inputNewMaxNumber.value)
+        }
+        
+        
+        self.outputNumber.send( self.lastValue )
     }
 }

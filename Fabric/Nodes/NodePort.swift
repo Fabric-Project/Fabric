@@ -62,6 +62,8 @@ public protocol NodePortProtocol : Identifiable, Hashable, Equatable, Codable
     var direction:PortDirection { get }
 
     func valueType() -> String
+    var valueDidChangeSinceLastGet:Bool { get }
+    
 }
 
 public protocol ParameterPortProtocol : NodePortProtocol
@@ -128,16 +130,34 @@ public class NodePort<Value : Equatable>: NodePortProtocol
     public let id:UUID
 
     public let name: String
+    
+    public var valueDidChangeSinceLastGet:Bool = false
+
+    private var internalValue: Value?
+    
     public var value: Value?
     {
-        didSet
+        get
         {
-            if oldValue != value
+            if self.valueDidChangeSinceLastGet
             {
+                self.valueDidChangeSinceLastGet = false
+            }
+            
+            return self.internalValue
+        }
+        set
+        {
+            if self.internalValue != newValue
+            {
+                self.valueDidChangeSinceLastGet = true
                 node?.markDirty()
             }
+            
+            self.internalValue = newValue
         }
     }
+
     
 //    private var published: Bool = false
 //    public func setPublished(_ value:Bool) { self.published = value}

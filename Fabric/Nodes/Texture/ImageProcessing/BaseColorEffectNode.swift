@@ -99,7 +99,8 @@ class BaseColorEffectNode : Node, NodeProtocol
                           commandBuffer: MTLCommandBuffer)
     {
         
-        if let inTex = self.inputTexturePort.value?.texture
+        if  self.inputTexturePort.valueDidChangeSinceLastGet,
+            let inTex = self.inputTexturePort.value?.texture
         {
             self.postProcessor.mesh.preDraw = { renderEncoder in
                 
