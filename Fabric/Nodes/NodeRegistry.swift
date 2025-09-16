@@ -34,6 +34,7 @@ class NodeRegistry {
          SphereGeometryNode.self,
          IcoSphereGeometryNode.self,
          SkyboxGeometryNode.self,
+         ExtrudedTextGeometryNode.self,
          SuperShapeGeometryNode.self,
          
          BasicColorMaterialNode.self,
