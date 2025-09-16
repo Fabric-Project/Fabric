@@ -9,27 +9,29 @@ import Foundation
 import simd
 import Metal
 
-public class SphereGeometryNode : Node, NodeProtocol
+public class CapsuleGeometryNode : Node, NodeProtocol
 {
-    public static let name = "Sphere Geometry"
+    public static let name = "Capsule Geometry"
     public static var nodeType = Node.NodeType.Geometery
 
     // Params
     public let inputRadius:FloatParameter
+    public let inputHeight:FloatParameter
     public let inputAngularResolutionParam:IntParameter
     public let inputVerticalResolutionParam:IntParameter
-    public override var inputParameters: [any Parameter] { [inputRadius, inputAngularResolutionParam, inputVerticalResolutionParam] + super.inputParameters}
+    public override var inputParameters: [any Parameter] { [inputRadius, inputHeight, inputAngularResolutionParam, inputVerticalResolutionParam] + super.inputParameters}
 
     // Ports
     public let outputGeometry:NodePort<Geometry>
     public override var ports:[any NodePortProtocol] {  [outputGeometry] + super.ports}
 
-    private let geometry = SphereGeometry(radius: 1.0, angularResolution: 60, verticalResolution: 30)
-
+    private let geometry = CapsuleGeometry(radius: 1.0, height: 2.0, angularResolution: 30, radialResolution: 30, verticalResolution: 30)
+    
     public required init(context: Context)
     {
         self.inputRadius = FloatParameter("Radius", 1.0, .inputfield)
-        self.inputAngularResolutionParam = IntParameter("Angular Resolution", 60, .inputfield)
+        self.inputHeight = FloatParameter("Height", 2.0, .inputfield)
+        self.inputAngularResolutionParam = IntParameter("Angular Resolution", 30, .inputfield)
         self.inputVerticalResolutionParam = IntParameter("Vertical Resolution", 30, .inputfield)
 
         self.outputGeometry = NodePort<Geometry>(name: Self.name, kind: .Outlet)
@@ -40,6 +42,7 @@ public class SphereGeometryNode : Node, NodeProtocol
     enum CodingKeys : String, CodingKey
     {
         case inputRadiusParameter
+        case inputHeightParameter
         case inputAngularResolutionParameter
         case inputVerticalResolutionParameter
         case outputGeometryPort
@@ -50,6 +53,7 @@ public class SphereGeometryNode : Node, NodeProtocol
         var container = encoder.container(keyedBy: CodingKeys.self)
         
         try container.encode(self.inputRadius, forKey: .inputRadiusParameter)
+        try container.encode(self.inputHeight, forKey: .inputHeightParameter)
         try container.encode(self.inputAngularResolutionParam, forKey: .inputAngularResolutionParameter)
         try container.encode(self.inputVerticalResolutionParam, forKey: .inputVerticalResolutionParameter)
         try container.encode(self.outputGeometry, forKey: .outputGeometryPort)
@@ -62,6 +66,7 @@ public class SphereGeometryNode : Node, NodeProtocol
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
         self.inputRadius = try container.decode(FloatParameter.self, forKey: .inputRadiusParameter)
+        self.inputHeight = try container.decode(FloatParameter.self, forKey: .inputHeightParameter)
         self.inputAngularResolutionParam = try container.decode(IntParameter.self, forKey: .inputAngularResolutionParameter)
         self.inputVerticalResolutionParam = try container.decode(IntParameter.self, forKey: .inputVerticalResolutionParameter)
         self.outputGeometry = try container.decode(NodePort<Geometry>.self, forKey: .outputGeometryPort)
@@ -76,6 +81,11 @@ public class SphereGeometryNode : Node, NodeProtocol
         if self.inputRadius.valueDidChange
         {
             self.geometry.radius = self.inputRadius.value
+        }
+        
+        if self.inputHeight.valueDidChange
+        {
+            self.geometry.height = self.inputHeight.value
         }
         
         if self.inputAngularResolutionParam.valueDidChange
