@@ -1,5 +1,5 @@
 //
-//  StringComponentNode.swift
+//  StringLengthNode.swift
 //  Fabric
 //
 //  Created by Anton Marini on 9/17/25.
@@ -11,15 +11,16 @@ import simd
 import Metal
 import MetalKit
 
-class StringComponentNode : Node, NodeProtocol
+class StringRangeNode : Node, NodeProtocol
 {
-    static let name = "String Components"
+    static let name = "String Range"
     static var nodeType = Node.NodeType.Parameter(parameterType: .String)
 
-    // TODO: add character set menu to choose component separation strategy
-    
+    let inputRangeTo:FloatParameter
+    override var inputParameters: [any Parameter] { [self.inputRangeTo] + super.inputParameters}
+
     let inputPort:NodePort<String>
-    let outputPort:NodePort<[String]>
+    let outputPort:NodePort<String>
     override var ports: [any NodePortProtocol] {  [inputPort, outputPort] + super.ports}
 
     private var url: URL? = nil
@@ -28,7 +29,8 @@ class StringComponentNode : Node, NodeProtocol
     required init(context:Context)
     {
         self.inputPort = NodePort<String>(name: "String", kind: .Inlet)
-        self.outputPort = NodePort<[String]>(name: "Lines", kind: .Outlet)
+        self.inputRangeTo = FloatParameter("To", 0, .inputfield)
+        self.outputPort = NodePort<String>(name: "String", kind: .Outlet)
         
         super.init(context: context)
         
@@ -37,6 +39,7 @@ class StringComponentNode : Node, NodeProtocol
     enum CodingKeys : String, CodingKey
     {
         case inputPort
+        case inputRangeToParameter
         case outputPort
     }
     
@@ -45,6 +48,7 @@ class StringComponentNode : Node, NodeProtocol
         var container = encoder.container(keyedBy: CodingKeys.self)
         
         try container.encode(self.inputPort, forKey: .inputPort)
+        try container.encode(self.inputRangeTo, forKey: .inputRangeToParameter)
         try container.encode(self.outputPort, forKey: .outputPort)
 
         try super.encode(to: encoder)
@@ -55,7 +59,8 @@ class StringComponentNode : Node, NodeProtocol
         let container = try decoder.container(keyedBy: CodingKeys.self)
        
         self.inputPort = try container.decode(NodePort<String>.self, forKey: .inputPort)
-        self.outputPort = try container.decode(NodePort<[String]>.self, forKey: .outputPort)
+        self.inputRangeTo = try container.decode(FloatParameter.self, forKey: .inputRangeToParameter)
+        self.outputPort = try container.decode(NodePort<String>.self, forKey: .outputPort)
         
         try super.init(from:decoder)
     }
@@ -64,11 +69,16 @@ class StringComponentNode : Node, NodeProtocol
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {
-        if self.inputPort.valueDidChange
+        if self.inputPort.valueDidChange || self.inputRangeTo.valueDidChange
         {
             if let string = self.inputPort.value
             {
-                self.outputPort.send( string.components(separatedBy: .newlines) )
+                let offset = max(0, Int(self.inputRangeTo.value) )
+                let endIndex = string.index(string.startIndex, offsetBy:offset, limitedBy: string.endIndex)
+                
+                let substring = string[ string.startIndex ..< (endIndex ?? string.endIndex) ]
+                
+                self.outputPort.send( String(substring) )
             }
             else
             {

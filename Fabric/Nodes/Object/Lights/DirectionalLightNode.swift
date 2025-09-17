@@ -56,17 +56,17 @@ public class DirectionalLightNode : BaseObjectNode, NodeProtocol
         super.init(context: context)
         
         light.castShadow = true
-        light.shadow.resolution = (1024, 1024)
+        light.shadow.resolution = (2048, 2048)
         light.shadow.bias = 0.0005
         light.shadow.strength = 0.5
         light.shadow.radius = 2
         light.position.y = 5.0
         
-        // Not sure what this does TBH :X ?
-//        if let shadowCamera = light.shadow.camera as? OrthographicCamera {
-//            shadowCamera.update(left: -2, right: 2, bottom: -2, top: 2)
-//        }
+        if let shadowCamera = light.shadow.camera as? OrthographicCamera {
+            shadowCamera.update(left: -20, right: 20, bottom: -20, top: 20, near: 0.01, far: 200)
+        }
 
+        
         light.lookAt(target: .zero, up: Satin.worldUpDirection)
 
     }
@@ -103,6 +103,9 @@ public class DirectionalLightNode : BaseObjectNode, NodeProtocol
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
+        self.light.castShadow = true
+        light.shadow.resolution = (2048, 2048)
+
         self.inputLookAt = try container.decode(Float3Parameter.self, forKey: .inputLookAtParameter)
         self.inputColor = try container.decode(Float3Parameter.self, forKey: .inputColorParameter)
         self.inputIntensity = try container.decode(FloatParameter.self, forKey: .inputIntensityParameter)
@@ -110,6 +113,12 @@ public class DirectionalLightNode : BaseObjectNode, NodeProtocol
         self.inputShadowRadius = try container.decode(FloatParameter.self, forKey: .inputShadowRadiusParameter)
         self.inputShadowBias = try container.decode(FloatParameter.self, forKey: .inputShadowBiasParameter)
         self.outputLight = try container.decode(NodePort<Object>.self, forKey: .outputLightPort)
+
+        if let shadowCamera = light.shadow.camera as? OrthographicCamera {
+            shadowCamera.update(left: -20, right: 20, bottom: -20, top: 20, near: 0.01, far: 200)
+        }
+
+        light.lookAt(target: .zero, up: Satin.worldUpDirection)
 
         try super.init(from: decoder)
     }

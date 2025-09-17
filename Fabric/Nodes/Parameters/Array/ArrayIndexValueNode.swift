@@ -13,7 +13,7 @@ import MetalKit
 
 class ArrayIndexValueNode<Value : Equatable> : Node, NodeProtocol
 {
-    static var name:String { "Object At \(Value.self) Array Index" }
+    static var name:String { "\(Value.self) Value at Array Index" }
     static var nodeType:Node.NodeType { Node.NodeType.Parameter(parameterType: .Array) }
 
     let inputIndexParam:FloatParameter

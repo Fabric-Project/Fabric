@@ -83,6 +83,8 @@ class NodeRegistry {
          // String
          TextFileLoaderNode.self,
          StringComponentNode.self,
+         StringLengthNode.self,
+         StringRangeNode.self,
          ArrayIndexValueNode<String>.self,
          ArrayCountNode<String>.self,
          

@@ -117,12 +117,7 @@ public class MeshNode : BaseObjectNode, NodeProtocol
                 if self.inputCastsShadow.valueDidChange
                 {
                     mesh.castShadow = self.inputCastsShadow.value
-                }
-                
-                if self.inputCastsShadow.valueDidChange
-                {
                     mesh.receiveShadow = self.inputCastsShadow.value
-                    
                 }
                 
                 if self.inputCullingMode.valueDidChange

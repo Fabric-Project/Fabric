@@ -1,10 +1,9 @@
 //
-//  ArrayCountNode.swift
+//  StringLengthNode.swift
 //  Fabric
 //
 //  Created by Anton Marini on 9/17/25.
 //
-
 
 import Foundation
 import Satin
@@ -12,14 +11,14 @@ import simd
 import Metal
 import MetalKit
 
-class ArrayCountNode<Value : Equatable> : Node, NodeProtocol
+class StringLengthNode : Node, NodeProtocol
 {
-    static var name:String { "\(Value.self) Array Count" }
-    static var nodeType:Node.NodeType { Node.NodeType.Parameter(parameterType: .Array) }
+    static let name = "String Length"
+    static var nodeType = Node.NodeType.Parameter(parameterType: .String)
 
     // TODO: add character set menu to choose component separation strategy
     
-    let inputPort:NodePort<[Value]>
+    let inputPort:NodePort<String>
     let outputPort:NodePort<Float>
     override var ports: [any NodePortProtocol] {  [inputPort, outputPort] + super.ports}
 
@@ -28,10 +27,11 @@ class ArrayCountNode<Value : Equatable> : Node, NodeProtocol
     
     required init(context:Context)
     {
-        self.inputPort = NodePort<[Value]>(name: "Array", kind: .Inlet)
-        self.outputPort = NodePort<Float>(name: "Count", kind: .Outlet)
+        self.inputPort = NodePort<String>(name: "String", kind: .Inlet)
+        self.outputPort = NodePort<Float>(name: "Length", kind: .Outlet)
         
         super.init(context: context)
+        
     }
     
     enum CodingKeys : String, CodingKey
@@ -54,7 +54,7 @@ class ArrayCountNode<Value : Equatable> : Node, NodeProtocol
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
        
-        self.inputPort = try container.decode(NodePort<[Value]>.self, forKey: .inputPort)
+        self.inputPort = try container.decode(NodePort<String>.self, forKey: .inputPort)
         self.outputPort = try container.decode(NodePort<Float>.self, forKey: .outputPort)
         
         try super.init(from:decoder)
@@ -66,11 +66,10 @@ class ArrayCountNode<Value : Equatable> : Node, NodeProtocol
     {
         if self.inputPort.valueDidChange
         {
-            if let array = self.inputPort.value
+            if let string = self.inputPort.value
             {
-                self.outputPort.send( Float(array.count) )
+                self.outputPort.send( Float(string.count) )
             }
-            
             else
             {
                 self.outputPort.send( nil )
