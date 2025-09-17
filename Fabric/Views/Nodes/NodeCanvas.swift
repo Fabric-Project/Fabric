@@ -97,13 +97,17 @@ public struct NodeCanvas : View
     
     private func calcPathUsing(port:(any NodePortProtocol), start:CGPoint, end:CGPoint) -> Path
     {
+        let lowerBound = 5.0
+        let upperBound = 10.0
+        
         // Min 5 stem height
-        let stemHeight:CGFloat = self.clamp( abs( end.y - start.y) / 4.0 , lowerBound: 5.0, upperBound: 35.0)
-        let stemOffset:CGFloat =  self.clamp( self.dist(p1: start, p2:end) / 4.0, lowerBound: 5.0, upperBound: 35.0) /*min( max(5, self.dist(p1: start, p2:end)), 40 )*/
+        let stemOffset:CGFloat =  self.clamp( self.dist(p1: start, p2:end) / 4.0, lowerBound: lowerBound, upperBound: upperBound) /*min( max(5, self.dist(p1: start, p2:end)), 40 )*/
 
         switch port.direction
         {
         case .Vertical:
+            let stemHeight:CGFloat = self.clamp( abs( end.y - start.y) / 4.0 , lowerBound: lowerBound, upperBound: upperBound)
+
             let start1:CGPoint = CGPoint(x: start.x,
                                          y: start.y + stemHeight)
             
@@ -125,13 +129,15 @@ public struct NodeCanvas : View
             }
             
         case .Horizontal:
+            let stemHeight:CGFloat = self.clamp( abs( end.x - start.x) / 4.0 , lowerBound: lowerBound, upperBound: upperBound)
+
             let start1:CGPoint = CGPoint(x: start.x + stemHeight,
                                          y: start.y)
             
             let end1:CGPoint = CGPoint(x: end.x - stemHeight,
                                        y: end.y)
             
-            let controlOffset:CGFloat = max(stemHeight + stemOffset, abs(end1.y - start1.y) / 2.4)
+            let controlOffset:CGFloat = max(stemHeight + stemOffset, abs(end1.x - start1.x) / 2.4)
             let control1 = CGPoint(x: start1.x + controlOffset, y: start1.y  )
             let control2 = CGPoint(x: end1.x - controlOffset, y:end1.y   )
             

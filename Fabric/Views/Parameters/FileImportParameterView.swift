@@ -18,14 +18,8 @@ struct FileImportParameterView: View, Equatable
     
     @Bindable var stringParameter:StringParameter
 
-    let allowedContentTypes:[UTType] = [.image, .jpeg, .tiff, .heic, .heif, .png,]
-    
     @State private var isImporting: Bool = false
     @State private var selectedOption: String? = nil
-
-    var columns:[GridItem] = [ GridItem(.flexible(minimum: 50, maximum: 250), spacing: 3),
-//                               GridItem(.flexible(minimum: 50, maximum: 250), spacing: 3),
-                               GridItem(.flexible(minimum: 50, maximum: 250), spacing: 3)]
     
     var body: some View
     {
@@ -44,10 +38,10 @@ struct FileImportParameterView: View, Equatable
             Button(action: {
                 isImporting = true
             }, label: {
-                Text("Load Videos")
+                Text("Open File")
             })
             .fileImporter(isPresented: $isImporting,
-                          allowedContentTypes: self.allowedContentTypes,
+                          allowedContentTypes: self.allowedContentTypes(),
                           allowsMultipleSelection: false,
                           onCompletion: { result in
                 
@@ -60,6 +54,26 @@ struct FileImportParameterView: View, Equatable
                 }
             })
         }
+    }
+    
+    func allowedContentTypes() -> [UTType]
+    {
+        if self.stringParameter.label.localizedStandardContains("Image")
+        {
+            return [.image, .jpeg, .tiff, .heic, .heif, .png,]
+        }
+        
+        else if self.stringParameter.label.localizedStandardContains("Video")
+        {
+            return [.quickTimeMovie, .video, .mpeg4Movie]
+        }
+        
+        else if self.stringParameter.label.localizedStandardContains("Text")
+        {
+            return [.plainText, .json, .xml]
+        }
+        
+        return [.data]
     }
     
 //    private func createImageThumbsFromURL(urls:[URL])

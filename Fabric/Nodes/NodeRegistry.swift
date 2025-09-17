@@ -20,14 +20,17 @@ class NodeRegistry {
     }
     
     let nodesClasses: [any NodeProtocol.Type] = [
+        // Cameras
          PerspectiveCameraNode.self,
          OrthographicCameraNode.self,
          
+         // Texture
          LoadTextureNode.self,
          HDRTextureNode.self,
          BrightnessContrastImageNode.self,
          GaussianBlurImageNode.self,
          
+         // Geometry
          PlaneGeometryNode.self,
          PointPlaneGeometryNode.self,
          BoxGeometryNode.self,
@@ -38,6 +41,7 @@ class NodeRegistry {
          ExtrudedTextGeometryNode.self,
          SuperShapeGeometryNode.self,
          
+         // Materials
          BasicColorMaterialNode.self,
          BasicTextureMaterialNode.self,
          BasicDiffuseMaterialNode.self,
@@ -47,34 +51,35 @@ class NodeRegistry {
          StandardMaterialNode.self,
          PBRMaterialNode.self,
          DisplacementMaterialNode.self,
-         
+
+         // Lights
          DirectionalLightNode.self,
          
+         // Objects / Rendering
          MeshNode.self,
          ModelMeshNode.self,
          SceneBuilderNode.self,
          RenderNode.self,
          DeferredRenderNode.self,
          
+         // Boolean
          TrueNode.self,
-         FalseNode.self ,
+         FalseNode.self,
          
+         // Number
          CurrentTimeNode.self,
          NumberNode.self,
          NumberUnnaryOperator.self,
          NumberBinaryOperator.self,
-         
-//         NumberAddNode.self,
-//         NumberSubtractNode.self ,
-//         NumberMultiplyNode.self,
-//         NumberDivideNode.self ,
-//         NumberModuloNode.self,
-         
          NumberEaseNode.self,
          NumberRemapNode.self,
          NumberIntegralNode.self,
          GradientNoiseNode.self,
          
+         // String
+         TextFileLoaderNode.self,
+         
+         // Vectors
          MakeVector2Node.self,
          MakeVector3Node.self,
          MakeVector4Node.self,
