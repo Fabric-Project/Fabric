@@ -60,6 +60,7 @@ extension Node
             case Matrix
             case Color
             case String
+            case Array
             
             static func nodeTypes() -> [Node.NodeType] {
                 return Self.allCases.map{ Node.NodeType.Parameter(parameterType:$0) }

@@ -65,7 +65,9 @@ class NodeRegistry {
          // Boolean
          TrueNode.self,
          FalseNode.self,
-         
+         ArrayIndexValueNode<Bool>.self,
+         ArrayCountNode<Bool>.self,
+
          // Number
          CurrentTimeNode.self,
          NumberNode.self,
@@ -75,9 +77,14 @@ class NodeRegistry {
          NumberRemapNode.self,
          NumberIntegralNode.self,
          GradientNoiseNode.self,
-         
+         ArrayIndexValueNode<Float>.self,
+         ArrayCountNode<Float>.self,
+
          // String
          TextFileLoaderNode.self,
+         StringComponentNode.self,
+         ArrayIndexValueNode<String>.self,
+         ArrayCountNode<String>.self,
          
          // Vectors
          MakeVector2Node.self,

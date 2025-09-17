@@ -70,11 +70,20 @@ class LoadTextureNode : Node, NodeProtocol
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {
-        self.loadTextureFromInputValue()
-
-        if let texture = self.texture
+        
+        if self.inputFilePathParam.valueDidChange
         {
-            self.outputTexturePort.send(EquatableTexture(texture: texture))
+            self.loadTextureFromInputValue()
+            
+            if let texture = self.texture
+            {
+                self.outputTexturePort.send(EquatableTexture(texture: texture))
+            }
+            
+            else
+            {
+                self.outputTexturePort.send(nil)
+            }
         }
      }
     

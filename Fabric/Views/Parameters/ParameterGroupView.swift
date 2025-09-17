@@ -32,15 +32,7 @@ struct ParameterGroupView : View
         switch param.controlType
         {
             // We get this from our metal shaders uniforms
-        case .none:
-            switch param.type
-            {
-            case .double, .float:
-                return  AnyView(self.buildSlider(param: param))
-                            
-            default:
-                return AnyView(self.buildLabel(param: param))            
-            }
+        
             
         case .xypad:
             return AnyView(self.buildXYPad(param: param))
@@ -62,6 +54,17 @@ struct ParameterGroupView : View
             
         case .toggle, .button:
             return AnyView(self.buildToggleButton(param:param))
+            
+            
+        case .none:
+            switch param.type
+            {
+            case .double, .float:
+                return  AnyView(self.buildSlider(param: param))
+                            
+            default:
+                return AnyView(self.buildLabel(param: param))
+            }
             
         default:
             return AnyView(self.buildLabel(param: param))

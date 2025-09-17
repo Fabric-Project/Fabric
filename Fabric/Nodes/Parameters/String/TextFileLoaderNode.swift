@@ -60,7 +60,6 @@ class TextFileLoaderNode : Node, NodeProtocol
         try super.init(from:decoder)
         
         self.loadStringFromURL()
-
     }
     
     override func execute(context:GraphExecutionContext,
