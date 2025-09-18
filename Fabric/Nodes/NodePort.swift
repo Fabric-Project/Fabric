@@ -94,7 +94,18 @@ public class ParameterPort<ParamValue : Codable & Equatable & Hashable> : NodePo
         try self.parameter.encode(to: encoder)
     }
     
-    public override var value: ParamValue?
+//    override public var valueDidChange: Bool
+//    {
+//        get {
+//            self.parameter.valueDidChange
+//        }
+//        set
+//        {
+//            self.parameter.valueDidChange = newValue
+//        }
+//    }
+    
+    override public var value: ParamValue?
     {
         get
         {
@@ -107,6 +118,7 @@ public class ParameterPort<ParamValue : Codable & Equatable & Hashable> : NodePo
                 if  parameter.value != newValue
                 {
                     parameter.value = newValue
+                    self.valueDidChange = true
                     node?.markDirty()
                 }
             }

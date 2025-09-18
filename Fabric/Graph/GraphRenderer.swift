@@ -81,10 +81,11 @@ public class GraphRenderer : MetalViewRenderer
         
         // get the connection for
         let inputNodes = node.inputNodes()
-        for node in inputNodes
+                
+        for inputNode in inputNodes
         {
             processGraph(graph: graph,
-                         node: node,
+                         node: inputNode,
                          executionContext:executionContext,
                          renderPassDescriptor: renderPassDescriptor,
                          commandBuffer: commandBuffer,

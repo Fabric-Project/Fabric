@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Cocoa
 import UniformTypeIdentifiers
 import Satin
 import Metal
@@ -17,9 +18,8 @@ extension UTType {
     }
 }
 
-struct FabricDocument: FileDocument {
+class FabricDocument: FileDocument {
 
-    
     @ObservationIgnored let context = Context(device: MTLCreateSystemDefaultDevice()!,
                                               sampleCount: 1,
                                               colorPixelFormat: .rgba16Float,
@@ -28,6 +28,9 @@ struct FabricDocument: FileDocument {
     
     let graph:Graph
     @ObservationIgnored let graphRenderer:GraphRenderer
+    
+    var outputwindow:NSWindow? = nil
+    var outputRenderer:WindowOutputRenderer2? = nil
     
     init()
     {
@@ -54,14 +57,18 @@ struct FabricDocument: FileDocument {
         self.graph.addNode(meshNode)
         self.graph.addNode(cameraNode)
         self.graph.addNode(renderNode)
+        
+
     }
 
+    
     static var readableContentTypes: [UTType] { [.fabricDocument] }
 
-    init(configuration: ReadConfiguration) throws
+    required init(configuration: ReadConfiguration) throws
     {
 
-        guard let data = configuration.file.regularFileContents
+        guard let data = configuration.file.regularFileContents,
+              let name = configuration.file.preferredFilename
         else
         {
             throw CocoaError(.fileReadCorruptFile)
@@ -75,6 +82,17 @@ struct FabricDocument: FileDocument {
         self.graph =  try decoder.decode(Graph.self, from: data)
 
         self.graphRenderer = GraphRenderer(context: self.context, graph: self.graph)
+        
+        self.outputRenderer = WindowOutputRenderer2(context: self.context, graphRenderer: self.graphRenderer)
+
+
+        Task {
+            usleep(10000)
+            
+            await MainActor.run {
+                self.setupWindow(named: name)
+            }
+        }
     }
     
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper
@@ -85,5 +103,20 @@ struct FabricDocument: FileDocument {
         let data = try encoder.encode(self.graph)
         
         return .init(regularFileWithContents: data)
+    }
+    
+    private func setupWindow(named:String)
+    {
+        self.outputRenderer?.frame = CGRect(x: 0, y: 0, width: 600, height: 600)
+        
+        self.outputwindow = NSWindow(contentRect: NSRect(x: 100, y: 100, width: 600, height: 600),
+                                     styleMask: [.titled, .miniaturizable, .resizable],
+                                     backing: .buffered, defer: false)
+
+            
+        self.outputwindow!.contentView = self.outputRenderer
+        self.outputwindow!.makeKeyAndOrderFront(nil)
+        self.outputwindow!.level = .normal // NSWindow.Level(NSWindow.Level.normal.rawValue + 1)
+        self.outputwindow!.title = named
     }
 }

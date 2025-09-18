@@ -33,8 +33,7 @@ struct ContentView: View {
                     
                     ZStack
                     {
-                      
-                        SatinMetalView(renderer: document.graphRenderer)
+//                        SatinMetalView(renderer: document.graphRenderer)
 
                         GeometryReader { geom in
                             RadialGradient(colors: [.clear, .black.opacity(0.75)], center: .center, startRadius: 0, endRadius: geom.size.width * 1.5)

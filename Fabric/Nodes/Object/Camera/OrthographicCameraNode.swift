@@ -69,8 +69,10 @@ public class OrthographicCameraNode : BaseObjectNode, NodeProtocol
     {
         self.evaluate(object: self.camera, atTime: context.timing.time)
         
-        self.camera.lookAt(target: self.inputLookAt.value)
-        
+        if self.inputLookAt.valueDidChange
+        {
+            self.camera.lookAt(target: self.inputLookAt.value)
+        }
         self.outputCamera.send(self.camera)
     }
     
