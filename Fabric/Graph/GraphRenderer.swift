@@ -99,7 +99,7 @@ public class GraphRenderer : MetalViewRenderer
                          commandBuffer: commandBuffer)
             
             // TODO: This should be handled inside of the base node class no?
-            node.markDirty()
+            node.markClean()
 //            node.lastEvaluationTime = executionContext.timing.time
         }
     }

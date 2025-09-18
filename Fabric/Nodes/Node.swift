@@ -42,6 +42,7 @@ public protocol NodeProtocol : AnyObject, Codable, Identifiable
     func resize(size: (width: Float, height: Float), scaleFactor: Float)
     
     func markDirty()
+    func markClean()
     var isDirty:Bool { get }
 
     func inputNodes() -> [any NodeProtocol]
@@ -231,6 +232,11 @@ public extension NodeProtocol
   
         return outputNodes
 //        return Array(Set(outputNodes))
+    }
+    
+    public func markClean()
+    {
+        isDirty = false
     }
     
     public func markDirty()
