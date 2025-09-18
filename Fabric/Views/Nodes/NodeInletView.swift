@@ -50,7 +50,7 @@ struct NodeInletView: View
                     }
                 )
                
-                .help("\(port.name): \(port.valueType())")
+//                .help("\(port.name): \(port.valueType())")
 
             Text(self.port.name)
                 .foregroundStyle(Color.secondary)

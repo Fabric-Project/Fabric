@@ -16,7 +16,7 @@ struct NodeOutletView: View
         Circle()
             .fill(port.color)
             .frame(width: 15)
-            .help( "\(port.name): \(port.valueType())")
+//            .help( "\(port.name): \(port.valueType())")
             .anchorPreference(
                 key: PortAnchorKey.self,
                 value: .center,
