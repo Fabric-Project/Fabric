@@ -119,7 +119,6 @@ public class DeferredRenderNode : Node, NodeProtocol
                 self.renderer.resize( (width:Float(self.inputResolution.value.x), height:Float(self.inputResolution.value.y) ) )
             }
            
-            
             self.renderer.clearColor = .init( self.inputClearColor.value )
                         
             renderer.draw(renderPassDescriptor: rpd1,
