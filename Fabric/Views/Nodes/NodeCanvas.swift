@@ -16,10 +16,9 @@ public struct NodeCanvas : View
 //    @State var activityMonitor = NodeCanvasUserActivityMonitor()
     
     // Drag to Offset bullshit
-    @State private var offset:CGSize = CGSize(width: 50, height: 50) // CGSize(width: 50, height: SourceGrid.sourceGridHeight + 45)
-    @GestureState private var dragOffset: CGSize = .zero
-    
-//    @State private var needsRedraw:Bool = false
+    @State private var initialOffsets: [UUID: CGSize] = [:]
+    @State private var activeDragAnchor: UUID? = nil       // which node started the drag
+
 
     public init() { }
     
@@ -37,10 +36,60 @@ public struct NodeCanvas : View
 
                 
                 // Nodes
+//                let selectedNodes:[any NodeProtocol] = self.graph.nodes.filter( { $0.isSelected == true } )
+                
                 ForEach(self.graph.nodes, id: \.id) { currentNode in
                     
                     NodeView(node: currentNode , offset: currentNode.offset)
-                    
+                        .offset( currentNode.offset )
+                        .gesture(
+                            SimultaneousGesture(
+                                DragGesture(minimumDistance: 3)
+                                
+                                    .onChanged { value in
+                                        
+                                        // If this drag just began, capture snapshots
+                                        if self.activeDragAnchor == nil
+                                        {
+                                            self.activeDragAnchor = currentNode.id
+                                            
+                                            // If the anchor isn't selected, select only it (or expand if you prefer)
+                                            if !currentNode.isSelected
+                                            {
+                                                self.graph.selectNode(node: currentNode, expandSelection: true)
+                                            }
+                                            
+                                            // Snapshot current offsets for all selected nodes
+                                            self.initialOffsets = Dictionary(uniqueKeysWithValues:self.graph.nodes
+                                                .filter { $0.isSelected }
+                                                .map { ($0.id, $0.offset) }
+                                            )
+                                            
+                                            // Mark dragging (optional)
+                                            self.graph.nodes.filter { $0.isSelected }.forEach { $0.isDragging = true }
+                                        }
+                                        
+                                        let t = value.translation
+                                        // Apply translation relative to snapshot
+                                        self.graph.nodes.filter { $0.isSelected }.forEach { n in
+                                            if let base = initialOffsets[n.id] {
+                                                n.offset = base + t
+                                            }
+                                        }
+                                    }
+                                    .onEnded { _ in
+                                        // End drag
+                                        self.graph.nodes.filter { $0.isSelected }.forEach { $0.isDragging = false }
+                                        self.activeDragAnchor = nil
+                                        self.initialOffsets.removeAll()
+                                    },
+                                TapGesture(count: 1)
+                                    .onEnded({ value in
+                                        
+                                        currentNode.isSelected.toggle()
+                                    })
+                            )
+                        )
                 }
             }
             .offset(geom.size / 2)
