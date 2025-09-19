@@ -22,9 +22,6 @@ class ArrayIndexValueNode<Value : Equatable> : Node, NodeProtocol
     let inputPort:NodePort<[Value]>
     let outputPort:NodePort<Value>
     override var ports: [any NodePortProtocol] {  [inputPort, outputPort] + super.ports}
-
-    private var url: URL? = nil
-    private var string: String? = nil
     
     required init(context:Context)
     {
