@@ -101,8 +101,6 @@ class BaseColorEffectNode : Node, NodeProtocol
         let anyParamDidChange =  self.inputParameters.reduce(false, { partialResult, next in
            return partialResult || next.valueDidChange
         })
-        
-        print("Any Param did Change", anyParamDidChange)
 
         
         if  self.inputTexturePort.valueDidChange || anyParamDidChange
@@ -128,23 +126,7 @@ class BaseColorEffectNode : Node, NodeProtocol
             else
             {
                 self.outputTexturePort.send( nil )
-
             }
         }
     }
-    
-//    override func execute(context:GraphExecutionContext,
-//                          renderPassDescriptor: MTLRenderPassDescriptor,
-//                          commandBuffer: MTLCommandBuffer)
-//    {
-//        
-//        if let texture = self.texture
-//        {
-//            self.outputTexturePort.send( EquatableTexture(texture: texture) )
-//        }
-//        else
-//        {
-//            self.outputTexturePort.send( nil )
-//        }
-//    }
 }

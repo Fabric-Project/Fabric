@@ -81,17 +81,11 @@ class HDRTextureNode : Node, NodeProtocol
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {
-        //        if let inputFilePath = self.inputFilePathParam.value
-//        {
-//            self.url = URL(fileURLWithPath: inputFilePath)
-//
-//            self.texture = self.loadTexture(device: self.context.device, url: inputURL )
-//        }
-       
         if self.inputFilePathParam.valueDidChange
         {
             self.loadTextureFromInputValue()
             
+        }
             if let texture = self.texture
             {
                 self.outputTexturePort.send(EquatableTexture(texture: texture))
@@ -101,7 +95,7 @@ class HDRTextureNode : Node, NodeProtocol
             {
                 self.outputTexturePort.send(nil)
             }
-        }
+        
      }
     
     private func loadTextureFromInputValue()
@@ -125,6 +119,7 @@ class HDRTextureNode : Node, NodeProtocol
             }
             else
             {
+                self.texture = nil
                 print("wtf")
             }
         }
