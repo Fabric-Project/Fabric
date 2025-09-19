@@ -57,8 +57,6 @@ class FabricDocument: FileDocument {
         self.graph.addNode(meshNode)
         self.graph.addNode(cameraNode)
         self.graph.addNode(renderNode)
-        
-
     }
 
     
@@ -85,9 +83,8 @@ class FabricDocument: FileDocument {
         
         self.outputRenderer = WindowOutputRenderer2(context: self.context, graphRenderer: self.graphRenderer)
 
-
         Task {
-            usleep(10000)
+            usleep(1000)
             
             await MainActor.run {
                 self.setupWindow(named: name)
@@ -110,7 +107,7 @@ class FabricDocument: FileDocument {
         self.outputRenderer?.frame = CGRect(x: 0, y: 0, width: 600, height: 600)
         
         self.outputwindow = NSWindow(contentRect: NSRect(x: 100, y: 100, width: 600, height: 600),
-                                     styleMask: [.titled, .miniaturizable, .resizable],
+                                     styleMask: [.titled, .miniaturizable, .resizable, .unifiedTitleAndToolbar],
                                      backing: .buffered, defer: false)
 
             

@@ -123,7 +123,6 @@ public class ParameterPort<ParamValue : Codable & Equatable & Hashable> : NodePo
                 }
             }
         }
-        
     }
 }
 
@@ -327,11 +326,14 @@ public class NodePort<Value : Equatable>: NodePortProtocol
     
     public func send(_ v: Value?)
     {
-        value = v
-        
-        for case let p as NodePort<Value> in connections
+        if value != v
         {
-            p.value = v
+            value = v
+            
+            for case let p as NodePort<Value> in connections
+            {
+                p.value = v
+            }
         }
         
     }
