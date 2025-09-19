@@ -11,7 +11,7 @@ import SwiftUI
 
 public struct NodeCanvas : View
 {
-    @SwiftUI.Environment(Graph.self) var graph:Graph
+    @Environment(Graph.self) var graph:Graph
 
 //    @State var activityMonitor = NodeCanvasUserActivityMonitor()
     
@@ -20,6 +20,7 @@ public struct NodeCanvas : View
     @State private var activeDragAnchor: UUID? = nil       // which node started the drag
 
 
+    
     public init() { }
     
     public var body: some View
@@ -42,6 +43,14 @@ public struct NodeCanvas : View
                     
                     NodeView(node: currentNode , offset: currentNode.offset)
                         .offset( currentNode.offset )
+                        .highPriorityGesture(
+                            TapGesture(count: 1)
+                                .modifiers(.shift)
+                                .onEnded {
+                                    // Expand selection
+                                    graph.selectNode(node: currentNode, expandSelection: true)
+                                }, // fires when Shift is held
+                        )
                         .gesture(
                             SimultaneousGesture(
                                 DragGesture(minimumDistance: 3)
@@ -83,13 +92,18 @@ public struct NodeCanvas : View
                                         self.activeDragAnchor = nil
                                         self.initialOffsets.removeAll()
                                     },
-                                TapGesture(count: 1)
-                                    .onEnded({ value in
-                                        
-                                        currentNode.isSelected.toggle()
-                                    })
+                                
+                                     
+                                    TapGesture(count: 1)
+                                        .onEnded {
+                                            // Replace selection
+                                            graph.deselectAllNodes()
+                                            currentNode.isSelected.toggle()
+                                        }
+                                
                             )
                         )
+                        
                 }
             }
             .offset(geom.size / 2)
