@@ -68,9 +68,12 @@ public class MakeVector2Node : Node, NodeProtocol
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        self.vector = simd_float2(inputXParam.value,
-                                  inputYParam.value)
-        
-        self.outputVector.send( self.vector )
+        if self.inputXParam.valueDidChange || self.inputYParam.valueDidChange
+        {
+            self.vector = simd_float2(inputXParam.value,
+                                      inputYParam.value)
+            
+            self.outputVector.send( self.vector )
+        }
      }
 }

@@ -79,11 +79,14 @@ public class MakeVector4Node : Node, NodeProtocol
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        self.vector = simd_float4(inputXParam.value,
-                                  inputYParam.value,
-                                  inputZParam.value,
-                                  inputWParam.value)
-        
-        self.outputVector.send( self.vector )
+        if self.inputXParam.valueDidChange || self.inputYParam.valueDidChange || self.inputZParam.valueDidChange || self.inputWParam.valueDidChange
+        {
+            self.vector = simd_float4(inputXParam.value,
+                                      inputYParam.value,
+                                      inputZParam.value,
+                                      inputWParam.value)
+            
+            self.outputVector.send( self.vector )
+        }
     }
 }

@@ -73,10 +73,13 @@ public class MakeVector3Node : Node, NodeProtocol
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        self.vector = simd_float3(inputXParam.value,
-                                  inputYParam.value,
-                                  inputZParam.value)
-        
-        self.outputVector.send( self.vector )
+        if self.inputXParam.valueDidChange || self.inputYParam.valueDidChange || self.inputZParam.valueDidChange
+        {
+            self.vector = simd_float3(inputXParam.value,
+                                      inputYParam.value,
+                                      inputZParam.value)
+            
+            self.outputVector.send( self.vector )
+        }
      }
 }
