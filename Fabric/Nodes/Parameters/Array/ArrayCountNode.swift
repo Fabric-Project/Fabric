@@ -19,7 +19,7 @@ class ArrayCountNode<Value : Equatable & FabricDescription> : Node, NodeProtocol
 
     // TODO: add character set menu to choose component separation strategy
     
-    let inputPort:NodePort<[Value]>
+    let inputPort:NodePort<ContiguousArray<Value>>
     let outputPort:NodePort<Float>
     override var ports: [any NodePortProtocol] {  [inputPort, outputPort] + super.ports}
 
@@ -28,7 +28,7 @@ class ArrayCountNode<Value : Equatable & FabricDescription> : Node, NodeProtocol
     
     required init(context:Context)
     {
-        self.inputPort = NodePort<[Value]>(name: "Array", kind: .Inlet)
+        self.inputPort = NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet)
         self.outputPort = NodePort<Float>(name: "Count", kind: .Outlet)
         
         super.init(context: context)
@@ -54,7 +54,7 @@ class ArrayCountNode<Value : Equatable & FabricDescription> : Node, NodeProtocol
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
        
-        self.inputPort = try container.decode(NodePort<[Value]>.self, forKey: .inputPort)
+        self.inputPort = try container.decode(NodePort<ContiguousArray<Value>>.self, forKey: .inputPort)
         self.outputPort = try container.decode(NodePort<Float>.self, forKey: .outputPort)
         
         try super.init(from:decoder)
