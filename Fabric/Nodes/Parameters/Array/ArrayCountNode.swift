@@ -12,9 +12,9 @@ import simd
 import Metal
 import MetalKit
 
-class ArrayCountNode<Value : Equatable> : Node, NodeProtocol
+class ArrayCountNode<Value : Equatable & FabricDescription> : Node, NodeProtocol
 {
-    static var name:String { "\(Value.self) Array Count" }
+    static var name:String { "\(Value.fabricDescription) Array Count" }
     static var nodeType:Node.NodeType { Node.NodeType.Parameter(parameterType: .Array) }
 
     // TODO: add character set menu to choose component separation strategy

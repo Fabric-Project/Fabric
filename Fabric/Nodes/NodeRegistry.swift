@@ -4,6 +4,7 @@
 //
 //  Created by Anton Marini on 4/26/25.
 //
+import simd
 
 class NodeRegistry {
     
@@ -67,6 +68,7 @@ class NodeRegistry {
          FalseNode.self,
          ArrayIndexValueNode<Bool>.self,
          ArrayCountNode<Bool>.self,
+         ArrayQueueNode<Bool>.self,
 
          // Number
          CurrentTimeNode.self,
@@ -79,6 +81,7 @@ class NodeRegistry {
          GradientNoiseNode.self,
          ArrayIndexValueNode<Float>.self,
          ArrayCountNode<Float>.self,
+         ArrayQueueNode<Float>.self,
 
          // String
          TextFileLoaderNode.self,
@@ -87,12 +90,24 @@ class NodeRegistry {
          StringRangeNode.self,
          ArrayIndexValueNode<String>.self,
          ArrayCountNode<String>.self,
-         
+         ArrayQueueNode<String>.self,
+
          // Vectors
          MakeVector2Node.self,
-         MakeVector3Node.self,
-         MakeVector4Node.self,
+         ArrayIndexValueNode<simd_float2>.self,
+         ArrayCountNode<simd_float2>.self,
+         ArrayQueueNode<simd_float2>.self,
          
+         MakeVector3Node.self,
+         ArrayIndexValueNode<simd_float3>.self,
+         ArrayCountNode<simd_float3>.self,
+         ArrayQueueNode<simd_float3>.self,
+         
+         MakeVector4Node.self,
+         ArrayIndexValueNode<simd_float4>.self,
+         ArrayCountNode<simd_float4>.self,
+         ArrayQueueNode<simd_float4>.self,
+
 //         MakeQuaternionNode.self
     ]
 }
