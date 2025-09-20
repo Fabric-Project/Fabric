@@ -10,9 +10,9 @@ import Satin
 import simd
 import Metal
 
-public class MeshNode : BaseObjectNode, NodeProtocol
+public class InstancedMeshNode : BaseObjectNode, NodeProtocol
 {
-    public class var name:String { "Mesh" }
+    public class var name:String { "Instanced Mesh" }
     public class var nodeType:Node.NodeType  { .Mesh }
 
     // Params
@@ -27,15 +27,17 @@ public class MeshNode : BaseObjectNode, NodeProtocol
     ] + super.inputParameters}
 
     // Ports
+    public let inputPositions:NodePort<ContiguousArray<simd_float3>>
     public let inputGeometry:NodePort<Geometry>
     public let inputMaterial:NodePort<Material>
     public let outputMesh:NodePort<Object>
     
     public override var ports: [any NodePortProtocol] {   [inputGeometry,
                                                            inputMaterial,
+                                                           inputPositions,
                                                            outputMesh] + super.ports}
     
-    private var mesh: Mesh? = nil
+    private var mesh: InstancedMesh? = nil
 
     public required init(context: Context)
     {
@@ -43,19 +45,20 @@ public class MeshNode : BaseObjectNode, NodeProtocol
         self.inputDoubleSided = BoolParameter("Double Sided", false, .button)
         self.inputCullingMode = StringParameter("Culling Mode", "Back", ["Back", "Front", "None"], .dropdown)
         
+        self.inputPositions = NodePort<ContiguousArray<simd_float3>>(name: "Positions", kind: .Inlet)
         self.inputGeometry = NodePort<Geometry>(name: "Geometry", kind: .Inlet)
         self.inputMaterial = NodePort<Material>(name: "Material", kind: .Inlet)
         self.outputMesh = NodePort<Object>(name: MeshNode.name, kind: .Outlet)
         
         super.init(context: context)
     }
-    
         
     enum CodingKeys : String, CodingKey
     {
         case inputCastsShadowParameter
         case inputDoubleSidedParemeter
         case inputCullModeParameter
+        case inputPositionsPort
         case inputGeometryPort
         case inputMaterialPort
         case outputMeshPort
@@ -70,6 +73,7 @@ public class MeshNode : BaseObjectNode, NodeProtocol
         try container.encode(self.inputCullingMode, forKey: .inputCullModeParameter)
         try container.encode(self.inputGeometry, forKey: .inputGeometryPort)
         try container.encode(self.inputMaterial, forKey: .inputMaterialPort)
+        try container.encode(self.inputPositions, forKey: .inputPositionsPort)
         try container.encode(self.outputMesh, forKey: .outputMeshPort)
         
         try super.encode(to: encoder)
@@ -87,6 +91,7 @@ public class MeshNode : BaseObjectNode, NodeProtocol
         
         self.inputGeometry = try container.decode(NodePort<Geometry>.self, forKey: .inputGeometryPort)
         self.inputMaterial = try container.decode(NodePort<Material>.self, forKey: .inputMaterialPort)
+        self.inputPositions = try container.decode(NodePort<ContiguousArray<simd_float3>>.self, forKey: .inputPositionsPort)
         self.outputMesh = try container.decode(NodePort<Object>.self, forKey: .outputMeshPort)
         
         try super.init(from: decoder)
@@ -107,12 +112,24 @@ public class MeshNode : BaseObjectNode, NodeProtocol
             }
             else
             {
-                self.mesh = Mesh(geometry: geometery, material: material)
+                self.mesh = InstancedMesh(geometry: geometery, material: material, count: self.inputPositions.value?.count ?? 1)
             }
             
             if let mesh = mesh
             {
                 self.evaluate(object: mesh, atTime: context.timing.time)
+                
+                if self.inputPositions.valueDidChange, let positions = self.inputPositions.value
+                {
+                    mesh.drawCount = positions.count
+                    
+                    positions.enumerated().forEach { index, position in
+                        
+                        let positionMatrix = translationMatrix3f(position)
+                        mesh.setMatrixAt(index: index, matrix: positionMatrix)
+                    }
+                        
+                }
                 
                 if self.inputCastsShadow.valueDidChange
                 {

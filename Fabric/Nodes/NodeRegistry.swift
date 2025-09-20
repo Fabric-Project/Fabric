@@ -59,6 +59,7 @@ class NodeRegistry {
          // Objects / Rendering
          MeshNode.self,
          ModelMeshNode.self,
+         InstancedMeshNode.self,
          SceneBuilderNode.self,
          RenderNode.self,
          DeferredRenderNode.self,

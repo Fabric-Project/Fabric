@@ -138,6 +138,7 @@
 				Nodes/NodeType.swift,
 				Nodes/Object/Camera/OrthographicCameraNode.swift,
 				Nodes/Object/Camera/PerspectiveCameraNode.swift,
+				Nodes/Object/InstancedMeshNode.swift,
 				Nodes/Object/Lights/DirectionalLightNode.swift,
 				Nodes/Object/MeshNode.swift,
 				Nodes/Object/ModelMeshNode.swift,
