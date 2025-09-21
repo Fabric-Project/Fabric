@@ -16,16 +16,16 @@ class PBRMaterialNode : StandardMaterialNode
 
     // Params
     let inputSubsurface = FloatParameter("Sub Surface", 0.0, 0.0, 1.0, .slider)
-    let inputAnisotropic = FloatParameter("Anisotropic", 0.0, 0.0, 1.0, .slider)
-    let inputAnisotropicAngle = FloatParameter("Anisotropic Angle", 0.0, 0.0, 1.0, .slider)
+    let inputAnisotropic = FloatParameter("Anisotropic", 0.0, -1.0, 1.0, .slider)
+    let inputAnisotropicAngle = FloatParameter("Anisotropic Angle", 0.0, -1.0, 1.0, .slider)
     let inputSpecularTint = FloatParameter("Specular Tint", 0.0, 0.0, 1.0, .slider)
     let inputClearcoat = FloatParameter("Clearcoat", 0.0, 0.0, 1.0, .slider)
     let inputClearcoatRoughness = FloatParameter("Clearcoat Roughness", 0.0, 0.0, 1.0, .slider)
     let inputSheen = FloatParameter("Sheen", 0.0, 0.0, 1.0, .slider)
     let inputSheenTint = FloatParameter("Sheen Tint", 0.0, 0.0, 1.0, .slider)
     let inputTransmission = FloatParameter("Transmission", 0.0, 0.0, 1.0, .slider)
-    let inputThickness = FloatParameter("Thickness", 1.0, 0.0, 1.0, .slider)
-    let inputIOR = FloatParameter("Index of Refraction", 1.5, 0.0, 10.0, .slider)
+    let inputThickness = FloatParameter("Thickness", 1.0, 0.0, 5.0, .slider)
+    let inputIOR = FloatParameter("Index of Refraction", 1.5, 0.0, 3.0, .slider)
 
     override var inputParameters: [any Parameter] {
         [
