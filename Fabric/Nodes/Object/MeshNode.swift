@@ -96,12 +96,15 @@ public class MeshNode : BaseObjectNode, NodeProtocol
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        if let geometery = self.inputGeometry.value,
-           let material = self.inputMaterial.value
+        if
+            (self.inputGeometry.valueDidChange
+             || self.inputMaterial.valueDidChange),
+            let geometery = self.inputGeometry.value,
+            let material = self.inputMaterial.value
         {
             if let mesh = mesh
             {
-//                mesh.cullMode = .none
+                //                mesh.cullMode = .none
                 mesh.geometry = geometery
                 mesh.material = material
             }
@@ -109,33 +112,30 @@ public class MeshNode : BaseObjectNode, NodeProtocol
             {
                 self.mesh = Mesh(geometry: geometery, material: material)
             }
+        }
+         
+        if let mesh = mesh
+        {
+            self.evaluate(object: mesh, atTime: context.timing.time)
             
-            if let mesh = mesh
+            if self.inputCastsShadow.valueDidChange
             {
-                self.evaluate(object: mesh, atTime: context.timing.time)
-                
-                if self.inputCastsShadow.valueDidChange
-                {
-                    mesh.castShadow = self.inputCastsShadow.value
-                    mesh.receiveShadow = self.inputCastsShadow.value
-                }
-                
-                if self.inputCullingMode.valueDidChange
-                {
-                    mesh.cullMode = self.cullMode()
-                }
-                
-                self.outputMesh.send(mesh)
+                mesh.castShadow = self.inputCastsShadow.value
+                mesh.receiveShadow = self.inputCastsShadow.value
             }
-            else
+            
+            if self.inputCullingMode.valueDidChange
             {
-                self.outputMesh.send(nil)
+                mesh.cullMode = self.cullMode()
             }
+            
+            self.outputMesh.send(mesh)
         }
         else
         {
             self.outputMesh.send(nil)
         }
+        
      }
     
     private func cullMode() -> MTLCullMode

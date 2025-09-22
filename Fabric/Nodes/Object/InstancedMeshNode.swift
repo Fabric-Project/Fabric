@@ -101,12 +101,13 @@ public class InstancedMeshNode : BaseObjectNode, NodeProtocol
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        if let geometery = self.inputGeometry.value,
+        if (self.inputGeometry.valueDidChange
+            || self.inputMaterial.valueDidChange),
+           let geometery = self.inputGeometry.value,
            let material = self.inputMaterial.value
         {
             if let mesh = mesh
             {
-//                mesh.cullMode = .none
                 mesh.geometry = geometery
                 mesh.material = material
             }
@@ -114,45 +115,41 @@ public class InstancedMeshNode : BaseObjectNode, NodeProtocol
             {
                 self.mesh = InstancedMesh(geometry: geometery, material: material, count: self.inputPositions.value?.count ?? 1)
             }
+        }
             
-            if let mesh = mesh
+        if let mesh = mesh
+        {
+            self.evaluate(object: mesh, atTime: context.timing.time)
+            
+            if self.inputPositions.valueDidChange, let positions = self.inputPositions.value
             {
-                self.evaluate(object: mesh, atTime: context.timing.time)
+                mesh.drawCount = positions.count
                 
-                if self.inputPositions.valueDidChange, let positions = self.inputPositions.value
-                {
-                    mesh.drawCount = positions.count
+                positions.enumerated().forEach { index, position in
                     
-                    positions.enumerated().forEach { index, position in
-                        
-                        let positionMatrix = translationMatrix3f(position)
-                        mesh.setMatrixAt(index: index, matrix: positionMatrix)
-                    }
-                        
+                    let positionMatrix = translationMatrix3f(position)
+                    mesh.setMatrixAt(index: index, matrix: positionMatrix)
                 }
-                
-                if self.inputCastsShadow.valueDidChange
-                {
-                    mesh.castShadow = self.inputCastsShadow.value
-                    mesh.receiveShadow = self.inputCastsShadow.value
-                }
-                
-                if self.inputCullingMode.valueDidChange
-                {
-                    mesh.cullMode = self.cullMode()
-                }
-                
-                self.outputMesh.send(mesh)
             }
-            else
+            
+            if self.inputCastsShadow.valueDidChange
             {
-                self.outputMesh.send(nil)
+                mesh.castShadow = self.inputCastsShadow.value
+                mesh.receiveShadow = self.inputCastsShadow.value
             }
+            
+            if self.inputCullingMode.valueDidChange
+            {
+                mesh.cullMode = self.cullMode()
+            }
+            
+            self.outputMesh.send(mesh)
         }
         else
         {
             self.outputMesh.send(nil)
         }
+       
      }
     
     private func cullMode() -> MTLCullMode
