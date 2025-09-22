@@ -39,6 +39,7 @@ class NodeRegistry {
          IcoSphereGeometryNode.self,
          CapsuleGeometryNode.self,
          SkyboxGeometryNode.self,
+         TesselatedTextGeometryNode.self,
          ExtrudedTextGeometryNode.self,
          SuperShapeGeometryNode.self,
          
@@ -55,6 +56,7 @@ class NodeRegistry {
 
          // Lights
          DirectionalLightNode.self,
+         PointLightNode.self,
          
          // Objects / Rendering
          MeshNode.self,
