@@ -152,6 +152,7 @@ public struct NodeCanvas : View
             .onTapGesture {
                 self.graph.deselectAllNodes()
             }
+            .id(self.graph.shouldUpdateConnections)
 //            .opacity(self.activityMonitor.isActive ? 1.0 : 0.0)
 //                           .animation(.easeInOut(duration: 0.5), value: self.activityMonitor.isActive)
 

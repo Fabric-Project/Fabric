@@ -28,16 +28,18 @@ struct NodeInletView: View
             //            .position(node.localInletPositions[index])
                 .dropDestination(for: OutletData.self) { outletData, location in
                     //                return animateDrop(at: location)
-                    print("drop destination \(self.port.name)")
+                    print("drop destination \(self.port.name), \(outletData)")
                     
                     if let firstOutlet = outletData.first,
                        let outletPort = self.graph.nodePort(forID: firstOutlet.portID)
                     {
                         
                         self.port.connect(to: outletPort)
+                        
+                        self.graph.shouldUpdateConnections.toggle()
+                        return true
                     }
-                    //                return true
-                    return self.processDrop(outletData)
+                    return false
                 } isTargeted: {
                     isDropTargeted = $0
                 }
@@ -68,28 +70,5 @@ struct NodeInletView: View
 //            }))
 //            .toggleStyle(CheckboxToggleStyle())
 //        }
-    }
-    
-    private func processDrop(_ outletData :[OutletData]) -> Bool
-    {
-//        for outletData in outletData
-//        {
-//            if let sourceNode = self.graph.nodeForID(id: outletData.nodeID)
-//            {
-//                let connection = NodeConnection(source: sourceNode,
-//                                                sourceOutlet: outletData.outletIndex,
-//                                                destination: self.node,
-//                                                destinationInlet: self.index)
-//                       
-//                self.graph.addConnection(connection: connection)
-//            }
-//            
-//            else
-//            {
-//                return false
-//            }
-//        }
-        
-        return true
     }
 }
