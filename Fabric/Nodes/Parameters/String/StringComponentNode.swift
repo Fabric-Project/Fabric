@@ -19,7 +19,7 @@ class StringComponentNode : Node, NodeProtocol
     // TODO: add character set menu to choose component separation strategy
     
     let inputPort:NodePort<String>
-    let outputPort:NodePort<[String]>
+    let outputPort:NodePort<ContiguousArray<String>>
     override var ports: [any NodePortProtocol] {  [inputPort, outputPort] + super.ports}
 
     private var url: URL? = nil
@@ -28,7 +28,7 @@ class StringComponentNode : Node, NodeProtocol
     required init(context:Context)
     {
         self.inputPort = NodePort<String>(name: "String", kind: .Inlet)
-        self.outputPort = NodePort<[String]>(name: "Lines", kind: .Outlet)
+        self.outputPort = NodePort<ContiguousArray<String>>(name: "Lines", kind: .Outlet)
         
         super.init(context: context)
         
@@ -55,7 +55,7 @@ class StringComponentNode : Node, NodeProtocol
         let container = try decoder.container(keyedBy: CodingKeys.self)
        
         self.inputPort = try container.decode(NodePort<String>.self, forKey: .inputPort)
-        self.outputPort = try container.decode(NodePort<[String]>.self, forKey: .outputPort)
+        self.outputPort = try container.decode(NodePort<ContiguousArray<String>>.self, forKey: .outputPort)
         
         try super.init(from:decoder)
     }
@@ -68,7 +68,7 @@ class StringComponentNode : Node, NodeProtocol
         {
             if let string = self.inputPort.value
             {
-                self.outputPort.send( string.components(separatedBy: .newlines) )
+                self.outputPort.send( ContiguousArray<String>(string.components(separatedBy: .newlines)) )
             }
             else
             {

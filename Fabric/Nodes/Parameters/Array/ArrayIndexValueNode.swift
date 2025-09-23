@@ -19,13 +19,13 @@ class ArrayIndexValueNode<Value : Equatable & FabricDescription> : Node, NodePro
     let inputIndexParam:FloatParameter
     override var inputParameters: [any Parameter] { [self.inputIndexParam] + super.inputParameters}
 
-    let inputPort:NodePort<[Value]>
+    let inputPort:NodePort<ContiguousArray<Value>>
     let outputPort:NodePort<Value>
     override var ports: [any NodePortProtocol] {  [inputPort, outputPort] + super.ports}
     
     required init(context:Context)
     {
-        self.inputPort = NodePort<[Value]>(name: "Array", kind: .Inlet)
+        self.inputPort = NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet)
         self.inputIndexParam = FloatParameter("Index", 0, .inputfield)
         
         self.outputPort = NodePort<Value>(name: "Value", kind: .Outlet)
@@ -55,7 +55,7 @@ class ArrayIndexValueNode<Value : Equatable & FabricDescription> : Node, NodePro
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
        
-        self.inputPort = try container.decode(NodePort<[Value]>.self, forKey: .inputPort)
+        self.inputPort = try container.decode(NodePort<ContiguousArray<Value>>.self, forKey: .inputPort)
         self.inputIndexParam = try container.decode(FloatParameter.self, forKey: .inputIndexParam)
         self.outputPort = try container.decode(NodePort<Value>.self, forKey: .outputPort)
         
