@@ -65,7 +65,7 @@ public struct NodeCanvas : View
                                             // If the anchor isn't selected, select only it (or expand if you prefer)
                                             if !currentNode.isSelected
                                             {
-                                                self.graph.selectNode(node: currentNode, expandSelection: true)
+                                                self.graph.selectNode(node: currentNode, expandSelection: false)
                                             }
                                             
                                             // Snapshot current offsets for all selected nodes
