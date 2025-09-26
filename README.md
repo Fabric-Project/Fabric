@@ -18,10 +18,12 @@ Fabric is intended to be used as
 * Pro User tool to create reusable documents (similar to Quartz Composer Compositions) that can be loaded in the Fabric runtime and embedded into 3rd party applications.
 * Developer environment built on Satin that can render high fidelity visual output in a procedural way, using modern rendering techniques.
 
-An early alpha of Satin rendering a Super Shape with an HDRI environment and a PBR Shader at 120Hz:
+An early alpha of Satin rendering a instances of a sphere geometry, along with an HDRI environment and a PBR Shader at 120Hz:
 
-<img width="800" alt="Fabric" src="https://github.com/user-attachments/assets/0c0f3a88-5c22-4ad5-88cb-c05602b548a5" />
-<img width="800" alt="Fabric" src="https://github.com/user-attachments/assets/a649647a-a948-460c-827f-09b3fa6b1eee" />
+<img width="2056" height="1329" alt="Screenshot 2025-09-26 at 12 41 13 AM" src="https://github.com/user-attachments/assets/17d86aab-9995-4ace-b627-ec69c5e7875b" />
+
+<!-- <img width="800" alt="Fabric" src="https://github.com/user-attachments/assets/0c0f3a88-5c22-4ad5-88cb-c05602b548a5" />
+<img width="800" alt="Fabric" src="https://github.com/user-attachments/assets/a649647a-a948-460c-827f-09b3fa6b1eee" /> -->
 
 Fabric supports, thanks to Satin, high fidelity modern rendering techniques including
 
