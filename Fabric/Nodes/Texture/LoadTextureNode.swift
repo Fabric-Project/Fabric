@@ -15,7 +15,7 @@ import ImageIO
 class LoadTextureNode : Node, NodeProtocol
 {
     static let name = "Texture Loader"
-    static var nodeType = Node.NodeType.Image
+    static var nodeType = Node.NodeType.Image(imageType: .Loader)
 
     // Parameters
     let inputFilePathParam:StringParameter

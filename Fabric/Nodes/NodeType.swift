@@ -26,7 +26,7 @@ extension Node
             case .All: return Node.NodeType.allCases
             case .SceneGraph: return [.Renderer, .Object, .Camera, .Light]
             case .Mesh: return [.Mesh, .Geometery, .Material]
-            case .Image: return [.Image, .Shader]
+            case .Image: return Node.NodeType.ImageType.nodeTypes() + [.Shader]
             case .Parameter: return Node.NodeType.ParameterType.nodeTypes()
             }
         }
@@ -68,20 +68,25 @@ extension Node
         }
         
         // Inspired by CIFilter Categories, but uh, different!
-        public enum TextureType : String, CaseIterable, Equatable, Hashable
+        public enum ImageType : String, CaseIterable, Equatable, Hashable
         {
+            case BaseEffect
             case Loader
             case ColorAdjust
             case ColorEffect
+            case Lens
             case Composite
             case Mix
-            case TileEffect
-            case DistortionEffect
-            case GeometryEffect
+            case Mask
+            case Tile
+            case Descimate
+            case Distortion
+            case Geometry
+            case Morphology
             
-//            static func nodeTypes() -> [Node.NodeType] {
-//                return Self.allCases.map{ Node.NodeType.Texture(parameterType:$0) }
-//            }
+            static func nodeTypes() -> [Node.NodeType] {
+                return Self.allCases.map{ Node.NodeType.Image(imageType:$0) }
+            }
         }
         
         case Subgraph // A graph with exposed published ports
@@ -93,10 +98,10 @@ extension Node
         case Geometery
         case Material
         case Shader
-        case Image
+        case Image(imageType:ImageType)
         case Parameter(parameterType:ParameterType)
         
-        public static var allCases: [Node.NodeType] { return [.Renderer, .Object, .Camera, .Light, .Mesh, .Geometery, .Material, .Shader, .Image] + ParameterType.nodeTypes() }
+        public static var allCases: [Node.NodeType] { return [.Renderer, .Object, .Camera, .Light, .Mesh, .Geometery, .Material, .Shader ] + ImageType.nodeTypes() + ParameterType.nodeTypes() }
         
         public var description: String
         {
@@ -111,7 +116,7 @@ extension Node
             case .Geometery: return "Geometery"
             case .Material: return "Material"
             case .Shader: return "Shader"
-            case .Image: return "Image"
+            case .Image(imageType: let imageType): return "Image \(imageType.rawValue.titleCase)"
             case .Parameter(let paramType): return "\(paramType.rawValue) Parameter"
             }
         }

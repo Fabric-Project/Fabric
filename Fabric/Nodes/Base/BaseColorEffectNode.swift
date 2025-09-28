@@ -24,7 +24,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
         return self.fileURLToName(fileURL: fileURL)
     }
     
-    class var nodeType:Node.NodeType { .Image }
+    class var nodeType:Node.NodeType { .Image(imageType: .BaseEffect) }
     class var sourceShaderName:String { "" }
 
     open class PostMaterial: SourceMaterial {}

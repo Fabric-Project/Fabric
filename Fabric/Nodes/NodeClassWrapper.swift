@@ -12,11 +12,15 @@ public struct NodeClassWrapper: Identifiable
 {
     public let id = UUID()
     public let nodeClass: any NodeProtocol.Type
+    public let nodeType:Node.NodeType
     public var fileURL:URL? = nil
     public var nodeName:String
-    public init(nodeClass: any NodeProtocol.Type, fileURL:URL? = nil, nodeName:String? = nil)
+    
+    // Specify a overriden node type for say, nodeType image with specific image types (effects)
+    public init(nodeClass: any NodeProtocol.Type, nodeType:Node.NodeType? = nil, fileURL:URL? = nil, nodeName:String? = nil)
     {
         self.nodeClass = nodeClass
+        self.nodeType = nodeType ?? nodeClass.nodeType
         self.fileURL = fileURL
         self.nodeName = nodeName ?? nodeClass.name
     }
