@@ -11,9 +11,19 @@ import simd
 import Metal
 import MetalKit
 
-class BaseEffectNode: Node, NodeProtocol
+class BaseEffectNode: Node, NodeFileLoadingProtocol
 {
+    
     class var name:String { "Base Effect" }
+    
+    override var name: String {
+        guard let fileURL = self.url else {
+            return BaseEffectNode.name
+        }
+        
+        return self.fileURLToName(fileURL: fileURL)
+    }
+    
     class var nodeType:Node.NodeType { .Texture }
     class var sourceShaderName:String { "" }
 
@@ -29,8 +39,25 @@ class BaseEffectNode: Node, NodeProtocol
     let inputTexturePort:NodePort<EquatableTexture>
     let outputTexturePort:NodePort<EquatableTexture>
     override var ports: [any NodePortProtocol] { [inputTexturePort, outputTexturePort] + super.ports}
-
+    
     private var url:URL? = nil
+    required init(context: Satin.Context, fileURL: URL) throws {
+        self.inputTexturePort = NodePort<EquatableTexture>(name: "Texture", kind: .Inlet)
+        self.outputTexturePort = NodePort<EquatableTexture>(name: "Texture", kind: .Outlet)
+
+        self.url = fileURL
+        let material = PostMaterial(pipelineURL:fileURL)
+        material.setup()
+        
+        self.postMaterial = material
+        self.postProcessor = PostProcessor(context: context,
+                                           material: material,
+                                           frameBufferOnly: false)
+        
+        self.postProcessor.renderer.colorTextureStorageMode = .private
+        
+        super.init(context: context)
+    }
     
     required init(context:Context)
     {
@@ -130,5 +157,11 @@ class BaseEffectNode: Node, NodeProtocol
                 self.outputTexturePort.send( nil )
             }
         }
+    }
+    
+    private func fileURLToName(fileURL:URL) -> String {
+        let nodeName =  fileURL.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "ImageNode", with: "")
+
+        return nodeName.titleCase
     }
 }

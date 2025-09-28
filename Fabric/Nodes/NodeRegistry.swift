@@ -16,7 +16,7 @@ public class NodeRegistry {
     }
     
     public var availableNodes:[NodeClassWrapper] {
-        self.nodesClasses.map( { NodeClassWrapper(nodeClass: $0) } )
+        self.nodesClasses.map( { NodeClassWrapper(nodeClass: $0) } ) + self.dynamicEffectNodes
     }
 
     private var nodesClassLookup: [String: any NodeProtocol.Type] {
@@ -83,9 +83,35 @@ public class NodeRegistry {
     private var textureNodeClasses:[any NodeProtocol.Type] = [
         LoadTextureNode.self,
         HDRTextureNode.self,
-        BrightnessContrastImageNode.self,
-        GaussianBlurImageNode.self,
+//        BrightnessContrastImageNode.self,
+//        GaussianBlurImageNode.self,
     ]
+    
+    private var dynamicEffectNodes:[NodeClassWrapper] {
+        let bundle = Bundle(for: Self.self)
+
+        if let shaderURLs = bundle.urls(forResourcesWithExtension: "metal", subdirectory: "Effects")
+        {
+            var nodes:[NodeClassWrapper] = []
+            for fileURL in shaderURLs
+            {
+                let node = NodeClassWrapper(nodeClass: BaseEffectNode.self,
+                                            fileURL: fileURL,
+                                            nodeName:self.fileURLToName(fileURL: fileURL))
+                nodes.append( node )
+            }
+            
+            return nodes
+        }
+        
+        return []
+    }
+    
+    private func fileURLToName(fileURL:URL) -> String {
+        let nodeName =  fileURL.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "ImageNode", with: "")
+
+        return nodeName.titleCase
+    }
     
     private var parameterNodeClasses: [any NodeProtocol.Type] = [
         // Boolean

@@ -53,7 +53,7 @@ public class DisplacementMaterialNode: BaseMaterialNode
     required public init(context: Context)
     {
         let bundle = Bundle(for: Self.self)
-        let shaderURL = bundle.url(forResource: "DisplacementMaterial", withExtension: "metal", subdirectory: "Shaders")
+        let shaderURL = bundle.url(forResource: "DisplacementMaterial", withExtension: "metal", subdirectory: "Materials")
         
         self._material = DisplacementMaterial(pipelineURL: shaderURL!)
 
