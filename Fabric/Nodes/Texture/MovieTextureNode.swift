@@ -14,7 +14,7 @@ import AVFoundation
 class MovieTextureNode : Node, NodeProtocol
 {
     static let name = "Movie Player"
-    static var nodeType = Node.NodeType.Texture
+    static var nodeType = Node.NodeType.Image
 
     // Parameters
     let inputFilePathParam:StringParameter

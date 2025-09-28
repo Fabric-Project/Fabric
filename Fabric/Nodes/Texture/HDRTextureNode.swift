@@ -14,7 +14,7 @@ import MetalKit
 class HDRTextureNode : Node, NodeProtocol
 {
     static let name = "HDR Texture"
-    static var nodeType = Node.NodeType.Texture
+    static var nodeType = Node.NodeType.Image
 
     // Parameters
     let inputFilePathParam:StringParameter
