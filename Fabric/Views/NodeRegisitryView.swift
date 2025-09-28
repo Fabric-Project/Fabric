@@ -61,7 +61,7 @@ public struct NodeRegisitryView: View {
                     Section(header: Text("\(nodeType)")) {
                         
                         let availableNodes:[NodeClassWrapper] = NodeRegistry.shared.availableNodes
-                        let nodesForType:[NodeClassWrapper] = availableNodes.filter( { $0.nodeClass.nodeType == nodeType })
+                        let nodesForType:[NodeClassWrapper] = availableNodes.filter( { $0.nodeType == nodeType })
                         let filteredNodes:[NodeClassWrapper] = self.searchString.isEmpty ? nodesForType :
                         nodesForType.filter {  $0.nodeName.localizedCaseInsensitiveContains(self.searchString) }
                         

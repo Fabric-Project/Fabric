@@ -90,21 +90,25 @@ public class NodeRegistry {
     private var dynamicEffectNodes:[NodeClassWrapper] {
         let bundle = Bundle(for: Self.self)
 
-        if let shaderURLs = bundle.urls(forResourcesWithExtension: "metal", subdirectory: "Effects")
+        var nodes:[NodeClassWrapper] = []
+
+        for imageEffectType in Node.NodeType.ImageType.allCases
         {
-            var nodes:[NodeClassWrapper] = []
-            for fileURL in shaderURLs
+            let subDir = "Effects/\(imageEffectType.rawValue)"
+            if let shaderURLs = bundle.urls(forResourcesWithExtension: "metal", subdirectory:subDir)
             {
-                let node = NodeClassWrapper(nodeClass: BaseEffectNode.self,
-                                            fileURL: fileURL,
-                                            nodeName:self.fileURLToName(fileURL: fileURL))
-                nodes.append( node )
+                for fileURL in shaderURLs
+                {
+                    let node = NodeClassWrapper(nodeClass: BaseEffectNode.self,
+                                                nodeType: .Image(imageType: imageEffectType),
+                                                fileURL: fileURL,
+                                                nodeName:self.fileURLToName(fileURL: fileURL))
+                    nodes.append( node )
+                }
             }
-            
-            return nodes
         }
         
-        return []
+        return nodes
     }
     
     private func fileURLToName(fileURL:URL) -> String {

@@ -8,8 +8,8 @@
 //#define SAMPLER_PRECISION half4
 //#define SAMPLER_TYPE texture2d<half>
 
-#include "../lygia/sampler.msl"
-#include "../lygia/color/brightnessContrast.msl"
+#include "../../lygia/sampler.msl"
+#include "../../lygia/color/brightnessContrast.msl"
 
 
 typedef struct {

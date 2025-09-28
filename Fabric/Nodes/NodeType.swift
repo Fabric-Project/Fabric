@@ -79,6 +79,7 @@ extension Node
             case Mix
             case Mask
             case Tile
+            case Blur
             case Descimate
             case Distortion
             case Geometry

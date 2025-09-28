@@ -12,8 +12,8 @@
 //#define GAUSSIANBLUR_TYPE float4
 //#define GAUSSIANBLUR1D_TYPE float4
 
-#include "../lygia/sampler.msl"
-#include "../lygia/filter/gaussianBlur.msl"
+#include "../../lygia/sampler.msl"
+#include "../../lygia/filter/gaussianBlur.msl"
 
 typedef struct {
     float amount; // slider, 0.0, 1.0, 0.0, Amount
