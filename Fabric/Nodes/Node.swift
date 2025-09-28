@@ -53,7 +53,11 @@ public protocol NodeProtocol : AnyObject, Codable, Identifiable
     
     var isSelected:Bool { get set}
     var isDragging:Bool { get set }
+}
 
+protocol NodeFileLoadingProtocol : NodeProtocol
+{
+    init(context:Context, fileURL:URL) throws
 }
 
 // Optional

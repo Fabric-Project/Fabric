@@ -6,111 +6,132 @@
 //
 import simd
 
-class NodeRegistry {
+public class NodeRegistry {
     
-    static let shared = NodeRegistry()
+    public static let shared = NodeRegistry()
     
-    var nodesClassLookup: [String: any NodeProtocol.Type] {
+    
+    public func nodeClass(for nodeName: String) -> (any NodeProtocol.Type)? {
+        return self.nodesClassLookup[nodeName]
+    }
+    
+    public var availableNodes:[NodeClassWrapper] {
+        self.nodesClasses.map( { NodeClassWrapper(nodeClass: $0) } )
+    }
+
+    private var nodesClassLookup: [String: any NodeProtocol.Type] {
         self.nodesClasses.reduce(into: [:]) { result, nodeClass in
             result[String(describing: nodeClass)] = nodeClass
         }
     }
     
-    func nodeClass(for nodeName: String) -> (any NodeProtocol.Type)? {
-        return self.nodesClassLookup[nodeName]
-    }
+    private var nodesClasses: [any NodeProtocol.Type] {
+        self.cameraNodeClasses
+        + self.lightNodeClasses
+        + self.objectNodeClasses
+        + self.geometryNodeClasses
+        + self.materialNodeClasses
+        + self.textureNodeClasses
+        + self.parameterNodeClasses }
     
-    let nodesClasses: [any NodeProtocol.Type] = [
-        // Cameras
+    private var cameraNodeClasses: [any NodeProtocol.Type] = [
          PerspectiveCameraNode.self,
          OrthographicCameraNode.self,
-         
-         // Texture
-         LoadTextureNode.self,
-         HDRTextureNode.self,
-         BrightnessContrastImageNode.self,
-         GaussianBlurImageNode.self,
-         
-         // Geometry
-         PlaneGeometryNode.self,
-         PointPlaneGeometryNode.self,
-         BoxGeometryNode.self,
-         SphereGeometryNode.self,
-         IcoSphereGeometryNode.self,
-         CapsuleGeometryNode.self,
-         SkyboxGeometryNode.self,
-         TesselatedTextGeometryNode.self,
-         ExtrudedTextGeometryNode.self,
-         SuperShapeGeometryNode.self,
-         
-         // Materials
-         BasicColorMaterialNode.self,
-         BasicTextureMaterialNode.self,
-         BasicDiffuseMaterialNode.self,
-         SkyboxMaterialNode.self,
-         DepthMaterialNode.self,
-         //ShadowMaterialNode.self,
-         StandardMaterialNode.self,
-         PBRMaterialNode.self,
-         DisplacementMaterialNode.self,
-
-         // Lights
-         DirectionalLightNode.self,
-         PointLightNode.self,
-         
-         // Objects / Rendering
-         MeshNode.self,
-         ModelMeshNode.self,
-         InstancedMeshNode.self,
-         SceneBuilderNode.self,
-         RenderNode.self,
-         DeferredRenderNode.self,
-         
-         // Boolean
-         TrueNode.self,
-         FalseNode.self,
-         ArrayIndexValueNode<Bool>.self,
-         ArrayCountNode<Bool>.self,
-         ArrayQueueNode<Bool>.self,
-
-         // Number
-         CurrentTimeNode.self,
-         NumberNode.self,
-         NumberUnnaryOperator.self,
-         NumberBinaryOperator.self,
-         NumberEaseNode.self,
-         NumberRemapNode.self,
-         NumberIntegralNode.self,
-         GradientNoiseNode.self,
-         ArrayIndexValueNode<Float>.self,
-         ArrayCountNode<Float>.self,
-         ArrayQueueNode<Float>.self,
-
-         // String
-         TextFileLoaderNode.self,
-         StringComponentNode.self,
-         StringLengthNode.self,
-         StringRangeNode.self,
-         ArrayIndexValueNode<String>.self,
-         ArrayCountNode<String>.self,
-         ArrayQueueNode<String>.self,
-
-         // Vectors
-         MakeVector2Node.self,
-         ArrayIndexValueNode<simd_float2>.self,
-         ArrayCountNode<simd_float2>.self,
-         ArrayQueueNode<simd_float2>.self,
-         
-         MakeVector3Node.self,
-         ArrayIndexValueNode<simd_float3>.self,
-         ArrayCountNode<simd_float3>.self,
-         ArrayQueueNode<simd_float3>.self,
-         
-         MakeVector4Node.self,
-         ArrayIndexValueNode<simd_float4>.self,
-         ArrayCountNode<simd_float4>.self,
-         ArrayQueueNode<simd_float4>.self,
-
-//         MakeQuaternionNode.self
     ]
+    
+    private var lightNodeClasses: [any NodeProtocol.Type] = [
+        DirectionalLightNode.self,
+        PointLightNode.self,
+    ]
+    
+    private var objectNodeClasses: [any NodeProtocol.Type] = [
+        // Objects / Rendering
+        MeshNode.self,
+        ModelMeshNode.self,
+        InstancedMeshNode.self,
+        SceneBuilderNode.self,
+        RenderNode.self,
+        DeferredRenderNode.self
+    ]
+    
+    private var geometryNodeClasses: [any NodeProtocol.Type] = [ // Geometry
+        PlaneGeometryNode.self,
+        PointPlaneGeometryNode.self,
+        BoxGeometryNode.self,
+        SphereGeometryNode.self,
+        IcoSphereGeometryNode.self,
+        CapsuleGeometryNode.self,
+        SkyboxGeometryNode.self,
+        TesselatedTextGeometryNode.self,
+        ExtrudedTextGeometryNode.self,
+        SuperShapeGeometryNode.self
+    ]
+        
+    private var materialNodeClasses:[any NodeProtocol.Type] = [
+        // Materials
+        BasicColorMaterialNode.self,
+        BasicTextureMaterialNode.self,
+        BasicDiffuseMaterialNode.self,
+        SkyboxMaterialNode.self,
+        DepthMaterialNode.self,
+        //ShadowMaterialNode.self,
+        StandardMaterialNode.self,
+        PBRMaterialNode.self,
+        DisplacementMaterialNode.self,
+    ]
+    
+    private var textureNodeClasses:[any NodeProtocol.Type] = [
+        LoadTextureNode.self,
+        HDRTextureNode.self,
+        BrightnessContrastImageNode.self,
+        GaussianBlurImageNode.self,
+    ]
+    
+    private var parameterNodeClasses: [any NodeProtocol.Type] = [
+        // Boolean
+        TrueNode.self,
+        FalseNode.self,
+        ArrayIndexValueNode<Bool>.self,
+        ArrayCountNode<Bool>.self,
+        ArrayQueueNode<Bool>.self,
+
+        // Number
+        CurrentTimeNode.self,
+        NumberNode.self,
+        NumberUnnaryOperator.self,
+        NumberBinaryOperator.self,
+        NumberEaseNode.self,
+        NumberRemapNode.self,
+        NumberIntegralNode.self,
+        GradientNoiseNode.self,
+        ArrayIndexValueNode<Float>.self,
+        ArrayCountNode<Float>.self,
+        ArrayQueueNode<Float>.self,
+
+        // String
+        TextFileLoaderNode.self,
+        StringComponentNode.self,
+        StringLengthNode.self,
+        StringRangeNode.self,
+        ArrayIndexValueNode<String>.self,
+        ArrayCountNode<String>.self,
+        ArrayQueueNode<String>.self,
+
+        // Vectors
+        MakeVector2Node.self,
+        ArrayIndexValueNode<simd_float2>.self,
+        ArrayCountNode<simd_float2>.self,
+        ArrayQueueNode<simd_float2>.self,
+        
+        MakeVector3Node.self,
+        ArrayIndexValueNode<simd_float3>.self,
+        ArrayCountNode<simd_float3>.self,
+        ArrayQueueNode<simd_float3>.self,
+        
+        MakeVector4Node.self,
+        ArrayIndexValueNode<simd_float4>.self,
+        ArrayCountNode<simd_float4>.self,
+        ArrayQueueNode<simd_float4>.self,
+
+        ]
 }

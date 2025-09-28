@@ -11,9 +11,9 @@ import simd
 import Metal
 import MetalKit
 
-class BaseColorEffectNode : Node, NodeProtocol
+class BaseEffectNode: Node, NodeProtocol
 {
-    class var name:String { "Base Texture Compute" }
+    class var name:String { "Base Effect" }
     class var nodeType:Node.NodeType { .Texture }
     class var sourceShaderName:String { "" }
 
@@ -30,6 +30,7 @@ class BaseColorEffectNode : Node, NodeProtocol
     let outputTexturePort:NodePort<EquatableTexture>
     override var ports: [any NodePortProtocol] { [inputTexturePort, outputTexturePort] + super.ports}
 
+    private var url:URL? = nil
     
     required init(context:Context)
     {
@@ -38,6 +39,7 @@ class BaseColorEffectNode : Node, NodeProtocol
 
         let bundle = Bundle(for: Self.self)
         let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
+        
         
         let material = PostMaterial(pipelineURL:shaderURL!)
         material.setup()

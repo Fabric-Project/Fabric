@@ -60,18 +60,25 @@ public struct NodeRegisitryView: View {
                     
                     Section(header: Text("\(nodeType)")) {
                         
-                        let nodesForType = NodeRegistry.shared.nodesClasses.filter( { $0.nodeType == nodeType })
-                        let filteredNodes = self.searchString.isEmpty ? nodesForType :
-                        nodesForType.filter {  $0.name.localizedCaseInsensitiveContains(self.searchString) }
+                        let availableNodes:[NodeClassWrapper] = NodeRegistry.shared.availableNodes
+                        let nodesForType:[NodeClassWrapper] = availableNodes.filter( { $0.nodeClass.nodeType == nodeType })
+                        let filteredNodes:[NodeClassWrapper] = self.searchString.isEmpty ? nodesForType :
+                        nodesForType.filter {  $0.nodeName.localizedCaseInsensitiveContains(self.searchString) }
                         
                         ForEach( 0 ..< filteredNodes.count, id:\.self ) { idx in
                             
-                            let nodeType = filteredNodes[idx]
+                            let node = filteredNodes[idx]
                             
-                            Text(nodeType.name)
+                            Text(node.nodeName)
                                 .font( .system(size: 11) )
                                 .onTapGesture {
-                                    self.graph.addNodeType(nodeType, initialOffset:self.scrollOffset)
+                                    do {
+                                        try self.graph.addNode(node, initialOffset:self.scrollOffset)
+                                    }
+                                    catch
+                                    {
+                                        
+                                    }
                                 }
                         }
                     }

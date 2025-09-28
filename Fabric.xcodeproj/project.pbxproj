@@ -133,6 +133,7 @@
 				Nodes/Material/SkyboxMaterialNode.swift,
 				Nodes/Material/StandardMaterialNode.swift,
 				Nodes/Node.swift,
+				Nodes/NodeClassWrapper.swift,
 				Nodes/NodeConnection.swift,
 				Nodes/NodePort.swift,
 				Nodes/NodeRegistry.swift,

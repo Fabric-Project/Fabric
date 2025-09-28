@@ -12,7 +12,7 @@ import simd
 import Metal
 import MetalKit
 
-class GaussianBlurImageNode : BaseColorEffectNode
+class GaussianBlurImageNode : BaseEffectNode
 {
     override class var name:String { "Gaussian Blur" }
     override class var sourceShaderName: String { "GaussianBlur" }

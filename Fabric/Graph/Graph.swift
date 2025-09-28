@@ -163,10 +163,9 @@ internal import AnyCodable
     //
     //
     
-    public func addNodeType(_ nodeType: any NodeProtocol.Type, initialOffset:CGPoint? )
+    public func addNode(_ node: NodeClassWrapper, initialOffset:CGPoint? ) throws
     {
-        let node = nodeType.init(context: self.context)
-        
+        let node = try node.initializeNode(context: self.context)
         if let initialOffset = initialOffset
         {
             node.offset = CGSize(width:  initialOffset.x - node.nodeSize.width / 2.0,
@@ -174,8 +173,22 @@ internal import AnyCodable
         }
         
         self.addNode(node)
-        
     }
+    
+    
+//    public func addNodeType(_ nodeType: any NodeProtocol.Type, initialOffset:CGPoint? )
+//    {
+//        let node = nodeType.init(context: self.context)
+//        
+//        if let initialOffset = initialOffset
+//        {
+//            node.offset = CGSize(width:  initialOffset.x - node.nodeSize.width / 2.0,
+//                                 height: initialOffset.y - node.nodeSize.height / 4.0)
+//        }
+//        
+//        self.addNode(node)
+//        
+//    }
     
     public func addNode(_ node:(any NodeProtocol))
     {

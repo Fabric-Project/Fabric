@@ -12,7 +12,7 @@ import simd
 import Metal
 import MetalKit
 
-class BrightnessContrastImageNode : BaseColorEffectNode
+class BrightnessContrastImageNode : BaseEffectNode
 {
     override class var name:String { "Brightness Contrast" }
     override class var sourceShaderName: String { "BrightnessContrastImageNode" }
