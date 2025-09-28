@@ -11,6 +11,7 @@ import Fabric
 
 
 struct ContentView: View {
+    
     @Binding var document: FabricDocument
 
     @GestureState private var magnifyBy = 1.0
@@ -29,7 +30,6 @@ struct ContentView: View {
             NodeRegisitryView(graph: document.graph, scrollOffset: $scrollOffset)
 
         } detail: {
-            
                     
                     ZStack
                     {

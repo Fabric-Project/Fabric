@@ -94,6 +94,7 @@
 		1BC06A992E0231920019808C /* Exceptions for "Fabric" folder in "Fabric" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Effects,
 				Extensions/CGAffineTransform.swift,
 				Extensions/CGPoint.swift,
 				Extensions/CGRect.swift,
@@ -108,6 +109,7 @@
 				Graph/GraphExecutionContext.swift,
 				Graph/GraphRenderer.swift,
 				Graph/TimeStampedFrameCache.swift,
+				Materials,
 				Nodes/Base/BaseColorEffectNode.swift,
 				Nodes/Base/BaseMaterialNode.swift,
 				Nodes/Base/BaseObjectNode.swift,
@@ -183,7 +185,6 @@
 				Nodes/Texture/ImageProcessing/GaussianBlurImageNode.swift,
 				Nodes/Texture/LoadTextureNode.swift,
 				Nodes/Texture/MovieTextureNode.swift,
-				Shaders,
 				Utils/AnyEncodable.swift,
 				Views/NodeRegisitryView.swift,
 				Views/Nodes/NodeCanvas.swift,
@@ -225,7 +226,8 @@
 				1BC06A992E0231920019808C /* Exceptions for "Fabric" folder in "Fabric" target */,
 			);
 			explicitFolders = (
-				Shaders,
+				Effects,
+				Materials,
 			);
 			path = Fabric;
 			sourceTree = "<group>";

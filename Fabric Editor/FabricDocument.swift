@@ -84,7 +84,7 @@ class FabricDocument: FileDocument {
         self.outputRenderer = WindowOutputRenderer2(context: self.context, graphRenderer: self.graphRenderer)
 
         Task {
-            usleep(1000)
+            usleep(2000)
             
             await MainActor.run {
                 self.setupWindow(named: name)

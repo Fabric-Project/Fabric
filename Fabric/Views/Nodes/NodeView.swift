@@ -29,12 +29,11 @@ struct NodeView : View
             {
                 
                 Color( (self.node.isSelected) ? "NodeBackgroundColorSelected" : "NodeBackgroundColor")
-                
+                                
                 Rectangle()
                     .fill( (self.node.isSelected) ? self.node.nodeType.color().gradient : self.node.nodeType.backgroundColor().gradient )
                     .frame(height: 30)
             
-                
                 VStack(alignment: .leading, spacing: 10) {
                     
                     // Name
