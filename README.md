@@ -18,10 +18,12 @@ Fabric is intended to be used as
 * Pro User tool to create reusable documents (similar to Quartz Composer Compositions) that can be loaded in the Fabric runtime and embedded into 3rd party applications.
 * Developer environment built on Satin that can render high fidelity visual output in a procedural way, using modern rendering techniques.
 
-An early alpha of Satin rendering a Super Shape with an HDRI environment and a PBR Shader at 120Hz:
+An early alpha of Satin rendering a instances of a sphere geometry, along with an HDRI environment and a PBR Shader at 120Hz:
 
-<img width="800" alt="Fabric" src="https://github.com/user-attachments/assets/0c0f3a88-5c22-4ad5-88cb-c05602b548a5" />
-<img width="800" alt="Fabric" src="https://github.com/user-attachments/assets/a649647a-a948-460c-827f-09b3fa6b1eee" />
+<img width="2056" height="1329" alt="An early alpha of Satin rendering a instances of a sphere geometry, along with an HDRI environment and a PBR Shader at 120Hz" src="https://github.com/user-attachments/assets/17d86aab-9995-4ace-b627-ec69c5e7875b" />
+
+<!-- <img width="800" alt="Fabric" src="https://github.com/user-attachments/assets/0c0f3a88-5c22-4ad5-88cb-c05602b548a5" />
+<img width="800" alt="Fabric" src="https://github.com/user-attachments/assets/a649647a-a948-460c-827f-09b3fa6b1eee" /> -->
 
 Fabric supports, thanks to Satin, high fidelity modern rendering techniques including
 
@@ -60,18 +62,22 @@ Build and run.
   - Textures
 
 - `Object` nodes have Parameters which can be adjusted, such as
-  - Parameters    
+  - Parameters
+    - Boolean      
     - Numbers
     - Vectors
     - Quarternions
     - Colors
     - String
+    - Arrays of parameters
 
-In Fabric, unlike Quartz Composer, `Objects` run top to bottom, and `Parameters` left to right. We think this helps with organization and legibility, but to be honest, we're shooting from the proverbial hip here. 
+In Fabric, like Quartz Composer, `Objects` and `Parameters` run left to right:
 
 A simple Fabric Scene rendering a Cube:
 
-<img width="800" alt="image" src="https://github.com/user-attachments/assets/cbc39e56-d9e5-4c42-888a-f6bf696028c8" />
+<img width="2056" height="1329" alt="A simple Fabric Scene rendering a Cube" src="https://github.com/user-attachments/assets/cae9afca-6a99-4fa1-85d0-0dfddf55d58b" />
+
+<!-- <img width="800" alt="image" src="https://github.com/user-attachments/assets/cbc39e56-d9e5-4c42-888a-f6bf696028c8" /> -->
 
 ## Beta Goals
 * Expand on available Nodes and expose features of Satin in a thoughtful way. There is a *lot* of ground to cover. 
