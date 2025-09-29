@@ -47,7 +47,7 @@ Because Fabric is under heavy development, we do not provide a prebuilt binary j
 
 # Roadmap
 
-Checkout [Roadmap.md](Roadmap.md)
+Checkout our [Roadmap](ROADMAP.md)
 
 # Community
 
