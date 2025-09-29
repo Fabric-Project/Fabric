@@ -99,10 +99,24 @@ internal import AnyCodable
 
                     self.nodes.append(node)
 
-//                    if let node = node as? Node
-//                    {
-//                        self.nodes.append(node as! (any NodeProtocol))
-//                    }
+                }
+                // This is stupid? 
+                else if anyCodableMap.type == String(describing: type(of: BaseEffectNode.self)).replacingOccurrences(of: ".Type", with:"")
+                {
+                    let encoder = JSONEncoder()
+                    let jsonData = try encoder.encode(anyCodableMap.value)
+                    
+                    let decoder = JSONDecoder()
+                    decoder.context = decodeContext
+                    
+                    let node = try decoder.decode(BaseEffectNode.self, from: jsonData)
+
+                    self.nodes.append(node)
+                }
+                else
+                {
+                    print("Failed to find nodeClass for \(anyCodableMap.type)")
+
                 }
             }
             catch

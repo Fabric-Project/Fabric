@@ -13,7 +13,6 @@ import MetalKit
 
 class BaseEffectNode: Node, NodeFileLoadingProtocol
 {
-    
     class var name:String { "Base Effect" }
     
     override var name: String {
@@ -41,6 +40,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
     override var ports: [any NodePortProtocol] { [inputTexturePort, outputTexturePort] + super.ports}
     
     private var url:URL? = nil
+    
     required init(context: Satin.Context, fileURL: URL) throws {
         self.inputTexturePort = NodePort<EquatableTexture>(name: "Texture", kind: .Inlet)
         self.outputTexturePort = NodePort<EquatableTexture>(name: "Texture", kind: .Outlet)
@@ -85,6 +85,10 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
     {
         case inputTexturePort
         case outputTexturePort
+        
+        // Store the last 2 directory components (effects/subfolder) within the bundle
+        case effectPath
+        
     }
     
     override func encode(to encoder:Encoder) throws
@@ -93,6 +97,15 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
         
         try container.encode(self.inputTexturePort, forKey: .inputTexturePort)
         try container.encode(self.outputTexturePort, forKey: .outputTexturePort)
+        
+        if let url = self.url
+        {
+            let last2 = url.pathComponents.suffix(3)
+            
+            let path = last2.joined(separator: "/")
+            
+            try container.encode(path, forKey: .effectPath)
+        }
 
         try super.encode(to: encoder)
     }
@@ -109,16 +122,48 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
         self.inputTexturePort = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputTexturePort)
         self.outputTexturePort = try container.decode(NodePort<EquatableTexture>.self, forKey: .outputTexturePort)
 
-        let bundle = Bundle(for: Self.self)
-        let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
-        
-        let material = PostMaterial(pipelineURL:shaderURL!)
-        material.setup()
+        if let path = try container.decodeIfPresent(String.self, forKey: .effectPath)
+        {
+            let bundle = Bundle(for: Self.self)
+            if let shaderURL = bundle.resourceURL?.appendingPathComponent(path)
+            {
+                self.url = shaderURL
+                
+                let material = PostMaterial(pipelineURL:shaderURL)
+                material.setup()
+                
+                self.postMaterial = material
+                self.postProcessor = PostProcessor(context: decodeContext.documentContext,
+                                                   material: material,
+                                                   frameBufferOnly: false)
+            }
+            else
+            {
+                let bundle = Bundle(for: Self.self)
+                let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
+                
+                let material = PostMaterial(pipelineURL:shaderURL!)
+                material.setup()
 
-        self.postMaterial = material
-        self.postProcessor = PostProcessor(context: decodeContext.documentContext,
-                                           material: material,
-                                           frameBufferOnly: false)
+                self.postMaterial = material
+                self.postProcessor = PostProcessor(context: decodeContext.documentContext,
+                                                   material: material,
+                                                   frameBufferOnly: false)  
+            }
+        }
+        else
+        {
+            let bundle = Bundle(for: Self.self)
+            let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
+            
+            let material = PostMaterial(pipelineURL:shaderURL!)
+            material.setup()
+
+            self.postMaterial = material
+            self.postProcessor = PostProcessor(context: decodeContext.documentContext,
+                                               material: material,
+                                               frameBufferOnly: false)
+        }
         
         try super.init(from:decoder)
     }
