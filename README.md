@@ -45,9 +45,13 @@ Because Fabric is under heavy development, we do not provide a prebuilt binary j
 3. Ensure that `Fabric Editor` is the active target.
 4. Build and run. 
 
+# Architecture
+
+Checkout our [Architecture Document ](ARCHITECTURE.md)
+
 # Roadmap
 
-Checkout our [Roadmap](ROADMAP.md)
+Checkout our [Roadmap Document](ROADMAP.md)
 
 # Community
 
