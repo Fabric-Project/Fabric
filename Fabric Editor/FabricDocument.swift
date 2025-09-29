@@ -83,12 +83,11 @@ class FabricDocument: FileDocument {
         
         self.outputRenderer = WindowOutputRenderer2(context: self.context, graphRenderer: self.graphRenderer)
 
-        Task {
-            usleep(2000)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
             
-            await MainActor.run {
-                self.setupWindow(named: name)
-            }
+            guard let self = self else { return }
+            self.setupWindow(named: name)
+
         }
     }
     

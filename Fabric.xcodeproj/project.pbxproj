@@ -110,7 +110,7 @@
 				Graph/GraphRenderer.swift,
 				Graph/TimeStampedFrameCache.swift,
 				Materials,
-				Nodes/Base/BaseColorEffectNode.swift,
+				Nodes/Base/BaseEffectNode.swift,
 				Nodes/Base/BaseMaterialNode.swift,
 				Nodes/Base/BaseObjectNode.swift,
 				Nodes/Geometry/BoxGeometryNode.swift,

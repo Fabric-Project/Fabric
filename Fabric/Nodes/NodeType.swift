@@ -72,6 +72,7 @@ extension Node
         {
             case BaseEffect
             case Loader
+            case Generator
             case ColorAdjust
             case ColorEffect
             case Lens
@@ -81,7 +82,7 @@ extension Node
             case Tile
             case Blur
             case Descimate
-            case Distortion
+            case Distort
             case Geometry
             case Morphology
             

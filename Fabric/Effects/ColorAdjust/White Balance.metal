@@ -8,22 +8,20 @@
 #define SAMPLER_PRECISION half4
 #define SAMPLER_TYPE texture2d<half>
 
-#define GAUSSIANBLUR_TYPE half4
-#define GAUSSIANBLUR_2D
-
 #include "../../lygia/sampler.msl"
-#include "../../lygia/filter/gaussianBlur.msl"
+#include "../../lygia/color/whiteBalance.msl"
+
 
 typedef struct {
-    float amount; // slider, 0.0, 1.0, 0.0, Amount
-//    float2 direction; // xypad, -20.0, 20.0, 0.0, Direction
+    float temp; // slider, -1.0, 1.0, 0.0, Tempurature
+    float tint; // slider, -1.0, 1.0, 0.0, Tint
 } PostUniforms;
 
 fragment half4 postFragment( VertexData in [[stage_in]],
     constant PostUniforms &uniforms [[buffer( FragmentBufferMaterialUniforms )]],
     texture2d<half, access::sample> renderTex [[texture( FragmentTextureCustom0 )]] )
 {
-    half4 color = gaussianBlur( renderTex, in.texcoord,  uniforms.amount);
+    half4 color = SAMPLER_FNC( renderTex, in.texcoord );
 
-    return half4(color);
+    return half4( whiteBalance( float4(color), uniforms.temp, uniforms.tint) );
 }

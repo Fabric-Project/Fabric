@@ -95,8 +95,15 @@ public class NodeRegistry {
         for imageEffectType in Node.NodeType.ImageType.allCases
         {
             let subDir = "Effects/\(imageEffectType.rawValue)"
-            if let shaderURLs = bundle.urls(forResourcesWithExtension: "metal", subdirectory:subDir)
+            
+            if var shaderURLs = bundle.urls(forResourcesWithExtension: "metal", subdirectory:subDir)
             {
+                // Not quite a localizedStandardCompare but whatever
+                shaderURLs.sort { a, b in
+                    
+                    return self.fileURLToName(fileURL: a) < self.fileURLToName(fileURL: b)
+                }
+                
                 for fileURL in shaderURLs
                 {
                     let node = NodeClassWrapper(nodeClass: BaseEffectNode.self,
