@@ -18,7 +18,8 @@ Fabric executes nodes in similar fashion to Quartz Composer, with a 'pull' based
 * Additional types - Fabric introduces a few useful types, such a Vectors, Quaternions, and Matrices which are helpful for graphics programming.
   
 # WIP
-* Type Casting 
+* Port Publishing - not yet done
+* Type Casting - not yet done
 * Macro patches - right now WIP, but the goal is to be able to author and load sub-patches at a minimum. Not sure if we will follow for rendering environments just yet.
 * Iteration paradigm - unclear at the moment - we could use an iterator macro patch like QC, or enable a flat multi execution paradigm like Max with a aggregation node.
 * Rendering - today we manually create a flat graph which requires a camera node and a set of meshes as a scenes. We could unravel to a more QC paradigm where a base renderer renders meshes at the root level, however this would imply nesting much like Quartz Composer used to do (Render In Image > Camera > Fog) etc, which is cumbersome. Suggestions welcome.
