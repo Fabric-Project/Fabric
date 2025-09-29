@@ -5,6 +5,7 @@
 //  Created by Anton Marini on 7/15/24.
 //
 
+#define EDGESOBEL_TYPE half
 #define SAMPLER_PRECISION half4
 #define SAMPLER_TYPE texture2d<half>
 
@@ -19,11 +20,10 @@ typedef struct {
 
 fragment half4 postFragment( VertexData in [[stage_in]],
     constant PostUniforms &uniforms [[buffer( FragmentBufferMaterialUniforms )]],
-    texture2d<float, access::sample> renderTex [[texture( FragmentTextureCustom0 )]] )
+    texture2d<half, access::sample> renderTex [[texture( FragmentTextureCustom0 )]] )
 {
-
     uint width = renderTex.get_width();
     uint height = renderTex.get_height();
 
-    return edgeSobel(renderTex, in.texcoord, uniforms.offset / float2(width, height));
+    return edgeSobel(renderTex, in.texcoord, uniforms.offset / float2(width, height)) ;
 }

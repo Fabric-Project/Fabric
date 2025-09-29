@@ -11,7 +11,11 @@ public struct EquatableTexture: Equatable
 {
     public let texture: MTLTexture
 
+    // TODO: Until we get a texture pool where we vend texture for effects
+    // this should be false?
+    // https://github.com/Fabric-Project/Fabric/issues/34
     public static func == (lhs: EquatableTexture, rhs: EquatableTexture) -> Bool {
-        return lhs.texture === rhs.texture // reference identity
+        return false
+//        return lhs.texture === rhs.texture // reference identity
     }
 }

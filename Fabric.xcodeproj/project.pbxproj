@@ -181,8 +181,6 @@
 				Nodes/Render/RenderNode.swift,
 				Nodes/Render/SubgraphNode.swift,
 				Nodes/Texture/HDRTextureNode.swift,
-				Nodes/Texture/ImageProcessing/BasicColorTextureNode.swift,
-				Nodes/Texture/ImageProcessing/GaussianBlurImageNode.swift,
 				Nodes/Texture/LoadTextureNode.swift,
 				Nodes/Texture/MovieTextureNode.swift,
 				Utils/AnyEncodable.swift,
