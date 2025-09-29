@@ -111,6 +111,7 @@
 				Graph/TimeStampedFrameCache.swift,
 				Materials,
 				Nodes/Base/BaseEffectNode.swift,
+				Nodes/Base/BaseEffectTwoChannelNode.swift,
 				Nodes/Base/BaseMaterialNode.swift,
 				Nodes/Base/BaseObjectNode.swift,
 				Nodes/Geometry/BoxGeometryNode.swift,

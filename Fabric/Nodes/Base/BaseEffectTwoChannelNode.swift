@@ -11,7 +11,7 @@ import simd
 import Metal
 import MetalKit
 
-class BaseEffectNode: Node, NodeFileLoadingProtocol
+class BaseEffectTwoChannelNode: Node, NodeFileLoadingProtocol
 {
     class var name:String { "Base Effect" }
     
@@ -36,13 +36,16 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
 
     // Ports
     let inputTexturePort:NodePort<EquatableTexture>
+    let inputTexture2Port:NodePort<EquatableTexture>
+    
     let outputTexturePort:NodePort<EquatableTexture>
-    override var ports: [any NodePortProtocol] { [inputTexturePort, outputTexturePort] + super.ports}
+    override var ports: [any NodePortProtocol] { [inputTexturePort, inputTexture2Port, outputTexturePort] + super.ports}
     
     private var url:URL? = nil
     
     required init(context: Satin.Context, fileURL: URL) throws {
-        self.inputTexturePort = NodePort<EquatableTexture>(name: "Texture", kind: .Inlet)
+        self.inputTexturePort = NodePort<EquatableTexture>(name: "Texture 1", kind: .Inlet)
+        self.inputTexture2Port = NodePort<EquatableTexture>(name: "Texture 2", kind: .Inlet)
         self.outputTexturePort = NodePort<EquatableTexture>(name: "Texture", kind: .Outlet)
 
         self.url = fileURL
@@ -62,6 +65,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
     required init(context:Context)
     {
         self.inputTexturePort = NodePort<EquatableTexture>(name: "Texture", kind: .Inlet)
+        self.inputTexture2Port = NodePort<EquatableTexture>(name: "Texture 2", kind: .Inlet)
         self.outputTexturePort = NodePort<EquatableTexture>(name: "Texture", kind: .Outlet)
 
         let bundle = Bundle(for: Self.self)
@@ -84,6 +88,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
     enum CodingKeys : String, CodingKey
     {
         case inputTexturePort
+        case inputTexture2Port
         case outputTexturePort
         
         // Store the last 2 directory components (effects/subfolder) within the bundle
@@ -96,6 +101,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
         var container = encoder.container(keyedBy: CodingKeys.self)
         
         try container.encode(self.inputTexturePort, forKey: .inputTexturePort)
+        try container.encode(self.inputTexture2Port, forKey: .inputTexture2Port)
         try container.encode(self.outputTexturePort, forKey: .outputTexturePort)
         
         if let url = self.url
@@ -120,6 +126,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
         }
         
         self.inputTexturePort = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputTexturePort)
+        self.inputTexture2Port = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputTexture2Port)
         self.outputTexturePort = try container.decode(NodePort<EquatableTexture>.self, forKey: .outputTexturePort)
 
         if let path = try container.decodeIfPresent(String.self, forKey: .effectPath)
@@ -179,11 +186,13 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
         
         if  self.inputTexturePort.valueDidChange || anyParamDidChange
         {
-            if let inTex = self.inputTexturePort.value?.texture
+            if let inTex = self.inputTexturePort.value?.texture,
+               let inTex2 = self.inputTexture2Port.value?.texture
             {
                 self.postProcessor.mesh.preDraw = { renderEncoder in
                     
                     renderEncoder.setFragmentTexture(inTex, index: FragmentTextureIndex.Custom0.rawValue)
+                    renderEncoder.setFragmentTexture(inTex2, index: FragmentTextureIndex.Custom1.rawValue)
                 }
                 
                 self.postProcessor.renderer.size.width = Float(inTex.width)
