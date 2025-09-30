@@ -179,13 +179,13 @@ class BaseEffectTwoChannelNode: Node, NodeFileLoadingProtocol
                           renderPassDescriptor: MTLRenderPassDescriptor,
                           commandBuffer: MTLCommandBuffer)
     {
-        let anyParamDidChange =  self.inputParameters.reduce(false, { partialResult, next in
-           return partialResult || next.valueDidChange
-        })
+//        let anyParamDidChange =  self.inputParameters.reduce(false, { partialResult, next in
+//           return partialResult || next.valueDidChange
+//        })
 
         
-        if  self.inputTexturePort.valueDidChange || anyParamDidChange
-        {
+//        if  self.inputTexturePort.valueDidChange || anyParamDidChange
+//        {
             if let inTex = self.inputTexturePort.value?.texture,
                let inTex2 = self.inputTexture2Port.value?.texture
             {
@@ -205,11 +205,11 @@ class BaseEffectTwoChannelNode: Node, NodeFileLoadingProtocol
                     let outputTexture = EquatableTexture(texture: outTex)
                     self.outputTexturePort.send( outputTexture )
                 }
-            }
-            else
-            {
-                self.outputTexturePort.send( nil )
-            }
+//            }
+//            else
+//            {
+//                self.outputTexturePort.send( nil )
+//            }
         }
     }
     

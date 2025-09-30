@@ -100,7 +100,20 @@ internal import AnyCodable
                     self.nodes.append(node)
 
                 }
-                // This is stupid? 
+                // This is stupid?
+                else if anyCodableMap.type == String(describing: type(of: BaseEffectTwoChannelNode.self)).replacingOccurrences(of: ".Type", with:"")
+                {
+                    let encoder = JSONEncoder()
+                    let jsonData = try encoder.encode(anyCodableMap.value)
+                    
+                    let decoder = JSONDecoder()
+                    decoder.context = decodeContext
+                    
+                    let node = try decoder.decode(BaseEffectTwoChannelNode.self, from: jsonData)
+
+                    self.nodes.append(node)
+                }
+                // This is stupid?
                 else if anyCodableMap.type == String(describing: type(of: BaseEffectNode.self)).replacingOccurrences(of: ".Type", with:"")
                 {
                     let encoder = JSONEncoder()

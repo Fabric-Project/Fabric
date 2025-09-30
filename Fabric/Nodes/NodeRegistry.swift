@@ -95,18 +95,23 @@ public class NodeRegistry {
         for imageEffectType in Node.NodeType.ImageType.allCases
         {
             let subDir = "Effects/\(imageEffectType.rawValue)"
-            
-            if var shaderURLs = bundle.urls(forResourcesWithExtension: "metal", subdirectory:subDir)
+            let subDir2 = "EffectsTwoChannel/\(imageEffectType.rawValue)"
+
+            if let singleChannelEffects = bundle.urls(forResourcesWithExtension: "metal", subdirectory:subDir),
+               let twoChannelEffects = bundle.urls(forResourcesWithExtension: "metal", subdirectory:subDir2)
             {
-                // Not quite a localizedStandardCompare but whatever
-                shaderURLs.sort { a, b in
-                    
-                    return self.fileURLToName(fileURL: a) < self.fileURLToName(fileURL: b)
-                }
-                
-                for fileURL in shaderURLs
+                for fileURL in singleChannelEffects
                 {
                     let node = NodeClassWrapper(nodeClass: BaseEffectNode.self,
+                                                nodeType: .Image(imageType: imageEffectType),
+                                                fileURL: fileURL,
+                                                nodeName:self.fileURLToName(fileURL: fileURL))
+                    nodes.append( node )
+                }
+                
+                for fileURL in twoChannelEffects
+                {
+                    let node = NodeClassWrapper(nodeClass: BaseEffectTwoChannelNode.self,
                                                 nodeType: .Image(imageType: imageEffectType),
                                                 fileURL: fileURL,
                                                 nodeName:self.fileURLToName(fileURL: fileURL))
@@ -115,6 +120,11 @@ public class NodeRegistry {
             }
         }
         
+        // Not quite a localizedStandardCompare but whatever
+        nodes.sort { a, b in
+            
+            return a.nodeName < b.nodeName
+        }
         return nodes
     }
     

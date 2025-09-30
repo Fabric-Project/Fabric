@@ -95,6 +95,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Effects,
+				EffectsTwoChannel,
 				Extensions/CGAffineTransform.swift,
 				Extensions/CGPoint.swift,
 				Extensions/CGRect.swift,
@@ -226,6 +227,7 @@
 			);
 			explicitFolders = (
 				Effects,
+				EffectsTwoChannel,
 				Materials,
 			);
 			path = Fabric;
