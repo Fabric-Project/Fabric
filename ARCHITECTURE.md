@@ -2,9 +2,12 @@
 
 Fabric is built on top of Satin, a metal rendering engine that supports scene graphs of meshes, composed of materials and geometry. 
 
-As such, Nodes in Fabric consist of "Objects" (think Meshes, Materials, Cameras) and "Parameters" (Numbers, Vectors, Strings) - roughly reference and value semantics.
+In Fabric, you work with Nodes, which represent certain functionality like computing a number, representing a material property, representing geometry, or rendering in to the scene 
 
-Nodes may have Objects or Parameter ports, and are typically outputting a single type.
+As such, Nodes in Fabric consist of "Objects" (think Meshes, Materials, Cameras) and "Parameters" (Numbers, Vectors, Strings) - roughly reference and value semantics.
+A Node has Ports, which represent inputs or outputs to the node and change its behaviour (what math is used to computer a number, what properties a material has, the shape, size of geometry, where its located in space)
+
+Nodes may have Object Ports or Parameter ports, and are typically inputting many types of objects and parameters, and generally outputting a single type.
 
 * Object ports are denoted by colors
 * Parameter ports are gray
