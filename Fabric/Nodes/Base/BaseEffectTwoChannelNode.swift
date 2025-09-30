@@ -44,9 +44,9 @@ class BaseEffectTwoChannelNode: Node, NodeFileLoadingProtocol
     private var url:URL? = nil
     
     required init(context: Satin.Context, fileURL: URL) throws {
-        self.inputTexturePort = NodePort<EquatableTexture>(name: "Texture 1", kind: .Inlet)
-        self.inputTexture2Port = NodePort<EquatableTexture>(name: "Texture 2", kind: .Inlet)
-        self.outputTexturePort = NodePort<EquatableTexture>(name: "Texture", kind: .Outlet)
+        self.inputTexturePort = NodePort<EquatableTexture>(name: "Image 1", kind: .Inlet)
+        self.inputTexture2Port = NodePort<EquatableTexture>(name: "Image 2", kind: .Inlet)
+        self.outputTexturePort = NodePort<EquatableTexture>(name: "Image", kind: .Outlet)
 
         self.url = fileURL
         let material = PostMaterial(pipelineURL:fileURL)
@@ -64,9 +64,9 @@ class BaseEffectTwoChannelNode: Node, NodeFileLoadingProtocol
     
     required init(context:Context)
     {
-        self.inputTexturePort = NodePort<EquatableTexture>(name: "Texture", kind: .Inlet)
-        self.inputTexture2Port = NodePort<EquatableTexture>(name: "Texture 2", kind: .Inlet)
-        self.outputTexturePort = NodePort<EquatableTexture>(name: "Texture", kind: .Outlet)
+        self.inputTexturePort = NodePort<EquatableTexture>(name: "Image", kind: .Inlet)
+        self.inputTexture2Port = NodePort<EquatableTexture>(name: "Image 2", kind: .Inlet)
+        self.outputTexturePort = NodePort<EquatableTexture>(name: "Image", kind: .Outlet)
 
         let bundle = Bundle(for: Self.self)
         let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")

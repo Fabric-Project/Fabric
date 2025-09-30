@@ -31,7 +31,7 @@ class LoadTextureNode : Node, NodeProtocol
     required init(context:Context)
     {
         self.inputFilePathParam = StringParameter("File Path", "", .filepicker)
-        self.outputTexturePort = NodePort<EquatableTexture>(name: "Texture", kind: .Outlet)
+        self.outputTexturePort = NodePort<EquatableTexture>(name: "Image", kind: .Outlet)
 
         super.init(context: context)
         

@@ -29,7 +29,7 @@ fragment half4 postFragment( VertexData in [[stage_in]],
     uint width = renderTex.get_width();
     uint height = renderTex.get_height();
 
-    half3 g = grain(renderTex, in.texcoord, float2(width, height) * uniforms.resolution , uniforms.time, uniforms.amount);
+    half3 g = grain(renderTex, in.texcoord, float2(width, height) , uniforms.time, uniforms.amount);
 
     color.rgb = g;
 
