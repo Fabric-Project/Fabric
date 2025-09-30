@@ -1,3 +1,5 @@
+A list of Nodes (planned and implemented) for Fabric.
+
 # Material
 
 - [x] Basic Color (no lighting)
@@ -37,7 +39,7 @@
 # Object
 - [x] Mesh
 - [x] Instanced Mesh
-- [x] 3D Model Mesh Loader
+- [x] 3D Model Loader
 - [x] Scene (Environment and Scene Graph)
 - [x] Orthographic Camera
 - [x] Perspective Camera
@@ -49,6 +51,11 @@
 - [ ] Sub-Graph Node 
 
 # Image Processing
+
+**Loading**
+- [x] Image Loader
+- [ ] Video Loader (AVFoundation)
+- [ ] Camera Loader (AVFoundation)
 
 **Color Adjust**
 
@@ -132,4 +139,95 @@
 - [ ] Open
 - [ ] Close
 
+** Info **
+- [ ] Image Dimensions
+
 # Parameters
+
+**Boolean**
+
+- [x] True
+- [x] False
+- [ ] Logic Operator
+
+**Index***
+
+Have yet to work on Index (integer only) numeric nodes 
+
+**Number**
+
+- [x] Number
+- [x] Current Time
+- [x] Integrator (accrues every frame for now)
+- [ ] Derivator
+- [x] Single Operator Math
+- [x] Binary Operator Math
+- [x] Gradient Noise (FBM)
+- [x] Remap
+- [x] Tween / Easing
+- [ ] Clamp
+- [ ] Round
+- [ ] Counter
+- [ ] LFO
+- [ ] Smooth (Kalman or 1 Euro Filter?)
+- [ ] Audio Spectrum
+
+**Vector**
+
+- [x] Make Vec 2
+- [x] Make Vec 3
+- [x] Make Vec 4
+- [ ] Vector Ops (Cross / Dot)
+
+**Quaternion**
+
+Have yet to work on Quaternion nodes, unclear if we def want these types??
+
+**Matrix**
+
+Have yet to work on Matrix nodes, unclear if we def want these types?
+
+**String***
+
+- [x] String Loader (Text file loader)
+- [x] String Components
+- [x] String Length
+- [x] String Range
+- [ ] String Formatter
+- [ ] String Join
+- [ ] String Separator
+- [ ] String Compare
+- [ ] Date Formatter
+- [ ] Current Date
+
+**Array**
+
+Array nodes are implemented as Swift Generics, and can work with any of the above types
+
+- [x] Queue
+- [x] Array Count
+- [x] Item at Index (Number for now)
+- [ ] Multiplexer
+- [ ] Demultiplexer
+- [ ] Sort (? what does this mean for some types ?)
+
+
+# Other Nodes
+
+** I / O **
+- [ ] Keyboard
+- [ ] Mouse / Touch / Cursor 
+- [ ] OSC Input
+- [ ] OSC Output
+- [ ] Midi Input
+- [ ] Midi Output
+- [ ] HID Input
+- [ ] HID Output
+- [ ] NDI Input
+- [ ] NDI Output
+- [ ] Syphon Input
+- [ ] Syphon Output
+
+** Info Nodes **
+ - [ ] Rendering Destination Dimensions
+
