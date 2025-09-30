@@ -32,10 +32,6 @@ Fabric supports, thanks to Satin, high fidelity modern rendering techniques incl
 - Lighting and Shadow casting
 - Realtime shader editing (live coding, hot reloading)
 
-# Getting Started
-
-Because Fabric is under heavy development, we do not provide a prebuilt binary just yet. 
-
 ## Requirements
 - macOS 14 +
 - XCode 15 +
@@ -50,6 +46,8 @@ Because Fabric is under heavy development, we do not provide a prebuilt binary j
 Start by checking out our existing list of [Nodes](NODES.md) 
 
 User guide, examples and walk throughs coming soon (help wanted!)
+
+Because Fabric is under heavy development, we do not provide a prebuilt binary just yet. 
 
 # Architecture
 
