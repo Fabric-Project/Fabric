@@ -231,6 +231,7 @@ Array nodes are implemented as Swift Generics, and can work with any of the abov
 - [ ] NDI Output
 - [ ] Syphon Input
 - [ ] Syphon Output
+- [ ] Artnet Output
 
 ###  Info Nodes
  - [ ] Rendering Destination Dimensions
