@@ -52,12 +52,12 @@ A list of Nodes (planned and implemented) for Fabric.
 
 # Image Processing
 
-**Loading**
+### Loading
 - [x] Image Loader
 - [ ] Video Loader (AVFoundation)
 - [ ] Camera Loader (AVFoundation)
 
-**Color Adjust**
+### Color Adjust
 
 - [x] Brightness / Contrast / Saturation
 - [x] Hue
@@ -71,14 +71,14 @@ A list of Nodes (planned and implemented) for Fabric.
 - [ ] Channel Combine
 - [ ] Color Space To / From
 
-**Color Effect**
+### Color Effect
 
 - [ ] Color LUT
 - [x] Invert
 - [x] Duo Tone
 - [ ] False Color
 
-**Lens**
+### Lens
 
 - [ ] Lens Distortion
 - [ ] Chromatic Abberation
@@ -86,34 +86,34 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Vignetting
 - [ ] Prism / Kaliedoscope
 
-**Mixing**
+### Mixing
 
 - [ ] Standard Mixing Modes
 - [ ] Mix modes with Masking
 
-**Compositing**
+### Compositing
 
 - [ ] Porter Duff compositing
 
-**Masking**
+### Masking
 - [ ] Image to Mask
 - [ ] Subject Mask (ML)
 - [ ] Person Mask (ML)
 
-**Tiling**
+### Tiling
 
 - [ ] Lygia Tiling Ops
 - [x] Kaleidoscope
 - [ ] Mirror
 
-**Decimation**
+### Decimation
 
 - [ ] Threshold
 - [ ] Dither
 - [x] Pixelate
 - [ ] Half Tone
 
-**Distortion**
+### Distortion
 
 - [ ] Warp
 - [ ] Bump
@@ -121,7 +121,7 @@ A list of Nodes (planned and implemented) for Fabric.
 - [ ] Twirl
 - [ ] Pinch
 
-**Blur**
+### Blur
 
 - [ ] Gaussian (Kawase)
 - [ ] Directional (Motion)
@@ -130,7 +130,7 @@ A list of Nodes (planned and implemented) for Fabric.
 - [ ] Gloom
 - [ ] Variable Versions of above
 
-**Morphology**
+### Morphology
 
 - [ ] Sharpen
 - [x] Sobel
@@ -139,22 +139,22 @@ A list of Nodes (planned and implemented) for Fabric.
 - [ ] Open
 - [ ] Close
 
-** Info **
+### Info 
 - [ ] Image Dimensions
 
 # Parameters
 
-**Boolean**
+### Boolean
 
 - [x] True
 - [x] False
 - [ ] Logic Operator
 
-**Index***
+### Index
 
 Have yet to work on Index (integer only) numeric nodes 
 
-**Number**
+### Number
 
 - [x] Number
 - [x] Current Time
@@ -172,22 +172,22 @@ Have yet to work on Index (integer only) numeric nodes
 - [ ] Smooth (Kalman or 1 Euro Filter?)
 - [ ] Audio Spectrum
 
-**Vector**
+### Vector
 
 - [x] Make Vec 2
 - [x] Make Vec 3
 - [x] Make Vec 4
-- [ ] Vector Ops (Cross / Dot)
+- [ ] Vector Ops (Cross / Dot / etc)
 
-**Quaternion**
+### Quaternion
 
 Have yet to work on Quaternion nodes, unclear if we def want these types??
 
-**Matrix**
+### Matrix
 
 Have yet to work on Matrix nodes, unclear if we def want these types?
 
-**String***
+### String
 
 - [x] String Loader (Text file loader)
 - [x] String Components
@@ -200,7 +200,7 @@ Have yet to work on Matrix nodes, unclear if we def want these types?
 - [ ] Date Formatter
 - [ ] Current Date
 
-**Array**
+### Array
 
 Array nodes are implemented as Swift Generics, and can work with any of the above types
 
@@ -214,7 +214,8 @@ Array nodes are implemented as Swift Generics, and can work with any of the abov
 
 # Other Nodes
 
-** I / O **
+###  I / O
+
 - [ ] Keyboard
 - [ ] Mouse / Touch / Cursor 
 - [ ] OSC Input
@@ -228,6 +229,6 @@ Array nodes are implemented as Swift Generics, and can work with any of the abov
 - [ ] Syphon Input
 - [ ] Syphon Output
 
-** Info Nodes **
+###  Info Nodes
  - [ ] Rendering Destination Dimensions
 
