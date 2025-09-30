@@ -45,6 +45,12 @@ Because Fabric is under heavy development, we do not provide a prebuilt binary j
 3. Ensure that `Fabric Editor` is the active target.
 4. Build and run. 
 
+# Getting Started
+
+Start by checking out our existing list of [Nodes](NODES.md) 
+
+User guide, examples and walk throughs coming soon (help wanted!)
+
 # Architecture
 
 Checkout our [Architecture Document ](ARCHITECTURE.md)
