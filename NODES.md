@@ -1,9 +1,11 @@
+A list of Nodes (planned and implemented) for Fabric.
+
 <img width="1568" height="1110" alt="image" src="https://github.com/user-attachments/assets/f6425c2c-e44d-4fda-bc93-3bb94c3978a9" />
 
 
-A list of Nodes (planned and implemented) for Fabric.
-
 # Material
+
+<img width="1415" height="839" alt="image" src="https://github.com/user-attachments/assets/8960eecc-0025-4cd4-b21a-64dcc44984d8" />
 
 - [x] Basic Color (no lighting)
 - [x] Basic Diffuse (lighting)
@@ -16,6 +18,9 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Displace (Luminosity / RGB Based Displacement shader)
 
 # Geometry
+
+<img width="1184" height="671" alt="image" src="https://github.com/user-attachments/assets/345dab62-c203-418b-ac5a-24fb6f6f9b6d" />
+
 - [ ] Line
 - [x] Plane
 - [x] Point Plane (Temp until #15 is fixed)
@@ -40,6 +45,9 @@ A list of Nodes (planned and implemented) for Fabric.
 - [ ] Parametric
 
 # Object
+
+<img width="1334" height="821" alt="image" src="https://github.com/user-attachments/assets/363949de-847f-4f79-8a9a-3702e7a5c4a4" />
+
 - [x] Mesh
 - [x] Instanced Mesh
 - [x] 3D Model Loader
@@ -54,6 +62,8 @@ A list of Nodes (planned and implemented) for Fabric.
 - [ ] Sub-Graph Node 
 
 # Image Processing
+
+<img width="1334" height="821" alt="image" src="https://github.com/user-attachments/assets/86b33241-d619-499e-8f79-f1613ab12b66" />
 
 ### Loading
 - [x] Image Loader
