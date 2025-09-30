@@ -101,8 +101,38 @@ A list of Nodes (planned and implemented) for Fabric.
 
 ### Mixing
 
-- [ ] Standard Mixing Modes 
-    - (Additive, Average, Color Burn, Color Dodge, Color, Darken, Difference, Exclusion, Glow, Hard Light, Hard Mix, Hue, Lighten, Linear Burn, Linear Dodge, Linear Light, Luminosity, Multiply, Negation, Overlay, Phoenix, Pin Light, Reflect, Saturation, Screen, Soft Light, Source Over, Subtract, Vivid Light)
+- [x] Standard Mixing Modes 
+    - Additive
+    - Average
+    - Color Burn
+    - Color Dodge
+    - Color
+    - Darken
+    - Difference
+    - Exclusion
+    - Glow
+    - Hard Light
+    - Hard Mix
+    - Hue
+    - Lighten
+    - Linear Burn
+    - Linear Dodge
+    - Linear Light
+    - Luminosity
+    - MixTemplate.msl
+    - Multiply
+    - Negation
+    - Overlay
+    - Phoenix
+    - Pin Light
+    - Reflect
+    - Saturation
+    - Screen
+    - Soft Light
+    - Source Over
+    - Subtract
+    - Vivid Light
+
 - [ ] Mix modes with Masking
 
 ### Compositing
