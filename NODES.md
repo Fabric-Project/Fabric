@@ -137,7 +137,12 @@ A list of Nodes (planned and implemented) for Fabric.
 
 ### Compositing
 
-- [ ] Porter Duff compositing
+- [x] Porter Duff compositing
+    - Atop
+    - In
+    - Out
+    - Over
+    - Xor
 
 ### Masking
 - [ ] Image to Mask
