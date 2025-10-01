@@ -5,17 +5,12 @@
 //  Created by Anton Marini on 7/15/24.
 //
 
+// #define SAMPLEDOF_DEBUG
 #define SAMPLEDOF_TYPE half3
 #define SAMPLER_PRECISION half4
 #define SAMPLER_TYPE texture2d<half>
-#define SAMPLEDOF_BLUR_SIZE 17.0
-#define SAMPLEDOF_RAD_SCALE .9
-
-#include "../../lygia/space/linearizeDepth.msl"
-
-// #define SAMPLEDOF_DEBUG
-//#define SAMPLEDOF_COLOR_SAMPLE_FNC(TEX, UV) sampleClamp2edge(TEX, UV).rgb
-//#define SAMPLEDOF_DEPTH_SAMPLE_FNC(TEX, UV) sampleClamp2edge(TEX, UV).r
+#define SAMPLEDOF_BLUR_SIZE 19.0
+#define SAMPLEDOF_RAD_SCALE 1.0
 
 #include "../../lygia/sample/clamp2edge.msl"
 #include "../../lygia/sampler.msl"

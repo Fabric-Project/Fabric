@@ -27,13 +27,13 @@ fragment half4 postFragment( VertexData in [[stage_in]],
     half4 srcColor = SAMPLER_FNC( tex0, in.texcoord );
     half4 dstColor = SAMPLER_FNC( tex1, in.texcoord );
     
-    half3 blend = BLEND_FUNC(srcColor, dstColor);
+    half3 blend = BLEND_FUNC(srcColor.rgb, dstColor.rgb);
     half a = compositeSourceOver(srcColor.a, dstColor.a);
     
     half4 result;
     
-    result.rgb = mix(srcColor,rgb, blend, amount);
-    result.a = mix(srcColor.a, a, amount)
+    result.rgb = mix(srcColor.rgb, blend, amount);
+    result.a = mix(srcColor.a, a, amount);
     
     return result;
 }
