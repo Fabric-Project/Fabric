@@ -61,22 +61,22 @@ public class GraphRenderer : MetalViewRenderer
         for renderNode in renderNodes + subgraphNodes
         {
             let _ = processGraph(graph:graph,
-                                 node: renderNode,
+                                 node: renderNode as! Node,
                                  executionContext:executionContext,
                                  renderPassDescriptor: renderPassDescriptor,
                                  commandBuffer: commandBuffer,
-                                 nodesWeAreExecuting:&nodesWeAreExecuting)
+                                 nodesWeHaveExecutedThisPass:&nodesWeAreExecuting)
         }
         
     }
 
     private func processGraph(graph:Graph,
-                              node: any NodeProtocol,
+                              node: Node,
                               executionContext:GraphExecutionContext,
                               renderPassDescriptor: MTLRenderPassDescriptor,
                               commandBuffer: MTLCommandBuffer,
-                              nodesWeAreExecuting:inout  [Node],
-                              pruningNodes:[any NodeProtocol] = [])
+                              nodesWeHaveExecutedThisPass:inout  [Node]
+                              )
     {
         
         // get the connection for
@@ -85,22 +85,32 @@ public class GraphRenderer : MetalViewRenderer
         for inputNode in inputNodes
         {
             processGraph(graph: graph,
-                         node: inputNode,
+                         node: inputNode as! Node,
                          executionContext:executionContext,
                          renderPassDescriptor: renderPassDescriptor,
                          commandBuffer: commandBuffer,
-                         nodesWeAreExecuting: &nodesWeAreExecuting,
-                         pruningNodes:inputNodes)
+                         nodesWeHaveExecutedThisPass: &nodesWeHaveExecutedThisPass,
+                         )
         }
         
         if node.isDirty
         {
-            node.execute(context: executionContext,
-                         renderPassDescriptor: renderPassDescriptor,
-                         commandBuffer: commandBuffer)
-            
-            // TODO: This should be handled inside of the base node class no?
-            node.markClean()
+            if !nodesWeHaveExecutedThisPass.contains(node)
+            {
+                node.execute(context: executionContext,
+                             renderPassDescriptor: renderPassDescriptor,
+                             commandBuffer: commandBuffer)
+                
+                // TODO: This should be handled inside of the base node class no?
+                node.markClean()
+                
+                nodesWeHaveExecutedThisPass.append(node)
+            }
+//            else
+//            {
+//                print("We already executed this node?, \(node.name) frame: \(self.executionCount)")
+//                
+//            }
 //            node.lastEvaluationTime = executionContext.timing.time
         }
     }
