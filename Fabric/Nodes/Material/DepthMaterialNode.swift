@@ -80,32 +80,46 @@ public class DepthMaterialNode : BaseMaterialNode
         try super.encode(to: encoder)
     }
     
-    public override func execute(context:GraphExecutionContext,
-                                 renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
+    public override func evaluate(material: Material, atTime: TimeInterval) -> Bool
     {
-        self.evaluate(material: self.material, atTime: context.timing.time)
+        var shouldOutput = super.evaluate(material: material, atTime: atTime)
         
         if self.inputFar.valueDidChange
         {
             self.material.far = self.inputFar.value
+            shouldOutput = true
         }
         
         if self.inputNear.valueDidChange
         {
             self.material.near = self.inputNear.value
+            shouldOutput = true
         }
         
         if self.inputInvert.valueDidChange
         {
             self.material.invert = self.inputInvert.value
+            shouldOutput = true
         }
         
         if self.inputColor.valueDidChange
         {
             self.material.color = self.inputColor.value
+            shouldOutput = true
         }
         
-        self.outputMaterial.send(self.material)
+        return shouldOutput
+    }
+    
+    public override func execute(context:GraphExecutionContext,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
+    {
+        let shouldOutput = self.evaluate(material: self.material, atTime: context.timing.time)
+        
+        if shouldOutput
+        {
+            self.outputMaterial.send(self.material)
+        }
     }
 }

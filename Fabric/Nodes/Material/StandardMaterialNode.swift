@@ -12,7 +12,7 @@ import Metal
 
 public class StandardMaterialNode : BaseMaterialNode
 {
-    public override class var name:String {  "Standard Material" }
+    public override class var name:String {  "Physical Material" }
 
     // Params
     public let inputBaseColor: Float4Parameter
@@ -160,35 +160,109 @@ public class StandardMaterialNode : BaseMaterialNode
         try super.init(from: decoder)
     }
     
+    public override func evaluate(material: Material, atTime: TimeInterval) -> Bool
+    {
+        var shouldOutput = super.evaluate(material: material, atTime: atTime)
+     
+        if self.inputBaseColor.valueDidChange
+        {
+            self.material.baseColor = self.inputBaseColor.value
+            shouldOutput = true
+        }
+        
+        if self.inputEmissiveColor.valueDidChange
+        {
+            self.material.emissiveColor = self.inputEmissiveColor.value
+            shouldOutput = true
+        }
+        
+        if self.inputSpecular.valueDidChange
+        {
+            self.material.specular = self.inputSpecular.value
+            shouldOutput = true
+        }
+        
+        if self.inputMetallic.valueDidChange
+        {
+            self.material.metallic = self.inputMetallic.value
+            shouldOutput = true
+        }
+        
+        if self.inputRoughness.valueDidChange
+        {
+            self.material.roughness = self.inputRoughness.value
+            shouldOutput = true
+        }
+        
+        if self.inputOcclusion.valueDidChange
+        {
+            self.material.occlusion = self.inputOcclusion.value
+            shouldOutput = true
+        }
+
+        if self.inputEnvironmentIntensity.valueDidChange
+        {
+            self.material.environmentIntensity = self.inputEnvironmentIntensity.value
+            shouldOutput = true
+        }
+        
+        if self.inputGammaCorrection.valueDidChange
+        {
+            self.material.gammaCorrection = self.inputGammaCorrection.value
+            shouldOutput = true
+        }
+
+        if self.inputDiffuseTexture.valueDidChange
+        {
+            self.material.setTexture(self.inputDiffuseTexture.value?.texture, type: .baseColor)
+            shouldOutput = true
+        }
+        
+        if self.inputNormalTexture.valueDidChange
+        {
+            self.material.setTexture(self.inputNormalTexture.value?.texture, type: .normal)
+            shouldOutput = true
+        }
+
+        if self.inputEmissiveTexture.valueDidChange
+        {
+            self.material.setTexture(self.inputEmissiveTexture.value?.texture, type: .emissive)
+            shouldOutput = true
+        }
+
+        if self.inputSpecularTexture.valueDidChange
+        {
+            self.material.setTexture(self.inputSpecularTexture.value?.texture, type: .specular)
+            shouldOutput = true
+        }
+
+        if self.inputRoughnessTexture.valueDidChange
+        {
+            self.material.setTexture(self.inputRoughnessTexture.value?.texture, type: .roughness)
+            shouldOutput = true
+        }
+        
+        if self.inputMetalicTexture.valueDidChange
+        {
+            self.material.setTexture(self.inputMetalicTexture.value?.texture, type: .metallic)
+            shouldOutput = true
+        }
+//        self.material.setTexture(self.inputBumpTexture.value?.texture, type: .displacement)
+//        self.material.setTexture(self.inputOcclusionTexture.value?.texture, type: .occlusion)
+
+        return shouldOutput
+    }
     
     public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
         
-        self.evaluate(material: self.material, atTime: context.timing.time)
+        let shouldOutput = self.evaluate(material: self.material, atTime: context.timing.time)
 
-        self.material.baseColor = self.inputBaseColor.value
-        self.material.emissiveColor = self.inputEmissiveColor.value
-        
-        self.material.specular = self.inputSpecular.value
-        self.material.metallic = self.inputMetallic.value
-        self.material.roughness = self.inputRoughness.value
-        self.material.occlusion = self.inputOcclusion.value
-        self.material.environmentIntensity = self.inputEnvironmentIntensity.value
-        self.material.gammaCorrection = self.inputGammaCorrection.value
-
-        self.material.setTexture(self.inputDiffuseTexture.value?.texture, type: .baseColor)
-        self.material.setTexture(self.inputNormalTexture.value?.texture, type: .normal)
-        self.material.setTexture(self.inputEmissiveTexture.value?.texture, type: .emissive)
-        self.material.setTexture(self.inputSpecularTexture.value?.texture, type: .specular)
-        self.material.setTexture(self.inputRoughnessTexture.value?.texture, type: .roughness)
-        self.material.setTexture(self.inputMetalicTexture.value?.texture, type: .metallic)
-        
-//        self.material.setTexture(self.inputBumpTexture.value?.texture, type: .displacement)
-//        self.material.setTexture(self.inputOcclusionTexture.value?.texture, type: .occlusion)
-                
-        
-        self.outputMaterial.send(self.material)
+        if shouldOutput
+        {
+            self.outputMaterial.send(self.material)
+        }
      }
 }

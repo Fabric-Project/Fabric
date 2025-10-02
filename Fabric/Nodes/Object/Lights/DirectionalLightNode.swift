@@ -120,20 +120,58 @@ public class DirectionalLightNode : BaseObjectNode, NodeProtocol
 
     }
 
+    override public func evaluate(object: Object, atTime: TimeInterval) -> Bool
+    {
+        var shouldOutput = super.evaluate(object: object, atTime: atTime)
+    
+        if self.inputColor.valueDidChange
+        {
+            self.light.color = self.inputColor.value
+            shouldOutput = true
+        }
+        
+        if self.inputIntensity.valueDidChange
+        {
+            self.light.intensity = self.inputIntensity.value
+            shouldOutput = true
+        }
+        
+        if self.inputShadowStrength.valueDidChange
+        {
+            self.light.shadow.strength = self.inputShadowStrength.value
+            shouldOutput = true
+        }
+        
+        if self.inputShadowRadius.valueDidChange
+        {
+            self.light.shadow.radius = self.inputShadowRadius.value
+            shouldOutput = true
+        }
+        
+        if self.inputShadowBias.valueDidChange
+        {
+            self.light.shadow.bias = self.inputShadowBias.value
+            shouldOutput = true
+        }
+        
+        if self.inputLookAt.valueDidChange
+        {
+            self.light.lookAt(target: self.inputLookAt.value)
+            shouldOutput = true
+        }
+        
+        return shouldOutput
+    }
+    
     public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        self.light.color = self.inputColor.value
-        self.light.intensity = self.inputIntensity.value
-        self.light.shadow.strength = self.inputShadowStrength.value
-        self.light.shadow.radius = self.inputShadowRadius.value
-        self.light.shadow.bias = self.inputShadowBias.value
+        let shouldUpdate = self.evaluate(object: self.light, atTime: context.timing.time)
 
-        self.evaluate(object: self.light, atTime: context.timing.time)
-        
-        self.light.lookAt(target: self.inputLookAt.value)
-        
-        self.outputLight.send(light)
+        if shouldUpdate
+        {
+            self.outputLight.send(light)
+        }
     }
 }

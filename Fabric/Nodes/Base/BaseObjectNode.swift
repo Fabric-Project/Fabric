@@ -56,18 +56,23 @@ public class BaseObjectNode : Node
         self.inputOrientation = try container.decode(Float4Parameter.self, forKey: .inputOrientationParameter)
         
         try super.init(from: decoder)
+        
     }
 
-    public func evaluate(object:Object, atTime:TimeInterval)
+    public func evaluate(object:Object, atTime:TimeInterval) -> Bool
     {
+        var shouldOutput = false
+        
         if self.inputScale.valueDidChange
         {
             object.scale = self.inputScale.value
+            shouldOutput = true
         }
         
         if self.inputPosition.valueDidChange
         {
             object.position = self.inputPosition.value
+            shouldOutput = true
         }
         
         if  self.inputOrientation.valueDidChange
@@ -76,6 +81,9 @@ public class BaseObjectNode : Node
                                             axis: simd_float3(x: self.inputOrientation.value.x,
                                                               y: self.inputOrientation.value.y,
                                                               z: self.inputOrientation.value.z) )
+            shouldOutput = true
         }
+        
+        return shouldOutput
     }
 }

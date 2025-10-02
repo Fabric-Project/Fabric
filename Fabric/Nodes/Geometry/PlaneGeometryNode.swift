@@ -74,21 +74,29 @@ public class PlaneGeometryNode : Node, NodeProtocol
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
+        var shouldOutputGeometry = false
+
         if self.inputWidthParam.valueDidChange
         {
             self.geometry.width = self.inputWidthParam.value
+            shouldOutputGeometry = true
         }
         
         if self.inputHeightParam.valueDidChange
         {
             self.geometry.height = self.inputHeightParam.value
+            shouldOutputGeometry = true
         }
         
         if  self.inputResolutionParam.valueDidChange
         {
             self.geometry.resolution = self.inputResolutionParam.value
+            shouldOutputGeometry = true
         }
-        
-        self.outputGeometry.send(self.geometry)
+            
+        if shouldOutputGeometry
+        {
+            self.outputGeometry.send(self.geometry)
+        }
      }
 }

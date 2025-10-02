@@ -57,23 +57,34 @@ public class BasicTextureMaterialNode : BasicColorMaterialNode
         try super.encode(to: encoder)
     }
     
-    public override func evaluate(material:Material, atTime:TimeInterval)
+    public override func evaluate(material:Material, atTime:TimeInterval) -> Bool
     {
-        super.evaluate(material: material, atTime: atTime)
-        material.depthWriteEnabled = self.inputWriteDepth.value
+        var shouldOutput = super.evaluate(material: material, atTime: atTime)
+        
+        if self.inputWriteDepth.valueDidChange
+        {
+            material.depthWriteEnabled = self.inputWriteDepth.value
+            shouldOutput = true
+        }
+        
+        if self.inputTexture.valueDidChange
+        {
+            self.material.texture =  self.inputTexture.value?.texture
+            shouldOutput = true
+        }
+        
+        return shouldOutput
     }
     
     public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        self.evaluate(material: self.material, atTime: context.timing.time)
+        let shouldOutput = self.evaluate(material: self.material, atTime: context.timing.time)
         
-        if self.inputTexture.valueDidChange
+        if shouldOutput
         {
-            self.material.texture =  self.inputTexture.value?.texture
+            self.outputMaterial.send(self.material)
         }
-        
-        self.outputMaterial.send(self.material)
     }
 }

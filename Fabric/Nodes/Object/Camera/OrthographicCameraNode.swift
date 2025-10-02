@@ -61,19 +61,31 @@ public class OrthographicCameraNode : BaseObjectNode, NodeProtocol
         self.outputCamera = try container.decode(NodePort<Camera>.self, forKey: .outputCameraPort)
         
         try super.init(from: decoder)
+        
+        self.camera.lookAt(target: self.inputLookAt.value)
+
     }
 
+    override public func evaluate(object: Object, atTime: TimeInterval) -> Bool
+    {
+        let shouldUpdate = super.evaluate(object: object, atTime: atTime)
+
+        // This needs to fire every frame
+        self.camera.lookAt(target: self.inputLookAt.value)
+        
+        return shouldUpdate
+    }
+    
     public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        self.evaluate(object: self.camera, atTime: context.timing.time)
+        let shouldUpdate = self.evaluate(object: self.camera, atTime: context.timing.time)
         
-        if self.inputLookAt.valueDidChange
+        if shouldUpdate
         {
-            self.camera.lookAt(target: self.inputLookAt.value)
+            self.outputCamera.send(self.camera)
         }
-        self.outputCamera.send(self.camera)
     }
     
     public override func resize(size: (width: Float, height: Float), scaleFactor: Float)

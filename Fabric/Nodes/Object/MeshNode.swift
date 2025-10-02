@@ -90,6 +90,27 @@ public class MeshNode : BaseObjectNode, NodeProtocol
         self.outputMesh = try container.decode(NodePort<Object>.self, forKey: .outputMeshPort)
         
         try super.init(from: decoder)
+
+    }
+    
+    override public func evaluate(object: Object, atTime: TimeInterval) -> Bool
+    {
+        var shouldOutput = super.evaluate(object: object, atTime: atTime)
+        
+        if self.inputCastsShadow.valueDidChange
+        {
+            self.mesh!.castShadow = self.inputCastsShadow.value
+            self.mesh!.receiveShadow = self.inputCastsShadow.value
+            shouldOutput = true
+        }
+        
+        if self.inputCullingMode.valueDidChange
+        {
+            self.mesh!.cullMode = self.cullMode()
+            shouldOutput = true
+        }
+        
+        return shouldOutput
     }
     
     public override func execute(context:GraphExecutionContext,
@@ -110,26 +131,28 @@ public class MeshNode : BaseObjectNode, NodeProtocol
             }
             else
             {
-                self.mesh = Mesh(geometry: geometery, material: material)
+                let mesh = Mesh(geometry: geometery, material: material)
+                mesh.lookAt(target: simd_float3(repeating: 0))
+                mesh.position = self.inputPosition.value
+                mesh.scale = self.inputScale.value
+
+                mesh.orientation = simd_quatf(angle: self.inputOrientation.value.w,
+                                                axis: simd_float3(x: self.inputOrientation.value.x,
+                                                                  y: self.inputOrientation.value.y,
+                                                                  z: self.inputOrientation.value.z) )
+                
+                self.mesh = mesh
             }
         }
          
         if let mesh = mesh
         {
-            self.evaluate(object: mesh, atTime: context.timing.time)
+            let shouldOutput = self.evaluate(object: mesh, atTime: context.timing.time)
             
-            if self.inputCastsShadow.valueDidChange
+            if shouldOutput
             {
-                mesh.castShadow = self.inputCastsShadow.value
-                mesh.receiveShadow = self.inputCastsShadow.value
+                self.outputMesh.send(mesh)
             }
-            
-            if self.inputCullingMode.valueDidChange
-            {
-                mesh.cullMode = self.cullMode()
-            }
-            
-            self.outputMesh.send(mesh)
         }
         else
         {

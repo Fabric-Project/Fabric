@@ -80,14 +80,18 @@ public class ExtrudedTextGeometryNode : Node, NodeProtocol
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
+        var shouldOutputGeometry = false
+        
         if self.inputTextParam.valueDidChange
         {
             self.geometry.text = self.inputTextParam.value
+            shouldOutputGeometry = true
         }
         
         if self.inputFontParam.valueDidChange
         {
             self.geometry.fontName = self.inputFontParam.value
+            shouldOutputGeometry = true
         }
         
 //        if self.inputWidthParam.valueDidChange
@@ -110,7 +114,10 @@ public class ExtrudedTextGeometryNode : Node, NodeProtocol
 //            self.geometry.resolution =  self.inputResolutionParam.value
 //        }
         
-        self.outputGeometry.send(self.geometry)
+        if shouldOutputGeometry
+        {
+            self.outputGeometry.send(self.geometry)
+        }
      }
     
     private static func installedFonts() -> [String] {

@@ -78,26 +78,35 @@ public class CapsuleGeometryNode : Node, NodeProtocol
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
+        var shouldOutputGeometry = false
+
         if self.inputRadius.valueDidChange
         {
             self.geometry.radius = self.inputRadius.value
+            shouldOutputGeometry = true
         }
         
         if self.inputHeight.valueDidChange
         {
             self.geometry.height = self.inputHeight.value
+            shouldOutputGeometry = true
         }
         
         if self.inputAngularResolutionParam.valueDidChange
         {
             self.geometry.angularResolution = self.inputAngularResolutionParam.value
+            shouldOutputGeometry = true
         }
         
         if self.inputVerticalResolutionParam.valueDidChange
         {
             self.geometry.verticalResolution = self.inputVerticalResolutionParam.value
+            shouldOutputGeometry = true
         }
-
-        self.outputGeometry.send(self.geometry)
+        
+        if shouldOutputGeometry
+        {
+            self.outputGeometry.send(self.geometry)
+        }
      }
 }

@@ -149,41 +149,41 @@ class SuperShapeGeometryNode : Node, NodeProtocol
     var n32Param = FloatParameter("N32", 0.651718, 0.0, 100.0, .slider)
     var resParam = IntParameter("Resolution", 300, 3, 300, .inputfield)
 
-    override var inputParameters: [any Parameter] { super.inputParameters +
-                                                    [ resParam,
-                                                      r1Param,
-                                                      a1Param,
-                                                      b1Param,
-                                                      m1Param,
-                                                      n11Param,
-                                                      n21Param,
-                                                      n31Param,
-                                                      r2Param,
-                                                      a2Param,
-                                                      b2Param,
-                                                      m2Param,
-                                                      n12Param,
-                                                      n22Param,
-                                                      n32Param] }
+    override var inputParameters: [any Parameter] {
+        [ self.resParam,
+          self.r1Param,
+          self.a1Param,
+          self.b1Param,
+          self.m1Param,
+          self.n11Param,
+          self.n21Param,
+          self.n31Param,
+          self.r2Param,
+          self.a2Param,
+          self.b2Param,
+          self.m2Param,
+          self.n12Param,
+          self.n22Param,
+          self.n32Param] + super.inputParameters }
 
     let outputGeometry = NodePort<Geometry>(name: SuperShapeGeometryNode.name, kind: .Outlet)
 
     private lazy var geometry = SuperShapeGeometry(
-        r1: r1Param.value,
-        a1: a1Param.value,
-        b1: b1Param.value,
-        m1: m1Param.value,
-        n11: n11Param.value,
-        n21: n21Param.value,
-        n31: n31Param.value,
-        r2: r2Param.value,
-        a2: a2Param.value,
-        b2: b2Param.value,
-        m2: m2Param.value,
-        n12: n12Param.value,
-        n22: n22Param.value,
-        n32: n32Param.value,
-        res: resParam.value
+        r1: self.r1Param.value,
+        a1: self.a1Param.value,
+        b1: self.b1Param.value,
+        m1: self.m1Param.value,
+        n11: self.n11Param.value,
+        n21: self.n21Param.value,
+        n31: self.n31Param.value,
+        r2: self.r2Param.value,
+        a2: self.a2Param.value,
+        b2: self.b2Param.value,
+        m2: self.m2Param.value,
+        n12: self.n12Param.value,
+        n22: self.n22Param.value,
+        n32: self.n32Param.value,
+        res: self.resParam.value
     )
     
     public override var ports:[any NodePortProtocol] {  [outputGeometry] + super.ports}
@@ -192,22 +192,101 @@ class SuperShapeGeometryNode : Node, NodeProtocol
                           renderPassDescriptor: MTLRenderPassDescriptor,
                           commandBuffer: MTLCommandBuffer)
     {
-        self.geometry.r1 = r1Param.value
-        self.geometry.a1 = a1Param.value
-        self.geometry.b1 = b1Param.value
-        self.geometry.m1 = m1Param.value
-        self.geometry.n11 = n11Param.value
-        self.geometry.n21 = n21Param.value
-        self.geometry.n31 = n31Param.value
-        self.geometry.r2 = r2Param.value
-        self.geometry.a2 = a2Param.value
-        self.geometry.b2 = b2Param.value
-        self.geometry.m2 = m2Param.value
-        self.geometry.n12 = n12Param.value
-        self.geometry.n22 = n22Param.value
-        self.geometry.n32 = n32Param.value
-        self.geometry.res = resParam.value
+        var shouldOutput = false
+        
+        if self.r1Param.valueDidChange
+        {
+            self.geometry.r1 = r1Param.value
+            shouldOutput = true
+        }
+        
+        if self.a1Param.valueDidChange
+        {
+            self.geometry.a1 = self.a1Param.value
+            shouldOutput = true
+        }
 
-        self.outputGeometry.send(self.geometry)
+        if self.b1Param.valueDidChange
+        {
+            self.geometry.b1 = self.b1Param.value
+            shouldOutput = true
+        }
+
+        if self.m1Param.valueDidChange
+        {
+            self.geometry.m1 = self.m1Param.value
+            shouldOutput = true
+        }
+        
+        if self.n11Param.valueDidChange
+        {
+            self.geometry.n11 = self.n11Param.value
+            shouldOutput = true
+        }
+        
+        if self.n21Param.valueDidChange
+        {
+            self.geometry.n21 = self.n21Param.value
+            shouldOutput = true
+        }
+        
+        if self.n31Param.valueDidChange
+        {
+            self.geometry.n31 = self.n31Param.value
+            shouldOutput = true
+        }
+        
+        if self.r2Param.valueDidChange
+        {
+            self.geometry.r2 = self.r2Param.value
+            shouldOutput = true
+        }
+        
+        if self.a2Param.valueDidChange
+        {
+            self.geometry.a2 = self.a2Param.value
+            shouldOutput = true
+        }
+        
+        if self.b2Param.valueDidChange
+        {
+            self.geometry.b2 = self.b2Param.value
+            shouldOutput = true
+        }
+        
+        if self.m2Param.valueDidChange
+        {
+            self.geometry.m2 = self.m2Param.value
+            shouldOutput = true
+        }
+        
+        if self.n12Param.valueDidChange
+        {
+            self.geometry.n12 = self.n12Param.value
+            shouldOutput = true
+        }
+        
+        if self.n22Param.valueDidChange
+        {
+            self.geometry.n22 = self.n22Param.value
+            shouldOutput = true
+        }
+        
+        if self.n32Param.valueDidChange
+        {
+            self.geometry.n32 = self.n32Param.value
+            shouldOutput = true
+        }
+        
+        if self.resParam.valueDidChange
+        {
+            self.geometry.res = self.resParam.value
+            shouldOutput = true
+        }
+
+        if shouldOutput
+        {
+            self.outputGeometry.send(self.geometry)
+        }
      }
 }

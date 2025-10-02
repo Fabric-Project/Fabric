@@ -57,22 +57,28 @@ public class BasicColorMaterialNode : BaseMaterialNode
         try super.encode(to: encoder)
     }
     
-    public override func evaluate(material:Material, atTime:TimeInterval)
+    public override func evaluate(material:Material, atTime:TimeInterval) -> Bool
     {
-        super.evaluate(material: material, atTime: atTime)
+        var shouldOutput = super.evaluate(material: material, atTime: atTime)
         
         if self.inputColor.valueDidChange
         {
+            shouldOutput = true
             self.material.color = self.inputColor.value
         }
+        
+        return shouldOutput
     }
     
     public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        self.evaluate(material: self.material, atTime: context.timing.time)
-        
-        self.outputMaterial.send(self.material)
+        let shouldOutput = self.evaluate(material: self.material, atTime: context.timing.time)
+       
+        if shouldOutput
+        {
+            self.outputMaterial.send(self.material)
+        }
     }
 }

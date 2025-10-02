@@ -187,13 +187,77 @@ public class DisplacementMaterialNode: BaseMaterialNode
         try super.encode(to: encoder)
     }
     
+    override public func evaluate(material: Material, atTime: TimeInterval) -> Bool
+    {
+        var shouldOutput = super.evaluate(material: material, atTime: atTime)
+        
+        if self.inputDisplacementTexture.valueDidChange
+        {
+            if let texture = self.inputDisplacementTexture.value?.texture ?? self.inputTexture.value?.texture
+            {
+                self.material.set(texture, index: VertexTextureIndex.Custom0)
+                shouldOutput = true
+            }
+        }
+        
+        if self.inputTexture.valueDidChange
+        {
+            if let texture = self.inputTexture.value?.texture
+            {
+                self.material.set(texture, index: FragmentTextureIndex.Custom0)
+                shouldOutput = true
+            }
+        }
+        
+        if self.inputPointSpriteTexture.valueDidChange
+        {
+            if let texture = self.inputPointSpriteTexture.value?.texture
+            {
+                self.material.set(texture, index: FragmentTextureIndex.Custom1)
+                shouldOutput = true
+            }
+        }
+        
+        if self.inputAmount.valueDidChange
+        {
+            self.material.set("amount", self.inputAmount.value)
+            shouldOutput = true
+        }
+        
+        if self.inputLumaVsRGBAmount.valueDidChange
+        {
+            self.material.set("lumaVPosMix", self.inputLumaVsRGBAmount.value)
+            shouldOutput = true
+        }
+        
+        if self.inputMinPointSize.valueDidChange
+        {
+            self.material.set("minPointSize", self.inputMinPointSize.value)
+            shouldOutput = true
+        }
+        
+        if  self.inputMaxPointSize.valueDidChange
+        {
+            self.material.set("maxPointSize", self.inputMaxPointSize.value)
+            shouldOutput = true
+        }
+        
+        if self.inputBrightness.valueDidChange
+        {
+            self.material.set("brightness", self.inputBrightness.value)
+            shouldOutput = true
+        }
+        
+        return shouldOutput
+    }
+    
     override public func execute(context: GraphExecutionContext, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: any MTLCommandBuffer) {
 
 //        renderPassDescriptor.stencilAttachment.loadAction = .clear
 //        renderPassDescriptor.stencilAttachment.storeAction = .store
 //        renderPassDescriptor.stencilAttachment.clearStencil = 0
 
-        self.evaluate(material: self.material, atTime: context.timing.time)
+        let shouldOutput = self.evaluate(material: self.material, atTime: context.timing.time)
 
 //        self.material.depthStencilState = context.context.device.makeDepthStencilState(descriptor: self.depthStencilDescriptor)
 
@@ -205,52 +269,9 @@ public class DisplacementMaterialNode: BaseMaterialNode
         
 //        assert(self.material.depthStencilState != nil)
         
-        if self.inputDisplacementTexture.valueDidChange
+        if shouldOutput
         {
-            if let texture = self.inputDisplacementTexture.value?.texture ?? self.inputTexture.value?.texture {
-                self.material.set(texture, index: VertexTextureIndex.Custom0)
-            }
+            self.outputMaterial.send(self.material)
         }
-        
-        if self.inputTexture.valueDidChange
-        {
-            if let texture = self.inputTexture.value?.texture {
-                self.material.set(texture, index: FragmentTextureIndex.Custom0)
-            }
-        }
-        
-        if  self.inputPointSpriteTexture.valueDidChange
-        {
-            if let texture = self.inputPointSpriteTexture.value?.texture {
-                self.material.set(texture, index: FragmentTextureIndex.Custom1)
-            }
-        }
-        
-        if self.inputAmount.valueDidChange
-        {
-            self.material.set("amount", self.inputAmount.value)
-        }
-        
-        if self.inputLumaVsRGBAmount.valueDidChange
-        {
-            self.material.set("lumaVPosMix", self.inputLumaVsRGBAmount.value)
-        }
-        
-        if self.inputMinPointSize.valueDidChange
-        {
-            self.material.set("minPointSize", self.inputMinPointSize.value)
-        }
-        
-        if  self.inputMaxPointSize.valueDidChange
-        {
-            self.material.set("maxPointSize", self.inputMaxPointSize.value)
-        }
-        
-        if self.inputBrightness.valueDidChange
-        {
-            self.material.set("brightness", self.inputBrightness.value)
-        }
-
-        self.outputMaterial.send(self.material)
     }
 }

@@ -86,27 +86,35 @@ public class BaseMaterialNode : Node, NodeProtocol
         try super.init(from: decoder)
     }
     
-    public func evaluate(material:Material, atTime:TimeInterval)
+    public func evaluate(material:Material, atTime:TimeInterval) -> Bool
     {
+        var shouldOutput = false
+        
         if self.inputBlending.valueDidChange
         {
             material.blending = self.blendingMode()
+            shouldOutput = true
         }
         
         if self.inputReceivesLighting.valueDidChange
         {
             material.lighting = self.inputReceivesLighting.value
+            shouldOutput = true
         }
         
         if  self.inputWriteDepth.valueDidChange
         {
             material.depthWriteEnabled = self.inputWriteDepth.value
+            shouldOutput = true
         }
         
         if self.inputWriteDepth.valueDidChange
         {
             material.depthCompareFunction = (self.inputWriteDepth.value) ? .greaterEqual : .always
+            shouldOutput = true
         }
+        
+        return shouldOutput
     }
     
     private func blendingMode() -> Blending
