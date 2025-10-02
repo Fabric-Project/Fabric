@@ -9,8 +9,11 @@
 #define SAMPLEDOF_TYPE half3
 #define SAMPLER_PRECISION half4
 #define SAMPLER_TYPE texture2d<half>
-#define SAMPLEDOF_BLUR_SIZE 19.0
-#define SAMPLEDOF_RAD_SCALE 1.0
+// 6
+#define SAMPLEDOF_BLUR_SIZE 12
+
+// .5
+#define SAMPLEDOF_RAD_SCALE 2
 
 #include "../../lygia/sample/clamp2edge.msl"
 #include "../../lygia/sampler.msl"
