@@ -166,11 +166,8 @@ public class PointLightNode : BaseObjectNode, NodeProtocol
             shouldOutput = true
         }
         
-        if self.inputLookAt.valueDidChange
-        {
-            self.light.lookAt(target: self.inputLookAt.value)
-            shouldOutput = true
-        }
+        // Needs to fire every frame
+        self.light.lookAt(target: self.inputLookAt.value)
         
         return shouldOutput
     }
