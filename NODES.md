@@ -198,6 +198,7 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] True
 - [x] False
 - [ ] Logic Operator
+- [ ] Signal
 
 ### Index
 
@@ -219,6 +220,7 @@ Have yet to work on Index (integer only) numeric nodes
 - [ ] Counter
 - [ ] LFO
 - [ ] Smooth (Kalman or 1 Euro Filter?)
+- [ ] Math 
 - [ ] Audio Spectrum
 
 ### Vector
