@@ -10,22 +10,18 @@ import simd
 import Metal
 import CoreText
 
-public class TesselatedTextGeometryNode : Node, NodeProtocol
+public class TesselatedTextGeometryNode : BaseGeometryNode
 {
-    public static let name = "Tesellated Text Geometry"
-    public static var nodeType = Node.NodeType.Geometery
-
+    public override class var name:String { "Tesellated Text Geometry" }
     // Params
     public let inputTextParam:StringParameter
     public let inputFontParam:StringParameter
     public let inputResolutionParam:Int3Parameter
     public override var inputParameters: [any Parameter] { [inputTextParam, inputFontParam, inputResolutionParam] + super.inputParameters }
 
-    // Ports
-    public let outputGeometry:NodePort<Geometry>
-    public override var ports:[any NodePortProtocol] {  [outputGeometry] + super.ports}
+    public override var geometry: TesselatedTextGeometry { _geometry }
 
-    private let geometry = TesselatedTextGeometry(text: "Testing", fontSize: 10.0)
+    private let _geometry = TesselatedTextGeometry(text: "Testing", fontSize: 1.0)
 
     required public init(context: Context)
     {
@@ -33,8 +29,6 @@ public class TesselatedTextGeometryNode : Node, NodeProtocol
         
         self.inputFontParam = StringParameter( "Font", "Helvetica", Self.installedFonts(), .dropdown)
         self.inputResolutionParam = Int3Parameter("Resolution", simd_int3(repeating: 1), .inputfield)
-
-        self.outputGeometry = NodePort<Geometry>(name: Self.name, kind: .Outlet)
 
         super.init(context: context)
     }
@@ -44,7 +38,6 @@ public class TesselatedTextGeometryNode : Node, NodeProtocol
         case inputTextParameter
         case inputFontParameter
         case inputResolutionParameter
-        case outputGeometryPort
     }
     
     override public func encode(to encoder:Encoder) throws
@@ -54,7 +47,6 @@ public class TesselatedTextGeometryNode : Node, NodeProtocol
         try container.encode(self.inputTextParam, forKey: .inputTextParameter)
         try container.encode(self.inputFontParam, forKey: .inputFontParameter)
         try container.encode(self.inputResolutionParam, forKey: .inputResolutionParameter)
-        try container.encode(self.outputGeometry, forKey: .outputGeometryPort)
         
         try super.encode(to: encoder)
     }
@@ -69,18 +61,15 @@ public class TesselatedTextGeometryNode : Node, NodeProtocol
         self.inputTextParam = try container.decode(StringParameter.self, forKey: .inputTextParameter)
         self.inputFontParam = try container.decode(StringParameter.self, forKey: .inputFontParameter)
         self.inputResolutionParam = try container.decode(Int3Parameter.self, forKey: .inputResolutionParameter)
-        self.outputGeometry = try container.decode(NodePort<Geometry>.self, forKey: .outputGeometryPort)
         
         self.inputFontParam.options = Self.installedFonts()
         
         try super.init(from: decoder)
     }
     
-    override public func execute(context:GraphExecutionContext,
-                                 renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
+    override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
     {
-        var shouldOutputGeometry = false
+        var shouldOutputGeometry = super.evaluate(geometry: geometry, atTime: atTime)
 
         if self.inputTextParam.valueDidChange
         {
@@ -114,10 +103,7 @@ public class TesselatedTextGeometryNode : Node, NodeProtocol
 //            self.geometry.resolution =  self.inputResolutionParam.value
 //        }
         
-        if shouldOutputGeometry
-        {
-            self.outputGeometry.send(self.geometry)
-        }
+        return shouldOutputGeometry
      }
     
     private static func installedFonts() -> [String] {

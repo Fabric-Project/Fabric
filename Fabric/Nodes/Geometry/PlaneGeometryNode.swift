@@ -10,10 +10,9 @@ import Foundation
 import simd
 import Metal
 
-public class PlaneGeometryNode : Node, NodeProtocol
+public class PlaneGeometryNode : BaseGeometryNode
 {
-    public static let name = "Plane Geometry"
-    public static var nodeType = Node.NodeType.Geometery
+    public override class var name:String { "Plane Geometry" }
 
     // Params
     public let inputWidthParam:FloatParameter
@@ -21,11 +20,9 @@ public class PlaneGeometryNode : Node, NodeProtocol
     public let inputResolutionParam:Int2Parameter
     public override var inputParameters: [any Parameter] { [inputWidthParam, inputHeightParam, inputResolutionParam] + super.inputParameters}
 
-    // Ports
-    public let outputGeometry:NodePort<Geometry>
-    public override var ports:[any NodePortProtocol] {  [outputGeometry] + super.ports}
+    public override var geometry: PlaneGeometry { _geometry }
 
-    private let geometry = PlaneGeometry(width: 1, height: 1, orientation: .xy)
+    private let _geometry = PlaneGeometry(width: 1, height: 1, orientation: .xy)
 
     required public init(context: Context)
     {
@@ -33,8 +30,6 @@ public class PlaneGeometryNode : Node, NodeProtocol
         self.inputHeightParam = FloatParameter("Height", 1.0, .inputfield)
         self.inputResolutionParam = Int2Parameter("Resolution", simd_int2(repeating: 1), .inputfield)
 
-        self.outputGeometry = NodePort<Geometry>(name: PlaneGeometryNode.name, kind: .Outlet)
-        
         super.init(context: context)
     }
         
@@ -43,7 +38,6 @@ public class PlaneGeometryNode : Node, NodeProtocol
         case inputWidthParameter
         case inputHeightParameter
         case inputResolutionParameter
-        case outputGeometryPort
     }
     
     override public func encode(to encoder:Encoder) throws
@@ -53,7 +47,6 @@ public class PlaneGeometryNode : Node, NodeProtocol
         try container.encode(self.inputWidthParam, forKey: .inputWidthParameter)
         try container.encode(self.inputHeightParam, forKey: .inputHeightParameter)
         try container.encode(self.inputResolutionParam, forKey: .inputResolutionParameter)
-        try container.encode(self.outputGeometry, forKey: .outputGeometryPort)
         
         try super.encode(to: encoder)
     }
@@ -65,16 +58,13 @@ public class PlaneGeometryNode : Node, NodeProtocol
         self.inputWidthParam = try container.decode(FloatParameter.self, forKey: .inputWidthParameter)
         self.inputHeightParam = try container.decode(FloatParameter.self, forKey: .inputHeightParameter)
         self.inputResolutionParam = try container.decode(Int2Parameter.self, forKey: .inputResolutionParameter)
-        self.outputGeometry = try container.decode(NodePort<Geometry>.self, forKey: .outputGeometryPort)
         
         try super.init(from: decoder)
     }
     
-    override public func execute(context:GraphExecutionContext,
-                                 renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
+    override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
     {
-        var shouldOutputGeometry = false
+        var shouldOutputGeometry = super.evaluate(geometry: geometry, atTime: atTime)
 
         if self.inputWidthParam.valueDidChange
         {
@@ -93,10 +83,7 @@ public class PlaneGeometryNode : Node, NodeProtocol
             self.geometry.resolution = self.inputResolutionParam.value
             shouldOutputGeometry = true
         }
-            
-        if shouldOutputGeometry
-        {
-            self.outputGeometry.send(self.geometry)
-        }
+        
+        return shouldOutputGeometry
      }
 }

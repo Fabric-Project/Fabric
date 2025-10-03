@@ -9,10 +9,9 @@ import Foundation
 import simd
 import Metal
 
-public class CapsuleGeometryNode : Node, NodeProtocol
+public class CapsuleGeometryNode : BaseGeometryNode
 {
-    public static let name = "Capsule Geometry"
-    public static var nodeType = Node.NodeType.Geometery
+    public override class var name:String { "Capsule Geometry" }
 
     // Params
     public let inputRadius:FloatParameter
@@ -21,11 +20,9 @@ public class CapsuleGeometryNode : Node, NodeProtocol
     public let inputVerticalResolutionParam:IntParameter
     public override var inputParameters: [any Parameter] { [inputRadius, inputHeight, inputAngularResolutionParam, inputVerticalResolutionParam] + super.inputParameters}
 
-    // Ports
-    public let outputGeometry:NodePort<Geometry>
-    public override var ports:[any NodePortProtocol] {  [outputGeometry] + super.ports}
+    public override var geometry: CapsuleGeometry { _geometry }
 
-    private let geometry = CapsuleGeometry(radius: 1.0, height: 2.0, angularResolution: 30, radialResolution: 30, verticalResolution: 30)
+    private let _geometry = CapsuleGeometry(radius: 1.0, height: 2.0, angularResolution: 30, radialResolution: 30, verticalResolution: 30)
     
     public required init(context: Context)
     {
@@ -33,8 +30,6 @@ public class CapsuleGeometryNode : Node, NodeProtocol
         self.inputHeight = FloatParameter("Height", 2.0, .inputfield)
         self.inputAngularResolutionParam = IntParameter("Angular Resolution", 30, .inputfield)
         self.inputVerticalResolutionParam = IntParameter("Vertical Resolution", 30, .inputfield)
-
-        self.outputGeometry = NodePort<Geometry>(name: Self.name, kind: .Outlet)
 
         super.init(context: context)
     }
@@ -45,7 +40,6 @@ public class CapsuleGeometryNode : Node, NodeProtocol
         case inputHeightParameter
         case inputAngularResolutionParameter
         case inputVerticalResolutionParameter
-        case outputGeometryPort
     }
     
     public override func encode(to encoder:Encoder) throws
@@ -56,7 +50,6 @@ public class CapsuleGeometryNode : Node, NodeProtocol
         try container.encode(self.inputHeight, forKey: .inputHeightParameter)
         try container.encode(self.inputAngularResolutionParam, forKey: .inputAngularResolutionParameter)
         try container.encode(self.inputVerticalResolutionParam, forKey: .inputVerticalResolutionParameter)
-        try container.encode(self.outputGeometry, forKey: .outputGeometryPort)
         
         try super.encode(to: encoder)
     }
@@ -69,16 +62,13 @@ public class CapsuleGeometryNode : Node, NodeProtocol
         self.inputHeight = try container.decode(FloatParameter.self, forKey: .inputHeightParameter)
         self.inputAngularResolutionParam = try container.decode(IntParameter.self, forKey: .inputAngularResolutionParameter)
         self.inputVerticalResolutionParam = try container.decode(IntParameter.self, forKey: .inputVerticalResolutionParameter)
-        self.outputGeometry = try container.decode(NodePort<Geometry>.self, forKey: .outputGeometryPort)
         
         try super.init(from: decoder)
     }
     
-    public override func execute(context:GraphExecutionContext,
-                                 renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
+    override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
     {
-        var shouldOutputGeometry = false
+        var shouldOutputGeometry = super.evaluate(geometry: geometry, atTime: atTime)
 
         if self.inputRadius.valueDidChange
         {
@@ -104,9 +94,6 @@ public class CapsuleGeometryNode : Node, NodeProtocol
             shouldOutputGeometry = true
         }
         
-        if shouldOutputGeometry
-        {
-            self.outputGeometry.send(self.geometry)
-        }
+        return shouldOutputGeometry
      }
 }

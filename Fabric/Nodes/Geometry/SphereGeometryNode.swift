@@ -9,10 +9,9 @@ import Foundation
 import simd
 import Metal
 
-public class SphereGeometryNode : Node, NodeProtocol
+public class SphereGeometryNode : BaseGeometryNode
 {
-    public static let name = "Sphere Geometry"
-    public static var nodeType = Node.NodeType.Geometery
+    public override class var name:String { "Sphere Geometry" }
 
     // Params
     public let inputRadius:FloatParameter
@@ -20,19 +19,15 @@ public class SphereGeometryNode : Node, NodeProtocol
     public let inputVerticalResolutionParam:IntParameter
     public override var inputParameters: [any Parameter] { [inputRadius, inputAngularResolutionParam, inputVerticalResolutionParam] + super.inputParameters}
 
-    // Ports
-    public let outputGeometry:NodePort<Geometry>
-    public override var ports:[any NodePortProtocol] {  [outputGeometry] + super.ports}
+    public override var geometry: SphereGeometry { _geometry }
 
-    private let geometry = SphereGeometry(radius: 1.0, angularResolution: 60, verticalResolution: 30)
+    private let _geometry = SphereGeometry(radius: 1.0, angularResolution: 60, verticalResolution: 30)
 
     public required init(context: Context)
     {
         self.inputRadius = FloatParameter("Radius", 1.0, .inputfield)
         self.inputAngularResolutionParam = IntParameter("Angular Resolution", 60, .inputfield)
         self.inputVerticalResolutionParam = IntParameter("Vertical Resolution", 30, .inputfield)
-
-        self.outputGeometry = NodePort<Geometry>(name: Self.name, kind: .Outlet)
 
         super.init(context: context)
     }
@@ -42,7 +37,6 @@ public class SphereGeometryNode : Node, NodeProtocol
         case inputRadiusParameter
         case inputAngularResolutionParameter
         case inputVerticalResolutionParameter
-        case outputGeometryPort
     }
     
     public override func encode(to encoder:Encoder) throws
@@ -52,7 +46,6 @@ public class SphereGeometryNode : Node, NodeProtocol
         try container.encode(self.inputRadius, forKey: .inputRadiusParameter)
         try container.encode(self.inputAngularResolutionParam, forKey: .inputAngularResolutionParameter)
         try container.encode(self.inputVerticalResolutionParam, forKey: .inputVerticalResolutionParameter)
-        try container.encode(self.outputGeometry, forKey: .outputGeometryPort)
         
         try super.encode(to: encoder)
     }
@@ -64,16 +57,13 @@ public class SphereGeometryNode : Node, NodeProtocol
         self.inputRadius = try container.decode(FloatParameter.self, forKey: .inputRadiusParameter)
         self.inputAngularResolutionParam = try container.decode(IntParameter.self, forKey: .inputAngularResolutionParameter)
         self.inputVerticalResolutionParam = try container.decode(IntParameter.self, forKey: .inputVerticalResolutionParameter)
-        self.outputGeometry = try container.decode(NodePort<Geometry>.self, forKey: .outputGeometryPort)
         
         try super.init(from: decoder)
     }
     
-    public override func execute(context:GraphExecutionContext,
-                                 renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
+    override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
     {
-        var shouldOutputGeometry = false
+        var shouldOutputGeometry = super.evaluate(geometry: geometry, atTime: atTime)
 
         if self.inputRadius.valueDidChange
         {
@@ -92,10 +82,7 @@ public class SphereGeometryNode : Node, NodeProtocol
             self.geometry.verticalResolution = self.inputVerticalResolutionParam.value
             shouldOutputGeometry = true
         }
-
-        if shouldOutputGeometry
-        {
-            self.outputGeometry.send(self.geometry)
-        }
+        
+        return shouldOutputGeometry
      }
 }
