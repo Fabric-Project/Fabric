@@ -110,6 +110,7 @@ class HDRTextureNode : Node, NodeProtocol
                 self.texture = try! self.textureLoader.newTexture(URL: self.url!, options: [
                     .generateMipmaps : true,
                     .allocateMipmaps : true,
+                    .textureStorageMode : NSNumber( value: MTLStorageMode.shared.rawValue),
                     .SRGB : true,
 //                    .origin: MTKTextureLoader.Origin.flippedVertically,
                 ])

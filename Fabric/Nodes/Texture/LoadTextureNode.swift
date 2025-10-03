@@ -141,11 +141,13 @@ class LoadTextureNode : Node, NodeProtocol
         descriptor.height = cgImage.height
         descriptor.depth = 1
         descriptor.usage = .shaderRead
-#if os(macOS)
+        
+        // Apple Silicon Systems prefer Shared so its the default
+        #if arch(x86_64)
         descriptor.resourceOptions = .storageModeManaged
-#elseif os(iOS) || os(tvOS)
+        #else
         descriptor.resourceOptions = .storageModeShared
-#endif
+        #endif
         descriptor.sampleCount = 1
         descriptor.textureType = .type2D
         

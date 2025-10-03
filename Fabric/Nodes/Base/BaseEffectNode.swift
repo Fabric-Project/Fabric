@@ -53,9 +53,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
         self.postProcessor = PostProcessor(context: context,
                                            material: material,
                                            frameBufferOnly: false)
-        
-        self.postProcessor.renderer.colorTextureStorageMode = .private
-        
+                
         super.init(context: context)
     }
     
@@ -75,9 +73,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
         self.postProcessor = PostProcessor(context: context,
                                            material: material,
                                            frameBufferOnly: false)
-        
-        self.postProcessor.renderer.colorTextureStorageMode = .private
-        
+                
         super.init(context: context)
     }
     

@@ -38,7 +38,6 @@ public class DeferredRenderNode : Node, NodeProtocol
     public required init(context:Context)
     {
         self.renderer = Renderer(context: context, frameBufferOnly:false)
-        self.renderer.depthTextureStorageMode = .private
         self.renderer.depthStoreAction = .store
         self.renderer.depthLoadAction = .clear
         self.renderer.size.width = 1920
@@ -73,7 +72,6 @@ public class DeferredRenderNode : Node, NodeProtocol
         }
         
         self.renderer = Renderer(context: decodeContext.documentContext, frameBufferOnly:false)
-        self.renderer.depthTextureStorageMode = .private
         self.renderer.depthStoreAction = .store
         self.renderer.depthLoadAction = .clear
         self.renderer.size.width = 1920
