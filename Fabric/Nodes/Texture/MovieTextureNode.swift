@@ -23,18 +23,18 @@ private let MovieTextureNodeInitializer: Void = {
    
 }()
 
-class MovieTextureNode : Node, NodeProtocol
+public class MovieTextureNode : Node, NodeProtocol
 {
-    static let name = "Movie Player"
-    static var nodeType = Node.NodeType.Image(imageType: .Loader)
+    public static let name = "Movie Player"
+    public static var nodeType = Node.NodeType.Image(imageType: .Loader)
 
     // Parameters
     let inputFilePathParam:StringParameter
-    override var inputParameters: [any Parameter] { [self.inputFilePathParam] + super.inputParameters}
+    override public var inputParameters: [any Parameter] { [self.inputFilePathParam] + super.inputParameters}
 
     // Ports
     let outputTexturePort:NodePort<EquatableTexture>
-    override var ports: [any NodePortProtocol] { [outputTexturePort] + super.ports }
+    override public var ports: [any NodePortProtocol] { [outputTexturePort] + super.ports }
 
 
     private var texture: (any MTLTexture)? = nil
@@ -45,7 +45,7 @@ class MovieTextureNode : Node, NodeProtocol
     private var player:AVPlayer = AVPlayer()
     private var playerItemVideoOutput:AVPlayerItemOutput
     
-    required init(context:Context)
+    required public init(context:Context)
     {
         // Forces the initialization when the class is accessed
         _ = MovieTextureNodeInitializer
@@ -67,7 +67,7 @@ class MovieTextureNode : Node, NodeProtocol
         case outputTexturePort
     }
     
-    override func encode(to encoder:Encoder) throws
+    override public func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -77,7 +77,7 @@ class MovieTextureNode : Node, NodeProtocol
         try super.encode(to: encoder)
     }
     
-    required init(from decoder: any Decoder) throws
+    required public init(from decoder: any Decoder) throws
     {
         // Forces the initialization when the class is accessed
         _ = MovieTextureNodeInitializer
@@ -99,7 +99,7 @@ class MovieTextureNode : Node, NodeProtocol
         try super.init(from:decoder)
     }
     
-    override func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionContext,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {

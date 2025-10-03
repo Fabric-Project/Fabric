@@ -11,19 +11,19 @@ import simd
 import Metal
 import MetalKit
 
-class ArrayIndexValueNode<Value : Equatable & FabricDescription> : Node, NodeProtocol
+public class ArrayIndexValueNode<Value : Equatable & FabricDescription> : Node, NodeProtocol
 {
-    static var name:String { "\(Value.fabricDescription) Value at Array Index" }
-    static var nodeType:Node.NodeType { Node.NodeType.Parameter(parameterType: .Array) }
+    public static var name:String { "\(Value.fabricDescription) Value at Array Index" }
+    public static var nodeType:Node.NodeType { Node.NodeType.Parameter(parameterType: .Array) }
 
     let inputIndexParam:FloatParameter
-    override var inputParameters: [any Parameter] { [self.inputIndexParam] + super.inputParameters}
+    override public var inputParameters: [any Parameter] { [self.inputIndexParam] + super.inputParameters}
 
     let inputPort:NodePort<ContiguousArray<Value>>
     let outputPort:NodePort<Value>
-    override var ports: [any NodePortProtocol] {  [inputPort, outputPort] + super.ports}
+    override public var ports: [any NodePortProtocol] {  [inputPort, outputPort] + super.ports}
     
-    required init(context:Context)
+    required public init(context:Context)
     {
         self.inputPort = NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet)
         self.inputIndexParam = FloatParameter("Index", 0, .inputfield)
@@ -40,7 +40,7 @@ class ArrayIndexValueNode<Value : Equatable & FabricDescription> : Node, NodePro
         case outputPort
     }
     
-    override func encode(to encoder:Encoder) throws
+    override public func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -51,7 +51,7 @@ class ArrayIndexValueNode<Value : Equatable & FabricDescription> : Node, NodePro
         try super.encode(to: encoder)
     }
     
-    required init(from decoder: any Decoder) throws
+    required public init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
        
@@ -62,7 +62,7 @@ class ArrayIndexValueNode<Value : Equatable & FabricDescription> : Node, NodePro
         try super.init(from:decoder)
     }
     
-    override func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionContext,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {

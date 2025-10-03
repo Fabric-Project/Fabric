@@ -12,21 +12,21 @@ import simd
 import Metal
 import MetalKit
 
-class ArrayCountNode<Value : Equatable & FabricDescription> : Node, NodeProtocol
+public class ArrayCountNode<Value : Equatable & FabricDescription> : Node, NodeProtocol
 {
-    static var name:String { "\(Value.fabricDescription) Array Count" }
-    static var nodeType:Node.NodeType { Node.NodeType.Parameter(parameterType: .Array) }
+    public static var name:String { "\(Value.fabricDescription) Array Count" }
+    public static var nodeType:Node.NodeType { Node.NodeType.Parameter(parameterType: .Array) }
 
     // TODO: add character set menu to choose component separation strategy
     
     let inputPort:NodePort<ContiguousArray<Value>>
     let outputPort:NodePort<Float>
-    override var ports: [any NodePortProtocol] {  [inputPort, outputPort] + super.ports}
+    override public var ports: [any NodePortProtocol] {  [inputPort, outputPort] + super.ports}
 
     private var url: URL? = nil
     private var string: String? = nil
     
-    required init(context:Context)
+    required public init(context:Context)
     {
         self.inputPort = NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet)
         self.outputPort = NodePort<Float>(name: "Count", kind: .Outlet)
@@ -40,7 +40,7 @@ class ArrayCountNode<Value : Equatable & FabricDescription> : Node, NodeProtocol
         case outputPort
     }
     
-    override func encode(to encoder:Encoder) throws
+    override public func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -50,7 +50,7 @@ class ArrayCountNode<Value : Equatable & FabricDescription> : Node, NodeProtocol
         try super.encode(to: encoder)
     }
     
-    required init(from decoder: any Decoder) throws
+    required public init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
        
@@ -60,7 +60,7 @@ class ArrayCountNode<Value : Equatable & FabricDescription> : Node, NodeProtocol
         try super.init(from:decoder)
     }
     
-    override func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionContext,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {

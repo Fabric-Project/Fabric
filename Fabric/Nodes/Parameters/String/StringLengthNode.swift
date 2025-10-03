@@ -11,27 +11,26 @@ import simd
 import Metal
 import MetalKit
 
-class StringLengthNode : Node, NodeProtocol
+public class StringLengthNode : Node, NodeProtocol
 {
-    static let name = "String Length"
-    static var nodeType = Node.NodeType.Parameter(parameterType: .String)
+    public static let name = "String Length"
+    public static var nodeType = Node.NodeType.Parameter(parameterType: .String)
 
     // TODO: add character set menu to choose component separation strategy
     
     let inputPort:NodePort<String>
     let outputPort:NodePort<Float>
-    override var ports: [any NodePortProtocol] {  [inputPort, outputPort] + super.ports}
+    override public var ports: [any NodePortProtocol] {  [inputPort, outputPort] + super.ports}
 
     private var url: URL? = nil
     private var string: String? = nil
     
-    required init(context:Context)
+    required public init(context:Context)
     {
         self.inputPort = NodePort<String>(name: "String", kind: .Inlet)
         self.outputPort = NodePort<Float>(name: "Length", kind: .Outlet)
         
         super.init(context: context)
-        
     }
     
     enum CodingKeys : String, CodingKey
@@ -40,7 +39,7 @@ class StringLengthNode : Node, NodeProtocol
         case outputPort
     }
     
-    override func encode(to encoder:Encoder) throws
+    override public func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -50,7 +49,7 @@ class StringLengthNode : Node, NodeProtocol
         try super.encode(to: encoder)
     }
     
-    required init(from decoder: any Decoder) throws
+    required public init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
        
@@ -60,7 +59,7 @@ class StringLengthNode : Node, NodeProtocol
         try super.init(from:decoder)
     }
     
-    override func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionContext,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {

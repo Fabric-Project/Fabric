@@ -10,9 +10,9 @@ import Satin
 import simd
 import Metal
 
-class PBRMaterialNode : StandardMaterialNode
+public class PBRMaterialNode : StandardMaterialNode
 {
-    override class var name:String {  "Advanced Physical Material" }
+    override public  class var name:String {  "Advanced Physical Material" }
 
     // Params
     let inputSubsurface = FloatParameter("Sub Surface", 0.0, 0.0, 1.0, .slider)
@@ -27,7 +27,7 @@ class PBRMaterialNode : StandardMaterialNode
     let inputThickness = FloatParameter("Thickness", 1.0, 0.0, 5.0, .slider)
     let inputIOR = FloatParameter("Index of Refraction", 1.5, 0.0, 3.0, .slider)
 
-    override var inputParameters: [any Parameter] {
+    override public var inputParameters: [any Parameter] {
         [
             inputSubsurface,
             inputAnisotropic,
@@ -53,7 +53,7 @@ class PBRMaterialNode : StandardMaterialNode
     let inputClearcoatGlossTexture = NodePort<EquatableTexture>(name: "Clearcoat Gloss Texture", kind: .Inlet)
     let inputTransmissionTexture = NodePort<EquatableTexture>(name: "Transmission Texture", kind: .Inlet)
     
-    override var ports: [any NodePortProtocol] {  [
+    override public  var ports: [any NodePortProtocol] {  [
         inputBumpTexture,
         inputDisplacementTexture,
         inputOcclusionTexture,
@@ -64,13 +64,13 @@ class PBRMaterialNode : StandardMaterialNode
         inputTransmissionTexture,
         ] + super.ports }
     
-    override var material: PhysicalMaterial {
+    override public var material: PhysicalMaterial {
         return _material
     }
     
     private var _material = PhysicalMaterial()
 
-    override func evaluate(material: Material, atTime: TimeInterval) -> Bool
+    override public func evaluate(material: Material, atTime: TimeInterval) -> Bool
     {
         var shouldOutput = super.evaluate(material: material, atTime: atTime)
                 
@@ -198,7 +198,7 @@ class PBRMaterialNode : StandardMaterialNode
         return shouldOutput
     }
     
-    override func execute(context:GraphExecutionContext,
+    override public  func execute(context:GraphExecutionContext,
                             renderPassDescriptor: MTLRenderPassDescriptor,
                             commandBuffer: MTLCommandBuffer)
     {

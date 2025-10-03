@@ -11,21 +11,21 @@ import simd
 import Metal
 import MetalKit
 
-class ArrayQueueNode<Value : Equatable & FabricDescription> : Node, NodeProtocol
+public class ArrayQueueNode<Value : Equatable & FabricDescription> : Node, NodeProtocol
 {
-    static var name:String { "\(Value.fabricDescription) Queue" }
-    static var nodeType:Node.NodeType { Node.NodeType.Parameter(parameterType: .Array) }
+    public static var name:String { "\(Value.fabricDescription) Queue" }
+    public static var nodeType:Node.NodeType { Node.NodeType.Parameter(parameterType: .Array) }
 
     let inputSizeParam:FloatParameter
-    override var inputParameters: [any Parameter] { [self.inputSizeParam] + super.inputParameters}
+    override public var inputParameters: [any Parameter] { [self.inputSizeParam] + super.inputParameters}
 
     let inputPort:NodePort<Value>
     let outputPort:NodePort<ContiguousArray<Value>>
-    override var ports: [any NodePortProtocol] {  [inputPort, outputPort] + super.ports}
+    override public var ports: [any NodePortProtocol] {  [inputPort, outputPort] + super.ports}
 
     private var queue:ContiguousArray<Value> = []
     
-    required init(context:Context)
+    required public init(context:Context)
     {
         self.inputPort = NodePort<Value>(name: "Value", kind: .Inlet)
         self.inputSizeParam = FloatParameter("Size", 0, .inputfield)
@@ -42,7 +42,7 @@ class ArrayQueueNode<Value : Equatable & FabricDescription> : Node, NodeProtocol
         case outputPort
     }
     
-    override func encode(to encoder:Encoder) throws
+    override public func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -53,7 +53,7 @@ class ArrayQueueNode<Value : Equatable & FabricDescription> : Node, NodeProtocol
         try super.encode(to: encoder)
     }
     
-    required init(from decoder: any Decoder) throws
+    required public init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
        
@@ -64,7 +64,7 @@ class ArrayQueueNode<Value : Equatable & FabricDescription> : Node, NodeProtocol
         try super.init(from:decoder)
     }
     
-    override func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionContext,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {

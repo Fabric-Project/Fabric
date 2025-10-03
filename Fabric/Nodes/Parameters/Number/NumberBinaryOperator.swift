@@ -90,8 +90,10 @@ public class NumberBinaryOperator : Node, NodeProtocol
         {
             self.output = self.mathOperator.perform(lhs: self.inputAParam.value,
                                                      rhs: self.inputBParam.value)
+
         }
         
         self.outputNumber.send(self.output)
+
     }
 }

@@ -11,25 +11,25 @@ import simd
 import Metal
 import MetalKit
 
-class HDRTextureNode : Node, NodeProtocol
+public class HDRTextureNode : Node, NodeProtocol
 {
-    static let name = "HDR Texture"
-    static var nodeType = Node.NodeType.Image(imageType: .Loader)
+    public static let name = "HDR Texture"
+    public static var nodeType = Node.NodeType.Image(imageType: .Loader)
 
     // Parameters
     let inputFilePathParam:StringParameter
-    override var inputParameters: [any Parameter] { [self.inputFilePathParam] + super.inputParameters}
+    override public var inputParameters: [any Parameter] { [self.inputFilePathParam] + super.inputParameters}
 
     // Ports
     let outputTexturePort:NodePort<EquatableTexture>
-    override var ports: [any NodePortProtocol] {  [outputTexturePort] + super.ports}
+    override public var ports: [any NodePortProtocol] {  [outputTexturePort] + super.ports}
 
 
     private var texture: (any MTLTexture)? = nil
     private var textureLoader:MTKTextureLoader
     private var url: URL? = nil
     
-    required init(context:Context)
+    public required init(context:Context)
     {
         self.inputFilePathParam = StringParameter("File Path", "", .filepicker)
         self.outputTexturePort = NodePort<EquatableTexture>(name: "Image", kind: .Outlet)
@@ -47,7 +47,7 @@ class HDRTextureNode : Node, NodeProtocol
         case outputTexturePort
     }
     
-    override func encode(to encoder:Encoder) throws
+    override public func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -57,7 +57,7 @@ class HDRTextureNode : Node, NodeProtocol
         try super.encode(to: encoder)
     }
     
-    required init(from decoder: any Decoder) throws
+    public required init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
        
@@ -77,7 +77,7 @@ class HDRTextureNode : Node, NodeProtocol
 
     }
     
-    override func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionContext,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {

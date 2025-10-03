@@ -11,21 +11,21 @@ import simd
 import Metal
 import MetalKit
 
-class TextFileLoaderNode : Node, NodeProtocol
+public class TextFileLoaderNode : Node, NodeProtocol
 {
-    static let name = "Text File Loader"
-    static var nodeType = Node.NodeType.Parameter(parameterType: .String)
+    public static let name = "Text File Loader"
+    public static var nodeType = Node.NodeType.Parameter(parameterType: .String)
 
     let inputFilePathParam:StringParameter
-    override var inputParameters: [any Parameter] { [self.inputFilePathParam] + super.inputParameters}
+    override public var inputParameters: [any Parameter] { [self.inputFilePathParam] + super.inputParameters}
 
     let outputPort:NodePort<String>
-    override var ports: [any NodePortProtocol] {  [outputPort] + super.ports}
+    override public var ports: [any NodePortProtocol] {  [outputPort] + super.ports}
 
     private var url: URL? = nil
     private var string: String? = nil
     
-    required init(context:Context)
+    required public init(context:Context)
     {
         self.inputFilePathParam = StringParameter("Text File", "", .filepicker)
         self.outputPort = NodePort<String>(name: "String", kind: .Outlet)
@@ -40,7 +40,7 @@ class TextFileLoaderNode : Node, NodeProtocol
         case outputPort
     }
     
-    override func encode(to encoder:Encoder) throws
+    override public func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -50,7 +50,7 @@ class TextFileLoaderNode : Node, NodeProtocol
         try super.encode(to: encoder)
     }
     
-    required init(from decoder: any Decoder) throws
+    required public init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
        
@@ -62,7 +62,7 @@ class TextFileLoaderNode : Node, NodeProtocol
         self.loadStringFromURL()
     }
     
-    override func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionContext,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
    
