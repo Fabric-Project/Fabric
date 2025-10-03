@@ -40,7 +40,6 @@ public class BaseMaterialNode : Node, NodeProtocol
     
     public required init(context: Context) {
         
-        
         self.inputReceivesLighting = BoolParameter("Receives Lighting", true, .button)
         self.inputWriteDepth = BoolParameter("Write Depth", true, .button)
         self.inputBlending = StringParameter("Blending Mode", "Disabled", ["Disabled", "Alpha", "Additive", "Subtractive"], .dropdown)
