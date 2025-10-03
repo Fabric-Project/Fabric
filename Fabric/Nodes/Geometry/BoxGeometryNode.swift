@@ -9,10 +9,9 @@ import Foundation
 import simd
 import Metal
 
-public class BoxGeometryNode : Node, NodeProtocol
-{    
-    public static let name = "Box Geometry"
-    public static var nodeType = Node.NodeType.Geometery
+public class BoxGeometryNode : BaseGeometryNode
+{
+    public override class var name:String { "Box Geometry" }
 
     // Params
     public let inputWidthParam:FloatParameter
@@ -21,11 +20,9 @@ public class BoxGeometryNode : Node, NodeProtocol
     public let inputResolutionParam:Int3Parameter
     public override var inputParameters: [any Parameter] { [inputWidthParam, inputHeightParam, inputDepthParam, inputResolutionParam] + super.inputParameters }
 
-    // Ports
-    public let outputGeometry:NodePort<Geometry>
-    public override var ports:[any NodePortProtocol] {  [outputGeometry] + super.ports}
-
-    private let geometry = BoxGeometry(width: 1, height: 1, depth: 1)
+    public override var geometry: BoxGeometry { _geometry }
+    
+    private let _geometry = BoxGeometry(width: 1, height: 1, depth: 1)
 
     required public init(context: Context)
     {
@@ -33,8 +30,6 @@ public class BoxGeometryNode : Node, NodeProtocol
         self.inputHeightParam = FloatParameter("Height", 1.0, .inputfield)
         self.inputDepthParam = FloatParameter("Depth", 1.0, .inputfield)
         self.inputResolutionParam = Int3Parameter("Resolution", simd_int3(repeating: 1), .inputfield)
-
-        self.outputGeometry = NodePort<Geometry>(name: BoxGeometryNode.name, kind: .Outlet)
 
         super.init(context: context)
     }
@@ -45,7 +40,6 @@ public class BoxGeometryNode : Node, NodeProtocol
         case inputHeightParameter
         case inputDepthParameter
         case inputResolutionParameter
-        case outputGeometryPort
     }
     
     override public func encode(to encoder:Encoder) throws
@@ -56,7 +50,6 @@ public class BoxGeometryNode : Node, NodeProtocol
         try container.encode(self.inputHeightParam, forKey: .inputHeightParameter)
         try container.encode(self.inputDepthParam, forKey: .inputDepthParameter)
         try container.encode(self.inputResolutionParam, forKey: .inputResolutionParameter)
-        try container.encode(self.outputGeometry, forKey: .outputGeometryPort)
         
         try super.encode(to: encoder)
     }
@@ -69,17 +62,14 @@ public class BoxGeometryNode : Node, NodeProtocol
         self.inputHeightParam = try container.decode(FloatParameter.self, forKey: .inputHeightParameter)
         self.inputDepthParam = try container.decode(FloatParameter.self, forKey: .inputDepthParameter)
         self.inputResolutionParam = try container.decode(Int3Parameter.self, forKey: .inputResolutionParameter)
-        self.outputGeometry = try container.decode(NodePort<Geometry>.self, forKey: .outputGeometryPort)
         
         try super.init(from: decoder)
     }
     
-    override public func execute(context:GraphExecutionContext,
-                                 renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
+    override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
     {
-        var shouldOutputGeometry = false
-
+        var shouldOutputGeometry = super.evaluate(geometry: geometry, atTime: atTime)
+        
         if self.inputWidthParam.valueDidChange
         {
             self.geometry.width = self.inputWidthParam.value
@@ -104,9 +94,6 @@ public class BoxGeometryNode : Node, NodeProtocol
             shouldOutputGeometry = true
         }
         
-        if shouldOutputGeometry
-        {
-            self.outputGeometry.send(self.geometry)
-        }
-     }
+        return shouldOutputGeometry
+    }
 }

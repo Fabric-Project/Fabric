@@ -50,7 +50,10 @@ public class BaseGeometryNode : Node, NodeProtocol
         
         try container.encode(self.inputPrimitiveType, forKey: .inputPrimitiveTypeParam)
         try container.encode(self.outputGeometry, forKey: .outputGeometryPort)
+        
+        try super.encode(to: encoder)
     }
+    
     
     public required init(from decoder: any Decoder) throws
     {
