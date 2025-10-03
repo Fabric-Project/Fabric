@@ -136,7 +136,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
             else
             {
                 let bundle = Bundle(for: Self.self)
-                let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
+                let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Materials")
                 
                 let material = PostMaterial(pipelineURL:shaderURL!)
                 material.setup()
@@ -150,7 +150,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
         else
         {
             let bundle = Bundle(for: Self.self)
-            let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
+            let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Materials")
             
             let material = PostMaterial(pipelineURL:shaderURL!)
             material.setup()
