@@ -84,6 +84,11 @@ public class BaseObjectNode : Node
             shouldOutput = true
         }
         
+        if self.isDirty
+        {
+            shouldOutput = true
+        }
+        
         return shouldOutput
     }
 }

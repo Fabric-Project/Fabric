@@ -78,6 +78,11 @@ public class BaseGeometryNode : Node, NodeProtocol
             geometry.primitiveType = self.primitiveType()
             shouldOutput = true
         }
+        
+        if self.isDirty
+        {
+            shouldOutput = true
+        }
 
         return shouldOutput
     }

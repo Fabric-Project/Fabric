@@ -113,6 +113,11 @@ public class BaseMaterialNode : Node, NodeProtocol
             shouldOutput = true
         }
         
+        if self.isDirty
+        {
+            shouldOutput = true
+        }
+        
         return shouldOutput
     }
     

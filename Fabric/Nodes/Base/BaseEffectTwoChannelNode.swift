@@ -180,7 +180,7 @@ class BaseEffectTwoChannelNode: Node, NodeFileLoadingProtocol
         })
 
         
-        if  self.inputTexturePort.valueDidChange || self.inputTexture2Port.valueDidChange || anyParamDidChange
+        if  self.inputTexturePort.valueDidChange || self.inputTexture2Port.valueDidChange || anyParamDidChange || self.isDirty
         {
             if let inTex = self.inputTexturePort.value?.texture,
                let inTex2 = self.inputTexture2Port.value?.texture

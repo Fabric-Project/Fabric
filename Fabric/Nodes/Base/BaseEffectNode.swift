@@ -173,7 +173,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
         })
 
         
-        if self.inputTexturePort.valueDidChange || anyParamDidChange
+        if self.inputTexturePort.valueDidChange || anyParamDidChange || self.isDirty
         {
             if let inTex = self.inputTexturePort.value?.texture
             {
