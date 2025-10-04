@@ -24,9 +24,9 @@ A list of Nodes (planned and implemented) for Fabric.
 - [ ] Line
 - [x] Plane
 - [x] Point Plane (Temp until #15 is fixed)
-- [ ] Rounded Rect
-- [ ] Triangle
-- [ ] Circle
+- [x] Rounded Rect
+- [x] Triangle
+- [x] Circle
 - [ ] Arc
 - [ ] Cone
 - [x] Box
