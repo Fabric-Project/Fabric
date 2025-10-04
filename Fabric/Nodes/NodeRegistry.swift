@@ -57,7 +57,9 @@ public class NodeRegistry {
     private var geometryNodeClasses: [any NodeProtocol.Type] = [ // Geometry
         PlaneGeometryNode.self,
         RoundRectGeometryNode.self,
+        TriangleGeometryNode.self,
         BoxGeometryNode.self,
+//        RoundBoxGeometryNode.self,
         SphereGeometryNode.self,
         IcoSphereGeometryNode.self,
         CapsuleGeometryNode.self,

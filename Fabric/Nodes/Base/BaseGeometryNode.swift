@@ -64,6 +64,9 @@ public class BaseGeometryNode : Node, NodeProtocol
         self.outputGeometry = try container.decode(NodePort<Geometry>.self, forKey: .outputGeometryPort)
 
         try super.init(from: decoder)
+        
+        // TODO: We need to fix StringParam serialization
+        self.inputPrimitiveType.options = ["Point", "Line", "Line Strip", "Triangle", "Triangle Strip"]
     }
     
     public func evaluate(geometry:Geometry, atTime:TimeInterval) -> Bool
