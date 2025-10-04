@@ -13,6 +13,9 @@ struct FabricApp: App {
         DocumentGroup(newDocument: FabricDocument()) { file in
             
             ContentView(document: file.$document)
+                .onDisappear {
+                    file.document.outputwindow?.close()
+                }
         }
     }
 }

@@ -18,7 +18,9 @@ extension UTType {
     }
 }
 
-class FabricDocument: FileDocument {
+class FabricDocument: FileDocument
+{
+    static var readableContentTypes: [UTType] { [.fabricDocument] }
 
     @ObservationIgnored let context = Context(device: MTLCreateSystemDefaultDevice()!,
                                               sampleCount: 1,
@@ -26,11 +28,15 @@ class FabricDocument: FileDocument {
                                               depthPixelFormat: .depth32Float,
                                               stencilPixelFormat: .stencil8)
     
+    // TODO - graphRenderer holds a reference to graph
+    // We also hold a reference to both - not great
+    // graph is @observable so we use in the UI
+    // maybe we need to make graphRenderer @observable too?
     let graph:Graph
     @ObservationIgnored let graphRenderer:GraphRenderer
     
-    var outputwindow:NSWindow? = nil
-    var outputRenderer:WindowOutputRenderer2? = nil
+    @ObservationIgnored var outputwindow:NSWindow? = nil
+    @ObservationIgnored var outputRenderer:WindowOutputRenderer2? = nil
     
     init()
     {
@@ -57,11 +63,17 @@ class FabricDocument: FileDocument {
         self.graph.addNode(meshNode)
         self.graph.addNode(cameraNode)
         self.graph.addNode(renderNode)
+        
+        DispatchQueue.main.async { [weak self] in //asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            
+            guard let self = self else { return }
+            
+            print("Init Setting up window for graph: \(self.graph.id)")
+            self.outputRenderer = WindowOutputRenderer2(context: self.context, graphRenderer: self.graphRenderer)
+            self.setupWindow(named: "Untitled Document")
+        }
     }
-
     
-    static var readableContentTypes: [UTType] { [.fabricDocument] }
-
     required init(configuration: ReadConfiguration) throws
     {
 
@@ -81,15 +93,18 @@ class FabricDocument: FileDocument {
 
         self.graphRenderer = GraphRenderer(context: self.context, graph: self.graph)
         
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
             
             guard let self = self else { return }
-            
+            print("Init config Setting up window for graph: \(self.graph.id)")
             self.outputRenderer = WindowOutputRenderer2(context: self.context, graphRenderer: self.graphRenderer)
-            self.setupWindow(named: name)
-
+            self.setupWindow(named:name)
         }
+    }
+
+    deinit
+    {
+        print("Deinit Closing window for graph: \(self.graph.id)")
     }
     
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper
@@ -115,5 +130,6 @@ class FabricDocument: FileDocument {
         self.outputwindow!.makeKeyAndOrderFront(nil)
         self.outputwindow!.level = .normal // NSWindow.Level(NSWindow.Level.normal.rawValue + 1)
         self.outputwindow!.title = named
+        self.outputwindow?.isReleasedWhenClosed = false
     }
 }

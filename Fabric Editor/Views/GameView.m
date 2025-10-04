@@ -91,6 +91,9 @@ The implementation of the cross-platform game view.
 
 - (void)movedToWindow
 {
+    // Guard..
+    if ( self.window == nil) return;
+    
     [self setupCAMetalLink];
     
 #if RENDER_ON_MAIN_THREAD
@@ -202,7 +205,7 @@ The implementation of the cross-platform game view.
 {
     [_displayLink removeFromRunLoop:[NSRunLoop mainRunLoop]
                             forMode:NSRunLoopCommonModes];
-    [_displayLink invalidate];
+//    [_displayLink invalidate];
 }
 
 - (void)stopRenderLoop
@@ -212,6 +215,10 @@ The implementation of the cross-platform game view.
 
 - (void)dealloc
 {
+    NSNotificationCenter* notificationCenter = [NSNotificationCenter defaultCenter];
+    [notificationCenter removeObserver:self];
+    
+    _displayLink.delegate = nil;
     [self stopRenderLoop];
 }
 

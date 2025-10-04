@@ -19,7 +19,7 @@ class WindowOutputRenderer2: GameView
     private let commandQueue: (any MTLCommandQueue)
     private let renderPassDescriptor = MTLRenderPassDescriptor()
 
-    private weak var graphRenderer:GraphRenderer?
+    weak var graphRenderer:GraphRenderer?
 
     init(context: Context, graphRenderer:GraphRenderer?)
     {
@@ -46,6 +46,11 @@ class WindowOutputRenderer2: GameView
     
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+    
+    deinit
+    {
+        print("OutputRenderer Deinit")
     }
     
     func setup()
