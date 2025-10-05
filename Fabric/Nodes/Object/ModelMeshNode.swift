@@ -17,7 +17,6 @@ public class ModelMeshNode : MeshNode
 
     public let inputFilePathParam:StringParameter
     public override var inputParameters: [any Parameter] { [self.inputFilePathParam] + super.inputParameters}
-
     
     private var model: Object? = nil
     private var textureLoader:MTKTextureLoader
@@ -67,20 +66,17 @@ public class ModelMeshNode : MeshNode
         if self.inputCastsShadow.valueDidChange
         {
             self.updateLightingOnSubmeshes()
-            
             shouldOutput = true
         }
         
         if self.inputCullingMode.valueDidChange
         {
             self.updateCullingOnSubmeshes()
-
             shouldOutput = true
         }
         
         return shouldOutput
     }
-    
     
     public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
@@ -104,7 +100,6 @@ public class ModelMeshNode : MeshNode
             {
                 self.outputMesh.send(model)
             }
-
         }
         else
         {
@@ -120,13 +115,10 @@ public class ModelMeshNode : MeshNode
             
             if FileManager.default.fileExists(atPath: self.url!.standardizedFileURL.path(percentEncoded: false) )
             {
-                
                 self.model = loadAsset(url:self.url!, textureLoader: self.textureLoader)
                 
                 self.updateLightingOnSubmeshes()
-                
                 self.updateCullingOnSubmeshes()
-
             }
             else
             {
@@ -158,7 +150,6 @@ public class ModelMeshNode : MeshNode
             if let subMesh = child as? Mesh
             {
                 subMesh.cullMode = cullMode
-
             }
         }
     }

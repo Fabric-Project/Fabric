@@ -97,16 +97,20 @@ public class MeshNode : BaseObjectNode, NodeProtocol
     {
         var shouldOutput = super.evaluate(object: object, atTime: atTime)
         
+        // If subclass has object that isnt a mesh, but its own scene graph..
+        // We need to handle that in the parent :(
+        guard let mesh = object as? Mesh else { return shouldOutput }
+        
         if self.inputCastsShadow.valueDidChange
         {
-            self.mesh!.castShadow = self.inputCastsShadow.value
-            self.mesh!.receiveShadow = self.inputCastsShadow.value
+            mesh.castShadow = self.inputCastsShadow.value
+            mesh.receiveShadow = self.inputCastsShadow.value
             shouldOutput = true
         }
         
         if self.inputCullingMode.valueDidChange
         {
-            self.mesh!.cullMode = self.cullMode()
+            mesh.cullMode = self.cullMode()
             shouldOutput = true
         }
         
@@ -161,7 +165,7 @@ public class MeshNode : BaseObjectNode, NodeProtocol
         
      }
     
-    private func cullMode() -> MTLCullMode
+    func cullMode() -> MTLCullMode
     {
         switch self.inputCullingMode.value
         {
