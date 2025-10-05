@@ -19,11 +19,7 @@ public class ModelMeshNode : MeshNode
     public override var inputParameters: [any Parameter] { [self.inputFilePathParam] + super.inputParameters}
 
     
-    // Ports - Skip Geom and Material
-    public override var ports: [any NodePortProtocol] { [
-                                         outputMesh] + super.ports}
-
-    private var mesh: Object? = nil
+    private var model: Object? = nil
     private var textureLoader:MTKTextureLoader
     private var url: URL? = nil
 
@@ -64,12 +60,21 @@ public class ModelMeshNode : MeshNode
         self.loadModelFromInputValue()
     }
     
-    override public func evaluate(object: Object, atTime: TimeInterval) -> Bool {
+    override public func evaluate(object: Object, atTime: TimeInterval) -> Bool
+    {
         var shouldOutput = super.evaluate(object: object, atTime: atTime)
         
-        if self.inputFilePathParam.valueDidChange
+        if self.inputCastsShadow.valueDidChange
         {
-            self.loadModelFromInputValue()
+            self.updateLightingOnSubmeshes()
+            
+            shouldOutput = true
+        }
+        
+        if self.inputCullingMode.valueDidChange
+        {
+            self.updateCullingOnSubmeshes()
+
             shouldOutput = true
         }
         
@@ -81,11 +86,25 @@ public class ModelMeshNode : MeshNode
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        if let mesh = self.mesh
+        
+        // This looks a bit diff, since we have a catch-22 and need a mesh to evaluate
+        var shouldOutput = false
+        
+        if self.inputFilePathParam.valueDidChange
         {
-            let shouldOuput = self.evaluate(object: mesh, atTime: context.timing.time)
+            self.loadModelFromInputValue()
+            shouldOutput = true
+        }
 
-            self.outputMesh.send(mesh)
+        if let model = self.model
+        {
+            shouldOutput = self.evaluate(object: model, atTime: context.timing.time)
+
+            if shouldOutput
+            {
+                self.outputMesh.send(model)
+            }
+
         }
         else
         {
@@ -102,12 +121,44 @@ public class ModelMeshNode : MeshNode
             if FileManager.default.fileExists(atPath: self.url!.standardizedFileURL.path(percentEncoded: false) )
             {
                 
-                self.mesh = loadAsset(url:self.url!, textureLoader: self.textureLoader)
+                self.model = loadAsset(url:self.url!, textureLoader: self.textureLoader)
+                
+                self.updateLightingOnSubmeshes()
+                
+                self.updateCullingOnSubmeshes()
+
             }
             else
             {
-                self.mesh = nil
+                self.model = nil
                 print("wtf")
+            }
+        }
+    }
+    
+    private func updateLightingOnSubmeshes()
+    {
+        self.model?.getChildren(true).forEach { child in
+            
+            if let subMesh = child as? Mesh
+            {
+                subMesh.material?.lighting = true
+                subMesh.castShadow = self.inputCastsShadow.value
+                subMesh.receiveShadow = self.inputCastsShadow.value
+            }
+        }
+    }
+    
+    private func updateCullingOnSubmeshes()
+    {
+        let cullMode = self.cullMode()
+        
+        self.model?.getChildren(true).forEach { child in
+            
+            if let subMesh = child as? Mesh
+            {
+                subMesh.cullMode = cullMode
+
             }
         }
     }
