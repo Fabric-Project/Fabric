@@ -40,6 +40,7 @@ class FabricDocument: FileDocument
     
     init()
     {
+        print("Basic Document Init")
         self.graph = Graph(context: self.context)
         self.graphRenderer = GraphRenderer(context: self.context, graph: self.graph)
 
@@ -68,14 +69,15 @@ class FabricDocument: FileDocument
             
             guard let self = self else { return }
             
+            
             print("Init Setting up window for graph: \(self.graph.id)")
-            self.outputRenderer = WindowOutputRenderer2(context: self.context, graphRenderer: self.graphRenderer)
             self.setupWindow(named: "Untitled Document")
         }
     }
     
     required init(configuration: ReadConfiguration) throws
     {
+        print("Read Configuration Document Init")
 
         guard let data = configuration.file.regularFileContents,
               let name = configuration.file.preferredFilename
@@ -93,18 +95,27 @@ class FabricDocument: FileDocument
 
         self.graphRenderer = GraphRenderer(context: self.context, graph: self.graph)
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+        DispatchQueue.main.async { [weak self] in
             
             guard let self = self else { return }
+            
             print("Init config Setting up window for graph: \(self.graph.id)")
             self.outputRenderer = WindowOutputRenderer2(context: self.context, graphRenderer: self.graphRenderer)
-            self.setupWindow(named:name)
+
+            self.setupWindow(named: name)
         }
     }
 
     deinit
     {
         print("Deinit Closing window for graph: \(self.graph.id)")
+        
+        DispatchQueue.main.async { [weak self] in
+
+            guard let self = self else { return }
+
+            self.outputwindow?.close()
+        }
     }
     
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper
@@ -119,11 +130,16 @@ class FabricDocument: FileDocument
     
     private func setupWindow(named:String)
     {
-        self.outputRenderer?.frame = CGRect(x: 0, y: 0, width: 600, height: 600)
-        
         self.outputwindow = NSWindow(contentRect: NSRect(x: 100, y: 100, width: 600, height: 600),
                                      styleMask: [.titled, .miniaturizable, .resizable, .unifiedTitleAndToolbar],
                                      backing: .buffered, defer: false)
+        self.outputwindow?.isReleasedWhenClosed = true
+        
+        self.outputRenderer = WindowOutputRenderer2(context: self.context, graphRenderer: self.graphRenderer)
+
+        self.outputRenderer?.frame = CGRect(x: 0, y: 0, width: 600, height: 600)
+        
+
 
             
         self.outputwindow!.contentView = self.outputRenderer
