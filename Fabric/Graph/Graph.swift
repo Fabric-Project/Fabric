@@ -221,13 +221,15 @@ internal import AnyCodable
     {
         print("Add Node", node.name)
         
-//        weak var weakSelf = self
-        
-//        node.delegate = weakSelf
-        
         self.nodes.append(node)
         
         //        self.autoConnect(node: node)
+    }
+    
+    func delete(node:(any NodeProtocol))
+    {
+        node.ports.forEach { $0.disconnectAll() }
+        self.nodes.removeAll { $0.id == node.id }
     }
     
     public func node(forID:UUID) -> (any NodeProtocol)?
@@ -340,31 +342,4 @@ internal import AnyCodable
         self.nodes.forEach { $0.isSelected = false }
         
     }
-    
-    func delete(node:(any NodeProtocol))
-    {
-        node.delegate = nil
-        node.ports.forEach { $0.disconnectAll() }
-        self.nodes.removeAll { $0.id == node.id }
-    }
 }
-//
-//// MARK: - NodeDelegate
-//
-//extension Graph : NodeDelegate
-//{
-//    func willUpdate(node: Node)
-//    {
-//  
-//    }
-//    
-//    func didUpdate(node: Node)
-//    {
-//        self.shouldUpdateConnections.toggle()
-//    }
-//    
-//    func shouldDelete(node: Node)
-//    {
-//        self.shouldUpdateConnections.toggle()
-//    }
-//}

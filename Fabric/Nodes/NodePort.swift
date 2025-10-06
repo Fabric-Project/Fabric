@@ -45,8 +45,7 @@ public protocol NodePortProtocol : Identifiable, Hashable, Equatable, Codable
     var connections: [any NodePortProtocol] { get set }
     var kind:PortKind { get }
     
-//    func setPublished(_ value:Bool)
-//    func isPublished() -> Bool
+    var published:Bool { get set }
     
     var node: (any NodeProtocol)? { get set }
 
@@ -138,6 +137,8 @@ public class NodePort<Value : Equatable>: NodePortProtocol
     public let id:UUID
 
     public let name: String
+    
+    public var published: Bool = false
     
     // Maybe a bit too verbose?
     private var intervalValueDidChange : Bool = true
@@ -316,6 +317,9 @@ public class NodePort<Value : Equatable>: NodePortProtocol
             other.connections.append(self)
             self.connections.append(other)
         }
+        
+        // We can't be published if we have a connection... 
+        self.published = false
         
         self.node?.markDirty()
         other.node?.markDirty()

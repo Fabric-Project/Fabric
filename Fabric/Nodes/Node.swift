@@ -10,13 +10,6 @@ import Metal
 import Satin
 import Combine
 
-public protocol NodeDelegate : AnyObject
-{
-    func willUpdate(node:Node)
-    func didUpdate(node:Node)
-    func shouldDelete(node:Node)
-}
-
 public protocol NodeProtocol : AnyObject, Codable, Identifiable
 {
     static var name:String { get }
@@ -28,10 +21,9 @@ public protocol NodeProtocol : AnyObject, Codable, Identifiable
     var name:String { get }
 
     init(context:Context)
-
-    var delegate:(any NodeDelegate)? { get set }
     
     var ports: [any NodePortProtocol] { get }
+    
     var parameterGroup:ParameterGroup { get }
       
     /// Performs the processing or rendering tasks appropriate for the custom patch.
@@ -45,6 +37,8 @@ public protocol NodeProtocol : AnyObject, Codable, Identifiable
     func markClean()
     var isDirty:Bool { get }
 
+    func publishedPorts() -> [any NodePortProtocol]
+    
     func inputNodes() -> [any NodeProtocol]
     func outputNodes() -> [any NodeProtocol]
     
@@ -101,9 +95,7 @@ public extension NodeProtocol
     @ObservationIgnored public var ports:[any NodePortProtocol] { self.inputParameterPorts  }
 
     @ObservationIgnored var context:Context
-    
-    @ObservationIgnored public weak var delegate:(any NodeDelegate)? = nil
-        
+            
     public var isSelected:Bool = false
     public var isDragging:Bool = false
 //    var showParams:Bool = false
@@ -121,23 +113,23 @@ public extension NodeProtocol
     public var nodeSize:CGSize = CGSizeMake(150, 100)
 
     public var offset: CGSize = .zero
-    {
-        willSet
-        {
-            if let delegate = self.delegate
-            {
-                delegate.willUpdate(node: self)
-            }
-        }
-        
-        didSet
-        {
-            if let delegate = self.delegate
-            {
-                delegate.didUpdate(node: self)
-            }
-        }
-    }
+//    {
+//        willSet
+//        {
+//            if let delegate = self.delegate
+//            {
+//                delegate.willUpdate(node: self)
+//            }
+//        }
+//        
+//        didSet
+//        {
+//            if let delegate = self.delegate
+//            {
+//                delegate.didUpdate(node: self)
+//            }
+//        }
+//    }
     
     // Dirty Handling
 //    @ObservationIgnored var lastEvaluationTime: TimeInterval = -1
@@ -243,6 +235,11 @@ public extension NodeProtocol
   
         return outputNodes
 //        return Array(Set(outputNodes))
+    }
+    
+    public func publishedPorts() -> [any NodePortProtocol]
+    {
+        return self.ports.filter( { $0.published } )
     }
     
     public func markClean()
