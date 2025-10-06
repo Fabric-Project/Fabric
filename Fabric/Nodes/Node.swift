@@ -68,6 +68,13 @@ public extension NodeProtocol
 
     func enableExecution(context:GraphExecutionContext) { }
     func disableExecution(context:GraphExecutionContext) { }
+    
+    func execute(context:GraphExecutionContext,
+                         renderPassDescriptor: MTLRenderPassDescriptor,
+                         commandBuffer: MTLCommandBuffer)
+    {
+
+    }
 }
 
 @Observable public class Node :  Equatable, Identifiable, Hashable
@@ -260,7 +267,13 @@ public extension NodeProtocol
         return cancellable
     }
     
-    public func execute(context:GraphExecutionContext,
+    public func startExecution(context:GraphExecutionContext) { }
+    public func stopExecution(context:GraphExecutionContext) { }
+
+    public func enableExecution(context:GraphExecutionContext) { }
+    public func disableExecution(context:GraphExecutionContext) { }
+    
+    func execute(context:GraphExecutionContext,
                          renderPassDescriptor: MTLRenderPassDescriptor,
                          commandBuffer: MTLCommandBuffer)
     {

@@ -30,6 +30,8 @@ public class GraphRenderer : MetalViewRenderer
         print("Init Graph Execution Engine")
     }
     
+    // MARK: - Execution
+
     public func disableExecution(graph:Graph)
     {
         let executionContext = self.currentGraphExecutionContext()
@@ -44,7 +46,21 @@ public class GraphRenderer : MetalViewRenderer
         self.graph.nodes.forEach({ $0.enableExecution(context: executionContext) })
     }
     
-    // MARK: - Rendering
+    public func startExecution(graph:Graph)
+    {
+        let executionContext = self.currentGraphExecutionContext()
+
+        self.graph.nodes.forEach({ $0.startExecution(context: executionContext) })
+    }
+    
+    public func stopExecution(graph:Graph)
+    {
+        let executionContext = self.currentGraphExecutionContext()
+
+        self.graph.nodes.forEach({ $0.stopExecution(context: executionContext) })
+    }
+
+    // MARK: - Execution
     
     public func execute(graph:Graph,
                         executionContext:GraphExecutionContext,
