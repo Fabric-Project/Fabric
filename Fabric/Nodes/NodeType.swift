@@ -103,7 +103,7 @@ extension Node
         case Image(imageType:ImageType)
         case Parameter(parameterType:ParameterType)
         
-        public static var allCases: [Node.NodeType] { return [.Renderer, .Object, .Camera, .Light, .Mesh, .Geometery, .Material, .Shader ] + ImageType.nodeTypes() + ParameterType.nodeTypes() }
+        public static var allCases: [Node.NodeType] { return [.Renderer, .Subgraph, .Object, .Camera, .Light, .Mesh, .Geometery, .Material, .Shader,  ] + ImageType.nodeTypes() + ParameterType.nodeTypes() }
         
         public var description: String
         {

@@ -32,7 +32,9 @@ public class NodeRegistry {
         + self.geometryNodeClasses
         + self.materialNodeClasses
         + self.textureNodeClasses
-        + self.parameterNodeClasses }
+        + self.parameterNodeClasses
+        + self.macroNodeClasses
+    }
     
     private var cameraNodeClasses: [any NodeProtocol.Type] = [
          PerspectiveCameraNode.self,
@@ -88,6 +90,11 @@ public class NodeRegistry {
         HDRTextureNode.self,
 //        BrightnessContrastImageNode.self,
 //        GaussianBlurImageNode.self,
+    ]
+
+    // Sub Patch Iterator, Replicate etc
+    private var macroNodeClasses:[any NodeProtocol.Type] = [
+        SubgraphNode.self,
     ]
     
     private var dynamicEffectNodes:[NodeClassWrapper] {

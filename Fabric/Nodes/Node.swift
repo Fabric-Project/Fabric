@@ -273,12 +273,9 @@ public extension NodeProtocol
     public func enableExecution(context:GraphExecutionContext) { }
     public func disableExecution(context:GraphExecutionContext) { }
     
-    func execute(context:GraphExecutionContext,
+    public func execute(context:GraphExecutionContext,
                          renderPassDescriptor: MTLRenderPassDescriptor,
-                         commandBuffer: MTLCommandBuffer)
-    {
-
-    }
+                         commandBuffer: MTLCommandBuffer) { }
     
     public func resize(size: (width: Float, height: Float), scaleFactor: Float)
     {

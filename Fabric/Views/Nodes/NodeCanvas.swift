@@ -19,25 +19,24 @@ public struct NodeCanvas : View
     @State private var initialOffsets: [UUID: CGSize] = [:]
     @State private var activeDragAnchor: UUID? = nil       // which node started the drag
 
-
+//    @Binding currentFraph
     
     public init() { }
     
     public var body: some View
     {
-        // Movable Canvas
         GeometryReader { geom in
-
+            
             ZStack
             {
                 // image size is 225
                 Image("background")
                     .resizable(resizingMode: .tile)// Need this pattern image repeated throughout the page
                     .offset(-geom.size / 2)
-
+                
                 
                 // Nodes
-//                let selectedNodes:[any NodeProtocol] = self.graph.nodes.filter( { $0.isSelected == true } )
+                //                let selectedNodes:[any NodeProtocol] = self.graph.nodes.filter( { $0.isSelected == true } )
                 
                 ForEach(self.graph.nodes, id: \.id) { currentNode in
                     
@@ -93,17 +92,17 @@ public struct NodeCanvas : View
                                         self.initialOffsets.removeAll()
                                     },
                                 
-                                     
-                                    TapGesture(count: 1)
-                                        .onEnded {
-                                            // Replace selection
-                                            graph.deselectAllNodes()
-                                            currentNode.isSelected.toggle()
-                                        }
+                                
+                                TapGesture(count: 1)
+                                    .onEnded {
+                                        // Replace selection
+                                        graph.deselectAllNodes()
+                                        currentNode.isSelected.toggle()
+                                    }
                                 
                             )
                         )
-                        
+                    
                 }
             }
             .offset(geom.size / 2)
@@ -111,9 +110,9 @@ public struct NodeCanvas : View
             .contentShape(Rectangle())
             .coordinateSpace(name: "graph")    // make sure all anchors share this space
             .overlayPreferenceValue(PortAnchorKey.self) { portAnchors in
-
+                
                 let ports = self.graph.nodes.flatMap(\.ports)
-                                
+                
                 ForEach( ports.filter({ $0.kind == .Outlet }), id: \.id) { port in
                     
                     let connectedPorts:[any NodePortProtocol] = port.connections.filter({ $0.kind == .Inlet })
@@ -125,7 +124,7 @@ public struct NodeCanvas : View
                         {
                             let start = geom[ sourceAnchor ]
                             let end = geom[ destAnchor ]
-
+                            
                             let path = self.calcPathUsing(port:port, start: start, end: end)
                             
                             path.stroke(port.backgroundColor , lineWidth: 2)
@@ -133,11 +132,11 @@ public struct NodeCanvas : View
                                     path.stroke(style: StrokeStyle(lineWidth: 5))
                                 )
                                 .onTapGesture(count: 2)
-                                {
-                                    connectedPort.disconnect(from:port)
-                                    port.disconnect(from:connectedPort)
-                                    self.graph.shouldUpdateConnections.toggle()
-                                }
+                            {
+                                connectedPort.disconnect(from:port)
+                                port.disconnect(from:connectedPort)
+                                self.graph.shouldUpdateConnections.toggle()
+                            }
                         }
                     }
                 }
@@ -153,9 +152,9 @@ public struct NodeCanvas : View
                 self.graph.deselectAllNodes()
             }
             .id(self.graph.shouldUpdateConnections)
-//            .opacity(self.activityMonitor.isActive ? 1.0 : 0.0)
-//                           .animation(.easeInOut(duration: 0.5), value: self.activityMonitor.isActive)
-
+            //            .opacity(self.activityMonitor.isActive ? 1.0 : 0.0)
+            //                           .animation(.easeInOut(duration: 0.5), value: self.activityMonitor.isActive)
+            
         } // Pan Canvas
     }
     

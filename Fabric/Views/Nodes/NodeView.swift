@@ -68,11 +68,20 @@ struct NodeView : View
                 
             }
             .frame(width: self.node.nodeSize.width, height: self.node.nodeSize.height)
-            .cornerRadius(15.0)
+            .cornerRadius(self.cornerRadius())
             .overlay {
-                RoundedRectangle(cornerRadius: 15.0)
+                RoundedRectangle(cornerRadius: self.cornerRadius())
                     .stroke( .gray, lineWidth: 1.0)
             }
+        }
+    }
+    
+    func cornerRadius() -> CGFloat {
+        switch self.node.nodeType {
+        case .Subgraph:
+            return 5.0
+        default:
+            return 15.0
         }
     }
 }
