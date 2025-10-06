@@ -23,6 +23,7 @@ A list of Nodes (planned and implemented) for Fabric.
 
 - [ ] Line
 - [x] Plane
+- [ ] Billboard
 - [x] Point Plane (Temp until #15 is fixed)
 - [x] Rounded Rect
 - [x] Triangle
@@ -182,6 +183,7 @@ A list of Nodes (planned and implemented) for Fabric.
 ### Morphology
 
 - [ ] Sharpen
+- [ ] Unsharpen
 - [x] Sobel
 - [ ] Dilate
 - [ ] Erode
@@ -190,6 +192,9 @@ A list of Nodes (planned and implemented) for Fabric.
 
 ### Info 
 - [ ] Image Dimensions
+- [ ] Image Crop
+- [ ] Image Resize (Linear / Bilinear / Lancos)
+- [ ] Image Pixel to Color (sample at XY -> XYZ)
 
 # Parameters
 
@@ -207,7 +212,8 @@ Have yet to work on Index (integer only) numeric nodes
 ### Number
 
 - [x] Number
-- [x] Current Time
+- [x] Current Time (AKA Patch Time)
+- [ ] System Time
 - [x] Integrator (accrues every frame for now)
 - [ ] Derivator
 - [x] Single Operator Math
@@ -220,7 +226,7 @@ Have yet to work on Index (integer only) numeric nodes
 - [ ] Counter
 - [ ] LFO
 - [ ] Smooth (Kalman or 1 Euro Filter?)
-- [ ] Math 
+- [ ] Math Expression
 - [ ] Audio Spectrum
 
 ### Vector
@@ -229,6 +235,10 @@ Have yet to work on Index (integer only) numeric nodes
 - [x] Make Vec 3
 - [x] Make Vec 4
 - [ ] Vector Ops (Cross / Dot / etc)
+
+### Color
+
+Have yet to work on Color nodes, ideally all color spaces / images are linear / aces linear internally, we'll see!
 
 ### Quaternion
 
@@ -244,12 +254,15 @@ Have yet to work on Matrix nodes, unclear if we def want these types?
 - [x] String Components
 - [x] String Length
 - [x] String Range
+- [ ] String Case
 - [ ] String Formatter
 - [ ] String Join
 - [ ] String Separator
 - [ ] String Compare
 - [ ] Date Formatter
 - [ ] Current Date
+- [ ] Directory Scanner
+- [ ] String to Timecode Format
 
 ### Array
 
@@ -261,7 +274,15 @@ Array nodes are implemented as Swift Generics, and can work with any of the abov
 - [ ] Multiplexer
 - [ ] Demultiplexer
 - [ ] Sort (? what does this mean for some types ?)
+- [ ] Reverse
+- [ ] Range / Slice
 
+### Signaling Nodes
+
+- [ ] Sample and Hold
+- [ ] Pulse
+- [ ] Signal
+- [ ] Timeline
 
 # Other Nodes
 
@@ -284,4 +305,13 @@ Array nodes are implemented as Swift Generics, and can work with any of the abov
 
 ###  Info Nodes
  - [ ] Rendering Destination Dimensions
+ - [ ] Units to Pixels
+ - [ ] Pixels to Units
+ - [ ] Mesh Hit Test
+ - [ ] Frame Rate
+ - [ ] Frame Counter
+ - [ ] Log
+
+ 
+ 
 
