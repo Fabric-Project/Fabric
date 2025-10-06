@@ -16,9 +16,16 @@ public struct NodeSelectionInspector: View {
 
     public var body: some View {
         
-        let selectedNodes = self.graph.nodes.filter( { $0.isSelected } )
+        let graph = self.graph.activeSubGraph ?? self.graph
+        
+        let selectedNodes = graph.nodes.filter( { $0.isSelected } )
         
         List {
+            
+            Section(header: Text("Published"))
+            {
+                ParameterGroupView(parameterGroup:graph.publishedParameterGroup)
+            }
             
             ForEach(selectedNodes, id: \.id) { node in
             

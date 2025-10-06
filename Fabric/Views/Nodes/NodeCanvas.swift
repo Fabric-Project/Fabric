@@ -34,11 +34,11 @@ public struct NodeCanvas : View
                     .resizable(resizingMode: .tile)// Need this pattern image repeated throughout the page
                     .offset(-geom.size / 2)
                 
-                
                 // Nodes
                 //                let selectedNodes:[any NodeProtocol] = self.graph.nodes.filter( { $0.isSelected == true } )
                 
-                ForEach(self.graph.nodes, id: \.id) { currentNode in
+                let graph = self.graph.activeSubGraph ?? self.graph
+                ForEach(graph.nodes, id: \.id) { currentNode in
                     
                     NodeView(node: currentNode , offset: currentNode.offset)
                         .offset( currentNode.offset )
@@ -64,22 +64,22 @@ public struct NodeCanvas : View
                                             // If the anchor isn't selected, select only it (or expand if you prefer)
                                             if !currentNode.isSelected
                                             {
-                                                self.graph.selectNode(node: currentNode, expandSelection: false)
+                                                graph.selectNode(node: currentNode, expandSelection: false)
                                             }
                                             
                                             // Snapshot current offsets for all selected nodes
-                                            self.initialOffsets = Dictionary(uniqueKeysWithValues:self.graph.nodes
+                                            self.initialOffsets = Dictionary(uniqueKeysWithValues:graph.nodes
                                                 .filter { $0.isSelected }
                                                 .map { ($0.id, $0.offset) }
                                             )
                                             
                                             // Mark dragging (optional)
-                                            self.graph.nodes.filter { $0.isSelected }.forEach { $0.isDragging = true }
+                                            graph.nodes.filter { $0.isSelected }.forEach { $0.isDragging = true }
                                         }
                                         
                                         let t = value.translation
                                         // Apply translation relative to snapshot
-                                        self.graph.nodes.filter { $0.isSelected }.forEach { n in
+                                        graph.nodes.filter { $0.isSelected }.forEach { n in
                                             if let base = initialOffsets[n.id] {
                                                 n.offset = base + t
                                             }
@@ -87,7 +87,7 @@ public struct NodeCanvas : View
                                     }
                                     .onEnded { _ in
                                         // End drag
-                                        self.graph.nodes.filter { $0.isSelected }.forEach { $0.isDragging = false }
+                                        graph.nodes.filter { $0.isSelected }.forEach { $0.isDragging = false }
                                         self.activeDragAnchor = nil
                                         self.initialOffsets.removeAll()
                                     },
@@ -101,6 +101,7 @@ public struct NodeCanvas : View
                                     }
                                 
                             )
+                            
                         )
                     
                 }
@@ -111,7 +112,9 @@ public struct NodeCanvas : View
             .coordinateSpace(name: "graph")    // make sure all anchors share this space
             .overlayPreferenceValue(PortAnchorKey.self) { portAnchors in
                 
-                let ports = self.graph.nodes.flatMap(\.ports)
+                let graph = self.graph.activeSubGraph ?? self.graph
+
+                let ports = graph.nodes.flatMap(\.ports)
                 
                 ForEach( ports.filter({ $0.kind == .Outlet }), id: \.id) { port in
                     
@@ -135,7 +138,7 @@ public struct NodeCanvas : View
                             {
                                 connectedPort.disconnect(from:port)
                                 port.disconnect(from:connectedPort)
-                                self.graph.shouldUpdateConnections.toggle()
+                                graph.shouldUpdateConnections.toggle()
                             }
                         }
                     }
@@ -145,15 +148,21 @@ public struct NodeCanvas : View
             .focusEffectDisabled()
             .onDeleteCommand {
                 
-                let selectedNodes = self.graph.nodes.filter({ $0.isSelected })
-                selectedNodes.forEach( { self.graph.delete(node: $0) } )
+                let graph = self.graph.activeSubGraph ?? self.graph
+
+                let selectedNodes = graph.nodes.filter({ $0.isSelected })
+                selectedNodes.forEach( { graph.delete(node: $0) } )
             }
             .onTapGesture {
-                self.graph.deselectAllNodes()
+                let graph = self.graph.activeSubGraph ?? self.graph
+
+                graph.deselectAllNodes()
             }
-            .id(self.graph.shouldUpdateConnections)
-            //            .opacity(self.activityMonitor.isActive ? 1.0 : 0.0)
-            //                           .animation(.easeInOut(duration: 0.5), value: self.activityMonitor.isActive)
+            
+            .id(self.graph.activeSubGraph?.shouldUpdateConnections ?? self.graph.shouldUpdateConnections)
+            // For hiding the nodes after a timeout - used if rendering nodes above content?
+//            .opacity(self.activityMonitor.isActive ? 1.0 : 0.0)
+//                           .animation(.easeInOut(duration: 0.5), value: self.activityMonitor.isActive)
             
         } // Pan Canvas
     }

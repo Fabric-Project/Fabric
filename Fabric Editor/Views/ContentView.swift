@@ -31,37 +31,68 @@ struct ContentView: View {
 
         } detail: {
                     
-                    ZStack
-                    {
-//                        SatinMetalView(renderer: document.graphRenderer)
-
-                        GeometryReader { geom in
-                            RadialGradient(colors: [.clear, .black.opacity(0.75)], center: .center, startRadius: 0, endRadius: geom.size.width * 1.5)
-                                .allowsHitTesting(false)
-                        }
-
-                        ScrollView([.horizontal, .vertical])
-                        {
-                            NodeCanvas()
-                                .frame(width: 10000 , height: 10000)
-                                .environment(self.document.graph)
-                                                        .allowsHitTesting(self.hitTestEnable)
-                            
-                        }
-                        .defaultScrollAnchor(UnitPoint(x: 0.5, y: 0.5))
-                        .onScrollGeometryChange(for: CGPoint.self) { geometry in
-                            let center = CGPoint(x: geometry.contentSize.width / 2,
-                                                 y: geometry.contentSize.height / 2)
-                            let offset = (geometry.contentOffset - center) + (geometry.containerSize / 2)
-                            return offset
-                            
-                        } action: { oldScrollOffset, newScrollOffset in
-                            self.scrollOffset =  newScrollOffset
-                        }
-                        .onScrollPhaseChange { oldPhase, newPhase in
-                            self.hitTestEnable = !newPhase.isScrolling
-                        }
+            // Movable Canvas
+            VStack(alignment: .leading, spacing:0)
+            {
+                Divider()
+                
+                Spacer()
+                
+                HStack(spacing:5)
+                {
+                    Text("Root Patch")
+                        .font(.headline)
+                        .onTapGesture { self.document.graph.activeSubGraph = nil }
                     
+                    if let subgraph =  self.document.graph.activeSubGraph
+                    {
+                        Text(">")
+                            .font(.headline)
+                        
+                        Text("Todo: Graphs Need Names")
+                            .font(.headline)
+                    }
+
+                }
+                .padding(.horizontal)
+
+                Spacer()
+                
+                Divider()
+                
+                ZStack
+                {
+                    // Render behind nodes ?
+                    // SatinMetalView(renderer: document.graphRenderer)
+                    
+                    GeometryReader { geom in
+                        RadialGradient(colors: [.clear, .black.opacity(0.75)], center: .center, startRadius: 0, endRadius: geom.size.width * 1.5)
+                            .allowsHitTesting(false)
+                    }
+                    
+                    ScrollView([.horizontal, .vertical])
+                    {
+                        NodeCanvas()
+                            .frame(width: 10000 , height: 10000)
+                            .environment(self.document.graph)
+                            .allowsHitTesting(self.hitTestEnable)
+                        
+                    }
+                    .defaultScrollAnchor(UnitPoint(x: 0.5, y: 0.5))
+                    .onScrollGeometryChange(for: CGPoint.self) { geometry in
+                        let center = CGPoint(x: geometry.contentSize.width / 2,
+                                             y: geometry.contentSize.height / 2)
+                        let offset = (geometry.contentOffset - center) + (geometry.containerSize / 2)
+                        return offset
+                        
+                    } action: { oldScrollOffset, newScrollOffset in
+                        self.scrollOffset =  newScrollOffset
+                    }
+                    .onScrollPhaseChange { oldPhase, newPhase in
+                        self.hitTestEnable = !newPhase.isScrolling
+                    }
+                    
+                }
             }
             
             .inspector(isPresented: self.$inspectorVisibility)

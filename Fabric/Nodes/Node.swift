@@ -37,13 +37,17 @@ public protocol NodeProtocol : AnyObject, Codable, Identifiable
     func markClean()
     var isDirty:Bool { get }
 
+    // For the Graph
     func publishedPorts() -> [any NodePortProtocol]
-    
+    // For the UI
+    func publishedParameterPorts() -> [any NodePortProtocol]
+
     func inputNodes() -> [any NodeProtocol]
     func outputNodes() -> [any NodeProtocol]
     
     var offset: CGSize { get set }
     var nodeSize: CGSize { get }
+    
     
     var isSelected:Bool { get set}
     var isDragging:Bool { get set }
@@ -92,7 +96,8 @@ public extension NodeProtocol
     @ObservationIgnored public let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
                                                         
     @ObservationIgnored private var inputParameterPorts:[any NodePortProtocol] = []
-    @ObservationIgnored public var ports:[any NodePortProtocol] { self.inputParameterPorts  }
+    
+    public var ports:[any NodePortProtocol] { self.inputParameterPorts  }
 
     @ObservationIgnored var context:Context
             
@@ -110,7 +115,7 @@ public extension NodeProtocol
         return  myType.name
     }
     
-    public var nodeSize:CGSize = CGSizeMake(150, 100)
+    public var nodeSize:CGSize { self.computeNodeSize() } //CGSizeMake(150, 100)
 
     public var offset: CGSize = .zero
 //    {
@@ -171,12 +176,12 @@ public extension NodeProtocol
             self.inputParamCancellables.append(cancellable)
         }
         
-        for var port in self.ports
+        for port in self.ports
         {
             port.node = self as? (any NodeProtocol)
         }
         
-        self.nodeSize = self.computeNodeSize()
+//        self.nodeSize = self.computeNodeSize()
     }
 
     func encode(to encoder:Encoder) throws
@@ -208,7 +213,7 @@ public extension NodeProtocol
             port.node = self as? (any NodeProtocol)
         }
         
-        self.nodeSize = self.computeNodeSize()
+//        self.nodeSize = self.computeNodeSize()
     }
     
     deinit
@@ -240,6 +245,11 @@ public extension NodeProtocol
     public func publishedPorts() -> [any NodePortProtocol]
     {
         return self.ports.filter( { $0.published } )
+    }
+    
+    public func publishedParameterPorts() -> [any NodePortProtocol]
+    {
+        return self.inputParameterPorts.filter( { $0.published } )
     }
     
     public func markClean()
@@ -279,7 +289,7 @@ public extension NodeProtocol
         
     }
    
-    private func computeNodeSize() -> CGSize
+    func computeNodeSize() -> CGSize
     {
         let horizontalInputsCount = self.ports.filter { $0.direction == .Horizontal && $0.kind != .Inlet  }.count
         let horizontalOutputsCount = self.ports.filter { $0.direction == .Horizontal && $0.kind != .Outlet  }.count

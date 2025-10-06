@@ -15,9 +15,11 @@ public class SubgraphNode: Node, NodeProtocol
     public static let name = "Sub Graph"
     public static var nodeType = Node.NodeType.Subgraph
 
-    private let graphRenderer:GraphRenderer
-    private let graph:Graph
-
+    let graphRenderer:GraphRenderer
+    let graph:Graph
+    
+    override public var ports: [any NodePortProtocol] { self.graph.publishedPorts() }
+    
     public required init(context: Context)
     {
         self.graph = Graph(context: context)

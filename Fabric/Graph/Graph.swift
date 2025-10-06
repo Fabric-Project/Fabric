@@ -35,6 +35,11 @@ internal import AnyCodable
     
     @ObservationIgnored weak var lastNode:(any NodeProtocol)? = nil
     
+    public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
+    
+    // For Macro support
+    public weak var activeSubGraph:Graph? = nil
+    
     enum CodingKeys : String, CodingKey
     {
         case id
@@ -185,10 +190,7 @@ internal import AnyCodable
         }
         
         try container.encode(allPortConnections, forKey: .portConnectionMap)
-        
     }
-    //
-    //
     
     public func addNode(_ node: NodeClassWrapper, initialOffset:CGPoint? ) throws
     {
@@ -221,7 +223,14 @@ internal import AnyCodable
     {
         print("Add Node", node.name)
         
-        self.nodes.append(node)
+        if let activeSubGraph
+        {
+            activeSubGraph.nodes.append(node)
+        }
+        else
+        {
+            self.nodes.append(node)
+        }
         
         //        self.autoConnect(node: node)
     }
@@ -229,19 +238,65 @@ internal import AnyCodable
     func delete(node:(any NodeProtocol))
     {
         node.ports.forEach { $0.disconnectAll() }
-        self.nodes.removeAll { $0.id == node.id }
+        
+        if let activeSubGraph
+        {
+            activeSubGraph.nodes.removeAll { $0.id == node.id }
+
+        }
+        else
+        {
+            self.nodes.removeAll { $0.id == node.id }
+        }
     }
     
     public func node(forID:UUID) -> (any NodeProtocol)?
     {
-        return self.nodes.first(where: { $0.id == forID })
+        if let activeSubGraph
+        {
+            return activeSubGraph.nodes.first(where: { $0.id == forID })
+        }
+        else
+        {
+            return self.nodes.first(where: { $0.id == forID })
+        }
     }
     
     public func nodePort(forID:UUID) -> (any NodePortProtocol)?
     {
-        let allPorts = self.nodes.flatMap(\.ports)
+        if let activeSubGraph
+        {
+            let allPorts = activeSubGraph.nodes.flatMap(\.ports)
+            return allPorts.first(where: { $0.id == forID })
+        }
+        else
+        {
+            let allPorts = self.nodes.flatMap(\.ports)
+            return allPorts.first(where: { $0.id == forID })
+        }
+    }
+    
+    public func rebuildPublishedParameterGroup()
+    {
+        self.publishedParameterGroup.clear()
         
-        return allPorts.first(where: { $0.id == forID })
+        self.publishedParameterGroup.append( self.publishedParameters() )
+    }
+    
+    // This could be more nicely done.
+    public func publishedParameters() -> [any Parameter]
+    {
+        // id's of ports match id's of params for convenience
+        let publishedPortIds = self.nodes.flatMap( { $0.publishedParameterPorts().map { $0.id } } )
+        
+        // expose only params that are published
+        return self.nodes.flatMap( { $0.parameterGroup.params } ).filter { publishedPortIds.contains($0.id) }
+    }
+    
+    // This could be more nicely done.
+    public func publishedPorts() -> [any NodePortProtocol]
+    {
+        return  self.nodes.flatMap( { $0.publishedPorts() } )
     }
     
     // MARK: -Selection

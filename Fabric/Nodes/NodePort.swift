@@ -38,7 +38,7 @@ public struct PortAnchorKey: PreferenceKey
     }
 }
 
-public protocol NodePortProtocol : Identifiable, Hashable, Equatable, Codable
+public protocol NodePortProtocol : Identifiable, Hashable, Equatable, Codable, AnyObject
 {
     var id: UUID { get }
     var name: String { get }
@@ -64,11 +64,13 @@ public protocol NodePortProtocol : Identifiable, Hashable, Equatable, Codable
 
 public protocol ParameterPortProtocol : NodePortProtocol
 {
+    associatedtype ParamValue : Codable & Equatable & Hashable
+    var parameter:GenericParameter<ParamValue> { get }
 }
     
 public class ParameterPort<ParamValue : Codable & Equatable & Hashable> : NodePort<ParamValue>, ParameterPortProtocol
 {
-    private let parameter: GenericParameter<ParamValue>
+    public let parameter: GenericParameter<ParamValue>
     
     public init(parameter: GenericParameter<ParamValue>)
     {
@@ -126,12 +128,14 @@ public class NodePort<Value : Equatable>: NodePortProtocol
 {
     public static func == (lhs: NodePort, rhs: NodePort) -> Bool
     {
-        return lhs.id == rhs.id
+        return lhs.hashValue == rhs.hashValue
     }
     
     public func hash(into hasher: inout Hasher)
     {
         hasher.combine(id)
+        hasher.combine(published)
+        hasher.combine(name)
     }
         
     public let id:UUID
@@ -199,7 +203,7 @@ public class NodePort<Value : Equatable>: NodePortProtocol
         case connections
         case kind
         case direction
-//        case published
+        case published
     }
 
     required public  init(from decoder: any Decoder) throws
@@ -219,7 +223,7 @@ public class NodePort<Value : Equatable>: NodePortProtocol
         self.id = try container.decode(UUID.self, forKey: .id)
         self.name = try container.decode(String.self, forKey: .name)
         self.kind = try container.decode(PortKind.self, forKey: .kind)
-//        self.published = try container.decode(Bool.self, forKey: .published)
+        self.published = try container.decodeIfPresent(Bool.self, forKey: .published) ?? false
 
         self.color = Self.calcColor(forType: Value.self)
         self.backgroundColor = Self.calcBackgroundColor(forType: Value.self)
@@ -233,7 +237,7 @@ public class NodePort<Value : Equatable>: NodePortProtocol
         try container.encode(id, forKey: .id)
         try container.encode(name, forKey: .name)
         try container.encode(kind, forKey: .kind)
-//        try container.encode(published, forKey: .published)
+        try container.encode(published, forKey: .published)
 
         let connectedPortIds = self.connections.map( { $0.id } )
         
@@ -318,8 +322,12 @@ public class NodePort<Value : Equatable>: NodePortProtocol
             self.connections.append(other)
         }
         
-        // We can't be published if we have a connection... 
-        self.published = false
+        // We can't be published if we have an input connection...
+        // Output Ports can be published if connected.
+        if self.kind == .Inlet
+        {
+            self.published = false
+        }
         
         self.node?.markDirty()
         other.node?.markDirty()
