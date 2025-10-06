@@ -58,28 +58,31 @@ public struct NodeRegisitryView: View {
             {
                 ForEach(selection.nodeTypes(), id: \.self) { nodeType in
                     
-                    Section(header: Text("\(nodeType)")) {
-                        
-                        let availableNodes:[NodeClassWrapper] = NodeRegistry.shared.availableNodes
-                        let nodesForType:[NodeClassWrapper] = availableNodes.filter( { $0.nodeType == nodeType })
-                        let filteredNodes:[NodeClassWrapper] = self.searchString.isEmpty ? nodesForType :
-                        nodesForType.filter {  $0.nodeName.localizedCaseInsensitiveContains(self.searchString) }
-                        
-                        ForEach( 0 ..< filteredNodes.count, id:\.self ) { idx in
+                    let availableNodes:[NodeClassWrapper] = NodeRegistry.shared.availableNodes
+                    let nodesForType:[NodeClassWrapper] = availableNodes.filter( { $0.nodeType == nodeType })
+                    let filteredNodes:[NodeClassWrapper] = self.searchString.isEmpty ? nodesForType :
+                    nodesForType.filter {  $0.nodeName.localizedCaseInsensitiveContains(self.searchString) }
+                    
+                    if !filteredNodes.isEmpty
+                    {
+                        Section(header: Text("\(nodeType)")) {
                             
-                            let node = filteredNodes[idx]
-                            
-                            Text(node.nodeName)
-                                .font( .system(size: 11) )
-                                .onTapGesture {
-                                    do {
-                                        try self.graph.addNode(node, initialOffset:self.scrollOffset)
+                            ForEach( 0 ..< filteredNodes.count, id:\.self ) { idx in
+                                
+                                let node = filteredNodes[idx]
+                                
+                                Text(node.nodeName)
+                                    .font( .system(size: 11) )
+                                    .onTapGesture {
+                                        do {
+                                            try self.graph.addNode(node, initialOffset:self.scrollOffset)
+                                        }
+                                        catch
+                                        {
+                                            
+                                        }
                                     }
-                                    catch
-                                    {
-                                        
-                                    }
-                                }
+                            }
                         }
                     }
                 }
