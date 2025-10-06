@@ -15,11 +15,8 @@ public enum PortKind : String, Codable
     case Outlet
 }
 
-// This is subtle, and for the UI
-// for reference types, (ie Camera, Mesh, Material etc) we draw top / bottom
-// for value types (ie float, simd_float2, bool etc) we draw left / right
-// this allows for control params to go horizontal while scene content go vertical
 
+// TODO: This should maybe be removed?
 public enum PortDirection : String, Codable
 {
     case Vertical

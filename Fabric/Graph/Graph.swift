@@ -78,8 +78,8 @@ internal import AnyCodable
                 
                 let anyCodableMap = try nestedContainer.decode(AnyCodableMap.self)
                 
-                print(anyCodableMap.type)
-                print(anyCodableMap.value)
+//                print(anyCodableMap.type)
+//                print(anyCodableMap.value)
                 
                 if let nodeClass = NodeRegistry.shared.nodeClass(for: anyCodableMap.type)
                 {
