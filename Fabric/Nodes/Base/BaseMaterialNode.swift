@@ -23,11 +23,13 @@ public class BaseMaterialNode : Node, NodeProtocol
     // Params
     public let inputReceivesLighting:BoolParameter
     public let inputWriteDepth:BoolParameter
+    public let inputDepthTest:BoolParameter
     public let inputBlending:StringParameter
 
     public override var inputParameters: [any Parameter] {
         [self.inputReceivesLighting,
          self.inputWriteDepth,
+         self.inputDepthTest,
          self.inputBlending,
     ] + super.inputParameters}
     
@@ -42,6 +44,7 @@ public class BaseMaterialNode : Node, NodeProtocol
         
         self.inputReceivesLighting = BoolParameter("Receives Lighting", true, .button)
         self.inputWriteDepth = BoolParameter("Write Depth", true, .button)
+        self.inputDepthTest = BoolParameter("Depth Test", true, .button)
         self.inputBlending = StringParameter("Blending Mode", "Disabled", ["Disabled", "Alpha", "Additive", "Subtractive"], .dropdown)
 
         self.outputMaterial = NodePort<Material>(name: "Material", kind: .Outlet)
@@ -53,6 +56,7 @@ public class BaseMaterialNode : Node, NodeProtocol
     {
         case inputReceivesLightingParam
         case inputWriteDepthParam
+        case inputDepthTestParam
         case inputBlendingParam
         case outputMaterialPort
     }
@@ -63,6 +67,7 @@ public class BaseMaterialNode : Node, NodeProtocol
         
         try container.encode(self.inputReceivesLighting, forKey: .inputReceivesLightingParam)
         try container.encode(self.inputWriteDepth, forKey: .inputWriteDepthParam)
+        try container.encode(self.inputDepthTest, forKey: .inputDepthTestParam)
         try container.encode(self.inputBlending, forKey: .inputBlendingParam)
         try container.encode(self.outputMaterial, forKey: .outputMaterialPort)
 
@@ -75,6 +80,14 @@ public class BaseMaterialNode : Node, NodeProtocol
 
         self.inputReceivesLighting = try container.decode(BoolParameter.self, forKey: .inputReceivesLightingParam)
         self.inputWriteDepth = try container.decode(BoolParameter.self, forKey: .inputWriteDepthParam)
+        if let depthTest = try container.decodeIfPresent(BoolParameter.self, forKey: .inputDepthTestParam)
+        {
+            self.inputDepthTest = depthTest
+        }
+        else
+        {
+            self.inputDepthTest = BoolParameter("Depth Test", true, .button)
+        }
         
         self.inputBlending = try container.decode(StringParameter.self, forKey: .inputBlendingParam)
         
@@ -107,9 +120,9 @@ public class BaseMaterialNode : Node, NodeProtocol
             shouldOutput = true
         }
         
-        if self.inputWriteDepth.valueDidChange
+        if self.inputDepthTest.valueDidChange
         {
-            material.depthCompareFunction = (self.inputWriteDepth.value) ? .greaterEqual : .always
+            material.depthCompareFunction = (self.inputDepthTest.value) ? .greaterEqual : .always
             shouldOutput = true
         }
         
