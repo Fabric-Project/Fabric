@@ -45,30 +45,49 @@ class FabricDocument: FileDocument
         self.graphRenderer = GraphRenderer(context: self.context, graph: self.graph)
 
         let boxNode = BoxGeometryNode(context: self.context)
-//        let materialNode = BasicColorMaterialNode(context: self.context)
+        boxNode.offset = CGSize(width: -400, height:0)
+
         let materialNode = StandardMaterialNode(context: self.context)
+        materialNode.offset = CGSize(width: -400, height: 200)
 
         let meshNode = MeshNode(context: self.context)
+        meshNode.offset = CGSize(width: -200, height: 100)
+
+        
         let cameraNode = PerspectiveCameraNode(context: self.context)
+        cameraNode.offset = CGSize(width: 200 , height: 50)
 
         let renderNode = RenderNode(context: self.context)
+        renderNode.offset = CGSize(width: 400, height: 0)
         
-        materialNode.outputMaterial.connect(to: meshNode.inputMaterial)
-        boxNode.outputGeometry.connect(to: meshNode.inputGeometry)
+        
 
-        meshNode.outputMesh.connect(to: renderNode.inputScene)
+        let sceneNode = SceneBuilderNode(context: self.context)
+        
+        let directionalLightNode = DirectionalLightNode(context: self.context)
+        directionalLightNode.inputPosition.value = SIMD3<Float>(1, 2, 5)
+        directionalLightNode.offset = CGSize(width: -200, height: -200)
+
+        boxNode.outputGeometry.connect(to: meshNode.inputGeometry)
+        materialNode.outputMaterial.connect(to: meshNode.inputMaterial)
+
+        directionalLightNode.outputLight.connect(to: sceneNode.inputObject1)
+        meshNode.outputMesh.connect(to: sceneNode.inputObject2)
+        
+        sceneNode.outputScene.connect(to: renderNode.inputScene)
         cameraNode.outputCamera.connect(to: renderNode.inputCamera)
 
         self.graph.addNode(boxNode)
         self.graph.addNode(materialNode)
         self.graph.addNode(meshNode)
+        self.graph.addNode(sceneNode)
+        self.graph.addNode(directionalLightNode)
         self.graph.addNode(cameraNode)
         self.graph.addNode(renderNode)
         
         DispatchQueue.main.async { [weak self] in //asyncAfter(deadline: .now() + 0.1) { [weak self] in
             
             guard let self = self else { return }
-            
             
             print("Init Setting up window for graph: \(self.graph.id)")
             self.setupWindow(named: "Untitled Document")
@@ -80,7 +99,7 @@ class FabricDocument: FileDocument
         print("Read Configuration Document Init")
 
         guard let data = configuration.file.regularFileContents,
-              let name = configuration.file.preferredFilename
+              let name = configuration.file.filename
         else
         {
             throw CocoaError(.fileReadCorruptFile)
@@ -100,7 +119,6 @@ class FabricDocument: FileDocument
             guard let self = self else { return }
             
             print("Init config Setting up window for graph: \(self.graph.id)")
-            self.outputRenderer = WindowOutputRenderer2(context: self.context, graphRenderer: self.graphRenderer)
 
             self.setupWindow(named: name)
         }
@@ -136,11 +154,7 @@ class FabricDocument: FileDocument
         self.outputwindow?.isReleasedWhenClosed = true
         
         self.outputRenderer = WindowOutputRenderer2(context: self.context, graphRenderer: self.graphRenderer)
-
         self.outputRenderer?.frame = CGRect(x: 0, y: 0, width: 600, height: 600)
-        
-
-
             
         self.outputwindow!.contentView = self.outputRenderer
         self.outputwindow!.makeKeyAndOrderFront(nil)
