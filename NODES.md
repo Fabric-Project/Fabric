@@ -212,7 +212,8 @@ Have yet to work on Index (integer only) numeric nodes
 ### Number
 
 - [x] Number
-- [x] Current Time
+- [x] Current Time (AKA Patch Time)
+- [ ] System Time
 - [x] Integrator (accrues every frame for now)
 - [ ] Derivator
 - [x] Single Operator Math
