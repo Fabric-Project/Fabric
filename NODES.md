@@ -253,6 +253,7 @@ Have yet to work on Matrix nodes, unclear if we def want these types?
 - [x] String Components
 - [x] String Length
 - [x] String Range
+- [ ] String Case
 - [ ] String Formatter
 - [ ] String Join
 - [ ] String Separator
@@ -260,6 +261,7 @@ Have yet to work on Matrix nodes, unclear if we def want these types?
 - [ ] Date Formatter
 - [ ] Current Date
 - [ ] Directory Scanner
+- [ ] String to Timecode Format
 
 ### Array
 
@@ -279,6 +281,7 @@ Array nodes are implemented as Swift Generics, and can work with any of the abov
 - [ ] Sample and Hold
 - [ ] Pulse
 - [ ] Signal
+- [ ] Timeline
 
 # Other Nodes
 
@@ -301,6 +304,8 @@ Array nodes are implemented as Swift Generics, and can work with any of the abov
 
 ###  Info Nodes
  - [ ] Rendering Destination Dimensions
+ - [ ] Units to Pixels
+ - [ ] Pixels to Units
  - [ ] Mesh Hit Test
  - [ ] Frame Rate
  - [ ] Frame Counter
