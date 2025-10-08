@@ -106,9 +106,11 @@ public class NodeRegistry {
         {
             let subDir = "Effects/\(imageEffectType.rawValue)"
             let subDir2 = "EffectsTwoChannel/\(imageEffectType.rawValue)"
-
+            let subDir3 = "EffectsThreeChannel/\(imageEffectType.rawValue)"
+            
             if let singleChannelEffects = bundle.urls(forResourcesWithExtension: "metal", subdirectory:subDir),
-               let twoChannelEffects = bundle.urls(forResourcesWithExtension: "metal", subdirectory:subDir2)
+               let twoChannelEffects = bundle.urls(forResourcesWithExtension: "metal", subdirectory:subDir2),
+               let threeChannelEffects = bundle.urls(forResourcesWithExtension: "metal", subdirectory:subDir3)
             {
                 for fileURL in singleChannelEffects
                 {
@@ -122,6 +124,15 @@ public class NodeRegistry {
                 for fileURL in twoChannelEffects
                 {
                     let node = NodeClassWrapper(nodeClass: BaseEffectTwoChannelNode.self,
+                                                nodeType: .Image(imageType: imageEffectType),
+                                                fileURL: fileURL,
+                                                nodeName:self.fileURLToName(fileURL: fileURL))
+                    nodes.append( node )
+                }
+
+                for fileURL in threeChannelEffects
+                {
+                    let node = NodeClassWrapper(nodeClass: BaseEffectThreeChannelNode.self,
                                                 nodeType: .Image(imageType: imageEffectType),
                                                 fileURL: fileURL,
                                                 nodeName:self.fileURLToName(fileURL: fileURL))
