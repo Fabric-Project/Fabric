@@ -95,6 +95,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Effects,
+				EffectsThreeChannel,
 				EffectsTwoChannel,
 				Extensions/CGAffineTransform.swift,
 				Extensions/CGPoint.swift,
@@ -112,6 +113,7 @@
 				Graph/TimeStampedFrameCache.swift,
 				Materials,
 				Nodes/Base/BaseEffectNode.swift,
+				Nodes/Base/BaseEffectThreeChannelNode.swift,
 				Nodes/Base/BaseEffectTwoChannelNode.swift,
 				Nodes/Base/BaseGeometryNode.swift,
 				Nodes/Base/BaseMaterialNode.swift,
@@ -228,6 +230,7 @@
 			);
 			explicitFolders = (
 				Effects,
+				EffectsThreeChannel,
 				EffectsTwoChannel,
 				Materials,
 			);

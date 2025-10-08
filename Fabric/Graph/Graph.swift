@@ -105,6 +105,19 @@ internal import AnyCodable
                     self.nodes.append(node)
 
                 }
+                // This is stupid? Yes, BaseEffectNode should be designed to cover the cases... but this works, today.
+                else if anyCodableMap.type == String(describing: type(of: BaseEffectThreeChannelNode.self)).replacingOccurrences(of: ".Type", with:"")
+                {
+                    let encoder = JSONEncoder()
+                    let jsonData = try encoder.encode(anyCodableMap.value)
+                    
+                    let decoder = JSONDecoder()
+                    decoder.context = decodeContext
+                    
+                    let node = try decoder.decode(BaseEffectThreeChannelNode.self, from: jsonData)
+
+                    self.nodes.append(node)
+                }
                 // This is stupid?
                 else if anyCodableMap.type == String(describing: type(of: BaseEffectTwoChannelNode.self)).replacingOccurrences(of: ".Type", with:"")
                 {
