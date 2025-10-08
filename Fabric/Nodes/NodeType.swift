@@ -78,6 +78,7 @@ extension Node
             case Lens
             case Composite
             case Mix
+            case Mixers
             case Mask
             case Tile
             case Blur
