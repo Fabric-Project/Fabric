@@ -24,7 +24,7 @@ extension Node
             switch self
             {
             case .All: return Node.NodeType.allCases
-            case .SceneGraph: return Node.NodeType.ObjectType.nodeTypes()
+            case .SceneGraph: return Node.NodeType.ObjectType.nodeTypes() + [.Subgraph]
             case .Mesh: return [.Geometery, .Material]
             case .Image: return Node.NodeType.ImageType.nodeTypes() + [.Shader]
             case .Parameter: return Node.NodeType.ParameterType.nodeTypes()

@@ -10,35 +10,39 @@ import Satin
 import simd
 import Metal
 
-public class SubgraphNode: Node, NodeProtocol
+public class IteratorNode: SubgraphNode
 {
-    public static let name = "Sub Graph"
-    public static var nodeType = Node.NodeType.Subgraph
-
-    let graphRenderer:GraphRenderer
-    let graph:Graph
+    public override class var name:String { "Iterator" }
     
-    override public var ports: [any NodePortProtocol] { self.graph.publishedPorts() }
+    // Parameters:
+    public let inputIteratonCount:IntParameter
+    
+    public override var inputParameters: [any Parameter] {
+        [inputIteratonCount]
+        + super.inputParameters }
+
+
+    // Ensure we always render!
+    public override var isDirty:Bool { get {  true  } set { } }
+
     
     public required init(context: Context)
     {
-        self.graph = Graph(context: context)
-        self.graphRenderer = GraphRenderer(context: context, graph: self.graph)
-        
+        self.inputIteratonCount = IntParameter("Iterations", 0, 1000, 2, .inputfield)
         super.init(context: context)
+
     }
     
     enum CodingKeys : String, CodingKey
     {
-        case subGraph
+        case inputIteratonCount
     }
     
     public override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
-        try container.encode(self.graph, forKey: .subGraph)
-        
+        try container.encode(self.inputIteratonCount, forKey: .inputIteratonCount)
         try super.encode(to: encoder)
     }
     
@@ -46,16 +50,10 @@ public class SubgraphNode: Node, NodeProtocol
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
-        guard let decodeContext = decoder.context else
-        {
-            fatalError("Required Decode Context Not set")
-        }
-
-        self.graph = try container.decode(Graph.self, forKey: .subGraph)
-        
-        self.graphRenderer = GraphRenderer(context: decodeContext.documentContext, graph: self.graph)
+        self.inputIteratonCount = try container.decode(IntParameter.self , forKey:.inputIteratonCount)
 
         try super.init(from: decoder)
+        
     }
     
     override public func startExecution(context:GraphExecutionContext)
@@ -82,11 +80,21 @@ public class SubgraphNode: Node, NodeProtocol
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: any MTLCommandBuffer)
     {
-        
-        self.graphRenderer.execute(graph: self.graph,
-                                   executionContext: context,
-                                   renderPassDescriptor: renderPassDescriptor,
-                                   commandBuffer: commandBuffer)
+       
+        for iteration in 0 ..< self.inputIteratonCount.value
+        {
+            let iterationInfo = GraphIterationInfo(iteratorNodeID: self.id,
+                                                   totalIterationCount: self.inputIteratonCount.value, currentIteration: iteration)
+            
+            context.iterationInfo = iterationInfo
+            
+            self.graphRenderer.execute(graph: self.graph,
+                                       executionContext: context,
+                                       renderPassDescriptor: renderPassDescriptor,
+                                       commandBuffer: commandBuffer)
+            
+            context.iterationInfo = nil
+        }
     }
     
 }

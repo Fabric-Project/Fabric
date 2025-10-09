@@ -120,11 +120,11 @@ public class DeferredRenderNode : Node, NodeProtocol
             }
            
             self.renderer.clearColor = .init( self.inputClearColor.value )
-                        
-            renderer.draw(renderPassDescriptor: rpd1,
-                          commandBuffer: commandBuffer,
-                          scene: object,
-                          camera: camera)
+            
+            self.renderer.draw(renderPassDescriptor: rpd1,
+                               commandBuffer: commandBuffer,
+                               scene: object,
+                               camera: camera)
             
             if let texture = renderer.colorTexture
             {

@@ -14,10 +14,12 @@ public class GraphRenderer : MetalViewRenderer
 {
     private var lastGraphExecutionTime = Date.timeIntervalSinceReferenceDate
     private var executionCount = 0
-    public var context:Context!
     
+    public var context:Context!
     public let graph:Graph
-    private let renderer:Renderer
+    public let renderer:Renderer
+    
+    // This is fucking horrible:
     private let sceneProxy = Object() // ?  IBLScene()
     
     override public var sampleCount: Int { self.context.sampleCount }
@@ -91,6 +93,9 @@ public class GraphRenderer : MetalViewRenderer
            !sceneObjectNodes.isEmpty
         {
             
+            let sceneObjects = sceneObjectNodes.filter( { $0.id != firstCameraNode.id } ).compactMap( { $0.object } )
+
+            
             for renderNode in sceneObjectNodes + subgraphNodes
             {
                 let _ = processGraph(graph:graph,
@@ -101,7 +106,6 @@ public class GraphRenderer : MetalViewRenderer
                                      nodesWeHaveExecutedThisPass:&nodesWeHaveExecutedThisPass)
             }
             
-            let sceneObjects = sceneObjectNodes.filter( { $0.id != firstCameraNode.id } ).compactMap( { $0.object } )
 
             // This is fucking horrible:
             sceneProxy.removeAll()

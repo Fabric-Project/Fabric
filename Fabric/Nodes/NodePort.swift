@@ -354,7 +354,7 @@ public class NodePort<Value : Equatable>: NodePortProtocol
     {
         if other.value != v || force
         {
-            print("Sending value: \(self.debugDescription) - \(String(describing: v))")
+//            print("Sending value: \(self.debugDescription) - \(String(describing: v))")
             other.value = v
         }
     }

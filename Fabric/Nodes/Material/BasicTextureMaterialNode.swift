@@ -31,7 +31,7 @@ public class BasicTextureMaterialNode : BasicColorMaterialNode
         
         super.init(context: context)
         
-        self.material.flipped = true
+//        self.material.flipped = true
     }
     
     enum CodingKeys : String, CodingKey

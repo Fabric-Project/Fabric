@@ -95,6 +95,7 @@ public class NodeRegistry {
     // Sub Patch Iterator, Replicate etc
     private var macroNodeClasses:[any NodeProtocol.Type] = [
         SubgraphNode.self,
+        DeferredSubgraphNode.self,
     ]
     
     private var dynamicEffectNodes:[NodeClassWrapper] {

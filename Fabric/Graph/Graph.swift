@@ -31,6 +31,12 @@ internal import AnyCodable
     
     private(set) var nodes: [any NodeProtocol]
     
+    var needsExecution:Bool {
+        self.nodes.reduce(false) { (result, node) -> Bool in
+            result && node.isDirty
+        }
+    }
+    
     var shouldUpdateConnections = false // New property to trigger view update
     
     @ObservationIgnored weak var lastNode:(any NodeProtocol)? = nil
