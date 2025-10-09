@@ -58,7 +58,7 @@ public protocol NodePortProtocol : Identifiable, Hashable, Equatable, Codable, A
     var direction:PortDirection { get }
 
     func valueType() -> String
-    var valueDidChange:Bool { get }
+    var valueDidChange:Bool { get set }
     
 }
 
@@ -91,17 +91,6 @@ public class ParameterPort<ParamValue : Codable & Equatable & Hashable> : NodePo
         
         try self.parameter.encode(to: encoder)
     }
-    
-//    override public var valueDidChange: Bool
-//    {
-//        get {
-//            self.parameter.valueDidChange
-//        }
-//        set
-//        {
-//            self.parameter.valueDidChange = newValue
-//        }
-//    }
     
     override public var value: ParamValue?
     {
@@ -138,6 +127,11 @@ public class NodePort<Value : Equatable>: NodePortProtocol
         hasher.combine(name)
     }
         
+    var debugDescription: String
+    {
+        return "\(self.node?.name ?? "No Node!!") - \(String(describing: type(of: self)))  \(id)"
+    }
+    
     public let id:UUID
 
     public let name: String
@@ -145,20 +139,7 @@ public class NodePort<Value : Equatable>: NodePortProtocol
     public var published: Bool = false
     
     // Maybe a bit too verbose?
-    private var intervalValueDidChange : Bool = true
-    public var valueDidChange:Bool
-    {
-        get
-        {
-            let val = self.intervalValueDidChange
-            self.intervalValueDidChange = false
-            return val
-        }
-        set
-        {
-            self.intervalValueDidChange = newValue
-        }
-    }
+    public var valueDidChange:Bool = true
     
     private var internalValue:Value?
    
@@ -173,18 +154,12 @@ public class NodePort<Value : Equatable>: NodePortProtocol
             if self.internalValue != newValue
             {
                 self.valueDidChange = true
-                node?.markDirty()
+                self.node?.markDirty()
             }
             
             self.internalValue = newValue
         }
     }
-
-    
-//    private var published: Bool = false
-//    public func setPublished(_ value:Bool) { self.published = value}
-//    public func isPublished() -> Bool { self.published }
-
     
     public var connections: [any NodePortProtocol] = []
     public var kind: PortKind
@@ -193,7 +168,6 @@ public class NodePort<Value : Equatable>: NodePortProtocol
     public var direction:PortDirection
     public var color:Color
     public var backgroundColor:Color
-    
     
     enum CodingKeys : String, CodingKey
     {
@@ -259,7 +233,6 @@ public class NodePort<Value : Equatable>: NodePortProtocol
         self.disconnectAll()
     }
     
-    
     public func disconnectAll()
     {
         self.connections.forEach { self.disconnect(from: $0) }
@@ -275,15 +248,39 @@ public class NodePort<Value : Equatable>: NodePortProtocol
     
     public func disconnect(from other: NodePort<Value>)
     {
-        self.send(nil)
-        
-        if let index = self.connections.firstIndex(where: { $0.id == other.id } )
+        print("Disconnect")
+
+        self.send(nil, to:other, force: true)
+
+        if other.kind == .Inlet
         {
-            self.connections.remove(at: index)
+            other.connections.removeAll()
+        }
+        else
+        {
+            while let index = other.connections.firstIndex(where: { $0.id == other.id } )
+            {
+                other.connections.remove(at: index)
+            }
         }
         
-        self.node?.markDirty()
-        other.node?.markDirty()
+        if self.kind == .Inlet
+        {
+            self.connections.removeAll()
+        }
+        else
+        {
+            while let index = self.connections.firstIndex(where: { $0.id == other.id } )
+            {
+                self.connections.remove(at: index)
+            }
+        }
+        
+        print("Connections: \(self.debugDescription)) - \(self.connections)")
+        print("Connections: \(other.debugDescription) - \(other.connections)")
+
+//        self.node?.markDirty()
+        
     }
     
     public func connect(to other: any NodePortProtocol)
@@ -296,6 +293,8 @@ public class NodePort<Value : Equatable>: NodePortProtocol
     
     public func connect(to other: NodePort<Value>)
     {
+        print("Connect")
+        
         if self.kind == other.kind
         {
             return
@@ -329,22 +328,35 @@ public class NodePort<Value : Equatable>: NodePortProtocol
             self.published = false
         }
         
-        self.node?.markDirty()
-        other.node?.markDirty()
+        print("Connections: \(self.debugDescription)) - \(self.connections)")
+        print("Connections: \(other.debugDescription) - \(other.connections)")
+
+//        self.node?.markDirty()
+//        other.node?.markDirty()
+        
+        self.send(self.value, force: true)
     }
     
-    public func send(_ v: Value?)
+    public func send(_ v: Value?, force:Bool = false)
     {
-        if value != v
+        if self.value != v || force
         {
-            value = v
+            self.value = v
             
             for case let p as NodePort<Value> in connections
             {
-                p.value = v
+                self.send(v, to:p, force: force)
             }
         }
-        
+    }
+    
+    private func send(_ v:Value?, to other: NodePort<Value>, force:Bool = false)
+    {
+        if other.value != v || force
+        {
+            print("Sending value: \(self.debugDescription) - \(String(describing: v))")
+            other.value = v
+        }
     }
         
     private static func calcColor(forType: Any.Type ) -> Color

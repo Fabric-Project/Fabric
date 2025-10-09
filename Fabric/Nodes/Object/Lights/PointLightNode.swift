@@ -11,10 +11,10 @@ import Satin
 import simd
 import Metal
 
-public class PointLightNode : BaseObjectNode, NodeProtocol
+public class PointLightNode : BaseObjectNode, ObjectNodeProtocol
 {
     public static let name = "Point Light"
-    public static var nodeType = Node.NodeType.Light
+    public static var nodeType = Node.NodeType.Object(objectType: .Light)
 
     // Params
     public let inputLookAt: Float3Parameter
@@ -37,6 +37,10 @@ public class PointLightNode : BaseObjectNode, NodeProtocol
     // Ports
     public let outputLight: NodePort<Object>
     public override var ports: [any NodePortProtocol] {  [outputLight] + super.ports }
+    
+    public override var object: Object? {
+        return light
+    }
     
     private var light: PointLight =  PointLight(color: simd_float3(1.0, 1.0, 1.0), radius: 150.0)
 //    let lightHelperGeo = BoxGeometry(width: 0.1, height: 0.1, depth: 0.5)

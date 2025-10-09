@@ -72,7 +72,7 @@ class FabricDocument: FileDocument
         materialNode.outputMaterial.connect(to: meshNode.inputMaterial)
 
         directionalLightNode.outputLight.connect(to: sceneNode.inputObject1)
-        meshNode.outputMesh.connect(to: sceneNode.inputObject2)
+//        meshNode.outputMesh.connect(to: sceneNode.inputObject2)
         
         sceneNode.outputScene.connect(to: renderNode.inputScene)
         cameraNode.outputCamera.connect(to: renderNode.inputCamera)

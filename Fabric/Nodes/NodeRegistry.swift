@@ -52,8 +52,8 @@ public class NodeRegistry {
         ModelMeshNode.self,
         InstancedMeshNode.self,
         SceneBuilderNode.self,
-        RenderNode.self,
-        DeferredRenderNode.self
+//        RenderNode.self,
+//        DeferredRenderNode.self
     ]
     
     private var geometryNodeClasses: [any NodeProtocol.Type] = [ // Geometry

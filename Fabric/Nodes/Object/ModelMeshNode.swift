@@ -22,6 +22,10 @@ public class ModelMeshNode : MeshNode
     private var textureLoader:MTKTextureLoader
     private var url: URL? = nil
 
+    public override var object: Object? {
+        return model
+    }
+    
     public required init(context: Context)
     {
         self.inputFilePathParam = StringParameter("Model Path", "", [], .filepicker)
@@ -98,12 +102,12 @@ public class ModelMeshNode : MeshNode
 
             if shouldOutput
             {
-                self.outputMesh.send(model)
+//                self.outputMesh.send(model)
             }
         }
         else
         {
-            self.outputMesh.send(nil)
+//            self.outputMesh.send(nil)
         }
     }
     

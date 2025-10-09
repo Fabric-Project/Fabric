@@ -75,6 +75,20 @@ public extension NodeProtocol
     }
 }
 
+protocol ObjectNodeProtocol : NodeProtocol
+{
+    // Fetch the underlying
+    var object:Satin.Object? { get }
+}
+
+protocol RenderableObjectNodeProtocol : NodeProtocol
+{
+    // Fetch the underlying
+    var object:(any Satin.Object & Renderable){ get }
+}
+
+
+
 @Observable public class Node :  Equatable, Identifiable, Hashable
 {
     // Equatable
@@ -115,7 +129,7 @@ public extension NodeProtocol
         return  myType.name
     }
     
-    public var nodeSize:CGSize { self.computeNodeSize() } //CGSizeMake(150, 100)
+    public var nodeSize:CGSize { self.computeNodeSize() }
 
     public var offset: CGSize = .zero
 //    {
@@ -208,7 +222,7 @@ public extension NodeProtocol
             self.inputParamCancellables.append(cancellable)
         }
         
-        for var port in self.ports
+        for port in self.ports
         {
             port.node = self as? (any NodeProtocol)
         }
@@ -255,6 +269,9 @@ public extension NodeProtocol
     public func markClean()
     {
         isDirty = false
+        
+        // See https://github.com/Fabric-Project/Fabric/issues/41
+        self.ports.forEach( { $0.valueDidChange = false } )
     }
     
     public func markDirty()

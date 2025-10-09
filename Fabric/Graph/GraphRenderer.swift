@@ -17,6 +17,8 @@ public class GraphRenderer : MetalViewRenderer
     public var context:Context!
     
     public let graph:Graph
+    private let renderer:Renderer
+    private let sceneProxy = Object() // ?  IBLScene()
     
     override public var sampleCount: Int { self.context.sampleCount }
     override public var colorPixelFormat: MTLPixelFormat { self.context.colorPixelFormat }
@@ -27,6 +29,8 @@ public class GraphRenderer : MetalViewRenderer
     {
         self.context = context
         self.graph = graph
+        self.renderer = Renderer(context: context, stencilStoreAction: .store, frameBufferOnly:false)
+        self.renderer.sortObjects = true
         print("Init Graph Execution Engine")
     }
     
@@ -69,20 +73,48 @@ public class GraphRenderer : MetalViewRenderer
     {
         self.executionCount += 1
         
-        var nodesWeAreExecuting:[Node] = []
+        var nodesWeHaveExecutedThisPass:[Node] = []
 
-        let renderNodes = graph.nodes.filter( { $0.nodeType == .Renderer })
+        // This is fucking horrible:
+        let sceneObjectNodes:[any ObjectNodeProtocol] = graph.nodes.filter( { Node.NodeType.ObjectType.nodeTypes().contains($0.nodeType) } ).compactMap({ $0 as? any ObjectNodeProtocol})
+        
+        // This is fucking horrible:
         let subgraphNodes = graph.nodes.filter( { $0.nodeType == .Subgraph })
 
-        for renderNode in renderNodes + subgraphNodes
+        // This is fucking horrible:
+        let firstCameraNode = sceneObjectNodes.filter( { $0.nodeType == .Object(objectType: .Camera)}).first
+        
+        
+        // This is fucking horrible:
+        if let firstCameraNode,
+           let firstCamera = firstCameraNode.object as? Camera,
+           !sceneObjectNodes.isEmpty
         {
-            let _ = processGraph(graph:graph,
-                                 node: renderNode as! Node,
-                                 executionContext:executionContext,
-                                 renderPassDescriptor: renderPassDescriptor,
-                                 commandBuffer: commandBuffer,
-                                 nodesWeHaveExecutedThisPass:&nodesWeAreExecuting)
+            
+            for renderNode in sceneObjectNodes + subgraphNodes
+            {
+                let _ = processGraph(graph:graph,
+                                     node: renderNode as! Node,
+                                     executionContext:executionContext,
+                                     renderPassDescriptor: renderPassDescriptor,
+                                     commandBuffer: commandBuffer,
+                                     nodesWeHaveExecutedThisPass:&nodesWeHaveExecutedThisPass)
+            }
+            
+            let sceneObjects = sceneObjectNodes.filter( { $0.id != firstCameraNode.id } ).compactMap( { $0.object } )
+
+            // This is fucking horrible:
+            sceneProxy.removeAll()
+            sceneProxy.add(sceneObjects)
+            
+            self.renderer.draw(renderPassDescriptor: renderPassDescriptor,
+                               commandBuffer: commandBuffer,
+                               scene: sceneProxy,
+                               camera: firstCamera)
         }
+        
+        
+        nodesWeHaveExecutedThisPass.forEach( { $0.markClean() } )
         
     }
 
@@ -117,8 +149,6 @@ public class GraphRenderer : MetalViewRenderer
                              renderPassDescriptor: renderPassDescriptor,
                              commandBuffer: commandBuffer)
                 
-                // TODO: This should be handled inside of the base node class no?
-                node.markClean()
                 
                 nodesWeHaveExecutedThisPass.append(node)
             }
@@ -145,6 +175,7 @@ public class GraphRenderer : MetalViewRenderer
     
     override public func resize(size: (width: Float, height: Float), scaleFactor: Float)
     {
+        self.renderer.resize(size)
         self.graph.nodes.forEach { $0.resize(size: size, scaleFactor: scaleFactor)}
     }
     

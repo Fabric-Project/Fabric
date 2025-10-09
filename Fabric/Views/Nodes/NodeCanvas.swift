@@ -136,7 +136,7 @@ public struct NodeCanvas : View
                                 )
                                 .onTapGesture(count: 2)
                             {
-                                connectedPort.disconnect(from:port)
+//                                connectedPort.disconnect(from:port)
                                 port.disconnect(from:connectedPort)
                                 graph.shouldUpdateConnections.toggle()
                             }

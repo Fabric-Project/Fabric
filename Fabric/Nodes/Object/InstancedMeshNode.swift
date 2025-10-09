@@ -13,7 +13,7 @@ import Metal
 public class InstancedMeshNode : BaseObjectNode, NodeProtocol
 {
     public class var name:String { "Instanced Mesh" }
-    public class var nodeType:Node.NodeType  { .Mesh }
+    public class var nodeType:Node.NodeType  { Node.NodeType.Object(objectType: .Mesh) }
 
     // Params
     public let inputCastsShadow:BoolParameter

@@ -10,10 +10,10 @@ import Satin
 import simd
 import Metal
 
-public class SceneBuilderNode : BaseObjectNode, NodeProtocol
+public class SceneBuilderNode : BaseObjectNode, ObjectNodeProtocol
 {
     public static let name = "Scene Builder"
-    public static var nodeType = Node.NodeType.Object
+    public static var nodeType = Node.NodeType.Object(objectType: .Scene)
 
     // Params
     public let inputEnvironmentIntensity: FloatParameter
@@ -47,7 +47,12 @@ public class SceneBuilderNode : BaseObjectNode, NodeProtocol
                                                            inputObject10,
                                                            outputScene] + super.ports}
     
-    private var object = IBLScene()
+    
+    public override var object: Object? {
+        return scene
+    }
+    
+    private var scene = IBLScene()
 
     public required init(context: Context)
     {
@@ -135,34 +140,35 @@ public class SceneBuilderNode : BaseObjectNode, NodeProtocol
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        var scene:[Object] = []
+        var objects:[Object] = []
+        
         if let v = inputEnvironment.value {
             
-            if let _ = object.environment
+            if let _ = self.scene.environment
             {
             }
             else
             {
-                object.setEnvironment(texture: v.texture, cubemapSize: 2048, reflectionSize:2048, irradianceSize:1024)
+                self.scene.setEnvironment(texture: v.texture, cubemapSize: 2048, reflectionSize:2048, irradianceSize:1024)
             }
         }
         
-        self.object.environmentIntensity = self.inputEnvironmentIntensity.value
+        self.scene.environmentIntensity = self.inputEnvironmentIntensity.value
 
-        if let v = inputObject1.value { scene.append(v) }
-        if let v = inputObject2.value { scene.append(v) }
-        if let v = inputObject3.value { scene.append(v) }
-        if let v = inputObject4.value { scene.append(v) }
-        if let v = inputObject5.value { scene.append(v) }
-        if let v = inputObject6.value { scene.append(v) }
-        if let v = inputObject7.value { scene.append(v) }
-        if let v = inputObject8.value { scene.append(v) }
-        if let v = inputObject9.value { scene.append(v) }
-        if let v = inputObject10.value { scene.append(v) }
+        if let v = inputObject1.value { objects.append(v) }
+        if let v = inputObject2.value { objects.append(v) }
+        if let v = inputObject3.value { objects.append(v) }
+        if let v = inputObject4.value { objects.append(v) }
+        if let v = inputObject5.value { objects.append(v) }
+        if let v = inputObject6.value { objects.append(v) }
+        if let v = inputObject7.value { objects.append(v) }
+        if let v = inputObject8.value { objects.append(v) }
+        if let v = inputObject9.value { objects.append(v) }
+        if let v = inputObject10.value { objects.append(v) }
 
-        self.object.children = scene
+        self.scene.children = objects
         
-        self.evaluate(object: self.object, atTime: context.timing.time)
+        self.evaluate(object: self.scene, atTime: context.timing.time)
         
         outputScene.send(self.object)
     }
