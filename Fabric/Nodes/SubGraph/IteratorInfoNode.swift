@@ -63,7 +63,7 @@ public class IteratorInfoNode : Node, NodeProtocol
 //        print("Iterator Info executing")
         if let iterationInfo = context.iterationInfo
         {
-            print("Iterator Info Sending Iteration Info for iteration \(iterationInfo.normalizedCurrentIteration)  \(iterationInfo.currentIteration) of \(iterationInfo.totalIterationCount) )")
+//            print("Iterator Info Sending Iteration Info for iteration \(iterationInfo.normalizedCurrentIteration)  \(iterationInfo.currentIteration) of \(iterationInfo.totalIterationCount) )")
             self.outputProgress.send( iterationInfo.normalizedCurrentIteration, force: true )
         }
         

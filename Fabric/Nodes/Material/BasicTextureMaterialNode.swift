@@ -75,16 +75,4 @@ public class BasicTextureMaterialNode : BasicColorMaterialNode
         
         return shouldOutput
     }
-    
-    public override func execute(context:GraphExecutionContext,
-                                 renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
-    {
-        let shouldOutput = self.evaluate(material: self.material, atTime: context.timing.time)
-        
-        if shouldOutput
-        {
-            self.outputMaterial.send(self.material)
-        }
-    }
 }

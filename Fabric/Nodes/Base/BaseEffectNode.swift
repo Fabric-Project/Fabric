@@ -172,7 +172,6 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
            return partialResult || next.valueDidChange
         })
 
-        
         if self.inputTexturePort.valueDidChange || anyParamDidChange || self.isDirty
         {
             if let inTex = self.inputTexturePort.value?.texture
@@ -199,6 +198,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
             }
         }
     }
+    
     
     private func fileURLToName(fileURL:URL) -> String {
         let nodeName =  fileURL.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "ImageNode", with: "")

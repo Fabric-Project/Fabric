@@ -197,17 +197,4 @@ public class PBRMaterialNode : StandardMaterialNode
         
         return shouldOutput
     }
-    
-    override public  func execute(context:GraphExecutionContext,
-                            renderPassDescriptor: MTLRenderPassDescriptor,
-                            commandBuffer: MTLCommandBuffer)
-    {
-        
-        let shoulOutput = self.evaluate(material: self.material, atTime: context.timing.time)
-
-        if shoulOutput
-        {
-            self.outputMaterial.send(self.material)
-        }
-     }
 }

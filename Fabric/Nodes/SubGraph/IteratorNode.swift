@@ -81,12 +81,15 @@ public class IteratorNode: SubgraphNode
                                  commandBuffer: any MTLCommandBuffer)
     {
         self.renderProxy.graphContext = context
+        self.renderProxy.currentRenderPass = renderPassDescriptor
+        self.renderProxy.currentCommandBuffer = commandBuffer
         
         if self.inputIteratonCount.valueDidChange
         {
             self.renderProxy.iterationCount = self.inputIteratonCount.value
         }
         
+        // execute the graph once, to just ensure meshes / materials have latest values popogated to nodes
         self.renderProxy.execute(context: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
         
 //        let colorLoad =  context.graphRenderer?.renderer.colorLoadAction
