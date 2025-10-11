@@ -36,7 +36,7 @@ public class DirectionalLightNode : BaseObjectNode, ObjectNodeProtocol
     public let outputLight: NodePort<Object>
     public override var ports: [any NodePortProtocol] {  [outputLight] + super.ports }
     
-    public override var object: Object? {
+    public var object: Object? {
         return light
     }
     

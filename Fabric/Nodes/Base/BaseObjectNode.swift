@@ -25,9 +25,9 @@ public class BaseObjectNode : Node
     public override var inputParameters: [any Parameter] { [self.inputPosition, self.inputScale, self.inputOrientation] + super.inputParameters}
     
     
-    open var object: Object? {
-        fatalError("Subclasses must override object")
-    }
+//    open var object: Object? {
+//        fatalError("Subclasses must override object")
+//    }
 
     
     public required init(context: Context)

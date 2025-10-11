@@ -10,8 +10,9 @@ import Satin
 import simd
 import Metal
 
-public class MeshNode : BaseObjectNode, ObjectNodeProtocol
+public class MeshNode : BaseObjectNode, ObjectNodeProtocol, RenderableObjectNodeProtocol
 {
+    
     public class var name:String { "Mesh" }
     public class var nodeType:Node.NodeType  { Node.NodeType.Object(objectType: .Mesh) }
 
@@ -35,8 +36,9 @@ public class MeshNode : BaseObjectNode, ObjectNodeProtocol
                                                            inputMaterial,
 //                                                           outputMesh
     ] + super.ports}
+
     
-    public override var object: Object? {
+    public var object:Mesh? {
         
         // This is tricky - we want to output nil if we have no inputGeometry  / inputMaterial from upstream ports
         if let _ = self.inputGeometry.value ,
@@ -142,7 +144,7 @@ public class MeshNode : BaseObjectNode, ObjectNodeProtocol
         {
             if let mesh = mesh
             {
-                print("Mesh Node - Updating Geometry and Material")
+//                print("Mesh Node - Updating Geometry and Material")
                 //                mesh.cullMode = .none
                 mesh.geometry = geometry
                 mesh.material = material

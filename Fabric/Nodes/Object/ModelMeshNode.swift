@@ -22,7 +22,7 @@ public class ModelMeshNode : MeshNode
     private var textureLoader:MTKTextureLoader
     private var url: URL? = nil
 
-    public override var object: Object? {
+    public var object: Object? {
         return model
     }
     

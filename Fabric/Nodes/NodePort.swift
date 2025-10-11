@@ -38,7 +38,7 @@ public struct PortAnchorKey: PreferenceKey
     }
 }
 
-public protocol NodePortProtocol : Identifiable, Hashable, Equatable, Codable, AnyObject
+public protocol NodePortProtocol : Identifiable, Hashable, Equatable, Codable, AnyObject, CustomDebugStringConvertible
 {
     var id: UUID { get }
     var name: String { get }
@@ -127,7 +127,7 @@ public class NodePort<Value : Equatable>: NodePortProtocol
         hasher.combine(name)
     }
         
-    var debugDescription: String
+    public var debugDescription: String
     {
         return "\(self.node?.name ?? "No Node!!") - \(String(describing: type(of: self)))  \(id)"
     }
@@ -289,9 +289,30 @@ public class NodePort<Value : Equatable>: NodePortProtocol
         {
             self.connect(to: other)
         }
+        
+        // In theory we can use this for type casting port to port?
+        else if let other = other as? NodePort<AnyLoggable>
+        {
+            self.connect(to: other)
+        }
+        
+        else if self.value is AnyLoggable?
+        {
+            self.validatedConnect(to: other)
+        }
     }
     
     public func connect(to other: NodePort<Value>)
+    {
+        self.validatedConnect(to:other)
+    }
+    
+    public func connect(to other: NodePort<AnyLoggable>)
+    {
+        self.validatedConnect(to:other)
+    }
+    
+    private func validatedConnect(to other:  any NodePortProtocol)
     {
         print("Connect")
         
@@ -347,6 +368,11 @@ public class NodePort<Value : Equatable>: NodePortProtocol
             {
                 self.send(v, to:p, force: force)
             }
+            
+            for case let p as NodePort<AnyLoggable> in connections
+            {
+                self.send(v, to:p, force: force)
+            }
         }
     }
     
@@ -357,6 +383,18 @@ public class NodePort<Value : Equatable>: NodePortProtocol
 //            print("Sending value: \(self.debugDescription) - \(String(describing: v))")
             other.value = v
         }
+    }
+    
+    private func send(_ v:Value?, to other:  NodePort<AnyLoggable>, force:Bool = false)
+    {
+//        if other.value != v || force
+//        {
+//            print("Sending value: \(self.debugDescription) - \(String(describing: v))")
+//        if let v = v as? Value
+//        { ,
+            other.value = AnyLoggable(v)
+//        }
+//        }
     }
         
     private static func calcColor(forType: Any.Type ) -> Color

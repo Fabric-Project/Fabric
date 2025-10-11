@@ -34,6 +34,7 @@ public class NodeRegistry {
         + self.textureNodeClasses
         + self.parameterNodeClasses
         + self.macroNodeClasses
+        + [LogNode.self]
     }
     
     private var cameraNodeClasses: [any NodeProtocol.Type] = [
@@ -49,9 +50,9 @@ public class NodeRegistry {
     private var objectNodeClasses: [any NodeProtocol.Type] = [
         // Objects / Rendering
         MeshNode.self,
-        ModelMeshNode.self,
+//        ModelMeshNode.self,
         InstancedMeshNode.self,
-        SceneBuilderNode.self,
+//        SceneBuilderNode.self,
 //        RenderNode.self,
 //        DeferredRenderNode.self
     ]
@@ -96,6 +97,9 @@ public class NodeRegistry {
     private var macroNodeClasses:[any NodeProtocol.Type] = [
         SubgraphNode.self,
         DeferredSubgraphNode.self,
+        IteratorNode.self,
+        IteratorInfoNode.self,
+        
     ]
     
     private var dynamicEffectNodes:[NodeClassWrapper] {

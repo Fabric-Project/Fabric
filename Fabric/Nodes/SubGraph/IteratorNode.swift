@@ -58,43 +58,65 @@ public class IteratorNode: SubgraphNode
     
     override public func startExecution(context:GraphExecutionContext)
     {
-        self.graphRenderer.startExecution(graph: self.graph)
+        context.graphRenderer?.startExecution(graph: self.graph)
     }
     
     override public func stopExecution(context:GraphExecutionContext)
     {
-        self.graphRenderer.stopExecution(graph: self.graph)
+        context.graphRenderer?.stopExecution(graph: self.graph)
     }
 
     override public func enableExecution(context:GraphExecutionContext)
     {
-        self.graphRenderer.enableExecution(graph: self.graph)
+        context.graphRenderer?.enableExecution(graph: self.graph)
     }
     
     override public func disableExecution(context:GraphExecutionContext)
     {
-        self.graphRenderer.disableExecution(graph: self.graph)
+        context.graphRenderer?.disableExecution(graph: self.graph)
     }
     
     override public func execute(context: GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: any MTLCommandBuffer)
     {
-       
-        for iteration in 0 ..< self.inputIteratonCount.value
+        self.renderProxy.graphContext = context
+        
+        if self.inputIteratonCount.valueDidChange
         {
-            let iterationInfo = GraphIterationInfo(iteratorNodeID: self.id,
-                                                   totalIterationCount: self.inputIteratonCount.value, currentIteration: iteration)
-            
-            context.iterationInfo = iterationInfo
-            
-            self.graphRenderer.execute(graph: self.graph,
-                                       executionContext: context,
-                                       renderPassDescriptor: renderPassDescriptor,
-                                       commandBuffer: commandBuffer)
-            
-            context.iterationInfo = nil
+            self.renderProxy.iterationCount = self.inputIteratonCount.value
         }
+        
+        self.renderProxy.execute(context: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+        
+//        let colorLoad =  context.graphRenderer?.renderer.colorLoadAction
+//        context.graphRenderer?.renderer.colorLoadAction = .load
+//        
+//        let depthLoad =  context.graphRenderer?.renderer.depthLoadAction
+//        context.graphRenderer?.renderer.depthLoadAction = .load
+
+//        for iteration in 0 ..< self.inputIteratonCount.value
+//        {
+//            let iterationInfo = GraphIterationInfo(iteratorNodeID: self.id,
+//                                                   totalIterationCount: self.inputIteratonCount.value,
+//                                                   currentIteration: iteration)
+//            
+//            context.iterationInfo = iterationInfo
+//            
+//            let _ = context.graphRenderer?.execute(graph: self.graph,
+//                                                   executionContext: context,
+//                                                   renderPassDescriptor: renderPassDescriptor,
+//                                                   commandBuffer: commandBuffer)
+//            
+//            // ??
+//            self.graph.recursiveMarkDirty()
+//        }
+//        
+//        context.iterationInfo = nil
+////        context.graphRenderer?.renderer.colorLoadAction = colorLoad ?? .clear
+////        context.graphRenderer?.renderer.depthLoadAction = depthLoad ?? .clear
+
+
     }
     
 }

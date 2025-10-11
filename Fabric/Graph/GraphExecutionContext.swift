@@ -49,21 +49,25 @@ public struct GraphEventInfo : Hashable
 public struct GraphIterationInfo : Hashable
 {
     /// the iterator node responsible for this info, should there be more than one
-    public let iteratorNodeID:UUID
+//    public let iteratorNodeID:UUID
     
     /// Total number of iterations expected
     public let totalIterationCount:Int
     /// For the current evaluation, the current iteration index
     public let currentIteration:Int
     
-    public var normalizedCurrentIteration:Float { Float(self.currentIteration) / Float(self.totalIterationCount) }
+    public var normalizedCurrentIteration:Float { Float(self.currentIteration ) / Float(self.totalIterationCount - 1) }
 }
 
 /// Graph Execution Information that includes metal, timing, node, and custom user info
 public class GraphExecutionContext : Hashable
 {
-    init(context: Context, timing: GraphExecutionTiming, iterationInfo: GraphIterationInfo? = nil, eventInfo:GraphEventInfo? = nil, userInfo: [String : any Hashable] = [:]) {
-        self.context = context
+    init(graphRenderer: GraphRenderer,
+         timing: GraphExecutionTiming,
+         iterationInfo: GraphIterationInfo? = nil,
+         eventInfo:GraphEventInfo? = nil,
+         userInfo: [String : any Hashable] = [:]) {
+        self.graphRenderer = graphRenderer
         self.timing = timing
         self.iterationInfo = iterationInfo
         self.userInfo = userInfo
@@ -76,14 +80,16 @@ public class GraphExecutionContext : Hashable
     }
     
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(self.context)
+        hasher.combine(self.graphRenderer?.id)
         hasher.combine(self.timing)
         hasher.combine(self.iterationInfo)
         hasher.combine(self.eventInfo)
     }
     
-    /// The Satin metal rendering context
-    public let context:Context
+//    /// The Satin metal rendering context
+//    public let context:Context
+    
+    public weak var graphRenderer: GraphRenderer?
 
     /// GraphRenderTiming information specific to the current execution
     public let timing:GraphExecutionTiming

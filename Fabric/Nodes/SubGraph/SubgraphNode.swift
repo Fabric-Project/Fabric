@@ -10,8 +10,10 @@ import Satin
 import simd
 import Metal
 
-public class SubgraphNode: Node, NodeProtocol
+public class SubgraphNode: Node, RenderableObjectNodeProtocol
 {
+    
+    
     public class var name:String { "Sub Graph" } 
     public static var nodeType = Node.NodeType.Subgraph
 
@@ -20,11 +22,20 @@ public class SubgraphNode: Node, NodeProtocol
     
     override public var ports: [any NodePortProtocol] { self.graph.publishedPorts() }
     
+    var object: SubgraphIteratorRenderable?
+    {
+        self.renderProxy
+    }
+    
+    var renderProxy:SubgraphIteratorRenderable
+    
     public required init(context: Context)
     {
         self.graph = Graph(context: context)
         self.graphRenderer = GraphRenderer(context: context, graph: self.graph)
         
+        self.renderProxy = SubgraphIteratorRenderable(subGraph: self.graph, iterationCount: 1)
+
         super.init(context: context)
     }
     
@@ -55,7 +66,25 @@ public class SubgraphNode: Node, NodeProtocol
         
         self.graphRenderer = GraphRenderer(context: decodeContext.documentContext, graph: self.graph)
 
+        self.renderProxy = SubgraphIteratorRenderable(subGraph: self.graph, iterationCount: 0)
+
         try super.init(from: decoder)
+    }
+    
+    override public var isDirty: Bool
+    {
+        self.graph.needsExecution
+    }
+    
+    
+    override public func markClean()
+    {
+        self.graph.nodes.forEach { $0.markClean() }
+    }
+         
+    override public func markDirty()
+    {
+        self.graph.nodes.forEach { $0.markDirty() }
     }
     
     override public func startExecution(context:GraphExecutionContext)

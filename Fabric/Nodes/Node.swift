@@ -77,17 +77,15 @@ public extension NodeProtocol
 
 protocol ObjectNodeProtocol : NodeProtocol
 {
-    // Fetch the underlying
-    var object:Satin.Object? { get }
+    associatedtype Obj: Satin.Object
+    var object: Obj? { get }
 }
 
-protocol RenderableObjectNodeProtocol : NodeProtocol
-{
-    // Fetch the underlying
-    var object:(any Satin.Object & Renderable){ get }
-}
-
-
+protocol RenderableObjectNodeProtocol: ObjectNodeProtocol where Obj: Satin.Renderable {}
+//{
+//    // Fetch the underlying
+//    var object:(any Satin.Object & Satin.Renderable)? { get }
+//}
 
 @Observable public class Node :  Equatable, Identifiable, Hashable
 {
@@ -152,7 +150,7 @@ protocol RenderableObjectNodeProtocol : NodeProtocol
     
     // Dirty Handling
 //    @ObservationIgnored var lastEvaluationTime: TimeInterval = -1
-    @ObservationIgnored public var isDirty: Bool = true
+    @ObservationIgnored private(set) public var isDirty: Bool = true
     
     // Input Parameter update tracking:
     @ObservationIgnored var inputParamCancellables: [AnyCancellable] = []

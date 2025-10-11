@@ -23,7 +23,7 @@ public class OrthographicCameraNode : BaseObjectNode, ObjectNodeProtocol
     public let outputCamera:NodePort<Camera>
     public override var ports: [any NodePortProtocol] { [outputCamera] + super.ports }
 
-    public override var object: Object? {
+    public var object: Object? {
         return camera
     }
     

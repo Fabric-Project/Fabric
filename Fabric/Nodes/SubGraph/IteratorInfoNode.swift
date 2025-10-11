@@ -13,9 +13,9 @@ import Satin
 import simd
 import Metal
 
-public class IterationInfoNode : Node, NodeProtocol
+public class IteratorInfoNode : Node, NodeProtocol
 {
-    public static let name = "IterationInfo"
+    public static let name = "Iterator Info"
     public static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
 
     public override var isDirty:Bool { get {  true  } set { } }
@@ -60,9 +60,11 @@ public class IterationInfoNode : Node, NodeProtocol
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
+//        print("Iterator Info executing")
         if let iterationInfo = context.iterationInfo
         {
-            self.outputProgress.send( iterationInfo.normalizedCurrentIteration )
+            print("Iterator Info Sending Iteration Info for iteration \(iterationInfo.normalizedCurrentIteration)  \(iterationInfo.currentIteration) of \(iterationInfo.totalIterationCount) )")
+            self.outputProgress.send( iterationInfo.normalizedCurrentIteration, force: true )
         }
         
     }

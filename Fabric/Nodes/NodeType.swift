@@ -18,6 +18,7 @@ extension Node
         case Mesh
         case Image // Texture / Shader
         case Parameter
+        case Utility
             
         func nodeTypes() -> [Node.NodeType]
         {
@@ -28,6 +29,7 @@ extension Node
             case .Mesh: return [.Geometery, .Material]
             case .Image: return Node.NodeType.ImageType.nodeTypes() + [.Shader]
             case .Parameter: return Node.NodeType.ParameterType.nodeTypes()
+            case .Utility: return [Node.NodeType.Utility]
             }
         }
         
@@ -40,6 +42,7 @@ extension Node
             case .Mesh: return "cube.transparent"
             case .Image: return "camera.filters"
             case .Parameter: return "beziercurve"
+            case .Utility: return "gear"
             }
         }
         
@@ -96,8 +99,8 @@ extension Node
         {
             case Camera
             case Light
-            case Mesh
-            case Scene
+            case Mesh // Renderable ? 
+//            case Scene
             static func nodeTypes() -> [Node.NodeType] {
                 return Self.allCases.map{ Node.NodeType.Object(objectType:$0) }
             }
@@ -111,6 +114,7 @@ extension Node
         case Shader
         case Image(imageType:ImageType)
         case Parameter(parameterType:ParameterType)
+        case Utility
         
         public static var allCases: [Node.NodeType] { return
             [.Renderer ]
@@ -131,6 +135,7 @@ extension Node
             case .Shader: return "Shader"
             case .Image(imageType: let imageType): return "Image \(imageType.rawValue.titleCase)"
             case .Parameter(let paramType): return "\(paramType.rawValue) Parameter"
+            case .Utility: return "Utility"
             }
         }
         
@@ -161,9 +166,9 @@ extension Node
                         return Color.nodeMesh
                         
                     
-
-                    case .Scene:
-                        return Color.nodeObject
+//
+//                    case .Scene:
+//                        return Color.nodeObject
                     }
                 
             
@@ -181,7 +186,11 @@ extension Node
                                 
             case .Parameter(_):
                 return Color(hue: 0, saturation: 0, brightness: 0.3)
+        
+            case .Utility:
+                return .orange
             }
+            
         }
         
         public func backgroundColor() -> Color

@@ -53,16 +53,15 @@ class FabricDocument: FileDocument
         let meshNode = MeshNode(context: self.context)
         meshNode.offset = CGSize(width: -200, height: 100)
 
-        
         let cameraNode = PerspectiveCameraNode(context: self.context)
         cameraNode.offset = CGSize(width: 200 , height: 50)
 
-        let renderNode = RenderNode(context: self.context)
-        renderNode.offset = CGSize(width: 400, height: 0)
-        
-        
-
-        let sceneNode = SceneBuilderNode(context: self.context)
+//        let renderNode = RenderNode(context: self.context)
+//        renderNode.offset = CGSize(width: 400, height: 0)
+//        
+//        
+//
+//        let sceneNode = SceneBuilderNode(context: self.context)
         
         let directionalLightNode = DirectionalLightNode(context: self.context)
         directionalLightNode.inputPosition.value = SIMD3<Float>(1, 2, 5)
@@ -71,19 +70,19 @@ class FabricDocument: FileDocument
         boxNode.outputGeometry.connect(to: meshNode.inputGeometry)
         materialNode.outputMaterial.connect(to: meshNode.inputMaterial)
 
-        directionalLightNode.outputLight.connect(to: sceneNode.inputObject1)
+//        directionalLightNode.outputLight.connect(to: sceneNode.inputObject1)
 //        meshNode.outputMesh.connect(to: sceneNode.inputObject2)
         
-        sceneNode.outputScene.connect(to: renderNode.inputScene)
-        cameraNode.outputCamera.connect(to: renderNode.inputCamera)
+//        sceneNode.outputScene.connect(to: renderNode.inputScene)
+//        cameraNode.outputCamera.connect(to: renderNode.inputCamera)
 
         self.graph.addNode(boxNode)
         self.graph.addNode(materialNode)
         self.graph.addNode(meshNode)
-        self.graph.addNode(sceneNode)
+//        self.graph.addNode(sceneNode)
         self.graph.addNode(directionalLightNode)
         self.graph.addNode(cameraNode)
-        self.graph.addNode(renderNode)
+//        self.graph.addNode(renderNode)
         
         DispatchQueue.main.async { [weak self] in //asyncAfter(deadline: .now() + 0.1) { [weak self] in
             
