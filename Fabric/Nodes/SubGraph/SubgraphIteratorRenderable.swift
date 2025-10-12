@@ -139,7 +139,7 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
             
             graphContext.iterationInfo = iterationInfo
             
-            self.subGraph.recursiveMarkDirty()
+//            self.subGraph.recursiveMarkDirty()
 
             // tick graph forward one iteration
             let _ = graphContext.graphRenderer?.execute(graph: self.subGraph,
@@ -149,13 +149,6 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
                         
             for r in self.renderables
             {
-                r.update(renderContext: renderContext, camera: updateCamera, viewport: updateViewport, index: updateIndex)
-
-                r.preDraw?(renderEncoderState.renderEncoder)
-                
-                r.draw(renderContext: renderContext, renderEncoderState: renderEncoderState, shadow: shadow)
-                
-                
                 // Since each Mesh / Material / Geom has its own set of buffers
                 // Each iteration those buffers do not have a unique pointer address
                 // This means we need to copy directly into the encoder
@@ -166,85 +159,114 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
                 // We should be copying uniforms found in the bindUniforms from
                 // Material / Geom / Mesh
                 
-                // Copied from Mesh
-                if let vertexUniforms = r.vertexUniforms[renderContext]
-                {
-                    let basePtr = vertexUniforms.buffer.contents().advanced(by: vertexUniforms.offset)
-                    let length = vertexUniforms.buffer.length - vertexUniforms.offset
-                    renderEncoderState.renderEncoder.setVertexBytes(basePtr, length: length, index: VertexBufferIndex.VertexUniforms.rawValue)
-                    renderEncoderState.renderEncoder.setFragmentBytes(basePtr, length: length, index: FragmentBufferIndex.VertexUniforms.rawValue)
-                }
-                
-                // Copied from Material kinda
                 if let material = r.material,
                    let uniforms = material.uniforms,
                    let shader = material.shader
-                    
                 {
-                    if shader.vertexWantsMaterialUniforms
-                    {
-                        renderEncoderState.vertexMaterialUniforms = material.uniforms
-                        
-                        let basePtr = uniforms.buffer.contents().advanced(by: uniforms.offset)
-                        let length = uniforms.buffer.length - uniforms.offset
-                        renderEncoderState.renderEncoder.setFragmentBytes(basePtr, length: length, index: VertexBufferIndex.MaterialUniforms.rawValue)
-                    }
-
-                    if !shadow, material.shader?.fragmentWantsMaterialUniforms ?? false {
-                        renderEncoderState.fragmentMaterialUniforms = material.uniforms
-                        
-                        let basePtr = uniforms.buffer.contents().advanced(by: uniforms.offset)
-                        let length = uniforms.buffer.length - uniforms.offset
-                        renderEncoderState.renderEncoder.setFragmentBytes(basePtr, length: length, index: FragmentBufferIndex.MaterialUniforms.rawValue)
-                    }
+                    r.material?.updateUniforms()
                     
-               
-                    for index in shader.vertexBufferBindingIsUsed {
-                        if let uniformBuffer = material.vertexUniformBuffers[index] {
+                    r.material?.onBind =  { encoder in
+                        
+                        // Copied from Mesh
+                        if let vertexUniforms = r.vertexUniforms[renderContext]
+                        {
+                            let basePtr = vertexUniforms.buffer.contents().advanced(by: vertexUniforms.offset)
+                            let length = vertexUniforms.buffer.length - vertexUniforms.offset
                             
-                            let basePtr = uniformBuffer.buffer.contents().advanced(by: uniforms.offset)
-                            let length = uniformBuffer.buffer.length - uniforms.offset
-                            renderEncoderState.renderEncoder.setVertexBytes(basePtr, length: length, index: index.rawValue)
+                            if shader.vertexWantsVertexUniforms
+                            {
+                                renderEncoderState.renderEncoder.setVertexBytes(basePtr, length: length, index: VertexBufferIndex.VertexUniforms.rawValue)
+                            }
                             
-                        } else if let structBuffer = material.vertexStructBuffers[index] {
-                            let basePtr = structBuffer.buffer.contents().advanced(by: structBuffer.offset)
-                            let length = structBuffer.buffer.length - structBuffer.offset
-                            renderEncoderState.renderEncoder.setVertexBytes(basePtr, length: length, index: index.rawValue)
-                          
-                        } else if let buffer = material.vertexBuffers[index] {
-                            
-                            let basePtr = buffer.contents()
-                            let length = buffer.length
-                            renderEncoderState.renderEncoder.setVertexBytes(basePtr, length: length, index: index.rawValue)
+                            if shader.fragmentWantsVertexUniforms
+                            {
+                                renderEncoderState.renderEncoder.setFragmentBytes(basePtr, length: length, index: FragmentBufferIndex.VertexUniforms.rawValue)
+                            }
+                        }
+                        
+                        // Copied from Material
+                        if shader.vertexWantsMaterialUniforms
+                        {
+                            let basePtr = uniforms.buffer.contents().advanced(by: uniforms.offset)
+                            let length = uniforms.buffer.length - uniforms.offset
+                            renderEncoderState.renderEncoder.setVertexBytes(basePtr, length: length, index: VertexBufferIndex.MaterialUniforms.rawValue)
+                        }
+                        
+                        if !shadow, material.shader?.fragmentWantsMaterialUniforms ?? false
+                        {
+                            let basePtr = uniforms.buffer.contents().advanced(by: uniforms.offset)
+                            let length = uniforms.buffer.length - uniforms.offset
+                            renderEncoderState.renderEncoder.setFragmentBytes(basePtr, length: length, index: FragmentBufferIndex.MaterialUniforms.rawValue)
+                        }
+                        
+                        for index in shader.vertexBufferBindingIsUsed
+                        {
+                            if let uniformBuffer = material.vertexUniformBuffers[index]
+                            {
+                                let basePtr = uniformBuffer.buffer.contents().advanced(by: uniforms.offset)
+                                let length = uniformBuffer.buffer.length - uniforms.offset
+                                renderEncoderState.renderEncoder.setVertexBytes(basePtr, length: length, index: index.rawValue)
+                            }
+                            else if let structBuffer = material.vertexStructBuffers[index]
+                            {
+                                let basePtr = structBuffer.buffer.contents().advanced(by: structBuffer.offset)
+                                let length = structBuffer.buffer.length - structBuffer.offset
+                                renderEncoderState.renderEncoder.setVertexBytes(basePtr, length: length, index: index.rawValue)
+                            }
+                            else if let buffer = material.vertexBuffers[index]
+                            {
+                                let basePtr = buffer.contents()
+                                let length = buffer.length
+                                renderEncoderState.renderEncoder.setVertexBytes(basePtr, length: length, index: index.rawValue)
+                            }
+                        }
+                        
+                        for index in shader.fragmentBufferBindingIsUsed
+                        {
+                            if let uniformBuffer = material.fragmentUniformBuffers[index]
+                            {
+                                let basePtr = uniformBuffer.buffer.contents().advanced(by: uniforms.offset)
+                                let length = uniformBuffer.buffer.length - uniforms.offset
+                                renderEncoderState.renderEncoder.setFragmentBytes(basePtr, length: length, index: index.rawValue)
+                            }
+                            else if let structBuffer = material.fragmentStructBuffers[index]
+                            {
+                                let basePtr = structBuffer.buffer.contents().advanced(by: structBuffer.offset)
+                                let length = structBuffer.buffer.length - structBuffer.offset
+                                renderEncoderState.renderEncoder.setFragmentBytes(basePtr, length: length, index: index.rawValue)
+                            }
+                            else if let buffer = material.fragmentBuffers[index]
+                            {
+                                let basePtr = buffer.contents()
+                                let length = buffer.length
+                                renderEncoderState.renderEncoder.setFragmentBytes(basePtr, length: length, index: index.rawValue)
+                            }
+                        }
+                        
+                        if let pipeline = shader.getPipeline(renderContext: renderContext, shadow: shadow)
+                        {
+                            renderEncoderState.renderEncoder.setRenderPipelineState(pipeline)
                         }
                     }
-
-                    for index in shader.fragmentBufferBindingIsUsed {
-                        if let uniformBuffer = material.fragmentUniformBuffers[index] {
-                            
-                            let basePtr = uniformBuffer.buffer.contents().advanced(by: uniforms.offset)
-                            let length = uniformBuffer.buffer.length - uniforms.offset
-                            renderEncoderState.renderEncoder.setFragmentBytes(basePtr, length: length, index: index.rawValue)
-                        } else if let structBuffer = material.fragmentStructBuffers[index] {
-                            let basePtr = structBuffer.buffer.contents().advanced(by: structBuffer.offset)
-                            let length = structBuffer.buffer.length - structBuffer.offset
-                            renderEncoderState.renderEncoder.setFragmentBytes(basePtr, length: length, index: index.rawValue)
-                        } else if let buffer = material.fragmentBuffers[index] {
-                            let basePtr = buffer.contents()
-                            let length = buffer.length
-                            renderEncoderState.renderEncoder.setFragmentBytes(basePtr, length: length, index: index.rawValue)
-                          
-                        }
-                    }
-                    
-                    
                 }
+                
+                r.update(renderContext: renderContext, camera: updateCamera, viewport: updateViewport, index: updateIndex)
+
+                r.preDraw?(renderEncoderState.renderEncoder)
+                
+                r.draw(renderContext: renderContext, renderEncoderState: renderEncoderState, shadow: shadow)
+                
+                r.material?.onBind = nil
 
             }
             
             //
             renderEncoderState.renderEncoder.popDebugGroup()
+            
         }
+        
+        graphContext.iterationInfo = nil
+
     }
     
     func execute(context: GraphExecutionContext,
@@ -253,7 +275,7 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
     {
 
         // execute the graph once, to just ensure meshes / materials have latest values popogated to nodes
-        self.subGraph.recursiveMarkDirty()
+//        self.subGraph.recursiveMarkDirty()
         let _ = context.graphRenderer?.execute(graph: self.subGraph,
                                                executionContext: context,
                                                renderPassDescriptor:renderPassDescriptor ,

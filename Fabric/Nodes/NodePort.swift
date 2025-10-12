@@ -387,14 +387,10 @@ public class NodePort<Value : Equatable>: NodePortProtocol
     
     private func send(_ v:Value?, to other:  NodePort<AnyLoggable>, force:Bool = false)
     {
-//        if other.value != v || force
-//        {
-//            print("Sending value: \(self.debugDescription) - \(String(describing: v))")
-//        if let v = v as? Value
-//        { ,
+        if other.value?.asType(Value.self) != v || force
+        {
             other.value = AnyLoggable(v)
-//        }
-//        }
+        }
     }
         
     private static func calcColor(forType: Any.Type ) -> Color
