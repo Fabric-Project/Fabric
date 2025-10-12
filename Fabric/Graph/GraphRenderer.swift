@@ -56,28 +56,40 @@ public class GraphRenderer : MetalViewRenderer
     {
         let executionContext = self.currentGraphExecutionContext()
 
-        self.graph.nodes.forEach({ $0.disableExecution(context: executionContext) })
+        for node in self.graph.nodes
+        {
+            node.disableExecution(context: executionContext)
+        }
     }
     
     public func enableExecution(graph:Graph)
     {
         let executionContext = self.currentGraphExecutionContext()
 
-        self.graph.nodes.forEach({ $0.enableExecution(context: executionContext) })
+        for node in self.graph.nodes
+        {
+            node.enableExecution(context: executionContext)
+        }
     }
     
     public func startExecution(graph:Graph)
     {
         let executionContext = self.currentGraphExecutionContext()
-
-        self.graph.nodes.forEach({ $0.startExecution(context: executionContext) })
+        
+        for node in self.graph.nodes
+        {
+            node.startExecution(context: executionContext)
+        }
     }
     
     public func stopExecution(graph:Graph)
     {
         let executionContext = self.currentGraphExecutionContext()
 
-        self.graph.nodes.forEach({ $0.stopExecution(context: executionContext) })
+        for node in self.graph.nodes
+        {
+            node.stopExecution(context: executionContext)
+        }
     }
 
     // MARK: - Execution
@@ -160,7 +172,10 @@ public class GraphRenderer : MetalViewRenderer
 //        }
 //        
         
-        nodesWeHaveExecutedThisPass.forEach( { $0.markClean() } )
+        for node in nodesWeHaveExecutedThisPass
+        {
+            node.markClean()
+        }
         
         return (objects: [], camera:nil)
         
@@ -238,7 +253,11 @@ public class GraphRenderer : MetalViewRenderer
     override public func resize(size: (width: Float, height: Float), scaleFactor: Float)
     {
         self.renderer.resize(size)
-        self.graph.nodes.forEach { $0.resize(size: size, scaleFactor: scaleFactor)}
+        
+        for node in self.graph.nodes
+        {
+            node.resize(size: size, scaleFactor: scaleFactor)
+        }
     }
     
     private func currentGraphExecutionContext() -> GraphExecutionContext

@@ -339,12 +339,18 @@ internal import AnyCodable
     
     public func recursiveMarkClean()
     {
-        self.nodes.forEach({ $0.markClean() })
+        for node in self.nodes
+        {
+            node.markClean()
+        }
     }
     
     public func recursiveMarkDirty()
     {
-        self.nodes.forEach({ $0.markDirty() })
+        for node in self.nodes
+        {
+            node.markDirty()
+        }
     }
  
     // MARK: -Selection
@@ -431,7 +437,10 @@ internal import AnyCodable
     {
         if !expandSelection
         {
-            self.nodes.forEach { $0.isSelected = false }
+            for node in self.nodes
+            {
+                node.isSelected = false
+            }
         }
         
         self.lastNode = node
@@ -442,7 +451,9 @@ internal import AnyCodable
     
     func deselectAllNodes()
     {
-        self.nodes.forEach { $0.isSelected = false }
-        
+        for node in self.nodes
+        {
+            node.isSelected = false
+        }
     }
 }
