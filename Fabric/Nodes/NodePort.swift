@@ -252,6 +252,12 @@ public class NodePort<Value : Equatable>: NodePortProtocol
 
         self.send(nil, to:other, force: true)
 
+        if let node = self.node,
+           let otherNode = other.node
+        {
+            node.didDisconnectFromNode(otherNode)
+        }
+        
         if other.kind == .Inlet
         {
             other.connections.removeAll()
@@ -349,6 +355,12 @@ public class NodePort<Value : Equatable>: NodePortProtocol
             self.published = false
         }
         
+        if let node = self.node,
+           let otherNode = other.node
+        {
+            node.didConnectToNode(otherNode)
+        }
+        
         print("Connections: \(self.debugDescription)) - \(self.connections)")
         print("Connections: \(other.debugDescription) - \(other.connections)")
 
@@ -357,6 +369,7 @@ public class NodePort<Value : Equatable>: NodePortProtocol
         
         self.send(self.value, force: true)
     }
+
     
     public func send(_ v: Value?, force:Bool = false)
     {
@@ -433,40 +446,8 @@ public class NodePort<Value : Equatable>: NodePortProtocol
         return Self.calcColor(forType: forType).opacity(0.7)
     }
    
-    
     private static func calcDirection(forType: Any.Type ) -> PortDirection
     {
-        
-//        if forType == EquatableTexture.self
-//        {
-//            return .Vertical
-//        }
-//
-//        else if forType == Satin.Geometry.self
-//        {
-//            return .Vertical
-//        }
-//        
-//        else if forType == Satin.Camera.self
-//        {
-//            return .Vertical
-//        }
-//        
-//        else if forType == Satin.Material.self
-//        {
-//            return .Vertical
-//        }
-//        
-//        else if forType == Satin.Object.self
-//        {
-//            return .Vertical
-//        }
-//        
-//        else if forType == Satin.Renderer.self
-//        {
-//            return .Vertical
-//        }
-        
         return .Horizontal
     }
     

@@ -191,7 +191,7 @@ public class GraphRenderer : MetalViewRenderer
     {
         
         // get the connection for
-        let inputNodes = node.inputNodes()
+        let inputNodes = node.inputNodes
                 
         for inputNode in inputNodes
         {

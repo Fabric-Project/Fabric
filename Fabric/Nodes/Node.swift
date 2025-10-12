@@ -42,8 +42,10 @@ public protocol NodeProtocol : AnyObject, Codable, Identifiable
     // For the UI
     func publishedParameterPorts() -> [any NodePortProtocol]
 
-    func inputNodes() -> [any NodeProtocol]
-    func outputNodes() -> [any NodeProtocol]
+    var inputNodes:[any NodeProtocol] { get }
+    var outputNodes:[any NodeProtocol] { get }
+    func didConnectToNode(_ node: any NodeProtocol)
+    func didDisconnectFromNode(_ node: any NodeProtocol)
     
     var offset: CGSize { get set }
     var nodeSize: CGSize { get }
@@ -104,19 +106,21 @@ protocol RenderableObjectNodeProtocol: ObjectNodeProtocol where Obj: Satin.Rende
         return lhs.id == rhs.id
     }
     
+    @ObservationIgnored var context:Context
+
     @ObservationIgnored public var inputParameters:[any Parameter] { []  }
     @ObservationIgnored public let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
-                                                        
+    
     @ObservationIgnored private var inputParameterPorts:[any NodePortProtocol] = []
     
     public var ports:[any NodePortProtocol] { self.inputParameterPorts  }
-
-    @ObservationIgnored var context:Context
-            
+    public private(set) var inputNodes:[any NodeProtocol] = []
+    public private(set) var outputNodes:[any NodeProtocol]  = []
+    
     public var isSelected:Bool = false
     public var isDragging:Bool = false
-//    var showParams:Bool = false
-
+    //    var showParams:Bool = false
+    
     @ObservationIgnored public var nodeType:NodeType {
         let myType = type(of: self) as! (any NodeProtocol.Type)
         return  myType.nodeType
@@ -128,28 +132,28 @@ protocol RenderableObjectNodeProtocol: ObjectNodeProtocol where Obj: Satin.Rende
     }
     
     public var nodeSize:CGSize { self.computeNodeSize() }
-
+    
     public var offset: CGSize = .zero
-//    {
-//        willSet
-//        {
-//            if let delegate = self.delegate
-//            {
-//                delegate.willUpdate(node: self)
-//            }
-//        }
-//        
-//        didSet
-//        {
-//            if let delegate = self.delegate
-//            {
-//                delegate.didUpdate(node: self)
-//            }
-//        }
-//    }
+    //    {
+    //        willSet
+    //        {
+    //            if let delegate = self.delegate
+    //            {
+    //                delegate.willUpdate(node: self)
+    //            }
+    //        }
+    //
+    //        didSet
+    //        {
+    //            if let delegate = self.delegate
+    //            {
+    //                delegate.didUpdate(node: self)
+    //            }
+    //        }
+    //    }
     
     // Dirty Handling
-//    @ObservationIgnored var lastEvaluationTime: TimeInterval = -1
+    //    @ObservationIgnored var lastEvaluationTime: TimeInterval = -1
     @ObservationIgnored private(set) public var isDirty: Bool = true
     
     // Input Parameter update tracking:
@@ -162,7 +166,7 @@ protocol RenderableObjectNodeProtocol: ObjectNodeProtocol where Obj: Satin.Rende
         case nodeOffset
         case valuePorts
     }
-
+    
     
     required init(from decoder: any Decoder) throws
     {
@@ -174,17 +178,17 @@ protocol RenderableObjectNodeProtocol: ObjectNodeProtocol where Obj: Satin.Rende
         self.context = decodeContext.documentContext
         
         let container = try decoder.container(keyedBy: CodingKeys.self)
-
+        
         self.id = try container.decode(UUID.self, forKey: .id)
         self.offset = try container.decode(CGSize.self, forKey: .nodeOffset)
-
+        
         self.inputParameterPorts = self.parametersGroupToPorts(self.inputParameters)
         self.parameterGroup.append(self.inputParameters)
-
+        
         for parameter in self.inputParameters
         {
             let cancellable = self.makeCancelable(parameter: parameter)
-//
+            //
             self.inputParamCancellables.append(cancellable)
         }
         
@@ -193,16 +197,16 @@ protocol RenderableObjectNodeProtocol: ObjectNodeProtocol where Obj: Satin.Rende
             port.node = self as? (any NodeProtocol)
         }
         
-//        self.nodeSize = self.computeNodeSize()
+        //        self.nodeSize = self.computeNodeSize()
     }
-
+    
     func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
-
+        
         try container.encode(self.id, forKey: .id)
         try container.encode(self.offset, forKey: .nodeOffset)
-
+        
         try container.encode(self.parameterGroup, forKey: .inputParameters)
     }
     
@@ -212,11 +216,11 @@ protocol RenderableObjectNodeProtocol: ObjectNodeProtocol where Obj: Satin.Rende
         self.context = context
         self.inputParameterPorts = self.parametersGroupToPorts(self.inputParameters)
         self.parameterGroup.append(self.inputParameters)
-
+        
         for parameter in self.inputParameters
         {
             let cancellable = self.makeCancelable(parameter: parameter)
-//
+            //
             self.inputParamCancellables.append(cancellable)
         }
         
@@ -225,7 +229,7 @@ protocol RenderableObjectNodeProtocol: ObjectNodeProtocol where Obj: Satin.Rende
             port.node = self as? (any NodeProtocol)
         }
         
-//        self.nodeSize = self.computeNodeSize()
+        //        self.nodeSize = self.computeNodeSize()
     }
     
     deinit
@@ -236,7 +240,20 @@ protocol RenderableObjectNodeProtocol: ObjectNodeProtocol where Obj: Satin.Rende
     }
     
     
-    public func inputNodes() -> [any NodeProtocol]
+    
+    public func didConnectToNode(_ node: any NodeProtocol)
+    {
+        self.inputNodes = calcInputNodes()
+        self.outputNodes = calcOutputNodes()
+    }
+    
+    public func didDisconnectFromNode(_ node: any NodeProtocol)
+    {
+        self.inputNodes = calcInputNodes()
+        self.outputNodes = calcOutputNodes()
+    }
+
+    private func calcInputNodes() -> [any NodeProtocol]
     {
         let nodeInputs = self.ports.filter( { $0.kind == .Inlet } )
         let inputNodes = nodeInputs.compactMap { $0.connections.compactMap(\.node) }.flatMap(\.self)
@@ -245,7 +262,7 @@ protocol RenderableObjectNodeProtocol: ObjectNodeProtocol where Obj: Satin.Rende
 //        return Array(Set(inputNodes))
     }
     
-    public func outputNodes() -> [any NodeProtocol]
+    private func calcOutputNodes() -> [any NodeProtocol]
     {
         let nodeOutputs = self.ports.filter( { $0.kind == .Outlet } )
         let outputNodes = nodeOutputs.compactMap { $0.connections.compactMap(\.node) }.flatMap(\.self)
