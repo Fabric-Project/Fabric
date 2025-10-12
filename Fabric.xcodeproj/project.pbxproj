@@ -201,6 +201,7 @@
 				Views/Parameters/FloatSlider.swift,
 				Views/Parameters/InputFieldView.swift,
 				Views/Parameters/ParameterGroupView.swift,
+				Views/Parameters/ParameterObservableModel.swift,
 				Views/Parameters/StringMenu.swift,
 				Views/Parameters/XYPad.swift,
 			);

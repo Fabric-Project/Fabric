@@ -7,26 +7,26 @@
 
 import SwiftUI
 import Satin
+import Combine
 
 struct ButtonParameterView: View, Equatable {
  
-    static func == (lhs: ButtonParameterView, rhs: ButtonParameterView) -> Bool
-    {
-        return lhs.parameter.id == lhs.parameter.id
-        && lhs.parameter.value == rhs.parameter.value
-    }
-    
-    @Bindable var parameter:BoolParameter
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
 
-    init(param:BoolParameter)
+    @Bindable var vm: ParameterObservableModel<Bool>
+    
+    init(param: BoolParameter)
     {
-        self.parameter = param
+        self.vm = ParameterObservableModel(label: param.label,
+                                           get: { param.value },
+                                           set: { param.value = $0 },
+                                           publisher:param.valuePublisher )
     }
     
     var body: some View
     {
-        Toggle(self.parameter.label, isOn: self.$parameter.value)
-            .controlSize( .small )
+        Toggle(vm.label, isOn: $vm.uiValue)
+            .controlSize(.small)
     }
 }
 //#Preview {

@@ -11,17 +11,29 @@ import simd
 
 struct XYPad: View, Equatable {
     
-    static func == (lhs: XYPad, rhs: XYPad) -> Bool
-    {
-        return lhs.parameter.id == rhs.parameter.id
-    }
-    
-    
-    @Bindable var parameter:Float2Parameter
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
+
+    @Bindable var vm: ParameterObservableModel<simd_float2>
+    @Bindable var vmMin: ParameterObservableModel<simd_float2>
+    @Bindable var vmMax: ParameterObservableModel<simd_float2>
+
 
     init(param:Float2Parameter)
     {
-        self.parameter = param
+        self.vm = ParameterObservableModel(label: param.label,
+                                           get: { param.value },
+                                           set: { param.value = $0 },
+                                           publisher:param.valuePublisher )
+
+        self.vmMin = ParameterObservableModel(label: param.label,
+                                           get: { param.min },
+                                           set: { param.min = $0 },
+                                           publisher:param.minValuePublisher )
+
+        self.vmMax = ParameterObservableModel(label: param.label,
+                                           get: { param.max },
+                                           set: { param.max = $0 },
+                                           publisher:param.maxValuePublisher )
     }
     
     var body: some View {
@@ -42,20 +54,20 @@ struct XYPad: View, Equatable {
                 Circle()
                     .frame(width: circleDiameter, height: circleDiameter)
                     
-                    .position(x:  CGFloat(remap(self.parameter.value.x,
-                                                self.parameter.min.x,
-                                                self.parameter.max.x,
+                    .position(x:  CGFloat(remap(self.vm.uiValue.x,
+                                                self.vmMin.uiValue.x,
+                                                self.vmMax.uiValue.x,
                                                 0.0,
                                                 1.0)) * width,
-                              y:  CGFloat(remap(self.parameter.value.y,
-                                                self.parameter.min.y,
-                                                self.parameter.max.y,
+                              y:  CGFloat(remap(self.vm.uiValue.y,
+                                                self.vmMin.uiValue.y,
+                                                self.vmMax.uiValue.y,
                                                 1.0,
                                                 0.0)) * height)
                     .foregroundColor(.orange)
                 
 
-                Text(self.parameter.label)
+                Text(self.vm.label)
                     .font(.system(size: 10))
 
             }
@@ -74,16 +86,16 @@ struct XYPad: View, Equatable {
                     let x = remap(normalizedValueX,
                                   0.0,
                                   1.0,
-                                  self.parameter.min.x,
-                                  self.parameter.max.x)
+                                  self.vmMin.uiValue.x,
+                                  self.vmMax.uiValue.x)
                     
                     let y = remap(normalizedValueY,
                                   1.0,
                                   0.0,
-                                  self.parameter.min.y,
-                                  self.parameter.max.y)
+                                  self.vmMin.uiValue.y,
+                                  self.vmMax.uiValue.y)
                     
-                    self.parameter.value = simd_float2(x, y)
+                    self.vm.uiValue = simd_float2(x, y)
                     
 //                    if self.recording.wrappedValue
 //                    {
