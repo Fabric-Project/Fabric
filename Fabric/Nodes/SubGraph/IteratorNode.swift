@@ -28,9 +28,8 @@ public class IteratorNode: SubgraphNode
     
     public required init(context: Context)
     {
-        self.inputIteratonCount = IntParameter("Iterations", 0, 1000, 2, .inputfield)
+        self.inputIteratonCount = IntParameter("Iterations", 0, 100, 2, .inputfield)
         super.init(context: context)
-
     }
     
     enum CodingKeys : String, CodingKey
@@ -91,35 +90,5 @@ public class IteratorNode: SubgraphNode
         
         // execute the graph once, to just ensure meshes / materials have latest values popogated to nodes
         self.renderProxy.execute(context: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
-        
-//        let colorLoad =  context.graphRenderer?.renderer.colorLoadAction
-//        context.graphRenderer?.renderer.colorLoadAction = .load
-//        
-//        let depthLoad =  context.graphRenderer?.renderer.depthLoadAction
-//        context.graphRenderer?.renderer.depthLoadAction = .load
-
-//        for iteration in 0 ..< self.inputIteratonCount.value
-//        {
-//            let iterationInfo = GraphIterationInfo(iteratorNodeID: self.id,
-//                                                   totalIterationCount: self.inputIteratonCount.value,
-//                                                   currentIteration: iteration)
-//            
-//            context.iterationInfo = iterationInfo
-//            
-//            let _ = context.graphRenderer?.execute(graph: self.graph,
-//                                                   executionContext: context,
-//                                                   renderPassDescriptor: renderPassDescriptor,
-//                                                   commandBuffer: commandBuffer)
-//            
-//            // ??
-//            self.graph.recursiveMarkDirty()
-//        }
-//        
-//        context.iterationInfo = nil
-////        context.graphRenderer?.renderer.colorLoadAction = colorLoad ?? .clear
-////        context.graphRenderer?.renderer.depthLoadAction = depthLoad ?? .clear
-
-
     }
-    
 }
