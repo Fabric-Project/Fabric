@@ -92,6 +92,14 @@ public class ParameterPort<ParamValue : Codable & Equatable & Hashable> : NodePo
         try self.parameter.encode(to: encoder)
     }
     
+    override public var valueDidChange: Bool
+    {
+        didSet
+        {
+            self.parameter.valueDidChange = self.valueDidChange
+        }
+    }
+    
     override public var value: ParamValue?
     {
         get
@@ -141,23 +149,15 @@ public class NodePort<Value : Equatable>: NodePortProtocol
     // Maybe a bit too verbose?
     public var valueDidChange:Bool = true
     
-    private var internalValue:Value?
-   
     public var value: Value?
     {
-        get
+        didSet
         {
-            return self.internalValue
-        }
-        set
-        {
-            if self.internalValue != newValue
+            if oldValue != self.value
             {
                 self.valueDidChange = true
                 self.node?.markDirty()
             }
-            
-            self.internalValue = newValue
         }
     }
     
