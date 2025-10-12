@@ -34,6 +34,7 @@ final class ParameterObservableModel<Value: Equatable>
     @ObservationIgnored private let getValue: () -> Value
     @ObservationIgnored private let setValue: (Value) -> Void
 
+    @ObservationIgnored private var publisher: PassthroughSubject<Value, Never>
     @ObservationIgnored private var sub: AnyCancellable?
     @ObservationIgnored private var applyingEngine = false
     @ObservationIgnored private var applyingUI = false
@@ -47,9 +48,16 @@ final class ParameterObservableModel<Value: Equatable>
         self.getValue = get
         self.setValue = set
         self.uiValue = get()
-
+        self.publisher = publisher
+        
+        self.attach()
+    }
+    
+    func attach()
+    {
         sub = publisher
             .receive(on: DispatchQueue.main)
+            .throttle(for: .milliseconds(16), scheduler: RunLoop.main, latest: true)
             .removeDuplicates()
             .sink { [weak self] newVal in
                 guard let self, !self.applyingUI else { return }
@@ -57,6 +65,11 @@ final class ParameterObservableModel<Value: Equatable>
                 if self.uiValue != newVal { self.uiValue = newVal }
                 self.applyingEngine = false
             }
+    }
+    
+    func detach()
+    {
+        sub?.cancel()
     }
 
     deinit { sub?.cancel() }
