@@ -38,9 +38,7 @@ struct FloatSlider: View, Equatable
                                               get: { param.max },
                                               set: { param.max = $0 },
                                               publisher:param.maxValuePublisher )
-        
     }
-    
     
     var body: some View
     {
