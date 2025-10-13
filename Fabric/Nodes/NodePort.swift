@@ -47,7 +47,7 @@ public protocol NodePortProtocol : Identifiable, Hashable, Equatable, Codable, A
     
     var published:Bool { get set }
     
-    var node: (any NodeProtocol)? { get set }
+    var node: Node? { get set }
 
     func connect(to other: any NodePortProtocol)
     func disconnect(from other: any NodePortProtocol)
@@ -163,7 +163,7 @@ public class NodePort<Value : Equatable>: NodePortProtocol
     
     public var connections: [any NodePortProtocol] = []
     public var kind: PortKind
-    public weak var node: (any NodeProtocol)?
+    public weak var node: Node?
 
     public var direction:PortDirection
     public var color:Color

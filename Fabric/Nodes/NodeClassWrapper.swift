@@ -11,13 +11,13 @@ import Satin
 public struct NodeClassWrapper: Identifiable
 {
     public let id = UUID()
-    public let nodeClass: any NodeProtocol.Type
+    public let nodeClass:Node.Type
     public let nodeType:Node.NodeType
     public var fileURL:URL? = nil
     public var nodeName:String
     
     // Specify a overriden node type for say, nodeType image with specific image types (effects)
-    public init(nodeClass: any NodeProtocol.Type, nodeType:Node.NodeType? = nil, fileURL:URL? = nil, nodeName:String? = nil)
+    public init(nodeClass: Node.Type, nodeType:Node.NodeType? = nil, fileURL:URL? = nil, nodeName:String? = nil)
     {
         self.nodeClass = nodeClass
         self.nodeType = nodeType ?? nodeClass.nodeType
@@ -25,7 +25,7 @@ public struct NodeClassWrapper: Identifiable
         self.nodeName = nodeName ?? nodeClass.name
     }
     
-    public func initializeNode(context:Context) throws -> any NodeProtocol
+    public func initializeNode(context:Context) throws -> Node
     {
         if let nodeClassFile = self.nodeClass as? (any NodeFileLoadingProtocol.Type),
            let fileURL = self.fileURL

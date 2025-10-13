@@ -10,10 +10,10 @@ import Satin
 import simd
 import Metal
 
-public class NumberIntegralNode : Node, NodeProtocol
+public class NumberIntegralNode : Node
 {
-    public static let name = "Number Integral"
-    public static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
+    override public static var name:String { "Number Integral" }
+    override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
 
     // Params
     public let inputNumberParam:FloatParameter

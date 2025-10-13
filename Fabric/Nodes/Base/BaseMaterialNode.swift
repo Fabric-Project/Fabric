@@ -10,11 +10,10 @@ import Satin
 import simd
 import Metal
 
-public class BaseMaterialNode : Node, NodeProtocol
+public class BaseMaterialNode : Node
 {
-    
-    public class var name:String {  "Material" }
-    public class var nodeType:Node.NodeType { .Material }
+    override public class var name:String {  "Material" }
+    override public class var nodeType:Node.NodeType { .Material }
 
     // Ports
     public let outputMaterial:NodePort<Material>

@@ -12,7 +12,7 @@ struct NodeView : View
 {
     @SwiftUI.Environment(Graph.self) var graph:Graph
     
-    let node:(any NodeProtocol)
+    let node:Node
     
     // Drag to Offset bullshit
     @State var offset = CGSize.zero

@@ -13,8 +13,8 @@ import Metal
 
 public class DirectionalLightNode : BaseObjectNode, ObjectNodeProtocol
 {
-    public static let name = "Directional Light"
-    public static var nodeType = Node.NodeType.Object(objectType: .Light)
+    public override var name:String { "Directional Light" }
+    public override var nodeType:Node.NodeType { Node.NodeType.Object(objectType: .Light) }
 
     // Params
     public let inputLookAt: Float3Parameter

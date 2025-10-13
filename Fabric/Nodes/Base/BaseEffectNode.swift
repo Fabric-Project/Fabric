@@ -13,7 +13,7 @@ import MetalKit
 
 class BaseEffectNode: Node, NodeFileLoadingProtocol
 {
-    class var name:String { "Base Effect" }
+    override class var name:String { "Base Effect" }
     
     override var name: String {
         guard let fileURL = self.url else {
@@ -23,7 +23,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
         return self.fileURLToName(fileURL: fileURL)
     }
     
-    class var nodeType:Node.NodeType { .Image(imageType: .BaseEffect) }
+    override class var nodeType:Node.NodeType { .Image(imageType: .BaseEffect) }
     class var sourceShaderName:String { "" }
 
     open class PostMaterial: SourceMaterial {}

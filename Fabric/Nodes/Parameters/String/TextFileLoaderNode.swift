@@ -11,10 +11,10 @@ import simd
 import Metal
 import MetalKit
 
-public class TextFileLoaderNode : Node, NodeProtocol
+public class TextFileLoaderNode : Node
 {
-    public static let name = "Text File Loader"
-    public static var nodeType = Node.NodeType.Parameter(parameterType: .String)
+    override public static var name:String { "Text File Loader" }
+    override public static var nodeType:Node.NodeType { .Parameter(parameterType: .String) }
 
     let inputFilePathParam:StringParameter
     override public var inputParameters: [any Parameter] { [self.inputFilePathParam] + super.inputParameters}

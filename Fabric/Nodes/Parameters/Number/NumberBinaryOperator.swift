@@ -13,10 +13,10 @@ import Satin
 import simd
 import Metal
 
-public class NumberBinaryOperator : Node, NodeProtocol
+public class NumberBinaryOperator : Node
 {
-    public static let name = "Number Binary Operator"
-    public static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
+    override public static var name:String { "Number Binary Operator" }
+    override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
 
     // Params
     public let inputAParam:FloatParameter

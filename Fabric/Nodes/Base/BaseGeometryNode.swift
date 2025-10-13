@@ -10,10 +10,10 @@ import Satin
 import simd
 import Metal
 
-public class BaseGeometryNode : Node, NodeProtocol
+public class BaseGeometryNode : Node
 {
-    public class var name:String {  "Geometry" }
-    public class var nodeType:Node.NodeType { .Geometery }
+    override public class var name:String { "Geometry" }
+    override public class var nodeType:Node.NodeType { .Geometery }
 
     public let outputGeometry:NodePort<Geometry>
     public override var ports: [any NodePortProtocol] { [ self.outputGeometry] + super.ports}

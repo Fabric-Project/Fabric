@@ -29,7 +29,7 @@ internal import AnyCodable
     public let version: Graph.Version
     @ObservationIgnored public let context:Context
     
-    private(set) var nodes: [any NodeProtocol]
+    private(set) var nodes: [Node]
     
     var needsExecution:Bool {
         self.nodes.reduce(false) { (result, node) -> Bool in
@@ -47,7 +47,7 @@ internal import AnyCodable
     
     var shouldUpdateConnections = false // New property to trigger view update
     
-    @ObservationIgnored weak var lastNode:(any NodeProtocol)? = nil
+    @ObservationIgnored weak var lastNode:(Node)? = nil
     
     public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
     
@@ -233,7 +233,7 @@ internal import AnyCodable
 //        
 //    }
     
-    public func addNode(_ node:(any NodeProtocol))
+    public func addNode(_ node:Node)
     {
         print("Add Node", node.name)
         
@@ -249,7 +249,7 @@ internal import AnyCodable
         //        self.autoConnect(node: node)
     }
     
-    func delete(node:(any NodeProtocol))
+    func delete(node:Node)
     {
         node.ports.forEach { $0.disconnectAll() }
         
@@ -264,7 +264,7 @@ internal import AnyCodable
         }
     }
     
-    public func node(forID:UUID) -> (any NodeProtocol)?
+    public func node(forID:UUID) -> Node?
     {
         if let activeSubGraph
         {
@@ -313,9 +313,9 @@ internal import AnyCodable
         return  self.nodes.flatMap( { $0.publishedPorts() } )
     }
     
-    public func recursiveNodes(withNodeType type:Node.NodeType) -> [(any NodeProtocol)]
+    public func recursiveNodes(withNodeType type:Node.NodeType) -> [Node]
     {
-        var nodes = [(any NodeProtocol)]()
+        var nodes = [Node]()
         
         for node in self.nodes
         {
@@ -334,9 +334,9 @@ internal import AnyCodable
         return nodes
     }
     
-    public func recursiveNodes() -> [(any NodeProtocol)]
+    public func recursiveNodes() -> [Node]
     {
-        var nodes = [(any NodeProtocol)]()
+        var nodes = [Node]()
         
         for node in self.nodes
         {
@@ -407,7 +407,7 @@ internal import AnyCodable
 
             let relevantNodes = self.nodes.filter { $0.id != referenceNode.id }
             
-            let distanceDirectionNodeTuples:[(Distance:Double, Direction:NodeSelectionDirection, Node:(any NodeProtocol))] = relevantNodes.map {
+            let distanceDirectionNodeTuples:[(Distance:Double, Direction:NodeSelectionDirection, Node:Node)] = relevantNodes.map {
                 let nodePoint = CGPoint(x: $0.offset.width, y: $0.offset.height)
                 
                 let distance = nodePoint.distance(from: referenceNodePoint)
@@ -449,7 +449,7 @@ internal import AnyCodable
         }
     }
     
-    func selectNode(node:(any NodeProtocol), expandSelection:Bool)
+    func selectNode(node:Node, expandSelection:Bool)
     {
         if !expandSelection
         {

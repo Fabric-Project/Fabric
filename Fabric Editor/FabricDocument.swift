@@ -40,6 +40,13 @@ class FabricDocument: FileDocument
     
     init()
     {
+        self.graph = Graph(context: self.context)
+        self.graphRenderer = GraphRenderer(context: self.context, graph: self.graph)
+
+    }
+    
+    init(withTemplate: Bool)
+    {
         print("Basic Document Init")
         self.graph = Graph(context: self.context)
         self.graphRenderer = GraphRenderer(context: self.context, graph: self.graph)
@@ -113,13 +120,26 @@ class FabricDocument: FileDocument
 
         self.graphRenderer = GraphRenderer(context: self.context, graph: self.graph)
         
-        DispatchQueue.main.async { [weak self] in
-            
-            guard let self = self else { return }
-            
-            print("Init config Setting up window for graph: \(self.graph.id)")
+        print("Init config Setting up window for graph: \(self.graph.id)")
+
+        if Thread.isMainThread
+        {
 
             self.setupWindow(named: name)
+
+            print("Init config finished Setting up window for graph: \(self.graph.id)")
+        }
+        else
+        {
+            DispatchQueue.main.sync { [weak self] in
+                
+                guard let self = self else { return }
+                
+                self.setupWindow(named: name)
+                
+                print("Init config finished Setting up window for graph: \(self.graph.id)")
+
+            }
         }
     }
 
@@ -127,11 +147,21 @@ class FabricDocument: FileDocument
     {
         print("Deinit Closing window for graph: \(self.graph.id)")
         
-        DispatchQueue.main.async { [weak self] in
-
-            guard let self = self else { return }
-
+        if Thread.isMainThread
+        {
             self.outputwindow?.close()
+            print("Deinit Finished Closing window for graph: \(self.graph.id)")
+        }
+        else
+        {
+            DispatchQueue.main.sync { [weak self] in
+                
+                guard let self = self else { return }
+                
+                self.outputwindow?.close()
+                
+                print("Deinit Finished Closing window for graph: \(self.graph.id)")
+            }
         }
     }
     
@@ -147,6 +177,7 @@ class FabricDocument: FileDocument
     
     private func setupWindow(named:String)
     {
+        
         self.outputwindow = NSWindow(contentRect: NSRect(x: 100, y: 100, width: 600, height: 600),
                                      styleMask: [.titled, .miniaturizable, .resizable, .unifiedTitleAndToolbar],
                                      backing: .buffered, defer: false)

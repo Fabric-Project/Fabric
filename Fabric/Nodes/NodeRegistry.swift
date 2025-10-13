@@ -11,7 +11,7 @@ public class NodeRegistry {
     public static let shared = NodeRegistry()
     
     
-    public func nodeClass(for nodeName: String) -> (any NodeProtocol.Type)? {
+    public func nodeClass(for nodeName: String) -> (Node.Type)? {
         return self.nodesClassLookup[nodeName]
     }
     
@@ -19,13 +19,13 @@ public class NodeRegistry {
         self.nodesClasses.map( { NodeClassWrapper(nodeClass: $0) } ) + self.dynamicEffectNodes
     }
 
-    private var nodesClassLookup: [String: any NodeProtocol.Type] {
+    private var nodesClassLookup: [String: Node.Type] {
         self.nodesClasses.reduce(into: [:]) { result, nodeClass in
             result[String(describing: nodeClass)] = nodeClass
         }
     }
     
-    private var nodesClasses: [any NodeProtocol.Type] {
+    private var nodesClasses: [Node.Type] {
         self.cameraNodeClasses
         + self.lightNodeClasses
         + self.objectNodeClasses
@@ -37,17 +37,17 @@ public class NodeRegistry {
         + [LogNode.self]
     }
     
-    private var cameraNodeClasses: [any NodeProtocol.Type] = [
+    private var cameraNodeClasses: [Node.Type] = [
          PerspectiveCameraNode.self,
          OrthographicCameraNode.self,
     ]
     
-    private var lightNodeClasses: [any NodeProtocol.Type] = [
+    private var lightNodeClasses: [Node.Type] = [
         DirectionalLightNode.self,
         PointLightNode.self,
     ]
     
-    private var objectNodeClasses: [any NodeProtocol.Type] = [
+    private var objectNodeClasses: [Node.Type] = [
         // Objects / Rendering
         MeshNode.self,
 //        ModelMeshNode.self,
@@ -57,7 +57,7 @@ public class NodeRegistry {
 //        DeferredRenderNode.self
     ]
     
-    private var geometryNodeClasses: [any NodeProtocol.Type] = [ // Geometry
+    private var geometryNodeClasses: [Node.Type] = [ // Geometry
         PlaneGeometryNode.self,
         RoundRectGeometryNode.self,
         TriangleGeometryNode.self,
@@ -73,7 +73,7 @@ public class NodeRegistry {
         SuperShapeGeometryNode.self
     ]
         
-    private var materialNodeClasses:[any NodeProtocol.Type] = [
+    private var materialNodeClasses:[Node.Type] = [
         // Materials
         BasicColorMaterialNode.self,
         BasicTextureMaterialNode.self,
@@ -86,7 +86,7 @@ public class NodeRegistry {
         DisplacementMaterialNode.self,
     ]
     
-    private var textureNodeClasses:[any NodeProtocol.Type] = [
+    private var textureNodeClasses:[Node.Type] = [
 //        LoadTextureNode.self,
         HDRTextureNode.self,
 //        BrightnessContrastImageNode.self,
@@ -94,7 +94,7 @@ public class NodeRegistry {
     ]
 
     // Sub Patch Iterator, Replicate etc
-    private var macroNodeClasses:[any NodeProtocol.Type] = [
+    private var macroNodeClasses:[Node.Type] = [
         SubgraphNode.self,
         DeferredSubgraphNode.self,
         IteratorNode.self,
@@ -149,7 +149,7 @@ public class NodeRegistry {
         return nodeName.titleCase
     }
     
-    private var parameterNodeClasses: [any NodeProtocol.Type] = [
+    private var parameterNodeClasses: [Node.Type] = [
         // Boolean
         TrueNode.self,
         FalseNode.self,

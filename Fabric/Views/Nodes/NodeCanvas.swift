@@ -34,9 +34,6 @@ public struct NodeCanvas : View
                     .resizable(resizingMode: .tile)// Need this pattern image repeated throughout the page
                     .offset(-geom.size / 2)
                 
-                // Nodes
-                //                let selectedNodes:[any NodeProtocol] = self.graph.nodes.filter( { $0.isSelected == true } )
-                
                 let graph = self.graph.activeSubGraph ?? self.graph
                 ForEach(graph.nodes, id: \.id) { currentNode in
                     

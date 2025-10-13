@@ -10,10 +10,10 @@ import Satin
 import simd
 import Metal
 
-public class MakeVector4Node : Node, NodeProtocol
+public class MakeVector4Node : Node
 {
-    public static let name = "Vector 4"
-    public static var nodeType = Node.NodeType.Parameter(parameterType: .Vector)
+    override public static var name:String { "Vector 4" }
+    override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Vector) }
 
     // Params
     public let inputXParam:FloatParameter

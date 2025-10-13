@@ -11,10 +11,10 @@ import simd
 import Metal
 import MetalKit
 
-public class StringRangeNode : Node, NodeProtocol
+public class StringRangeNode : Node
 {
-    public static let name = "String Range"
-    public static var nodeType = Node.NodeType.Parameter(parameterType: .String)
+    override public static var name:String { "String Range" }
+    override public static var nodeType:Node.NodeType { .Parameter(parameterType: .String) }
 
     let inputRangeTo:FloatParameter
     override public var inputParameters: [any Parameter] { [self.inputRangeTo] + super.inputParameters}

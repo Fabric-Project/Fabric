@@ -11,10 +11,10 @@ import simd
 import Metal
 import MetalKit
 
-public class StringLengthNode : Node, NodeProtocol
+public class StringLengthNode : Node
 {
-    public static let name = "String Length"
-    public static var nodeType = Node.NodeType.Parameter(parameterType: .String)
+    override public static var name:String { "String Length" }
+    override public static var nodeType:Node.NodeType { .Parameter(parameterType: .String) }
 
     // TODO: add character set menu to choose component separation strategy
     

@@ -13,10 +13,10 @@ import Satin
 import simd
 import Metal
 
-public class IteratorInfoNode : Node, NodeProtocol
+public class IteratorInfoNode : Node
 {
-    public static let name = "Iterator Info"
-    public static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
+    public override var name:String { "Iterator Info" }
+    public override var nodeType:Node.NodeType { Node.NodeType.Parameter(parameterType: .Number) }
 
     public override var isDirty:Bool { get {  true  } set { } }
 

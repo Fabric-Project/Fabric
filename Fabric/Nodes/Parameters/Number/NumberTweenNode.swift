@@ -11,10 +11,10 @@ import Satin
 import simd
 import Metal
 
-public class NumberEaseNode : Node, NodeProtocol
+public class NumberEaseNode : Node
 {
-    public static let name = "Number Ease"
-    public static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
+    override public static var name:String { "Number Ease" }
+    override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
 
     // Params
     public let inputTimeParam:FloatParameter

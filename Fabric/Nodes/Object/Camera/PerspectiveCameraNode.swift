@@ -12,9 +12,9 @@ import Metal
 
 public class PerspectiveCameraNode : BaseObjectNode, ObjectNodeProtocol
 {
-    public static var nodeType = Node.NodeType.Object(objectType: .Camera)
-    public static let name = "Perspective Camera"
-    
+    public override var name:String { "Perspective Camera" }
+    public override var nodeType:Node.NodeType { Node.NodeType.Object(objectType: .Camera) }
+
     // Params
     public var inputLookAt:Float3Parameter
     public override var inputParameters: [any Parameter] {  [inputLookAt] + super.inputParameters}

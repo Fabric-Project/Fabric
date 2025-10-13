@@ -12,9 +12,8 @@ import Metal
 
 public class MeshNode : BaseObjectNode, ObjectNodeProtocol, RenderableObjectNodeProtocol
 {
-    
-    public class var name:String { "Mesh" }
-    public class var nodeType:Node.NodeType  { Node.NodeType.Object(objectType: .Mesh) }
+    override public static var name:String { "Mesh" }
+    override public static var nodeType:Node.NodeType { .Object(objectType: .Mesh) }
 
     // Params
     public let inputCastsShadow:BoolParameter

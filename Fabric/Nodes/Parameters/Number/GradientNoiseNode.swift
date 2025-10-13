@@ -10,10 +10,10 @@ import Satin
 import Metal
 internal import Noise
 
-public class GradientNoiseNode : Node, NodeProtocol
+public class GradientNoiseNode : Node
 {
-    public static let name = "Gradient Noise"
-    public static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
+    override public static var name:String { "Gradient Noise" }
+    override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
 
     // Params
     public let inputTime:FloatParameter

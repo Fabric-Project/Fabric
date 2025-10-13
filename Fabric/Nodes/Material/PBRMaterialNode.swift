@@ -12,7 +12,7 @@ import Metal
 
 public class PBRMaterialNode : StandardMaterialNode
 {
-    override public  class var name:String {  "Advanced Physical Material" }
+    override public class var name:String {  "Advanced Physical Material" }
 
     // Params
     let inputSubsurface = FloatParameter("Sub Surface", 0.0, 0.0, 1.0, .slider)

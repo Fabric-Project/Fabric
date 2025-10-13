@@ -13,8 +13,9 @@ import MetalKit
 
 class BaseEffectTwoChannelNode: Node, NodeFileLoadingProtocol
 {
-    class var name:String { "Base Effect" }
-    
+    override class var name:String { "Base Effect" }
+    override class var nodeType:Node.NodeType { .Image(imageType: .BaseEffect) }
+
     override var name: String {
         guard let fileURL = self.url else {
             return BaseEffectNode.name
@@ -23,7 +24,6 @@ class BaseEffectTwoChannelNode: Node, NodeFileLoadingProtocol
         return self.fileURLToName(fileURL: fileURL)
     }
     
-    class var nodeType:Node.NodeType { .Image(imageType: .BaseEffect) }
     class var sourceShaderName:String { "" }
 
     open class PostMaterial: SourceMaterial {}

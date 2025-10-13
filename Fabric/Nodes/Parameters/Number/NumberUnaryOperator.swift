@@ -13,10 +13,10 @@ import Satin
 import simd
 import Metal
 
-public class NumberUnnaryOperator : Node, NodeProtocol
+public class NumberUnnaryOperator : Node
 {
-    public static let name = "Number Unnary Operator"
-    public static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
+    override public static var name:String { "Number Unnary Operator" }
+    override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
 
     // Params
     public let inputAParam:FloatParameter

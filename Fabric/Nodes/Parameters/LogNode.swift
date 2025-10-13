@@ -46,10 +46,10 @@ public class AnyLoggable: Equatable, CustomDebugStringConvertible
 }
 
 
-public class LogNode : Node, NodeProtocol
+public class LogNode : Node
 {
-    public static let name = "Log"
-    public static var nodeType = Node.NodeType.Utility
+    override public class var name:String { "Log" }
+    override public class var nodeType:Node.NodeType { Node.NodeType.Utility }
 
     // Ports
     public let inputAny: NodePort<AnyLoggable>

@@ -13,10 +13,10 @@ import Satin
 import simd
 import Metal
 
-public class CurrentTimeNode : Node, NodeProtocol
+public class CurrentTimeNode : Node
 {
-    public static let name = "Current Time"
-    public static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
+    override public static var name:String { "Current Time" }
+    override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
 
     public override var isDirty:Bool { get {  true  } set { } }
 

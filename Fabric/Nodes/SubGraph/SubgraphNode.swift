@@ -12,10 +12,8 @@ import Metal
 
 public class SubgraphNode: Node, RenderableObjectNodeProtocol
 {
-    
-    
-    public class var name:String { "Sub Graph" } 
-    public static var nodeType = Node.NodeType.Subgraph
+    override public class var name:String { "Sub Graph" }
+    override public class var nodeType:Node.NodeType { Node.NodeType.Subgraph }
 
     let graphRenderer:GraphRenderer
     let graph:Graph
