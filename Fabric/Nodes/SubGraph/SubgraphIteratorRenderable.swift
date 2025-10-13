@@ -124,6 +124,20 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
               let currentCommandBuffer
         else { return }
 
+        for r in self.renderables
+        {
+            // Since each Mesh / Material / Geom has its own set of buffers
+            // Each iteration those buffers do not have a unique pointer address
+            // This means we need to copy directly into the encoder
+            // This is suboptimal!
+            // But this works!
+            // Fuck!!
+            
+            // We should be copying uniforms found in the bindUniforms from
+            // Material / Geom / Mesh
+            self.configureOnBindForRenderable(r, inContext: renderContext, renderEncoderState: renderEncoderState, shadow: shadow)
+        }
+        
         for iteration in 0..<iterationCount
         {
             renderEncoderState.renderEncoder.pushDebugGroup("Iterator \(iteration)")
@@ -143,56 +157,68 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
                         
             for r in self.renderables
             {
-                // Since each Mesh / Material / Geom has its own set of buffers
-                // Each iteration those buffers do not have a unique pointer address
-                // This means we need to copy directly into the encoder
-                // This is suboptimal!
-                // But this works!
-                // Fuck!!
+                r.update(renderContext: renderContext, camera: updateCamera, viewport: updateViewport, index: updateIndex)
+
+                r.preDraw?(renderEncoderState.renderEncoder)
                 
-                // We should be copying uniforms found in the bindUniforms from
-                // Material / Geom / Mesh
+                r.draw(renderContext: renderContext, renderEncoderState: renderEncoderState, shadow: shadow)
+            }
+            
+            renderEncoderState.renderEncoder.popDebugGroup()
+        }
+        
+        
+        for r in self.renderables
+        {
+            r.material?.onBind = nil
+        }
+        graphContext.iterationInfo = nil
+    }
+    
+    private func configureOnBindForRenderable(_ r:any Renderable, inContext renderContext:Context, renderEncoderState:RenderEncoderState, shadow:Bool)
+    {
+        if let material = r.material,
+           let uniforms = material.uniforms,
+           let shader = material.shader
+        {
+            r.material?.updateUniforms()
+            
+            r.material?.onBind =  { [weak r, weak uniforms, weak shader, weak renderEncoderState] encoder in
                 
-                if let material = r.material,
-                   let uniforms = material.uniforms,
-                   let shader = material.shader
+                guard let r, let uniforms, let shader, let renderEncoderState else { return }
+                
+                // Copied from Mesh
+                if let vertexUniforms = r.vertexUniforms[renderContext]
                 {
-                    r.material?.updateUniforms()
+                    let basePtr = vertexUniforms.buffer.contents().advanced(by: vertexUniforms.offset)
+                    let length = vertexUniforms.buffer.length - vertexUniforms.offset
                     
-                    r.material?.onBind =  { encoder in
-                        
-                        // Copied from Mesh
-                        if let vertexUniforms = r.vertexUniforms[renderContext]
-                        {
-                            let basePtr = vertexUniforms.buffer.contents().advanced(by: vertexUniforms.offset)
-                            let length = vertexUniforms.buffer.length - vertexUniforms.offset
-                            
-                            if shader.vertexWantsVertexUniforms
-                            {
-                                renderEncoderState.renderEncoder.setVertexBytes(basePtr, length: length, index: VertexBufferIndex.VertexUniforms.rawValue)
-                            }
-                            
-                            if shader.fragmentWantsVertexUniforms
-                            {
-                                renderEncoderState.renderEncoder.setFragmentBytes(basePtr, length: length, index: FragmentBufferIndex.VertexUniforms.rawValue)
-                            }
-                        }
-                        
-                        // Copied from Material
-                        if shader.vertexWantsMaterialUniforms
-                        {
-                            let basePtr = uniforms.buffer.contents().advanced(by: uniforms.offset)
-                            let length = uniforms.buffer.length - uniforms.offset
-                            renderEncoderState.renderEncoder.setVertexBytes(basePtr, length: length, index: VertexBufferIndex.MaterialUniforms.rawValue)
-                        }
-                        
-                        if !shadow, material.shader?.fragmentWantsMaterialUniforms ?? false
-                        {
-                            let basePtr = uniforms.buffer.contents().advanced(by: uniforms.offset)
-                            let length = uniforms.buffer.length - uniforms.offset
-                            renderEncoderState.renderEncoder.setFragmentBytes(basePtr, length: length, index: FragmentBufferIndex.MaterialUniforms.rawValue)
-                        }
-                        
+                    if shader.vertexWantsVertexUniforms
+                    {
+                        renderEncoderState.renderEncoder.setVertexBytes(basePtr, length: length, index: VertexBufferIndex.VertexUniforms.rawValue)
+                    }
+                    
+                    if shader.fragmentWantsVertexUniforms
+                    {
+                        renderEncoderState.renderEncoder.setFragmentBytes(basePtr, length: length, index: FragmentBufferIndex.VertexUniforms.rawValue)
+                    }
+                }
+                
+                // Copied from Material
+                if shader.vertexWantsMaterialUniforms
+                {
+                    let basePtr = uniforms.buffer.contents().advanced(by: uniforms.offset)
+                    let length = uniforms.buffer.length - uniforms.offset
+                    renderEncoderState.renderEncoder.setVertexBytes(basePtr, length: length, index: VertexBufferIndex.MaterialUniforms.rawValue)
+                }
+                
+                if !shadow, shader.fragmentWantsMaterialUniforms
+                {
+                    let basePtr = uniforms.buffer.contents().advanced(by: uniforms.offset)
+                    let length = uniforms.buffer.length - uniforms.offset
+                    renderEncoderState.renderEncoder.setFragmentBytes(basePtr, length: length, index: FragmentBufferIndex.MaterialUniforms.rawValue)
+                }
+                
 //                        for index in shader.vertexBufferBindingIsUsed
 //                        {
 //                            if let uniformBuffer = material.vertexUniformBuffers[index]
@@ -214,7 +240,7 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
 //                                renderEncoderState.renderEncoder.setVertexBytes(basePtr, length: length, index: index.rawValue)
 //                            }
 //                        }
-//                        
+//
 //                        for index in shader.fragmentBufferBindingIsUsed
 //                        {
 //                            if let uniformBuffer = material.fragmentUniformBuffers[index]
@@ -236,30 +262,13 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
 //                                renderEncoderState.renderEncoder.setFragmentBytes(basePtr, length: length, index: index.rawValue)
 //                            }
 //                        }
-//                        
+//
 //                        if let pipeline = shader.getPipeline(renderContext: renderContext, shadow: shadow)
 //                        {
 //                            renderEncoderState.renderEncoder.setRenderPipelineState(pipeline)
 //                        }
-                    }
-                }
-                
-                r.update(renderContext: renderContext, camera: updateCamera, viewport: updateViewport, index: updateIndex)
-
-                r.preDraw?(renderEncoderState.renderEncoder)
-                
-                r.draw(renderContext: renderContext, renderEncoderState: renderEncoderState, shadow: shadow)
-                
-                r.material?.onBind = nil
-
             }
-            
-            //
-            renderEncoderState.renderEncoder.popDebugGroup()
-            
         }
-        
-        graphContext.iterationInfo = nil
     }
     
     func execute(context: GraphExecutionContext,
