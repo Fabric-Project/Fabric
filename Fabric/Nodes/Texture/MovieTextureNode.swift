@@ -34,7 +34,7 @@ public class MovieTextureNode : Node
 
     // Ports
     let outputTexturePort:NodePort<EquatableTexture>
-    override public var ports: [any NodePortProtocol] { [outputTexturePort] + super.ports }
+    override public var ports:[AnyPort] { [outputTexturePort] + super.ports }
 
 
     private var texture: (any MTLTexture)? = nil

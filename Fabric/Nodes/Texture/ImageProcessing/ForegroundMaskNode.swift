@@ -28,7 +28,7 @@ public class ForegroundMaskNode: Node, NodeFileLoadingProtocol
     // Ports
     let inputTexturePort:NodePort<EquatableTexture>
     let outputTexturePort:NodePort<EquatableTexture>
-    override var ports: [any NodePortProtocol] { [inputTexturePort, outputTexturePort] + super.ports}
+    override var ports: [AnyPort] { [inputTexturePort, outputTexturePort] + super.ports}
     
     private var url:URL? = nil
     

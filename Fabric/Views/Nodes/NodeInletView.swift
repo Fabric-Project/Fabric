@@ -13,7 +13,7 @@ struct NodeInletView: View
     
     @Environment(Graph.self) var graph:Graph
 
-    var port: (any NodePortProtocol)
+    var port: AnyPort
 
     @State private var isDropTargeted = false
 

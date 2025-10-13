@@ -44,7 +44,7 @@ public class StandardMaterialNode : BaseMaterialNode
     public let inputMetalicTexture: NodePort<EquatableTexture>
 
     
-    public override var ports: [any NodePortProtocol] {  [
+    public override var ports: [AnyPort] {  [
         inputDiffuseTexture,
         inputNormalTexture,
         inputEmissiveTexture,

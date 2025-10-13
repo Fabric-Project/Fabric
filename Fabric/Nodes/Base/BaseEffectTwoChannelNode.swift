@@ -39,7 +39,7 @@ class BaseEffectTwoChannelNode: Node, NodeFileLoadingProtocol
     let inputTexture2Port:NodePort<EquatableTexture>
     
     let outputTexturePort:NodePort<EquatableTexture>
-    override var ports: [any NodePortProtocol] { [inputTexturePort, inputTexture2Port, outputTexturePort] + super.ports}
+    override var ports: [AnyPort] { [inputTexturePort, inputTexture2Port, outputTexturePort] + super.ports}
     
     private var url:URL? = nil
     

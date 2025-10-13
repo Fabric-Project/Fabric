@@ -16,7 +16,7 @@ public class BaseGeometryNode : Node
     override public class var nodeType:Node.NodeType { .Geometery }
 
     public let outputGeometry:NodePort<Geometry>
-    public override var ports: [any NodePortProtocol] { [ self.outputGeometry] + super.ports}
+    public override var ports: [AnyPort] { [ self.outputGeometry] + super.ports}
     
 
     public let inputPrimitiveType:StringParameter

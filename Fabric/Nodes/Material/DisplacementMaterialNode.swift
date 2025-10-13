@@ -35,7 +35,7 @@ public class DisplacementMaterialNode: BaseMaterialNode
     public let inputTexture:NodePort<EquatableTexture>
     public let inputDisplacementTexture:NodePort<EquatableTexture>
     public let inputPointSpriteTexture:NodePort<EquatableTexture>
-    public override var ports: [any NodePortProtocol] {   [
+    public override var ports: [AnyPort] {   [
         self.inputTexture,
         self.inputDisplacementTexture,
         self.inputPointSpriteTexture] + super.ports

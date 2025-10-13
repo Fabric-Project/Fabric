@@ -24,7 +24,7 @@ public class IteratorInfoNode : Node
     
     // Ports
     public let outputProgress:NodePort<Float>
-    public override var ports: [any NodePortProtocol] { [ outputProgress] + super.ports}
+    public override var ports: [AnyPort] { [ outputProgress] + super.ports}
     
     public required init(context: Context)
     {

@@ -32,7 +32,7 @@ public class InstancedMeshNode : BaseObjectNode
     public let inputMaterial:NodePort<Material>
     public let outputMesh:NodePort<Object>
     
-    public override var ports: [any NodePortProtocol] {   [inputGeometry,
+    public override var ports: [AnyPort] {   [inputGeometry,
                                                            inputMaterial,
                                                            inputPositions,
                                                            outputMesh] + super.ports}

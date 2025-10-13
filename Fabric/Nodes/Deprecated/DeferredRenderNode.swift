@@ -33,7 +33,7 @@ public class DeferredRenderNode : Node, NodeProtocol
     
     private let renderer:Renderer
     
-    public override var ports: [any NodePortProtocol] {[inputCamera, inputScene, outputColorTexture, outputDepthTexture] + super.ports}
+    public override var ports: [AnyPort] {[inputCamera, inputScene, outputColorTexture, outputDepthTexture] + super.ports}
     
     public required init(context:Context)
     {

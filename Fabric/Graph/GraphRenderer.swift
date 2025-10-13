@@ -124,7 +124,7 @@ public class GraphRenderer : MetalViewRenderer
             for renderNode in providerNodes + subgraphNodes
             {
                 let _ = processGraph(graph:graph,
-                                     node: renderNode as! Node,
+                                     node: renderNode,
                                      executionContext:executionContext,
                                      renderPassDescriptor: renderPassDescriptor,
                                      commandBuffer: commandBuffer,
@@ -202,7 +202,7 @@ public class GraphRenderer : MetalViewRenderer
         for inputNode in inputNodes
         {
             processGraph(graph: graph,
-                         node: inputNode as! Node,
+                         node: inputNode,
                          executionContext:executionContext,
                          renderPassDescriptor: renderPassDescriptor,
                          commandBuffer: commandBuffer,

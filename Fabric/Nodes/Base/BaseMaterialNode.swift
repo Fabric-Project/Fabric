@@ -17,7 +17,7 @@ public class BaseMaterialNode : Node
 
     // Ports
     public let outputMaterial:NodePort<Material>
-    public override var ports: [any NodePortProtocol] { [ self.outputMaterial] + super.ports}
+    public override var ports: [AnyPort] { [ self.outputMaterial] + super.ports}
     
     // Params
     public let inputReceivesLighting:BoolParameter

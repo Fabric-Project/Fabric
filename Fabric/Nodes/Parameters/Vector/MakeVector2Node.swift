@@ -22,7 +22,7 @@ public class MakeVector2Node : Node
     
     // Ports
     public let outputVector:NodePort<simd_float2>
-    public override var ports: [any NodePortProtocol] { [outputVector] + super.ports}
+    public override var ports: [AnyPort] { [outputVector] + super.ports}
 
     private var vector = simd_float2(repeating: 0)
 

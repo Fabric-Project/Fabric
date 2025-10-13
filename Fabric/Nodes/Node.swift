@@ -22,7 +22,7 @@ import Combine
 //
 //    init(context:Context)
 //    
-//    var ports: [any NodePortProtocol] { get }
+//    var ports:[AnyPort] { get }
 //    
 //    var parameterGroup:ParameterGroup { get }
 //      
@@ -81,9 +81,9 @@ import Combine
     @ObservationIgnored public var inputParameters:[any Parameter] { []  }
     @ObservationIgnored public let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
     
-    @ObservationIgnored private var inputParameterPorts:[any NodePortProtocol] = []
+    @ObservationIgnored private var inputParameterPorts:[AnyPort] = []
     
-    public var ports:[any NodePortProtocol] { self.inputParameterPorts  }
+    public var ports:[AnyPort] { self.inputParameterPorts  }
     public private(set) var inputNodes:[Node] = []
     public private(set) var outputNodes:[Node]  = []
     
@@ -219,12 +219,12 @@ import Combine
 //        return Array(Set(outputNodes))
     }
     
-    public func publishedPorts() -> [any NodePortProtocol]
+    public func publishedPorts() -> [AnyPort]
     {
         return self.ports.filter( { $0.published } )
     }
     
-    public func publishedParameterPorts() -> [any NodePortProtocol]
+    public func publishedParameterPorts() -> [AnyPort]
     {
         return self.inputParameterPorts.filter( { $0.published } )
     }
@@ -291,14 +291,14 @@ import Combine
     
     // Mark - Private helper
     
-    private func parametersGroupToPorts(_ parameters:[(any Parameter)]) -> [any NodePortProtocol]
+    private func parametersGroupToPorts(_ parameters:[(any Parameter)]) -> [AnyPort]
     {
         print(self.name, "parametersGroupToPorts")
         return parameters.compactMap( {
             self.parameterToPort(parameter:$0) })
     }
     
-    private func parameterToPort(parameter:(any Parameter)) -> (any NodePortProtocol)?
+    private func parameterToPort(parameter:(any Parameter)) -> AnyPort?
     {
         print(self.name, "parameterToPort", parameter.label)
                 

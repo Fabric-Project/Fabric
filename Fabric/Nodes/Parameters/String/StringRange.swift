@@ -21,7 +21,7 @@ public class StringRangeNode : Node
 
     let inputPort:NodePort<String>
     let outputPort:NodePort<String>
-    override public var ports: [any NodePortProtocol] {  [inputPort, outputPort] + super.ports}
+    override public var ports:[AnyPort] {  [inputPort, outputPort] + super.ports}
 
     private var url: URL? = nil
     private var string: String? = nil

@@ -33,7 +33,7 @@ public class NumberRemapNode : Node
 
     // Ports
     public let outputNumber:NodePort<Float>
-    public override var ports: [any NodePortProtocol] { [outputNumber] + super.ports }
+    public override var ports: [AnyPort] { [outputNumber] + super.ports }
 
     private let easingMap = Dictionary(uniqueKeysWithValues: zip(Easing.allCases.map( {$0.title()}), Easing.allCases)  )
     

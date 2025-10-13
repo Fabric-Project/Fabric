@@ -31,7 +31,7 @@ public class MeshNode : BaseObjectNode, ObjectNodeProtocol, RenderableObjectNode
     public let inputMaterial:NodePort<Material>
 //    public let outputMesh:NodePort<Object>
     
-    public override var ports: [any NodePortProtocol] {   [inputGeometry,
+    public override var ports: [AnyPort] {   [inputGeometry,
                                                            inputMaterial,
 //                                                           outputMesh
     ] + super.ports}

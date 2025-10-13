@@ -25,7 +25,7 @@ public class MakeVector4Node : Node
 
     // Ports
     public let outputVector:NodePort<simd_float4>
-    public override var ports: [any NodePortProtocol] { [outputVector] + super.ports }
+    public override var ports: [AnyPort] { [outputVector] + super.ports }
     
     private var vector = simd_float4(repeating: 0)
 

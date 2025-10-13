@@ -34,7 +34,7 @@ public class SceneBuilderNode : BaseObjectNode, ObjectNodeProtocol
     public let inputObject10:NodePort<Object>
     public let outputScene:NodePort<Object>
     
-    public override var ports: [any NodePortProtocol] {  [ inputEnvironment,
+    public override var ports: [AnyPort] {  [ inputEnvironment,
                                                            inputObject1,
                                                            inputObject2,
                                                            inputObject3,

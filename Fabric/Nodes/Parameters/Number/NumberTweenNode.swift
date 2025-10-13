@@ -23,7 +23,7 @@ public class NumberEaseNode : Node
 
     // Ports
     public let outputNumber:NodePort<Float>
-    public override var ports: [any NodePortProtocol] {  [outputNumber] + super.ports}
+    public override var ports: [AnyPort] {  [outputNumber] + super.ports}
 
     private var lastOutput:Float = 0.0
     

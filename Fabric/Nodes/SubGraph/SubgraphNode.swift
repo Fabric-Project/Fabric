@@ -18,7 +18,7 @@ public class SubgraphNode: Node, RenderableObjectNodeProtocol
     let graphRenderer:GraphRenderer
     let graph:Graph
     
-    override public var ports: [any NodePortProtocol] { self.graph.publishedPorts() }
+    override public var ports:[AnyPort] { self.graph.publishedPorts() }
     
     var object: SubgraphIteratorRenderable?
     {

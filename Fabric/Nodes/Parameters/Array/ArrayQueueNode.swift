@@ -21,7 +21,7 @@ public class ArrayQueueNode<Value : Equatable & FabricDescription> : Node
 
     let inputPort:NodePort<Value>
     let outputPort:NodePort<ContiguousArray<Value>>
-    override public var ports: [any NodePortProtocol] {  [inputPort, outputPort] + super.ports}
+    override public var ports:[AnyPort] {  [inputPort, outputPort] + super.ports}
 
     private var queue:ContiguousArray<Value> = []
     

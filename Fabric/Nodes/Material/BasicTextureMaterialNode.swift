@@ -17,7 +17,7 @@ public class BasicTextureMaterialNode : BasicColorMaterialNode
 
     // Ports
     public let inputTexture:NodePort<EquatableTexture>
-    public override var ports: [any NodePortProtocol] {   [inputTexture] + super.ports }
+    public override var ports: [AnyPort] {   [inputTexture] + super.ports }
     
     public override var material: BasicTextureMaterial {
         return _material

@@ -27,7 +27,7 @@ public class GradientNoiseNode : Node
 
     // Ports
     public let outputNumber:NodePort<Float>
-    public override var ports: [any NodePortProtocol] { [ outputNumber ] + super.ports}
+    public override var ports: [AnyPort] { [ outputNumber ] + super.ports}
 
     // Ensure we always render!
     public override var isDirty:Bool { get {  true  } set { } }

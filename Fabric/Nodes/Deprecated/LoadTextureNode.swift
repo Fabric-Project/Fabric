@@ -23,7 +23,7 @@ class LoadTextureNode : Node, NodeProtocol
 
     // Ports
     let outputTexturePort:NodePort<EquatableTexture>
-    override var ports: [any NodePortProtocol] { [outputTexturePort] + super.ports}
+    override var ports: [AnyPort] { [outputTexturePort] + super.ports}
 
     private var texture: (any MTLTexture)? = nil
     private var url: URL? = nil
