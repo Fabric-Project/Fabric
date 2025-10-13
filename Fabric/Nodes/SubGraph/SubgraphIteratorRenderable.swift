@@ -135,7 +135,7 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
             
             // We should be copying uniforms found in the bindUniforms from
             // Material / Geom / Mesh
-            self.configureOnBindForRenderable(r, inContext: renderContext, renderEncoderState: renderEncoderState, shadow: shadow)
+            self.configureOnBindForRenderable(r, inContext: renderContext, shadow: shadow)
         }
         
         for iteration in 0..<iterationCount
@@ -175,18 +175,18 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
         graphContext.iterationInfo = nil
     }
     
-    private func configureOnBindForRenderable(_ r:any Renderable, inContext renderContext:Context, renderEncoderState:RenderEncoderState, shadow:Bool)
+    private func configureOnBindForRenderable(_ r:any Renderable, inContext renderContext:Context, shadow:Bool)
     {
         if let material = r.material,
            let uniforms = material.uniforms,
            let shader = material.shader
         {
-            r.material?.updateUniforms()
-            
-            r.material?.onBind =  { [weak r, weak uniforms, weak shader, weak renderEncoderState] encoder in
+            material.onBind = { [weak r, weak uniforms, weak shader] encoder in
                 
-                guard let r, let uniforms, let shader, let renderEncoderState else { return }
+                guard let r, let uniforms, let shader else { return }
                 
+                material.updateUniforms()
+
                 // Copied from Mesh
                 if let vertexUniforms = r.vertexUniforms[renderContext]
                 {
@@ -195,12 +195,12 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
                     
                     if shader.vertexWantsVertexUniforms
                     {
-                        renderEncoderState.renderEncoder.setVertexBytes(basePtr, length: length, index: VertexBufferIndex.VertexUniforms.rawValue)
+                        encoder.setVertexBytes(basePtr, length: length, index: VertexBufferIndex.VertexUniforms.rawValue)
                     }
                     
                     if shader.fragmentWantsVertexUniforms
                     {
-                        renderEncoderState.renderEncoder.setFragmentBytes(basePtr, length: length, index: FragmentBufferIndex.VertexUniforms.rawValue)
+                        encoder.setFragmentBytes(basePtr, length: length, index: FragmentBufferIndex.VertexUniforms.rawValue)
                     }
                 }
                 
@@ -209,14 +209,14 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
                 {
                     let basePtr = uniforms.buffer.contents().advanced(by: uniforms.offset)
                     let length = uniforms.buffer.length - uniforms.offset
-                    renderEncoderState.renderEncoder.setVertexBytes(basePtr, length: length, index: VertexBufferIndex.MaterialUniforms.rawValue)
+                    encoder.setVertexBytes(basePtr, length: length, index: VertexBufferIndex.MaterialUniforms.rawValue)
                 }
                 
                 if !shadow, shader.fragmentWantsMaterialUniforms
                 {
                     let basePtr = uniforms.buffer.contents().advanced(by: uniforms.offset)
                     let length = uniforms.buffer.length - uniforms.offset
-                    renderEncoderState.renderEncoder.setFragmentBytes(basePtr, length: length, index: FragmentBufferIndex.MaterialUniforms.rawValue)
+                    encoder.setFragmentBytes(basePtr, length: length, index: FragmentBufferIndex.MaterialUniforms.rawValue)
                 }
                 
 //                        for index in shader.vertexBufferBindingIsUsed
