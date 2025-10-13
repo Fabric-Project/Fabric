@@ -267,10 +267,7 @@ import Combine
                          renderPassDescriptor: MTLRenderPassDescriptor,
                          commandBuffer: MTLCommandBuffer) { }
     
-    public func resize(size: (width: Float, height: Float), scaleFactor: Float)
-    {
-        
-    }
+    public func resize(size: (width: Float, height: Float), scaleFactor: Float) { }
    
     func computeNodeSize() -> CGSize
     {
@@ -394,16 +391,12 @@ import Combine
                 return ParameterPort(parameter: genericParam)
             }
 
-        
-            
-            
         default:
             return nil
 
         }
         
         return nil
-
     }
 }
 
