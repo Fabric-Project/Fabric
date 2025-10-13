@@ -125,7 +125,7 @@ public class NodePort<Value : Equatable>: NodePortProtocol
 {
     public static func == (lhs: NodePort, rhs: NodePort) -> Bool
     {
-        return lhs.hashValue == rhs.hashValue
+        return lhs.id == rhs.id
     }
     
     public func hash(into hasher: inout Hasher)
@@ -377,14 +377,17 @@ public class NodePort<Value : Equatable>: NodePortProtocol
         {
             self.value = v
             
-            for case let p as NodePort<Value> in connections
+            for p in connections
             {
-                self.send(v, to:p, force: force)
-            }
-            
-            for case let p as NodePort<AnyLoggable> in connections
-            {
-                self.send(v, to:p, force: force)
+                if let p = p as? NodePort<Value>
+                {
+                    self.send(v, to:p, force: force)
+                }
+                
+                else if let p = p as? NodePort<AnyLoggable>
+                {
+                    self.send(v, to:p, force: force)
+                }
             }
         }
     }

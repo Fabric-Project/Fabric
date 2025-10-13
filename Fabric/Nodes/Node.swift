@@ -185,12 +185,12 @@ protocol RenderableObjectNodeProtocol: ObjectNodeProtocol where Obj: Satin.Rende
         self.inputParameterPorts = self.parametersGroupToPorts(self.inputParameters)
         self.parameterGroup.append(self.inputParameters)
         
-        for parameter in self.inputParameters
-        {
-            let cancellable = self.makeCancelable(parameter: parameter)
-            //
-            self.inputParamCancellables.append(cancellable)
-        }
+//        for parameter in self.inputParameters
+//        {
+//            let cancellable = self.makeCancelable(parameter: parameter)
+//            //
+//            self.inputParamCancellables.append(cancellable)
+//        }
         
         for port in self.ports
         {
@@ -217,12 +217,12 @@ protocol RenderableObjectNodeProtocol: ObjectNodeProtocol where Obj: Satin.Rende
         self.inputParameterPorts = self.parametersGroupToPorts(self.inputParameters)
         self.parameterGroup.append(self.inputParameters)
         
-        for parameter in self.inputParameters
-        {
-            let cancellable = self.makeCancelable(parameter: parameter)
-            //
-            self.inputParamCancellables.append(cancellable)
-        }
+//        for parameter in self.inputParameters
+//        {
+//            let cancellable = self.makeCancelable(parameter: parameter)
+//            //
+//            self.inputParamCancellables.append(cancellable)
+//        }
         
         for port in self.ports
         {
@@ -286,7 +286,10 @@ protocol RenderableObjectNodeProtocol: ObjectNodeProtocol where Obj: Satin.Rende
         isDirty = false
         
         // See https://github.com/Fabric-Project/Fabric/issues/41
-        self.ports.forEach( { $0.valueDidChange = false } )
+        for port in ports
+        {
+            port.valueDidChange = false
+        }
     }
     
     public func markDirty()

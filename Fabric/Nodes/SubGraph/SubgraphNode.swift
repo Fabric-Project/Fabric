@@ -76,15 +76,20 @@ public class SubgraphNode: Node, RenderableObjectNodeProtocol
         self.graph.needsExecution
     }
     
-    
     override public func markClean()
     {
-        self.graph.nodes.forEach { $0.markClean() }
+        for node in self.graph.nodes
+        {
+            node.markClean()
+        }
     }
          
     override public func markDirty()
     {
-        self.graph.nodes.forEach { $0.markDirty() }
+        for node in self.graph.nodes
+        {
+            node.markDirty()
+        }
     }
     
     override public func startExecution(context:GraphExecutionContext)

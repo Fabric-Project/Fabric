@@ -37,14 +37,12 @@ internal import AnyCodable
         }
     }
     
-    var renderables: [any Satin.Object &  Satin.Renderable] {
-        let meshNodes = self.recursiveNodes(withNodeType: .Object(objectType: .Mesh ) )
-        let subgraphNodes = self.recursiveNodes(withNodeType: .Subgraph)
-
-        let renderableNodes:[any RenderableObjectNodeProtocol] = (subgraphNodes + meshNodes).compactMap( { $0 as? (any RenderableObjectNodeProtocol) })
+    var renderables: [any Satin.Object & Satin.Renderable] {
+        let allNodes = self.recursiveNodes()
+        
+        let renderableNodes:[any RenderableObjectNodeProtocol] = allNodes.compactMap( { $0 as? (any RenderableObjectNodeProtocol) })
             
         return renderableNodes.compactMap { $0.object }
-        
     }
     
     var shouldUpdateConnections = false // New property to trigger view update
@@ -322,7 +320,6 @@ internal import AnyCodable
         for node in self.nodes
         {
             if node.nodeType == type
-//            if node is any RenderableObjectNodeProtocol
             {
                 nodes.append(node)
             }
@@ -337,9 +334,28 @@ internal import AnyCodable
         return nodes
     }
     
+    public func recursiveNodes() -> [(any NodeProtocol)]
+    {
+        var nodes = [(any NodeProtocol)]()
+        
+        for node in self.nodes
+        {
+            nodes.append(node)
+
+            if node.nodeType == .Subgraph,
+               let subGraph = node as? SubgraphNode
+            {
+                nodes.append(contentsOf: subGraph.graph.recursiveNodes())
+            }
+        }
+        
+        return nodes
+    }
+    
+    
     public func recursiveMarkClean()
     {
-        for node in self.nodes
+        for node in self.recursiveNodes()
         {
             node.markClean()
         }
@@ -347,7 +363,7 @@ internal import AnyCodable
     
     public func recursiveMarkDirty()
     {
-        for node in self.nodes
+        for node in self.recursiveNodes()
         {
             node.markDirty()
         }

@@ -135,6 +135,12 @@ public class GraphRenderer : MetalViewRenderer
             self.cachedCamera = firstCamera
             let renderables = graph.renderables
             
+            
+//            for node in nodesWeHaveExecutedThisPass
+//            {
+//                node.markClean()
+//            }
+            
             return (objects: sceneObjects + renderables, camera:firstCamera)
 
             
@@ -172,10 +178,10 @@ public class GraphRenderer : MetalViewRenderer
 //        }
 //        
         
-        for node in nodesWeHaveExecutedThisPass
-        {
-            node.markClean()
-        }
+//        for node in nodesWeHaveExecutedThisPass
+//        {
+//            node.markClean()
+//        }
         
         return (objects: [], camera:nil)
         
@@ -206,15 +212,17 @@ public class GraphRenderer : MetalViewRenderer
         
         if node.isDirty
         {
-            if !nodesWeHaveExecutedThisPass.contains(node)
-            {
+//            if !nodesWeHaveExecutedThisPass.contains(node)
+//            {
                 node.execute(context: executionContext,
                              renderPassDescriptor: renderPassDescriptor,
                              commandBuffer: commandBuffer)
                 
                 
                 nodesWeHaveExecutedThisPass.append(node)
-            }
+                
+                node.markClean()
+//            }
 //            else
 //            {
 //                print("We already executed this node?, \(node.name) frame: \(self.executionCount)")
