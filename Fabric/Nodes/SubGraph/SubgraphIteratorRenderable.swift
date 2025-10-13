@@ -34,11 +34,8 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
         fatalError("init(from:) has not been implemented")
     }
     
-    var renderables: [any Satin.Renderable]
-    {
-        return self.subGraph.renderables
-    }
-
+    var renderables: [any Satin.Renderable] = []
+   
     
     var iterationCount: Int
 
@@ -126,7 +123,7 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
               let currentRenderPass,
               let currentCommandBuffer
         else { return }
-        
+
         for iteration in 0..<iterationCount
         {
             renderEncoderState.renderEncoder.pushDebugGroup("Iterator \(iteration)")
@@ -263,7 +260,6 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
         }
         
         graphContext.iterationInfo = nil
-
     }
     
     func execute(context: GraphExecutionContext,

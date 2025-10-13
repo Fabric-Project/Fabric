@@ -82,7 +82,8 @@ public class IteratorNode: SubgraphNode
         self.renderProxy.graphContext = context
         self.renderProxy.currentRenderPass = renderPassDescriptor
         self.renderProxy.currentCommandBuffer = commandBuffer
-        
+        self.renderProxy.renderables = self.graph.renderables
+
         if self.inputIteratonCount.valueDidChange
         {
             self.renderProxy.iterationCount = self.inputIteratonCount.value
@@ -90,5 +91,6 @@ public class IteratorNode: SubgraphNode
         
         // execute the graph once, to just ensure meshes / materials have latest values popogated to nodes
         self.renderProxy.execute(context: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+        
     }
 }
