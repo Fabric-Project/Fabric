@@ -111,6 +111,9 @@ import Combine
     //    @ObservationIgnored var lastEvaluationTime: TimeInterval = -1
     @ObservationIgnored private(set) public var isDirty: Bool = true
     
+    // Input Parameter update tracking:
+    @ObservationIgnored var inputParamCancellables: [AnyCancellable] = []
+
     enum CodingKeys : String, CodingKey
     {
         case id
@@ -118,7 +121,6 @@ import Combine
         case nodeOffset
         case valuePorts
     }
-    
     
     public required init(from decoder: any Decoder) throws
     {
@@ -136,6 +138,13 @@ import Combine
         
         self.inputParameterPorts = self.parametersGroupToPorts(self.inputParameters)
         self.parameterGroup.append(self.inputParameters)
+        
+        for parameter in self.inputParameters
+        {
+            let cancellable = self.makeCancelable(parameter: parameter)
+//
+            self.inputParamCancellables.append(cancellable)
+        }
         
         for port in self.ports
         {
@@ -159,6 +168,13 @@ import Combine
         self.context = context
         self.inputParameterPorts = self.parametersGroupToPorts(self.inputParameters)
         self.parameterGroup.append(self.inputParameters)
+        
+        for parameter in self.inputParameters
+        {
+            let cancellable = self.makeCancelable(parameter: parameter)
+//
+            self.inputParamCancellables.append(cancellable)
+        }
         
         for port in self.ports
         {
