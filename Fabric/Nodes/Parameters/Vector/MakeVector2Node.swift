@@ -10,10 +10,10 @@ import Satin
 import simd
 import Metal
 
-public class MakeVector2Node : Node, NodeProtocol
+public class MakeVector2Node : Node
 {
-    public static let name = "Vector 2"
-    public static var nodeType = Node.NodeType.Parameter(parameterType: .Vector)
+    override public static var name:String { "Vector 2" }
+    override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Vector) }
 
     // Params
     public let inputXParam:FloatParameter
@@ -22,7 +22,7 @@ public class MakeVector2Node : Node, NodeProtocol
     
     // Ports
     public let outputVector:NodePort<simd_float2>
-    public override var ports: [any NodePortProtocol] { [outputVector] + super.ports}
+    public override var ports: [AnyPort] { [outputVector] + super.ports}
 
     private var vector = simd_float2(repeating: 0)
 

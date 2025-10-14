@@ -10,15 +10,15 @@ import Satin
 import simd
 import Metal
 
-public class TrueNode : Node, NodeProtocol
+public class TrueNode : Node
 {
-    public static let name = "True"
-    public static var nodeType = Node.NodeType.Parameter(parameterType: .Boolean)
+    override public static var name:String { "True" }
+    override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Boolean) }
 
     // Ports
     public let outputBoolean: NodePort<Bool>
 
-    public override var ports: [any NodePortProtocol] { [outputBoolean] + super.ports }
+    public override var ports: [AnyPort] { [outputBoolean] + super.ports }
     
     public required init(context: Context)
     {

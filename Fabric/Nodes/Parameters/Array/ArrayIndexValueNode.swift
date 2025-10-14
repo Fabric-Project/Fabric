@@ -11,17 +11,17 @@ import simd
 import Metal
 import MetalKit
 
-public class ArrayIndexValueNode<Value : Equatable & FabricDescription> : Node, NodeProtocol
+public class ArrayIndexValueNode<Value : Equatable & FabricDescription> : Node
 {
-    public static var name:String { "\(Value.fabricDescription) Value at Array Index" }
-    public static var nodeType:Node.NodeType { Node.NodeType.Parameter(parameterType: .Array) }
+    public override var name:String {"\(Value.fabricDescription) Value at Array Index" }
+    public override var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
 
     let inputIndexParam:FloatParameter
     override public var inputParameters: [any Parameter] { [self.inputIndexParam] + super.inputParameters}
 
     let inputPort:NodePort<ContiguousArray<Value>>
     let outputPort:NodePort<Value>
-    override public var ports: [any NodePortProtocol] {  [inputPort, outputPort] + super.ports}
+    override public var ports:[AnyPort] {  [inputPort, outputPort] + super.ports}
     
     required public init(context:Context)
     {

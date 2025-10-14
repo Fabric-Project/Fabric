@@ -33,7 +33,7 @@ public class DeferredRenderNode : Node, NodeProtocol
     
     private let renderer:Renderer
     
-    public override var ports: [any NodePortProtocol] {[inputCamera, inputScene, outputColorTexture, outputDepthTexture] + super.ports}
+    public override var ports: [AnyPort] {[inputCamera, inputScene, outputColorTexture, outputDepthTexture] + super.ports}
     
     public required init(context:Context)
     {
@@ -120,11 +120,11 @@ public class DeferredRenderNode : Node, NodeProtocol
             }
            
             self.renderer.clearColor = .init( self.inputClearColor.value )
-                        
-            renderer.draw(renderPassDescriptor: rpd1,
-                          commandBuffer: commandBuffer,
-                          scene: object,
-                          camera: camera)
+            
+            self.renderer.draw(renderPassDescriptor: rpd1,
+                               commandBuffer: commandBuffer,
+                               scene: object,
+                               camera: camera)
             
             if let texture = renderer.colorTexture
             {

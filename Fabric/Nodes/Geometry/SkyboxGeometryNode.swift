@@ -10,16 +10,16 @@ import Foundation
 import simd
 import Metal
 
-public class SkyboxGeometryNode : Node, NodeProtocol
+public class SkyboxGeometryNode : Node
 {
-    public static let name = "Skybox Geometry"
-    public static var nodeType = Node.NodeType.Geometery
+    override public class var name:String { "Skybox Geometry" }
+    override public class var nodeType:Node.NodeType { Node.NodeType.Geometery }
 
     // Ports
     
     public let outputGeometry:NodePort<Geometry>
     
-    public override var ports:[any NodePortProtocol] {  [outputGeometry] + super.ports}
+    public override var ports:[AnyPort] {  [outputGeometry] + super.ports}
 
     private let geometry = SkyboxGeometry(size: 50)
 

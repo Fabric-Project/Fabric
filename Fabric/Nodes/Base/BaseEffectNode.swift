@@ -13,7 +13,7 @@ import MetalKit
 
 class BaseEffectNode: Node, NodeFileLoadingProtocol
 {
-    class var name:String { "Base Effect" }
+    override class var name:String { "Base Effect" }
     
     override var name: String {
         guard let fileURL = self.url else {
@@ -23,7 +23,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
         return self.fileURLToName(fileURL: fileURL)
     }
     
-    class var nodeType:Node.NodeType { .Image(imageType: .BaseEffect) }
+    override class var nodeType:Node.NodeType { .Image(imageType: .BaseEffect) }
     class var sourceShaderName:String { "" }
 
     open class PostMaterial: SourceMaterial {}
@@ -37,7 +37,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
     // Ports
     let inputTexturePort:NodePort<EquatableTexture>
     let outputTexturePort:NodePort<EquatableTexture>
-    override var ports: [any NodePortProtocol] { [inputTexturePort, outputTexturePort] + super.ports}
+    override var ports: [AnyPort] { [inputTexturePort, outputTexturePort] + super.ports}
     
     private var url:URL? = nil
     
@@ -172,7 +172,6 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
            return partialResult || next.valueDidChange
         })
 
-        
         if self.inputTexturePort.valueDidChange || anyParamDidChange || self.isDirty
         {
             if let inTex = self.inputTexturePort.value?.texture
@@ -199,6 +198,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
             }
         }
     }
+    
     
     private func fileURLToName(fileURL:URL) -> String {
         let nodeName =  fileURL.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "ImageNode", with: "")

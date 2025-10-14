@@ -9,10 +9,10 @@ import Foundation
 import Satin
 import Metal
 
-public class NumberRemapNode : Node, NodeProtocol
+public class NumberRemapNode : Node
 {
-    public static let name = "Number Remap"
-    public static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
+    override public static var name:String { "Number Remap" }
+    override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
 
     // Params
     public let inputNumber:GenericParameter<Float>
@@ -33,7 +33,7 @@ public class NumberRemapNode : Node, NodeProtocol
 
     // Ports
     public let outputNumber:NodePort<Float>
-    public override var ports: [any NodePortProtocol] { [outputNumber] + super.ports }
+    public override var ports: [AnyPort] { [outputNumber] + super.ports }
 
     private let easingMap = Dictionary(uniqueKeysWithValues: zip(Easing.allCases.map( {$0.title()}), Easing.allCases)  )
     

@@ -10,21 +10,30 @@ import Satin
 import simd
 import Metal
 
-public class SubgraphNode: Node, NodeProtocol
+public class SubgraphNode: Node, RenderableObjectNodeProtocol
 {
-    public static let name = "Sub Graph"
-    public static var nodeType = Node.NodeType.Subgraph
+    override public class var name:String { "Sub Graph" }
+    override public class var nodeType:Node.NodeType { Node.NodeType.Subgraph }
 
     let graphRenderer:GraphRenderer
     let graph:Graph
     
-    override public var ports: [any NodePortProtocol] { self.graph.publishedPorts() }
+    override public var ports:[AnyPort] { self.graph.publishedPorts() }
+    
+    var object: SubgraphIteratorRenderable?
+    {
+        self.renderProxy
+    }
+    
+    var renderProxy:SubgraphIteratorRenderable
     
     public required init(context: Context)
     {
         self.graph = Graph(context: context)
         self.graphRenderer = GraphRenderer(context: context, graph: self.graph)
         
+        self.renderProxy = SubgraphIteratorRenderable(subGraph: self.graph, iterationCount: 1)
+
         super.init(context: context)
     }
     
@@ -55,7 +64,30 @@ public class SubgraphNode: Node, NodeProtocol
         
         self.graphRenderer = GraphRenderer(context: decodeContext.documentContext, graph: self.graph)
 
+        self.renderProxy = SubgraphIteratorRenderable(subGraph: self.graph, iterationCount: 0)
+
         try super.init(from: decoder)
+    }
+    
+    override public var isDirty: Bool
+    {
+        self.graph.needsExecution
+    }
+    
+    override public func markClean()
+    {
+        for node in self.graph.nodes
+        {
+            node.markClean()
+        }
+    }
+         
+    override public func markDirty()
+    {
+        for node in self.graph.nodes
+        {
+            node.markDirty()
+        }
     }
     
     override public func startExecution(context:GraphExecutionContext)

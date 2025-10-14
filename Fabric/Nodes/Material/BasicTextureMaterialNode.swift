@@ -17,7 +17,7 @@ public class BasicTextureMaterialNode : BasicColorMaterialNode
 
     // Ports
     public let inputTexture:NodePort<EquatableTexture>
-    public override var ports: [any NodePortProtocol] {   [inputTexture] + super.ports }
+    public override var ports: [AnyPort] {   [inputTexture] + super.ports }
     
     public override var material: BasicTextureMaterial {
         return _material
@@ -31,7 +31,7 @@ public class BasicTextureMaterialNode : BasicColorMaterialNode
         
         super.init(context: context)
         
-        self.material.flipped = true
+//        self.material.flipped = true
     }
     
     enum CodingKeys : String, CodingKey
@@ -74,17 +74,5 @@ public class BasicTextureMaterialNode : BasicColorMaterialNode
         }
         
         return shouldOutput
-    }
-    
-    public override func execute(context:GraphExecutionContext,
-                                 renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
-    {
-        let shouldOutput = self.evaluate(material: self.material, atTime: context.timing.time)
-        
-        if shouldOutput
-        {
-            self.outputMaterial.send(self.material)
-        }
     }
 }

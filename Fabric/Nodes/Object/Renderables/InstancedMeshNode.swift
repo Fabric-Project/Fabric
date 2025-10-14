@@ -10,10 +10,10 @@ import Satin
 import simd
 import Metal
 
-public class InstancedMeshNode : BaseObjectNode, NodeProtocol
+public class InstancedMeshNode : BaseObjectNode
 {
-    public class var name:String { "Instanced Mesh" }
-    public class var nodeType:Node.NodeType  { .Mesh }
+    override public class var name:String { "Instanced Mesh" }
+    override public class var nodeType:Node.NodeType  { Node.NodeType.Object(objectType: .Mesh) }
 
     // Params
     public let inputCastsShadow:BoolParameter
@@ -32,7 +32,7 @@ public class InstancedMeshNode : BaseObjectNode, NodeProtocol
     public let inputMaterial:NodePort<Material>
     public let outputMesh:NodePort<Object>
     
-    public override var ports: [any NodePortProtocol] {   [inputGeometry,
+    public override var ports: [AnyPort] {   [inputGeometry,
                                                            inputMaterial,
                                                            inputPositions,
                                                            outputMesh] + super.ports}

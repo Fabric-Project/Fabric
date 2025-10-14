@@ -11,10 +11,10 @@ import Satin
 import simd
 import Metal
 
-public class DirectionalLightNode : BaseObjectNode, NodeProtocol
+public class DirectionalLightNode : BaseObjectNode, ObjectNodeProtocol
 {
-    public static let name = "Directional Light"
-    public static var nodeType = Node.NodeType.Light
+    public override var name:String { "Directional Light" }
+    public override var nodeType:Node.NodeType { Node.NodeType.Object(objectType: .Light) }
 
     // Params
     public let inputLookAt: Float3Parameter
@@ -34,7 +34,11 @@ public class DirectionalLightNode : BaseObjectNode, NodeProtocol
     
     // Ports
     public let outputLight: NodePort<Object>
-    public override var ports: [any NodePortProtocol] {  [outputLight] + super.ports }
+    public override var ports: [AnyPort] {  [outputLight] + super.ports }
+    
+    public var object: Object? {
+        return light
+    }
     
     private var light: DirectionalLight =  DirectionalLight(color: [1.0, 1.0, 1.0], intensity: 1.0)
 

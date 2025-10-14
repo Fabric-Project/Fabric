@@ -9,7 +9,7 @@ import SwiftUI
 
 struct NodeOutletView: View
 {
-    let port: (any NodePortProtocol)
+    let port: AnyPort
 
     var body: some View 
     {

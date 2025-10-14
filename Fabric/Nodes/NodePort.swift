@@ -38,31 +38,126 @@ public struct PortAnchorKey: PreferenceKey
     }
 }
 
-public protocol NodePortProtocol : Identifiable, Hashable, Equatable, Codable, AnyObject
+//public protocol NodePortProtocol : Identifiable, Hashable, Equatable, Codable, AnyObject, CustomDebugStringConvertible
+//{
+//    var id: UUID { get }
+//    var name: String { get }
+//    var connections: [AnyPort] { get set }
+//    var kind:PortKind { get }
+//    
+//    var published:Bool { get set }
+//    
+//    var node: Node? { get set }
+//
+//    func connect(to other: AnyPort)
+//    func disconnect(from other: AnyPort)
+//    func disconnectAll()
+//
+//    var color: Color { get }
+//    var backgroundColor: Color { get }
+//    var direction:PortDirection { get }
+//
+////    var value: Any? { get set }
+//    var valueType: Any.Type { get }
+//    var valueDescription: String { get }
+//    var valueDidChange:Bool { get set }
+//}
+
+public class AnyPort : Identifiable, Hashable, Equatable, Codable, CustomDebugStringConvertible
 {
-    var id: UUID { get }
-    var name: String { get }
-    var connections: [any NodePortProtocol] { get set }
-    var kind:PortKind { get }
+    public static func == (lhs: AnyPort, rhs: AnyPort) -> Bool
+    {
+        return lhs.id == rhs.id
+    }
     
-    var published:Bool { get set }
+    public func hash(into hasher: inout Hasher)
+    {
+        hasher.combine(id)
+        hasher.combine(published)
+        hasher.combine(name)
+    }
     
-    var node: (any NodeProtocol)? { get set }
+    public let id:UUID
 
-    func connect(to other: any NodePortProtocol)
-    func disconnect(from other: any NodePortProtocol)
-    func disconnectAll()
-
-    var color: Color { get }
-    var backgroundColor: Color { get }
-    var direction:PortDirection { get }
-
-    func valueType() -> String
-    var valueDidChange:Bool { get }
+    public let name: String
     
+    public var published: Bool = false
+        
+    // Maybe a bit too verbose?
+//    public var value: Any? { fatalError("override") }
+    public var valueType: Any.Type { fatalError("override") }
+    public var valueDescription:String { fatalError("override") }
+    public var valueDidChange:Bool = true
+
+    public weak var node: Node?
+    public var connections: [AnyPort] = []
+    public let kind: PortKind
+    public let direction:PortDirection = .Horizontal
+    public var color:Color
+    public var backgroundColor:Color
+
+
+
+    public var debugDescription: String
+    {
+        return "\(self.node?.name ?? "No Node!!") - \(String(describing: type(of: self)))  \(id)"
+    }
+
+    
+    public init(name: String, kind: PortKind, id:UUID = UUID())
+    {
+        self.id = id
+        self.kind = kind
+        self.name = name
+        self.color = .clear
+        self.backgroundColor = .clear
+    }
+    
+    enum CodingKeys : String, CodingKey
+    {
+        case valueType
+        case id
+        case name
+        case connections
+        case kind
+        case direction
+        case published
+    }
+    
+    required public  init(from decoder: any Decoder) throws
+    {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        self.id = try container.decode(UUID.self, forKey: .id)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.kind = try container.decode(PortKind.self, forKey: .kind)
+        self.published = try container.decodeIfPresent(Bool.self, forKey: .published) ?? false
+        self.color = .clear
+        self.backgroundColor = .clear
+
+    }
+    
+    public func encode(to encoder:Encoder) throws
+    {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(kind, forKey: .kind)
+        try container.encode(published, forKey: .published)
+
+        let connectedPortIds = self.connections.map( { $0.id } )
+        
+        try container.encode(connectedPortIds, forKey: .connections)
+    }
+    
+    
+    public func connect(to other: AnyPort) { fatalError("override") }
+    public func disconnect(from other: AnyPort) { fatalError("override") }
+    public func disconnectAll() { fatalError("override") }
+
 }
 
-public protocol ParameterPortProtocol : NodePortProtocol
+public protocol ParameterPortProtocol
 {
     associatedtype ParamValue : Codable & Equatable & Hashable
     var parameter:GenericParameter<ParamValue> { get }
@@ -92,16 +187,13 @@ public class ParameterPort<ParamValue : Codable & Equatable & Hashable> : NodePo
         try self.parameter.encode(to: encoder)
     }
     
-//    override public var valueDidChange: Bool
-//    {
-//        get {
-//            self.parameter.valueDidChange
-//        }
-//        set
-//        {
-//            self.parameter.valueDidChange = newValue
-//        }
-//    }
+    override public var valueDidChange: Bool
+    {
+        didSet
+        {
+            self.parameter.valueDidChange = self.valueDidChange
+        }
+    }
     
     override public var value: ParamValue?
     {
@@ -117,141 +209,40 @@ public class ParameterPort<ParamValue : Codable & Equatable & Hashable> : NodePo
                 {
                     parameter.value = newValue
                     self.valueDidChange = true
-                    node?.markDirty()
+                    self.node?.markDirty()
                 }
             }
         }
     }
 }
 
-public class NodePort<Value : Equatable>: NodePortProtocol
+public class NodePort<Value : Equatable>: AnyPort
 {
-    public static func == (lhs: NodePort, rhs: NodePort) -> Bool
-    {
-        return lhs.hashValue == rhs.hashValue
-    }
-    
-    public func hash(into hasher: inout Hasher)
-    {
-        hasher.combine(id)
-        hasher.combine(published)
-        hasher.combine(name)
-    }
-        
-    public let id:UUID
-
-    public let name: String
-    
-    public var published: Bool = false
-    
-    // Maybe a bit too verbose?
-    private var intervalValueDidChange : Bool = true
-    public var valueDidChange:Bool
-    {
-        get
-        {
-            let val = self.intervalValueDidChange
-            self.intervalValueDidChange = false
-            return val
-        }
-        set
-        {
-            self.intervalValueDidChange = newValue
-        }
-    }
-    
-    private var internalValue:Value?
-   
     public var value: Value?
     {
-        get
+        didSet
         {
-            return self.internalValue
-        }
-        set
-        {
-            if self.internalValue != newValue
+            if oldValue != self.value
             {
                 self.valueDidChange = true
-                node?.markDirty()
+                self.node?.markDirty()
             }
-            
-            self.internalValue = newValue
         }
     }
-
     
-//    private var published: Bool = false
-//    public func setPublished(_ value:Bool) { self.published = value}
-//    public func isPublished() -> Bool { self.published }
-
-    
-    public var connections: [any NodePortProtocol] = []
-    public var kind: PortKind
-    public weak var node: (any NodeProtocol)?
-
-    public var direction:PortDirection
-    public var color:Color
-    public var backgroundColor:Color
-    
-    
-    enum CodingKeys : String, CodingKey
-    {
-        case valueType
-        case id
-        case name
-        case connections
-        case kind
-        case direction
-        case published
-    }
-
-    required public  init(from decoder: any Decoder) throws
-    {
-//        guard let decodeContext = decoder.context else
-//        {
-//            fatalError("Required Decode Context Not set")
-//        }
-        
-//        guard let currentNodes = decodeContext.currentGraphNodes else
-//        {
-//            fatalError("Required Current Graph Nodes Not set")
-//        }
-        
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        
-        self.id = try container.decode(UUID.self, forKey: .id)
-        self.name = try container.decode(String.self, forKey: .name)
-        self.kind = try container.decode(PortKind.self, forKey: .kind)
-        self.published = try container.decodeIfPresent(Bool.self, forKey: .published) ?? false
+    override public init(name: String, kind: PortKind, id: UUID = UUID()) {
+        super.init(name: name, kind: kind, id: id)
 
         self.color = Self.calcColor(forType: Value.self)
         self.backgroundColor = Self.calcBackgroundColor(forType: Value.self)
-        self.direction = Self.calcDirection(forType: Value.self )
-
     }
     
-    public func encode(to encoder:Encoder) throws
+    required public init(from decoder: any Decoder) throws
     {
-        var container = encoder.container(keyedBy: CodingKeys.self)        
-        try container.encode(id, forKey: .id)
-        try container.encode(name, forKey: .name)
-        try container.encode(kind, forKey: .kind)
-        try container.encode(published, forKey: .published)
+        try super.init(from: decoder)
 
-        let connectedPortIds = self.connections.map( { $0.id } )
-        
-        try container.encode(connectedPortIds, forKey: .connections)
-    }
-    
-    public init(name: String, kind: PortKind, id:UUID = UUID())
-    {
-        self.id = id
-        self.kind = kind
-        self.name = name
         self.color = Self.calcColor(forType: Value.self)
-        self.backgroundColor = Self.calcBackgroundColor(forType: Value.self )
-        self.direction = Self.calcDirection(forType: Value.self )
+        self.backgroundColor = Self.calcBackgroundColor(forType: Value.self)
     }
     
     deinit
@@ -259,13 +250,12 @@ public class NodePort<Value : Equatable>: NodePortProtocol
         self.disconnectAll()
     }
     
-    
-    public func disconnectAll()
+    override public func disconnectAll()
     {
         self.connections.forEach { self.disconnect(from: $0) }
     }
 
-    public func disconnect(from other: any NodePortProtocol)
+    override public func disconnect(from other: AnyPort)
     {
         if let other = other as? NodePort<Value>
         {
@@ -275,27 +265,84 @@ public class NodePort<Value : Equatable>: NodePortProtocol
     
     public func disconnect(from other: NodePort<Value>)
     {
-        self.send(nil)
-        
-        if let index = self.connections.firstIndex(where: { $0.id == other.id } )
+        print("Port \(self) Disconnect from \(other)")
+
+        self.send(nil, to:other, force: true)
+
+        if let node = self.node,
+           let otherNode = other.node
         {
-            self.connections.remove(at: index)
+            node.didDisconnectFromNode(otherNode)
         }
         
-        self.node?.markDirty()
-        other.node?.markDirty()
+        if other.kind == .Inlet
+        {
+            other.connections.removeAll()
+        }
+        else
+        {
+            while let index = other.connections.firstIndex(where: { $0.id == other.id } )
+            {
+                other.connections.remove(at: index)
+            }
+        }
+        
+        if self.kind == .Inlet
+        {
+            self.connections.removeAll()
+        }
+        else
+        {
+            while let index = self.connections.firstIndex(where: { $0.id == other.id } )
+            {
+                self.connections.remove(at: index)
+            }
+        }
+        
+        print("Connections: \(self.debugDescription)) - \(self.connections)")
+        print("Connections: \(other.debugDescription) - \(other.connections)")
+
+//        self.node?.markDirty()
+        
     }
     
-    public func connect(to other: any NodePortProtocol)
+    override public func connect(to other: AnyPort)
     {
         if let other = other as? NodePort<Value>
         {
             self.connect(to: other)
         }
+        
+        // In theory we can use this for type casting port to port?
+        else if let other = other as? NodePort<AnyLoggable>
+        {
+            self.connect(to: other)
+        }
+        
+        else if self.value is AnyLoggable?
+        {
+            self.validatedConnect(to: other)
+        }
+        else
+        {
+            print("Port \(self) Unable to connect to \(other)")
+        }
     }
     
     public func connect(to other: NodePort<Value>)
     {
+        self.validatedConnect(to:other)
+    }
+    
+    public func connect(to other: NodePort<AnyLoggable>)
+    {
+        self.validatedConnect(to:other)
+    }
+    
+    private func validatedConnect(to other:  AnyPort)
+    {
+        print("Port \(self) Connect to \(other)")
+
         if self.kind == other.kind
         {
             return
@@ -329,22 +376,58 @@ public class NodePort<Value : Equatable>: NodePortProtocol
             self.published = false
         }
         
-        self.node?.markDirty()
-        other.node?.markDirty()
-    }
-    
-    public func send(_ v: Value?)
-    {
-        if value != v
+        if let node = self.node,
+           let otherNode = other.node
         {
-            value = v
-            
-            for case let p as NodePort<Value> in connections
-            {
-                p.value = v
-            }
+            node.didConnectToNode(otherNode)
         }
         
+        print("Connections: \(self.debugDescription)) - \(self.connections)")
+        print("Connections: \(other.debugDescription) - \(other.connections)")
+
+//        self.node?.markDirty()
+//        other.node?.markDirty()
+        
+        self.send(self.value, force: true)
+    }
+
+    
+    public func send(_ v: Value?, force:Bool = false)
+    {
+        if self.value != v || force
+        {
+            self.value = v
+            
+            for p in connections
+            {
+                if let p = p as? NodePort<Value>
+                {
+                    self.send(v, to:p, force: force)
+                }
+                
+                else if let p = p as? NodePort<AnyLoggable>
+                {
+                    self.send(v, to:p, force: force)
+                }
+            }
+        }
+    }
+    
+    private func send(_ v:Value?, to other: NodePort<Value>, force:Bool = false)
+    {
+        if other.value != v || force
+        {
+//            print("Sending value: \(self.debugDescription) - \(String(describing: v))")
+            other.value = v
+        }
+    }
+    
+    private func send(_ v:Value?, to other:  NodePort<AnyLoggable>, force:Bool = false)
+    {
+        if other.value?.asType(Value.self) != v || force
+        {
+            other.value = AnyLoggable(v)
+        }
     }
         
     private static func calcColor(forType: Any.Type ) -> Color
@@ -387,40 +470,8 @@ public class NodePort<Value : Equatable>: NodePortProtocol
         return Self.calcColor(forType: forType).opacity(0.7)
     }
    
-    
     private static func calcDirection(forType: Any.Type ) -> PortDirection
     {
-        
-//        if forType == EquatableTexture.self
-//        {
-//            return .Vertical
-//        }
-//
-//        else if forType == Satin.Geometry.self
-//        {
-//            return .Vertical
-//        }
-//        
-//        else if forType == Satin.Camera.self
-//        {
-//            return .Vertical
-//        }
-//        
-//        else if forType == Satin.Material.self
-//        {
-//            return .Vertical
-//        }
-//        
-//        else if forType == Satin.Object.self
-//        {
-//            return .Vertical
-//        }
-//        
-//        else if forType == Satin.Renderer.self
-//        {
-//            return .Vertical
-//        }
-        
         return .Horizontal
     }
     

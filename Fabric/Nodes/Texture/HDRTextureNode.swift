@@ -11,10 +11,10 @@ import simd
 import Metal
 import MetalKit
 
-public class HDRTextureNode : Node, NodeProtocol
+public class HDRTextureNode : Node
 {
-    public static let name = "HDR Texture"
-    public static var nodeType = Node.NodeType.Image(imageType: .Loader)
+    public override var name:String { "HDR Texture" }
+    public override var nodeType:Node.NodeType { Node.NodeType.Image(imageType: .Loader) }
 
     // Parameters
     let inputFilePathParam:StringParameter
@@ -22,7 +22,7 @@ public class HDRTextureNode : Node, NodeProtocol
 
     // Ports
     let outputTexturePort:NodePort<EquatableTexture>
-    override public var ports: [any NodePortProtocol] {  [outputTexturePort] + super.ports}
+    override public var ports:[AnyPort] {  [outputTexturePort] + super.ports}
 
 
     private var texture: (any MTLTexture)? = nil

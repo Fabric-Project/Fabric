@@ -10,10 +10,10 @@ import Satin
 import simd
 import Metal
 
-public class NumberNode : Node, NodeProtocol
+public class NumberNode : Node
 {
-    public static let name = "Number"
-    public static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
+    override public static var name:String { "Number" }
+    override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
 
     // Params
     public let inputNumberParam:FloatParameter
@@ -22,7 +22,7 @@ public class NumberNode : Node, NodeProtocol
 
     // Ports
     public let outputNumber:NodePort<Float>
-    public override var ports: [any NodePortProtocol] {  [outputNumber] + super.ports }
+    public override var ports: [AnyPort] {  [outputNumber] + super.ports }
 
     public required init(context: Context)
     {

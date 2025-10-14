@@ -13,10 +13,10 @@ import Satin
 import simd
 import Metal
 
-public class NumberUnnaryOperator : Node, NodeProtocol
+public class NumberUnnaryOperator : Node
 {
-    public static let name = "Number Unnary Operator"
-    public static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
+    override public static var name:String { "Number Unnary Operator" }
+    override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
 
     // Params
     public let inputAParam:FloatParameter
@@ -25,7 +25,7 @@ public class NumberUnnaryOperator : Node, NodeProtocol
 
     // Ports
     public let outputNumber:NodePort<Float>
-    public override var ports: [any NodePortProtocol] {  [outputNumber] + super.ports}
+    public override var ports: [AnyPort] {  [outputNumber] + super.ports}
 
     private var mathOperator = UnaryMathOperator.Sine
     private var lastOutput:Float = .nan

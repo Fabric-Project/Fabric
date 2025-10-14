@@ -25,7 +25,7 @@ class NumberSubtractNode : Node, NodeProtocol
 
     // Ports
     let outputNumber:NodePort<Float>
-    override var ports: [any NodePortProtocol] { super.ports + [ outputNumber] }
+    override var ports: [AnyPort] { super.ports + [ outputNumber] }
 
     required init(context: Context)
     {

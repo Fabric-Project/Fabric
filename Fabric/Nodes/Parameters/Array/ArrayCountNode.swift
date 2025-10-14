@@ -12,16 +12,16 @@ import simd
 import Metal
 import MetalKit
 
-public class ArrayCountNode<Value : Equatable & FabricDescription> : Node, NodeProtocol
+public class ArrayCountNode<Value : Equatable & FabricDescription> : Node
 {
-    public static var name:String { "\(Value.fabricDescription) Array Count" }
-    public static var nodeType:Node.NodeType { Node.NodeType.Parameter(parameterType: .Array) }
+    public override var name:String { "\(Value.fabricDescription) Array Count" }
+    public override var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
 
     // TODO: add character set menu to choose component separation strategy
     
     let inputPort:NodePort<ContiguousArray<Value>>
     let outputPort:NodePort<Float>
-    override public var ports: [any NodePortProtocol] {  [inputPort, outputPort] + super.ports}
+    override public var ports:[AnyPort] {  [inputPort, outputPort] + super.ports}
 
     private var url: URL? = nil
     private var string: String? = nil

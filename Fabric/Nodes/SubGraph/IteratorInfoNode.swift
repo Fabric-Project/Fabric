@@ -13,36 +13,36 @@ import Satin
 import simd
 import Metal
 
-public class CurrentTimeNode : Node
+public class IteratorInfoNode : Node
 {
-    override public static var name:String { "Current Time" }
-    override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
+    public override var name:String { "Iterator Info" }
+    public override var nodeType:Node.NodeType { Node.NodeType.Parameter(parameterType: .Number) }
 
     public override var isDirty:Bool { get {  true  } set { } }
 
     private let startTime = Date.timeIntervalSinceReferenceDate
     
     // Ports
-    public let outputNumber:NodePort<Float>
-    public override var ports: [AnyPort] { [ outputNumber] + super.ports}
+    public let outputProgress:NodePort<Float>
+    public override var ports: [AnyPort] { [ outputProgress] + super.ports}
     
     public required init(context: Context)
     {
-        self.outputNumber =  NodePort<Float>(name: CurrentTimeNode.name , kind: .Outlet)
+        self.outputProgress =  NodePort<Float>(name: CurrentTimeNode.name , kind: .Outlet)
 
         super.init(context: context)
     }
         
     enum CodingKeys : String, CodingKey
     {
-        case outputNumberPort
+        case outputProgressPort
     }
     
     public override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
-        try container.encode(self.outputNumber, forKey: .outputNumberPort)
+        try container.encode(self.outputProgress, forKey: .outputProgressPort)
         
         try super.encode(to: encoder)
     }
@@ -51,7 +51,7 @@ public class CurrentTimeNode : Node
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
-        self.outputNumber = try container.decode(NodePort<Float>.self, forKey: .outputNumberPort)
+        self.outputProgress = try container.decode(NodePort<Float>.self, forKey: .outputProgressPort)
         
         try super.init(from: decoder)
     }
@@ -60,6 +60,12 @@ public class CurrentTimeNode : Node
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        self.outputNumber.send( Float(context.timing.time - startTime) )
+//        print("Iterator Info executing")
+        if let iterationInfo = context.iterationInfo
+        {
+//            print("Iterator Info Sending Iteration Info for iteration \(iterationInfo.normalizedCurrentIteration)  \(iterationInfo.currentIteration) of \(iterationInfo.totalIterationCount) )")
+            self.outputProgress.send( iterationInfo.normalizedCurrentIteration)
+        }
+        
     }
 }

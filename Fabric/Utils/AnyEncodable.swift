@@ -20,9 +20,12 @@ public class DecoderContext
     public let documentContext:Context
     
     public var currentGraph:Graph?
-    public var currentGraphNodes:[any NodeProtocol]?
+    public var currentGraphNodes:[Node]?
     
-    public init(documentContext: Context, currentGraph: Graph? = nil, currentGraphNodes: [any NodeProtocol]? = nil) {
+    public init(documentContext: Context,
+                currentGraph: Graph? = nil,
+                currentGraphNodes: [Node]? = nil)
+    {
         self.documentContext = documentContext
         self.currentGraph = currentGraph
         self.currentGraphNodes = currentGraphNodes

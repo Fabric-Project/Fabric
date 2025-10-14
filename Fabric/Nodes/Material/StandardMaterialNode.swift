@@ -44,7 +44,7 @@ public class StandardMaterialNode : BaseMaterialNode
     public let inputMetalicTexture: NodePort<EquatableTexture>
 
     
-    public override var ports: [any NodePortProtocol] {  [
+    public override var ports: [AnyPort] {  [
         inputDiffuseTexture,
         inputNormalTexture,
         inputEmissiveTexture,
@@ -252,17 +252,4 @@ public class StandardMaterialNode : BaseMaterialNode
 
         return shouldOutput
     }
-    
-    public override func execute(context:GraphExecutionContext,
-                                 renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
-    {
-        
-        let shouldOutput = self.evaluate(material: self.material, atTime: context.timing.time)
-
-        if shouldOutput
-        {
-            self.outputMaterial.send(self.material)
-        }
-     }
 }

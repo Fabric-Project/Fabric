@@ -25,7 +25,7 @@ public class MakeQuaternionNode : Node, NodeProtocol
     
     private var quat = simd_quatf(angle: 0, axis: simd_float3(0, 1, 0))
     
-    override public var ports: [any NodePortProtocol] {  [outputVector] + super.ports }
+    override public var ports:[AnyPort] {  [outputVector] + super.ports }
     
     override public  func evaluate(atTime:TimeInterval,
                             renderPassDescriptor: MTLRenderPassDescriptor,

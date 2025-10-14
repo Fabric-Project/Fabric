@@ -12,7 +12,7 @@ import Metal
 
 public class PBRMaterialNode : StandardMaterialNode
 {
-    override public  class var name:String {  "Advanced Physical Material" }
+    override public class var name:String {  "Advanced Physical Material" }
 
     // Params
     let inputSubsurface = FloatParameter("Sub Surface", 0.0, 0.0, 1.0, .slider)
@@ -53,7 +53,7 @@ public class PBRMaterialNode : StandardMaterialNode
     let inputClearcoatGlossTexture = NodePort<EquatableTexture>(name: "Clearcoat Gloss Texture", kind: .Inlet)
     let inputTransmissionTexture = NodePort<EquatableTexture>(name: "Transmission Texture", kind: .Inlet)
     
-    override public  var ports: [any NodePortProtocol] {  [
+    override public  var ports: [AnyPort] {  [
         inputBumpTexture,
         inputDisplacementTexture,
         inputOcclusionTexture,
@@ -197,17 +197,4 @@ public class PBRMaterialNode : StandardMaterialNode
         
         return shouldOutput
     }
-    
-    override public  func execute(context:GraphExecutionContext,
-                            renderPassDescriptor: MTLRenderPassDescriptor,
-                            commandBuffer: MTLCommandBuffer)
-    {
-        
-        let shoulOutput = self.evaluate(material: self.material, atTime: context.timing.time)
-
-        if shoulOutput
-        {
-            self.outputMaterial.send(self.material)
-        }
-     }
 }

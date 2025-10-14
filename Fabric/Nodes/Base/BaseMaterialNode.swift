@@ -10,15 +10,14 @@ import Satin
 import simd
 import Metal
 
-public class BaseMaterialNode : Node, NodeProtocol
+public class BaseMaterialNode : Node
 {
-    
-    public class var name:String {  "Material" }
-    public class var nodeType:Node.NodeType { .Material }
+    override public class var name:String {  "Material" }
+    override public class var nodeType:Node.NodeType { .Material }
 
     // Ports
     public let outputMaterial:NodePort<Material>
-    public override var ports: [any NodePortProtocol] { [ self.outputMaterial] + super.ports}
+    public override var ports: [AnyPort] { [ self.outputMaterial] + super.ports}
     
     // Params
     public let inputReceivesLighting:BoolParameter
@@ -133,6 +132,18 @@ public class BaseMaterialNode : Node, NodeProtocol
         
         return shouldOutput
     }
+    
+    public override func execute(context:GraphExecutionContext,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
+    {
+        let shouldOutput = self.evaluate(material: self.material, atTime: context.timing.time)
+
+        if shouldOutput
+        {
+            self.outputMaterial.send(self.material)
+        }
+     }
     
     private func blendingMode() -> Blending
     {

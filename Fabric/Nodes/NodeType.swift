@@ -18,16 +18,18 @@ extension Node
         case Mesh
         case Image // Texture / Shader
         case Parameter
+        case Utility
             
         func nodeTypes() -> [Node.NodeType]
         {
             switch self
             {
             case .All: return Node.NodeType.allCases
-            case .SceneGraph: return [.Renderer, .Object, .Camera, .Light]
-            case .Mesh: return [.Mesh, .Geometery, .Material]
+            case .SceneGraph: return Node.NodeType.ObjectType.nodeTypes() + [.Subgraph]
+            case .Mesh: return [.Geometery, .Material]
             case .Image: return Node.NodeType.ImageType.nodeTypes() + [.Shader]
             case .Parameter: return Node.NodeType.ParameterType.nodeTypes()
+            case .Utility: return [Node.NodeType.Utility]
             }
         }
         
@@ -40,6 +42,7 @@ extension Node
             case .Mesh: return "cube.transparent"
             case .Image: return "camera.filters"
             case .Parameter: return "beziercurve"
+            case .Utility: return "gear"
             }
         }
         
@@ -92,35 +95,48 @@ extension Node
             }
         }
         
-        case Subgraph // A graph with exposed published ports
+        // Anything renderable in a Satin scene graph
+        public enum ObjectType:String, CaseIterable, Equatable, Hashable
+        {
+            case Camera
+            case Light
+            case Mesh // Renderable ? 
+//            case Scene
+            static func nodeTypes() -> [Node.NodeType] {
+                return Self.allCases.map{ Node.NodeType.Object(objectType:$0) }
+            }
+        }
+        
         case Renderer // Renders a scene graph
-        case Object // Scene graph, owns transforms
-        case Camera // Scene graph object
-        case Light // Scene graph object
-        case Mesh // Scene graph object
+        case Subgraph
+        case Object(objectType:ObjectType) // Scene graph, owns transforms
         case Geometery
         case Material
         case Shader
         case Image(imageType:ImageType)
         case Parameter(parameterType:ParameterType)
+        case Utility
         
-        public static var allCases: [Node.NodeType] { return [.Renderer, .Subgraph, .Object, .Camera, .Light, .Mesh, .Geometery, .Material, .Shader,  ] + ImageType.nodeTypes() + ParameterType.nodeTypes() }
+        public static var allCases: [Node.NodeType] { return
+            [.Renderer ]
+            + ObjectType.nodeTypes()
+            + [ .Geometery, .Material, .Shader, ]
+            + ImageType.nodeTypes()
+            + ParameterType.nodeTypes() }
         
         public var description: String
         {
             switch self
             {
-            case .Subgraph: return "Subgraph"
+            case .Subgraph: return "Sub Graph"
             case .Renderer: return "Renderer"
-            case .Object: return "Object"
-            case .Camera: return "Camera"
-            case .Light: return "Light"
-            case .Mesh: return "Mesh"
+            case .Object(let objectType): return objectType.rawValue
             case .Geometery: return "Geometery"
             case .Material: return "Material"
             case .Shader: return "Shader"
             case .Image(imageType: let imageType): return "Image \(imageType.rawValue.titleCase)"
             case .Parameter(let paramType): return "\(paramType.rawValue) Parameter"
+            case .Utility: return "Utility"
             }
         }
         
@@ -128,6 +144,7 @@ extension Node
         {
 //            return [Color.red, .blue, .green, .yellow, .orange, .pink, .purple, .gray].randomElement( ) ?? .gray
             
+           
             switch self
             {
             case .Image:
@@ -136,33 +153,45 @@ extension Node
             case .Geometery:
                 return Color.nodeGeometry
 
-            case .Camera:
-                return Color.nodeCamera
+            case .Object(let objectType):
                 
-            case .Light:
-                return Color.nodeObject
-
+                    switch objectType
+                    {
+                    case .Camera:
+                        return Color.nodeCamera
+                        
+                    case .Light:
+                        return Color.nodeObject
+                        
+                    case .Mesh:
+                        return Color.nodeMesh
+                        
+                    
+//
+//                    case .Scene:
+//                        return Color.nodeObject
+                    }
+                
+            
             case .Material:
                 return Color.nodeMaterial
 
-            case .Mesh:
-                return Color.nodeMesh
-                
+            case .Subgraph:
+                return Color.nodeRender
+           
             case .Renderer:
                 return Color.nodeRender
 
-            case .Subgraph:
-                return Color.nodeRender
-                
             case .Shader:
                 return Color.nodeShader
-                
-            case .Object:
-                return Color.nodeObject
-                
+                                
             case .Parameter(_):
                 return Color(hue: 0, saturation: 0, brightness: 0.3)
+        
+            case .Utility:
+                return .orange
             }
+            
         }
         
         public func backgroundColor() -> Color

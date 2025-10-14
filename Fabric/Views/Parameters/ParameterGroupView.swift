@@ -228,7 +228,7 @@ struct ParameterGroupView : View
 //        })
 
 
-        return FileImportParameterView(stringParameter: stringParam )
+        return FileImportParameterView(parameter: stringParam )
             .equatable()
     }
 }

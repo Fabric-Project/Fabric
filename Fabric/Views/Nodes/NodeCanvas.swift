@@ -34,9 +34,6 @@ public struct NodeCanvas : View
                     .resizable(resizingMode: .tile)// Need this pattern image repeated throughout the page
                     .offset(-geom.size / 2)
                 
-                // Nodes
-                //                let selectedNodes:[any NodeProtocol] = self.graph.nodes.filter( { $0.isSelected == true } )
-                
                 let graph = self.graph.activeSubGraph ?? self.graph
                 ForEach(graph.nodes, id: \.id) { currentNode in
                     
@@ -118,7 +115,7 @@ public struct NodeCanvas : View
                 
                 ForEach( ports.filter({ $0.kind == .Outlet }), id: \.id) { port in
                     
-                    let connectedPorts:[any NodePortProtocol] = port.connections.filter({ $0.kind == .Inlet })
+                    let connectedPorts:[AnyPort] = port.connections.filter({ $0.kind == .Inlet })
                     
                     ForEach( connectedPorts , id: \.id) { connectedPort in
                         
@@ -136,7 +133,7 @@ public struct NodeCanvas : View
                                 )
                                 .onTapGesture(count: 2)
                             {
-                                connectedPort.disconnect(from:port)
+//                                connectedPort.disconnect(from:port)
                                 port.disconnect(from:connectedPort)
                                 graph.shouldUpdateConnections.toggle()
                             }
@@ -167,7 +164,7 @@ public struct NodeCanvas : View
         } // Pan Canvas
     }
     
-    private func calcPathUsing(port:(any NodePortProtocol), start:CGPoint, end:CGPoint) -> Path
+    private func calcPathUsing(port:(AnyPort), start:CGPoint, end:CGPoint) -> Path
     {
         let lowerBound = 5.0
         let upperBound = 10.0

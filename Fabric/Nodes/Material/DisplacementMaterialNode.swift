@@ -35,7 +35,7 @@ public class DisplacementMaterialNode: BaseMaterialNode
     public let inputTexture:NodePort<EquatableTexture>
     public let inputDisplacementTexture:NodePort<EquatableTexture>
     public let inputPointSpriteTexture:NodePort<EquatableTexture>
-    public override var ports: [any NodePortProtocol] {   [
+    public override var ports: [AnyPort] {   [
         self.inputTexture,
         self.inputDisplacementTexture,
         self.inputPointSpriteTexture] + super.ports
@@ -249,29 +249,5 @@ public class DisplacementMaterialNode: BaseMaterialNode
         }
         
         return shouldOutput
-    }
-    
-    override public func execute(context: GraphExecutionContext, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: any MTLCommandBuffer) {
-
-//        renderPassDescriptor.stencilAttachment.loadAction = .clear
-//        renderPassDescriptor.stencilAttachment.storeAction = .store
-//        renderPassDescriptor.stencilAttachment.clearStencil = 0
-
-        let shouldOutput = self.evaluate(material: self.material, atTime: context.timing.time)
-
-//        self.material.depthStencilState = context.context.device.makeDepthStencilState(descriptor: self.depthStencilDescriptor)
-
-//        assert(renderPassDescriptor.stencilAttachment.texture != nil)
-//        assert(renderPassDescriptor.stencilAttachment.texture?.pixelFormat != .invalid)
-//        assert(renderPassDescriptor.stencilAttachment.loadAction == .clear)
-//        assert(renderPassDescriptor.stencilAttachment.storeAction == .store)
-//        assert(renderPassDescriptor.stencilAttachment.clearStencil == 0)
-        
-//        assert(self.material.depthStencilState != nil)
-        
-        if shouldOutput
-        {
-            self.outputMaterial.send(self.material)
-        }
     }
 }

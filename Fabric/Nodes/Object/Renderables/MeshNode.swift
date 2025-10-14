@@ -10,10 +10,10 @@ import Satin
 import simd
 import Metal
 
-public class MeshNode : BaseObjectNode, NodeProtocol
+public class MeshNode : BaseObjectNode, ObjectNodeProtocol, RenderableObjectNodeProtocol
 {
-    public class var name:String { "Mesh" }
-    public class var nodeType:Node.NodeType  { .Mesh }
+    override public static var name:String { "Mesh" }
+    override public static var nodeType:Node.NodeType { .Object(objectType: .Mesh) }
 
     // Params
     public let inputCastsShadow:BoolParameter
@@ -29,11 +29,25 @@ public class MeshNode : BaseObjectNode, NodeProtocol
     // Ports
     public let inputGeometry:NodePort<Geometry>
     public let inputMaterial:NodePort<Material>
-    public let outputMesh:NodePort<Object>
+//    public let outputMesh:NodePort<Object>
     
-    public override var ports: [any NodePortProtocol] {   [inputGeometry,
+    public override var ports: [AnyPort] {   [inputGeometry,
                                                            inputMaterial,
-                                                           outputMesh] + super.ports}
+//                                                           outputMesh
+    ] + super.ports}
+
+    
+    public var object:Mesh? {
+        
+        // This is tricky - we want to output nil if we have no inputGeometry  / inputMaterial from upstream ports
+        if let _ = self.inputGeometry.value ,
+           let _ = self.inputMaterial.value
+        {
+            return mesh
+        }
+        
+        return nil
+    }
     
     private var mesh: Mesh? = nil
 
@@ -45,7 +59,7 @@ public class MeshNode : BaseObjectNode, NodeProtocol
         
         self.inputGeometry = NodePort<Geometry>(name: "Geometry", kind: .Inlet)
         self.inputMaterial = NodePort<Material>(name: "Material", kind: .Inlet)
-        self.outputMesh = NodePort<Object>(name: MeshNode.name, kind: .Outlet)
+//        self.outputMesh = NodePort<Object>(name: MeshNode.name, kind: .Outlet)
         
         super.init(context: context)
     }
@@ -58,7 +72,7 @@ public class MeshNode : BaseObjectNode, NodeProtocol
         case inputCullModeParameter
         case inputGeometryPort
         case inputMaterialPort
-        case outputMeshPort
+//        case outputMeshPort
     }
     
     public override func encode(to encoder:Encoder) throws
@@ -70,7 +84,7 @@ public class MeshNode : BaseObjectNode, NodeProtocol
         try container.encode(self.inputCullingMode, forKey: .inputCullModeParameter)
         try container.encode(self.inputGeometry, forKey: .inputGeometryPort)
         try container.encode(self.inputMaterial, forKey: .inputMaterialPort)
-        try container.encode(self.outputMesh, forKey: .outputMeshPort)
+//        try container.encode(self.outputMesh, forKey: .outputMeshPort)
         
         try super.encode(to: encoder)
     }
@@ -87,7 +101,7 @@ public class MeshNode : BaseObjectNode, NodeProtocol
         
         self.inputGeometry = try container.decode(NodePort<Geometry>.self, forKey: .inputGeometryPort)
         self.inputMaterial = try container.decode(NodePort<Material>.self, forKey: .inputMaterialPort)
-        self.outputMesh = try container.decode(NodePort<Object>.self, forKey: .outputMeshPort)
+//        self.outputMesh = try container.decode(NodePort<Object>.self, forKey: .outputMeshPort)
         
         try super.init(from: decoder)
 
@@ -124,18 +138,22 @@ public class MeshNode : BaseObjectNode, NodeProtocol
         if
             (self.inputGeometry.valueDidChange
              || self.inputMaterial.valueDidChange),
-            let geometery = self.inputGeometry.value,
-            let material = self.inputMaterial.value
+             let geometry = self.inputGeometry.value,
+                let material = self.inputMaterial.value
         {
             if let mesh = mesh
             {
+//                print("Mesh Node - Updating Geometry and Material")
                 //                mesh.cullMode = .none
-                mesh.geometry = geometery
+                mesh.geometry = geometry
                 mesh.material = material
             }
             else
+
             {
-                let mesh = Mesh(geometry: geometery, material: material)
+                print("Mesh Node - Initializing Mesh with Geometry and Material")
+
+                let mesh = Mesh(geometry: geometry, material: material)
                 mesh.lookAt(target: simd_float3(repeating: 0))
                 mesh.position = self.inputPosition.value
                 mesh.scale = self.inputScale.value
@@ -153,14 +171,14 @@ public class MeshNode : BaseObjectNode, NodeProtocol
         {
             let shouldOutput = self.evaluate(object: mesh, atTime: context.timing.time)
             
-            if shouldOutput
-            {
-                self.outputMesh.send(mesh)
-            }
+//            if shouldOutput
+//            {
+//                self.outputMesh.send(mesh)
+//            }
         }
         else
         {
-            self.outputMesh.send(nil)
+//            self.outputMesh.send(nil)
         }
         
      }

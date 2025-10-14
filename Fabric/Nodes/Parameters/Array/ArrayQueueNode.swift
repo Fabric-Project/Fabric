@@ -11,17 +11,17 @@ import simd
 import Metal
 import MetalKit
 
-public class ArrayQueueNode<Value : Equatable & FabricDescription> : Node, NodeProtocol
+public class ArrayQueueNode<Value : Equatable & FabricDescription> : Node
 {
-    public static var name:String { "\(Value.fabricDescription) Queue" }
-    public static var nodeType:Node.NodeType { Node.NodeType.Parameter(parameterType: .Array) }
+    public override var name:String { "\(Value.fabricDescription) Queue" }
+    public override var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
 
     let inputSizeParam:FloatParameter
     override public var inputParameters: [any Parameter] { [self.inputSizeParam] + super.inputParameters}
 
     let inputPort:NodePort<Value>
     let outputPort:NodePort<ContiguousArray<Value>>
-    override public var ports: [any NodePortProtocol] {  [inputPort, outputPort] + super.ports}
+    override public var ports:[AnyPort] {  [inputPort, outputPort] + super.ports}
 
     private var queue:ContiguousArray<Value> = []
     

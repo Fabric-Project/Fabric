@@ -10,10 +10,10 @@ import Satin
 import simd
 import Metal
 
-public class OrthographicCameraNode : BaseObjectNode, NodeProtocol
+public class OrthographicCameraNode : BaseObjectNode, ObjectNodeProtocol
 {
-    public static var nodeType = Node.NodeType.Camera
-    public static let name = "Orthographic Camera"
+    public override var name:String { "Orthographic Camera" }
+    public override var nodeType:Node.NodeType { Node.NodeType.Object(objectType: .Camera) }
     
     // Params
     public var inputLookAt:Float3Parameter
@@ -21,8 +21,12 @@ public class OrthographicCameraNode : BaseObjectNode, NodeProtocol
 
     // Ports
     public let outputCamera:NodePort<Camera>
-    public override var ports: [any NodePortProtocol] { [outputCamera] + super.ports }
+    public override var ports: [AnyPort] { [outputCamera] + super.ports }
 
+    public var object: Object? {
+        return camera
+    }
+    
     private let camera = OrthographicCamera(left: -1, right: 1, bottom: -1, top: 1, near: 0.01, far: 500.0)
 
     public required init(context:Context)

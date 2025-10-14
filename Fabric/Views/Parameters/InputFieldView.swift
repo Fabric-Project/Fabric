@@ -8,101 +8,111 @@
 import SwiftUI
 import Satin
 
-struct InputFieldView: View {
- 
-    @Bindable var parameter:StringParameter
+struct InputFieldView: View
+{
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
+
+    @Bindable var vm: ParameterObservableModel<String>
 
     init(param:StringParameter)
     {
-        self.parameter = param
+        self.vm = ParameterObservableModel(label: param.label,
+                                           get: { param.value },
+                                           set: { param.value = $0 },
+                                           publisher:param.valuePublisher)
     }
     
     var body: some View
     {
         HStack
         {
-            Text(parameter.label)
+            Text(vm.label)
                 .font(.system(size: 10))
                 .lineLimit(1)
             Spacer()
             
-            TextField(parameter.label, text: $parameter.value)
+            TextField(vm.label, text: $vm.uiValue)
                 .font(.system(size: 10))
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1)
                 .padding()
         }
-        
     }
 }
 
 // MARK: - Float Input Fields
 
-struct FloatInputFieldView: View {
- 
-    @Bindable var parameter:GenericParameter<Float>
+struct FloatInputFieldView: View
+{
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
 
-    let decimalFormatter: NumberFormatter = {
-          let formatter = NumberFormatter()
-          formatter.numberStyle = .decimal
-        formatter.maximumFractionDigits = 5
-          return formatter
-      }()
+    @Bindable var vm: ParameterObservableModel<Float>
+
+    let decimalFormatter:NumberFormatter
     
     init(param:GenericParameter<Float>)
     {
-        self.parameter = param
+        self.vm = ParameterObservableModel(label: param.label,
+                                           get: { param.value },
+                                           set: { param.value = $0 },
+                                           publisher:param.valuePublisher )
+        
+        self.decimalFormatter = NumberFormatter()
+        decimalFormatter.numberStyle = .decimal
+        decimalFormatter.maximumFractionDigits = 5
     }
     
     var body: some View
     {
         HStack
         {
-            Text(parameter.label)
+            Text(vm.label)
                 .font(.system(size: 10))
                 .lineLimit(1)
             
             Spacer()
             
-            TextField(parameter.label, value: $parameter.value, formatter:decimalFormatter)
+            TextField(vm.label, value: $vm.uiValue, formatter:decimalFormatter)
                 .font(.system(size: 10))
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1)
                 .padding()
         }
-        
     }
 }
 
-struct Float2InputFieldView: View {
- 
-    @Bindable var parameter:GenericParameter<simd_float2>
+struct Float2InputFieldView: View
+{
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
 
-    let decimalFormatter: NumberFormatter = {
-          let formatter = NumberFormatter()
-          formatter.numberStyle = .decimal
-        formatter.maximumFractionDigits = 5
-          return formatter
-      }()
+    @Bindable var vm: ParameterObservableModel<simd_float2>
+
+    let decimalFormatter:NumberFormatter
     
     init(param:GenericParameter<simd_float2>)
     {
-        self.parameter = param
+        self.vm = ParameterObservableModel(label: param.label,
+                                           get: { param.value },
+                                           set: { param.value = $0 },
+                                           publisher:param.valuePublisher )
+        self.decimalFormatter = NumberFormatter()
+        decimalFormatter.numberStyle = .decimal
+        decimalFormatter.maximumFractionDigits = 5
     }
     
     var body: some View
     {
         VStack(alignment: .leading, spacing: 5){
-            Text(parameter.label)
+            Text(vm.label)
                 .font(.system(size: 10))
                 .lineLimit(1)
 
-            TextField(parameter.label + " x" , value: $parameter.value.x, formatter:decimalFormatter)
+            TextField(vm.label + " x" , value: $vm.uiValue.x, formatter:decimalFormatter)
                 .font(.system(size: 10))
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1)
             
-            TextField(parameter.label + " y" , value: $parameter.value.y, formatter:decimalFormatter)
+            TextField(vm.label + " y" , value: $vm.uiValue.y, formatter:decimalFormatter)
                 .font(.system(size: 10))
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1)
@@ -111,40 +121,43 @@ struct Float2InputFieldView: View {
     }
 }
 
-struct Float3InputFieldView: View {
- 
-    @Bindable var parameter:GenericParameter<simd_float3>
+struct Float3InputFieldView: View
+{
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
 
-    let decimalFormatter: NumberFormatter = {
-          let formatter = NumberFormatter()
-          formatter.numberStyle = .decimal
-        formatter.maximumFractionDigits = 5
-          return formatter
-      }()
+    @Bindable var vm: ParameterObservableModel<simd_float3>
+
+    let decimalFormatter:NumberFormatter
     
     init(param:GenericParameter<simd_float3>)
     {
-        self.parameter = param
+        self.vm = ParameterObservableModel(label: param.label,
+                                           get: { param.value },
+                                           set: { param.value = $0 },
+                                           publisher:param.valuePublisher )
+        self.decimalFormatter = NumberFormatter()
+        decimalFormatter.numberStyle = .decimal
+        decimalFormatter.maximumFractionDigits = 5
     }
     
     var body: some View
     {
         VStack(alignment: .leading, spacing: 5){
-            Text(parameter.label)
+            Text(vm.label)
                 .font(.system(size: 10))
                 .lineLimit(1)
 
-            TextField(parameter.label + " x" , value: $parameter.value.x, formatter:decimalFormatter)
+            TextField(vm.label + " x" , value: $vm.uiValue.x, formatter:decimalFormatter)
                 .font(.system(size: 10))
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1)
             
-            TextField(parameter.label + " y" , value: $parameter.value.y, formatter:decimalFormatter)
+            TextField(vm.label + " y" , value: $vm.uiValue.y, formatter:decimalFormatter)
                 .font(.system(size: 10))
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1)
             
-            TextField(parameter.label + " z" , value: $parameter.value.z, formatter:decimalFormatter)
+            TextField(vm.label + " z" , value: $vm.uiValue.z, formatter:decimalFormatter)
                 .font(.system(size: 10))
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1)
@@ -153,45 +166,49 @@ struct Float3InputFieldView: View {
     }
 }
 
-struct Float4InputFieldView: View {
- 
-    @Bindable var parameter:GenericParameter<simd_float4>
 
-    let decimalFormatter: NumberFormatter = {
-          let formatter = NumberFormatter()
-          formatter.numberStyle = .decimal
-          formatter.maximumFractionDigits = 5
-          return formatter
-      }()
+struct Float4InputFieldView: View
+{
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
+
+    @Bindable var vm: ParameterObservableModel<simd_float4>
+
+    let decimalFormatter:NumberFormatter
     
     init(param:GenericParameter<simd_float4>)
     {
-        self.parameter = param
+        self.vm = ParameterObservableModel(label: param.label,
+                                           get: { param.value },
+                                           set: { param.value = $0 },
+                                           publisher:param.valuePublisher )
+        self.decimalFormatter = NumberFormatter()
+        decimalFormatter.numberStyle = .decimal
+        decimalFormatter.maximumFractionDigits = 5
     }
     
     var body: some View
     {
         VStack(alignment: .leading, spacing: 5){
-            Text(parameter.label)
+            Text(vm.label)
                 .font(.system(size: 10))
                 .lineLimit(1)
 
-            TextField(parameter.label + " x" , value: $parameter.value.x, formatter:decimalFormatter)
+            TextField(vm.label + " x" , value: $vm.uiValue.x, formatter:decimalFormatter)
                 .font(.system(size: 10))
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1)
             
-            TextField(parameter.label + " y" , value: $parameter.value.y, formatter:decimalFormatter)
+            TextField(vm.label + " y" , value: $vm.uiValue.y, formatter:decimalFormatter)
                 .font(.system(size: 10))
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1)
             
-            TextField(parameter.label + " z" , value: $parameter.value.z, formatter:decimalFormatter)
+            TextField(vm.label + " z" , value: $vm.uiValue.z, formatter:decimalFormatter)
                 .font(.system(size: 10))
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1)
             
-            TextField(parameter.label + " w" , value: $parameter.value.w, formatter:decimalFormatter)
+            TextField(vm.label + " w" , value: $vm.uiValue.w, formatter:decimalFormatter)
                 .font(.system(size: 10))
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1)
@@ -202,72 +219,80 @@ struct Float4InputFieldView: View {
 
 // MARK: - Int Input Fields
 
-struct IntInputFieldView: View {
- 
-    @Bindable var parameter:GenericParameter<Int>
-    
-    let formatter: NumberFormatter = {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .none
-        formatter.allowsFloats = false
-        formatter.maximumFractionDigits = 0
-        return formatter
-    }()
+struct IntInputFieldView: View
+{
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
+
+    @Bindable var vm: ParameterObservableModel<Int>
+
+    let decimalFormatter:NumberFormatter
     
     init(param:GenericParameter<Int>)
     {
-        self.parameter = param
+        self.vm = ParameterObservableModel(label: param.label,
+                                           get: { param.value },
+                                           set: { param.value = $0 },
+                                           publisher:param.valuePublisher )
+        
+        self.decimalFormatter = NumberFormatter()
+        decimalFormatter.numberStyle = .none
+        decimalFormatter.allowsFloats = false
+        decimalFormatter.maximumFractionDigits = 0
     }
     
     var body: some View
     {
         HStack
         {
-            Text(parameter.label)
+            Text(vm.label)
                 .font(.system(size: 10))
                 .lineLimit(1)
+            
             Spacer()
             
-            TextField(parameter.label, value: $parameter.value, formatter:formatter)
+            TextField(vm.label, value: $vm.uiValue, formatter:decimalFormatter)
                 .font(.system(size: 10))
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1)
                 .padding()
         }
-        
     }
 }
 
-struct Int2InputFieldView: View {
- 
-    @Bindable var parameter:GenericParameter<simd_int2>
+struct Int2InputFieldView: View
+{
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
 
-    let formatter: NumberFormatter = {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .none
-        formatter.allowsFloats = false
-        formatter.maximumFractionDigits = 0
-        return formatter
-    }()
+    @Bindable var vm: ParameterObservableModel<simd_int2>
+
+    let decimalFormatter:NumberFormatter
     
     init(param:GenericParameter<simd_int2>)
     {
-        self.parameter = param
+        self.vm = ParameterObservableModel(label: param.label,
+                                           get: { param.value },
+                                           set: { param.value = $0 },
+                                           publisher:param.valuePublisher )
+        
+        self.decimalFormatter = NumberFormatter()
+        decimalFormatter.numberStyle = .none
+        decimalFormatter.allowsFloats = false
+        decimalFormatter.maximumFractionDigits = 0
     }
     
     var body: some View
     {
         VStack(alignment: .leading, spacing: 5){
-            Text(parameter.label)
+            Text(vm.label)
                 .font(.system(size: 10))
                 .lineLimit(1)
 
-            TextField(parameter.label + " x" , value: $parameter.value.x, formatter:formatter)
+            TextField(vm.label + " x" , value: $vm.uiValue.x, formatter:decimalFormatter)
                 .font(.system(size: 10))
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1)
             
-            TextField(parameter.label + " y" , value: $parameter.value.y, formatter:formatter)
+            TextField(vm.label + " y" , value: $vm.uiValue.y, formatter:decimalFormatter)
                 .font(.system(size: 10))
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1)
@@ -276,41 +301,45 @@ struct Int2InputFieldView: View {
     }
 }
 
-struct Int3InputFieldView: View {
- 
-    @Bindable var parameter:GenericParameter<simd_int3>
+struct Int3InputFieldView: View
+{
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
 
-    let formatter: NumberFormatter = {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .none
-        formatter.allowsFloats = false
-        formatter.maximumFractionDigits = 0
-        return formatter
-    }()
+    @Bindable var vm: ParameterObservableModel<simd_int3>
+
+    let decimalFormatter:NumberFormatter
     
     init(param:GenericParameter<simd_int3>)
     {
-        self.parameter = param
+        self.vm = ParameterObservableModel(label: param.label,
+                                           get: { param.value },
+                                           set: { param.value = $0 },
+                                           publisher:param.valuePublisher )
+        
+        self.decimalFormatter = NumberFormatter()
+        decimalFormatter.numberStyle = .none
+        decimalFormatter.allowsFloats = false
+        decimalFormatter.maximumFractionDigits = 0
     }
     
     var body: some View
     {
         VStack(alignment: .leading, spacing: 5){
-            Text(parameter.label)
+            Text(vm.label)
                 .font(.system(size: 10))
                 .lineLimit(1)
 
-            TextField(parameter.label + " x" , value: $parameter.value.x, formatter:formatter)
+            TextField(vm.label + " x" , value: $vm.uiValue.x, formatter:decimalFormatter)
                 .font(.system(size: 10))
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1)
             
-            TextField(parameter.label + " y" , value: $parameter.value.y, formatter:formatter)
+            TextField(vm.label + " y" , value: $vm.uiValue.y, formatter:decimalFormatter)
                 .font(.system(size: 10))
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1)
             
-            TextField(parameter.label + " z" , value: $parameter.value.z, formatter:formatter)
+            TextField(vm.label + " z" , value: $vm.uiValue.z, formatter:decimalFormatter)
                 .font(.system(size: 10))
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1)
@@ -319,46 +348,50 @@ struct Int3InputFieldView: View {
     }
 }
 
-struct Int4InputFieldView: View {
- 
-    @Bindable var parameter:GenericParameter<simd_int4>
+struct Int4InputFieldView: View
+{
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
 
-    let formatter: NumberFormatter = {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .none
-        formatter.allowsFloats = false
-        formatter.maximumFractionDigits = 0
-        return formatter
-    }()
+    @Bindable var vm: ParameterObservableModel<simd_int4>
+
+    let decimalFormatter:NumberFormatter
     
     init(param:GenericParameter<simd_int4>)
     {
-        self.parameter = param
+        self.vm = ParameterObservableModel(label: param.label,
+                                           get: { param.value },
+                                           set: { param.value = $0 },
+                                           publisher:param.valuePublisher )
+        
+        self.decimalFormatter = NumberFormatter()
+        decimalFormatter.numberStyle = .none
+        decimalFormatter.allowsFloats = false
+        decimalFormatter.maximumFractionDigits = 0
     }
     
     var body: some View
     {
         VStack(alignment: .leading, spacing: 5){
-            Text(parameter.label)
+            Text(vm.label)
                 .font(.system(size: 10))
                 .lineLimit(1)
 
-            TextField(parameter.label + " x" , value: $parameter.value.x, formatter:formatter)
+            TextField(vm.label + " x" , value: $vm.uiValue.x, formatter:decimalFormatter)
                 .font(.system(size: 10))
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1)
             
-            TextField(parameter.label + " y" , value: $parameter.value.y, formatter:formatter)
+            TextField(vm.label + " y" , value: $vm.uiValue.y, formatter:decimalFormatter)
                 .font(.system(size: 10))
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1)
             
-            TextField(parameter.label + " z" , value: $parameter.value.z, formatter:formatter)
+            TextField(vm.label + " z" , value: $vm.uiValue.z, formatter:decimalFormatter)
                 .font(.system(size: 10))
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1)
             
-            TextField(parameter.label + " w" , value: $parameter.value.w, formatter:formatter)
+            TextField(vm.label + " w" , value: $vm.uiValue.w, formatter:decimalFormatter)
                 .font(.system(size: 10))
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1)

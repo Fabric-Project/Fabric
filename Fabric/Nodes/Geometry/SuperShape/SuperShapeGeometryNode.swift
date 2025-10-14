@@ -127,11 +127,10 @@ final class SuperShapeGeometry: SatinGeometry {
 
 
 
-class SuperShapeGeometryNode : Node, NodeProtocol
+class SuperShapeGeometryNode : Node
 {
-    static let name = "Super Shape Geometry"
-    static var nodeType = Node.NodeType.Geometery
-
+    override public class var name:String { "Super Shape Geometry" }
+    override public class var nodeType:Node.NodeType { Node.NodeType.Geometery }
     // Params
     var r1Param = FloatParameter("R1", 1.0, 0, 2, .slider)
     var a1Param = FloatParameter("A1", 1.0, 0.0, 5.0, .slider)
@@ -186,7 +185,7 @@ class SuperShapeGeometryNode : Node, NodeProtocol
         res: self.resParam.value
     )
     
-    public override var ports:[any NodePortProtocol] {  [outputGeometry] + super.ports}
+    public override var ports:[AnyPort] {  [outputGeometry] + super.ports}
     
     override func execute(context:GraphExecutionContext,
                           renderPassDescriptor: MTLRenderPassDescriptor,

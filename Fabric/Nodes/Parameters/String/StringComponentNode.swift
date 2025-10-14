@@ -11,16 +11,16 @@ import simd
 import Metal
 import MetalKit
 
-public class StringComponentNode : Node, NodeProtocol
+public class StringComponentNode : Node
 {
-    public static let name = "String Components"
-    public static var nodeType = Node.NodeType.Parameter(parameterType: .String)
+    override public static var name:String { "String Components" }
+    override public static var nodeType:Node.NodeType { .Parameter(parameterType: .String) }
 
     // TODO: add character set menu to choose component separation strategy
     
     let inputPort:NodePort<String>
     let outputPort:NodePort<ContiguousArray<String>>
-    override public var ports: [any NodePortProtocol] {  [inputPort, outputPort] + super.ports}
+    override public var ports:[AnyPort] {  [inputPort, outputPort] + super.ports}
 
     private var url: URL? = nil
     private var string: String? = nil

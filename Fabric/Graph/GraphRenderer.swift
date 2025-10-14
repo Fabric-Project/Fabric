@@ -14,9 +14,15 @@ public class GraphRenderer : MetalViewRenderer
 {
     private var lastGraphExecutionTime = Date.timeIntervalSinceReferenceDate
     private var executionCount = 0
-    public var context:Context!
     
+    public var context:Context!
     public let graph:Graph
+    public let renderer:Renderer
+    
+    // This is fucking horrible:
+    private let defaultCamera = PerspectiveCamera()
+    private var cachedCamera:Camera? = nil
+    private let sceneProxy = Object() // ?  IBLScene()
     
     override public var sampleCount: Int { self.context.sampleCount }
     override public var colorPixelFormat: MTLPixelFormat { self.context.colorPixelFormat }
@@ -27,7 +33,21 @@ public class GraphRenderer : MetalViewRenderer
     {
         self.context = context
         self.graph = graph
+        self.renderer = Renderer(context: context, stencilStoreAction: .store, frameBufferOnly:false)
+        self.renderer.sortObjects = true
+        
+        self.renderer.colorTextureStorageMode = .private
+        self.renderer.colorMultisampleTextureStorageMode = .private
+        
+        self.renderer.depthTextureStorageMode = .private
+        self.renderer.depthMultisampleTextureStorageMode = .private
+        
+        self.renderer.stencilTextureStorageMode = .private
+        self.renderer.stencilMultisampleTextureStorageMode = .private
+
+        
         print("Init Graph Execution Engine")
+
     }
     
     // MARK: - Execution
@@ -36,28 +56,40 @@ public class GraphRenderer : MetalViewRenderer
     {
         let executionContext = self.currentGraphExecutionContext()
 
-        self.graph.nodes.forEach({ $0.disableExecution(context: executionContext) })
+        for node in self.graph.nodes
+        {
+            node.disableExecution(context: executionContext)
+        }
     }
     
     public func enableExecution(graph:Graph)
     {
         let executionContext = self.currentGraphExecutionContext()
 
-        self.graph.nodes.forEach({ $0.enableExecution(context: executionContext) })
+        for node in self.graph.nodes
+        {
+            node.enableExecution(context: executionContext)
+        }
     }
     
     public func startExecution(graph:Graph)
     {
         let executionContext = self.currentGraphExecutionContext()
-
-        self.graph.nodes.forEach({ $0.startExecution(context: executionContext) })
+        
+        for node in self.graph.nodes
+        {
+            node.startExecution(context: executionContext)
+        }
     }
     
     public func stopExecution(graph:Graph)
     {
         let executionContext = self.currentGraphExecutionContext()
 
-        self.graph.nodes.forEach({ $0.stopExecution(context: executionContext) })
+        for node in self.graph.nodes
+        {
+            node.stopExecution(context: executionContext)
+        }
     }
 
     // MARK: - Execution
@@ -65,24 +97,93 @@ public class GraphRenderer : MetalViewRenderer
     public func execute(graph:Graph,
                         executionContext:GraphExecutionContext,
                         renderPassDescriptor: MTLRenderPassDescriptor,
-                        commandBuffer:MTLCommandBuffer)
+                         commandBuffer:MTLCommandBuffer) -> (objects:[Satin.Object], camera:Satin.Camera?)
     {
-        self.executionCount += 1
         
-        var nodesWeAreExecuting:[Node] = []
+        var nodesWeHaveExecutedThisPass:[Node] = []
 
-        let renderNodes = graph.nodes.filter( { $0.nodeType == .Renderer })
+        // This is fucking horrible:
+        let theseShouldBeProvidersLol = [Node.NodeType.Utility] + Node.NodeType.ObjectType.nodeTypes()
+        let providerNodes =  graph.nodes.filter( { theseShouldBeProvidersLol.contains($0.nodeType) } )
+        
+        let sceneObjectNodes:[any ObjectNodeProtocol] = providerNodes.compactMap({ $0 as? any ObjectNodeProtocol})
+        
+        // This is fucking horrible:
         let subgraphNodes = graph.nodes.filter( { $0.nodeType == .Subgraph })
 
-        for renderNode in renderNodes + subgraphNodes
+        // This is fucking horrible:
+        let firstCameraNode = sceneObjectNodes.filter( { $0.nodeType == .Object(objectType: .Camera)}).first
+        
+        // This is fucking horrible:
+        let firstCamera = firstCameraNode?.object as? Camera ?? self.cachedCamera ?? self.defaultCamera
+            
+        if !providerNodes.isEmpty
         {
-            let _ = processGraph(graph:graph,
-                                 node: renderNode as! Node,
-                                 executionContext:executionContext,
-                                 renderPassDescriptor: renderPassDescriptor,
-                                 commandBuffer: commandBuffer,
-                                 nodesWeHaveExecutedThisPass:&nodesWeAreExecuting)
+            let sceneObjects = sceneObjectNodes.compactMap( { $0.object } )
+
+            for renderNode in providerNodes + subgraphNodes
+            {
+                let _ = processGraph(graph:graph,
+                                     node: renderNode,
+                                     executionContext:executionContext,
+                                     renderPassDescriptor: renderPassDescriptor,
+                                     commandBuffer: commandBuffer,
+                                     nodesWeHaveExecutedThisPass:&nodesWeHaveExecutedThisPass)
+            }
+            
+
+            self.cachedCamera = firstCamera
+            let renderables = graph.renderables
+            
+            
+//            for node in nodesWeHaveExecutedThisPass
+//            {
+//                node.markClean()
+//            }
+            
+            return (objects: sceneObjects + renderables, camera:firstCamera)
+
+            
         }
+        
+//        // We need to handle iterator execution, as it may not have a camera
+//        // we just add it to the list of objects we are executing
+//        else if let _ = executionContext.iterationInfo,
+//                    let cachedCamera
+//        {
+//            let sceneObjects = sceneObjectNodes.compactMap( { $0.object } )
+//
+//            
+//            for renderNode in sceneObjectNodes + subgraphNodes
+//            {
+//                let _ = processGraph(graph:graph,
+//                                     node: renderNode as! Node,
+//                                     executionContext:executionContext,
+//                                     renderPassDescriptor: renderPassDescriptor,
+//                                     commandBuffer: commandBuffer,
+//                                     nodesWeHaveExecutedThisPass:&nodesWeHaveExecutedThisPass)
+//            }
+//            
+//
+//            sceneProxy.add(sceneObjects)
+//            
+//            self.renderer.draw(renderPassDescriptor: renderPassDescriptor,
+//                               commandBuffer: commandBuffer,
+//                               scene: sceneProxy,
+//                               camera: cachedCamera)
+//
+//
+//            nodesWeHaveExecutedThisPass.forEach( { $0.markClean() } )
+//
+//        }
+//        
+        
+//        for node in nodesWeHaveExecutedThisPass
+//        {
+//            node.markClean()
+//        }
+        
+        return (objects: [], camera:nil)
         
     }
 
@@ -96,12 +197,12 @@ public class GraphRenderer : MetalViewRenderer
     {
         
         // get the connection for
-        let inputNodes = node.inputNodes()
+        let inputNodes = node.inputNodes
                 
         for inputNode in inputNodes
         {
             processGraph(graph: graph,
-                         node: inputNode as! Node,
+                         node: inputNode,
                          executionContext:executionContext,
                          renderPassDescriptor: renderPassDescriptor,
                          commandBuffer: commandBuffer,
@@ -111,17 +212,17 @@ public class GraphRenderer : MetalViewRenderer
         
         if node.isDirty
         {
-            if !nodesWeHaveExecutedThisPass.contains(node)
-            {
+//            if !nodesWeHaveExecutedThisPass.contains(node)
+//            {
                 node.execute(context: executionContext,
                              renderPassDescriptor: renderPassDescriptor,
                              commandBuffer: commandBuffer)
                 
-                // TODO: This should be handled inside of the base node class no?
-                node.markClean()
                 
                 nodesWeHaveExecutedThisPass.append(node)
-            }
+                
+                node.markClean()
+//            }
 //            else
 //            {
 //                print("We already executed this node?, \(node.name) frame: \(self.executionCount)")
@@ -133,11 +234,25 @@ public class GraphRenderer : MetalViewRenderer
     
     public override func draw(renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
     {
+        self.executionCount += 1
+
         let executionContext = self.currentGraphExecutionContext()
-        self.execute(graph:self.graph,
+        
+        self.sceneProxy.removeAll()
+//        self.cachedCamera = nil
+        
+        let (objects, camera) = self.execute(graph:self.graph,
                      executionContext: executionContext,
                      renderPassDescriptor: renderPassDescriptor,
                      commandBuffer: commandBuffer)
+        
+//        issue is by the time we hit draw, weve updated the uniforms such that we draw our iterated renderables in the same spot... 
+        sceneProxy.add(objects)
+        
+        self.renderer.draw(renderPassDescriptor: renderPassDescriptor,
+                           commandBuffer: commandBuffer,
+                           scene: sceneProxy,
+                           camera: camera ?? self.defaultCamera)
         
         self.lastGraphExecutionTime = executionContext.timing.time
 
@@ -145,7 +260,12 @@ public class GraphRenderer : MetalViewRenderer
     
     override public func resize(size: (width: Float, height: Float), scaleFactor: Float)
     {
-        self.graph.nodes.forEach { $0.resize(size: size, scaleFactor: scaleFactor)}
+        self.renderer.resize(size)
+        
+        for node in self.graph.nodes
+        {
+            node.resize(size: size, scaleFactor: scaleFactor)
+        }
     }
     
     private func currentGraphExecutionContext() -> GraphExecutionContext
@@ -159,7 +279,8 @@ public class GraphRenderer : MetalViewRenderer
                                           systemTime: currentRenderTime,
                                           frameNumber: self.executionCount)
         
-        return GraphExecutionContext(context: self.context,
+        // weird
+        return GraphExecutionContext(graphRenderer: self,
                                      timing: timing,
                                      iterationInfo: nil,
                                      eventInfo: nil)

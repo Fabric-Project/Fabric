@@ -11,10 +11,10 @@ import Satin
 import simd
 import Metal
 
-public class NumberEaseNode : Node, NodeProtocol
+public class NumberEaseNode : Node
 {
-    public static let name = "Number Ease"
-    public static var nodeType = Node.NodeType.Parameter(parameterType: .Number)
+    override public static var name:String { "Number Ease" }
+    override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
 
     // Params
     public let inputTimeParam:FloatParameter
@@ -23,7 +23,7 @@ public class NumberEaseNode : Node, NodeProtocol
 
     // Ports
     public let outputNumber:NodePort<Float>
-    public override var ports: [any NodePortProtocol] {  [outputNumber] + super.ports}
+    public override var ports: [AnyPort] {  [outputNumber] + super.ports}
 
     private var lastOutput:Float = 0.0
     
