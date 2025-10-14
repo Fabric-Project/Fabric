@@ -12,22 +12,26 @@ import Satin
 // Graph Execution Engine
 public class GraphRenderer : MetalViewRenderer
 {
-    private var lastGraphExecutionTime = Date.timeIntervalSinceReferenceDate
-    private var executionCount = 0
-    
-    public var context:Context!
+    public private(set) var context:Context!
     public let graph:Graph
     public let renderer:Renderer
-    
-    // This is fucking horrible:
-    private let defaultCamera = PerspectiveCamera()
-    private var cachedCamera:Camera? = nil
-    private let sceneProxy = Object() // ?  IBLScene()
     
     override public var sampleCount: Int { self.context.sampleCount }
     override public var colorPixelFormat: MTLPixelFormat { self.context.colorPixelFormat }
     override public var depthPixelFormat: MTLPixelFormat { self.context.depthPixelFormat }
     override public var stencilPixelFormat: MTLPixelFormat { self.context.stencilPixelFormat }
+    
+    private var lastGraphExecutionTime = Date.timeIntervalSinceReferenceDate
+    private var executionCount = 0
+
+    // This is fucking horrible:
+    private let defaultCamera = PerspectiveCamera()
+    private var cachedCamera:Camera? = nil
+    private let sceneProxy = Object() // ?  IBLScene()
+    
+    private var graphRequiresResize:Bool = false
+    private var resizeScaleFactor:Float = 1.0
+    
     
     public init(context:Context, graph:Graph)
     {
@@ -36,18 +40,16 @@ public class GraphRenderer : MetalViewRenderer
         self.renderer = Renderer(context: context, stencilStoreAction: .store, frameBufferOnly:false)
         self.renderer.sortObjects = true
         
-        self.renderer.colorTextureStorageMode = .private
-        self.renderer.colorMultisampleTextureStorageMode = .private
-        
-        self.renderer.depthTextureStorageMode = .private
-        self.renderer.depthMultisampleTextureStorageMode = .private
-        
-        self.renderer.stencilTextureStorageMode = .private
-        self.renderer.stencilMultisampleTextureStorageMode = .private
-
+//        self.renderer.colorTextureStorageMode = .private
+//        self.renderer.colorMultisampleTextureStorageMode = .private
+//        
+//        self.renderer.depthTextureStorageMode = .private
+//        self.renderer.depthMultisampleTextureStorageMode = .private
+//        
+//        self.renderer.stencilTextureStorageMode = .private
+//        self.renderer.stencilMultisampleTextureStorageMode = .private
         
         print("Init Graph Execution Engine")
-
     }
     
     // MARK: - Execution
@@ -56,7 +58,7 @@ public class GraphRenderer : MetalViewRenderer
     {
         let executionContext = self.currentGraphExecutionContext()
 
-        for node in self.graph.nodes
+        for node in graph.nodes
         {
             node.disableExecution(context: executionContext)
         }
@@ -66,7 +68,7 @@ public class GraphRenderer : MetalViewRenderer
     {
         let executionContext = self.currentGraphExecutionContext()
 
-        for node in self.graph.nodes
+        for node in graph.nodes
         {
             node.enableExecution(context: executionContext)
         }
@@ -76,7 +78,7 @@ public class GraphRenderer : MetalViewRenderer
     {
         let executionContext = self.currentGraphExecutionContext()
         
-        for node in self.graph.nodes
+        for node in graph.nodes
         {
             node.startExecution(context: executionContext)
         }
@@ -86,7 +88,7 @@ public class GraphRenderer : MetalViewRenderer
     {
         let executionContext = self.currentGraphExecutionContext()
 
-        for node in self.graph.nodes
+        for node in graph.nodes
         {
             node.stopExecution(context: executionContext)
         }
@@ -100,6 +102,8 @@ public class GraphRenderer : MetalViewRenderer
                          commandBuffer:MTLCommandBuffer) -> (objects:[Satin.Object], camera:Satin.Camera?)
     {
         
+        defer { self.graphRequiresResize = false }
+        
         var nodesWeHaveExecutedThisPass:[Node] = []
 
         // This is fucking horrible:
@@ -112,7 +116,7 @@ public class GraphRenderer : MetalViewRenderer
         let subgraphNodes = graph.nodes.filter( { $0.nodeType == .Subgraph })
 
         // This is fucking horrible:
-        let firstCameraNode = sceneObjectNodes.filter( { $0.nodeType == .Object(objectType: .Camera)}).first
+        let firstCameraNode = sceneObjectNodes.first(where: { $0.nodeType == .Object(objectType: .Camera)})
         
         // This is fucking horrible:
         let firstCamera = firstCameraNode?.object as? Camera ?? self.cachedCamera ?? self.defaultCamera
@@ -210,10 +214,18 @@ public class GraphRenderer : MetalViewRenderer
                          )
         }
         
+        if self.graphRequiresResize
+        {
+            node.resize(size: self.renderer.size, scaleFactor: resizeScaleFactor)
+        }
+        
         if node.isDirty
         {
 //            if !nodesWeHaveExecutedThisPass.contains(node)
 //            {
+            
+                
+            
                 node.execute(context: executionContext,
                              renderPassDescriptor: renderPassDescriptor,
                              commandBuffer: commandBuffer)
@@ -262,10 +274,9 @@ public class GraphRenderer : MetalViewRenderer
     {
         self.renderer.resize(size)
         
-        for node in self.graph.nodes
-        {
-            node.resize(size: size, scaleFactor: scaleFactor)
-        }
+        self.graphRequiresResize = true
+        self.resizeScaleFactor = scaleFactor
+        
     }
     
     private func currentGraphExecutionContext() -> GraphExecutionContext
