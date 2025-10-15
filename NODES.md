@@ -52,7 +52,6 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Mesh
 - [x] Instanced Mesh
 - [x] 3D Model Loader
-- [x] Scene (Environment and Scene Graph)
 - [x] Orthographic Camera
 - [x] Perspective Camera
 - [x] Directional Light
@@ -63,8 +62,10 @@ A list of Nodes (planned and implemented) for Fabric.
 
 - [x] Sub Graph
 - [x] Render in Image with Depth (Outputs Image / Depth Image)
-- [ ] Environment (Image Based Lighting)
+- [x] Environment (Image Based Lighting)
+- [x] Environment Skybox (used within Env Node)
 - [x] Iterator Node
+- [x] Iterator Info (used within Iterator)
 - [ ] Replicate in Space
 - [ ] Replicate in Time
 
