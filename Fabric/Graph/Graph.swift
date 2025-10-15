@@ -32,7 +32,7 @@ internal import AnyCodable
     private(set) var nodes: [Node]
     
     var needsExecution:Bool {
-        self.nodes.reduce(false) { (result, node) -> Bool in
+        self.nodes.reduce(true) { (result, node) -> Bool in
             result || node.isDirty
         }
     }

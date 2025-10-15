@@ -33,9 +33,6 @@ public class DeferredSubgraphNode: SubgraphNode
     override public var object:Object? {
         return nil
     }
-
-    // Ensure we always render!
-    public override var isDirty:Bool { get {  self.subGraph.needsExecution  } set { } }
     
     let graphRenderer:GraphRenderer
 

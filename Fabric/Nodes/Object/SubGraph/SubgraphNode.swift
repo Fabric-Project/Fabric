@@ -69,6 +69,8 @@ public class SubgraphNode: BaseObjectNode
         {
             node.markClean()
         }
+        
+        super.markClean()
     }
          
     override public func markDirty()
@@ -77,6 +79,8 @@ public class SubgraphNode: BaseObjectNode
         {
             node.markDirty()
         }
+        
+        super.markDirty()
     }
     
     override public func startExecution(context:GraphExecutionContext)
@@ -104,12 +108,7 @@ public class SubgraphNode: BaseObjectNode
                                  commandBuffer: any MTLCommandBuffer)
     {
 
-        // this isnt great, as we need to surface the objects to be in the parent graphs
         context.graphRenderer?.execute(graph: self.subGraph, executionContext: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
-//        self.graphRenderer.execute(graph: self.graph,
-//                                   executionContext: context,
-//                                   renderPassDescriptor: renderPassDescriptor,
-//                                   commandBuffer: commandBuffer)
     }
     
 }

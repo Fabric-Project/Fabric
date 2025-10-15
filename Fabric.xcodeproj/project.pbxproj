@@ -156,6 +156,7 @@
 				Nodes/Object/Renderables/MeshNode.swift,
 				Nodes/Object/Renderables/ModelMeshNode.swift,
 				Nodes/Object/SubGraph/DeferredSubgraphNode.swift,
+				Nodes/Object/SubGraph/EnvironmentNode.swift,
 				Nodes/Object/SubGraph/Iterator/IteratorInfoNode.swift,
 				Nodes/Object/SubGraph/Iterator/IteratorNode.swift,
 				Nodes/Object/SubGraph/Iterator/SubgraphIteratorRenderable.swift,

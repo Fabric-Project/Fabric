@@ -85,7 +85,6 @@ public class HDRTextureNode : Node
         {
             self.loadTextureFromInputValue()
             
-        }
             if let texture = self.texture
             {
                 self.outputTexturePort.send(EquatableTexture(texture: texture))
@@ -95,7 +94,7 @@ public class HDRTextureNode : Node
             {
                 self.outputTexturePort.send(nil)
             }
-        
+        }
      }
     
     private func loadTextureFromInputValue()

@@ -139,13 +139,8 @@ struct ParameterGroupView : View
     private func buildDropDown(param:any Satin.Parameter) -> any View
     {
         guard let stringParam = param as? StringParameter else { return Text(param.label) }
-
-        let valueBinding = Binding( get: { stringParam.value },
-                                    set: { newValue in
-            stringParam.value = newValue
-        })
         
-        return StringMenu(value: valueBinding, options: stringParam.options, valueName: stringParam.label)
+        return StringMenu(parameter: stringParam)
             .frame(height:20)
     }
     
