@@ -31,9 +31,8 @@ public class DeferredSubgraphNode: SubgraphNode
     public override var ports: [AnyPort] {[outputColorTexture, outputDepthTexture] + super.ports}
 
     // Ensure we always render!
-//    public override var isDirty:Bool { get {  self.graph.needsExecution  } set { } }
+    public override var isDirty:Bool { get {  self.graph.needsExecution  } set { } }
     
-//    let graph:Graph
     let graphRenderer:GraphRenderer
 
     public required init(context: Context)
@@ -49,8 +48,6 @@ public class DeferredSubgraphNode: SubgraphNode
         super.init(context: context)
         
         self.setupRenderer()
-
-
     }
     
     enum CodingKeys : String, CodingKey
@@ -81,8 +78,6 @@ public class DeferredSubgraphNode: SubgraphNode
         {
             fatalError("Required Decode Context Not set")
         }
-
-
         
         self.outputColorTexture = try container.decode(NodePort<EquatableTexture>.self , forKey:.outputColorTexturePort)
         self.outputDepthTexture =  try container.decode(NodePort<EquatableTexture>.self , forKey:.outputDepthTexturePort)
@@ -90,7 +85,6 @@ public class DeferredSubgraphNode: SubgraphNode
         self.inputClearColor = try container.decode(Float4Parameter.self , forKey:.inputClearColorParam)
         self.inputResolution = try container.decode(Int2Parameter.self, forKey: .inputResolution)
 
-//        self.graph = try container.decode(Graph.self, forKey: .subGraph)
         self.graphRenderer = GraphRenderer(context: decodeContext.documentContext)
 
         try super.init(from: decoder)
@@ -108,14 +102,14 @@ public class DeferredSubgraphNode: SubgraphNode
         self.graphRenderer.renderer.size.width = Float(self.inputResolution.value.x)
         self.graphRenderer.renderer.size.height = Float(self.inputResolution.value.y)
         
-//        self.graphRenderer.renderer.colorTextureStorageMode = .private
-//        self.graphRenderer.renderer.colorMultisampleTextureStorageMode = .private
-//        
-//        self.graphRenderer.renderer.depthTextureStorageMode = .private
-//        self.graphRenderer.renderer.depthMultisampleTextureStorageMode = .private
-//        
-//        self.graphRenderer.renderer.stencilTextureStorageMode = .private
-//        self.graphRenderer.renderer.stencilMultisampleTextureStorageMode = .private
+        self.graphRenderer.renderer.colorTextureStorageMode = .private
+        self.graphRenderer.renderer.colorMultisampleTextureStorageMode = .private
+        
+        self.graphRenderer.renderer.depthTextureStorageMode = .private
+        self.graphRenderer.renderer.depthMultisampleTextureStorageMode = .private
+        
+        self.graphRenderer.renderer.stencilTextureStorageMode = .private
+        self.graphRenderer.renderer.stencilMultisampleTextureStorageMode = .private
     }
     
     override public func startExecution(context:GraphExecutionContext)
@@ -180,6 +174,11 @@ public class DeferredSubgraphNode: SubgraphNode
         {
             self.outputDepthTexture.send( nil )
         }
+    }
+    
+    override public func resize(size: (width: Float, height: Float), scaleFactor: Float)
+    {
+        self.graphRenderer.resize(size: size, scaleFactor: scaleFactor)
     }
     
 }

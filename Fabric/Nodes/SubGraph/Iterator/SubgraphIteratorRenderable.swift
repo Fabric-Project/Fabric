@@ -21,9 +21,7 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
     
     init(iterationCount: Int)
     {
-        
         self.iterationCount = iterationCount
-//        self.vertexUniforms = vertexUniforms
         self.vertexUniforms = [:]
         
         super.init()
@@ -35,7 +33,6 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
     
     var renderables: [any Satin.Renderable] = []
    
-    
     var iterationCount: Int
 
     //  Satin.Renderable
@@ -100,17 +97,10 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
     
     override func update(renderContext: Context, camera: Camera, viewport: simd_float4, index: Int)
     {
+        // We call update inline in draw, which is only so each draw gets the correct latest iterated values on the graph
         self.updateCamera = camera
         self.updateViewport = viewport
         self.updateIndex = index
-        // We call update inline in draw, which is only so each draw gets the correct latest iterated values on the graph
-//        for iteration  in 0..<iterationCount
-//        {
-//            for r in renderables
-//            {
-//                r.update(renderContext: renderContext, camera: camera, viewport: viewport, index: index)
-//            }
-//        }
     }
     
     func draw(renderContext: Context, renderEncoderState: RenderEncoderState, shadow: Bool)

@@ -12,8 +12,8 @@ import Metal
 
 public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
 {
-    public override var name:String { "Perspective Camera" }
-    public override var nodeType:Node.NodeType { Node.NodeType.Object(objectType: .Camera) }
+    public override class var name:String { "Perspective Camera" }
+    public override class var nodeType:Node.NodeType { Node.NodeType.Object(objectType: .Camera) }
 
     // Params
     public var inputLookAt:Float3Parameter

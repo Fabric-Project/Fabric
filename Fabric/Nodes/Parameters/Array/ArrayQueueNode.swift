@@ -13,8 +13,8 @@ import MetalKit
 
 public class ArrayQueueNode<Value : Equatable & FabricDescription> : Node
 {
-    public override var name:String { "\(Value.fabricDescription) Queue" }
-    public override var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
+    public override class var name:String { "\(Value.fabricDescription) Queue" }
+    public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
 
     let inputSizeParam:FloatParameter
     override public var inputParameters: [any Parameter] { [self.inputSizeParam] + super.inputParameters}

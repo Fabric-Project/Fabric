@@ -13,8 +13,8 @@ import MetalKit
 
 public class ArrayIndexValueNode<Value : Equatable & FabricDescription> : Node
 {
-    public override var name:String {"\(Value.fabricDescription) Value at Array Index" }
-    public override var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
+    public override class var name:String {"\(Value.fabricDescription) Value at Array Index" }
+    public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
 
     let inputIndexParam:FloatParameter
     override public var inputParameters: [any Parameter] { [self.inputIndexParam] + super.inputParameters}

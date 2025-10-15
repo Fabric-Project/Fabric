@@ -13,8 +13,8 @@ import Metal
 
 public class PointLightNode : ObjectNode<PointLight>
 {
-    public override var name:String { "Point Light" }
-    public override var nodeType:Node.NodeType { Node.NodeType.Object(objectType: .Light) }
+    public override class var name:String { "Point Light" }
+    public override class var nodeType:Node.NodeType { Node.NodeType.Object(objectType: .Light) }
 
     // Params
     public let inputLookAt: Float3Parameter

@@ -22,7 +22,7 @@ public class ModelMeshNode : MeshNode
     private var textureLoader:MTKTextureLoader
     private var url: URL? = nil
 
-    public var object: Object? {
+    override public func getObject() -> Object? {
         return model
     }
     
@@ -63,7 +63,7 @@ public class ModelMeshNode : MeshNode
         self.loadModelFromInputValue()
     }
     
-    override public func evaluate(object: Object, atTime: TimeInterval) -> Bool
+    override public func evaluate(object: Object?, atTime: TimeInterval) -> Bool
     {
         var shouldOutput = super.evaluate(object: object, atTime: atTime)
         

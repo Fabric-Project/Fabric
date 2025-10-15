@@ -13,6 +13,7 @@ import Metal
 
 public class BaseObjectNode : Node
 {
+    
     public func getObject() -> Object? {
         return nil
     }
@@ -42,7 +43,7 @@ public class ObjectNode<ObjectType : Satin.Object> : BaseObjectNode
         return self.object
     }
     
-    public var object: ObjectType? {
+    var object: ObjectType? {
         return nil
     }
 

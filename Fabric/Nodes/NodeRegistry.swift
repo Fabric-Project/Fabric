@@ -16,7 +16,7 @@ public class NodeRegistry {
     }
     
     public var availableNodes:[NodeClassWrapper] {
-        self.nodesClasses.map( { NodeClassWrapper(nodeClass: $0) } ) + self.dynamicEffectNodes
+        self.nodesClasses.map( { NodeClassWrapper(nodeClass: $0) } )// + self.dynamicEffectNodes
     }
 
     private var nodesClassLookup: [String: Node.Type] {
@@ -50,7 +50,7 @@ public class NodeRegistry {
     private var objectNodeClasses: [Node.Type] = [
         // Objects / Rendering
         MeshNode.self,
-//        ModelMeshNode.self,
+        ModelMeshNode.self,
         InstancedMeshNode.self,
 //        SceneBuilderNode.self,
 //        RenderNode.self,

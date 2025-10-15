@@ -99,6 +99,5 @@ public class IteratorNode: SubgraphNode
         
         // execute the graph once, to just ensure meshes / materials have latest values popogated to nodes
         self.renderProxy.execute(context: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
-        
     }
 }

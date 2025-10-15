@@ -25,8 +25,8 @@ private let MovieTextureNodeInitializer: Void = {
 
 public class MovieTextureNode : Node
 {
-    public override var name:String { "Movie Player" }
-    public override var nodeType:Node.NodeType { Node.NodeType.Image(imageType: .Loader) }
+    public override class var name:String { "Movie Player" }
+    public override class var nodeType:Node.NodeType { Node.NodeType.Image(imageType: .Loader) }
 
     // Parameters
     let inputFilePathParam:StringParameter

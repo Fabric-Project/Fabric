@@ -153,6 +153,7 @@
 				Nodes/Object/Lights/PointLightNode.swift,
 				Nodes/Object/Renderables/InstancedMeshNode.swift,
 				Nodes/Object/Renderables/MeshNode.swift,
+				Nodes/Object/Renderables/ModelMeshNode.swift,
 				Nodes/Parameters/Array/ArrayCountNode.swift,
 				Nodes/Parameters/Array/ArrayHelperExtensions.swift,
 				Nodes/Parameters/Array/ArrayIndexValueNode.swift,

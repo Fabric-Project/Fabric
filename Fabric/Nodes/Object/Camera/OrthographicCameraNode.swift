@@ -12,8 +12,8 @@ import Metal
 
 public class OrthographicCameraNode : ObjectNode<OrthographicCamera>
 {
-    public override var name:String { "Orthographic Camera" }
-    public override var nodeType:Node.NodeType { Node.NodeType.Object(objectType: .Camera) }
+    public override class var name:String { "Orthographic Camera" }
+    public override class var nodeType:Node.NodeType { Node.NodeType.Object(objectType: .Camera) }
     
     // Params
     public var inputLookAt:Float3Parameter

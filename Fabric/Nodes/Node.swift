@@ -93,8 +93,9 @@ import Combine
     
     @ObservationIgnored public var nodeType:NodeType
     {
-        let myType = type(of: self)
-        return  myType.nodeType
+        return Self.nodeType
+//        let myType = type(of: self)
+//        return  myType.nodeType
     }
     
     public var name : String

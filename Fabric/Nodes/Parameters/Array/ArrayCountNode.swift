@@ -14,8 +14,8 @@ import MetalKit
 
 public class ArrayCountNode<Value : Equatable & FabricDescription> : Node
 {
-    public override var name:String { "\(Value.fabricDescription) Array Count" }
-    public override var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
+    public override class var name:String { "\(Value.fabricDescription) Array Count" }
+    public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
 
     // TODO: add character set menu to choose component separation strategy
     
