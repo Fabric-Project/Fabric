@@ -100,7 +100,8 @@ extension Node
         {
             case Camera
             case Light
-            case Mesh // Renderable ? 
+            case Mesh // Renderable ?
+            case Loader
 //            case Scene
             static func nodeTypes() -> [Node.NodeType] {
                 return Self.allCases.map{ Node.NodeType.Object(objectType:$0) }
@@ -166,6 +167,8 @@ extension Node
                     case .Mesh:
                         return Color.nodeMesh
                         
+                    case .Loader:
+                        return Color.nodeMesh
                     
 //
 //                    case .Scene:

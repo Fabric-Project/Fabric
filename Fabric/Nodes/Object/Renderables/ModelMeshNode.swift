@@ -14,6 +14,7 @@ import MetalKit
 public class ModelMeshNode : MeshNode
 {
     public override class var name:String { "Model Mesh" }
+    public override class var nodeType:Node.NodeType { .Object(objectType: .Loader) }
 
     public let inputFilePathParam:StringParameter
     public override var inputParameters: [any Parameter] { [self.inputFilePathParam] + super.inputParameters}
@@ -119,7 +120,13 @@ public class ModelMeshNode : MeshNode
             
             if FileManager.default.fileExists(atPath: self.url!.standardizedFileURL.path(percentEncoded: false) )
             {
-                self.model = loadAsset(url:self.url!, textureLoader: self.textureLoader)
+                let unflattenedModelObject = loadAsset(url:self.url!, textureLoader: self.textureLoader)
+                
+                if let unflattenedModelObject
+                {
+                    self.model = Object.flatten(unflattenedModelObject)
+                }
+                
                 
                 self.updateLightingOnSubmeshes()
                 self.updateCullingOnSubmeshes()

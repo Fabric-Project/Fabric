@@ -103,6 +103,7 @@
 				Extensions/CGSize.swift,
 				Extensions/CGVector.swift,
 				"Extensions/MTLTexture+Equatable.swift",
+				Extensions/Object.swift,
 				"Extensions/simd+hashable.swift",
 				Fabric.docc,
 				Fabric.h,
