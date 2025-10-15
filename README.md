@@ -36,7 +36,7 @@ Fabric supports, thanks to Satin, high fidelity modern rendering techniques incl
 - macOS 14 +
 - XCode 15 +
 
-1. Checkout Fabric and ensure you check out with submodules enabled, as Satin is a dependency. Ensure Satin is checked out to the `Observable Macro` branch
+1. Checkout Fabric and ensure you check out with submodules enabled, as Satin is a dependency.
 2. Open the XCode project
 3. Ensure that `Fabric Editor` is the active target.
 4. Build and run. 
