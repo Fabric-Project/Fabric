@@ -15,13 +15,13 @@ public class SubgraphNode: Node
     override public class var name:String { "Sub Graph" }
     override public class var nodeType:Node.NodeType { Node.NodeType.Subgraph }
 
-    let graph:Graph
+    let subGraph:Graph
     
-    override public var ports:[AnyPort] { self.graph.publishedPorts() }
+    override public var ports:[AnyPort] { self.subGraph.publishedPorts() }
     
     public required init(context: Context)
     {
-        self.graph = Graph(context: context)
+        self.subGraph = Graph(context: context)
         
         super.init(context: context)
     }
@@ -35,7 +35,7 @@ public class SubgraphNode: Node
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
-        try container.encode(self.graph, forKey: .subGraph)
+        try container.encode(self.subGraph, forKey: .subGraph)
         
         try super.encode(to: encoder)
     }
@@ -44,19 +44,19 @@ public class SubgraphNode: Node
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
-        self.graph = try container.decode(Graph.self, forKey: .subGraph)
+        self.subGraph = try container.decode(Graph.self, forKey: .subGraph)
                 
         try super.init(from: decoder)
     }
     
     override public var isDirty: Bool
     {
-        self.graph.needsExecution
+        self.subGraph.needsExecution
     }
     
     override public func markClean()
     {
-        for node in self.graph.nodes
+        for node in self.subGraph.nodes
         {
             node.markClean()
         }
@@ -64,7 +64,7 @@ public class SubgraphNode: Node
          
     override public func markDirty()
     {
-        for node in self.graph.nodes
+        for node in self.subGraph.nodes
         {
             node.markDirty()
         }
@@ -72,22 +72,22 @@ public class SubgraphNode: Node
     
     override public func startExecution(context:GraphExecutionContext)
     {
-        context.graphRenderer?.startExecution(graph: self.graph)
+        context.graphRenderer?.startExecution(graph: self.subGraph)
     }
     
     override public func stopExecution(context:GraphExecutionContext)
     {
-        context.graphRenderer?.stopExecution(graph: self.graph)
+        context.graphRenderer?.stopExecution(graph: self.subGraph)
     }
 
     override public func enableExecution(context:GraphExecutionContext)
     {
-        context.graphRenderer?.enableExecution(graph: self.graph)
+        context.graphRenderer?.enableExecution(graph: self.subGraph)
     }
     
     override public func disableExecution(context:GraphExecutionContext)
     {
-        context.graphRenderer?.disableExecution(graph: self.graph)
+        context.graphRenderer?.disableExecution(graph: self.subGraph)
     }
     
     override public func execute(context: GraphExecutionContext,
@@ -96,7 +96,7 @@ public class SubgraphNode: Node
     {
 
         // this isnt great, as we need to surface the objects to be in the parent graphs
-        context.graphRenderer?.execute(graph: self.graph, executionContext: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+        context.graphRenderer?.execute(graph: self.subGraph, executionContext: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
 //        self.graphRenderer.execute(graph: self.graph,
 //                                   executionContext: context,
 //                                   renderPassDescriptor: renderPassDescriptor,

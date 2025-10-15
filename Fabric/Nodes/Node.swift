@@ -78,6 +78,8 @@ import Combine
     
     @ObservationIgnored var context:Context
 
+    @ObservationIgnored weak var graph:Graph?
+
     @ObservationIgnored public var inputParameters:[any Parameter] { []  }
     @ObservationIgnored public let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
     

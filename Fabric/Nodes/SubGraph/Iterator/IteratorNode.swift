@@ -63,26 +63,6 @@ public class IteratorNode: SubgraphNode
         
     }
     
-    override public func startExecution(context:GraphExecutionContext)
-    {
-        context.graphRenderer?.startExecution(graph: self.graph)
-    }
-    
-    override public func stopExecution(context:GraphExecutionContext)
-    {
-        context.graphRenderer?.stopExecution(graph: self.graph)
-    }
-
-    override public func enableExecution(context:GraphExecutionContext)
-    {
-        context.graphRenderer?.enableExecution(graph: self.graph)
-    }
-    
-    override public func disableExecution(context:GraphExecutionContext)
-    {
-        context.graphRenderer?.disableExecution(graph: self.graph)
-    }
-    
     override public func execute(context: GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: any MTLCommandBuffer)
@@ -90,7 +70,7 @@ public class IteratorNode: SubgraphNode
         self.renderProxy.graphContext = context
         self.renderProxy.currentRenderPass = renderPassDescriptor
         self.renderProxy.currentCommandBuffer = commandBuffer
-        self.renderProxy.renderables = self.graph.renderables
+        self.renderProxy.renderables = self.subGraph.renderables
 
         if self.inputIteratonCount.valueDidChange
         {

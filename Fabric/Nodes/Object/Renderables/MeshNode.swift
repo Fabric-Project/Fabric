@@ -50,6 +50,13 @@ public class MeshNode : BaseRenderableNode<Mesh>
     }
     
     private var mesh: Mesh? = nil
+    {
+        didSet
+        {
+            // Relying on side effects - this triggers
+            self.graph?.syncNodesToScene()
+        }
+    }
 
     public required init(context: Context)
     {
