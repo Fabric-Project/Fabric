@@ -141,7 +141,8 @@ public class GraphRenderer : MetalViewRenderer
             
             self.cachedCamera = firstCamera
             // problematic ?
-            sceneProxy.add(sceneObjects + renderProxies)
+            
+//            sceneProxy.add(sceneObjects + renderProxies)
         }
     }
 
@@ -205,7 +206,7 @@ public class GraphRenderer : MetalViewRenderer
     
     public func executeAndDraw(graph:Graph, executionContext:GraphExecutionContext, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
     {
-        self.sceneProxy.removeAll()
+//        self.sceneProxy.removeAll()
 //        self.cachedCamera = nil
         
 //        print("\(self.renderer.label) executeAndDraw frame \(self.executionCount)")
@@ -219,7 +220,7 @@ public class GraphRenderer : MetalViewRenderer
         
         self.renderer.draw(renderPassDescriptor: renderPassDescriptor,
                            commandBuffer: commandBuffer,
-                           scene: sceneProxy,
+                           scene: graph.scene,
                            camera: self.cachedCamera ?? self.defaultCamera)
         
         self.lastGraphExecutionTime = executionContext.timing.time

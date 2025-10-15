@@ -37,6 +37,8 @@ internal import AnyCodable
         }
     }
     
+    var scene:Object = Object()
+    
     var renderables: [any Satin.Object & Satin.Renderable] {
         let allNodes = self.nodes
         
@@ -116,7 +118,7 @@ internal import AnyCodable
                     
                     let node = try decoder.decode(nodeClass, from: jsonData)
 
-                    self.nodes.append(node)
+                    self.addNode(node)
 
                 }
                 // This is stupid? Yes, BaseEffectNode should be designed to cover the cases... but this works, today.
@@ -130,7 +132,7 @@ internal import AnyCodable
                     
                     let node = try decoder.decode(BaseEffectThreeChannelNode.self, from: jsonData)
 
-                    self.nodes.append(node)
+                    self.addNode(node)
                 }
                 // This is stupid?
                 else if anyCodableMap.type == String(describing: type(of: BaseEffectTwoChannelNode.self)).replacingOccurrences(of: ".Type", with:"")
@@ -143,7 +145,7 @@ internal import AnyCodable
                     
                     let node = try decoder.decode(BaseEffectTwoChannelNode.self, from: jsonData)
 
-                    self.nodes.append(node)
+                    self.addNode(node)
                 }
                 // This is stupid?
                 else if anyCodableMap.type == String(describing: type(of: BaseEffectNode.self)).replacingOccurrences(of: ".Type", with:"")
@@ -156,7 +158,7 @@ internal import AnyCodable
                     
                     let node = try decoder.decode(BaseEffectNode.self, from: jsonData)
 
-                    self.nodes.append(node)
+                    self.addNode(node)
                 }
                 else
                 {
@@ -252,10 +254,16 @@ internal import AnyCodable
         
         if let activeSubGraph
         {
-            activeSubGraph.nodes.append(node)
+            activeSubGraph.addNode(node)
         }
         else
         {
+            if let objectNode = node as? BaseObjectNode,
+               let object = objectNode.getObject()
+            {
+                print("scene added \(objectNode.name)")
+                self.scene.add( object )
+            }
             self.nodes.append(node)
         }
         
@@ -273,6 +281,12 @@ internal import AnyCodable
         }
         else
         {
+            if let objectNode = node as? BaseObjectNode,
+               let object = objectNode.getObject()
+            {
+                self.scene.remove( object )
+            }
+
             self.nodes.removeAll { $0.id == node.id }
         }
     }
