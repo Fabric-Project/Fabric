@@ -70,6 +70,7 @@ public class NumberBinaryOperator : Node
         self.inputBParam = try container.decode(FloatParameter.self, forKey: .inputBParameter)
         
         self.inputOperatorParam = try container.decode(StringParameter.self, forKey: .inputOperatorParameter)
+        self.inputOperatorParam.options = BinaryMathOperator.allCases.map(\.rawValue)
         
         self.outputNumber = try container.decode(NodePort<Float>.self, forKey: .outputNumberPort)
         
