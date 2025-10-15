@@ -58,9 +58,15 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Directional Light
 - [x] Point Light
 - [ ] Spot Light
-- [x] Render Node
-- [x] Deferred Render Node (Outputs Depth / Texture)
-- [ ] Sub-Graph Node 
+
+# Macro Patches
+
+- [x] Sub Graph
+- [x] Render in Image with Depth (Outputs Image / Depth Image)
+- [ ] Environment (Image Based Lighting)
+- [x] Iterator Node
+- [ ] Replicate in Space
+- [ ] Replicate in Time
 
 # Image Processing
 
