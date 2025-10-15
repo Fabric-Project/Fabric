@@ -48,6 +48,14 @@ internal import AnyCodable
     }
     
     var shouldUpdateConnections = false // New property to trigger view update
+    {
+        didSet
+        {
+            // Side Effect - try to synchronize the scene with any new objects
+            // Due to connections being enabled.
+            self.syncNodesToScene()
+        }
+    }
     
     @ObservationIgnored weak var lastNode:(Node)? = nil
     
@@ -258,12 +266,7 @@ internal import AnyCodable
         }
         else
         {
-            if let objectNode = node as? BaseObjectNode,
-               let object = objectNode.getObject()
-            {
-                print("scene added \(objectNode.name)")
-                self.scene.add( object )
-            }
+            self.maybeAddNodeToScene(node)
             self.nodes.append(node)
         }
         
@@ -276,17 +279,11 @@ internal import AnyCodable
         
         if let activeSubGraph
         {
-            activeSubGraph.nodes.removeAll { $0.id == node.id }
-
+            activeSubGraph.delete(node: node)
         }
         else
         {
-            if let objectNode = node as? BaseObjectNode,
-               let object = objectNode.getObject()
-            {
-                self.scene.remove( object )
-            }
-
+            self.maybeDeleteNodeFromScene(node)
             self.nodes.removeAll { $0.id == node.id }
         }
     }
@@ -442,5 +439,34 @@ internal import AnyCodable
         {
             node.isSelected = false
         }
+    }
+    
+    // Theres a possible race condition here, as a node
+    // may not have a object loaded yet
+    // ( lazy loading, needs execution, isnt connected)
+    // we need to track when said node's object comes online....
+    private func maybeAddNodeToScene(_ node:Node)
+    {
+        if let objectNode = node as? BaseObjectNode,
+           let object = objectNode.getObject()
+        {
+            print("scene added \(objectNode.name)")
+            self.scene.add( object )
+        }
+    }
+    
+    private func maybeDeleteNodeFromScene(_ node:Node)
+    {
+        if let objectNode = node as? BaseObjectNode,
+           let object = objectNode.getObject()
+        {
+            self.scene.remove( object )
+        }
+    }
+    
+    
+    private func syncNodesToScene()
+    {
+        
     }
 }
