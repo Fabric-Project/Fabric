@@ -93,7 +93,7 @@ struct NodeView : View
             .onTapGesture(count: 2)
             {
                 if let subgraph = self.node as? SubgraphNode {
-                    self.graph.activeSubGraph = subgraph.graph
+                    self.graph.activeSubGraph = subgraph.subGraph
                 }
             }
         }

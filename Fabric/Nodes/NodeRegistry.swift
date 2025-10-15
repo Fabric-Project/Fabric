@@ -52,9 +52,6 @@ public class NodeRegistry {
         MeshNode.self,
         ModelMeshNode.self,
         InstancedMeshNode.self,
-//        SceneBuilderNode.self,
-//        RenderNode.self,
-//        DeferredRenderNode.self
     ]
     
     private var geometryNodeClasses: [Node.Type] = [ // Geometry
@@ -99,7 +96,7 @@ public class NodeRegistry {
         DeferredSubgraphNode.self,
         IteratorNode.self,
         IteratorInfoNode.self,
-        
+        EnvironmentNode.self,
     ]
     
     private var dynamicEffectNodes:[NodeClassWrapper] {

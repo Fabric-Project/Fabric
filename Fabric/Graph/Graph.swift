@@ -32,10 +32,12 @@ internal import AnyCodable
     private(set) var nodes: [Node]
     
     var needsExecution:Bool {
-        self.nodes.reduce(false) { (result, node) -> Bool in
+        self.nodes.reduce(true) { (result, node) -> Bool in
             result || node.isDirty
         }
     }
+    
+    var scene:Object = Object()
     
     var renderables: [any Satin.Object & Satin.Renderable] {
         let allNodes = self.nodes
@@ -46,6 +48,14 @@ internal import AnyCodable
     }
     
     var shouldUpdateConnections = false // New property to trigger view update
+    {
+        didSet
+        {
+            // Side Effect - try to synchronize the scene with any new objects
+            // Due to connections being enabled.
+            self.syncNodesToScene()
+        }
+    }
     
     @ObservationIgnored weak var lastNode:(Node)? = nil
     
@@ -116,7 +126,7 @@ internal import AnyCodable
                     
                     let node = try decoder.decode(nodeClass, from: jsonData)
 
-                    self.nodes.append(node)
+                    self.addNode(node)
 
                 }
                 // This is stupid? Yes, BaseEffectNode should be designed to cover the cases... but this works, today.
@@ -130,7 +140,7 @@ internal import AnyCodable
                     
                     let node = try decoder.decode(BaseEffectThreeChannelNode.self, from: jsonData)
 
-                    self.nodes.append(node)
+                    self.addNode(node)
                 }
                 // This is stupid?
                 else if anyCodableMap.type == String(describing: type(of: BaseEffectTwoChannelNode.self)).replacingOccurrences(of: ".Type", with:"")
@@ -143,7 +153,7 @@ internal import AnyCodable
                     
                     let node = try decoder.decode(BaseEffectTwoChannelNode.self, from: jsonData)
 
-                    self.nodes.append(node)
+                    self.addNode(node)
                 }
                 // This is stupid?
                 else if anyCodableMap.type == String(describing: type(of: BaseEffectNode.self)).replacingOccurrences(of: ".Type", with:"")
@@ -156,7 +166,7 @@ internal import AnyCodable
                     
                     let node = try decoder.decode(BaseEffectNode.self, from: jsonData)
 
-                    self.nodes.append(node)
+                    self.addNode(node)
                 }
                 else
                 {
@@ -252,11 +262,13 @@ internal import AnyCodable
         
         if let activeSubGraph
         {
-            activeSubGraph.nodes.append(node)
+            activeSubGraph.addNode(node)
         }
         else
         {
+            self.maybeAddNodeToScene(node)
             self.nodes.append(node)
+            node.graph = self
         }
         
         //        self.autoConnect(node: node)
@@ -268,11 +280,11 @@ internal import AnyCodable
         
         if let activeSubGraph
         {
-            activeSubGraph.nodes.removeAll { $0.id == node.id }
-
+            activeSubGraph.delete(node: node)
         }
         else
         {
+            self.maybeDeleteNodeFromScene(node)
             self.nodes.removeAll { $0.id == node.id }
         }
     }
@@ -427,6 +439,40 @@ internal import AnyCodable
         for node in self.nodes
         {
             node.isSelected = false
+        }
+    }
+    
+    // Theres a possible race condition here, as a node
+    // may not have a object loaded yet
+    // ( lazy loading, needs execution, isnt connected)
+    // we need to track when said node's object comes online....
+    private func maybeAddNodeToScene(_ node:Node)
+    {
+        if let objectNode = node as? BaseObjectNode,
+           let object = objectNode.getObject()
+        {
+            print("scene added \(objectNode.name)")
+            self.scene.add( object )
+        }
+    }
+    
+    private func maybeDeleteNodeFromScene(_ node:Node)
+    {
+        if let objectNode = node as? BaseObjectNode,
+           let object = objectNode.getObject()
+        {
+            self.scene.remove( object )
+        }
+    }
+    
+    public func syncNodesToScene()
+    {
+        let objects = self.nodes.compactMap { $0 as? BaseObjectNode }
+            .compactMap { $0.getObject() }
+        
+        for object in objects where !self.scene.children.contains(object)
+        {
+            self.scene.add(object)
         }
     }
 }

@@ -32,7 +32,6 @@ public class GraphRenderer : MetalViewRenderer
     private var graphRequiresResize:Bool = false
     private var resizeScaleFactor:Float = 1.0
     
-    
     public init(context:Context)
     {
         self.context = context
@@ -98,7 +97,6 @@ public class GraphRenderer : MetalViewRenderer
 
     // MARK: - Execution
     
-    
     public func execute(graph:Graph,
                         executionContext:GraphExecutionContext,
                         renderPassDescriptor: MTLRenderPassDescriptor,
@@ -112,12 +110,7 @@ public class GraphRenderer : MetalViewRenderer
         // This is fucking horrible:
         let theseShouldBeProvidersLol = [Node.NodeType.Utility, .Subgraph] + Node.NodeType.ObjectType.nodeTypes()
         let nodesThatShouldBePulled =  graph.nodes.filter( { theseShouldBeProvidersLol.contains($0.nodeType) } )
-        
         let sceneObjectNodes:[BaseObjectNode] = nodesThatShouldBePulled.compactMap({ $0 as? BaseObjectNode})
-        
-        // This is fucking horrible:
-        let iteratorNodes = graph.nodes.compactMap( { $0 as? IteratorNode })
-        let renderProxies = iteratorNodes.map { $0.renderProxy }
         
         // This is fucking horrible:
         let firstCameraNode = sceneObjectNodes.first(where: { $0.nodeType == .Object(objectType: .Camera)})
@@ -127,9 +120,7 @@ public class GraphRenderer : MetalViewRenderer
             
         if !nodesThatShouldBePulled.isEmpty
         {
-            let sceneObjects = sceneObjectNodes.compactMap( { $0.getObject() } )
-
-            for renderNode in nodesThatShouldBePulled + iteratorNodes
+            for renderNode in nodesThatShouldBePulled
             {
                 let _ = processGraph(graph:graph,
                                      node: renderNode,
@@ -140,8 +131,6 @@ public class GraphRenderer : MetalViewRenderer
             }
             
             self.cachedCamera = firstCamera
-            // problematic ?
-            sceneProxy.add(sceneObjects + renderProxies)
         }
     }
 
@@ -205,8 +194,7 @@ public class GraphRenderer : MetalViewRenderer
     
     public func executeAndDraw(graph:Graph, executionContext:GraphExecutionContext, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
     {
-        self.sceneProxy.removeAll()
-//        self.cachedCamera = nil
+        self.cachedCamera = nil
         
 //        print("\(self.renderer.label) executeAndDraw frame \(self.executionCount)")
         
@@ -214,24 +202,20 @@ public class GraphRenderer : MetalViewRenderer
                      executionContext: executionContext,
                      renderPassDescriptor: renderPassDescriptor,
                      commandBuffer: commandBuffer)
-        
-//        issue is by the time we hit draw, weve updated the uniforms such that we draw our iterated renderables in the same spot...
-        
+                
         self.renderer.draw(renderPassDescriptor: renderPassDescriptor,
                            commandBuffer: commandBuffer,
-                           scene: sceneProxy,
+                           scene: graph.scene,
                            camera: self.cachedCamera ?? self.defaultCamera)
         
         self.lastGraphExecutionTime = executionContext.timing.time
         self.executionCount += 1
     }
-    
 
     
     public override func draw(renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
     {
         fatalError("use execute(graph:renderPassDescriptor:commandBuffer:) instead.")
-
     }
     
     override public func resize(size: (width: Float, height: Float), scaleFactor: Float)
@@ -240,7 +224,6 @@ public class GraphRenderer : MetalViewRenderer
         
         self.graphRequiresResize = true
         self.resizeScaleFactor = scaleFactor
-        
     }
     
     private func currentGraphExecutionContext() -> GraphExecutionContext
@@ -260,58 +243,5 @@ public class GraphRenderer : MetalViewRenderer
                                      iterationInfo: nil,
                                      eventInfo: nil)
     }
-            
-//            if let inputFrame = self.frameCache.cachedFrame(fromNode: source, atTime: time)
-//            {
-//                inputFrames.append(inputFrame)
-//            }
-//            else
-//            {
-//                if let _ = nodesWeAreExecuting.firstIndex(of: source)
-//                {
-//                    // Check if the node has already been processed in the current frame
-//                    if let cachedFrame = self.frameCache.cachedFrame(fromNode: source, atTime: self.lastGraphExecutionTime)
-//                    {
-//                        inputFrames.append(cachedFrame)
-//                    }
-//                    else
-//                    {
-//                        print("feedback loop cache miss")
-//                    }
-//                }
-//                else
-//                {
-//                    if let inputFrame = processGraph(graph: graph,
-//                                                     node: source,
-//                                                     withCommandBuffer:withCommandBuffer,
-//                                                     atTime: time,
-//                                                     nodesWeAreExecuting: &nodesWeAreExecuting,
-//                                                     pruningConnections:connections)
-//                    {
-//                        self.frameCache.cacheFrame(frame: inputFrame,
-//                                                   fromNode: source,
-//                                                   atTime: time)
-//                        
-//                        inputFrames.append(inputFrame)
-//                    }
-//                }
-//            }
-            
-//        }
-//
-//        node.preProcess(atTime:time)
-//
-//        if let outputFrame = node.process(inputFrames: inputFrames,
-//                                          onCommandBuffer: withCommandBuffer,
-//                                          atTime: time)
-//        {
-//            self.frameCache.cacheFrame(frame: outputFrame,
-//                                       fromNode: node,
-//                                       atTime: time)
-//            return outputFrame
-//        }
-//        
-//        return nil
-//    }
 }
 

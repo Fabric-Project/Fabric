@@ -10,17 +10,37 @@ import SwiftUI
 
 struct StringMenu: View
 {
-    @Binding var value:String
-    var options:[String]
+//    @Binding var value:String
+//    var options:[String]
 
-    @State var valueName:String
+    @Bindable var vm: ParameterObservableModel<String>
+    @Bindable var optionsVm: ParameterObservableModel<[String]>
 
+    @State private var selectedOption: String? = nil
+
+    init(parameter: StringParameter)
+    {
+        self.vm = ParameterObservableModel(label: parameter.label,
+                                           get: { parameter.value },
+                                           set: { parameter.value = $0 },
+                                           publisher: parameter.valuePublisher )
+        
+        self.optionsVm = ParameterObservableModel(label: parameter.label,
+                                           get: { parameter.options },
+                                           set: { parameter.options = $0 },
+                                           publisher: parameter.optionsPublisher )
+        
+    }
+
+    
     var body: some View
     {
-        Menu {
-            ForEach(self.options, id: \.self) { option in
+        Menu
+        {
+            ForEach(self.optionsVm.uiValue, id: \.self) { option in
                 Button {
-                    self.value = option
+                    selectedOption = option
+                    vm.uiValue = option
                     print("Selected Option \(option)")
                 } label: {
                     Text(option)
@@ -28,7 +48,7 @@ struct StringMenu: View
                 Divider()
             }
         } label: {
-            Text(self.$value.wrappedValue)
+            Text(selectedOption ?? vm.label)
         }
         .menuStyle(.button)
 

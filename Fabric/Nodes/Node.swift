@@ -78,6 +78,8 @@ import Combine
     
     @ObservationIgnored var context:Context
 
+    @ObservationIgnored weak var graph:Graph?
+
     @ObservationIgnored public var inputParameters:[any Parameter] { []  }
     @ObservationIgnored public let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
     
@@ -291,14 +293,14 @@ import Combine
     
     private func parametersGroupToPorts(_ parameters:[(any Parameter)]) -> [AnyPort]
     {
-        print(self.name, "parametersGroupToPorts")
+//        print(self.name, "parametersGroupToPorts")
         return parameters.compactMap( {
             self.parameterToPort(parameter:$0) })
     }
     
     private func parameterToPort(parameter:(any Parameter)) -> AnyPort?
     {
-        print(self.name, "parameterToPort", parameter.label)
+//        print(self.name, "parameterToPort", parameter.label)
                 
         switch parameter.type
         {

@@ -30,8 +30,9 @@ public class DeferredSubgraphNode: SubgraphNode
     
     public override var ports: [AnyPort] {[outputColorTexture, outputDepthTexture] + super.ports}
 
-    // Ensure we always render!
-    public override var isDirty:Bool { get {  self.graph.needsExecution  } set { } }
+    override public var object:Object? {
+        return nil
+    }
     
     let graphRenderer:GraphRenderer
 
@@ -114,22 +115,22 @@ public class DeferredSubgraphNode: SubgraphNode
     
     override public func startExecution(context:GraphExecutionContext)
     {
-        self.graphRenderer.startExecution(graph: self.graph)
+        self.graphRenderer.startExecution(graph: self.subGraph)
     }
     
     override public func stopExecution(context:GraphExecutionContext)
     {
-        self.graphRenderer.stopExecution(graph: self.graph)
+        self.graphRenderer.stopExecution(graph: self.subGraph)
     }
 
     override public func enableExecution(context:GraphExecutionContext)
     {
-        self.graphRenderer.enableExecution(graph: self.graph)
+        self.graphRenderer.enableExecution(graph: self.subGraph)
     }
     
     override public func disableExecution(context:GraphExecutionContext)
     {
-        self.graphRenderer.disableExecution(graph: self.graph)
+        self.graphRenderer.disableExecution(graph: self.subGraph)
     }
     
     override public func execute(context: GraphExecutionContext,
@@ -152,7 +153,7 @@ public class DeferredSubgraphNode: SubgraphNode
                     
         rpd1.colorAttachments[0].texture = self.graphRenderer.renderer.colorTexture
 
-        self.graphRenderer.executeAndDraw(graph: self.graph,
+        self.graphRenderer.executeAndDraw(graph: self.subGraph,
                                    executionContext: context,
                                    renderPassDescriptor: rpd1,
                                    commandBuffer: commandBuffer)

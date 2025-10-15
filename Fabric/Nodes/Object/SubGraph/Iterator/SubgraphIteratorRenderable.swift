@@ -15,6 +15,14 @@ import Observation
 final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
 {
     var subGraph:Graph? = nil
+    {
+        didSet
+        {
+            guard let subGraph else { return }
+            self.add(subGraph.scene)
+        }
+    }
+    
     var graphContext:GraphExecutionContext? = nil
     var currentCommandBuffer:MTLCommandBuffer? = nil
     var currentRenderPass:MTLRenderPassDescriptor? = nil
@@ -31,22 +39,24 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
         fatalError("init(from:) has not been implemented")
     }
     
-    var renderables: [any Satin.Renderable] = []
+//    var renderables: [any Satin.Renderable] = []
    
     var iterationCount: Int
 
     //  Satin.Renderable
     
     var opaque: Bool {
-        self.renderables.reduce(false) { partialResult, aRenderable in
-            return partialResult || aRenderable.opaque
-        }
+        true
+//        self.renderables.reduce(false) { partialResult, aRenderable in
+//            return partialResult || aRenderable.opaque
+//        }
     }
     
     var doubleSided: Bool {
-        self.renderables.reduce(false) { partialResult, aRenderable in
-            return partialResult || aRenderable.doubleSided
-        }
+        false
+//        self.renderables.reduce(false) { partialResult, aRenderable in
+//            return partialResult || aRenderable.doubleSided
+//        }
     }
     
     var renderOrder: Int { 0 }
@@ -54,21 +64,24 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
     var renderPass: Int { 0 }
     
     var lighting: Bool {
-       self.renderables.reduce(false) { partialResult, aRenderable in
-            return partialResult || aRenderable.lighting
-        }
+        true
+//       self.renderables.reduce(false) { partialResult, aRenderable in
+//            return partialResult || aRenderable.lighting
+//        }
     }
     
     var receiveShadow: Bool {
-       self.renderables.reduce(false) { partialResult, aRenderable in
-            return partialResult || aRenderable.receiveShadow
-        }
+        true
+//       self.renderables.reduce(false) { partialResult, aRenderable in
+//            return partialResult || aRenderable.receiveShadow
+//        }
     }
     
     var castShadow: Bool {
-        self.renderables.reduce(false) { partialResult, aRenderable in
-            return partialResult || aRenderable.castShadow
-        }
+        true
+//        self.renderables.reduce(false) { partialResult, aRenderable in
+//            return partialResult || aRenderable.castShadow
+//        }
     }
     
     var cullMode: MTLCullMode { .back }
@@ -80,9 +93,10 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
     var vertexUniforms: [Satin.Context : Satin.VertexUniformBuffer]
     
     func isDrawable(renderContext: Satin.Context, shadow: Bool) -> Bool {
-        self.renderables.reduce(false) { partialResult, aRenderable in
-            return partialResult || aRenderable.isDrawable(renderContext: renderContext, shadow: shadow)
-        }
+        true
+        //        self.renderables.reduce(true) { partialResult, aRenderable in
+//            return partialResult || aRenderable.isDrawable(renderContext: renderContext, shadow: shadow)
+//        }
     }
     
     var material: Satin.Material? = nil
@@ -114,7 +128,10 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
               let currentCommandBuffer
         else { return }
 
-        for r in self.renderables
+        // TODO: Test if this needs to be recu
+        let renderableChildren = self.getChildren().compactMap( { $0 as? Renderable } )
+        
+        for r in renderableChildren
         {
             // Since each Mesh / Material / Geom has its own set of buffers
             // Each iteration those buffers do not have a unique pointer address
@@ -145,7 +162,7 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
                                                 renderPassDescriptor:currentRenderPass,
                                                 commandBuffer: currentCommandBuffer)
                         
-            for r in self.renderables
+            for r in renderableChildren
             {
                 r.update(renderContext: renderContext, camera: updateCamera, viewport: updateViewport, index: updateIndex)
 
@@ -158,10 +175,11 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
         }
         
         
-        for r in self.renderables
+        for r in renderableChildren
         {
             r.material?.onBind = nil
         }
+        
         graphContext.iterationInfo = nil
     }
     

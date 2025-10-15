@@ -19,12 +19,20 @@ public class ModelMeshNode : MeshNode
     public let inputFilePathParam:StringParameter
     public override var inputParameters: [any Parameter] { [self.inputFilePathParam] + super.inputParameters}
     
-    private var model: Object? = nil
     private var textureLoader:MTKTextureLoader
     private var url: URL? = nil
 
     override public func getObject() -> Object? {
         return model
+    }
+    
+    private var model: Object? = nil
+    {
+        didSet
+        {
+            // Relying on side effects - this triggers
+            self.graph?.syncNodesToScene()
+        }
     }
     
     public required init(context: Context)
