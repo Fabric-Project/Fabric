@@ -16,7 +16,7 @@ public class NodeRegistry {
     }
     
     public var availableNodes:[NodeClassWrapper] {
-        self.nodesClasses.map( { NodeClassWrapper(nodeClass: $0) } )// + self.dynamicEffectNodes
+        self.nodesClasses.map( { NodeClassWrapper(nodeClass: $0) } ) + self.dynamicEffectNodes
     }
 
     private var nodesClassLookup: [String: Node.Type] {
