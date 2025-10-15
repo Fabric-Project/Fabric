@@ -11,7 +11,7 @@ import Satin
 import simd
 import Metal
 
-public class DirectionalLightNode : BaseObjectNode, ObjectNodeProtocol
+public class DirectionalLightNode : ObjectNode<DirectionalLight>
 {
     public override var name:String { "Directional Light" }
     public override var nodeType:Node.NodeType { Node.NodeType.Object(objectType: .Light) }
@@ -36,7 +36,7 @@ public class DirectionalLightNode : BaseObjectNode, ObjectNodeProtocol
     public let outputLight: NodePort<Object>
     public override var ports: [AnyPort] {  [outputLight] + super.ports }
     
-    public var object: Object? {
+    public override var object: DirectionalLight? {
         return light
     }
     
@@ -124,7 +124,7 @@ public class DirectionalLightNode : BaseObjectNode, ObjectNodeProtocol
 
     }
 
-    override public func evaluate(object: Object, atTime: TimeInterval) -> Bool
+    override public func evaluate(object: Object?, atTime: TimeInterval) -> Bool
     {
         var shouldOutput = super.evaluate(object: object, atTime: atTime)
     

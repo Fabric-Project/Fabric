@@ -11,7 +11,7 @@ import Satin
 import simd
 import Metal
 
-public class PointLightNode : BaseObjectNode, ObjectNodeProtocol
+public class PointLightNode : ObjectNode<PointLight>
 {
     public override var name:String { "Point Light" }
     public override var nodeType:Node.NodeType { Node.NodeType.Object(objectType: .Light) }
@@ -38,7 +38,7 @@ public class PointLightNode : BaseObjectNode, ObjectNodeProtocol
     public let outputLight: NodePort<Object>
     public override var ports: [AnyPort] {  [outputLight] + super.ports }
     
-    public var object: Object? {
+    public override var object: PointLight? {
         return light
     }
     
@@ -130,7 +130,7 @@ public class PointLightNode : BaseObjectNode, ObjectNodeProtocol
 
     }
     
-    override public func evaluate(object: Object, atTime: TimeInterval) -> Bool
+    override public func evaluate(object: Object?, atTime: TimeInterval) -> Bool
     {
         var shouldOutput = super.evaluate(object: object, atTime: atTime)
     

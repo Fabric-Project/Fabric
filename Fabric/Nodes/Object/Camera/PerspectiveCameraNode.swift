@@ -10,7 +10,7 @@ import Satin
 import simd
 import Metal
 
-public class PerspectiveCameraNode : BaseObjectNode, ObjectNodeProtocol
+public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
 {
     public override var name:String { "Perspective Camera" }
     public override var nodeType:Node.NodeType { Node.NodeType.Object(objectType: .Camera) }
@@ -23,26 +23,29 @@ public class PerspectiveCameraNode : BaseObjectNode, ObjectNodeProtocol
     public let outputCamera:NodePort<Camera>
     public override var ports: [AnyPort] { [outputCamera] + super.ports }
 
-    public var object: Object? {
-        return camera
+    override public var object: PerspectiveCamera?
+    {
+        camera
     }
     
     private let camera = PerspectiveCamera(position: .init(repeating: 5.0), near: 0.01, far: 500.0, fov: 30)
 
+    
     public required init(context:Context)
     {
         self.inputLookAt = Float3Parameter("Look At", simd_float3(repeating:0), .inputfield )
         self.outputCamera = NodePort<Camera>(name: PerspectiveCameraNode.name, kind: .Outlet)
-        
+                
         super.init(context: context)
         
         self.inputPosition.value = .init(repeating: 5.0)
         
-        self.camera.lookAt(target: simd_float3(repeating: 0))
-        self.camera.position = self.inputPosition.value
-        self.camera.scale = self.inputScale.value
 
-        self.camera.orientation = simd_quatf(angle: self.inputOrientation.value.w,
+        self.object?.lookAt(target: simd_float3(repeating: 0))
+        self.object?.position = self.inputPosition.value
+        self.object?.scale = self.inputScale.value
+
+        self.object?.orientation = simd_quatf(angle: self.inputOrientation.value.w,
                                         axis: simd_float3(x: self.inputOrientation.value.x,
                                                           y: self.inputOrientation.value.y,
                                                           z: self.inputOrientation.value.z) )
@@ -75,10 +78,9 @@ public class PerspectiveCameraNode : BaseObjectNode, ObjectNodeProtocol
         try super.init(from: decoder)
         
         self.camera.lookAt(target: self.inputLookAt.value)
-
     }
 
-    override public func evaluate(object: Object, atTime: TimeInterval) -> Bool
+    override public func evaluate(object: Object?, atTime: TimeInterval) -> Bool
     {
         let shouldUpdate = super.evaluate(object: object, atTime: atTime)
 
@@ -102,7 +104,7 @@ public class PerspectiveCameraNode : BaseObjectNode, ObjectNodeProtocol
     
     public override func resize(size: (width: Float, height: Float), scaleFactor: Float)
     {
-        camera.aspect = size.width / size.height
+        self.camera.aspect = size.width / size.height
     }
 }
 

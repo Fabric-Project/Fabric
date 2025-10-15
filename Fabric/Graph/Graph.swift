@@ -38,11 +38,11 @@ internal import AnyCodable
     }
     
     var renderables: [any Satin.Object & Satin.Renderable] {
-        let allNodes = self.recursiveNodes()
+        let allNodes = self.nodes
         
-        let renderableNodes:[any RenderableObjectNodeProtocol] = allNodes.compactMap( { $0 as? (any RenderableObjectNodeProtocol) })
+        let renderableNodes:[BaseObjectNode] = allNodes.compactMap{ $0 as? BaseObjectNode } //.compactMap( { $0 as? BaseRenderableNode })
             
-        return renderableNodes.compactMap { $0.object }
+        return renderableNodes.compactMap { $0.getObject() as? any Satin.Object & Satin.Renderable }
     }
     
     var shouldUpdateConnections = false // New property to trigger view update
@@ -325,63 +325,7 @@ internal import AnyCodable
     {
         return  self.nodes.flatMap( { $0.publishedPorts() } )
     }
-    
-    public func recursiveNodes(withNodeType type:Node.NodeType) -> [Node]
-    {
-        var nodes = [Node]()
-        
-        for node in self.nodes
-        {
-            if node.nodeType == type
-            {
-                nodes.append(node)
-            }
-            
-            else if node.nodeType == .Subgraph,
-                    let subGraph = node as? SubgraphNode
-            {
-                nodes.append(contentsOf: subGraph.graph.recursiveNodes(withNodeType: type))
-            }
-        }
-        
-        return nodes
-    }
-    
-    public func recursiveNodes() -> [Node]
-    {
-        var nodes = [Node]()
-        
-        for node in self.nodes
-        {
-            nodes.append(node)
-
-            if node.nodeType == .Subgraph,
-               let subGraph = node as? SubgraphNode
-            {
-                nodes.append(contentsOf: subGraph.graph.recursiveNodes())
-            }
-        }
-        
-        return nodes
-    }
-    
-    
-    public func recursiveMarkClean()
-    {
-        for node in self.recursiveNodes()
-        {
-            node.markClean()
-        }
-    }
-    
-    public func recursiveMarkDirty()
-    {
-        for node in self.recursiveNodes()
-        {
-            node.markDirty()
-        }
-    }
- 
+     
     // MARK: -Selection
     
     public enum NodeSelectionDirection: Equatable {

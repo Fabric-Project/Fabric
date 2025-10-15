@@ -13,8 +13,9 @@ import MetalKit
 
 class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
 {
-    class var name:String { "Base Effect" }
-    
+    override class var name:String { "Base Effect" }
+    override class var nodeType:Node.NodeType { .Image(imageType: .BaseEffect) }
+
     override var name: String {
         guard let fileURL = self.url else {
             return BaseEffectNode.name
@@ -23,7 +24,6 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
         return self.fileURLToName(fileURL: fileURL)
     }
     
-    class var nodeType:Node.NodeType { .Image(imageType: .BaseEffect) }
     class var sourceShaderName:String { "" }
 
     open class PostMaterial: SourceMaterial {}
@@ -40,7 +40,7 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
     let inputTexture3Port:NodePort<EquatableTexture>
     
     let outputTexturePort:NodePort<EquatableTexture>
-    override var ports: [any NodePortProtocol] { [inputTexturePort, inputTexture2Port, inputTexture3Port, outputTexturePort] + super.ports}
+    override var ports: [AnyPort] { [inputTexturePort, inputTexture2Port, inputTexture3Port, outputTexturePort] + super.ports}
     
     private var url:URL? = nil
     

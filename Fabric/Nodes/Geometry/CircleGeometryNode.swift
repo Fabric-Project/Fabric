@@ -56,11 +56,11 @@ public class CircleGeometryNode : BaseGeometryNode
     {
         var shouldOutputGeometry = super.evaluate(geometry: geometry, atTime: atTime)
 
-//        if self.inputSizeParam.valueDidChange
-//        {
-//            self.geometry.size = self.inputSizeParam.value
-//            shouldOutputGeometry = true
-//        }
+        if self.inputSizeParam.valueDidChange
+        {
+            self._geometry.radius = self.inputSizeParam.value
+            shouldOutputGeometry = true
+        }
         
         return shouldOutputGeometry
      }

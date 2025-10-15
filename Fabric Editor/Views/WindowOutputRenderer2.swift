@@ -18,12 +18,14 @@ class WindowOutputRenderer2: GameView
 
     private let commandQueue: (any MTLCommandQueue)
     private let renderPassDescriptor = MTLRenderPassDescriptor()
-
     weak var graphRenderer:GraphRenderer?
+    weak var graph:Graph?
+    
 
-    init(context: Context, graphRenderer:GraphRenderer?)
+    init(context: Context, graph:Graph?, graphRenderer:GraphRenderer?)
     {
         self.context = context
+        self.graph = graph
         self.graphRenderer = graphRenderer
         self.commandQueue = context.device.makeCommandQueue()!
 
@@ -61,19 +63,44 @@ class WindowOutputRenderer2: GameView
     override func renderUpdate(_ update: CAMetalDisplayLink.Update, with deltaTime: CFTimeInterval)
     {
         
-        guard let commandBuffer = self.commandQueue.makeCommandBuffer() else { return }
+        
+        guard
+            let graphRenderer = self.graphRenderer,
+            let graph = self.graph,
+            let commandBuffer = self.commandQueue.makeCommandBuffer()//graphRenderer.preDraw()
+        else { return }
         
         self.renderPassDescriptor.colorAttachments[0].texture = update.drawable.texture
         self.renderPassDescriptor.renderTargetWidth = update.drawable.texture.width
         self.renderPassDescriptor.renderTargetHeight = update.drawable.texture.height
-
-        if let graphRenderer = self.graphRenderer
-        {
-            graphRenderer.draw(renderPassDescriptor: self.renderPassDescriptor, commandBuffer: commandBuffer)
-        }
-
+        
+        
+        // TODO: This becomes more semantically correct later
+        let timing = GraphExecutionTiming(time: Date.timeIntervalSinceReferenceDate,
+                                          deltaTime: deltaTime,
+                                          displayTime: update.targetPresentationTimestamp,
+                                          systemTime: Date.timeIntervalSinceReferenceDate,
+                                          frameNumber: graphRenderer.frameIndex)
+        
+        // weird
+        let executionContext = GraphExecutionContext(graphRenderer: graphRenderer,
+                                                     timing: timing,
+                                                     iterationInfo: nil,
+                                                     eventInfo: nil)
+        
+        
+        
+        graphRenderer.executeAndDraw(graph: graph,
+                                     executionContext: executionContext,
+                                     renderPassDescriptor: self.renderPassDescriptor,
+                                     commandBuffer: commandBuffer)
+        //            graphRenderer.draw(renderPassDescriptor: self.renderPassDescriptor, commandBuffer: commandBuffer)
+        
+//        graphRenderer.postDraw(drawable: update.drawable, commandBuffer: commandBuffer)
         commandBuffer.present(update.drawable)
         commandBuffer.commit()
+
+
     }
     
     override func resizeDrawable(_ scaleFactor: CGFloat)

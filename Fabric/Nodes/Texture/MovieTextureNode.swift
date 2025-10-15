@@ -83,11 +83,7 @@ public class MovieTextureNode : Node
         _ = MovieTextureNodeInitializer
 
         let container = try decoder.container(keyedBy: CodingKeys.self)
-       
-        guard let decodeContext = decoder.context else
-        {
-            fatalError("Required Decode Context Not set")
-        }
+
         
         self.inputFilePathParam = try container.decode(StringParameter.self, forKey: .inputFilePathParameter)
         self.outputTexturePort = try container.decode(NodePort<EquatableTexture>.self, forKey: .outputTexturePort)

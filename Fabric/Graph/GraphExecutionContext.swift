@@ -31,6 +31,14 @@ public struct GraphExecutionTiming : Hashable
     
     /// The frame number being requested
     public let frameNumber:Int
+    
+    public init(time: TimeInterval, deltaTime: TimeInterval, displayTime: TimeInterval?, systemTime: TimeInterval, frameNumber: Int) {
+        self.time = time
+        self.deltaTime = deltaTime
+        self.displayTime = displayTime
+        self.systemTime = systemTime
+        self.frameNumber = frameNumber
+    }
 }
 
 public struct GraphEventInfo : Hashable
@@ -62,11 +70,12 @@ public struct GraphIterationInfo : Hashable
 /// Graph Execution Information that includes metal, timing, node, and custom user info
 public class GraphExecutionContext : Hashable
 {
-    init(graphRenderer: GraphRenderer,
-         timing: GraphExecutionTiming,
-         iterationInfo: GraphIterationInfo? = nil,
-         eventInfo:GraphEventInfo? = nil,
-         userInfo: [String : any Hashable] = [:]) {
+    public init(graphRenderer: GraphRenderer,
+                timing: GraphExecutionTiming,
+                iterationInfo: GraphIterationInfo? = nil,
+                eventInfo:GraphEventInfo? = nil,
+                userInfo: [String : any Hashable] = [:])
+    {
         self.graphRenderer = graphRenderer
         self.timing = timing
         self.iterationInfo = iterationInfo

@@ -13,6 +13,7 @@ import Metal
 public class DeferredSubgraphNode: SubgraphNode
 {
     public override class var name:String { "Render To Image and Depth" }
+    public override class var nodeType: Node.NodeType { .Subgraph }
     
     // Parameters:
     public let inputResolution:Int2Parameter
@@ -30,9 +31,11 @@ public class DeferredSubgraphNode: SubgraphNode
     public override var ports: [AnyPort] {[outputColorTexture, outputDepthTexture] + super.ports}
 
     // Ensure we always render!
-    public override var isDirty:Bool { get {  self.graph.needsExecution  } set { } }
-
+//    public override var isDirty:Bool { get {  self.graph.needsExecution  } set { } }
     
+//    let graph:Graph
+    let graphRenderer:GraphRenderer
+
     public required init(context: Context)
     {
         self.inputResolution = Int2Parameter("Resolution", simd_int2(x:1920, y:1080), simd_int2(x:1, y:1), simd_int2(x:8192, y:8192), .inputfield)
@@ -40,14 +43,13 @@ public class DeferredSubgraphNode: SubgraphNode
 
         self.outputColorTexture = NodePort<EquatableTexture>(name: "Color Texture", kind: .Outlet)
         self.outputDepthTexture = NodePort<EquatableTexture>(name: "Depth Texture", kind: .Outlet)
-
+        
+        self.graphRenderer = GraphRenderer(context: context)
         
         super.init(context: context)
         
-        self.graphRenderer.renderer.depthStoreAction = .store
-        self.graphRenderer.renderer.depthLoadAction = .clear
-        self.graphRenderer.renderer.size.width = 1920
-        self.graphRenderer.renderer.size.height = 1080
+        self.setupRenderer()
+
 
     }
     
@@ -75,19 +77,45 @@ public class DeferredSubgraphNode: SubgraphNode
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
+        guard let decodeContext = decoder.context else
+        {
+            fatalError("Required Decode Context Not set")
+        }
+
+
+        
         self.outputColorTexture = try container.decode(NodePort<EquatableTexture>.self , forKey:.outputColorTexturePort)
         self.outputDepthTexture =  try container.decode(NodePort<EquatableTexture>.self , forKey:.outputDepthTexturePort)
 
         self.inputClearColor = try container.decode(Float4Parameter.self , forKey:.inputClearColorParam)
         self.inputResolution = try container.decode(Int2Parameter.self, forKey: .inputResolution)
 
+//        self.graph = try container.decode(Graph.self, forKey: .subGraph)
+        self.graphRenderer = GraphRenderer(context: decodeContext.documentContext)
+
         try super.init(from: decoder)
         
+        self.setupRenderer()
+        
+    }
+    
+    private func setupRenderer()
+    {
+        self.graphRenderer.renderer.label = "Deferred Subgraph"
+        self.graphRenderer.renderer.colorStoreAction = .store
         self.graphRenderer.renderer.depthStoreAction = .store
         self.graphRenderer.renderer.depthLoadAction = .clear
-        self.graphRenderer.renderer.size.width = 1920
-        self.graphRenderer.renderer.size.height = 1080
-
+        self.graphRenderer.renderer.size.width = Float(self.inputResolution.value.x)
+        self.graphRenderer.renderer.size.height = Float(self.inputResolution.value.y)
+        
+//        self.graphRenderer.renderer.colorTextureStorageMode = .private
+//        self.graphRenderer.renderer.colorMultisampleTextureStorageMode = .private
+//        
+//        self.graphRenderer.renderer.depthTextureStorageMode = .private
+//        self.graphRenderer.renderer.depthMultisampleTextureStorageMode = .private
+//        
+//        self.graphRenderer.renderer.stencilTextureStorageMode = .private
+//        self.graphRenderer.renderer.stencilMultisampleTextureStorageMode = .private
     }
     
     override public func startExecution(context:GraphExecutionContext)
@@ -128,7 +156,9 @@ public class DeferredSubgraphNode: SubgraphNode
             self.graphRenderer.renderer.clearColor = .init( self.inputClearColor.value )
         }
                     
-        self.graphRenderer.execute(graph: self.graph,
+        rpd1.colorAttachments[0].texture = self.graphRenderer.renderer.colorTexture
+
+        self.graphRenderer.executeAndDraw(graph: self.graph,
                                    executionContext: context,
                                    renderPassDescriptor: rpd1,
                                    commandBuffer: commandBuffer)

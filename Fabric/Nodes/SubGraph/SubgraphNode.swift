@@ -10,30 +10,19 @@ import Satin
 import simd
 import Metal
 
-public class SubgraphNode: Node, RenderableObjectNodeProtocol
+public class SubgraphNode: Node
 {
     override public class var name:String { "Sub Graph" }
     override public class var nodeType:Node.NodeType { Node.NodeType.Subgraph }
 
-    let graphRenderer:GraphRenderer
     let graph:Graph
     
     override public var ports:[AnyPort] { self.graph.publishedPorts() }
     
-    var object: SubgraphIteratorRenderable?
-    {
-        self.renderProxy
-    }
-    
-    var renderProxy:SubgraphIteratorRenderable
-    
     public required init(context: Context)
     {
         self.graph = Graph(context: context)
-        self.graphRenderer = GraphRenderer(context: context, graph: self.graph)
         
-        self.renderProxy = SubgraphIteratorRenderable(subGraph: self.graph, iterationCount: 1)
-
         super.init(context: context)
     }
     
@@ -54,18 +43,9 @@ public class SubgraphNode: Node, RenderableObjectNodeProtocol
     public required init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        
-        guard let decodeContext = decoder.context else
-        {
-            fatalError("Required Decode Context Not set")
-        }
 
         self.graph = try container.decode(Graph.self, forKey: .subGraph)
-        
-        self.graphRenderer = GraphRenderer(context: decodeContext.documentContext, graph: self.graph)
-
-        self.renderProxy = SubgraphIteratorRenderable(subGraph: self.graph, iterationCount: 0)
-
+                
         try super.init(from: decoder)
     }
     
@@ -92,33 +72,35 @@ public class SubgraphNode: Node, RenderableObjectNodeProtocol
     
     override public func startExecution(context:GraphExecutionContext)
     {
-        self.graphRenderer.startExecution(graph: self.graph)
+        context.graphRenderer?.startExecution(graph: self.graph)
     }
     
     override public func stopExecution(context:GraphExecutionContext)
     {
-        self.graphRenderer.stopExecution(graph: self.graph)
+        context.graphRenderer?.stopExecution(graph: self.graph)
     }
 
     override public func enableExecution(context:GraphExecutionContext)
     {
-        self.graphRenderer.enableExecution(graph: self.graph)
+        context.graphRenderer?.enableExecution(graph: self.graph)
     }
     
     override public func disableExecution(context:GraphExecutionContext)
     {
-        self.graphRenderer.disableExecution(graph: self.graph)
+        context.graphRenderer?.disableExecution(graph: self.graph)
     }
     
     override public func execute(context: GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: any MTLCommandBuffer)
     {
-        
-        self.graphRenderer.execute(graph: self.graph,
-                                   executionContext: context,
-                                   renderPassDescriptor: renderPassDescriptor,
-                                   commandBuffer: commandBuffer)
+
+        // this isnt great, as we need to surface the objects to be in the parent graphs
+        context.graphRenderer?.execute(graph: self.graph, executionContext: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+//        self.graphRenderer.execute(graph: self.graph,
+//                                   executionContext: context,
+//                                   renderPassDescriptor: renderPassDescriptor,
+//                                   commandBuffer: commandBuffer)
     }
     
 }

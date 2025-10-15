@@ -10,7 +10,7 @@ import Satin
 import simd
 import Metal
 
-public class OrthographicCameraNode : BaseObjectNode, ObjectNodeProtocol
+public class OrthographicCameraNode : ObjectNode<OrthographicCamera>
 {
     public override var name:String { "Orthographic Camera" }
     public override var nodeType:Node.NodeType { Node.NodeType.Object(objectType: .Camera) }
@@ -22,10 +22,6 @@ public class OrthographicCameraNode : BaseObjectNode, ObjectNodeProtocol
     // Ports
     public let outputCamera:NodePort<Camera>
     public override var ports: [AnyPort] { [outputCamera] + super.ports }
-
-    public var object: Object? {
-        return camera
-    }
     
     private let camera = OrthographicCamera(left: -1, right: 1, bottom: -1, top: 1, near: 0.01, far: 500.0)
 
@@ -38,7 +34,7 @@ public class OrthographicCameraNode : BaseObjectNode, ObjectNodeProtocol
         
         self.inputPosition.value = .init(repeating: 5.0)
         
-        self.camera.lookAt(target: simd_float3(repeating: 0))
+        self.object?.lookAt(target: simd_float3(repeating: 0))
     }
     
     enum CodingKeys : String, CodingKey
@@ -70,7 +66,7 @@ public class OrthographicCameraNode : BaseObjectNode, ObjectNodeProtocol
 
     }
 
-    override public func evaluate(object: Object, atTime: TimeInterval) -> Bool
+    override public func evaluate(object: Object?, atTime: TimeInterval) -> Bool
     {
         let shouldUpdate = super.evaluate(object: object, atTime: atTime)
 
@@ -84,7 +80,7 @@ public class OrthographicCameraNode : BaseObjectNode, ObjectNodeProtocol
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        let shouldUpdate = self.evaluate(object: self.camera, atTime: context.timing.time)
+        let shouldUpdate = self.evaluate(object: self.object, atTime: context.timing.time)
         
         if shouldUpdate
         {

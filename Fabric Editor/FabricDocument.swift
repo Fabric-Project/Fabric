@@ -41,15 +41,17 @@ class FabricDocument: FileDocument
     init()
     {
         self.graph = Graph(context: self.context)
-        self.graphRenderer = GraphRenderer(context: self.context, graph: self.graph)
-
+        self.graphRenderer = GraphRenderer(context: self.context)
+        
+        self.graphRenderer.renderer.label = "Document Renderer"
     }
     
     init(withTemplate: Bool)
     {
         print("Basic Document Init")
         self.graph = Graph(context: self.context)
-        self.graphRenderer = GraphRenderer(context: self.context, graph: self.graph)
+        self.graphRenderer = GraphRenderer(context: self.context)
+        self.graphRenderer.renderer.label = "Document Renderer"
 
         let boxNode = BoxGeometryNode(context: self.context)
         boxNode.offset = CGSize(width: -400, height:0)
@@ -118,8 +120,9 @@ class FabricDocument: FileDocument
         
         self.graph =  try decoder.decode(Graph.self, from: data)
 
-        self.graphRenderer = GraphRenderer(context: self.context, graph: self.graph)
-        
+        self.graphRenderer = GraphRenderer(context: self.context)
+        self.graphRenderer.renderer.label = "Document Renderer"
+
         print("Init config Setting up window for graph: \(self.graph.id)")
 
         if Thread.isMainThread
@@ -183,7 +186,7 @@ class FabricDocument: FileDocument
                                      backing: .buffered, defer: false)
         self.outputwindow?.isReleasedWhenClosed = true
         
-        self.outputRenderer = WindowOutputRenderer2(context: self.context, graphRenderer: self.graphRenderer)
+        self.outputRenderer = WindowOutputRenderer2(context: self.context, graph:self.graph, graphRenderer: self.graphRenderer)
         self.outputRenderer?.frame = CGRect(x: 0, y: 0, width: 600, height: 600)
             
         self.outputwindow!.contentView = self.outputRenderer

@@ -13,6 +13,14 @@ import Metal
 
 public class BaseObjectNode : Node
 {
+    public func getObject() -> Object? {
+        return nil
+    }
+}
+
+
+public class ObjectNode<ObjectType : Satin.Object> : BaseObjectNode
+{
     // Params
     public var inputVisible:BoolParameter = BoolParameter("Visible", true)
     public var inputRenderOrder:IntParameter = IntParameter("Render Order", 0)
@@ -30,12 +38,14 @@ public class BaseObjectNode : Node
         self.inputScale,
         self.inputOrientation] + super.inputParameters}
     
+    override public func getObject() -> Object? {
+        return self.object
+    }
     
-//    open var object: Object? {
-//        fatalError("Subclasses must override object")
-//    }
+    public var object: ObjectType? {
+        return nil
+    }
 
-    
     public required init(context: Context)
     {
         self.inputVisible = BoolParameter("Visible", true)
@@ -90,9 +100,11 @@ public class BaseObjectNode : Node
         
     }
 
-    public func evaluate(object:Object, atTime:TimeInterval) -> Bool
+    public func evaluate(object:Object?, atTime:TimeInterval) -> Bool
     {
         var shouldOutput = false
+        
+        guard let object else { return shouldOutput }
         
 //        if self.inputVisible.valueDidChange
 //        {

@@ -14,15 +14,14 @@ import Observation
 // this isnt ideal, as we dont quite match all of the semantics, but we do try.
 final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
 {
-    let subGraph:Graph
+    var subGraph:Graph? = nil
     var graphContext:GraphExecutionContext? = nil
     var currentCommandBuffer:MTLCommandBuffer? = nil
     var currentRenderPass:MTLRenderPassDescriptor? = nil
     
-    init(subGraph:Graph, iterationCount: Int)
+    init(iterationCount: Int)
     {
         
-        self.subGraph = subGraph
         self.iterationCount = iterationCount
 //        self.vertexUniforms = vertexUniforms
         self.vertexUniforms = [:]
@@ -116,7 +115,8 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
     
     func draw(renderContext: Context, renderEncoderState: RenderEncoderState, shadow: Bool)
     {
-        guard let graphContext,
+        guard let subGraph,
+              let graphContext,
               let updateCamera,
               let updateViewport,
               let updateIndex,
@@ -150,10 +150,10 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
 //            self.subGraph.recursiveMarkDirty()
 
             // tick graph forward one iteration
-            let _ = graphContext.graphRenderer?.execute(graph: self.subGraph,
-                                                   executionContext: graphContext,
-                                                   renderPassDescriptor:currentRenderPass,
-                                                   commandBuffer: currentCommandBuffer)
+            graphContext.graphRenderer?.execute(graph: subGraph,
+                                                executionContext: graphContext,
+                                                renderPassDescriptor:currentRenderPass,
+                                                commandBuffer: currentCommandBuffer)
                         
             for r in self.renderables
             {
@@ -276,9 +276,19 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
                  commandBuffer: any MTLCommandBuffer)
     {
 
+        guard let subGraph
+//              let graphContext,
+//              let updateCamera,
+//              let updateViewport,
+//              let updateIndex,
+//              let currentRenderPass,
+//              let currentCommandBuffer
+        else { return }
+                
+                
         // execute the graph once, to just ensure meshes / materials have latest values popogated to nodes
 //        self.subGraph.recursiveMarkDirty()
-        let _ = context.graphRenderer?.execute(graph: self.subGraph,
+        let _ = context.graphRenderer?.execute(graph: subGraph,
                                                executionContext: context,
                                                renderPassDescriptor:renderPassDescriptor ,
                                                commandBuffer: commandBuffer)

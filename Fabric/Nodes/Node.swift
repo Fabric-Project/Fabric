@@ -404,16 +404,3 @@ protocol NodeFileLoadingProtocol : Node
 {
     init(context:Context, fileURL:URL) throws
 }
-
-
-protocol ObjectNodeProtocol : Node
-{
-    associatedtype Obj: Satin.Object
-    var object: Obj? { get }
-}
-
-protocol RenderableObjectNodeProtocol: ObjectNodeProtocol where Obj: Satin.Renderable {}
-//{
-//    // Fetch the underlying
-//    var object:(any Satin.Object & Satin.Renderable)? { get }
-//}

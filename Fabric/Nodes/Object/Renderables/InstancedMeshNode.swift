@@ -10,7 +10,7 @@ import Satin
 import simd
 import Metal
 
-public class InstancedMeshNode : BaseObjectNode
+public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
 {
     override public class var name:String { "Instanced Mesh" }
     override public class var nodeType:Node.NodeType  { Node.NodeType.Object(objectType: .Mesh) }
@@ -36,6 +36,18 @@ public class InstancedMeshNode : BaseObjectNode
                                                            inputMaterial,
                                                            inputPositions,
                                                            outputMesh] + super.ports}
+    
+    override public var object:InstancedMesh? {
+        
+        // This is tricky - we want to output nil if we have no inputGeometry  / inputMaterial from upstream ports
+        if let _ = self.inputGeometry.value ,
+           let _ = self.inputMaterial.value
+        {
+            return mesh
+        }
+        
+        return nil
+    }
     
     private var mesh: InstancedMesh? = nil
 
@@ -119,7 +131,7 @@ public class InstancedMeshNode : BaseObjectNode
             
         if let mesh = mesh
         {
-            self.evaluate(object: mesh, atTime: context.timing.time)
+            let _ = self.evaluate(object: mesh, atTime: context.timing.time)
             
             if self.inputPositions.valueDidChange, let positions = self.inputPositions.value
             {

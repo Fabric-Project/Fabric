@@ -25,11 +25,16 @@ public class IteratorNode: SubgraphNode
     // Ensure we always render!
     public override var isDirty:Bool { get {  true  } set { } }
 
-    
+    var renderProxy:SubgraphIteratorRenderable
+
     public required init(context: Context)
     {
         self.inputIteratonCount = IntParameter("Iterations", 0, 100, 2, .inputfield)
+        self.renderProxy = SubgraphIteratorRenderable(iterationCount: 1)
+
         super.init(context: context)
+        
+        self.renderProxy.subGraph = self.graph
     }
     
     enum CodingKeys : String, CodingKey
@@ -50,8 +55,11 @@ public class IteratorNode: SubgraphNode
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
         self.inputIteratonCount = try container.decode(IntParameter.self , forKey:.inputIteratonCount)
+        self.renderProxy = SubgraphIteratorRenderable(iterationCount: 1)
 
         try super.init(from: decoder)
+        
+        self.renderProxy.subGraph = self.graph
         
     }
     
