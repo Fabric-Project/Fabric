@@ -27,6 +27,10 @@ public class IteratorNode: SubgraphNode
 
     var renderProxy:SubgraphIteratorRenderable
 
+    override public var object:Object? {
+        return self.renderProxy
+    }
+
     public required init(context: Context)
     {
         self.inputIteratonCount = IntParameter("Iterations", 0, 100, 2, .inputfield)
@@ -34,7 +38,7 @@ public class IteratorNode: SubgraphNode
 
         super.init(context: context)
         
-        self.renderProxy.subGraph = self.graph
+        self.renderProxy.subGraph = self.subGraph
     }
     
     enum CodingKeys : String, CodingKey
@@ -59,7 +63,7 @@ public class IteratorNode: SubgraphNode
 
         try super.init(from: decoder)
         
-        self.renderProxy.subGraph = self.graph
+        self.renderProxy.subGraph = self.subGraph
         
     }
     
@@ -67,17 +71,22 @@ public class IteratorNode: SubgraphNode
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: any MTLCommandBuffer)
     {
+        
+        // execute the graph once, to just ensure meshes / materials have latest values popogated to nodes
+        // this does technically introduce one additional draw call
+        // Not sure the best way to avoid this - since we need to have the graph 'configured'
+        self.renderProxy.execute(context: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+        
         self.renderProxy.graphContext = context
         self.renderProxy.currentRenderPass = renderPassDescriptor
         self.renderProxy.currentCommandBuffer = commandBuffer
-        self.renderProxy.renderables = self.subGraph.renderables
+//        self.renderProxy.renderables = self.subGraph.renderables
 
         if self.inputIteratonCount.valueDidChange
         {
             self.renderProxy.iterationCount = self.inputIteratonCount.value
         }
         
-        // execute the graph once, to just ensure meshes / materials have latest values popogated to nodes
-        self.renderProxy.execute(context: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+      
     }
 }

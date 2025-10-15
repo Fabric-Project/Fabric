@@ -41,11 +41,11 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
         self.inputPosition.value = .init(repeating: 5.0)
         
 
-        self.object?.lookAt(target: simd_float3(repeating: 0))
-        self.object?.position = self.inputPosition.value
-        self.object?.scale = self.inputScale.value
+        self.camera.lookAt(target: simd_float3(repeating: 0))
+        self.camera.position = self.inputPosition.value
+        self.camera.scale = self.inputScale.value
 
-        self.object?.orientation = simd_quatf(angle: self.inputOrientation.value.w,
+        self.camera.orientation = simd_quatf(angle: self.inputOrientation.value.w,
                                         axis: simd_float3(x: self.inputOrientation.value.x,
                                                           y: self.inputOrientation.value.y,
                                                           z: self.inputOrientation.value.z) )

@@ -268,6 +268,7 @@ internal import AnyCodable
         {
             self.maybeAddNodeToScene(node)
             self.nodes.append(node)
+            node.graph = self
         }
         
         //        self.autoConnect(node: node)
@@ -464,9 +465,14 @@ internal import AnyCodable
         }
     }
     
-    
-    private func syncNodesToScene()
+    public func syncNodesToScene()
     {
+        let objects = self.nodes.compactMap { $0 as? BaseObjectNode }
+            .compactMap { $0.getObject() }
         
+        for object in objects where !self.scene.children.contains(object)
+        {
+            self.scene.add(object)
+        }
     }
 }

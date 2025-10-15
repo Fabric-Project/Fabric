@@ -30,6 +30,10 @@ public class DeferredSubgraphNode: SubgraphNode
     
     public override var ports: [AnyPort] {[outputColorTexture, outputDepthTexture] + super.ports}
 
+    override public var object:Object? {
+        return nil
+    }
+
     // Ensure we always render!
     public override var isDirty:Bool { get {  self.subGraph.needsExecution  } set { } }
     

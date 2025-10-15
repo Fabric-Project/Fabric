@@ -10,7 +10,7 @@ import Satin
 import simd
 import Metal
 
-public class SubgraphNode: Node
+public class SubgraphNode: BaseObjectNode
 {
     override public class var name:String { "Sub Graph" }
     override public class var nodeType:Node.NodeType { Node.NodeType.Subgraph }
@@ -18,6 +18,15 @@ public class SubgraphNode: Node
     let subGraph:Graph
     
     override public var ports:[AnyPort] { self.subGraph.publishedPorts() }
+    
+    override public func getObject() -> Object?
+    {
+        return self.object
+    }
+    
+    public var object:Object? {
+        self.subGraph.scene
+    }
     
     public required init(context: Context)
     {
