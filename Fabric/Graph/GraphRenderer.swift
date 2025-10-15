@@ -110,14 +110,15 @@ public class GraphRenderer : MetalViewRenderer
         var nodesWeHaveExecutedThisPass:[Node] = []
 
         // This is fucking horrible:
-        let theseShouldBeProvidersLol = [Node.NodeType.Utility] + Node.NodeType.ObjectType.nodeTypes()
+        let theseShouldBeProvidersLol = [Node.NodeType.Utility, .Subgraph] + Node.NodeType.ObjectType.nodeTypes()
         let nodesThatShouldBePulled =  graph.nodes.filter( { theseShouldBeProvidersLol.contains($0.nodeType) } )
         
         let sceneObjectNodes:[BaseObjectNode] = nodesThatShouldBePulled.compactMap({ $0 as? BaseObjectNode})
         
         // This is fucking horrible:
-        let subgraphNodes = graph.nodes.filter( { $0.nodeType == .Subgraph })
-
+        let iteratorNodes = graph.nodes.compactMap( { $0 as? IteratorNode })
+        let renderProxies = iteratorNodes.map { $0.renderProxy }
+        
         // This is fucking horrible:
         let firstCameraNode = sceneObjectNodes.first(where: { $0.nodeType == .Object(objectType: .Camera)})
         
@@ -128,7 +129,7 @@ public class GraphRenderer : MetalViewRenderer
         {
             let sceneObjects = sceneObjectNodes.compactMap( { $0.getObject() } )
 
-            for renderNode in nodesThatShouldBePulled + subgraphNodes
+            for renderNode in nodesThatShouldBePulled + iteratorNodes
             {
                 let _ = processGraph(graph:graph,
                                      node: renderNode,
@@ -138,11 +139,9 @@ public class GraphRenderer : MetalViewRenderer
                                      nodesWeHaveExecutedThisPass:&nodesWeHaveExecutedThisPass)
             }
             
-            
             self.cachedCamera = firstCamera
-//            let renderables = graph.renderables
             // problematic ?
-            sceneProxy.add(sceneObjects)
+            sceneProxy.add(sceneObjects + renderProxies)
         }
     }
 
