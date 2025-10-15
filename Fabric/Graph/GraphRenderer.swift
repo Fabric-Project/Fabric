@@ -41,8 +41,6 @@ public class GraphRenderer : MetalViewRenderer
         
         super.init()
         
-        self.commandQueue = context.device.makeCommandQueue()!
-
         self.setup()
 //        self.renderer.colorTextureStorageMode = .private
 //        self.renderer.colorMultisampleTextureStorageMode = .private
