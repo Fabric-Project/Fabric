@@ -16,30 +16,12 @@ public class RenderInfoNode : Node
     public override class var nodeType:Node.NodeType { Node.NodeType.Utility }
     
     // Ports
-    public let outputResolution:NodePort<simd_float2>
-    public let outputFrameNumber:NodePort<Int>
+    public let outputResolution:NodePort<simd_float2> = NodePort<simd_float2>(name: "Resolution" , kind: .Outlet)
+    public let outputFrameNumber:NodePort<Int> = NodePort<Int>(name: "Frame Number" , kind: .Outlet)
     public override var ports: [AnyPort] { [ self.outputResolution, self.outputFrameNumber] + super.ports}
     
     public override var isDirty:Bool { true }
-    
-    public required init(context: Context)
-    {
-        self.outputResolution =  NodePort<simd_float2>(name: "Resolution" , kind: .Outlet)
-        self.outputFrameNumber =  NodePort<Int>(name: "Frame Number" , kind: .Outlet)
-
-        super.init(context: context)
-    }
-    
-    public required init(from decoder: any Decoder) throws
-    {
-//        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        self.outputResolution =  NodePort<simd_float2>(name: "Resolution" , kind: .Outlet)
-        self.outputFrameNumber =  NodePort<Int>(name: "Frame Number" , kind: .Outlet)
-
-        try super.init(from: decoder)
-    }
-    
+        
     public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
@@ -52,11 +34,4 @@ public class RenderInfoNode : Node
             self.outputFrameNumber.send( graphRenderer.executionCount )
         }
     }
-    
-//    public override func resize(size: (width: Float, height: Float), scaleFactor: Float)
-//    {
-//        print("Render Info Resize")
-//        
-//        self.markDirty()
-//    }
 }
