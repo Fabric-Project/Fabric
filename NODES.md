@@ -241,6 +241,9 @@ Have yet to work on Index (integer only) numeric nodes
 - [x] Make Vec 2
 - [x] Make Vec 3
 - [x] Make Vec 4
+- [x] Vec 2 to Float
+- [x] Vec 3 to Float
+- [x] Vec 4 to Float
 - [ ] Vector Ops (Cross / Dot / etc)
 
 ### Color
