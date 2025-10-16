@@ -104,7 +104,7 @@ public class AnyPort : Identifiable, Hashable, Equatable, Codable, CustomDebugSt
     }
 
     
-    public init(name: String, kind: PortKind, id:UUID = UUID())
+    public init(name: String, kind: PortKind, id:UUID)
     {
         self.id = id
         self.kind = kind
@@ -230,8 +230,8 @@ public class NodePort<Value : Equatable>: AnyPort
         }
     }
     
-    override public init(name: String, kind: PortKind, id: UUID = UUID()) {
-        super.init(name: name, kind: kind, id: id)
+    override public init(name: String, kind: PortKind, id:UUID = UUID()) {
+        super.init(name: name, kind: kind, id:id)
 
         self.color = Self.calcColor(forType: Value.self)
         self.backgroundColor = Self.calcBackgroundColor(forType: Value.self)
