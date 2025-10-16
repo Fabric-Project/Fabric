@@ -212,5 +212,6 @@ public class NodeRegistry {
         RenderInfoNode.self,
         CursorNode.self,
         PixelsToUnitsNode.self,
+        UnitsoPixelsNode.self,
     ]
 }

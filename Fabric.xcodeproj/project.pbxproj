@@ -193,6 +193,7 @@
 				Nodes/Utility/LogNode.swift,
 				Nodes/Utility/PixelsToUnitsNode.swift,
 				Nodes/Utility/RenderInfoNode.swift,
+				Nodes/Utility/UnitsoPixelsNode.swift,
 				Utils/AnyEncodable.swift,
 				Views/NodeRegisitryView.swift,
 				Views/Nodes/NodeCanvas.swift,
