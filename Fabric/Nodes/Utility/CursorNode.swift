@@ -22,12 +22,46 @@ public class CursorNode : Node
     public override class var nodeType:Node.NodeType { Node.NodeType.Utility }
     
     // Ports
-    public let outputCursorPosition:NodePort<simd_float2> = NodePort<simd_float2>(name: "Position" , kind: .Outlet)
-    public let outputTap:NodePort<Bool> = NodePort<Bool>(name: "Tap" , kind: .Outlet)
+    public let outputCursorPosition:NodePort<simd_float2>
+    public let outputTap:NodePort<Bool>
     public override var ports: [AnyPort] { [ self.outputCursorPosition, self.outputTap] + super.ports}
     
     public override var isDirty:Bool { true }
   
+    public required init(context: Context)
+    {
+        self.outputCursorPosition = NodePort<simd_float2>(name: "Position" , kind: .Outlet)
+        self.outputTap = NodePort<Bool>(name: "Tap" , kind: .Outlet)
+        
+        super.init(context: context)
+    }
+    
+    enum CodingKeys : String, CodingKey
+    {
+        case outputCursorPositionPort
+        case outputTapPort
+    }
+
+    public override func encode(to encoder:Encoder) throws
+    {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(self.outputCursorPosition, forKey: .outputCursorPositionPort)
+        try container.encode(self.outputTap, forKey: .outputTapPort)
+
+        try super.encode(to: encoder)
+    }
+    
+    public required init(from decoder: any Decoder) throws
+    {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        self.outputCursorPosition =  try container.decode(NodePort<simd_float2>.self, forKey: .outputCursorPositionPort)
+        self.outputTap = try container.decode(NodePort<Bool>.self, forKey: .outputTapPort)
+
+        try super.init(from: decoder)
+    }
+    
 #if os(macOS)
     private let moveEventTypesWeListenFor:[NSEvent.EventType] = [
         .mouseMoved
