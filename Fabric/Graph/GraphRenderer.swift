@@ -30,13 +30,16 @@ public class GraphRenderer : MetalViewRenderer
     private let sceneProxy = Object() // ?  IBLScene()
     
     private var graphRequiresResize:Bool = false
-    private var resizeScaleFactor:Float = 1.0
+    var resizeScaleFactor:Float = 1.0
     
     public init(context:Context)
     {
         self.context = context
         self.renderer = Renderer(context: context, stencilStoreAction: .store, frameBufferOnly:false)
         self.renderer.sortObjects = true
+        
+        self.defaultCamera.position = simd_float3(0, 0, 2)
+        self.defaultCamera.lookAt(target: .zero)
         
         super.init()
         
@@ -224,6 +227,9 @@ public class GraphRenderer : MetalViewRenderer
         self.resizeScaleFactor = scaleFactor
         
         self.defaultCamera.aspect = size.width / size.height
+        
+        self.defaultCamera.fov = radToDeg( 2.0 * atan(  (size.height / size.width) / 2.0 ) )
+
     }
     
     private func currentGraphExecutionContext() -> GraphExecutionContext

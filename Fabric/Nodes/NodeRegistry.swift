@@ -37,12 +37,6 @@ public class NodeRegistry {
         + self.utilityClasses
     }
     
-    private var utilityClasses:[Node.Type] = [
-        LogNode.self,
-        RenderInfoNode.self,
-        CursorNode.self,
-    ]
-    
     private var cameraNodeClasses: [Node.Type] = [
          PerspectiveCameraNode.self,
          OrthographicCameraNode.self,
@@ -212,4 +206,11 @@ public class NodeRegistry {
         ArrayQueueNode<simd_float4>.self,
 
         ]
+    
+    private var utilityClasses:[Node.Type] = [
+        LogNode.self,
+        RenderInfoNode.self,
+        CursorNode.self,
+        PixelsToUnitsNode.self,
+    ]
 }

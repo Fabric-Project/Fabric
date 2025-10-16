@@ -191,6 +191,7 @@
 				Nodes/Texture/MovieTextureNode.swift,
 				Nodes/Utility/CursorNode.swift,
 				Nodes/Utility/LogNode.swift,
+				Nodes/Utility/PixelsToUnitsNode.swift,
 				Nodes/Utility/RenderInfoNode.swift,
 				Utils/AnyEncodable.swift,
 				Views/NodeRegisitryView.swift,

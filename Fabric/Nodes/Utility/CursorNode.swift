@@ -1,5 +1,5 @@
 //
-//  RenderInfoNode.swift
+//  CursorNode.swift
 //  Fabric
 //
 //  Created by Anton Marini on 10/15/25.
@@ -59,12 +59,13 @@ public class CursorNode : Node
     {
         
 #if os(macOS)
-        if let event = context.eventInfo?.event
+        if let event = context.eventInfo?.event,
+           let graphRenderer = context.graphRenderer
         {
             if moveEventTypesWeListenFor.contains(event.type)
             {
                 let point = event.locationInWindow
-                self.outputCursorPosition.send( simd_float2(x: Float(point.x), y: Float(point.y)) )
+                self.outputCursorPosition.send( simd_float2(x: Float(point.x) * graphRenderer.resizeScaleFactor, y: Float(point.y) * graphRenderer.resizeScaleFactor) )
             }
             
             if upEventTypesWeListenFor.contains(event.type)

@@ -29,7 +29,7 @@ public struct NodeCanvas : View
             
             ZStack
             {
-                // image size is 225
+                // image size is 255
                 Image("background")
                     .resizable(resizingMode: .tile)// Need this pattern image repeated throughout the page
                     .offset(-geom.size / 2)
