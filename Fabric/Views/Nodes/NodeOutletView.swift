@@ -13,22 +13,32 @@ struct NodeOutletView: View
 
     var body: some View 
     {
-        Circle()
-            .fill(port.color)
-            .frame(width: 15)
-//            .help( "\(port.name): \(port.valueType())")
-            .anchorPreference(
-                key: PortAnchorKey.self,
-                value: .center,
-                transform: {  anchor in
-                   
-                    [  port.id : anchor ]
-                })
-            .draggable(
-                
-                OutletData(portID: self.port.id)
-                            
-            )
+        HStack
+        {
+            Text(self.port.name)
+                .foregroundStyle(Color.secondary)
+                .font(.system(size: 9))
+                .lineLimit(1)
+            
+            Circle()
+                .fill(port.color)
+                .frame(width: 15)
+            //            .help( "\(port.name): \(port.valueType())")
+                .anchorPreference(
+                    key: PortAnchorKey.self,
+                    value: .center,
+                    transform: {  anchor in
+                        
+                        [  port.id : anchor ]
+                    })
+                .draggable(
+                    
+                    OutletData(portID: self.port.id)
+                    
+                )
+        }
+        .frame(height: 15)
+
 //            .contextMenu {
 //                
 //                Toggle("Publish Port", isOn: Binding<Bool>.init(get: { return self.port.isPublished() },
