@@ -82,14 +82,18 @@ class WindowOutputRenderer2: GameView
                                           systemTime: Date.timeIntervalSinceReferenceDate,
                                           frameNumber: graphRenderer.frameIndex)
         
+        var eventInfo:GraphEventInfo?
+        if let event = self.window?.currentEvent
+        {
+            eventInfo = GraphEventInfo(event:event)
+        }
+        
         // weird
         let executionContext = GraphExecutionContext(graphRenderer: graphRenderer,
                                                      timing: timing,
                                                      iterationInfo: nil,
-                                                     eventInfo: nil)
-        
-        
-        
+                                                     eventInfo: eventInfo)
+                
         graphRenderer.executeAndDraw(graph: graph,
                                      executionContext: executionContext,
                                      renderPassDescriptor: self.renderPassDescriptor,

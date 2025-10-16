@@ -189,6 +189,7 @@
 				Nodes/Parameters/Vector/MakeVector4Node.swift,
 				Nodes/Texture/HDRTextureNode.swift,
 				Nodes/Texture/MovieTextureNode.swift,
+				Nodes/Utility/CursorNode.swift,
 				Nodes/Utility/LogNode.swift,
 				Nodes/Utility/RenderInfoNode.swift,
 				Utils/AnyEncodable.swift,

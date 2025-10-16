@@ -44,12 +44,19 @@ public struct GraphExecutionTiming : Hashable
 public struct GraphEventInfo : Hashable
 {
 #if os(macOS)
-    public var events: [NSEvent]?
-    public var mousePosition:CGPoint?
-
+    public var event: NSEvent?
+    public init(event: NSEvent?)
+    {
+        self.event = event
+    }
 #elseif os(iOS)
-    public var events: [UIEvent]?
+    public var event: UIEvent?
+    public init(event: UIEvent?)
+    {
+        self.event = event
+    }
 #endif
+    
     
 }
 

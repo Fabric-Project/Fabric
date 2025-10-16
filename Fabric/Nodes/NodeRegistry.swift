@@ -40,6 +40,7 @@ public class NodeRegistry {
     private var utilityClasses:[Node.Type] = [
         LogNode.self,
         RenderInfoNode.self,
+        CursorNode.self,
     ]
     
     private var cameraNodeClasses: [Node.Type] = [
