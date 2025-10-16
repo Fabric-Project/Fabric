@@ -1,6 +1,6 @@
 # Fabric
 
-Fabric is a Node based 3D content authoring environment written by [Anton Marini](https://github.com/vade).
+Fabric is a Node based creative coding and 3D content authoring environment written by [Anton Marini](https://github.com/vade).
 
 Fabric uses Satin 3D engine [Satin rendering engine](https://github.com/Fabric-Project/Satin) written by @[Reza Ali](https://github.com/rezaali). 
 

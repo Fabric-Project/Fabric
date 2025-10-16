@@ -266,6 +266,7 @@ Have yet to work on Matrix nodes, unclear if we def want these types?
 - [ ] String Join
 - [ ] String Separator
 - [ ] String Compare
+- [x] Convert to String ( type convert )
 - [ ] Date Formatter
 - [ ] Current Date
 - [ ] Directory Scanner
@@ -311,12 +312,12 @@ Array nodes are implemented as Swift Generics, and can work with any of the abov
 - [ ] Artnet Output
 
 ###  Info Nodes
- - [ ] Rendering Destination Dimensions
+ - [x] Rendering Destination Dimensions
  - [ ] Units to Pixels
  - [ ] Pixels to Units
  - [ ] Mesh Hit Test
  - [ ] Frame Rate
- - [ ] Frame Counter
+ - [x] Frame Counter
  - [ ] Log
 
  
