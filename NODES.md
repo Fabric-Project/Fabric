@@ -313,8 +313,8 @@ Array nodes are implemented as Swift Generics, and can work with any of the abov
 
 ###  Info Nodes
  - [x] Rendering Destination Dimensions
- - [ ] Units to Pixels
- - [ ] Pixels to Units
+ - [x] Units to Pixels
+ - [x] Pixels to Units
  - [ ] Mesh Hit Test
  - [ ] Frame Rate
  - [x] Frame Counter
