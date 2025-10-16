@@ -61,7 +61,7 @@ public class EnvironmentNode: SubgraphNode
            let environmentTexture = self.inputEnvironmentTexture.value,
            let iblScene = self.subGraph.scene as? IBLScene
         {
-            iblScene.setEnvironment(texture: environmentTexture.texture)
+            iblScene.setEnvironment(texture: environmentTexture.texture, cubemapSize: 2048, reflectionSize:2048, irradianceSize: 32)
         }
         
         super.execute(context: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)

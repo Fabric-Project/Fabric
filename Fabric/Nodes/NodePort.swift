@@ -254,20 +254,29 @@ public class NodePort<Value : Equatable>: AnyPort
     {
         self.connections.forEach { self.disconnect(from: $0) }
     }
-
+    
     override public func disconnect(from other: AnyPort)
     {
         if let other = other as? NodePort<Value>
         {
-            self.disconnect(from: other)
+            self.send(nil, to:other, force: true)
+            self.validatedDisconnect(from: other)
+        }
+        // In theory we can use this for type casting port to port?
+        else if let other = other as? NodePort<AnyLoggable>
+        {
+            self.send(nil, to:other, force: true)
+            self.validatedDisconnect(from: other)
+        }
+        else
+        {
+            print("Port \(self) Unable to Disconnect from \(other)")
         }
     }
     
-    public func disconnect(from other: NodePort<Value>)
+    private func validatedDisconnect(from other: AnyPort)
     {
         print("Port \(self) Disconnect from \(other)")
-
-        self.send(nil, to:other, force: true)
 
         if let node = self.node,
            let otherNode = other.node
@@ -301,9 +310,6 @@ public class NodePort<Value : Equatable>: AnyPort
         
         print("Connections: \(self.debugDescription)) - \(self.connections)")
         print("Connections: \(other.debugDescription) - \(other.connections)")
-
-//        self.node?.markDirty()
-        
     }
     
     override public func connect(to other: AnyPort)
@@ -417,7 +423,6 @@ public class NodePort<Value : Equatable>: AnyPort
     {
         if other.value != v || force
         {
-//            print("Sending value: \(self.debugDescription) - \(String(describing: v))")
             other.value = v
         }
     }

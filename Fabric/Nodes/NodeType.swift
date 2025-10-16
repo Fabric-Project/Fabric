@@ -192,7 +192,7 @@ extension Node
                 return Color(hue: 0, saturation: 0, brightness: 0.3)
         
             case .Utility:
-                return .orange
+                return .yellow
             }
             
         }

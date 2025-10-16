@@ -34,8 +34,13 @@ public class NodeRegistry {
         + self.textureNodeClasses
         + self.parameterNodeClasses
         + self.macroNodeClasses
-        + [LogNode.self]
+        + self.utilityClasses
     }
+    
+    private var utilityClasses:[Node.Type] = [
+        LogNode.self,
+        RenderInfoNode.self,
+    ]
     
     private var cameraNodeClasses: [Node.Type] = [
          PerspectiveCameraNode.self,
@@ -52,6 +57,7 @@ public class NodeRegistry {
         MeshNode.self,
         ModelMeshNode.self,
         InstancedMeshNode.self,
+        EnvironmentSkyboxNode.self,
     ]
     
     private var geometryNodeClasses: [Node.Type] = [ // Geometry
@@ -183,6 +189,7 @@ public class NodeRegistry {
         StringComponentNode.self,
         StringLengthNode.self,
         StringRangeNode.self,
+        ConvertToStringNode.self,
         ArrayIndexValueNode<String>.self,
         ArrayCountNode<String>.self,
         ArrayQueueNode<String>.self,

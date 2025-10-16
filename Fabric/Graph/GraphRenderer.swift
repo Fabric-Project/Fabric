@@ -108,22 +108,20 @@ public class GraphRenderer : MetalViewRenderer
         var nodesWeHaveExecutedThisPass:[Node] = []
 
         // This is fucking horrible:
-        let theseShouldBeProvidersLol = [Node.NodeType.Utility, .Subgraph] + Node.NodeType.ObjectType.nodeTypes()
-        let nodesThatShouldBePulled =  graph.nodes.filter( { theseShouldBeProvidersLol.contains($0.nodeType) } )
-        let sceneObjectNodes:[BaseObjectNode] = nodesThatShouldBePulled.compactMap({ $0 as? BaseObjectNode})
+        let consumerOrProviderTypes = [Node.NodeType.Utility, .Subgraph] + Node.NodeType.ObjectType.nodeTypes()
+        let consumerOrProviderNodes =  graph.nodes.filter( { consumerOrProviderTypes.contains($0.nodeType) } )
         
         // This is fucking horrible:
+        let sceneObjectNodes:[BaseObjectNode] = consumerOrProviderNodes.compactMap({ $0 as? BaseObjectNode})
         let firstCameraNode = sceneObjectNodes.first(where: { $0.nodeType == .Object(objectType: .Camera)})
-        
-        // This is fucking horrible:
         let firstCamera = firstCameraNode?.getObject() as? Camera ?? self.cachedCamera ?? self.defaultCamera
             
-        if !nodesThatShouldBePulled.isEmpty
+        if !consumerOrProviderNodes.isEmpty
         {
-            for renderNode in nodesThatShouldBePulled
+            for pullNode in consumerOrProviderNodes
             {
                 let _ = processGraph(graph:graph,
-                                     node: renderNode,
+                                     node: pullNode,
                                      executionContext:executionContext,
                                      renderPassDescriptor: renderPassDescriptor,
                                      commandBuffer: commandBuffer,
@@ -224,6 +222,8 @@ public class GraphRenderer : MetalViewRenderer
         
         self.graphRequiresResize = true
         self.resizeScaleFactor = scaleFactor
+        
+        self.defaultCamera.aspect = size.width / size.height
     }
     
     private func currentGraphExecutionContext() -> GraphExecutionContext

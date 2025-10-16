@@ -11,32 +11,53 @@ import Satin
 import simd
 import Metal
 
-public class AnyLoggable: Equatable, CustomDebugStringConvertible
+public class AnyLoggable: Equatable, CustomStringConvertible
 {
-    private let _isEqual: (AnyLoggable) -> Bool
-    private let _debugDescription: () -> String
-    private var storage: Any?
+    public let description: String
+    public let debugDescription:String
     
-    public init<T: Equatable & CustomDebugStringConvertible>(_ value: T)
+    private var storage: Any?
+    private let _isEqual: (AnyLoggable) -> Bool
+
+    public init<T: Equatable & CustomDebugStringConvertible>(_ value: T?)
     {
+        if let value
+        {
+            self.debugDescription = String(reflecting: value)
+
+            if let value = value as? CustomStringConvertible
+            {
+                let typeString = String(describing: type(of: value))
+                let description = String(describing: value)
+                
+                self.description = description.replacingOccurrences(of: typeString, with: "")
+                    .replacingOccurrences(of: "(", with: "")
+                    .replacingOccurrences(of: ")", with: "")
+            }
+            else
+            {
+                self.description = String(describing: value.self)
+            }
+        }
+        else
+        {
+            self.debugDescription = "Nil"
+            self.description = "None"
+        }
+
+
         self.storage = value
         
         self._isEqual = { other in
             guard let rhs = other.storage as? T else { return false } // different types → not equal
             return value == rhs
         }
-        
-        self._debugDescription = { value.debugDescription }
     }
 
     public static func == (lhs: AnyLoggable, rhs: AnyLoggable) -> Bool
     {
         lhs._isEqual(rhs)
-    }
-
-    public var debugDescription: String {
-        _debugDescription()
-    }
+    }    
 
     // Optional: a typed accessor
     public func asType<T>(_ type: T.Type) -> T? { storage as? T }
@@ -92,7 +113,7 @@ public class LogNode : Node
         print("Log Executing")
         if self.inputAny.valueDidChange
         {
-            print(self.inputAny.value?.debugDescription ?? "Nil")
+            print( String(reflecting: inputAny.value ) )
         }
     }
 }
