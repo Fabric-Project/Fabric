@@ -297,7 +297,7 @@ Array nodes are implemented as Swift Generics, and can work with any of the abov
 ###  I / O
 
 - [ ] Keyboard
-- [ ] Mouse / Touch / Cursor 
+- [x] Mouse / Touch / Cursor (macOS)
 - [ ] OSC Input
 - [ ] OSC Output
 - [ ] Midi Input
@@ -313,8 +313,8 @@ Array nodes are implemented as Swift Generics, and can work with any of the abov
 
 ###  Info Nodes
  - [x] Rendering Destination Dimensions
- - [ ] Units to Pixels
- - [ ] Pixels to Units
+ - [x] Units to Pixels
+ - [x] Pixels to Units
  - [ ] Mesh Hit Test
  - [ ] Frame Rate
  - [x] Frame Counter
