@@ -111,14 +111,11 @@ public class GraphRenderer : MetalViewRenderer
         var nodesWeHaveExecutedThisPass:[Node] = []
 
         // This is fucking horrible:
-        let consumerOrProviderTypes = [Node.NodeType.Utility, .Subgraph] + Node.NodeType.ObjectType.nodeTypes()
-        let consumerOrProviderNodes =  graph.nodes.filter( { consumerOrProviderTypes.contains($0.nodeType) } )
+        let consumerOrProviderNodes = graph.consumerOrProviderNodes
         
         // This is fucking horrible:
-        let sceneObjectNodes:[BaseObjectNode] = consumerOrProviderNodes.compactMap({ $0 as? BaseObjectNode})
-        let firstCameraNode = sceneObjectNodes.first(where: { $0.nodeType == .Object(objectType: .Camera)})
-        let firstCamera = firstCameraNode?.getObject() as? Camera ?? self.cachedCamera ?? self.defaultCamera
-            
+        let firstCamera = graph.firstCamera ?? self.cachedCamera ?? self.defaultCamera
+        
         if !consumerOrProviderNodes.isEmpty
         {
             for pullNode in consumerOrProviderNodes

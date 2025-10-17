@@ -12,7 +12,7 @@ import Observation
 // PROXY encoder which gives us a hook to Satins internal encoder
 // via the Renderable Protocol draw method
 // this isnt ideal, as we dont quite match all of the semantics, but we do try.
-final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
+final class SubgraphIteratorRenderable: Satin.Renderable
 {
     var subGraph:Graph? = nil
     {
@@ -30,9 +30,17 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
     init(iterationCount: Int)
     {
         self.iterationCount = iterationCount
-        self.vertexUniforms = [:]
         
         super.init()
+        
+        self.doubleSided = false
+        self.renderOrder = 0
+        self.renderPass = 0
+        self.receiveShadow = false
+        self.castShadow = false
+        self.cullMode = .back
+        self.windingOrder = .counterClockwise
+        self.triangleFillMode = .fill
     }
     
     required init(from decoder: any Decoder) throws {
@@ -42,73 +50,15 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
 //    var renderables: [any Satin.Renderable] = []
    
     var iterationCount: Int
-
-    //  Satin.Renderable
-    
-    var opaque: Bool {
-        true
-//        self.renderables.reduce(false) { partialResult, aRenderable in
-//            return partialResult || aRenderable.opaque
-//        }
-    }
-    
-    var doubleSided: Bool {
-        false
-//        self.renderables.reduce(false) { partialResult, aRenderable in
-//            return partialResult || aRenderable.doubleSided
-//        }
-    }
-    
-    var renderOrder: Int { 0 }
-    
-    var renderPass: Int { 0 }
-    
-    var lighting: Bool {
-        true
-//       self.renderables.reduce(false) { partialResult, aRenderable in
-//            return partialResult || aRenderable.lighting
-//        }
-    }
-    
-    var receiveShadow: Bool {
-        true
-//       self.renderables.reduce(false) { partialResult, aRenderable in
-//            return partialResult || aRenderable.receiveShadow
-//        }
-    }
-    
-    var castShadow: Bool {
-        true
-//        self.renderables.reduce(false) { partialResult, aRenderable in
-//            return partialResult || aRenderable.castShadow
-//        }
-    }
-    
-    var cullMode: MTLCullMode { .back }
-    
-    var windingOrder: MTLWinding { .counterClockwise }
-    
-    var triangleFillMode: MTLTriangleFillMode { .fill }
-    
-    var vertexUniforms: [Satin.Context : Satin.VertexUniformBuffer]
-    
-    func isDrawable(renderContext: Satin.Context, shadow: Bool) -> Bool {
-        true
-        //        self.renderables.reduce(true) { partialResult, aRenderable in
-//            return partialResult || aRenderable.isDrawable(renderContext: renderContext, shadow: shadow)
-//        }
-    }
-    
-    var material: Satin.Material? = nil
-    
-    var materials: [Satin.Material] = []
-    
-    var preDraw: ((any MTLRenderCommandEncoder) -> Void)? = nil
-    
+        
     private var updateCamera:Camera? = nil
     private var updateViewport:simd_float4? = nil
     private var updateIndex:Int?
     
+    override func isDrawable(renderContext: Satin.Context, shadow: Bool) -> Bool {
+        true
+    }
+
     override func update(renderContext: Context, camera: Camera, viewport: simd_float4, index: Int)
     {
         // We call update inline in draw, which is only so each draw gets the correct latest iterated values on the graph
@@ -117,7 +67,7 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
         self.updateIndex = index
     }
     
-    func draw(renderContext: Context, renderEncoderState: RenderEncoderState, shadow: Bool)
+    override func draw(renderContext: Context, renderEncoderState: RenderEncoderState, shadow: Bool)
     {
         guard let subGraph,
               let graphContext,
@@ -183,7 +133,7 @@ final class SubgraphIteratorRenderable: Satin.Object, Satin.Renderable
         graphContext.iterationInfo = nil
     }
     
-    private func configureOnBindForRenderable(_ r:any Renderable, inContext renderContext:Context, shadow:Bool)
+    private func configureOnBindForRenderable(_ r:Renderable, inContext renderContext:Context, shadow:Bool)
     {
         if let material = r.material,
            let uniforms = material.uniforms,
