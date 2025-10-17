@@ -39,12 +39,12 @@ internal import AnyCodable
     
     var scene:Object = Object()
     
-    var renderables: [any Satin.Object & Satin.Renderable] {
+    var renderables: [Satin.Renderable] {
         let allNodes = self.nodes
         
         let renderableNodes:[BaseObjectNode] = allNodes.compactMap{ $0 as? BaseObjectNode } //.compactMap( { $0 as? BaseRenderableNode })
             
-        return renderableNodes.compactMap { $0.getObject() as? any Satin.Object & Satin.Renderable }
+        return renderableNodes.compactMap { $0.getObject() as? Satin.Renderable }
     }
     
     var shouldUpdateConnections = false // New property to trigger view update
@@ -80,7 +80,7 @@ internal import AnyCodable
         self.context = context
         self.nodes = []
     }
-    
+
     
     public required init(from decoder: any Decoder) throws
     {
@@ -271,6 +271,7 @@ internal import AnyCodable
             node.graph = self
         }
         
+        self.updateRenderingNodes()
         //        self.autoConnect(node: node)
     }
     
@@ -287,6 +288,8 @@ internal import AnyCodable
             self.maybeDeleteNodeFromScene(node)
             self.nodes.removeAll { $0.id == node.id }
         }
+        
+        self.updateRenderingNodes()
     }
     
     public func node(forID:UUID) -> Node?
@@ -338,6 +341,23 @@ internal import AnyCodable
         return  self.nodes.flatMap( { $0.publishedPorts() } )
     }
      
+    // MARK: -Rendering Helpers
+    private let consumerOrProviderTypes = [Node.NodeType.Utility, .Subgraph] + Node.NodeType.ObjectType.nodeTypes()
+    
+    internal var consumerOrProviderNodes: [Node] = []
+    internal var sceneObjectNodes:[BaseObjectNode] = []
+    internal var firstCamera:Camera? = nil
+    
+    func updateRenderingNodes()
+    {
+        self.consumerOrProviderNodes = self.nodes.filter( { consumerOrProviderTypes.contains($0.nodeType) } )
+        
+        let sceneObjectNodes:[BaseObjectNode] = consumerOrProviderNodes.compactMap({ $0 as? BaseObjectNode})
+        let firstCameraNode = sceneObjectNodes.first(where: { $0.nodeType == .Object(objectType: .Camera)})
+
+        self.firstCamera = firstCameraNode?.getObject() as? Camera
+    }
+    
     // MARK: -Selection
     
     public enum NodeSelectionDirection: Equatable {

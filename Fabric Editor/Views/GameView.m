@@ -172,6 +172,7 @@ The implementation of the cross-platform game view.
 {
     // Create and configure the Metal display link.
     _displayLink = [[CAMetalDisplayLink alloc] initWithMetalLayer:metalLayer];
+//    _displayLink.preferredFrameRateRange = CAFrameRateRangeMake(60, 60, 60);
     _displayLink.preferredFrameRateRange = CAFrameRateRangeMake(120.0, 120.0, 120.0);
 //    _displayLink.preferredFrameRateRange = CAFrameRateRangeMake(24, 24, 24);
 
