@@ -71,7 +71,10 @@ public class CursorNode : Node
         .leftMouseDown,
         .rightMouseDown,
         .otherMouseDown,
-
+        .leftMouseDragged,
+        .rightMouseDragged,
+        .otherMouseDragged
+        
         ]
     
     private let upEventTypesWeListenFor:[NSEvent.EventType] = [
@@ -80,11 +83,9 @@ public class CursorNode : Node
         .otherMouseUp,
         ]
 
-
     private var eventTypesWeListenFor:[NSEvent.EventType] {
         moveEventTypesWeListenFor + downEventTypesWeListenFor + upEventTypesWeListenFor
     }
-
 #endif
     
     public override func execute(context:GraphExecutionContext,
@@ -109,6 +110,10 @@ public class CursorNode : Node
             else if downEventTypesWeListenFor.contains(event.type)
             {
                 self.outputTap.send( true )
+             
+                let point = event.locationInWindow
+                self.outputCursorPosition.send( simd_float2(x: Float(point.x) * graphRenderer.resizeScaleFactor, y: Float(point.y) * graphRenderer.resizeScaleFactor) )
+
             }
         }
       

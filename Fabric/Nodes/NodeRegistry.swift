@@ -216,5 +216,20 @@ public class NodeRegistry {
         CursorNode.self,
         PixelsToUnitsNode.self,
         UnitsoPixelsNode.self,
+        
+        SampleAndHold<Bool>.self,
+        SampleAndHold<Float>.self,
+        SampleAndHold<simd_float2>.self,
+        SampleAndHold<simd_float3>.self,
+        SampleAndHold<simd_float4>.self,
+        SampleAndHold<String>.self,
+
+        SampleAndHold<ContiguousArray<Bool>>.self,
+        SampleAndHold<ContiguousArray<Float>>.self,
+        SampleAndHold<ContiguousArray<simd_float2>>.self,
+        SampleAndHold<ContiguousArray<simd_float3>>.self,
+        SampleAndHold<ContiguousArray<simd_float4>>.self,
+        SampleAndHold<ContiguousArray<String>>.self,
+
     ]
 }

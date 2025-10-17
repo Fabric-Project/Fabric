@@ -16,13 +16,11 @@ public class AnyLoggable: Equatable, CustomStringConvertible
     public let description: String
     public let debugDescription:String
     
-    private var storage: Any?
+    private var storage: Any
     private let _isEqual: (AnyLoggable) -> Bool
 
-    public init<T: Equatable & CustomDebugStringConvertible>(_ value: T?)
+    public init<T: Equatable & CustomDebugStringConvertible>(_ value: T)
     {
-        if let value
-        {
             self.debugDescription = String(reflecting: value)
 
             if let value = value as? CustomStringConvertible
@@ -38,12 +36,7 @@ public class AnyLoggable: Equatable, CustomStringConvertible
             {
                 self.description = String(describing: value.self)
             }
-        }
-        else
-        {
-            self.debugDescription = "Nil"
-            self.description = "None"
-        }
+       
 
 
         self.storage = value
@@ -61,7 +54,7 @@ public class AnyLoggable: Equatable, CustomStringConvertible
 
     // Optional: a typed accessor
     public func asType<T>(_ type: T.Type) -> T? { storage as? T }
-    public func setAsType<T>(_ type: T.Type, value: T?) {
+    public func setAsType<T>(_ type: T.Type, value: T) {
         storage = value
     }
 }

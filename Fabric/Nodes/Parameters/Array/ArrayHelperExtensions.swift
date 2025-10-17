@@ -13,6 +13,13 @@ public protocol FabricDescription
     static var fabricDescription: String { get }
 }
 
+extension ContiguousArray : FabricDescription where Element : FabricDescription
+{
+    public static var fabricDescription: String {
+        return "\(Element.self.fabricDescription) Array"
+    }
+    
+}
 extension SIMD4<Float> : FabricDescription
 {
     public static var fabricDescription: String {

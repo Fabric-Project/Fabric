@@ -390,13 +390,9 @@ public class NodePort<Value : Equatable>: AnyPort
         
         print("Connections: \(self.debugDescription)) - \(self.connections)")
         print("Connections: \(other.debugDescription) - \(other.connections)")
-
-//        self.node?.markDirty()
-//        other.node?.markDirty()
         
         self.send(self.value, force: true)
     }
-
     
     public func send(_ v: Value?, force:Bool = false)
     {
@@ -421,12 +417,15 @@ public class NodePort<Value : Equatable>: AnyPort
     
     private func send(_ v:Value?, to other: NodePort<Value>, force:Bool = false)
     {
+        
+        
         if other.value != v || force
         {
             other.value = v
         }
     }
     
+    // Send to a loggable (this should eventually turn into a Virtual?
     private func send(_ v:Value?, to other:  NodePort<AnyLoggable>, force:Bool = false)
     {
         if other.value?.asType(Value.self) != v || force
@@ -434,6 +433,18 @@ public class NodePort<Value : Equatable>: AnyPort
             other.value = AnyLoggable(v)
         }
     }
+    
+    // if we are a loggable, try casting and sending
+//    private func send(_ v:AnyLoggable, to other: NodePort<Value>, force:Bool = false)
+//    {
+//        if v.asType(type(of:other.value)) != other.value || force
+//        {
+//            if let otherVal = other.value
+//            {
+//                other.value = v.asType(type(of: otherVal ))
+//            }
+//        }
+//    }
         
     private static func calcColor(forType: Any.Type ) -> Color
     {
