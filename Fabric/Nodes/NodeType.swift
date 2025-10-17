@@ -123,7 +123,9 @@ extension Node
             + ObjectType.nodeTypes()
             + [ .Geometery, .Material, .Shader, ]
             + ImageType.nodeTypes()
-            + ParameterType.nodeTypes() }
+            + ParameterType.nodeTypes()
+            + [ .Utility ]
+        }
         
         public var description: String
         {

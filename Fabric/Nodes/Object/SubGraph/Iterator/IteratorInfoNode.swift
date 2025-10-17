@@ -16,7 +16,7 @@ import Metal
 public class IteratorInfoNode : Node
 {
     public override class var name:String { "Iterator Info" }
-    public override class var nodeType:Node.NodeType { Node.NodeType.Parameter(parameterType: .Number) }
+    public override class var nodeType:Node.NodeType { Node.NodeType.Parameter(parameterType: .Array) }
 
     public override var isDirty:Bool { get {  true  } set { } }
 
