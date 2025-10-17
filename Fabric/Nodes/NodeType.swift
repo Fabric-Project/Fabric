@@ -171,7 +171,6 @@ extension Node
                         
                     case .Loader:
                         return Color.nodeMesh
-                    
 //
 //                    case .Scene:
 //                        return Color.nodeObject
@@ -194,7 +193,7 @@ extension Node
                 return Color(hue: 0, saturation: 0, brightness: 0.3)
         
             case .Utility:
-                return .yellow
+                return Color(hue: 0, saturation: 0, brightness: 0.3)
             }
             
         }
