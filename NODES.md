@@ -290,7 +290,7 @@ Array nodes are implemented as Swift Generics, and can work with any of the abov
 
 ### Signaling Nodes
 
-- [ ] Sample and Hold
+- [x] Sample and Hold
 - [ ] Pulse
 - [ ] Signal
 - [ ] Timeline
