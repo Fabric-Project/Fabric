@@ -45,7 +45,7 @@ public class MovieTextureNode : Node
     @ObservationIgnored private var playerItemVideoOutput:AVPlayerItemVideoOutput
     @ObservationIgnored private var pixelBuffer:CVPixelBuffer? = nil
     @ObservationIgnored private var textureCache:CVMetalTextureCache?
-    @ObservationIgnored private var gotNewOutput:Bool = false
+    @ObservationIgnored private var observer: Any? = nil
     
     required public init(context:Context)
     {
@@ -194,6 +194,11 @@ public class MovieTextureNode : Node
             if let url,
                 FileManager.default.fileExists(atPath: url.standardizedFileURL.path(percentEncoded: false) )
             {
+                if let observer = self.observer
+                {
+                    NotificationCenter.default.removeObserver(observer)
+                }
+                
                 self.player.pause()
                 
                 if let playerItem = self.player.currentItem
@@ -203,13 +208,24 @@ public class MovieTextureNode : Node
                 
                 self.asset = AVURLAsset(url: url, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
                 
+                
                 let playerItem = AVPlayerItem(asset: self.asset!, automaticallyLoadedAssetKeys: ["tracks", "metadata", "duration"])
                 
                 playerItem.preferredForwardBufferDuration = 0.5
                 playerItem.add(self.playerItemVideoOutput)
                 
+                self.observer = NotificationCenter.default.addObserver(forName: AVPlayerItem.didPlayToEndTimeNotification,
+                                                       object:playerItem,
+                                                       queue:OperationQueue.main) { note in
+
+                    self.player.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero)
+                    self.player.play()
+                }
+
                 self.player.replaceCurrentItem(with: playerItem)
 
+                self.player.volume = 0.0
+                self.player.actionAtItemEnd = .none
                 self.player.play()
             }
             else
