@@ -75,7 +75,7 @@ A list of Nodes (planned and implemented) for Fabric.
 
 ### Loading
 - [x] Image Loader
-- [ ] Video Loader (AVFoundation)
+- [x] Video Loader (AVFoundation)
 - [ ] Camera Loader (AVFoundation)
 
 ### Color Adjust
