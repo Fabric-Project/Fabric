@@ -62,8 +62,6 @@ class WindowOutputRenderer2: GameView
     
     override func renderUpdate(_ update: CAMetalDisplayLink.Update, with deltaTime: CFTimeInterval)
     {
-        
-        
         guard
             let graphRenderer = self.graphRenderer,
             let graph = self.graph,
@@ -74,9 +72,8 @@ class WindowOutputRenderer2: GameView
         self.renderPassDescriptor.renderTargetWidth = update.drawable.texture.width
         self.renderPassDescriptor.renderTargetHeight = update.drawable.texture.height
         
-        
         // TODO: This becomes more semantically correct later
-        let timing = GraphExecutionTiming(time: Date.timeIntervalSinceReferenceDate,
+        let timing = GraphExecutionTiming(time: CACurrentMediaTime(),
                                           deltaTime: deltaTime,
                                           displayTime: update.targetPresentationTimestamp,
                                           systemTime: Date.timeIntervalSinceReferenceDate,

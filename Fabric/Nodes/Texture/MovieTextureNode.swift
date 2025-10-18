@@ -15,8 +15,8 @@ import MediaToolbox
 
 private let MovieTextureNodeInitializer: Void = {
     
-    print("Global setup for VideoSourceAssetMonitorInitializer")
-    // One-time setup code here
+    print("One Time Global setup for MovieTextureNode")
+    
     VTRegisterProfessionalVideoWorkflowVideoDecoders()
     VTRegisterProfessionalVideoWorkflowVideoEncoders()
     MTRegisterProfessionalVideoWorkflowFormatReaders()
@@ -36,14 +36,16 @@ public class MovieTextureNode : Node
     let outputTexturePort:NodePort<EquatableTexture>
     override public var ports:[AnyPort] { [outputTexturePort] + super.ports }
 
-
-    private var texture: (any MTLTexture)? = nil
+    override public var isDirty: Bool { true }
     
-    
-    private var url: URL? = nil
-    private var asset:AVURLAsset? = nil
-    private var player:AVPlayer = AVPlayer()
-    private var playerItemVideoOutput:AVPlayerItemOutput
+    @ObservationIgnored private var url: URL? = nil
+    @ObservationIgnored private var asset:AVURLAsset? = nil
+    @ObservationIgnored private var player:AVPlayer = AVPlayer()
+    @ObservationIgnored private var playerItem:AVPlayerItem? = nil
+    @ObservationIgnored private var playerItemVideoOutput:AVPlayerItemVideoOutput
+    @ObservationIgnored private var pixelBuffer:CVPixelBuffer? = nil
+    @ObservationIgnored private var textureCache:CVMetalTextureCache?
+    @ObservationIgnored private var gotNewOutput:Bool = false
     
     required public init(context:Context)
     {
@@ -52,8 +54,12 @@ public class MovieTextureNode : Node
 
         self.inputFilePathParam = StringParameter("File Path", "", .filepicker)
         self.outputTexturePort = NodePort<EquatableTexture>(name: "Image", kind: .Outlet)
-
         
+        let _ = CVMetalTextureCacheCreate(kCFAllocatorDefault,
+                                                nil,
+                                                context.device,
+                                                nil,
+                                                &self.textureCache)
         
         self.playerItemVideoOutput = AVPlayerItemVideoOutput(outputSettings: Self.playerOutputSettings() )
         self.playerItemVideoOutput.suppressesPlayerRendering = true
@@ -84,14 +90,23 @@ public class MovieTextureNode : Node
 
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
-        
+        guard let decodeContext = decoder.context else
+        {
+            fatalError("Required Decode Context Not set")
+        }
+
         self.inputFilePathParam = try container.decode(StringParameter.self, forKey: .inputFilePathParameter)
         self.outputTexturePort = try container.decode(NodePort<EquatableTexture>.self, forKey: .outputTexturePort)
         
+        let _ = CVMetalTextureCacheCreate(kCFAllocatorDefault,
+                                          nil,
+                                          decodeContext.documentContext.device,
+                                          nil,
+                                          &self.textureCache)
         
         self.playerItemVideoOutput = AVPlayerItemVideoOutput(outputSettings: Self.playerOutputSettings() )
         self.playerItemVideoOutput.suppressesPlayerRendering = true
-
+        
         try super.init(from:decoder)
     }
     
@@ -99,14 +114,41 @@ public class MovieTextureNode : Node
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {
-
-        if let texture = self.texture
+        
+        if self.inputFilePathParam.valueDidChange
         {
-            self.outputTexturePort.send( EquatableTexture(texture: texture) )
+            loadAssetFromInputValue()
         }
-        else
+        
+        let time =  context.timing.time
+        let itemTime = self.playerItemVideoOutput.itemTime(forHostTime: time)
+        
+        if self.playerItemVideoOutput.hasNewPixelBuffer(forItemTime: itemTime)
         {
-            self.outputTexturePort.send( nil )
+            if let pixelBuffer = self.playerItemVideoOutput.copyPixelBuffer(forItemTime: itemTime, itemTimeForDisplay: nil)
+            {
+                    CVMetalTextureCacheFlush(self.textureCache!, 0)
+                    
+                    var texture:CVMetalTexture? = nil
+                    
+                    let success = CVMetalTextureCacheCreateTextureFromImage(kCFAllocatorDefault,
+                                                                            self.textureCache!,
+                                                                            pixelBuffer,
+                                                                            nil,
+                                                                            .bgra8Unorm,
+                                                                            CVPixelBufferGetWidth(pixelBuffer),
+                                                                            CVPixelBufferGetHeight(pixelBuffer),
+                                                                            0,
+                                                                            &texture)
+                    
+                    if success == kCVReturnSuccess && texture != nil
+                    {
+                        let latestFrameTexture = CVMetalTextureGetTexture(texture!)!
+                        
+                        self.outputTexturePort.send( EquatableTexture(texture: latestFrameTexture) )
+                    }
+//                }
+            }
         }
      }
 
@@ -130,8 +172,8 @@ public class MovieTextureNode : Node
         // Linear
         let colorPropertySettings = [
                    AVVideoColorPrimariesKey: AVVideoColorPrimaries_P3_D65,
-                   AVVideoYCbCrMatrixKey: AVVideoTransferFunction_Linear,
-                   AVVideoTransferFunctionKey: AVVideoYCbCrMatrix_ITU_R_709_2
+                   AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_2020,
+                   AVVideoTransferFunctionKey: AVVideoTransferFunction_Linear
                ]
       
         return [
@@ -141,5 +183,41 @@ public class MovieTextureNode : Node
 //            AVVideoColorPropertiesKey : colorPropertySettings,
 //            AVVideoAllowWideColorKey : true,
         ] as [String : Any]
+    }
+    
+    private func loadAssetFromInputValue()
+    {
+        if  self.inputFilePathParam.value.isEmpty == false && self.url != URL(string: self.inputFilePathParam.value)
+        {
+            self.url = URL(string: self.inputFilePathParam.value)
+            
+            if let url,
+                FileManager.default.fileExists(atPath: url.standardizedFileURL.path(percentEncoded: false) )
+            {
+                self.player.pause()
+                
+                if let playerItem = self.player.currentItem
+                {
+                    playerItem.remove(self.playerItemVideoOutput)
+                }
+                
+                self.asset = AVURLAsset(url: url, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
+                
+                let playerItem = AVPlayerItem(asset: self.asset!, automaticallyLoadedAssetKeys: ["tracks", "metadata", "duration"])
+                
+                playerItem.preferredForwardBufferDuration = 0.5
+                playerItem.add(self.playerItemVideoOutput)
+                
+                self.player.replaceCurrentItem(with: playerItem)
+
+                self.player.play()
+            }
+            else
+            {
+                self.outputTexturePort.send( nil )
+
+                print("wtf")
+            }
+        }
     }
 }

@@ -24,10 +24,9 @@ public class HDRTextureNode : Node
     let outputTexturePort:NodePort<EquatableTexture>
     override public var ports:[AnyPort] {  [outputTexturePort] + super.ports}
 
-
-    private var texture: (any MTLTexture)? = nil
-    private var textureLoader:MTKTextureLoader
-    private var url: URL? = nil
+    @ObservationIgnored private var texture: (any MTLTexture)? = nil
+    @ObservationIgnored private var textureLoader:MTKTextureLoader
+    @ObservationIgnored private var url: URL? = nil
     
     public required init(context:Context)
     {

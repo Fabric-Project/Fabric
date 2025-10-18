@@ -85,7 +85,7 @@ public class NodeRegistry {
     ]
     
     private var textureNodeClasses:[Node.Type] = [
-//        LoadTextureNode.self,
+        MovieTextureNode.self,
         HDRTextureNode.self,
 //        BrightnessContrastImageNode.self,
 //        GaussianBlurImageNode.self,
