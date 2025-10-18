@@ -154,8 +154,8 @@ A list of Nodes (planned and implemented) for Fabric.
 
 ### Masking
 - [ ] Image to Mask
-- [ ] Subject Mask (ML)
-- [ ] Person Mask (ML)
+- [x] Foreground Mask (ML)
+- [x] Person Mask (ML)
 
 ### Tiling
 
@@ -198,7 +198,7 @@ A list of Nodes (planned and implemented) for Fabric.
 - [ ] Close
 
 ### Info 
-- [ ] Image Dimensions
+- [x] Image Dimensions
 - [ ] Image Crop
 - [ ] Image Resize (Linear / Bilinear / Lancos)
 - [ ] Image Pixel to Color (sample at XY -> XYZ)
