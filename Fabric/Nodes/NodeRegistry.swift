@@ -87,6 +87,8 @@ public class NodeRegistry {
     private var textureNodeClasses:[Node.Type] = [
         MovieTextureNode.self,
         HDRTextureNode.self,
+        ForegroundMaskNode.self,
+        PersonSegmentationMaskNode.self,
 //        BrightnessContrastImageNode.self,
 //        GaussianBlurImageNode.self,
     ]
@@ -212,8 +214,9 @@ public class NodeRegistry {
     
     private var utilityClasses:[Node.Type] = [
         LogNode.self,
-        RenderInfoNode.self,
         CursorNode.self,
+        RenderInfoNode.self,
+        ImageDimensions.self,
         PixelsToUnitsNode.self,
         UnitsoPixelsNode.self,
         

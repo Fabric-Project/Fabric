@@ -35,7 +35,7 @@ public class NumberUnnaryOperator : Node
         self.inputAParam = FloatParameter("A", 0.0, .inputfield)
         self.inputOperatorParam = StringParameter("Operator", "Sine", UnaryMathOperator.allCases.map(\.rawValue))
         
-        self.outputNumber = NodePort<Float>(name: NumberUnnaryOperator.name , kind: .Outlet)
+        self.outputNumber = NodePort<Float>(name: "Result" , kind: .Outlet)
         
         super.init(context: context)
     }

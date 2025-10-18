@@ -12,9 +12,9 @@ import Metal
 import MetalKit
 import Vision
 
-public class ForegroundMaskNode: Node
+public class PersonSegmentationMaskNode: Node
 {
-    override public class var name:String { "Foreground Mask" }
+    override public class var name:String { "Person Segmentation Mask" }
     override public class var nodeType:Node.NodeType { .Image(imageType: .Mask) }
     
     // Ports
@@ -82,8 +82,12 @@ public class ForegroundMaskNode: Node
         
         if self.inputTexturePort.valueDidChange
         {
+            let request = VNGeneratePersonInstanceMaskRequest()
+//            request.qualityLevel = .fast
+//            request.outputPixelFormat = kCVPixelFormatType_OneComponent16Half
+            
             if let inTex = self.inputTexturePort.value?.texture,
-               let maskTex =  self.maskForRequest(VNGenerateForegroundInstanceMaskRequest(), from: inTex)
+               let maskTex =  self.maskForRequest(request, from: inTex)
             {
                 self.outputTexturePort.send( EquatableTexture(texture: maskTex) )
             }
@@ -94,7 +98,7 @@ public class ForegroundMaskNode: Node
         }
     }
     
-    private func maskForRequest(_ request: VNGenerateForegroundInstanceMaskRequest, from texture:MTLTexture,) -> MTLTexture?
+    private func maskForRequest(_ request: VNGeneratePersonInstanceMaskRequest, from texture:MTLTexture,) -> MTLTexture?
     {
         if let inputImage = CIImage(mtlTexture: texture)
         {
@@ -123,10 +127,10 @@ public class ForegroundMaskNode: Node
                                 
                 if let observation = request.results?.first
                 {
-                    let mask = try observation.generateMask(forInstances: observation.allInstances)
+//                    let mask = observation.pixelBuffer
   
                     // Doesnt always work?
-//                    let mask = observation.instanceMask
+                    let mask = try observation.generateMask(forInstances: IndexSet(integer: 1) )
 
                     CVMetalTextureCacheFlush(self.textureCache!, 0)
                     

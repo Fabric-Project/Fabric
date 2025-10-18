@@ -37,7 +37,7 @@ public class NumberBinaryOperator : Node
         self.inputBParam = FloatParameter("B", 0.0, .inputfield)
         self.inputOperatorParam = StringParameter("Operator", "Add", BinaryMathOperator.allCases.map(\.rawValue))
         
-        self.outputNumber = NodePort<Float>(name: NumberBinaryOperator.name , kind: .Outlet)
+        self.outputNumber = NodePort<Float>(name: "Result" , kind: .Outlet)
         
         super.init(context: context)
     }
@@ -87,14 +87,12 @@ public class NumberBinaryOperator : Node
             self.mathOperator = mathOp
         }
         
-        if self.inputAParam.valueDidChange || self.inputBParam.valueDidChange
+        if self.inputOperatorParam.valueDidChange || self.inputAParam.valueDidChange || self.inputBParam.valueDidChange
         {
             self.output = self.mathOperator.perform(lhs: self.inputAParam.value,
-                                                     rhs: self.inputBParam.value)
-
+                                                    rhs: self.inputBParam.value)
         }
         
-        self.outputNumber.send(self.output)
-
+        self.outputNumber.send(self.output)        
     }
 }
