@@ -7,31 +7,47 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "98A09656-0E35-491D-9EBC-EB20CD97B181"
-            shouldBeEnabled = "No"
+            uuid = "58B0627C-BEA4-4956-BBB5-688133270C23"
+            shouldBeEnabled = "Yes"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "Fabric/Nodes/Utility/LogNode.swift"
+            filePath = "Fabric/Nodes/Texture/MovieTextureNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "31"
-            endingLineNumber = "31"
-            landmarkName = "init(_:)"
+            startingLineNumber = "225"
+            endingLineNumber = "225"
+            landmarkName = "loadAssetFromInputValue()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "4C141FAC-1A40-4C37-9858-32C1317DCC67"
-            shouldBeEnabled = "No"
+            uuid = "875B87BC-68D2-469D-90DB-813C23DBDD40"
+            shouldBeEnabled = "Yes"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "Fabric/Nodes/Utility/RenderInfoNode.swift"
+            filePath = "Fabric/Nodes/Texture/MovieTextureNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "66"
-            endingLineNumber = "66"
+            startingLineNumber = "204"
+            endingLineNumber = "204"
+            landmarkName = "loadAssetFromInputValue()"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "E28A22BC-7DB5-4786-8717-77B8BBAEE5A5"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Fabric/Nodes/Texture/MovieTextureNode.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "120"
+            endingLineNumber = "120"
             landmarkName = "execute(context:renderPassDescriptor:commandBuffer:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -39,27 +55,43 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "D712CC71-97BE-4BEC-98B2-106E06D1B7F0"
-            shouldBeEnabled = "No"
+            uuid = "80F714FE-4DAC-420A-A6F0-131AAC3AC910"
+            shouldBeEnabled = "Yes"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "Fabric/Nodes/Utility/RenderInfoNode.swift"
+            filePath = "Fabric/Nodes/Texture/MovieTextureNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "68"
-            endingLineNumber = "68"
-            landmarkName = "execute(context:renderPassDescriptor:commandBuffer:)"
+            startingLineNumber = "206"
+            endingLineNumber = "206"
+            landmarkName = "loadAssetFromInputValue()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "954A82D5-8FBC-4D93-A2F7-C9FEDB0E8896"
+            uuid = "4D038A61-B6D9-46B6-A447-8B4E3FBB3EB8"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Fabric/Nodes/Texture/MovieTextureNode.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "56"
+            endingLineNumber = "56"
+            landmarkName = "init(context:)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "E8584DC8-548A-4504-889A-FAC1B2C79D40"
             shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "Fabric/Nodes/Utility/RenderInfoNode.swift"
+            filePath = "Fabric/Nodes/Texture/ImageDimensions.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "67"
@@ -71,112 +103,48 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "FF441CF4-7703-493F-98A1-BE72929D4F75"
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "Fabric/Nodes/Utility/PixelsToUnitsNode.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "75"
-            endingLineNumber = "75"
-            landmarkName = "execute(context:renderPassDescriptor:commandBuffer:)"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "8B830567-7A76-4CC4-A929-6572778933B1"
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "Fabric/Nodes/Utility/LogNode.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "106"
-            endingLineNumber = "106"
-            landmarkName = "execute(context:renderPassDescriptor:commandBuffer:)"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "340769A0-1975-4D8D-B8D2-B84BA822CC05"
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "Fabric/Graph/GraphRenderer.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "228"
-            endingLineNumber = "228"
-            landmarkName = "resize(size:scaleFactor:)"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "F1989736-12EF-437F-9C7C-4698C54487A3"
+            uuid = "D92D9E82-C508-463C-8180-7B3889D02745"
             shouldBeEnabled = "Yes"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "Fabric/Nodes/NodePort.swift"
+            filePath = "Fabric/Nodes/Texture/ImageProcessing/ForegroundMaskNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "440"
-            endingLineNumber = "440"
-            landmarkName = "NodePort"
-            landmarkType = "3">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "758A4EB3-7B8F-4970-9304-EA1F6AE89831"
-            shouldBeEnabled = "Yes"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "Fabric/Nodes/NodePort.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "431"
-            endingLineNumber = "431"
-            landmarkName = "send(_:to:force:)"
+            startingLineNumber = "131"
+            endingLineNumber = "131"
+            landmarkName = "maskForRequest(_:from:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "401DCFCE-48F5-4A0E-9863-2302EE9228A6"
+            uuid = "93898C1A-23DA-4914-BD3D-85EF3A4D1C9B"
             shouldBeEnabled = "Yes"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "Fabric/Nodes/NodePort.swift"
+            filePath = "Fabric/Nodes/Texture/ImageProcessing/ForegroundMaskNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "422"
-            endingLineNumber = "422"
-            landmarkName = "send(_:to:force:)"
+            startingLineNumber = "101"
+            endingLineNumber = "101"
+            landmarkName = "maskForRequest(_:from:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "7303FF16-4E23-4DA3-9964-79E79460B36A"
+            uuid = "B06F95B7-C2EA-4E47-80F0-56E74DABAC7D"
             shouldBeEnabled = "Yes"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "Fabric/Nodes/NodePort.swift"
+            filePath = "Fabric/Nodes/Texture/ImageProcessing/PersonSegmentationMaskNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "433"
-            endingLineNumber = "433"
-            landmarkName = "send(_:to:force:)"
+            startingLineNumber = "131"
+            endingLineNumber = "131"
+            landmarkName = "maskForRequest(_:from:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

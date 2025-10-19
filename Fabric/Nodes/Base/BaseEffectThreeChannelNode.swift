@@ -40,7 +40,7 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
     let inputTexture3Port:NodePort<EquatableTexture>
     
     let outputTexturePort:NodePort<EquatableTexture>
-    override var ports: [AnyPort] { [inputTexturePort, inputTexture2Port, inputTexture3Port, outputTexturePort] + super.ports}
+    override var ports: [Port] { [inputTexturePort, inputTexture2Port, inputTexture3Port, outputTexturePort] + super.ports}
     
     private var url:URL? = nil
     

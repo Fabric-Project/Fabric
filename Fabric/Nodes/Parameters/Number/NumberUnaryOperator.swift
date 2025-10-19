@@ -25,7 +25,7 @@ public class NumberUnnaryOperator : Node
 
     // Ports
     public let outputNumber:NodePort<Float>
-    public override var ports: [AnyPort] {  [outputNumber] + super.ports}
+    public override var ports: [Port] {  [outputNumber] + super.ports}
 
     private var mathOperator = UnaryMathOperator.Sine
     private var lastOutput:Float = .nan

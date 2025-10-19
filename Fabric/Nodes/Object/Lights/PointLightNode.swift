@@ -36,7 +36,7 @@ public class PointLightNode : ObjectNode<PointLight>
     
     // Ports
     public let outputLight: NodePort<Object>
-    public override var ports: [AnyPort] {  [outputLight] + super.ports }
+    public override var ports: [Port] {  [outputLight] + super.ports }
     
     public override var object: PointLight? {
         return light

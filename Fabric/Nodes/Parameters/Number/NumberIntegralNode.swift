@@ -22,7 +22,7 @@ public class NumberIntegralNode : Node
 
     // Ports
     public let outputNumber:NodePort<Float>
-    public override var ports: [AnyPort] { super.ports + [ outputNumber] }
+    public override var ports: [Port] { super.ports + [ outputNumber] }
     
     // Ensure we always render!
     public override var isDirty:Bool { get {  true  } set { } }

@@ -34,7 +34,7 @@ public class DirectionalLightNode : ObjectNode<DirectionalLight>
     
     // Ports
     public let outputLight: NodePort<Object>
-    public override var ports: [AnyPort] {  [outputLight] + super.ports }
+    public override var ports: [Port] {  [outputLight] + super.ports }
     
     public override var object: DirectionalLight? {
         return light

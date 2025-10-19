@@ -17,7 +17,7 @@ public class SubgraphNode: BaseObjectNode
 
     let subGraph:Graph
     
-    override public var ports:[AnyPort] { self.subGraph.publishedPorts() }
+    override public var ports:[Port] { self.subGraph.publishedPorts() }
     
     override public func getObject() -> Object?
     {

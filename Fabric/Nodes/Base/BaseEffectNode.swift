@@ -37,7 +37,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
     // Ports
     let inputTexturePort:NodePort<EquatableTexture>
     let outputTexturePort:NodePort<EquatableTexture>
-    override var ports: [AnyPort] { [inputTexturePort, outputTexturePort] + super.ports}
+    override var ports: [Port] { [inputTexturePort, outputTexturePort] + super.ports}
     
     private var url:URL? = nil
     

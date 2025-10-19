@@ -10,57 +10,13 @@ import Metal
 import Satin
 import Combine
 
-//public protocol NodeProtocol : AnyObject, Codable,  Equatable, Identifiable, Hashable
-//{
-//    static var name:String { get }
-//    static var nodeType:Node.NodeType { get }
-//    
-//    var id: UUID { get }
-//    
-//    var nodeType:Node.NodeType { get }
-//    var name:String { get }
-//
-//    init(context:Context)
-//    
-//    var ports:[AnyPort] { get }
-//    
-//    var parameterGroup:ParameterGroup { get }
-//      
-//    /// Performs the processing or rendering tasks appropriate for the custom patch.
-//    func execute(context:GraphExecutionContext,
-//                 renderPassDescriptor: MTLRenderPassDescriptor,
-//                 commandBuffer: MTLCommandBuffer)
-//    
-//    func resize(size: (width: Float, height: Float), scaleFactor: Float)
-//    
-//    func markDirty()
-//    func markClean()
-//    var isDirty:Bool { get }
-//
-//    // For the Graph
-//    func publishedPorts() -> [any NodePortProtocol]
-//    // For the UI
-//    func publishedParameterPorts() -> [any NodePortProtocol]
-//
-//    var inputNodes:[any NodeProtocol] { get }
-//    var outputNodes:[any NodeProtocol] { get }
-//    func didConnectToNode(_ node: any NodeProtocol)
-//    func didDisconnectFromNode(_ node: any NodeProtocol)
-//    
-//    var offset: CGSize { get set }
-//    var nodeSize: CGSize { get }
-//    
-//    
-//    var isSelected:Bool { get set}
-//    var isDragging:Bool { get set }
-//}
-
 
 @Observable public class Node : Codable, Equatable, Identifiable, Hashable
 {
-    public class var name:String {  "Geometry" }
-    public class var nodeType:Node.NodeType { .Geometery }
-
+    public class var name:String {  fatalError("Must be implemented") }
+    public class var nodeType:Node.NodeType { fatalError("Must be implemented") }
+    public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    
     // Equatable
     public let id:UUID
     
@@ -83,9 +39,9 @@ import Combine
     @ObservationIgnored public var inputParameters:[any Parameter] { []  }
     @ObservationIgnored public let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
     
-    @ObservationIgnored private var inputParameterPorts:[AnyPort] = []
+    @ObservationIgnored private var inputParameterPorts:[Port] = []
     
-    public var ports:[AnyPort] { self.inputParameterPorts  }
+    public var ports:[Port] { self.inputParameterPorts  }
     public private(set) var inputNodes:[Node] = []
     public private(set) var outputNodes:[Node]  = []
     
@@ -222,12 +178,12 @@ import Combine
 //        return Array(Set(outputNodes))
     }
     
-    public func publishedPorts() -> [AnyPort]
+    public func publishedPorts() -> [Port]
     {
         return self.ports.filter( { $0.published } )
     }
     
-    public func publishedParameterPorts() -> [AnyPort]
+    public func publishedParameterPorts() -> [Port]
     {
         return self.inputParameterPorts.filter( { $0.published } )
     }
@@ -291,14 +247,14 @@ import Combine
     
     // Mark - Private helper
     
-    private func parametersGroupToPorts(_ parameters:[(any Parameter)]) -> [AnyPort]
+    private func parametersGroupToPorts(_ parameters:[(any Parameter)]) -> [Port]
     {
 //        print(self.name, "parametersGroupToPorts")
         return parameters.compactMap( {
             self.parameterToPort(parameter:$0) })
     }
     
-    private func parameterToPort(parameter:(any Parameter)) -> AnyPort?
+    private func parameterToPort(parameter:(any Parameter)) -> Port?
     {
 //        print(self.name, "parameterToPort", parameter.label)
                 

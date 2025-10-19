@@ -115,7 +115,7 @@ public struct NodeCanvas : View
                 
                 ForEach( ports.filter({ $0.kind == .Outlet }), id: \.id) { port in
                     
-                    let connectedPorts:[AnyPort] = port.connections.filter({ $0.kind == .Inlet })
+                    let connectedPorts:[Port] = port.connections.filter({ $0.kind == .Inlet })
                     
                     ForEach( connectedPorts , id: \.id) { connectedPort in
                         
@@ -164,7 +164,7 @@ public struct NodeCanvas : View
         } // Pan Canvas
     }
     
-    private func calcPathUsing(port:(AnyPort), start:CGPoint, end:CGPoint) -> Path
+    private func calcPathUsing(port:(Port), start:CGPoint, end:CGPoint) -> Path
     {
         let lowerBound = 5.0
         let upperBound = 10.0

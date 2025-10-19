@@ -24,7 +24,7 @@ public class CursorNode : Node
     // Ports
     public let outputCursorPosition:NodePort<simd_float2>
     public let outputTap:NodePort<Bool>
-    public override var ports: [AnyPort] { [ self.outputCursorPosition, self.outputTap] + super.ports}
+    public override var ports: [Port] { [ self.outputCursorPosition, self.outputTap] + super.ports}
     
     public override var isDirty:Bool { true }
   

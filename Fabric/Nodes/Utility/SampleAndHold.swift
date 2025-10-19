@@ -26,7 +26,7 @@ public class SampleAndHold<ValueType : Equatable & FabricDescription> : Node
     
     private var value:ValueType?
     
-    public override var ports: [AnyPort] { [ self.inputValue, self.outputValue ] + super.ports}
+    public override var ports: [Port] { [ self.inputValue, self.outputValue ] + super.ports}
     
     public required init(context: Context)
     {

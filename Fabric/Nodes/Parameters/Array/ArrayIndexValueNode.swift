@@ -21,7 +21,7 @@ public class ArrayIndexValueNode<Value : Equatable & FabricDescription> : Node
 
     let inputPort:NodePort<ContiguousArray<Value>>
     let outputPort:NodePort<Value>
-    override public var ports:[AnyPort] {  [inputPort, outputPort] + super.ports}
+    override public var ports:[Port] {  [inputPort, outputPort] + super.ports}
     
     required public init(context:Context)
     {

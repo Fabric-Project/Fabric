@@ -18,7 +18,7 @@ public class ConvertToStringNode : Node
 
     let inputPort:NodePort<AnyLoggable>
     let outputPort:NodePort<String>
-    override public var ports:[AnyPort] {  [inputPort, outputPort] + super.ports}
+    override public var ports:[Port] {  [inputPort, outputPort] + super.ports}
 
     private var url: URL? = nil
     private var string: String? = nil

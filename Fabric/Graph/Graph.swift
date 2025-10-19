@@ -304,7 +304,7 @@ internal import AnyCodable
         }
     }
     
-    public func nodePort(forID:UUID) -> AnyPort?
+    public func nodePort(forID:UUID) -> Port?
     {
         if let activeSubGraph
         {
@@ -336,7 +336,7 @@ internal import AnyCodable
     }
     
     // This could be more nicely done.
-    public func publishedPorts() -> [AnyPort]
+    public func publishedPorts() -> [Port]
     {
         return  self.nodes.flatMap( { $0.publishedPorts() } )
     }

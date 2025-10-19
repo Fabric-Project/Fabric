@@ -18,7 +18,7 @@ public class PixelsToUnitsNode : Node
     // Ports
     public let inputCursorPosition:NodePort<simd_float2>
     public let outputUnitPosition:NodePort<simd_float3>
-    public override var ports: [AnyPort] { [ self.inputCursorPosition, self.outputUnitPosition] + super.ports}
+    public override var ports: [Port] { [ self.inputCursorPosition, self.outputUnitPosition] + super.ports}
     
     public required init(context: Context)
     {

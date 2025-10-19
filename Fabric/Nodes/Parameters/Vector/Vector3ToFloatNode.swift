@@ -23,7 +23,7 @@ public class Vector3ToFloatNode : Node
     public let outputXPort:NodePort<Float>
     public let outputYPort:NodePort<Float>
     public let outputZPort:NodePort<Float>
-    public override var ports: [AnyPort] { [outputXPort, outputYPort, outputZPort] + super.ports}
+    public override var ports: [Port] { [outputXPort, outputYPort, outputZPort] + super.ports}
 
     public required init(context: Context)
     {

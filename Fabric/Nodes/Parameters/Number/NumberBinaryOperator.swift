@@ -29,7 +29,7 @@ public class NumberBinaryOperator : Node
     private var mathOperator = BinaryMathOperator.Add
     private var output:Float = 0.0
     
-    public override var ports: [AnyPort] { [outputNumber] + super.ports }
+    public override var ports: [Port] { [outputNumber] + super.ports }
 
     public required init(context: Context)
     {
@@ -93,6 +93,6 @@ public class NumberBinaryOperator : Node
                                                     rhs: self.inputBParam.value)
         }
         
-        self.outputNumber.send(self.output)        
+        self.outputNumber.send(self.output)
     }
 }

@@ -28,7 +28,7 @@ public class DeferredSubgraphNode: SubgraphNode
     public let outputColorTexture:NodePort<EquatableTexture>
     public let outputDepthTexture:NodePort<EquatableTexture>
     
-    public override var ports: [AnyPort] {[outputColorTexture, outputDepthTexture] + super.ports}
+    public override var ports: [Port] {[outputColorTexture, outputDepthTexture] + super.ports}
 
     override public var object:Object? {
         return nil

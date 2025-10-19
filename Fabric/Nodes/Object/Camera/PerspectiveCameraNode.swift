@@ -21,7 +21,7 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
 
     // Ports
     public let outputCamera:NodePort<Camera>
-    public override var ports: [AnyPort] { [outputCamera] + super.ports }
+    public override var ports: [Port] { [outputCamera] + super.ports }
 
     override public var object: PerspectiveCamera?
     {

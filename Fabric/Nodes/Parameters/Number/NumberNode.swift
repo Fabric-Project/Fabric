@@ -22,7 +22,7 @@ public class NumberNode : Node
 
     // Ports
     public let outputNumber:NodePort<Float>
-    public override var ports: [AnyPort] {  [outputNumber] + super.ports }
+    public override var ports: [Port] {  [outputNumber] + super.ports }
 
     public required init(context: Context)
     {

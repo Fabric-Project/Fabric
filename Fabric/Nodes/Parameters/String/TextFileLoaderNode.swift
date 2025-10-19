@@ -20,7 +20,7 @@ public class TextFileLoaderNode : Node
     override public var inputParameters: [any Parameter] { [self.inputFilePathParam] + super.inputParameters}
 
     let outputPort:NodePort<String>
-    override public var ports:[AnyPort] {  [outputPort] + super.ports}
+    override public var ports:[Port] {  [outputPort] + super.ports}
 
     private var url: URL? = nil
     private var string: String? = nil

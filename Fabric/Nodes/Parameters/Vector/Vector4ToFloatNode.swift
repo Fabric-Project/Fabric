@@ -24,7 +24,7 @@ public class Vector4ToFloatNode : Node
     public let outputYPort:NodePort<Float>
     public let outputZPort:NodePort<Float>
     public let outputWPort:NodePort<Float>
-    public override var ports: [AnyPort] { [outputXPort, outputYPort, outputZPort, outputWPort] + super.ports}
+    public override var ports: [Port] { [outputXPort, outputYPort, outputZPort, outputWPort] + super.ports}
 
     public required init(context: Context)
     {
