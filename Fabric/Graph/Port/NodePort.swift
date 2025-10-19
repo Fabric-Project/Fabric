@@ -9,113 +9,6 @@ import SwiftUI
 import Satin
 import CoreMedia
 
-public enum PortKind : String, Codable
-{
-    case Inlet
-    case Outlet
-}
-
-
-// TODO: This should maybe be removed?
-public enum PortDirection : String, Codable
-{
-    case Vertical
-    case Horizontal
-}
-
-
-public struct PortAnchorKey: PreferenceKey
-{
-    public typealias Value = [UUID : Anchor<CGPoint>]
-    
-    public static var defaultValue: [UUID : Anchor<CGPoint>] = [:]
-    
-    public static func reduce(value: inout [UUID : Anchor<CGPoint>],
-                       nextValue: () -> [UUID : Anchor<CGPoint>])
-    {
-        // later writers win
-        value.merge(nextValue(), uniquingKeysWith: { $1 })
-    }
-}
-
-//public protocol NodePortProtocol : Identifiable, Hashable, Equatable, Codable, AnyObject, CustomDebugStringConvertible
-//{
-//    var id: UUID { get }
-//    var name: String { get }
-//    var connections: [Port] { get set }
-//    var kind:PortKind { get }
-//    
-//    var published:Bool { get set }
-//    
-//    var node: Node? { get set }
-//
-//    func connect(to other: Port)
-//    func disconnect(from other: Port)
-//    func disconnectAll()
-//
-//    var color: Color { get }
-//    var backgroundColor: Color { get }
-//    var direction:PortDirection { get }
-//
-////    var value: Any? { get set }
-//    var valueType: Any.Type { get }
-//    var valueDescription: String { get }
-//    var valueDidChange:Bool { get set }
-//}
-
-
-public class ParameterPort<ParamValue : Codable & Equatable & Hashable> : NodePort<ParamValue>
-{
-    public let parameter: GenericParameter<ParamValue>
-    
-    public init(parameter: GenericParameter<ParamValue>)
-    {
-        self.parameter = parameter
-        
-        super.init(name: parameter.label, kind: .Inlet, id:parameter.id)
-    }
-    
-    required public init(from decoder: any Decoder) throws {
-        self.parameter = try GenericParameter(from: decoder)
-
-        try super.init(from: decoder)
-    }
-    
-    override public func encode(to encoder: any Encoder) throws {
-        
-        try super.encode(to: encoder)
-        
-        try self.parameter.encode(to: encoder)
-    }
-    
-    override public var valueDidChange: Bool
-    {
-        didSet
-        {
-            self.parameter.valueDidChange = self.valueDidChange
-        }
-    }
-    
-    override public var value: ParamValue?
-    {
-        get
-        {
-            self.parameter.value
-        }
-        set
-        {
-            if let newValue = newValue
-            {
-                if  parameter.value != newValue
-                {
-                    parameter.value = newValue
-                    self.valueDidChange = true
-                    self.node?.markDirty()
-                }
-            }
-        }
-    }
-}
 
 public class NodePort<Value : Equatable>: Port
 {
@@ -318,8 +211,6 @@ public class NodePort<Value : Equatable>: Port
     
     private func send(_ v:Value?, to other: NodePort<Value>, force:Bool = false)
     {
-        
-        
         if other.value != v || force
         {
             other.value = v

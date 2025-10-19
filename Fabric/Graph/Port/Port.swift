@@ -8,6 +8,36 @@
 import Foundation
 import SwiftUI
 
+public enum PortKind : String, Codable
+{
+    case Inlet
+    case Outlet
+}
+
+
+// TODO: This should maybe be removed?
+public enum PortDirection : String, Codable
+{
+    case Vertical
+    case Horizontal
+}
+
+
+public struct PortAnchorKey: PreferenceKey
+{
+    public typealias Value = [UUID : Anchor<CGPoint>]
+    
+    public static var defaultValue: [UUID : Anchor<CGPoint>] = [:]
+    
+    public static func reduce(value: inout [UUID : Anchor<CGPoint>],
+                       nextValue: () -> [UUID : Anchor<CGPoint>])
+    {
+        // later writers win
+        value.merge(nextValue(), uniquingKeysWith: { $1 })
+    }
+}
+
+// Non Generic Base class defintion, dont use directly
 public class Port : Identifiable, Hashable, Equatable, Codable, CustomDebugStringConvertible
 {
     public static func == (lhs: Port, rhs: Port) -> Bool
@@ -30,8 +60,8 @@ public class Port : Identifiable, Hashable, Equatable, Codable, CustomDebugStrin
         
     // Maybe a bit too verbose?
 //    public var value: Any? { fatalError("override") }
-    public var valueType: Any.Type { fatalError("override") }
-    public var valueDescription:String { fatalError("override") }
+    public var valueType: Any.Type { fatalError("Must be implemented") }
+    public var valueDescription:String { fatalError("Must be implemented") }
     public var valueDidChange:Bool = true
 
     public weak var node: Node?
@@ -41,13 +71,10 @@ public class Port : Identifiable, Hashable, Equatable, Codable, CustomDebugStrin
     public var color:Color
     public var backgroundColor:Color
 
-
-
     public var debugDescription: String
     {
         return "\(self.node?.name ?? "No Node!!") - \(String(describing: type(of: self)))  \(id)"
     }
-
     
     public init(name: String, kind: PortKind, id:UUID)
     {

@@ -13,10 +13,18 @@ import Combine
 
 @Observable public class Node : Codable, Equatable, Identifiable, Hashable
 {
+    // User interface name
     public class var name:String {  fatalError("Must be implemented") }
-    public class var nodeType:Node.NodeType { fatalError("Must be implemented") }
-    public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     
+    // User interface organizing principle
+    public class var nodeType:Node.NodeType { fatalError("Must be implemented") }
+    
+    // Execution mode value is used to determine when this node is evaluated
+    public class var nodeExecutionMode: Node.ExecutionMode { fatalError("Must be implemented") }
+    
+    // User interface description
+    public class var nodeDescription: String { fatalError("Must be implemented") }
+
     // Equatable
     public let id:UUID
     
@@ -30,6 +38,22 @@ import Combine
     public static func == (lhs: Node, rhs: Node) -> Bool
     {
         return lhs.id == rhs.id
+    }
+    
+    public var name : String
+    {
+        let myType = type(of: self)
+        return  myType.name
+    }
+    
+    @ObservationIgnored public var nodeType:NodeType
+    {
+        return Self.nodeType
+    }
+    
+    @ObservationIgnored public var nodeExecutionMode:ExecutionMode
+    {
+        return Self.nodeExecutionMode
     }
     
     @ObservationIgnored var context:Context
@@ -48,19 +72,6 @@ import Combine
     public var isSelected:Bool = false
     public var isDragging:Bool = false
     //    var showParams:Bool = false
-    
-    @ObservationIgnored public var nodeType:NodeType
-    {
-        return Self.nodeType
-//        let myType = type(of: self)
-//        return  myType.nodeType
-    }
-    
-    public var name : String
-    {
-        let myType = type(of: self)
-        return  myType.name
-    }
     
     public var nodeSize:CGSize { self.computeNodeSize() }
     
