@@ -116,7 +116,7 @@ import Combine
         
         
 //        self.inputParameterPorts = self.parametersGroupToPorts(self.inputParameters)
-        self.parameterGroup.append(self.inputParameters)
+//        self.parameterGroup.append(self.inputParameters)
         
         for parameter in self.inputParameters
         {

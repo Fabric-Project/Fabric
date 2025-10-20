@@ -10,7 +10,7 @@ import Satin
 import Metal
 import simd
 
-public class SampleAndHold<ValueType : Equatable & FabricDescription> : Node
+public class SampleAndHold<ValueType : FabricPort & Equatable & FabricDescription> : Node
 {
     public override class var name:String { "Sample and Hold \(ValueType.fabricDescription)" }
     public override class var nodeType:Node.NodeType { Node.NodeType.Utility }

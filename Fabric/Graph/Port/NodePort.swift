@@ -10,7 +10,7 @@ import Satin
 import CoreMedia
 
 
-public class NodePort<Value : Equatable>: Port
+public class NodePort<Value>: Port where Value : FabricPort
 {
     public var value: Value?
     {
@@ -24,6 +24,10 @@ public class NodePort<Value : Equatable>: Port
         }
     }
         
+    @ObservationIgnored override public var portType: PortType {
+        PortType.fromType(Value.self as! any FabricPort)
+    }
+    
     enum CodingKeys : String, CodingKey
     {
         case valueType
@@ -288,10 +292,5 @@ public class NodePort<Value : Equatable>: Port
     private static func calcDirection(forType: Any.Type ) -> PortDirection
     {
         return .Horizontal
-    }
-    
-    public func valueType() -> String
-    {
-        return "\(type(of: self.value))"
     }
 }

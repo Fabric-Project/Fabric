@@ -20,15 +20,15 @@ public class OrthographicCameraNode : ObjectNode<OrthographicCamera>
     public override var inputParameters: [any Parameter] { [inputLookAt] + super.inputParameters}
 
     // Ports
-    public let outputCamera:NodePort<Camera>
-    public override var ports: [Port] { [outputCamera] + super.ports }
+//    public let outputCamera:NodePort<Camera>
+//    public override var ports: [Port] { [outputCamera] + super.ports }
     
     private let camera = OrthographicCamera(left: -1, right: 1, bottom: -1, top: 1, near: 0.01, far: 500.0)
 
     public required init(context:Context)
     {
         self.inputLookAt = Float3Parameter("Look At", simd_float3(repeating:0), .inputfield )
-        self.outputCamera = NodePort<Camera>(name: PerspectiveCameraNode.name, kind: .Outlet)
+//        self.outputCamera = NodePort<Camera>(name: PerspectiveCameraNode.name, kind: .Outlet)
         
         super.init(context: context)
         
@@ -40,7 +40,7 @@ public class OrthographicCameraNode : ObjectNode<OrthographicCamera>
     enum CodingKeys : String, CodingKey
     {
         case inputLookAtParameter
-        case outputCameraPort
+//        case outputCameraPort
     }
     
     public override func encode(to encoder:Encoder) throws
@@ -48,7 +48,7 @@ public class OrthographicCameraNode : ObjectNode<OrthographicCamera>
         var container = encoder.container(keyedBy: CodingKeys.self)
         
         try container.encode(self.inputLookAt, forKey: .inputLookAtParameter)
-        try container.encode(self.outputCamera, forKey: .outputCameraPort)
+//        try container.encode(self.outputCamera, forKey: .outputCameraPort)
         
         try super.encode(to: encoder)
     }
@@ -58,7 +58,7 @@ public class OrthographicCameraNode : ObjectNode<OrthographicCamera>
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
         self.inputLookAt = try container.decode(Float3Parameter.self, forKey: .inputLookAtParameter)
-        self.outputCamera = try container.decode(NodePort<Camera>.self, forKey: .outputCameraPort)
+//        self.outputCamera = try container.decode(NodePort<Camera>.self, forKey: .outputCameraPort)
         
         try super.init(from: decoder)
         
@@ -82,10 +82,10 @@ public class OrthographicCameraNode : ObjectNode<OrthographicCamera>
     {
         let shouldUpdate = self.evaluate(object: self.object, atTime: context.timing.time)
         
-        if shouldUpdate
-        {
-            self.outputCamera.send(self.camera)
-        }
+//        if shouldUpdate
+//        {
+//            self.outputCamera.send(self.camera)
+//        }
     }
     
     public override func resize(size: (width: Float, height: Float), scaleFactor: Float)

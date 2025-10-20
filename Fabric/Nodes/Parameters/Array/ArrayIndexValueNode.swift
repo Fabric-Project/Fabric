@@ -11,7 +11,7 @@ import simd
 import Metal
 import MetalKit
 
-public class ArrayIndexValueNode<Value : Equatable & FabricDescription> : Node
+public class ArrayIndexValueNode<Value : FabricPort & Equatable & FabricDescription> : Node
 {
     public override class var name:String {"\(Value.fabricDescription) Value at Array Index" }
     public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }

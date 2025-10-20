@@ -30,12 +30,14 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
     public let inputPositions:NodePort<ContiguousArray<simd_float3>>
     public let inputGeometry:NodePort<Geometry>
     public let inputMaterial:NodePort<Material>
-    public let outputMesh:NodePort<Object>
+//    public let outputMesh:NodePort<Object>
     
-    public override var ports: [Port] {   [inputGeometry,
-                                                           inputMaterial,
-                                                           inputPositions,
-                                                           outputMesh] + super.ports}
+    public override var ports: [Port] {   [
+        inputGeometry,
+        inputMaterial,
+        inputPositions,
+//        outputMesh
+    ] + super.ports}
     
     override public var object:InstancedMesh? {
         
@@ -67,7 +69,7 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
         self.inputPositions = NodePort<ContiguousArray<simd_float3>>(name: "Positions", kind: .Inlet)
         self.inputGeometry = NodePort<Geometry>(name: "Geometry", kind: .Inlet)
         self.inputMaterial = NodePort<Material>(name: "Material", kind: .Inlet)
-        self.outputMesh = NodePort<Object>(name: MeshNode.name, kind: .Outlet)
+//        self.outputMesh = NodePort<Object>(name: MeshNode.name, kind: .Outlet)
         
         super.init(context: context)
     }
@@ -80,7 +82,7 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
         case inputPositionsPort
         case inputGeometryPort
         case inputMaterialPort
-        case outputMeshPort
+//        case outputMeshPort
     }
     
     public override func encode(to encoder:Encoder) throws
@@ -93,7 +95,7 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
         try container.encode(self.inputGeometry, forKey: .inputGeometryPort)
         try container.encode(self.inputMaterial, forKey: .inputMaterialPort)
         try container.encode(self.inputPositions, forKey: .inputPositionsPort)
-        try container.encode(self.outputMesh, forKey: .outputMeshPort)
+//        try container.encode(self.outputMesh, forKey: .outputMeshPort)
         
         try super.encode(to: encoder)
     }
@@ -111,7 +113,7 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
         self.inputGeometry = try container.decode(NodePort<Geometry>.self, forKey: .inputGeometryPort)
         self.inputMaterial = try container.decode(NodePort<Material>.self, forKey: .inputMaterialPort)
         self.inputPositions = try container.decode(NodePort<ContiguousArray<simd_float3>>.self, forKey: .inputPositionsPort)
-        self.outputMesh = try container.decode(NodePort<Object>.self, forKey: .outputMeshPort)
+//        self.outputMesh = try container.decode(NodePort<Object>.self, forKey: .outputMeshPort)
         
         try super.init(from: decoder)
     }
@@ -162,12 +164,12 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
                 mesh.cullMode = self.cullMode()
             }
             
-            self.outputMesh.send(mesh)
+//            self.outputMesh.send(mesh)
         }
-        else
-        {
-            self.outputMesh.send(nil)
-        }
+//        else
+//        {
+//            self.outputMesh.send(nil)
+//        }
        
      }
     

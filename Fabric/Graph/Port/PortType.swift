@@ -9,10 +9,61 @@ import Foundation
 import Satin
 import simd
 
+public protocol FabricPort : Equatable {}
+
+extension Swift.Bool : FabricPort { }
+extension Swift.Float : FabricPort { }
+extension Swift.Int : FabricPort { }
+extension Swift.String : FabricPort { }
+extension simd.simd_float2 : FabricPort { }
+extension simd.simd_float3 : FabricPort { }
+extension simd.simd_float4 : FabricPort { }
+
+// Temporarily enable these - would need work elsewhere 
+extension simd.simd_quatf : FabricPort { }
+extension simd.simd_float2x2 : FabricPort { }
+extension simd.simd_float3x3 : FabricPort { }
+extension simd.simd_float4x4 : FabricPort { }
+
+extension Satin.Geometry : FabricPort { }
+extension Satin.Material : FabricPort { }
+extension Satin.Shader : FabricPort { }
+extension EquatableTexture : FabricPort { }
+extension ContiguousArray : FabricPort  where Element : FabricPort { }
+extension AnyLoggable :  FabricPort { }
+
+
 public indirect enum PortType : RawRepresentable, Codable
 {
     public typealias RawValue = String
     
+    static func fromType(_ type:any FabricPort) -> PortType
+    {
+        switch type
+        {
+        case is NSNull:               return .Unsupported
+        case is Swift.Bool:           return .Bool
+        case is Swift.Float:          return .Float
+        case is Swift.Int:            return .Int
+        case is Swift.String:         return .String
+        case is simd_float2:          return .Vector2
+        case is simd_float3:          return .Vector3
+        case is simd_float4:          return .Vector4
+        case is Satin.Geometry:       return .Geometry
+        case is Satin.Material:       return .Material
+        case is Satin.Shader:         return .Shader
+        case is EquatableTexture:     return .Image
+            
+        // TODO: Array
+//        case is Swift.ContiguousArray<String(reflecting:type)>:
+//            return .Array(portType: Port.fromType(type ))
+
+        default:
+            return .Unsupported
+            
+        }
+    }
+    case Unsupported
     case Bool
     case Float
     case Int
@@ -30,7 +81,7 @@ public indirect enum PortType : RawRepresentable, Codable
     
     case Array(portType:PortType)
     
-    public init?(rawValue: String)
+    public init(rawValue: String)
     {
         let s = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
         
@@ -41,9 +92,9 @@ public indirect enum PortType : RawRepresentable, Codable
         case "Float":         self = .Float;     return
         case "Int":           self = .Int;       return
         case "String":        self = .String;    return
-        case "simd_float2":   self = .Vector2;   return
-        case "simd_float3":   self = .Vector3;   return
-        case "simd_float4":   self = .Vector4;   return
+        case "Vector 2":      self = .Vector2;   return
+        case "Vector 3":      self = .Vector3;   return
+        case "Vector 4":      self = .Vector4;   return
         case "Color":         self = .Color;     return
         case "Geometry":      self = .Geometry;  return
         case "Material":      self = .Material;  return
@@ -72,18 +123,21 @@ public indirect enum PortType : RawRepresentable, Codable
                     }
                 }
 
-                if let innerStr = inner, let innerType = PortType(rawValue: innerStr) {
+                if let innerStr = inner {
+                    let innerType = PortType(rawValue: innerStr)
                     self = .Array(portType: innerType)
                     return
                 }
             }
 
             // 3) Unknown
-            return nil
+        self =  .Unsupported
     }
     
     public var type:Any.Type {
         switch self {
+        case .Unsupported:
+            return NSNull.self
         case .Bool:
             return Swift.Bool.self
         case .Float:
@@ -113,9 +167,10 @@ public indirect enum PortType : RawRepresentable, Codable
         }
     }
     
-    
     public var rawValue: String {
         switch self {
+        case .Unsupported:
+            return "Unsupported"
         case .Bool:
              return "Bool"
         case .Float:
@@ -125,11 +180,11 @@ public indirect enum PortType : RawRepresentable, Codable
         case .String:
             return "String"
         case .Vector2:
-            return "simd_float2"
+            return "Vector 2"
         case .Vector3:
-            return "simd_float3"
+            return "Vector 3"
         case .Vector4:
-            return "simd_float4"
+            return "Vector 4"
         case .Color:
             return "Color" // could this backire?
         case .Geometry:

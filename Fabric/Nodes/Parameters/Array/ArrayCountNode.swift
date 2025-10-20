@@ -12,7 +12,7 @@ import simd
 import Metal
 import MetalKit
 
-public class ArrayCountNode<Value : Equatable & FabricDescription> : Node
+public class ArrayCountNode<Value : FabricPort & Equatable & FabricDescription> : Node
 {
     public override class var name:String { "\(Value.fabricDescription) Array Count" }
     public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }

@@ -86,8 +86,7 @@ extension UTType
         
     // Maybe a bit too verbose?
 //    public var value: Any? { fatalError("override") }
-    @ObservationIgnored public var valueType: Any.Type { fatalError("Must be implemented") }
-    @ObservationIgnored public var valueDescription:String { fatalError("Must be implemented") }
+    @ObservationIgnored public var portType: PortType { fatalError("Must be implemented") }
     @ObservationIgnored public var valueDidChange:Bool = true
 
     @ObservationIgnored public weak var node: Node?

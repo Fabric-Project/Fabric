@@ -33,8 +33,8 @@ public class DirectionalLightNode : ObjectNode<DirectionalLight>
         inputShadowBias] + super.inputParameters }
     
     // Ports
-    public let outputLight: NodePort<Object>
-    public override var ports: [Port] {  [outputLight] + super.ports }
+//    public let outputLight: NodePort<Object>
+//    public override var ports: [Port] {  [outputLight] + super.ports }
     
     public override var object: DirectionalLight? {
         return light
@@ -55,7 +55,7 @@ public class DirectionalLightNode : ObjectNode<DirectionalLight>
         self.inputShadowRadius = FloatParameter("Shadow Radius", 2.0, 0.0, 10.0, .slider)
         self.inputShadowBias = FloatParameter("Shadow Bias", 0.005, 0.0, 1.0, .slider)
         
-        self.outputLight = NodePort<Object>(name: MeshNode.name, kind: .Outlet)
+//        self.outputLight = NodePort<Object>(name: MeshNode.name, kind: .Outlet)
         
         super.init(context: context)
         
@@ -71,7 +71,7 @@ public class DirectionalLightNode : ObjectNode<DirectionalLight>
         case inputShadowRadiusParameter
         case inputShadowBiasParameter
         
-        case outputLightPort
+//        case outputLightPort
     }
     
     public override func encode(to encoder:Encoder) throws
@@ -85,7 +85,7 @@ public class DirectionalLightNode : ObjectNode<DirectionalLight>
         try container.encode(self.inputShadowRadius, forKey: .inputShadowRadiusParameter)
         try container.encode(self.inputShadowBias, forKey: .inputShadowBiasParameter)
 
-        try container.encode(self.outputLight, forKey: .outputLightPort)
+//        try container.encode(self.outputLight, forKey: .outputLightPort)
         
         try super.encode(to: encoder)
     }
@@ -100,7 +100,7 @@ public class DirectionalLightNode : ObjectNode<DirectionalLight>
         self.inputShadowStrength = try container.decode(FloatParameter.self, forKey: .inputShadowStrengthParameter)
         self.inputShadowRadius = try container.decode(FloatParameter.self, forKey: .inputShadowRadiusParameter)
         self.inputShadowBias = try container.decode(FloatParameter.self, forKey: .inputShadowBiasParameter)
-        self.outputLight = try container.decode(NodePort<Object>.self, forKey: .outputLightPort)
+//        self.outputLight = try container.decode(NodePort<Object>.self, forKey: .outputLightPort)
 
         try super.init(from: decoder)
         
@@ -170,9 +170,9 @@ public class DirectionalLightNode : ObjectNode<DirectionalLight>
     {
         let shouldUpdate = self.evaluate(object: self.light, atTime: context.timing.time)
 
-        if shouldUpdate
-        {
-            self.outputLight.send(light)
-        }
+//        if shouldUpdate
+//        {
+//            self.outputLight.send(light)
+//        }
     }
 }

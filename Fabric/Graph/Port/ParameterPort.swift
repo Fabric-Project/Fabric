@@ -7,7 +7,7 @@
 
 import Foundation
 
-public class ParameterPort<ParamValue : Codable & Equatable & Hashable> : NodePort<ParamValue>
+public class ParameterPort<ParamValue : FabricPort & Codable & Equatable & Hashable> : NodePort<ParamValue>
 {
     public let parameter: GenericParameter<ParamValue>
     
