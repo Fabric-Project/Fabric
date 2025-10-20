@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import UniformTypeIdentifiers
 
 public enum PortKind : String, Codable
 {
@@ -37,8 +38,33 @@ public struct PortAnchorKey: PreferenceKey
     }
 }
 
+
+
+struct OutletData : Codable
+{
+    let portID: UUID
+    init(portID: UUID)
+    {
+        self.portID = portID
+    }
+}
+
+extension OutletData :Transferable
+{
+    static var transferRepresentation: some TransferRepresentation
+    {
+        CodableRepresentation(contentType: .outletData)
+    }
+}
+
+extension UTType
+{
+    static var outletData: UTType { UTType(exportedAs: "info.vade.v.outletData") }
+}
+
+
 // Non Generic Base class defintion, dont use directly
-public class Port : Identifiable, Hashable, Equatable, Codable, CustomDebugStringConvertible
+@Observable public class Port : Identifiable, Hashable, Equatable, Codable, CustomDebugStringConvertible
 {
     public static func == (lhs: Port, rhs: Port) -> Bool
     {
@@ -60,16 +86,16 @@ public class Port : Identifiable, Hashable, Equatable, Codable, CustomDebugStrin
         
     // Maybe a bit too verbose?
 //    public var value: Any? { fatalError("override") }
-    public var valueType: Any.Type { fatalError("Must be implemented") }
-    public var valueDescription:String { fatalError("Must be implemented") }
-    public var valueDidChange:Bool = true
+    @ObservationIgnored public var valueType: Any.Type { fatalError("Must be implemented") }
+    @ObservationIgnored public var valueDescription:String { fatalError("Must be implemented") }
+    @ObservationIgnored public var valueDidChange:Bool = true
 
-    public weak var node: Node?
+    @ObservationIgnored public weak var node: Node?
     public var connections: [Port] = []
-    public let kind: PortKind
-    public let direction:PortDirection = .Horizontal
-    public var color:Color
-    public var backgroundColor:Color
+    @ObservationIgnored public let kind: PortKind
+    @ObservationIgnored public let direction:PortDirection = .Horizontal
+    @ObservationIgnored public var color:Color
+    @ObservationIgnored public var backgroundColor:Color
 
     public var debugDescription: String
     {
@@ -87,7 +113,6 @@ public class Port : Identifiable, Hashable, Equatable, Codable, CustomDebugStrin
     
     enum CodingKeys : String, CodingKey
     {
-        case valueType
         case id
         case name
         case connections

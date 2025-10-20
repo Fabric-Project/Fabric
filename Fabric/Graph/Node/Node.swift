@@ -87,9 +87,11 @@ import Combine
     enum CodingKeys : String, CodingKey
     {
         case id
-        case inputParameters
         case nodeOffset
-        case valuePorts
+        case ports
+
+        // Deperecated...
+        case inputParameters
     }
     
     public required init(from decoder: any Decoder) throws
@@ -105,8 +107,15 @@ import Combine
         
         self.id = try container.decode(UUID.self, forKey: .id)
         self.offset = try container.decode(CGSize.self, forKey: .nodeOffset)
+  
+        // get a single value container
+        if let ports = try container.decodeIfPresent([Port].self, forKey: .ports)
+        {
+            self.inputParameterPorts = ports
+        }
         
-        self.inputParameterPorts = self.parametersGroupToPorts(self.inputParameters)
+        
+//        self.inputParameterPorts = self.parametersGroupToPorts(self.inputParameters)
         self.parameterGroup.append(self.inputParameters)
         
         for parameter in self.inputParameters
@@ -129,7 +138,8 @@ import Combine
         try container.encode(self.id, forKey: .id)
         try container.encode(self.offset, forKey: .nodeOffset)
         
-        try container.encode(self.parameterGroup, forKey: .inputParameters)
+        try container.encode(self.ports, forKey: .ports)
+//        try container.encode(self.parameterGroup, forKey: .inputParameters)
     }
     
     public required init (context:Context)

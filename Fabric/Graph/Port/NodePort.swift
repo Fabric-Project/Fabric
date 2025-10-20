@@ -23,6 +23,11 @@ public class NodePort<Value : Equatable>: Port
             }
         }
     }
+        
+    enum CodingKeys : String, CodingKey
+    {
+        case valueType
+    }
     
     override public init(name: String, kind: PortKind, id:UUID = UUID()) {
         super.init(name: name, kind: kind, id:id)
@@ -33,6 +38,8 @@ public class NodePort<Value : Equatable>: Port
     
     required public init(from decoder: any Decoder) throws
     {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
         try super.init(from: decoder)
 
         self.color = Self.calcColor(forType: Value.self)
