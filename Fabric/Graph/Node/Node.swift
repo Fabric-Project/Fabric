@@ -60,12 +60,18 @@ import Combine
 
     @ObservationIgnored weak var graph:Graph?
 
+    // All port serilization, adding, removing and key value access goes through the port registry
+    @ObservationIgnored private let registry = PortRegistry()
+    
+    // Method to register ports
+    public class func registerPorts(context: Context) -> [(name: String, port: Port)] { [] }
+    
+    // these can go away
     @ObservationIgnored public var inputParameters:[any Parameter] { []  }
     @ObservationIgnored public let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
-    
     @ObservationIgnored private var inputParameterPorts:[Port] = []
     
-    public var ports:[Port] { self.inputParameterPorts  }
+    public var ports:[Port] { self.registry.all()   }
     public private(set) var inputNodes:[Node] = []
     public private(set) var outputNodes:[Node]  = []
     
@@ -84,13 +90,15 @@ import Combine
     // Input Parameter update tracking:
     @ObservationIgnored var inputParamCancellables: [AnyCancellable] = []
 
+    
+    // MARK: - Serialization and Init
     enum CodingKeys : String, CodingKey
     {
         case id
         case nodeOffset
         case ports
 
-        // Deperecated...
+        // Depreciated...
         case inputParameters
     }
     
@@ -108,27 +116,34 @@ import Combine
         self.id = try container.decode(UUID.self, forKey: .id)
         self.offset = try container.decode(CGSize.self, forKey: .nodeOffset)
   
+        let declared = Self.registerPorts(context:self.context)
+
+        let snaps = try container.decodeIfPresent([PortRegistry.Snapshot].self, forKey: .ports) ?? []
+
+        // let registry merge decoded with declared
+        self.registry.rebuild(from: snaps, declared: declared, owner: self)
+
         // get a single value container
-        if let ports = try container.decodeIfPresent([Port].self, forKey: .ports)
-        {
-            self.inputParameterPorts = ports
-        }
+//        if let ports = try container.decodeIfPresent([Port].self, forKey: .ports)
+//        {
+//            self.inputParameterPorts = ports
+//        }
         
         
 //        self.inputParameterPorts = self.parametersGroupToPorts(self.inputParameters)
 //        self.parameterGroup.append(self.inputParameters)
         
-        for parameter in self.inputParameters
-        {
-            let cancellable = self.makeCancelable(parameter: parameter)
-//
-            self.inputParamCancellables.append(cancellable)
-        }
-        
-        for port in self.ports
-        {
-            port.node = self
-        }
+//        for parameter in self.inputParameters
+//        {
+//            let cancellable = self.makeCancelable(parameter: parameter)
+////
+//            self.inputParamCancellables.append(cancellable)
+//        }
+//        
+//        for port in self.ports
+//        {
+//            port.node = self
+//        }
     }
     
     public func encode(to encoder:Encoder) throws
@@ -137,29 +152,33 @@ import Combine
         
         try container.encode(self.id, forKey: .id)
         try container.encode(self.offset, forKey: .nodeOffset)
-        
-        try container.encode(self.ports, forKey: .ports)
-//        try container.encode(self.parameterGroup, forKey: .inputParameters)
+        try container.encode(self.registry.encode(), forKey: .ports)
     }
     
-    public required init (context:Context)
+    public required init(context:Context)
     {
         self.id = UUID()
         self.context = context
-        self.inputParameterPorts = self.parametersGroupToPorts(self.inputParameters)
-        self.parameterGroup.append(self.inputParameters)
         
-        for parameter in self.inputParameters
-        {
-            let cancellable = self.makeCancelable(parameter: parameter)
-//
-            self.inputParamCancellables.append(cancellable)
+        let declared = Self.registerPorts(context: context)
+        for (name, p) in declared {
+            self.registry.register(p, name: name, owner: self)
         }
+
+//        self.inputParameterPorts = self.parametersGroupToPorts(self.inputParameters)
+//        self.parameterGroup.append(self.inputParameters)
+//        
+//        for parameter in self.inputParameters
+//        {
+//            let cancellable = self.makeCancelable(parameter: parameter)
+////
+//            self.inputParamCancellables.append(cancellable)
+//        }
         
-        for port in self.ports
-        {
-            port.node = self
-        }
+//        for port in self.ports
+//        {
+//            port.node = self
+//        }
     }
     
     deinit
@@ -167,6 +186,37 @@ import Combine
         print("Deleted node \(id)")
     }
     
+    
+    // MARK: - Ports
+    
+    // Convenience for subclasses: typed lookup (so computed props stay nice)
+    public func port<T: Port>(named name: String, as type: T.Type = T.self) -> T
+    {
+        registry.port(named: name) as! T
+    }
+    
+    // Dynamic add/remove (kept by serialization automatically)
+    public func addDynamicPort(_ p: Port)
+    {
+        self.registry.addDynamic(p, owner: self)
+    }
+    
+    public func removePort(_ p: Port)
+    {
+        self.registry.remove(p)
+    }
+    
+    public func publishedPorts() -> [Port]
+    {
+        return self.ports.filter( { $0.published } )
+    }
+    
+    public func publishedParameterPorts() -> [Port]
+    {
+        return self.ports.filter( { $0.published } )
+    }
+    
+    // MARK: - Connections
     
     
     public func didConnectToNode(_ node: Node)
@@ -199,15 +249,7 @@ import Combine
 //        return Array(Set(outputNodes))
     }
     
-    public func publishedPorts() -> [Port]
-    {
-        return self.ports.filter( { $0.published } )
-    }
-    
-    public func publishedParameterPorts() -> [Port]
-    {
-        return self.inputParameterPorts.filter( { $0.published } )
-    }
+
     
     public func markClean()
     {
@@ -237,6 +279,8 @@ import Combine
         return cancellable
     }
     
+    // MARK: - Execution
+    
     public func startExecution(context:GraphExecutionContext) { }
     public func stopExecution(context:GraphExecutionContext) { }
 
@@ -249,6 +293,8 @@ import Combine
     
     public func resize(size: (width: Float, height: Float), scaleFactor: Float) { }
    
+    // MARK: - Helpers
+    
     func computeNodeSize() -> CGSize
     {
         let horizontalInputsCount = self.ports.filter { $0.direction == .Horizontal && $0.kind != .Inlet  }.count

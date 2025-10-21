@@ -46,9 +46,8 @@ final class PortRegistry
         self.register(port, name: port.name, owner: owner)
     }
 
-    func remove(named name: String)
+    func remove(_ p: Port)
     {
-        guard let p = self.byName.removeValue(forKey: name) else { return }
         p.disconnectAll()
         self.byID[p.id] = nil
         if let i = ordered.firstIndex(where: { $0.id == p.id }) { self.ordered.remove(at: i) }

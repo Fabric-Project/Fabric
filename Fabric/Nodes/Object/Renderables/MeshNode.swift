@@ -15,32 +15,29 @@ public class MeshNode : BaseRenderableNode<Mesh>
     override public class var name:String { "Mesh" }
     override public class var nodeType:Node.NodeType { .Object(objectType: .Mesh) }
 
-    // Params
-    public let inputCastsShadow:BoolParameter
-    public let inputDoubleSided:BoolParameter
-    public let inputCullingMode:StringParameter
-    
-    public override var inputParameters: [any Parameter] { [
-        self.inputCastsShadow,
-        self.inputDoubleSided,
-        self.inputCullingMode
-    ] + super.inputParameters}
-
-    // Ports
-    public let inputGeometry:NodePort<Geometry>
-    public let inputMaterial:NodePort<Material>
-//    public let outputMesh:NodePort<Object>
-    
-    public override var ports: [Port] {   [inputGeometry,
-                                                           inputMaterial,
-//                                                           outputMesh
-    ] + super.ports}
+    // Register ports, in order of appearance
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        [
+            ("inputGeometry",  NodePort<Geometry>(name: "Geometry", kind: .Inlet)),
+            ("inputMaterial",  NodePort<Material>(name: "Material", kind: .Inlet)),
+            ("inputCastsShadow",  ParameterPort(parameter: BoolParameter("Enable Shadows", true, .button) ) ),
+            ("inputDoubleSided",  ParameterPort(parameter: BoolParameter("Double Sided", false, .button) ) ),
+            ("inputCullingMode",  ParameterPort(parameter: StringParameter("Culling Mode", "Back", ["Back", "Front", "None"], .dropdown) ) ),
+        ]
+    }
+        
+    // Ergonomic access (no storage assignment needed)
+    public var inputGeometry: NodePort<Geometry>   { port(named: "inputGeometry") }
+    public var inputMaterial: NodePort<Material>   { port(named: "inputMaterial") }
+    public var inputCastsShadow: ParameterPort<Bool>   { port(named: "inputCastsShadow") }
+    public var inputDoubleSided: ParameterPort<Bool>   { port(named: "inputDoubleSided") }
+    public var inputCullingMode: NodePort<String>   { port(named: "inputCullingMode") }
 
     
     override public var object:Mesh? {
         
         // This is tricky - we want to output nil if we have no inputGeometry  / inputMaterial from upstream ports
-        if let _ = self.inputGeometry.value ,
+        if let _ = self.inputGeometry.value,
            let _ = self.inputMaterial.value
         {
             return mesh
@@ -60,37 +57,37 @@ public class MeshNode : BaseRenderableNode<Mesh>
 
     public required init(context: Context)
     {
-        self.inputCastsShadow = BoolParameter("Enable Shadows", true, .button)
-        self.inputDoubleSided = BoolParameter("Double Sided", false, .button)
-        self.inputCullingMode = StringParameter("Culling Mode", "Back", ["Back", "Front", "None"], .dropdown)
-        
-        self.inputGeometry = NodePort<Geometry>(name: "Geometry", kind: .Inlet)
-        self.inputMaterial = NodePort<Material>(name: "Material", kind: .Inlet)
-//        self.outputMesh = NodePort<Object>(name: MeshNode.name, kind: .Outlet)
-        
+//        self.inputCastsShadow = BoolParameter("Enable Shadows", true, .button)
+//        self.inputDoubleSided = BoolParameter("Double Sided", false, .button)
+//        self.inputCullingMode = StringParameter("Culling Mode", "Back", ["Back", "Front", "None"], .dropdown)
+//        
+//        self.inputGeometry = NodePort<Geometry>(name: "Geometry", kind: .Inlet)
+//        self.inputMaterial = NodePort<Material>(name: "Material", kind: .Inlet)
+////        self.outputMesh = NodePort<Object>(name: MeshNode.name, kind: .Outlet)
+//        
         super.init(context: context)
     }
     
         
-    enum CodingKeys : String, CodingKey
-    {
-        case inputCastsShadowParameter
-        case inputDoubleSidedParemeter
-        case inputCullModeParameter
-        case inputGeometryPort
-        case inputMaterialPort
-//        case outputMeshPort
-    }
+//    enum CodingKeys : String, CodingKey
+//    {
+//        case inputCastsShadowParameter
+//        case inputDoubleSidedParemeter
+//        case inputCullModeParameter
+//        case inputGeometryPort
+//        case inputMaterialPort
+////        case outputMeshPort
+//    }
     
     public override func encode(to encoder:Encoder) throws
     {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputCastsShadow, forKey: .inputCastsShadowParameter)
-        try container.encode(self.inputDoubleSided, forKey: .inputDoubleSidedParemeter)
-        try container.encode(self.inputCullingMode, forKey: .inputCullModeParameter)
-        try container.encode(self.inputGeometry, forKey: .inputGeometryPort)
-        try container.encode(self.inputMaterial, forKey: .inputMaterialPort)
+//        var container = encoder.container(keyedBy: CodingKeys.self)
+//        
+//        try container.encode(self.inputCastsShadow, forKey: .inputCastsShadowParameter)
+//        try container.encode(self.inputDoubleSided, forKey: .inputDoubleSidedParemeter)
+//        try container.encode(self.inputCullingMode, forKey: .inputCullModeParameter)
+//        try container.encode(self.inputGeometry, forKey: .inputGeometryPort)
+//        try container.encode(self.inputMaterial, forKey: .inputMaterialPort)
 //        try container.encode(self.outputMesh, forKey: .outputMeshPort)
         
         try super.encode(to: encoder)
@@ -98,17 +95,17 @@ public class MeshNode : BaseRenderableNode<Mesh>
     
     public required init(from decoder: any Decoder) throws
     {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        self.inputCastsShadow = try container.decode(BoolParameter.self, forKey: .inputCastsShadowParameter)
-        self.inputDoubleSided = try container.decode(BoolParameter.self, forKey: .inputDoubleSidedParemeter)
-        self.inputCullingMode = try container.decode(StringParameter.self, forKey: .inputCullModeParameter)
-        
-        self.inputCullingMode.options = ["Back", "Front", "None"]
-        
-        self.inputGeometry = try container.decode(NodePort<Geometry>.self, forKey: .inputGeometryPort)
-        self.inputMaterial = try container.decode(NodePort<Material>.self, forKey: .inputMaterialPort)
-//        self.outputMesh = try container.decode(NodePort<Object>.self, forKey: .outputMeshPort)
+//        let container = try decoder.container(keyedBy: CodingKeys.self)
+//
+//        self.inputCastsShadow = try container.decode(BoolParameter.self, forKey: .inputCastsShadowParameter)
+//        self.inputDoubleSided = try container.decode(BoolParameter.self, forKey: .inputDoubleSidedParemeter)
+//        self.inputCullingMode = try container.decode(StringParameter.self, forKey: .inputCullModeParameter)
+//        
+//        self.inputCullingMode.options = ["Back", "Front", "None"]
+//        
+//        self.inputGeometry = try container.decode(NodePort<Geometry>.self, forKey: .inputGeometryPort)
+//        self.inputMaterial = try container.decode(NodePort<Material>.self, forKey: .inputMaterialPort)
+////        self.outputMesh = try container.decode(NodePort<Object>.self, forKey: .outputMeshPort)
         
         try super.init(from: decoder)
 
@@ -124,8 +121,8 @@ public class MeshNode : BaseRenderableNode<Mesh>
         
         if self.inputCastsShadow.valueDidChange
         {
-            mesh.castShadow = self.inputCastsShadow.value
-            mesh.receiveShadow = self.inputCastsShadow.value
+            mesh.castShadow = self.inputCastsShadow.parameter.value
+            mesh.receiveShadow = self.inputCastsShadow.parameter.value
             shouldOutput = true
         }
         

@@ -154,8 +154,8 @@ public class ModelMeshNode : MeshNode
             if let subMesh = child as? Mesh
             {
                 subMesh.material?.lighting = true
-                subMesh.castShadow = self.inputCastsShadow.value
-                subMesh.receiveShadow = self.inputCastsShadow.value
+                subMesh.castShadow = self.inputCastsShadow.parameter.value
+                subMesh.receiveShadow = self.inputCastsShadow.parameter.value
             }
         }
     }

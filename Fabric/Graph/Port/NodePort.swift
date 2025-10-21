@@ -5,12 +5,12 @@
 //  Created by Anton Marini on 4/24/25.
 //
 
+import CoreFoundation
 import SwiftUI
 import Satin
-import CoreMedia
 
 
-public class NodePort<Value>: Port where Value : FabricPort
+public class NodePort<Value : FabricPort>: Port
 {
     public var value: Value?
     {
@@ -25,7 +25,7 @@ public class NodePort<Value>: Port where Value : FabricPort
     }
         
     @ObservationIgnored override public var portType: PortType {
-        PortType.fromType(Value.self as! any FabricPort)
+        PortType.fromType(Value.self as! (any FabricPort).Type)
     }
     
     enum CodingKeys : String, CodingKey

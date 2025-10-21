@@ -11,6 +11,8 @@ import simd
 
 public protocol FabricPort : Equatable {}
 
+extension NSNull : FabricPort { }
+
 extension Swift.Bool : FabricPort { }
 extension Swift.Float : FabricPort { }
 extension Swift.Int : FabricPort { }
@@ -32,16 +34,23 @@ extension EquatableTexture : FabricPort { }
 extension ContiguousArray : FabricPort  where Element : FabricPort { }
 extension AnyLoggable :  FabricPort { }
 
+// Optional unwrapping for metatypes
+protocol _AnyOptional { static var wrapped: Any.Type { get } }
+extension Optional: _AnyOptional { static var wrapped: Any.Type { Wrapped.self } }
+private func unwrapOptional(_ t: Any.Type) -> Any.Type {
+    (t as? _AnyOptional.Type)?.wrapped ?? t
+}
 
 public indirect enum PortType : RawRepresentable, Codable
 {
+    
     public typealias RawValue = String
     
     public static func nodeForType(_ type:PortType, decoder:Decoder) throws -> Port?
     {
         switch type
         {
-        case .Unsupported: return nil
+//        case .Unsupported: return NodePort<NSNull>.init(value: NSNull(
         case .Bool: return try NodePort<Bool>.init(from: decoder)
         case .Float: return try NodePort<Float>.init(from: decoder)
         case .Int: return try NodePort<Int>.init(from: decoder)
@@ -62,34 +71,37 @@ public indirect enum PortType : RawRepresentable, Codable
         
     }
     
+//
     
-    static func fromType(_ type:any FabricPort) -> PortType
+    static func fromType(_ raw:Any.Type) -> PortType
     {
-        switch type
-        {
-        case is NSNull:               return .Unsupported
-        case is Swift.Bool:           return .Bool
-        case is Swift.Float:          return .Float
-        case is Swift.Int:            return .Int
-        case is Swift.String:         return .String
-        case is simd_float2:          return .Vector2
-        case is simd_float3:          return .Vector3
-        case is simd_float4:          return .Vector4
-        case is Satin.Geometry:       return .Geometry
-        case is Satin.Material:       return .Material
-        case is Satin.Shader:         return .Shader
-        case is EquatableTexture:     return .Image
-            
+        let type = unwrapOptional(raw.self)
+
+//        if type == NSNull.self              { return .Unsupported }
+        if type == Swift.Bool.self          { return .Bool }
+        else if type == Swift.Float.self         { return .Float }
+        else if type == Swift.Int.self           { return .Int }
+        else if type == Swift.String.self        { return .String }
+        else if type == simd_float2.self         { return .Vector2 }
+        else if type == simd_float3.self         { return .Vector3 }
+        else if type == simd_float4.self         { return .Vector4 }
+        else if type == Satin.Geometry.self      { return .Geometry }
+        else if type == Satin.Material.self      { return .Material }
+        else if type == Satin.Shader.self        { return .Shader }
+        else if type == EquatableTexture.self    { return .Image }
+        else { return .Array(portType: <#T##PortType#>) }
+//        return .Unsupported
         // TODO: Array
 //        case is Swift.ContiguousArray<String(reflecting:type)>:
 //            return .Array(portType: Port.fromType(type ))
 
-        default:
-            return .Unsupported
+//        default:
+//            return .Unsupported
             
-        }
+//        }
     }
-    case Unsupported
+    
+//    case Unsupported
     case Bool
     case Float
     case Int
@@ -107,7 +119,7 @@ public indirect enum PortType : RawRepresentable, Codable
     
     case Array(portType:PortType)
     
-    public init(rawValue: String)
+    public init?(rawValue: String)
     {
         let s = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
         
@@ -149,21 +161,24 @@ public indirect enum PortType : RawRepresentable, Codable
                     }
                 }
 
-                if let innerStr = inner {
-                    let innerType = PortType(rawValue: innerStr)
+                if let innerStr = inner,
+                   let innerType = PortType(rawValue: innerStr)
+                {
                     self = .Array(portType: innerType)
                     return
                 }
             }
 
+        return nil
             // 3) Unknown
-        self =  .Unsupported
+//        self =  .Unsupported
+//        fatalError("unsupported port type")
     }
     
     public var type:Any.Type {
         switch self {
-        case .Unsupported:
-            return NSNull.self
+//        case .Unsupported:
+//            return NSNull.self
         case .Bool:
             return Swift.Bool.self
         case .Float:
@@ -195,8 +210,8 @@ public indirect enum PortType : RawRepresentable, Codable
     
     public var rawValue: String {
         switch self {
-        case .Unsupported:
-            return "Unsupported"
+//        case .Unsupported:
+//            return "Unsupported"
         case .Bool:
              return "Bool"
         case .Float:
