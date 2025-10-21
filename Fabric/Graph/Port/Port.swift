@@ -39,7 +39,6 @@ public struct PortAnchorKey: PreferenceKey
 }
 
 
-
 struct OutletData : Codable
 {
     let portID: UUID
@@ -83,6 +82,9 @@ extension UTType
     public let name: String
     
     public var published: Bool = false
+    
+    // Kind of lame, but necessary to avoid some type based bullshit.
+    public private(set) var parameter:(any Parameter)? = nil
         
     // Maybe a bit too verbose?
 //    public var value: (any FabricPort)? { fatalError("override") }

@@ -151,11 +151,13 @@ public class ModelMeshNode : MeshNode
     {
         self.model?.getChildren(true).forEach { child in
             
-            if let subMesh = child as? Mesh
+            if let subMesh = child as? Mesh,
+               let castShadow = self.inputCastsShadow.value,
+               let receiveShadow = self.inputCastsShadow.value
             {
                 subMesh.material?.lighting = true
-                subMesh.castShadow = self.inputCastsShadow.parameter.value
-                subMesh.receiveShadow = self.inputCastsShadow.parameter.value
+                subMesh.castShadow = castShadow
+                subMesh.receiveShadow = receiveShadow
             }
         }
     }

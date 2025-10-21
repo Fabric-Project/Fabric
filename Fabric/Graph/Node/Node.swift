@@ -125,9 +125,9 @@ import Combine
 
         for port in self.registry.all()
         {
-            if port is ParameterPort
+            if let param = port.parameter
             {
-                
+                self.parameterGroup.append(param)
             }
         }
         // get a single value container
@@ -206,11 +206,20 @@ import Combine
     public func addDynamicPort(_ p: Port)
     {
         self.registry.addDynamic(p, owner: self)
+        if let param = p.parameter
+        {
+            self.parameterGroup.append(param)
+        }
+        
     }
     
     public func removePort(_ p: Port)
     {
         self.registry.remove(p)
+        if let param = p.parameter
+        {
+            self.parameterGroup.remove(param)
+        }
     }
     
     public func publishedPorts() -> [Port]

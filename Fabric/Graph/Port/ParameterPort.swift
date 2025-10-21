@@ -10,11 +10,16 @@ import Foundation
 // A Port that wraps a parameter - use for input ports you want to have as a UI
 public class ParameterPort<ParamValue : FabricPort & Codable & Equatable & Hashable> : NodePort<ParamValue>
 {
-    public let parameter: GenericParameter<ParamValue>
+    private  let _parameter: GenericParameter<ParamValue>
+    
+    override public var parameter: (any Parameter)?
+    {
+        get { return _parameter }
+    }
     
     public init(parameter: GenericParameter<ParamValue>)
     {
-        self.parameter = parameter
+        self._parameter = parameter
         
         super.init(name: parameter.label, kind: .Inlet, id:parameter.id)
     }
@@ -32,11 +37,11 @@ public class ParameterPort<ParamValue : FabricPort & Codable & Equatable & Hasha
         if let anyparam = try container.decodeIfPresent(AnyParameter.self, forKey: .parameter),
            let param = anyparam.base as? GenericParameter<ParamValue>
         {
-            self.parameter = param
+            self._parameter = param
         }
         else
         {
-            self.parameter = try GenericParameter(from: decoder)
+            self._parameter = try GenericParameter(from: decoder)
         }
 
         try super.init(from: decoder)
@@ -45,7 +50,7 @@ public class ParameterPort<ParamValue : FabricPort & Codable & Equatable & Hasha
     override public func encode(to encoder: any Encoder) throws {
         
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(AnyParameter(self.parameter), forKey: .parameter)
+        try container.encode(AnyParameter(self._parameter), forKey: .parameter)
 
         try super.encode(to: encoder)
     }
@@ -54,7 +59,7 @@ public class ParameterPort<ParamValue : FabricPort & Codable & Equatable & Hasha
     {
         didSet
         {
-            self.parameter.valueDidChange = self.valueDidChange
+            self._parameter.valueDidChange = self.valueDidChange
         }
     }
     
@@ -62,15 +67,15 @@ public class ParameterPort<ParamValue : FabricPort & Codable & Equatable & Hasha
     {
         get
         {
-            self.parameter.value
+            self._parameter.value
         }
         set
         {
             if let newValue = newValue
             {
-                if  parameter.value != newValue
+                if  self._parameter.value != newValue
                 {
-                    parameter.value = newValue
+                    self._parameter.value = newValue
                     self.valueDidChange = true
                     self.node?.markDirty()
                 }

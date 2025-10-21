@@ -24,8 +24,10 @@ public class NodePort<Value : FabricPort>: Port
         }
     }
         
+    public var valueType: Any.Type { Value.self }
+    
     @ObservationIgnored override public var portType: PortType {
-        PortType.fromType(Value.self as! (any FabricPort).Type)
+        PortType.fromType( self.valueType )
     }
     
     enum CodingKeys : String, CodingKey

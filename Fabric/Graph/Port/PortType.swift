@@ -46,7 +46,7 @@ fileprivate  func unwrapOptional(_ t: Any.Type) -> Any.Type {
 }
 
 // PortType conversions and factories to instantiate specialized NodePorts and map Swift value types to canonical PortTypes
-public indirect enum PortType : RawRepresentable, Codable
+public indirect enum PortType : RawRepresentable, Codable, Equatable
 {
     public typealias RawValue = String
     
@@ -68,10 +68,11 @@ public indirect enum PortType : RawRepresentable, Codable
         case .Shader: return try NodePort<Satin.Shader>.init(from: decoder)
         case .Image: return try NodePort<EquatableTexture>.init(from: decoder)
         // TODO: Array
-        case .Array(let portType):
+        case .Array(portType: let portType):
             return nil
-//            return NodePort<contiguousArrayMetatype(of: portType)>.init(from: decoder)
+//            return try NodePort<ContiguousArray<Any>>.init(from: decoder)
         }
+        
         
     }
     
@@ -92,11 +93,9 @@ public indirect enum PortType : RawRepresentable, Codable
         else if type == Satin.Material.self      { return .Material }
         else if type == Satin.Shader.self        { return .Shader }
         else if type == EquatableTexture.self    { return .Image }
-        else { return .Array(portType: <#T##PortType#>) }
 
-        // TODO: Array
-//        case is Swift.ContiguousArray<String(reflecting:type)>:
-//            return .Array(portType: Port.fromType(type ))
+        // Assume Array?
+        else { return .Array(portType: PortType.fromType(raw)) }
 
     }
     
