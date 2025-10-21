@@ -60,6 +60,6 @@ public class CurrentTimeNode : Node
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        self.outputNumber.send( Float(context.timing.time - startTime) )
+        self.outputNumber.send( Float(context.timing.systemTime - startTime) )
     }
 }
