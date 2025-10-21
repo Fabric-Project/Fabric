@@ -120,6 +120,7 @@
 				Graph/Port/NodePort.swift,
 				Graph/Port/ParameterPort.swift,
 				Graph/Port/Port.swift,
+				Graph/Port/PortRegistry.swift,
 				Graph/Port/PortType.swift,
 				Graph/TimeStampedFrameCache.swift,
 				Materials,
