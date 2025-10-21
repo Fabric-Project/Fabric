@@ -123,6 +123,13 @@ import Combine
         // let registry merge decoded with declared
         self.registry.rebuild(from: snaps, declared: declared, owner: self)
 
+        for port in self.registry.all()
+        {
+            if port is ParameterPort
+            {
+                
+            }
+        }
         // get a single value container
 //        if let ports = try container.decodeIfPresent([Port].self, forKey: .ports)
 //        {

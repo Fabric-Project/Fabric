@@ -7,6 +7,7 @@
 
 import Foundation
 
+// A Port that wraps a parameter - use for input ports you want to have as a UI
 public class ParameterPort<ParamValue : FabricPort & Codable & Equatable & Hashable> : NodePort<ParamValue>
 {
     public let parameter: GenericParameter<ParamValue>

@@ -32,7 +32,7 @@ final class PortRegistry
     private var byName: [String: Port] = [:]
     // lookup by UUID for connections remap
     private var byID: [UUID: Port] = [:]
-
+    
     func register(_ port: Port, name: String, owner: Node)
     {
         port.node = owner

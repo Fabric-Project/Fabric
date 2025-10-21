@@ -63,7 +63,7 @@ extension UTType
 }
 
 
-// Non Generic Base class defintion, dont use directly
+// Non Generic Base Port Class, dont use directly
 @Observable public class Port : Identifiable, Hashable, Equatable, Codable, CustomDebugStringConvertible
 {
     public static func == (lhs: Port, rhs: Port) -> Bool
@@ -130,7 +130,6 @@ extension UTType
         self.published = try container.decodeIfPresent(Bool.self, forKey: .published) ?? false
         self.color = .clear
         self.backgroundColor = .clear
-
     }
     
     public func encode(to encoder:Encoder) throws
@@ -145,7 +144,6 @@ extension UTType
         
         try container.encode(connectedPortIds, forKey: .connections)
     }
-    
     
     public func connect(to other: Port) { fatalError("override") }
     public func disconnect(from other: Port) { fatalError("override") }

@@ -9,6 +9,7 @@ import Foundation
 import Satin
 import simd
 
+// A Protocol which defines value types a port can send.
 public protocol FabricPort : Equatable {}
 
 extension NSNull : FabricPort { }
@@ -31,19 +32,22 @@ extension Satin.Geometry : FabricPort { }
 extension Satin.Material : FabricPort { }
 extension Satin.Shader : FabricPort { }
 extension EquatableTexture : FabricPort { }
+
 extension ContiguousArray : FabricPort  where Element : FabricPort { }
+
 extension AnyLoggable :  FabricPort { }
 
-// Optional unwrapping for metatypes
-protocol _AnyOptional { static var wrapped: Any.Type { get } }
-extension Optional: _AnyOptional { static var wrapped: Any.Type { Wrapped.self } }
-private func unwrapOptional(_ t: Any.Type) -> Any.Type {
+
+// Optional unwrapping for metatypes (why is this my life?) -
+fileprivate  protocol _AnyOptional { static var wrapped: Any.Type { get } }
+extension Optional: _AnyOptional { fileprivate static var wrapped: Any.Type { Wrapped.self } }
+fileprivate  func unwrapOptional(_ t: Any.Type) -> Any.Type {
     (t as? _AnyOptional.Type)?.wrapped ?? t
 }
 
+// PortType conversions and factories to instantiate specialized NodePorts and map Swift value types to canonical PortTypes
 public indirect enum PortType : RawRepresentable, Codable
 {
-    
     public typealias RawValue = String
     
     public static func nodeForType(_ type:PortType, decoder:Decoder) throws -> Port?
@@ -77,8 +81,7 @@ public indirect enum PortType : RawRepresentable, Codable
     {
         let type = unwrapOptional(raw.self)
 
-//        if type == NSNull.self              { return .Unsupported }
-        if type == Swift.Bool.self          { return .Bool }
+        if type == Swift.Bool.self               { return .Bool }
         else if type == Swift.Float.self         { return .Float }
         else if type == Swift.Int.self           { return .Int }
         else if type == Swift.String.self        { return .String }
@@ -90,18 +93,13 @@ public indirect enum PortType : RawRepresentable, Codable
         else if type == Satin.Shader.self        { return .Shader }
         else if type == EquatableTexture.self    { return .Image }
         else { return .Array(portType: <#T##PortType#>) }
-//        return .Unsupported
+
         // TODO: Array
 //        case is Swift.ContiguousArray<String(reflecting:type)>:
 //            return .Array(portType: Port.fromType(type ))
 
-//        default:
-//            return .Unsupported
-            
-//        }
     }
     
-//    case Unsupported
     case Bool
     case Float
     case Int
@@ -244,18 +242,18 @@ public indirect enum PortType : RawRepresentable, Codable
 
 // Generic helper that lifts an element metatype to a ContiguousArray metatype.
 @inline(__always)
-private func contiguousArrayMetatype<Element>(of _: Element.Type) -> ContiguousArray<Element>.Type {
+fileprivate func contiguousArrayMetatype<Element>(of _: Element.Type) -> ContiguousArray<Element>.Type {
     ContiguousArray<Element>.self
 }
 
 // Implementation that opens the existential and binds `Element`.
 @inline(__always)
-private func _contiguousArrayMetatype_impl<Element>(_ element: Element.Type) -> Any.Type {
+fileprivate func _contiguousArrayMetatype_impl<Element>(_ element: Element.Type) -> Any.Type {
     ContiguousArray<Element>.self
 }
 
 // Convenience that accepts Any.Type and returns Any.Type for the array.
 @inline(__always)
-func contiguousArrayMetatype(of element: Any.Type) -> Any.Type {
+fileprivate func contiguousArrayMetatype(of element: Any.Type) -> Any.Type {
     _openExistential(element, do: _contiguousArrayMetatype_impl)
 }
