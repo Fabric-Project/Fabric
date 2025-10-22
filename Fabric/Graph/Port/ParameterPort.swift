@@ -5,12 +5,14 @@
 //  Created by Anton Marini on 10/19/25.
 //
 
+import Combine
 import Foundation
 
 // A Port that wraps a parameter - use for input ports you want to have as a UI
 public class ParameterPort<ParamValue : FabricPort & Codable & Equatable & Hashable> : NodePort<ParamValue>
 {
-    private  let _parameter: GenericParameter<ParamValue>
+    private var subscription:AnyCancellable? = nil
+    private let _parameter: GenericParameter<ParamValue>
     
     override public var parameter: (any Parameter)?
     {
@@ -20,8 +22,13 @@ public class ParameterPort<ParamValue : FabricPort & Codable & Equatable & Hasha
     public init(parameter: GenericParameter<ParamValue>)
     {
         self._parameter = parameter
-        
         super.init(name: parameter.label, kind: .Inlet, id:parameter.id)
+
+        
+        self.subscription = parameter.valuePublisher.eraseToAnyPublisher().sink{ [weak self] value in
+                self?.value = value
+            print("Parameter Subscription \(value)")
+        }
     }
     
     enum CodingKeys : String, CodingKey
@@ -43,8 +50,18 @@ public class ParameterPort<ParamValue : FabricPort & Codable & Equatable & Hasha
         {
             self._parameter = try GenericParameter(from: decoder)
         }
-
+        
         try super.init(from: decoder)
+
+        self.subscription = _parameter.valuePublisher.eraseToAnyPublisher().sink{ [weak self] value in
+                self?.value = value
+            print("Parameter Subscription \(value)")
+        }
+    }
+    
+    deinit
+    {
+        self.subscription = nil
     }
     
     override public func encode(to encoder: any Encoder) throws {
@@ -55,30 +72,13 @@ public class ParameterPort<ParamValue : FabricPort & Codable & Equatable & Hasha
         try super.encode(to: encoder)
     }
     
-    override public var valueDidChange: Bool
+    override public var value: ParamValue?
     {
         didSet
         {
-            self._parameter.valueDidChange = self.valueDidChange
-        }
-    }
-    
-    override public var value: ParamValue?
-    {
-        get
-        {
-            self._parameter.value
-        }
-        set
-        {
-            if let newValue = newValue
+            if let value
             {
-                if  self._parameter.value != newValue
-                {
-                    self._parameter.value = newValue
-                    self.valueDidChange = true
-                    self.node?.markDirty()
-                }
+                self._parameter.value = value
             }
         }
     }
