@@ -50,19 +50,20 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable
 {
     public typealias RawValue = String
     
-    public static func nodeForType(_ type:PortType, decoder:Decoder) throws -> Port?
+    public static func nodeForType(_ type:PortType, isParameterPort:Bool, decoder:Decoder) throws -> Port?
     {
         switch type
         {
 //        case .Unsupported: return NodePort<NSNull>.init(value: NSNull(
-        case .Bool: return try NodePort<Bool>.init(from: decoder)
-        case .Float: return try NodePort<Float>.init(from: decoder)
-        case .Int: return try NodePort<Int>.init(from: decoder)
-        case .String: return try NodePort<String>.init(from: decoder)
-        case .Vector2: return try NodePort<simd_float2>.init(from: decoder)
-        case .Vector3: return try NodePort<simd_float3>.init(from: decoder)
-        case .Vector4: return try NodePort<simd_float4>.init(from: decoder)
-        case .Color: return try NodePort<simd_float4>.init(from: decoder)
+        case .Bool: return try isParameterPort ? ParameterPort<Bool>.init(from: decoder) : NodePort<Bool>.init(from: decoder)
+        case .Float: return try isParameterPort ? ParameterPort<Float>.init(from: decoder) : NodePort<Float>.init(from: decoder)
+        case .Int: return try isParameterPort ? ParameterPort<Int>.init(from: decoder) : NodePort<Int>.init(from: decoder)
+        case .String: return try isParameterPort ? ParameterPort<String>.init(from: decoder) : NodePort<String>.init(from: decoder)
+        case .Vector2: return try isParameterPort ?  ParameterPort<simd_float2>.init(from: decoder) : NodePort<simd_float2>.init(from: decoder)
+        case .Vector3: return try isParameterPort ?  ParameterPort<simd_float3>.init(from: decoder) : NodePort<simd_float3>.init(from: decoder)
+        case .Vector4: return try isParameterPort ?  ParameterPort<simd_float4>.init(from: decoder) : NodePort<simd_float4>.init(from: decoder)
+        case .Color: return try isParameterPort ?  ParameterPort<simd_float4>.init(from: decoder) : NodePort<simd_float4>.init(from: decoder)
+            
         case .Geometry: return try NodePort<Satin.Geometry>.init(from: decoder)
         case .Material: return try NodePort<Satin.Material>.init(from: decoder)
         case .Shader: return try NodePort<Satin.Shader>.init(from: decoder)
@@ -72,8 +73,6 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable
             return nil
 //            return try NodePort<ContiguousArray<Any>>.init(from: decoder)
         }
-        
-        
     }
     
 //
