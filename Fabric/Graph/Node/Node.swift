@@ -25,7 +25,7 @@ import Combine
     // User interface description
     public class var nodeDescription: String { fatalError("Must be implemented") }
 
-    // Equatable
+    // Identifiable
     public let id:UUID
     
     // Hashable
@@ -60,15 +60,14 @@ import Combine
 
     @ObservationIgnored weak var graph:Graph?
 
-    // All port serilization, adding, removing and key value access goes through the port registry
-    @ObservationIgnored private let registry = PortRegistry()
-    
     // Method to register ports
     public class func registerPorts(context: Context) -> [(name: String, port: Port)] { [] }
-    
-    // these can go away
-    @ObservationIgnored public var inputParameters:[any Parameter] { []  }
+    // All port serilization, adding, removing and key value access goes through the port registry
+    @ObservationIgnored private let registry = PortRegistry()
     @ObservationIgnored public let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
+
+    // TODO: these can go away once all nodes implement PortRegistration
+    @ObservationIgnored public var inputParameters:[any Parameter] { []  }
     @ObservationIgnored private var inputParameterPorts:[Port] = []
     
     public var ports:[Port] { self.registry.all()   }
@@ -97,6 +96,9 @@ import Combine
         case id
         case nodeOffset
         case ports
+        
+        // TODO:
+        case name // Override node UI name (not implemented)
 
         // Depreciated...
         case inputParameters
@@ -116,41 +118,31 @@ import Combine
         self.id = try container.decode(UUID.self, forKey: .id)
         self.offset = try container.decode(CGSize.self, forKey: .nodeOffset)
   
-        let declared = Self.registerPorts(context:self.context)
-
         let snaps = try container.decodeIfPresent([PortRegistry.Snapshot].self, forKey: .ports) ?? []
 
-        // let registry merge decoded with declared
-        self.registry.rebuild(from: snaps, declared: declared, owner: self)
-
-        for port in self.registry.all()
+        for snap in snaps
         {
+            let anyport  = snap.payload
+            let port = anyport.base
+            
+            self.registry.register(port, name: snap.name, owner: self)
             if let param = port.parameter
             {
                 self.parameterGroup.append(param)
             }
         }
-        // get a single value container
-//        if let ports = try container.decodeIfPresent([Port].self, forKey: .ports)
-//        {
-//            self.inputParameterPorts = ports
-//        }
+   
+        for parameter in self.parameterGroup.params
+        {
+            let cancellable = self.makeCancelable(parameter: parameter)
+
+            self.inputParamCancellables.append(cancellable)
+        }
         
-        
-//        self.inputParameterPorts = self.parametersGroupToPorts(self.inputParameters)
-//        self.parameterGroup.append(self.inputParameters)
-        
-//        for parameter in self.inputParameters
-//        {
-//            let cancellable = self.makeCancelable(parameter: parameter)
-////
-//            self.inputParamCancellables.append(cancellable)
-//        }
-//        
-//        for port in self.ports
-//        {
-//            port.node = self
-//        }
+        for port in self.ports
+        {
+            port.node = self
+        }
     }
     
     public func encode(to encoder:Encoder) throws
@@ -171,28 +163,32 @@ import Combine
         for (name, p) in declared {
             self.registry.register(p, name: name, owner: self)
         }
-
-//        self.inputParameterPorts = self.parametersGroupToPorts(self.inputParameters)
-//        self.parameterGroup.append(self.inputParameters)
-//        
-//        for parameter in self.inputParameters
-//        {
-//            let cancellable = self.makeCancelable(parameter: parameter)
-////
-//            self.inputParamCancellables.append(cancellable)
-//        }
         
-//        for port in self.ports
-//        {
-//            port.node = self
-//        }
+        for port in self.registry.all()
+        {
+            if let param = port.parameter
+            {
+                self.parameterGroup.append(param)
+            }
+        }
+        
+        for parameter in self.parameterGroup.params
+        {
+            let cancellable = self.makeCancelable(parameter: parameter)
+
+            self.inputParamCancellables.append(cancellable)
+        }
+        
+        for port in self.ports
+        {
+            port.node = self
+        }
     }
     
     deinit
     {
         print("Deleted node \(id)")
     }
-    
     
     // MARK: - Ports
     
@@ -210,7 +206,6 @@ import Combine
         {
             self.parameterGroup.append(param)
         }
-        
     }
     
     public func removePort(_ p: Port)
@@ -233,8 +228,7 @@ import Combine
     }
     
     // MARK: - Connections
-    
-    
+        
     public func didConnectToNode(_ node: Node)
     {
         self.inputNodes = calcInputNodes()
@@ -264,8 +258,6 @@ import Combine
         return outputNodes
 //        return Array(Set(outputNodes))
     }
-    
-
     
     public func markClean()
     {
