@@ -24,11 +24,14 @@ public class ParameterPort<ParamValue : FabricPort & Codable & Equatable & Hasha
         self._parameter = parameter
         super.init(name: parameter.label, kind: .Inlet, id:parameter.id)
 
+        self.value = self._parameter.value
         
         self.subscription = parameter.valuePublisher.eraseToAnyPublisher().sink{ [weak self] value in
                 self?.value = value
-            print("Parameter Subscription \(value)")
+//            print("Parameter Subscription \(value)")
         }
+        
+        
     }
     
     enum CodingKeys : String, CodingKey
@@ -36,8 +39,8 @@ public class ParameterPort<ParamValue : FabricPort & Codable & Equatable & Hasha
         case parameter
     }
     
-    required public init(from decoder: any Decoder) throws {
-        
+    required public init(from decoder: any Decoder) throws
+    {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
         // backwards compat for port update
@@ -53,9 +56,11 @@ public class ParameterPort<ParamValue : FabricPort & Codable & Equatable & Hasha
         
         try super.init(from: decoder)
 
+        self.value = self._parameter.value
+
         self.subscription = _parameter.valuePublisher.eraseToAnyPublisher().sink{ [weak self] value in
                 self?.value = value
-            print("Parameter Subscription \(value)")
+//            print("Parameter Subscription \(value)")
         }
     }
     
