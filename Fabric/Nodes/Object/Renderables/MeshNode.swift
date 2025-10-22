@@ -17,13 +17,16 @@ public class MeshNode : BaseRenderableNode<Mesh>
 
     // Register ports, in order of appearance
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        [
+        
+        let ports = super.registerPorts(context: context)
+        
+        return [
             ("inputGeometry",  NodePort<Geometry>(name: "Geometry", kind: .Inlet)),
             ("inputMaterial",  NodePort<Material>(name: "Material", kind: .Inlet)),
             ("inputCastsShadow",  ParameterPort(parameter: BoolParameter("Enable Shadows", true, .button) ) ),
             ("inputDoubleSided",  ParameterPort(parameter: BoolParameter("Double Sided", false, .button) ) ),
             ("inputCullingMode",  ParameterPort(parameter: StringParameter("Culling Mode", "Back", ["Back", "Front", "None"], .dropdown) ) ),
-        ]
+        ] + ports
     }
         
     // Ergonomic access (no storage assignment needed)
@@ -93,6 +96,7 @@ public class MeshNode : BaseRenderableNode<Mesh>
              let geometry = self.inputGeometry.value,
                 let material = self.inputMaterial.value
         {
+            print("Mesh Node Evaluate")
             if let mesh = mesh
             {
 //                print("Mesh Node - Updating Geometry and Material")
@@ -101,19 +105,19 @@ public class MeshNode : BaseRenderableNode<Mesh>
                 mesh.material = material
             }
             else
-
             {
                 print("Mesh Node - Initializing Mesh with Geometry and Material")
 
                 let mesh = Mesh(geometry: geometry, material: material)
                 mesh.lookAt(target: simd_float3(repeating: 0))
-                mesh.position = self.inputPosition.value
-                mesh.scale = self.inputScale.value
+                mesh.position = self.inputPosition.value ?? .zero
+                mesh.scale = self.inputScale.value ?? .zero
 
-                mesh.orientation = simd_quatf(angle: self.inputOrientation.value.w,
-                                                axis: simd_float3(x: self.inputOrientation.value.x,
-                                                                  y: self.inputOrientation.value.y,
-                                                                  z: self.inputOrientation.value.z) )
+                let orientation = self.inputOrientation.value ?? .zero
+                mesh.orientation = simd_quatf(angle: orientation.w,
+                                                axis: simd_float3(x: orientation.x,
+                                                                  y: orientation.y,
+                                                                  z: orientation.z) )
                 
                 self.mesh = mesh
             }
@@ -121,8 +125,11 @@ public class MeshNode : BaseRenderableNode<Mesh>
          
         if let mesh = mesh
         {
+            print("Mesh Node - Evaluate")
+
             let _ = self.evaluate(object: mesh, atTime: context.timing.time)
             
+            self.markDirty()
 //            if shouldOutput
 //            {
 //                self.outputMesh.send(mesh)

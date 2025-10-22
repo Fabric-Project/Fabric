@@ -42,13 +42,14 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
         
 
         self.camera.lookAt(target: simd_float3(repeating: 0))
-        self.camera.position = self.inputPosition.value
-        self.camera.scale = self.inputScale.value
+        self.camera.position = self.inputPosition.value ?? .zero
+        self.camera.scale = self.inputScale.value ?? .zero
 
-        self.camera.orientation = simd_quatf(angle: self.inputOrientation.value.w,
-                                        axis: simd_float3(x: self.inputOrientation.value.x,
-                                                          y: self.inputOrientation.value.y,
-                                                          z: self.inputOrientation.value.z) )
+        let orientation = self.inputOrientation.value ?? .zero
+        self.camera.orientation = simd_quatf(angle: orientation.w,
+                                        axis: simd_float3(x: orientation.x,
+                                                          y: orientation.y,
+                                                          z: orientation.z) )
         
     }
     

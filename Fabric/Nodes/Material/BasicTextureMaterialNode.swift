@@ -61,12 +61,6 @@ public class BasicTextureMaterialNode : BasicColorMaterialNode
     {
         var shouldOutput = super.evaluate(material: material, atTime: atTime)
         
-        if self.inputWriteDepth.valueDidChange
-        {
-            material.depthWriteEnabled = self.inputWriteDepth.value
-            shouldOutput = true
-        }
-        
         if self.inputTexture.valueDidChange
         {
             self.material.texture =  self.inputTexture.value?.texture
