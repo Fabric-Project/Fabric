@@ -16,50 +16,27 @@ public class ArrayCountNode<Value : FabricPort & Equatable & FabricDescription> 
 {
     public override class var name:String { "\(Value.fabricDescription) Array Count" }
     public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+    override public class var nodeDescription: String { "Number of elements in an \(Value.fabricDescription) Array"}
 
     // TODO: add character set menu to choose component separation strategy
     
-    let inputPort:NodePort<ContiguousArray<Value>>
-    let outputPort:NodePort<Float>
-    override public var ports:[Port] {  [inputPort, outputPort] + super.ports}
-
-    private var url: URL? = nil
-    private var string: String? = nil
-    
-    required public init(context:Context)
-    {
-        self.inputPort = NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet)
-        self.outputPort = NodePort<Float>(name: "Count", kind: .Outlet)
+    // Ports
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
         
-        super.init(context: context)
+        return ports +
+        [
+            ("inputPort", NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet)),
+            ("outputPort", NodePort<Float>(name: "Count", kind: .Outlet)),
+        ]
     }
     
-    enum CodingKeys : String, CodingKey
-    {
-        case inputPort
-        case outputPort
-    }
-    
-    override public func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputPort, forKey: .inputPort)
-        try container.encode(self.outputPort, forKey: .outputPort)
-
-        try super.encode(to: encoder)
-    }
-    
-    required public init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-       
-        self.inputPort = try container.decode(NodePort<ContiguousArray<Value>>.self, forKey: .inputPort)
-        self.outputPort = try container.decode(NodePort<Float>.self, forKey: .outputPort)
-        
-        try super.init(from:decoder)
-    }
-    
+    // Port Proxy
+    public var inputPort:NodePort<ContiguousArray<Value>> { port(named: "inputPort") }
+    public var outputPort:NodePort<Int> { port(named: "outputPort") }
+ 
     override public func execute(context:GraphExecutionContext,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
@@ -68,7 +45,7 @@ public class ArrayCountNode<Value : FabricPort & Equatable & FabricDescription> 
         {
             if let array = self.inputPort.value
             {
-                self.outputPort.send( Float(array.count) )
+                self.outputPort.send( array.count )
             }
             
             else

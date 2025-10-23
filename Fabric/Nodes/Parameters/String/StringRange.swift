@@ -15,65 +15,38 @@ public class StringRangeNode : Node
 {
     override public static var name:String { "String Range" }
     override public static var nodeType:Node.NodeType { .Parameter(parameterType: .String) }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+    override public class var nodeDescription: String { "Produce a Substring from a String"}
 
-    let inputRangeTo:FloatParameter
-    override public var inputParameters: [any Parameter] { [self.inputRangeTo] + super.inputParameters}
-
-    let inputPort:NodePort<String>
-    let outputPort:NodePort<String>
-    override public var ports:[Port] {  [inputPort, outputPort] + super.ports}
-
-    private var url: URL? = nil
-    private var string: String? = nil
-    
-    required public init(context:Context)
-    {
-        self.inputPort = NodePort<String>(name: "String", kind: .Inlet)
-        self.inputRangeTo = FloatParameter("To", 0, .inputfield)
-        self.outputPort = NodePort<String>(name: "String", kind: .Outlet)
+    // Ports
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
         
-        super.init(context: context)
-        
+        return ports +
+        [
+            ("inputPort", NodePort<String>(name: "String", kind: .Inlet)),
+            ("inputRangeTo", ParameterPort(parameter: IntParameter("To", 0, .inputfield))),
+            ("outputPort",  NodePort<String>(name: "String", kind: .Outlet)),
+        ]
     }
     
-    enum CodingKeys : String, CodingKey
-    {
-        case inputPort
-        case inputRangeToParameter
-        case outputPort
-    }
-    
-    override public func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputPort, forKey: .inputPort)
-        try container.encode(self.inputRangeTo, forKey: .inputRangeToParameter)
-        try container.encode(self.outputPort, forKey: .outputPort)
+    // Port Proxy
+    public var inputPort:NodePort<String> { port(named: "inputPort") }
+    public var inputRangeTo:ParameterPort<Int> { port(named: "inputRangeTo") }
+    public var outputPort:NodePort<String> { port(named: "outputPort") }
 
-        try super.encode(to: encoder)
-    }
-    
-    required public init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-       
-        self.inputPort = try container.decode(NodePort<String>.self, forKey: .inputPort)
-        self.inputRangeTo = try container.decode(FloatParameter.self, forKey: .inputRangeToParameter)
-        self.outputPort = try container.decode(NodePort<String>.self, forKey: .outputPort)
-        
-        try super.init(from:decoder)
-    }
-    
+
     override public func execute(context:GraphExecutionContext,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {
         if self.inputPort.valueDidChange || self.inputRangeTo.valueDidChange
         {
-            if let string = self.inputPort.value
+            if let string = self.inputPort.value,
+               let rangeTo = self.inputRangeTo.value
             {
-                let offset = max(0, Int(self.inputRangeTo.value) )
+                let offset = max(0, rangeTo )
                 let endIndex = string.index(string.startIndex, offsetBy:offset, limitedBy: string.endIndex)
                 
                 let substring = string[ string.startIndex ..< (endIndex ?? string.endIndex) ]

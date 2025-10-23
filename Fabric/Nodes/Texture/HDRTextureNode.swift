@@ -59,7 +59,6 @@ public class HDRTextureNode : Node
         try super.init(from:decoder)
         
         self.loadTextureFromInputValue()
-
     }
     
     override public func execute(context:GraphExecutionContext,

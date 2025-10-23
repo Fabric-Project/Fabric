@@ -15,49 +15,24 @@ public class StringLengthNode : Node
 {
     override public static var name:String { "String Length" }
     override public static var nodeType:Node.NodeType { .Parameter(parameterType: .String) }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+    override public class var nodeDescription: String { "Returns the Length of a String as an Integer"}
 
-    // TODO: add character set menu to choose component separation strategy
-    
-    let inputPort:NodePort<String>
-    let outputPort:NodePort<Float>
-    override public var ports:[Port] {  [inputPort, outputPort] + super.ports}
-
-    private var url: URL? = nil
-    private var string: String? = nil
-    
-    required public init(context:Context)
-    {
-        self.inputPort = NodePort<String>(name: "String", kind: .Inlet)
-        self.outputPort = NodePort<Float>(name: "Length", kind: .Outlet)
+    // Ports
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
         
-        super.init(context: context)
+        return ports +
+        [
+            ("inputPort",   NodePort<String>(name: "String", kind: .Inlet)),
+            ("outputPort",  NodePort<Int>(name: "Length", kind: .Outlet)),
+        ]
     }
     
-    enum CodingKeys : String, CodingKey
-    {
-        case inputPort
-        case outputPort
-    }
-    
-    override public func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputPort, forKey: .inputPort)
-        try container.encode(self.outputPort, forKey: .outputPort)
-
-        try super.encode(to: encoder)
-    }
-    
-    required public init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-       
-        self.inputPort = try container.decode(NodePort<String>.self, forKey: .inputPort)
-        self.outputPort = try container.decode(NodePort<Float>.self, forKey: .outputPort)
-        
-        try super.init(from:decoder)
-    }
+    // Port Proxy
+    public var inputPort:NodePort<String>   { port(named: "inputPort") }
+    public var outputPort:NodePort<Int>     { port(named: "outputPort") }
     
     override public func execute(context:GraphExecutionContext,
                            renderPassDescriptor: MTLRenderPassDescriptor,
@@ -67,7 +42,7 @@ public class StringLengthNode : Node
         {
             if let string = self.inputPort.value
             {
-                self.outputPort.send( Float(string.count) )
+                self.outputPort.send( string.count )
             }
             else
             {
