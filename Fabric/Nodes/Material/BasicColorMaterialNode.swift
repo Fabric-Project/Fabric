@@ -23,7 +23,6 @@ public class BasicColorMaterialNode : BaseMaterialNode
     }
     
     public var inputColor:ParameterPort<simd_float4> { port(named: "inputColor") }
-    public var inputPrimitiveType: NodePort<String>   { port(named: "inputPrimitiveType") }
     
     public override var material: BasicColorMaterial {
         return _material
