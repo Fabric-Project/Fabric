@@ -22,8 +22,10 @@ struct NodeInletView: View
     {
         HStack {
             Circle()
-                .fill( port.color )
+                .fill(port.color )
+                .stroke(Color.red, lineWidth: port.published ? 1.0 : 0.0)
                 .frame(width: 15)
+                .brightness( port.published ? 0.2 : 0.0)
             //            .padding(.leading, 20)
             //            .position(node.localInletPositions[index])
                 .dropDestination(for: OutletData.self) { outletData, location in

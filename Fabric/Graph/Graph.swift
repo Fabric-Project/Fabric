@@ -191,6 +191,8 @@ internal import AnyCodable
                 }
             }
         }
+        
+        self.rebuildPublishedParameterGroup()
     }
     
     public func encode(to encoder:Encoder) throws
@@ -314,7 +316,9 @@ internal import AnyCodable
     {
         self.publishedParameterGroup.clear()
         
-        self.publishedParameterGroup.append( self.publishedParameters() )
+        let params = self.publishedParameters()
+        self.publishedParameterGroup.append( params )
+        self.shouldUpdateConnections.toggle()
     }
     
     // This could be more nicely done.
