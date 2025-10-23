@@ -28,10 +28,7 @@ public class ParameterPort<ParamValue : FabricPort & Codable & Equatable & Hasha
         
         self.subscription = parameter.valuePublisher.eraseToAnyPublisher().sink{ [weak self] value in
                 self?.value = value
-//            print("Parameter Subscription \(value)")
         }
-        
-        
     }
     
     enum CodingKeys : String, CodingKey
@@ -60,7 +57,6 @@ public class ParameterPort<ParamValue : FabricPort & Codable & Equatable & Hasha
 
         self.subscription = _parameter.valuePublisher.eraseToAnyPublisher().sink{ [weak self] value in
                 self?.value = value
-//            print("Parameter Subscription \(value)")
         }
     }
     

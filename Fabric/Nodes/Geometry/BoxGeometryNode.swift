@@ -16,13 +16,12 @@ public class BoxGeometryNode : BaseGeometryNode
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
         
-        return ports +
-        [
+        return [
             ("inputWidthParam", ParameterPort(parameter:FloatParameter("Width", 1.0, .inputfield)) ),
             ("inputHeightParam", ParameterPort(parameter:FloatParameter("Height", 1.0, .inputfield)) ),
             ("inputDepthParam", ParameterPort(parameter:FloatParameter("Depth", 1.0, .inputfield)) ),
             ("inputResolutionParam", ParameterPort(parameter:Float3Parameter("Resolution", simd_float3(repeating: 1), .inputfield)) ),
-        ]
+        ] + ports
     }
     
     public var inputWidthParam: NodePort<Float>             { port(named: "inputWidthParam") }
@@ -60,6 +59,7 @@ public class BoxGeometryNode : BaseGeometryNode
             shouldOutputGeometry = true
         }
         
+        // TODO: Fix
         if self.inputResolutionParam.valueDidChange,
            let resolution = self.inputResolutionParam.value
         {

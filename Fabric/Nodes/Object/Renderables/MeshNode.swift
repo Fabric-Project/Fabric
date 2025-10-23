@@ -96,7 +96,6 @@ public class MeshNode : BaseRenderableNode<Mesh>
              let geometry = self.inputGeometry.value,
                 let material = self.inputMaterial.value
         {
-            print("Mesh Node Evaluate")
             if let mesh = mesh
             {
 //                print("Mesh Node - Updating Geometry and Material")
@@ -106,8 +105,6 @@ public class MeshNode : BaseRenderableNode<Mesh>
             }
             else
             {
-                print("Mesh Node - Initializing Mesh with Geometry and Material")
-
                 let mesh = Mesh(geometry: geometry, material: material)
                 mesh.lookAt(target: simd_float3(repeating: 0))
                 mesh.position = self.inputPosition.value ?? .zero
@@ -125,21 +122,10 @@ public class MeshNode : BaseRenderableNode<Mesh>
          
         if let mesh = mesh
         {
-            print("Mesh Node - Evaluate")
-
             let _ = self.evaluate(object: mesh, atTime: context.timing.time)
             
-            self.markDirty()
-//            if shouldOutput
-//            {
-//                self.outputMesh.send(mesh)
-//            }
+//            self.markDirty()
         }
-        else
-        {
-//            self.outputMesh.send(nil)
-        }
-        
      }
     
     func cullMode() -> MTLCullMode
