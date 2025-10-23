@@ -31,25 +31,28 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
     let postMaterial:PostMaterial
     let postProcessor:PostProcessor
     
-    // Parameters
-    override var inputParameters: [any Parameter] { self.postMaterial.parameters.params + super.inputParameters }
-
     // Ports
-    let inputTexturePort:NodePort<EquatableTexture>
-    let inputTexture2Port:NodePort<EquatableTexture>
-    let inputTexture3Port:NodePort<EquatableTexture>
-    
-    let outputTexturePort:NodePort<EquatableTexture>
-    override var ports: [Port] { [inputTexturePort, inputTexture2Port, inputTexture3Port, outputTexturePort] + super.ports}
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+        
+        return ports +
+        [
+            ("inputTexturePort", NodePort<EquatableTexture>(name: "Image 1", kind: .Inlet)),
+            ("inputTexture2Port", NodePort<EquatableTexture>(name: "Image 2", kind: .Inlet)),
+            ("inputTexture3Port", NodePort<EquatableTexture>(name: "Image 2", kind: .Inlet)),
+            ("outputTexturePort", NodePort<EquatableTexture>(name: "Image", kind: .Outlet)),
+        ]
+    }
+
+    public var inputTexturePort:NodePort<EquatableTexture>  { port(named: "inputTexturePort") }
+    public var inputTexture2Port:NodePort<EquatableTexture> { port(named: "inputTexture2Port") }
+    public var inputTexture3Port:NodePort<EquatableTexture> { port(named: "inputTexture3Port") }
+    public var outputTexturePort:NodePort<EquatableTexture> { port(named: "outputTexturePort") }
     
     private var url:URL? = nil
     
-    required init(context: Satin.Context, fileURL: URL) throws {
-        self.inputTexturePort = NodePort<EquatableTexture>(name: "Image 1", kind: .Inlet)
-        self.inputTexture2Port = NodePort<EquatableTexture>(name: "Image 2", kind: .Inlet)
-        self.inputTexture3Port = NodePort<EquatableTexture>(name: "Image 3", kind: .Inlet)
-        self.outputTexturePort = NodePort<EquatableTexture>(name: "Image", kind: .Outlet)
-
+    required init(context: Satin.Context, fileURL: URL) throws
+    {
         self.url = fileURL
         let material = PostMaterial(pipelineURL:fileURL)
         material.setup()
@@ -60,15 +63,14 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
                                            frameBufferOnly: false)
                 
         super.init(context: context)
+        
+        for param in self.postMaterial.parameters.params {
+            self.parameterGroup.append(param)
+        }
     }
     
     required init(context:Context)
     {
-        self.inputTexturePort = NodePort<EquatableTexture>(name: "Image", kind: .Inlet)
-        self.inputTexture2Port = NodePort<EquatableTexture>(name: "Image 2", kind: .Inlet)
-        self.inputTexture3Port = NodePort<EquatableTexture>(name: "Image 3", kind: .Inlet)
-        self.outputTexturePort = NodePort<EquatableTexture>(name: "Image", kind: .Outlet)
-
         let bundle = Bundle(for: Self.self)
         let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
         
@@ -82,29 +84,22 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
                                            frameBufferOnly: false)
                 
         super.init(context: context)
+        
+        for param in self.postMaterial.parameters.params {
+            self.parameterGroup.append(param)
+        }
     }
     
     enum CodingKeys : String, CodingKey
     {
-        case inputTexturePort
-        case inputTexture2Port
-        case inputTexture3Port
-        case outputTexturePort
-        
         // Store the last 2 directory components (effects/subfolder) within the bundle
         case effectPath
-        
     }
     
     override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputTexturePort, forKey: .inputTexturePort)
-        try container.encode(self.inputTexture2Port, forKey: .inputTexture2Port)
-        try container.encode(self.inputTexture3Port, forKey: .inputTexture3Port)
-        try container.encode(self.outputTexturePort, forKey: .outputTexturePort)
-        
+                
         if let url = self.url
         {
             let last2 = url.pathComponents.suffix(3)
@@ -126,10 +121,7 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
             fatalError("Required Decode Context Not set")
         }
         
-        self.inputTexturePort = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputTexturePort)
-        self.inputTexture2Port = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputTexture2Port)
-        self.inputTexture3Port = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputTexture3Port)
-        self.outputTexturePort = try container.decode(NodePort<EquatableTexture>.self, forKey: .outputTexturePort)
+
 
         if let path = try container.decodeIfPresent(String.self, forKey: .effectPath)
         {
