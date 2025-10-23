@@ -27,8 +27,10 @@ public class MovieTextureNode : Node
 {
     override public class var name:String { "Movie Player" }
     override public class var nodeType:Node.NodeType { Node.NodeType.Image(imageType: .Loader) }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
+    override public class var nodeTimeMode: Node.TimeMode { .TimeBase }
+    override public class var nodeDescription: String { "Play a Movie File from disk, providing an output Image"}
 
-    // Parameters
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
@@ -76,8 +78,6 @@ public class MovieTextureNode : Node
     {
         // Forces the initialization when the class is accessed
         _ = MovieTextureNodeInitializer
-
-        let container = try decoder.container(keyedBy: CodingKeys.self)
 
         guard let decodeContext = decoder.context else
         {

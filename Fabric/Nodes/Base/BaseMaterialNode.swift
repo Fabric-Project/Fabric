@@ -14,6 +14,8 @@ public class BaseMaterialNode : Node
 {
     override public class var name:String {  "Material" }
     override public class var nodeType:Node.NodeType { .Material }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
 
     // Port Registration
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {

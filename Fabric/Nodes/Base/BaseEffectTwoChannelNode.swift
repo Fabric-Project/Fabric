@@ -15,6 +15,8 @@ class BaseEffectTwoChannelNode: Node, NodeFileLoadingProtocol
 {
     override class var name:String { "Base Effect" }
     override class var nodeType:Node.NodeType { .Image(imageType: .BaseEffect) }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
 
     override var name: String {
         guard let fileURL = self.url else {
@@ -171,12 +173,11 @@ class BaseEffectTwoChannelNode: Node, NodeFileLoadingProtocol
                           renderPassDescriptor: MTLRenderPassDescriptor,
                           commandBuffer: MTLCommandBuffer)
     {
-        let anyParamDidChange =  self.inputParameters.reduce(false, { partialResult, next in
+        let anyPortChanged =  self.ports.reduce(false, { partialResult, next in
            return partialResult || next.valueDidChange
         })
 
-        
-        if  self.inputTexturePort.valueDidChange || self.inputTexture2Port.valueDidChange || anyParamDidChange || self.isDirty
+        if  self.inputTexturePort.valueDidChange || self.inputTexture2Port.valueDidChange || anyPortChanged || self.isDirty
         {
             if let inTex = self.inputTexturePort.value?.texture,
                let inTex2 = self.inputTexture2Port.value?.texture

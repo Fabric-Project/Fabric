@@ -14,16 +14,19 @@ import Combine
 @Observable public class Node : Codable, Equatable, Identifiable, Hashable
 {
     // User interface name
-    public class var name:String {  fatalError("Must be implemented") }
+    public class var name:String {  fatalError("\(String(describing:self)) Must implement name") }
     
     // User interface organizing principle
-    public class var nodeType:Node.NodeType { fatalError("Must be implemented") }
+    public class var nodeType:Node.NodeType { fatalError("\(String(describing:self)) Must implement nodeType") }
     
     // Execution mode value is used to determine when this node is evaluated
-    public class var nodeExecutionMode: Node.ExecutionMode { fatalError("Must be implemented") }
-    
+    public class var nodeExecutionMode: Node.ExecutionMode { fatalError("\(String(describing:self)) Must implement nodeExecutionMode") }
+
+    // Execution mode value is used to determine when this node is evaluated
+    public class var nodeTimeMode: Node.TimeMode {  fatalError("\(String(describing:self)) Must implement nodeTimeMode") }
+
     // User interface description
-    public class var nodeDescription: String { fatalError("Must be implemented") }
+    public class var nodeDescription: String { fatalError("\(String(describing:self)) Must implement nodeDescription") }
 
     // Identifiable
     public let id:UUID
@@ -67,8 +70,8 @@ import Combine
     @ObservationIgnored public let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
 
     // TODO: these can go away once all nodes implement PortRegistration
-    @ObservationIgnored public var inputParameters:[any Parameter] { []  }
-    @ObservationIgnored private var inputParameterPorts:[Port] = []
+//    @ObservationIgnored public var inputParameters:[any Parameter] { []  }
+//    @ObservationIgnored private var inputParameterPorts:[Port] = []
     
     public var ports:[Port] { self.registry.all()   }
     public private(set) var inputNodes:[Node] = []

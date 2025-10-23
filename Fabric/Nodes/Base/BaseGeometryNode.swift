@@ -14,6 +14,9 @@ public class BaseGeometryNode : Node
 {
     override public class var name:String { "Geometry" }
     override public class var nodeType:Node.NodeType { .Geometery }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+    override public class var nodeDescription: String { "Provides \(Self.name)"}
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)

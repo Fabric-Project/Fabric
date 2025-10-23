@@ -14,7 +14,10 @@ import MetalKit
 class BaseEffectNode: Node, NodeFileLoadingProtocol
 {
     override class var name:String { "Base Effect" }
-    
+    override class var nodeType:Node.NodeType { .Image(imageType: .BaseEffect) }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+
     override var name: String {
         guard let fileURL = self.url else {
             return BaseEffectNode.name
@@ -23,7 +26,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
         return self.fileURLToName(fileURL: fileURL)
     }
     
-    override class var nodeType:Node.NodeType { .Image(imageType: .BaseEffect) }
+    
     class var sourceShaderName:String { "" }
 
     open class PostMaterial: SourceMaterial {}
@@ -168,11 +171,11 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
                           renderPassDescriptor: MTLRenderPassDescriptor,
                           commandBuffer: MTLCommandBuffer)
     {
-        let anyParamDidChange =  self.inputParameters.reduce(false, { partialResult, next in
+        let anyPortChanged =  self.ports.reduce(false, { partialResult, next in
            return partialResult || next.valueDidChange
         })
 
-        if self.inputTexturePort.valueDidChange || anyParamDidChange || self.isDirty
+        if self.inputTexturePort.valueDidChange || anyPortChanged || self.isDirty
         {
             if let inTex = self.inputTexturePort.value?.texture
             {

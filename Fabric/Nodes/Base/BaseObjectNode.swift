@@ -13,7 +13,9 @@ import Metal
 
 public class BaseObjectNode : Node
 {
-    
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Consumer }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+
     public func getObject() -> Object? {
         return nil
     }
@@ -22,6 +24,7 @@ public class BaseObjectNode : Node
 
 public class ObjectNode<ObjectType : Satin.Object> : BaseObjectNode
 {
+
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
         
