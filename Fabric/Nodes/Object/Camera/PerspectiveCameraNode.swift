@@ -43,9 +43,9 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
         
         self.inputPosition.value = .init(repeating: 5.0)
         
-        self.camera.lookAt(target: simd_float3(repeating: 0))
+        self.camera.lookAt(target: self.inputLookAt.value ?? .zero)
         self.camera.position = self.inputPosition.value ?? .zero
-        self.camera.scale = self.inputScale.value ?? .zero
+        self.camera.scale = self.inputScale.value ?? .one
         
         let orientation = self.inputOrientation.value ?? .zero
         self.camera.orientation = simd_quatf(angle: orientation.w,

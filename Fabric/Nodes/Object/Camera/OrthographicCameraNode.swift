@@ -30,7 +30,6 @@ public class OrthographicCameraNode : ObjectNode<OrthographicCamera>
     // Proxy Port
     public var inputLookAt:ParameterPort<simd_float3> { port(named: "inputLookAt") }
     
-    
     override public var object: OrthographicCamera?
     {
         camera
@@ -44,9 +43,9 @@ public class OrthographicCameraNode : ObjectNode<OrthographicCamera>
         
         self.inputPosition.value = .init(repeating: 5.0)
         
-        self.camera.lookAt(target: simd_float3(repeating: 0))
+        self.camera.lookAt(target: self.inputLookAt.value ?? .zero)
         self.camera.position = self.inputPosition.value ?? .zero
-        self.camera.scale = self.inputScale.value ?? .zero
+        self.camera.scale = self.inputScale.value ?? .one
         
         let orientation = self.inputOrientation.value ?? .zero
         self.camera.orientation = simd_quatf(angle: orientation.w,
