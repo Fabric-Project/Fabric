@@ -325,7 +325,7 @@ internal import AnyCodable
     public func publishedParameters() -> [any Parameter]
     {
         // id's of ports match id's of params for convenience
-        let publishedPortIds = self.nodes.flatMap( { $0.publishedParameterPorts().map { $0.id } } )
+        let publishedPortIds = self.nodes.flatMap( { $0.publishedPorts().map { $0.id } } )
         
         // expose only params that are published
         return self.nodes.flatMap( { $0.parameterGroup.params } ).filter { publishedPortIds.contains($0.id) }

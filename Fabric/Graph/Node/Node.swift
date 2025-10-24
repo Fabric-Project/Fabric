@@ -69,24 +69,20 @@ import Combine
     @ObservationIgnored private let registry = PortRegistry()
     @ObservationIgnored public let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
 
-    // TODO: these can go away once all nodes implement PortRegistration
-//    @ObservationIgnored public var inputParameters:[any Parameter] { []  }
-//    @ObservationIgnored private var inputParameterPorts:[Port] = []
-    
     public var ports:[Port] { self.registry.all()   }
     public private(set) var inputNodes:[Node] = []
     public private(set) var outputNodes:[Node]  = []
     
     public var isSelected:Bool = false
     public var isDragging:Bool = false
-    //    var showParams:Bool = false
+    // var showParams:Bool = false
     
     public var nodeSize:CGSize { self.computeNodeSize() }
     
     public var offset: CGSize = .zero
     
     // Dirty Handling
-    //    @ObservationIgnored var lastEvaluationTime: TimeInterval = -1
+    // @ObservationIgnored var lastEvaluationTime: TimeInterval = -1
     @ObservationIgnored private(set) public var isDirty: Bool = true
     
     // Input Parameter update tracking:
@@ -198,7 +194,7 @@ import Combine
     // Convenience for subclasses: typed lookup (so computed props stay nice)
     public func port<T: Port>(named name: String, as type: T.Type = T.self) -> T
     {
-        registry.port(named: name) as! T
+        self.registry.port(named: name) as! T
     }
     
     // Dynamic add/remove (kept by serialization automatically)
@@ -221,11 +217,6 @@ import Combine
     }
     
     public func publishedPorts() -> [Port]
-    {
-        return self.ports.filter( { $0.published } )
-    }
-    
-    public func publishedParameterPorts() -> [Port]
     {
         return self.ports.filter( { $0.published } )
     }
