@@ -15,9 +15,21 @@ public class ModelMeshNode : MeshNode
 {
     public override class var name:String { "Model Mesh" }
     public override class var nodeType:Node.NodeType { .Object(objectType: .Loader) }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Consumer }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+    override public class var nodeDescription: String { "Load an 3D model file from disk, rendering it to the scene"}
 
-    public let inputFilePathParam:StringParameter
-    public override var inputParameters: [any Parameter] { [self.inputFilePathParam] + super.inputParameters}
+    // Ports
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+        
+        return ports +
+        [
+            ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker))),
+        ]
+    }
+
+    public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
     
     private var textureLoader:MTKTextureLoader
     private var url: URL? = nil
@@ -37,22 +49,8 @@ public class ModelMeshNode : MeshNode
     
     public required init(context: Context)
     {
-        self.inputFilePathParam = StringParameter("Model Path", "", [], .filepicker)
         self.textureLoader = MTKTextureLoader(device: context.device)
-        
         super.init(context: context)
-    }
-    
-    enum CodingKeys : String, CodingKey
-    {
-        case inputFilePathParameter
-    }
-    
-    public override func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.inputFilePathParam, forKey: .inputFilePathParameter)
-        try super.encode(to: encoder)
     }
     
     public required init(from decoder: any Decoder) throws
@@ -62,9 +60,6 @@ public class ModelMeshNode : MeshNode
             fatalError("Required Decode Context Not set")
         }
 
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        
-        self.inputFilePathParam = try container.decode(StringParameter.self, forKey:.inputFilePathParameter)
         self.textureLoader = MTKTextureLoader(device: decodeContext.documentContext.device)
 
         try super.init(from: decoder)
@@ -95,37 +90,25 @@ public class ModelMeshNode : MeshNode
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        
-        // This looks a bit diff, since we have a catch-22 and need a mesh to evaluate
-        var shouldOutput = false
-        
+                
         if self.inputFilePathParam.valueDidChange
         {
             self.loadModelFromInputValue()
-            shouldOutput = true
         }
 
         if let model = self.model
         {
-            shouldOutput = self.evaluate(object: model, atTime: context.timing.time)
-
-            if shouldOutput
-            {
-//                self.outputMesh.send(model)
-            }
-        }
-        else
-        {
-//            self.outputMesh.send(nil)
+            let _ = self.evaluate(object: model, atTime: context.timing.time)
         }
     }
     
     private func loadModelFromInputValue()
     {
-        if  self.inputFilePathParam.value.isEmpty == false && self.url != URL(string: self.inputFilePathParam.value)
+        if let path = self.inputFilePathParam.value,
+           path.isEmpty == false && self.url != URL(string: path)
         {
-            self.url = URL(string: self.inputFilePathParam.value)
-            
+            self.url = URL(string: path)
+
             if FileManager.default.fileExists(atPath: self.url!.standardizedFileURL.path(percentEncoded: false) )
             {
                 let unflattenedModelObject = loadAsset(url:self.url!, textureLoader: self.textureLoader)
