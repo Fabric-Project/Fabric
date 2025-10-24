@@ -16,7 +16,7 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
     override public class var nodeType:Node.NodeType { Node.NodeType.Object(objectType: .Camera) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Consumer }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Provides Perspective Camera for the Scene."}
+    override public class var nodeDescription: String { "Provides a Perspective Camera for the Scene."}
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
