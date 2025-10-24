@@ -119,7 +119,6 @@ final class SuperShapeGeometry: SatinGeometry {
         super.init()
     }
 
-    
     override public func generateGeometryData() -> GeometryData {
         generateSuperShapeGeometryData(r1, a1, b1, m1, n11, n21, n31, r2, a2, b2, m2, n12, n22, n32, Int32(res), Int32(res))
     }
