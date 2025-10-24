@@ -46,7 +46,6 @@ public class DirectionalLightNode : ObjectNode<DirectionalLight>
     }
     
     private var light: DirectionalLight =  DirectionalLight(color: [1.0, 1.0, 1.0], intensity: 1.0)
-    
   
     override public func startExecution(context:GraphExecutionContext)
     {
@@ -67,7 +66,6 @@ public class DirectionalLightNode : ObjectNode<DirectionalLight>
         if let shadowCamera = self.light.shadow.camera as? OrthographicCamera {
             shadowCamera.update(left: -20, right: 20, bottom: -20, top: 20, near: 0.01, far: 200)
         }
-
     }
 
     override public func evaluate(object: Object?, atTime: TimeInterval) -> Bool
@@ -119,11 +117,6 @@ public class DirectionalLightNode : ObjectNode<DirectionalLight>
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        let shouldUpdate = self.evaluate(object: self.light, atTime: context.timing.time)
-
-//        if shouldUpdate
-//        {
-//            self.outputLight.send(light)
-//        }
+        let _ = self.evaluate(object: self.light, atTime: context.timing.time)
     }
 }

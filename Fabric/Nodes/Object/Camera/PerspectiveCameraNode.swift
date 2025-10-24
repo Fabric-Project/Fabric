@@ -68,7 +68,7 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        let shouldUpdate = self.evaluate(object: self.camera, atTime: context.timing.time)
+        let _ = self.evaluate(object: self.camera, atTime: context.timing.time)
     }
     
     public override func resize(size: (width: Float, height: Float), scaleFactor: Float)

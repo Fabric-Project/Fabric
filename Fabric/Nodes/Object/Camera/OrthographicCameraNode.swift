@@ -68,12 +68,7 @@ public class OrthographicCameraNode : ObjectNode<OrthographicCamera>
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        let shouldUpdate = self.evaluate(object: self.object, atTime: context.timing.time)
-        
-//        if shouldUpdate
-//        {
-//            self.outputCamera.send(self.camera)
-//        }
+        let _ = self.evaluate(object: self.object, atTime: context.timing.time)
     }
     
     public override func resize(size: (width: Float, height: Float), scaleFactor: Float)

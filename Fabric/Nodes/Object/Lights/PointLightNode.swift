@@ -68,7 +68,6 @@ public class PointLightNode : ObjectNode<PointLight>
         if let shadowCamera = self.light.shadow.camera as? OrthographicCamera {
             shadowCamera.update(left: -20, right: 20, bottom: -20, top: 20, near: 0.01, far: 200)
         }
-
     }
     
     override public func evaluate(object: Object?, atTime: TimeInterval) -> Bool
@@ -126,11 +125,6 @@ public class PointLightNode : ObjectNode<PointLight>
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        let shouldUpdate = self.evaluate(object: self.light, atTime: context.timing.time)
-
-//        if shouldUpdate
-//        {
-//            self.outputLight.send(light)
-//        }
+        let _ = self.evaluate(object: self.light, atTime: context.timing.time)
     }
 }
