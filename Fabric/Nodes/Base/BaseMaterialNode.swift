@@ -42,6 +42,11 @@ public class BaseMaterialNode : Node
         fatalError("Subclasses must override material")
     }
     
+    override public func startExecution(context: GraphExecutionContext)
+    {
+        self.material.context = context.graphRenderer?.context
+    }
+    
     public func evaluate(material:Material, atTime:TimeInterval) -> Bool
     {
         var shouldOutput = false
