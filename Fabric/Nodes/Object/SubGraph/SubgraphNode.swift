@@ -14,10 +14,13 @@ public class SubgraphNode: BaseObjectNode
 {
     override public class var name:String { "Sub Graph" }
     override public class var nodeType:Node.NodeType { Node.NodeType.Subgraph }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Consumer } // TODO: ??
+    override public class var nodeTimeMode: Node.TimeMode { .TimeBase }
+    override public class var nodeDescription: String { "A Sub Graph of Nodes, useful for organizing or encapsulation"}
 
     let subGraph:Graph
     
-    override public var ports:[Port] { self.subGraph.publishedPorts() }
+    override public var ports:[Port] { self.subGraph.publishedPorts() + super.ports }
     
     override public func getObject() -> Object?
     {
