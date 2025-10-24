@@ -62,6 +62,7 @@ public class ParameterPort<ParamValue : FabricPort & Codable & Equatable & Hasha
     
     deinit
     {
+        self.subscription?.cancel()
         self.subscription = nil
     }
     

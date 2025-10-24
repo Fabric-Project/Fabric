@@ -186,6 +186,8 @@ import Combine
     
     deinit
     {
+        self.inputParamCancellables.forEach { $0.cancel() }
+        self.inputParamCancellables.removeAll()
         print("Deleted node \(id)")
     }
     
