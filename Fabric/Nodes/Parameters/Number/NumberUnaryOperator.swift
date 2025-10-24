@@ -15,8 +15,8 @@ import Metal
 
 public class NumberUnnaryOperator : Node
 {
-    override public static var name:String { "Number Unnary Operator" }
-    override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
+    override public class var name:String { "Number Unnary Operator" }
+    override public class var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Run an operation on an input Number and return the resulting Number"}
