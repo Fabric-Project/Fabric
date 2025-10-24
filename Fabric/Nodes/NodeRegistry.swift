@@ -65,7 +65,7 @@ public class NodeRegistry {
         SphereGeometryNode.self,
         IcoSphereGeometryNode.self,
         CapsuleGeometryNode.self,
-        SkyboxGeometryNode.self,
+//        SkyboxGeometryNode.self,
         TesselatedTextGeometryNode.self,
         ExtrudedTextGeometryNode.self,
         SuperShapeGeometryNode.self
@@ -76,7 +76,7 @@ public class NodeRegistry {
         BasicColorMaterialNode.self,
         BasicTextureMaterialNode.self,
         BasicDiffuseMaterialNode.self,
-        SkyboxMaterialNode.self,
+//        SkyboxMaterialNode.self,
         DepthMaterialNode.self,
         //ShadowMaterialNode.self,
         StandardMaterialNode.self,
