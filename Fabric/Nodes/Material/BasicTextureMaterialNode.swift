@@ -14,49 +14,25 @@ import Metal
 public class BasicTextureMaterialNode : BasicColorMaterialNode
 {
     public override class var name:String {  "Texture Material" }
+    override public class var nodeDescription: String { "Provides basic Image rendering"}
 
-    // Ports
-    public let inputTexture:NodePort<EquatableTexture>
-    public override var ports: [Port] {   [inputTexture] + super.ports }
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+        
+        return  [
+                    ("inputTexture", NodePort<EquatableTexture>(name: "Texture", kind: .Inlet) ),
+                ] + ports
+    }
+    
+    public var inputTexture:NodePort<EquatableTexture> { port(named: "inputTexture") }
+    
     
     public override var material: BasicTextureMaterial {
         return _material
     }
     
     private var _material = BasicTextureMaterial()
-    
-    public required init(context:Context)
-    {
-        self.inputTexture = NodePort<EquatableTexture>(name: "Texture", kind: .Inlet)
-        
-        super.init(context: context)
-        
-//        self.material.flipped = true
-    }
-    
-    enum CodingKeys : String, CodingKey
-    {
-        case inputTexturePort
-    }
-    
-    public required init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
 
-        self.inputTexture = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputTexturePort)
-
-        try super.init(from: decoder)
-
-        self.material.flipped = true
-    }
-
-    public override func encode(to encoder: any Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.inputTexture, forKey: .inputTexturePort)
-        try super.encode(to: encoder)
-    }
-    
     public override func evaluate(material:Material, atTime:TimeInterval) -> Bool
     {
         var shouldOutput = super.evaluate(material: material, atTime: atTime)

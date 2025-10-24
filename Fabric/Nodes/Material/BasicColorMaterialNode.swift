@@ -13,7 +13,8 @@ import Metal
 public class BasicColorMaterialNode : BaseMaterialNode
 {
     public override class var name:String {  "Color Material" }
-    
+    override public class var nodeDescription: String { "Provides basic color rendering."}
+
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
         
