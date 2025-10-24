@@ -26,7 +26,6 @@ public class BasicTextureMaterialNode : BasicColorMaterialNode
     
     public var inputTexture:NodePort<EquatableTexture> { port(named: "inputTexture") }
     
-    
     public override var material: BasicTextureMaterial {
         return _material
     }
