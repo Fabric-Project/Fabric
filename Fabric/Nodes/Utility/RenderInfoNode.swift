@@ -18,7 +18,7 @@ public class RenderInfoNode : Node
     // Ports
     public let outputResolution:NodePort<simd_float2>
     public let outputFrameNumber:NodePort<Int>
-    public override var ports: [AnyPort] { [ self.outputResolution, self.outputFrameNumber] + super.ports}
+    public override var ports: [Port] { [ self.outputResolution, self.outputFrameNumber] + super.ports}
     
     public override var isDirty:Bool { true }
         

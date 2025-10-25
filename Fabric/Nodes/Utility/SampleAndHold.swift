@@ -10,90 +10,58 @@ import Satin
 import Metal
 import simd
 
-public class SampleAndHold<ValueType : Equatable & FabricDescription> : Node
+public class SampleAndHold<ValueType : FabricPort & Equatable & FabricDescription> : Node
 {
     public override class var name:String { "Sample and Hold \(ValueType.fabricDescription)" }
     public override class var nodeType:Node.NodeType { Node.NodeType.Utility }
-
-    // Params
-    public let inputSample:BoolParameter
-    public let inputReset:BoolParameter
-    public override var inputParameters: [any Parameter] { [inputSample, inputReset] + super.inputParameters }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+    override public class var nodeDescription: String { "Sample a value from input \(ValueType.fabricDescription) if sampling is enabled, and output last sampled value."}
     
     // Ports
-    public let inputValue:NodePort<ValueType>
-    public let outputValue:NodePort<ValueType>
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+        
+        return ports +
+        [
+            ("inputValue", NodePort<ValueType>(name: "Value" , kind: .Inlet)),
+            ("inputSample", ParameterPort(parameter:BoolParameter("Sample", true))),
+            ("inputReset", ParameterPort(parameter:BoolParameter("Reset", false))),
+            ("outputValue", NodePort<ValueType>(name: "Value" , kind: .Outlet)),
+        ]
+    }
     
+    // Params
+    public var inputValue:NodePort<ValueType> { port(named: "inputValue") }
+    public var inputSample:ParameterPort<Bool> { port(named: "inputSample") }
+    public var inputReset:ParameterPort<Bool> { port(named: "inputReset") }
+    public var outputValue:NodePort<ValueType> { port(named: "outputValue") }
+
     private var value:ValueType?
     
-    public override var ports: [AnyPort] { [ self.inputValue, self.outputValue ] + super.ports}
-    
-    public required init(context: Context)
-    {
-        self.inputSample = BoolParameter("Sample", true)
-        self.inputReset = BoolParameter("Reset", false)
-
-        self.inputValue = NodePort<ValueType>(name: "Value" , kind: .Inlet)
-        self.outputValue = NodePort<ValueType>(name: "Value" , kind: .Outlet)
-
-        super.init(context: context)
-    }
-    
-    enum CodingKeys : String, CodingKey
-    {
-        case inputValuePort
-        case inputSampleParam
-        case inputResetParam
-        case outputValuePort
-    }
-    
-    public override func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputValue, forKey: .inputValuePort)
-        try container.encode(self.inputSample, forKey: .inputSampleParam)
-        try container.encode(self.inputReset, forKey: .inputResetParam)
-        try container.encode(self.outputValue, forKey: .outputValuePort)
-
-        try super.encode(to: encoder)
-    }
-    
-    public required init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        self.inputValue = try container.decode(NodePort<ValueType>.self, forKey: .inputValuePort)
-        self.inputSample = try container.decode(BoolParameter.self, forKey: .inputSampleParam)
-        self.inputReset = try container.decode(BoolParameter.self, forKey: .inputResetParam)
-
-        self.outputValue = try container.decode(NodePort<ValueType>.self, forKey: .outputValuePort)
-
-        try super.init(from: decoder)
-    }
+    public override var ports: [Port] { [ self.inputValue, self.outputValue ] + super.ports}
     
     public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
         
-        if self.inputValue.valueDidChange
+        if self.inputValue.valueDidChange,
+           let inputValue = self.inputValue.value,
+           let inputSampling = self.inputSample.value
         {
-            if self.inputSample.value
+            if inputSampling
             {
-                self.value = self.inputValue.value
-
+                self.value = inputValue
                 self.outputValue.send(self.value)
             }
         }
         
-        if self.inputReset.valueDidChange
+        if self.inputReset.valueDidChange,
+           let inputReset = self.inputReset.value
         {
-            if self.inputReset.value
-            {
                 self.value = nil
                 self.outputValue.send(self.value)
-            }
         }
         
     }

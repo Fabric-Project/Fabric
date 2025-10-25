@@ -20,7 +20,7 @@ public class ForegroundMaskNode: Node
     // Ports
     let inputTexturePort:NodePort<EquatableTexture>
     let outputTexturePort:NodePort<EquatableTexture>
-    override public var ports: [AnyPort] { [inputTexturePort, outputTexturePort] + super.ports}
+    override public var ports: [Port] { [inputTexturePort, outputTexturePort] + super.ports}
     
     @ObservationIgnored private var textureCache:CVMetalTextureCache?
     

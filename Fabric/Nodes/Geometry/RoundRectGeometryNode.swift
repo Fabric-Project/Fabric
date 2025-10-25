@@ -14,79 +14,57 @@ public class RoundRectGeometryNode : BaseGeometryNode
 {
     public override class var name:String { "Round Rect Geometry" }
 
-    // Params
-    public let inputWidthParam:FloatParameter
-    public let inputHeightParam:FloatParameter
-    public let inputRadiusParam:FloatParameter
-    public let inputResolutionParam:Int2Parameter
-    public override var inputParameters: [any Parameter] { [inputWidthParam, inputHeightParam, inputRadiusParam, inputResolutionParam] + super.inputParameters}
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+        
+        return  [
+        ("inputWidth", ParameterPort(parameter:FloatParameter("Width", 1.0, .inputfield))),
+        ("inputHeight", ParameterPort(parameter:FloatParameter("Height", 1.0, .inputfield))),
+        ("inputRadius", ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield))),
+        ("inputResolutionWidth", ParameterPort(parameter:IntParameter("Width", 1, .inputfield))),
+        ("inputResolutionHeight", ParameterPort(parameter:IntParameter("Height", 1, .inputfield))),
 
+        ] + ports
+    }
+    
+    // Proxy Port
+    public var inputWidth:ParameterPort<Float> { port(named: "inputWidth")  }
+    public var inputHeight:ParameterPort<Float> { port(named: "inputHeight")  }
+    public var inputRadius:ParameterPort<Float> { port(named: "inputRadius")  }
+    public var inputResolutionWidth:ParameterPort<Int> { port(named: "inputResolutionWidth")  }
+    public var inputResolutionHeight:ParameterPort<Int> { port(named: "inputResolutionHeight")  }
+    
+   
     public override var geometry: RoundedRectGeometry { _geometry }
 
     private let _geometry = RoundedRectGeometry(width: 1, height: 1, radius: 0.2, angularResolution: 32, radialResolution: 32)
-
-    required public init(context: Context)
-    {
-        self.inputWidthParam = FloatParameter("Width", 1.0, .inputfield)
-        self.inputHeightParam = FloatParameter("Height", 1.0, .inputfield)
-        self.inputRadiusParam = FloatParameter("Radius", 0.2, .inputfield)
-        self.inputResolutionParam = Int2Parameter("Resolution", simd_int2(repeating: 32), .inputfield)
-
-        super.init(context: context)
-    }
-        
-    enum CodingKeys : String, CodingKey
-    {
-        case inputWidthParameter
-        case inputHeightParameter
-        case inputRadiusParameter
-        case inputResolutionParameter
-    }
-    
-    override public func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputWidthParam, forKey: .inputWidthParameter)
-        try container.encode(self.inputHeightParam, forKey: .inputHeightParameter)
-        try container.encode(self.inputRadiusParam, forKey: .inputRadiusParameter)
-        try container.encode(self.inputResolutionParam, forKey: .inputResolutionParameter)
-        
-        try super.encode(to: encoder)
-    }
-    
-    required public init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        self.inputWidthParam = try container.decode(FloatParameter.self, forKey: .inputWidthParameter)
-        self.inputHeightParam = try container.decode(FloatParameter.self, forKey: .inputHeightParameter)
-        self.inputRadiusParam = try container.decode(FloatParameter.self, forKey: .inputRadiusParameter)
-        self.inputResolutionParam = try container.decode(Int2Parameter.self, forKey: .inputResolutionParameter)
-        
-        try super.init(from: decoder)
-    }
     
     override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
     {
         var shouldOutputGeometry = super.evaluate(geometry: geometry, atTime: atTime)
 
-        if self.inputWidthParam.valueDidChange || self.inputHeightParam.valueDidChange
+        if self.inputWidth.valueDidChange || self.inputHeight.valueDidChange,
+           let inputWidth = self.inputWidth.value,
+           let inputHeight = self.inputHeight.value
         {
-            self.geometry.size = simd_float2( self.inputWidthParam.value, self.inputHeightParam.value)
+            self.geometry.size = simd_float2( inputWidth, inputHeight)
             shouldOutputGeometry = true
         }
         
-        if self.inputRadiusParam.valueDidChange
+        if self.inputRadius.valueDidChange,
+           let inputRadius = self.inputRadius.value
         {
-            self.geometry.radius = max(0.0001, self.inputRadiusParam.value)
+            self.geometry.radius = max(0.0001, inputRadius)
             shouldOutputGeometry = true
         }
         
-        if  self.inputResolutionParam.valueDidChange
+        if  self.inputResolutionWidth.valueDidChange || self.inputResolutionHeight.valueDidChange,
+            let inputResolutionWidth = self.inputResolutionWidth.value,
+            let inputResolutionHeight = self.inputResolutionHeight.value
         {
-            self.geometry.angularResolution = Int(self.inputResolutionParam.value.x)
-            self.geometry.radialResolution = Int(self.inputResolutionParam.value.y)
+            self.geometry.angularResolution = inputResolutionWidth
+            self.geometry.radialResolution = inputResolutionHeight
+            
             shouldOutputGeometry = true
         }
         

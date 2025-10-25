@@ -15,14 +15,23 @@ public class HDRTextureNode : Node
 {
     public override class var name:String { "HDR Texture" }
     public override class var nodeType:Node.NodeType { Node.NodeType.Image(imageType: .Loader) }
-
-    // Parameters
-    let inputFilePathParam:StringParameter
-    override public var inputParameters: [any Parameter] { [self.inputFilePathParam] + super.inputParameters}
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+    override public class var nodeDescription: String { "Load an image file from disk, providing an output Image"}
 
     // Ports
-    let outputTexturePort:NodePort<EquatableTexture>
-    override public var ports:[AnyPort] {  [outputTexturePort] + super.ports}
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+        
+        return ports +
+        [
+            ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker))),
+            ("outputTexturePort", NodePort<EquatableTexture>(name: "Image", kind: .Outlet)),
+        ]
+    }
+
+    public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
+    public var outputTexturePort:NodePort<EquatableTexture> { port(named: "outputTexturePort") }
 
     @ObservationIgnored private var texture: (any MTLTexture)? = nil
     @ObservationIgnored private var textureLoader:MTKTextureLoader
@@ -30,9 +39,6 @@ public class HDRTextureNode : Node
     
     public required init(context:Context)
     {
-        self.inputFilePathParam = StringParameter("File Path", "", .filepicker)
-        self.outputTexturePort = NodePort<EquatableTexture>(name: "Image", kind: .Outlet)
-
         self.textureLoader = MTKTextureLoader(device: context.device)
 
         super.init(context: context)
@@ -40,40 +46,19 @@ public class HDRTextureNode : Node
         self.loadTextureFromInputValue()
     }
     
-    enum CodingKeys : String, CodingKey
-    {
-        case inputFilePathParameter
-        case outputTexturePort
-    }
-    
-    override public func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputFilePathParam, forKey: .inputFilePathParameter)
-        try container.encode(self.outputTexturePort, forKey: .outputTexturePort)
-
-        try super.encode(to: encoder)
-    }
     
     public required init(from decoder: any Decoder) throws
     {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-       
         guard let decodeContext = decoder.context else
         {
             fatalError("Required Decode Context Not set")
         }
         
-        self.inputFilePathParam = try container.decode(StringParameter.self, forKey: .inputFilePathParameter)
-        self.outputTexturePort = try container.decode(NodePort<EquatableTexture>.self, forKey: .outputTexturePort)
-
         self.textureLoader = MTKTextureLoader(device: decodeContext.documentContext.device)
 
         try super.init(from:decoder)
         
         self.loadTextureFromInputValue()
-
     }
     
     override public func execute(context:GraphExecutionContext,
@@ -98,10 +83,11 @@ public class HDRTextureNode : Node
     
     private func loadTextureFromInputValue()
     {
-        if  self.inputFilePathParam.value.isEmpty == false && self.url != URL(string: self.inputFilePathParam.value)
+        if let path = self.inputFilePathParam.value,
+           path.isEmpty == false && self.url != URL(string: path)
         {
-            self.url = URL(string: self.inputFilePathParam.value)
-            
+            self.url = URL(string: path)
+
             if FileManager.default.fileExists(atPath: self.url!.standardizedFileURL.path(percentEncoded: false) )
             {
                 

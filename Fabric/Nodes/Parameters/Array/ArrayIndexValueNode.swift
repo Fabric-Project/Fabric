@@ -11,64 +11,39 @@ import simd
 import Metal
 import MetalKit
 
-public class ArrayIndexValueNode<Value : Equatable & FabricDescription> : Node
+public class ArrayIndexValueNode<Value : FabricPort & Equatable & FabricDescription> : Node
 {
     public override class var name:String {"\(Value.fabricDescription) Value at Array Index" }
     public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
-
-    let inputIndexParam:FloatParameter
-    override public var inputParameters: [any Parameter] { [self.inputIndexParam] + super.inputParameters}
-
-    let inputPort:NodePort<ContiguousArray<Value>>
-    let outputPort:NodePort<Value>
-    override public var ports:[AnyPort] {  [inputPort, outputPort] + super.ports}
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+    override public class var nodeDescription: String { "Provides the value of \(Value.fabricDescription) at an input index number"}
     
-    required public init(context:Context)
-    {
-        self.inputPort = NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet)
-        self.inputIndexParam = FloatParameter("Index", 0, .inputfield)
+    // Ports
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
         
-        self.outputPort = NodePort<Value>(name: "Value", kind: .Outlet)
-        
-        super.init(context: context)
+        return ports +
+        [
+            ("inputPort",  NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet)),
+            ("inputIndexParam", ParameterPort(parameter: FloatParameter("Index", 0, .inputfield)) ),
+            ("outputPort", NodePort<Value>(name: "Value", kind: .Outlet)),
+        ]
     }
     
-    enum CodingKeys : String, CodingKey
-    {
-        case inputPort
-        case inputIndexParam
-        case outputPort
-    }
-    
-    override public func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputPort, forKey: .inputPort)
-        try container.encode(self.inputIndexParam, forKey: .inputIndexParam)
-        try container.encode(self.outputPort, forKey: .outputPort)
-
-        try super.encode(to: encoder)
-    }
-    
-    required public init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-       
-        self.inputPort = try container.decode(NodePort<ContiguousArray<Value>>.self, forKey: .inputPort)
-        self.inputIndexParam = try container.decode(FloatParameter.self, forKey: .inputIndexParam)
-        self.outputPort = try container.decode(NodePort<Value>.self, forKey: .outputPort)
-        
-        try super.init(from:decoder)
-    }
+    // Port Proxy
+    public var inputPort:NodePort<ContiguousArray<Value>> { port(named: "inputPort") }
+    public var inputIndexParam:ParameterPort<Int> { port(named: "inputIndexParam") }
+    public var outputPort:NodePort<Value> { port(named: "outputPort") }
     
     override public func execute(context:GraphExecutionContext,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {
-        if self.inputPort.valueDidChange || self.inputIndexParam.valueDidChange
+        if self.inputPort.valueDidChange || self.inputIndexParam.valueDidChange,
+           let index = self.inputIndexParam.value
         {
-            let index = max( 0, Int(self.inputIndexParam.value) )
+            let index = max( 0, index )
             
             if let array = self.inputPort.value
             {

@@ -13,73 +13,48 @@ public class SphereGeometryNode : BaseGeometryNode
 {
     public override class var name:String { "Sphere Geometry" }
 
-    // Params
-    public let inputRadius:FloatParameter
-    public let inputAngularResolutionParam:IntParameter
-    public let inputVerticalResolutionParam:IntParameter
-    public override var inputParameters: [any Parameter] { [inputRadius, inputAngularResolutionParam, inputVerticalResolutionParam] + super.inputParameters}
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+        
+        return  [
+        ("inputRadius", ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield))),
+        ("inputAngularResolution", ParameterPort(parameter:IntParameter("Angular Resolution", 60, .inputfield))),
+        ("inputVerticalResolution", ParameterPort(parameter:IntParameter("Vertical Resolution", 30, .inputfield))),
+
+        ] + ports
+    }
+    
+    // Proxy Port
+    public var inputRadius:ParameterPort<Float> { port(named: "inputRadius")  }
+    public var inputAngularResolution:ParameterPort<Int> { port(named: "inputAngularResolution")  }
+    public var inputVerticalResolution:ParameterPort<Int> { port(named: "inputVerticalResolution")  }
 
     public override var geometry: SphereGeometry { _geometry }
 
     private let _geometry = SphereGeometry(radius: 1.0, angularResolution: 60, verticalResolution: 30)
-
-    public required init(context: Context)
-    {
-        self.inputRadius = FloatParameter("Radius", 1.0, .inputfield)
-        self.inputAngularResolutionParam = IntParameter("Angular Resolution", 60, .inputfield)
-        self.inputVerticalResolutionParam = IntParameter("Vertical Resolution", 30, .inputfield)
-
-        super.init(context: context)
-    }
-        
-    enum CodingKeys : String, CodingKey
-    {
-        case inputRadiusParameter
-        case inputAngularResolutionParameter
-        case inputVerticalResolutionParameter
-    }
-    
-    public override func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputRadius, forKey: .inputRadiusParameter)
-        try container.encode(self.inputAngularResolutionParam, forKey: .inputAngularResolutionParameter)
-        try container.encode(self.inputVerticalResolutionParam, forKey: .inputVerticalResolutionParameter)
-        
-        try super.encode(to: encoder)
-    }
-    
-    public required init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        self.inputRadius = try container.decode(FloatParameter.self, forKey: .inputRadiusParameter)
-        self.inputAngularResolutionParam = try container.decode(IntParameter.self, forKey: .inputAngularResolutionParameter)
-        self.inputVerticalResolutionParam = try container.decode(IntParameter.self, forKey: .inputVerticalResolutionParameter)
-        
-        try super.init(from: decoder)
-    }
     
     override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
     {
         var shouldOutputGeometry = super.evaluate(geometry: geometry, atTime: atTime)
 
-        if self.inputRadius.valueDidChange
+        if self.inputRadius.valueDidChange,
+           let inputRadius = self.inputRadius.value
         {
-            self.geometry.radius = self.inputRadius.value
+            self.geometry.radius = inputRadius
             shouldOutputGeometry = true
         }
         
-        if self.inputAngularResolutionParam.valueDidChange
+        if self.inputAngularResolution.valueDidChange,
+           let inputAngularResolution = self.inputAngularResolution.value
         {
-            self.geometry.angularResolution = self.inputAngularResolutionParam.value
+            self.geometry.angularResolution = inputAngularResolution
             shouldOutputGeometry = true
         }
         
-        if self.inputVerticalResolutionParam.valueDidChange
+        if self.inputVerticalResolution.valueDidChange,
+           let inputVerticalResolution = self.inputVerticalResolution.value
         {
-            self.geometry.verticalResolution = self.inputVerticalResolutionParam.value
+            self.geometry.verticalResolution = inputVerticalResolution
             shouldOutputGeometry = true
         }
         

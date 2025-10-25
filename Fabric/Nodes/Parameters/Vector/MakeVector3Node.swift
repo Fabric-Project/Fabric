@@ -14,72 +14,39 @@ public class MakeVector3Node : Node
 {
     override public static var name:String { "Vector 3" }
     override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Vector) }
-
-    // Params
-    public let inputXParam:FloatParameter
-    public let inputYParam:FloatParameter
-    public let inputZParam:FloatParameter
-    public override var inputParameters: [any Parameter] {  [inputXParam, inputYParam, inputZParam] + super.inputParameters }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+    override public class var nodeDescription: String { "Converts 4 numcerical components to a Vector 4"}
     
     // Ports
-    public let outputVector:NodePort<simd_float3>
-    public override var ports: [AnyPort] { [outputVector] + super.ports}
-
-    private var vector = simd_float3(repeating: 0)
-
-    public required init(context: Context)
-    {
-        self.inputXParam = FloatParameter("X", 0.0, .inputfield)
-        self.inputYParam = FloatParameter("Y", 0.0, .inputfield)
-        self.inputZParam = FloatParameter("Z", 0.0, .inputfield)
-        self.outputVector = NodePort<simd_float3>(name: "Vector 3" , kind: .Outlet)
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
         
-        super.init(context: context)
-    }
-        
-    enum CodingKeys : String, CodingKey
-    {
-        case inputXParameter
-        case inputYParameter
-        case inputZParameter
-        case outputVectorPort
+        return ports +
+        [
+            ("inputXParam", ParameterPort(parameter: FloatParameter("X", 0.0, .inputfield))),
+            ("inputYParam", ParameterPort(parameter: FloatParameter("Y", 0.0, .inputfield))),
+            ("inputZParam", ParameterPort(parameter: FloatParameter("Z", 0.0, .inputfield))),
+            ("outputVector", NodePort<simd_float3>(name: "Vector 3" , kind: .Outlet)),
+        ]
     }
     
-    public override func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
+    // Port Proxy
+    public var inputXParam:ParameterPort<Float> { port(named: "inputXParam") }
+    public var inputYParam:ParameterPort<Float> { port(named: "inputYParam") }
+    public var inputZParam:ParameterPort<Float> { port(named: "inputZParam") }
+    public var outputVector:NodePort<simd_float3> { port(named: "outputVector") }
         
-        try container.encode(self.inputXParam, forKey: .inputXParameter)
-        try container.encode(self.inputYParam, forKey: .inputYParameter)
-        try container.encode(self.inputZParam, forKey: .inputZParameter)
-        try container.encode(self.outputVector, forKey: .outputVectorPort)
-        
-        try super.encode(to: encoder)
-    }
-    
-    public required init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        self.inputXParam = try container.decode(FloatParameter.self, forKey: .inputXParameter)
-        self.inputYParam = try container.decode(FloatParameter.self, forKey: .inputYParameter)
-        self.inputZParam = try container.decode(FloatParameter.self, forKey: .inputZParameter)
-        self.outputVector = try container.decode(NodePort<simd_float3>.self, forKey: .outputVectorPort)
-        
-        try super.init(from: decoder)
-    }
-    
     public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        if self.inputXParam.valueDidChange || self.inputYParam.valueDidChange || self.inputZParam.valueDidChange
+        if self.inputXParam.valueDidChange || self.inputYParam.valueDidChange || self.inputZParam.valueDidChange,
+           let x = self.inputXParam.value,
+           let y = self.inputYParam.value,
+           let z = self.inputZParam.value
         {
-            self.vector = simd_float3(inputXParam.value,
-                                      inputYParam.value,
-                                      inputZParam.value)
-            
-            self.outputVector.send( self.vector )
+            self.outputVector.send( simd_float3(x,y,z) )
         }
-     }
+    }
 }

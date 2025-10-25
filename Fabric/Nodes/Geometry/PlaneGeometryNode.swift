@@ -14,73 +14,51 @@ public class PlaneGeometryNode : BaseGeometryNode
 {
     public override class var name:String { "Plane Geometry" }
 
-    // Params
-    public let inputWidthParam:FloatParameter
-    public let inputHeightParam:FloatParameter
-    public let inputResolutionParam:Int2Parameter
-    public override var inputParameters: [any Parameter] { [inputWidthParam, inputHeightParam, inputResolutionParam] + super.inputParameters}
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+        
+        return  [
+        ("inputWidth", ParameterPort(parameter:FloatParameter("Width", 1.0, .inputfield))),
+        ("inputHeight", ParameterPort(parameter:FloatParameter("Height", 1.0, .inputfield))),
+        ("inputResolutionWidth", ParameterPort(parameter:IntParameter("Width", 1, .inputfield))),
+        ("inputResolutionHeight", ParameterPort(parameter:IntParameter("Height", 1, .inputfield))),
 
+        ] + ports
+    }
+    
+    // Proxy Port
+    public var inputWidth:ParameterPort<Float> { port(named: "inputWidth")  }
+    public var inputHeight:ParameterPort<Float> { port(named: "inputHeight")  }
+    public var inputResolutionWidth:ParameterPort<Int> { port(named: "inputResolutionWidth")  }
+    public var inputResolutionHeight:ParameterPort<Int> { port(named: "inputResolutionHeight")  }
+    
     public override var geometry: PlaneGeometry { _geometry }
 
     private let _geometry = PlaneGeometry(width: 1, height: 1, orientation: .xy)
-
-    required public init(context: Context)
-    {
-        self.inputWidthParam = FloatParameter("Width", 1.0, .inputfield)
-        self.inputHeightParam = FloatParameter("Height", 1.0, .inputfield)
-        self.inputResolutionParam = Int2Parameter("Resolution", simd_int2(repeating: 1), .inputfield)
-
-        super.init(context: context)
-    }
-        
-    enum CodingKeys : String, CodingKey
-    {
-        case inputWidthParameter
-        case inputHeightParameter
-        case inputResolutionParameter
-    }
-    
-    override public func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputWidthParam, forKey: .inputWidthParameter)
-        try container.encode(self.inputHeightParam, forKey: .inputHeightParameter)
-        try container.encode(self.inputResolutionParam, forKey: .inputResolutionParameter)
-        
-        try super.encode(to: encoder)
-    }
-    
-    required public init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        self.inputWidthParam = try container.decode(FloatParameter.self, forKey: .inputWidthParameter)
-        self.inputHeightParam = try container.decode(FloatParameter.self, forKey: .inputHeightParameter)
-        self.inputResolutionParam = try container.decode(Int2Parameter.self, forKey: .inputResolutionParameter)
-        
-        try super.init(from: decoder)
-    }
     
     override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
     {
         var shouldOutputGeometry = super.evaluate(geometry: geometry, atTime: atTime)
 
-        if self.inputWidthParam.valueDidChange
+        if self.inputWidth.valueDidChange,
+           let inputWidth = self.inputWidth.value
         {
-            self.geometry.width = self.inputWidthParam.value
+            self.geometry.width = inputWidth
             shouldOutputGeometry = true
         }
         
-        if self.inputHeightParam.valueDidChange
+        if self.inputHeight.valueDidChange,
+           let height = self.inputHeight.value
         {
-            self.geometry.height = self.inputHeightParam.value
+            self.geometry.height = height
             shouldOutputGeometry = true
         }
         
-        if  self.inputResolutionParam.valueDidChange
+        if  self.inputResolutionWidth.valueDidChange || self.inputResolutionHeight.valueDidChange,
+            let width = self.inputResolutionWidth.value,
+            let height = self.inputResolutionHeight.value
         {
-            self.geometry.resolution = self.inputResolutionParam.value
+            self.geometry.resolution = simd_int2(Int32(width), Int32(height))
             shouldOutputGeometry = true
         }
         

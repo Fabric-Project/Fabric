@@ -15,77 +15,49 @@ import Metal
 
 public class NumberUnnaryOperator : Node
 {
-    override public static var name:String { "Number Unnary Operator" }
-    override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
-
-    // Params
-    public let inputAParam:FloatParameter
-    public let inputOperatorParam:StringParameter
-    public override var inputParameters:[any Parameter] { [inputAParam, inputOperatorParam] + super.inputParameters }
+    override public class var name:String { "Number Unnary Operator" }
+    override public class var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+    override public class var nodeDescription: String { "Run an operation on an input Number and return the resulting Number"}
 
     // Ports
-    public let outputNumber:NodePort<Float>
-    public override var ports: [AnyPort] {  [outputNumber] + super.ports}
-
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+        
+        return ports +
+        [
+            ("inputNumber", ParameterPort(parameter: FloatParameter("Number", 0.0, .inputfield))),
+            ("inputParam", ParameterPort(parameter: StringParameter("Operator", "Sine", UnaryMathOperator.allCases.map(\.rawValue))) ),
+            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet)),
+        ]
+    }
+    
+    // Port Proxy
+    public var inputNumber:ParameterPort<Float> { port(named: "inputNumber") }
+    public var inputParam:ParameterPort<String> { port(named: "inputParam") }
+    public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
+        
     private var mathOperator = UnaryMathOperator.Sine
-    private var lastOutput:Float = .nan
-    
-    public required init(context: Context)
-    {
-        self.inputAParam = FloatParameter("A", 0.0, .inputfield)
-        self.inputOperatorParam = StringParameter("Operator", "Sine", UnaryMathOperator.allCases.map(\.rawValue))
-        
-        self.outputNumber = NodePort<Float>(name: "Result" , kind: .Outlet)
-        
-        super.init(context: context)
-    }
-        
-    enum CodingKeys : String, CodingKey
-    {
-        case inputAParameter
-        case inputBParameter
-        case inputOperatorParameter
-        case outputNumberPort
-    }
-    
-    public override func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputAParam, forKey: .inputAParameter)
-        try container.encode(self.inputOperatorParam, forKey: .inputOperatorParameter)
-        try container.encode(self.outputNumber, forKey: .outputNumberPort)
-        
-        try super.encode(to: encoder)
-    }
-    
-    public required init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        self.inputAParam = try container.decode(FloatParameter.self, forKey: .inputAParameter)
-        self.inputOperatorParam = try container.decode(StringParameter.self, forKey: .inputOperatorParameter)
-        
-        self.outputNumber = try container.decode(NodePort<Float>.self, forKey: .outputNumberPort)
-        
-        try super.init(from: decoder)
-    }
     
     public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        if  self.inputOperatorParam.valueDidChange,
-            let mathOp = UnaryMathOperator(rawValue: self.inputOperatorParam.value)
+        if  self.inputParam.valueDidChange,
+            let param = self.inputParam.value,
+            let mathOp = UnaryMathOperator(rawValue: param)
         {
             self.mathOperator = mathOp
         }
         
-        if self.inputAParam.valueDidChange
+        if self.inputNumber.valueDidChange,
+           self.inputParam.valueDidChange,
+           let number = self.inputNumber.value
         {
-            self.lastOutput = self.mathOperator.perform(self.inputAParam.value)
+            self.outputNumber.send(  self.mathOperator.perform(number) )
+
         }
         
-        self.outputNumber.send( self.lastOutput )
     }
 }

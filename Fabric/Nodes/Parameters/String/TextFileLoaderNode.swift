@@ -15,52 +15,28 @@ public class TextFileLoaderNode : Node
 {
     override public static var name:String { "Text File Loader" }
     override public static var nodeType:Node.NodeType { .Parameter(parameterType: .String) }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+    override public class var nodeDescription: String { "Load a Plaintext file and output a String"}
+        
+    // Ports
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+        
+        return ports +
+        [
+            ("inputFilePathParam", ParameterPort(parameter: StringParameter("Text File", "", .filepicker))),
+            ("outputPort", NodePort<ContiguousArray<String>>(name: "Components", kind: .Outlet)),
+        ]
+    }
+    
+    // Port Proxy
+    public var inputFilePathParam:ParameterPort<String> { port(named: "inputFilePathParam") }
+    public var outputPort:NodePort<String> { port(named: "outputPort") }
 
-    let inputFilePathParam:StringParameter
-    override public var inputParameters: [any Parameter] { [self.inputFilePathParam] + super.inputParameters}
-
-    let outputPort:NodePort<String>
-    override public var ports:[AnyPort] {  [outputPort] + super.ports}
-
-    private var url: URL? = nil
+    private var url:URL? = nil
     private var string: String? = nil
     
-    required public init(context:Context)
-    {
-        self.inputFilePathParam = StringParameter("Text File", "", .filepicker)
-        self.outputPort = NodePort<String>(name: "String", kind: .Outlet)
-        
-        super.init(context: context)
-        
-    }
-    
-    enum CodingKeys : String, CodingKey
-    {
-        case inputFilePathParameter
-        case outputPort
-    }
-    
-    override public func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputFilePathParam, forKey: .inputFilePathParameter)
-        try container.encode(self.outputPort, forKey: .outputPort)
-
-        try super.encode(to: encoder)
-    }
-    
-    required public init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-       
-        self.inputFilePathParam = try container.decode(StringParameter.self, forKey: .inputFilePathParameter)
-        self.outputPort = try container.decode(NodePort<String>.self, forKey: .outputPort)
-        
-        try super.init(from:decoder)
-        
-        self.loadStringFromURL()
-    }
     
     override public func execute(context:GraphExecutionContext,
                            renderPassDescriptor: MTLRenderPassDescriptor,
@@ -85,9 +61,10 @@ public class TextFileLoaderNode : Node
     
     private func loadStringFromURL()
     {
-        if  self.inputFilePathParam.value.isEmpty == false && self.url != URL(string: self.inputFilePathParam.value)
+        if let path = self.inputFilePathParam.value,
+           path.isEmpty == false && self.url != URL(string: path)
         {
-            self.url = URL(string: self.inputFilePathParam.value)
+            self.url = URL(string: path)
             
             if FileManager.default.fileExists(atPath: self.url!.standardizedFileURL.path(percentEncoded: false) )
             {

@@ -17,7 +17,7 @@ public class EnvironmentNode: SubgraphNode
     
     // Ports:
     public let inputEnvironmentTexture:NodePort<EquatableTexture>
-    public override var ports: [AnyPort] {[inputEnvironmentTexture] + super.ports}
+    public override var ports: [Port] {[inputEnvironmentTexture] + super.ports}
    
     public required init(context: Context)
     {

@@ -18,7 +18,7 @@ public class ImageDimensions : Node
     // Ports
     public let inputTexture:NodePort<EquatableTexture>
     public let outputResolution:NodePort<simd_float2>
-    public override var ports: [AnyPort] { [ self.inputTexture, self.outputResolution] + super.ports}
+    public override var ports: [Port] { [ self.inputTexture, self.outputResolution] + super.ports}
     
         
     public required init(context: Context)

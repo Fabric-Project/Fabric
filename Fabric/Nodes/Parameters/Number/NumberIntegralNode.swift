@@ -14,60 +14,35 @@ public class NumberIntegralNode : Node
 {
     override public static var name:String { "Number Integral" }
     override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
-
-    // Params
-    public let inputNumberParam:FloatParameter
-
-    public override var inputParameters:[any Parameter]  { super .inputParameters + [inputNumberParam] }
-
-    // Ports
-    public let outputNumber:NodePort<Float>
-    public override var ports: [AnyPort] { super.ports + [ outputNumber] }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+    override public class var nodeDescription: String { "Integrates an input number every frame, and outputs the Integral"}
     
     // Ensure we always render!
     public override var isDirty:Bool { get {  true  } set { } }
 
     private var state:Float = 0.0
     
-    public required init(context: Context)
-    {
-        self.inputNumberParam = FloatParameter("Number", 0.0, .inputfield)
-        self.outputNumber = NodePort<Float>(name: NumberIntegralNode.name , kind: .Outlet)
+    // Ports
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
         
-        super.init(context: context)
-    }
-        
-    enum CodingKeys : String, CodingKey
-    {
-        case inputNumberParameter
-        case outputNumberPort
+        return ports +
+        [
+            ("inputNumber", ParameterPort(parameter: FloatParameter("Number", 0.0, .inputfield))),
+            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet)),
+        ]
     }
     
-    public override func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputNumberParam, forKey: .inputNumberParameter)
-        try container.encode(self.outputNumber, forKey: .outputNumberPort)
-        
-        try super.encode(to: encoder)
-    }
-    
-    public required init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        self.inputNumberParam = try container.decode(FloatParameter.self, forKey: .inputNumberParameter)
-        self.outputNumber = try container.decode(NodePort<Float>.self, forKey: .outputNumberPort)
-        
-        try super.init(from: decoder)
-    }
+    // Port Proxy
+    public var inputNumber:ParameterPort<Float> { port(named: "inputNumber") }
+    public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
     
     public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        self.state += self.inputNumberParam.value
+        self.state += self.inputNumber.value ?? 0.0
         
         self.outputNumber.send(self.state)
     }

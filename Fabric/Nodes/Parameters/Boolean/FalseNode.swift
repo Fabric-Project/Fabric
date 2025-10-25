@@ -17,7 +17,7 @@ public class FalseNode : Node
 
     // Ports
     public let outputBoolean: NodePort<Bool>
-    public override var ports: [AnyPort] {  [self.outputBoolean] + super.ports }
+    public override var ports: [Port] {  [self.outputBoolean] + super.ports }
     
     public required init(context: Context)
     {

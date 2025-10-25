@@ -13,73 +13,50 @@ import CoreText
 public class TesselatedTextGeometryNode : BaseGeometryNode
 {
     public override class var name:String { "Tesellated Text Geometry" }
-    // Params
-    public let inputTextParam:StringParameter
-    public let inputFontParam:StringParameter
-    public let inputResolutionParam:Int3Parameter
-    public override var inputParameters: [any Parameter] { [inputTextParam, inputFontParam, inputResolutionParam] + super.inputParameters }
+    
+    // Ports
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+        
+        return  [
+        ("inputText", ParameterPort(parameter:StringParameter("Text", "Testing", .inputfield))),
+        ("inputFont", ParameterPort(parameter:StringParameter("Font", "Helvetica", Self.installedFonts(), .dropdown))),
+
+        ] + ports
+    }
+    
+    // Proxy Ports
+    public var inputText:ParameterPort<String> { port(named: "inputText")  }
+    public var inputFont:ParameterPort<String> { port(named: "inputFont")  }
 
     public override var geometry: TesselatedTextGeometry { _geometry }
 
     private let _geometry = TesselatedTextGeometry(text: "Testing", fontSize: 1.0)
 
-    required public init(context: Context)
-    {
-        self.inputTextParam = StringParameter( "Text", "Testing", .inputfield)
-        
-        self.inputFontParam = StringParameter( "Font", "Helvetica", Self.installedFonts(), .dropdown)
-        self.inputResolutionParam = Int3Parameter("Resolution", simd_int3(repeating: 1), .inputfield)
+    override public func startExecution(context: GraphExecutionContext) {
+        super.startExecution(context: context)
 
-        super.init(context: context)
-    }
-        
-    enum CodingKeys : String, CodingKey
-    {
-        case inputTextParameter
-        case inputFontParameter
-        case inputResolutionParameter
-    }
-    
-    override public func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputTextParam, forKey: .inputTextParameter)
-        try container.encode(self.inputFontParam, forKey: .inputFontParameter)
-        try container.encode(self.inputResolutionParam, forKey: .inputResolutionParameter)
-        
-        try super.encode(to: encoder)
-    }
-    
-    required public init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-//        self.inputWidthParam = try container.decode(FloatParameter.self, forKey: .inputWidthParameter)
-//        self.inputHeightParam = try container.decode(FloatParameter.self, forKey: .inputHeightParameter)
-//        self.inputDepthParam = try container.decode(FloatParameter.self, forKey: .inputDepthParameter)
-        self.inputTextParam = try container.decode(StringParameter.self, forKey: .inputTextParameter)
-        self.inputFontParam = try container.decode(StringParameter.self, forKey: .inputFontParameter)
-        self.inputResolutionParam = try container.decode(Int3Parameter.self, forKey: .inputResolutionParameter)
-        
-        self.inputFontParam.options = Self.installedFonts()
-        
-        try super.init(from: decoder)
+        if let fontParam = self.inputFont.parameter as? StringParameter
+        {
+            fontParam.options = Self.installedFonts()
+        }
     }
     
     override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
     {
         var shouldOutputGeometry = super.evaluate(geometry: geometry, atTime: atTime)
 
-        if self.inputTextParam.valueDidChange
+        if self.inputText.valueDidChange,
+           let inputText = self.inputText.value
         {
-            self.geometry.text = self.inputTextParam.value
+            self.geometry.text = inputText
             shouldOutputGeometry = true
         }
         
-        if self.inputFontParam.valueDidChange
+        if self.inputFont.valueDidChange,
+           let inputFont = self.inputFont.value
         {
-            self.geometry.fontName = self.inputFontParam.value
+            self.geometry.fontName = inputFont
             shouldOutputGeometry = true
         }
         
@@ -87,23 +64,23 @@ public class TesselatedTextGeometryNode : BaseGeometryNode
 //        {
 //            self.geometry.width = self.inputWidthParam.value
 //        }
-//        
+//
 //        if self.inputHeightParam.valueDidChange
 //        {
 //            self.geometry.height = self.inputHeightParam.value
 //        }
-//        
+//
 //        if self.inputDepthParam.valueDidChange
 //        {
 //            self.geometry.depth = self.inputDepthParam.value
 //        }
-//        
+//
 //        if self.inputResolutionParam.valueDidChange
 //        {
 //            self.geometry.resolution =  self.inputResolutionParam.value
 //        }
         
-        return shouldOutputGeometry
+       return shouldOutputGeometry
      }
     
     private static func installedFonts() -> [String] {

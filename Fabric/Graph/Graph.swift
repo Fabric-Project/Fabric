@@ -101,6 +101,14 @@ internal import AnyCodable
         // get a single value container
         var nestedContainer = try container.nestedUnkeyedContainer( forKey: .nodeMap)
         
+        // this is stupid but works!
+        // We make a new encoder to re-encode the data
+        // we pass to the intospected types class decoder based initialier
+        // since they all conform to NodeProtocol we can do this
+        // this is better than the alternative switch for each class..
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+
         while !nestedContainer.isAtEnd
         {
             do {
@@ -112,30 +120,17 @@ internal import AnyCodable
                 
                 if let nodeClass = NodeRegistry.shared.nodeClass(for: anyCodableMap.type)
                 {
-                    // this is stupid but works!
-                    // We make a new encoder to re-encode the data
-                    // we pass to the intospected types class decoder based initialier
-                    // since they all conform to NodeProtocol we can do this
-                    // this is better than the alternative switch for each class..
-                    
-                    let encoder = JSONEncoder()
                     let jsonData = try encoder.encode(anyCodableMap.value)
-                    
-                    let decoder = JSONDecoder()
                     decoder.context = decodeContext
                     
                     let node = try decoder.decode(nodeClass, from: jsonData)
 
                     self.addNode(node)
-
                 }
                 // This is stupid? Yes, BaseEffectNode should be designed to cover the cases... but this works, today.
                 else if anyCodableMap.type == String(describing: type(of: BaseEffectThreeChannelNode.self)).replacingOccurrences(of: ".Type", with:"")
                 {
-                    let encoder = JSONEncoder()
                     let jsonData = try encoder.encode(anyCodableMap.value)
-                    
-                    let decoder = JSONDecoder()
                     decoder.context = decodeContext
                     
                     let node = try decoder.decode(BaseEffectThreeChannelNode.self, from: jsonData)
@@ -145,10 +140,7 @@ internal import AnyCodable
                 // This is stupid?
                 else if anyCodableMap.type == String(describing: type(of: BaseEffectTwoChannelNode.self)).replacingOccurrences(of: ".Type", with:"")
                 {
-                    let encoder = JSONEncoder()
                     let jsonData = try encoder.encode(anyCodableMap.value)
-                    
-                    let decoder = JSONDecoder()
                     decoder.context = decodeContext
                     
                     let node = try decoder.decode(BaseEffectTwoChannelNode.self, from: jsonData)
@@ -199,6 +191,8 @@ internal import AnyCodable
                 }
             }
         }
+        
+        self.rebuildPublishedParameterGroup()
     }
     
     public func encode(to encoder:Encoder) throws
@@ -304,7 +298,7 @@ internal import AnyCodable
         }
     }
     
-    public func nodePort(forID:UUID) -> AnyPort?
+    public func nodePort(forID:UUID) -> Port?
     {
         if let activeSubGraph
         {
@@ -322,21 +316,23 @@ internal import AnyCodable
     {
         self.publishedParameterGroup.clear()
         
-        self.publishedParameterGroup.append( self.publishedParameters() )
+        let params = self.publishedParameters()
+        self.publishedParameterGroup.append( params )
+        self.shouldUpdateConnections.toggle()
     }
     
     // This could be more nicely done.
     public func publishedParameters() -> [any Parameter]
     {
         // id's of ports match id's of params for convenience
-        let publishedPortIds = self.nodes.flatMap( { $0.publishedParameterPorts().map { $0.id } } )
+        let publishedPortIds = self.nodes.flatMap( { $0.publishedPorts().map { $0.id } } )
         
         // expose only params that are published
         return self.nodes.flatMap( { $0.parameterGroup.params } ).filter { publishedPortIds.contains($0.id) }
     }
     
     // This could be more nicely done.
-    public func publishedPorts() -> [AnyPort]
+    public func publishedPorts() -> [Port]
     {
         return  self.nodes.flatMap( { $0.publishedPorts() } )
     }

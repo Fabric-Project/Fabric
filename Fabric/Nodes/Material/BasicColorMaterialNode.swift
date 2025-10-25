@@ -13,58 +13,33 @@ import Metal
 public class BasicColorMaterialNode : BaseMaterialNode
 {
     public override class var name:String {  "Color Material" }
+    override public class var nodeDescription: String { "Provides basic color rendering."}
+
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+        
+        return  [
+                    ("inputColor", ParameterPort(parameter:Float4Parameter("Color", .one, .zero, .one, .colorpicker)) ),
+                ] + ports
+    }
     
-    // Parameters
-    public let inputColor:Float4Parameter
-    public override var inputParameters: [any Parameter] { [inputColor] + super.inputParameters }
-    
+    public var inputColor:ParameterPort<simd_float4> { port(named: "inputColor") }
     
     public override var material: BasicColorMaterial {
         return _material
     }
     
     private var _material = BasicColorMaterial()
-
-    public required init(context:Context)
-    {
-        self.inputColor = Float4Parameter("Color", .one, .zero, .one, .colorpicker)
-        
-        super.init(context: context)
-        
-        self.material.color = simd_float4(1.0, 0.0, 0.0, 1.0)
-    }
-    
-    enum CodingKeys : String, CodingKey
-    {
-        case inputColorParameter
-    }
-    
-    public required init(from decoder: any Decoder) throws {
-        
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        
-        self.inputColor = try container.decode(Float4Parameter.self, forKey: .inputColorParameter)
-                
-        try super.init(from: decoder)
-    }
-    
-    public override func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputColor, forKey: .inputColorParameter)
-        
-        try super.encode(to: encoder)
-    }
     
     public override func evaluate(material:Material, atTime:TimeInterval) -> Bool
     {
         var shouldOutput = super.evaluate(material: material, atTime: atTime)
         
-        if self.inputColor.valueDidChange
+        if self.inputColor.valueDidChange,
+           let color = self.inputColor.value
         {
             shouldOutput = true
-            self.material.color = self.inputColor.value
+            self.material.color = color
         }
         
         return shouldOutput

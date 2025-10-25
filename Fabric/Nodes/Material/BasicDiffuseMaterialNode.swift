@@ -12,11 +12,18 @@ import Metal
 
 public class BasicDiffuseMaterialNode : BasicColorMaterialNode
 {
-    
     public override class var name:String {  "Diffuse Material" }
+    override public class var nodeDescription: String { "Provides basic color rendering, with simple lighting."}
 
-    public let inputHardness:FloatParameter
-    public override var inputParameters:[any Parameter] { [inputHardness] + super.inputParameters }
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+        
+        return  [
+                    ("inputHardness", ParameterPort(parameter:FloatParameter("Hardness", 1, 0, 1, .slider)) ),
+                ] + ports
+    }
+    
+    public var inputHardness:ParameterPort<Float> { port(named: "inputHardness") }
     
     public override var material: BasicDiffuseMaterial {
         return _material
@@ -24,39 +31,14 @@ public class BasicDiffuseMaterialNode : BasicColorMaterialNode
     
     private var _material = BasicDiffuseMaterial()
     
-    public required init(context:Context)
-    {
-        self.inputHardness = FloatParameter("Hardness", 1, 0, 1, .slider)
-
-        super.init(context: context)
-    }
-
-    enum CodingKeys : String, CodingKey
-    {
-        case inputHardnessParameter
-    }
-    
-    public required init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.inputHardness = try container.decode(FloatParameter.self, forKey: .inputHardnessParameter)
-        try super.init(from: decoder)
-    }
-    
-    public override func encode(to encoder: any Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.inputHardness, forKey: .inputHardnessParameter)
-        try super.encode(to: encoder)
-    }
-    
     public override func evaluate(material:Material, atTime:TimeInterval) -> Bool
     {
         var shouldOutput = super.evaluate(material: material, atTime: atTime)
         
-        if self.inputHardness.valueDidChange
+        if self.inputHardness.valueDidChange,
+           let hardness = self.inputHardness.value
         {
-            self.material.hardness = self.inputHardness.value
+            self.material.hardness = hardness
             shouldOutput = true
         }
         

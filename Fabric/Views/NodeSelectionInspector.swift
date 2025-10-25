@@ -10,10 +10,10 @@ import Satin
 
 public struct NodeSelectionInspector: View {
     
-    @SwiftUI.Environment(Graph.self) var graph:Graph
-
+    @Environment(Graph.self) var graph:Graph
+    
     public init() { }
-
+    
     public var body: some View {
         
         let graph = self.graph.activeSubGraph ?? self.graph
@@ -36,10 +36,11 @@ public struct NodeSelectionInspector: View {
             }
         }
         .listStyle(.sidebar)
+        .id(graph.shouldUpdateConnections)
         
     }
 }
 
-#Preview {
-    NodeSelectionInspector()
-}
+//#Preview {
+////    NodeSelectionInspector()
+//}
