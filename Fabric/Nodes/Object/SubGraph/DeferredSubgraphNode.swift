@@ -154,7 +154,7 @@ public class DeferredSubgraphNode: SubgraphNode
     
     override public func resize(size: (width: Float, height: Float), scaleFactor: Float)
     {
-        self.graphRenderer.resize(size: size, scaleFactor: scaleFactor)
+//        self.graphRenderer.resize(size: size, scaleFactor: scaleFactor)
     }
     
 }
