@@ -14,7 +14,7 @@ class EnvironmentSkyboxNode: MeshNode
     override public class var nodeType:Node.NodeType { .Object(objectType: .Mesh) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Consumer }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Add an Environment Background Texture to an Environment Renderer"}
+    override public class var nodeDescription: String { "Add an Environment Background Texture to an Environment Renderer" }
     
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
@@ -36,7 +36,7 @@ class EnvironmentSkyboxNode: MeshNode
     }
     
     private let mesh: Mesh
-    private let geometry = SkyboxGeometry(size: 450)
+    private let geometry = SkyboxGeometry(size: 100)
     private let material = SkyboxMaterial()
     
     public required init(context:Context)
