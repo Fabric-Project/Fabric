@@ -16,7 +16,9 @@ import Metal
 public class IteratorInfoNode : Node
 {
     public override class var name:String { "Iterator Info" }
-    public override class var nodeType:Node.NodeType { Node.NodeType.Parameter(parameterType: .Array) }
+    public override class var nodeType:Node.NodeType { Node.NodeType.Subgraph }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
+    override public class var nodeDescription: String { "Reports information of the current iteration"}
 
     public override var isDirty:Bool { get {  true  } set { } }
 
