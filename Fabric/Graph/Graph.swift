@@ -252,7 +252,6 @@ internal import AnyCodable
     
     public func addNode(_ node:Node)
     {
-        print("Add Node", node.name)
         
         if let activeSubGraph
         {
@@ -260,6 +259,7 @@ internal import AnyCodable
         }
         else
         {
+            print("Graph: \(self.id) Add Node", node.name)
             self.maybeAddNodeToScene(node)
             self.nodes.append(node)
             node.graph = self
