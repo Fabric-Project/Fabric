@@ -40,9 +40,7 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
     override public func startExecution(context:GraphExecutionContext)
     {
         super.startExecution(context: context)
-        
-        self.inputPosition.value = .init(repeating: 5.0)
-        
+                
         self.camera.lookAt(target: self.inputLookAt.value ?? .zero)
         self.camera.position = self.inputPosition.value ?? .zero
         self.camera.scale = self.inputScale.value ?? .one
