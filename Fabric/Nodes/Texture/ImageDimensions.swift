@@ -14,7 +14,10 @@ public class ImageDimensions : Node
 {
     public override class var name:String { "Image Dimensions" }
     public override class var nodeType:Node.NodeType { Node.NodeType.Utility }
-    
+    public override class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    public override class var nodeTimeMode: Node.TimeMode { .None }
+    public override class var nodeDescription: String { "Returns Image Dimensions in Pixels"}
+
     // Ports
     public let inputTexture:NodePort<EquatableTexture>
     public let outputResolution:NodePort<simd_float2>
