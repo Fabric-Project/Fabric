@@ -348,10 +348,15 @@ internal import AnyCodable
     {
         self.consumerOrProviderNodes = self.nodes.filter( { consumerOrProviderTypes.contains($0.nodeType) } )
         
+        self.firstCamera = self.getFirstCamera()
+    }
+    
+    func getFirstCamera() -> Camera?
+    {
         let sceneObjectNodes:[BaseObjectNode] = consumerOrProviderNodes.compactMap({ $0 as? BaseObjectNode})
         let firstCameraNode = sceneObjectNodes.first(where: { $0.nodeType == .Object(objectType: .Camera)})
 
-        self.firstCamera = firstCameraNode?.getObject() as? Camera
+        return firstCameraNode?.getObject() as? Camera
     }
     
     // MARK: -Selection

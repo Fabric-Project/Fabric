@@ -30,7 +30,7 @@ public class IteratorNode: SubgraphNode
     public var inputIteratonCount:ParameterPort<Int> { port(named: "inputIteratonCount") }
         
     // Ensure we always render!
-    public override var isDirty:Bool { get {  true  } set { } }
+    override public var isDirty:Bool { get {  true  } set { } }
 
     var renderProxy:SubgraphIteratorRenderable
 

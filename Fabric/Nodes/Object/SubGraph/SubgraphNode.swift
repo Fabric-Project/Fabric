@@ -60,11 +60,9 @@ public class SubgraphNode: BaseObjectNode
                 
         try super.init(from: decoder)
     }
-    
-    override public var isDirty: Bool
-    {
-        self.subGraph.needsExecution
-    }
+     
+    // Ensure we always render!
+    override public var isDirty:Bool { get {  self.subGraph.needsExecution  } set { } }
     
     override public func markClean()
     {
