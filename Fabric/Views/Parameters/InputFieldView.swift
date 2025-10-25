@@ -238,6 +238,7 @@ struct IntInputFieldView: View
         decimalFormatter.numberStyle = .none
         decimalFormatter.allowsFloats = false
         decimalFormatter.maximumFractionDigits = 0
+        decimalFormatter.minimum = 0
     }
     
     var body: some View
@@ -278,6 +279,7 @@ struct Int2InputFieldView: View
         decimalFormatter.numberStyle = .none
         decimalFormatter.allowsFloats = false
         decimalFormatter.maximumFractionDigits = 0
+        decimalFormatter.minimum = 0
     }
     
     var body: some View
@@ -320,6 +322,7 @@ struct Int3InputFieldView: View
         decimalFormatter.numberStyle = .none
         decimalFormatter.allowsFloats = false
         decimalFormatter.maximumFractionDigits = 0
+        decimalFormatter.minimum = 0
     }
     
     var body: some View
@@ -367,6 +370,7 @@ struct Int4InputFieldView: View
         decimalFormatter.numberStyle = .none
         decimalFormatter.allowsFloats = false
         decimalFormatter.maximumFractionDigits = 0
+        decimalFormatter.minimum = 0
     }
     
     var body: some View
