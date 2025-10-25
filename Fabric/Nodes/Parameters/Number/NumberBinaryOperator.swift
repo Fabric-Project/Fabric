@@ -29,7 +29,7 @@ public class NumberBinaryOperator : Node
         [
             ("inputNumber1", ParameterPort(parameter: FloatParameter("Number A", 0.0, .inputfield))),
             ("inputNumber2", ParameterPort(parameter: FloatParameter("Number B", 0.0, .inputfield))),
-            ("inputParam", ParameterPort(parameter: StringParameter("Operator", "Sine", UnaryMathOperator.allCases.map(\.rawValue))) ),
+            ("inputParam", ParameterPort(parameter: StringParameter("Operator", "Sine", BinaryMathOperator.allCases.map(\.rawValue))) ),
             ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet)),
         ]
     }
