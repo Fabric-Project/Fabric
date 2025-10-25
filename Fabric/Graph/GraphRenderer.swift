@@ -95,10 +95,16 @@ public class GraphRenderer : MetalViewRenderer
     public func execute(graph:Graph,
                         executionContext:GraphExecutionContext,
                         renderPassDescriptor: MTLRenderPassDescriptor,
-                        commandBuffer:MTLCommandBuffer)
+                        commandBuffer:MTLCommandBuffer,
+                        clearFlags:Bool = true
+        )
     {
-        
-        defer { self.graphRequiresResize = false }
+        defer {
+            if clearFlags
+            {
+                self.graphRequiresResize = false
+            }
+        }
         
         var nodesWeHaveExecutedThisPass:[Node] = []
 
@@ -152,7 +158,7 @@ public class GraphRenderer : MetalViewRenderer
             node.resize(size: self.renderer.size, scaleFactor: resizeScaleFactor)
         }
         
-        if node.isDirty
+        if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider
         {
             // This ensures if a node always is marked as dirty (like some nodes) we only execute once per pass
             if !nodesWeHaveExecutedThisPass.contains(node)
@@ -160,7 +166,6 @@ public class GraphRenderer : MetalViewRenderer
                 node.execute(context: executionContext,
                              renderPassDescriptor: renderPassDescriptor,
                              commandBuffer: commandBuffer)
-                
                 
                 nodesWeHaveExecutedThisPass.append(node)
                 

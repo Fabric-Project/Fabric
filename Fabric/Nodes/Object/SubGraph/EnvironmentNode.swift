@@ -15,39 +15,33 @@ public class EnvironmentNode: SubgraphNode
     override public class var name:String { "Environment Node" }
     override public class var nodeType:Node.NodeType { Node.NodeType.Subgraph }
     
-    // Ports:
-    public let inputEnvironmentTexture:NodePort<EquatableTexture>
-    public override var ports: [Port] {[inputEnvironmentTexture] + super.ports}
-   
+    // Ports
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+        
+        return ports +
+        [
+            ("inputEnvironmentTexture", NodePort<EquatableTexture>(name: "Environment Texture", kind: .Inlet)),
+            ("inputEnvironmentIntensity", ParameterPort(parameter: FloatParameter("Environment Intensity", 1.0, 0.0, 1.0, .slider))),
+//            ("inputBlur", ParameterPort(parameter: FloatParameter("Blur", 0.0, 0.0, 5.0, .slider))),
+        ]
+    }
+    
+    // Port Proxy
+    public var inputEnvironmentTexture:NodePort<EquatableTexture> { port(named: "inputEnvironmentTexture") }
+    public var inputEnvironmentIntensity:ParameterPort<Float> { port(named: "inputEnvironmentIntensity") }
+//    public var inputBlur:ParameterPort<Float> { port(named: "inputBlur") }
+    
+    
     public required init(context: Context)
     {
-        self.inputEnvironmentTexture = NodePort<EquatableTexture>(name: "Environment Texture", kind: .Inlet)
-
         super.init(context: context)
         
         self.subGraph.scene = IBLScene()
     }
-
-    enum CodingKeys : String, CodingKey
-    {
-        case inputEnvironmentTexturePort
-    }
-
-    public override func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputEnvironmentTexture, forKey: .inputEnvironmentTexturePort)
-        
-        try super.encode(to: encoder)
-    }
     
     public required init(from decoder: any Decoder) throws
     {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        self.inputEnvironmentTexture = try container.decode(NodePort<EquatableTexture>.self , forKey:.inputEnvironmentTexturePort)
-
         try super.init(from: decoder)
         
         self.subGraph.scene = IBLScene()
@@ -63,6 +57,20 @@ public class EnvironmentNode: SubgraphNode
         {
             iblScene.setEnvironment(texture: environmentTexture.texture, cubemapSize: 2048, reflectionSize:2048, irradianceSize: 32)
         }
+        
+        if self.inputEnvironmentIntensity.valueDidChange,
+           let iblScene = self.subGraph.scene as? IBLScene,
+           let inputEnvironmentIntensity = self.inputEnvironmentIntensity.value
+        {
+            iblScene.environmentIntensity = inputEnvironmentIntensity
+        }
+        
+//        if self.inputBlur.valueDidChange,
+//           let iblScene = self.subGraph.scene as? IBLScene,
+//           let inputBlur = self.inputBlur.value
+//        {
+//            iblScene.cubemapGenerator?.blur = inputEnvironmentIntensity
+//        }
         
         super.execute(context: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
     }

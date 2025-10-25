@@ -109,7 +109,7 @@ public class SubgraphNode: BaseObjectNode
                                  commandBuffer: any MTLCommandBuffer)
     {
 
-        context.graphRenderer?.execute(graph: self.subGraph, executionContext: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+        context.graphRenderer?.execute(graph: self.subGraph, executionContext: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer, clearFlags: false)
     }
     
 }
