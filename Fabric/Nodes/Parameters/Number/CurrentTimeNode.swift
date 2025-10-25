@@ -12,6 +12,7 @@ import Foundation
 import Satin
 import simd
 import Metal
+import QuartzCore
 
 public class CurrentTimeNode : Node
 {
@@ -23,7 +24,7 @@ public class CurrentTimeNode : Node
 
     public override var isDirty:Bool { get {  true  } set { } }
 
-    private let startTime = Date.timeIntervalSinceReferenceDate
+    private var startTime:TimeInterval = 0
     
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
@@ -35,11 +36,16 @@ public class CurrentTimeNode : Node
         ]
     }
     
+    
     // Port Proxy
     public var inputNumber:ParameterPort<Float> { port(named: "inputNumber") }
     public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
     
-    public override func execute(context:GraphExecutionContext,
+    override public func startExecution(context: GraphExecutionContext) {
+        self.startTime = context.timing.time
+    }
+    
+    override public func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

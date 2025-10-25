@@ -88,22 +88,22 @@ public class SubgraphNode: BaseObjectNode
     
     override public func startExecution(context:GraphExecutionContext)
     {
-        context.graphRenderer?.startExecution(graph: self.subGraph)
+        context.graphRenderer?.startExecution(graph: self.subGraph, executionContext: context)
     }
     
     override public func stopExecution(context:GraphExecutionContext)
     {
-        context.graphRenderer?.stopExecution(graph: self.subGraph)
+        context.graphRenderer?.stopExecution(graph: self.subGraph, executionContext: context)
     }
 
     override public func enableExecution(context:GraphExecutionContext)
     {
-        context.graphRenderer?.enableExecution(graph: self.subGraph)
+        context.graphRenderer?.enableExecution(graph: self.subGraph, executionContext: context)
     }
     
     override public func disableExecution(context:GraphExecutionContext)
     {
-        context.graphRenderer?.disableExecution(graph: self.subGraph)
+        context.graphRenderer?.disableExecution(graph: self.subGraph, executionContext: context)
     }
     
     override public func execute(context: GraphExecutionContext,

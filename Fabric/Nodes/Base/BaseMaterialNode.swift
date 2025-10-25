@@ -94,9 +94,8 @@ public class BaseMaterialNode : Node
 
         if shouldOutput
         {
-            print("Base Material Output Material")
             // force since object id is the same
-            self.outputMaterial.send(self.material, force: true)
+            self.outputMaterial.send(self.material)
         }
      }
     

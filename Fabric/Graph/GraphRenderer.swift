@@ -58,40 +58,32 @@ public class GraphRenderer : MetalViewRenderer
     
     // MARK: - Execution
 
-    public func disableExecution(graph:Graph)
+    public func disableExecution(graph:Graph, executionContext:GraphExecutionContext)
     {
-        let executionContext = self.currentGraphExecutionContext()
-
         for node in graph.nodes
         {
             node.disableExecution(context: executionContext)
         }
     }
     
-    public func enableExecution(graph:Graph)
+    public func enableExecution(graph:Graph, executionContext:GraphExecutionContext)
     {
-        let executionContext = self.currentGraphExecutionContext()
-
         for node in graph.nodes
         {
             node.enableExecution(context: executionContext)
         }
     }
     
-    public func startExecution(graph:Graph)
+    public func startExecution(graph:Graph, executionContext:GraphExecutionContext)
     {
-        let executionContext = self.currentGraphExecutionContext()
-        
         for node in graph.nodes
         {
             node.startExecution(context: executionContext)
         }
     }
     
-    public func stopExecution(graph:Graph)
+    public func stopExecution(graph:Graph, executionContext:GraphExecutionContext)
     {
-        let executionContext = self.currentGraphExecutionContext()
-
         for node in graph.nodes
         {
             node.stopExecution(context: executionContext)

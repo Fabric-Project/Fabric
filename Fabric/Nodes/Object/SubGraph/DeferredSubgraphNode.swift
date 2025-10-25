@@ -83,24 +83,24 @@ public class DeferredSubgraphNode: SubgraphNode
     
     override public func startExecution(context:GraphExecutionContext)
     {
-        self.setupRenderer( )
+        self.setupRenderer()
 
-        self.graphRenderer.startExecution(graph: self.subGraph)
+        self.graphRenderer.startExecution(graph: self.subGraph, executionContext: context)
     }
     
     override public func stopExecution(context:GraphExecutionContext)
     {
-        self.graphRenderer.stopExecution(graph: self.subGraph)
+        self.graphRenderer.stopExecution(graph: self.subGraph, executionContext: context)
     }
 
     override public func enableExecution(context:GraphExecutionContext)
     {
-        self.graphRenderer.enableExecution(graph: self.subGraph)
+        self.graphRenderer.enableExecution(graph: self.subGraph, executionContext: context)
     }
     
     override public func disableExecution(context:GraphExecutionContext)
     {
-        self.graphRenderer.disableExecution(graph: self.subGraph)
+        self.graphRenderer.disableExecution(graph: self.subGraph, executionContext: context)
     }
     
     override public func execute(context: GraphExecutionContext,

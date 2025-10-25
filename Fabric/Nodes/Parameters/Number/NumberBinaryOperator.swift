@@ -42,6 +42,15 @@ public class NumberBinaryOperator : Node
     
     private var mathOperator = BinaryMathOperator.Add
     
+    override public func startExecution(context: GraphExecutionContext) {
+        super.startExecution(context: context)
+        
+        if let stringParam = self.inputParam.parameter as? StringParameter
+        {
+            stringParam.options = BinaryMathOperator.allCases.map(\.rawValue)
+        }
+    }
+    
     public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
