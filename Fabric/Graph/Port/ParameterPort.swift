@@ -78,7 +78,8 @@ public class ParameterPort<ParamValue : FabricPort & Codable & Equatable & Hasha
     {
         didSet
         {
-            if let value
+            if let value,
+               self._parameter.value != value
             {
                 self._parameter.value = value
             }
