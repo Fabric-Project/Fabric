@@ -14,7 +14,10 @@ public class UnitsoPixelsNode : Node
 {
     public override class var name:String { "Units to Pixels" }
     public override class var nodeType:Node.NodeType { Node.NodeType.Utility }
-    
+    public override class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    public override class var nodeTimeMode: Node.TimeMode { .None }
+    public override class var nodeDescription: String { "Converts Units in default camera space to Pixels"}
+
     // Ports
     public let inputUnitPosition:NodePort<simd_float3>
     public let outputPixelPosition:NodePort<simd_float2>
