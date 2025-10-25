@@ -167,6 +167,10 @@ class BaseEffectTwoChannelNode: Node, NodeFileLoadingProtocol
         }
         
         try super.init(from:decoder)
+        
+        for param in self.postMaterial.parameters.params {
+            self.parameterGroup.append(param)
+        }
     }
     
     override func execute(context:GraphExecutionContext,
