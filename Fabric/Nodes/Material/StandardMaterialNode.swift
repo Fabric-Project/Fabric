@@ -13,7 +13,7 @@ import Metal
 public class StandardMaterialNode : BaseMaterialNode
 {
     public override class var name:String {  "Physical Material" }
-    override public class var nodeDescription: String { "Provides a Physically Based Rendering Material supporting basic PBR rendering like Diffuse, Normal, Specular, Metallic, and Emissive textures and properties."}
+    override public class var nodeDescription: String { "Provides a Physically Based Rendering Material supporting basic PBR rendering like Diffuse, Normal, Specular, Metallic, and Emissive Images and properties."}
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
