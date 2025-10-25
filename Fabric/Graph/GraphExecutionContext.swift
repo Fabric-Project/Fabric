@@ -71,7 +71,7 @@ public struct GraphIterationInfo : Hashable
     /// For the current evaluation, the current iteration index
     public let currentIteration:Int
     
-    public var normalizedCurrentIteration:Float { Float(self.currentIteration ) / Float(self.totalIterationCount - 1) }
+    public var normalizedCurrentIteration:Float { max(0, Float(self.currentIteration ) / Float(self.totalIterationCount - 1) ) }
 }
 
 /// Graph Execution Information that includes metal, timing, node, and custom user info
