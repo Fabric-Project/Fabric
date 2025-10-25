@@ -64,7 +64,7 @@ public class IteratorNode: SubgraphNode
         // execute the graph once, to just ensure meshes / materials have latest values popogated to nodes
         // this does technically introduce one additional draw call
         // Not sure the best way to avoid this - since we need to have the graph 'configured'
-        self.renderProxy.execute(context: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+        self.renderProxy.execute(context: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer,)
         
         self.renderProxy.graphContext = context
         self.renderProxy.currentRenderPass = renderPassDescriptor
