@@ -46,7 +46,7 @@ fileprivate  func unwrapOptional(_ t: Any.Type) -> Any.Type {
 }
 
 // PortType conversions and factories to instantiate specialized NodePorts and map Swift value types to canonical PortTypes
-// TODO: Ideally this somehow is turned into a recursive thing that builds a port up somehow? 
+// TODO: Ideally this somehow is turned into a recursive thing that builds a port up somehow?
 public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterable
 {
     public typealias RawValue = String
@@ -245,6 +245,7 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
     
     case Array(portType:PortType)
     
+    // This is brittle
     public static let allCases : [PortType] = [
         .Bool,
         .Float,
