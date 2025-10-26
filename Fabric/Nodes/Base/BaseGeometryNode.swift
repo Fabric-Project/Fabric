@@ -14,59 +14,25 @@ public class BaseGeometryNode : Node
 {
     override public class var name:String { "Geometry" }
     override public class var nodeType:Node.NodeType { .Geometery }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+    override public class var nodeDescription: String { "Provides \(Self.name)"}
 
-    public let outputGeometry:NodePort<Geometry>
-    public override var ports: [AnyPort] { [ self.outputGeometry] + super.ports}
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+        
+        return ports +
+        [
+            ("inputPrimitiveType", ParameterPort(parameter:StringParameter("Geometry Primitive", "Triangle", ["Point", "Line", "Line Strip", "Triangle", "Triangle Strip"], .dropdown)) ),
+            ("outputGeometry",  NodePort<Geometry>(name: "Geometry", kind: .Outlet)),
+        ]
+    }
     
-
-    public let inputPrimitiveType:StringParameter
-
-    public override var inputParameters: [any Parameter] {
-        [self.inputPrimitiveType,
-    ] + super.inputParameters}
+    public var inputPrimitiveType: NodePort<String>   { port(named: "inputPrimitiveType") }
+    public var outputGeometry: NodePort<Geometry>   { port(named: "outputGeometry") }
 
     open var geometry: Geometry {
         fatalError("Subclasses must override geometry")
-    }
-
-    public required init(context: Context) {
-        
-        self.inputPrimitiveType = StringParameter("Geometry Primitive", "Triangle", ["Point", "Line", "Line Strip", "Triangle", "Triangle Strip"], .dropdown)
-
-        self.outputGeometry = NodePort<Geometry>(name: "Geometry", kind: .Outlet)
-
-        super.init(context: context)
-    }
-    
-    enum CodingKeys : String, CodingKey
-    {
-        case inputPrimitiveTypeParam
-        case outputGeometryPort
-    }
-    
-    public override func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputPrimitiveType, forKey: .inputPrimitiveTypeParam)
-        try container.encode(self.outputGeometry, forKey: .outputGeometryPort)
-        
-        try super.encode(to: encoder)
-    }
-    
-    
-    public required init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        
-        self.inputPrimitiveType = try container.decode(StringParameter.self, forKey: .inputPrimitiveTypeParam)
-
-        self.outputGeometry = try container.decode(NodePort<Geometry>.self, forKey: .outputGeometryPort)
-
-        try super.init(from: decoder)
-        
-        // TODO: We need to fix StringParam serialization
-        self.inputPrimitiveType.options = ["Point", "Line", "Line Strip", "Triangle", "Triangle Strip"]
     }
     
     public func evaluate(geometry:Geometry, atTime:TimeInterval) -> Bool

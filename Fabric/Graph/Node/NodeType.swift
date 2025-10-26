@@ -146,7 +146,6 @@ extension Node
         public func color() -> Color
         {
 //            return [Color.red, .blue, .green, .yellow, .orange, .pink, .purple, .gray].randomElement( ) ?? .gray
-            
            
             switch self
             {

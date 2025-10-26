@@ -14,11 +14,14 @@ public class PixelsToUnitsNode : Node
 {
     public override class var name:String { "Pixels to Units" }
     public override class var nodeType:Node.NodeType { Node.NodeType.Utility }
-    
+    public override class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    public override class var nodeTimeMode: Node.TimeMode { .None }
+    public override class var nodeDescription: String { "Converts Pixels to default camera Units"}
+
     // Ports
     public let inputCursorPosition:NodePort<simd_float2>
     public let outputUnitPosition:NodePort<simd_float3>
-    public override var ports: [AnyPort] { [ self.inputCursorPosition, self.outputUnitPosition] + super.ports}
+    public override var ports: [Port] { [ self.inputCursorPosition, self.outputUnitPosition] + super.ports}
     
     public required init(context: Context)
     {

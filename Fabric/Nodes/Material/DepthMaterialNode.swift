@@ -14,18 +14,23 @@ import Metal
 public class DepthMaterialNode : BaseMaterialNode
 {
     public override class var name:String {  "Depth Material" }
+    override public class var nodeDescription: String { "Visualizes Geometry depth as seen by the active camera."}
 
-    public let inputNear:FloatParameter
-    public let inputFar:FloatParameter
-    public let inputInvert:BoolParameter
-    public let inputColor:BoolParameter
-    public override var inputParameters: [any Parameter] { [
-        inputNear,
-        inputFar,
-        inputInvert,
-        inputColor,
-    ] + super.inputParameters}
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+        
+        return  [
+                    ("inputNear", ParameterPort(parameter:FloatParameter("Near", 0.001, 0.0, 1000.0, .slider)) ),
+                    ("inputFar", ParameterPort(parameter:FloatParameter("Far", 500.0, 0.0, 1000.0, .slider)) ),
+                    ("inputInvert", ParameterPort(parameter:BoolParameter("Invert", false, .toggle)) ),
+                    ("inputColor", ParameterPort(parameter:BoolParameter("Color", true, .toggle)) ),
+                ] + ports
+    }
     
+    public var inputNear:ParameterPort<Float> { port(named: "inputNear") }
+    public var inputFar:ParameterPort<Float> { port(named: "inputFar") }
+    public var inputInvert:ParameterPort<Bool> { port(named: "inputInvert") }
+    public var inputColor:ParameterPort<Bool> { port(named: "inputColor") }
 
     public override var material: DepthMaterial {
         return _material
@@ -33,78 +38,35 @@ public class DepthMaterialNode : BaseMaterialNode
     
     private var _material = DepthMaterial()
     
-    public required init(context:Context)
-    {
-        self.inputNear = FloatParameter("Near", 0.001, 0.0, 1000.0, .slider)
-        self.inputFar = FloatParameter("Far", 10.0, 0.0, 1000.0, .slider)
-
-        self.inputInvert = BoolParameter("Invert", false, .toggle)
-        self.inputColor = BoolParameter("Color", true, .toggle)
-        
-        super.init(context: context)
-        
-        self.material.near = 0.001
-        self.material.far = 10.0
-    }
-    
-    enum CodingKeys : String, CodingKey
-    {
-        case inputNearParameter
-        case inputFarParameter
-        case inputInvertParameter
-        case inputColorParameter
-    }
-
-    public required init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        self.inputNear = try container.decode(FloatParameter.self, forKey: .inputNearParameter)
-        self.inputFar = try container.decode(FloatParameter.self, forKey: .inputFarParameter)
-        self.inputInvert = try container.decode(BoolParameter.self, forKey: .inputInvertParameter)
-        self.inputColor = try container.decode(BoolParameter.self, forKey: .inputColorParameter)
-        
-
-        try super.init(from: decoder)
-    }
-    
-    public override func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputNear, forKey: .inputNearParameter)
-        try container.encode(self.inputFar, forKey: .inputFarParameter)
-        try container.encode(self.inputInvert, forKey: .inputInvertParameter)
-        try container.encode(self.inputColor, forKey: .inputColorParameter)
-        
-        try super.encode(to: encoder)
-    }
-    
     public override func evaluate(material: Material, atTime: TimeInterval) -> Bool
     {
         var shouldOutput = super.evaluate(material: material, atTime: atTime)
         
-        if self.inputFar.valueDidChange
+        if self.inputFar.valueDidChange,
+           let far = self.inputFar.value
         {
-            self.material.far = self.inputFar.value
+            self.material.far = far
             shouldOutput = true
         }
         
-        if self.inputNear.valueDidChange
+        if self.inputNear.valueDidChange,
+           let near = self.inputNear.value
         {
-            self.material.near = self.inputNear.value
+            self.material.near = near
             shouldOutput = true
         }
         
-        if self.inputInvert.valueDidChange
+        if self.inputInvert.valueDidChange,
+           let invert = self.inputInvert.value
         {
-            self.material.invert = self.inputInvert.value
+            self.material.invert = invert
             shouldOutput = true
         }
         
-        if self.inputColor.valueDidChange
+        if self.inputColor.valueDidChange,
+           let color = self.inputColor.value
         {
-            self.material.color = self.inputColor.value
+            self.material.color = color
             shouldOutput = true
         }
         

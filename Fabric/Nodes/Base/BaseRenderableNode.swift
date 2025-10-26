@@ -12,4 +12,4 @@ import simd
 import Metal
 
 
-public class BaseRenderableNode<ObjectType : Renderable> : ObjectNode<ObjectType> {}
+public class BaseRenderableNode<ObjectType : Renderable> : ObjectNode<ObjectType> { }

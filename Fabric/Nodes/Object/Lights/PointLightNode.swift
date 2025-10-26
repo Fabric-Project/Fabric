@@ -15,104 +15,45 @@ public class PointLightNode : ObjectNode<PointLight>
 {
     public override class var name:String { "Point Light" }
     public override class var nodeType:Node.NodeType { Node.NodeType.Object(objectType: .Light) }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Consumer }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+    override public class var nodeDescription: String { "Adds a Point Light to the scene."}
 
-    // Params
-    public let inputLookAt: Float3Parameter
-    public let inputColor: Float3Parameter
-    public let inputIntensity: FloatParameter
-    public let inputRadius: FloatParameter
-    public let inputShadowStrength: FloatParameter
-    public let inputShadowRadius: FloatParameter
-    public let inputShadowBias: FloatParameter
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+        
+        return  [
+            ("inputLookAt", ParameterPort(parameter:Float3Parameter("Look At", simd_float3(repeating:0), .inputfield )) ),
+            ("inputColor", ParameterPort(parameter:Float3Parameter("Color", simd_float3(repeating:1), .inputfield )) ),
+            
+            ("inputIntensity", ParameterPort(parameter: FloatParameter("Intensity", 1.0, 0.0, 10.0, .slider))),
+            ("inputRadius", ParameterPort(parameter: FloatParameter("Radius", 1.0, 0.0, 1000.0, .slider))),
+            ("inputShadowStrength", ParameterPort(parameter: FloatParameter("Shadow Strength", 0.5, 0.0, 1.0, .slider))),
+            ("inputShadowRadius", ParameterPort(parameter: FloatParameter("Shadow Radius", 2.0, 0.0, 10.0, .slider))),
+            ("inputShadowBias", ParameterPort(parameter: FloatParameter("Shadow Bias", 0.005, 0.0, 1.0, .slider))),
+        ] + ports
+    }
     
-    public override var inputParameters: [any Parameter] {  [
-        inputLookAt,
-        inputColor,
-        inputIntensity,
-        inputRadius,
-        inputShadowStrength,
-        inputShadowRadius,
-        inputShadowBias] + super.inputParameters }
-    
-    // Ports
-    public let outputLight: NodePort<Object>
-    public override var ports: [AnyPort] {  [outputLight] + super.ports }
+    // Proxy Port
+    public var inputLookAt:ParameterPort<simd_float3> { port(named: "inputLookAt") }
+    public var inputColor: ParameterPort<simd_float3> { port(named: "inputColor") }
+    public var inputIntensity: ParameterPort<Float> { port(named: "inputIntensity") }
+    public var inputRadius: ParameterPort<Float> { port(named: "inputRadius") }
+    public var inputShadowStrength: ParameterPort<Float> { port(named: "inputShadowStrength") }
+    public var inputShadowRadius: ParameterPort<Float> { port(named: "inputShadowBias") }
+    public var inputShadowBias: ParameterPort<Float> { port(named: "inputShadowBias") }
     
     public override var object: PointLight? {
         return light
     }
     
     private var light: PointLight =  PointLight(color: simd_float3(1.0, 1.0, 1.0), radius: 150.0)
-//    let lightHelperGeo = BoxGeometry(width: 0.1, height: 0.1, depth: 0.5)
-//    let lightHelperMat = BasicDiffuseMaterial(hardness: 0.7)
-//    lazy var lightHelperMesh0 = Mesh(geometry: lightHelperGeo, material: lightHelperMat)
 
-    public required init(context:Context)
+    override public func startExecution(context:GraphExecutionContext)
     {
-        self.inputLookAt = Float3Parameter("Look At", simd_float3(repeating:0), .inputfield )
-        self.inputColor = Float3Parameter("Color", simd_float3(repeating:1), .inputfield )
-        self.inputIntensity = FloatParameter("Intensity", 1.0, 0.0, 1000.0, .slider)
-        self.inputRadius = FloatParameter("Radius", 1.0, 0.0, 1000.0, .slider)
-        self.inputShadowStrength = FloatParameter("Shadow Strength", 0.5, 0.0, 1.0, .slider)
-        self.inputShadowRadius = FloatParameter("Shadow Radius", 2.0, 0.0, 10.0, .slider)
-        self.inputShadowBias = FloatParameter("Shadow Bias", 0.005, 0.0, 1.0, .slider)
-        
-        self.outputLight = NodePort<Object>(name: MeshNode.name, kind: .Outlet)
-        
-        super.init(context: context)
-                
-        self.setupDefaultLight()
+        self.setupDefaultLight( )
     }
     
-    enum CodingKeys : String, CodingKey
-    {
-        case inputLookAtParameter
-        case inputColorParameter
-        case inputIntensityParameter
-        case inputRadiusParameter
-        case inputShadowStrengthParameter
-        case inputShadowRadiusParameter
-        case inputShadowBiasParameter
-        
-        case outputLightPort
-    }
-    
-    public override func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputLookAt, forKey: .inputLookAtParameter)
-        try container.encode(self.inputColor, forKey: .inputColorParameter)
-        try container.encode(self.inputIntensity, forKey: .inputIntensityParameter)
-        try container.encode(self.inputRadius, forKey: .inputRadiusParameter)
-        try container.encode(self.inputShadowStrength, forKey: .inputShadowStrengthParameter)
-        try container.encode(self.inputShadowRadius, forKey: .inputShadowRadiusParameter)
-        try container.encode(self.inputShadowBias, forKey: .inputShadowBiasParameter)
-
-        try container.encode(self.outputLight, forKey: .outputLightPort)
-        
-        try super.encode(to: encoder)
-    }
-
-    public required init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-
-        self.inputLookAt = try container.decode(Float3Parameter.self, forKey: .inputLookAtParameter)
-        self.inputColor = try container.decode(Float3Parameter.self, forKey: .inputColorParameter)
-        self.inputIntensity = try container.decode(FloatParameter.self, forKey: .inputIntensityParameter)
-        self.inputRadius = try container.decode(FloatParameter.self, forKey: .inputRadiusParameter)
-        self.inputShadowStrength = try container.decode(FloatParameter.self, forKey: .inputShadowStrengthParameter)
-        self.inputShadowRadius = try container.decode(FloatParameter.self, forKey: .inputShadowRadiusParameter)
-        self.inputShadowBias = try container.decode(FloatParameter.self, forKey: .inputShadowBiasParameter)
-        self.outputLight = try container.decode(NodePort<Object>.self, forKey: .outputLightPort)
-
-
-        try super.init(from: decoder)
-        self.setupDefaultLight()
-    }
-
     private func setupDefaultLight()
     {
         self.light.context = self.context
@@ -127,64 +68,63 @@ public class PointLightNode : ObjectNode<PointLight>
         if let shadowCamera = self.light.shadow.camera as? OrthographicCamera {
             shadowCamera.update(left: -20, right: 20, bottom: -20, top: 20, near: 0.01, far: 200)
         }
-
     }
     
     override public func evaluate(object: Object?, atTime: TimeInterval) -> Bool
     {
         var shouldOutput = super.evaluate(object: object, atTime: atTime)
     
-        if self.inputColor.valueDidChange
+        if self.inputColor.valueDidChange,
+            let color = self.inputColor.value
         {
-            self.light.color = self.inputColor.value
+            self.light.color = color
             shouldOutput = true
         }
         
-        if self.inputIntensity.valueDidChange
+        if self.inputIntensity.valueDidChange,
+            let intensity = self.inputIntensity.value
         {
-            self.light.intensity = self.inputIntensity.value
+            self.light.intensity = intensity
             shouldOutput = true
         }
         
-        if self.inputRadius.valueDidChange
+        if self.inputRadius.valueDidChange,
+           let radius = self.inputRadius.value
         {
-            self.light.radius = self.inputRadius.value
+            self.light.radius = radius
             shouldOutput = true
         }
         
-        if self.inputShadowStrength.valueDidChange
+        if self.inputShadowStrength.valueDidChange,
+           let inputShadowStrength =  self.inputShadowStrength.value
         {
-            self.light.shadow.strength = self.inputShadowStrength.value
+            self.light.shadow.strength = inputShadowStrength
             shouldOutput = true
         }
         
-        if self.inputShadowRadius.valueDidChange
+        if self.inputShadowRadius.valueDidChange,
+           let inputShadowRadius = self.inputShadowRadius.value
         {
-            self.light.shadow.radius = self.inputShadowRadius.value
+            self.light.shadow.radius = inputShadowRadius
             shouldOutput = true
         }
         
-        if self.inputShadowBias.valueDidChange
+        if self.inputShadowBias.valueDidChange,
+           let inputShadowBias = self.inputShadowBias.value
         {
-            self.light.shadow.bias = self.inputShadowBias.value
+            self.light.shadow.bias = inputShadowBias
             shouldOutput = true
         }
         
         // Needs to fire every frame
-        self.light.lookAt(target: self.inputLookAt.value)
+        self.light.lookAt(target: self.inputLookAt.value ?? .zero)
         
-        return shouldOutput
-    }
+        return shouldOutput    }
     
     public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        let shouldUpdate = self.evaluate(object: self.light, atTime: context.timing.time)
-
-        if shouldUpdate
-        {
-            self.outputLight.send(light)
-        }
+        let _ = self.evaluate(object: self.light, atTime: context.timing.time)
     }
 }

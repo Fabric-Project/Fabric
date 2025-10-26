@@ -13,17 +13,24 @@ import Metal
 public class IteratorNode: SubgraphNode
 {
     public override class var name:String { "Iterator" }
-    
-    // Parameters:
-    public let inputIteratonCount:IntParameter
-    
-    public override var inputParameters: [any Parameter] {
-        [inputIteratonCount]
-        + super.inputParameters }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Consumer }
+    override public class var nodeDescription: String { "Execute a Sub Graph n number of times"}
 
-
+    // Ports
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+        
+        return ports +
+        [
+            ("inputIteratonCount", ParameterPort(parameter: IntParameter("Iterations", 0, 100, 2, .inputfield))),
+        ]
+    }
+    
+    // Port Proxy
+    public var inputIteratonCount:ParameterPort<Int> { port(named: "inputIteratonCount") }
+        
     // Ensure we always render!
-    public override var isDirty:Bool { get {  true  } set { } }
+    override public var isDirty:Bool { get {  true  } set { } }
 
     var renderProxy:SubgraphIteratorRenderable
 
@@ -33,7 +40,6 @@ public class IteratorNode: SubgraphNode
 
     public required init(context: Context)
     {
-        self.inputIteratonCount = IntParameter("Iterations", 0, 100, 2, .inputfield)
         self.renderProxy = SubgraphIteratorRenderable(iterationCount: 1)
 
         super.init(context: context)
@@ -41,30 +47,13 @@ public class IteratorNode: SubgraphNode
         self.renderProxy.subGraph = self.subGraph
     }
     
-    enum CodingKeys : String, CodingKey
-    {
-        case inputIteratonCount
-    }
-    
-    public override func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputIteratonCount, forKey: .inputIteratonCount)
-        try super.encode(to: encoder)
-    }
-    
     public required init(from decoder: any Decoder) throws
     {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        
-        self.inputIteratonCount = try container.decode(IntParameter.self , forKey:.inputIteratonCount)
         self.renderProxy = SubgraphIteratorRenderable(iterationCount: 1)
 
         try super.init(from: decoder)
         
         self.renderProxy.subGraph = self.subGraph
-        
     }
     
     override public func execute(context: GraphExecutionContext,
@@ -75,18 +64,17 @@ public class IteratorNode: SubgraphNode
         // execute the graph once, to just ensure meshes / materials have latest values popogated to nodes
         // this does technically introduce one additional draw call
         // Not sure the best way to avoid this - since we need to have the graph 'configured'
-        self.renderProxy.execute(context: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+        self.renderProxy.execute(context: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer,)
         
         self.renderProxy.graphContext = context
         self.renderProxy.currentRenderPass = renderPassDescriptor
         self.renderProxy.currentCommandBuffer = commandBuffer
 //        self.renderProxy.renderables = self.subGraph.renderables
 
-        if self.inputIteratonCount.valueDidChange
+        if self.inputIteratonCount.valueDidChange,
+            let count = self.inputIteratonCount.value
         {
-            self.renderProxy.iterationCount = self.inputIteratonCount.value
+            self.renderProxy.iterationCount = count
         }
-        
-      
     }
 }

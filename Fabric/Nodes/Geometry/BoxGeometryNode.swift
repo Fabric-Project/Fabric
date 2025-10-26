@@ -13,84 +13,57 @@ public class BoxGeometryNode : BaseGeometryNode
 {
     public override class var name:String { "Box Geometry" }
 
-    // Params
-    public let inputWidthParam:FloatParameter
-    public let inputHeightParam:FloatParameter
-    public let inputDepthParam:FloatParameter
-    public let inputResolutionParam:Int3Parameter
-    public override var inputParameters: [any Parameter] { [inputWidthParam, inputHeightParam, inputDepthParam, inputResolutionParam] + super.inputParameters }
-
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+        
+        return [
+            ("inputWidthParam", ParameterPort(parameter:FloatParameter("Width", 1.0, .inputfield)) ),
+            ("inputHeightParam", ParameterPort(parameter:FloatParameter("Height", 1.0, .inputfield)) ),
+            ("inputDepthParam", ParameterPort(parameter:FloatParameter("Depth", 1.0, .inputfield)) ),
+            ("inputResolutionParam", ParameterPort(parameter:Float3Parameter("Resolution", simd_float3(repeating: 1), .inputfield)) ),
+        ] + ports
+    }
+    
+    public var inputWidthParam: NodePort<Float>             { port(named: "inputWidthParam") }
+    public var inputHeightParam: NodePort<Float>            { port(named: "inputHeightParam") }
+    public var inputDepthParam: NodePort<Float>             { port(named: "inputDepthParam") }
+    public var inputResolutionParam: NodePort<simd_float3>  { port(named: "inputResolutionParam") }
+    
     public override var geometry: BoxGeometry { _geometry }
     
     private let _geometry = BoxGeometry(width: 1, height: 1, depth: 1)
 
-    required public init(context: Context)
-    {
-        self.inputWidthParam = FloatParameter("Width", 1.0, .inputfield)
-        self.inputHeightParam = FloatParameter("Height", 1.0, .inputfield)
-        self.inputDepthParam = FloatParameter("Depth", 1.0, .inputfield)
-        self.inputResolutionParam = Int3Parameter("Resolution", simd_int3(repeating: 1), .inputfield)
-
-        super.init(context: context)
-    }
-        
-    enum CodingKeys : String, CodingKey
-    {
-        case inputWidthParameter
-        case inputHeightParameter
-        case inputDepthParameter
-        case inputResolutionParameter
-    }
-    
-    override public func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputWidthParam, forKey: .inputWidthParameter)
-        try container.encode(self.inputHeightParam, forKey: .inputHeightParameter)
-        try container.encode(self.inputDepthParam, forKey: .inputDepthParameter)
-        try container.encode(self.inputResolutionParam, forKey: .inputResolutionParameter)
-        
-        try super.encode(to: encoder)
-    }
-    
-    required public init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        self.inputWidthParam = try container.decode(FloatParameter.self, forKey: .inputWidthParameter)
-        self.inputHeightParam = try container.decode(FloatParameter.self, forKey: .inputHeightParameter)
-        self.inputDepthParam = try container.decode(FloatParameter.self, forKey: .inputDepthParameter)
-        self.inputResolutionParam = try container.decode(Int3Parameter.self, forKey: .inputResolutionParameter)
-        
-        try super.init(from: decoder)
-    }
     
     override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
     {
         var shouldOutputGeometry = super.evaluate(geometry: geometry, atTime: atTime)
         
-        if self.inputWidthParam.valueDidChange
+        if self.inputWidthParam.valueDidChange,
+           let width = self.inputWidthParam.value
         {
-            self.geometry.width = self.inputWidthParam.value
+            self.geometry.width = width
             shouldOutputGeometry = true
         }
         
-        if self.inputHeightParam.valueDidChange
+        if self.inputHeightParam.valueDidChange,
+            let height = self.inputHeightParam.value
         {
-            self.geometry.height = self.inputHeightParam.value
+            self.geometry.height = height
             shouldOutputGeometry = true
         }
         
-        if self.inputDepthParam.valueDidChange
+        if self.inputDepthParam.valueDidChange,
+           let depth = self.inputDepthParam.value
         {
-            self.geometry.depth = self.inputDepthParam.value
+            self.geometry.depth = depth
             shouldOutputGeometry = true
         }
         
-        if self.inputResolutionParam.valueDidChange
+        // TODO: Fix
+        if self.inputResolutionParam.valueDidChange,
+           let resolution = self.inputResolutionParam.value
         {
-            self.geometry.resolution =  self.inputResolutionParam.value
+//            self.geometry.resolution =  self.inputResolutionParam.value
             shouldOutputGeometry = true
         }
         

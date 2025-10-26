@@ -19,7 +19,7 @@ public class SkyboxGeometryNode : Node
     
     public let outputGeometry:NodePort<Geometry>
     
-    public override var ports:[AnyPort] {  [outputGeometry] + super.ports}
+    public override var ports:[Port] {  [outputGeometry] + super.ports}
 
     private let geometry = SkyboxGeometry(size: 50)
 

@@ -14,7 +14,10 @@ import MetalKit
 class BaseEffectNode: Node, NodeFileLoadingProtocol
 {
     override class var name:String { "Base Effect" }
-    
+    override class var nodeType:Node.NodeType { .Image(imageType: .BaseEffect) }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+
     override var name: String {
         guard let fileURL = self.url else {
             return BaseEffectNode.name
@@ -23,7 +26,6 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
         return self.fileURLToName(fileURL: fileURL)
     }
     
-    override class var nodeType:Node.NodeType { .Image(imageType: .BaseEffect) }
     class var sourceShaderName:String { "" }
 
     open class PostMaterial: SourceMaterial {}
@@ -31,57 +33,71 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
     let postMaterial:PostMaterial
     let postProcessor:PostProcessor
     
-    // Parameters
-    override var inputParameters: [any Parameter] { self.postMaterial.parameters.params + super.inputParameters }
-
     // Ports
-    let inputTexturePort:NodePort<EquatableTexture>
-    let outputTexturePort:NodePort<EquatableTexture>
-    override var ports: [AnyPort] { [inputTexturePort, outputTexturePort] + super.ports}
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+        
+        return ports +
+        [
+            ("inputTexturePort", NodePort<EquatableTexture>(name: "Image", kind: .Inlet)),
+            ("outputTexturePort", NodePort<EquatableTexture>(name: "Image", kind: .Outlet)),
+        ]
+    }
+
+    public var inputTexturePort:NodePort<EquatableTexture>  { port(named: "inputTexturePort") }
+    public var outputTexturePort:NodePort<EquatableTexture> { port(named: "outputTexturePort") }
     
     private var url:URL? = nil
     
     required init(context: Satin.Context, fileURL: URL) throws {
-        self.inputTexturePort = NodePort<EquatableTexture>(name: "Image", kind: .Inlet)
-        self.outputTexturePort = NodePort<EquatableTexture>(name: "Image", kind: .Outlet)
 
         self.url = fileURL
         let material = PostMaterial(pipelineURL:fileURL)
-        material.setup()
-        
+        material.context = context
+
         self.postMaterial = material
         self.postProcessor = PostProcessor(context: context,
                                            material: material,
                                            frameBufferOnly: false)
                 
         super.init(context: context)
+        
+        for param in self.postMaterial.parameters.params {
+
+            if let p = PortType.portForType(from:param)
+            {
+                self.addDynamicPort(p)
+            }
+        }
     }
     
     required init(context:Context)
     {
-        self.inputTexturePort = NodePort<EquatableTexture>(name: "Image", kind: .Inlet)
-        self.outputTexturePort = NodePort<EquatableTexture>(name: "Image", kind: .Outlet)
-
         let bundle = Bundle(for: Self.self)
         let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
         
         
         let material = PostMaterial(pipelineURL:shaderURL!)
-        material.setup()
-        
+        material.context = context
+
         self.postMaterial = material
         self.postProcessor = PostProcessor(context: context,
                                            material: material,
                                            frameBufferOnly: false)
                 
         super.init(context: context)
+        
+        for param in self.postMaterial.parameters.params {
+
+            if let p = PortType.portForType(from:param)
+            {
+                self.addDynamicPort(p)
+            }
+        }
     }
     
     enum CodingKeys : String, CodingKey
     {
-        case inputTexturePort
-        case outputTexturePort
-        
         // Store the last 2 directory components (effects/subfolder) within the bundle
         case effectPath
         
@@ -90,10 +106,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
     override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputTexturePort, forKey: .inputTexturePort)
-        try container.encode(self.outputTexturePort, forKey: .outputTexturePort)
-        
+                
         if let url = self.url
         {
             let last2 = url.pathComponents.suffix(3)
@@ -115,9 +128,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
             fatalError("Required Decode Context Not set")
         }
         
-        self.inputTexturePort = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputTexturePort)
-        self.outputTexturePort = try container.decode(NodePort<EquatableTexture>.self, forKey: .outputTexturePort)
-
+    
         if let path = try container.decodeIfPresent(String.self, forKey: .effectPath)
         {
             let bundle = Bundle(for: Self.self)
@@ -126,8 +137,8 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
                 self.url = shaderURL
                 
                 let material = PostMaterial(pipelineURL:shaderURL)
-                material.setup()
-                
+                material.context = decodeContext.documentContext
+
                 self.postMaterial = material
                 self.postProcessor = PostProcessor(context: decodeContext.documentContext,
                                                    material: material,
@@ -139,7 +150,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
                 let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Materials")
                 
                 let material = PostMaterial(pipelineURL:shaderURL!)
-                material.setup()
+                material.context = decodeContext.documentContext
 
                 self.postMaterial = material
                 self.postProcessor = PostProcessor(context: decodeContext.documentContext,
@@ -153,7 +164,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
             let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Materials")
             
             let material = PostMaterial(pipelineURL:shaderURL!)
-            material.setup()
+            material.context = decodeContext.documentContext
 
             self.postMaterial = material
             self.postProcessor = PostProcessor(context: decodeContext.documentContext,
@@ -162,17 +173,29 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
         }
         
         try super.init(from:decoder)
+        
+        // Assign our deserialized param and map to materials new group
+        for param in self.postMaterial.parameters.params {
+
+            for port in self.ports
+            {
+                if port.name == param.label
+                {
+                    port.parameter = param
+                }
+            }
+        }
     }
     
     override func execute(context:GraphExecutionContext,
                           renderPassDescriptor: MTLRenderPassDescriptor,
                           commandBuffer: MTLCommandBuffer)
     {
-        let anyParamDidChange =  self.inputParameters.reduce(false, { partialResult, next in
+        let anyPortChanged =  self.ports.reduce(false, { partialResult, next in
            return partialResult || next.valueDidChange
         })
 
-        if self.inputTexturePort.valueDidChange || anyParamDidChange || self.isDirty
+        if self.inputTexturePort.valueDidChange || anyPortChanged || self.isDirty
         {
             if let inTex = self.inputTexturePort.value?.texture
             {

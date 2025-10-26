@@ -67,7 +67,7 @@ public class LogNode : Node
 
     // Ports
     public let inputAny: NodePort<AnyLoggable>
-    public override var ports: [AnyPort] {  [self.inputAny] + super.ports }
+    public override var ports: [Port] {  [self.inputAny] + super.ports }
     
     public required init(context: Context)
     {

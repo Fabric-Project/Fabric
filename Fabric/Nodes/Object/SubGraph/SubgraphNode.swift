@@ -14,10 +14,13 @@ public class SubgraphNode: BaseObjectNode
 {
     override public class var name:String { "Sub Graph" }
     override public class var nodeType:Node.NodeType { Node.NodeType.Subgraph }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Consumer } // TODO: ??
+    override public class var nodeTimeMode: Node.TimeMode { .TimeBase }
+    override public class var nodeDescription: String { "A Sub Graph of Nodes, useful for organizing or encapsulation"}
 
     let subGraph:Graph
     
-    override public var ports:[AnyPort] { self.subGraph.publishedPorts() }
+    override public var ports:[Port] { self.subGraph.publishedPorts() + super.ports }
     
     override public func getObject() -> Object?
     {
@@ -57,11 +60,9 @@ public class SubgraphNode: BaseObjectNode
                 
         try super.init(from: decoder)
     }
-    
-    override public var isDirty: Bool
-    {
-        self.subGraph.needsExecution
-    }
+     
+    // Ensure we always render!
+    override public var isDirty:Bool { get {  self.subGraph.needsExecution  } set { } }
     
     override public func markClean()
     {
@@ -85,22 +86,22 @@ public class SubgraphNode: BaseObjectNode
     
     override public func startExecution(context:GraphExecutionContext)
     {
-        context.graphRenderer?.startExecution(graph: self.subGraph)
+        context.graphRenderer?.startExecution(graph: self.subGraph, executionContext: context)
     }
     
     override public func stopExecution(context:GraphExecutionContext)
     {
-        context.graphRenderer?.stopExecution(graph: self.subGraph)
+        context.graphRenderer?.stopExecution(graph: self.subGraph, executionContext: context)
     }
 
     override public func enableExecution(context:GraphExecutionContext)
     {
-        context.graphRenderer?.enableExecution(graph: self.subGraph)
+        context.graphRenderer?.enableExecution(graph: self.subGraph, executionContext: context)
     }
     
     override public func disableExecution(context:GraphExecutionContext)
     {
-        context.graphRenderer?.disableExecution(graph: self.subGraph)
+        context.graphRenderer?.disableExecution(graph: self.subGraph, executionContext: context)
     }
     
     override public func execute(context: GraphExecutionContext,
@@ -108,7 +109,7 @@ public class SubgraphNode: BaseObjectNode
                                  commandBuffer: any MTLCommandBuffer)
     {
 
-        context.graphRenderer?.execute(graph: self.subGraph, executionContext: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+        context.graphRenderer?.execute(graph: self.subGraph, executionContext: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer, clearFlags: false)
     }
     
 }

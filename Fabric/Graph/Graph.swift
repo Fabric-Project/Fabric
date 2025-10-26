@@ -101,6 +101,14 @@ internal import AnyCodable
         // get a single value container
         var nestedContainer = try container.nestedUnkeyedContainer( forKey: .nodeMap)
         
+        // this is stupid but works!
+        // We make a new encoder to re-encode the data
+        // we pass to the intospected types class decoder based initialier
+        // since they all conform to NodeProtocol we can do this
+        // this is better than the alternative switch for each class..
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+
         while !nestedContainer.isAtEnd
         {
             do {
@@ -112,30 +120,17 @@ internal import AnyCodable
                 
                 if let nodeClass = NodeRegistry.shared.nodeClass(for: anyCodableMap.type)
                 {
-                    // this is stupid but works!
-                    // We make a new encoder to re-encode the data
-                    // we pass to the intospected types class decoder based initialier
-                    // since they all conform to NodeProtocol we can do this
-                    // this is better than the alternative switch for each class..
-                    
-                    let encoder = JSONEncoder()
                     let jsonData = try encoder.encode(anyCodableMap.value)
-                    
-                    let decoder = JSONDecoder()
                     decoder.context = decodeContext
                     
                     let node = try decoder.decode(nodeClass, from: jsonData)
 
                     self.addNode(node)
-
                 }
                 // This is stupid? Yes, BaseEffectNode should be designed to cover the cases... but this works, today.
                 else if anyCodableMap.type == String(describing: type(of: BaseEffectThreeChannelNode.self)).replacingOccurrences(of: ".Type", with:"")
                 {
-                    let encoder = JSONEncoder()
                     let jsonData = try encoder.encode(anyCodableMap.value)
-                    
-                    let decoder = JSONDecoder()
                     decoder.context = decodeContext
                     
                     let node = try decoder.decode(BaseEffectThreeChannelNode.self, from: jsonData)
@@ -145,10 +140,7 @@ internal import AnyCodable
                 // This is stupid?
                 else if anyCodableMap.type == String(describing: type(of: BaseEffectTwoChannelNode.self)).replacingOccurrences(of: ".Type", with:"")
                 {
-                    let encoder = JSONEncoder()
                     let jsonData = try encoder.encode(anyCodableMap.value)
-                    
-                    let decoder = JSONDecoder()
                     decoder.context = decodeContext
                     
                     let node = try decoder.decode(BaseEffectTwoChannelNode.self, from: jsonData)
@@ -199,6 +191,8 @@ internal import AnyCodable
                 }
             }
         }
+        
+        self.rebuildPublishedParameterGroup()
     }
     
     public func encode(to encoder:Encoder) throws
@@ -258,7 +252,6 @@ internal import AnyCodable
     
     public func addNode(_ node:Node)
     {
-        print("Add Node", node.name)
         
         if let activeSubGraph
         {
@@ -266,6 +259,7 @@ internal import AnyCodable
         }
         else
         {
+            print("Graph: \(self.id) Add Node", node.name)
             self.maybeAddNodeToScene(node)
             self.nodes.append(node)
             node.graph = self
@@ -304,7 +298,7 @@ internal import AnyCodable
         }
     }
     
-    public func nodePort(forID:UUID) -> AnyPort?
+    public func nodePort(forID:UUID) -> Port?
     {
         if let activeSubGraph
         {
@@ -322,40 +316,47 @@ internal import AnyCodable
     {
         self.publishedParameterGroup.clear()
         
-        self.publishedParameterGroup.append( self.publishedParameters() )
+        let params = self.publishedParameters()
+        self.publishedParameterGroup.append( params )
+        self.shouldUpdateConnections.toggle()
     }
     
     // This could be more nicely done.
     public func publishedParameters() -> [any Parameter]
     {
         // id's of ports match id's of params for convenience
-        let publishedPortIds = self.nodes.flatMap( { $0.publishedParameterPorts().map { $0.id } } )
+        let publishedPortIds = self.nodes.flatMap( { $0.publishedPorts().map { $0.id } } )
         
         // expose only params that are published
         return self.nodes.flatMap( { $0.parameterGroup.params } ).filter { publishedPortIds.contains($0.id) }
     }
     
     // This could be more nicely done.
-    public func publishedPorts() -> [AnyPort]
+    public func publishedPorts() -> [Port]
     {
         return  self.nodes.flatMap( { $0.publishedPorts() } )
     }
      
     // MARK: -Rendering Helpers
-    private let consumerOrProviderTypes = [Node.NodeType.Utility, .Subgraph] + Node.NodeType.ObjectType.nodeTypes()
-    
+    private let consumerOrProviderTypes = [Node.ExecutionMode.Consumer, .Provider]
+
     internal var consumerOrProviderNodes: [Node] = []
     internal var sceneObjectNodes:[BaseObjectNode] = []
     internal var firstCamera:Camera? = nil
     
     func updateRenderingNodes()
     {
-        self.consumerOrProviderNodes = self.nodes.filter( { consumerOrProviderTypes.contains($0.nodeType) } )
+        self.consumerOrProviderNodes = self.nodes.filter( { consumerOrProviderTypes.contains($0.nodeExecutionMode) } )
         
-        let sceneObjectNodes:[BaseObjectNode] = consumerOrProviderNodes.compactMap({ $0 as? BaseObjectNode})
+        self.firstCamera = self.getFirstCamera()
+    }
+    
+    func getFirstCamera() -> Camera?
+    {
+        let sceneObjectNodes:[BaseObjectNode] = self.consumerOrProviderNodes.compactMap({ $0 as? BaseObjectNode})
         let firstCameraNode = sceneObjectNodes.first(where: { $0.nodeType == .Object(objectType: .Camera)})
 
-        self.firstCamera = firstCameraNode?.getObject() as? Camera
+        return firstCameraNode?.getObject() as? Camera
     }
     
     // MARK: -Selection

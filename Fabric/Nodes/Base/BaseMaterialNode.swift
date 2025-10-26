@@ -14,87 +14,37 @@ public class BaseMaterialNode : Node
 {
     override public class var name:String {  "Material" }
     override public class var nodeType:Node.NodeType { .Material }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
 
-    // Ports
-    public let outputMaterial:NodePort<Material>
-    public override var ports: [AnyPort] { [ self.outputMaterial] + super.ports}
+    // Port Registration
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+        
+        return ports +
+        [
+            ("inputReceivesLighting", ParameterPort(parameter:BoolParameter("Receives Lighting", true, .button) ) ),
+            ("inputWriteDepth", ParameterPort(parameter:BoolParameter("Write Depth", true, .button) ) ),
+            ("inputDepthTest", ParameterPort(parameter:BoolParameter("Depth Test", true, .button) ) ),
+            ("inputBlending", ParameterPort(parameter:StringParameter("Blending Mode", "Disabled", ["Disabled", "Alpha", "Additive", "Subtractive"], .dropdown) ) ),
+            ("outputMaterial",  NodePort<Material>(name: "Material", kind: .Outlet)),
+        ]
+    }
     
-    // Params
-    public let inputReceivesLighting:BoolParameter
-    public let inputWriteDepth:BoolParameter
-    public let inputDepthTest:BoolParameter
-    public let inputBlending:StringParameter
-
-    public override var inputParameters: [any Parameter] {
-        [self.inputReceivesLighting,
-         self.inputWriteDepth,
-         self.inputDepthTest,
-         self.inputBlending,
-    ] + super.inputParameters}
-    
-    
+    // Port Proxy
+    public var inputReceivesLighting:ParameterPort<Bool>    { port(named: "inputReceivesLighting") }
+    public var inputWriteDepth:ParameterPort<Bool>          { port(named: "inputWriteDepth") }
+    public var inputDepthTest:ParameterPort<Bool>           { port(named: "inputDepthTest") }
+    public var inputBlending:ParameterPort<String>          { port(named: "inputBlending") }
+    public var outputMaterial:NodePort<Material>            { port(named: "outputMaterial") }
     
     open var material: Material {
         fatalError("Subclasses must override material")
     }
-
     
-    public required init(context: Context) {
-        
-        self.inputReceivesLighting = BoolParameter("Receives Lighting", true, .button)
-        self.inputWriteDepth = BoolParameter("Write Depth", true, .button)
-        self.inputDepthTest = BoolParameter("Depth Test", true, .button)
-        self.inputBlending = StringParameter("Blending Mode", "Disabled", ["Disabled", "Alpha", "Additive", "Subtractive"], .dropdown)
-
-        self.outputMaterial = NodePort<Material>(name: "Material", kind: .Outlet)
-
-        super.init(context: context)
-    }
-    
-    enum CodingKeys : String, CodingKey
+    override public func startExecution(context: GraphExecutionContext)
     {
-        case inputReceivesLightingParam
-        case inputWriteDepthParam
-        case inputDepthTestParam
-        case inputBlendingParam
-        case outputMaterialPort
-    }
-    
-    public override func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputReceivesLighting, forKey: .inputReceivesLightingParam)
-        try container.encode(self.inputWriteDepth, forKey: .inputWriteDepthParam)
-        try container.encode(self.inputDepthTest, forKey: .inputDepthTestParam)
-        try container.encode(self.inputBlending, forKey: .inputBlendingParam)
-        try container.encode(self.outputMaterial, forKey: .outputMaterialPort)
-
-        try super.encode(to: encoder)
-    }
-    
-    public required init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        self.inputReceivesLighting = try container.decode(BoolParameter.self, forKey: .inputReceivesLightingParam)
-        self.inputWriteDepth = try container.decode(BoolParameter.self, forKey: .inputWriteDepthParam)
-        if let depthTest = try container.decodeIfPresent(BoolParameter.self, forKey: .inputDepthTestParam)
-        {
-            self.inputDepthTest = depthTest
-        }
-        else
-        {
-            self.inputDepthTest = BoolParameter("Depth Test", true, .button)
-        }
-        
-        self.inputBlending = try container.decode(StringParameter.self, forKey: .inputBlendingParam)
-        
-        self.inputBlending.options = ["Disabled", "Alpha", "Additive", "Subtractive"]
-        
-        self.outputMaterial = try container.decode(NodePort<Material>.self, forKey: .outputMaterialPort)
-
-        try super.init(from: decoder)
+        self.material.context = context.graphRenderer?.context
     }
     
     public func evaluate(material:Material, atTime:TimeInterval) -> Bool
@@ -107,21 +57,24 @@ public class BaseMaterialNode : Node
             shouldOutput = true
         }
         
-        if self.inputReceivesLighting.valueDidChange
+        if self.inputReceivesLighting.valueDidChange,
+           let lighting = self.inputReceivesLighting.value
         {
-            material.lighting = self.inputReceivesLighting.value
+            material.lighting = lighting
             shouldOutput = true
         }
         
-        if  self.inputWriteDepth.valueDidChange
+        if  self.inputWriteDepth.valueDidChange,
+            let depthWrite = self.inputWriteDepth.value
         {
-            material.depthWriteEnabled = self.inputWriteDepth.value
+            material.depthWriteEnabled = depthWrite
             shouldOutput = true
         }
         
-        if self.inputDepthTest.valueDidChange
+        if self.inputDepthTest.valueDidChange,
+           let depthTest = self.inputDepthTest.value
         {
-            material.depthCompareFunction = (self.inputDepthTest.value) ? .greaterEqual : .always
+            material.depthCompareFunction = (depthTest) ? .greaterEqual : .always
             shouldOutput = true
         }
         
@@ -141,6 +94,7 @@ public class BaseMaterialNode : Node
 
         if shouldOutput
         {
+            // force since object id is the same
             self.outputMaterial.send(self.material)
         }
      }

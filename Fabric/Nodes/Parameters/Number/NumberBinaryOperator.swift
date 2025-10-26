@@ -17,82 +17,60 @@ public class NumberBinaryOperator : Node
 {
     override public static var name:String { "Number Binary Operator" }
     override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
-
-    // Params
-    public let inputAParam:FloatParameter
-    public let inputBParam:FloatParameter
-    public let inputOperatorParam:StringParameter
-    public override var inputParameters:[any Parameter] {  [inputAParam, inputBParam, inputOperatorParam] + super.inputParameters}
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+    override public class var nodeDescription: String { "Run an operation on 2 inputs Number and return the resulting Number"}
 
     // Ports
-    public let outputNumber:NodePort<Float>
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+        
+        return ports +
+        [
+            ("inputNumber1", ParameterPort(parameter: FloatParameter("Number A", 0.0, .inputfield))),
+            ("inputNumber2", ParameterPort(parameter: FloatParameter("Number B", 0.0, .inputfield))),
+            ("inputParam", ParameterPort(parameter: StringParameter("Operator", "Sine", BinaryMathOperator.allCases.map(\.rawValue))) ),
+            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet)),
+        ]
+    }
+    
+    // Port Proxy
+    public var inputNumber1:ParameterPort<Float> { port(named: "inputNumber1") }
+    public var inputNumber2:ParameterPort<Float> { port(named: "inputNumber2") }
+    public var inputParam:ParameterPort<String> { port(named: "inputParam") }
+    public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
+    
     private var mathOperator = BinaryMathOperator.Add
-    private var output:Float = 0.0
     
-    public override var ports: [AnyPort] { [outputNumber] + super.ports }
-
-    public required init(context: Context)
-    {
-        self.inputAParam = FloatParameter("A", 0.0, .inputfield)
-        self.inputBParam = FloatParameter("B", 0.0, .inputfield)
-        self.inputOperatorParam = StringParameter("Operator", "Add", BinaryMathOperator.allCases.map(\.rawValue))
+    override public func startExecution(context: GraphExecutionContext) {
+        super.startExecution(context: context)
         
-        self.outputNumber = NodePort<Float>(name: "Result" , kind: .Outlet)
-        
-        super.init(context: context)
-    }
-        
-    enum CodingKeys : String, CodingKey
-    {
-        case inputAParameter
-        case inputBParameter
-        case inputOperatorParameter
-        case outputNumberPort
-    }
-    
-    public override func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputAParam, forKey: .inputAParameter)
-        try container.encode(self.inputBParam, forKey: .inputBParameter)
-        try container.encode(self.inputOperatorParam, forKey: .inputOperatorParameter)
-        try container.encode(self.outputNumber, forKey: .outputNumberPort)
-        
-        try super.encode(to: encoder)
-    }
-    
-    public required init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        self.inputAParam = try container.decode(FloatParameter.self, forKey: .inputAParameter)
-        self.inputBParam = try container.decode(FloatParameter.self, forKey: .inputBParameter)
-        
-        self.inputOperatorParam = try container.decode(StringParameter.self, forKey: .inputOperatorParameter)
-        self.inputOperatorParam.options = BinaryMathOperator.allCases.map(\.rawValue)
-        
-        self.outputNumber = try container.decode(NodePort<Float>.self, forKey: .outputNumberPort)
-        
-        try super.init(from: decoder)
+        if let stringParam = self.inputParam.parameter as? StringParameter
+        {
+            stringParam.options = BinaryMathOperator.allCases.map(\.rawValue)
+        }
     }
     
     public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        if self.inputOperatorParam.valueDidChange,
-           let mathOp = BinaryMathOperator(rawValue: self.inputOperatorParam.value)
+        if self.inputParam.valueDidChange,
+           let param = self.inputParam.value,
+           let mathOp = BinaryMathOperator(rawValue: param)
         {
             self.mathOperator = mathOp
         }
         
-        if self.inputOperatorParam.valueDidChange || self.inputAParam.valueDidChange || self.inputBParam.valueDidChange
+        if self.inputParam.valueDidChange || self.inputNumber1.valueDidChange || self.inputNumber1.valueDidChange,
+           let number1 = self.inputNumber1.value,
+           let number2 = self.inputNumber2.value
         {
-            self.output = self.mathOperator.perform(lhs: self.inputAParam.value,
-                                                    rhs: self.inputBParam.value)
+            self.outputNumber.send(self.mathOperator.perform(lhs: number1,
+                                                             rhs: number2)
+            )
+
         }
         
-        self.outputNumber.send(self.output)        
     }
 }

@@ -14,29 +14,29 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
 {
     override public class var name:String { "Instanced Mesh" }
     override public class var nodeType:Node.NodeType  { Node.NodeType.Object(objectType: .Mesh) }
-
-    // Params
-    public let inputCastsShadow:BoolParameter
-    public let inputDoubleSided:BoolParameter
-    public let inputCullingMode:StringParameter
-    
-    public override var inputParameters: [any Parameter] { [
-        self.inputCastsShadow,
-        self.inputDoubleSided,
-        self.inputCullingMode
-    ] + super.inputParameters}
+    override public class var nodeDescription: String { "Provides optimized rendering of multiple copies of this Geometry and Material Mesh"}
 
     // Ports
-    public let inputPositions:NodePort<ContiguousArray<simd_float3>>
-    public let inputGeometry:NodePort<Geometry>
-    public let inputMaterial:NodePort<Material>
-    public let outputMesh:NodePort<Object>
-    
-    public override var ports: [AnyPort] {   [inputGeometry,
-                                                           inputMaterial,
-                                                           inputPositions,
-                                                           outputMesh] + super.ports}
-    
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+        
+        return [
+            ("inputGeometry", NodePort<Geometry>(name: "Geometry", kind: .Inlet)),
+            ("inputMaterial", NodePort<Material>(name: "Material", kind: .Inlet)),
+            ("inputPositions", NodePort<ContiguousArray<simd_float3>>(name: "Positions", kind: .Inlet)),
+            ("inputCastsShadow", ParameterPort(parameter:BoolParameter("Enable Shadows", true, .button))),
+            ("inputDoubleSided", ParameterPort(parameter:BoolParameter("Double Sided", false, .button))),
+            ("inputCullingMode", ParameterPort(parameter:StringParameter("Culling Mode", "Back", ["Back", "Front", "None"], .dropdown))),
+        ] + ports
+    }
+    // Proxy Ports
+    public var inputGeometry:NodePort<Geometry> { port(named: "inputGeometry") }
+    public var inputMaterial:NodePort<Material> { port(named: "inputMaterial") }
+    public var inputPositions:NodePort<ContiguousArray<simd_float3>> { port(named: "inputPositions") }
+    public var inputCastsShadow:ParameterPort<Bool> { port(named: "inputCastsShadow") }
+    public var inputDoubleSided:ParameterPort<Bool> { port(named: "inputDoubleSided") }
+    public var inputCullingMode:ParameterPort<String> { port(named: "inputCullingMode") }
+  
     override public var object:InstancedMesh? {
         
         // This is tricky - we want to output nil if we have no inputGeometry  / inputMaterial from upstream ports
@@ -58,64 +58,6 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
         }
     }
 
-    public required init(context: Context)
-    {
-        self.inputCastsShadow = BoolParameter("Enable Shadows", true, .button)
-        self.inputDoubleSided = BoolParameter("Double Sided", false, .button)
-        self.inputCullingMode = StringParameter("Culling Mode", "Back", ["Back", "Front", "None"], .dropdown)
-        
-        self.inputPositions = NodePort<ContiguousArray<simd_float3>>(name: "Positions", kind: .Inlet)
-        self.inputGeometry = NodePort<Geometry>(name: "Geometry", kind: .Inlet)
-        self.inputMaterial = NodePort<Material>(name: "Material", kind: .Inlet)
-        self.outputMesh = NodePort<Object>(name: MeshNode.name, kind: .Outlet)
-        
-        super.init(context: context)
-    }
-        
-    enum CodingKeys : String, CodingKey
-    {
-        case inputCastsShadowParameter
-        case inputDoubleSidedParemeter
-        case inputCullModeParameter
-        case inputPositionsPort
-        case inputGeometryPort
-        case inputMaterialPort
-        case outputMeshPort
-    }
-    
-    public override func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.inputCastsShadow, forKey: .inputCastsShadowParameter)
-        try container.encode(self.inputDoubleSided, forKey: .inputDoubleSidedParemeter)
-        try container.encode(self.inputCullingMode, forKey: .inputCullModeParameter)
-        try container.encode(self.inputGeometry, forKey: .inputGeometryPort)
-        try container.encode(self.inputMaterial, forKey: .inputMaterialPort)
-        try container.encode(self.inputPositions, forKey: .inputPositionsPort)
-        try container.encode(self.outputMesh, forKey: .outputMeshPort)
-        
-        try super.encode(to: encoder)
-    }
-    
-    public required init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        self.inputCastsShadow = try container.decode(BoolParameter.self, forKey: .inputCastsShadowParameter)
-        self.inputDoubleSided = try container.decode(BoolParameter.self, forKey: .inputDoubleSidedParemeter)
-        self.inputCullingMode = try container.decode(StringParameter.self, forKey: .inputCullModeParameter)
-        
-        self.inputCullingMode.options = ["Back", "Front", "None"]
-        
-        self.inputGeometry = try container.decode(NodePort<Geometry>.self, forKey: .inputGeometryPort)
-        self.inputMaterial = try container.decode(NodePort<Material>.self, forKey: .inputMaterialPort)
-        self.inputPositions = try container.decode(NodePort<ContiguousArray<simd_float3>>.self, forKey: .inputPositionsPort)
-        self.outputMesh = try container.decode(NodePort<Object>.self, forKey: .outputMeshPort)
-        
-        try super.init(from: decoder)
-    }
-    
     public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
@@ -140,7 +82,8 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
         {
             let _ = self.evaluate(object: mesh, atTime: context.timing.time)
             
-            if self.inputPositions.valueDidChange, let positions = self.inputPositions.value
+            if self.inputPositions.valueDidChange,
+                let positions = self.inputPositions.value
             {
                 mesh.drawCount = positions.count
                 
@@ -151,24 +94,18 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
                 }
             }
             
-            if self.inputCastsShadow.valueDidChange
+            if self.inputCastsShadow.valueDidChange,
+               let inputCastsShadow = self.inputCastsShadow.value
             {
-                mesh.castShadow = self.inputCastsShadow.value
-                mesh.receiveShadow = self.inputCastsShadow.value
+                mesh.castShadow = inputCastsShadow
+                mesh.receiveShadow = inputCastsShadow
             }
             
             if self.inputCullingMode.valueDidChange
             {
                 mesh.cullMode = self.cullMode()
             }
-            
-            self.outputMesh.send(mesh)
         }
-        else
-        {
-            self.outputMesh.send(nil)
-        }
-       
      }
     
     private func cullMode() -> MTLCullMode

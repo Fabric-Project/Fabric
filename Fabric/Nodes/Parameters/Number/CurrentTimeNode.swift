@@ -12,51 +12,40 @@ import Foundation
 import Satin
 import simd
 import Metal
+import QuartzCore
 
 public class CurrentTimeNode : Node
 {
-    override public static var name:String { "Current Time" }
-    override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
+    override public class var name:String { "Patch Time" }
+    override public class var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+    override public class var nodeDescription: String { "Patch Time"}
 
     public override var isDirty:Bool { get {  true  } set { } }
 
-    private let startTime = Date.timeIntervalSinceReferenceDate
+    private var startTime:TimeInterval = 0
     
     // Ports
-    public let outputNumber:NodePort<Float>
-    public override var ports: [AnyPort] { [ outputNumber] + super.ports}
-    
-    public required init(context: Context)
-    {
-        self.outputNumber =  NodePort<Float>(name: CurrentTimeNode.name , kind: .Outlet)
-
-        super.init(context: context)
-    }
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
         
-    enum CodingKeys : String, CodingKey
-    {
-        case outputNumberPort
+        return ports +
+        [
+            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet)),
+        ]
     }
     
-    public override func encode(to encoder:Encoder) throws
-    {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.outputNumber, forKey: .outputNumberPort)
-        
-        try super.encode(to: encoder)
+    
+    // Port Proxy
+    public var inputNumber:ParameterPort<Float> { port(named: "inputNumber") }
+    public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
+    
+    override public func startExecution(context: GraphExecutionContext) {
+        self.startTime = context.timing.time
     }
     
-    public required init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        self.outputNumber = try container.decode(NodePort<Float>.self, forKey: .outputNumberPort)
-        
-        try super.init(from: decoder)
-    }
-    
-    public override func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

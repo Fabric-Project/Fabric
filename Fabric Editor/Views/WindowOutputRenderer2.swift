@@ -57,7 +57,33 @@ class WindowOutputRenderer2: GameView
     
     func setup()
     {
-//
+        guard
+            let graphRenderer = self.graphRenderer,
+            let graph = self.graph
+        else { return }
+        
+        
+        // TODO: This becomes more semantically correct later
+        let timing = GraphExecutionTiming(time: CACurrentMediaTime(),
+                                          deltaTime: 0,
+                                          displayTime: 0,
+                                          systemTime: Date.timeIntervalSinceReferenceDate,
+                                          frameNumber: graphRenderer.frameIndex)
+        
+        var eventInfo:GraphEventInfo?
+        if let event = self.window?.currentEvent
+        {
+            eventInfo = GraphEventInfo(event:event)
+        }
+        
+        // weird
+        let executionContext = GraphExecutionContext(graphRenderer: graphRenderer,
+                                                     timing: timing,
+                                                     iterationInfo: nil,
+                                                     eventInfo: eventInfo)
+        
+        graphRenderer.enableExecution(graph: graph, executionContext: executionContext)
+        graphRenderer.startExecution(graph: graph, executionContext: executionContext)
     }
     
     override func renderUpdate(_ update: CAMetalDisplayLink.Update, with deltaTime: CFTimeInterval)
@@ -100,10 +126,8 @@ class WindowOutputRenderer2: GameView
 //        graphRenderer.postDraw(drawable: update.drawable, commandBuffer: commandBuffer)
         commandBuffer.present(update.drawable)
         commandBuffer.commit()
-
-
     }
-    
+        
     override func resizeDrawable(_ scaleFactor: CGFloat)
     {
         super.resizeDrawable(scaleFactor)

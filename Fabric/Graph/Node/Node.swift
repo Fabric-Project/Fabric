@@ -10,58 +10,25 @@ import Metal
 import Satin
 import Combine
 
-//public protocol NodeProtocol : AnyObject, Codable,  Equatable, Identifiable, Hashable
-//{
-//    static var name:String { get }
-//    static var nodeType:Node.NodeType { get }
-//    
-//    var id: UUID { get }
-//    
-//    var nodeType:Node.NodeType { get }
-//    var name:String { get }
-//
-//    init(context:Context)
-//    
-//    var ports:[AnyPort] { get }
-//    
-//    var parameterGroup:ParameterGroup { get }
-//      
-//    /// Performs the processing or rendering tasks appropriate for the custom patch.
-//    func execute(context:GraphExecutionContext,
-//                 renderPassDescriptor: MTLRenderPassDescriptor,
-//                 commandBuffer: MTLCommandBuffer)
-//    
-//    func resize(size: (width: Float, height: Float), scaleFactor: Float)
-//    
-//    func markDirty()
-//    func markClean()
-//    var isDirty:Bool { get }
-//
-//    // For the Graph
-//    func publishedPorts() -> [any NodePortProtocol]
-//    // For the UI
-//    func publishedParameterPorts() -> [any NodePortProtocol]
-//
-//    var inputNodes:[any NodeProtocol] { get }
-//    var outputNodes:[any NodeProtocol] { get }
-//    func didConnectToNode(_ node: any NodeProtocol)
-//    func didDisconnectFromNode(_ node: any NodeProtocol)
-//    
-//    var offset: CGSize { get set }
-//    var nodeSize: CGSize { get }
-//    
-//    
-//    var isSelected:Bool { get set}
-//    var isDragging:Bool { get set }
-//}
-
 
 @Observable public class Node : Codable, Equatable, Identifiable, Hashable
 {
-    public class var name:String {  "Geometry" }
-    public class var nodeType:Node.NodeType { .Geometery }
+    // User interface name
+    public class var name:String {  fatalError("\(String(describing:self)) Must implement name") }
+    
+    // User interface organizing principle
+    public class var nodeType:Node.NodeType { fatalError("\(String(describing:self)) Must implement nodeType") }
+    
+    // Execution mode value is used to determine when this node is evaluated
+    public class var nodeExecutionMode: Node.ExecutionMode { fatalError("\(String(describing:self)) Must implement nodeExecutionMode") }
 
-    // Equatable
+    // Execution mode value is used to determine when this node is evaluated
+    public class var nodeTimeMode: Node.TimeMode {  fatalError("\(String(describing:self)) Must implement nodeTimeMode") }
+
+    // User interface description
+    public class var nodeDescription: String { fatalError("\(String(describing:self)) Must implement nodeDescription") }
+
+    // Identifiable
     public let id:UUID
     
     // Hashable
@@ -76,53 +43,64 @@ import Combine
         return lhs.id == rhs.id
     }
     
-    @ObservationIgnored var context:Context
-
-    @ObservationIgnored weak var graph:Graph?
-
-    @ObservationIgnored public var inputParameters:[any Parameter] { []  }
-    @ObservationIgnored public let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
-    
-    @ObservationIgnored private var inputParameterPorts:[AnyPort] = []
-    
-    public var ports:[AnyPort] { self.inputParameterPorts  }
-    public private(set) var inputNodes:[Node] = []
-    public private(set) var outputNodes:[Node]  = []
-    
-    public var isSelected:Bool = false
-    public var isDragging:Bool = false
-    //    var showParams:Bool = false
-    
-    @ObservationIgnored public var nodeType:NodeType
-    {
-        return Self.nodeType
-//        let myType = type(of: self)
-//        return  myType.nodeType
-    }
-    
     public var name : String
     {
         let myType = type(of: self)
         return  myType.name
     }
     
+    @ObservationIgnored public var nodeType:NodeType
+    {
+        return Self.nodeType
+    }
+    
+    @ObservationIgnored public var nodeExecutionMode:ExecutionMode
+    {
+        return Self.nodeExecutionMode
+    }
+    
+    @ObservationIgnored var context:Context
+
+    @ObservationIgnored weak var graph:Graph?
+
+    // Method to register ports
+    public class func registerPorts(context: Context) -> [(name: String, port: Port)] { [] }
+    // All port serilization, adding, removing and key value access goes through the port registry
+    @ObservationIgnored private let registry = PortRegistry()
+    @ObservationIgnored public let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
+
+    public var ports:[Port] { self.registry.all()   }
+    public private(set) var inputNodes:[Node] = []
+    public private(set) var outputNodes:[Node]  = []
+    
+    public var isSelected:Bool = false
+    public var isDragging:Bool = false
+    // var showParams:Bool = false
+    
     public var nodeSize:CGSize { self.computeNodeSize() }
     
     public var offset: CGSize = .zero
     
     // Dirty Handling
-    //    @ObservationIgnored var lastEvaluationTime: TimeInterval = -1
+    // @ObservationIgnored var lastEvaluationTime: TimeInterval = -1
     @ObservationIgnored private(set) public var isDirty: Bool = true
     
     // Input Parameter update tracking:
     @ObservationIgnored var inputParamCancellables: [AnyCancellable] = []
 
+    
+    // MARK: - Serialization and Init
     enum CodingKeys : String, CodingKey
     {
         case id
-        case inputParameters
         case nodeOffset
-        case valuePorts
+        case ports
+        
+        // TODO:
+        case name // Override node UI name (not implemented)
+
+        // Depreciated...
+        case inputParameters
     }
     
     public required init(from decoder: any Decoder) throws
@@ -138,16 +116,22 @@ import Combine
         
         self.id = try container.decode(UUID.self, forKey: .id)
         self.offset = try container.decode(CGSize.self, forKey: .nodeOffset)
-        
-        self.inputParameterPorts = self.parametersGroupToPorts(self.inputParameters)
-        self.parameterGroup.append(self.inputParameters)
-        
-        for parameter in self.inputParameters
+  
+        let snaps = try container.decodeIfPresent([PortRegistry.Snapshot].self, forKey: .ports) ?? []
+
+        for snap in snaps
         {
-            let cancellable = self.makeCancelable(parameter: parameter)
-//
-            self.inputParamCancellables.append(cancellable)
+            let anyport  = snap.payload
+            let port = anyport.base
+            
+            self.registry.register(port, name: snap.name, owner: self)
+            if let param = port.parameter
+            {
+                self.parameterGroup.append(param)
+            }
         }
+   
+        self.synchronizeParameters()
         
         for port in self.ports
         {
@@ -161,23 +145,28 @@ import Combine
         
         try container.encode(self.id, forKey: .id)
         try container.encode(self.offset, forKey: .nodeOffset)
-        
-        try container.encode(self.parameterGroup, forKey: .inputParameters)
+        try container.encode(self.registry.encode(), forKey: .ports)
     }
     
-    public required init (context:Context)
+    public required init(context:Context)
     {
         self.id = UUID()
         self.context = context
-        self.inputParameterPorts = self.parametersGroupToPorts(self.inputParameters)
-        self.parameterGroup.append(self.inputParameters)
         
-        for parameter in self.inputParameters
-        {
-            let cancellable = self.makeCancelable(parameter: parameter)
-//
-            self.inputParamCancellables.append(cancellable)
+        let declared = Self.registerPorts(context: context)
+        for (name, p) in declared {
+            self.registry.register(p, name: name, owner: self)
         }
+        
+        for port in self.registry.all()
+        {
+            if let param = port.parameter
+            {
+                self.parameterGroup.append(param)
+            }
+        }
+        
+        self.synchronizeParameters()
         
         for port in self.ports
         {
@@ -187,11 +176,50 @@ import Combine
     
     deinit
     {
+        self.inputParamCancellables.forEach { $0.cancel() }
+        self.inputParamCancellables.removeAll()
         print("Deleted node \(id)")
     }
     
+    // MARK: - Ports
     
+    // Convenience for subclasses: typed lookup (so computed props stay nice)
+    public func port<T: Port>(named name: String, as type: T.Type = T.self) -> T
+    {
+        self.registry.port(named: name) as! T
+    }
     
+    // Dynamic add/remove (kept by serialization automatically)
+    public func addDynamicPort(_ p: Port)
+    {
+        self.registry.addDynamic(p, owner: self)
+        if let param = p.parameter
+        {
+            self.parameterGroup.append(param)
+        }
+    }
+    
+    public func removePort(_ p: Port)
+    {
+        self.registry.remove(p)
+        if let param = p.parameter
+        {
+            self.parameterGroup.remove(param)
+        }
+    }
+    
+//    public func syncPort(p:Port)
+//    {
+//        self.registry.rebuild(from: <#T##[PortRegistry.Snapshot]#>, declared: <#T##[(name: String, port: Port)]#>, owner: <#T##Node#>)
+//    }
+    
+    public func publishedPorts() -> [Port]
+    {
+        return self.ports.filter( { $0.published } )
+    }
+    
+    // MARK: - Connections
+        
     public func didConnectToNode(_ node: Node)
     {
         self.inputNodes = calcInputNodes()
@@ -222,16 +250,6 @@ import Combine
 //        return Array(Set(outputNodes))
     }
     
-    public func publishedPorts() -> [AnyPort]
-    {
-        return self.ports.filter( { $0.published } )
-    }
-    
-    public func publishedParameterPorts() -> [AnyPort]
-    {
-        return self.inputParameterPorts.filter( { $0.published } )
-    }
-    
     public func markClean()
     {
         isDirty = false
@@ -251,6 +269,19 @@ import Combine
         // self.outputNodes().forEach( { $0.markDirty() } )
     }
     
+    public func synchronizeParameters()
+    {
+        self.inputParamCancellables.forEach( { $0.cancel() } )
+        self.inputParamCancellables.removeAll()
+        
+        for parameter in self.parameterGroup.params
+        {
+            let cancellable = self.makeCancelable(parameter: parameter)
+            
+            self.inputParamCancellables.append(cancellable)
+        }
+    }
+    
     private func makeCancelable(parameter: some Parameter) -> AnyCancellable
     {
         let cancellable = parameter.valuePublisher.eraseToAnyPublisher().sink{ [weak self] _ in
@@ -259,6 +290,8 @@ import Combine
         
         return cancellable
     }
+    
+    // MARK: - Execution
     
     public func startExecution(context:GraphExecutionContext) { }
     public func stopExecution(context:GraphExecutionContext) { }
@@ -272,6 +305,8 @@ import Combine
     
     public func resize(size: (width: Float, height: Float), scaleFactor: Float) { }
    
+    // MARK: - Helpers
+    
     func computeNodeSize() -> CGSize
     {
         let horizontalInputsCount = self.ports.filter { $0.direction == .Horizontal && $0.kind != .Inlet  }.count
@@ -291,14 +326,14 @@ import Combine
     
     // Mark - Private helper
     
-    private func parametersGroupToPorts(_ parameters:[(any Parameter)]) -> [AnyPort]
+    private func parametersGroupToPorts(_ parameters:[(any Parameter)]) -> [Port]
     {
 //        print(self.name, "parametersGroupToPorts")
         return parameters.compactMap( {
             self.parameterToPort(parameter:$0) })
     }
     
-    private func parameterToPort(parameter:(any Parameter)) -> AnyPort?
+    private func parameterToPort(parameter:(any Parameter)) -> Port?
     {
 //        print(self.name, "parameterToPort", parameter.label)
                 

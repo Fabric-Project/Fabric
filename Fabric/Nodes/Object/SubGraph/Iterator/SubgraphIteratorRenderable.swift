@@ -249,7 +249,7 @@ final class SubgraphIteratorRenderable: Satin.Renderable
         let _ = context.graphRenderer?.execute(graph: subGraph,
                                                executionContext: context,
                                                renderPassDescriptor:renderPassDescriptor ,
-                                               commandBuffer: commandBuffer)
+                                               commandBuffer: commandBuffer, clearFlags: false)
 
     }
 }
