@@ -18,9 +18,16 @@ import SwiftUI
 
 public class CursorNode : Node
 {
-    public override class var name:String { "Cursor" }
-    public override class var nodeType:Node.NodeType { Node.NodeType.Utility }
-    
+    override public class var name:String { "Cursor" }
+    override public class var nodeType:Node.NodeType { Node.NodeType.Utility }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
+
+    // Execution mode value is used to determine when this node is evaluated
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+
+    // User interface description
+    override public class var nodeDescription: String { "Provides Cursor (Mouse or Touch) Position and Button / Tap state" }
+
     // Ports
     public let outputCursorPosition:NodePort<simd_float2>
     public let outputTap:NodePort<Bool>
@@ -42,7 +49,7 @@ public class CursorNode : Node
         case outputTapPort
     }
 
-    public override func encode(to encoder:Encoder) throws
+    override public func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -88,7 +95,8 @@ public class CursorNode : Node
     }
 #endif
     
-    public override func execute(context:GraphExecutionContext,
+    
+    override public func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
