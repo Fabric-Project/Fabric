@@ -131,12 +131,7 @@ import Combine
             }
         }
    
-        for parameter in self.parameterGroup.params
-        {
-            let cancellable = self.makeCancelable(parameter: parameter)
-
-            self.inputParamCancellables.append(cancellable)
-        }
+        self.synchronizeParameters()
         
         for port in self.ports
         {
@@ -171,12 +166,7 @@ import Combine
             }
         }
         
-        for parameter in self.parameterGroup.params
-        {
-            let cancellable = self.makeCancelable(parameter: parameter)
-
-            self.inputParamCancellables.append(cancellable)
-        }
+        self.synchronizeParameters()
         
         for port in self.ports
         {
@@ -217,6 +207,11 @@ import Combine
             self.parameterGroup.remove(param)
         }
     }
+    
+//    public func syncPort(p:Port)
+//    {
+//        self.registry.rebuild(from: <#T##[PortRegistry.Snapshot]#>, declared: <#T##[(name: String, port: Port)]#>, owner: <#T##Node#>)
+//    }
     
     public func publishedPorts() -> [Port]
     {
@@ -272,6 +267,19 @@ import Combine
         
         // Might not strictly be necrssary?
         // self.outputNodes().forEach( { $0.markDirty() } )
+    }
+    
+    public func synchronizeParameters()
+    {
+        self.inputParamCancellables.forEach( { $0.cancel() } )
+        self.inputParamCancellables.removeAll()
+        
+        for parameter in self.parameterGroup.params
+        {
+            let cancellable = self.makeCancelable(parameter: parameter)
+            
+            self.inputParamCancellables.append(cancellable)
+        }
     }
     
     private func makeCancelable(parameter: some Parameter) -> AnyCancellable

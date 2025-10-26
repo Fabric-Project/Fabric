@@ -84,7 +84,9 @@ extension UTType
     public var published: Bool = false
     
     // Kind of lame, but necessary to avoid some type based bullshit.
-    public private(set) var parameter:(any Parameter)? = nil
+    // TODO: Figure out a way to hide setting this (seems not good)
+    // unless its a ParameterPort? 
+    public var parameter:(any Parameter)? = nil
         
     // Maybe a bit too verbose?
 //    public var value: (any FabricPort)? { fatalError("override") }

@@ -52,7 +52,7 @@ final class PortRegistry
         self.byID[p.id] = nil
         if let i = ordered.firstIndex(where: { $0.id == p.id }) { self.ordered.remove(at: i) }
     }
-
+    
     func port(named name: String) -> Port? { self.byName[name] }
     func all() -> [Port] { self.ordered }
 

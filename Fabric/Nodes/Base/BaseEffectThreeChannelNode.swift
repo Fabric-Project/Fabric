@@ -57,8 +57,8 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
     {
         self.url = fileURL
         let material = PostMaterial(pipelineURL:fileURL)
-        material.setup()
-        
+        material.context = context
+
         self.postMaterial = material
         self.postProcessor = PostProcessor(context: context,
                                            material: material,
@@ -72,8 +72,6 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
             {
                 self.addDynamicPort(p)
             }
-            
-            self.parameterGroup.append(param)
         }
     }
     
@@ -84,8 +82,8 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
         
         
         let material = PostMaterial(pipelineURL:shaderURL!)
-        material.setup()
-        
+        material.context = context
+
         self.postMaterial = material
         self.postProcessor = PostProcessor(context: context,
                                            material: material,
@@ -99,8 +97,6 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
             {
                 self.addDynamicPort(p)
             }
-            
-            self.parameterGroup.append(param)
         }
     }
     
@@ -143,8 +139,8 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
                 self.url = shaderURL
                 
                 let material = PostMaterial(pipelineURL:shaderURL)
-                material.setup()
-                
+                material.context = decodeContext.documentContext
+
                 self.postMaterial = material
                 self.postProcessor = PostProcessor(context: decodeContext.documentContext,
                                                    material: material,
@@ -156,7 +152,7 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
                 let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
                 
                 let material = PostMaterial(pipelineURL:shaderURL!)
-                material.setup()
+                material.context = decodeContext.documentContext
 
                 self.postMaterial = material
                 self.postProcessor = PostProcessor(context: decodeContext.documentContext,
@@ -170,7 +166,7 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
             let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
             
             let material = PostMaterial(pipelineURL:shaderURL!)
-            material.setup()
+            material.context = decodeContext.documentContext
 
             self.postMaterial = material
             self.postProcessor = PostProcessor(context: decodeContext.documentContext,
@@ -180,10 +176,17 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
         
         try super.init(from:decoder)
         
-//        for param in self.postMaterial.parameters.params {
-//            
-//            self.parameterGroup.append(param)
-//        }
+        // Assign our deserialized param and map to materials new group
+        for param in self.postMaterial.parameters.params {
+
+            for port in self.ports
+            {
+                if port.name == param.label
+                {
+                    port.parameter = param
+                }
+            }
+        }
     }
     
     override func execute(context:GraphExecutionContext,

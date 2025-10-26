@@ -12,11 +12,25 @@ import Foundation
 public class ParameterPort<ParamValue : FabricPort & Codable & Equatable & Hashable> : NodePort<ParamValue>
 {
     private var subscription:AnyCancellable? = nil
-    private let _parameter: GenericParameter<ParamValue>
+    private var _parameter: GenericParameter<ParamValue>
     
     override public var parameter: (any Parameter)?
     {
         get { return _parameter }
+        set {
+            if let newParam = newValue as? GenericParameter<ParamValue>
+            {
+//                self.subscription?.cancel()
+//                self.subscription = nil
+                newParam.value = self._parameter.value
+                self._parameter = newParam
+                self.value = self._parameter.value
+                
+//                self.subscription = _parameter.valuePublisher.eraseToAnyPublisher().sink{ [weak self] value in
+//                        self?.value = value
+//                }
+            }
+        }
     }
     
     public init(parameter: GenericParameter<ParamValue>)
