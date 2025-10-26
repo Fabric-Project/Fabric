@@ -36,19 +36,18 @@ public class CurrentTimeNode : Node
         ]
     }
     
-    
     // Port Proxy
     public var inputNumber:ParameterPort<Float> { port(named: "inputNumber") }
     public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
     
     override public func startExecution(context: GraphExecutionContext) {
-        self.startTime = context.timing.systemTime
+        self.startTime = context.timing.time
     }
     
     override public func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        self.outputNumber.send( Float(context.timing.systemTime - startTime) )
+        self.outputNumber.send( Float(context.timing.time - startTime) )
     }
 }
