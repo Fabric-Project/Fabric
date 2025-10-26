@@ -42,7 +42,7 @@ public class CurrentTimeNode : Node
     public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
     
     override public func startExecution(context: GraphExecutionContext) {
-        self.startTime = context.timing.time
+        self.startTime = context.timing.systemTime
     }
     
     override public func execute(context:GraphExecutionContext,
