@@ -38,9 +38,7 @@ public class SampleAndHold<ValueType : FabricPort & Equatable & FabricDescriptio
     public var outputValue:NodePort<ValueType> { port(named: "outputValue") }
 
     private var value:ValueType?
-    
-    public override var ports: [Port] { [ self.inputValue, self.outputValue ] + super.ports}
-    
+        
     public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
