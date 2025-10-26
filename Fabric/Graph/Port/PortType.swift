@@ -46,6 +46,7 @@ fileprivate  func unwrapOptional(_ t: Any.Type) -> Any.Type {
 }
 
 // PortType conversions and factories to instantiate specialized NodePorts and map Swift value types to canonical PortTypes
+// TODO: Ideally this somehow is turned into a recursive thing that builds a port up somehow? 
 public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterable
 {
     public typealias RawValue = String
@@ -68,9 +69,27 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         case .Shader: return try NodePort<Satin.Shader>.init(from: decoder)
         case .Image: return try NodePort<EquatableTexture>.init(from: decoder)
         // TODO: Array
-        case .Array(portType: _):
-            return nil
-//            return try NodePort<ContiguousArray<Any>>.init(from: decoder)
+        case .Array(portType: let arrayType):
+            switch arrayType
+            {
+            case .Bool: return try isParameterPort ? ParameterPort<ContiguousArray<Bool>>.init(from: decoder) : NodePort<ContiguousArray<Bool>>.init(from: decoder)
+            case .Float: return try isParameterPort ? ParameterPort<ContiguousArray<Float>>.init(from: decoder) : NodePort<ContiguousArray<Float>>.init(from: decoder)
+            case .Int: return try isParameterPort ? ParameterPort<ContiguousArray<Int>>.init(from: decoder) : NodePort<ContiguousArray<Int>>.init(from: decoder)
+            case .String: return try isParameterPort ? ParameterPort<ContiguousArray<String>>.init(from: decoder) : NodePort<ContiguousArray<String>>.init(from: decoder)
+            case .Vector2: return try isParameterPort ?  ParameterPort<ContiguousArray<simd_float2>>.init(from: decoder) : NodePort<ContiguousArray<simd_float2>>.init(from: decoder)
+            case .Vector3: return try isParameterPort ?  ParameterPort<ContiguousArray<simd_float3>>.init(from: decoder) : NodePort<ContiguousArray<simd_float3>>.init(from: decoder)
+            case .Vector4: return try isParameterPort ?  ParameterPort<ContiguousArray<simd_float4>>.init(from: decoder) : NodePort<ContiguousArray<simd_float4>>.init(from: decoder)
+            case .Color: return try isParameterPort ?  ParameterPort<ContiguousArray<simd_float4>>.init(from: decoder) : NodePort<ContiguousArray<simd_float4>>.init(from: decoder)
+                
+            case .Geometry: return try NodePort<ContiguousArray<Satin.Geometry>>.init(from: decoder)
+            case .Material: return try NodePort<ContiguousArray<Satin.Material>>.init(from: decoder)
+            case .Shader: return try NodePort<ContiguousArray<Satin.Shader>>.init(from: decoder)
+            case .Image: return try NodePort<ContiguousArray<EquatableTexture>>.init(from: decoder)
+
+            // we dont yet support nested arrays///
+            case .Array(portType: _):
+                return nil
+            }
         }
     }
     
@@ -279,10 +298,10 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         // 2) Recursive "Array of ..." case (the format produced by `rawValue`)
         //    Accepts minor whitespace variations.
         //    Example: "Array of simd_float2"
-        if s.hasPrefix("Array")
+        if s.hasPrefix("Array of")
         {
             // Normalize prefixes we’ll accept
-            let prefixes = ["Array of "]
+            let prefixes = ["Array of"]
                 var inner: String?
 
                 for prefix in prefixes
@@ -290,8 +309,8 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
                     if s.hasPrefix(prefix)
                     {
                         let startIdx = s.index(s.startIndex, offsetBy: prefix.count)
-                        let endIdx   = s.index(before: s.endIndex) // drop trailing ")"
-                        inner = Swift.String(s[startIdx..<endIdx]).trimmingCharacters(in: .whitespacesAndNewlines)
+                        let endIdx   = s.endIndex
+                        inner = Swift.String(s[startIdx..<endIdx]).trimmingCharacters(in: .newlines)
                         break
                     }
                 }
