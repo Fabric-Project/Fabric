@@ -46,15 +46,14 @@ fileprivate  func unwrapOptional(_ t: Any.Type) -> Any.Type {
 }
 
 // PortType conversions and factories to instantiate specialized NodePorts and map Swift value types to canonical PortTypes
-public indirect enum PortType : RawRepresentable, Codable, Equatable
+public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterable
 {
     public typealias RawValue = String
     
-    public static func nodeForType(_ type:PortType, isParameterPort:Bool, decoder:Decoder) throws -> Port?
+    public static func portForType(_ type:PortType, isParameterPort:Bool, decoder:Decoder) throws -> Port?
     {
         switch type
         {
-//        case .Unsupported: return NodePort<NSNull>.init(value: NSNull(
         case .Bool: return try isParameterPort ? ParameterPort<Bool>.init(from: decoder) : NodePort<Bool>.init(from: decoder)
         case .Float: return try isParameterPort ? ParameterPort<Float>.init(from: decoder) : NodePort<Float>.init(from: decoder)
         case .Int: return try isParameterPort ? ParameterPort<Int>.init(from: decoder) : NodePort<Int>.init(from: decoder)
@@ -75,6 +74,110 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable
         }
     }
     
+    public static func portForType(from parameter:(any Parameter)) -> Port?
+    {
+    //        print(self.name, "parameterToPort", parameter.label)
+                    
+            switch parameter.type
+            {
+                
+            case .generic:
+                
+                if let genericParam = parameter as? GenericParameter<Float>
+                {
+                    return ParameterPort(parameter: genericParam)
+                }
+                
+                if let genericParam = parameter as? GenericParameter<simd_float3>
+                {
+                    return ParameterPort(parameter: genericParam)
+                }
+                
+                if let genericParam = parameter as? GenericParameter<simd_float4>
+                {
+                    return ParameterPort(parameter: genericParam)
+                }
+                
+                if let genericParam = parameter as? GenericParameter<simd_quatf>
+                {
+                    return ParameterPort(parameter: genericParam)
+                }
+                
+            case .string:
+                
+                if let genericParam = parameter as? StringParameter
+                {
+                    return ParameterPort(parameter: genericParam)
+                }
+
+            case .bool:
+
+                if let genericParam = parameter as? BoolParameter
+                {
+                    return ParameterPort(parameter: genericParam)
+                }
+                
+            case .float:
+                
+                if let genericParam = parameter as? FloatParameter
+                {
+                    return ParameterPort(parameter: genericParam)
+                }
+
+                else if let genericParam = parameter as? GenericParameter<Float>
+                {
+                    return ParameterPort(parameter: genericParam)
+                }
+
+            case .float2:
+                if let genericParam = parameter as? Float2Parameter
+                {
+                    return ParameterPort(parameter: genericParam)
+                }
+                
+            case .float3:
+                if let genericParam = parameter as? Float3Parameter
+                {
+                    return ParameterPort(parameter: genericParam)
+                }
+                
+            case .float4:
+                if let genericParam = parameter as? Float4Parameter
+                {
+                    return ParameterPort(parameter: genericParam)
+                }
+                
+                else if let genericParam = parameter as? GenericParameter<simd_float4>
+                {
+                    return ParameterPort(parameter: genericParam)
+                }
+                
+            case .float2x2:
+                if let genericParam = parameter as? Float2x2Parameter
+                {
+                    return ParameterPort(parameter: genericParam)
+                }
+                
+            case .float3x3:
+                if let genericParam = parameter as? Float3x3Parameter
+                {
+                    return ParameterPort(parameter: genericParam)
+                }
+
+            case .float4x4:
+                if let genericParam = parameter as? Float4x4Parameter
+                {
+                    return ParameterPort(parameter: genericParam)
+                }
+
+            default:
+                return nil
+
+            }
+            
+            return nil
+        
+    }
 //
     
     static func fromType(_ raw:Any.Type) -> PortType
@@ -114,6 +217,34 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable
     case Image
     
     case Array(portType:PortType)
+    
+    public static let allCases : [PortType] = [
+        .Bool,
+        .Float,
+        .Int,
+        .String,
+        .Vector2,
+        .Vector3,
+        .Vector4,
+        .Color,
+        .Geometry,
+        .Material,
+        .Shader,
+        .Image,
+        
+        .Array(portType:.Bool),
+        .Array(portType:.Float),
+        .Array(portType:.Int),
+        .Array(portType:.String),
+        .Array(portType:.Vector2),
+        .Array(portType:.Vector3),
+        .Array(portType:.Vector4),
+        .Array(portType:.Color),
+        .Array(portType:.Geometry),
+        .Array(portType:.Material),
+        .Array(portType:.Shader),
+        .Array(portType:.Image)
+    ]
     
     public init?(rawValue: String)
     {

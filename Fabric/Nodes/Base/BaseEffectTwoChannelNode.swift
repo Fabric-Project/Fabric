@@ -65,6 +65,12 @@ class BaseEffectTwoChannelNode: Node, NodeFileLoadingProtocol
         super.init(context: context)
         
         for param in self.postMaterial.parameters.params {
+
+            if let p = PortType.portForType(from:param)
+            {
+                self.addDynamicPort(p)
+            }
+            
             self.parameterGroup.append(param)
         }
     }
@@ -86,9 +92,14 @@ class BaseEffectTwoChannelNode: Node, NodeFileLoadingProtocol
         super.init(context: context)
 
         for param in self.postMaterial.parameters.params {
+
+            if let p = PortType.portForType(from:param)
+            {
+                self.addDynamicPort(p)
+            }
+            
             self.parameterGroup.append(param)
         }
-
     }
     
     enum CodingKeys : String, CodingKey
@@ -168,9 +179,9 @@ class BaseEffectTwoChannelNode: Node, NodeFileLoadingProtocol
         
         try super.init(from:decoder)
         
-        for param in self.postMaterial.parameters.params {
-            self.parameterGroup.append(param)
-        }
+//        for param in self.postMaterial.parameters.params {
+//            self.parameterGroup.append(param)
+//        }
     }
     
     override func execute(context:GraphExecutionContext,

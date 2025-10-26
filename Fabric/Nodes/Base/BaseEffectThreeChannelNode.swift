@@ -67,6 +67,12 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
         super.init(context: context)
         
         for param in self.postMaterial.parameters.params {
+
+            if let p = PortType.portForType(from:param)
+            {
+                self.addDynamicPort(p)
+            }
+            
             self.parameterGroup.append(param)
         }
     }
@@ -88,6 +94,12 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
         super.init(context: context)
         
         for param in self.postMaterial.parameters.params {
+
+            if let p = PortType.portForType(from:param)
+            {
+                self.addDynamicPort(p)
+            }
+            
             self.parameterGroup.append(param)
         }
     }
@@ -123,8 +135,6 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
             fatalError("Required Decode Context Not set")
         }
         
-
-
         if let path = try container.decodeIfPresent(String.self, forKey: .effectPath)
         {
             let bundle = Bundle(for: Self.self)
@@ -170,9 +180,10 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
         
         try super.init(from:decoder)
         
-        for param in self.postMaterial.parameters.params {
-            self.parameterGroup.append(param)
-        }
+//        for param in self.postMaterial.parameters.params {
+//            
+//            self.parameterGroup.append(param)
+//        }
     }
     
     override func execute(context:GraphExecutionContext,

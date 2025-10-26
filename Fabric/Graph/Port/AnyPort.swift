@@ -26,7 +26,7 @@ open class AnyPort: Codable {
         let portType = try container.decode(PortType.self, forKey: .type)
         let isParameterPort = try container.decode(Bool.self, forKey: .isParameterPort)
         
-        self.base = try PortType.nodeForType(portType, isParameterPort: isParameterPort, decoder: container.superDecoder(forKey: .base))!
+        self.base = try PortType.portForType(portType, isParameterPort: isParameterPort, decoder: container.superDecoder(forKey: .base))!
     }
 
     public func encode(to encoder: Encoder) throws {
