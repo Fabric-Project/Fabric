@@ -170,6 +170,7 @@ public class NodeRegistry {
 
         // Number
         CurrentTimeNode.self,
+        SystemTimeNode.self,
         NumberNode.self,
         NumberUnnaryOperator.self,
         NumberBinaryOperator.self,
