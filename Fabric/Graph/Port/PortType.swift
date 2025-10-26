@@ -68,7 +68,7 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         case .Shader: return try NodePort<Satin.Shader>.init(from: decoder)
         case .Image: return try NodePort<EquatableTexture>.init(from: decoder)
         // TODO: Array
-        case .Array(portType: let portType):
+        case .Array(portType: _):
             return nil
 //            return try NodePort<ContiguousArray<Any>>.init(from: decoder)
         }

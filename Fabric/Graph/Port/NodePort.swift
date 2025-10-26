@@ -43,9 +43,7 @@ public class NodePort<Value : FabricPort>: Port
     }
     
     required public init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        
+    {        
         try super.init(from: decoder)
 
         self.color = Self.calcColor(forType: Value.self)

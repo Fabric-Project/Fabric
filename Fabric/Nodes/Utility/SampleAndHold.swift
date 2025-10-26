@@ -60,8 +60,11 @@ public class SampleAndHold<ValueType : FabricPort & Equatable & FabricDescriptio
         if self.inputReset.valueDidChange,
            let inputReset = self.inputReset.value
         {
+            if inputReset
+            {
                 self.value = nil
                 self.outputValue.send(self.value)
+            }
         }
         
     }

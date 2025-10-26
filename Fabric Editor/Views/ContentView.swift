@@ -44,7 +44,7 @@ struct ContentView: View {
                         .font(.headline)
                         .onTapGesture { self.document.graph.activeSubGraph = nil }
                     
-                    if let subgraph =  self.document.graph.activeSubGraph
+                    if let _ = self.document.graph.activeSubGraph
                     {
                         Text(">")
                             .font(.headline)
