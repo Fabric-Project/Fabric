@@ -197,7 +197,15 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         else if type == EquatableTexture.self    { return .Image }
 
         // Assume Array?
-        else { return .Array(portType: PortType.fromType(raw)) }
+        else {
+            if let optionalArrayElementType = contiguousArrayElementType(of: type)
+            {
+                let arrayElementType = unwrapOptional(optionalArrayElementType)
+                return .Array(portType: PortType.fromType(arrayElementType ) )
+            }
+        }
+        
+        return .Bool
 
     }
     
@@ -385,4 +393,26 @@ fileprivate func _contiguousArrayMetatype_impl<Element>(_ element: Element.Type)
 @inline(__always)
 fileprivate func contiguousArrayMetatype(of element: Any.Type) -> Any.Type {
     _openExistential(element, do: _contiguousArrayMetatype_impl)
+}
+
+// 1) A protocol only the *type* (metatype) needs to conform to.
+fileprivate protocol _ContiguousArrayElementProvider {
+    static var _elementType: Any.Type { get }
+}
+
+// 2) Make ContiguousArray conform and surface `Element.self`.
+extension ContiguousArray: _ContiguousArrayElementProvider {
+    fileprivate static var _elementType: Any.Type { Element.self }
+}
+
+// 3) Given Any.Type that may be a ContiguousArray<T>.Type, return T.Type.
+@inline(__always)
+func contiguousArrayElementType(of type: Any.Type) -> Any.Type? {
+    (type as? _ContiguousArrayElementProvider.Type)?._elementType
+}
+
+// (Optional) Convenience for a value instance
+@inline(__always)
+func contiguousArrayElementType(of value: Any) -> Any.Type? {
+    contiguousArrayElementType(of: Swift.type(of: value))
 }
