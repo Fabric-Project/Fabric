@@ -182,6 +182,7 @@
 				Nodes/Parameters/Number/NumberIntegralNode.swift,
 				Nodes/Parameters/Number/NumberNode.swift,
 				Nodes/Parameters/Number/NumberRemapNode.swift,
+				Nodes/Parameters/Number/NumberRoundNode.swift,
 				Nodes/Parameters/Number/NumberTweenNode.swift,
 				Nodes/Parameters/Number/NumberUnaryOperator.swift,
 				Nodes/Parameters/Number/SystemTimeNode.swift,
