@@ -43,7 +43,7 @@ public class ModelMeshNode : MeshNode
         didSet
         {
             // Relying on side effects - this triggers
-            self.graph?.syncNodesToScene()
+            self.graph?.syncNodesToScene(removingObject:oldValue)
         }
     }
     

@@ -486,10 +486,15 @@ internal import AnyCodable
         }
     }
     
-    public func syncNodesToScene()
+    public func syncNodesToScene(removingObject:Object? = nil)
     {
         let objects = self.nodes.compactMap { $0 as? BaseObjectNode }
             .compactMap { $0.getObject() }
+       
+        if let removingObject = removingObject
+        {
+            self.scene.remove(removingObject)
+        }
         
         for object in objects where !self.scene.children.contains(object)
         {

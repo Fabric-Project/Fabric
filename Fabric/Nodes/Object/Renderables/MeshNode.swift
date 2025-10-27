@@ -54,7 +54,7 @@ public class MeshNode : BaseRenderableNode<Mesh>
         didSet
         {
             // Relying on side effects - this triggers
-            self.graph?.syncNodesToScene()
+            self.graph?.syncNodesToScene(removingObject: oldValue)
         }
     }
 
