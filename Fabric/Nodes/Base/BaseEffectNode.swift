@@ -195,7 +195,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
            return partialResult || next.valueDidChange
         })
 
-        if self.inputTexturePort.valueDidChange || anyPortChanged || self.isDirty
+        if self.inputTexturePort.valueDidChange || anyPortChanged
         {
             if let inTex = self.inputTexturePort.value?.texture
             {

@@ -197,7 +197,7 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
            return partialResult || next.valueDidChange
         })
         
-        if  self.inputTexturePort.valueDidChange || self.inputTexture2Port.valueDidChange || self.inputTexture3Port.valueDidChange || anyPortChanged || self.isDirty
+        if  self.inputTexturePort.valueDidChange || self.inputTexture2Port.valueDidChange || self.inputTexture3Port.valueDidChange || anyPortChanged
         {
             if let inTex = self.inputTexturePort.value?.texture,
                let inTex2 = self.inputTexture2Port.value?.texture,
