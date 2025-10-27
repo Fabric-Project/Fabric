@@ -22,8 +22,6 @@ public class CurrentTimeNode : Node
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Patch Time"}
 
-    public override var isDirty:Bool { get {  true  } set { } }
-
     private var startTime:TimeInterval = 0
     
     // Ports

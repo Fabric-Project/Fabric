@@ -174,6 +174,7 @@ public class NodeRegistry {
         NumberNode.self,
         NumberUnnaryOperator.self,
         NumberBinaryOperator.self,
+        NumberClampNode.self,
         NumberEaseNode.self,
         NumberRemapNode.self,
         NumberIntegralNode.self,
