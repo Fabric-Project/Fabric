@@ -51,8 +51,7 @@ public class NumberUnnaryOperator : Node
             self.mathOperator = mathOp
         }
         
-        if self.inputNumber.valueDidChange,
-           self.inputParam.valueDidChange,
+        if self.inputNumber.valueDidChange || self.inputParam.valueDidChange,
            let number = self.inputNumber.value
         {
             self.outputNumber.send(  self.mathOperator.perform(number) )

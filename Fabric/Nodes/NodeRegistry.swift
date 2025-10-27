@@ -164,6 +164,7 @@ public class NodeRegistry {
         // Boolean
         TrueNode.self,
         FalseNode.self,
+        BooleanLogicNode.self,
         ArrayIndexValueNode<Bool>.self,
         ArrayCountNode<Bool>.self,
         ArrayQueueNode<Bool>.self,
