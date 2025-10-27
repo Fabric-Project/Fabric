@@ -6,9 +6,6 @@
 //
 
 import Foundation
-
-
-import Foundation
 import Satin
 import simd
 import Metal
@@ -62,7 +59,9 @@ public class NumberBinaryOperator : Node
             self.mathOperator = mathOp
         }
         
-        if self.inputParam.valueDidChange || self.inputNumber1.valueDidChange || self.inputNumber1.valueDidChange,
+        if self.inputParam.valueDidChange
+            || self.inputNumber1.valueDidChange
+            || self.inputNumber2.valueDidChange,
            let number1 = self.inputNumber1.value,
            let number2 = self.inputNumber2.value
         {
