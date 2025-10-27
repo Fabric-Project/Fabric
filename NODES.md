@@ -229,7 +229,7 @@ Have yet to work on Index (integer only) numeric nodes
 - [x] Remap
 - [x] Tween / Easing
 - [x] Clamp
-- [ ] Round
+- [x] Round
 - [ ] Counter
 - [ ] LFO
 - [ ] Smooth (Kalman or 1 Euro Filter?)
