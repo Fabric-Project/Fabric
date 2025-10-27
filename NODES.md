@@ -220,7 +220,7 @@ Have yet to work on Index (integer only) numeric nodes
 
 - [x] Number
 - [x] Current Time (AKA Patch Time)
-- [ ] System Time
+- [x] System Time
 - [x] Integrator (accrues every frame for now)
 - [ ] Derivator
 - [x] Single Operator Math
@@ -228,7 +228,7 @@ Have yet to work on Index (integer only) numeric nodes
 - [x] Gradient Noise (FBM)
 - [x] Remap
 - [x] Tween / Easing
-- [ ] Clamp
+- [x] Clamp
 - [ ] Round
 - [ ] Counter
 - [ ] LFO
