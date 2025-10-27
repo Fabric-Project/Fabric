@@ -24,7 +24,7 @@ public class Vector2ToFloatNode : Node
         
         return ports +
         [
-            ("inputVectorParam",   ParameterPort(parameter:Float3Parameter("Vector 3", .zero, .inputfield))),
+            ("inputVectorParam",   ParameterPort(parameter:Float3Parameter("Vector 2", .zero, .inputfield))),
             ("outputXPort",   NodePort<Float>(name: "X" , kind: .Outlet) ),
             ("outputYPort",   NodePort<Float>(name: "Y" , kind: .Outlet) ),
         ]
