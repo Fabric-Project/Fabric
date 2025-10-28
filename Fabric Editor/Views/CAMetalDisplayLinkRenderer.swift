@@ -12,29 +12,29 @@ import Fabric
 import simd
 import AVFoundation
 
-class WindowOutputRenderer2: GameView
+class CAMetalDisplayLinkRenderer: GameView
 {
-    let context:Context
+    let graphRenderer:GraphRenderer
+    let graph:Graph
 
     private let commandQueue: (any MTLCommandQueue)
     private let renderPassDescriptor = MTLRenderPassDescriptor()
-    weak var graphRenderer:GraphRenderer?
-    weak var graph:Graph?
     
 
-    init(context: Context, graph:Graph?, graphRenderer:GraphRenderer?)
+    init(graph:Graph)
     {
-        self.context = context
         self.graph = graph
-        self.graphRenderer = graphRenderer
-        self.commandQueue = context.device.makeCommandQueue()!
+        self.graphRenderer = GraphRenderer(context: self.graph.context)
+
+
+        self.commandQueue = self.graph.context.device.makeCommandQueue()!
 
         super.init(frame: CGRect(origin: .zero, size: CGSize(width: 640, height: 480)))
         
-        self.metalLayer.device = context.device
+        self.metalLayer.device = self.graph.context.device
         self.metalLayer.framebufferOnly = true
         self.metalLayer.colorspace = nil
-        self.metalLayer.pixelFormat = context.colorPixelFormat
+        self.metalLayer.pixelFormat = self.graph.context.colorPixelFormat
         self.metalLayer.wantsExtendedDynamicRangeContent = true
 //        self.metalLayer.displaySyncEnabled = true
         self.metalLayer.maximumDrawableCount = 3
@@ -52,23 +52,18 @@ class WindowOutputRenderer2: GameView
     
     deinit
     {
-        print("OutputRenderer Deinit")
+        print("CAMetalDisplayLinkRenderer Deinit")
     }
     
     func setup()
     {
-        guard
-            let graphRenderer = self.graphRenderer,
-            let graph = self.graph
-        else { return }
-        
         
         // TODO: This becomes more semantically correct later
         let timing = GraphExecutionTiming(time: CACurrentMediaTime(),
                                           deltaTime: 0,
                                           displayTime: 0,
                                           systemTime: Date.timeIntervalSinceReferenceDate,
-                                          frameNumber: graphRenderer.frameIndex)
+                                          frameNumber: self.graphRenderer.frameIndex)
         
         var eventInfo:GraphEventInfo?
         if let event = self.window?.currentEvent
@@ -82,15 +77,41 @@ class WindowOutputRenderer2: GameView
                                                      iterationInfo: nil,
                                                      eventInfo: eventInfo)
         
-        graphRenderer.enableExecution(graph: graph, executionContext: executionContext)
-        graphRenderer.startExecution(graph: graph, executionContext: executionContext)
+        self.graphRenderer.enableExecution(graph: graph, executionContext: executionContext)
+        self.graphRenderer.startExecution(graph: graph, executionContext: executionContext)
+    }
+    
+    func teardown()
+    {
+        print("CAMetalDisplayLinkRenderer Teardown")
+        // TODO: This becomes more semantically correct later
+        let timing = GraphExecutionTiming(time: CACurrentMediaTime(),
+                                          deltaTime: 0,
+                                          displayTime: 0,
+                                          systemTime: Date.timeIntervalSinceReferenceDate,
+                                          frameNumber: self.graphRenderer.frameIndex)
+
+        
+        let executionContext = GraphExecutionContext(graphRenderer: graphRenderer,
+                                                     timing: timing,
+                                                     iterationInfo: nil,
+                                                     eventInfo: nil)
+        
+        self.graphRenderer.stopExecution(graph: self.graph, executionContext: executionContext)
+        self.graphRenderer.disableExecution(graph: graph, executionContext: executionContext)
+        
+        // 2) Stop/disable the display link (depends on your GameView)
+        // If GameView exposes a pause/stop, call it here, e.g.:
+        // self.stopDisplayLink()  or  self.isPaused = true
+        // (Use whatever your GameView/Forge base provides.)
+        
+        // 3) Break Metal ties to the layer to avoid callbacks using stale drawables
+        self.metalLayer.device = nil
     }
     
     override func renderUpdate(_ update: CAMetalDisplayLink.Update, with deltaTime: CFTimeInterval)
     {
         guard
-            let graphRenderer = self.graphRenderer,
-            let graph = self.graph,
             let commandBuffer = self.commandQueue.makeCommandBuffer()//graphRenderer.preDraw()
         else { return }
         
@@ -103,7 +124,7 @@ class WindowOutputRenderer2: GameView
                                           deltaTime: deltaTime,
                                           displayTime: update.targetPresentationTimestamp,
                                           systemTime: Date.timeIntervalSinceReferenceDate,
-                                          frameNumber: graphRenderer.frameIndex)
+                                          frameNumber: self.graphRenderer.frameIndex)
         
         var eventInfo:GraphEventInfo?
         if let event = self.window?.currentEvent
@@ -112,12 +133,12 @@ class WindowOutputRenderer2: GameView
         }
         
         // weird
-        let executionContext = GraphExecutionContext(graphRenderer: graphRenderer,
+        let executionContext = GraphExecutionContext(graphRenderer: self.graphRenderer,
                                                      timing: timing,
                                                      iterationInfo: nil,
                                                      eventInfo: eventInfo)
                 
-        graphRenderer.executeAndDraw(graph: graph,
+        self.graphRenderer.executeAndDraw(graph: graph,
                                      executionContext: executionContext,
                                      renderPassDescriptor: self.renderPassDescriptor,
                                      commandBuffer: commandBuffer)
@@ -138,7 +159,7 @@ class WindowOutputRenderer2: GameView
     // Forge calls resize whenever the view is resized
     func resize(_ size: (width: Float, height: Float))
     {
-        self.graphRenderer?.resize(size: size, scaleFactor: Float(self.window?.backingScaleFactor ?? 1.0), )
+        self.graphRenderer.resize(size: size, scaleFactor: Float(self.window?.backingScaleFactor ?? 1.0), )
     }
     
     

@@ -77,19 +77,6 @@ public struct GraphIterationInfo : Hashable
 /// Graph Execution Information that includes metal, timing, node, and custom user info
 public class GraphExecutionContext : Hashable
 {
-    public init(graphRenderer: GraphRenderer,
-                timing: GraphExecutionTiming,
-                iterationInfo: GraphIterationInfo? = nil,
-                eventInfo:GraphEventInfo? = nil,
-                userInfo: [String : any Hashable] = [:])
-    {
-        self.graphRenderer = graphRenderer
-        self.timing = timing
-        self.iterationInfo = iterationInfo
-        self.userInfo = userInfo
-        self.eventInfo = eventInfo
-    }
-    
     public static func == (lhs: GraphExecutionContext, rhs: GraphExecutionContext) -> Bool
     {
         return lhs.hashValue == rhs.hashValue
@@ -101,9 +88,6 @@ public class GraphExecutionContext : Hashable
         hasher.combine(self.iterationInfo)
         hasher.combine(self.eventInfo)
     }
-    
-//    /// The Satin metal rendering context
-//    public let context:Context
     
     public weak var graphRenderer: GraphRenderer?
 
@@ -118,6 +102,19 @@ public class GraphExecutionContext : Hashable
     
     public var userInfo: [String: (any Hashable)] = [:]
 
+    public init(graphRenderer: GraphRenderer,
+                timing: GraphExecutionTiming,
+                iterationInfo: GraphIterationInfo? = nil,
+                eventInfo:GraphEventInfo? = nil,
+                userInfo: [String : any Hashable] = [:])
+    {
+        self.graphRenderer = graphRenderer
+        self.timing = timing
+        self.iterationInfo = iterationInfo
+        self.userInfo = userInfo
+        self.eventInfo = eventInfo
+    }
+    
     public subscript(key: String) -> Any?
     {
         userInfo[key]
