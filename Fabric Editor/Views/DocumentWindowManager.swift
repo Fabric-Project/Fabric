@@ -48,18 +48,7 @@ class DocumentOutputWindowManager : NSObject
     
     deinit
     {
-        print("Free DocumentOutputWindowManager")
-//        if Thread.isMainThread
-//        {
-//            self.outputwindow?.close()
-//        }
-//        else
-//        {
-//            DispatchQueue.main.sync { [weak self] in
-//                self?.outputwindow?.close()
-//            }
-//        }
-        
+        print("Free DocumentOutputWindowManager")        
     }
 }
 

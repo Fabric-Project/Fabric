@@ -83,6 +83,7 @@ class CAMetalDisplayLinkRenderer: GameView
     
     func teardown()
     {
+        print("CAMetalDisplayLinkRenderer Teardown")
         // TODO: This becomes more semantically correct later
         let timing = GraphExecutionTiming(time: CACurrentMediaTime(),
                                           deltaTime: 0,

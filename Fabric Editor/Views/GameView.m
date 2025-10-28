@@ -221,18 +221,18 @@ The implementation of the cross-platform game view.
     NSLog(@"GameView Dealloc");
     [self stopRenderLoop];
 
-//    NSNotificationCenter* notificationCenter = [NSNotificationCenter defaultCenter];
-//    [notificationCenter removeObserver:self];
-//    NSLog(@"GameView Notification Center Removed");
+    NSNotificationCenter* notificationCenter = [NSNotificationCenter defaultCenter];
+    [notificationCenter removeObserver:self];
+    NSLog(@"GameView Notification Center Removed");
 
-//    self.layer.delegate = nil;
-//    NSLog(@"GameView Layer Delegate Removed");
-//
-//    _displayLink.delegate = nil;
-//    NSLog(@"GameView DisplayLink Delegate Removed");
-//
-//    _displayLink = NULL;
-//    NSLog(@"GameView DisplayLink NULL'ed");
+    self.layer.delegate = nil;
+    NSLog(@"GameView Layer Delegate Removed");
+
+    _displayLink.delegate = nil;
+    NSLog(@"GameView DisplayLink Delegate Removed");
+
+    _displayLink = NULL;
+    NSLog(@"GameView DisplayLink NULL'ed");
 
 }
 

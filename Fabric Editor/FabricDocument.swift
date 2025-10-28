@@ -27,13 +27,12 @@ class FabricDocument: FileDocument
                            depthPixelFormat: .depth32Float,
                            stencilPixelFormat: .stencil8)
     let graph:Graph
-    let outputWindowManager = DocumentOutputWindowManager()
+    var outputWindowManager:DocumentOutputWindowManager? = nil
     
     init()
     {
         self.graph = Graph(context: self.context)
         
-        self.outputWindowManager.setGraph(graph: self.graph)
     }
     
     init(withTemplate: Bool)
@@ -66,7 +65,6 @@ class FabricDocument: FileDocument
         self.graph.addNode(meshNode)
         self.graph.addNode(directionalLightNode)
         self.graph.addNode(cameraNode)
-        self.outputWindowManager.setGraph(graph: self.graph)
     }
     
     required init(configuration: ReadConfiguration) throws
@@ -86,7 +84,6 @@ class FabricDocument: FileDocument
         decoder.context = decodeContext
         
         self.graph =  try decoder.decode(Graph.self, from: data)
-        self.outputWindowManager.setGraph(graph: self.graph)
     }
 
     deinit
@@ -94,10 +91,16 @@ class FabricDocument: FileDocument
         print("Deinit Closing window for graph: \(self.graph.id)")
       
     }
+
+    func setupOutputWindow()
+    {
+        self.outputWindowManager = DocumentOutputWindowManager()
+        self.outputWindowManager?.setGraph(graph: self.graph)
+    }
     
     func closeOutputWindow()
     {
-        self.outputWindowManager.closeOutputWindow()
+        self.outputWindowManager?.closeOutputWindow()
     }
     
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper
