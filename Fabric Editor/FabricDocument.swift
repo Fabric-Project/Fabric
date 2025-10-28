@@ -21,13 +21,15 @@ extension UTType {
 class FabricDocument: FileDocument
 {
     static var readableContentTypes: [UTType] { [.fabricDocument] }
-    let context = Context(device: MTLCreateSystemDefaultDevice()!,
+
+    @ObservationIgnored let context = Context(device: MTLCreateSystemDefaultDevice()!,
                            sampleCount: 1,
                            colorPixelFormat: .rgba16Float,
                            depthPixelFormat: .depth32Float,
                            stencilPixelFormat: .stencil8)
     let graph:Graph
-    var outputWindowManager:DocumentOutputWindowManager? = nil
+
+    @ObservationIgnored var outputWindowManager:DocumentOutputWindowManager? = nil
     
     init()
     {
