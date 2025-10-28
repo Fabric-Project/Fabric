@@ -10,10 +10,11 @@ import Satin
 import Fabric
 
 
+
 struct ContentView: View {
     
     @Binding var document: FabricDocument
-
+    
     @GestureState private var magnifyBy = 1.0
     
     @State private var finalMagnification = 1.0
