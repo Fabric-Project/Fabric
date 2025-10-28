@@ -13,9 +13,7 @@ import Fabric
 @main
 struct FabricApp: App {
     var body: some Scene {
-        
-        
-        
+
         DocumentGroup(newDocument: FabricDocument() ) { file in
             
             ContentView(document: file.$document)

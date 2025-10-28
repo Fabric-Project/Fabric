@@ -28,7 +28,8 @@ class FabricDocument: FileDocument
                            depthPixelFormat: .depth32Float,
                            stencilPixelFormat: .stencil8)
     let graph:Graph
-
+    var graphName:String = "Untitled"
+    
     @ObservationIgnored var outputWindowManager:DocumentOutputWindowManager? = nil
     
     init()
@@ -85,7 +86,8 @@ class FabricDocument: FileDocument
         let decodeContext = DecoderContext(documentContext: self.context)
         decoder.context = decodeContext
         
-        self.graph =  try decoder.decode(Graph.self, from: data)
+        self.graph = try decoder.decode(Graph.self, from: data)
+        self.graphName = name
     }
 
     deinit
@@ -98,6 +100,7 @@ class FabricDocument: FileDocument
     {
         self.outputWindowManager = DocumentOutputWindowManager()
         self.outputWindowManager?.setGraph(graph: self.graph)
+        self.outputWindowManager?.setWindowName(self.graphName)
     }
     
     func closeOutputWindow()

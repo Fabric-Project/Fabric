@@ -184,8 +184,8 @@
             filePath = "Fabric/Graph/Graph.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "320"
-            endingLineNumber = "320"
+            startingLineNumber = "321"
+            endingLineNumber = "321"
             landmarkName = "rebuildPublishedParameterGroup()"
             landmarkType = "7">
          </BreakpointContent>
@@ -600,8 +600,8 @@
             filePath = "Fabric Editor/Views/DocumentWindowManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "60"
-            endingLineNumber = "60"
+            startingLineNumber = "92"
+            endingLineNumber = "92"
             landmarkName = "windowWillClose(_:)"
             landmarkType = "7">
          </BreakpointContent>

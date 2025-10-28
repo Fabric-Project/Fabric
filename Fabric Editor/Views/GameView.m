@@ -236,7 +236,6 @@ The implementation of the cross-platform game view.
 
 }
 
-#if TARGET_IOS || TARGET_TVOS
 - (void)setPaused:(BOOL)paused
 {
     _paused = paused;
@@ -244,6 +243,7 @@ The implementation of the cross-platform game view.
     _displayLink.paused = paused;
 }
 
+#if TARGET_IOS || TARGET_TVOS
 - (void)didEnterBackground:(NSNotification*)notification
 {
     self.paused = YES;

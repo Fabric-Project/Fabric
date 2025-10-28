@@ -232,6 +232,7 @@ internal import AnyCodable
                                  height: initialOffset.y - node.nodeSize.height / 4.0)
         }
         
+        
         self.addNode(node)
     }
     
