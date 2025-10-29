@@ -10,7 +10,7 @@
 
 #include "../../lygia/sampler.msl"
 #include "../../lygia/color/luminance.msl"
-
+#include "morphological/dilation.msl"
 typedef struct {
     float threshold; // slider, 0.0, 1.0, 0.5, Threshold
 } PostUniforms;

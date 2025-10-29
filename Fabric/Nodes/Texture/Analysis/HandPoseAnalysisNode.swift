@@ -15,7 +15,7 @@ import Vision
 public class HandPoseAnalysisNode: Node
 {
     override public class var name:String { "Hand Pose Analysis" }
-    override public class var nodeType:Node.NodeType { .Image(imageType: .ImageAnalysis) }
+    override public class var nodeType:Node.NodeType { .Image(imageType: .Analysis) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Detect Hand Poses in an Image" }
@@ -27,6 +27,7 @@ public class HandPoseAnalysisNode: Node
         return ports +
         [
             ("inputImage", NodePort<EquatableTexture>(name: "Image", kind: .Inlet)),
+            ("inputHandCount", ParameterPort(parameter: IntParameter("Hand Count", 1, 1, 16, .inputfield))),
             ("outputHandPointsPixels", NodePort<ContiguousArray<simd_float2>>(name: "Hand Point Pixels", kind: .Outlet)),
             ("outputHandPointsUnits", NodePort<ContiguousArray<simd_float3>>(name: "Hand Points Units", kind: .Outlet)),
         ]
@@ -35,15 +36,10 @@ public class HandPoseAnalysisNode: Node
     public var inputImage:NodePort<EquatableTexture>  { port(named: "inputImage") }
     public var outputHandPointsPixels:NodePort<ContiguousArray<simd_float2>> { port(named: "outputHandPointsPixels") }
     public var outputHandPointsUnits:NodePort<ContiguousArray<simd_float3>> { port(named: "outputHandPointsUnits") }
-
-//    private var sequenceRequestHandler = VNSequenceRequestHandler()
     
     private var ciContext:CIContext!
-
     
     override public func startExecution(context: GraphExecutionContext) {
-        
-       
 
         if let commandQueue = context.graphRenderer?.commandQueue
         {
@@ -71,7 +67,7 @@ public class HandPoseAnalysisNode: Node
             
             if let inTex = self.inputImage.value?.texture,
                let handPoints =  self.handPointsForRequest(request, from: inTex),
-               let graphRenderer = context.graphRenderer                
+               let graphRenderer = context.graphRenderer
             {
                 var pixelsArray:ContiguousArray<simd_float2> = ContiguousArray<simd_float2>()
                 var unitsArray:ContiguousArray<simd_float3> = ContiguousArray<simd_float3>()
@@ -79,13 +75,12 @@ public class HandPoseAnalysisNode: Node
                 pixelsArray.reserveCapacity(21)
                 unitsArray.reserveCapacity(21)
                 
-                let aspect = graphRenderer.renderer.size.height/graphRenderer.renderer.size.width
+                let aspect = Float(inTex.height)/Float(inTex.width)
                 let size = simd_float2(x: graphRenderer.renderer.size.width,
                                        y: graphRenderer.renderer.size.height)
                 
                 for position in handPoints
                 {
-                    
                     let px = remap(position.x, 0.0, 1.0, 0, size.x)
                     let py = remap(position.y, 0.0, 1.0, 0, size.y)
                     
@@ -98,8 +93,6 @@ public class HandPoseAnalysisNode: Node
                 
                 self.outputHandPointsUnits.send( unitsArray )
                 self.outputHandPointsPixels.send( handPoints )
-                
-                
             }
             else
             {
@@ -144,7 +137,7 @@ public class HandPoseAnalysisNode: Node
                 var points:ContiguousArray<simd_float2> = ContiguousArray<simd_float2>()
                 points.reserveCapacity(21)
 
-                for (key, point) in allPoints
+                for (_, point) in allPoints
                 {
                     points.append(simd_float2(Float(point.location.x), Float(point.location.y)))
                 }
