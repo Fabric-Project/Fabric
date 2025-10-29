@@ -199,6 +199,7 @@
 				Nodes/Parameters/Vector/Vector2ToFloatNode.swift,
 				Nodes/Parameters/Vector/Vector3ToFloatNode.swift,
 				Nodes/Parameters/Vector/Vector4ToFloatNode.swift,
+				Nodes/Texture/CameraTextureNode.swift,
 				Nodes/Texture/HDRTextureNode.swift,
 				Nodes/Texture/ImageDimensions.swift,
 				Nodes/Texture/ImageProcessing/ForegroundMaskNode.swift,
@@ -628,6 +629,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Fabric Editor/Info.plist";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Camera Effects";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -660,6 +662,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Fabric Editor/Info.plist";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Camera Effects";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

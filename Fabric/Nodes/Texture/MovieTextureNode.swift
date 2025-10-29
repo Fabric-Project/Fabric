@@ -25,7 +25,7 @@ private let MovieTextureNodeInitializer: Void = {
 
 public class MovieTextureNode : Node
 {
-    override public class var name:String { "Movie Player" }
+    override public class var name:String { "Movie Provider" }
     override public class var nodeType:Node.NodeType { Node.NodeType.Image(imageType: .Loader) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
     override public class var nodeTimeMode: Node.TimeMode { .TimeBase }
@@ -44,8 +44,6 @@ public class MovieTextureNode : Node
 
     public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
     public var outputTexturePort:NodePort<EquatableTexture> { port(named: "outputTexturePort") }
-
-    override public var isDirty: Bool { true }
     
     @ObservationIgnored private var url: URL? = nil
     @ObservationIgnored private var asset:AVURLAsset? = nil

@@ -13,7 +13,7 @@ import MetalKit
 
 public class HDRTextureNode : Node
 {
-    public override class var name:String { "HDR Texture" }
+    public override class var name:String { "Image Provider" }
     public override class var nodeType:Node.NodeType { Node.NodeType.Image(imageType: .Loader) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
     override public class var nodeTimeMode: Node.TimeMode { .None }

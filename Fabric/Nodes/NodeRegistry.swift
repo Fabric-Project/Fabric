@@ -86,6 +86,7 @@ public class NodeRegistry {
     
     private var textureNodeClasses:[Node.Type] = [
         MovieTextureNode.self,
+        CameraTextureNode.self,
         HDRTextureNode.self,
         ForegroundMaskNode.self,
         PersonSegmentationMaskNode.self,
