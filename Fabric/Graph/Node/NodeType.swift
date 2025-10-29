@@ -89,7 +89,7 @@ extension Node
             case Geometry
             case Morphology
             case Mask
-            case ImageAnalysis
+            case Analysis
 
             static func nodeTypes() -> [Node.NodeType] {
                 return Self.allCases.map{ Node.NodeType.Image(imageType:$0) }
