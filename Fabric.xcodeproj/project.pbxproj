@@ -94,6 +94,7 @@
 		1BC06A992E0231920019808C /* Exceptions for "Fabric" folder in "Fabric" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Compute,
 				Effects,
 				EffectsThreeChannel,
 				EffectsTwoChannel,
@@ -124,6 +125,7 @@
 				Graph/Port/PortType.swift,
 				Graph/TimeStampedFrameCache.swift,
 				Materials,
+				Nodes/Base/BaseComputeNode.swift,
 				Nodes/Base/BaseEffectNode.swift,
 				Nodes/Base/BaseEffectThreeChannelNode.swift,
 				Nodes/Base/BaseEffectTwoChannelNode.swift,
@@ -254,6 +256,7 @@
 				1BC06A992E0231920019808C /* Exceptions for "Fabric" folder in "Fabric" target */,
 			);
 			explicitFolders = (
+				Compute,
 				Effects,
 				EffectsThreeChannel,
 				EffectsTwoChannel,
