@@ -75,7 +75,7 @@ public class CameraTextureNode : Node
         
         return ports +
         [
-            ("inputCamera", ParameterPort(parameter: StringParameter("File Path", "", .dropdown))),
+            ("inputCamera", ParameterPort(parameter: StringParameter("Device Name", "", .dropdown))),
             ("outputTexturePort", NodePort<EquatableTexture>(name: "Image", kind: .Outlet)),
         ]
     }
@@ -140,7 +140,6 @@ public class CameraTextureNode : Node
     
     func commonPostSetup()
     {
-        
         self.wasConnectedObserver = NotificationCenter.default.addObserver(forName: AVCaptureDevice.wasConnectedNotification, object: nil, queue: .main)
         { [weak self] notification in
             
@@ -149,7 +148,7 @@ public class CameraTextureNode : Node
             else { return }
             
             self.devices = self.discoverySession.devices
-            inputCameraParam.options = self.devices.compactMap( { $0.uniqueID } )
+            inputCameraParam.options = self.devices.compactMap( { $0.localizedName } )
         }
         
         self.wasDisconnectedObserver = NotificationCenter.default.addObserver(forName: AVCaptureDevice.wasDisconnectedNotification, object: nil, queue: .main)
@@ -160,13 +159,13 @@ public class CameraTextureNode : Node
             else { return }
             
             self.devices = self.discoverySession.devices
-            inputCameraParam.options = self.devices.compactMap( { $0.uniqueID } )
+            inputCameraParam.options = self.devices.compactMap( { $0.localizedName } )
         }
         
         self.devices = self.discoverySession.devices
         if let inputCameraParam = self.inputCamera.parameter as? StringParameter
         {
-            inputCameraParam.options = self.devices.compactMap( { $0.uniqueID } )
+            inputCameraParam.options = self.devices.compactMap( { $0.localizedName } )
         }
 
     }
@@ -244,17 +243,19 @@ public class CameraTextureNode : Node
     
     private func updateCameraSession()
     {
-        if let deviceID = self.inputCamera.value,
-        let device = AVCaptureDevice(uniqueID: deviceID)
+        if let deviceLocalizedName = self.inputCamera.value
         {
-            self.setupCaptureSession(videoDevice: device)
-        }
-        
-        else
-        {
-            self.outputTexturePort.send( nil )
-            
-            print("wtf")
+            if let uniqueIDForDeviceWithMatchingName = self.devices.first(where: { $0.localizedName == deviceLocalizedName })?.uniqueID,
+               let device = AVCaptureDevice.init(uniqueID: uniqueIDForDeviceWithMatchingName)
+            {
+                self.setupCaptureSession(videoDevice: device)
+            }
+            else
+            {
+                self.outputTexturePort.send( nil )
+                
+                print("wtf")
+            }
         }
     }
     
