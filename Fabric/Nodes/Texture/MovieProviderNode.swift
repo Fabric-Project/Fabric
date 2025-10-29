@@ -13,7 +13,7 @@ import AVFoundation
 import VideoToolbox
 import MediaToolbox
 
-private let MovieTextureNodeInitializer: Void = {
+private let MovieProviderNodeInitializer: Void = {
     
     print("One Time Global setup for MovieTextureNode")
     
@@ -23,7 +23,7 @@ private let MovieTextureNodeInitializer: Void = {
    
 }()
 
-public class MovieTextureNode : Node
+public class MovieProviderNode : Node
 {
     override public class var name:String { "Movie Provider" }
     override public class var nodeType:Node.NodeType { Node.NodeType.Image(imageType: .Loader) }
@@ -57,7 +57,7 @@ public class MovieTextureNode : Node
     required public init(context:Context)
     {
         // Forces the initialization when the class is accessed
-        _ = MovieTextureNodeInitializer
+        _ = MovieProviderNodeInitializer
         
         let _ = CVMetalTextureCacheCreate(kCFAllocatorDefault,
                                                 nil,
@@ -75,7 +75,7 @@ public class MovieTextureNode : Node
     required public init(from decoder: any Decoder) throws
     {
         // Forces the initialization when the class is accessed
-        _ = MovieTextureNodeInitializer
+        _ = MovieProviderNodeInitializer
 
         guard let decodeContext = decoder.context else
         {

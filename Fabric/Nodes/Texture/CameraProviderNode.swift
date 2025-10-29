@@ -14,29 +14,27 @@ import AVFoundation
 import VideoToolbox
 import MediaToolbox
 
-private let CameraTextureNodeInitializer: Void = {
+private let CameraProviderNodeInitializer: Void = {
     
     print("One Time Global setup for MovieTextureNode")
     
     VTRegisterProfessionalVideoWorkflowVideoDecoders()
     VTRegisterProfessionalVideoWorkflowVideoEncoders()
     MTRegisterProfessionalVideoWorkflowFormatReaders()
-   
-    
-    var property = CMIOObjectPropertyAddress(mSelector: CMIOObjectPropertySelector(kCMIOHardwarePropertyAllowScreenCaptureDevices), mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal), mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain))
+
     var allow : UInt32 = 1
     let sizeOfAllow = MemoryLayout.size(ofValue: allow)
+
+    var property = CMIOObjectPropertyAddress(mSelector: CMIOObjectPropertySelector(kCMIOHardwarePropertyAllowScreenCaptureDevices), mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal), mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain))
+    
     CMIOObjectSetPropertyData(CMIOObjectID(kCMIOObjectSystemObject), &property, 0, nil, UInt32(sizeOfAllow), &allow)
 
-    
     property = CMIOObjectPropertyAddress(mSelector: CMIOObjectPropertySelector(kCMIOHardwarePropertyAllowWirelessScreenCaptureDevices), mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal), mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain))
 
     CMIOObjectSetPropertyData(CMIOObjectID(kCMIOObjectSystemObject), &property, 0, nil, UInt32(sizeOfAllow), &allow)
-    
-    
 }()
 
-public class CameraTextureNode : Node
+public class CameraProviderNode : Node
 {
     class CaptureDelegate : NSObject, AVCaptureVideoDataOutputSampleBufferDelegate
     {
@@ -99,7 +97,7 @@ public class CameraTextureNode : Node
     required public init(context:Context)
     {
         // Forces the initialization when the class is accessed
-        _ = CameraTextureNodeInitializer
+        _ = CameraProviderNodeInitializer
         
         self.captureSession = AVCaptureSession()
 
@@ -118,7 +116,7 @@ public class CameraTextureNode : Node
     required public init(from decoder: any Decoder) throws
     {
         // Forces the initialization when the class is accessed
-        _ = CameraTextureNodeInitializer
+        _ = CameraProviderNodeInitializer
         
         guard let decodeContext = decoder.context else
         {

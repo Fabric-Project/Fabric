@@ -11,7 +11,7 @@ import simd
 import Metal
 import MetalKit
 
-public class HDRTextureNode : Node
+public class ImageProviderNode : Node
 {
     public override class var name:String { "Image Provider" }
     public override class var nodeType:Node.NodeType { Node.NodeType.Image(imageType: .Loader) }
