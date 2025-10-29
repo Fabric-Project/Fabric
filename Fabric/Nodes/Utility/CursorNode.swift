@@ -32,9 +32,7 @@ public class CursorNode : Node
     public let outputCursorPosition:NodePort<simd_float2>
     public let outputTap:NodePort<Bool>
     public override var ports: [Port] { [ self.outputCursorPosition, self.outputTap] + super.ports}
-    
-    public override var isDirty:Bool { true }
-  
+      
     public required init(context: Context)
     {
         self.outputCursorPosition = NodePort<simd_float2>(name: "Position" , kind: .Outlet)

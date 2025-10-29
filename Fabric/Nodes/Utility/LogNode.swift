@@ -64,6 +64,9 @@ public class LogNode : Node
 {
     override public class var name:String { "Log" }
     override public class var nodeType:Node.NodeType { Node.NodeType.Utility }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Consumer }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+    override public class var nodeDescription: String { "Log Values to the Console"}
 
     // Ports
     public let inputAny: NodePort<AnyLoggable>
@@ -103,7 +106,6 @@ public class LogNode : Node
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        print("Log Executing")
         if self.inputAny.valueDidChange
         {
             print( String(reflecting: inputAny.value ) )

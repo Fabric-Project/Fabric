@@ -90,6 +90,7 @@ public class NodeRegistry {
         ImageProviderNode.self,
         ForegroundMaskNode.self,
         PersonSegmentationMaskNode.self,
+        HandPoseAnalysisNode.self,
 //        BrightnessContrastImageNode.self,
 //        GaussianBlurImageNode.self,
     ]

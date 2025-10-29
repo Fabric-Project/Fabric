@@ -17,7 +17,7 @@ class CAMetalDisplayLinkRenderer: GameView
     let graphRenderer:GraphRenderer
     let graph:Graph
 
-    private let commandQueue: (any MTLCommandQueue)
+//    private let commandQueue: (any MTLCommandQueue)
     private let renderPassDescriptor = MTLRenderPassDescriptor()
     
 
@@ -25,9 +25,10 @@ class CAMetalDisplayLinkRenderer: GameView
     {
         self.graph = graph
         self.graphRenderer = GraphRenderer(context: self.graph.context)
+        self.graphRenderer.device = self.graph.context.device
+        self.graphRenderer.commandQueue = self.graph.context.device.makeCommandQueue()!
 
-
-        self.commandQueue = self.graph.context.device.makeCommandQueue()!
+//        self.commandQueue = self.graph.context.device.makeCommandQueue()!
 
         super.init(frame: CGRect(origin: .zero, size: CGSize(width: 640, height: 480)))
         
@@ -112,7 +113,7 @@ class CAMetalDisplayLinkRenderer: GameView
     override func renderUpdate(_ update: CAMetalDisplayLink.Update, with deltaTime: CFTimeInterval)
     {
         guard
-            let commandBuffer = self.commandQueue.makeCommandBuffer()//graphRenderer.preDraw()
+            let commandBuffer = self.graphRenderer.commandQueue.makeCommandBuffer()//graphRenderer.preDraw()
         else { return }
         
         self.renderPassDescriptor.colorAttachments[0].texture = update.drawable.texture

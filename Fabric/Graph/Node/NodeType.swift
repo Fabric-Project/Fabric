@@ -82,14 +82,15 @@ extension Node
             case Composite
             case Mix
             case Mixers
-            case Mask
             case Tile
             case Blur
             case Descimate
             case Distort
             case Geometry
             case Morphology
-            
+            case Mask
+            case ImageAnalysis
+
             static func nodeTypes() -> [Node.NodeType] {
                 return Self.allCases.map{ Node.NodeType.Image(imageType:$0) }
             }

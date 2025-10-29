@@ -33,5 +33,5 @@ public class MakeQuaternionNode : Node, NodeProtocol
     {
         self.outputVector.send( simd_quatf(angle: self.inputAngle.value * .pi / 180,
                                            axis: self.inputAxisParam.value ) )
-     }
+    }
 }
