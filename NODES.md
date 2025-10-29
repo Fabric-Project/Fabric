@@ -74,9 +74,9 @@ A list of Nodes (planned and implemented) for Fabric.
 <img width="1334" height="821" alt="image" src="https://github.com/user-attachments/assets/86b33241-d619-499e-8f79-f1613ab12b66" />
 
 ### Loading
-- [x] Image Loader
-- [x] Video Loader (AVFoundation)
-- [ ] Camera Loader (AVFoundation)
+- [x] Image Provider
+- [x] Video Provider (AVFoundation)
+- [x] Camera Provider (AVFoundation)
 
 ### Color Adjust
 
