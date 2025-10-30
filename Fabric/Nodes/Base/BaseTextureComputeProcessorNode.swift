@@ -9,24 +9,23 @@ import Satin
 import Metal
 import simd
 
-public class BaseComputeNode: Node, NodeFileLoadingProtocol
+public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
 {
-    override public class var name: String { "Base Compute" }
+    override public class var name: String { "Base Texture Compute" }
     override public class var nodeType: Node.NodeType { .Image(imageType: .BaseEffect) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
     
-    
     override public var name: String {
         guard let fileURL = self.url else {
-            return BaseEffectNode.name
+            return BaseTextureComputeProcessorNode.name
         }
         
         return self.fileURLToName(fileURL: fileURL)
     }
     
     // Satin Compute
-    public var system: TextureComputeSystem!
+    public var compute: TextureComputeProcessor!
     private var pipelineURL: URL?
     
     // Ports
@@ -62,46 +61,22 @@ public class BaseComputeNode: Node, NodeFileLoadingProtocol
     {
         try super.init(from: decoder)
     }
-
     
     private func setupProcessor(context: Context)
     {
         guard let url = pipelineURL else { return }
 
-        let textureDescriptor = MTLTextureDescriptor()
-        textureDescriptor.width = 512
-        textureDescriptor.height = 512
-        textureDescriptor.depth = 1
-        textureDescriptor.pixelFormat = .rgba32Float
-        textureDescriptor.resourceOptions = .storageModePrivate
-        textureDescriptor.sampleCount = 1
-        textureDescriptor.textureType = .type2D
-        textureDescriptor.usage = [.shaderRead, .shaderWrite]
-        textureDescriptor.allowGPUOptimizedContents = true
         
-        
-        system = TextureComputeSystem(device: context.device,
-                                      pipelineURL: url,
-                                      textureDescriptors: [textureDescriptor])
-        
-        
-        
-//        processor = TextureComputeProcessor(device: context.device,
-//                                            pipelineURL: url,
-//                                            live: false)
+        self.compute = TextureComputeProcessor(device: context.device,
+                                      pipelineURL: url)
 //        
-        for param in self.system.parameters.params {
+        for param in self.compute.parameters.params {
 
             if let p = PortType.portForType(from:param)
             {
                 self.addDynamicPort(p)
             }
         }
-
-        system.setup()
-        
-//        system.reset()
-
     }
 
     // MARK: - Execution
@@ -109,34 +84,60 @@ public class BaseComputeNode: Node, NodeFileLoadingProtocol
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        guard let inTex = inputImage.value?.texture,
+        guard self.inputImage.valueDidChange,
+              let inTex = self.inputImage.value?.texture,
               let device = context.graphRenderer?.device,
-                let computeEncoder = commandBuffer.makeComputeCommandEncoder()
-
+              let computeEncoder = commandBuffer.makeComputeCommandEncoder()
+                
         else { return }
         
-        
         // Input Texture to Compute
-        system.set(inTex, index: .Custom0)
-
-//        computeEncoder.setTexture(inTex, index: 0)
+        self.compute.set(inTex, index: .Custom0)
         
-        system.update(computeEncoder)
-
+        if self.compute.computeTextures[.Custom1] == nil
+        {
+            if let outTex = self.makeTextureUsingReferenceTexture(inTex, device: device)
+            {
+                self.compute.set(outTex, index: .Custom1)
+            }
+        }
+        else if let outTex = compute.computeTextures[.Custom1],
+                outTex.width != inTex.width || outTex.height != inTex.height
+        {
+            if let outTex = self.makeTextureUsingReferenceTexture(inTex, device: device)
+            {
+                self.compute.set(outTex, index: .Custom1)
+            }
+        }
+    
+        self.compute.update(computeEncoder)
+        
         computeEncoder.endEncoding()
         
-        // If shader wrote into Custom1, output it
-        if let outTex = system.computeTextures[.Custom1]
+        if let outTex = self.compute.computeTextures[.Custom1]
         {
-            outputImage.send(EquatableTexture(texture: outTex))
-        } else {
-            outputImage.send(inputImage.value)
+            self.outputImage.send(EquatableTexture(texture: outTex))
+        }
+        else
+        {
+            self.outputImage.send(inputImage.value)
         }
     }
     
-    private func fileURLToName(fileURL:URL) -> String {
+    private func fileURLToName(fileURL:URL) -> String
+    {
         let nodeName =  fileURL.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "ImageNode", with: "")
 
         return nodeName.titleCase
+    }
+    
+    private func makeTextureUsingReferenceTexture(_ inTex: MTLTexture, device: MTLDevice) -> MTLTexture?
+    {
+        let desc = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: inTex.pixelFormat,
+                                                            width: inTex.width,
+                                                            height: inTex.height,
+                                                            mipmapped: false)
+        desc.usage = [.shaderRead, .shaderWrite]
+        return device.makeTexture(descriptor: desc)
     }
 }

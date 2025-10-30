@@ -91,6 +91,7 @@ public class NodeRegistry {
         ForegroundMaskNode.self,
         PersonSegmentationMaskNode.self,
         HandPoseAnalysisNode.self,
+        ContourPathNode.self,
 //        BrightnessContrastImageNode.self,
 //        GaussianBlurImageNode.self,
     ]
@@ -152,7 +153,7 @@ public class NodeRegistry {
                 
                 for fileURL in singleChannelComputeEffects
                 {
-                    let node = NodeClassWrapper(nodeClass: BaseComputeNode.self,
+                    let node = NodeClassWrapper(nodeClass: BaseTextureComputeProcessorNode.self,
                                                 nodeType: .Image(imageType: imageEffectType),
                                                 fileURL: fileURL,
                                                 nodeName:self.fileURLToName(fileURL: fileURL))

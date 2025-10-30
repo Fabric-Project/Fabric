@@ -37,6 +37,7 @@ kernel void Update
 
     float4 color = inTex.read(gid);
     color.rgb = 1.0 - color.rgb;
+//    color.a = 1.0;
     outTex.write(color, gid);
 }
 
