@@ -207,6 +207,7 @@ A list of Nodes (planned and implemented) for Fabric.
 - [ ] Face Detection / Landmark
 - [x] Hand Pose Detection / Landmark
 - [ ] Body Pose Detection / Landmark
+- [ ] Depth Map Prediction
 
 
 ### Info 
