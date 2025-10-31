@@ -58,7 +58,7 @@ public class BaseGeometryNode : Node
         }
     }
     
-    private func primitiveType() -> MTLPrimitiveType
+    internal func primitiveType() -> MTLPrimitiveType
     {
         switch self.inputPrimitiveType.value
         {

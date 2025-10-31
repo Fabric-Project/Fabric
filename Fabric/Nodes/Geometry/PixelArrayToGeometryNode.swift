@@ -23,7 +23,7 @@ public class PixelArrayToGeometryNode : BaseGeometryNode
     
     public var inputPoints: NodePort<ContiguousArray<simd_float2>> { port(named: "inputPoints") }
     
-    public override var geometry: ParametricGeometry { _geometry }
+    public override var geometry: PolyLine2DGeometry { _geometry }
     
 //    override public func markDirty() {
 //        super.markDirty()
@@ -36,13 +36,9 @@ public class PixelArrayToGeometryNode : BaseGeometryNode
 //        
 //        print("PixelArrayToGeometryNode marked clean")
 //    }
-    
+        
     // Basic Geom we change later
-    private var _geometry = ParametricGeometry(rangeU: 0.0 ... 0.0 ,
-                                               rangeV: 0.0 ... 0.0 ,
-                                               resolution: simd_int2(x: 1, y: 1)) { u, v in
-        return .zero
-    }
+    private var _geometry = PolyLine2DGeometry(points: [.zero, .zero, .zero])
     
 //    override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
 //    {
@@ -95,28 +91,74 @@ public class PixelArrayToGeometryNode : BaseGeometryNode
 
                 if points.count > 3
                 {
-//                    print("PixelArrayToGeometryNode start rebuild")
+                    let pointsCopy = ContiguousArray(points)
+                    
+                    let g = PolyLine2DGeometry(points: pointsCopy)
 
-                    let n = points.count
+                    let _ = self.evaluate(geometry: g, atTime: 0.0)
                     
-                    let g = ParametricGeometry(rangeU: 0...Float(n - 1),
-                                               rangeV:  0...0,
-                                               resolution: simd_int2(Int32(n), 1)) { u, _ in
-                        let i = max(0, min(n - 1, Int(round(u))))
-                        let p = points[i]
-                        return simd_float3(p.x, p.y, 0) / 1000.0
-                    }
+                    g.primitiveType = self.primitiveType()
                     
-                    g.primitiveType = .line
                     self._geometry = g
-                    
-//                    print("rebuilt parametric geometry")
-//                    
-//                    print("outputting geometry")
-                    
-                    self.outputGeometry.send(self.geometry, force: true)
+
+                    self.outputGeometry.send(self._geometry, force: true)
                 }
             }
         }
+    }
+}
+
+
+public class PolyLine2DGeometry : SatinGeometry
+{
+    var points: ContiguousArray<simd_float2>
+    
+    init(points: ContiguousArray<simd_float2>) {
+        self.points = points
+    }
+    
+    override public func generateGeometryData() -> GeometryData
+    {
+        self.buildGeometry( points: &self.points )
+    }
+    
+    private func bounds(of pts: ContiguousArray<simd_float2>) -> simd_float4
+    {
+        guard let first = pts.first else { return .zero }
+        var minv = first
+        var maxv = first
+        for p in pts
+        {
+            // skip junk if needed
+            if !_fastPath(p.x.isFinite && p.y.isFinite) { continue }
+            minv = simd.min(minv, p)
+            maxv = simd.max(maxv, p)
+        }
+        return simd_float4(minv.x, minv.y, maxv.x, maxv.y)
+    }
+    
+    
+    func buildGeometry( points:inout ContiguousArray<simd_float2>) -> GeometryData
+    {
+        let length = Int32(points.count)
+
+        let pathBounds:simd_float4 = bounds(of: points)
+        
+        // the triangulator expects an array of pointer(s)
+        return  points.withUnsafeMutableBufferPointer { pathBuf in
+            
+            // triangle data to fill
+            var triData = createTriangleData()
+            var gData = createGeometryData()
+
+            triangulatePath(pathBuf.baseAddress, length, &triData)
+            createGeometryDataFromPath(pathBuf.baseAddress, length, &gData, pathBounds)
+            copyTriangleDataToGeometryData(&triData, &gData)
+
+            freeTriangleData(&triData)
+            
+            return gData
+        }
+        
     }
 }

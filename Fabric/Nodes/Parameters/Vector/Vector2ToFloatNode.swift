@@ -24,14 +24,14 @@ public class Vector2ToFloatNode : Node
         
         return ports +
         [
-            ("inputVectorParam",   ParameterPort(parameter:Float3Parameter("Vector 2", .zero, .inputfield))),
+            ("inputVectorParam",   ParameterPort(parameter:Float2Parameter("Vector 2", .zero, .inputfield))),
             ("outputXPort",   NodePort<Float>(name: "X" , kind: .Outlet) ),
             ("outputYPort",   NodePort<Float>(name: "Y" , kind: .Outlet) ),
         ]
     }
 
     // Port Proxies
-    public var inputVectorParam:ParameterPort<simd_float3> { port(named: "inputVectorParam") }
+    public var inputVectorParam:ParameterPort<simd_float2> { port(named: "inputVectorParam") }
     public var outputXPort:NodePort<Float> { port(named: "outputXPort") }
     public var outputYPort:NodePort<Float> { port(named: "outputYPort") }
     

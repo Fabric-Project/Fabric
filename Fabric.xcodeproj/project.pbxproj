@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1B46BEA62EB472E800124BDA /* SwiftSimplify in Frameworks */ = {isa = PBXBuildFile; productRef = 1B46BEA52EB472E800124BDA /* SwiftSimplify */; };
 		1BB12B362E0234FC0075C276 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BB12B332E0234FC0075C276 /* Foundation.framework */; };
 		1BB12B372E0234FC0075C276 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BB12B342E0234FC0075C276 /* AVFoundation.framework */; };
 		1BB12B382E0234FC0075C276 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BB12B352E0234FC0075C276 /* CoreFoundation.framework */; };
@@ -138,6 +139,7 @@
 				Nodes/Geometry/CircleGeometryNode.swift,
 				Nodes/Geometry/ExtrudedTextGeometryNode.swift,
 				Nodes/Geometry/IcoSphereGeometryNode.swift,
+				Nodes/Geometry/PixelArrayToGeometryNode.swift,
 				Nodes/Geometry/PlaneGeometryNode.swift,
 				Nodes/Geometry/RoundRectGeometryNode.swift,
 				Nodes/Geometry/SphereGeometryNode.swift,
@@ -172,6 +174,7 @@
 				Nodes/Parameters/Array/ArrayHelperExtensions.swift,
 				Nodes/Parameters/Array/ArrayIndexValueNode.swift,
 				Nodes/Parameters/Array/ArrayQueueNode.swift,
+				Nodes/Parameters/Array/PolyLineSimplifyNode.swift,
 				Nodes/Parameters/Boolean/BooleanLogicNode.swift,
 				Nodes/Parameters/Boolean/FalseNode.swift,
 				Nodes/Parameters/Boolean/LogicOperator.swift,
@@ -288,6 +291,7 @@
 				1BB12B372E0234FC0075C276 /* AVFoundation.framework in Frameworks */,
 				1BC06AF22E0233DC0019808C /* Noise in Frameworks */,
 				1BB12B362E0234FC0075C276 /* Foundation.framework in Frameworks */,
+				1B46BEA62EB472E800124BDA /* SwiftSimplify in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -384,6 +388,7 @@
 			packageProductDependencies = (
 				1BC06AF12E0233DC0019808C /* Noise */,
 				1BC06AF32E0233E00019808C /* AnyCodable */,
+				1B46BEA52EB472E800124BDA /* SwiftSimplify */,
 			);
 			productName = Fabric;
 			productReference = 1BC06A7F2E0231520019808C /* Fabric.framework */;
@@ -444,6 +449,7 @@
 			packageReferences = (
 				1BAC11632DE6615F008438BC /* XCRemoteSwiftPackageReference "swift-noise" */,
 				1B9ECA4F2DFBB2CB00D32B4C /* XCRemoteSwiftPackageReference "AnyCodable" */,
+				1B46BEA42EB472E800124BDA /* XCRemoteSwiftPackageReference "SwiftSimplify" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1BE007232DBB1FBC0061EAFD /* Products */;
@@ -835,6 +841,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		1B46BEA42EB472E800124BDA /* XCRemoteSwiftPackageReference "SwiftSimplify" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/vade/SwiftSimplify";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
 		1B9ECA4F2DFBB2CB00D32B4C /* XCRemoteSwiftPackageReference "AnyCodable" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/Flight-School/AnyCodable";
@@ -854,6 +868,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		1B46BEA52EB472E800124BDA /* SwiftSimplify */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B46BEA42EB472E800124BDA /* XCRemoteSwiftPackageReference "SwiftSimplify" */;
+			productName = SwiftSimplify;
+		};
 		1BC06AF12E0233DC0019808C /* Noise */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 1BAC11632DE6615F008438BC /* XCRemoteSwiftPackageReference "swift-noise" */;

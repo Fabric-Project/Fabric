@@ -19,14 +19,14 @@ public class PixelsToUnitsNode : Node
     public override class var nodeDescription: String { "Converts Pixels to default camera Units"}
 
     // Ports
-    public let inputCursorPosition:NodePort<simd_float2>
-    public let outputUnitPosition:NodePort<simd_float3>
+    public let inputCursorPosition:NodePort<Float>
+    public let outputUnitPosition:NodePort<Float>
     public override var ports: [Port] { [ self.inputCursorPosition, self.outputUnitPosition] + super.ports}
     
     public required init(context: Context)
     {
-        self.inputCursorPosition = NodePort<simd_float2>(name: "Position" , kind: .Inlet)
-        self.outputUnitPosition = NodePort<simd_float3>(name: "Units" , kind: .Outlet)
+        self.inputCursorPosition = NodePort<Float>(name: "Pixel" , kind: .Inlet)
+        self.outputUnitPosition = NodePort<Float>(name: "Unit" , kind: .Outlet)
 
         super.init(context: context)
     }
@@ -51,8 +51,8 @@ public class PixelsToUnitsNode : Node
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
-        self.inputCursorPosition = try container.decode(NodePort<simd_float2>.self, forKey: .inputCursorPositionPort)
-        self.outputUnitPosition = try container.decode(NodePort<simd_float3>.self, forKey: .outputUnitPositionPort)
+        self.inputCursorPosition = try container.decode(NodePort<Float>.self, forKey: .inputCursorPositionPort)
+        self.outputUnitPosition = try container.decode(NodePort<Float>.self, forKey: .outputUnitPositionPort)
 
         try super.init(from: decoder)
     }
@@ -63,21 +63,16 @@ public class PixelsToUnitsNode : Node
     {
         
         if self.inputCursorPosition.valueDidChange,
-           let position = self.inputCursorPosition.value,
+           let pixel = self.inputCursorPosition.value,
            let graphRenderer = context.graphRenderer
         {
             let aspect = graphRenderer.renderer.size.height/graphRenderer.renderer.size.width
             let size = simd_float2(x: graphRenderer.renderer.size.width,
                                    y: graphRenderer.renderer.size.height)
             
-            let x = remap(position.x, 0.0, size.x, -1.0, 1.0)
+            let x = remap(pixel, 0.0, size.x, -1.0, 1.0)
             
-            let y = remap(position.y, 0.0, size.y, -aspect, aspect)
-
-            
-            self.outputUnitPosition.send( simd_float3(x: x, y: y, z:0.0) )
-            
+            self.outputUnitPosition.send( x )
         }
-        
     }
 }

@@ -218,6 +218,7 @@ public class NodeRegistry {
         ArrayIndexValueNode<simd_float2>.self,
         ArrayCountNode<simd_float2>.self,
         ArrayQueueNode<simd_float2>.self,
+        PolyLineSimplifyNode.self,
         
         MakeVector3Node.self,
         Vector3ToFloatNode.self,
