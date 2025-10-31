@@ -68,6 +68,7 @@ public class NodeRegistry {
 //        SkyboxGeometryNode.self,
         TesselatedTextGeometryNode.self,
         ExtrudedTextGeometryNode.self,
+        PixelArrayToGeometryNode.self,
         SuperShapeGeometryNode.self
     ]
         
