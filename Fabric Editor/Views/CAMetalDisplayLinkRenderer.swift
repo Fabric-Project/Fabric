@@ -116,6 +116,8 @@ class CAMetalDisplayLinkRenderer: GameView
             let commandBuffer = self.graphRenderer.commandQueue.makeCommandBuffer()//graphRenderer.preDraw()
         else { return }
         
+        self.graphRenderer.frameIndex += 1
+        
         self.renderPassDescriptor.colorAttachments[0].texture = update.drawable.texture
         self.renderPassDescriptor.renderTargetWidth = update.drawable.texture.width
         self.renderPassDescriptor.renderTargetHeight = update.drawable.texture.height
