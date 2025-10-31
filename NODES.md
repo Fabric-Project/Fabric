@@ -43,6 +43,7 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Extruded Text
 - [x] Supershape
 - [x] Skybox
+- [x] Geometry from 2D PolyLine Array (needs better Triangulation)
 - [ ] Parametric
 
 # Object
@@ -197,6 +198,17 @@ A list of Nodes (planned and implemented) for Fabric.
 - [ ] Open
 - [ ] Close
 
+### Analysis
+
+- [x] Marching Squares Contour (needs better stability at edges)
+- [ ] Blob Detection (requires nested array support)
+- [ ] Segmentation
+- [ ] Classification
+- [ ] Face Detection / Landmark
+- [x] Hand Pose Detection / Landmark
+- [ ] Body Pose Detection / Landmark
+
+
 ### Info 
 - [x] Image Dimensions
 - [ ] Image Crop
@@ -245,6 +257,7 @@ Have yet to work on Index (integer only) numeric nodes
 - [x] Vec 3 to Float
 - [x] Vec 4 to Float
 - [ ] Vector Ops (Cross / Dot / etc)
+- [x] Vec 2 Array Simplification (Poly Line Simplification via Ramer–Douglas–Peucker algo)
 
 ### Color
 
