@@ -129,6 +129,7 @@
 				Nodes/Base/BaseEffectNode.swift,
 				Nodes/Base/BaseEffectThreeChannelNode.swift,
 				Nodes/Base/BaseEffectTwoChannelNode.swift,
+				Nodes/Base/BaseGeneratorNode.swift,
 				Nodes/Base/BaseGeometryNode.swift,
 				Nodes/Base/BaseMaterialNode.swift,
 				Nodes/Base/BaseObjectNode.swift,

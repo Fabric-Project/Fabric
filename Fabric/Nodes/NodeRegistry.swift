@@ -113,21 +113,22 @@ public class NodeRegistry {
 
         for imageEffectType in Node.NodeType.ImageType.allCases
         {
-            let subDir = "Effects/\(imageEffectType.rawValue)"
-            let subDir2 = "EffectsTwoChannel/\(imageEffectType.rawValue)"
-            let subDir3 = "EffectsThreeChannel/\(imageEffectType.rawValue)"
+            let singleChannelEffects = "Effects/\(imageEffectType.rawValue)"
+            let twoChannelEffects = "EffectsTwoChannel/\(imageEffectType.rawValue)"
+            let threeChannelEffects = "EffectsThreeChannel/\(imageEffectType.rawValue)"
             
             let computeSubdir = "Compute/\(imageEffectType.rawValue)"
-
             
-            if let singleChannelEffects = bundle.urls(forResourcesWithExtension: "metal", subdirectory:subDir),
-               let twoChannelEffects = bundle.urls(forResourcesWithExtension: "metal", subdirectory:subDir2),
-               let threeChannelEffects = bundle.urls(forResourcesWithExtension: "metal", subdirectory:subDir3),
+            if
+               let singleChannelEffects = bundle.urls(forResourcesWithExtension: "metal", subdirectory:singleChannelEffects),
+               let twoChannelEffects = bundle.urls(forResourcesWithExtension: "metal", subdirectory:twoChannelEffects),
+               let threeChannelEffects = bundle.urls(forResourcesWithExtension: "metal", subdirectory:threeChannelEffects),
                let singleChannelComputeEffects = bundle.urls(forResourcesWithExtension: "metal", subdirectory:computeSubdir)
             {
                 for fileURL in singleChannelEffects
                 {
-                    let node = NodeClassWrapper(nodeClass: BaseEffectNode.self,
+                    let baseClass = imageEffectType == .Generator ? BaseGeneratorNode.self : BaseEffectNode.self
+                    let node = NodeClassWrapper(nodeClass: baseClass,
                                                 nodeType: .Image(imageType: imageEffectType),
                                                 fileURL: fileURL,
                                                 nodeName:self.fileURLToName(fileURL: fileURL))

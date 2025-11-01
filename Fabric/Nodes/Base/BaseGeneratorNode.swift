@@ -11,11 +11,11 @@ import simd
 import Metal
 import MetalKit
 
-class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
+class BaseGeneratorNode: Node, NodeFileLoadingProtocol
 {
-    override class var name:String { "Base Effect" }
-    override class var nodeType:Node.NodeType { .Image(imageType: .BaseEffect) }
-    override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override class var name:String { "Base Image Generator" }
+    override class var nodeType:Node.NodeType { .Image(imageType: .Generator) }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
     override public class var nodeTimeMode: Node.TimeMode { .None }
 
     override var name: String {
@@ -39,22 +39,20 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
         
         return ports +
         [
-            ("inputTexturePort", NodePort<EquatableTexture>(name: "Image 1", kind: .Inlet)),
-            ("inputTexture2Port", NodePort<EquatableTexture>(name: "Image 2", kind: .Inlet)),
-            ("inputTexture3Port", NodePort<EquatableTexture>(name: "Image 3", kind: .Inlet)),
+            ("inputWidth", ParameterPort(parameter: IntParameter("Width", 512, 1, 8192, .inputfield))),
+            ("inputHeight", ParameterPort(parameter: IntParameter("Height", 512, 1, 8192, .inputfield))),
             ("outputTexturePort", NodePort<EquatableTexture>(name: "Image", kind: .Outlet)),
         ]
     }
 
-    public var inputTexturePort:NodePort<EquatableTexture>  { port(named: "inputTexturePort") }
-    public var inputTexture2Port:NodePort<EquatableTexture> { port(named: "inputTexture2Port") }
-    public var inputTexture3Port:NodePort<EquatableTexture> { port(named: "inputTexture3Port") }
+    public var inputWidth:ParameterPort<Int>  { port(named: "inputWidth") }
+    public var inputHeight:ParameterPort<Int>  { port(named: "inputHeight") }
     public var outputTexturePort:NodePort<EquatableTexture> { port(named: "outputTexturePort") }
     
     private var url:URL? = nil
     
-    required init(context: Satin.Context, fileURL: URL) throws
-    {
+    required init(context: Satin.Context, fileURL: URL) throws {
+
         self.url = fileURL
         let material = PostMaterial(pipelineURL:fileURL)
         material.context = context
@@ -80,7 +78,6 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
         let bundle = Bundle(for: Self.self)
         let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
         
-        
         let material = PostMaterial(pipelineURL:shaderURL!)
         material.context = context
 
@@ -104,6 +101,7 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
     {
         // Store the last 2 directory components (effects/subfolder) within the bundle
         case effectPath
+        
     }
     
     override func encode(to encoder:Encoder) throws
@@ -131,6 +129,7 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
             fatalError("Required Decode Context Not set")
         }
         
+    
         if let path = try container.decodeIfPresent(String.self, forKey: .effectPath)
         {
             let bundle = Bundle(for: Self.self)
@@ -149,7 +148,7 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
             else
             {
                 let bundle = Bundle(for: Self.self)
-                let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
+                let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Materials")
                 
                 let material = PostMaterial(pipelineURL:shaderURL!)
                 material.context = decodeContext.documentContext
@@ -163,7 +162,7 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
         else
         {
             let bundle = Bundle(for: Self.self)
-            let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
+            let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Materials")
             
             let material = PostMaterial(pipelineURL:shaderURL!)
             material.context = decodeContext.documentContext
@@ -196,37 +195,29 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
         let anyPortChanged =  self.ports.reduce(false, { partialResult, next in
            return partialResult || next.valueDidChange
         })
-        
-        if  self.inputTexturePort.valueDidChange || self.inputTexture2Port.valueDidChange || self.inputTexture3Port.valueDidChange || anyPortChanged
+
+        if self.inputWidth.valueDidChange,
+           let width = self.inputWidth.value
         {
-            if let inTex = self.inputTexturePort.value?.texture,
-               let inTex2 = self.inputTexture2Port.value?.texture,
-               let inTex3 = self.inputTexture3Port.value?.texture
-            {
-                self.postProcessor.mesh.preDraw = { renderEncoder in
-                    
-                    renderEncoder.setFragmentTexture(inTex, index: FragmentTextureIndex.Custom0.rawValue)
-                    renderEncoder.setFragmentTexture(inTex2, index: FragmentTextureIndex.Custom1.rawValue)
-                    renderEncoder.setFragmentTexture(inTex3, index: FragmentTextureIndex.Custom2.rawValue)
-                }
-                
-                self.postProcessor.renderer.size.width = Float(inTex.width)
-                self.postProcessor.renderer.size.height = Float(inTex.height)
-                
-                self.postProcessor.draw(renderPassDescriptor: MTLRenderPassDescriptor(), commandBuffer: commandBuffer)
-                
-                if let outTex = self.postProcessor.renderer.colorTexture
-                {
-                    let outputTexture = EquatableTexture(texture: outTex)
-                    self.outputTexturePort.send( outputTexture )
-                }
-            }
-            else
-            {
-                self.outputTexturePort.send( nil )
-            }
+            self.postProcessor.renderer.size.width = Float(max(1, width) )
+        }
+        
+        if self.inputHeight.valueDidChange,
+           let height = self.inputHeight.value
+        {
+            self.postProcessor.renderer.size.height = Float( max(1, height) )
+
+        }
+        
+        self.postProcessor.draw(renderPassDescriptor: MTLRenderPassDescriptor(), commandBuffer: commandBuffer)
+        
+        if let outTex = self.postProcessor.renderer.colorTexture
+        {
+            let outputTexture = EquatableTexture(texture: outTex)
+            self.outputTexturePort.send( outputTexture )
         }
     }
+    
     
     private func fileURLToName(fileURL:URL) -> String {
         let nodeName =  fileURL.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "ImageNode", with: "")
