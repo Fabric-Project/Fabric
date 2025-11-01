@@ -175,7 +175,8 @@ A list of Nodes (planned and implemented) for Fabric.
 
 - [ ] Warp
 - [ ] Bump
-- [ ] Displacement
+- [x] Displacement
+- [x] Displacement w Mask
 - [ ] Twirl
 - [ ] Pinch
 
