@@ -4,6 +4,8 @@ Fabric is a Node based creative coding and 3D content authoring environment writ
 
 Fabric uses Satin 3D engine [Satin rendering engine](https://github.com/Fabric-Project/Satin) written by @[Reza Ali](https://github.com/rezaali). 
 
+Fabric includes a licensed metal port of [Lygia](https://lygia.xyz) shader library, powering Image effects and more, written by @[Patricio Gonzalez Vivo](https://github.com/patriciogonzalezvivo/) and contributors
+
 Please note Fabric is heavily under construction.
 
 Fabric is inspired by Apple's deprecated Quartz Composer ecosystem, and its design philosophy.
