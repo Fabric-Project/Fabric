@@ -2,10 +2,6 @@
 
 Fabric is a Node based creative coding and 3D content authoring environment written by [Anton Marini](https://github.com/vade).
 
-Fabric uses Satin 3D engine [Satin rendering engine](https://github.com/Fabric-Project/Satin) written by @[Reza Ali](https://github.com/rezaali). 
-
-Fabric includes a licensed metal port of [Lygia](https://lygia.xyz) shader library, powering Image effects and more, written by @[Patricio Gonzalez Vivo](https://github.com/patriciogonzalezvivo/) and contributors
-
 Please note Fabric is heavily under construction.
 
 Fabric is inspired by Apple's deprecated Quartz Composer ecosystem, and its design philosophy.
@@ -27,7 +23,11 @@ An early alpha of Satin rendering a instances of a sphere geometry, along with a
 <!-- <img width="800" alt="Fabric" src="https://github.com/user-attachments/assets/0c0f3a88-5c22-4ad5-88cb-c05602b548a5" />
 <img width="800" alt="Fabric" src="https://github.com/user-attachments/assets/a649647a-a948-460c-827f-09b3fa6b1eee" /> -->
 
-Fabric supports, thanks to Satin, high fidelity modern rendering techniques including
+Fabric uses Satin 3D engine [Satin rendering engine](https://github.com/Fabric-Project/Satin) written by @[Reza Ali](https://github.com/rezaali). 
+
+Fabric includes a licensed Metal port of [Lygia](https://lygia.xyz) shader library, powering Image effects and more, written by @[Patricio Gonzalez Vivo](https://github.com/patriciogonzalezvivo/) and contributors.
+
+Fabric supports, thanks to Satin and Lygia, high fidelity modern rendering techniques including
 
 - Physically based rendering
 - Scene graph
