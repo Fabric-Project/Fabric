@@ -93,6 +93,7 @@ public class NodeRegistry {
         PersonSegmentationMaskNode.self,
         HandPoseAnalysisNode.self,
         ContourPathNode.self,
+        KeypointDistortNode.self,
 //        BrightnessContrastImageNode.self,
 //        GaussianBlurImageNode.self,
     ]
@@ -186,6 +187,7 @@ public class NodeRegistry {
         ArrayIndexValueNode<Bool>.self,
         ArrayCountNode<Bool>.self,
         ArrayQueueNode<Bool>.self,
+        ArrayReplaceValueAtIndexNode<Bool>.self,
 
         // Number
         CurrentTimeNode.self,
@@ -202,6 +204,7 @@ public class NodeRegistry {
         ArrayIndexValueNode<Float>.self,
         ArrayCountNode<Float>.self,
         ArrayQueueNode<Float>.self,
+        ArrayReplaceValueAtIndexNode<Float>.self,
 
         // String
         TextFileLoaderNode.self,
@@ -212,6 +215,7 @@ public class NodeRegistry {
         ArrayIndexValueNode<String>.self,
         ArrayCountNode<String>.self,
         ArrayQueueNode<String>.self,
+        ArrayReplaceValueAtIndexNode<String>.self,
 
         // Vectors
         MakeVector2Node.self,
@@ -219,6 +223,7 @@ public class NodeRegistry {
         ArrayIndexValueNode<simd_float2>.self,
         ArrayCountNode<simd_float2>.self,
         ArrayQueueNode<simd_float2>.self,
+        ArrayReplaceValueAtIndexNode<simd_float2>.self,
         PolyLineSimplifyNode.self,
         
         MakeVector3Node.self,
@@ -226,12 +231,14 @@ public class NodeRegistry {
         ArrayIndexValueNode<simd_float3>.self,
         ArrayCountNode<simd_float3>.self,
         ArrayQueueNode<simd_float3>.self,
-        
+        ArrayReplaceValueAtIndexNode<simd_float3>.self,
+
         MakeVector4Node.self,
         Vector4ToFloatNode.self,
         ArrayIndexValueNode<simd_float4>.self,
         ArrayCountNode<simd_float4>.self,
         ArrayQueueNode<simd_float4>.self,
+        ArrayReplaceValueAtIndexNode<simd_float4>.self,
 
         ]
     

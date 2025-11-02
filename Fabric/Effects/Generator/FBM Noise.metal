@@ -6,26 +6,28 @@
 //
 
 
-#include "../../lygia/generative/voronoise.msl"
+#include "../../lygia/generative/fbm.msl"
 
 
 typedef struct {
     float time; // input, 0.0, Time
+    int octaves; // input, 2.0, Octaves
     float scale; // input, 2.0, Scale
-    float smoothness; // slider, 0.0, 5.0, 1.0, Smoothness
+//    float smoothness; // slider, 0.0, 5.0, 1.0, Smoothness
 } PostUniforms;
 
 fragment half4 postFragment( VertexData in [[stage_in]],
                             constant PostUniforms &uniforms [[buffer( FragmentBufferMaterialUniforms )]])
 {
     half4 color = half4(half3(0.0), 1.0);
-    half p = 0.5 - 0.5 * cos( uniforms.time );
     
-    //p = p*p*(3.0-2.0*p);
-    //p = p*p*(3.0-2.0*p);
-    //p = p*p*(3.0-2.0*p);
     
-    color.rgb += voronoise( float3(uniforms.scale *  in.texcoord, uniforms.time), p, uniforms.smoothness );
-    
+    half result = 1.0;
+    for ( int i = 0; i < uniforms.octaves; i++)
+    {
+        result = fbm(float3(result * uniforms.scale * in.texcoord, uniforms.time)) * 0.5 + 0.5;
+    }
+        
+    color.rgb += result;
     return color;
 }

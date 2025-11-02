@@ -11,16 +11,16 @@ import simd
 import Metal
 import MetalKit
 
-class BaseEffectNode: Node, NodeFileLoadingProtocol
+public class BaseEffectNode: Node, NodeFileLoadingProtocol
 {
-    override class var name:String { "Base Effect" }
-    override class var nodeType:Node.NodeType { .Image(imageType: .BaseEffect) }
+    override public class var name:String { "Base Effect" }
+    override public class var nodeType:Node.NodeType { .Image(imageType: .BaseEffect) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
 
-    override var name: String {
+    override public var name: String {
         guard let fileURL = self.url else {
-            return BaseEffectNode.name
+            return Self.name
         }
         
         return self.fileURLToName(fileURL: fileURL)
@@ -103,7 +103,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
         
     }
     
-    override func encode(to encoder:Encoder) throws
+    override public func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
                 
@@ -147,7 +147,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
             else
             {
                 let bundle = Bundle(for: Self.self)
-                let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Materials")
+                let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
                 
                 let material = PostMaterial(pipelineURL:shaderURL!)
                 material.context = decodeContext.documentContext
@@ -161,7 +161,7 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
         else
         {
             let bundle = Bundle(for: Self.self)
-            let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Materials")
+            let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
             
             let material = PostMaterial(pipelineURL:shaderURL!)
             material.context = decodeContext.documentContext
@@ -187,9 +187,9 @@ class BaseEffectNode: Node, NodeFileLoadingProtocol
         }
     }
     
-    override func execute(context:GraphExecutionContext,
-                          renderPassDescriptor: MTLRenderPassDescriptor,
-                          commandBuffer: MTLCommandBuffer)
+    override public func execute(context:GraphExecutionContext,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         let anyPortChanged =  self.ports.reduce(false, { partialResult, next in
            return partialResult || next.valueDidChange

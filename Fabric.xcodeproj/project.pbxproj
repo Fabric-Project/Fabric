@@ -175,6 +175,7 @@
 				Nodes/Parameters/Array/ArrayHelperExtensions.swift,
 				Nodes/Parameters/Array/ArrayIndexValueNode.swift,
 				Nodes/Parameters/Array/ArrayQueueNode.swift,
+				Nodes/Parameters/Array/ArrayReplaceValueAtIndexNode.swift,
 				Nodes/Parameters/Array/PolyLineSimplifyNode.swift,
 				Nodes/Parameters/Boolean/BooleanLogicNode.swift,
 				Nodes/Parameters/Boolean/FalseNode.swift,
@@ -208,6 +209,7 @@
 				Nodes/Texture/Analysis/ContourPathNode.swift,
 				Nodes/Texture/Analysis/HandPoseAnalysisNode.swift,
 				Nodes/Texture/CameraProviderNode.swift,
+				Nodes/Texture/Distort/KeypointDistortNode.swift,
 				Nodes/Texture/ImageDimensions.swift,
 				Nodes/Texture/ImageProviderNode.swift,
 				Nodes/Texture/Mask/ForegroundMaskNode.swift,
@@ -219,6 +221,7 @@
 				Nodes/Utility/RenderInfoNode.swift,
 				Nodes/Utility/SampleAndHold.swift,
 				Nodes/Utility/UnitsoPixelsNode.swift,
+				Shaders,
 				Utils/AnyEncodable.swift,
 				Views/NodeRegisitryView.swift,
 				Views/Nodes/NodeCanvas.swift,
@@ -266,6 +269,7 @@
 				EffectsThreeChannel,
 				EffectsTwoChannel,
 				Materials,
+				Shaders,
 			);
 			path = Fabric;
 			sourceTree = "<group>";

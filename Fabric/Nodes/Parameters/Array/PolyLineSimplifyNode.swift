@@ -17,7 +17,7 @@ public class PolyLineSimplifyNode: Node
     public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Simplify an array of points using the Duglas Peuker algorithm."}
+    override public class var nodeDescription: String { "Simplify an array of points using the Duglas Peucker algorithm."}
     
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
