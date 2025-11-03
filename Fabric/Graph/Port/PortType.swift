@@ -101,6 +101,11 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
             {
                 
             case .generic:
+               
+                if let genericParam = parameter as? GenericParameter<Int>
+                {
+                    return ParameterPort(parameter: genericParam)
+                }
                 
                 if let genericParam = parameter as? GenericParameter<Float>
                 {
@@ -132,6 +137,18 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
             case .bool:
 
                 if let genericParam = parameter as? BoolParameter
+                {
+                    return ParameterPort(parameter: genericParam)
+                }
+                
+            case .int:
+                
+                if let genericParam = parameter as? IntParameter
+                {
+                    return ParameterPort(parameter: genericParam)
+                }
+
+                else if let genericParam = parameter as? GenericParameter<Int>
                 {
                     return ParameterPort(parameter: genericParam)
                 }

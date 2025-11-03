@@ -160,7 +160,20 @@ internal import AnyCodable
 
                     self.addNode(node)
                 }
-                else
+
+                // This is stupid?
+                else if anyCodableMap.type == String(describing: type(of: BaseGeneratorNode.self)).replacingOccurrences(of: ".Type", with:"")
+                {
+                    let encoder = JSONEncoder()
+                    let jsonData = try encoder.encode(anyCodableMap.value)
+                    
+                    let decoder = JSONDecoder()
+                    decoder.context = decodeContext
+                    
+                    let node = try decoder.decode(BaseGeneratorNode.self, from: jsonData)
+
+                    self.addNode(node)
+                }                else
                 {
                     print("Failed to find nodeClass for \(anyCodableMap.type)")
 
