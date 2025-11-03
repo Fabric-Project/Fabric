@@ -43,7 +43,7 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Extruded Text
 - [x] Supershape
 - [x] Skybox
-- [x] Geometry from 2D PolyLine Array (needs better Triangulation)
+- [x] Geometry from 2D PolyLine (needs better Triangulation)
 - [ ] Parametric
 
 # Object
@@ -264,7 +264,6 @@ Have yet to work on Index (integer only) numeric nodes
 - [x] Vec 3 to Float
 - [x] Vec 4 to Float
 - [ ] Vector Ops (Cross / Dot / etc)
-- [x] Vec 2 Array Simplification (Poly Line Simplification via Ramer–Douglas–Peucker algo)
 
 ### Color
 
@@ -303,6 +302,7 @@ Array nodes are implemented as Swift Generics, and can work with any of the abov
 - [x] Array Count
 - [x] Item at Index
 - [x] Replace Item At Index
+- [x] Poly Line Simplification ( Simplification of Array of Vector 2 Points via Ramer–Douglas–Peucker algo)
 - [ ] Multiplexer
 - [ ] Demultiplexer
 - [ ] Sort (? what does this mean for some types ?)
