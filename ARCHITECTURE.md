@@ -25,16 +25,20 @@ You can peruse the complete set of Nodes Fabric supports in the code base, or ge
 
 ### Ports
 
-Ports in Fabric represent specific types of data a node can Produce, Process or Consume. 
+`Ports` in Fabric represent specific types of data a `Node` can `Produce`, `Process` or `Consume`. 
 
 These ports are split into 2 types
 
-* Parameter Ports (Booleans, Indexes, Numbers, Vectors, Strings, Colors, Arrays)
-* Object Ports (Meshes, Materials, Geometry, Cameras, Lights, Environments)
+* Parameter Ports
+* Object Ports 
+
+and can be 
+* Inlets ( takes data in )
+* Outlets ( outputs data )
 
 If you are a developer, this maps roughly value and reference semantics.
 
-Parameter Ports are named such because they also provide a user interface to configure the values, perhaps a number entry, a slider, a text entry field, etc. 
+Parameter Ports are named such because they also provide a user interface to configure the values, perhaps a number entry, a slider, a text entry field, in the Editor GUI. 
 
 * Parameter ports are gray
 * Object ports are denoted by colors
@@ -43,7 +47,7 @@ Fabic supports an evolving set of data that a `Node` can output
 
 ## Port Data Types. 
 
-Parameters:
+Parameters (Grey):
 - Bool (True False values)
 - Index (Integer values),
 - Number (Floating point values)
@@ -51,29 +55,30 @@ Parameters:
 - Vector 2, Vector 3, Vector 4 (Sets of 
 - Color (A wrapper for Vector 4, RGBA) 
 
-Objects:
+Objects (Colored):
 - Geometry (A set of buffers that work together to define how 
 - Material (a Vertex and Fragment Program that work with the graphcis engine)
 - Shader (A custom Fragment or Shader Program) used with a custom Material. 
 - Image (A Texture)
 
+A `Node` can have many different `Ports` of differing type, allowing you to connect and process data in many useful ways. 
 
-* 
+<img width="1394" height="972" alt="image" src="https://github.com/user-attachments/assets/55514951-9682-438a-8c9c-ce45b7cd28ab" />
 
+The above image illustrates a set of `Nodes` with different types of `Ports` - can you see how they might get connected? 
 
 # Evaluation / Execution
 
-Fabric executes nodes in similar fashion to Quartz Composer, with a 'pull' based invocation, traversing the graph and executing nodes upstream prior to themselves. 
+Fabric executes nodes in similar fashion to Quartz Composer, with 'pull' based evaluation and added to a list of ordered `Nodes` to execute
+
+`Consumer` `Nodes` are first are identified, and then any `Node` connected to its input `Ports` it is recursively is evaluated. Once we find the top most `Nodes`, we then evaluate those first, sending data down stream. 
+
+Generally speaking this means `Consumers` are connected to `Processors`, which are connected to `Providers`. 
+
+We then evaluate the `Providers`, then the `Processors`, and finally the `Consumers` , ensuring they have the data they need to execute correctly.
 
 # Differences to Quartz Composer
 
 * Image Processing - does not use Core Image - images have fixed extent, and are all presumed to be linear for GPU processing. Loading nodes are responsible for linearizing textures, and output rendering is responsible for color matching.
 * No virtual types just yet - Fabric arrays are typed (for now?) and thus require connecting to equivalent input and output types.
 * Additional types - Fabric introduces a few useful types, such a Vectors, Quaternions, and Matrices which are helpful for graphics programming.
-  
-# WIP
-* Port Publishing - not yet done
-* Type Casting - not yet done
-* Macro patches - right now WIP, but the goal is to be able to author and load sub-patches at a minimum. Not sure if we will follow for rendering environments just yet.
-* Iteration paradigm - unclear at the moment - we could use an iterator macro patch like QC, or enable a flat multi execution paradigm like Max with a aggregation node.
-* Rendering - today we manually create a flat graph which requires a camera node and a set of meshes as a scenes. We could unravel to a more QC paradigm where a base renderer renders meshes at the root level, however this would imply nesting much like Quartz Composer used to do (Render In Image > Camera > Fog) etc, which is cumbersome. Suggestions welcome.
