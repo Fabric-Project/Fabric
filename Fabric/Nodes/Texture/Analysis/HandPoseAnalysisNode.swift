@@ -28,12 +28,14 @@ public class HandPoseAnalysisNode: Node
         [
             ("inputImage", NodePort<EquatableTexture>(name: "Image", kind: .Inlet)),
             ("inputHandCount", ParameterPort(parameter: IntParameter("Hand Count", 1, 1, 16, .inputfield))),
+            ("outputHandPointsNormalized", NodePort<ContiguousArray<simd_float2>>(name: "Hand Point Normalized", kind: .Outlet)),
             ("outputHandPointsPixels", NodePort<ContiguousArray<simd_float2>>(name: "Hand Point Pixels", kind: .Outlet)),
             ("outputHandPointsUnits", NodePort<ContiguousArray<simd_float3>>(name: "Hand Points Units", kind: .Outlet)),
         ]
     }
 
     public var inputImage:NodePort<EquatableTexture>  { port(named: "inputImage") }
+    public var outputHandPointsNormalized:NodePort<ContiguousArray<simd_float2>> { port(named: "outputHandPointsNormalized") }
     public var outputHandPointsPixels:NodePort<ContiguousArray<simd_float2>> { port(named: "outputHandPointsPixels") }
     public var outputHandPointsUnits:NodePort<ContiguousArray<simd_float3>> { port(named: "outputHandPointsUnits") }
     
@@ -69,9 +71,11 @@ public class HandPoseAnalysisNode: Node
                let handPoints =  self.handPointsForRequest(request, from: inTex),
                let graphRenderer = context.graphRenderer
             {
+                var normalizedArray:ContiguousArray<simd_float2> = ContiguousArray<simd_float2>()
                 var pixelsArray:ContiguousArray<simd_float2> = ContiguousArray<simd_float2>()
                 var unitsArray:ContiguousArray<simd_float3> = ContiguousArray<simd_float3>()
                 
+                normalizedArray.reserveCapacity(21)
                 pixelsArray.reserveCapacity(21)
                 unitsArray.reserveCapacity(21)
                 
@@ -87,10 +91,12 @@ public class HandPoseAnalysisNode: Node
                     let ux = remap(position.x, 0.0, 1.0, -1.0, 1.0)
                     let uy = remap(position.y, 0.0, 1.0, -aspect, aspect)
                     
+                    normalizedArray.append(simd_float2( position.x, position.y) )
                     pixelsArray.append(simd_float2(x: px, y: py))
                     unitsArray.append(simd_float3(x: ux, y: uy, z: 0))
                 }
                 
+                self.outputHandPointsNormalized.send( normalizedArray )
                 self.outputHandPointsUnits.send( unitsArray )
                 self.outputHandPointsPixels.send( handPoints )
             }
@@ -134,12 +140,17 @@ public class HandPoseAnalysisNode: Node
                 
                 let allPoints: [VNRecognizedPointKey : VNRecognizedPoint] = try observation.recognizedPoints(forGroupKey: .all)
                 
-                var points:ContiguousArray<simd_float2> = ContiguousArray<simd_float2>()
-                points.reserveCapacity(21)
+                let sortedKeys = allPoints.keys.sorted { $0.rawValue < $1.rawValue }
 
-                for (_, point) in allPoints
+                var points = ContiguousArray<simd_float2>()
+                points.reserveCapacity(sortedKeys.count)
+
+                for key in sortedKeys
                 {
-                    points.append(simd_float2(Float(point.location.x), Float(point.location.y)))
+                    if let point = allPoints[key]
+                    {
+                        points.append(simd_float2(Float(point.location.x), Float(point.location.y)))
+                    }
                 }
                 
                 return points

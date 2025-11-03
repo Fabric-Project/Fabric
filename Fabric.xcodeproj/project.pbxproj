@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1B46BEA62EB472E800124BDA /* SwiftSimplify in Frameworks */ = {isa = PBXBuildFile; productRef = 1B46BEA52EB472E800124BDA /* SwiftSimplify */; };
 		1BB12B362E0234FC0075C276 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BB12B332E0234FC0075C276 /* Foundation.framework */; };
 		1BB12B372E0234FC0075C276 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BB12B342E0234FC0075C276 /* AVFoundation.framework */; };
 		1BB12B382E0234FC0075C276 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BB12B352E0234FC0075C276 /* CoreFoundation.framework */; };
@@ -94,6 +95,7 @@
 		1BC06A992E0231920019808C /* Exceptions for "Fabric" folder in "Fabric" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Compute,
 				Effects,
 				EffectsThreeChannel,
 				EffectsTwoChannel,
@@ -127,15 +129,18 @@
 				Nodes/Base/BaseEffectNode.swift,
 				Nodes/Base/BaseEffectThreeChannelNode.swift,
 				Nodes/Base/BaseEffectTwoChannelNode.swift,
+				Nodes/Base/BaseGeneratorNode.swift,
 				Nodes/Base/BaseGeometryNode.swift,
 				Nodes/Base/BaseMaterialNode.swift,
 				Nodes/Base/BaseObjectNode.swift,
 				Nodes/Base/BaseRenderableNode.swift,
+				Nodes/Base/BaseTextureComputeProcessorNode.swift,
 				Nodes/Geometry/BoxGeometryNode.swift,
 				Nodes/Geometry/CapsuleGeometryNode.swift,
 				Nodes/Geometry/CircleGeometryNode.swift,
 				Nodes/Geometry/ExtrudedTextGeometryNode.swift,
 				Nodes/Geometry/IcoSphereGeometryNode.swift,
+				Nodes/Geometry/PixelArrayToGeometryNode.swift,
 				Nodes/Geometry/PlaneGeometryNode.swift,
 				Nodes/Geometry/RoundRectGeometryNode.swift,
 				Nodes/Geometry/SphereGeometryNode.swift,
@@ -170,6 +175,8 @@
 				Nodes/Parameters/Array/ArrayHelperExtensions.swift,
 				Nodes/Parameters/Array/ArrayIndexValueNode.swift,
 				Nodes/Parameters/Array/ArrayQueueNode.swift,
+				Nodes/Parameters/Array/ArrayReplaceValueAtIndexNode.swift,
+				Nodes/Parameters/Array/PolyLineSimplifyNode.swift,
 				Nodes/Parameters/Boolean/BooleanLogicNode.swift,
 				Nodes/Parameters/Boolean/FalseNode.swift,
 				Nodes/Parameters/Boolean/LogicOperator.swift,
@@ -199,8 +206,10 @@
 				Nodes/Parameters/Vector/Vector2ToFloatNode.swift,
 				Nodes/Parameters/Vector/Vector3ToFloatNode.swift,
 				Nodes/Parameters/Vector/Vector4ToFloatNode.swift,
+				Nodes/Texture/Analysis/ContourPathNode.swift,
 				Nodes/Texture/Analysis/HandPoseAnalysisNode.swift,
 				Nodes/Texture/CameraProviderNode.swift,
+				Nodes/Texture/Distort/KeypointDistortNode.swift,
 				Nodes/Texture/ImageDimensions.swift,
 				Nodes/Texture/ImageProviderNode.swift,
 				Nodes/Texture/Mask/ForegroundMaskNode.swift,
@@ -212,6 +221,7 @@
 				Nodes/Utility/RenderInfoNode.swift,
 				Nodes/Utility/SampleAndHold.swift,
 				Nodes/Utility/UnitsoPixelsNode.swift,
+				Shaders,
 				Utils/AnyEncodable.swift,
 				Views/NodeRegisitryView.swift,
 				Views/Nodes/NodeCanvas.swift,
@@ -254,10 +264,12 @@
 				1BC06A992E0231920019808C /* Exceptions for "Fabric" folder in "Fabric" target */,
 			);
 			explicitFolders = (
+				Compute,
 				Effects,
 				EffectsThreeChannel,
 				EffectsTwoChannel,
 				Materials,
+				Shaders,
 			);
 			path = Fabric;
 			sourceTree = "<group>";
@@ -284,6 +296,7 @@
 				1BB12B372E0234FC0075C276 /* AVFoundation.framework in Frameworks */,
 				1BC06AF22E0233DC0019808C /* Noise in Frameworks */,
 				1BB12B362E0234FC0075C276 /* Foundation.framework in Frameworks */,
+				1B46BEA62EB472E800124BDA /* SwiftSimplify in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -380,6 +393,7 @@
 			packageProductDependencies = (
 				1BC06AF12E0233DC0019808C /* Noise */,
 				1BC06AF32E0233E00019808C /* AnyCodable */,
+				1B46BEA52EB472E800124BDA /* SwiftSimplify */,
 			);
 			productName = Fabric;
 			productReference = 1BC06A7F2E0231520019808C /* Fabric.framework */;
@@ -440,6 +454,7 @@
 			packageReferences = (
 				1BAC11632DE6615F008438BC /* XCRemoteSwiftPackageReference "swift-noise" */,
 				1B9ECA4F2DFBB2CB00D32B4C /* XCRemoteSwiftPackageReference "AnyCodable" */,
+				1B46BEA42EB472E800124BDA /* XCRemoteSwiftPackageReference "SwiftSimplify" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1BE007232DBB1FBC0061EAFD /* Products */;
@@ -831,6 +846,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		1B46BEA42EB472E800124BDA /* XCRemoteSwiftPackageReference "SwiftSimplify" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/vade/SwiftSimplify";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
 		1B9ECA4F2DFBB2CB00D32B4C /* XCRemoteSwiftPackageReference "AnyCodable" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/Flight-School/AnyCodable";
@@ -850,6 +873,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		1B46BEA52EB472E800124BDA /* SwiftSimplify */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B46BEA42EB472E800124BDA /* XCRemoteSwiftPackageReference "SwiftSimplify" */;
+			productName = SwiftSimplify;
+		};
 		1BC06AF12E0233DC0019808C /* Noise */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 1BAC11632DE6615F008438BC /* XCRemoteSwiftPackageReference "swift-noise" */;

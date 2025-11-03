@@ -1,5 +1,5 @@
 {
-  "originHash" : "7f68c930ba793fe7dc226ca31cbd895d48dcf160f6c4eded53d7c21e1927ab3d",
+  "originHash" : "afc0637f2c680094c512a9cbfb4a631e5ce0fdfcbce84b899ebde8d6757ab7ce",
   "pins" : [
     {
       "identity" : "anycodable",
@@ -35,6 +35,15 @@
       "state" : {
         "revision" : "d444d98aa32f022bf4a8e74b5a697c7ee856a6ad",
         "version" : "4.4.9"
+      }
+    },
+    {
+      "identity" : "swiftsimplify",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/vade/SwiftSimplify",
+      "state" : {
+        "branch" : "master",
+        "revision" : "1308781a5a8fdbe9511c8bf7649e7d5dd02a86ef"
       }
     }
   ],

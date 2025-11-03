@@ -34,7 +34,7 @@ public class BaseGeometryNode : Node
     open var geometry: Geometry {
         fatalError("Subclasses must override geometry")
     }
-    
+        
     public func evaluate(geometry:Geometry, atTime:TimeInterval) -> Bool
     {
         var shouldOutput = false
@@ -45,11 +45,6 @@ public class BaseGeometryNode : Node
             shouldOutput = true
         }
         
-        if self.isDirty
-        {
-            shouldOutput = true
-        }
-
         return shouldOutput
     }
     
@@ -63,7 +58,7 @@ public class BaseGeometryNode : Node
         }
     }
     
-    private func primitiveType() -> MTLPrimitiveType
+    internal func primitiveType() -> MTLPrimitiveType
     {
         switch self.inputPrimitiveType.value
         {

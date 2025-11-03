@@ -9,19 +9,16 @@
 #define SAMPLER_TYPE texture2d<half>
 
 #include "../../lygia/sampler.msl"
-#include "../../lygia/color/luminance.msl"
-#include "morphological/dilation.msl"
+
 typedef struct {
-    float threshold; // slider, 0.0, 1.0, 0.5, Threshold
+    int radius; // slider, 0, DILATION_MAX_RADIUS, 2, Radius
 } PostUniforms;
 
 fragment half4 postFragment( VertexData in [[stage_in]],
     constant PostUniforms &uniforms [[buffer( FragmentBufferMaterialUniforms )]],
     texture2d<half, access::sample> renderTex [[texture( FragmentTextureCustom0 )]] )
 {
-    half4 color = SAMPLER_FNC( renderTex, in.texcoord );
-    half luma = luminance(color);
-    half thresh = luma < uniforms.threshold ? 0.0 : 1.0;
-    
-    return half4( half3(thresh), color.a);
+    const float2 pixelScale = float2(1.0 / float(renderTex.get_width()), 1.0 / float(renderTex.get_height()) );
+
+    return dilation( renderTex, in.texcoord, pixelScale, uniforms.radius );
 }

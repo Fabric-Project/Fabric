@@ -14,7 +14,8 @@
 
 
 typedef struct {
-    float2 offset; // xypad, -10.0, 10.0, 1.0, Offset
+//    float2 offset; // xypad, -10.0, 10.0, 1.0, Offset
+    float2 offset; // input, 1.0, Offset
 } PostUniforms;
 
 

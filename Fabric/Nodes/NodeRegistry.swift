@@ -68,6 +68,7 @@ public class NodeRegistry {
 //        SkyboxGeometryNode.self,
         TesselatedTextGeometryNode.self,
         ExtrudedTextGeometryNode.self,
+        PixelArrayToGeometryNode.self,
         SuperShapeGeometryNode.self
     ]
         
@@ -91,6 +92,8 @@ public class NodeRegistry {
         ForegroundMaskNode.self,
         PersonSegmentationMaskNode.self,
         HandPoseAnalysisNode.self,
+        ContourPathNode.self,
+        KeypointDistortNode.self,
 //        BrightnessContrastImageNode.self,
 //        GaussianBlurImageNode.self,
     ]
@@ -111,17 +114,22 @@ public class NodeRegistry {
 
         for imageEffectType in Node.NodeType.ImageType.allCases
         {
-            let subDir = "Effects/\(imageEffectType.rawValue)"
-            let subDir2 = "EffectsTwoChannel/\(imageEffectType.rawValue)"
-            let subDir3 = "EffectsThreeChannel/\(imageEffectType.rawValue)"
+            let singleChannelEffects = "Effects/\(imageEffectType.rawValue)"
+            let twoChannelEffects = "EffectsTwoChannel/\(imageEffectType.rawValue)"
+            let threeChannelEffects = "EffectsThreeChannel/\(imageEffectType.rawValue)"
             
-            if let singleChannelEffects = bundle.urls(forResourcesWithExtension: "metal", subdirectory:subDir),
-               let twoChannelEffects = bundle.urls(forResourcesWithExtension: "metal", subdirectory:subDir2),
-               let threeChannelEffects = bundle.urls(forResourcesWithExtension: "metal", subdirectory:subDir3)
+            let computeSubdir = "Compute/\(imageEffectType.rawValue)"
+            
+            if
+               let singleChannelEffects = bundle.urls(forResourcesWithExtension: "metal", subdirectory:singleChannelEffects),
+               let twoChannelEffects = bundle.urls(forResourcesWithExtension: "metal", subdirectory:twoChannelEffects),
+               let threeChannelEffects = bundle.urls(forResourcesWithExtension: "metal", subdirectory:threeChannelEffects),
+               let singleChannelComputeEffects = bundle.urls(forResourcesWithExtension: "metal", subdirectory:computeSubdir)
             {
                 for fileURL in singleChannelEffects
                 {
-                    let node = NodeClassWrapper(nodeClass: BaseEffectNode.self,
+                    let baseClass = imageEffectType == .Generator ? BaseGeneratorNode.self : BaseEffectNode.self
+                    let node = NodeClassWrapper(nodeClass: baseClass,
                                                 nodeType: .Image(imageType: imageEffectType),
                                                 fileURL: fileURL,
                                                 nodeName:self.fileURLToName(fileURL: fileURL))
@@ -140,6 +148,15 @@ public class NodeRegistry {
                 for fileURL in threeChannelEffects
                 {
                     let node = NodeClassWrapper(nodeClass: BaseEffectThreeChannelNode.self,
+                                                nodeType: .Image(imageType: imageEffectType),
+                                                fileURL: fileURL,
+                                                nodeName:self.fileURLToName(fileURL: fileURL))
+                    nodes.append( node )
+                }
+                
+                for fileURL in singleChannelComputeEffects
+                {
+                    let node = NodeClassWrapper(nodeClass: BaseTextureComputeProcessorNode.self,
                                                 nodeType: .Image(imageType: imageEffectType),
                                                 fileURL: fileURL,
                                                 nodeName:self.fileURLToName(fileURL: fileURL))
@@ -170,6 +187,7 @@ public class NodeRegistry {
         ArrayIndexValueNode<Bool>.self,
         ArrayCountNode<Bool>.self,
         ArrayQueueNode<Bool>.self,
+        ArrayReplaceValueAtIndexNode<Bool>.self,
 
         // Number
         CurrentTimeNode.self,
@@ -186,6 +204,7 @@ public class NodeRegistry {
         ArrayIndexValueNode<Float>.self,
         ArrayCountNode<Float>.self,
         ArrayQueueNode<Float>.self,
+        ArrayReplaceValueAtIndexNode<Float>.self,
 
         // String
         TextFileLoaderNode.self,
@@ -196,6 +215,7 @@ public class NodeRegistry {
         ArrayIndexValueNode<String>.self,
         ArrayCountNode<String>.self,
         ArrayQueueNode<String>.self,
+        ArrayReplaceValueAtIndexNode<String>.self,
 
         // Vectors
         MakeVector2Node.self,
@@ -203,18 +223,22 @@ public class NodeRegistry {
         ArrayIndexValueNode<simd_float2>.self,
         ArrayCountNode<simd_float2>.self,
         ArrayQueueNode<simd_float2>.self,
+        ArrayReplaceValueAtIndexNode<simd_float2>.self,
+        PolyLineSimplifyNode.self,
         
         MakeVector3Node.self,
         Vector3ToFloatNode.self,
         ArrayIndexValueNode<simd_float3>.self,
         ArrayCountNode<simd_float3>.self,
         ArrayQueueNode<simd_float3>.self,
-        
+        ArrayReplaceValueAtIndexNode<simd_float3>.self,
+
         MakeVector4Node.self,
         Vector4ToFloatNode.self,
         ArrayIndexValueNode<simd_float4>.self,
         ArrayCountNode<simd_float4>.self,
         ArrayQueueNode<simd_float4>.self,
+        ArrayReplaceValueAtIndexNode<simd_float4>.self,
 
         ]
     
