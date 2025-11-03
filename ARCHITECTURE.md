@@ -1,16 +1,67 @@
 # Overview
 
-Fabric is built on top of Satin, a metal rendering engine that supports scene graphs of meshes, composed of materials and geometry. 
+### Nodes
 
-In Fabric, you work with Nodes, which represent certain functionality like computing a number, representing a material property, representing geometry, or rendering in to the scene 
+In Fabric, you primarily work with `Nodes`. 
 
-As such, Nodes in Fabric consist of "Objects" (think Meshes, Materials, Cameras) and "Parameters" (Numbers, Vectors, Strings) - roughly reference and value semantics.
-A Node has Ports, which represent inputs or outputs to the node and change its behaviour (what math is used to computer a number, what properties a material has, the shape, size of geometry, where its located in space)
+A `Node` is a visual representation of doing something useful (a function), like taking an input, processing it, and outputting it as a result. 
 
-Nodes may have Object Ports or Parameter ports, and are typically inputting many types of objects and parameters, and generally outputting a single type.
+Nodes come in 3 flavors - or `Execution Modes`:
 
-* Object ports are denoted by colors
+For example, a `Node` may compute a `Number` (Processor), load an `Image` (Provider), configure a `Material` and  `Geometry` (Processors) or render as a `Mesh` (Consumer).
+
+
+* `Producer` nodes - they output data, maybe an `Image` from a camera, a random `Number`, a `Color` etc.
+* `Processor` nodes, they both input and output data, doings something useful like Integrating a `Number` or smoothing a an `Array of Points`. 
+* `Consumer` nodes - they input data, and do something with it external to Fabric, like render a `Mesh` to the screen, putput `Strings` to the network, or save it `Images` disk  as a movie (etc).
+
+Below is an example of a `Graph` of `Nodes` (Nodes connected to one another) of 
+
+<img width="960" height="614" alt="Fabric" src="https://github.com/user-attachments/assets/44a51357-8209-44cf-920a-d33f92eb8f1a" />
+
+As you can see in the image above, `Nodes` have inputs and ouputs depending on what they do, and these are called `Ports`, and ports of the same type can be connected to one another to form a `Graph` and compute useful things. 
+
+You can peruse the complete set of Nodes Fabric supports in the code base, or get an overview via our [Nodes Reference](https://github.com/Fabric-Project/Fabric/blob/main/NODES.md)
+
+### Ports
+
+Ports in Fabric represent specific types of data a node can Produce, Process or Consume. 
+
+These ports are split into 2 types
+
+* Parameter Ports (Booleans, Indexes, Numbers, Vectors, Strings, Colors, Arrays)
+* Object Ports (Meshes, Materials, Geometry, Cameras, Lights, Environments)
+
+If you are a developer, this maps roughly value and reference semantics.
+
+Parameter Ports are named such because they also provide a user interface to configure the values, perhaps a number entry, a slider, a text entry field, etc. 
+
 * Parameter ports are gray
+* Object ports are denoted by colors
+
+Fabic supports an evolving set of data that a `Node` can output 
+
+## Port Data Types. 
+
+Parameters:
+- Bool (True False values)
+- Index (Integer values),
+- Number (Floating point values)
+- String (String values)
+- Vector 2, Vector 3, Vector 4 (Sets of 
+- Color (A wrapper for Vector 4, RGBA) 
+
+Objects:
+- Geometry (A set of buffers that work together to define how 
+- Material (a Vertex and Fragment Program that work with the graphcis engine)
+- Shader (A custom Fragment or Shader Program) used with a custom Material. 
+- Image (A Texture)
+
+
+* 
+
+
+# Evaluation / Execution
 
 Fabric executes nodes in similar fashion to Quartz Composer, with a 'pull' based invocation, traversing the graph and executing nodes upstream prior to themselves. 
 
