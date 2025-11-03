@@ -79,6 +79,11 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Video Provider (AVFoundation)
 - [x] Camera Provider (AVFoundation)
 
+### Generator
+
+- [x] FBM Noise
+- [x] Voronoise
+
 ### Color Adjust
 
 - [x] Brightness / Contrast / Saturation
@@ -336,9 +341,9 @@ Array nodes are implemented as Swift Generics, and can work with any of the abov
  - [x] Units to Pixels
  - [x] Pixels to Units
  - [ ] Mesh Hit Test
- - [ ] Frame Rate
+ - [x] Frame Rate
  - [x] Frame Counter
- - [ ] Log
+ - [x] Log
 
  
  
