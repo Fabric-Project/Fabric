@@ -1,107 +1,84 @@
-# Fabric
+# Overview
 
-Fabric is inspired by Apple's deprecated Quartz Composer ecosystem, and its design philosophy.
+### Nodes
 
-Fabric  and aims to
-* Provide a Visual Node based content authoring environent
-* Provide an SDK to load an common interchange format
-* Provide an SDK to add nodes via a plugin architecture
+In Fabric, you primarily work with `Nodes`. 
 
-Fabric is intended to be used as 
-* A Creative coding tool requires little to no programming experience.
-* Pro User tool to create reusable documents (similar to Quartz Composer Compositions) that can be loaded in the Fabric runtime and embedded into 3rd party applications.
-* Developer environment built on Satin that can render high fidelity visual output in a procedural way, using modern rendering techniques.
+A `Node` is a visual representation of doing something useful (a function), like taking an input, processing it, and outputting it as a result. 
 
-An early alpha of Satin rendering a instances of a sphere geometry, along with an HDRI environment and a PBR Shader at 120Hz:
+Nodes come in 3 flavors - or `Execution Modes`:
 
-<img width="2056" height="1329" alt="An early alpha of Satin rendering a instances of a sphere geometry, along with an HDRI environment and a PBR Shader at 120Hz" src="https://github.com/user-attachments/assets/17d86aab-9995-4ace-b627-ec69c5e7875b" />
-
-<!-- <img width="800" alt="Fabric" src="https://github.com/user-attachments/assets/0c0f3a88-5c22-4ad5-88cb-c05602b548a5" />
-<img width="800" alt="Fabric" src="https://github.com/user-attachments/assets/a649647a-a948-460c-827f-09b3fa6b1eee" /> -->
+For example, a `Node` may compute a `Number` (Processor), load an `Image` (Provider), configure a `Material` and  `Geometry` (Processors) or render as a `Mesh` (Consumer).
 
 
-## Credits
+* `Producer` nodes - they output data, maybe an `Image` from a camera, a random `Number`, a `Color` etc.
+* `Processor` nodes, they both input and output data, doings something useful like Integrating a `Number` or smoothing a an `Array of Points`. 
+* `Consumer` nodes - they input data, and do something with it external to Fabric, like render a `Mesh` to the screen, putput `Strings` to the network, or save it `Images` disk  as a movie (etc).
 
-Fabric is authored by by [Anton Marini](https://github.com/vade).
+Below is an example of a `Graph` of `Nodes` (Nodes connected to one another) of 
 
-Fabric uses Satin 3D engine [Satin rendering engine](https://github.com/Fabric-Project/Satin) written by @[Reza Ali](https://github.com/rezaali). 
+<img width="960" height="614" alt="Fabric" src="https://github.com/user-attachments/assets/44a51357-8209-44cf-920a-d33f92eb8f1a" />
 
-Fabric includes a licensed Metal port of [Lygia](https://lygia.xyz) shader library, powering Image effects and more, written by @[Patricio Gonzalez Vivo](https://github.com/patriciogonzalezvivo/) and contributors.
+As you can see in the image above, `Nodes` have inputs and ouputs depending on what they do, and these are called `Ports`, and ports of the same type can be connected to one another to form a `Graph` and compute useful things. 
 
-Fabric supports, thanks to Satin and Lygia, high fidelity modern rendering techniques including
+You can peruse the complete set of Nodes Fabric supports in the code base, or get an overview via our [Nodes Reference](https://github.com/Fabric-Project/Fabric/blob/main/NODES.md)
 
-- Physically based rendering
-- Scene graph
-- Lighting and Shadow casting
-- Realtime shader editing (live coding, hot reloading)
-- GPU Compute
-- Image Based Lighting
-- 3D Model Loading
-- Material System
-- ML based realtime segmentation and keypoint detection
-- Shader based Image Processing and Mixing
+### Ports
 
+`Ports` in Fabric represent specific types of data a `Node` can `Produce`, `Process` or `Consume`. 
 
+These ports are split into 2 types
 
-## Requirements
+* Parameter Ports
+* Object Ports 
 
-> [!WARNING]
-> Please note Fabric is heavily under construction.
-> Because Fabric is under heavy development, we do not provide a prebuilt binary just yet. 
+and can be 
+* Inlets ( takes data in )
+* Outlets ( outputs data )
 
+If you are a developer, this maps roughly value and reference semantics.
 
+Parameter Ports are named such because they also provide a user interface to configure the values, perhaps a number entry, a slider, a text entry field, in the Editor GUI. 
 
-- macOS 14 +
-- XCode 15 +
+* Parameter ports are gray
+* Object ports are denoted by colors
 
-1. Checkout Fabric and ensure you check out with submodules enabled, as Satin is a dependency.
-2. Open the XCode project
-3. Ensure that `Fabric Editor` is the active target.
-4. Build and run. 
+Fabic supports an evolving set of data that a `Node` can output 
 
-# Getting Started
+## Port Data Types. 
 
-Start by checking out our existing list of [Nodes](NODES.md) 
+Parameters (Grey):
+- Bool (True False values)
+- Index (Integer values),
+- Number (Floating point values)
+- String (String values)
+- Vector 2, Vector 3, Vector 4 (Sets of 
+- Color (A wrapper for Vector 4, RGBA) 
 
-> [!Important]
-> User guide, examples and walk throughs coming soon (help wanted!)
+Objects (Colored):
+- Geometry (A set of buffers that work together to define how 
+- Material (a Vertex and Fragment Program that work with the graphcis engine)
+- Shader (A custom Fragment or Shader Program) used with a custom Material. 
+- Image (A Texture)
 
-# Architecture
+A `Node` can have many different `Ports` of differing type, allowing you to connect and process data in many useful ways. 
 
-Checkout our [Architecture Document ](ARCHITECTURE.md)
+<img width="1394" height="972" alt="image" src="https://github.com/user-attachments/assets/55514951-9682-438a-8c9c-ce45b7cd28ab" />
 
-# Roadmap
+The above image illustrates a set of `Nodes` with different types of `Ports` - can you see how they might get connected? 
 
-Checkout our [Roadmap Document](ROADMAP.md)
+# Evaluation / Execution
 
-# Community
+Fabric executes nodes in similar fashion to Quartz Composer, with 'pull' based evaluation and added to a list of ordered `Nodes` to execute
 
-I ( [Anton Marini](https://github.com/vade) ) are looking to build a community of developers who long for the ease of use and interoperabilty of Quartz Composer, its ecosystem and plugin comminity. 
+`Consumer` `Nodes` are first are identified, and then any `Node` connected to its input `Ports` it is recursively is evaluated. Once we find the top most `Nodes`, we then evaluate those first, sending data down stream. 
 
-If you are interested in contributing, please do not hesitate to reach out / comment in the git repository.
+Generally speaking this means `Consumers` are connected to `Processors`, which are connected to `Providers`. 
 
-# FAQ
+We then evaluate the `Providers`, then the `Processors`, and finally the `Consumers` , ensuring they have the data they need to execute correctly.
 
-- Will Fabric ever be cross platform?
-  - No. Fabric is purpose built on top of Satin and aims to provide a best in class Apple platform experience using Metal.
+# Differences to Quartz Composer
 
-- What languages are used?
-  - Fabric Editor is written in Swift and SwiftUI. Satin is written in Swift and C++
-
-- Why not just use Vuo or Touch Designer or some other node based tool?
-  - I do not like them.
-  - Don't get me wrong, they are incredible tools, but they are not for me. 
-  - They do not think the way I think.
-  - They do not expose the layers of abstraction I want to work with.
-  - They do not provide the user experience I want.
-
-
-
-
-
-
-
-
-
-
-
+* Image Processing - does not use Core Image - images have fixed extent, and are all presumed to be linear for GPU processing. Loading nodes are responsible for linearizing textures, and output rendering is responsible for color matching.
+* No virtual types just yet - Fabric arrays are typed (for now?) and thus require connecting to equivalent input and output types.
+* Additional types - Fabric introduces a few useful types, such a Vectors, Quaternions, and Matrices which are helpful for graphics programming.
