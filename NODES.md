@@ -296,7 +296,8 @@ Array nodes are implemented as Swift Generics, and can work with any of the abov
 
 - [x] Queue
 - [x] Array Count
-- [x] Item at Index (Number for now)
+- [x] Item at Index
+- [x] Replace Item At Index
 - [ ] Multiplexer
 - [ ] Demultiplexer
 - [ ] Sort (? what does this mean for some types ?)
@@ -328,6 +329,7 @@ Array nodes are implemented as Swift Generics, and can work with any of the abov
 - [ ] Syphon Output
 - [ ] Artnet Input
 - [ ] Artnet Output
+- [ ] Depth Camera Input (Orbec / Kinect)
 
 ###  Info Nodes
  - [x] Rendering Destination Dimensions
