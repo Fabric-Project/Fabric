@@ -13,10 +13,10 @@
 
 
 typedef struct {
-    float3 iMin; // slider, 0.0, 2.0, 1.0, Input Min
-    float3 iMax; // slider, 0.0, 2.0, 1.0, Input Max
-    float3 oMin; // slider, 0.0, 2.0, 1.0, Output Min
-    float3 oMax; // slider, 0.0, 2.0, 1.0, Output Max
+    float3 iMin; // input, 0.0, Input Min
+    float3 iMax; // input, 1.0, Input Max
+    float3 oMin; // input, 0.0, Output Min
+    float3 oMax; // input, 1.0, Output Max
 } PostUniforms;
 
 fragment half4 postFragment( VertexData in [[stage_in]],
