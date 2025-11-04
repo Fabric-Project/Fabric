@@ -91,9 +91,9 @@ A list of Nodes (planned and implemented) for Fabric.
 - [ ] Color Polynomial
 - [x] White Balance
 - [x] Vibrance
-- [ ] Levels
-- [ ] Gamma
-- [ ] Exposure
+- [x] Levels
+- [x] Gamma
+- [x] Exposure
 - [ ] Channel Mixer
 - [ ] Channel Combine
 - [ ] Color Space To / From
