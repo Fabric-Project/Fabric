@@ -201,11 +201,12 @@ public class NodeRegistry {
         NumberRemapNode.self,
         NumberIntegralNode.self,
         GradientNoiseNode.self,
+        AudioSpectrumNode.self,
         ArrayIndexValueNode<Float>.self,
         ArrayCountNode<Float>.self,
         ArrayQueueNode<Float>.self,
         ArrayReplaceValueAtIndexNode<Float>.self,
-
+        
         // String
         TextFileLoaderNode.self,
         StringComponentNode.self,

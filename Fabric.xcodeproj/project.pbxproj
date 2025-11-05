@@ -182,6 +182,7 @@
 				Nodes/Parameters/Boolean/LogicOperator.swift,
 				Nodes/Parameters/Boolean/TrueNode.swift,
 				"Nodes/Parameters/Number/Audio Spectrum/AudioInput.swift",
+				"Nodes/Parameters/Number/Audio Spectrum/AudioSpectrumNode.swift",
 				"Nodes/Parameters/Number/Audio Spectrum/FFT.swift",
 				Nodes/Parameters/Number/CurrentTimeNode.swift,
 				Nodes/Parameters/Number/GradientNoiseNode.swift,
@@ -647,6 +648,7 @@
 				INFOPLIST_FILE = "Fabric Editor/Info.plist";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera Effects";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Microphone Effects";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -680,6 +682,7 @@
 				INFOPLIST_FILE = "Fabric Editor/Info.plist";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera Effects";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Microphone Effects";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

@@ -26,20 +26,19 @@ final class AudioInput: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
     var cancellables = Set<AnyCancellable>()
 
     public var context: Satin.Context?
-    public var texture: MTLTexture?
 
     public var windowTypes: [String] = ["Hanning-N", "Hanning-D", "Hamming", "Blackman", "None"]
     public var rmsTextureTypes: [String] = ["RMS", "RMS-Smoothed", "Normalized-Level", "Separate-Channel"]
 
     public lazy var inputs: [String] = getInputDeviceNames()
-    public lazy var input = StringParameter("Input", inputs.first!, inputs, .dropdown)
+    public lazy var input = StringParameter("Audio Device", inputs.first!, inputs, .dropdown)
     public lazy var rmsTextureType = StringParameter("RMS Texture", "rms-smoothed", rmsTextureTypes, .dropdown)
     public lazy var window = StringParameter("Spectrum Filter", "Blackman", windowTypes, .dropdown)
     public lazy var fftSmoothing = FloatParameter("Spectrum Smoothing", 0.975, .slider)
 
     public var max: Float = -Float.infinity
     public var min = Float.infinity
-
+    
     private enum CodingKeys: String, CodingKey {
         case input, window
     }
@@ -247,12 +246,14 @@ final class AudioInput: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
             }
 
             let numSamples = CMSampleBufferGetNumSamples(sampleBuffer)
+            
             if isPowerOfTwo(numSamples) {
                 if numberOfSamples != numSamples {
                     numberOfSamples = numSamples
                 }
             } else {
                 print("Number of samples is not a power of two: \(numSamples)")
+                return
             }
 
             guard numberOfSamples > 0 else { return }
@@ -281,14 +282,16 @@ final class AudioInput: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
             }
 
             for i in 0 ..< channels {
-                guard let dataPtr = abl[i].mData else {
-                    return
-                }
-                updateTexturePCM(dataPtr, i)
+//                guard let dataPtr = abl[i].mData else {
+//                    return
+//                }
+//                updateTexturePCM(dataPtr, i)
                 if ffts.count > i {
                     let fft = ffts[i]
                     fft.forward(audioBuffers[i])
-                    updateTextureFFT(fft.getSpectrum(), i)
+//                    fft.getSpectrum()
+                    
+//                    updateTextureFFT(fft.getSpectrum(), i)
                 }
             }
 
@@ -304,7 +307,7 @@ final class AudioInput: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
     func resize() {
         if numberOfSamples > 0, numberOfChannels > 0 {
             setupBuffers()
-            createAudioTexture()
+//            createAudioTexture()
             setupFFT()
         }
         resizeTexture = false
@@ -343,40 +346,40 @@ final class AudioInput: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
         }
     }
 
-    func createAudioTexture() {
-        guard let context else { return }
-
-        let descriptor = MTLTextureDescriptor()
-        descriptor.pixelFormat = .r32Float
-        descriptor.width = numberOfSamples
-        descriptor.height = numberOfChannels * 2
-        descriptor.depth = 1
-        descriptor.usage = .shaderRead
-
-        #if os(macOS)
-        descriptor.resourceOptions = .storageModeManaged
-        #else
-        descriptor.resourceOptions = .storageModeShared
-        #endif
-
-        descriptor.sampleCount = 1
-        descriptor.textureType = .type2D
-
-        guard let tmp = context.device.makeTexture(descriptor: descriptor) else {
-            print("Failed to create Audio Texture")
-            return
-        }
-        tmp.label = "Audio Texture"
-
-        let width = numberOfSamples
-        let height = numberOfChannels * 2
-        let bytesPerRow = MemoryLayout<Float>.size * width
-        let size = width * height
-        var data = [Float](repeating: 0.0, count: size)
-        tmp.replace(region: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0, withBytes: &data, bytesPerRow: bytesPerRow)
-
-        texture = tmp
-    }
+//    func createAudioTexture() {
+//        guard let context else { return }
+//
+//        let descriptor = MTLTextureDescriptor()
+//        descriptor.pixelFormat = .r32Float
+//        descriptor.width = numberOfSamples
+//        descriptor.height = numberOfChannels * 2
+//        descriptor.depth = 1
+//        descriptor.usage = .shaderRead
+//
+//        #if os(macOS)
+//        descriptor.resourceOptions = .storageModeManaged
+//        #else
+//        descriptor.resourceOptions = .storageModeShared
+//        #endif
+//
+//        descriptor.sampleCount = 1
+//        descriptor.textureType = .type2D
+//
+//        guard let tmp = context.device.makeTexture(descriptor: descriptor) else {
+//            print("Failed to create Audio Texture")
+//            return
+//        }
+//        tmp.label = "Audio Texture"
+//
+//        let width = numberOfSamples
+//        let height = numberOfChannels * 2
+//        let bytesPerRow = MemoryLayout<Float>.size * width
+//        let size = width * height
+//        var data = [Float](repeating: 0.0, count: size)
+//        tmp.replace(region: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0, withBytes: &data, bytesPerRow: bytesPerRow)
+//
+//        texture = tmp
+//    }
 
     deinit {
         audioBuffers = []
@@ -384,40 +387,41 @@ final class AudioInput: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
         stopCapture()
     }
 
-    func updateTexturePCM(_ amplitudes: UnsafeRawPointer, _ channel: Int) {
-        guard let texture = texture else {
-            return
-        }
+//    func updateTexturePCM(_ amplitudes: UnsafeRawPointer, _ channel: Int) {
+//        guard let texture = texture else {
+//            return
+//        }
+//
+//        let buffer = audioBuffers[channel]
+//
+//        if bytesPerSample == 4 {
+//            buffer.update(from: amplitudes.assumingMemoryBound(to: Float.self), count: numberOfSamples)
+//        } else if bytesPerSample == 2 {
+//            var factor = Float(Int16.max)
+//            vDSP_vflt16(amplitudes.assumingMemoryBound(to: Int16.self), 1, buffer, 1, vDSP_Length(numberOfSamples))
+//            vDSP_vsdiv(buffer, 1, &factor, buffer, 1, vDSP_Length(numberOfSamples))
+//        } else {
+//            print("Unable to convert data")
+//            return
+//        }
+//
+//        let region = MTLRegionMake2D(0, channel, numberOfSamples, 1)
+//        let floatSize = MemoryLayout<Float>.size
+//        let bytesPerRow = 1 * floatSize * numberOfSamples
+//        texture.replace(region: region, mipmapLevel: 0, withBytes: buffer, bytesPerRow: bytesPerRow)
+//    }
 
-        let buffer = audioBuffers[channel]
-
-        if bytesPerSample == 4 {
-            buffer.update(from: amplitudes.assumingMemoryBound(to: Float.self), count: numberOfSamples)
-        } else if bytesPerSample == 2 {
-            var factor = Float(Int16.max)
-            vDSP_vflt16(amplitudes.assumingMemoryBound(to: Int16.self), 1, buffer, 1, vDSP_Length(numberOfSamples))
-            vDSP_vsdiv(buffer, 1, &factor, buffer, 1, vDSP_Length(numberOfSamples))
-        } else {
-            print("Unable to convert data")
-            return
-        }
-
-        let region = MTLRegionMake2D(0, channel, numberOfSamples, 1)
-        let floatSize = MemoryLayout<Float>.size
-        let bytesPerRow = 1 * floatSize * numberOfSamples
-        texture.replace(region: region, mipmapLevel: 0, withBytes: buffer, bytesPerRow: bytesPerRow)
-    }
-
-    func updateTextureFFT(_ spectrum: [Float], _ channel: Int) {
-        if let texture = texture {
-            spectrum.withUnsafeBytes { spectrumPtr in
-                let region = MTLRegionMake2D(0, numberOfChannels + channel, numberOfSamplesHalf, 1)
-                let floatSize = MemoryLayout<Float>.size
-                let bytesPerRow = 1 * floatSize * numberOfSamplesHalf
-                texture.replace(region: region, mipmapLevel: 0, withBytes: spectrumPtr.baseAddress!, bytesPerRow: bytesPerRow)
-            }
-        }
-    }
+   
+//    func updateTextureFFT(_ spectrum: [Float], _ channel: Int) {
+//        if let texture = texture {
+//            spectrum.withUnsafeBytes { spectrumPtr in
+//                let region = MTLRegionMake2D(0, numberOfChannels + channel, numberOfSamplesHalf, 1)
+//                let floatSize = MemoryLayout<Float>.size
+//                let bytesPerRow = 1 * floatSize * numberOfSamplesHalf
+//                texture.replace(region: region, mipmapLevel: 0, withBytes: spectrumPtr.baseAddress!, bytesPerRow: bytesPerRow)
+//            }
+//        }
+//    }
 }
 
 #endif
