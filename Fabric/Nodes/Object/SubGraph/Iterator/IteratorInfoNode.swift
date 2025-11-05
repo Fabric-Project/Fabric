@@ -1,12 +1,9 @@
 //
-//  FloatAddNode.swift
+//  IteratorInfoNode.swift
 //  Fabric
 //
 //  Created by Anton Marini on 5/2/25.
 //
-
-import Foundation
-
 
 import Foundation
 import Satin
@@ -21,16 +18,18 @@ public class IteratorInfoNode : Node
     override public class var nodeDescription: String { "Reports information of the current iteration"}
 
     public override var isDirty:Bool { get {  true  } set { } }
-
-    private let startTime = Date.timeIntervalSinceReferenceDate
     
     // Ports
     public let outputProgress:NodePort<Float>
-    public override var ports: [Port] { [ outputProgress] + super.ports}
+    public let outputIndex:NodePort<Int>
+    public let outputIterationCount:NodePort<Int>
+    public override var ports: [Port] { [ outputProgress, outputIndex, outputIterationCount] + super.ports}
     
     public required init(context: Context)
     {
-        self.outputProgress =  NodePort<Float>(name: CurrentTimeNode.name , kind: .Outlet)
+        self.outputProgress =  NodePort<Float>(name: "Iterator Progress" , kind: .Outlet)
+        self.outputIndex =  NodePort<Int>(name: "Current Iteration" , kind: .Outlet)
+        self.outputIterationCount =  NodePort<Int>(name: "Number of Iterations" , kind: .Outlet)
 
         super.init(context: context)
     }
@@ -38,6 +37,8 @@ public class IteratorInfoNode : Node
     enum CodingKeys : String, CodingKey
     {
         case outputProgressPort
+        case outputIndexPort
+        case outputIterationCountPort
     }
     
     public override func encode(to encoder:Encoder) throws
@@ -45,7 +46,9 @@ public class IteratorInfoNode : Node
         var container = encoder.container(keyedBy: CodingKeys.self)
         
         try container.encode(self.outputProgress, forKey: .outputProgressPort)
-        
+        try container.encode(self.outputIndex, forKey: .outputIndexPort)
+        try container.encode(self.outputIterationCount, forKey: .outputIterationCountPort)
+
         try super.encode(to: encoder)
     }
     
@@ -54,7 +57,9 @@ public class IteratorInfoNode : Node
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
         self.outputProgress = try container.decode(NodePort<Float>.self, forKey: .outputProgressPort)
-        
+        self.outputIndex = try container.decode(NodePort<Int>.self, forKey: .outputIndexPort)
+        self.outputIterationCount = try container.decode(NodePort<Int>.self, forKey: .outputIterationCountPort)
+
         try super.init(from: decoder)
     }
     
@@ -67,6 +72,8 @@ public class IteratorInfoNode : Node
         {
 //            print("Iterator Info Sending Iteration Info for iteration \(iterationInfo.normalizedCurrentIteration)  \(iterationInfo.currentIteration) of \(iterationInfo.totalIterationCount) )")
             self.outputProgress.send( iterationInfo.normalizedCurrentIteration)
+            self.outputIndex.send( iterationInfo.currentIteration)
+            self.outputIterationCount.send( iterationInfo.totalIterationCount)
         }
         
     }

@@ -29,7 +29,7 @@ public class ArrayCountNode<Value : FabricPort & Equatable & FabricDescription> 
         return ports +
         [
             ("inputPort", NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet)),
-            ("outputPort", NodePort<Float>(name: "Count", kind: .Outlet)),
+            ("outputPort", NodePort<Int>(name: "Count", kind: .Outlet)),
         ]
     }
     
