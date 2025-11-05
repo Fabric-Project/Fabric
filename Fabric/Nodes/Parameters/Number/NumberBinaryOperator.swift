@@ -47,7 +47,7 @@ public class NumberBinaryOperator : Node
             stringParam.options = BinaryMathOperator.allCases.map(\.rawValue)
         }
     }
-    
+         
     public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)

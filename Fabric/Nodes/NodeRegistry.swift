@@ -206,7 +206,9 @@ public class NodeRegistry {
         ArrayCountNode<Float>.self,
         ArrayQueueNode<Float>.self,
         ArrayReplaceValueAtIndexNode<Float>.self,
-        
+        FloatArrayToVector2ArrayNode.self,
+        FloatArrayToVector3ArrayNode.self,
+
         // String
         TextFileLoaderNode.self,
         StringComponentNode.self,
