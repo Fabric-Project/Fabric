@@ -353,22 +353,20 @@ internal import AnyCodable
     }
      
     // MARK: -Rendering Helpers
-    private let consumerOrProviderTypes = [Node.ExecutionMode.Consumer, .Provider]
-
-    internal var consumerOrProviderNodes: [Node] = []
+    internal var consumerNodes: [Node] = []
     internal var sceneObjectNodes:[BaseObjectNode] = []
     internal var firstCamera:Camera? = nil
     
     func updateRenderingNodes()
     {
-        self.consumerOrProviderNodes = self.nodes.filter( { consumerOrProviderTypes.contains($0.nodeExecutionMode) } )
+        self.consumerNodes = self.nodes.filter( { $0.nodeExecutionMode == .Consumer } )
         
         self.firstCamera = self.getFirstCamera()
     }
     
     func getFirstCamera() -> Camera?
     {
-        let sceneObjectNodes:[BaseObjectNode] = self.consumerOrProviderNodes.compactMap({ $0 as? BaseObjectNode})
+        let sceneObjectNodes:[BaseObjectNode] = self.consumerNodes.compactMap({ $0 as? BaseObjectNode})
         let firstCameraNode = sceneObjectNodes.first(where: { $0.nodeType == .Object(objectType: .Camera)})
 
         return firstCameraNode?.getObject() as? Camera
