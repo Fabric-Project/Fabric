@@ -180,12 +180,16 @@ public class NodePort<Value : FabricPort>: Port
             self.connections.append(other)
         }
         
-        // We can't be published if we have an input connection...
-        // Output Ports can be published if connected.
-        if self.kind == .Inlet
-        {
-            self.published = false
-        }
+        // TODO = This isnt QUITE right...
+        
+//        // We can't be published if we have an input connection...
+//        // Output Ports can be published if connected.
+//        
+//        // So
+//        if self.kind == .Inlet
+//        {
+//            self.published = false
+//        }
         
         if let node = self.node,
            let otherNode = other.node
