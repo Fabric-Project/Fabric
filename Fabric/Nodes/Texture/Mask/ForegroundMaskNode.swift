@@ -16,7 +16,10 @@ public class ForegroundMaskNode: Node
 {
     override public class var name:String { "Foreground Mask" }
     override public class var nodeType:Node.NodeType { .Image(imageType: .Mask) }
-    
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+    override public class var nodeDescription: String { "Creates a mask from a the most foreground object in the image."}
+
     // Ports
     let inputTexturePort:NodePort<EquatableTexture>
     let outputTexturePort:NodePort<EquatableTexture>
@@ -83,9 +86,12 @@ public class ForegroundMaskNode: Node
         if self.inputTexturePort.valueDidChange
         {
             if let inTex = self.inputTexturePort.value?.texture,
-               let maskTex =  self.maskForRequest(VNGenerateForegroundInstanceMaskRequest(), from: inTex)
+               let (maskTex, flipped) =  self.maskForRequest(VNGenerateForegroundInstanceMaskRequest(), from: inTex)
             {
-                self.outputTexturePort.send( EquatableTexture(texture: maskTex) )
+             
+                var image = EquatableTexture(texture: maskTex)
+                image.isFlipped = flipped
+                self.outputTexturePort.send( image )
             }
             else
             {
@@ -94,7 +100,7 @@ public class ForegroundMaskNode: Node
         }
     }
     
-    private func maskForRequest(_ request: VNGenerateForegroundInstanceMaskRequest, from texture:MTLTexture,) -> MTLTexture?
+    private func maskForRequest(_ request: VNGenerateForegroundInstanceMaskRequest, from texture:MTLTexture,) -> (texture:MTLTexture, flipped:Bool)?
     {
         if let inputImage = CIImage(mtlTexture: texture)
         {
@@ -141,9 +147,10 @@ public class ForegroundMaskNode: Node
                                                                             0,
                                                                             &cvMask)
                     
-                    if success == kCVReturnSuccess, let cvMask
+                    if success == kCVReturnSuccess, let cvMask,
+                       let texture = CVMetalTextureGetTexture(cvMask)
                     {
-                        return CVMetalTextureGetTexture(cvMask)
+                        return ( texture:texture, flipped: CVMetalTextureIsFlipped(cvMask) )
                     }
                 }
             }

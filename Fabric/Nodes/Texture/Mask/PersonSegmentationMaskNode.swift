@@ -16,7 +16,10 @@ public class PersonSegmentationMaskNode: Node
 {
     override public class var name:String { "Person Segmentation Mask" }
     override public class var nodeType:Node.NodeType { .Image(imageType: .Mask) }
-    
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+    override public class var nodeDescription: String { "Creates a mask from a the most salient person in the image."}
+
     // Ports
     let inputTexturePort:NodePort<EquatableTexture>
     let outputTexturePort:NodePort<EquatableTexture>

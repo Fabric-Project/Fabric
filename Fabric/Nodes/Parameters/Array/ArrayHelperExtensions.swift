@@ -16,7 +16,7 @@ public protocol FabricDescription
 extension ContiguousArray : FabricDescription where Element : FabricDescription
 {
     public static var fabricDescription: String {
-        return "\(Element.self.fabricDescription) Array"
+        return "Array of \(Element.self.fabricDescription)s"
     }
     
 }

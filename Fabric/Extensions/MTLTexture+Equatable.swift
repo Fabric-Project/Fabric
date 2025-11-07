@@ -10,7 +10,8 @@ import Metal
 public struct EquatableTexture: Equatable
 {
     public let texture: MTLTexture
-
+    public var isFlipped:Bool = false
+    
     // TODO: Until we get a texture pool where we vend texture for effects
     // this should be true?
     // https://github.com/Fabric-Project/Fabric/issues/34

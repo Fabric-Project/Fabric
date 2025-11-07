@@ -13,14 +13,14 @@ import Metal
 
 public class BasicTextureMaterialNode : BasicColorMaterialNode
 {
-    public override class var name:String {  "Texture Material" }
+    public override class var name:String {  "Image Material" }
     override public class var nodeDescription: String { "Provides basic Image rendering"}
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
         
         return  [
-                    ("inputTexture", NodePort<EquatableTexture>(name: "Texture", kind: .Inlet) ),
+                    ("inputTexture", NodePort<EquatableTexture>(name: "Image", kind: .Inlet) ),
                 ] + ports
     }
     
@@ -39,6 +39,7 @@ public class BasicTextureMaterialNode : BasicColorMaterialNode
         if self.inputTexture.valueDidChange
         {
             self.material.texture =  self.inputTexture.value?.texture
+            self.material.flipped =  self.inputTexture.value?.isFlipped ?? false
             shouldOutput = true
         }
         

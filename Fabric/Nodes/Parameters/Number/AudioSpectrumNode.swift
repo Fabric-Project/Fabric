@@ -12,6 +12,7 @@ import AVFAudio
 import AVFoundation
 import Accelerate
 import CoreAudio
+import Dispatch
 
 public class AudioSpectrumNode : Node
 {
@@ -102,55 +103,62 @@ public class AudioSpectrumNode : Node
         }
 
         // Main entry: returns [0,1] per band
-        func processAudioData(buffer: AVAudioPCMBuffer) -> ContiguousArray<Float> {
-                guard let channelData = buffer.floatChannelData?[0] else {
-                    return ContiguousArray<Float>()
-                }
-
-                let n = Int(buffer.frameLength)
-                if work.count < n { work = .init(repeating: 0, count: n) }
-
-                // Precompute block-based smoothing coefficients
-                // (attack/release over one callback; simple, legible)
-                let hop = Float(n) / sampleRate
-                let a:Float = 1 - expf(-hop / max(attackMS * 0.001, 1e-12))
-                let r:Float = 1 - expf(-hop / max(releaseMS * 0.001, 1e-12))
-
-                var out = ContiguousArray<Float>(repeating: 0, count: bandCount)
-
-                for k in 0..<bandCount {
-                    // --- filter pass (unchanged) ---
-                    var zz1 = z1[k], zz2 = z2[k]
-                    let b0k = b0[k], b1k = b1[k], b2k = b2[k], a1k = a1[k], a2k = a2[k]
-
-                    for i in 0..<n {
-                        let x = channelData[i]
-                        let y = b0k * x + zz1
-                        zz1 = b1k * x - a1k * y + zz2
-                        zz2 = b2k * x - a2k * y
-                        work[i] = y
-                    }
-                    z1[k] = zz1; z2[k] = zz2
-
-                    // --- energy measure (unchanged) ---
-                    var rms: Float = 0
-                    vDSP_rmsqv(work, 1, &rms, vDSP_Length(n))
-                    var db = 20.0 * log10f(max(rms, 1e-12))
-                    if db < dbFloor { db = dbFloor }
-                    let norm = min(max((db - dbFloor) / (0 - dbFloor), 0), 1)
-
-                    // --- envelope with separate attack/release ---
-                    let ePrev = env[k]
-                    let e = (norm > ePrev)
-                        ? ePrev + a * (norm - ePrev)    // faster rise
-                        : ePrev + r * (norm - ePrev)    // slower fall
-                    env[k] = e
-
-                    out[k] = e
-                }
-
-                return out
+        func processAudioData(buffer: AVAudioPCMBuffer) -> ContiguousArray<Float>
+        {
+            guard let channelData = buffer.floatChannelData?[0] else {
+                return ContiguousArray<Float>()
             }
+            
+            let n = Int(buffer.frameLength)
+            if work.count < n { work = .init(repeating: 0, count: n) }
+            
+            // Precompute block-based smoothing coefficients
+            // (attack/release over one callback; simple, legible)
+            let hop = Float(n) / sampleRate
+            let a:Float = 1 - expf(-hop / max(attackMS * 0.001, 1e-12))
+            let r:Float = 1 - expf(-hop / max(releaseMS * 0.001, 1e-12))
+            
+            var out = ContiguousArray<Float>(repeating: 0, count: bandCount)
+            
+            for k in 0 ..< bandCount
+            {
+                // --- filter pass (unchanged) ---
+                var zz1 = z1[k], zz2 = z2[k]
+                let b0k = b0[k], b1k = b1[k], b2k = b2[k], a1k = a1[k], a2k = a2[k]
+                
+                for i in 0 ..< n
+                {
+                    let x = channelData[i]
+                    let y = b0k * x + zz1
+                    zz1 = b1k * x - a1k * y + zz2
+                    zz2 = b2k * x - a2k * y
+                    work[i] = y
+                }
+                
+                z1[k] = zz1; z2[k] = zz2
+                
+                // --- energy measure (unchanged) ---
+                var rms: Float = 0
+                vDSP_rmsqv(work, 1, &rms, vDSP_Length(n))
+                var db = 20.0 * log10f(max(rms, 1e-12))
+                if db < dbFloor { db = dbFloor }
+                var norm = min(max((db - dbFloor) / (0 - dbFloor), 0), 1)
+                
+                // Attempt to normalize low end ? this is wrong
+//                norm = norm * Float(bandCount - k) / Float(bandCount)
+                
+                // --- envelope with separate attack/release ---
+                let ePrev = env[k]
+                let e = (norm > ePrev)
+                ? ePrev + ( a * (norm - ePrev) )    // faster rise
+                : ePrev + ( r * (norm - ePrev) )   // slower fall
+
+                env[k] = e
+                out[k] = e
+            }
+            
+            return out
+        }
     }
 
     
@@ -167,18 +175,21 @@ public class AudioSpectrumNode : Node
         return ports +
         [
             ("inputAudioDevice", ParameterPort(parameter: StringParameter("Device Name", "", .dropdown))),
-            ("inputDecimation", ParameterPort(parameter: IntParameter("Decimation", 8, 1, 128, .inputfield))),
-            ("inputSmoothing", ParameterPort(parameter: FloatParameter("Smoothing", 0.5, 0.0, 1.0, .slider))),
+            ("inputBands", ParameterPort(parameter: IntParameter("Bands", 8, 1, 256, .inputfield))),
+            ("inputSmoothing", ParameterPort(parameter: FloatParameter("Smoothing", 0.0, 0.0, 1.0, .slider))),
+            ("inputAttack", ParameterPort(parameter: FloatParameter("Attack", 0.0, 0.0, 100.0, .slider))),
+            ("inputRelease", ParameterPort(parameter: FloatParameter("Release", 0.0, 0.0, 100.0, .slider))),
             ("outputSpectrum", NodePort<ContiguousArray<Float>>(name: NumberNode.name , kind: .Outlet)),
         ]
     }
     
     public var inputAudioDevice:ParameterPort<String> { port(named: "inputAudioDevice") }
-    public var inputDecimation:ParameterPort<Int> { port(named: "inputDecimation") }
+    public var inputBands:ParameterPort<Int> { port(named: "inputBands") }
     public var inputSmoothing:ParameterPort<Float> { port(named: "inputSmoothing") }
+    public var inputAttack:ParameterPort<Float> { port(named: "inputAttack") }
+    public var inputRelease:ParameterPort<Float> { port(named: "inputRelease") }
     public var outputSpectrum:NodePort<ContiguousArray<Float>> { port(named: "outputSpectrum") }
 
-    
     private var engine = AVAudioEngine()
     private var inputNode: AVAudioInputNode? = nil
     
@@ -209,56 +220,90 @@ public class AudioSpectrumNode : Node
             case .restricted: // The user can't grant access due to restrictions.
                 print("Restricted from Granting Mic Access")
                 return
+        @unknown default:
+            print("Restricted from Granting Mic Access")
         }
     }
     
     override public func execute(context: GraphExecutionContext, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: any MTLCommandBuffer)
     {
         
-//        if self.inputSmoothing.valueDidChange,
-//           let smoothing = self.inputSmoothing.value
-//        {
-//            self.smoothing = smoothing
-//        }
-//        
-//        if self.inputDecimation.valueDidChange,
-//           let decimation = self.inputDecimation.value
-//        {
-//            self.decimation = decimation
-//        }
+        if self.inputSmoothing.valueDidChange || self.inputBands.valueDidChange,
+           let smoothing = self.inputSmoothing.value,
+           let bands = self.inputBands.value
+        {
+            
+            self.smoothing = smoothing
+            self.bands = bands
+            
+            self.processingQueue.sync { [weak self] in
+                
+                self?.filterBank = nil
+            }
+        }
+        
+        if self.inputAttack.valueDidChange || self.inputRelease.valueDidChange,
+           let attack = self.inputAttack.value,
+           let release = self.inputRelease.value
+        {
+            self.processingQueue.sync { [weak self] in
+                self?.filterBank?.attackMS = attack
+                self?.filterBank?.releaseMS = release
+            }
+        }
         
         let output = ContiguousArray<Float>(self.fftMagnitudes)
         self.outputSpectrum.send( output )
-        
     }
     
-    static let sampleCount = 1024
-    static let sampleCountHalf = AudioSpectrumNode.sampleCount / 2
-
     var fftMagnitudes = ContiguousArray<Float>()
 
-    let filterBank = SimpleFilterBank(sampleRate: 48000,
-                                      bandCount: 128,
-                                      fMin: 33.0,
-                                      fMax: 22_000.0,
-                                      Q: 32,
-                                      dbFloor: -120
-    )
+    let processingQueue = dispatch_queue_t(label: "audionode.audioprocessingqueue", qos: .userInteractive)
+    
+    var filterBank:SimpleFilterBank? = nil
+    
+    private var bands:Int = 8
+    private var smoothing:Float = 0.0
+    
+    func createFilterBank(sampleRate:Double, bandCount:Int, normalizedSmoothing:Float)
+    {
+        // No idea about this q calc?
+        let q = remap(normalizedSmoothing, 1.0, 0.0, 1.0, Float(bandCount) )
+        
+        self.filterBank = SimpleFilterBank(sampleRate: sampleRate,
+                                           bandCount: bandCount,
+                                           fMin: 33.0,
+                                           fMax: 22_000.0,
+                                           Q: q,
+                                           dbFloor: -120.0)
+    }
     
     func processAudioData(buffer: AVAudioPCMBuffer)
     {
-        let output = self.filterBank.processAudioData(buffer: buffer)
+        let sampleRate = buffer.format.sampleRate
         
-        DispatchQueue.main.async {
-            self.fftMagnitudes = output
+        self.processingQueue.async { [weak self] in
+            
+            guard let self else { return }
+            
+            if self.filterBank == nil
+            {
+                self.createFilterBank(sampleRate:sampleRate, bandCount: self.bands, normalizedSmoothing: self.smoothing)
+            }
+            
+            guard let filterBank else { return }
+            
+            let output = filterBank.processAudioData(buffer: buffer)
+            DispatchQueue.main.async {
+                self.fftMagnitudes = output
+            }
         }
     }
     
     private func setupAudioShit()
     {
         do
-        {//            vDSP_blkman_window(&window, vDSP_Length(1024), 0)
-            
+        {
             let inputNode = self.engine.inputNode
             
             if inputNode.inputFormat(forBus: 0).sampleRate == 0 {
@@ -269,7 +314,7 @@ public class AudioSpectrumNode : Node
 
             print(inputNode)
 
-            inputNode.installTap(onBus: 0, bufferSize: AVAudioFrameCount(AudioSpectrumNode.sampleCount), format: recordingFormat) { (buffer, time) in
+            inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { (buffer, time) in
                 self.processAudioData(buffer: buffer)
             }
 

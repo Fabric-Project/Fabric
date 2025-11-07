@@ -96,7 +96,8 @@ public class GraphRenderer : MetalViewRenderer
                         executionContext:GraphExecutionContext,
                         renderPassDescriptor: MTLRenderPassDescriptor,
                         commandBuffer:MTLCommandBuffer,
-                        clearFlags:Bool = true
+                        clearFlags:Bool = true,
+                        forceEvaluationForTheseNodes:[Node] = [ ]
         )
     {
         defer {
@@ -109,21 +110,22 @@ public class GraphRenderer : MetalViewRenderer
         var nodesWeHaveExecutedThisPass:[Node] = []
 
         // This is fucking horrible:
-        let consumerOrProviderNodes = graph.consumerOrProviderNodes
-        
+        let nodesToPullFrom = graph.consumerNodes + forceEvaluationForTheseNodes
+         
         // This is fucking horrible:
         let firstCamera = graph.firstCamera ?? self.cachedCamera ?? self.defaultCamera
         
-        if !consumerOrProviderNodes.isEmpty
+        if !nodesToPullFrom.isEmpty
         {
-            for pullNode in consumerOrProviderNodes
+            for pullNode in nodesToPullFrom
             {
                 let _ = processGraph(graph:graph,
                                      node: pullNode,
                                      executionContext:executionContext,
                                      renderPassDescriptor: renderPassDescriptor,
                                      commandBuffer: commandBuffer,
-                                     nodesWeHaveExecutedThisPass:&nodesWeHaveExecutedThisPass)
+                                     nodesWeHaveExecutedThisPass:&nodesWeHaveExecutedThisPass,
+                clearFlags: clearFlags)
             }
             
             self.cachedCamera = firstCamera
@@ -135,7 +137,8 @@ public class GraphRenderer : MetalViewRenderer
                               executionContext:GraphExecutionContext,
                               renderPassDescriptor: MTLRenderPassDescriptor,
                               commandBuffer: MTLCommandBuffer,
-                              nodesWeHaveExecutedThisPass:inout  [Node]
+                              nodesWeHaveExecutedThisPass:inout  [Node],
+                              clearFlags:Bool = true
                               )
     {
         
@@ -158,7 +161,7 @@ public class GraphRenderer : MetalViewRenderer
             node.resize(size: self.renderer.size, scaleFactor: resizeScaleFactor)
         }
         
-        if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider
+        if true //node.isDirty || node.nodeExecutionMode == .Consumer // || node.nodeExecutionMode == .Provider
         {
             // This ensures if a node always is marked as dirty (like some nodes) we only execute once per pass
             if !nodesWeHaveExecutedThisPass.contains(node)
@@ -169,7 +172,10 @@ public class GraphRenderer : MetalViewRenderer
                 
                 nodesWeHaveExecutedThisPass.append(node)
                 
-                node.markClean()
+                if clearFlags
+                {
+                    node.markClean()
+                }
             }
 //            else
 //            {

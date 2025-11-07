@@ -110,7 +110,10 @@ final class SubgraphIteratorRenderable: Satin.Renderable
             graphContext.graphRenderer?.execute(graph: subGraph,
                                                 executionContext: graphContext,
                                                 renderPassDescriptor:currentRenderPass,
-                                                commandBuffer: currentCommandBuffer)
+                                                commandBuffer: currentCommandBuffer,
+                                                // Woof
+                                                clearFlags: false,
+                                                forceEvaluationForTheseNodes: subGraph.nodes)
                         
             for r in renderableChildren
             {
@@ -234,8 +237,8 @@ final class SubgraphIteratorRenderable: Satin.Renderable
                  commandBuffer: any MTLCommandBuffer)
     {
 
-        guard let subGraph
-//              let graphContext,
+        guard let subGraph,
+              let graphContext
 //              let updateCamera,
 //              let updateViewport,
 //              let updateIndex,
@@ -245,11 +248,13 @@ final class SubgraphIteratorRenderable: Satin.Renderable
                 
                 
         // execute the graph once, to just ensure meshes / materials have latest values popogated to nodes
-//        self.subGraph.recursiveMarkDirty()
-        let _ = context.graphRenderer?.execute(graph: subGraph,
-                                               executionContext: context,
-                                               renderPassDescriptor:renderPassDescriptor ,
-                                               commandBuffer: commandBuffer, clearFlags: false)
+////        self.subGraph.recursiveMarkDirty()
+//        let _ = graphContext.graphRenderer?.execute(graph: subGraph,
+//                                               executionContext: context,
+//                                               renderPassDescriptor:renderPassDescriptor ,
+//                                                    commandBuffer: commandBuffer, clearFlags: false,
+//                                                    // Woof
+//                                                    forceEvaluationForTheseNodes: subGraph.nodes)
 
     }
 }
