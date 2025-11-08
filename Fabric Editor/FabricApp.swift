@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Fabric
+import AppKit
 
 
 
@@ -26,6 +27,28 @@ struct FabricApp: App {
                     file.document.closeOutputWindow()
                 }
                 
+        }
+        .commands {
+            AboutCommands()
+        }
+        
+        Window("About Fabric Editor", id: "about") {
+            AboutView()
+        }
+        .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentSize)
+        .defaultPosition(.center)
+    }
+}
+
+struct AboutCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
+    
+    var body: some Commands {
+        CommandGroup(replacing: .appInfo) {
+            Button("About Fabric Editor") {
+                openWindow(id: "about")
+            }
         }
     }
 }
