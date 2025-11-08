@@ -99,6 +99,7 @@
 				Effects,
 				EffectsThreeChannel,
 				EffectsTwoChannel,
+				"Extensions/Array-SafeGet.swift",
 				Extensions/CGAffineTransform.swift,
 				Extensions/CGPoint.swift,
 				Extensions/CGRect.swift,
