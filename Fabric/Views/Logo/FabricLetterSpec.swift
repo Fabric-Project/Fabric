@@ -1,3 +1,10 @@
+//
+//  FabricLetterSpec.swift
+//  Fabric
+//
+//  Created by Toby Harris on 11/8/25.
+//
+
 import Foundation
 
 /// Specification describing how to render a single letter in the Fabric logo.

@@ -1,7 +1,14 @@
+//
+//  FabricLogoView.swift
+//  Fabric
+//
+//  Created by Toby Harris on 11/8/25.
+//
+
 import SwiftUI
 
 /// An item within a column that is either a rendered node or an intentional gap.
-enum FabricColumnItem {
+public enum FabricColumnItem {
     case gap
     case node
 }
@@ -15,17 +22,17 @@ extension FabricColumnItem {
 }
 
 /// Collection of column items representing a vertical stack for a glyph column.
-struct FabricColumn {
+public struct FabricColumn {
     var items: [FabricColumnItem]
 }
 
 /// Describes a connector line joining index positions between two columns.
-struct FabricConnector {
+public struct FabricConnector {
     var leftIndex: Int
     var rightIndex: Int
 }
 
-struct FabricLogoView: View {
+public struct FabricLogoView: View {
     var spacing: CGFloat = 0.5
     var cornerRadiusRatio: CGFloat = 0.2
     var letterSpacingHoriz: CGFloat = 0.2
@@ -36,6 +43,26 @@ struct FabricLogoView: View {
     var showEdgeConnectors: Bool = true
 
     private var singleColumnFillRatio: CGFloat { 1.0 }
+    
+    public init(
+        spacing: CGFloat = 0.5,
+        cornerRadiusRatio: CGFloat = 0.2,
+        letterSpacingHoriz: CGFloat = 0.2,
+        letterSpacingVert: CGFloat = 0.2,
+        aspectRatio: CGFloat = 0.125,
+        spacingBetweenNodesOnly: Bool = true,
+        showInterLetterConnector: Bool = true,
+        showEdgeConnectors: Bool = true
+    ) {
+        self.spacing = spacing
+        self.cornerRadiusRatio = cornerRadiusRatio
+        self.letterSpacingHoriz = letterSpacingHoriz
+        self.letterSpacingVert = letterSpacingVert
+        self.aspectRatio = aspectRatio
+        self.spacingBetweenNodesOnly = spacingBetweenNodesOnly
+        self.showInterLetterConnector = showInterLetterConnector
+        self.showEdgeConnectors = showEdgeConnectors
+    }
 
     #if os(macOS)
     private var backgroundColor: Color { Color(nsColor: .windowBackgroundColor) }
@@ -44,7 +71,7 @@ struct FabricLogoView: View {
     #endif
     private var nodeColor: Color { .black }
 
-    var body: some View {
+    public var body: some View {
         GeometryReader { geometry in
             lettersView(in: geometry.size)
         }
