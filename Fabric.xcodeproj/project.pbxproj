@@ -224,6 +224,8 @@
 				Nodes/Utility/UnitsoPixelsNode.swift,
 				Shaders,
 				Utils/AnyEncodable.swift,
+				Views/Logo/FabricLetterSpec.swift,
+				Views/Logo/FabricLogoView.swift,
 				Views/NodeRegisitryView.swift,
 				Views/Nodes/NodeCanvas.swift,
 				Views/Nodes/NodeCanvasUserActivityMonitor.swift,
