@@ -11,7 +11,7 @@ import Fabric
 struct AboutView: View {
     var body: some View {
         VStack(spacing: 20) {
-            FabricLogoView()
+            FabricLogoView(horizontalPadding: 1.0)
                 .frame(height: 60)
                 .padding([.top], 20)
             

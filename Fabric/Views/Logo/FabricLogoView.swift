@@ -41,6 +41,7 @@ public struct FabricLogoView: View {
     var spacingBetweenNodesOnly: Bool = true
     var showInterLetterConnector: Bool = true
     var showEdgeConnectors: Bool = true
+    var horizontalPadding: CGFloat = 0.0
 
     private var singleColumnFillRatio: CGFloat { 1.0 }
     
@@ -52,7 +53,8 @@ public struct FabricLogoView: View {
         aspectRatio: CGFloat = 0.125,
         spacingBetweenNodesOnly: Bool = true,
         showInterLetterConnector: Bool = true,
-        showEdgeConnectors: Bool = true
+        showEdgeConnectors: Bool = true,
+        horizontalPadding: CGFloat = 0.0
     ) {
         self.spacing = spacing
         self.cornerRadiusRatio = cornerRadiusRatio
@@ -62,6 +64,7 @@ public struct FabricLogoView: View {
         self.spacingBetweenNodesOnly = spacingBetweenNodesOnly
         self.showInterLetterConnector = showInterLetterConnector
         self.showEdgeConnectors = showEdgeConnectors
+        self.horizontalPadding = horizontalPadding
     }
 
     #if os(macOS)
@@ -109,7 +112,11 @@ public struct FabricLogoView: View {
         let averageWidthUnits = widthUnitsSum / letterCount
         let letterSpacingRatio = spacing
         let totalSpacingUnits = letterSpacingRatio * averageWidthUnits * CGFloat(max(letters.count - 1, 0))
-        let denominator = widthUnitsSum + totalSpacingUnits
+        
+        // Account for horizontal padding in width calculation
+        // Padding is expressed as multiples of a two-column letter width
+        let paddingUnits = horizontalPadding * 2 * (2 + columnSpacingRatio)
+        let denominator = widthUnitsSum + totalSpacingUnits + paddingUnits
         let scale = denominator > 0 ? size.width / denominator : 0
 
         let columnSpacingValue = columnSpacingRatio * scale
@@ -118,10 +125,12 @@ public struct FabricLogoView: View {
             scale * metric.widthUnits + (metric.hasRightColumn ? columnSpacingValue : 0)
         }
 
-        let desiredHeight = size.width * aspectRatio
-        let contentHeight = min(size.height, max(0, desiredHeight))
         let totalLetterSpacing = letterSpacingValue * CGFloat(max(letters.count - 1, 0))
         let contentWidth = letterWidths.reduce(0, +) + totalLetterSpacing
+        
+        // Calculate height based on content width only, not including padding
+        let desiredHeight = contentWidth * aspectRatio
+        let contentHeight = min(size.height, max(0, desiredHeight))
 
         return LayoutMetrics(scale: scale,
                              letterWidths: letterWidths,
@@ -142,7 +151,10 @@ public struct FabricLogoView: View {
         let letters = FabricLetterSpec.all
         let layout = layoutMetrics(for: letters, available: size)
         let letterHeight = layout.contentHeight
-        let edgeMargin = showEdgeConnectors ? max(layout.letterSpacing, layout.scale) : 0
+        // Calculate edge margin: base connector space plus optional horizontal padding
+        let baseEdgeMargin = showEdgeConnectors ? max(layout.letterSpacing, layout.scale) : 0
+        let paddingWidth = horizontalPadding * (layout.scale * 2 + layout.columnSpacing)
+        let edgeMargin = baseEdgeMargin + paddingWidth
         let totalWidth = layout.contentWidth + edgeMargin * 2
         let geometries = letterGeometries(for: letters,
                                           layout: layout,
