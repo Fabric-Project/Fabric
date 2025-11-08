@@ -45,9 +45,9 @@ public class ArrayIndexValueNode<Value : FabricPort & Equatable & FabricDescript
         {
             let index = max( 0, index )
             
-            if let array = self.inputPort.value
+            if let array = self.inputPort.value,
+               let val = array.safeGet(index: index)
             {
-                let val = array[index]
                 self.outputPort.send( val )
             }
             
