@@ -125,12 +125,32 @@ import Combine
             let port = anyport.base
             
             self.registry.register(port, name: snap.name, owner: self)
+        }
+        
+        // lets try to merge if we have any ports we deserialized
+        // that our node should have registered (ie diff)
+        let declared = Self.registerPorts(context: context)
+
+        for d in declared
+        {
+            if let _ = self.registry.port(named: d.name)
+            {
+                continue
+            }
+            else
+            {
+                self.registry.register(d.port, name: d.name, owner: self)
+            }
+        }
+   
+        
+        for port in self.registry.all()
+        {
             if let param = port.parameter
             {
                 self.parameterGroup.append(param)
             }
         }
-   
         self.synchronizeParameters()
         
         for port in self.ports
