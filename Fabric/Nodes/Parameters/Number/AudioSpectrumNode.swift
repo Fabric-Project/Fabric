@@ -16,41 +16,38 @@ import Dispatch
 
 public class AudioSpectrumNode : Node
 {
-
     final class SimpleFilterBank {
         // ---- Config ----
         var sampleRate: Float
         var bandCount: Int
         var fMin: Float
         var fMax: Float
-        var Q: Float              // constant-Q feel (tweak if you like)
-        var dbFloor: Float        // normalize floor
-        
-        // Add per-band envelope state (0..1)
-         private var env = [Float]()
+        var Q: Float = 4.3
+        var dbFloor: Float = -80.0
 
-         // User knobs for feel (milliseconds)
-         var attackMS: Float = 0
-         var releaseMS: Float = 0
-        
-        
-        // ---- Biquad coeffs per band (a0 normalized out; we store a1,a2 already divided) ----
-        private var b0 = [Float]()
-        private var b1 = [Float]()
-        private var b2 = [Float]()
-        private var a1 = [Float]()
-        private var a2 = [Float]()
+        // Optional perceptual weighting
+        var useAWeighting: Bool = true
 
-        // ---- Filter state (DF2T) per band ----
-        private var z1 = [Float]()
-        private var z2 = [Float]()
+        // ---- Coeffs/state per band ----
+        private var b0 = [Float](), b1 = [Float](), b2 = [Float](), a1 = [Float](), a2 = [Float]()
+        private var z1 = [Float](), z2 = [Float]()
 
-        // ---- Scratch buffer for filtered block ----
+        // ---- New: per-band metadata/corrections ----
+        private var fc = [Float]()                 // center frequency per band
+        private var gainCorrection = [Float]()     // ≈ sqrt(Q / fc) to flatten low-end bias
+        private var weightCorrection = [Float]()   // optional A-weighting (linear gain)
+
+        // ---- Envelope ----
+        private var env = [Float]()
+        var attackMS: Float = 10
+        var releaseMS: Float = 200
+
+        // ---- Scratch ----
         private var work = [Float]()
 
         init(sampleRate: Double,
              bandCount: Int,
-             fMin: Float = 10.0,
+             fMin: Float = 50.0,
              fMax: Float = 12000.0,
              Q: Float = 4.3,
              dbFloor: Float = -80.0)
@@ -65,7 +62,7 @@ public class AudioSpectrumNode : Node
             env = .init(repeating: 0, count: bandCount)
         }
 
-        // Call this if bandCount, fMin/fMax, Q, or sampleRate changes.
+        // Call if bandCount / fMin / fMax / Q / sampleRate change
         func buildBands() {
             b0 = .init(repeating: 0, count: bandCount)
             b1 = .init(repeating: 0, count: bandCount)
@@ -75,12 +72,18 @@ public class AudioSpectrumNode : Node
             z1 = .init(repeating: 0, count: bandCount)
             z2 = .init(repeating: 0, count: bandCount)
 
-            // Log-spaced center frequencies
+            fc = .init(repeating: 0, count: bandCount)
+            gainCorrection = .init(repeating: 1, count: bandCount)
+            weightCorrection = .init(repeating: 1, count: bandCount)
+
+            // Log-spaced centers
             let r = fMax / fMin
             for k in 0..<bandCount {
                 let t  = bandCount > 1 ? Float(k) / Float(bandCount - 1) : 0
-                let fc = fMin * powf(r, t)
-                let w0 = 2.0 * .pi * (fc / sampleRate)
+                let fck = fMin * powf(r, t)
+                fc[k] = fck
+
+                let w0 = 2.0 * .pi * (fck / sampleRate)
                 let cosw0 = cosf(w0)
                 let sinw0 = sinf(w0)
                 let alpha = sinw0 / (2.0 * Q)
@@ -93,74 +96,92 @@ public class AudioSpectrumNode : Node
                 var a1k:Float = -2.0 * cosw0
                 var a2k:Float =  1.0 - alpha
 
-                // Normalize by a0
+                // Normalize
                 b0k /= a0k; b1k /= a0k; b2k /= a0k
                 a1k /= a0k; a2k /= a0k
 
                 b0[k] = b0k; b1[k] = b1k; b2[k] = b2k
                 a1[k] = a1k; a2[k] = a2k
+
+                // --- Corrections ---
+                // 1) Bandwidth/energy tilt ~ sqrt(Q / fc)
+                gainCorrection[k] = sqrtf(max(Q / max(fck, 1e-12), 0))
+
+                // 2) Optional A-weighting (linear gain)
+                if useAWeighting {
+                    weightCorrection[k] = aWeightingLinear(fck)
+                }
             }
         }
 
+        // Rough A-weighting (linear gain). Inputs in Hz.
+        private func aWeightingLinear(_ f: Float) -> Float {
+            // Guard very low frequencies
+            let f2 = max(f, 1e-3) * max(f, 1e-3)
+            let f4 = f2 * f2
+            let f12200 = 12200.0 as Float
+            let f12200_2 = f12200 * f12200
+            let num = f4 * f12200_2
+            
+            // IEC 61672-1 / ISO 226 formulation for the A-weighting curve
+            let den = (f2 + 20.6*20.6) * sqrtf((f2 + 107.7*107.7) * (f2 + 737.9*737.9)) * (f2 + f12200_2)
+            // +2 dB offset to align with common implementations; tweak if you like
+            let a_dB = 20.0 * log10f(max(num / max(den, 1e-12), 1e-12)) + 2.0
+            return powf(10.0, a_dB / 20.0)
+        }
+
         // Main entry: returns [0,1] per band
-        func processAudioData(buffer: AVAudioPCMBuffer) -> ContiguousArray<Float>
-        {
-            guard let channelData = buffer.floatChannelData?[0] else {
+        func processAudioData(buffer: AVAudioPCMBuffer) -> ContiguousArray<Float> {
+            guard let ch0 = buffer.floatChannelData?[0] else {
                 return ContiguousArray<Float>()
             }
-            
+
             let n = Int(buffer.frameLength)
             if work.count < n { work = .init(repeating: 0, count: n) }
-            
-            // Precompute block-based smoothing coefficients
-            // (attack/release over one callback; simple, legible)
+
+            // Block-based envelope coefficients
             let hop = Float(n) / sampleRate
-            let a:Float = 1 - expf(-hop / max(attackMS * 0.001, 1e-12))
-            let r:Float = 1 - expf(-hop / max(releaseMS * 0.001, 1e-12))
-            
+            let a = 1 - expf(-hop / max(attackMS * 0.001, 1e-6))
+            let r = 1 - expf(-hop / max(releaseMS * 0.001, 1e-6))
+
             var out = ContiguousArray<Float>(repeating: 0, count: bandCount)
-            
-            for k in 0 ..< bandCount
-            {
-                // --- filter pass (unchanged) ---
+
+            for k in 0..<bandCount {
+                // --- filter ---
                 var zz1 = z1[k], zz2 = z2[k]
                 let b0k = b0[k], b1k = b1[k], b2k = b2[k], a1k = a1[k], a2k = a2[k]
-                
-                for i in 0 ..< n
-                {
-                    let x = channelData[i]
+                for i in 0..<n {
+                    let x = ch0[i]
                     let y = b0k * x + zz1
                     zz1 = b1k * x - a1k * y + zz2
                     zz2 = b2k * x - a2k * y
                     work[i] = y
                 }
-                
                 z1[k] = zz1; z2[k] = zz2
-                
-                // --- energy measure (unchanged) ---
+
+                // --- RMS ---
                 var rms: Float = 0
                 vDSP_rmsqv(work, 1, &rms, vDSP_Length(n))
-                var db = 20.0 * log10f(max(rms, 1e-12))
-                if db < dbFloor { db = dbFloor }
-                var norm = min(max((db - dbFloor) / (0 - dbFloor), 0), 1)
-                
-                // Attempt to normalize low end ? this is wrong
-//                norm = norm * Float(bandCount - k) / Float(bandCount)
-                
-                // --- envelope with separate attack/release ---
-                let ePrev = env[k]
-                let e = (norm > ePrev)
-                ? ePrev + ( a * (norm - ePrev) )    // faster rise
-                : ePrev + ( r * (norm - ePrev) )   // slower fall
 
+                // --- Apply corrections BEFORE dB ---
+                let corrected = rms * gainCorrection[k] * (useAWeighting ? weightCorrection[k] : 1.0)
+
+                // --- dB -> [0,1] ---
+                var db = 20.0 * log10f(max(corrected, 1e-12))
+                if db < dbFloor { db = dbFloor }
+                let norm = min(max((db - dbFloor) / (0 - dbFloor), 0), 1)
+
+                // --- envelope ---
+                let ePrev = env[k]
+                let e = (norm > ePrev) ? (ePrev + a * (norm - ePrev))
+                                       : (ePrev + r * (norm - ePrev))
                 env[k] = e
                 out[k] = e
             }
-            
+
             return out
         }
     }
-
     
     override public class var name:String { "Audio Spectrum" }
     override public class var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
@@ -273,7 +294,7 @@ public class AudioSpectrumNode : Node
         self.filterBank = SimpleFilterBank(sampleRate: sampleRate,
                                            bandCount: bandCount,
                                            fMin: 33.0,
-                                           fMax: 22_000.0,
+                                           fMax: 15_000.0,//22_000.0,
                                            Q: q,
                                            dbFloor: -120.0)
     }
@@ -314,7 +335,7 @@ public class AudioSpectrumNode : Node
 
             print(inputNode)
 
-            inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { (buffer, time) in
+            inputNode.installTap(onBus: 0, bufferSize: 128, format: recordingFormat) { (buffer, time) in
                 self.processAudioData(buffer: buffer)
             }
 
