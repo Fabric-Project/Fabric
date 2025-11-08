@@ -7,31 +7,6 @@
 
 import SwiftUI
 
-/// An item within a column that is either a rendered node or an intentional gap.
-public enum FabricColumnItem {
-    case gap
-    case node
-}
-
-extension FabricColumnItem {
-    /// Indicates whether this column item represents a rendered node square.
-    var isNode: Bool {
-        if case .node = self { return true }
-        return false
-    }
-}
-
-/// Collection of column items representing a vertical stack for a glyph column.
-public struct FabricColumn {
-    var items: [FabricColumnItem]
-}
-
-/// Describes a connector line joining index positions between two columns.
-public struct FabricConnector {
-    var leftIndex: Int
-    var rightIndex: Int
-}
-
 public struct FabricLogoView: View {
     var spacing: CGFloat = 0.5
     var cornerRadiusRatio: CGFloat = 0.2
@@ -101,7 +76,7 @@ public struct FabricLogoView: View {
         var rightColumnTrailing: CGFloat?
     }
 
-    private func layoutMetrics(for letters: [FabricLetterSpec], available size: CGSize) -> LayoutMetrics {
+    private func layoutMetrics(for letters: [LogoLetterSpec], available size: CGSize) -> LayoutMetrics {
         let metrics = letters.map(letterMetrics)
         let letterCount = CGFloat(max(letters.count, 1))
         let columnSpacingRatio = letterSpacingHoriz
@@ -140,7 +115,7 @@ public struct FabricLogoView: View {
                              contentWidth: contentWidth)
     }
 
-    private func letterMetrics(for letter: FabricLetterSpec) -> LetterMetrics {
+    private func letterMetrics(for letter: LogoLetterSpec) -> LetterMetrics {
         let hasRightColumn = letter.rightColumn != nil
         let widthUnits: CGFloat = hasRightColumn ? 2 : singleColumnFillRatio
         return LetterMetrics(widthUnits: widthUnits, hasRightColumn: hasRightColumn)
@@ -148,7 +123,7 @@ public struct FabricLogoView: View {
 
 
     private func lettersView(in size: CGSize) -> some View {
-        let letters = FabricLetterSpec.all
+        let letters = LogoLetterSpec.all
         let layout = layoutMetrics(for: letters, available: size)
         let letterHeight = layout.contentHeight
         // Calculate edge margin: base connector space plus optional horizontal padding
@@ -207,7 +182,7 @@ public struct FabricLogoView: View {
                alignment: .center)
     }
 
-    private func letterGeometries(for letters: [FabricLetterSpec],
+    private func letterGeometries(for letters: [LogoLetterSpec],
                                   layout: LayoutMetrics,
                                   edgeMargin: CGFloat) -> [LetterGeometry] {
         guard !letters.isEmpty else { return [] }
@@ -276,7 +251,7 @@ public struct FabricLogoView: View {
         return [incoming, outgoing]
     }
 
-    private func letterView(for spec: FabricLetterSpec,
+    private func letterView(for spec: LogoLetterSpec,
                             scale: CGFloat,
                             letterHeight: CGFloat,
                             columnSpacing: CGFloat) -> some View {
@@ -338,7 +313,7 @@ public struct FabricLogoView: View {
         }
     }
 
-    private func columnView(_ column: FabricColumn,
+    private func columnView(_ column: LogoColumn,
                             unitScale: CGFloat,
                             letterHeight: CGFloat,
                             fillRatio: CGFloat,
