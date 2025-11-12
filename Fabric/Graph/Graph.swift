@@ -208,6 +208,12 @@ internal import AnyCodable
         self.rebuildPublishedParameterGroup()
     }
     
+    deinit
+    {
+        self.nodes.forEach { $0.prepForDeinit() }
+        print("Deinit Graph: \(self.id)")
+    }
+    
     public func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)

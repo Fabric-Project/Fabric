@@ -196,6 +196,12 @@ import Combine
     
     deinit
     {
+        self.prepForDeinit()
+        print("Deleted node \(id)")
+    }
+    
+    public func prepForDeinit()
+    {
         self.inputNodes.removeAll()
         self.outputNodes.removeAll()
         
@@ -206,7 +212,6 @@ import Combine
         
         self.inputParamCancellables.forEach { $0.cancel() }
         self.inputParamCancellables.removeAll()
-        print("Deleted node \(id)")
     }
     
     // MARK: - Ports
@@ -322,7 +327,9 @@ import Combine
     // MARK: - Execution
     
     public func startExecution(context:GraphExecutionContext) { }
-    public func stopExecution(context:GraphExecutionContext) { }
+    
+    //
+    public func stopExecution(context:GraphExecutionContext) {  self.prepForDeinit() }
 
     public func enableExecution(context:GraphExecutionContext) { }
     public func disableExecution(context:GraphExecutionContext) { }
