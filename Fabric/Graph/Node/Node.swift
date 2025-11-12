@@ -196,6 +196,14 @@ import Combine
     
     deinit
     {
+        self.inputNodes.removeAll()
+        self.outputNodes.removeAll()
+        
+        for port in self.ports
+        {
+            port.disconnectAll()
+        }
+        
         self.inputParamCancellables.forEach { $0.cancel() }
         self.inputParamCancellables.removeAll()
         print("Deleted node \(id)")

@@ -53,11 +53,12 @@ public class NodePort<Value : FabricPort>: Port
     deinit
     {
         self.disconnectAll()
+        self.connections.removeAll()
     }
     
     override public func disconnectAll()
     {
-        self.connections.forEach { self.disconnect(from: $0) }
+        self.connections.forEach { [weak self] in  self?.disconnect(from: $0) }
     }
     
     override public func disconnect(from other: Port)
@@ -161,7 +162,10 @@ public class NodePort<Value : FabricPort>: Port
         
         if self.kind == .Inlet && other.kind == .Outlet
         {
-            self.connections.forEach {
+            self.connections.forEach { [weak self] in
+                
+                guard let self else { return }
+                    
                 $0.disconnect(from: self)
             }
             
