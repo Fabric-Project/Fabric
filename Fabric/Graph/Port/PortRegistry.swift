@@ -51,6 +51,7 @@ final class PortRegistry
         p.disconnectAll()
         self.byID[p.id] = nil
         if let i = ordered.firstIndex(where: { $0.id == p.id }) { self.ordered.remove(at: i) }
+        self.byName[p.name] = nil
     }
     
     func port(named name: String) -> Port? { self.byName[name] }
