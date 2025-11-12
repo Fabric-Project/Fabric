@@ -37,8 +37,7 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
     public var inputDoubleSided:ParameterPort<Bool> { port(named: "inputDoubleSided") }
     public var inputCullingMode:ParameterPort<String> { port(named: "inputCullingMode") }
   
-    override public var object:InstancedMesh? {
-        
+    override public var object:InstancedMesh? { 
         // This is tricky - we want to output nil if we have no inputGeometry  / inputMaterial from upstream ports
         if let _ = self.inputGeometry.value ,
            let _ = self.inputMaterial.value
@@ -58,6 +57,15 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
         }
     }
 
+    public override func stopExecution(context: GraphExecutionContext)
+    {
+        super.stopExecution(context: context)
+        
+        self.mesh = nil
+        self.inputGeometry.value = nil
+        self.inputMaterial.value = nil
+    }
+    
     public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
