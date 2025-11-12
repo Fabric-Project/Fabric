@@ -209,7 +209,6 @@ public class AudioSpectrumNode : Node
     public var outputSpectrum:NodePort<ContiguousArray<Float>> { port(named: "outputSpectrum") }
 
     private var engine = AVAudioEngine()
-    private var inputNode: AVAudioInputNode? = nil
     
 
     override public func startExecution(context: GraphExecutionContext) {
@@ -246,8 +245,13 @@ public class AudioSpectrumNode : Node
     override public func stopExecution(context: GraphExecutionContext)
     {
         super.stopExecution(context: context)
+
+        let tapNode = self.engine.inputNode
         
+        tapNode.removeTap(onBus: 0)
+
         self.engine.stop()
+        
     }
     
 //    override public func enableExecution(context:GraphExecutionContext)
@@ -320,7 +324,7 @@ public class AudioSpectrumNode : Node
         
         self.filterBank = SimpleFilterBank(sampleRate: sampleRate,
                                            bandCount: bandCount,
-                                           fMin: 33.0,
+                                           fMin: 20.0,
                                            fMax: 15_000.0,//22_000.0,
                                            Q: q,
                                            dbFloor: -120.0)
@@ -361,6 +365,8 @@ public class AudioSpectrumNode : Node
         {
             let tapNode = self.engine.inputNode
             
+            tapNode.removeTap(onBus: 0)
+            
             let sampleRate = Float(tapNode.inputFormat(forBus: 0).sampleRate)
             
             if self.filterBank == nil
@@ -368,7 +374,7 @@ public class AudioSpectrumNode : Node
                 self.createFilterBank(sampleRate:sampleRate, bandCount: self.bands, normalizedSmoothing: self.smoothing)
             }
             
-            tapNode.installTap(onBus: 0, bufferSize: 4096, format: nil) { (buffer, time) in
+            tapNode.installTap(onBus: 0, bufferSize: 1024, format: nil) { (buffer, time) in
                 self.processAudioData(buffer: buffer)
             }
             
