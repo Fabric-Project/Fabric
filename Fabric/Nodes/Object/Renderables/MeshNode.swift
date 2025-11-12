@@ -86,6 +86,15 @@ public class MeshNode : BaseRenderableNode<Mesh>
         return shouldOutput
     }
     
+    public override func stopExecution(context: GraphExecutionContext)
+    {
+        super.stopExecution(context: context)
+        
+        self.mesh = nil
+        self.inputGeometry.value = nil
+        self.inputMaterial.value = nil
+    }
+    
     public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
