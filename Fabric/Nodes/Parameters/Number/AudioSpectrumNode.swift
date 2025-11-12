@@ -39,13 +39,13 @@ public class AudioSpectrumNode : Node
 
         // ---- Envelope ----
         private var env = [Float]()
-        var attackMS: Float = 10
-        var releaseMS: Float = 200
+        var attackMS: Float = 10.0
+        var releaseMS: Float = 10.0
 
         // ---- Scratch ----
         private var work = [Float]()
 
-        init(sampleRate: Double,
+        init(sampleRate: Float,
              bandCount: Int,
              fMin: Float = 50.0,
              fMax: Float = 12000.0,
@@ -125,18 +125,15 @@ public class AudioSpectrumNode : Node
             
             // IEC 61672-1 / ISO 226 formulation for the A-weighting curve
             let den = (f2 + 20.6*20.6) * sqrtf((f2 + 107.7*107.7) * (f2 + 737.9*737.9)) * (f2 + f12200_2)
-            // +2 dB offset to align with common implementations; tweak if you like
+            // +2 dB offset to align with common implementations;
             let a_dB = 20.0 * log10f(max(num / max(den, 1e-12), 1e-12)) + 2.0
             return powf(10.0, a_dB / 20.0)
         }
 
         // Main entry: returns [0,1] per band
-        func processAudioData(buffer: AVAudioPCMBuffer) -> ContiguousArray<Float> {
-            guard let ch0 = buffer.floatChannelData?[0] else {
-                return ContiguousArray<Float>()
-            }
+        func processAudioData<C: RandomAccessCollection>(samples:C) -> ContiguousArray<Float> where C.Element == Float, C.Index == Int  {
 
-            let n = Int(buffer.frameLength)
+            let n = samples.count
             if work.count < n { work = .init(repeating: 0, count: n) }
 
             // Block-based envelope coefficients
@@ -151,7 +148,7 @@ public class AudioSpectrumNode : Node
                 var zz1 = z1[k], zz2 = z2[k]
                 let b0k = b0[k], b1k = b1[k], b2k = b2[k], a1k = a1[k], a2k = a2[k]
                 for i in 0..<n {
-                    let x = ch0[i]
+                    let x = samples[i]
                     let y = b0k * x + zz1
                     zz1 = b1k * x - a1k * y + zz2
                     zz2 = b2k * x - a2k * y
@@ -246,6 +243,25 @@ public class AudioSpectrumNode : Node
         }
     }
     
+    override public func stopExecution(context: GraphExecutionContext)
+    {
+        super.stopExecution(context: context)
+        
+        self.engine.stop()
+    }
+    
+//    override public func enableExecution(context:GraphExecutionContext)
+//    {
+//        super.enableExecution(context: context)
+//    }
+
+    override public func disableExecution(context: GraphExecutionContext)
+    {
+        super.disableExecution(context: context)
+        
+        self.engine.pause()
+    }
+    
     override public func execute(context: GraphExecutionContext, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: any MTLCommandBuffer)
     {
         
@@ -253,43 +269,54 @@ public class AudioSpectrumNode : Node
            let smoothing = self.inputSmoothing.value,
            let bands = self.inputBands.value
         {
-            
             self.smoothing = smoothing
             self.bands = bands
             
-            self.processingQueue.sync { [weak self] in
-                
-                self?.filterBank = nil
-            }
+            self.createFilterBank(sampleRate: self.filterBank?.sampleRate ?? 48000.0, bandCount: self.bands, normalizedSmoothing: self.smoothing)
         }
         
         if self.inputAttack.valueDidChange || self.inputRelease.valueDidChange,
            let attack = self.inputAttack.value,
            let release = self.inputRelease.value
         {
-            self.processingQueue.sync { [weak self] in
-                self?.filterBank?.attackMS = attack
-                self?.filterBank?.releaseMS = release
-            }
+                self.filterBank?.attackMS = attack
+                self.filterBank?.releaseMS = release
         }
         
-        let output = ContiguousArray<Float>(self.fftMagnitudes)
+        guard let filterBank else { return }
+
+        let targetVideoFrameRate:Float = 200
+        let numSamplesInAFrame = Int(round( filterBank.sampleRate / targetVideoFrameRate ) )
+            
+        let batchSize = min(numSamplesInAFrame, self.samples.count)
+        let batchOfSamples = self.samples[ 0 ..< batchSize]
+        
+        let output = filterBank.processAudioData(samples: batchOfSamples)
+        
         self.outputSpectrum.send( output )
+        
+        self.samples = Array<Float>(self.samples.dropFirst(batchSize))
+
+        if self.samples.count > self.maxSamples
+        {
+            let overrun =  self.samples.count - self.maxSamples
+            self.samples = Array<Float>(self.samples.dropLast(overrun) )
+        }
     }
     
-    var fftMagnitudes = ContiguousArray<Float>()
-
-    let processingQueue = dispatch_queue_t(label: "audionode.audioprocessingqueue", qos: .userInteractive)
-    
     var filterBank:SimpleFilterBank? = nil
+
+    // Running list of samples
+    var samples = [Float]()
+    let maxSamples = 4096
     
     private var bands:Int = 8
     private var smoothing:Float = 0.0
     
-    func createFilterBank(sampleRate:Double, bandCount:Int, normalizedSmoothing:Float)
+    func createFilterBank(sampleRate:Float, bandCount:Int, normalizedSmoothing:Float)
     {
         // No idea about this q calc?
-        let q = remap(normalizedSmoothing, 1.0, 0.0, 1.0, Float(bandCount) )
+        let q = remap(normalizedSmoothing, 1.0, 0.0, 0.0, Float(bandCount) )
         
         self.filterBank = SimpleFilterBank(sampleRate: sampleRate,
                                            bandCount: bandCount,
@@ -297,49 +324,58 @@ public class AudioSpectrumNode : Node
                                            fMax: 15_000.0,//22_000.0,
                                            Q: q,
                                            dbFloor: -120.0)
+        
+        self.filterBank?.attackMS = self.inputAttack.value ?? 10.0
+        self.filterBank?.releaseMS = self.inputRelease.value ?? 10.0
     }
+    
+    var lastCalledTime:TimeInterval = Date.timeIntervalSinceReferenceDate
     
     func processAudioData(buffer: AVAudioPCMBuffer)
     {
-        let sampleRate = buffer.format.sampleRate
+        let count = buffer.frameLength
         
-        self.processingQueue.async { [weak self] in
+        if let floatChannelData = buffer.floatChannelData
+        {
+            var newSamples: [Float] = []
             
-            guard let self else { return }
-            
-            if self.filterBank == nil
+            for i in 0 ..< count
             {
-                self.createFilterBank(sampleRate:sampleRate, bandCount: self.bands, normalizedSmoothing: self.smoothing)
+                newSamples.append(floatChannelData[0][Int(i)])
             }
             
-            guard let filterBank else { return }
-            
-            let output = filterBank.processAudioData(buffer: buffer)
-            DispatchQueue.main.async {
-                self.fftMagnitudes = output
+            DispatchQueue.main.async { [weak self] in
+                
+                guard let self else { return }
+                
+                self.samples.append(contentsOf: newSamples)
             }
         }
+        
+        return
     }
     
     private func setupAudioShit()
     {
         do
         {
-            let inputNode = self.engine.inputNode
+            let tapNode = self.engine.inputNode
             
-            if inputNode.inputFormat(forBus: 0).sampleRate == 0 {
-                exit(0)
+            let sampleRate = Float(tapNode.inputFormat(forBus: 0).sampleRate)
+            
+            if self.filterBank == nil
+            {
+                self.createFilterBank(sampleRate:sampleRate, bandCount: self.bands, normalizedSmoothing: self.smoothing)
             }
             
-            let recordingFormat = inputNode.outputFormat(forBus: 0)
-
-            print(inputNode)
-
-            inputNode.installTap(onBus: 0, bufferSize: 128, format: recordingFormat) { (buffer, time) in
+            tapNode.installTap(onBus: 0, bufferSize: 4096, format: nil) { (buffer, time) in
                 self.processAudioData(buffer: buffer)
             }
-
+            
             try self.engine.start()
+            
+            print(tapNode)
+
 
         }
         catch
