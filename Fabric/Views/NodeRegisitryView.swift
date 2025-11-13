@@ -20,7 +20,6 @@ public struct NodeRegisitryView: View {
         self.graph = graph
         self._scrollOffset = scrollOffset
     }
-
     
     public var body: some View
     {
@@ -34,14 +33,14 @@ public struct NodeRegisitryView: View {
             {
                 Spacer()
                                     
-                ForEach(Node.NodeTypeGroups.allCases, id: \.self) { nodeType in
+                ForEach(Node.NodeTypeGroups.allCases, id: \.self) { nodeGroup in
                     //Label(nodeType.rawValue, systemImage: nodeType.imageName())
-                    nodeType.image()
-                        .foregroundStyle( nodeType == selection ? Color.accentColor : Color.secondary.opacity(0.5))
-                        .tag(nodeType)
-                        .help(nodeType.rawValue)
+                    nodeGroup.image()
+                        .foregroundStyle( nodeGroup == selection ? Color.accentColor : Color.secondary.opacity(0.5))
+                        .tag(nodeGroup)
+                        .help(nodeGroup.rawValue)
                         .onTapGesture {
-                            self.selection = nodeType
+                            self.selection = nodeGroup
                         }
                 }
                 
@@ -58,10 +57,7 @@ public struct NodeRegisitryView: View {
             {
                 ForEach(selection.nodeTypes(), id: \.self) { nodeType in
                     
-                    let availableNodes:[NodeClassWrapper] = NodeRegistry.shared.availableNodes
-                    let nodesForType:[NodeClassWrapper] = availableNodes.filter( { $0.nodeType == nodeType })
-                    let filteredNodes:[NodeClassWrapper] = self.searchString.isEmpty ? nodesForType :
-                    nodesForType.filter {  $0.nodeName.localizedCaseInsensitiveContains(self.searchString) }
+                    let filteredNodes = self.filteredNodes(forType: nodeType)
                     
                     if !filteredNodes.isEmpty
                     {
@@ -116,5 +112,12 @@ public struct NodeRegisitryView: View {
                 .padding(.bottom, 3)
             }
         })
+    }
+    
+    func filteredNodes(forType nodeType:Node.NodeType) -> [NodeClassWrapper]
+    {
+        let availableNodes:[NodeClassWrapper] = NodeRegistry.shared.availableNodes
+        let nodesForType:[NodeClassWrapper] = availableNodes.filter( { $0.nodeType == nodeType })
+        return  self.searchString.isEmpty ? nodesForType : nodesForType.filter {  $0.nodeName.localizedCaseInsensitiveContains(self.searchString) }
     }
 }
