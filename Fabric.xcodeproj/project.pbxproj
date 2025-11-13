@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1B27F1AF2EC68CE900B17C6C /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 1B27F1AE2EC68CE900B17C6C /* Sparkle */; };
 		1B46BEA62EB472E800124BDA /* SwiftSimplify in Frameworks */ = {isa = PBXBuildFile; productRef = 1B46BEA52EB472E800124BDA /* SwiftSimplify */; };
 		1BB12B362E0234FC0075C276 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BB12B332E0234FC0075C276 /* Foundation.framework */; };
 		1BB12B372E0234FC0075C276 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BB12B342E0234FC0075C276 /* AVFoundation.framework */; };
@@ -312,6 +313,7 @@
 				1BE00A5D2DC936A50061EAFD /* CoreFoundation.framework in Frameworks */,
 				1BC06A872E0231520019808C /* Fabric.framework in Frameworks */,
 				1BE00A612DC936AC0061EAFD /* MetalKit.framework in Frameworks */,
+				1B27F1AF2EC68CE900B17C6C /* Sparkle in Frameworks */,
 				1BE00A622DC936AC0061EAFD /* Metal.framework in Frameworks */,
 				1BE00A5E2DC936A50061EAFD /* Foundation.framework in Frameworks */,
 			);
@@ -423,6 +425,7 @@
 			);
 			name = "Fabric Editor";
 			packageProductDependencies = (
+				1B27F1AE2EC68CE900B17C6C /* Sparkle */,
 			);
 			productName = Fabric;
 			productReference = 1BE007222DBB1FBC0061EAFD /* Fabric Editor.app */;
@@ -460,6 +463,7 @@
 				1BAC11632DE6615F008438BC /* XCRemoteSwiftPackageReference "swift-noise" */,
 				1B9ECA4F2DFBB2CB00D32B4C /* XCRemoteSwiftPackageReference "AnyCodable" */,
 				1B46BEA42EB472E800124BDA /* XCRemoteSwiftPackageReference "SwiftSimplify" */,
+				1B27F1AD2EC68CE900B17C6C /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1BE007232DBB1FBC0061EAFD /* Products */;
@@ -638,6 +642,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = Fabric;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = "Fabric Editor/Fabric.entitlements";
@@ -672,6 +677,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = Fabric;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = "Fabric Editor/Fabric.entitlements";
@@ -853,6 +859,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		1B27F1AD2EC68CE900B17C6C /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.8.0;
+			};
+		};
 		1B46BEA42EB472E800124BDA /* XCRemoteSwiftPackageReference "SwiftSimplify" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/vade/SwiftSimplify";
@@ -880,6 +894,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		1B27F1AE2EC68CE900B17C6C /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B27F1AD2EC68CE900B17C6C /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
 		1B46BEA52EB472E800124BDA /* SwiftSimplify */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 1B46BEA42EB472E800124BDA /* XCRemoteSwiftPackageReference "SwiftSimplify" */;
