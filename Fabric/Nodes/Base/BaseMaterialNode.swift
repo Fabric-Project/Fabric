@@ -44,6 +44,7 @@ public class BaseMaterialNode : Node
     
     override public func startExecution(context: GraphExecutionContext)
     {
+        super.startExecution(context: context)
         self.material.context = context.graphRenderer?.context
     }
     

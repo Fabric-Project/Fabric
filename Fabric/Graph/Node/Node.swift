@@ -196,17 +196,21 @@ import Combine
     
     deinit
     {
-        self.prepForDeinit()
         print("Deleted node \(id)")
     }
     
-    public func prepForDeinit()
+    
+    // This function clears references to other nodes and node ports
+    // removing any circular references allowing proper cleanup
+    // This must is called by GraphRenderer.
+    public func teardown()
     {
         self.inputNodes.removeAll()
         self.outputNodes.removeAll()
         
         for port in self.ports
         {
+            port.teardown()
             port.disconnectAll()
         }
         
@@ -327,9 +331,7 @@ import Combine
     // MARK: - Execution
     
     public func startExecution(context:GraphExecutionContext) { }
-    
-    //
-    public func stopExecution(context:GraphExecutionContext) {  self.prepForDeinit() }
+    public func stopExecution(context:GraphExecutionContext) { }
 
     public func enableExecution(context:GraphExecutionContext) { }
     public func disableExecution(context:GraphExecutionContext) { }
@@ -337,7 +339,7 @@ import Combine
     public func execute(context:GraphExecutionContext,
                          renderPassDescriptor: MTLRenderPassDescriptor,
                          commandBuffer: MTLCommandBuffer) { }
-    
+        
     public func resize(size: (width: Float, height: Float), scaleFactor: Float) { }
    
     // MARK: - Helpers

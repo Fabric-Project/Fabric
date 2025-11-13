@@ -159,6 +159,7 @@ public class Port : Identifiable, Hashable, Equatable, Codable, CustomDebugStrin
     public func connect(to other: Port) { fatalError("override") }
     public func disconnect(from other: Port) { fatalError("override") }
     public func disconnectAll() { fatalError("override") }
+    public func teardown() { }
 
 }
     

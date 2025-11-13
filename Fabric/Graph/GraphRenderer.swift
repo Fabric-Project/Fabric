@@ -90,6 +90,14 @@ public class GraphRenderer : MetalViewRenderer
         }
     }
 
+    public func teardown(graph:Graph)
+    {
+        for node in graph.nodes
+        {
+            node.teardown()
+        }
+    }
+    
     // MARK: - Execution
     
     public func execute(graph:Graph,

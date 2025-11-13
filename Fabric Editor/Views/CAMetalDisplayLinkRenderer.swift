@@ -98,8 +98,10 @@ class CAMetalDisplayLinkRenderer: GameView
                                                      iterationInfo: nil,
                                                      eventInfo: nil)
         
+        self.graphRenderer.disableExecution(graph: self.graph, executionContext: executionContext)
         self.graphRenderer.stopExecution(graph: self.graph, executionContext: executionContext)
-        self.graphRenderer.disableExecution(graph: graph, executionContext: executionContext)
+        
+        self.graphRenderer.teardown(graph: self.graph)
         
         // 2) Stop/disable the display link (depends on your GameView)
         // If GameView exposes a pause/stop, call it here, e.g.:

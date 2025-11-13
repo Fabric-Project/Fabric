@@ -57,8 +57,6 @@ public class MeshNode : BaseRenderableNode<Mesh>
             self.graph?.syncNodesToScene(removingObject: oldValue)
         }
     }
-
-
     
     override public func evaluate(object: Object?, atTime: TimeInterval) -> Bool
     {
@@ -86,13 +84,12 @@ public class MeshNode : BaseRenderableNode<Mesh>
         return shouldOutput
     }
     
-    public override func stopExecution(context: GraphExecutionContext)
+    override public func teardown()
     {
-        super.stopExecution(context: context)
-        
+        super.teardown()
+
+        // this ensures any geometry and materials are free'd correctly
         self.mesh = nil
-        self.inputGeometry.value = nil
-        self.inputMaterial.value = nil
     }
     
     public override func execute(context:GraphExecutionContext,

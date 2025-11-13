@@ -50,8 +50,15 @@ public class NodePort<Value : FabricPort>: Port
         self.backgroundColor = Self.calcBackgroundColor(forType: Value.self)
     }
     
+    override public func teardown()
+    {
+        super.teardown()
+        self.value = nil
+    }
+    
     deinit
     {
+        self.teardown()
         self.disconnectAll()
         self.connections.removeAll()
     }

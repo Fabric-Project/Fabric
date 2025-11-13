@@ -210,7 +210,7 @@ internal import AnyCodable
     
     deinit
     {
-        self.nodes.forEach { $0.prepForDeinit() }
+        self.nodes.forEach { $0.teardown() }
         print("Deinit Graph: \(self.id)")
     }
     

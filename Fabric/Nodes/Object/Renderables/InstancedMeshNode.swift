@@ -57,10 +57,9 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
         }
     }
 
-    public override func stopExecution(context: GraphExecutionContext)
+    override public func teardown()
     {
-        super.stopExecution(context: context)
-        
+        super.teardown()
         self.mesh = nil
         self.inputGeometry.value = nil
         self.inputMaterial.value = nil
