@@ -63,7 +63,7 @@ extension UTType
 
 
 // Non Generic Base Port Class, dont use directly
-public class Port : Identifiable, Hashable, Equatable, Codable, CustomDebugStringConvertible
+@Observable public class Port : Identifiable, Hashable, Equatable, Codable, CustomDebugStringConvertible
 {
     public static func == (lhs: Port, rhs: Port) -> Bool
     {
