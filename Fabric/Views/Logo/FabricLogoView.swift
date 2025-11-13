@@ -44,10 +44,12 @@ public struct FabricLogoView: View {
 
     #if os(macOS)
     private var backgroundColor: Color { Color(nsColor: .windowBackgroundColor) }
+    private var nodeColor: Color { .primary }
     #else
     private var backgroundColor: Color { Color(uiColor: .systemBackground) }
+    private var nodeColor: Color { .primary }
     #endif
-    private var nodeColor: Color { .black }
+    
 
     public var body: some View {
         GeometryReader { geometry in
