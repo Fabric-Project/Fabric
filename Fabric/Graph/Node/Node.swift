@@ -210,8 +210,8 @@ import Combine
         
         for port in self.ports
         {
-            port.teardown()
             port.disconnectAll()
+            port.teardown()
         }
         
         self.inputParamCancellables.forEach { $0.cancel() }

@@ -20,15 +20,15 @@ public class ParameterPort<ParamValue : FabricPort & Codable & Equatable & Hasha
         set {
             if let newParam = newValue as? GenericParameter<ParamValue>
             {
-//                self.subscription?.cancel()
-//                self.subscription = nil
+                self.subscription?.cancel()
+                self.subscription = nil
                 newParam.value = self._parameter.value
                 self._parameter = newParam
                 self.value = self._parameter.value
                 
-//                self.subscription = _parameter.valuePublisher.eraseToAnyPublisher().sink{ [weak self] value in
-//                        self?.value = value
-//                }
+                self.subscription = _parameter.valuePublisher.eraseToAnyPublisher().sink{ [weak self] value in
+                        self?.value = value
+                }
             }
         }
     }
@@ -70,6 +70,7 @@ public class ParameterPort<ParamValue : FabricPort & Codable & Equatable & Hasha
         self.value = self._parameter.value
 
         self.subscription = _parameter.valuePublisher.eraseToAnyPublisher().sink{ [weak self] value in
+            
                 self?.value = value
         }
     }
@@ -92,6 +93,8 @@ public class ParameterPort<ParamValue : FabricPort & Codable & Equatable & Hasha
     {
         didSet
         {
+            guard self.valueDidChange else { return }
+
             if let value,
                self._parameter.value != value
             {

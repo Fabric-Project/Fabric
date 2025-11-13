@@ -297,7 +297,9 @@ public class AudioSpectrumNode : Node
         
         let output = filterBank.processAudioData(samples: batchOfSamples)
         
-        self.outputSpectrum.send( output )
+        let normalizedOutput = ContiguousArray<Float>(output.map { ($0.isNaN || $0.isInfinite) ? 0.0 : $0 })
+        
+        self.outputSpectrum.send( normalizedOutput )
         
         self.samples = Array<Float>(self.samples.dropFirst(batchSize))
 
