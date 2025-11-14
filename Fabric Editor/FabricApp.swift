@@ -8,11 +8,22 @@
 import SwiftUI
 import Fabric
 import AppKit
-
+import Sparkle
 
 
 @main
 struct FabricApp: App {
+    
+    private let updaterController: SPUStandardUpdaterController
+
+    init()
+    {
+        // If you want to start the updater manually, pass false to startingUpdater and call .startUpdater() later
+        // This is where you can also pass an updater delegate if you need one
+        updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+    }
+    
+    
     var body: some Scene {
 
         DocumentGroup(newDocument: FabricDocument() ) { file in
@@ -30,6 +41,10 @@ struct FabricApp: App {
         }
         .commands {
             AboutCommands()
+            CommandGroup(after: .appInfo)
+            {
+                CheckForUpdatesView(updater: updaterController.updater)
+            }
         }
         
         Window("About Fabric Editor", id: "about") {

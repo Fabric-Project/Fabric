@@ -153,11 +153,11 @@ public class MovieProviderNode : Node
 //        ]
         
         // Linear
-        let colorPropertySettings = [
-                   AVVideoColorPrimariesKey: AVVideoColorPrimaries_P3_D65,
-                   AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_2020,
-                   AVVideoTransferFunctionKey: AVVideoTransferFunction_Linear
-               ]
+//        let colorPropertySettings = [
+//                   AVVideoColorPrimariesKey: AVVideoColorPrimaries_P3_D65,
+//                   AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_2020,
+//                   AVVideoTransferFunctionKey: AVVideoTransferFunction_Linear
+//               ]
       
         return [
             String(kCVPixelBufferPixelFormatTypeKey) : Int( kCVPixelFormatType_32BGRA ),
