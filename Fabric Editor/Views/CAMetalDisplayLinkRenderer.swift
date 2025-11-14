@@ -7,7 +7,6 @@
 
 import SwiftUI
 import MetalKit
-import Satin
 import Fabric
 import simd
 import AVFoundation

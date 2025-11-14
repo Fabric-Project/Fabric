@@ -8,7 +8,6 @@
 import SwiftUI
 import Cocoa
 import UniformTypeIdentifiers
-import Satin
 import Metal
 import Fabric
 
