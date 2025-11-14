@@ -47,13 +47,13 @@ Fabric supports, thanks to Satin and Lygia, high fidelity modern rendering techn
 
 > [!WARNING]
 > Please note Fabric is heavily under construction.
-> Because Fabric is under heavy development, we do not provide a prebuilt binary just yet. 
-
-
 
 - macOS 14 +
 - XCode 15 +
 
+Please See [Releases](https://github.com/Fabric-Project/Fabric/releases) for code signed App downloads.
+
+For Developers:
 1. Checkout Fabric and ensure you check out with submodules enabled, as Satin is a dependency.
 2. Open the XCode project
 3. Ensure that `Fabric Editor` is the active target.
