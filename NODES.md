@@ -253,7 +253,6 @@ Have yet to work on Index (integer only) numeric nodes
 - [ ] LFO
 - [ ] Smooth (Kalman or 1 Euro Filter?)
 - [ ] Math Expression
-- [ ] Audio Spectrum
 
 ### Vector
 
@@ -320,6 +319,7 @@ Array nodes are implemented as Swift Generics, and can work with any of the abov
 
 ###  I / O
 
+- [x] Audio Input Spectrum
 - [ ] Keyboard
 - [x] Mouse / Touch / Cursor (macOS)
 - [ ] OSC Input
