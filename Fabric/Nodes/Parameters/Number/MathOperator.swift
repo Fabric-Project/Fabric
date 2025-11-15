@@ -60,7 +60,7 @@ enum BinaryMathOperator: String, CaseIterable
         case .Power: return pow(lhs, rhs)
         case .Minimum: return min(lhs, rhs)
         case .Maximum: return max(lhs, rhs)
-        case .Modulo: return fmod(lhs, rhs)
+        case .Modulo: return rhs != 0 ? fmod(lhs, rhs) : 0
         }
     }
 }
