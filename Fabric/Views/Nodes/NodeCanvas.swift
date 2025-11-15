@@ -227,10 +227,9 @@ public struct NodeCanvas : View
             let end1:CGPoint = CGPoint(x: end.x - stemHeight,
                                        y: end.y)
 
-            let direction: CGFloat = end.x >= start.x ? 1.0 : -1.0
             let controlOffset:CGFloat = max(stemHeight + stemOffset, abs(end1.x - start1.x) / 2.4)
-            let control1 = CGPoint(x: start1.x + controlOffset * direction, y: start1.y  )
-            let control2 = CGPoint(x: end1.x - controlOffset * direction, y:end1.y   )
+            let control1 = CGPoint(x: start1.x + controlOffset, y: start1.y  )
+            let control2 = CGPoint(x: end1.x - controlOffset, y:end1.y   )
             
             return Path { path in
                 
