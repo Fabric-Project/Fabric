@@ -28,24 +28,16 @@
 			<array>
 				<string>public.data</string>
 			</array>
-			<key>UTTypeIcons</key>
-			<dict/>
 			<key>UTTypeIdentifier</key>
-			<string>info.vade.v.outletData</string>
-			<key>UTTypeTagSpecification</key>
-			<dict/>
+			<string>info.vade.v.outlet-data</string>
 		</dict>
 		<dict>
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.data</string>
 			</array>
-			<key>UTTypeIcons</key>
-			<dict/>
 			<key>UTTypeIdentifier</key>
-			<string>info.vade.v.inletData</string>
-			<key>UTTypeTagSpecification</key>
-			<dict/>
+			<string>info.vade.v.inlet-data</string>
 		</dict>
 	</array>
 	<key>UTImportedTypeDeclarations</key>

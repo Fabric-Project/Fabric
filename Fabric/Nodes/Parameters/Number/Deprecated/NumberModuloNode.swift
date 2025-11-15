@@ -69,6 +69,7 @@ class NumberModuloNode : Node, NodeProtocol
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {
-        self.outputNumber.send(self.inputAParam.value.truncatingRemainder(dividingBy:self.inputBParam.value) )
+        let result = self.inputBParam.value != 0 ? self.inputAParam.value.truncatingRemainder(dividingBy:self.inputBParam.value) : 0
+        self.outputNumber.send(result)
     }
 }

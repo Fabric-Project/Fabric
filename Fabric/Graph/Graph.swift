@@ -56,11 +56,15 @@ internal import AnyCodable
             self.syncNodesToScene()
         }
     }
-    
+
+    var dragPreviewSourcePortID: UUID? = nil
+    var dragPreviewTargetPosition: CGPoint? = nil
+    @ObservationIgnored var portPositions: [UUID: CGPoint] = [:]
+
     @ObservationIgnored weak var lastNode:(Node)? = nil
-    
+
     public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
-    
+
     // For Macro support
     public weak var activeSubGraph:Graph? = nil
     
