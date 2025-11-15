@@ -22,11 +22,13 @@ public struct NodeCanvas : View
 //    @Binding currentFraph
     
     public init() { }
-    
+
+    @State private var portPositions: [UUID: CGPoint] = [:]
+
     public var body: some View
     {
         GeometryReader { geom in
-            
+
             ZStack
             {
                 // image size is 255
@@ -36,7 +38,7 @@ public struct NodeCanvas : View
                 
                 let graph = self.graph.activeSubGraph ?? self.graph
                 ForEach(graph.nodes, id: \.id) { currentNode in
-                    
+
                     NodeView(node: currentNode , offset: currentNode.offset)
                         .offset( currentNode.offset )
                         .highPriorityGesture(
@@ -106,39 +108,58 @@ public struct NodeCanvas : View
             .offset(geom.size / 2)
             .clipShape(Rectangle())
             .contentShape(Rectangle())
-            .coordinateSpace(name: "graph")    // make sure all anchors share this space
+            .coordinateSpace(name: "graph")
+            .onPreferenceChange(PortAnchorKey.self) { portAnchors in
+                var positions: [UUID: CGPoint] = [:]
+                for (portID, anchor) in portAnchors {
+                    positions[portID] = geom[anchor]
+                }
+                self.portPositions = positions
+                self.graph.portPositions = positions
+            }
             .overlayPreferenceValue(PortAnchorKey.self) { portAnchors in
-                
+
                 let graph = self.graph.activeSubGraph ?? self.graph
 
                 let ports = graph.nodes.flatMap(\.ports)
-                
+
                 ForEach( ports.filter({ $0.kind == .Outlet }), id: \.id) { port in
-                    
+
                     let connectedPorts:[Port] = port.connections.filter({ $0.kind == .Inlet })
-                    
+
                     ForEach( connectedPorts , id: \.id) { connectedPort in
-                        
+
                         if let sourceAnchor = portAnchors[port.id],
                            let destAnchor = portAnchors[connectedPort.id]
                         {
                             let start = geom[ sourceAnchor ]
                             let end = geom[ destAnchor ]
-                            
+
                             let path = self.calcPathUsing(port:port, start: start, end: end)
-                            
+
                             path.stroke(port.backgroundColor , lineWidth: 2)
                                 .contentShape(
                                     path.stroke(style: StrokeStyle(lineWidth: 5))
                                 )
                                 .onTapGesture(count: 2)
                             {
-//                                connectedPort.disconnect(from:port)
                                 port.disconnect(from:connectedPort)
                                 graph.shouldUpdateConnections.toggle()
                             }
                         }
                     }
+                }
+
+                if let sourcePortID = graph.dragPreviewSourcePortID,
+                   let targetPosition = graph.dragPreviewTargetPosition,
+                   let sourceAnchor = portAnchors[sourcePortID],
+                   let sourcePort = graph.nodePort(forID: sourcePortID)
+                {
+                    let start = geom[ sourceAnchor ]
+                    let path = self.calcPathUsing(port: sourcePort, start: start, end: targetPosition)
+
+                    path.stroke(sourcePort.backgroundColor.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [5, 3]))
+                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: targetPosition)
                 }
             }
             .focusable(true, interactions: .edit)
@@ -202,13 +223,14 @@ public struct NodeCanvas : View
 
             let start1:CGPoint = CGPoint(x: start.x + stemHeight,
                                          y: start.y)
-            
+
             let end1:CGPoint = CGPoint(x: end.x - stemHeight,
                                        y: end.y)
-            
+
+            let direction: CGFloat = end.x >= start.x ? 1.0 : -1.0
             let controlOffset:CGFloat = max(stemHeight + stemOffset, abs(end1.x - start1.x) / 2.4)
-            let control1 = CGPoint(x: start1.x + controlOffset, y: start1.y  )
-            let control2 = CGPoint(x: end1.x - controlOffset, y:end1.y   )
+            let control1 = CGPoint(x: start1.x + controlOffset * direction, y: start1.y  )
+            let control2 = CGPoint(x: end1.x - controlOffset * direction, y:end1.y   )
             
             return Path { path in
                 

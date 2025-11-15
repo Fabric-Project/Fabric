@@ -75,8 +75,8 @@ extension InletData :Transferable
 
 extension UTType
 {
-    static var outletData: UTType { UTType(exportedAs: "info.vade.v.outletData") }
-    static var inletData: UTType { UTType(exportedAs: "info.vade.v.inletData") }
+    static var outletData: UTType { UTType(exportedAs: "info.vade.v.outlet-data") }
+    static var inletData: UTType { UTType(exportedAs: "info.vade.v.inlet-data") }
 }
 
 
