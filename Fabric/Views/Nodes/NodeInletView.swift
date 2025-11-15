@@ -28,6 +28,7 @@ struct NodeInletView: View
                 .brightness( port.published ? 0.2 : 0.0)
             //            .padding(.leading, 20)
             //            .position(node.localInletPositions[index])
+                .draggable(InletData(portID: self.port.id))
                 .dropDestination(for: OutletData.self) { outletData, location in
                     //                return animateDrop(at: location)
                     print("drop destination \(self.port.name), \(outletData)")

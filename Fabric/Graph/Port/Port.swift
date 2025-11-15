@@ -56,9 +56,27 @@ extension OutletData :Transferable
     }
 }
 
+struct InletData : Codable
+{
+    let portID: UUID
+    init(portID: UUID)
+    {
+        self.portID = portID
+    }
+}
+
+extension InletData :Transferable
+{
+    static var transferRepresentation: some TransferRepresentation
+    {
+        CodableRepresentation(contentType: .inletData)
+    }
+}
+
 extension UTType
 {
     static var outletData: UTType { UTType(exportedAs: "info.vade.v.outletData") }
+    static var inletData: UTType { UTType(exportedAs: "info.vade.v.inletData") }
 }
 
 
