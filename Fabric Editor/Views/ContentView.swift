@@ -10,11 +10,23 @@ import Fabric
 
 struct ContentView: View {
 
+    struct ScrollGeomHelper : Equatable
+    {
+        let offset:CGPoint
+        let geometry:ScrollGeometry
+        
+        static func == (lhs: ScrollGeomHelper, rhs: ScrollGeomHelper) -> Bool
+        {
+            lhs.offset == rhs.offset && lhs.geometry == rhs.geometry
+        }
+    }
+    
     @Binding var document: FabricDocument
 
     @State private var magnifyBy = 1.0
     @State private var finalMagnification = 1.0
-    @State private var viewportAnchor: UnitPoint = .center
+    @State private var magnifyAnchor: UnitPoint = .center
+    @State private var scrollGeometry: ScrollGeometry = ScrollGeometry(contentOffset: .zero, contentSize: .zero, contentInsets: .init(top: 0, leading: 0, bottom: 0, trailing: 0), containerSize: .zero)
 
     @State private var hitTestEnable:Bool = true
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
@@ -74,22 +86,28 @@ struct ContentView: View {
                             NodeCanvas()
                                 .frame(width: 10000, height: 10000)
                                 .environment(self.document.graph)
-                                .scaleEffect(finalMagnification * magnifyBy, anchor: viewportAnchor)
+                                .scaleEffect(finalMagnification * magnifyBy, anchor: magnifyAnchor)
                                 .gesture(
                                     MagnifyGesture()
                                         .onChanged { value in
-                                            magnifyBy = value.magnification
+
+                                            magnifyBy = min(max(value.magnification, 0.25), 4.0)
+                                            
+                                            // we need to unproject the value.startAnchor from a visible scroll rect, to scroll content rect
+                                            let newX = remap(Float(value.startAnchor.x), 0, Float(self.scrollGeometry.contentSize.width), 0, Float(self.scrollGeometry.containerSize.width))
+                                            let newY = remap(Float(value.startAnchor.y), 0, Float(self.scrollGeometry.contentSize.height), 0, Float(self.scrollGeometry.containerSize.height))
+
+                                            magnifyAnchor = UnitPoint(x: CGFloat( newX + 0.5),
+                                                                      y: CGFloat( newY + 0.5))
                                         }
                                         .onEnded { value in
-                                            finalMagnification *= value.magnification
-                                            finalMagnification = min(max(finalMagnification, 0.25), 4.0)
+                                            finalMagnification = min(max(finalMagnification * value.magnification, 0.25), 4.0)
                                             magnifyBy = 1.0
                                         }
                                 )
                                 .allowsHitTesting(self.hitTestEnable)
                                 .id("canvas")
-                                .task {
-                                    try? await Task.sleep(for: .milliseconds(100))
+                                .onAppear {
                                     if let firstNode = self.document.graph.nodes.first {
                                         let targetPoint = UnitPoint(
                                             x: (5000 + firstNode.offset.width) / 10000,
@@ -101,15 +119,17 @@ struct ContentView: View {
                         }
                         .defaultScrollAnchor(.center)
                     }
-                    .onScrollGeometryChange(for: CGPoint.self) { geometry in
+                    .onScrollGeometryChange(for: ScrollGeomHelper.self) { geometry in
+                        
                         let center = CGPoint(x: geometry.contentSize.width / 2,
                                              y: geometry.contentSize.height / 2)
                         let offset = (geometry.contentOffset - center) + (geometry.containerSize / 2)
-                        let viewportCenter = offset + CGPoint(x: 5000, y: 5000)
-                        viewportAnchor = UnitPoint(x: viewportCenter.x / 10000, y: viewportCenter.y / 10000)
-                        return offset
+                        
+                        return ScrollGeomHelper(offset: offset, geometry: geometry)
+                        
                     } action: { _, newScrollOffset in
-                        scrollOffset = newScrollOffset
+                        scrollGeometry = newScrollOffset.geometry
+                        scrollOffset = newScrollOffset.offset
                     }
                     .onScrollPhaseChange { oldPhase, newPhase in
                         self.hitTestEnable = !newPhase.isScrolling
@@ -135,7 +155,6 @@ struct ContentView: View {
 
             }
         }
-
     }
 }
 
