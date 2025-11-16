@@ -28,9 +28,9 @@ internal import AnyCodable
     public let id:UUID
     public let version: Graph.Version
     @ObservationIgnored public let context:Context
-    
-    private(set) var nodes: [Node]
-    
+
+    public private(set) var nodes: [Node]
+
     var needsExecution:Bool {
         self.nodes.reduce(true) { (result, node) -> Bool in
             result || node.isDirty
@@ -47,7 +47,7 @@ internal import AnyCodable
         return renderableNodes.compactMap { $0.getObject() as? Satin.Renderable }
     }
     
-    var shouldUpdateConnections = false // New property to trigger view update
+    public var shouldUpdateConnections = false // New property to trigger view update
     {
         didSet
         {
