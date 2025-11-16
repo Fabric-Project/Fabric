@@ -26,7 +26,7 @@ public struct GraphExecutionTiming : Hashable
     /// If execution is being displayed to a screen, this is the time when is expect content to appear on screen. Naive implementations may have `time` == `displayTime` while more advanced implementations may have displayTime lead time by a fraction of the frame rate.
     public let displayTime:TimeInterval?
     
-    /// System absolute time when graph execution as reequested
+    /// System absolute time when graph execution as requested
     public let systemTime:TimeInterval
     
     /// The frame number being requested
