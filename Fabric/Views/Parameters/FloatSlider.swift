@@ -17,8 +17,8 @@ struct FloatSlider: View, Equatable
     @Bindable var vmMin: ParameterObservableModel<Float>
     @Bindable var vmMax: ParameterObservableModel<Float>
 
-    @State var sliderForgroundColor:Color = .black.opacity(0.25)
-    @State var recorderForgroundColor:Color = .orange
+    @State var sliderForegroundColor:Color = .black.opacity(0.25)
+    @State var recorderForegroundColor:Color = .orange
             
 //    private let colors = [Color.red, Color.orange, Color.yellow, Color.green, Color.blue, Color.purple]
 
@@ -57,7 +57,7 @@ struct FloatSlider: View, Equatable
                     //colors.randomElement()
                     
                     Rectangle()
-                        .foregroundColor(self.sliderForgroundColor)
+                        .foregroundColor(self.sliderForegroundColor)
                         .frame(width: sliderWidth * CGFloat( remap(self.vm.uiValue,
                                                                    self.vmMin.uiValue,
                                                                    self.vmMax.uiValue,
