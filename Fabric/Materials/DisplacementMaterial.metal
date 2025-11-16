@@ -74,9 +74,9 @@ fragment half4 displacementFragment( CustomVertexData in [[stage_in]],
     
 //    const uint width = colorTex.get_width();
 //    const uint height = colorTex.get_height();
-//    const float2 reslution = float2(width, height);
+//    const float2 resolution = float2(width, height);
 //
-//    const half4 color = colorTex.read( uint2(in.uv * reslution) );
+//    const half4 color = colorTex.read( uint2(in.uv * resolution) );
     
 //    if ( length(existingColor) > 1.0 )
 //          discard_fragment();
