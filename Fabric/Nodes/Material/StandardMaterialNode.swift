@@ -25,7 +25,7 @@ public class StandardMaterialNode : BaseMaterialNode
             ("inputEmissiveTexture",  NodePort<EquatableTexture>(name: "Emissive Texture", kind: .Inlet)),
             ("inputSpecularTexture",  NodePort<EquatableTexture>(name: "Specular Texture", kind: .Inlet)),
             ("inputRoughnessTexture",  NodePort<EquatableTexture>(name: "Roughness Texture", kind: .Inlet)),
-            ("inputMetalicTexture",  NodePort<EquatableTexture>(name: "Metallic Texture", kind: .Inlet)),
+            ("inputMetallicTexture",  NodePort<EquatableTexture>(name: "Metallic Texture", kind: .Inlet)),
             ("inputBaseColor",  ParameterPort(parameter:Float4Parameter("Base Color", simd_float4(repeating:1), .colorpicker))),
             ("inputEmissiveColor",  ParameterPort(parameter:Float4Parameter("Emissive Color", simd_float4(repeating:0), .colorpicker))),
             ("inputSpecular",  ParameterPort(parameter:FloatParameter("Specular", 0.25, 0.0, 1.0, .slider))),
@@ -44,7 +44,7 @@ public class StandardMaterialNode : BaseMaterialNode
     public var inputEmissiveTexture: NodePort<EquatableTexture>{ port(named: "inputEmissiveTexture") }
     public var inputSpecularTexture: NodePort<EquatableTexture>{ port(named: "inputSpecularTexture") }
     public var inputRoughnessTexture: NodePort<EquatableTexture>{ port(named: "inputRoughnessTexture") }
-    public var inputMetalicTexture: NodePort<EquatableTexture>{ port(named: "inputMetalicTexture") }
+    public var inputMetallicTexture: NodePort<EquatableTexture>{ port(named: "inputMetallicTexture") }
     public var inputBaseColor: ParameterPort<simd_float4>{ port(named: "inputBaseColor") }
     public var inputEmissiveColor: ParameterPort<simd_float4>{ port(named: "inputEmissiveColor") }
     public var inputSpecular: ParameterPort<Float>{ port(named: "inputSpecular") }
@@ -153,9 +153,9 @@ public class StandardMaterialNode : BaseMaterialNode
             shouldOutput = true
         }
         
-        if self.inputMetalicTexture.valueDidChange
+        if self.inputMetallicTexture.valueDidChange
         {
-            self.material.setTexture(self.inputMetalicTexture.value?.texture, type: .metallic)
+            self.material.setTexture(self.inputMetallicTexture.value?.texture, type: .metallic)
             shouldOutput = true
         }
 //        self.material.setTexture(self.inputBumpTexture.value?.texture, type: .displacement)

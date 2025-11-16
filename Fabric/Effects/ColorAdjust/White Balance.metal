@@ -13,7 +13,7 @@
 
 
 typedef struct {
-    float temp; // slider, -1.0, 1.0, 0.0, Tempurature
+    float temp; // slider, -1.0, 1.0, 0.0, Temperature
     float tint; // slider, -1.0, 1.0, 0.0, Tint
 } PostUniforms;
 

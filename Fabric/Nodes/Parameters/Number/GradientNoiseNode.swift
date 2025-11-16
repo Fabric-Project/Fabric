@@ -1,5 +1,5 @@
 //
-//  NumerRemapRange.swift
+//  NumberRemapRange.swift
 //  Fabric
 //
 //  Created by Anton Marini on 5/22/25.
