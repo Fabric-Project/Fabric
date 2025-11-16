@@ -209,11 +209,13 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Marching Squares Contour (needs better stability at edges)
 - [ ] Blob Detection (requires nested array support)
 - [ ] Segmentation
+- [ ] Tracking 
 - [ ] Classification
 - [ ] Face Detection / Landmark
 - [x] Hand Pose Detection / Landmark
 - [ ] Body Pose Detection / Landmark
 - [ ] Depth Map Prediction
+- [ ] Image Embedding Vector( via fast Clip like model or Vision Feature Print? whats most useful - careful do we want to stray into comfy ui bullshit? )
 
 
 ### Info 
