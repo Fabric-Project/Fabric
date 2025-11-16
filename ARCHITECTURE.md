@@ -57,7 +57,7 @@ Parameters (Grey):
 
 Objects (Colored):
 - Geometry (A set of buffers that work together to define how 
-- Material (a Vertex and Fragment Program that work with the graphcis engine)
+- Material (a Vertex and Fragment Program that work with the graphics engine)
 - Shader (A custom Fragment or Shader Program) used with a custom Material. 
 - Image (A Texture)
 
