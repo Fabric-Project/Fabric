@@ -27,19 +27,19 @@ struct NodeView : View
             // Param List
             ZStack(alignment: .topLeading)
             {
-                
-                Color( (self.node.isSelected) ? "NodeBackgroundColorSelected" : "NodeBackgroundColor")
+                self.node.isSelected ? Color("NodeBackgroundColorSelected") : Color("NodeBackgroundColor")
                                 
                 Rectangle()
                     .fill( (self.node.isSelected) ? self.node.nodeType.color().gradient : self.node.nodeType.backgroundColor().gradient )
                     .frame(height: 30)
             
                 VStack(alignment: .leading, spacing: 10) {
-                    
+//                    
                     // Name
                     Text( self.node.name )
                         .font(.system(size: 9))
                         .bold()
+                        .foregroundStyle(.primary)
                         .frame(maxHeight: 20)
                         .padding(.top, 5)
                         .padding(.horizontal, 20)
