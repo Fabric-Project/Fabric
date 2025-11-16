@@ -76,7 +76,7 @@ Checkout our [Roadmap Document](ROADMAP.md)
 
 # Community
 
-I ( [Anton Marini](https://github.com/vade) ) are looking to build a community of developers who long for the ease of use and interoperabilty of Quartz Composer, its ecosystem and plugin comminity. 
+I ( [Anton Marini](https://github.com/vade) ) are looking to build a community of developers who long for the ease of use and interoperability of Quartz Composer, its ecosystem and plugin community. 
 
 If you are interested in contributing, please do not hesitate to reach out / comment in the git repository.
 
