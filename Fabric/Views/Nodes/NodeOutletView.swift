@@ -48,7 +48,6 @@ struct NodeOutletView: View
                             }
 
                             self.port.connect(to: targetPort)
-                            self.graph.shouldUpdateConnections.toggle()
                         }
                 )
                 .anchorPreference(

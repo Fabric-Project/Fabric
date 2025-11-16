@@ -28,6 +28,7 @@ internal import AnyCodable
     public let id:UUID
     public let version: Graph.Version
     @ObservationIgnored public let context:Context
+    @ObservationIgnored public weak var undoManager: UndoManager?
 
     public private(set) var nodes: [Node]
 
@@ -288,16 +289,26 @@ internal import AnyCodable
             self.maybeAddNodeToScene(node)
             self.nodes.append(node)
             node.graph = self
+
+            undoManager?.registerUndo(withTarget: self) { graph in
+                graph.delete(node: node)
+            }
+            undoManager?.setActionName("Add Node")
+            shouldUpdateConnections.toggle()
         }
-        
+
         self.updateRenderingNodes()
         //        self.autoConnect(node: node)
     }
     
     func delete(node:Node)
     {
+        let savedOffset = node.offset
+        let savedConnections = node.ports.flatMap { port in
+            port.connections.map { (port, $0) }
+        }
         node.ports.forEach { $0.disconnectAll() }
-        
+
         if let activeSubGraph
         {
             activeSubGraph.delete(node: node)
@@ -306,8 +317,25 @@ internal import AnyCodable
         {
             self.maybeDeleteNodeFromScene(node)
             self.nodes.removeAll { $0.id == node.id }
+
+            undoManager?.registerUndo(withTarget: self) { [weak self] graph in
+                guard let self = self else { return }
+                node.offset = savedOffset
+                self.nodes.append(node)
+                node.graph = self
+                self.maybeAddNodeToScene(node)
+                graph.shouldUpdateConnections.toggle()
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    for (port, connectedPort) in savedConnections {
+                        port.connect(to: connectedPort)
+                    }
+                }
+            }
+            undoManager?.setActionName("Delete Node")
+            shouldUpdateConnections.toggle()
         }
-        
+
         self.updateRenderingNodes()
     }
     

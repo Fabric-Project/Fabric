@@ -11,6 +11,7 @@ import Fabric
 struct ContentView: View {
 
     @Binding var document: FabricDocument
+    @Environment(\.undoManager) private var undoManager
 
     @State private var magnifyBy = 1.0
     @State private var finalMagnification = 1.0
@@ -89,6 +90,7 @@ struct ContentView: View {
                                 .allowsHitTesting(self.hitTestEnable)
                                 .id("canvas")
                                 .task {
+                                    self.document.graph.undoManager = undoManager
                                     try? await Task.sleep(for: .milliseconds(100))
                                     if let firstNode = self.document.graph.nodes.first {
                                         let targetPoint = UnitPoint(
