@@ -23,10 +23,10 @@ public struct GraphExecutionTiming : Hashable
     /// Absolute Difference between consecutive execute calls made GraphRenderer
     public let deltaTime:TimeInterval
 
-    /// If execution  is being displayed to a screen, this is the time when is expect content to appear on screen. Naive implementations may have `time` == `displayTime` while more advanced implementations may have displayTime lead time by a fraction of the frame rate.
+    /// If execution is being displayed to a screen, this is the time when is expect content to appear on screen. Naive implementations may have `time` == `displayTime` while more advanced implementations may have displayTime lead time by a fraction of the frame rate.
     public let displayTime:TimeInterval?
     
-    /// System absolute time when graph execution  as reequested
+    /// System absolute time when graph execution as reequested
     public let systemTime:TimeInterval
     
     /// The frame number being requested
