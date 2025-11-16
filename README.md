@@ -3,7 +3,7 @@
 Fabric is inspired by Apple's deprecated Quartz Composer ecosystem, and its design philosophy.
 
 Fabric  and aims to
-* Provide a Visual Node based content authoring environent
+* Provide a Visual Node based content authoring environment
 * Provide an SDK to load an common interchange format
 * Provide an SDK to add nodes via a plugin architecture
 
