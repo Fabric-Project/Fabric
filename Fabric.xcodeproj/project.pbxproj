@@ -158,6 +158,7 @@
 				Nodes/Material/DisplacementMaterialNode.swift,
 				Nodes/Material/PBRMaterialNode.swift,
 				Nodes/Material/StandardMaterialNode.swift,
+				Nodes/Material/UVMaterialNode.swift,
 				Nodes/NodeRegistry.swift,
 				Nodes/Object/Camera/OrthographicCameraNode.swift,
 				Nodes/Object/Camera/PerspectiveCameraNode.swift,

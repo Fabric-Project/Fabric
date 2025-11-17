@@ -75,6 +75,7 @@ public class NodeRegistry {
     private var materialNodeClasses:[Node.Type] = [
         // Materials
         BasicColorMaterialNode.self,
+        UVMaterialNode.self,
         BasicTextureMaterialNode.self,
         BasicDiffuseMaterialNode.self,
 //        SkyboxMaterialNode.self,
