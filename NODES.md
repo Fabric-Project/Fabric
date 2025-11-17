@@ -108,7 +108,7 @@ A list of Nodes (planned and implemented) for Fabric.
 ### Lens
 
 - [ ] Lens Distortion
-- [ ] Chromatic Abberation
+- [ ] Chromatic Aberration
 - [ ] Grain
 - [x] Vignetting
 - [ ] Prism / Kaliedoscope

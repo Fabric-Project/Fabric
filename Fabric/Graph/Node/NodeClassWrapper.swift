@@ -16,7 +16,7 @@ public struct NodeClassWrapper: Identifiable
     public var fileURL:URL? = nil
     public var nodeName:String
     
-    // Specify a overriden node type for say, nodeType image with specific image types (effects)
+    // Specify a overridden node type for say, nodeType image with specific image types (effects)
     public init(nodeClass: Node.Type, nodeType:Node.NodeType? = nil, fileURL:URL? = nil, nodeName:String? = nil)
     {
         self.nodeClass = nodeClass

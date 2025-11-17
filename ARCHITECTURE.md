@@ -19,7 +19,7 @@ Below is an example of a `Graph` of `Nodes` (Nodes connected to one another) of
 
 <img width="960" height="614" alt="Fabric" src="https://github.com/user-attachments/assets/44a51357-8209-44cf-920a-d33f92eb8f1a" />
 
-As you can see in the image above, `Nodes` have inputs and ouputs depending on what they do, and these are called `Ports`, and ports of the same type can be connected to one another to form a `Graph` and compute useful things. 
+As you can see in the image above, `Nodes` have inputs and outputs depending on what they do, and these are called `Ports`, and ports of the same type can be connected to one another to form a `Graph` and compute useful things. 
 
 You can peruse the complete set of Nodes Fabric supports in the code base, or get an overview via our [Nodes Reference](https://github.com/Fabric-Project/Fabric/blob/main/NODES.md)
 
@@ -57,7 +57,7 @@ Parameters (Grey):
 
 Objects (Colored):
 - Geometry (A set of buffers that work together to define how 
-- Material (a Vertex and Fragment Program that work with the graphcis engine)
+- Material (a Vertex and Fragment Program that work with the graphics engine)
 - Shader (A custom Fragment or Shader Program) used with a custom Material. 
 - Image (A Texture)
 

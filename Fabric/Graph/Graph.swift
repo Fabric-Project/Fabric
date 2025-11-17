@@ -482,7 +482,7 @@ internal import AnyCodable
             
             if let closestDistanceDirectionNodeTuples = relevantDistanceDirectionNodeTuples.sorted(by: { $0.Distance < $1.Distance }).first
             {
-                print("referece node", referenceNode.name)
+                print("reference node", referenceNode.name)
 
                 self.selectNode(node: closestDistanceDirectionNodeTuples.Node, expandSelection: expandSelection)
             }

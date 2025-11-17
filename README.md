@@ -3,7 +3,7 @@
 Fabric is inspired by Apple's deprecated Quartz Composer ecosystem, and its design philosophy.
 
 Fabric  and aims to
-* Provide a Visual Node based content authoring environent
+* Provide a Visual Node based content authoring environment
 * Provide an SDK to load an common interchange format
 * Provide an SDK to add nodes via a plugin architecture
 
@@ -76,7 +76,7 @@ Checkout our [Roadmap Document](ROADMAP.md)
 
 # Community
 
-I ( [Anton Marini](https://github.com/vade) ) are looking to build a community of developers who long for the ease of use and interoperabilty of Quartz Composer, its ecosystem and plugin comminity. 
+I ( [Anton Marini](https://github.com/vade) ) are looking to build a community of developers who long for the ease of use and interoperability of Quartz Composer, its ecosystem and plugin community. 
 
 If you are interested in contributing, please do not hesitate to reach out / comment in the git repository.
 
