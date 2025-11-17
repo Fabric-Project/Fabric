@@ -307,6 +307,7 @@ internal import AnyCodable
         let savedConnections = node.ports.flatMap { port in
             port.connections.map { (port, $0) }
         }
+
         node.ports.forEach { $0.disconnectAll() }
 
         if let activeSubGraph
@@ -318,22 +319,20 @@ internal import AnyCodable
             self.maybeDeleteNodeFromScene(node)
             self.nodes.removeAll { $0.id == node.id }
 
-            undoManager?.registerUndo(withTarget: self) { [weak self] graph in
-                guard let self = self else { return }
+            self.undoManager?.registerUndo(withTarget: self) { graph in
                 node.offset = savedOffset
-                self.nodes.append(node)
+                graph.nodes.append(node)
                 node.graph = self
-                self.maybeAddNodeToScene(node)
+                graph.maybeAddNodeToScene(node)
                 graph.shouldUpdateConnections.toggle()
 
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    for (port, connectedPort) in savedConnections {
-                        port.connect(to: connectedPort)
-                    }
+                for (port, connectedPort) in savedConnections {
+                    port.connect(to: connectedPort)
                 }
             }
-            undoManager?.setActionName("Delete Node")
-            shouldUpdateConnections.toggle()
+            
+            self.undoManager?.setActionName("Delete Node")
+            self.shouldUpdateConnections.toggle()
         }
 
         self.updateRenderingNodes()
