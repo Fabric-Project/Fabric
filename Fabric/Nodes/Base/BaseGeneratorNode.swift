@@ -182,7 +182,7 @@ class BaseGeneratorNode: Node, NodeFileLoadingProtocol
             {
                 if port.name == param.label
                 {
-                    port.parameter = param
+                    self.replaceParameterOfPort(port, withParam: param)
                 }
             }
         }

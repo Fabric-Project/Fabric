@@ -245,6 +245,20 @@ import Combine
         }
     }
     
+    public func replaceParameterOfPort(_ port:Port, withParam param:(any Parameter))
+    {
+        // Remove existing param from group
+        if let existingParam = port.parameter
+        {
+            self.parameterGroup.remove(existingParam)
+        }
+        
+        // Add new param to group
+        self.parameterGroup.append(param)
+        
+        port.parameter = param
+    }
+    
 //    public func syncPort(p:Port)
 //    {
 //        self.registry.rebuild(from: <#T##[PortRegistry.Snapshot]#>, declared: <#T##[(name: String, port: Port)]#>, owner: <#T##Node#>)
