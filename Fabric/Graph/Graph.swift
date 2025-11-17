@@ -68,6 +68,16 @@ internal import AnyCodable
 
     // For Macro support
     public weak var activeSubGraph:Graph? = nil
+    {
+        didSet
+        {
+            guard let activeSubGraph,
+                let undoManager
+            else { return }
+            
+            activeSubGraph.undoManager = undoManager
+        }
+    }
     
     enum CodingKeys : String, CodingKey
     {
