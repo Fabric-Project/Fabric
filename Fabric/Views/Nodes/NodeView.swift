@@ -16,7 +16,6 @@ struct NodeView : View
     
     // Drag to Offset bullshit
     @State var offset = CGSize.zero
-    @GestureState private var dragOffset: CGSize = .zero
     
     var body: some View
     {

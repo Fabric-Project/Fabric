@@ -123,8 +123,14 @@ public class NodePort<Value : FabricPort>: Port
         
         print("Connections: \(self.debugDescription)) - \(self.connections)")
         print("Connections: \(other.debugDescription) - \(other.connections)")
+
+        self.node?.graph?.undoManager?.registerUndo(withTarget: self) { port in
+            port.connect(to: other)
+        }
+        self.node?.graph?.undoManager?.setActionName("Disconnect Ports")
+        self.node?.graph?.shouldUpdateConnections.toggle()
     }
-    
+
     override public func connect(to other: Port)
     {
         if let other = other as? NodePort<Value>
@@ -210,10 +216,16 @@ public class NodePort<Value : FabricPort>: Port
         
         print("Connections: \(self.debugDescription)) - \(self.connections)")
         print("Connections: \(other.debugDescription) - \(other.connections)")
-        
+
         self.send(self.value, force: true)
+
+        self.node?.graph?.undoManager?.registerUndo(withTarget: self) { port in
+            port.disconnect(from: other)
+        }
+        self.node?.graph?.undoManager?.setActionName("Connect Ports")
+        self.node?.graph?.shouldUpdateConnections.toggle()
     }
-    
+
     public func send(_ v: Value?, force:Bool = false)
     {
         if self.value != v || force

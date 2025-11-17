@@ -85,9 +85,34 @@ public struct NodeCanvas : View
                                         }
                                     }
                                     .onEnded { _ in
-                                        // End drag
-                                        graph.nodes.filter { $0.isSelected }.forEach { $0.isDragging = false }
+                                        let selectedNodes = graph.nodes.filter { $0.isSelected }
+                                        
+                                        graph.undoManager?.beginUndoGrouping()
+                                        
+                                        for node in selectedNodes
+                                        {
+                                            if let offset = initialOffsets[node.id]
+                                            {
+                                                graph.undoManager?.registerUndo(withTarget: node) {
+                                                    
+                                                    let cachedOffset = $0.offset
+                                                    
+                                                    // This registers a redo- as an undo
+                                                    // https://nilcoalescing.com/blog/HandlingUndoAndRedoInSwiftUI/
+                                                    graph.undoManager?.registerUndo(withTarget: node) { $0.offset = cachedOffset
+                                                    }
+
+                                                    $0.offset = offset
+                                                }
+                                            }
+                                        }
+                                        graph.undoManager?.endUndoGrouping()
+                                        
+                                        graph.undoManager?.setActionName("Move Nodes")
+                                        
+                                        selectedNodes.forEach { $0.isDragging = false }
                                         self.activeDragAnchor = nil
+
                                         self.initialOffsets.removeAll()
                                     },
                                 
