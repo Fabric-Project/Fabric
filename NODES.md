@@ -13,7 +13,7 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Standard (Physical Based Rendering)
 - [x] PBR (Advanced Physical Based Rendering)
 - [x] Depth (Visualize Depth)
-- [ ] UV (Visual texture coordinates)
+- [x] UV (Visual texture coordinates)
 - [x] Skybox (HDRI Environment Map)
 - [x] Displace (Luminosity / RGB Based Displacement shader)
 
