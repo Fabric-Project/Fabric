@@ -60,6 +60,7 @@ public class NodeRegistry {
         RoundRectGeometryNode.self,
         TriangleGeometryNode.self,
         CircleGeometryNode.self,
+        ArcGeometryNode.self,
         BoxGeometryNode.self,
 //        RoundBoxGeometryNode.self,
         SphereGeometryNode.self,

@@ -28,7 +28,7 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Rounded Rect
 - [x] Triangle
 - [x] Circle
-- [ ] Arc
+- [x] Arc
 - [ ] Cone
 - [x] Box
 - [ ] Rounded Box

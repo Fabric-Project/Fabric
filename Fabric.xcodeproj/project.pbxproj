@@ -137,6 +137,7 @@
 				Nodes/Base/BaseObjectNode.swift,
 				Nodes/Base/BaseRenderableNode.swift,
 				Nodes/Base/BaseTextureComputeProcessorNode.swift,
+				Nodes/Geometry/ArcGeometryNode.swift,
 				Nodes/Geometry/BoxGeometryNode.swift,
 				Nodes/Geometry/CapsuleGeometryNode.swift,
 				Nodes/Geometry/CircleGeometryNode.swift,
