@@ -28,9 +28,9 @@ public class AnyLoggable: Equatable, CustomStringConvertible
                 let typeString = String(describing: type(of: value))
                 let description = String(describing: value)
                 
-                self.description = description.replacingOccurrences(of: typeString, with: "")
-                    .replacingOccurrences(of: "(", with: "")
-                    .replacingOccurrences(of: ")", with: "")
+                self.description = description.replacing(typeString, with: "")
+                    .replacing("(", with: "")
+                    .replacing(")", with: "")
             }
             else
             {

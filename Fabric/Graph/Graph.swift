@@ -143,7 +143,7 @@ internal import AnyCodable
                     self.addNode(node)
                 }
                 // This is stupid? Yes, BaseEffectNode should be designed to cover the cases... but this works, today.
-                else if anyCodableMap.type == String(describing: type(of: BaseEffectThreeChannelNode.self)).replacingOccurrences(of: ".Type", with:"")
+                else if anyCodableMap.type == String(describing: type(of: BaseEffectThreeChannelNode.self)).replacing(".Type", with:"")
                 {
                     let jsonData = try encoder.encode(anyCodableMap.value)
                     decoder.context = decodeContext
@@ -153,7 +153,7 @@ internal import AnyCodable
                     self.addNode(node)
                 }
                 // This is stupid?
-                else if anyCodableMap.type == String(describing: type(of: BaseEffectTwoChannelNode.self)).replacingOccurrences(of: ".Type", with:"")
+                else if anyCodableMap.type == String(describing: type(of: BaseEffectTwoChannelNode.self)).replacing(".Type", with:"")
                 {
                     let jsonData = try encoder.encode(anyCodableMap.value)
                     decoder.context = decodeContext
@@ -163,7 +163,7 @@ internal import AnyCodable
                     self.addNode(node)
                 }
                 // This is stupid?
-                else if anyCodableMap.type == String(describing: type(of: BaseEffectNode.self)).replacingOccurrences(of: ".Type", with:"")
+                else if anyCodableMap.type == String(describing: type(of: BaseEffectNode.self)).replacing(".Type", with:"")
                 {
                     let encoder = JSONEncoder()
                     let jsonData = try encoder.encode(anyCodableMap.value)
@@ -177,7 +177,7 @@ internal import AnyCodable
                 }
 
                 // This is stupid?
-                else if anyCodableMap.type == String(describing: type(of: BaseGeneratorNode.self)).replacingOccurrences(of: ".Type", with:"")
+                else if anyCodableMap.type == String(describing: type(of: BaseGeneratorNode.self)).replacing(".Type", with:"")
                 {
                     let encoder = JSONEncoder()
                     let jsonData = try encoder.encode(anyCodableMap.value)

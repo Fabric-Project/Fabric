@@ -224,7 +224,7 @@ public class BaseEffectNode: Node, NodeFileLoadingProtocol
     
     
     private func fileURLToName(fileURL:URL) -> String {
-        let nodeName =  fileURL.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "ImageNode", with: "")
+        let nodeName =  fileURL.deletingPathExtension().lastPathComponent.replacing("ImageNode", with: "")
 
         return nodeName.titleCase
     }
