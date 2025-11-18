@@ -28,8 +28,8 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Rounded Rect
 - [x] Triangle
 - [x] Circle
-- [ ] Arc
-- [ ] Cone
+- [x] Arc
+- [x] Cone
 - [x] Box
 - [ ] Rounded Box
 - [ ] Squircle
@@ -37,8 +37,8 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] IcoSphere
 - [ ] Octasphere
 - [x] Sphere
-- [ ] Tube
-- [ ] Torus
+- [x] Tube
+- [x] Torus
 - [x] Tesselated Text
 - [x] Extruded Text
 - [x] Supershape
