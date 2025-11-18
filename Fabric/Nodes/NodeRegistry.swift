@@ -228,6 +228,7 @@ public class NodeRegistry {
         // Vectors
         MakeVector2Node.self,
         Vector2ToFloatNode.self,
+        Vector2Distance.self,
         ArrayIndexValueNode<simd_float2>.self,
         ArrayCountNode<simd_float2>.self,
         ArrayQueueNode<simd_float2>.self,
@@ -236,6 +237,7 @@ public class NodeRegistry {
         
         MakeVector3Node.self,
         Vector3ToFloatNode.self,
+        Vector3Distance.self,
         ArrayIndexValueNode<simd_float3>.self,
         ArrayCountNode<simd_float3>.self,
         ArrayQueueNode<simd_float3>.self,
@@ -243,6 +245,7 @@ public class NodeRegistry {
 
         MakeVector4Node.self,
         Vector4ToFloatNode.self,
+        Vector4Distance.self,
         ArrayIndexValueNode<simd_float4>.self,
         ArrayCountNode<simd_float4>.self,
         ArrayQueueNode<simd_float4>.self,
