@@ -38,7 +38,7 @@ public class ArcGeometryNode : BaseGeometryNode
     public override var geometry: ArcGeometry { _geometry }
 
     private let _geometry = ArcGeometry(radius: (inner: 0.25, outer:0.75),
-                                        angle: (start:0.0, end:90.0), res: (angular:20, radial:5))
+                                        angle: (start:0.0, end:degToRad(90.0)), res: (angular:20, radial:5))
 
     override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
     {
@@ -61,14 +61,14 @@ public class ArcGeometryNode : BaseGeometryNode
         if self.inputStartAngle.valueDidChange,
            let inputAngle = self.inputStartAngle.value
         {
-            self.geometry.startAngle = inputAngle
+            self.geometry.startAngle = degToRad(inputAngle)
             shouldOutputGeometry = true
         }
         
         if self.inputEndAngle.valueDidChange,
            let inputAngle = self.inputEndAngle.value
         {
-            self.geometry.endAngle = inputAngle
+            self.geometry.endAngle = degToRad(inputAngle)
             shouldOutputGeometry = true
         }
         
