@@ -70,18 +70,24 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
                                  commandBuffer: MTLCommandBuffer)
     {
         if (self.inputGeometry.valueDidChange
-            || self.inputMaterial.valueDidChange),
-           let geometery = self.inputGeometry.value,
-           let material = self.inputMaterial.value
+            || self.inputMaterial.valueDidChange)
         {
-            if let mesh = mesh
+            if let geometery = self.inputGeometry.value,
+               let material = self.inputMaterial.value
             {
-                mesh.geometry = geometery
-                mesh.material = material
+                if let mesh = mesh
+                {
+                    mesh.geometry = geometery
+                    mesh.material = material
+                }
+                else
+                {
+                    self.mesh = InstancedMesh(geometry: geometery, material: material, count: self.inputPositions.value?.count ?? 1)
+                }
             }
             else
             {
-                self.mesh = InstancedMesh(geometry: geometery, material: material, count: self.inputPositions.value?.count ?? 1)
+                mesh = nil
             }
         }
             

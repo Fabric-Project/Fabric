@@ -79,6 +79,8 @@ public class BaseMaterialNode : Node
             shouldOutput = true
         }
         
+        // We use this for disconnect / reconnect logic...
+        // Maybe this needs to go into a super call? :X
         if self.isDirty
         {
             shouldOutput = true
@@ -95,7 +97,6 @@ public class BaseMaterialNode : Node
 
         if shouldOutput
         {
-            // force since object id is the same
             self.outputMaterial.send(self.material)
         }
      }

@@ -98,31 +98,39 @@ public class MeshNode : BaseRenderableNode<Mesh>
     {
         if
             (self.inputGeometry.valueDidChange
-             || self.inputMaterial.valueDidChange),
-             let geometry = self.inputGeometry.value,
-                let material = self.inputMaterial.value
+             || self.inputMaterial.valueDidChange)
         {
-            if let mesh = mesh
+            
+            if let geometry = self.inputGeometry.value,
+               let material = self.inputMaterial.value
+
             {
-//                print("Mesh Node - Updating Geometry and Material")
-                //                mesh.cullMode = .none
-                mesh.geometry = geometry
-                mesh.material = material
+                if let mesh = mesh
+                {
+                    //                print("Mesh Node - Updating Geometry and Material")
+                    //                mesh.cullMode = .none
+                    mesh.geometry = geometry
+                    mesh.material = material
+                }
+                else
+                {
+                    let mesh = Mesh(geometry: geometry, material: material)
+                    mesh.lookAt(target: simd_float3(repeating: 0))
+                    mesh.position = self.inputPosition.value ?? .zero
+                    mesh.scale = self.inputScale.value ?? .zero
+                    
+                    let orientation = self.inputOrientation.value ?? .zero
+                    mesh.orientation = simd_quatf(angle: orientation.w,
+                                                  axis: simd_float3(x: orientation.x,
+                                                                    y: orientation.y,
+                                                                    z: orientation.z) )
+                    
+                    self.mesh = mesh
+                }
             }
             else
             {
-                let mesh = Mesh(geometry: geometry, material: material)
-                mesh.lookAt(target: simd_float3(repeating: 0))
-                mesh.position = self.inputPosition.value ?? .zero
-                mesh.scale = self.inputScale.value ?? .zero
-
-                let orientation = self.inputOrientation.value ?? .zero
-                mesh.orientation = simd_quatf(angle: orientation.w,
-                                                axis: simd_float3(x: orientation.x,
-                                                                  y: orientation.y,
-                                                                  z: orientation.z) )
-                
-                self.mesh = mesh
+                self.mesh = nil
             }
         }
          
