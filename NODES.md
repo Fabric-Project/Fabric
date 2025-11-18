@@ -29,7 +29,7 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Triangle
 - [x] Circle
 - [x] Arc
-- [ ] Cone
+- [x] Cone
 - [x] Box
 - [ ] Rounded Box
 - [ ] Squircle

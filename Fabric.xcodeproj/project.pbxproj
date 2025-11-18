@@ -141,6 +141,7 @@
 				Nodes/Geometry/BoxGeometryNode.swift,
 				Nodes/Geometry/CapsuleGeometryNode.swift,
 				Nodes/Geometry/CircleGeometryNode.swift,
+				Nodes/Geometry/ConeGeometryNode.swift,
 				Nodes/Geometry/ExtrudedTextGeometryNode.swift,
 				Nodes/Geometry/IcoSphereGeometryNode.swift,
 				Nodes/Geometry/PixelArrayToGeometryNode.swift,
