@@ -133,7 +133,7 @@ public class GraphRenderer : MetalViewRenderer
                                      renderPassDescriptor: renderPassDescriptor,
                                      commandBuffer: commandBuffer,
                                      nodesWeHaveExecutedThisPass:&nodesWeHaveExecutedThisPass,
-                clearFlags: clearFlags)
+                                     clearFlags: clearFlags)
             }
             
             self.cachedCamera = firstCamera
@@ -146,8 +146,7 @@ public class GraphRenderer : MetalViewRenderer
                               renderPassDescriptor: MTLRenderPassDescriptor,
                               commandBuffer: MTLCommandBuffer,
                               nodesWeHaveExecutedThisPass:inout  [Node],
-                              clearFlags:Bool = true
-                              )
+                              clearFlags:Bool = true)
     {
         
         // get the connection for
