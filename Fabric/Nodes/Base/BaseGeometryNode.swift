@@ -45,6 +45,13 @@ public class BaseGeometryNode : Node
             shouldOutput = true
         }
         
+        // We use this for disconnect / reconnect logic...
+        // Maybe this needs to go into a super call? :X 
+        if self.isDirty
+        {
+            shouldOutput = true
+        }
+        
         return shouldOutput
     }
     

@@ -107,6 +107,8 @@ public class ObjectNode<ObjectType : Satin.Object> : BaseObjectNode
             shouldOutput = true
         }
         
+        // We use this for disconnect / reconnect logic...
+        // Maybe this needs to go into a super call? :X
         if self.isDirty
         {
             shouldOutput = true
