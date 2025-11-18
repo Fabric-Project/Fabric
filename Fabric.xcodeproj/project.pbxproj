@@ -152,6 +152,7 @@
 				Nodes/Geometry/SuperShape/SuperShapeGenerator.mm,
 				Nodes/Geometry/SuperShape/SuperShapeGeometryNode.swift,
 				Nodes/Geometry/TesselatedTextGeometryNode.swift,
+				Nodes/Geometry/TorusGeometryNode.swift,
 				Nodes/Geometry/TriangleGeometryNode.swift,
 				Nodes/Geometry/TubeGeometryNode.swift,
 				Nodes/Material/BasicColorMaterialNode.swift,

@@ -68,6 +68,7 @@ public class NodeRegistry {
         IcoSphereGeometryNode.self,
         CapsuleGeometryNode.self,
         TubeGeometryNode.self,
+        TorusGeometryNode.self,
 //        SkyboxGeometryNode.self,
         TesselatedTextGeometryNode.self,
         ExtrudedTextGeometryNode.self,
