@@ -264,6 +264,9 @@ Have yet to work on Index (integer only) numeric nodes
 - [x] Vec 2 to Float
 - [x] Vec 3 to Float
 - [x] Vec 4 to Float
+- [x] Vector 2 Distance
+- [x] Vector 3 Distance
+- [x] Vector 4 Distance
 - [ ] Vector Ops (Cross / Dot / etc)
 
 ### Color
