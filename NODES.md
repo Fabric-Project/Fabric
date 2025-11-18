@@ -37,7 +37,7 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] IcoSphere
 - [ ] Octasphere
 - [x] Sphere
-- [ ] Tube
+- [x] Tube
 - [ ] Torus
 - [x] Tesselated Text
 - [x] Extruded Text

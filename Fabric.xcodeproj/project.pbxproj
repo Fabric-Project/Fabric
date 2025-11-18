@@ -153,6 +153,7 @@
 				Nodes/Geometry/SuperShape/SuperShapeGeometryNode.swift,
 				Nodes/Geometry/TesselatedTextGeometryNode.swift,
 				Nodes/Geometry/TriangleGeometryNode.swift,
+				Nodes/Geometry/TubeGeometryNode.swift,
 				Nodes/Material/BasicColorMaterialNode.swift,
 				Nodes/Material/BasicDiffuseMaterialNode.swift,
 				Nodes/Material/BasicTextureMaterialNode.swift,
