@@ -95,6 +95,7 @@ public class NodePort<Value : FabricPort>: Port
            let otherNode = other.node
         {
             node.didDisconnectFromNode(otherNode)
+            otherNode.didDisconnectFromNode(node)
         }
         
         if other.kind == .Inlet
@@ -124,6 +125,9 @@ public class NodePort<Value : FabricPort>: Port
         print("Connections: \(self.debugDescription)) - \(self.connections)")
         print("Connections: \(other.debugDescription) - \(other.connections)")
 
+        self.send(nil, force: true)
+
+        
         self.node?.graph?.undoManager?.registerUndo(withTarget: self) { port in
             port.connect(to: other)
         }
@@ -211,7 +215,10 @@ public class NodePort<Value : FabricPort>: Port
         if let node = self.node,
            let otherNode = other.node
         {
+//            // This forces a ping to recompute if we need to
+//            node.markDirty()
             node.didConnectToNode(otherNode)
+            otherNode.didConnectToNode(node)
         }
         
         print("Connections: \(self.debugDescription)) - \(self.connections)")
