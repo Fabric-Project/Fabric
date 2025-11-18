@@ -205,6 +205,7 @@ public class NodeRegistry {
         NumberEaseNode.self,
         NumberRemapNode.self,
         NumberIntegralNode.self,
+        NumberSmoothNode.self,
         GradientNoiseNode.self,
         AudioSpectrumNode.self,
         ArrayIndexValueNode<Float>.self,
