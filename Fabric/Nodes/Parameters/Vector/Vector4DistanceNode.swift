@@ -39,7 +39,7 @@ public class Vector4Distance : Node
         }
     }
     
-    override public class var name:String { "Vector 3 Distance" }
+    override public class var name:String { "Vector 4 Distance" }
     override public class var nodeType:Node.NodeType { .Parameter(parameterType: .Vector) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
