@@ -18,15 +18,17 @@ public class PlaneGeometryNode : BaseGeometryNode
         let ports = super.registerPorts(context: context)
         
         return  [
-        ("inputWidth", ParameterPort(parameter:FloatParameter("Width", 1.0, .inputfield))),
-        ("inputHeight", ParameterPort(parameter:FloatParameter("Height", 1.0, .inputfield))),
-        ("inputResolutionWidth", ParameterPort(parameter:IntParameter("Width", 1, .inputfield))),
-        ("inputResolutionHeight", ParameterPort(parameter:IntParameter("Height", 1, .inputfield))),
-
+            ("inputPlane", ParameterPort(parameter:StringParameter("Plane", "XY", ["XY", "YX", "XZ", "ZX", "YZ", "ZY"], .dropdown))),
+            ("inputWidth", ParameterPort(parameter:FloatParameter("Width", 1.0, .inputfield))),
+            ("inputHeight", ParameterPort(parameter:FloatParameter("Height", 1.0, .inputfield))),
+            ("inputResolutionWidth", ParameterPort(parameter:IntParameter("Width", 1, .inputfield))),
+            ("inputResolutionHeight", ParameterPort(parameter:IntParameter("Height", 1, .inputfield))),
+            
         ] + ports
     }
     
     // Proxy Port
+    public var inputPlane:ParameterPort<String> { port(named: "inputPlane")  }
     public var inputWidth:ParameterPort<Float> { port(named: "inputWidth")  }
     public var inputHeight:ParameterPort<Float> { port(named: "inputHeight")  }
     public var inputResolutionWidth:ParameterPort<Int> { port(named: "inputResolutionWidth")  }
@@ -40,6 +42,25 @@ public class PlaneGeometryNode : BaseGeometryNode
     {
         var shouldOutputGeometry = super.evaluate(geometry: geometry, atTime: atTime)
 
+        if self.inputPlane.valueDidChange,
+           let planeName = self.inputPlane.value
+        {
+          switch planeName {
+          case "XY":
+              self.geometry.orientation = .xy
+          case "YX":
+              self.geometry.orientation = .yx
+          case "XZ":
+              self.geometry.orientation = .xz
+          case "ZX":
+              self.geometry.orientation = .zx
+          case "YZ":
+              self.geometry.orientation = .yz
+          default:
+              self.geometry.orientation = .xy
+            }
+        }
+        
         if self.inputWidth.valueDidChange,
            let inputWidth = self.inputWidth.value
         {
