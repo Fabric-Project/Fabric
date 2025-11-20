@@ -221,6 +221,7 @@ public class NodeRegistry {
         StringLengthNode.self,
         StringRangeNode.self,
         ConvertToStringNode.self,
+        LocalLLMNode.self,
         ArrayIndexValueNode<String>.self,
         ArrayCountNode<String>.self,
         ArrayQueueNode<String>.self,

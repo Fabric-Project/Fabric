@@ -1,8 +1,8 @@
 //
-//  StringComponentNode.swift
+//  LLMNode.swift
 //  Fabric
 //
-//  Created by Anton Marini on 9/17/25.
+//  Created by Anton Marini on 11/20/25.
 //
 
 import Foundation
@@ -10,13 +10,13 @@ import Satin
 import simd
 import Metal
 
-public class StringComponentNode : Node
+public class LocalLLMNode : Node
 {
-    override public static var name:String { "String Components" }
+    override public static var name:String { "Local LLM Node" }
     override public static var nodeType:Node.NodeType { .Parameter(parameterType: .String) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Convert an input String to An array of output Strings"}
+    override public class var nodeDescription: String { "Provide a string prompt to a local LLM for evaluation via MLX-LLM"}
 
     // TODO: add character set menu to choose component separation strategy
     
@@ -26,15 +26,30 @@ public class StringComponentNode : Node
         
         return ports +
         [
-            ("inputPort", NodePort<String>(name: "String", kind: .Inlet)),
-            ("outputPort", NodePort<ContiguousArray<String>>(name: "Components", kind: .Outlet)),
+            ("inputPort", ParameterPort(parameter: StringParameter("Prompt", "What Color is the Sky?", [], .inputfield))),
+            ("outputPort", NodePort<String>(name: "Output", kind: .Outlet)),
         ]
     }
     
     // Port Proxy
     public var inputPort:NodePort<String> { port(named: "inputPort") }
-    public var outputPort:NodePort<ContiguousArray<String>> { port(named: "outputPort") }
+    public var outputPort:NodePort<String> { port(named: "outputPort") }
 
+    private var llmEvaluator = LLMEvaluator()
+    
+    public required init(context: Context)
+    {
+        super.init(context: context)
+        
+        Task {
+            try await self.llmEvaluator.load()
+        }
+    }
+    
+    public required init(from decoder: any Decoder) throws
+    {
+        try super.init(from: decoder)
+    }
     
     override public func execute(context:GraphExecutionContext,
                            renderPassDescriptor: MTLRenderPassDescriptor,
@@ -44,12 +59,12 @@ public class StringComponentNode : Node
         {
             if let string = self.inputPort.value
             {
-                self.outputPort.send( ContiguousArray<String>(string.components(separatedBy: .newlines)) )
-            }
-            else
-            {
-                self.outputPort.send( nil )
+                self.llmEvaluator.prompt = string
+                self.llmEvaluator.generate()
+                
             }
         }
+        
+        self.outputPort.send(self.llmEvaluator.output)
     }
 }
