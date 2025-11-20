@@ -9,6 +9,11 @@
 /* Begin PBXBuildFile section */
 		1B27F1AF2EC68CE900B17C6C /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 1B27F1AE2EC68CE900B17C6C /* Sparkle */; };
 		1B46BEA62EB472E800124BDA /* SwiftSimplify in Frameworks */ = {isa = PBXBuildFile; productRef = 1B46BEA52EB472E800124BDA /* SwiftSimplify */; };
+		1B9BA4392ECFA7EA00209F86 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA4382ECFA7EA00209F86 /* MLX */; };
+		1B9BA43B2ECFA7EA00209F86 /* MLXFFT in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA43A2ECFA7EA00209F86 /* MLXFFT */; };
+		1B9BA43D2ECFA7EA00209F86 /* MLXFast in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA43C2ECFA7EA00209F86 /* MLXFast */; };
+		1B9BA43F2ECFA7EA00209F86 /* MLXLinalg in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA43E2ECFA7EA00209F86 /* MLXLinalg */; };
+		1B9BA4412ECFA7EA00209F86 /* MLXNN in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA4402ECFA7EA00209F86 /* MLXNN */; };
 		1BB12B362E0234FC0075C276 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BB12B332E0234FC0075C276 /* Foundation.framework */; };
 		1BB12B372E0234FC0075C276 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BB12B342E0234FC0075C276 /* AVFoundation.framework */; };
 		1BB12B382E0234FC0075C276 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BB12B352E0234FC0075C276 /* CoreFoundation.framework */; };
@@ -307,10 +312,15 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1B9BA4392ECFA7EA00209F86 /* MLX in Frameworks */,
+				1B9BA43F2ECFA7EA00209F86 /* MLXLinalg in Frameworks */,
 				1BC06AEA2E0232810019808C /* Satin.framework in Frameworks */,
 				1BB12B482E0267420075C276 /* Accelerate.framework in Frameworks */,
+				1B9BA43D2ECFA7EA00209F86 /* MLXFast in Frameworks */,
+				1B9BA4412ECFA7EA00209F86 /* MLXNN in Frameworks */,
 				1BC06AF42E0233E00019808C /* AnyCodable in Frameworks */,
 				1BB12B382E0234FC0075C276 /* CoreFoundation.framework in Frameworks */,
+				1B9BA43B2ECFA7EA00209F86 /* MLXFFT in Frameworks */,
 				1BB12B372E0234FC0075C276 /* AVFoundation.framework in Frameworks */,
 				1BC06AF22E0233DC0019808C /* Noise in Frameworks */,
 				1BB12B362E0234FC0075C276 /* Foundation.framework in Frameworks */,
@@ -413,6 +423,11 @@
 				1BC06AF12E0233DC0019808C /* Noise */,
 				1BC06AF32E0233E00019808C /* AnyCodable */,
 				1B46BEA52EB472E800124BDA /* SwiftSimplify */,
+				1B9BA4382ECFA7EA00209F86 /* MLX */,
+				1B9BA43A2ECFA7EA00209F86 /* MLXFFT */,
+				1B9BA43C2ECFA7EA00209F86 /* MLXFast */,
+				1B9BA43E2ECFA7EA00209F86 /* MLXLinalg */,
+				1B9BA4402ECFA7EA00209F86 /* MLXNN */,
 			);
 			productName = Fabric;
 			productReference = 1BC06A7F2E0231520019808C /* Fabric.framework */;
@@ -476,6 +491,7 @@
 				1B9ECA4F2DFBB2CB00D32B4C /* XCRemoteSwiftPackageReference "AnyCodable" */,
 				1B46BEA42EB472E800124BDA /* XCRemoteSwiftPackageReference "SwiftSimplify" */,
 				1B27F1AD2EC68CE900B17C6C /* XCRemoteSwiftPackageReference "Sparkle" */,
+				1B9BA4372ECFA7EA00209F86 /* XCRemoteSwiftPackageReference "mlx-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1BE007232DBB1FBC0061EAFD /* Products */;
@@ -647,7 +663,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_VIEW = TRUE;
 				DEVELOPMENT_ASSET_PATHS = "\"Fabric Editor/Preview Content\"";
@@ -665,7 +681,7 @@
 					"@executable_path/../Frameworks/Fabric.framework/Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
-				MARKETING_VERSION = 0.0.2;
+				MARKETING_VERSION = 0.0.3;
 				OTHER_CODE_SIGN_FLAGS = "--deep";
 				PRODUCT_BUNDLE_IDENTIFIER = "io.hi-rez.Fabric";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -688,7 +704,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_VIEW = TRUE;
 				DEVELOPMENT_ASSET_PATHS = "\"Fabric Editor/Preview Content\"";
@@ -706,7 +722,7 @@
 					"@executable_path/../Frameworks/Fabric.framework/Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
-				MARKETING_VERSION = 0.0.2;
+				MARKETING_VERSION = 0.0.3;
 				OTHER_CODE_SIGN_FLAGS = "--deep";
 				PRODUCT_BUNDLE_IDENTIFIER = "io.hi-rez.Fabric";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -885,6 +901,14 @@
 				kind = branch;
 			};
 		};
+		1B9BA4372ECFA7EA00209F86 /* XCRemoteSwiftPackageReference "mlx-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.29.1;
+			};
+		};
 		1B9ECA4F2DFBB2CB00D32B4C /* XCRemoteSwiftPackageReference "AnyCodable" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/Flight-School/AnyCodable";
@@ -913,6 +937,31 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 1B46BEA42EB472E800124BDA /* XCRemoteSwiftPackageReference "SwiftSimplify" */;
 			productName = SwiftSimplify;
+		};
+		1B9BA4382ECFA7EA00209F86 /* MLX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B9BA4372ECFA7EA00209F86 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLX;
+		};
+		1B9BA43A2ECFA7EA00209F86 /* MLXFFT */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B9BA4372ECFA7EA00209F86 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLXFFT;
+		};
+		1B9BA43C2ECFA7EA00209F86 /* MLXFast */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B9BA4372ECFA7EA00209F86 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLXFast;
+		};
+		1B9BA43E2ECFA7EA00209F86 /* MLXLinalg */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B9BA4372ECFA7EA00209F86 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLXLinalg;
+		};
+		1B9BA4402ECFA7EA00209F86 /* MLXNN */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B9BA4372ECFA7EA00209F86 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLXNN;
 		};
 		1BC06AF12E0233DC0019808C /* Noise */ = {
 			isa = XCSwiftPackageProductDependency;
