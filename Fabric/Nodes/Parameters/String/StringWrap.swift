@@ -51,6 +51,7 @@ public class StringWrapNode : Node
                 var outputString:String = ""
                 
                 var lastLineOutput = 0
+
                 for line in stride(from: 0, to: words.count, by: wrapCount)
                 {
                     let lineWords = words[lastLineOutput ..< line]
@@ -61,6 +62,11 @@ public class StringWrapNode : Node
                     lastLineOutput = line
                 }
                
+                let diff = words.count - lastLineOutput
+                
+                let lastLineWords = words[lastLineOutput ..< (lastLineOutput + diff)]
+                
+                outputString.append(lastLineWords.joined(separator: " "))
                 
                 self.outputPort.send( outputString )
             }
