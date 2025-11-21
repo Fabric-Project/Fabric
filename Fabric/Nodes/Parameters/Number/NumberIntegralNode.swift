@@ -42,7 +42,7 @@ public class NumberIntegralNode : Node
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        self.state += self.inputNumber.value ?? 0.0
+        self.state += (self.inputNumber.value ?? 0.0) * -Float(context.timing.deltaTime)
         
         self.outputNumber.send(self.state)
     }
