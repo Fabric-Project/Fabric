@@ -253,7 +253,7 @@ Have yet to work on Index (integer only) numeric nodes
 - [x] Round
 - [ ] Counter
 - [ ] LFO
-- [ ] Smooth (Kalman or 1 Euro Filter?)
+- [x] Smooth (Kalman or 1 Euro Filter?)
 - [ ] Math Expression
 
 ### Vector
