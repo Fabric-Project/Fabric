@@ -112,10 +112,6 @@ class LLMEvaluator {
                             self.stat = "\(completion.tokensPerSecond) tokens/s"
                         }
                     }
-
-//                    if let toolCall = batch.compactMap({ $0.toolCall }).first {
-//                        try await handleToolCall(toolCall, prompt: prompt)
-//                    }
                 }
             }
 
