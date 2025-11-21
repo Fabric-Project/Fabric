@@ -66,13 +66,12 @@ public class LocalLLMNode : Node
         }
 
         if self.inputGenerate.valueDidChange
-            && self.inputGenerate.value ?? true
+            && self.inputGenerate.value == true
         {
             self.llmEvaluator.cancelGeneration()
             
             self.llmEvaluator.generate()
         }
-        
         
         self.outputPort.send(self.llmEvaluator.output)
     }
