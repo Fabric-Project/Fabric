@@ -9,6 +9,16 @@
 /* Begin PBXBuildFile section */
 		1B27F1AF2EC68CE900B17C6C /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 1B27F1AE2EC68CE900B17C6C /* Sparkle */; };
 		1B46BEA62EB472E800124BDA /* SwiftSimplify in Frameworks */ = {isa = PBXBuildFile; productRef = 1B46BEA52EB472E800124BDA /* SwiftSimplify */; };
+		1B9BA4392ECFA7EA00209F86 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA4382ECFA7EA00209F86 /* MLX */; };
+		1B9BA43B2ECFA7EA00209F86 /* MLXFFT in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA43A2ECFA7EA00209F86 /* MLXFFT */; };
+		1B9BA43D2ECFA7EA00209F86 /* MLXFast in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA43C2ECFA7EA00209F86 /* MLXFast */; };
+		1B9BA43F2ECFA7EA00209F86 /* MLXLinalg in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA43E2ECFA7EA00209F86 /* MLXLinalg */; };
+		1B9BA4412ECFA7EA00209F86 /* MLXNN in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA4402ECFA7EA00209F86 /* MLXNN */; };
+		1B9BA4442ECFA97700209F86 /* MLXEmbedders in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA4432ECFA97700209F86 /* MLXEmbedders */; };
+		1B9BA4462ECFA97700209F86 /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA4452ECFA97700209F86 /* MLXLLM */; };
+		1B9BA4482ECFA97700209F86 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA4472ECFA97700209F86 /* MLXLMCommon */; };
+		1B9BA44A2ECFA97700209F86 /* MLXVLM in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA4492ECFA97700209F86 /* MLXVLM */; };
+		1B9BA4532ECFB42100209F86 /* AsyncAlgorithms in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA4522ECFB42100209F86 /* AsyncAlgorithms */; };
 		1BB12B362E0234FC0075C276 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BB12B332E0234FC0075C276 /* Foundation.framework */; };
 		1BB12B372E0234FC0075C276 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BB12B342E0234FC0075C276 /* AVFoundation.framework */; };
 		1BB12B382E0234FC0075C276 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BB12B352E0234FC0075C276 /* CoreFoundation.framework */; };
@@ -155,6 +165,15 @@
 				Nodes/Geometry/TorusGeometryNode.swift,
 				Nodes/Geometry/TriangleGeometryNode.swift,
 				Nodes/Geometry/TubeGeometryNode.swift,
+				Nodes/Image/Analysis/ContourPathNode.swift,
+				Nodes/Image/Analysis/HandPoseAnalysisNode.swift,
+				Nodes/Image/CameraProviderNode.swift,
+				Nodes/Image/Distort/KeypointDistortNode.swift,
+				Nodes/Image/ImageDimensions.swift,
+				Nodes/Image/ImageProviderNode.swift,
+				Nodes/Image/Mask/ForegroundMaskNode.swift,
+				Nodes/Image/Mask/PersonSegmentationMaskNode.swift,
+				Nodes/Image/MovieProviderNode.swift,
 				Nodes/Material/BasicColorMaterialNode.swift,
 				Nodes/Material/BasicDiffuseMaterialNode.swift,
 				Nodes/Material/BasicTextureMaterialNode.swift,
@@ -207,9 +226,12 @@
 				Nodes/Parameters/Number/Smooth/OneEuroFilter.swift,
 				Nodes/Parameters/Number/SystemTimeNode.swift,
 				Nodes/Parameters/String/ConvertToStringNode.swift,
+				Nodes/Parameters/String/LLM/LLMEvaluator.swift,
+				Nodes/Parameters/String/LLM/LocalLLMNode.swift,
 				Nodes/Parameters/String/StringComponentNode.swift,
 				Nodes/Parameters/String/StringLengthNode.swift,
 				Nodes/Parameters/String/StringRange.swift,
+				Nodes/Parameters/String/StringWrap.swift,
 				Nodes/Parameters/String/TextFileLoaderNode.swift,
 				Nodes/Parameters/Vector/MakeVector2Node.swift,
 				Nodes/Parameters/Vector/MakeVector3Node.swift,
@@ -220,15 +242,6 @@
 				Nodes/Parameters/Vector/Vector3ToFloatNode.swift,
 				Nodes/Parameters/Vector/Vector4DistanceNode.swift,
 				Nodes/Parameters/Vector/Vector4ToFloatNode.swift,
-				Nodes/Texture/Analysis/ContourPathNode.swift,
-				Nodes/Texture/Analysis/HandPoseAnalysisNode.swift,
-				Nodes/Texture/CameraProviderNode.swift,
-				Nodes/Texture/Distort/KeypointDistortNode.swift,
-				Nodes/Texture/ImageDimensions.swift,
-				Nodes/Texture/ImageProviderNode.swift,
-				Nodes/Texture/Mask/ForegroundMaskNode.swift,
-				Nodes/Texture/Mask/PersonSegmentationMaskNode.swift,
-				Nodes/Texture/MovieProviderNode.swift,
 				Nodes/Utility/CursorNode.swift,
 				Nodes/Utility/LogNode.swift,
 				Nodes/Utility/PixelsToUnitsNode.swift,
@@ -307,13 +320,23 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1B9BA4462ECFA97700209F86 /* MLXLLM in Frameworks */,
+				1B9BA4392ECFA7EA00209F86 /* MLX in Frameworks */,
+				1B9BA43F2ECFA7EA00209F86 /* MLXLinalg in Frameworks */,
 				1BC06AEA2E0232810019808C /* Satin.framework in Frameworks */,
 				1BB12B482E0267420075C276 /* Accelerate.framework in Frameworks */,
+				1B9BA43D2ECFA7EA00209F86 /* MLXFast in Frameworks */,
+				1B9BA4412ECFA7EA00209F86 /* MLXNN in Frameworks */,
 				1BC06AF42E0233E00019808C /* AnyCodable in Frameworks */,
 				1BB12B382E0234FC0075C276 /* CoreFoundation.framework in Frameworks */,
+				1B9BA43B2ECFA7EA00209F86 /* MLXFFT in Frameworks */,
 				1BB12B372E0234FC0075C276 /* AVFoundation.framework in Frameworks */,
+				1B9BA4532ECFB42100209F86 /* AsyncAlgorithms in Frameworks */,
+				1B9BA4442ECFA97700209F86 /* MLXEmbedders in Frameworks */,
+				1B9BA44A2ECFA97700209F86 /* MLXVLM in Frameworks */,
 				1BC06AF22E0233DC0019808C /* Noise in Frameworks */,
 				1BB12B362E0234FC0075C276 /* Foundation.framework in Frameworks */,
+				1B9BA4482ECFA97700209F86 /* MLXLMCommon in Frameworks */,
 				1B46BEA62EB472E800124BDA /* SwiftSimplify in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -413,6 +436,16 @@
 				1BC06AF12E0233DC0019808C /* Noise */,
 				1BC06AF32E0233E00019808C /* AnyCodable */,
 				1B46BEA52EB472E800124BDA /* SwiftSimplify */,
+				1B9BA4382ECFA7EA00209F86 /* MLX */,
+				1B9BA43A2ECFA7EA00209F86 /* MLXFFT */,
+				1B9BA43C2ECFA7EA00209F86 /* MLXFast */,
+				1B9BA43E2ECFA7EA00209F86 /* MLXLinalg */,
+				1B9BA4402ECFA7EA00209F86 /* MLXNN */,
+				1B9BA4432ECFA97700209F86 /* MLXEmbedders */,
+				1B9BA4452ECFA97700209F86 /* MLXLLM */,
+				1B9BA4472ECFA97700209F86 /* MLXLMCommon */,
+				1B9BA4492ECFA97700209F86 /* MLXVLM */,
+				1B9BA4522ECFB42100209F86 /* AsyncAlgorithms */,
 			);
 			productName = Fabric;
 			productReference = 1BC06A7F2E0231520019808C /* Fabric.framework */;
@@ -476,6 +509,9 @@
 				1B9ECA4F2DFBB2CB00D32B4C /* XCRemoteSwiftPackageReference "AnyCodable" */,
 				1B46BEA42EB472E800124BDA /* XCRemoteSwiftPackageReference "SwiftSimplify" */,
 				1B27F1AD2EC68CE900B17C6C /* XCRemoteSwiftPackageReference "Sparkle" */,
+				1B9BA4372ECFA7EA00209F86 /* XCRemoteSwiftPackageReference "mlx-swift" */,
+				1B9BA4422ECFA97700209F86 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
+				1B9BA4512ECFB42100209F86 /* XCRemoteSwiftPackageReference "swift-async-algorithms" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1BE007232DBB1FBC0061EAFD /* Products */;
@@ -647,7 +683,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_VIEW = TRUE;
 				DEVELOPMENT_ASSET_PATHS = "\"Fabric Editor/Preview Content\"";
@@ -665,7 +701,7 @@
 					"@executable_path/../Frameworks/Fabric.framework/Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
-				MARKETING_VERSION = 0.0.2;
+				MARKETING_VERSION = 0.0.3;
 				OTHER_CODE_SIGN_FLAGS = "--deep";
 				PRODUCT_BUNDLE_IDENTIFIER = "io.hi-rez.Fabric";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -688,7 +724,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_VIEW = TRUE;
 				DEVELOPMENT_ASSET_PATHS = "\"Fabric Editor/Preview Content\"";
@@ -706,7 +742,7 @@
 					"@executable_path/../Frameworks/Fabric.framework/Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
-				MARKETING_VERSION = 0.0.2;
+				MARKETING_VERSION = 0.0.3;
 				OTHER_CODE_SIGN_FLAGS = "--deep";
 				PRODUCT_BUNDLE_IDENTIFIER = "io.hi-rez.Fabric";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -885,6 +921,30 @@
 				kind = branch;
 			};
 		};
+		1B9BA4372ECFA7EA00209F86 /* XCRemoteSwiftPackageReference "mlx-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.29.1;
+			};
+		};
+		1B9BA4422ECFA97700209F86 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift-lm";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.29.2;
+			};
+		};
+		1B9BA4512ECFB42100209F86 /* XCRemoteSwiftPackageReference "swift-async-algorithms" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-async-algorithms.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.4;
+			};
+		};
 		1B9ECA4F2DFBB2CB00D32B4C /* XCRemoteSwiftPackageReference "AnyCodable" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/Flight-School/AnyCodable";
@@ -913,6 +973,56 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 1B46BEA42EB472E800124BDA /* XCRemoteSwiftPackageReference "SwiftSimplify" */;
 			productName = SwiftSimplify;
+		};
+		1B9BA4382ECFA7EA00209F86 /* MLX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B9BA4372ECFA7EA00209F86 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLX;
+		};
+		1B9BA43A2ECFA7EA00209F86 /* MLXFFT */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B9BA4372ECFA7EA00209F86 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLXFFT;
+		};
+		1B9BA43C2ECFA7EA00209F86 /* MLXFast */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B9BA4372ECFA7EA00209F86 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLXFast;
+		};
+		1B9BA43E2ECFA7EA00209F86 /* MLXLinalg */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B9BA4372ECFA7EA00209F86 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLXLinalg;
+		};
+		1B9BA4402ECFA7EA00209F86 /* MLXNN */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B9BA4372ECFA7EA00209F86 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLXNN;
+		};
+		1B9BA4432ECFA97700209F86 /* MLXEmbedders */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B9BA4422ECFA97700209F86 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXEmbedders;
+		};
+		1B9BA4452ECFA97700209F86 /* MLXLLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B9BA4422ECFA97700209F86 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXLLM;
+		};
+		1B9BA4472ECFA97700209F86 /* MLXLMCommon */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B9BA4422ECFA97700209F86 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXLMCommon;
+		};
+		1B9BA4492ECFA97700209F86 /* MLXVLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B9BA4422ECFA97700209F86 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXVLM;
+		};
+		1B9BA4522ECFB42100209F86 /* AsyncAlgorithms */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B9BA4512ECFB42100209F86 /* XCRemoteSwiftPackageReference "swift-async-algorithms" */;
+			productName = AsyncAlgorithms;
 		};
 		1BC06AF12E0233DC0019808C /* Noise */ = {
 			isa = XCSwiftPackageProductDependency;

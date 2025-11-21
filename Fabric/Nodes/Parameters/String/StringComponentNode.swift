@@ -9,7 +9,6 @@ import Foundation
 import Satin
 import simd
 import Metal
-import MetalKit
 
 public class StringComponentNode : Node
 {
