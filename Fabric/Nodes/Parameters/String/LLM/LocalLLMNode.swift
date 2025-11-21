@@ -9,6 +9,9 @@ import Foundation
 import Satin
 import simd
 import Metal
+internal import MLX
+internal import MLXLLM
+internal import MLXLMCommon
 
 public class LocalLLMNode : Node
 {
@@ -17,15 +20,22 @@ public class LocalLLMNode : Node
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Provide a string prompt to a local LLM for evaluation via MLX-LLM"}
-
+    
+    // Models download to ~/.cache/huggingface/hub/
+    
+    
     // TODO: add character set menu to choose component separation strategy
     
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
         
+        let defaultModelName =  LLMRegistry.qwen3_1_7b_4bit.name
+        let models = LLMRegistry.shared.models.map(\.name)
         return ports +
+
         [
+            ("inputModel", ParameterPort(parameter: StringParameter("Model", defaultModelName, models, .dropdown))),
             ("inputPrompt", ParameterPort(parameter: StringParameter("Prompt", "What Color is the Sky?", [], .inputfield))),
             ("inputGenerate", ParameterPort(parameter: BoolParameter("Generate", false, .button))),
             ("outputPort", NodePort<String>(name: "Output", kind: .Outlet)),
@@ -33,6 +43,7 @@ public class LocalLLMNode : Node
     }
     
     // Port Proxy
+    public var inputModel:NodePort<String> { port(named: "inputModel") }
     public var inputPrompt:NodePort<String> { port(named: "inputPrompt") }
     public var inputGenerate:NodePort<Bool> { port(named: "inputGenerate") }
     public var outputPort:NodePort<String> { port(named: "outputPort") }
@@ -57,6 +68,18 @@ public class LocalLLMNode : Node
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {
+        if self.inputModel.valueDidChange,
+           let name = self.inputModel.value,
+           let modelConfig = LLMRegistry.shared.models.first(where: { $0.name == name })
+        {
+            self.llmEvaluator.modelConfiguration = modelConfig
+            
+            Task {
+                try await self.llmEvaluator.load()
+            }
+            
+        }
+        
         if self.inputPrompt.valueDidChange
         {
             if let string = self.inputPrompt.value
