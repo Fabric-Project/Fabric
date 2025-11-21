@@ -1,12 +1,9 @@
 // Borrowed from https://github.com/ml-explore/mlx-swift-examples/blob/main/Applications/LLMEval/ContentView.swift
 
-import Metal
-
 internal import AsyncAlgorithms
 internal import MLX
 internal import MLXLLM
 internal import MLXLMCommon
-
 
 class LLMEvaluator {
 
@@ -37,51 +34,6 @@ class LLMEvaluator {
     }
 
     var loadState = LoadState.idle
-
-    let currentWeatherTool = Tool<WeatherInput, WeatherOutput>(
-        name: "get_current_weather",
-        description: "Get the current weather in a given location",
-        parameters: [
-            .required(
-                "location", type: .string, description: "The city and state, e.g. San Francisco, CA"
-            ),
-            .optional(
-                "unit",
-                type: .string,
-                description: "The unit of temperature",
-                extraProperties: [
-                    "enum": ["celsius", "fahrenheit"],
-                    "default": "celsius",
-                ]
-            ),
-        ]
-    ) { input in
-        let range = input.unit == "celsius" ? (min: -20.0, max: 40.0) : (min: 0, max: 100)
-        let temperature = Double.random(in: range.min ... range.max)
-
-        let conditions = ["Sunny", "Cloudy", "Rainy", "Snowy", "Windy", "Stormy"].randomElement()!
-
-        return WeatherOutput(temperature: temperature, conditions: conditions)
-    }
-
-    let addTool = Tool<AddInput, AddOutput>(
-        name: "add_two_numbers",
-        description: "Add two numbers together",
-        parameters: [
-            .required("first", type: .int, description: "The first number to add"),
-            .required("second", type: .int, description: "The second number to add"),
-        ]
-    ) { input in
-        AddOutput(result: input.first + input.second)
-    }
-
-    let timeTool = Tool<EmptyInput, TimeOutput>(
-        name: "get_time",
-        description: "Get the current time",
-        parameters: []
-    ) { _ in
-        TimeOutput(time: Date.now.formatted())
-    }
 
     /// load and return the model -- can be called multiple times, subsequent calls will
     /// just return the loaded model
@@ -129,8 +81,7 @@ class LLMEvaluator {
 
         let userInput = UserInput(
             chat: chat,
-            tools: includeWeatherTool
-                ? [currentWeatherTool.schema, addTool.schema, timeTool.schema] : nil,
+            tools: nil,
             additionalContext: ["enable_thinking": enableThinking]
         )
 
@@ -162,9 +113,9 @@ class LLMEvaluator {
                         }
                     }
 
-                    if let toolCall = batch.compactMap({ $0.toolCall }).first {
-                        try await handleToolCall(toolCall, prompt: prompt)
-                    }
+//                    if let toolCall = batch.compactMap({ $0.toolCall }).first {
+//                        try await handleToolCall(toolCall, prompt: prompt)
+//                    }
                 }
             }
 
@@ -189,44 +140,44 @@ class LLMEvaluator {
         running = false
     }
 
-    private func handleToolCall(_ toolCall: ToolCall, prompt: String) async throws {
-        let result =
-            switch toolCall.function.name {
-            case currentWeatherTool.name:
-                try await toolCall.execute(with: currentWeatherTool).toolResult
-            case addTool.name:
-                try await toolCall.execute(with: addTool).toolResult
-            case timeTool.name:
-                try await toolCall.execute(with: timeTool).toolResult
-            default:
-                "No tool match"
-            }
-
-        await generate(prompt: prompt, toolResult: result)
-    }
+//    private func handleToolCall(_ toolCall: ToolCall, prompt: String) async throws {
+//        let result =
+//            switch toolCall.function.name {
+//            case currentWeatherTool.name:
+//                try await toolCall.execute(with: currentWeatherTool).toolResult
+//            case addTool.name:
+//                try await toolCall.execute(with: addTool).toolResult
+//            case timeTool.name:
+//                try await toolCall.execute(with: timeTool).toolResult
+//            default:
+//                "No tool match"
+//            }
+//
+//        await generate(prompt: prompt, toolResult: result)
+//    }
 }
-
-struct WeatherInput: Codable {
-    let location: String
-    let unit: String?
-}
-
-struct WeatherOutput: Codable {
-    let temperature: Double
-    let conditions: String
-}
-
-struct AddInput: Codable {
-    let first: Int
-    let second: Int
-}
-
-struct AddOutput: Codable {
-    let result: Int
-}
-
-struct EmptyInput: Codable {}
-
-struct TimeOutput: Codable {
-    let time: String
-}
+//
+//struct WeatherInput: Codable {
+//    let location: String
+//    let unit: String?
+//}
+//
+//struct WeatherOutput: Codable {
+//    let temperature: Double
+//    let conditions: String
+//}
+//
+//struct AddInput: Codable {
+//    let first: Int
+//    let second: Int
+//}
+//
+//struct AddOutput: Codable {
+//    let result: Int
+//}
+//
+//struct EmptyInput: Codable {}
+//
+//struct TimeOutput: Codable {
+//    let time: String
+//}

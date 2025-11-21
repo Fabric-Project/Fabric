@@ -26,13 +26,15 @@ public class LocalLLMNode : Node
         
         return ports +
         [
-            ("inputPort", ParameterPort(parameter: StringParameter("Prompt", "What Color is the Sky?", [], .inputfield))),
+            ("inputPrompt", ParameterPort(parameter: StringParameter("Prompt", "What Color is the Sky?", [], .inputfield))),
+            ("inputGenerate", ParameterPort(parameter: BoolParameter("Generate", false, .button))),
             ("outputPort", NodePort<String>(name: "Output", kind: .Outlet)),
         ]
     }
     
     // Port Proxy
-    public var inputPort:NodePort<String> { port(named: "inputPort") }
+    public var inputPrompt:NodePort<String> { port(named: "inputPrompt") }
+    public var inputGenerate:NodePort<Bool> { port(named: "inputGenerate") }
     public var outputPort:NodePort<String> { port(named: "outputPort") }
 
     private var llmEvaluator = LLMEvaluator()
@@ -55,15 +57,22 @@ public class LocalLLMNode : Node
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {
-        if self.inputPort.valueDidChange
+        if self.inputPrompt.valueDidChange
         {
-            if let string = self.inputPort.value
+            if let string = self.inputPrompt.value
             {
                 self.llmEvaluator.prompt = string
-                self.llmEvaluator.generate()
-                
             }
         }
+
+        if self.inputGenerate.valueDidChange
+            && self.inputGenerate.value ?? true
+        {
+            self.llmEvaluator.cancelGeneration()
+            
+            self.llmEvaluator.generate()
+        }
+        
         
         self.outputPort.send(self.llmEvaluator.output)
     }

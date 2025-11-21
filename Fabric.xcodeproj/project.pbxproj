@@ -231,6 +231,7 @@
 				Nodes/Parameters/String/StringComponentNode.swift,
 				Nodes/Parameters/String/StringLengthNode.swift,
 				Nodes/Parameters/String/StringRange.swift,
+				Nodes/Parameters/String/StringWrap.swift,
 				Nodes/Parameters/String/TextFileLoaderNode.swift,
 				Nodes/Parameters/Vector/MakeVector2Node.swift,
 				Nodes/Parameters/Vector/MakeVector3Node.swift,

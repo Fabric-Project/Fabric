@@ -220,6 +220,7 @@ public class NodeRegistry {
         StringComponentNode.self,
         StringLengthNode.self,
         StringRangeNode.self,
+        StringWrapNode.self,
         ConvertToStringNode.self,
         LocalLLMNode.self,
         ArrayIndexValueNode<String>.self,
