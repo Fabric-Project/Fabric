@@ -96,7 +96,7 @@ public class ImageProviderNode : Node
                     .allocateMipmaps : true,
                     .textureStorageMode : NSNumber( value: MTLStorageMode.shared.rawValue),
                     .SRGB : true,
-                    .origin: MTKTextureLoader.Origin.bottomLeft,
+                    .origin: MTKTextureLoader.Origin.topLeft,
                 ])
                     
                     //.newTexture(url: self.url!, options: [:])
