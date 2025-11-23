@@ -116,18 +116,24 @@ public struct NodeCanvas : View
                                         self.initialOffsets.removeAll()
                                     },
                                 
-                                
-                                TapGesture(count: 1)
-                                    .onEnded {
-                                        // Replace selection
-                                        graph.deselectAllNodes()
-                                        currentNode.isSelected.toggle()
+                                SimultaneousGesture(
+                                    
+                                    TapGesture(count: 1)
+                                        .onEnded {
+                                            // Replace selection
+                                            graph.deselectAllNodes()
+                                            currentNode.isSelected.toggle()
+                                        },
+                                    TapGesture(count: 2)
+                                        .onEnded
+                                    {
+                                        if let subgraph = currentNode as? SubgraphNode {
+                                            graph.activeSubGraph = subgraph.subGraph
+                                        }
                                     }
-                                
+                                )
                             )
-                            
                         )
-                    
                 }
             }
             .offset(geom.size / 2)
