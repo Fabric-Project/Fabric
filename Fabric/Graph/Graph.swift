@@ -257,18 +257,22 @@ internal import AnyCodable
         try container.encode(allPortConnections, forKey: .portConnectionMap)
     }
     
-    public func addNode(_ node: NodeClassWrapper, initialOffset:CGPoint? ) throws
+    public func addNode(_ node: NodeClassWrapper, initialOffset:CGPoint? ) throws -> (center: CGPoint, size: CGSize)
     {
         let node = try node.initializeNode(context: self.context)
         if let initialOffset = initialOffset
         {
-            node.offset = CGSize(width:  initialOffset.x - node.nodeSize.width / 2.0,
-                                 height: initialOffset.y - node.nodeSize.height / 4.0)
+            // Convert the initial offset (anchor point) to node offset
+            let centeredOffset = Node.offsetForAnchorPoint(initialOffset, size: node.nodeSize)
+            
+            // Check for collision and find free position
+            node.offset = self.findFreePosition(for: node, near: centeredOffset)
         }
         
-        
-        
         self.addNode(node)
+        
+        // Return the final anchor point and size for UI layer visibility check
+        return (center: node.anchorPoint, size: node.nodeSize)
     }
     
     
@@ -557,5 +561,62 @@ internal import AnyCodable
         {
             self.scene.add(object)
         }
+    }
+    
+    // MARK: - Collision Detection
+    
+    /// Checks if a node anchor point at the given position would collide with existing nodes
+    /// A collision occurs if any existing node anchor point is within 10 points of the candidate position
+    private func hasCollision(at candidateAnchor: CGPoint, excluding: Node? = nil) -> Bool
+    {
+        let targetGraph = self.activeSubGraph ?? self
+        let collisionThreshold: CGFloat = 10.0
+        
+        for existingNode in targetGraph.nodes
+        {
+            if let excluding = excluding, existingNode.id == excluding.id {
+                continue
+            }
+            
+            // Check distance between anchor points
+            let distance = sqrt(pow(existingNode.anchorPoint.x - candidateAnchor.x, 2) + 
+                              pow(existingNode.anchorPoint.y - candidateAnchor.y, 2))
+            
+            if distance < collisionThreshold
+            {
+                return true
+            }
+        }
+        
+        return false
+    }
+    
+    /// Finds a free position by repeatedly offsetting diagonally down-right by 25 points
+    private func findFreePosition(for node: Node, near desiredOffset: CGSize) -> CGSize
+    {
+        let diagonalOffset: CGFloat = 25.0
+        let maxAttempts = 50
+        
+        // Calculate the anchor point for the desired offset
+        var candidateAnchor = CGPoint(x: desiredOffset.width + node.nodeSize.width / 2.0,
+                                      y: desiredOffset.height + node.nodeSize.height / 4.0)
+        
+        // Keep offsetting diagonally down-right until we find a free position
+        for _ in 0..<maxAttempts
+        {
+            if !hasCollision(at: candidateAnchor, excluding: node)
+            {
+                // Convert anchor point back to offset
+                return Node.offsetForAnchorPoint(candidateAnchor, size: node.nodeSize)
+            }
+            
+            // Move diagonally down-right
+            candidateAnchor.x += diagonalOffset
+            candidateAnchor.y += diagonalOffset
+        }
+        
+        // Fallback: return the last attempted position
+        print("Warning: Could not find free position after \(maxAttempts) attempts")
+        return Node.offsetForAnchorPoint(candidateAnchor, size: node.nodeSize)
     }
 }

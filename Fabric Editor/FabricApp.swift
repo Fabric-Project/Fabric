@@ -45,6 +45,7 @@ struct FabricApp: App {
             {
                 CheckForUpdatesView(updater: updaterController.updater)
             }
+            ViewCommands()
         }
         
         Window("About Fabric Editor", id: "about") {
@@ -65,5 +66,31 @@ struct AboutCommands: Commands {
                 openWindow(id: "about")
             }
         }
+    }
+}
+
+struct ViewCommands: Commands {
+    @FocusedValue(\.centerOnSelectedNode) private var centerOnSelectedNode: (() -> Void)?
+    
+    var body: some Commands {
+        CommandGroup(after: .sidebar) {
+            Button("Center on Selected Node") {
+                centerOnSelectedNode?()
+            }
+            .keyboardShortcut("f", modifiers: .command)
+            .disabled(centerOnSelectedNode == nil)
+        }
+    }
+}
+
+// FocusedValue key for center on selected node action
+struct CenterOnSelectedNodeKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
+extension FocusedValues {
+    var centerOnSelectedNode: CenterOnSelectedNodeKey.Value? {
+        get { self[CenterOnSelectedNodeKey.self] }
+        set { self[CenterOnSelectedNodeKey.self] = newValue }
     }
 }

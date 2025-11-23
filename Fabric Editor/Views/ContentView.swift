@@ -33,6 +33,7 @@ struct ContentView: View {
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
     @State private var inspectorVisibility:Bool = false
     @State private var scrollOffset: CGPoint = .zero
+    @State private var scrollProxy: ScrollViewProxy? = nil
 
     // Magic Numbers...
     private let zoomMin = 0.25
@@ -44,7 +45,14 @@ struct ContentView: View {
 
         NavigationSplitView(columnVisibility: self.$columnVisibility)
         {
-            NodeRegisitryView(graph: document.graph, scrollOffset: $scrollOffset)
+            NodeRegisitryView(
+                graph: document.graph, 
+                scrollOffset: $scrollOffset,
+                scrollGeometry: $scrollGeometry,
+                onScrollToPosition: { position in
+                    self.scrollToPosition(position)
+                }
+            )
 
         } detail: {
 
@@ -141,7 +149,13 @@ struct ContentView: View {
                                 .allowsHitTesting(self.hitTestEnable)
                                 .id("canvas")
                                 .onAppear {
+                                    // Capture scroll proxy for programmatic scrolling
+                                    self.scrollProxy = proxy
+                                    
+                                    // Initialize undo manager
                                     self.document.graph.undoManager = undoManager
+                                    
+                                    // Scroll to first node if exists
                                     if let firstNode = self.document.graph.nodes.first
                                     {
                                         let targetPoint = UnitPoint( x: (self.halfCanvasSize + firstNode.offset.width) / self.canvasSize,
@@ -184,7 +198,59 @@ struct ContentView: View {
                 }
 
             }
+            .focusedValue(\.centerOnSelectedNode, self.centerOnSelectedNode)
         }
+    }
+    
+    // MARK: - Scroll to Position
+    
+    /// Scrolls the canvas to make the given position visible
+    private func scrollToPosition(_ position: CGPoint)
+    {
+        guard let proxy = scrollProxy else {
+            print("ScrollViewProxy not available")
+            return
+        }
+        
+        // Convert canvas coordinates (centered at 0,0) to UnitPoint (0-1 range)
+        // Canvas is 10000x10000 with origin at center (-5000 to +5000)
+        let normalizedX = (self.halfCanvasSize + position.x) / self.canvasSize
+        let normalizedY = (self.halfCanvasSize + position.y) / self.canvasSize
+        
+        // Clamp to valid range
+        let clampedX = max(0, min(1, normalizedX))
+        let clampedY = max(0, min(1, normalizedY))
+        
+        let targetPoint = UnitPoint(x: clampedX, y: clampedY)
+        
+        print("Scrolling to position: \(position) -> UnitPoint(\(clampedX), \(clampedY))")
+        
+        // Immediately update scrollOffset to the target position to prevent race condition
+        // where rapid node additions use stale scroll position before animation completes
+        scrollOffset = position
+        
+        withAnimation(.easeInOut(duration: 0.3)) {
+            proxy.scrollTo("canvas", anchor: targetPoint)
+        }
+    }
+    
+    // MARK: - Menu Actions
+    
+    /// Centers the view on the currently selected node
+    private func centerOnSelectedNode()
+    {
+        let graph = self.document.graph.activeSubGraph ?? self.document.graph
+        
+        // Find the first selected node
+        guard let selectedNode = graph.nodes.first(where: { $0.isSelected }) else {
+            print("No node selected")
+            return
+        }
+        
+        print("Centering on selected node: \(selectedNode.name) at \(selectedNode.anchorPoint)")
+        
+        // Use the existing scroll-to implementation
+        scrollToPosition(selectedNode.anchorPoint)
     }
 }
 
