@@ -14,7 +14,7 @@ public struct NodeRegisitryView: View {
     @Binding public var scrollOffset: CGPoint
 
     @State private var searchString:String = ""
-    @State private var selection: Node.NodeTypeGroups = .SceneGraph
+    @State private var selection: Node.NodeTypeGroups = .All
 
     public init(graph: Graph, scrollOffset: Binding<CGPoint>) {
         self.graph = graph
