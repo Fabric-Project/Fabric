@@ -81,6 +81,19 @@ import Combine
     
     public var offset: CGSize = .zero
     
+    /// The anchor point (center) of the node in canvas coordinates
+    /// This is the reference point used for collision detection and positioning
+    public var anchorPoint: CGPoint {
+        CGPoint(x: offset.width + nodeSize.width / 2.0,
+                y: offset.height + nodeSize.height / 4.0)
+    }
+    
+    /// Calculates the offset needed to position a node at the given anchor point
+    public static func offsetForAnchorPoint(_ anchorPoint: CGPoint, size: CGSize) -> CGSize {
+        CGSize(width: anchorPoint.x - size.width / 2.0,
+               height: anchorPoint.y - size.height / 4.0)
+    }
+    
     // Dirty Handling
     // @ObservationIgnored var lastEvaluationTime: TimeInterval = -1
     @ObservationIgnored private(set) public var isDirty: Bool = true
