@@ -178,7 +178,7 @@ struct ContentView: View {
             {
                 ToolbarItem(placement: .automatic)
                 {
-                    Button("Parameters", systemImage: "info.circle") {
+                    Button("Parameters", systemImage: "sidebar.right") {
                         self.inspectorVisibility.toggle()
                     }
                 }
