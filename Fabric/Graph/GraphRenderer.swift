@@ -215,6 +215,9 @@ public class GraphRenderer : MetalViewRenderer
         
         if needsSceneSync
         {
+            // #Fix 103 -
+            // We run this **after** execution, since connection, and then execution may create new objects (see Mesh for example)
+            // Only **after** execution are those objects instantiated.
             graph.syncNodesToScene()
         }
                 
