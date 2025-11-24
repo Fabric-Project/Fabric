@@ -16,6 +16,9 @@ public struct NodeRegisitryView: View {
     @State private var searchString:String = ""
     @State private var selection: Node.NodeTypeGroups = .All
 
+    @State private var haveNodesToShow = true
+    @State private var filteredNodesForTypes: [Node.NodeType:[NodeClassWrapper]] = [:]
+    
     public init(graph: Graph, scrollOffset: Binding<CGPoint>) {
         self.graph = graph
         self._scrollOffset = scrollOffset
@@ -34,7 +37,7 @@ public struct NodeRegisitryView: View {
                 Spacer()
                                     
                 ForEach(Node.NodeTypeGroups.allCases, id: \.self) { nodeGroup in
-                    //Label(nodeType.rawValue, systemImage: nodeType.imageName())
+
                     nodeGroup.image()
                         .foregroundStyle( nodeGroup == selection ? Color.accentColor : Color.secondary.opacity(0.5))
                         .tag(nodeGroup)
@@ -50,44 +53,41 @@ public struct NodeRegisitryView: View {
             Spacer()
 
             Divider()
-
+            
             Spacer()
-
-            if self.haveAnyNodesToShow()
+            
+            List
             {
-                List
-                {
-                    ForEach(self.selection.nodeTypes(), id: \.self) { nodeType in
+                ForEach(self.selection.nodeTypes(), id: \.self) { nodeType in
+                    
+                    if let filteredNodesForType:[NodeClassWrapper] = self.filteredNodesForTypes[nodeType],
+                       filteredNodesForType.isEmpty == false
+                    {
                         
-                        let filteredNodes = self.filteredNodes(forType: nodeType)
-                        
-                        if !filteredNodes.isEmpty
-                        {
-                            Section(header: Text("\(nodeType)")) {
+                        Section(header: Text("\(nodeType)")) {
+                            
+                            ForEach( 0 ..< filteredNodesForType.count, id:\.self ) { idx in
                                 
-                                ForEach( 0 ..< filteredNodes.count, id:\.self ) { idx in
-                                    
-                                    let node = filteredNodes[idx]
-                                    
-                                    Text(node.nodeName)
-                                        .font( .system(size: 11) )
-                                        .onTapGesture {
-                                            do {
-                                                try self.graph.addNode(node, initialOffset:self.scrollOffset)
-                                            }
-                                            catch
-                                            {
-                                                
-                                            }
+                                let node = filteredNodesForType[idx]
+                                
+                                Text(node.nodeName)
+                                    .font( .system(size: 11) )
+                                    .onTapGesture {
+                                        do {
+                                            try self.graph.addNode(node, initialOffset:self.scrollOffset)
                                         }
-                                }
+                                        catch
+                                        {
+                                            
+                                        }
+                                    }
                             }
                         }
-                        
                     }
+                    
                 }
             }
-            else
+            .overlay
             {
                 VStack
                 {
@@ -99,8 +99,8 @@ public struct NodeRegisitryView: View {
                     
                     Spacer()
                 }
+                .opacity( self.haveNodesToShow ? 0.0 : 1.0 )
             }
-            
         }
         .safeAreaInset(edge: VerticalEdge.bottom, content: {
             
@@ -115,6 +115,10 @@ public struct NodeRegisitryView: View {
                     TextField("Search", text: $searchString)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .controlSize(.small)
+                        .onChange(of: self.searchString) { _, _ in
+                            self.haveNodesToShow = self.calcIfWeHaveNodesToShow()
+                            self.filteredNodesForTypes = self.calcFilteredNodesDict()
+                        }
                     
                     Spacer()
                     
@@ -130,6 +134,23 @@ public struct NodeRegisitryView: View {
                 .padding(.bottom, 3)
             }
         })
+        .onAppear()
+        {
+            // not the best..
+            self.filteredNodesForTypes = self.calcFilteredNodesDict()
+        }
+    }
+    
+    func calcFilteredNodesDict() -> [Node.NodeType:[NodeClassWrapper]]
+    {
+        var dict = [Node.NodeType:[NodeClassWrapper]]()
+        
+        for nodeType in Node.NodeType.allCases
+        {
+            dict[nodeType] = self.filteredNodes(forType: nodeType)
+        }
+        
+        return dict
     }
     
     func filteredNodes(forType nodeType:Node.NodeType) -> [NodeClassWrapper]
@@ -139,7 +160,7 @@ public struct NodeRegisitryView: View {
         return  self.searchString.isEmpty ? nodesForType : nodesForType.filter {  $0.nodeName.localizedCaseInsensitiveContains(self.searchString) }
     }
     
-    func haveAnyNodesToShow() -> Bool
+    func calcIfWeHaveNodesToShow() -> Bool
     {
         self.selection.nodeTypes().compactMap( { self.filteredNodes(forType:$0)} ).joined().count > 0
     }
