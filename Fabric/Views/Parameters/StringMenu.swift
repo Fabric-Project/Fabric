@@ -35,23 +35,29 @@ struct StringMenu: View
     
     var body: some View
     {
-        Menu
+        HStack(spacing: ParameterConfig.horizontalStackSpacing)
         {
-            ForEach(self.optionsVm.uiValue, id: \.self) { option in
-                Button {
-                    selectedOption = option
-                    vm.uiValue = option
-                    print("Selected Option \(option)")
-                } label: {
-                    Text(option)
-                }
-                Divider()
-            }
-        } label: {
-            Text(selectedOption ?? vm.label)
-        }
-        .menuStyle(.button)
+            InputFieldLabelView(label: self.vm.label)
 
+            Menu
+            {
+                ForEach(self.optionsVm.uiValue, id: \.self) { option in
+                    Button {
+                        selectedOption = option
+                        vm.uiValue = option
+                        print("Selected Option \(option)")
+                    } label: {
+                        Text(option)
+                    }
+                    Divider()
+                }
+            } label: {
+                Text( vm.uiValue )
+            }
+            .menuStyle(.borderedButton)
+            .frame(width:ParameterConfig.paramWidth)
+
+        }
     }
 
 }

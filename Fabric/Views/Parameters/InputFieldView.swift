@@ -8,6 +8,53 @@
 import SwiftUI
 import Satin
 
+
+struct InputFieldLabelView : View {
+    
+    let label:String
+    
+    var body: some View {
+        Text(label)
+            .font(.system(size: 10))
+            .fontWeight(.bold)
+            .lineLimit(1)
+            .frame(width: 90, alignment: .trailing)
+            .truncationMode(.tail)
+    }
+}
+
+struct InputFieldComponentView : View
+{
+    let binding:Binding<String>
+    let label:String
+    
+    var body: some View {
+        TextField(label, text: binding)
+            .font(.system(size: 10))
+            .textFieldStyle(.roundedBorder)
+            .lineLimit(1)
+            .frame(width: ParameterConfig.paramWidth, alignment: .leading)
+
+    }
+}
+
+struct FormattedInputFieldComponentView<T> : View
+{
+    let binding:Binding<T>
+    let label:String
+    let formatter:Formatter
+    
+    var body: some View {
+        TextField(label, value: binding, formatter:formatter)
+            .font(.system(size: 10))
+            .textFieldStyle(.roundedBorder)
+            .lineLimit(1)
+            .frame(width: ParameterConfig.paramWidth, alignment: .leading)
+
+    }
+}
+
+
 struct InputFieldView: View
 {
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
@@ -24,18 +71,11 @@ struct InputFieldView: View
     
     var body: some View
     {
-        HStack
+        HStack(spacing: ParameterConfig.horizontalStackSpacing)
         {
-            Text(vm.label)
-                .font(.system(size: 10))
-                .lineLimit(1)
-            Spacer()
+            InputFieldLabelView(label: self.vm.label)
             
-            TextField(vm.label, text: $vm.uiValue)
-                .font(.system(size: 10))
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1)
-                .padding()
+            InputFieldComponentView(binding: self.$vm.uiValue, label: self.vm.label )
         }
     }
 }
@@ -45,9 +85,8 @@ struct InputFieldView: View
 struct FloatInputFieldView: View
 {
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
-
+    
     @Bindable var vm: ParameterObservableModel<Float>
-
     let decimalFormatter:NumberFormatter
     
     init(param:GenericParameter<Float>)
@@ -58,25 +97,20 @@ struct FloatInputFieldView: View
                                            publisher:param.valuePublisher )
         
         self.decimalFormatter = NumberFormatter()
-        decimalFormatter.numberStyle = .decimal
-        decimalFormatter.maximumFractionDigits = 5
+        self.decimalFormatter.numberStyle = .decimal
+        self.decimalFormatter.maximumFractionDigits = 5
+        
     }
     
     var body: some View
     {
-        HStack
+        HStack(spacing: ParameterConfig.horizontalStackSpacing)
         {
-            Text(vm.label)
-                .font(.system(size: 10))
-                .lineLimit(1)
+            InputFieldLabelView(label: self.vm.label)
             
-            Spacer()
-            
-            TextField(vm.label, value: $vm.uiValue, formatter:decimalFormatter)
-                .font(.system(size: 10))
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1)
-                .padding()
+            FormattedInputFieldComponentView(binding: self.$vm.uiValue,
+                                             label: self.vm.label,
+                                             formatter: self.decimalFormatter)
         }
     }
 }
@@ -102,22 +136,32 @@ struct Float2InputFieldView: View
     
     var body: some View
     {
-        VStack(alignment: .leading, spacing: 5){
-            Text(vm.label)
-                .font(.system(size: 10))
-                .lineLimit(1)
-
-            TextField(vm.label + " x" , value: $vm.uiValue.x, formatter:decimalFormatter)
-                .font(.system(size: 10))
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1)
+        VStack(alignment: .leading, spacing: 5)
+        {
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: self.vm.label)
+            }
+            .frame(width: ParameterConfig.paramWidth)
             
-            TextField(vm.label + " y" , value: $vm.uiValue.y, formatter:decimalFormatter)
-                .font(.system(size: 10))
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1)
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: "X")
+
+                FormattedInputFieldComponentView(binding: self.$vm.uiValue.x,
+                                                 label: self.vm.label + "X",
+                                                 formatter: self.decimalFormatter)
+            }
+            
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: "Y")
+                
+                FormattedInputFieldComponentView(binding: self.$vm.uiValue.y,
+                                                 label: self.vm.label + "Y",
+                                                 formatter: self.decimalFormatter)
+            }
         }
-        .padding()
     }
 }
 
@@ -142,27 +186,41 @@ struct Float3InputFieldView: View
     
     var body: some View
     {
-        VStack(alignment: .leading, spacing: 5){
-            Text(vm.label)
-                .font(.system(size: 10))
-                .lineLimit(1)
+        VStack(alignment: .leading, spacing: 5)
+        {
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: self.vm.label)
+            }
+            .frame(width: ParameterConfig.paramWidth)
 
-            TextField(vm.label + " x" , value: $vm.uiValue.x, formatter:decimalFormatter)
-                .font(.system(size: 10))
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1)
-            
-            TextField(vm.label + " y" , value: $vm.uiValue.y, formatter:decimalFormatter)
-                .font(.system(size: 10))
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1)
-            
-            TextField(vm.label + " z" , value: $vm.uiValue.z, formatter:decimalFormatter)
-                .font(.system(size: 10))
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1)
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: "X")
+
+                FormattedInputFieldComponentView(binding: self.$vm.uiValue.x,
+                                                 label: self.vm.label + "X",
+                                                 formatter: self.decimalFormatter)
+            }
+
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: "Y")
+
+                FormattedInputFieldComponentView(binding: self.$vm.uiValue.y,
+                                                 label: self.vm.label + "Y",
+                                                 formatter: self.decimalFormatter)
+            }
+
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: "Z")
+
+                FormattedInputFieldComponentView(binding: self.$vm.uiValue.z,
+                                                 label: self.vm.label + "Z",
+                                                 formatter: self.decimalFormatter)
+            }
         }
-        .padding()
     }
 }
 
@@ -188,32 +246,50 @@ struct Float4InputFieldView: View
     
     var body: some View
     {
-        VStack(alignment: .leading, spacing: 5){
-            Text(vm.label)
-                .font(.system(size: 10))
-                .lineLimit(1)
+        VStack(alignment: .leading, spacing: 5)
+        {
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: self.vm.label)
+            }
+            .frame(width: ParameterConfig.paramWidth)
 
-            TextField(vm.label + " x" , value: $vm.uiValue.x, formatter:decimalFormatter)
-                .font(.system(size: 10))
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1)
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: "X")
+                                
+                FormattedInputFieldComponentView(binding: self.$vm.uiValue.x,
+                                                 label: self.vm.label + "X",
+                                                 formatter: self.decimalFormatter)
+            }
             
-            TextField(vm.label + " y" , value: $vm.uiValue.y, formatter:decimalFormatter)
-                .font(.system(size: 10))
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1)
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: "Y")
+                
+                FormattedInputFieldComponentView(binding: self.$vm.uiValue.y,
+                                                 label: self.vm.label + "Y",
+                                                 formatter: self.decimalFormatter)
+            }
             
-            TextField(vm.label + " z" , value: $vm.uiValue.z, formatter:decimalFormatter)
-                .font(.system(size: 10))
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1)
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: "Z")
+                
+                FormattedInputFieldComponentView(binding: self.$vm.uiValue.z,
+                                                 label: self.vm.label + "Z",
+                                                 formatter: self.decimalFormatter)
+            }
             
-            TextField(vm.label + " w" , value: $vm.uiValue.w, formatter:decimalFormatter)
-                .font(.system(size: 10))
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1)
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: "W")
+                
+                FormattedInputFieldComponentView(binding: self.$vm.uiValue.w,
+                                                 label: self.vm.label + "W",
+                                                 formatter: self.decimalFormatter)
+            }
         }
-        .padding()
     }
 }
 
@@ -243,19 +319,14 @@ struct IntInputFieldView: View
     
     var body: some View
     {
-        HStack
+        VStack(alignment:.leading, spacing: 0)
         {
-            Text(vm.label)
-                .font(.system(size: 10))
-                .lineLimit(1)
-            
-            Spacer()
-            
-            TextField(vm.label, value: $vm.uiValue, formatter:decimalFormatter)
-                .font(.system(size: 10))
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1)
-                .padding()
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: self.vm.label)
+                
+                FormattedInputFieldComponentView(binding: self.$vm.uiValue, label: self.vm.label, formatter: self.decimalFormatter)
+            }
         }
     }
 }
@@ -284,22 +355,32 @@ struct Int2InputFieldView: View
     
     var body: some View
     {
-        VStack(alignment: .leading, spacing: 5){
-            Text(vm.label)
-                .font(.system(size: 10))
-                .lineLimit(1)
+        VStack(alignment: .leading, spacing: 5)
+        {
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: self.vm.label)
+            }
+            .frame(width: ParameterConfig.paramWidth)
 
-            TextField(vm.label + " x" , value: $vm.uiValue.x, formatter:decimalFormatter)
-                .font(.system(size: 10))
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1)
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: "X")
+
+                FormattedInputFieldComponentView(binding: self.$vm.uiValue.x,
+                                                 label: self.vm.label + "X",
+                                                 formatter: self.decimalFormatter)
+            }
             
-            TextField(vm.label + " y" , value: $vm.uiValue.y, formatter:decimalFormatter)
-                .font(.system(size: 10))
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1)
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: "Y")
+                
+                FormattedInputFieldComponentView(binding: self.$vm.uiValue.y,
+                                                 label: self.vm.label + "Y",
+                                                 formatter: self.decimalFormatter)
+            }
         }
-        .padding()
     }
 }
 
@@ -327,27 +408,41 @@ struct Int3InputFieldView: View
     
     var body: some View
     {
-        VStack(alignment: .leading, spacing: 5){
-            Text(vm.label)
-                .font(.system(size: 10))
-                .lineLimit(1)
+        VStack(alignment: .leading, spacing: 5)
+        {
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: self.vm.label)
+            }
+            .frame(width: ParameterConfig.paramWidth)
 
-            TextField(vm.label + " x" , value: $vm.uiValue.x, formatter:decimalFormatter)
-                .font(.system(size: 10))
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1)
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: "X")
+                                
+                FormattedInputFieldComponentView(binding: self.$vm.uiValue.x,
+                                                 label: self.vm.label + "X",
+                                                 formatter: self.decimalFormatter)
+            }
+
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: "Y")
+                
+                FormattedInputFieldComponentView(binding: self.$vm.uiValue.y,
+                                                 label: self.vm.label + "Y",
+                                                 formatter: self.decimalFormatter)
+            }
             
-            TextField(vm.label + " y" , value: $vm.uiValue.y, formatter:decimalFormatter)
-                .font(.system(size: 10))
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1)
-            
-            TextField(vm.label + " z" , value: $vm.uiValue.z, formatter:decimalFormatter)
-                .font(.system(size: 10))
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1)
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: "Z")
+                
+                FormattedInputFieldComponentView(binding: self.$vm.uiValue.z,
+                                                 label: self.vm.label + "Z",
+                                                 formatter: self.decimalFormatter)
+            }
         }
-        .padding()
     }
 }
 
@@ -375,31 +470,49 @@ struct Int4InputFieldView: View
     
     var body: some View
     {
-        VStack(alignment: .leading, spacing: 5){
-            Text(vm.label)
-                .font(.system(size: 10))
-                .lineLimit(1)
+        VStack(alignment: .leading, spacing: 5)
+        {
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: self.vm.label)
+            }
+            .frame(width: ParameterConfig.paramWidth)
 
-            TextField(vm.label + " x" , value: $vm.uiValue.x, formatter:decimalFormatter)
-                .font(.system(size: 10))
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1)
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: "X")
+                                
+                FormattedInputFieldComponentView(binding: self.$vm.uiValue.x,
+                                                 label: self.vm.label + "X",
+                                                 formatter: self.decimalFormatter)
+            }
             
-            TextField(vm.label + " y" , value: $vm.uiValue.y, formatter:decimalFormatter)
-                .font(.system(size: 10))
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1)
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: "Y")
+                
+                FormattedInputFieldComponentView(binding: self.$vm.uiValue.y,
+                                                 label: self.vm.label + "Y",
+                                                 formatter: self.decimalFormatter)
+            }
             
-            TextField(vm.label + " z" , value: $vm.uiValue.z, formatter:decimalFormatter)
-                .font(.system(size: 10))
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1)
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: "Z")
+                
+                FormattedInputFieldComponentView(binding: self.$vm.uiValue.z,
+                                                 label: self.vm.label + "Z",
+                                                 formatter: self.decimalFormatter)
+            }
             
-            TextField(vm.label + " w" , value: $vm.uiValue.w, formatter:decimalFormatter)
-                .font(.system(size: 10))
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1)
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                InputFieldLabelView(label: "W")
+                
+                FormattedInputFieldComponentView(binding: self.$vm.uiValue.w,
+                                                 label: self.vm.label + "W",
+                                                 formatter: self.decimalFormatter)
+            }
         }
-        .padding()
     }
 }

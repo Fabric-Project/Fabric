@@ -41,8 +41,8 @@ struct Color4ParameterView: View, Equatable
             vm.uiValue = simd_float4(resolved.linearRed, resolved.linearGreen, resolved.linearBlue, resolved.opacity)
         }
         
-        ColorPicker(selection: binding, supportsOpacity: true) {
-            
+        HStack(spacing: ParameterConfig.horizontalStackSpacing)
+        {
             LinearGradient(gradient: Gradient(colors: [.red, .yellow, .green, .blue, .purple]), startPoint: .leading, endPoint: .trailing)
                 .clipShape(RoundedRectangle(cornerRadius: 4.0))
                 .overlay(
@@ -51,6 +51,12 @@ struct Color4ParameterView: View, Equatable
                         .font(.system(size: 10))
                         .padding(.horizontal, 10)
                 )
+                .frame(width: 90, alignment: .trailing)
+
+            ColorPicker(selection: binding, supportsOpacity: true) {
+            }
+            .labelsHidden()
+            .frame(width: ParameterConfig.paramWidth, alignment: .leading)
         }
     }
 }
