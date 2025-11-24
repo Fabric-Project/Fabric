@@ -26,7 +26,7 @@ struct FabricApp: App {
     
     var body: some Scene {
 
-        DocumentGroup(newDocument: FabricDocument() ) { file in
+        DocumentGroup(newDocument: FabricDocument(withTemplate: true) ) { file in
             
             ContentView(document: file.$document)
                 .onAppear {

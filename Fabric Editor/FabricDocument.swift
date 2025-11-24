@@ -53,11 +53,11 @@ class FabricDocument: FileDocument
 
         let cameraNode = PerspectiveCameraNode(context: self.context)
         cameraNode.offset = CGSize(width: 200 , height: 50)
-
+        cameraNode.inputPosition.value = simd_float3(0, 0, 3)
         
         let directionalLightNode = DirectionalLightNode(context: self.context)
         directionalLightNode.inputPosition.value = SIMD3<Float>(1, 2, 5)
-        directionalLightNode.offset = CGSize(width: -200, height: -200)
+        directionalLightNode.offset = CGSize(width: 0, height: -200)
 
         boxNode.outputGeometry.connect(to: meshNode.inputGeometry)
         materialNode.outputMaterial.connect(to: meshNode.inputMaterial)
