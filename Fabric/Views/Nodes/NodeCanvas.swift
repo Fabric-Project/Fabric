@@ -128,7 +128,7 @@ public struct NodeCanvas : View
                                         .onEnded
                                     {
                                         if let subgraph = currentNode as? SubgraphNode {
-                                            graph.activeSubGraph = subgraph.subGraph
+                                            self.graph.activeSubGraph = subgraph.subGraph
                                         }
                                     }
                                 )
