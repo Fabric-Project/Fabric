@@ -143,11 +143,18 @@ struct ContentView: View {
                                 .id("canvas")
                                 .onAppear {
                                     self.document.graph.undoManager = undoManager
-                                    if let firstNode = self.document.graph.nodes.first
-                                    {
-                                        let targetPoint = UnitPoint( x: (self.halfCanvasSize + firstNode.offset.width) / self.canvasSize,
-                                                                     y: (self.halfCanvasSize + firstNode.offset.height) / self.canvasSize)
-                                        proxy.scrollTo("canvas", anchor: targetPoint)
+
+                                    // This is hacky as hell, but it seems our scroll offset doesn work since on can fire before other views are fully online?
+                                    // Or at least whatever is happening is fixed by this logic
+                                    // Fixes #100
+                                    DispatchQueue.main.asyncAfter(deadline: .now().advanced(by: .milliseconds(10)) ) {
+                                        
+                                        if let firstNode = self.document.graph.nodes.first
+                                        {
+                                            let targetPoint = UnitPoint( x: (self.halfCanvasSize + firstNode.offset.width) / self.canvasSize,
+                                                                         y: (self.halfCanvasSize + firstNode.offset.height) / self.canvasSize)
+                                            proxy.scrollTo("canvas", anchor: targetPoint)
+                                        }
                                     }
                                 }
                         }
