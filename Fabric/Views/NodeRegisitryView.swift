@@ -53,36 +53,54 @@ public struct NodeRegisitryView: View {
 
             Spacer()
 
-            List
+            if self.haveAnyNodesToShow()
             {
-                ForEach(selection.nodeTypes(), id: \.self) { nodeType in
-                    
-                    let filteredNodes = self.filteredNodes(forType: nodeType)
-                    
-                    if !filteredNodes.isEmpty
-                    {
-                        Section(header: Text("\(nodeType)")) {
-                            
-                            ForEach( 0 ..< filteredNodes.count, id:\.self ) { idx in
+                List
+                {
+                    ForEach(self.selection.nodeTypes(), id: \.self) { nodeType in
+                        
+                        let filteredNodes = self.filteredNodes(forType: nodeType)
+                        
+                        if !filteredNodes.isEmpty
+                        {
+                            Section(header: Text("\(nodeType)")) {
                                 
-                                let node = filteredNodes[idx]
-                                
-                                Text(node.nodeName)
-                                    .font( .system(size: 11) )
-                                    .onTapGesture {
-                                        do {
-                                            try self.graph.addNode(node, initialOffset:self.scrollOffset)
+                                ForEach( 0 ..< filteredNodes.count, id:\.self ) { idx in
+                                    
+                                    let node = filteredNodes[idx]
+                                    
+                                    Text(node.nodeName)
+                                        .font( .system(size: 11) )
+                                        .onTapGesture {
+                                            do {
+                                                try self.graph.addNode(node, initialOffset:self.scrollOffset)
+                                            }
+                                            catch
+                                            {
+                                                
+                                            }
                                         }
-                                        catch
-                                        {
-                                            
-                                        }
-                                    }
+                                }
                             }
                         }
+                        
                     }
                 }
             }
+            else
+            {
+                VStack
+                {
+                    Spacer()
+                    
+                    Text("No Results Found")
+                        .font( .headline)
+                        .foregroundStyle(.secondary)
+                    
+                    Spacer()
+                }
+            }
+            
         }
         .safeAreaInset(edge: VerticalEdge.bottom, content: {
             
@@ -119,5 +137,10 @@ public struct NodeRegisitryView: View {
         let availableNodes:[NodeClassWrapper] = NodeRegistry.shared.availableNodes
         let nodesForType:[NodeClassWrapper] = availableNodes.filter( { $0.nodeType == nodeType })
         return  self.searchString.isEmpty ? nodesForType : nodesForType.filter {  $0.nodeName.localizedCaseInsensitiveContains(self.searchString) }
+    }
+    
+    func haveAnyNodesToShow() -> Bool
+    {
+        self.selection.nodeTypes().compactMap( { self.filteredNodes(forType:$0)} ).joined().count > 0
     }
 }
