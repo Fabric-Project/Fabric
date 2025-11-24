@@ -265,6 +265,7 @@
 				Views/Parameters/FileImportParameterView.swift,
 				Views/Parameters/FloatSlider.swift,
 				Views/Parameters/InputFieldView.swift,
+				Views/Parameters/ParameterConfig.swift,
 				Views/Parameters/ParameterGroupView.swift,
 				Views/Parameters/ParameterObservableModel.swift,
 				Views/Parameters/StringMenu.swift,
