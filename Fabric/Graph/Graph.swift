@@ -48,15 +48,9 @@ internal import AnyCodable
         return renderableNodes.compactMap { $0.getObject() as? Satin.Renderable }
     }
     
-    public var shouldUpdateConnections = false // New property to trigger view update
-    {
-        didSet
-        {
-            // Side Effect - try to synchronize the scene with any new objects
-            // Due to connections being enabled.
-            self.syncNodesToScene()
-        }
-    }
+    // Fix for #103 - this now triggers syncNodesToScene() inside of `GraphRenderer`
+    public var shouldUpdateConnections = false
+  
 
     var dragPreviewSourcePortID: UUID? = nil
     var dragPreviewTargetPosition: CGPoint? = nil

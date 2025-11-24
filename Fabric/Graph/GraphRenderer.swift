@@ -204,12 +204,22 @@ public class GraphRenderer : MetalViewRenderer
     {
         self.cachedCamera = nil
         
-//        print("\(self.renderer.label) executeAndDraw frame \(self.executionCount)")
-        
+        // Snapshot and clear the "connections changed" flag up front
+        let needsSceneSync = graph.shouldUpdateConnections
+        graph.shouldUpdateConnections = false
+
         self.execute(graph:graph,
                      executionContext: executionContext,
                      renderPassDescriptor: renderPassDescriptor,
                      commandBuffer: commandBuffer)
+        
+        if needsSceneSync
+        {
+            // #Fix 103 -
+            // We run this **after** execution, since connection, and then execution may create new objects (see Mesh for example)
+            // Only **after** execution are those objects instantiated.
+            graph.syncNodesToScene()
+        }
                 
         self.renderer.draw(renderPassDescriptor: renderPassDescriptor,
                            commandBuffer: commandBuffer,
