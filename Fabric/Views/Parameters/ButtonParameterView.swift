@@ -25,8 +25,15 @@ struct ButtonParameterView: View, Equatable {
     
     var body: some View
     {
-        Toggle(vm.label, isOn: $vm.uiValue)
-            .controlSize(.small)
+        HStack(spacing: ParameterConfig.horizontalStackSpacing)
+        {
+            InputFieldLabelView(label: self.vm.label)
+
+            Toggle("", isOn: $vm.uiValue)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .frame(width: ParameterConfig.paramWidth, alignment: .leading)
+        }
     }
 }
 //#Preview {

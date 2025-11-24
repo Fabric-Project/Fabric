@@ -1,6 +1,7 @@
 //
 //  ParameterGroupView.swift
 //  v
+
 //
 //  Created by Anton Marini on 4/9/25.
 //
@@ -14,7 +15,7 @@ struct ParameterGroupView : View
     
     var body: some View
     {
-        VStack(spacing:3.0)
+        VStack(alignment: .leading, spacing:15.0)
         {
             Spacer()
             
@@ -32,7 +33,6 @@ struct ParameterGroupView : View
         switch param.controlType
         {
             // We get this from our metal shaders uniforms
-        
             
         case .xypad:
             return AnyView(self.buildXYPad(param: param))

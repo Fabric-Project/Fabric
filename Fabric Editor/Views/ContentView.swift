@@ -31,7 +31,7 @@ struct ContentView: View {
 
     @State private var hitTestEnable:Bool = true
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
-    @State private var inspectorVisibility:Bool = false
+    @State private var inspectorVisibility:Bool = true
     @State private var scrollOffset: CGPoint = .zero
 
     // Magic Numbers...
@@ -45,6 +45,7 @@ struct ContentView: View {
         NavigationSplitView(columnVisibility: self.$columnVisibility)
         {
             NodeRegisitryView(graph: document.graph, scrollOffset: $scrollOffset)
+                .navigationSplitViewColumnWidth(min: 150, ideal: 200, max:250)
 
         } detail: {
 
@@ -173,6 +174,7 @@ struct ContentView: View {
             {
                 NodeSelectionInspector()
                     .environment(self.document.graph)
+                    .inspectorColumnWidth(min:250, ideal:250, max:300)
             }
             .toolbar
             {
@@ -182,7 +184,6 @@ struct ContentView: View {
                         self.inspectorVisibility.toggle()
                     }
                 }
-
             }
         }
     }
