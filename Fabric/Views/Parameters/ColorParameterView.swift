@@ -43,16 +43,8 @@ struct Color4ParameterView: View, Equatable
         
         HStack(spacing: ParameterConfig.horizontalStackSpacing)
         {
-            LinearGradient(gradient: Gradient(colors: [.red, .yellow, .green, .blue, .purple]), startPoint: .leading, endPoint: .trailing)
-                .clipShape(RoundedRectangle(cornerRadius: 4.0))
-                .overlay(
-                    Text(vm.label)
-                        .lineLimit(1)
-                        .font(.system(size: 10))
-                        .padding(.horizontal, 10)
-                )
-                .frame(width: 90, alignment: .trailing)
-
+            InputFieldLabelView(label: "Color")
+            
             ColorPicker(selection: binding, supportsOpacity: true) {
             }
             .labelsHidden()
@@ -89,17 +81,14 @@ struct Color3ParameterView: View, Equatable
             vm.uiValue = simd_float3(resolved.linearRed, resolved.linearGreen, resolved.linearBlue)
         }
         
-        ColorPicker(selection: binding, supportsOpacity: false)
+        HStack(spacing: ParameterConfig.horizontalStackSpacing)
         {
-            LinearGradient(gradient: Gradient(colors: [.red, .yellow, .green, .blue, .purple]), startPoint: .leading, endPoint: .trailing)
-                .clipShape(RoundedRectangle(cornerRadius: 4.0))
-                .overlay(
-                    Text(vm.label)
-                        .lineLimit(1)
-                        .frame( alignment: .leading)
-                        .font(.system(size: 10))
-                        .padding(.horizontal, 10)
-                )
+            InputFieldLabelView(label: "Color")
+
+            ColorPicker(selection: binding, supportsOpacity: false) {
+            }
+            .labelsHidden()
+            .frame(width: ParameterConfig.paramWidth, alignment: .leading)
         }
     }
 }
