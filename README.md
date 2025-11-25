@@ -1,11 +1,13 @@
 # Fabric
 
-Fabric is inspired by Apple's deprecated Quartz Composer ecosystem, and its design philosophy.
+Fabric is a creative code and rapid prototyping environment focusing on interactive visuals, image and video processing and analysis and 3D content authoring.
 
-Fabric  and aims to
-* Provide a Visual Node based content authoring environment
-* Provide an SDK to load an common interchange format
-* Provide an SDK to add nodes via a plugin architecture
+Fabric
+* Provides an intuitive Visual Node based content authoring environment
+* Provides an SDK to load an common interchange file format
+* Provides an SDK to extend Fabric by creating custom nodes via a plugin architecture
+
+Fabric is inspired by Apple's deprecated Quartz Composer ecosystem, and its design philosophy.
 
 Fabric is intended to be used as 
 * A Creative coding tool requires little to no programming experience.
@@ -19,14 +21,18 @@ An early alpha of Satin rendering a instances of a sphere geometry, along with a
 <!-- <img width="800" alt="Fabric" src="https://github.com/user-attachments/assets/0c0f3a88-5c22-4ad5-88cb-c05602b548a5" />
 <img width="800" alt="Fabric" src="https://github.com/user-attachments/assets/a649647a-a948-460c-827f-09b3fa6b1eee" /> -->
 
+## What can I do with Fabric?
 
-## Credits
+Think of Fabric as a playground of visual capabilies you can combine together.
 
-Fabric is authored by by [Anton Marini](https://github.com/vade).
+Author
+* Interacive 3D graphics
+* Image processing and effects
+* Audio reactive scenes
+* images and video analysis pipeines
+* embed your scenes into your own apps
 
-Fabric uses Satin 3D engine [Satin rendering engine](https://github.com/Fabric-Project/Satin) written by @[Reza Ali](https://github.com/rezaali). 
-
-Fabric includes a licensed Metal port of [Lygia](https://lygia.xyz) shader library, powering Image effects and more, written by @[Patricio Gonzalez Vivo](https://github.com/patriciogonzalezvivo/) and contributors.
+Check out the [Samples](https://github.com/Fabric-Project/Fabric/tree/main/Samples) 
 
 Fabric supports, thanks to Satin and Lygia, high fidelity modern rendering techniques including
 
@@ -40,8 +46,15 @@ Fabric supports, thanks to Satin and Lygia, high fidelity modern rendering techn
 - Material System
 - ML based realtime segmentation and keypoint detection
 - Shader based Image Processing and Mixing
+- Local LLM calling
 
+## Credits
 
+Fabric is authored by by [Anton Marini](https://github.com/vade).
+
+Fabric uses Satin 3D engine [Satin rendering engine](https://github.com/Fabric-Project/Satin) written by @[Reza Ali](https://github.com/rezaali). 
+
+Fabric includes a licensed Metal port of [Lygia](https://lygia.xyz) shader library, powering Image effects and more, written by @[Patricio Gonzalez Vivo](https://github.com/patriciogonzalezvivo/) and contributors.
 
 ## Requirements
 
@@ -61,15 +74,14 @@ For Developers:
 
 # Getting Started
 
-Checkout our [Architecture Document ](ARCHITECTURE.md) to understand the underlying paradigms of working with Fabric's Nodes and execution model, learn what a node and a port is, and how Fabric executes your compositions.
+Checkout our [Architecture Document ](ARCHITECTURE.md) to understand the underlying paradigms of working with Fabric's Nodes and execution model, learn what a `Node` and a `Port` is, the types of data Fabric can generate and process, and how Fabric executes your compositions.
 
-We also provide a set of evolving tutorial / getting started and sample Fabric compositions along with a readme walk through.
+We also provide a set of evolving tutorial / getting started and sample Fabric compositions along with a readme walk through. You can use the [Sample Compositions](https://github.com/Fabric-Project/Fabric/tree/main/Samples) 
+to learn and build off of.
 
-You can use the sample compositions to learn and build off of:
+You can view a comprehensive list of available and planned [Nodes](NODES.md) here to explore and learn how to compose more advanced and custom setups with Fabric. 
 
-[Sample Compositions](https://github.com/Fabric-Project/Fabric/tree/main/Samples) 
-
-You can view a comprehensive list of [Nodes](NODES.md) here to explore and learn how to compose more advanced and custom setups with Fabric. 
+Don't hesitate to file a feature request if a Node is missing!
 
 # Roadmap
 
