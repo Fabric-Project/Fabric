@@ -50,10 +50,10 @@ We introduce:
 
 This example shows how different easing values change the position of a sphere over the same time. 
 
->!Important
+> [!Important]
 > Note we can re-use `Geometry` nodes across multiple `Mesh` nodes.
 > This saves memory and is more efficient.
-> Because we want different color's, we use multiple `Color Material` nodes.
+> Because we want different colors, we use multiple `Color Material` nodes.
 
 
 * Play with the `Integrator Node` to adjust the animation speed like before.
