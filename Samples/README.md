@@ -1,5 +1,5 @@
 
-# Examples
+# Getting Started with Fabric:
 
 ## 1 - Basic Color Plane
 
