@@ -61,14 +61,15 @@ For Developers:
 
 # Getting Started
 
-Start by checking out our existing list of [Nodes](NODES.md) 
+Fabric provides a set of evolving tutorial / getting started and sample Fabric compositions:
 
-> [!Important]
-> User guide, examples and walk throughs coming soon (help wanted!)
+[Sample Compositions](https://github.com/Fabric-Project/Fabric/tree/main/Samples) 
+
+You can view a comprehensive list of [Nodes](NODES.md) here.  
 
 # Architecture
 
-Checkout our [Architecture Document ](ARCHITECTURE.md)
+Checkout our [Architecture Document ](ARCHITECTURE.md) to understand the underlying paradigms of working with Fabric's Nodes and execution model.
 
 # Roadmap
 
