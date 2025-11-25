@@ -63,9 +63,12 @@ public class DirectionalLightNode : ObjectNode<DirectionalLight>
         self.light.shadow.strength = 0.5
         self.light.shadow.radius = 2
 
-        if let shadowCamera = self.light.shadow.camera as? OrthographicCamera {
-            shadowCamera.update(left: -20, right: 20, bottom: -20, top: 20, near: 0.01, far: 200)
-        }
+        // So this is 'sus' - i think for large shadow volumes we needed to adjust the ortho camera,
+        // But for smaller simpler scenes, the following is wrong.
+        // Not sure how to tune?
+//        if let shadowCamera = self.light.shadow.camera as? OrthographicCamera {
+//            shadowCamera.update(left: -20, right: 20, bottom: -20, top: 20, near: 0.01, far: 200)
+//        }
     }
 
     override public func evaluate(object: Object?, atTime: TimeInterval) -> Bool
