@@ -61,15 +61,15 @@ For Developers:
 
 # Getting Started
 
-Fabric provides a set of evolving tutorial / getting started and sample Fabric compositions:
+Checkout our [Architecture Document ](ARCHITECTURE.md) to understand the underlying paradigms of working with Fabric's Nodes and execution model, learn what a node and a port is, and how Fabric executes your compositions.
+
+We also provide a set of evolving tutorial / getting started and sample Fabric compositions along with a readme walk through.
+
+You can use the sample compositions to learn and build off of:
 
 [Sample Compositions](https://github.com/Fabric-Project/Fabric/tree/main/Samples) 
 
-You can view a comprehensive list of [Nodes](NODES.md) here.  
-
-# Architecture
-
-Checkout our [Architecture Document ](ARCHITECTURE.md) to understand the underlying paradigms of working with Fabric's Nodes and execution model.
+You can view a comprehensive list of [Nodes](NODES.md) here to explore and learn how to compose more advanced and custom setups with Fabric. 
 
 # Roadmap
 
