@@ -1,6 +1,10 @@
 
 # Getting Started with Fabric:
 
+Included in the Sample folder is an evolving set of tutorial and sample Fabric files, each of which is documented below. 
+
+Feel free to download these samples to use as references for learning, or starting templates for your own work with Fabric.
+
 ## 1 - Basic Color Plane
 
 <img width="2056" height="1329" alt="image" src="https://github.com/user-attachments/assets/4a9840c4-d5cd-440b-a4d9-3e42c4228b64" />
