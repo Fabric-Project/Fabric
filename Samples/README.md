@@ -3,6 +3,8 @@
 
 ## 1 - Basic Color Plane
 
+<img width="2056" height="1329" alt="image" src="https://github.com/user-attachments/assets/4a9840c4-d5cd-440b-a4d9-3e42c4228b64" />
+
 This example explores the simplest setup.
 
 * A `Geometry` node provides data for the 'shape' of geometry to draw
@@ -14,6 +16,8 @@ A standard composition like this uses the default coordinate system, and provide
 Explore available `Geometry` nodes available in the left hand Sidebar and try connecting them to the `Mesh` node!
 
 ## 2 - Animated Color Plane
+
+<img width="2056" height="1329" alt="image" src="https://github.com/user-attachments/assets/723ab6fe-4235-42c1-8759-60e192f9fc7a" />
 
 This examples explore our first adventure with time, and introduces animation principles in Fabric:
 
@@ -28,6 +32,8 @@ Combining the above nodes lets us produce 3 smoothly changing random values whic
 * Play with the individual `Number Remap` output range values to adjust how much Red, Green or Blue you want in your final color.
 
 ## 3 - Animation Easing
+
+<img width="2056" height="1329" alt="image" src="https://github.com/user-attachments/assets/67f2b057-b604-470c-a59c-474d5d4f482e" />
 
 This example expands on our Animation example above, using our `Number Integrator` to drive animation. 
 
@@ -51,6 +57,8 @@ This example shows how different easing values change the position of a sphere o
 
 ## 4 - 3D Scene
 
+<img width="2056" height="1329" alt="image" src="https://github.com/user-attachments/assets/717e6dd1-0c5a-41ed-8eb6-6053b94764ea" />
+
 This example expands on our concept of our composition and introduces a sense of space to our animation.
 
 We introduce
@@ -67,6 +75,8 @@ We are familiar with `Geometry` , `Material` and `Mesh` nodes by now, but take n
 
 
 ## 5 - Camera and Image Processing
+
+<img width="2056" height="1329" alt="image" src="https://github.com/user-attachments/assets/4346ed1d-6193-4484-ae1e-7eebedb7104b" />
 
 This examples introduces image processing with Fabric.
 
