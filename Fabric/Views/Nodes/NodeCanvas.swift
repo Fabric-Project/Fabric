@@ -54,65 +54,11 @@ public struct NodeCanvas : View
                                 DragGesture(minimumDistance: 3)
                                     .onChanged { value in
                                         
-                                        // If this drag just began, capture snapshots
-                                        if self.activeDragAnchor == nil
-                                        {
-                                            self.activeDragAnchor = currentNode.id
-                                            
-                                            // If the anchor isn't selected, select only it (or expand if you prefer)
-                                            if !currentNode.isSelected
-                                            {
-                                                graph.selectNode(node: currentNode, expandSelection: false)
-                                            }
-                                            
-                                            // Snapshot current offsets for all selected nodes
-                                            self.initialOffsets = Dictionary(uniqueKeysWithValues:graph.nodes
-                                                .filter { $0.isSelected }
-                                                .map { ($0.id, $0.offset) }
-                                            )
-                                            
-                                            // Mark dragging (optional)
-                                            graph.nodes.filter { $0.isSelected }.forEach { $0.isDragging = true }
-                                        }
-                                        
-                                        let t = value.translation
-                                        // Apply translation relative to snapshot
-                                        graph.nodes.filter { $0.isSelected }.forEach { n in
-                                            if let base = initialOffsets[n.id] {
-                                                n.offset = base + t
-                                            }
-                                        }
+                                        self.calcDragChanged(forValue: value, activeGraph: graph, currentNode: currentNode)
                                     }
                                     .onEnded { _ in
-                                        let selectedNodes = graph.nodes.filter { $0.isSelected }
-                                        
-                                        graph.undoManager?.beginUndoGrouping()
-                                        
-                                        for node in selectedNodes
-                                        {
-                                            if let offset = initialOffsets[node.id]
-                                            {
-                                                graph.undoManager?.registerUndo(withTarget: node) {
-                                                    
-                                                    let cachedOffset = $0.offset
-                                                    
-                                                    // This registers a redo- as an undo
-                                                    // https://nilcoalescing.com/blog/HandlingUndoAndRedoInSwiftUI/
-                                                    graph.undoManager?.registerUndo(withTarget: node) { $0.offset = cachedOffset
-                                                    }
 
-                                                    $0.offset = offset
-                                                }
-                                            }
-                                        }
-                                        graph.undoManager?.endUndoGrouping()
-                                        
-                                        graph.undoManager?.setActionName("Move Nodes")
-                                        
-                                        selectedNodes.forEach { $0.isDragging = false }
-                                        self.activeDragAnchor = nil
-
-                                        self.initialOffsets.removeAll()
+                                        self.calcDragEnded()
                                     },
                                 
                                 SimultaneousGesture(
@@ -126,7 +72,8 @@ public struct NodeCanvas : View
                                     TapGesture(count: 2)
                                         .onEnded
                                     {
-                                        if let subgraph = currentNode as? SubgraphNode {
+                                        if let subgraph = currentNode as? SubgraphNode
+                                        {
                                             self.graph.activeSubGraph = subgraph.subGraph
                                         }
                                     }
@@ -140,57 +87,10 @@ public struct NodeCanvas : View
             .contentShape(Rectangle())
             .coordinateSpace(name: "graph")
             .onPreferenceChange(PortAnchorKey.self) { portAnchors in
-                var positions: [UUID: CGPoint] = [:]
-                for (portID, anchor) in portAnchors {
-                    positions[portID] = geom[anchor]
-                }
-                self.portPositions = positions
-                self.graph.portPositions = positions
+                self.calcPortAnchors(portAnchors, geometryProxy: geom)
             }
             .overlayPreferenceValue(PortAnchorKey.self) { portAnchors in
-
-                let graph = self.graph.activeSubGraph ?? self.graph
-
-                let ports = graph.nodes.flatMap(\.ports)
-
-                ForEach( ports.filter({ $0.kind == .Outlet }), id: \.id) { port in
-
-                    let connectedPorts:[Port] = port.connections.filter({ $0.kind == .Inlet })
-
-                    ForEach( connectedPorts , id: \.id) { connectedPort in
-
-                        if let sourceAnchor = portAnchors[port.id],
-                           let destAnchor = portAnchors[connectedPort.id]
-                        {
-                            let start = geom[ sourceAnchor ]
-                            let end = geom[ destAnchor ]
-
-                            let path = self.calcPathUsing(port:port, start: start, end: end)
-
-                            path.stroke(port.backgroundColor , lineWidth: 2)
-                                .contentShape(
-                                    path.stroke(style: StrokeStyle(lineWidth: 5))
-                                )
-                                .onTapGesture(count: 2)
-                            {
-                                port.disconnect(from:connectedPort)
-                                graph.shouldUpdateConnections.toggle()
-                            }
-                        }
-                    }
-                }
-
-                if let sourcePortID = graph.dragPreviewSourcePortID,
-                   let targetPosition = graph.dragPreviewTargetPosition,
-                   let sourceAnchor = portAnchors[sourcePortID],
-                   let sourcePort = graph.nodePort(forID: sourcePortID)
-                {
-                    let start = geom[ sourceAnchor ]
-                    let path = self.calcPathUsing(port: sourcePort, start: start, end: targetPosition)
-
-                    path.stroke(sourcePort.backgroundColor.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [5, 3]))
-                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: targetPosition)
-                }
+                self.calcOverlayPaths(portAnchors, geometryProxy: geom)
             }
             .focusable(true, interactions: .edit)
             .focusEffectDisabled()
@@ -214,6 +114,127 @@ public struct NodeCanvas : View
             
         } // Pan Canvas
     }
+    
+    private func calcDragChanged(forValue value:DragGesture.Value, activeGraph graph:Graph, currentNode:Node)
+    {
+        // If this drag just began, capture snapshots
+        if self.activeDragAnchor == nil
+        {
+            self.activeDragAnchor = currentNode.id
+            
+            // If the anchor isn't selected, select only it (or expand if you prefer)
+            if !currentNode.isSelected
+            {
+                graph.selectNode(node: currentNode, expandSelection: false)
+            }
+            
+            // Snapshot current offsets for all selected nodes
+            self.initialOffsets = Dictionary(uniqueKeysWithValues:graph.nodes
+                .filter { $0.isSelected }
+                .map { ($0.id, $0.offset) }
+            )
+            
+            // Mark dragging (optional)
+            graph.nodes.filter { $0.isSelected }.forEach { $0.isDragging = true }
+        }
+        
+        let t = value.translation
+        // Apply translation relative to snapshot
+        graph.nodes.filter { $0.isSelected }.forEach { n in
+            if let base = initialOffsets[n.id] {
+                n.offset = base + t
+            }
+        }
+    }
+    
+    private func calcDragEnded()
+    {
+        let selectedNodes = graph.nodes.filter { $0.isSelected }
+        
+        graph.undoManager?.beginUndoGrouping()
+        
+        for node in selectedNodes
+        {
+            if let offset = initialOffsets[node.id]
+            {
+                graph.undoManager?.registerUndo(withTarget: node) {
+                    
+                    let cachedOffset = $0.offset
+                    
+                    // This registers a redo- as an undo
+                    // https://nilcoalescing.com/blog/HandlingUndoAndRedoInSwiftUI/
+                    graph.undoManager?.registerUndo(withTarget: node) { $0.offset = cachedOffset
+                    }
+
+                    $0.offset = offset
+                }
+            }
+        }
+        graph.undoManager?.endUndoGrouping()
+        
+        graph.undoManager?.setActionName("Move Nodes")
+        
+        selectedNodes.forEach { $0.isDragging = false }
+        self.activeDragAnchor = nil
+
+        self.initialOffsets.removeAll()
+    }
+    private func calcPortAnchors(_ portAnchors:(PortAnchorKey.Value), geometryProxy geom:GeometryProxy)
+    {
+        var positions: [UUID: CGPoint] = [:]
+        for (portID, anchor) in portAnchors {
+            positions[portID] = geom[anchor]
+        }
+        self.portPositions = positions
+        self.graph.portPositions = positions
+    }
+    
+    @ViewBuilder private func calcOverlayPaths(_ portAnchors:(PortAnchorKey.Value), geometryProxy geom:GeometryProxy) -> some View
+    {
+        let graph = self.graph.activeSubGraph ?? self.graph
+
+        let ports = graph.nodes.flatMap(\.ports)
+
+        ForEach( ports.filter({ $0.kind == .Outlet }), id: \.id) { port in
+            
+            let connectedPorts:[Port] = port.connections.filter({ $0.kind == .Inlet })
+            
+            ForEach( connectedPorts , id: \.id) { connectedPort in
+                
+                if let sourceAnchor = portAnchors[port.id],
+                   let destAnchor = portAnchors[connectedPort.id]
+                {
+                    let start = geom[ sourceAnchor ]
+                    let end = geom[ destAnchor ]
+                    
+                    let path = self.calcPathUsing(port:port, start: start, end: end)
+                    
+                    path.stroke(port.backgroundColor , lineWidth: 2)
+                        .contentShape(
+                            path.stroke(style: StrokeStyle(lineWidth: 5))
+                        )
+                        .onTapGesture(count: 2)
+                    {
+                        port.disconnect(from:connectedPort)
+                        graph.shouldUpdateConnections.toggle()
+                    }
+                }
+            }
+        }
+        
+        if let sourcePortID = graph.dragPreviewSourcePortID,
+           let targetPosition = graph.dragPreviewTargetPosition,
+           let sourceAnchor = portAnchors[sourcePortID],
+           let sourcePort = graph.nodePort(forID: sourcePortID)
+        {
+            let start = geom[ sourceAnchor ]
+            let path = self.calcPathUsing(port: sourcePort, start: start, end: targetPosition)
+            
+            path.stroke(sourcePort.backgroundColor.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [5, 3]))
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: targetPosition)
+        }
+    }
+    
     
     private func calcPathUsing(port:(Port), start:CGPoint, end:CGPoint) -> Path
     {
