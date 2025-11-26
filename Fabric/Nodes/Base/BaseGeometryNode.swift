@@ -23,7 +23,7 @@ public class BaseGeometryNode : Node
         
         return ports +
         [
-            ("inputPrimitiveType", ParameterPort(parameter:StringParameter("Geometry Primitive", "Triangle", ["Point", "Line", "Line Strip", "Triangle", "Triangle Strip"], .dropdown)) ),
+            ("inputPrimitiveType", ParameterPort(parameter:StringParameter("Primitive", "Triangle", ["Point", "Line", "Line Strip", "Triangle", "Triangle Strip"], .dropdown)) ),
             ("outputGeometry",  NodePort<Geometry>(name: "Geometry", kind: .Outlet)),
         ]
     }
