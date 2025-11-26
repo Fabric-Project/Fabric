@@ -143,7 +143,19 @@ You can do the same for the 2 input images and the number port.
 > Please manually publish ports to maintain connections to the parent graph.
 > Stay tuned for fixes!
 
+## Render In Image
 
+<img width="2628" height="1807" alt="image" src="https://github.com/user-attachments/assets/85971e38-875b-43a4-9277-86a8cb4e2570" />
+
+<img width="1444" height="792" alt="image" src="https://github.com/user-attachments/assets/05f34be1-fef7-47a3-bee3-347dd5361bc8" />
+
+This graph introduces `Render In Image` node, a special kind of `Subgragh` node that allows 3D scenes to rendered off screen be post processed by `Image` nodes.
+
+* `Render In Image` has its own `Subgraph` which can host 3D rendering
+* `Render In Image` has a resolution, the width and height of the resulting image.
+* `Render In Image` has 2 `Image` Outlet `Ports` -  one for color render, and one for depth, which we use in this graph.
+
+We also introduce anew `Image` filters which used together can leverage both the Color and Depth `Images` from `Render In Image` to produce a depth of field effect.
 
 
 
