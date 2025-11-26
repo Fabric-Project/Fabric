@@ -46,13 +46,12 @@ public struct NodeCanvas : View
                                 .modifiers(.shift)
                                 .onEnded {
                                     // Expand selection
-                                    graph.selectNode(node: currentNode, expandSelection: true)
-                                }, // fires when Shift is held
+                                    currentNode.isSelected.toggle()
+                                },
                         )
                         .gesture(
                             SimultaneousGesture(
                                 DragGesture(minimumDistance: 3)
-                                
                                     .onChanged { value in
                                         
                                         // If this drag just began, capture snapshots
