@@ -29,9 +29,7 @@ struct StringMenu: View
                                            get: { parameter.options },
                                            set: { parameter.options = $0 },
                                            publisher: parameter.optionsPublisher )
-        
     }
-
     
     var body: some View
     {
