@@ -100,3 +100,20 @@ We leverage a `Image Material` to draw the processed image on to a plane geometr
 * Try animating the `Image` processing values using your knowledge of Fabric.
 * Try loading a movie file via the `Movie Provider` node, or an image file via the `Image Provider` node.
 
+## 6 - Determinant Of Hessians
+
+<img width="1526" height="1060" alt="image" src="https://github.com/user-attachments/assets/a72a045b-5ff3-4170-98b4-5e00f2ae83b5" />
+
+This is a fancy name for a tye of edge detector (sorry it sounds cool!).
+
+This graph demonstrains chaining image filter operations  - a set sobel filters in a very specific way to help identify edges.
+
+This patch also introduces the concept of `Publishing` a `Port` - note that there is always a `Number` input available in the right hand  inspector sidebar, and the very left most `Number's` input `Port` is outlined in red.
+
+`Publishing` a port makes it available as an input or output to the graph above the current graph. Since there is no graph above the current one, this means the value is always available since we only have a single level of graphs. In our next sample we'll explore subgraphs!
+
+
+
+
+
+
