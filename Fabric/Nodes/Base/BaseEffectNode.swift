@@ -128,7 +128,6 @@ public class BaseEffectNode: Node, NodeFileLoadingProtocol
             fatalError("Required Decode Context Not set")
         }
         
-    
         if let path = try container.decodeIfPresent(String.self, forKey: .effectPath)
         {
             let bundle = Bundle(for: Self.self)
@@ -221,7 +220,6 @@ public class BaseEffectNode: Node, NodeFileLoadingProtocol
             }
         }
     }
-    
     
     private func fileURLToName(fileURL:URL) -> String {
         let nodeName =  fileURL.deletingPathExtension().lastPathComponent.replacing("ImageNode", with: "")
