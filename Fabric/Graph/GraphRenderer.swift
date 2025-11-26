@@ -174,7 +174,7 @@ public class GraphRenderer : MetalViewRenderer
             node.resize(size: self.renderer.size, scaleFactor: resizeScaleFactor)
         }
         
-        if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider || node.publishedPorts().isEmpty == false
+        if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider
         {
             // This ensures if a node always is marked as dirty (like some nodes) we only execute once per pass
             if !nodesWeHaveExecutedThisPass.contains(node)
