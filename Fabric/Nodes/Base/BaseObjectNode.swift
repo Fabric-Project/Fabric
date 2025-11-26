@@ -24,14 +24,13 @@ public class BaseObjectNode : Node
 
 public class ObjectNode<ObjectType : Satin.Object> : BaseObjectNode
 {
-
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
         
         return [
             ("inputVisible", ParameterPort(parameter:BoolParameter("Visible", true, .button) ) ),
-            ("inputRenderOrder", ParameterPort(parameter:IntParameter("Render Order", 0) ) ),
-            ("inputRenderPass", ParameterPort(parameter:IntParameter("Render Pass", 0) ) ),
+            ("inputRenderOrder", ParameterPort(parameter:IntParameter("Render Order", 0, .inputfield) ) ),
+            ("inputRenderPass", ParameterPort(parameter:IntParameter("Render Pass", 0, .inputfield) ) ),
 
             ("inputPosition", ParameterPort(parameter:Float3Parameter("Position", simd_float3(repeating:0), .inputfield ) ) ),
 
