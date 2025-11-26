@@ -1,5 +1,9 @@
 # Fabric
 
+![Swift](https://img.shields.io/badge/swift-F54A2A?style=flat&logo=swift&logoColor=white) 
+![Xcode](https://img.shields.io/badge/Xcode-007ACC?style=flat&logo=Xcode&logoColor=white)
+![Discord](https://dcbadge.limes.pink/api/server/https://discord.gg/CrG92BG7xp?style=flat)
+
 Fabric is a creative code and rapid prototyping environment focusing on interactive visuals, image and video processing and analysis and 3D content authoring.
 
 Fabric
@@ -91,7 +95,10 @@ Checkout our [Roadmap Document](ROADMAP.md)
 
 I ( [Anton Marini](https://github.com/vade) ) are looking to build a community of developers who long for the ease of use and interoperability of Quartz Composer, its ecosystem and plugin community. 
 
-If you are interested in contributing, please do not hesitate to reach out / comment in the git repository.
+If you are interested in contributing, please do not hesitate to reach out / comment in the git repository, or [join our discord via invite](https://discord.gg/CrG92BG7xp) 
+
+![Discord](https://dcbadge.limes.pink/api/server/https://discord.gg/CrG92BG7xp?style=flat)
+
 
 # FAQ
 
