@@ -1,7 +1,13 @@
 
-# Examples
+# Getting Started with Fabric:
+
+Included in the Sample folder is an evolving set of tutorial and sample Fabric files, each of which is documented below. 
+
+Feel free to download these samples to use as references for learning, or starting templates for your own work with Fabric.
 
 ## 1 - Basic Color Plane
+
+<img width="2056" height="1329" alt="image" src="https://github.com/user-attachments/assets/4a9840c4-d5cd-440b-a4d9-3e42c4228b64" />
 
 This example explores the simplest setup.
 
@@ -14,6 +20,8 @@ A standard composition like this uses the default coordinate system, and provide
 Explore available `Geometry` nodes available in the left hand Sidebar and try connecting them to the `Mesh` node!
 
 ## 2 - Animated Color Plane
+
+<img width="2056" height="1329" alt="image" src="https://github.com/user-attachments/assets/723ab6fe-4235-42c1-8759-60e192f9fc7a" />
 
 This examples explore our first adventure with time, and introduces animation principles in Fabric:
 
@@ -29,6 +37,8 @@ Combining the above nodes lets us produce 3 smoothly changing random values whic
 
 ## 3 - Animation Easing
 
+<img width="2056" height="1329" alt="image" src="https://github.com/user-attachments/assets/67f2b057-b604-470c-a59c-474d5d4f482e" />
+
 This example expands on our Animation example above, using our `Number Integrator` to drive animation. 
 
 Because we are drawing multiple objects, we create one `Mesh` node for each object we wish to draw. 
@@ -40,16 +50,18 @@ We introduce:
 
 This example shows how different easing values change the position of a sphere over the same time. 
 
->!Important
+> [!Important]
 > Note we can re-use `Geometry` nodes across multiple `Mesh` nodes.
 > This saves memory and is more efficient.
-> Because we want different color's, we use multiple `Color Material` nodes.
+> Because we want different colors, we use multiple `Color Material` nodes.
 
 
 * Play with the `Integrator Node` to adjust the animation speed like before.
 * Play with the `Number Ease` values to get an intuition for the types of easing curves and how they change the feeling of the movement.
 
 ## 4 - 3D Scene
+
+<img width="2056" height="1329" alt="image" src="https://github.com/user-attachments/assets/717e6dd1-0c5a-41ed-8eb6-6053b94764ea" />
 
 This example expands on our concept of our composition and introduces a sense of space to our animation.
 
@@ -67,6 +79,8 @@ We are familiar with `Geometry` , `Material` and `Mesh` nodes by now, but take n
 
 
 ## 5 - Camera and Image Processing
+
+<img width="2056" height="1329" alt="image" src="https://github.com/user-attachments/assets/4346ed1d-6193-4484-ae1e-7eebedb7104b" />
 
 This examples introduces image processing with Fabric.
 
