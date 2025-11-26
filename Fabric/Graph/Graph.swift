@@ -509,12 +509,68 @@ internal import AnyCodable
         
     }
     
+    func selectAllNodes()
+    {
+        for node in self.nodes
+        {
+            node.isSelected = true
+        }
+    }
+    
     func deselectAllNodes()
     {
         for node in self.nodes
         {
             node.isSelected = false
         }
+    }
+    
+    func selectDownstreamNodes(fromNode node:Node)
+    {
+        node.outputNodes.forEach( {
+            $0.isSelected = true
+            
+            self.selectDownstreamNodes(fromNode: $0 )
+        } )
+        
+        node.isSelected = true
+    }
+    
+    func selectUpstreamNodes(fromNode node:Node)
+    {
+        node.inputNodes.forEach( {
+            $0.isSelected = true
+            
+            self.selectUpstreamNodes(fromNode: $0 )
+        } )
+        
+        node.isSelected = true
+    }
+    
+    func createSubgraphFromSelection(centeredOnNode node:Node)
+    {
+        let selectedNodes = self.nodes.filter( { $0.isSelected } )
+        
+        let subgraph = SubgraphNode(context: self.context)
+        subgraph.offset = node.offset
+        
+        for node in selectedNodes
+        {
+            subgraph.subGraph.addNode(node)
+        }
+        
+        // We dont use disconnect here
+        // we want to maintain connections : X
+        // (Maybe this is bad !?)
+        for node in selectedNodes
+        {
+            if let index = self.nodes.firstIndex(of: node)
+            {
+                self.nodes.remove(at: index)
+            }
+        }
+        
+        self.addNode(subgraph)
     }
     
     // Theres a possible race condition here, as a node

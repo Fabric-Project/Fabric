@@ -72,23 +72,6 @@ struct NodeView : View
                 RoundedRectangle(cornerRadius: self.cornerRadius())
                     .stroke( .gray, lineWidth: 1.0)
             }
-            .contextMenu
-            {
-                ForEach(self.node.ports, id:\.id) { port in
-                
-                    Button {
-                        
-                        port.published = !port.published
-                        
-                        // Hacky!
-                        self.graph.rebuildPublishedParameterGroup()
-                        
-                    } label: {
-                        Text( port.published ?  "Unpublish Port: \(port.name)" : "Publish Port: \(port.name)" )
-                    }
-                    
-                }
-            }
         }
     }
     

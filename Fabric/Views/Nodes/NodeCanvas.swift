@@ -8,6 +8,22 @@
 import SwiftUI
 
 
+//public struct NodeRenameView
+//{
+//    @Environment(\.dismiss) var dismiss // For programmatic dismissal
+//
+//    let node:Node
+//    
+//    var body: some View {
+//            VStack {
+//                TextField("Node Name", text: self.$node.name)
+//                Button("Save") {
+//                    dismiss() // Dismiss the modal
+//                }
+//            }
+//        }
+//}
+
 
 public struct NodeCanvas : View
 {
@@ -80,6 +96,10 @@ public struct NodeCanvas : View
                                 )
                             )
                         )
+                        .contextMenu
+                        {
+                            self.contextMenu(forNode: currentNode, graph: graph)
+                        }
                 }
             }
             .offset(geom.size / 2)
@@ -235,6 +255,77 @@ public struct NodeCanvas : View
         }
     }
     
+    @ViewBuilder private func contextMenu(forNode currentNode:Node, graph:Graph) -> some View
+    {
+            Menu("Selection")
+            {
+                Button {
+                    graph.selectAllNodes()
+                } label : {
+                    Text("Select All Nodes")
+                }
+                
+                Button {
+                    graph.deselectAllNodes()
+                    graph.selectUpstreamNodes(fromNode: currentNode)
+                    
+                } label : {
+                    Text("Select All Upstream Nodes")
+                }
+                
+                Button {
+                    graph.deselectAllNodes()
+                    graph.selectDownstreamNodes(fromNode: currentNode)
+                    
+                } label : {
+                    Text("Select All Downstream Nodes")
+                }
+                
+                Button {
+                    graph.createSubgraphFromSelection(centeredOnNode: currentNode)
+                    
+                } label : {
+                    Text("Create Subgraph from Selected Nodes")
+                }
+            }
+            
+            
+            Menu("Input Ports") {
+                let inputPorts = currentNode.ports.filter { $0.kind == .Inlet }
+                ForEach(inputPorts, id:\.id) { port in
+                    
+                    Button
+                    {
+                        port.published = !port.published
+                        
+                        // Hacky!
+                        graph.rebuildPublishedParameterGroup()
+                        
+                    } label: {
+                        Text( port.published ?  "Unpublish Port: \(port.name)" : "Publish Port: \(port.name)" )
+                    }
+                }
+            }
+            
+            Menu("Output Ports") {
+                let outputPorts = currentNode.ports.filter { $0.kind == .Outlet }
+                
+                ForEach(outputPorts, id:\.id) { port in
+                    
+                    Button {
+                        
+                        port.published = !port.published
+                        
+                        // Hacky!
+                        graph.rebuildPublishedParameterGroup()
+                        
+                    } label: {
+                        Text( port.published ?  "Unpublish Port: \(port.name)" : "Publish Port: \(port.name)" )
+                    }
+                    
+                }
+            }
+    }
     
     private func calcPathUsing(port:(Port), start:CGPoint, end:CGPoint) -> Path
     {
