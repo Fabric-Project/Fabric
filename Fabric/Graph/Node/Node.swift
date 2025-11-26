@@ -269,6 +269,16 @@ import Combine
         return self.ports.filter( { $0.published } )
     }
     
+    public func publishedInputPorts() -> [Port]
+    {
+        return self.ports.filter( { $0.published && $0.kind == .Inlet } )
+    }
+    
+    public func publishedOutputPorts() -> [Port]
+    {
+        return self.ports.filter( { $0.published && $0.kind == .Outlet } )
+    }
+    
     // MARK: - Connections
         
     public func didConnectToNode(_ node: Node)

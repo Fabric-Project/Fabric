@@ -22,6 +22,33 @@ public class SubgraphNode: BaseObjectNode
     
     override public var ports:[Port] { self.subGraph.publishedPorts() + super.ports }
     
+    @ObservationIgnored override public var nodeExecutionMode:ExecutionMode
+    {
+        let publishedInputPorts = self.ports.filter( { $0.kind == .Inlet && $0.published } )
+        let publishedOutputPorts = self.ports.filter( { $0.kind == .Outlet && $0.published } )
+
+        // If we have no inputs or outputs, assume we have shit to 'render'
+        if publishedInputPorts.isEmpty && publishedOutputPorts.isEmpty
+        {
+            return .Consumer
+        }
+        
+        // if we have no inputs, but have an output we provide
+        if publishedInputPorts.isEmpty && !publishedOutputPorts.isEmpty
+        {
+            return .Provider
+        }
+        
+        // if we have inputs, and outputs we process
+        if !publishedInputPorts.isEmpty && !publishedOutputPorts.isEmpty
+        {
+            return .Processor
+        }
+
+        // Safety ?
+        return Self.nodeExecutionMode
+    }
+
     override public func getObject() -> Object?
     {
         return self.object

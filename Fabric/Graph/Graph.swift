@@ -396,6 +396,11 @@ internal import AnyCodable
     {
         return  self.nodes.flatMap( { $0.publishedPorts() } )
     }
+    
+    public func nodesWithPublishedOutputs() -> [Node]
+    {
+        return  self.nodes.filter( { $0.publishedOutputPorts().isEmpty == false } )
+    }
      
     // MARK: -Rendering Helpers
     internal var consumerNodes: [Node] = []

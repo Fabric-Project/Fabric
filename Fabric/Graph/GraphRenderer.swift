@@ -117,8 +117,14 @@ public class GraphRenderer : MetalViewRenderer
         
         var nodesWeHaveExecutedThisPass:[Node] = []
 
+        // We have one condition which is tricky
+        // We may be executing a graph that is a subgraph which has ZERO providers and ZERO consumers
+        // But it may have published output ports
+        // So we also need to check for nodes which have published output ports
+        let nodesWithOutputPorts = graph.nodesWithPublishedOutputs()
+        
         // This is fucking horrible:
-        let nodesToPullFrom = graph.consumerNodes + forceEvaluationForTheseNodes
+        let nodesToPullFrom = graph.consumerNodes + nodesWithOutputPorts + forceEvaluationForTheseNodes
          
         // This is fucking horrible:
         let firstCamera = graph.firstCamera ?? self.cachedCamera ?? self.defaultCamera
@@ -168,7 +174,7 @@ public class GraphRenderer : MetalViewRenderer
             node.resize(size: self.renderer.size, scaleFactor: resizeScaleFactor)
         }
         
-        if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider
+        if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider || node.publishedPorts().isEmpty == false
         {
             // This ensures if a node always is marked as dirty (like some nodes) we only execute once per pass
             if !nodesWeHaveExecutedThisPass.contains(node)
