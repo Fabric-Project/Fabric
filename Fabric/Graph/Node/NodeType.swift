@@ -122,7 +122,7 @@ extension Node
         public static var allCases: [Node.NodeType] { return
             [.Renderer ]
             + ObjectType.nodeTypes()
-            + [ .Geometery, .Material, .Shader, ]
+            + [ .Subgraph, .Geometery, .Material, .Shader, ]
             + ImageType.nodeTypes()
             + ParameterType.nodeTypes()
             + [ .Utility ]
