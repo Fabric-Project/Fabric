@@ -108,9 +108,44 @@ This is a fancy name for a tye of edge detector (sorry it sounds cool!).
 
 This graph demonstrains chaining image filter operations  - a set sobel filters in a very specific way to help identify edges.
 
-This patch also introduces the concept of `Publishing` a `Port` - note that there is always a `Number` input available in the right hand  inspector sidebar, and the very left most `Number's` input `Port` is outlined in red.
+However, this graph is pretty complex, and it might be nice to organize it so that it acts like other image processing nodes - inputting an image and ouputting an image. 
 
-`Publishing` a port makes it available as an input or output to the graph above the current graph. Since there is no graph above the current one, this means the value is always available since we only have a single level of graphs. In our next sample we'll explore subgraphs!
+Lets see if we can do that:
+
+## 7 -  Determinant Of Hessians with a Subgraph
+
+<img width="1293" height="695" alt="image" src="https://github.com/user-attachments/assets/2169d9d3-b864-4568-a40c-d49055d81ce9" />
+
+To clean up our custom filter - we can use a Subgraph - which you can think of as a second set of nodes, which can expose inputs and outputs.
+
+<img width="550" height="257" alt="image" src="https://github.com/user-attachments/assets/e34b7f0b-962b-4c09-b2c2-e3576cdb7f4d" />
+
+Select the `Subtract` (the last `Image` processing node in the chain), right click/control click, and choose `Selection -> Select all Upstream Nodes`
+
+This will select all nodes that `Subtract` has as inputs.
+
+<img width="711" height="296" alt="image" src="https://github.com/user-attachments/assets/921e25bd-c06f-4648-9187-ffc462ae764c" />
+
+Shift click to de-select the `Camera Provider` node, and then right click/control click on `Subtract` and chose `Selection -> Embed Selection In...  -> Subgraph`
+
+This wlll embed the selected nodes into a new `Subgraph` Node. Double click the `Subgraph` Node and you can see the `Image` processing filter chain.
+
+In order to expose the inputs (2 images, and a number) and the resulting image to the parent graph, we need to `Publish` some ports
+
+`Publishing` a port makes it available as an input or output to the graph above the current graph. Select the final `Subtract` Node, right click/control click and `Publish` the Image output port.
+
+<img width="479" height="264" alt="image" src="https://github.com/user-attachments/assets/89a297c3-7249-46f9-950f-e8716fdb57b8" />
+
+You can do the same for the 2 input images and the number port.
+
+> [!Warning]
+> As of Alpha 5 - Embedding into any subgraphs nodes do not yet auto-publish ports.
+> Please manually publish ports to maintain connections to the parent graph.
+> Stay tuned for fixes!
+
+
+
+
 
 
 
