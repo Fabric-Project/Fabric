@@ -28,7 +28,7 @@ public class DirectionalLightNode : ObjectNode<DirectionalLight>
             
             ("inputIntensity", ParameterPort(parameter: FloatParameter("Intensity", 1.0, 0.0, 10.0, .slider))),
             ("inputShadowStrength", ParameterPort(parameter: FloatParameter("Shadow Strength", 0.5, 0.0, 1.0, .slider))),
-            ("inputShadowRadius", ParameterPort(parameter: FloatParameter("Shadow Radius", 2.0, 0.0, 10.0, .slider))),
+            ("inputShadowRadius", ParameterPort(parameter: FloatParameter("Shadow Radius", 2.0, 0.0, 16.0, .slider))),
             ("inputShadowBias", ParameterPort(parameter: FloatParameter("Shadow Bias", 0.005, 0.0, 1.0, .slider))),
         ] + ports
     }
@@ -38,7 +38,7 @@ public class DirectionalLightNode : ObjectNode<DirectionalLight>
     public var inputColor: ParameterPort<simd_float3> { port(named: "inputColor") }
     public var inputIntensity: ParameterPort<Float> { port(named: "inputIntensity") }
     public var inputShadowStrength: ParameterPort<Float> { port(named: "inputShadowStrength") }
-    public var inputShadowRadius: ParameterPort<Float> { port(named: "inputShadowBias") }
+    public var inputShadowRadius: ParameterPort<Float> { port(named: "inputShadowRadius") }
     public var inputShadowBias: ParameterPort<Float> { port(named: "inputShadowBias") }
     
     public override var object: DirectionalLight? {
