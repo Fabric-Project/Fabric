@@ -294,29 +294,33 @@ internal import AnyCodable
             self.nodes.append(node)
             node.graph = self
 
-            undoManager?.registerUndo(withTarget: self) { graph in
+            self.undoManager?.registerUndo(withTarget: self) { graph in
                 graph.delete(node: node)
             }
-            undoManager?.setActionName("Add Node")
-            shouldUpdateConnections.toggle()
+            
+            self.undoManager?.setActionName("Add Node")
+            self.shouldUpdateConnections = true
         }
 
         self.updateRenderingNodes()
         //        self.autoConnect(node: node)
     }
     
-    func delete(node:Node)
+    func delete(node:Node, disconnect:Bool = true)
     {
         let savedOffset = node.offset
         let savedConnections = node.ports.flatMap { port in
             port.connections.map { (port, $0) }
         }
 
-        node.ports.forEach { $0.disconnectAll() }
+        if disconnect
+        {
+            node.ports.forEach { $0.disconnectAll() }
+        }
 
         if let activeSubGraph
         {
-            activeSubGraph.delete(node: node)
+            activeSubGraph.delete(node: node, disconnect: disconnect)
         }
         else
         {
@@ -326,9 +330,9 @@ internal import AnyCodable
             self.undoManager?.registerUndo(withTarget: self) { graph in
                 node.offset = savedOffset
                 graph.nodes.append(node)
-                node.graph = self
+                node.graph = graph
                 graph.maybeAddNodeToScene(node)
-                graph.shouldUpdateConnections.toggle()
+                graph.shouldUpdateConnections = true
 
                 for (port, connectedPort) in savedConnections {
                     port.connect(to: connectedPort)
@@ -336,7 +340,7 @@ internal import AnyCodable
             }
             
             self.undoManager?.setActionName("Delete Node")
-            self.shouldUpdateConnections.toggle()
+            self.shouldUpdateConnections = true
         }
 
         self.updateRenderingNodes()
@@ -374,7 +378,7 @@ internal import AnyCodable
         
         let params = self.publishedParameters()
         self.publishedParameterGroup.append( params )
-        self.shouldUpdateConnections.toggle()
+        self.shouldUpdateConnections = true
     }
     
     // This could be more nicely done.
@@ -547,30 +551,35 @@ internal import AnyCodable
         node.isSelected = true
     }
     
-    func createSubgraphFromSelection(centeredOnNode node:Node)
+    func createSubgraphFromSelection(centeredOnNode node:Node, usingClass subgraphClass:SubgraphNode.Type)
     {
         let selectedNodes = self.nodes.filter( { $0.isSelected } )
         
-        let subgraph = SubgraphNode(context: self.context)
-        subgraph.offset = node.offset
+        let subGraphNode = subgraphClass.init(context: self.context)
+        subGraphNode.offset = node.offset
+        
+        // remove the node from our graph, but maintain connections
+        // add to new graph
+        
+        self.undoManager?.beginUndoGrouping()
+
+        // add the new subgraph
+        self.addNode(subGraphNode)
+        self.undoManager?.registerUndo(withTarget: subGraphNode) { self.delete(node:$0) }
         
         for node in selectedNodes
         {
-            subgraph.subGraph.addNode(node)
-        }
-        
-        // We dont use disconnect here
-        // we want to maintain connections : X
-        // (Maybe this is bad !?)
-        for node in selectedNodes
-        {
-            if let index = self.nodes.firstIndex(of: node)
-            {
-                self.nodes.remove(at: index)
+            self.delete(node: node, disconnect: false)
+            subGraphNode.subGraph.addNode(node)
+            
+            // Register Undo for node adding
+            self.undoManager?.registerUndo(withTarget: node) { node in
+                subGraphNode.subGraph.delete(node: node, disconnect: false)
+                self.addNode(node)
             }
         }
-        
-        self.addNode(subgraph)
+                
+        self.undoManager?.endUndoGrouping()
     }
     
     // Theres a possible race condition here, as a node

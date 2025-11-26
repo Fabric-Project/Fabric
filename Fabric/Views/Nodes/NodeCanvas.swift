@@ -171,28 +171,29 @@ public struct NodeCanvas : View
     {
         let selectedNodes = graph.nodes.filter { $0.isSelected }
         
-        graph.undoManager?.beginUndoGrouping()
+        self.graph.undoManager?.beginUndoGrouping()
         
         for node in selectedNodes
         {
             if let offset = initialOffsets[node.id]
             {
-                graph.undoManager?.registerUndo(withTarget: node) {
+                self.graph.undoManager?.registerUndo(withTarget: node) {
                     
                     let cachedOffset = $0.offset
                     
-                    // This registers a redo- as an undo
+                    // This registers a redo - as an undo
                     // https://nilcoalescing.com/blog/HandlingUndoAndRedoInSwiftUI/
-                    graph.undoManager?.registerUndo(withTarget: node) { $0.offset = cachedOffset
+                    self.graph.undoManager?.registerUndo(withTarget: node) { $0.offset = cachedOffset
                     }
 
                     $0.offset = offset
                 }
             }
         }
-        graph.undoManager?.endUndoGrouping()
         
-        graph.undoManager?.setActionName("Move Nodes")
+        self.graph.undoManager?.endUndoGrouping()
+        
+        self.graph.undoManager?.setActionName("Move Nodes")
         
         selectedNodes.forEach { $0.isDragging = false }
         self.activeDragAnchor = nil
@@ -281,11 +282,19 @@ public struct NodeCanvas : View
                     Text("Select All Downstream Nodes")
                 }
                 
-                Button {
-                    graph.createSubgraphFromSelection(centeredOnNode: currentNode)
+                Menu("Embed Selection In...") {
                     
-                } label : {
-                    Text("Create Subgraph from Selected Nodes")
+                    let embedClasses = [SubgraphNode.self, IteratorNode.self, EnvironmentNode.self, DeferredSubgraphNode.self]
+                    
+                    ForEach (0 ..< embedClasses.count, id:\.self) { embedClassIndex in
+                        let embedClass = embedClasses[embedClassIndex]
+                        Button {
+                            graph.createSubgraphFromSelection(centeredOnNode: currentNode, usingClass: embedClass)
+                            
+                        } label : {
+                            Text(embedClass.name)
+                        }
+                    }
                 }
             }
             
