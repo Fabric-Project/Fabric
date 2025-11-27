@@ -34,7 +34,7 @@ Author
 * Interacive 3D graphics
 * Image processing and effects
 * Audio reactive scenes
-* images and video analysis pipeines
+* images and video analysis pipelines
 * embed your scenes into your own apps
 
 Check out the [Samples](https://github.com/Fabric-Project/Fabric/tree/main/Samples) 
