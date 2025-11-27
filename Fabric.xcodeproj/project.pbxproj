@@ -185,6 +185,8 @@
 				Nodes/Image/Mask/ForegroundMaskNode.swift,
 				Nodes/Image/Mask/PersonSegmentationMaskNode.swift,
 				Nodes/Image/MovieProviderNode.swift,
+				Nodes/Image/SyphonClientNode.swift,
+				Nodes/Image/SyphonServerNode.swift,
 				Nodes/Material/BasicColorMaterialNode.swift,
 				Nodes/Material/BasicDiffuseMaterialNode.swift,
 				Nodes/Material/BasicTextureMaterialNode.swift,

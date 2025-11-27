@@ -36,7 +36,7 @@ class CAMetalDisplayLinkRenderer: GameView
         self.metalLayer.colorspace = nil
         self.metalLayer.pixelFormat = self.graph.context.colorPixelFormat
         self.metalLayer.wantsExtendedDynamicRangeContent = true
-//        self.metalLayer.displaySyncEnabled = true
+        self.metalLayer.displaySyncEnabled = true
         self.metalLayer.maximumDrawableCount = 3
         
         self.renderPassDescriptor.colorAttachments[0].loadAction = .clear;
