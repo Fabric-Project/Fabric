@@ -4,3 +4,6 @@
 [submodule "Lygia"]
 	path = Lygia
 	url = https://github.com/vade/lygia/
+[submodule "Syphon"]
+	path = Syphon
+	url = https://github.com/Syphon/Syphon-Framework.git

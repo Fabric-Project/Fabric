@@ -79,6 +79,9 @@ public class DeferredSubgraphNode: SubgraphNode
         
         self.graphRenderer.renderer.stencilTextureStorageMode = .private
         self.graphRenderer.renderer.stencilMultisampleTextureStorageMode = .private
+        
+        self.graphRenderer.resize(size: (Float(self.inputWidth.value ?? 1920), Float(self.inputHeight.value ?? 1080 )), scaleFactor: 1.0)
+
     }
     
     override public func startExecution(context:GraphExecutionContext)
@@ -116,7 +119,7 @@ public class DeferredSubgraphNode: SubgraphNode
             if (self.graphRenderer.renderer.size.width != Float(width))
                 || (self.graphRenderer.renderer.size.height != Float(height))
             {
-                self.graphRenderer.renderer.resize( (width:Float(width), height:Float(height) ) )
+                self.graphRenderer.resize(size: (Float(width), Float(height)), scaleFactor: 1.0)
             }
         }
        

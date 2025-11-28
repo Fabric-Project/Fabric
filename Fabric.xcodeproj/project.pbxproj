@@ -19,6 +19,8 @@
 		1B9BA4482ECFA97700209F86 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA4472ECFA97700209F86 /* MLXLMCommon */; };
 		1B9BA44A2ECFA97700209F86 /* MLXVLM in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA4492ECFA97700209F86 /* MLXVLM */; };
 		1B9BA4532ECFB42100209F86 /* AsyncAlgorithms in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA4522ECFB42100209F86 /* AsyncAlgorithms */; };
+		1B9BB32B2ED8287F00209F86 /* Syphon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1B9BB32A2ED8286A00209F86 /* Syphon.framework */; platformFilters = (macos, ); };
+		1B9BB32C2ED8287F00209F86 /* Syphon.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1B9BB32A2ED8286A00209F86 /* Syphon.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		1BB12B362E0234FC0075C276 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BB12B332E0234FC0075C276 /* Foundation.framework */; };
 		1BB12B372E0234FC0075C276 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BB12B342E0234FC0075C276 /* AVFoundation.framework */; };
 		1BB12B382E0234FC0075C276 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BB12B352E0234FC0075C276 /* CoreFoundation.framework */; };
@@ -37,6 +39,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		1B9BB3292ED8286A00209F86 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1B9BB3252ED8286A00209F86 /* Syphon.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 8DC2EF5B0486A6940098B216;
+			remoteInfo = Syphon;
+		};
 		1B9ECA572DFE434400D32B4C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 1B9ECA522DFE434400D32B4C /* Satin.xcodeproj */;
@@ -68,6 +77,7 @@
 			dstSubfolderSpec = 10;
 			files = (
 				1BC06AEB2E0232810019808C /* Satin.framework in Embed Frameworks */,
+				1B9BB32C2ED8287F00209F86 /* Syphon.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -86,6 +96,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		1B9BB3252ED8286A00209F86 /* Syphon.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = Syphon.xcodeproj; path = Syphon/Syphon.xcodeproj; sourceTree = "<group>"; };
 		1B9ECA522DFE434400D32B4C /* Satin.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = Satin.xcodeproj; path = Satin/Satin.xcodeproj; sourceTree = "<group>"; };
 		1BB12B332E0234FC0075C276 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.4.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		1BB12B342E0234FC0075C276 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.4.sdk/System/Library/Frameworks/AVFoundation.framework; sourceTree = DEVELOPER_DIR; };
@@ -174,6 +185,8 @@
 				Nodes/Image/Mask/ForegroundMaskNode.swift,
 				Nodes/Image/Mask/PersonSegmentationMaskNode.swift,
 				Nodes/Image/MovieProviderNode.swift,
+				Nodes/Image/SyphonClientNode.swift,
+				Nodes/Image/SyphonServerNode.swift,
 				Nodes/Material/BasicColorMaterialNode.swift,
 				Nodes/Material/BasicDiffuseMaterialNode.swift,
 				Nodes/Material/BasicTextureMaterialNode.swift,
@@ -329,6 +342,7 @@
 				1B9BA43D2ECFA7EA00209F86 /* MLXFast in Frameworks */,
 				1B9BA4412ECFA7EA00209F86 /* MLXNN in Frameworks */,
 				1BC06AF42E0233E00019808C /* AnyCodable in Frameworks */,
+				1B9BB32B2ED8287F00209F86 /* Syphon.framework in Frameworks */,
 				1BB12B382E0234FC0075C276 /* CoreFoundation.framework in Frameworks */,
 				1B9BA43B2ECFA7EA00209F86 /* MLXFFT in Frameworks */,
 				1BB12B372E0234FC0075C276 /* AVFoundation.framework in Frameworks */,
@@ -358,6 +372,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		1B9BB3262ED8286A00209F86 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1B9BB32A2ED8286A00209F86 /* Syphon.framework */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 		1B9ECA532DFE434400D32B4C /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -375,6 +397,7 @@
 				1BE007602DBC37CE0061EAFD /* Frameworks */,
 				1BE007232DBB1FBC0061EAFD /* Products */,
 				1B9ECA522DFE434400D32B4C /* Satin.xcodeproj */,
+				1B9BB3252ED8286A00209F86 /* Syphon.xcodeproj */,
 			);
 			sourceTree = "<group>";
 		};
@@ -522,6 +545,10 @@
 					ProductGroup = 1B9ECA532DFE434400D32B4C /* Products */;
 					ProjectRef = 1B9ECA522DFE434400D32B4C /* Satin.xcodeproj */;
 				},
+				{
+					ProductGroup = 1B9BB3262ED8286A00209F86 /* Products */;
+					ProjectRef = 1B9BB3252ED8286A00209F86 /* Syphon.xcodeproj */;
+				},
 			);
 			projectRoot = "";
 			targets = (
@@ -532,6 +559,13 @@
 /* End PBXProject section */
 
 /* Begin PBXReferenceProxy section */
+		1B9BB32A2ED8286A00209F86 /* Syphon.framework */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			path = Syphon.framework;
+			remoteRef = 1B9BB3292ED8286A00209F86 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
 		1B9ECA582DFE434400D32B4C /* Satin.framework */ = {
 			isa = PBXReferenceProxy;
 			fileType = wrapper.framework;
