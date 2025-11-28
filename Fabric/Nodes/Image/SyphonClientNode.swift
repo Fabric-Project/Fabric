@@ -26,52 +26,46 @@ public class SyphonClientNode : Node
         
         return ports +
         [
-            ("inputServerID", ParameterPort(parameter: StringParameter("Syphon Server", "", .inputfield))),
+            ("inputServerName", ParameterPort(parameter: StringParameter("Server Name", "", [String](), .inputfield))),
+            ("inputServerAppName", ParameterPort(parameter: StringParameter("Application Name", "", [String](), .inputfield))),
             ("outputTexturePort", NodePort<EquatableTexture>(name: "Image", kind: .Outlet)),
         ]
     }
 
-    public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
+    public var inputServerName:ParameterPort<String>  { port(named: "inputServerName") }
+    public var inputServerAppName:ParameterPort<String>  { port(named: "inputServerAppName") }
     public var outputTexturePort:NodePort<EquatableTexture> { port(named: "outputTexturePort") }
 
     @ObservationIgnored private var syphonClient:SyphonMetalClient? = nil
     @ObservationIgnored private var texture: (any MTLTexture)? = nil
     
-    public required init(context:Context)
-    {
-        super.init(context: context)
-//        self.syphonClient = SyphonMetalClient(serverDescription: <#T##[String : Any]#>)
-    }
-    
-    
-    public required init(from decoder: any Decoder) throws
-    {
-        guard let decodeContext = decoder.context else
-        {
-            fatalError("Required Decode Context Not set")
-        }
-        
-
-        try super.init(from:decoder)
-    }
     
     override public func execute(context:GraphExecutionContext,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {
-        if self.inputFilePathParam.valueDidChange
+        if self.inputServerName.valueDidChange || self.inputServerAppName.valueDidChange,
+           let inputServerName = self.inputServerName.value,
+           let inputServerAppName = self.inputServerAppName.value,
+           let device =  context.graphRenderer?.device
         {
-            
-            if let texture = self.texture
+            if let firstServerDict = SyphonServerDirectory.shared().servers(matchingName: inputServerName, appName: inputServerAppName).first
             {
-                self.outputTexturePort.send(EquatableTexture(texture: texture))
-            }
-            
-            else
-            {
-                self.outputTexturePort.send(nil)
+                self.syphonClient = SyphonMetalClient(serverDescription: firstServerDict, device:device)
             }
         }
-     }
+        
+        if let syphonClient = self.syphonClient,
+           syphonClient.isValid,
+           let texture = syphonClient.newFrameImage()
+        {
+            self.outputTexturePort.send(EquatableTexture(texture: texture))
+        }
+        else
+        {
+            self.outputTexturePort.send(nil)
+        }
+
+    }
 
 }

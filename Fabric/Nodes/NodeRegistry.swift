@@ -94,6 +94,7 @@ public class NodeRegistry {
         MovieProviderNode.self,
         CameraProviderNode.self,
         ImageProviderNode.self,
+        SyphonClientNode.self,
         SyphonServerNode.self,
         ForegroundMaskNode.self,
         PersonSegmentationMaskNode.self,
