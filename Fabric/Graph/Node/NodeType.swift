@@ -78,6 +78,7 @@ extension Node
             case Generator
             case ColorAdjust
             case ColorEffect
+            case ColorSpace
             case ColorToneMap
             case Lens
             case Composite
