@@ -105,6 +105,16 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Duo Tone
 - [ ] False Color
 
+### Color Tone Mapping
+
+HDR -> SDR conversion
+- [x] Aces
+- [x] Filmic
+- [x] Reinhard
+- [x] Reinhard Jodie
+- [x] Uncharted
+- [x] Uncharted 2
+
 ### Lens
 
 - [ ] Lens Distortion
@@ -335,8 +345,8 @@ Array nodes are implemented as Swift Generics, and can work with any of the abov
 - [ ] HID Output
 - [ ] NDI Input
 - [ ] NDI Output
-- [ ] Syphon Input
-- [ ] Syphon Output
+- [x] Syphon Input
+- [x] Syphon Output
 - [ ] Artnet Input
 - [ ] Artnet Output
 - [ ] Depth Camera Input (Orbec / Kinect)
