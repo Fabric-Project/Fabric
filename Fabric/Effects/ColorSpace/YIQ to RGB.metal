@@ -9,8 +9,7 @@
 #define SAMPLER_TYPE texture2d<half>
 
 #include "../../lygia/sampler.msl"
-#include "../../lygia/color/space/linear2Gamma.msl"
-
+#include "../../lygia/color/space/yiq2rgb.msl"
 
 typedef struct {
 } PostUniforms;
@@ -21,5 +20,5 @@ fragment half4 postFragment( VertexData in [[stage_in]],
 {
     half4 color = SAMPLER_FNC( renderTex, in.texcoord );
 
-    return half4( linear2gamma( color ) );
+    return yiq2rgb( color );
 }

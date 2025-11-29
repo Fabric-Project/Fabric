@@ -12,13 +12,10 @@ using namespace metal;
 
 #include "../lygia/sampler.msl"
 
-
-
 // Input Uniform Buffer Struct type for our 2 Keypoint Buffers
 struct KeypointUV {
     float2 uv;   // in 0..1
 };
-
 
 typedef struct {
     float amount; // slider, 0.0, 1.0, 0.0, Amount

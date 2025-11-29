@@ -101,6 +101,8 @@ public class NodeRegistry {
         HandPoseAnalysisNode.self,
         ContourPathNode.self,
         KeypointDistortNode.self,
+        LUTProcessorNode.self,
+        
 //        BrightnessContrastImageNode.self,
 //        GaussianBlurImageNode.self,
     ]
