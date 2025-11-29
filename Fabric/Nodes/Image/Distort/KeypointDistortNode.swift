@@ -18,7 +18,7 @@ public class KeypointDistortNode: BaseEffectNode {
     override public class var nodeType: Node.NodeType { .Image(imageType: .Distort) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Uses a pair of Reference Keypoints and Displaced  Keypoints to Distort the Image." }
+    override public class var nodeDescription: String { "Uses a pair of Reference Keypoints and Displaced Keypoints to Distort the Image." }
  
     class override var sourceShaderName:String { "KeypointDistortShader" }
     

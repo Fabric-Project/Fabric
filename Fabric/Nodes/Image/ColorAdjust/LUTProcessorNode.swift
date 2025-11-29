@@ -17,7 +17,7 @@ public class LUTProcessorNode : BaseEffectNode
     public override class var nodeType:Node.NodeType { Node.NodeType.Image(imageType: .ColorAdjust) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Load an image LUT from disk, processing an Image"}
+    override public class var nodeDescription: String { "Load an cube LUT from disk, processing an Image's color"}
     
     // Auto load our LUT shader
     class override var sourceShaderName:String { "LUTShader" }
