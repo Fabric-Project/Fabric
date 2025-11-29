@@ -9,11 +9,10 @@
 #define SAMPLER_TYPE texture2d<half>
 
 #include "../../lygia/sampler.msl"
-#include "../../lygia/color/levels/gamma.msl"
+#include "../../lygia/color/space/gamma2Linear.msl"
 
 
 typedef struct {
-    float g; // slider, 0.0, 3.0, 1.0, Gamma
 } PostUniforms;
 
 fragment half4 postFragment( VertexData in [[stage_in]],
@@ -22,5 +21,5 @@ fragment half4 postFragment( VertexData in [[stage_in]],
 {
     half4 color = SAMPLER_FNC( renderTex, in.texcoord );
 
-    return half4( levelsGamma( float4(color), uniforms.g) );
+    return half4( gamma2Linear( color ) );
 }
