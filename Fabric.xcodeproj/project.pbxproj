@@ -179,6 +179,7 @@
 				Nodes/Image/Analysis/ContourPathNode.swift,
 				Nodes/Image/Analysis/HandPoseAnalysisNode.swift,
 				Nodes/Image/CameraProviderNode.swift,
+				Nodes/Image/ColorAdjust/LUTProcessorNode.swift,
 				Nodes/Image/Distort/KeypointDistortNode.swift,
 				Nodes/Image/ImageDimensions.swift,
 				Nodes/Image/ImageProviderNode.swift,
