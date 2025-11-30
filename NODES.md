@@ -93,10 +93,11 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Vibrance
 - [x] Levels
 - [x] Gamma
+- [x] RGB Linear to SRGB
+- [x] sRGB to RGB Linear
 - [x] Exposure
 - [ ] Channel Mixer
 - [ ] Channel Combine
-- [ ] Color Space To / From
 
 ### Color Effect
 
@@ -104,6 +105,17 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Invert
 - [x] Duo Tone
 - [ ] False Color
+
+### Color Space
+
+- [x] CMYK <-> RGB
+- [x] HSV <-> RGB
+- [x] LAB <-> RGB
+- [x] YIQ <-> RGB
+- [x] YPbPr <-> RGB
+- [x] YUV <-> RGB
+- [x] XYZ <-> RGB
+- [x] XYZ <-> LAB
 
 ### Color Tone Mapping
 
