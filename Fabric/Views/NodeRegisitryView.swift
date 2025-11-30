@@ -16,6 +16,7 @@ public struct NodeRegisitryView: View {
     @State private var searchString:String = ""
     @State private var selection: Node.NodeTypeGroups = .All
 
+    @State private var numNodesToShow = 0
     @State private var haveNodesToShow = true
     @State private var filteredNodesForTypes: [Node.NodeType:[NodeClassWrapper]] = [:]
     
@@ -116,6 +117,7 @@ public struct NodeRegisitryView: View {
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .controlSize(.small)
                         .onChange(of: self.searchString) { _, _ in
+                            self.numNodesToShow = self.calcNumTotalNodes()
                             self.haveNodesToShow = self.calcIfWeHaveNodesToShow()
                             self.filteredNodesForTypes = self.calcFilteredNodesDict()
                         }
@@ -129,14 +131,17 @@ public struct NodeRegisitryView: View {
                         }
                     
                     Spacer()
-
                 }
-                .padding(.bottom, 3)
+                
+                Text(String( self.numNodesToShow ) + " Nodes")
+                    .font( .caption )
+                    .padding(.vertical, 3)
             }
         })
         .onAppear()
         {
             // not the best..
+            self.numNodesToShow = self.calcNumTotalNodes()
             self.filteredNodesForTypes = self.calcFilteredNodesDict()
         }
     }
@@ -162,6 +167,11 @@ public struct NodeRegisitryView: View {
     
     func calcIfWeHaveNodesToShow() -> Bool
     {
-        self.selection.nodeTypes().compactMap( { self.filteredNodes(forType:$0)} ).joined().count > 0
+        self.numNodesToShow > 0
+    }
+    
+    func calcNumTotalNodes() -> Int
+    {
+        self.selection.nodeTypes().compactMap( { self.filteredNodes(forType:$0)} ).joined().count
     }
 }
