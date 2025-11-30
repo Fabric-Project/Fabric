@@ -204,8 +204,10 @@ HDR -> SDR conversion
 - [ ] Bump
 - [x] Displacement
 - [x] Displacement w Mask
-- [ ] Twirl
-- [ ] Pinch
+- [x] Pinch
+- [x] Dent
+- [x] Twirl
+- [x] Wobble
 
 ### Blur
 
