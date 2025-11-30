@@ -7,8 +7,9 @@
 import Metal
 
 
-public struct EquatableTexture: Equatable
+public struct EquatableTexture: Equatable, Identifiable
 {
+    public let id = UUID()
     public let texture: MTLTexture
     public var isFlipped:Bool = false
     
@@ -20,7 +21,7 @@ public struct EquatableTexture: Equatable
 
     public static func == (lhs: EquatableTexture, rhs: EquatableTexture) -> Bool {
 //        return false
-        return lhs.texture === rhs.texture
+        return lhs.texture === rhs.texture && lhs.id == rhs.id
         && (lhs.force || rhs.force) // reference identity
     }
 }
