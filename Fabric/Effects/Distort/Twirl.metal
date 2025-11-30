@@ -3,6 +3,7 @@ using namespace metal;
 
 #define SAMPLER_PRECISION half4
 #define SAMPLER_TYPE texture2d<half>
+#define SAMPLER sampler( min_filter::linear, mag_filter::linear, address::mirrored_repeat )
 
 #include "../../lygia/sampler.msl"
 
@@ -43,7 +44,6 @@ fragment half4 postFragment( VertexData                        in        [[stage
 
     // Back to [0, 1] UV space
     float2 uv = normCoord * 0.5f + 0.5f;
-    uv = clamp(uv, 0.0f, 1.0f);
 
     // Sample with Lygia sampler helper
     return SAMPLER_FNC(renderTex, uv);
