@@ -137,7 +137,6 @@ public class PolyLine2DGeometry : SatinGeometry
         return simd_float4(minv.x, minv.y, maxv.x, maxv.y)
     }
     
-    
     func buildGeometry( points:inout ContiguousArray<simd_float2>) -> GeometryData
     {
         let length = Int32(points.count)

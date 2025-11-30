@@ -39,7 +39,7 @@ vertex CustomVertexData displacementVertex(Vertex in [[stage_in]],
     const half luma = dot(lumcoeff, sample);
 
     const float3 position = mix(in.position, float3(sample.rgb), uniforms.amount);
-    const float3 lumaPos = mix(in.position, in.position + float3(0.0, 0.0, luma), uniforms.amount);
+    const float3 lumaPos = mix(in.position, (in.position + float3(0.0, 0.0, luma) ) , uniforms.amount);
     const float3 final = mix(lumaPos, position, uniforms.lumaVPosMix);
 
 #if INSTANCING

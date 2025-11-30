@@ -252,7 +252,6 @@ public class GraphRenderer : MetalViewRenderer
         self.defaultCamera.aspect = size.width / size.height
         
         self.defaultCamera.fov = radToDeg( 2.0 * atan(  (size.height / size.width) / 2.0 ) )
-
     }
     
     private func currentGraphExecutionContext() -> GraphExecutionContext

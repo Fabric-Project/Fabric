@@ -29,7 +29,7 @@ public class MovieProviderNode : Node
     override public class var nodeType:Node.NodeType { Node.NodeType.Image(imageType: .Loader) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
     override public class var nodeTimeMode: Node.TimeMode { .TimeBase }
-    override public class var nodeDescription: String { "Play a Movie File from disk, providing an output Image"}
+    override public class var nodeDescription: String { "Play a Movie File from disk, providing a stream of output Images"}
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {

@@ -29,7 +29,6 @@ public class HandPoseAnalysisNode: Node
             ("inputImage", NodePort<EquatableTexture>(name: "Image", kind: .Inlet)),
             ("inputHandCount", ParameterPort(parameter: IntParameter("Hand Count", 1, 1, 16, .inputfield))),
             
-
             ("outputThumb1", NodePort<simd_float2>(name: "Thumb Tip", kind: .Outlet)),
             ("outputThumb2", NodePort<simd_float2>(name: "Thumb Joint 1", kind: .Outlet)),
             ("outputThumb3", NodePort<simd_float2>(name: "Thumb Joint 2", kind: .Outlet)),
@@ -56,7 +55,6 @@ public class HandPoseAnalysisNode: Node
             ("outputLittle4", NodePort<simd_float2>(name: "Little Knuckle", kind: .Outlet)),
 
             ("outputWrist", NodePort<simd_float2>(name: "Wrist", kind: .Outlet)),
-
         ]
     }
 
