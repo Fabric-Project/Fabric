@@ -41,43 +41,50 @@ struct FileImportParameterView: View, Equatable
             {
                 InputFieldLabelView(label: self.vm.label)
                 
-                Menu
-                {
-                    ForEach(self.optionsVm.uiValue, id: \.self) { option in
-                        Button {
-                            selectedOption = option
-                            vm.uiValue = option
-                            print("Selected Option \(option)")
-                        } label: {
-                            Text(option)
-                        }
-                        Divider()
-                    }
-                } label: {
-                    Text( vm.uiValue )
-                }
-                .menuStyle(.borderedButton)
-                .frame(width:ParameterConfig.paramWidth)
+                Spacer()
             }
-            
-            Button(action: {
-                isImporting = true
-            }, label: {
-                Text("Open File")
-            })
-            .fileImporter(isPresented: $isImporting,
-                          allowedContentTypes: self.allowedContentTypes(),
-                          allowsMultipleSelection: true,
-                          onCompletion: { result in
-                
-                switch result {
-                case .success(let urls):
-                    self.optionsVm.uiValue = urls.map( { $0.standardizedFileURL.absoluteString } )
-//                    self.thumbnailModels = urls.map({ FileAndThumbnailModel(fileURL: $0, selected: false) } )
-                case .failure(let error):
-                    print(error)
+
+            Menu
+            {
+                ForEach(self.optionsVm.uiValue, id: \.self) { option in
+                    Button {
+                        selectedOption = option
+                        vm.uiValue = option
+                        print("Selected Option \(option)")
+                    } label: {
+                        // TODO: This could be nicer
+                        Text(option.components(separatedBy: "/").last ?? "")
+                    }
+                    Divider()
                 }
-            })
+            } label: {
+                Text( vm.uiValue )
+            }
+            .menuStyle(.borderedButton)
+            
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+            {
+                Spacer()
+                
+                Button(action: {
+                    isImporting = true
+                }, label: {
+                    Text("Select Files")
+                })
+                .fileImporter(isPresented: $isImporting,
+                              allowedContentTypes: self.allowedContentTypes(),
+                              allowsMultipleSelection: true,
+                              onCompletion: { result in
+                    
+                    switch result {
+                    case .success(let urls):
+                        self.optionsVm.uiValue = urls.map( { $0.standardizedFileURL.absoluteString } )
+                        //                    self.thumbnailModels = urls.map({ FileAndThumbnailModel(fileURL: $0, selected: false) } )
+                    case .failure(let error):
+                        print(error)
+                    }
+                })
+            }
         }
     }
     
