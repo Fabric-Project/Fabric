@@ -13,9 +13,9 @@ import Satin
 import simd
 import Metal
 
-public class NumberUnnaryOperator : Node
+public class NumberUnaryOperator : Node
 {
-    override public class var name:String { "Number Unnary Operator" }
+    override public class var name:String { "Number Unary Operator" }
     override public class var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
