@@ -202,7 +202,7 @@ public class NodeRegistry {
         CurrentTimeNode.self,
         SystemTimeNode.self,
         NumberNode.self,
-        NumberUnnaryOperator.self,
+        NumberUnaryOperator.self,
         NumberBinaryOperator.self,
         NumberRoundNode.self,
         NumberClampNode.self,
