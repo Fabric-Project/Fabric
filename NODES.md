@@ -127,12 +127,21 @@ HDR -> SDR conversion
 - [x] Uncharted
 - [x] Uncharted 2
 
+## Film Emulation
+
+- [x] Grain
+- [x] Light Leak
+- [x] Technicolor 1
+- [x] Technicolor 2
+- [x] Technicolor 3
+- [x] Technicolor 3w
+- [x] Vignetting
+- [x] White Diffusion
+
 ### Lens
 
 - [ ] Lens Distortion
 - [ ] Chromatic Aberration
-- [ ] Grain
-- [x] Vignetting
 - [ ] Prism / Kaliedoscope
 
 ### Mixing
