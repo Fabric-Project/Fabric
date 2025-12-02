@@ -31,21 +31,33 @@ struct FileImportParameterView: View, Equatable
                                            get: { parameter.options },
                                            set: { parameter.options = $0 },
                                            publisher: parameter.optionsPublisher )
-        
     }
     
     var body: some View
     {
         VStack {
             
-            Menu(self.selectedOption ?? "No File Selected")
+            HStack(spacing: ParameterConfig.horizontalStackSpacing)
             {
-                ForEach(self.optionsVm.uiValue, id:\.self) { option in
-                    Button(option, action: {
-                        selectedOption = option
-                        vm.uiValue = option
-                    })
+                InputFieldLabelView(label: self.vm.label)
+                
+                Menu
+                {
+                    ForEach(self.optionsVm.uiValue, id: \.self) { option in
+                        Button {
+                            selectedOption = option
+                            vm.uiValue = option
+                            print("Selected Option \(option)")
+                        } label: {
+                            Text(option)
+                        }
+                        Divider()
+                    }
+                } label: {
+                    Text( vm.uiValue )
                 }
+                .menuStyle(.borderedButton)
+                .frame(width:ParameterConfig.paramWidth)
             }
             
             Button(action: {
@@ -55,7 +67,7 @@ struct FileImportParameterView: View, Equatable
             })
             .fileImporter(isPresented: $isImporting,
                           allowedContentTypes: self.allowedContentTypes(),
-                          allowsMultipleSelection: false,
+                          allowsMultipleSelection: true,
                           onCompletion: { result in
                 
                 switch result {
