@@ -27,8 +27,8 @@ enum UnaryMathOperator: String, CaseIterable
         case .Sine: return sin(lhs)
         case .Cosine: return cos(lhs)
         case .Tangent: return tan(lhs)
-        case .Arcsine: return asin(lhs)
-        case .Arccosine: return acos(lhs)
+        case .Arcsine: return asin(max(-1, min(1, lhs)))
+        case .Arccosine: return acos(max(-1, min(1, lhs)))
         case .Arctangent: return atan(lhs)
         case .Log: return lhs > 0 ? logf(lhs) : 0
         case .Log10: return lhs > 0 ? log10f(lhs) : 0
