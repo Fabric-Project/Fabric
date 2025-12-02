@@ -17,7 +17,7 @@ using namespace metal;
 
 // Uniforms → Fabric UI sliders
 typedef struct {
-    float    amount;   // slider, 0.01, 1.0, 0.5, Amount
+    float    amount;   // slider, 0.0, 1.0, 0.5, Amount
     float    length;   // slider, 0.0, 1.0, 0.5, Length
     float    angle;   // slider, -180.0, 180.0, 0.0, Angle
 } PostUniforms;
