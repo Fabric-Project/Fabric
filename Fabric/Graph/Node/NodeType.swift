@@ -80,6 +80,7 @@ extension Node
             case ColorEffect
             case ColorSpace
             case ColorToneMap
+            case Film
             case Lens
             case Composite
             case Mix
