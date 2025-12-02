@@ -3,7 +3,7 @@
 ![Swift](https://img.shields.io/badge/swift-F54A2A?style=flat&logo=swift&logoColor=white) 
 ![Metal](https://img.shields.io/badge/metal-3-lime.svg?logo=data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iNzIwcHgiIGhlaWdodD0iNzIwcHgiIHZpZXdCb3g9IjAgMCA3MjAgNzIwIiB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiPgogICAgPGRlZnM+CiAgICAgICAgPGxpbmVhckdyYWRpZW50IHgxPSI1MCUiIHkxPSIwJSIgeDI9IjUwJSIgeTI9IjEwMCUiIGlkPSJsaW1lR3JhZGllbnQiPgogICAgICAgICAgICA8c3RvcCBzdG9wLWNvbG9yPSIjMEVGRkREIiBvZmZzZXQ9IjAlIj48L3N0b3A+CiAgICAgICAgICAgIDxzdG9wIHN0b3AtY29sb3I9IiMyNEZGNzQiIG9mZnNldD0iMTAwJSI+PC9zdG9wPgogICAgICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICA8L2RlZnM+CiAgICA8Zz4KICAgICAgICA8Zz4KICAgICAgICAgICAgPHBhdGggZD0iTTU3Niw3MjAgTDE0NCw3MjAgQzY0LjUsNzIwIDAsNjU1LjUgMCw1NzYgTDAsMTQ0IEMwLDY0LjUgNjQuNSwwIDE0NCwwIEw1NzYsMCBDNjU1LjUsMCA3MjAsNjQuNSA3MjAsMTQ0IEw3MjAsNTc2IEM3MjAsNjU1LjUgNjU1LjUsNzIwIDU3Niw3MjAgWiIgaWQ9ImFwcC1iYWNrcGxhdGUiIGZpbGw9InVybCgjbGltZUdyYWRpZW50KSI+PC9wYXRoPgogICAgICAgICAgICA8cG9seWdvbiBpZD0iUGF0aCIgZmlsbD0iIzAwMDAwMCIgcG9pbnRzPSIxNDEgMTMyIDMzNCAzNjggMzM0IDE5NSA2NTEgNTQ1IDU2OSA1NDUgMzk4IDM2NCAzOTYgNTQ1IDIwNSAzMDkgMjA1IDU0NSAxNDEgNTQ1Ij48L3BvbHlnb24+CiAgICAgICAgPC9nPgogICAgPC9nPgo8L3N2Zz4=)
 ![Xcode](https://img.shields.io/badge/Xcode-007ACC?style=flat&logo=Xcode&logoColor=white)
-![Discord](https://dcbadge.limes.pink/api/server/https://discord.gg/CrG92BG7xp?style=flat)
+![Discord](https://img.shields.io/discord/1443372127427366933?logo=Discord&label=Discord&color=blue)
 
 Fabric is a creative code and rapid prototyping environment focusing on interactive visuals, image and video processing and analysis and 3D content authoring.
 
@@ -98,7 +98,7 @@ I ( [Anton Marini](https://github.com/vade) ) are looking to build a community o
 
 If you are interested in contributing, please do not hesitate to reach out / comment in the git repository, or [join our discord via invite](https://discord.gg/CrG92BG7xp) 
 
-![Discord](https://dcbadge.limes.pink/api/server/https://discord.gg/CrG92BG7xp?style=flat)
+![Discord](https://img.shields.io/discord/1443372127427366933?logo=Discord&label=Discord&color=blue)
 
 
 # FAQ
