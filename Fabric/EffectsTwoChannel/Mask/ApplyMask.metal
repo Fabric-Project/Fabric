@@ -12,7 +12,7 @@
 #include "../../lygia/sampler.msl"
 
 typedef struct {
-    float amount; // slider, 0.0, 1.0, 0.0, Amount
+//    float amount; // slider, 0.0, 1.0, 0.0, Amount
 } PostUniforms;
 
 
@@ -21,10 +21,14 @@ fragment half4 postFragment( VertexData in [[stage_in]],
     texture2d<half, access::sample> tex0 [[texture( FragmentTextureCustom0 )]],
     texture2d<half, access::sample> tex1 [[texture( FragmentTextureCustom1 )]] )
 {
-    half amount = half(uniforms.amount);
+//    half amount = half(uniforms.amount);
     half4 srcColor = SAMPLER_FNC( tex0, in.texcoord );
-    half4 dstColor = SAMPLER_FNC( tex1, in.texcoord );
-    
+
+    // TODO: Fix
+    float2 flipped = in.texcoord;
+    flipped.y = 1.0 - flipped.y;
+
+    half4 dstColor = SAMPLER_FNC( tex1, flipped );
     srcColor *= dstColor.r;
 //    srcColor.a = dstColor.r;
     
