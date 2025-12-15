@@ -9,9 +9,9 @@ using namespace metal;
 
 // Uniforms → Fabric UI controls
 typedef struct {
-    float3 red;    // slider3, 0.0, 2.0, 1,0, Red
-    float3 green;  // slider3, 0.0, 2.0, 1,0, Green
-    float3 blue;   // slider3, 0.0, 2.0, 1,0, Blue
+    float3 red;    // slider, 0.0, 2.0, 1.0, Red
+    float3 green;  // slider, 0.0, 2.0, 1.0, Green
+    float3 blue;   // slider, 0.0, 2.0, 1.0, Blue
     float  amount; // slider, 0.0, 1.0, 0.0, Amount
 } PostUniforms;
 

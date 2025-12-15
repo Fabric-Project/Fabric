@@ -20,7 +20,7 @@
 		1B9BA44A2ECFA97700209F86 /* MLXVLM in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA4492ECFA97700209F86 /* MLXVLM */; };
 		1B9BA4532ECFB42100209F86 /* AsyncAlgorithms in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA4522ECFB42100209F86 /* AsyncAlgorithms */; };
 		1B9BB32B2ED8287F00209F86 /* Syphon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1B9BB32A2ED8286A00209F86 /* Syphon.framework */; platformFilters = (macos, ); };
-		1B9BB32C2ED8287F00209F86 /* Syphon.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1B9BB32A2ED8286A00209F86 /* Syphon.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		1B9BB32C2ED8287F00209F86 /* Syphon.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1B9BB32A2ED8286A00209F86 /* Syphon.framework */; platformFilters = (macos, ); settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		1BB12B362E0234FC0075C276 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BB12B332E0234FC0075C276 /* Foundation.framework */; };
 		1BB12B372E0234FC0075C276 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BB12B342E0234FC0075C276 /* AVFoundation.framework */; };
 		1BB12B382E0234FC0075C276 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BB12B352E0234FC0075C276 /* CoreFoundation.framework */; };

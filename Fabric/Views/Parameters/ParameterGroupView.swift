@@ -38,7 +38,28 @@ struct ParameterGroupView : View
             return AnyView(self.buildXYPad(param: param))
             
         case .slider:
-            return AnyView(self.buildSlider(param: param))
+            switch param.type
+            {
+            case .double, .float:
+                return  AnyView(self.buildSlider(param: param))
+                
+            default:
+                return AnyView(self.buildLabel(param: param))
+            }
+
+            
+        case .multislider:
+            switch param.type
+            {
+            case .float2:
+                return  AnyView(self.build2Slider(param: param))
+
+            case .float3:
+                return  AnyView(self.build3Slider(param: param))
+
+            default:
+                return AnyView(self.buildLabel(param: param))
+            }
             
         case .dropdown:
             return AnyView(self.buildDropDown(param: param))
@@ -104,7 +125,16 @@ struct ParameterGroupView : View
         if let floatParam = param as? FloatParameter
         {
             return EquatableView<FloatSlider>( content: FloatSlider(param:floatParam) )
-                .frame(height:20)
+        }
+        
+        return Text(param.label)
+    }
+    
+    private func build2Slider(param:any Satin.Parameter) -> any View
+    {
+        if let floatParam = param as? Float2Parameter
+        {
+            return EquatableView<Float2Slider>( content: Float2Slider(param:floatParam) )
         }
         
         return Text(param.label)
@@ -112,12 +142,9 @@ struct ParameterGroupView : View
     
     private func build3Slider(param:any Satin.Parameter) -> any View
     {
-        if let floatParam = param as? FloatParameter
+        if let floatParam = param as? Float3Parameter
         {
-    
-            return EquatableView<FloatSlider>( content: FloatSlider(param:floatParam) )
-                .frame(height:20)
-
+            return EquatableView<Float3Slider>( content: Float3Slider(param:floatParam) )
         }
         
         return Text(param.label)
