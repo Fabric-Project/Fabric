@@ -101,7 +101,7 @@ A list of Nodes (planned and implemented) for Fabric.
 
 ### Color Effect
 
-- [ ] Color LUT
+- [x] Color LUT
 - [x] Invert
 - [x] Duo Tone
 - [ ] False Color
