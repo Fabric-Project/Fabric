@@ -147,13 +147,13 @@ public class HandPoseAnalysisNode: Node
             request.maximumHandCount = 1
             
             if let inTex = self.inputImage.value?.texture,
-               let allPoints =  self.handPointsForRequest(request, from: inTex),
-               let graphRenderer = context.graphRenderer
+               let allPoints =  self.handPointsForRequest(request, from: inTex)
+//               let graphRenderer = context.graphRenderer
             {
                 
                 let aspect = Float(inTex.height)/Float(inTex.width)
-                let size = simd_float2(x: graphRenderer.renderer.size.width,
-                                       y: graphRenderer.renderer.size.height)
+//                let size = simd_float2(x: graphRenderer.renderer.size.width,
+//                                       y: graphRenderer.renderer.size.height)
                 
                 for poseKey in allPoints.keys
                 {

@@ -60,8 +60,8 @@ public class BoxGeometryNode : BaseGeometryNode
         }
         
         // TODO: Fix
-        if self.inputResolutionParam.valueDidChange,
-           let resolution = self.inputResolutionParam.value
+        if self.inputResolutionParam.valueDidChange
+//           let resolution = self.inputResolutionParam.value
         {
 //            self.geometry.resolution =  self.inputResolutionParam.value
             shouldOutputGeometry = true

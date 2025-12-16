@@ -53,10 +53,10 @@ public class LUTProcessorNode : BaseEffectNode
     
     public required init(from decoder: any Decoder) throws
     {
-        guard let decodeContext = decoder.context else
-        {
-            fatalError("Required Decode Context Not set")
-        }
+//        guard let decodeContext = decoder.context else
+//        {
+//            fatalError("Required Decode Context Not set")
+//        }
         
         try super.init(from:decoder)
         

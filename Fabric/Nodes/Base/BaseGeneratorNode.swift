@@ -192,9 +192,9 @@ class BaseGeneratorNode: Node, NodeFileLoadingProtocol
                           renderPassDescriptor: MTLRenderPassDescriptor,
                           commandBuffer: MTLCommandBuffer)
     {
-        let anyPortChanged =  self.ports.reduce(false, { partialResult, next in
-           return partialResult || next.valueDidChange
-        })
+//        let anyPortChanged =  self.ports.reduce(false, { partialResult, next in
+//           return partialResult || next.valueDidChange
+//        })
 
         if self.inputWidth.valueDidChange,
            let width = self.inputWidth.value
