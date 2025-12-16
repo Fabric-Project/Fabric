@@ -32,6 +32,7 @@
 		1BC06AEB2E0232810019808C /* Satin.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1B9ECA582DFE434400D32B4C /* Satin.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		1BC06AF22E0233DC0019808C /* Noise in Frameworks */ = {isa = PBXBuildFile; productRef = 1BC06AF12E0233DC0019808C /* Noise */; };
 		1BC06AF42E0233E00019808C /* AnyCodable in Frameworks */ = {isa = PBXBuildFile; productRef = 1BC06AF32E0233E00019808C /* AnyCodable */; };
+		1BD9EE252EF2004E0075D951 /* MetalFX.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BD9EE242EF2004E0075D951 /* MetalFX.framework */; };
 		1BE00A5D2DC936A50061EAFD /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5B2DC936A50061EAFD /* CoreFoundation.framework */; };
 		1BE00A5E2DC936A50061EAFD /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5C2DC936A50061EAFD /* Foundation.framework */; };
 		1BE00A612DC936AC0061EAFD /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5F2DC936AC0061EAFD /* MetalKit.framework */; };
@@ -106,6 +107,7 @@
 		1BB12B472E0267420075C276 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.4.sdk/System/Library/Frameworks/Accelerate.framework; sourceTree = DEVELOPER_DIR; };
 		1BB133B62E08FFAA0075C276 /* lygia */ = {isa = PBXFileReference; lastKnownFileType = folder; path = lygia; sourceTree = "<group>"; };
 		1BC06A7F2E0231520019808C /* Fabric.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Fabric.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		1BD9EE242EF2004E0075D951 /* MetalFX.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalFX.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.1.sdk/System/Library/Frameworks/MetalFX.framework; sourceTree = DEVELOPER_DIR; };
 		1BE007222DBB1FBC0061EAFD /* Fabric Editor.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Fabric Editor.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1BE00A5B2DC936A50061EAFD /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		1BE00A5C2DC936A50061EAFD /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
@@ -178,6 +180,7 @@
 				Nodes/Geometry/TubeGeometryNode.swift,
 				Nodes/Image/Analysis/ContourPathNode.swift,
 				Nodes/Image/Analysis/HandPoseAnalysisNode.swift,
+				Nodes/Image/Analysis/MetalFXSpatialUpsample2xNode.swift,
 				Nodes/Image/CameraProviderNode.swift,
 				Nodes/Image/ColorAdjust/LUTProcessorNode.swift,
 				Nodes/Image/Distort/KeypointDistortNode.swift,
@@ -349,6 +352,7 @@
 				1BB12B372E0234FC0075C276 /* AVFoundation.framework in Frameworks */,
 				1B9BA4532ECFB42100209F86 /* AsyncAlgorithms in Frameworks */,
 				1B9BA4442ECFA97700209F86 /* MLXEmbedders in Frameworks */,
+				1BD9EE252EF2004E0075D951 /* MetalFX.framework in Frameworks */,
 				1B9BA44A2ECFA97700209F86 /* MLXVLM in Frameworks */,
 				1BC06AF22E0233DC0019808C /* Noise in Frameworks */,
 				1BB12B362E0234FC0075C276 /* Foundation.framework in Frameworks */,
@@ -414,6 +418,7 @@
 		1BE007602DBC37CE0061EAFD /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				1BD9EE242EF2004E0075D951 /* MetalFX.framework */,
 				1BB12B472E0267420075C276 /* Accelerate.framework */,
 				1BB12B422E0251BE0075C276 /* libobjc.tbd */,
 				1BB12B412E0251B20075C276 /* libswiftObjectiveC.tbd */,
