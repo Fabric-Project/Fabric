@@ -127,7 +127,7 @@ HDR -> SDR conversion
 - [x] Uncharted
 - [x] Uncharted 2
 
-## Film Emulation
+### Film Emulation
 
 - [x] Grain
 - [x] Light Leak
