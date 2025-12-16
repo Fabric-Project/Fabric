@@ -48,7 +48,6 @@ struct FloatSlider: View, Equatable
         { geometry in
             
             let sliderWidth = max(geometry.size.width, 1)
-            let sliderHeight = max(geometry.size.height, 1)
             let cornerRadius = 4.0 // min(12, max(3.0, sliderHeight / 5.0) )
 
             HStack(alignment: /*@START_MENU_TOKEN@*/.center/*@END_MENU_TOKEN@*/, spacing: 0.0, content:
@@ -137,7 +136,6 @@ struct Float2Slider: View, Equatable
         { geometry in
             
             let sliderWidth = max(geometry.size.width, 1)
-            let sliderHeight = max(geometry.size.height, 1)
             let cornerRadius = 4.0 // min(12, max(3.0, sliderHeight / 5.0) )
 
             VStack
@@ -271,7 +269,6 @@ struct Float3Slider: View, Equatable
         { geometry in
             
             let sliderWidth = max(geometry.size.width, 1)
-            let sliderHeight = max(geometry.size.height, 1)
             let cornerRadius = 4.0 // min(12, max(3.0, sliderHeight / 5.0) )
 
             VStack

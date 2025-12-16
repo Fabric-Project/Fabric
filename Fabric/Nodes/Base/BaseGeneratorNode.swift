@@ -41,13 +41,13 @@ class BaseGeneratorNode: Node, NodeFileLoadingProtocol
         [
             ("inputWidth", ParameterPort(parameter: IntParameter("Width", 512, 1, 8192, .inputfield))),
             ("inputHeight", ParameterPort(parameter: IntParameter("Height", 512, 1, 8192, .inputfield))),
-            ("outputTexturePort", NodePort<EquatableTexture>(name: "Image", kind: .Outlet)),
+            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet)),
         ]
     }
 
     public var inputWidth:ParameterPort<Int>  { port(named: "inputWidth") }
     public var inputHeight:ParameterPort<Int>  { port(named: "inputHeight") }
-    public var outputTexturePort:NodePort<EquatableTexture> { port(named: "outputTexturePort") }
+    public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
     
     private var url:URL? = nil
     
@@ -213,7 +213,7 @@ class BaseGeneratorNode: Node, NodeFileLoadingProtocol
         
         if let outTex = self.postProcessor.renderer.colorTexture
         {
-            let outputTexture = EquatableTexture(texture: outTex)
+            let outputTexture = FabricImage(texture: outTex)
             self.outputTexturePort.send( outputTexture )
         }
     }

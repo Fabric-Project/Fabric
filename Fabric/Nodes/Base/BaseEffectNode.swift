@@ -39,13 +39,13 @@ public class BaseEffectNode: Node, NodeFileLoadingProtocol
         
         return ports +
         [
-            ("inputTexturePort", NodePort<EquatableTexture>(name: "Image", kind: .Inlet)),
-            ("outputTexturePort", NodePort<EquatableTexture>(name: "Image", kind: .Outlet)),
+            ("inputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Inlet)),
+            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet)),
         ]
     }
 
-    public var inputTexturePort:NodePort<EquatableTexture>  { port(named: "inputTexturePort") }
-    public var outputTexturePort:NodePort<EquatableTexture> { port(named: "outputTexturePort") }
+    public var inputTexturePort:NodePort<FabricImage>  { port(named: "inputTexturePort") }
+    public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
     
     private var url:URL? = nil
     
@@ -210,7 +210,7 @@ public class BaseEffectNode: Node, NodeFileLoadingProtocol
                 
                 if let outTex = self.postProcessor.renderer.colorTexture
                 {
-                    let outputTexture = EquatableTexture(texture: outTex)
+                    let outputTexture = FabricImage(texture: outTex)
                     self.outputTexturePort.send( outputTexture )
                 }
             }

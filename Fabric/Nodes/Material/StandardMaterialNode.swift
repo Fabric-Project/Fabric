@@ -20,12 +20,12 @@ public class StandardMaterialNode : BaseMaterialNode
         let ports = super.registerPorts(context: context)
         
         return [
-            ("inputDiffuseTexture",  NodePort<EquatableTexture>(name: "Diffuse Texture", kind: .Inlet)),
-            ("inputNormalTexture",  NodePort<EquatableTexture>(name: "Normal Texture", kind: .Inlet)),
-            ("inputEmissiveTexture",  NodePort<EquatableTexture>(name: "Emissive Texture", kind: .Inlet)),
-            ("inputSpecularTexture",  NodePort<EquatableTexture>(name: "Specular Texture", kind: .Inlet)),
-            ("inputRoughnessTexture",  NodePort<EquatableTexture>(name: "Roughness Texture", kind: .Inlet)),
-            ("inputMetallicTexture",  NodePort<EquatableTexture>(name: "Metallic Texture", kind: .Inlet)),
+            ("inputDiffuseTexture",  NodePort<FabricImage>(name: "Diffuse Texture", kind: .Inlet)),
+            ("inputNormalTexture",  NodePort<FabricImage>(name: "Normal Texture", kind: .Inlet)),
+            ("inputEmissiveTexture",  NodePort<FabricImage>(name: "Emissive Texture", kind: .Inlet)),
+            ("inputSpecularTexture",  NodePort<FabricImage>(name: "Specular Texture", kind: .Inlet)),
+            ("inputRoughnessTexture",  NodePort<FabricImage>(name: "Roughness Texture", kind: .Inlet)),
+            ("inputMetallicTexture",  NodePort<FabricImage>(name: "Metallic Texture", kind: .Inlet)),
             ("inputBaseColor",  ParameterPort(parameter:Float4Parameter("Base Color", simd_float4(repeating:1), .colorpicker))),
             ("inputEmissiveColor",  ParameterPort(parameter:Float4Parameter("Emissive Color", simd_float4(repeating:0), .colorpicker))),
             ("inputSpecular",  ParameterPort(parameter:FloatParameter("Specular", 0.25, 0.0, 1.0, .slider))),
@@ -39,12 +39,12 @@ public class StandardMaterialNode : BaseMaterialNode
     }
 
     // Proxy Ports
-    public var inputDiffuseTexture: NodePort<EquatableTexture> { port(named: "inputDiffuseTexture") }
-    public var inputNormalTexture: NodePort<EquatableTexture> { port(named: "inputNormalTexture") }
-    public var inputEmissiveTexture: NodePort<EquatableTexture>{ port(named: "inputEmissiveTexture") }
-    public var inputSpecularTexture: NodePort<EquatableTexture>{ port(named: "inputSpecularTexture") }
-    public var inputRoughnessTexture: NodePort<EquatableTexture>{ port(named: "inputRoughnessTexture") }
-    public var inputMetallicTexture: NodePort<EquatableTexture>{ port(named: "inputMetallicTexture") }
+    public var inputDiffuseTexture: NodePort<FabricImage> { port(named: "inputDiffuseTexture") }
+    public var inputNormalTexture: NodePort<FabricImage> { port(named: "inputNormalTexture") }
+    public var inputEmissiveTexture: NodePort<FabricImage>{ port(named: "inputEmissiveTexture") }
+    public var inputSpecularTexture: NodePort<FabricImage>{ port(named: "inputSpecularTexture") }
+    public var inputRoughnessTexture: NodePort<FabricImage>{ port(named: "inputRoughnessTexture") }
+    public var inputMetallicTexture: NodePort<FabricImage>{ port(named: "inputMetallicTexture") }
     public var inputBaseColor: ParameterPort<simd_float4>{ port(named: "inputBaseColor") }
     public var inputEmissiveColor: ParameterPort<simd_float4>{ port(named: "inputEmissiveColor") }
     public var inputSpecular: ParameterPort<Float>{ port(named: "inputSpecular") }

@@ -26,7 +26,7 @@ public final class ContourPathNode: Node {
 
         return ports + [
             // Inputs
-            ("inputMask", NodePort<EquatableTexture>(name: "Mask", kind: .Inlet)),
+            ("inputMask", NodePort<FabricImage>(name: "Mask", kind: .Inlet)),
 
             // Params
             ("inputIso",  ParameterPort(parameter: FloatParameter("Iso Level", 0.5))),
@@ -39,7 +39,7 @@ public final class ContourPathNode: Node {
     }
 
     // Proxies
-    public var inputMask: NodePort<EquatableTexture> { port(named: "inputMask") }
+    public var inputMask: NodePort<FabricImage> { port(named: "inputMask") }
     public var inputIso:  ParameterPort<Float>       { port(named: "inputIso") }
     public var inputMaxSegments: ParameterPort<Int>  { port(named: "inputMaxSegments") }
     public var inputJoinEpsilon: ParameterPort<Float> { port(named: "inputJoinEpsilon") }

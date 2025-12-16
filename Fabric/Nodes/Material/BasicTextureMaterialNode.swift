@@ -20,11 +20,11 @@ public class BasicTextureMaterialNode : BasicColorMaterialNode
         let ports = super.registerPorts(context: context)
         
         return  [
-                    ("inputTexture", NodePort<EquatableTexture>(name: "Image", kind: .Inlet) ),
+                    ("inputTexture", NodePort<FabricImage>(name: "Image", kind: .Inlet) ),
                 ] + ports
     }
     
-    public var inputTexture:NodePort<EquatableTexture> { port(named: "inputTexture") }
+    public var inputTexture:NodePort<FabricImage> { port(named: "inputTexture") }
     
     public override var material: BasicTextureMaterial {
         return _material

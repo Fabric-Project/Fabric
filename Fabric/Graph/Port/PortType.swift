@@ -31,7 +31,7 @@ extension simd.simd_float4x4 : FabricPort { }
 extension Satin.Geometry : FabricPort { }
 extension Satin.Material : FabricPort { }
 extension Satin.Shader : FabricPort { }
-extension EquatableTexture : FabricPort { }
+extension FabricImage : FabricPort { }
 
 extension ContiguousArray : FabricPort  where Element : FabricPort { }
 
@@ -67,7 +67,7 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         case .Geometry: return try NodePort<Satin.Geometry>.init(from: decoder)
         case .Material: return try NodePort<Satin.Material>.init(from: decoder)
         case .Shader: return try NodePort<Satin.Shader>.init(from: decoder)
-        case .Image: return try NodePort<EquatableTexture>.init(from: decoder)
+        case .Image: return try NodePort<FabricImage>.init(from: decoder)
         // TODO: Array
         case .Array(portType: let arrayType):
             switch arrayType
@@ -84,7 +84,7 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
             case .Geometry: return try NodePort<ContiguousArray<Satin.Geometry>>.init(from: decoder)
             case .Material: return try NodePort<ContiguousArray<Satin.Material>>.init(from: decoder)
             case .Shader: return try NodePort<ContiguousArray<Satin.Shader>>.init(from: decoder)
-            case .Image: return try NodePort<ContiguousArray<EquatableTexture>>.init(from: decoder)
+            case .Image: return try NodePort<ContiguousArray<FabricImage>>.init(from: decoder)
 
             // we dont yet support nested arrays///
             case .Array(portType: _):
@@ -230,7 +230,7 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         else if type == Satin.Geometry.self      { return .Geometry }
         else if type == Satin.Material.self      { return .Material }
         else if type == Satin.Shader.self        { return .Shader }
-        else if type == EquatableTexture.self    { return .Image }
+        else if type == FabricImage.self    { return .Image }
 
         // Assume Array?
         else {
@@ -374,7 +374,7 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         case .Shader:
             return Satin.Shader.self
         case .Image:
-            return EquatableTexture.self
+            return FabricImage.self
         case .Array(portType: let portType):
             return contiguousArrayMetatype(of: portType.type)
         }

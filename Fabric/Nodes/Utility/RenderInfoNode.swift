@@ -34,8 +34,8 @@ public class RenderInfoNode : Node
     public var outputFrameNumber:NodePort<Int> { port(named: "outputFrameNumber") }
 
     
-    public var inputTexturePort:NodePort<EquatableTexture>  { port(named: "inputTexturePort") }
-    public var outputTexturePort:NodePort<EquatableTexture> { port(named: "outputTexturePort") }
+    public var inputTexturePort:NodePort<FabricImage>  { port(named: "inputTexturePort") }
+    public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
     
     public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,

@@ -26,7 +26,7 @@ public class HandPoseAnalysisNode: Node
         
         return ports +
         [
-            ("inputImage", NodePort<EquatableTexture>(name: "Image", kind: .Inlet)),
+            ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet)),
             ("inputHandCount", ParameterPort(parameter: IntParameter("Hand Count", 1, 1, 16, .inputfield))),
             
             ("outputThumb1", NodePort<simd_float2>(name: "Thumb Tip", kind: .Outlet)),
@@ -58,7 +58,7 @@ public class HandPoseAnalysisNode: Node
         ]
     }
 
-    public var inputImage:NodePort<EquatableTexture>  { port(named: "inputImage") }
+    public var inputImage:NodePort<FabricImage>  { port(named: "inputImage") }
 
     public var outputThumb1:NodePort<simd_float2> { port(named: "outputThumb1") }
     public var outputThumb2:NodePort<simd_float2> { port(named: "outputThumb2") }

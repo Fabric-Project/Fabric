@@ -285,7 +285,7 @@ public class NodePort<Value : FabricPort>: Port
         
     private static func calcColor(forType: Any.Type ) -> Color
     {
-        if forType == EquatableTexture.self
+        if forType == FabricImage.self
         {
             return Color.nodeTexture
         }

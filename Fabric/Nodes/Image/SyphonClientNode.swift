@@ -28,13 +28,13 @@ public class SyphonClientNode : Node
         [
             ("inputServerName", ParameterPort(parameter: StringParameter("Server Name", "", [String](), .inputfield))),
             ("inputServerAppName", ParameterPort(parameter: StringParameter("Application Name", "", [String](), .inputfield))),
-            ("outputTexturePort", NodePort<EquatableTexture>(name: "Image", kind: .Outlet)),
+            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet)),
         ]
     }
 
     public var inputServerName:ParameterPort<String>  { port(named: "inputServerName") }
     public var inputServerAppName:ParameterPort<String>  { port(named: "inputServerAppName") }
-    public var outputTexturePort:NodePort<EquatableTexture> { port(named: "outputTexturePort") }
+    public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
 
     @ObservationIgnored private var syphonClient:SyphonMetalClient? = nil
     @ObservationIgnored private var texture: (any MTLTexture)? = nil
@@ -59,7 +59,7 @@ public class SyphonClientNode : Node
            syphonClient.isValid,
            let texture = syphonClient.newFrameImage()
         {
-            self.outputTexturePort.send(EquatableTexture(texture: texture))
+            self.outputTexturePort.send(FabricImage(texture: texture))
         }
         else
         {

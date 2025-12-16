@@ -74,12 +74,12 @@ public class CameraProviderNode : Node
         return ports +
         [
             ("inputCamera", ParameterPort(parameter: StringParameter("Device Name", "", .dropdown))),
-            ("outputTexturePort", NodePort<EquatableTexture>(name: "Image", kind: .Outlet)),
+            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet)),
         ]
     }
 
     public var inputCamera:ParameterPort<String>  { port(named: "inputCamera") }
-    public var outputTexturePort:NodePort<EquatableTexture> { port(named: "outputTexturePort") }
+    public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
     
     @ObservationIgnored private let discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInWideAngleCamera, .continuityCamera, .external,], mediaType: nil, position:.unspecified)
     @ObservationIgnored private var device: AVCaptureDevice? = nil
@@ -200,7 +200,7 @@ public class CameraProviderNode : Node
                 {
                     let latestFrameTexture = CVMetalTextureGetTexture(texture!)!
                     
-                    self.outputTexturePort.send( EquatableTexture(texture: latestFrameTexture) )
+                    self.outputTexturePort.send( FabricImage(texture: latestFrameTexture) )
                 }
         }
         

@@ -21,14 +21,14 @@ public class EnvironmentNode: SubgraphNode
         
         return ports +
         [
-            ("inputEnvironmentTexture", NodePort<EquatableTexture>(name: "Environment Texture", kind: .Inlet)),
+            ("inputEnvironmentTexture", NodePort<FabricImage>(name: "Environment Texture", kind: .Inlet)),
             ("inputEnvironmentIntensity", ParameterPort(parameter: FloatParameter("Environment Intensity", 1.0, 0.0, 1.0, .slider))),
 //            ("inputBlur", ParameterPort(parameter: FloatParameter("Blur", 0.0, 0.0, 5.0, .slider))),
         ]
     }
     
     // Port Proxy
-    public var inputEnvironmentTexture:NodePort<EquatableTexture> { port(named: "inputEnvironmentTexture") }
+    public var inputEnvironmentTexture:NodePort<FabricImage> { port(named: "inputEnvironmentTexture") }
     public var inputEnvironmentIntensity:ParameterPort<Float> { port(named: "inputEnvironmentIntensity") }
 //    public var inputBlur:ParameterPort<Float> { port(named: "inputBlur") }
     

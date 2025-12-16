@@ -78,7 +78,7 @@ final class MetalFXSpatialUpsample2xNode: BaseEffectNode
         
         scaler.encode(commandBuffer: commandBuffer)
 
-        self.outputTexturePort.send(EquatableTexture(texture: outTex), force: true)
+        self.outputTexturePort.send(FabricImage(texture: outTex), force: true)
     }
 
     private func rebuildScalerAndTargets(for input: MTLTexture)

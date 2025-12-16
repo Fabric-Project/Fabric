@@ -26,12 +26,12 @@ public class ImageProviderNode : Node
         return ports +
         [
             ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker))),
-            ("outputTexturePort", NodePort<EquatableTexture>(name: "Image", kind: .Outlet)),
+            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet)),
         ]
     }
 
     public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
-    public var outputTexturePort:NodePort<EquatableTexture> { port(named: "outputTexturePort") }
+    public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
 
     @ObservationIgnored private var texture: (any MTLTexture)? = nil
     @ObservationIgnored private var textureLoader:MTKTextureLoader
@@ -72,7 +72,7 @@ public class ImageProviderNode : Node
         
         if let texture = self.texture
         {
-            self.outputTexturePort.send(EquatableTexture(texture: texture))
+            self.outputTexturePort.send(FabricImage(texture: texture))
         }
         
         else

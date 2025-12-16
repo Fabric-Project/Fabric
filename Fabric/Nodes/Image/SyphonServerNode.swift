@@ -27,12 +27,12 @@ public class SyphonServerNode : Node
         return ports +
         [
             ("inputServerName", ParameterPort(parameter: StringParameter("Syphon Server", "", .inputfield))),
-            ("inputTexture", NodePort<EquatableTexture>(name: "Image", kind: .Inlet)),
+            ("inputTexture", NodePort<FabricImage>(name: "Image", kind: .Inlet)),
         ]
     }
 
     public var inputServerName:ParameterPort<String>  { port(named: "inputServerName") }
-    public var inputTexture:NodePort<EquatableTexture> { port(named: "inputTexture") }
+    public var inputTexture:NodePort<FabricImage> { port(named: "inputTexture") }
 
     @ObservationIgnored private let syphonServer:SyphonMetalServer
     @ObservationIgnored private var texture: (any MTLTexture)? = nil

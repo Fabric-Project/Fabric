@@ -22,9 +22,9 @@ public class DisplacementMaterialNode: BaseMaterialNode
         let ports = super.registerPorts(context: context)
         
         return [
-            ("inputTexture", NodePort<EquatableTexture>(name: "Image", kind: .Inlet)),
-            ("inputDisplacementTexture", NodePort<EquatableTexture>(name: "Displacement Image", kind: .Inlet)),
-            ("inputPointSpriteTexture", NodePort<EquatableTexture>(name: "Point Sprite Image", kind: .Inlet)),
+            ("inputTexture", NodePort<FabricImage>(name: "Image", kind: .Inlet)),
+            ("inputDisplacementTexture", NodePort<FabricImage>(name: "Displacement Image", kind: .Inlet)),
+            ("inputPointSpriteTexture", NodePort<FabricImage>(name: "Point Sprite Image", kind: .Inlet)),
             ("inputAmount", ParameterPort(parameter:FloatParameter("Amount", 0.0, 0.0, 2.0, .slider))),
             ("inputLumaVsRGBAmount", ParameterPort(parameter:FloatParameter("Luma v RGB", 0.0, 0.0, 1.0, .slider))),
             ("inputMinPointSize", ParameterPort(parameter:FloatParameter("Min PointSize", 1.0, 0.5, 128.0, .slider))),
@@ -34,12 +34,12 @@ public class DisplacementMaterialNode: BaseMaterialNode
     }
 
     public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
-    public var outputTexturePort:NodePort<EquatableTexture> { port(named: "outputTexturePort") }
+    public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
 
     // Proxy Params
-    public var inputTexture:NodePort<EquatableTexture> { port(named: "inputTexture") }
-    public var inputDisplacementTexture:NodePort<EquatableTexture> { port(named: "inputDisplacementTexture") }
-    public var inputPointSpriteTexture:NodePort<EquatableTexture> { port(named: "inputPointSpriteTexture") }
+    public var inputTexture:NodePort<FabricImage> { port(named: "inputTexture") }
+    public var inputDisplacementTexture:NodePort<FabricImage> { port(named: "inputDisplacementTexture") }
+    public var inputPointSpriteTexture:NodePort<FabricImage> { port(named: "inputPointSpriteTexture") }
     public var inputAmount:ParameterPort<Float> { port(named: "inputAmount") }
     public var inputLumaVsRGBAmount:ParameterPort<Float> { port(named: "inputLumaVsRGBAmount") }
     public var inputMinPointSize:ParameterPort<Float> { port(named: "inputMinPointSize") }

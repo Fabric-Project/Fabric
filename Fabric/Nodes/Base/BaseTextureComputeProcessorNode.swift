@@ -34,13 +34,13 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
         
         return ports +
         [
-            ("inputImage", NodePort<EquatableTexture>(name: "Image", kind: .Inlet)),
-            ("outputImage", NodePort<EquatableTexture>(name: "Image", kind: .Outlet)),
+            ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet)),
+            ("outputImage", NodePort<FabricImage>(name: "Image", kind: .Outlet)),
         ]
     }
 
-    public var inputImage:NodePort<EquatableTexture>  { port(named: "inputImage") }
-    public var outputImage:NodePort<EquatableTexture> { port(named: "outputImage") }
+    public var inputImage:NodePort<FabricImage>  { port(named: "inputImage") }
+    public var outputImage:NodePort<FabricImage> { port(named: "outputImage") }
     private var url:URL? = nil
 
     // MARK: - Init
@@ -116,7 +116,7 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
         
         if let outTex = self.compute.computeTextures[.Custom1]
         {
-            self.outputImage.send(EquatableTexture(texture: outTex))
+            self.outputImage.send(FabricImage(texture: outTex))
         }
         else
         {

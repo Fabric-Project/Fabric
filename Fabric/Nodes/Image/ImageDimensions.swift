@@ -19,14 +19,14 @@ public class ImageDimensions : Node
     public override class var nodeDescription: String { "Returns Image Dimensions in Pixels"}
 
     // Ports
-    public let inputTexture:NodePort<EquatableTexture>
+    public let inputTexture:NodePort<FabricImage>
     public let outputResolution:NodePort<simd_float2>
     public override var ports: [Port] { [ self.inputTexture, self.outputResolution] + super.ports}
     
         
     public required init(context: Context)
     {
-        self.inputTexture =  NodePort<EquatableTexture>(name: "Image" , kind: .Inlet)
+        self.inputTexture =  NodePort<FabricImage>(name: "Image" , kind: .Inlet)
         self.outputResolution =  NodePort<simd_float2>(name: "Resolution" , kind: .Outlet)
 
         super.init(context: context)
@@ -52,7 +52,7 @@ public class ImageDimensions : Node
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
-        self.inputTexture = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputTexturePort)
+        self.inputTexture = try container.decode(NodePort<FabricImage>.self, forKey: .inputTexturePort)
         self.outputResolution =  try container.decode(NodePort<simd_float2>.self, forKey: .outputResolutionPort)
 
         try super.init(from: decoder)

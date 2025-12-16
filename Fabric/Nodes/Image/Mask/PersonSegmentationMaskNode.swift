@@ -21,16 +21,16 @@ public class PersonSegmentationMaskNode: Node
     override public class var nodeDescription: String { "Creates a mask from a the most salient person in the image."}
 
     // Ports
-    let inputTexturePort:NodePort<EquatableTexture>
-    let outputTexturePort:NodePort<EquatableTexture>
+    let inputTexturePort:NodePort<FabricImage>
+    let outputTexturePort:NodePort<FabricImage>
     override public var ports: [Port] { [inputTexturePort, outputTexturePort] + super.ports}
     
     @ObservationIgnored private var textureCache:CVMetalTextureCache?
     
     required init(context:Context)
     {
-        self.inputTexturePort = NodePort<EquatableTexture>(name: "Image", kind: .Inlet)
-        self.outputTexturePort = NodePort<EquatableTexture>(name: "Image", kind: .Outlet)
+        self.inputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Inlet)
+        self.outputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Outlet)
         
         let _ = CVMetalTextureCacheCreate(kCFAllocatorDefault,
                                           nil,
@@ -66,8 +66,8 @@ public class PersonSegmentationMaskNode: Node
             fatalError("Required Decode Context Not set")
         }
         
-        self.inputTexturePort = try container.decode(NodePort<EquatableTexture>.self, forKey: .inputTexturePort)
-        self.outputTexturePort = try container.decode(NodePort<EquatableTexture>.self, forKey: .outputTexturePort)
+        self.inputTexturePort = try container.decode(NodePort<FabricImage>.self, forKey: .inputTexturePort)
+        self.outputTexturePort = try container.decode(NodePort<FabricImage>.self, forKey: .outputTexturePort)
         
         let _ = CVMetalTextureCacheCreate(kCFAllocatorDefault,
                                           nil,
@@ -92,7 +92,7 @@ public class PersonSegmentationMaskNode: Node
             if let inTex = self.inputTexturePort.value?.texture,
                let maskTex =  self.maskForRequest(request, from: inTex)
             {
-                self.outputTexturePort.send( EquatableTexture(texture: maskTex) )
+                self.outputTexturePort.send( FabricImage(texture: maskTex) )
             }
             else
             {

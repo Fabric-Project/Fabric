@@ -39,15 +39,15 @@ class BaseEffectTwoChannelNode: Node, NodeFileLoadingProtocol
         
         return ports +
         [
-            ("inputTexturePort", NodePort<EquatableTexture>(name: "Image 1", kind: .Inlet)),
-            ("inputTexture2Port", NodePort<EquatableTexture>(name: "Image 2", kind: .Inlet)),
-            ("outputTexturePort", NodePort<EquatableTexture>(name: "Image", kind: .Outlet)),
+            ("inputTexturePort", NodePort<FabricImage>(name: "Image 1", kind: .Inlet)),
+            ("inputTexture2Port", NodePort<FabricImage>(name: "Image 2", kind: .Inlet)),
+            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet)),
         ]
     }
 
-    public var inputTexturePort:NodePort<EquatableTexture>  { port(named: "inputTexturePort") }
-    public var inputTexture2Port:NodePort<EquatableTexture> { port(named: "inputTexture2Port") }
-    public var outputTexturePort:NodePort<EquatableTexture> { port(named: "outputTexturePort") }
+    public var inputTexturePort:NodePort<FabricImage>  { port(named: "inputTexturePort") }
+    public var inputTexture2Port:NodePort<FabricImage> { port(named: "inputTexture2Port") }
+    public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
     
     private var url:URL? = nil
     
@@ -216,7 +216,7 @@ class BaseEffectTwoChannelNode: Node, NodeFileLoadingProtocol
                 
                 if let outTex = self.postProcessor.renderer.colorTexture
                 {
-                    let outputTexture = EquatableTexture(texture: outTex)
+                    let outputTexture = FabricImage(texture: outTex)
                     self.outputTexturePort.send( outputTexture )
                 }
             }

@@ -25,8 +25,8 @@ public class DeferredSubgraphNode: SubgraphNode
             ("inputWidth", ParameterPort(parameter: IntParameter("Width", 1920, .inputfield))),
             ("inputHeight", ParameterPort(parameter: IntParameter("Height", 1080, .inputfield))),
             ("inputClearColor", ParameterPort(parameter: Float4Parameter("Clear Color", simd_float4(repeating:0), .colorpicker))),
-            ("outputColorTexture", NodePort<EquatableTexture>(name: "Color Texture", kind: .Outlet)),
-            ("outputDepthTexture", NodePort<EquatableTexture>(name: "Depth Texture", kind: .Outlet)),
+            ("outputColorTexture", NodePort<FabricImage>(name: "Color Texture", kind: .Outlet)),
+            ("outputDepthTexture", NodePort<FabricImage>(name: "Depth Texture", kind: .Outlet)),
         ] + ports
     }
     
@@ -34,8 +34,8 @@ public class DeferredSubgraphNode: SubgraphNode
     public var inputWidth: ParameterPort<Int> { port(named: "inputWidth") }
     public var inputHeight: ParameterPort<Int> { port(named: "inputHeight") }
     public var inputClearColor: ParameterPort<simd_float4> { port(named: "inputClearColor") }
-    public var outputColorTexture: NodePort<EquatableTexture> { port(named: "outputColorTexture") }
-    public var outputDepthTexture: NodePort<EquatableTexture> { port(named: "outputDepthTexture") }
+    public var outputColorTexture: NodePort<FabricImage> { port(named: "outputColorTexture") }
+    public var outputDepthTexture: NodePort<FabricImage> { port(named: "outputDepthTexture") }
     
     override public var object:Object? {
         return nil
@@ -138,7 +138,7 @@ public class DeferredSubgraphNode: SubgraphNode
         
         if let texture = self.graphRenderer.renderer.colorTexture
         {
-            self.outputColorTexture.send( EquatableTexture(texture: texture) )
+            self.outputColorTexture.send( FabricImage(texture: texture) )
         }
         else
         {
@@ -147,7 +147,7 @@ public class DeferredSubgraphNode: SubgraphNode
         
         if let texture = self.graphRenderer.renderer.depthTexture
         {
-            self.outputDepthTexture.send( EquatableTexture(texture: texture) )
+            self.outputDepthTexture.send( FabricImage(texture: texture) )
         }
         else
         {

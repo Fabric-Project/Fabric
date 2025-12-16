@@ -22,14 +22,14 @@ public class PBRMaterialNode : StandardMaterialNode
         
         return ports +
         [
-            ("inputBumpTexture", NodePort<EquatableTexture>(name: "Bump Texture", kind: .Inlet)),
-            ("inputDisplacementTexture", NodePort<EquatableTexture>(name: "Displacement Texture", kind: .Inlet)),
-            ("inputOcclusionTexture", NodePort<EquatableTexture>(name: "Occlusion Texture", kind: .Inlet)),
-            ("inputSubsurfaceTexture", NodePort<EquatableTexture>(name: "Subsurface Texture", kind: .Inlet)),
-            ("inputClearcoatTexture", NodePort<EquatableTexture>(name: "Clearcoat Texture", kind: .Inlet)),
-            ("inputClearcoatRoughTexture", NodePort<EquatableTexture>(name: "Clearcoat Roughness Texture", kind: .Inlet)),
-            ("inputClearcoatGlossTexture", NodePort<EquatableTexture>(name: "Clearcoat Gloss Texture", kind: .Inlet)),
-            ("inputTransmissionTexture", NodePort<EquatableTexture>(name: "Transmission Texture", kind: .Inlet)),
+            ("inputBumpTexture", NodePort<FabricImage>(name: "Bump Texture", kind: .Inlet)),
+            ("inputDisplacementTexture", NodePort<FabricImage>(name: "Displacement Texture", kind: .Inlet)),
+            ("inputOcclusionTexture", NodePort<FabricImage>(name: "Occlusion Texture", kind: .Inlet)),
+            ("inputSubsurfaceTexture", NodePort<FabricImage>(name: "Subsurface Texture", kind: .Inlet)),
+            ("inputClearcoatTexture", NodePort<FabricImage>(name: "Clearcoat Texture", kind: .Inlet)),
+            ("inputClearcoatRoughTexture", NodePort<FabricImage>(name: "Clearcoat Roughness Texture", kind: .Inlet)),
+            ("inputClearcoatGlossTexture", NodePort<FabricImage>(name: "Clearcoat Gloss Texture", kind: .Inlet)),
+            ("inputTransmissionTexture", NodePort<FabricImage>(name: "Transmission Texture", kind: .Inlet)),
             ("inputSubsurface", ParameterPort(parameter:FloatParameter("Sub Surface", 0.0, 0.0, 1.0, .slider))),
             ("inputAnisotropic", ParameterPort(parameter:FloatParameter("Anisotropic", 0.0, -1.0, 1.0, .slider))),
             ("inputAnisotropicAngle", ParameterPort(parameter:FloatParameter("Anisotropic Angle", 0.0, -1.0, 1.0, .slider))),
@@ -45,14 +45,14 @@ public class PBRMaterialNode : StandardMaterialNode
     }
 
     // Port Proxys
-    var inputBumpTexture: NodePort<EquatableTexture> { port(named: "inputBumpTexture") }
-    var inputDisplacementTexture: NodePort<EquatableTexture> { port(named: "inputDisplacementTexture") }
-    var inputOcclusionTexture: NodePort<EquatableTexture> { port(named: "inputOcclusionTexture") }
-    var inputSubsurfaceTexture: NodePort<EquatableTexture> { port(named: "inputSubsurfaceTexture") }
-    var inputClearcoatTexture: NodePort<EquatableTexture> { port(named: "inputClearcoatTexture") }
-    var inputClearcoatRoughTexture: NodePort<EquatableTexture> { port(named: "inputClearcoatRoughTexture") }
-    var inputClearcoatGlossTexture: NodePort<EquatableTexture> { port(named: "inputClearcoatGlossTexture") }
-    var inputTransmissionTexture: NodePort<EquatableTexture> { port(named: "inputTransmissionTexture") }
+    var inputBumpTexture: NodePort<FabricImage> { port(named: "inputBumpTexture") }
+    var inputDisplacementTexture: NodePort<FabricImage> { port(named: "inputDisplacementTexture") }
+    var inputOcclusionTexture: NodePort<FabricImage> { port(named: "inputOcclusionTexture") }
+    var inputSubsurfaceTexture: NodePort<FabricImage> { port(named: "inputSubsurfaceTexture") }
+    var inputClearcoatTexture: NodePort<FabricImage> { port(named: "inputClearcoatTexture") }
+    var inputClearcoatRoughTexture: NodePort<FabricImage> { port(named: "inputClearcoatRoughTexture") }
+    var inputClearcoatGlossTexture: NodePort<FabricImage> { port(named: "inputClearcoatGlossTexture") }
+    var inputTransmissionTexture: NodePort<FabricImage> { port(named: "inputTransmissionTexture") }
     var inputSubsurface: ParameterPort<Float> { port(named: "inputSubsurface") }
     var inputAnisotropic: ParameterPort<Float> { port(named: "inputAnisotropic") }
     var inputAnisotropicAngle: ParameterPort<Float> { port(named: "inputAnisotropicAngle") }

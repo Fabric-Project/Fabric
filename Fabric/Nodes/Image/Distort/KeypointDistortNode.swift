@@ -130,7 +130,7 @@ public class KeypointDistortNode: BaseEffectNode {
                 
                 if let outTex = self.postProcessor.renderer.colorTexture
                 {
-                    let outputTexture = EquatableTexture(texture: outTex)
+                    let outputTexture = FabricImage(texture: outTex)
                     self.outputTexturePort.send( outputTexture )
                 }
             }
