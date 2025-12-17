@@ -250,6 +250,7 @@ HDR -> SDR conversion
 - [ ] Body Pose Detection / Landmark
 - [ ] Depth Map Prediction
 - [x] Metal FX 2x Upsampler (ML based)  
+- [x] FXAA Antialiasing  
 - [ ] Image Embedding Vector( via fast Clip like model or Vision Feature Print? whats most useful - careful do we want to stray into comfy ui bullshit? )
 
 
