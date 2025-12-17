@@ -43,8 +43,8 @@ struct Color4ParameterView: View, Equatable
         
         HStack(spacing: ParameterConfig.horizontalStackSpacing)
         {
-            InputFieldLabelView(label: "Color")
-            
+            InputFieldLabelView(label: vm.label )
+
             ColorPicker(selection: binding, supportsOpacity: true) {
             }
             .labelsHidden()
@@ -83,7 +83,7 @@ struct Color3ParameterView: View, Equatable
         
         HStack(spacing: ParameterConfig.horizontalStackSpacing)
         {
-            InputFieldLabelView(label: "Color")
+            InputFieldLabelView(label: vm.label )
 
             ColorPicker(selection: binding, supportsOpacity: false) {
             }
