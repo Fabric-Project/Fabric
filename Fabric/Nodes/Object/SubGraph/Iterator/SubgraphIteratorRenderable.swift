@@ -237,14 +237,14 @@ final class SubgraphIteratorRenderable: Satin.Renderable
                  commandBuffer: any MTLCommandBuffer)
     {
 
-        guard let subGraph,
-              let graphContext
-//              let updateCamera,
-//              let updateViewport,
-//              let updateIndex,
-//              let currentRenderPass,
-//              let currentCommandBuffer
-        else { return }
+//        guard let subGraph,
+//              let graphContext
+////              let updateCamera,
+////              let updateViewport,
+////              let updateIndex,
+////              let currentRenderPass,
+////              let currentCommandBuffer
+//        else { return }
                 
                 
         // execute the graph once, to just ensure meshes / materials have latest values popogated to nodes
