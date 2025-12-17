@@ -57,6 +57,9 @@ struct ParameterGroupView : View
             case .float3:
                 return  AnyView(self.build3Slider(param: param))
 
+            case .float4:
+                return  AnyView(self.build4Slider(param: param))
+
             default:
                 return AnyView(self.buildLabel(param: param))
             }
@@ -149,6 +152,17 @@ struct ParameterGroupView : View
         
         return Text(param.label)
     }
+    
+    private func build4Slider(param:any Satin.Parameter) -> any View
+    {
+        if let floatParam = param as? Float4Parameter
+        {
+            return EquatableView<Float4Slider>( content: Float4Slider(param:floatParam) )
+        }
+        
+        return Text(param.label)
+    }
+    
     
     private func buildXYPad(param:any Satin.Parameter) -> any View
     {
