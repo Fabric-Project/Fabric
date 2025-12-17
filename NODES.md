@@ -205,7 +205,8 @@ HDR -> SDR conversion
 - [ ] Threshold
 - [ ] Dither
 - [x] Pixelate
-- [ ] Half Tone
+- [x] CMYK Half Tone
+- [x] Cross Hatch
 
 ### Distortion
 
