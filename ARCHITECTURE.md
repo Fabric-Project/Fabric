@@ -53,7 +53,8 @@ Parameters (Grey):
 - Number (Floating point values)
 - String (String values)
 - Vector 2, Vector 3, Vector 4 (Sets of 
-- Color (A wrapper for Vector 4, RGBA) 
+- Color (A wrapper for Vector 4, RGBA)
+- Matrix ( Not yet integrated )
 
 Objects (Colored):
 - Geometry (A set of buffers that work together to define how 
