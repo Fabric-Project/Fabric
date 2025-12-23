@@ -110,6 +110,10 @@ extension UTType
     @ObservationIgnored public var portType: PortType { fatalError("Must be implemented") }
     @ObservationIgnored public var valueDidChange:Bool = true
 
+    // BARF?
+    internal func boxedValue() -> PortValue? { nil }
+    internal func setBoxedValue(_ boxed: PortValue?) { }
+    
     @ObservationIgnored public weak var node: Node?
     public var connections: [Port] = []
     @ObservationIgnored public let kind: PortKind

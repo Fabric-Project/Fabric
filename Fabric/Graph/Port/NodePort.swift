@@ -12,6 +12,16 @@ import Satin
 // Specialized port which facilitates sending a concrete type supported by Fabric .
 public class NodePort<Value : PortValueRepresentable>: Port
 {
+    // BARF
+    override internal func boxedValue() -> PortValue? { self.value?.toPortValue() }
+    
+    override  internal func setBoxedValue(_ boxed: PortValue?)
+    {
+        guard let boxed else { self.send(nil, force: true); return }
+        
+        self.send(Value.fromPortValue(boxed), force: true)
+    }
+    
     public var value: Value?
     {
         didSet

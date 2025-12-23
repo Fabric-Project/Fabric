@@ -31,12 +31,29 @@ public class GraphRenderer : MetalViewRenderer
     
     private var graphRequiresResize:Bool = false
     var resizeScaleFactor:Float = 1.0
-    
+
+    // CACHING
+
     // TODO: in theory we can remove the dirty semantics from node?
-    private enum NodeProcessingState { case unprocessed, processing, processed }
+    private enum NodeProcessingState
+    {
+        case unprocessed
+        case processing
+        case processed
+    }
 
     private var nodeProcessingStateCache: [UUID: NodeProcessingState] = [:]
         
+    private struct PortCacheKey: Hashable
+    {
+        let portID: UUID
+        let frameNumber: Int
+    }
+
+    private var lastCachePruneFrameNumber: Int = -1
+    private var previousFrameCache: [PortCacheKey: PortValue] = [:]
+
+    
     public init(context:Context)
     {
         self.context = context
@@ -75,6 +92,8 @@ public class GraphRenderer : MetalViewRenderer
         textureDescriptor.pixelFormat = format
         textureDescriptor.textureType = .type2D
         textureDescriptor.mipmapLevelCount = 1
+        textureDescriptor.sampleCount = 1
+        textureDescriptor.usage = [.shaderRead, .shaderWrite, .renderTarget]
         
         if let texture = self.device.makeTexture(descriptor: textureDescriptor)
         {
@@ -139,6 +158,15 @@ public class GraphRenderer : MetalViewRenderer
         // Clear execution state
         self.nodeProcessingStateCache = [:]
         
+        let currentFrame = executionContext.timing.frameNumber
+        let previousFrame = currentFrame - 1
+
+        if self.lastCachePruneFrameNumber != currentFrame
+        {
+            self.previousFrameCache = previousFrameCache.filter { $0.key.frameNumber == previousFrame }
+            self.lastCachePruneFrameNumber = currentFrame
+        }
+        
         defer {
             if clearFlags
             {
@@ -195,20 +223,41 @@ public class GraphRenderer : MetalViewRenderer
         switch nodeProcessingStateCache[node.id, default: .unprocessed]
         {
           case .processed:
+              // Already executed, return
               return
           case .processing:
               // cycle detected — for temporal feedback, do NOT recurse.
-              // downstream will read node's last published outputs.
               return
           case .unprocessed:
               break
           }
         
         self.nodeProcessingStateCache[node.id] = .processing
-
         
         // get the connection for
         let inputNodes = node.inputNodes
+        
+        self.nodeProcessingStateCache[node.id] = .processing
+
+        let previousFrameNumber = executionContext.timing.frameNumber - 1
+
+        // Inject cached previous-frame values for back-edges (upstream node is currently .processing)
+        for inlet in node.inputPorts()
+        {
+            // In Fabric, inlets typically have at most 1 connection; if more, decide policy.
+            guard let upstreamOutlet = inlet.connections.first(where: { $0.kind == .Outlet }) else { continue }
+            guard let upstreamNode = upstreamOutlet.node else { continue }
+
+            if nodeProcessingStateCache[upstreamNode.id, default: .unprocessed] == .processing
+            {
+                let key = PortCacheKey(portID: upstreamOutlet.id, frameNumber: previousFrameNumber)
+                let cached = previousFrameCache[key] // PortValue?
+
+                // This is the critical part: make the inlet read last frame instead of recursing
+                inlet.setBoxedValue(cached)
+            }
+        }
+
                 
         for inputNode in inputNodes
         {
@@ -241,10 +290,18 @@ public class GraphRenderer : MetalViewRenderer
 //            // This ensures if a node always is marked as dirty (like some nodes) we only execute once per pass
 //            if !nodesWeHaveExecutedThisPass.contains(node)
 //            {
+        
+#if DEBUG
+                commandBuffer.pushDebugGroup(node.name)
+#endif
                 node.execute(context: executionContext,
                              renderPassDescriptor: renderPassDescriptor,
                              commandBuffer: commandBuffer)
                 
+#if DEBUG
+                commandBuffer.popDebugGroup()
+#endif
+        
                 nodesWeHaveExecutedThisPass.append(node)
                 
                 if clearFlags
@@ -261,7 +318,23 @@ public class GraphRenderer : MetalViewRenderer
 //        }
         
         self.nodeProcessingStateCache[node.id] = .processed
+        
+        for outlet in node.outputPorts()
+        {
+            if !outlet.connections.isEmpty
+            {
+                let key = PortCacheKey(portID: outlet.id, frameNumber: executionContext.timing.frameNumber)
 
+                if let boxed = outlet.boxedValue()
+                {
+                    previousFrameCache[key] = boxed
+                }
+                else
+                {
+                    previousFrameCache.removeValue(forKey: key)
+                }
+            }
+        }
     }
     
     public func executeAndDraw(graph:Graph, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
