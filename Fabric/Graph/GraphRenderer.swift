@@ -32,6 +32,11 @@ public class GraphRenderer : MetalViewRenderer
     private var graphRequiresResize:Bool = false
     var resizeScaleFactor:Float = 1.0
     
+    // TODO: in theory we can remove the dirty semantics from node?
+    private enum NodeProcessingState { case unprocessed, processing, processed }
+
+    private var nodeProcessingStateCache: [UUID: NodeProcessingState] = [:]
+        
     public init(context:Context)
     {
         self.context = context
@@ -40,7 +45,7 @@ public class GraphRenderer : MetalViewRenderer
         
         self.defaultCamera.position = simd_float3(0, 0, 2)
         self.defaultCamera.lookAt(target: .zero)
-        
+                
         super.init()
         
         self.setup()
@@ -54,6 +59,29 @@ public class GraphRenderer : MetalViewRenderer
 //        self.renderer.stencilMultisampleTextureStorageMode = .private
         
         print("Init Graph Execution Engine")
+    }
+    
+    // MARK: - Execution Helpers
+    public func newImage(withWidth width:Int, height:Int) -> FabricImage?
+    {
+        return self.newImage(withWidth: width, height: height, format: self.colorPixelFormat)
+    }
+    
+    public func newImage(withWidth width:Int, height:Int, format:MTLPixelFormat) -> FabricImage?
+    {
+        let textureDescriptor = MTLTextureDescriptor()
+        textureDescriptor.width = width
+        textureDescriptor.height = height
+        textureDescriptor.pixelFormat = format
+        textureDescriptor.textureType = .type2D
+        textureDescriptor.mipmapLevelCount = 1
+        
+        if let texture = self.device.makeTexture(descriptor: textureDescriptor)
+        {
+            return FabricImage(texture: texture)
+        }
+        
+        return nil
     }
     
     // MARK: - Execution
@@ -108,6 +136,9 @@ public class GraphRenderer : MetalViewRenderer
                         forceEvaluationForTheseNodes:[Node] = [ ]
         )
     {
+        // Clear execution state
+        self.nodeProcessingStateCache = [:]
+        
         defer {
             if clearFlags
             {
@@ -115,6 +146,10 @@ public class GraphRenderer : MetalViewRenderer
             }
         }
         
+        // Processing means we recursed though the `processGraph` call
+        var nodesWeHaveProcessedThisPass:[Node] = []
+        
+        // Executed means `processGraph` called `execute` on the node sucessfully
         var nodesWeHaveExecutedThisPass:[Node] = []
 
         // We have one condition which is tricky
@@ -138,6 +173,7 @@ public class GraphRenderer : MetalViewRenderer
                                      executionContext:executionContext,
                                      renderPassDescriptor: renderPassDescriptor,
                                      commandBuffer: commandBuffer,
+                                     nodesWeHaveProcessedThisPass:&nodesWeHaveProcessedThisPass,
                                      nodesWeHaveExecutedThisPass:&nodesWeHaveExecutedThisPass,
                                      clearFlags: clearFlags)
             }
@@ -151,22 +187,48 @@ public class GraphRenderer : MetalViewRenderer
                               executionContext:GraphExecutionContext,
                               renderPassDescriptor: MTLRenderPassDescriptor,
                               commandBuffer: MTLCommandBuffer,
-                              nodesWeHaveExecutedThisPass:inout  [Node],
+                              nodesWeHaveProcessedThisPass:inout [Node],
+                              nodesWeHaveExecutedThisPass:inout [Node],
                               clearFlags:Bool = true)
     {
+        
+        switch nodeProcessingStateCache[node.id, default: .unprocessed]
+        {
+          case .processed:
+              return
+          case .processing:
+              // cycle detected — for temporal feedback, do NOT recurse.
+              // downstream will read node's last published outputs.
+              return
+          case .unprocessed:
+              break
+          }
+        
+        self.nodeProcessingStateCache[node.id] = .processing
+
         
         // get the connection for
         let inputNodes = node.inputNodes
                 
         for inputNode in inputNodes
         {
-            processGraph(graph: graph,
-                         node: inputNode,
-                         executionContext:executionContext,
-                         renderPassDescriptor: renderPassDescriptor,
-                         commandBuffer: commandBuffer,
-                         nodesWeHaveExecutedThisPass: &nodesWeHaveExecutedThisPass,
-                         )
+            // If we have a feedback loop, and we already processed the node, skip it
+//            if !nodesWeHaveProcessedThisPass.contains(inputNode)
+//            {
+////                 We add before we recurse, otherwise we can recurse infinitely
+//                nodesWeHaveProcessedThisPass.append(inputNode)
+
+                processGraph(graph: graph,
+                             node: inputNode,
+                             executionContext:executionContext,
+                             renderPassDescriptor: renderPassDescriptor,
+                             commandBuffer: commandBuffer,
+                             nodesWeHaveProcessedThisPass: &nodesWeHaveProcessedThisPass,
+                             nodesWeHaveExecutedThisPass: &nodesWeHaveExecutedThisPass,
+                )
+                
+
+//            }
         }
         
         if self.graphRequiresResize
@@ -174,11 +236,11 @@ public class GraphRenderer : MetalViewRenderer
             node.resize(size: self.renderer.size, scaleFactor: resizeScaleFactor)
         }
         
-        if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider
-        {
-            // This ensures if a node always is marked as dirty (like some nodes) we only execute once per pass
-            if !nodesWeHaveExecutedThisPass.contains(node)
-            {
+//        if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider
+//        {
+//            // This ensures if a node always is marked as dirty (like some nodes) we only execute once per pass
+//            if !nodesWeHaveExecutedThisPass.contains(node)
+//            {
                 node.execute(context: executionContext,
                              renderPassDescriptor: renderPassDescriptor,
                              commandBuffer: commandBuffer)
@@ -189,14 +251,17 @@ public class GraphRenderer : MetalViewRenderer
                 {
                     node.markClean()
                 }
-            }
+//            }
 //            else
 //            {
 //                print("We already executed this node?, \(node.name) frame: \(self.executionCount)")
 //                
 //            }
 //            node.lastEvaluationTime = executionContext.timing.time
-        }
+//        }
+        
+        self.nodeProcessingStateCache[node.id] = .processed
+
     }
     
     public func executeAndDraw(graph:Graph, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
