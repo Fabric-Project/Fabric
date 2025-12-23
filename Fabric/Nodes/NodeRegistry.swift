@@ -104,6 +104,11 @@ public class NodeRegistry {
         KeypointDistortNode.self,
         LUTProcessorNode.self,
         
+        ArrayIndexValueNode<FabricImage>.self,
+        ArrayCountNode<FabricImage>.self,
+        ArrayQueueNode<FabricImage>.self,
+        ArrayReplaceValueAtIndexNode<FabricImage>.self,
+
 //        BrightnessContrastImageNode.self,
 //        GaussianBlurImageNode.self,
     ]
