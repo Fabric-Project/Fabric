@@ -9,33 +9,6 @@ import Foundation
 import Satin
 import simd
 
-// A Protocol which defines value types a port can send.
-public protocol FabricPort : Equatable {}
-
-extension NSNull : FabricPort { }
-
-extension Swift.Bool : FabricPort { }
-extension Swift.Float : FabricPort { }
-extension Swift.Int : FabricPort { }
-extension Swift.String : FabricPort { }
-extension simd.simd_float2 : FabricPort { }
-extension simd.simd_float3 : FabricPort { }
-extension simd.simd_float4 : FabricPort { }
-
-// Temporarily enable these - would need work elsewhere 
-extension simd.simd_quatf : FabricPort { }
-extension simd.simd_float2x2 : FabricPort { }
-extension simd.simd_float3x3 : FabricPort { }
-extension simd.simd_float4x4 : FabricPort { }
-
-extension Satin.Geometry : FabricPort { }
-extension Satin.Material : FabricPort { }
-extension Satin.Shader : FabricPort { }
-extension FabricImage : FabricPort { }
-
-extension ContiguousArray : FabricPort  where Element : FabricPort { }
-
-extension AnyLoggable :  FabricPort { }
 
 
 // Optional unwrapping for metatypes (why is this my life?) -
@@ -64,10 +37,13 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         case .Vector4: return try isParameterPort ?  ParameterPort<simd_float4>.init(from: decoder) : NodePort<simd_float4>.init(from: decoder)
         case .Color: return try isParameterPort ?  ParameterPort<simd_float4>.init(from: decoder) : NodePort<simd_float4>.init(from: decoder)
             
+        case .Quaternion : return try NodePort<simd_quatf>.init(from: decoder)
+        case .Transform : return try NodePort<simd_float4x4>.init(from: decoder)
         case .Geometry: return try NodePort<Satin.Geometry>.init(from: decoder)
         case .Material: return try NodePort<Satin.Material>.init(from: decoder)
         case .Shader: return try NodePort<Satin.Shader>.init(from: decoder)
         case .Image: return try NodePort<FabricImage>.init(from: decoder)
+        case .Virtual: return try NodePort<AnyLoggable>.init(from: decoder)
         // TODO: Array
         case .Array(portType: let arrayType):
             switch arrayType
@@ -81,16 +57,22 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
             case .Vector4: return try isParameterPort ?  ParameterPort<ContiguousArray<simd_float4>>.init(from: decoder) : NodePort<ContiguousArray<simd_float4>>.init(from: decoder)
             case .Color: return try isParameterPort ?  ParameterPort<ContiguousArray<simd_float4>>.init(from: decoder) : NodePort<ContiguousArray<simd_float4>>.init(from: decoder)
                 
+            case .Quaternion: return try NodePort<ContiguousArray<simd_quatf>>.init(from: decoder)
+            case .Transform: return try NodePort<ContiguousArray<simd_float4x4>>.init(from: decoder)
             case .Geometry: return try NodePort<ContiguousArray<Satin.Geometry>>.init(from: decoder)
             case .Material: return try NodePort<ContiguousArray<Satin.Material>>.init(from: decoder)
             case .Shader: return try NodePort<ContiguousArray<Satin.Shader>>.init(from: decoder)
             case .Image: return try NodePort<ContiguousArray<FabricImage>>.init(from: decoder)
+
+            case .Virtual: return try NodePort<ContiguousArray<AnyLoggable>>.init(from: decoder)
 
             // we dont yet support nested arrays///
             case .Array(portType: _):
                 return nil
             }
         }
+        
+        
     }
     
     public static func portForType(from parameter:(any Parameter)) -> Port?
@@ -188,18 +170,6 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
                     return ParameterPort(parameter: genericParam)
                 }
                 
-            case .float2x2:
-                if let genericParam = parameter as? Float2x2Parameter
-                {
-                    return ParameterPort(parameter: genericParam)
-                }
-                
-            case .float3x3:
-                if let genericParam = parameter as? Float3x3Parameter
-                {
-                    return ParameterPort(parameter: genericParam)
-                }
-
             case .float4x4:
                 if let genericParam = parameter as? Float4x4Parameter
                 {
@@ -214,36 +184,7 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
             return nil
         
     }
-//
-    
-    static func fromType(_ raw:Any.Type) -> PortType
-    {
-        let type = unwrapOptional(raw.self)
 
-        if type == Swift.Bool.self               { return .Bool }
-        else if type == Swift.Float.self         { return .Float }
-        else if type == Swift.Int.self           { return .Int }
-        else if type == Swift.String.self        { return .String }
-        else if type == simd_float2.self         { return .Vector2 }
-        else if type == simd_float3.self         { return .Vector3 }
-        else if type == simd_float4.self         { return .Vector4 }
-        else if type == Satin.Geometry.self      { return .Geometry }
-        else if type == Satin.Material.self      { return .Material }
-        else if type == Satin.Shader.self        { return .Shader }
-        else if type == FabricImage.self    { return .Image }
-
-        // Assume Array?
-        else {
-            if let optionalArrayElementType = contiguousArrayElementType(of: type)
-            {
-                let arrayElementType = unwrapOptional(optionalArrayElementType)
-                return .Array(portType: PortType.fromType(arrayElementType ) )
-            }
-        }
-        
-        return .Bool
-
-    }
     
     case Bool
     case Float
@@ -253,14 +194,16 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
     case Vector3
     case Vector4
     case Color
-    // Quaternion (simd_quatf)
-    // Transform (simd_float_4x4)
+    case Quaternion //(simd quatf)
+    case Transform // (mid_matrix4x4
     case Geometry
     case Material
     case Shader
     case Image
     
     case Array(portType:PortType)
+    
+    case Virtual
     
     // This is brittle
     public static let allCases : [PortType] = [
@@ -272,6 +215,9 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         .Vector3,
         .Vector4,
         .Color,
+        .Quaternion,
+        .Transform,
+        
         .Geometry,
         .Material,
         .Shader,
@@ -288,7 +234,10 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         .Array(portType:.Geometry),
         .Array(portType:.Material),
         .Array(portType:.Shader),
-        .Array(portType:.Image)
+        .Array(portType:.Image),
+        
+        .Virtual
+
     ]
     
     public init?(rawValue: String)
@@ -349,8 +298,6 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
     
     public var type:Any.Type {
         switch self {
-//        case .Unsupported:
-//            return NSNull.self
         case .Bool:
             return Swift.Bool.self
         case .Float:
@@ -367,6 +314,10 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
             return simd.simd_float4.self
         case .Color:
             return simd.simd_float4.self // could this backire?
+        case .Quaternion:
+            return simd.simd_quatf.self
+        case .Transform:
+            return simd.simd_float4x4.self
         case .Geometry:
             return Satin.Geometry.self
         case .Material:
@@ -377,13 +328,13 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
             return FabricImage.self
         case .Array(portType: let portType):
             return contiguousArrayMetatype(of: portType.type)
+        case .Virtual:
+            return AnyLoggable.self
         }
     }
     
     public var rawValue: String {
         switch self {
-//        case .Unsupported:
-//            return "Unsupported"
         case .Bool:
              return "Bool"
         case .Float:
@@ -400,6 +351,10 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
             return "Vector 4"
         case .Color:
             return "Color" // could this backire?
+        case .Quaternion:
+            return "Quaternion"
+        case .Transform:
+            return "Transform"
         case .Geometry:
             return "Geometry"
         case .Material:
@@ -410,6 +365,8 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
             return "Image"
         case .Array(portType: let type):
             return "Array of \(type.rawValue)"
+        case .Virtual:
+            return "Virtual"
         }
     }
 }

@@ -11,7 +11,7 @@ import simd
 import Metal
 import MetalKit
 
-public class ArrayReplaceValueAtIndexNode<Value : FabricPort & Equatable & FabricDescription> : Node
+public class ArrayReplaceValueAtIndexNode<Value : PortValue & Equatable & FabricDescription> : Node
 {
     public override class var name:String {"Replace \(Value.fabricDescription) Value at Array Index" }
     public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }

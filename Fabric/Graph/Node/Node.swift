@@ -482,18 +482,6 @@ import Combine
                 return ParameterPort(parameter: genericParam)
             }
             
-        case .float2x2:
-            if let genericParam = parameter as? Float2x2Parameter
-            {
-                return ParameterPort(parameter: genericParam)
-            }
-            
-        case .float3x3:
-            if let genericParam = parameter as? Float3x3Parameter
-            {
-                return ParameterPort(parameter: genericParam)
-            }
-
         case .float4x4:
             if let genericParam = parameter as? Float4x4Parameter
             {

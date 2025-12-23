@@ -107,7 +107,6 @@ extension UTType
     @ObservationIgnored public var parameter:(any Parameter)? = nil
         
     // Maybe a bit too verbose?
-//    public var value: (any FabricPort)? { fatalError("override") }
     @ObservationIgnored public var portType: PortType { fatalError("Must be implemented") }
     @ObservationIgnored public var valueDidChange:Bool = true
 

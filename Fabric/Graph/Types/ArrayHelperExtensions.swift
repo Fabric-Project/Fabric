@@ -13,6 +13,14 @@ public protocol FabricDescription
     static var fabricDescription: String { get }
 }
 
+extension FabricImage : FabricDescription
+{
+    public static var fabricDescription: String {
+        return "Image"
+    }
+    
+}
+
 extension ContiguousArray : FabricDescription where Element : FabricDescription
 {
     public static var fabricDescription: String {

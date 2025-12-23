@@ -11,7 +11,7 @@ import simd
 import Metal
 import MetalKit
 
-public class ArrayQueueNode<Value : FabricPort & Equatable & FabricDescription> : Node
+public class ArrayQueueNode<Value : PortValue & Equatable & FabricDescription> : Node
 {
     public override class var name:String { "\(Value.fabricDescription) Queue" }
     public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
