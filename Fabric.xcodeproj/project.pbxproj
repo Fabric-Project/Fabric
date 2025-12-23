@@ -148,6 +148,8 @@
 				Graph/Port/Port.swift,
 				Graph/Port/PortRegistry.swift,
 				Graph/Port/PortType.swift,
+				"Graph/Port/PortType+Compatibility.swift",
+				"Graph/Port/PortType+Factory.swift",
 				Graph/Port/PortValueRepresentable.swift,
 				Graph/Types/AnyLoggable.swift,
 				Graph/Types/FabricImage.swift,

@@ -28,7 +28,6 @@ public class NodePort<Value : PortValueRepresentable>: Port
     
     @ObservationIgnored override public var portType: PortType {
         Value.portType
-//        PortType.fromType( self.valueType )
     }
     
     enum CodingKeys : String, CodingKey

@@ -43,7 +43,7 @@ struct NodeOutletView: View
                                   let targetPort = self.graph.nodePort(forID: targetPortID),
                                   targetPort.id != self.port.id,
                                   targetPort.kind == .Inlet,
-                                  targetPort.portType == self.port.portType else {
+                                  targetPort.portType.canConnect(to: self.port.portType) else {
                                 return
                             }
 

@@ -36,12 +36,12 @@ struct NodeInletView: View
                                 self.graph.dragPreviewSourcePortID = nil
                                 self.graph.dragPreviewTargetPosition = nil
                             }
-
+                            
                             guard let targetPortID = self.findPortAt(position: value.location, in: value.location),
                                   let targetPort = self.graph.nodePort(forID: targetPortID),
                                   targetPort.id != self.port.id,
                                   targetPort.kind == .Outlet,
-                                  targetPort.portType == self.port.portType else {
+                                  targetPort.portType.canConnect(to: self.port.portType) else {
                                 return
                             }
 
