@@ -264,6 +264,16 @@ import Combine
 //        self.registry.rebuild(from: <#T##[PortRegistry.Snapshot]#>, declared: <#T##[(name: String, port: Port)]#>, owner: <#T##Node#>)
 //    }
     
+    public func inputPorts() -> [Port]
+    {
+        return self.ports.filter( { $0.kind == .Inlet } )
+    }
+    
+    public func outputPorts() -> [Port]
+    {
+        return self.ports.filter( { $0.kind == .Outlet } )
+    }
+    
     public func publishedPorts() -> [Port]
     {
         return self.ports.filter( { $0.published } )
@@ -271,12 +281,12 @@ import Combine
     
     public func publishedInputPorts() -> [Port]
     {
-        return self.ports.filter( { $0.published && $0.kind == .Inlet } )
+        return self.inputPorts().filter( { $0.published } )
     }
     
     public func publishedOutputPorts() -> [Port]
     {
-        return self.ports.filter( { $0.published && $0.kind == .Outlet } )
+        return self.outputPorts().filter( { $0.published  } )
     }
     
     // MARK: - Connections
