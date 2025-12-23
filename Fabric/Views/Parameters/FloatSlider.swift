@@ -227,6 +227,7 @@ struct Float2Slider: View, Equatable
                 .cornerRadius(cornerRadius)
             }
         }
+        .frame(height:50)
     }
 }
 
