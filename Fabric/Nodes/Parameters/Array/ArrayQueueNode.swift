@@ -11,13 +11,13 @@ import simd
 import Metal
 import MetalKit
 
-public class ArrayQueueNode<Value : PortValue & Equatable & FabricDescription> : Node
+public class ArrayQueueNode<Value : PortValueRepresentable & Equatable> : Node
 {
-    public override class var name:String { "\(Value.fabricDescription) Queue" }
+    public override class var name:String { "\(Value.portType.rawValue) Queue" }
     public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Inserts \(Value.fabricDescription) items into an beginning on an Array."}
+    override public class var nodeDescription: String { "Inserts \(Value.portType.rawValue) items into an beginning on an Array."}
 
     
     // Ports

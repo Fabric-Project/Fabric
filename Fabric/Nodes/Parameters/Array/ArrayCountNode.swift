@@ -12,13 +12,13 @@ import simd
 import Metal
 import MetalKit
 
-public class ArrayCountNode<Value : PortValue & Equatable & FabricDescription> : Node
+public class ArrayCountNode<Value : PortValueRepresentable & Equatable> : Node
 {
-    public override class var name:String { "\(Value.fabricDescription) Array Count" }
+    public override class var name:String { "\(Value.portType.rawValue) Array Count" }
     public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Number of elements in an \(Value.fabricDescription) Array"}
+    override public class var nodeDescription: String { "Number of elements in an \(Value.portType.rawValue) Array"}
 
     // TODO: add character set menu to choose component separation strategy
     

@@ -10,7 +10,7 @@ import SwiftUI
 import Satin
 
 // Specialized port which facilitates sending a concrete type supported by Fabric .
-public class NodePort<Value : PortValue>: Port
+public class NodePort<Value : PortValueRepresentable>: Port
 {
     public var value: Value?
     {

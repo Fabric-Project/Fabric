@@ -11,13 +11,13 @@ import simd
 import Metal
 import MetalKit
 
-public class ArrayIndexValueNode<Value : PortValue & Equatable & FabricDescription> : Node
+public class ArrayIndexValueNode<Value : PortValueRepresentable & Equatable> : Node
 {
-    public override class var name:String {"\(Value.fabricDescription) Value at Array Index" }
+    public override class var name:String {"\(Value.portType.rawValue) Value at Array Index" }
     public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Provides the value of \(Value.fabricDescription) at an input index number"}
+    override public class var nodeDescription: String { "Provides the value of \(Value.portType.rawValue) at an input index number"}
     
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
