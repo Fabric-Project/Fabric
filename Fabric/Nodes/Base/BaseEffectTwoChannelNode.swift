@@ -197,12 +197,14 @@ class BaseEffectTwoChannelNode: Node, NodeFileLoadingProtocol
         let anyPortChanged =  self.ports.reduce(false, { partialResult, next in
            return partialResult || next.valueDidChange
         })
-
+        
         if  self.inputTexturePort.valueDidChange || self.inputTexture2Port.valueDidChange || anyPortChanged
         {
             if let inTex = self.inputTexturePort.value?.texture,
-               let inTex2 = self.inputTexture2Port.value?.texture
+               let outImage = context.graphRenderer?.newImage(withWidth: inTex.width, height: inTex.height)
             {
+                let inTex2 = self.inputTexture2Port.value?.texture ?? inTex
+
                 self.postProcessor.mesh.preDraw = { renderEncoder in
                     
                     renderEncoder.setFragmentTexture(inTex, index: FragmentTextureIndex.Custom0.rawValue)
@@ -212,19 +214,54 @@ class BaseEffectTwoChannelNode: Node, NodeFileLoadingProtocol
                 self.postProcessor.renderer.size.width = Float(inTex.width)
                 self.postProcessor.renderer.size.height = Float(inTex.height)
                 
-                self.postProcessor.draw(renderPassDescriptor: MTLRenderPassDescriptor(), commandBuffer: commandBuffer)
+                let renderPassDesc = MTLRenderPassDescriptor()
+                renderPassDesc.colorAttachments[0].texture = outImage.texture
                 
-                if let outTex = self.postProcessor.renderer.colorTexture
-                {
-                    let outputTexture = FabricImage(texture: outTex)
-                    self.outputTexturePort.send( outputTexture )
-                }
-            }
-            else
-            {
-                self.outputTexturePort.send( nil )
+                self.postProcessor.draw(renderPassDescriptor:renderPassDesc , commandBuffer: commandBuffer)
+
+                self.outputTexturePort.send( outImage )
+
             }
         }
+        
+//        var shouldOutput = false
+//
+//        if self.inputTexturePort.valueDidChange,
+//           let inTex = self.inputTexturePort.value?.texture
+//        {
+//            self.postProcessor.mesh.preDraw = { renderEncoder in
+//                
+//                renderEncoder.setFragmentTexture(inTex, index: FragmentTextureIndex.Custom0.rawValue)
+//            }
+//            
+//            self.postProcessor.renderer.size.width = Float(inTex.width)
+//            self.postProcessor.renderer.size.height = Float(inTex.height)
+//            
+//            shouldOutput = true
+//        }
+//        
+//        if self.inputTexture2Port.valueDidChange,
+//           let inTex2 = self.inputTexture2Port.value?.texture
+//        {
+//            self.postProcessor.mesh.preDraw = { renderEncoder in
+//                
+//                renderEncoder.setFragmentTexture(inTex2, index: FragmentTextureIndex.Custom1.rawValue)
+//            }
+//            
+//            shouldOutput = true
+//        }
+//        
+//        if shouldOutput,
+//           let outImage = context.graphRenderer?.newImage(withWidth: Int(self.postProcessor.renderer.size.width), height: Int(self.postProcessor.renderer.size.height))
+//        {
+//            let renderPassDesc = MTLRenderPassDescriptor()
+//            renderPassDesc.colorAttachments[0].texture = outImage.texture
+//            
+//            self.postProcessor.draw(renderPassDescriptor:renderPassDesc , commandBuffer: commandBuffer)
+//            
+//            self.outputTexturePort.send( outImage )
+//        }
+
     }
     
     private func fileURLToName(fileURL:URL) -> String {

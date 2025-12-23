@@ -209,12 +209,15 @@ class BaseGeneratorNode: Node, NodeFileLoadingProtocol
 
         }
         
-        self.postProcessor.draw(renderPassDescriptor: MTLRenderPassDescriptor(), commandBuffer: commandBuffer)
+        if let outImage = context.graphRenderer?.newImage(withWidth: Int(self.postProcessor.renderer.size.width), height: Int(self.postProcessor.renderer.size.height))
         
-        if let outTex = self.postProcessor.renderer.colorTexture
         {
-            let outputTexture = FabricImage(texture: outTex)
-            self.outputTexturePort.send( outputTexture )
+            let renderPassDesc = MTLRenderPassDescriptor()
+            renderPassDesc.colorAttachments[0].texture = outImage.texture
+            
+            self.postProcessor.draw(renderPassDescriptor:renderPassDesc , commandBuffer: commandBuffer)
+
+            self.outputTexturePort.send( outImage )
         }
     }
     
