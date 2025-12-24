@@ -33,26 +33,8 @@ public class GraphRenderer : MetalViewRenderer
     var resizeScaleFactor:Float = 1.0
 
     // CACHING
-
-    // TODO: in theory we can remove the dirty semantics from node?
-    private enum NodeProcessingState
-    {
-        case unprocessed
-        case processing
-        case processed
-    }
-
-    private var nodeProcessingStateCache: [UUID: NodeProcessingState] = [:]
-        
-    private struct PortCacheKey: Hashable
-    {
-        let portID: UUID
-        let frameNumber: Int
-    }
-
-    private var lastCachePruneFrameNumber: Int = -1
-    private var previousFrameCache: [PortCacheKey: PortValue] = [:]
-
+    let feedbackCache = GraphRendererFeedbackCache()
+    let textureCache:GraphRendererTextureCache
     
     public init(context:Context)
     {
@@ -62,7 +44,8 @@ public class GraphRenderer : MetalViewRenderer
         
         self.defaultCamera.position = simd_float3(0, 0, 2)
         self.defaultCamera.lookAt(target: .zero)
-                
+        self.textureCache = GraphRendererTextureCache(device: self.context.device)
+        
         super.init()
         
         self.setup()
@@ -85,6 +68,12 @@ public class GraphRenderer : MetalViewRenderer
     }
     
     public func newImage(withWidth width:Int, height:Int, format:MTLPixelFormat) -> FabricImage?
+    {   
+        return self.textureCache.newManagedImage(width: width, height: height, pixelFormat: format)
+        ?? self.newImageDirect(withWidth: width, height: height, format: format)
+    }
+    
+    private func newImageDirect(withWidth width:Int, height:Int, format:MTLPixelFormat) -> FabricImage?
     {
         let textureDescriptor = MTLTextureDescriptor()
         textureDescriptor.width = width
@@ -152,20 +141,10 @@ public class GraphRenderer : MetalViewRenderer
                         renderPassDescriptor: MTLRenderPassDescriptor,
                         commandBuffer:MTLCommandBuffer,
                         clearFlags:Bool = true,
-                        forceEvaluationForTheseNodes:[Node] = [ ]
-        )
+                        forceEvaluationForTheseNodes:[Node] = [ ])
     {
-        // Clear execution state
-        self.nodeProcessingStateCache = [:]
-        
-        let currentFrame = executionContext.timing.frameNumber
-        let previousFrame = currentFrame - 1
-
-        if self.lastCachePruneFrameNumber != currentFrame
-        {
-            self.previousFrameCache = previousFrameCache.filter { $0.key.frameNumber == previousFrame }
-            self.lastCachePruneFrameNumber = currentFrame
-        }
+        self.feedbackCache.resetCacheFor(executionContext:executionContext)
+        self.textureCache.resetCacheFor(executionContext:executionContext)
         
         defer {
             if clearFlags
@@ -220,43 +199,24 @@ public class GraphRenderer : MetalViewRenderer
                               clearFlags:Bool = true)
     {
         
-        switch nodeProcessingStateCache[node.id, default: .unprocessed]
+        switch self.feedbackCache.processingState(forNode: node)
         {
-          case .processed:
-              // Already executed, return
-              return
-          case .processing:
-              // cycle detected — for temporal feedback, do NOT recurse.
-              return
-          case .unprocessed:
-              break
-          }
+        case .processed:
+            // Already executed, return
+            return
+        case .processing:
+            // cycle detected — for temporal feedback, do NOT recurse.
+            return
+        case .unprocessed:
+            break
+        }
         
-        self.nodeProcessingStateCache[node.id] = .processing
+        // Do this before we hit recursive process graph
+        self.feedbackCache.setProcessingState(.processing, forNode: node, executionContext: executionContext)
         
         // get the connection for
         let inputNodes = node.inputNodes
-        
-        let previousFrameNumber = executionContext.timing.frameNumber - 1
-
-        // Inject cached previous-frame values for back-edges (upstream node is currently .processing)
-        for inlet in node.inputPorts()
-        {
-            // In Fabric, inlets typically have at most 1 connection; if more, decide policy.
-            guard let upstreamOutlet = inlet.connections.first(where: { $0.kind == .Outlet }) else { continue }
-            guard let upstreamNode = upstreamOutlet.node else { continue }
-
-            if nodeProcessingStateCache[upstreamNode.id, default: .unprocessed] == .processing
-            {
-                let key = PortCacheKey(portID: upstreamOutlet.id, frameNumber: previousFrameNumber)
-                let cached = previousFrameCache[key] // PortValue?
-
-                // This is the critical part: make the inlet read last frame instead of recursing
-                inlet.setBoxedValue(cached)
-            }
-        }
-
-                
+               
         for inputNode in inputNodes
         {
             // If we have a feedback loop, and we already processed the node, skip it
@@ -307,24 +267,9 @@ public class GraphRenderer : MetalViewRenderer
                     node.markClean()
                 }
                 
-                self.nodeProcessingStateCache[node.id] = .processed
-                
-                for outlet in node.outputPorts()
-                {
-                    if !outlet.connections.isEmpty
-                    {
-                        let key = PortCacheKey(portID: outlet.id, frameNumber: executionContext.timing.frameNumber)
+                self.feedbackCache.setProcessingState(.processed, forNode: node, executionContext: executionContext)
 
-                        if let boxed = outlet.boxedValue()
-                        {
-                            previousFrameCache[key] = boxed
-                        }
-                        else
-                        {
-                            previousFrameCache.removeValue(forKey: key)
-                        }
-                    }
-                }
+              
             }
         }
     }
