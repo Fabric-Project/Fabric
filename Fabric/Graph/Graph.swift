@@ -536,24 +536,42 @@ internal import AnyCodable
     
     func selectDownstreamNodes(fromNode node:Node)
     {
-        node.outputNodes.forEach( {
-            $0.isSelected = true
-            
-            self.selectDownstreamNodes(fromNode: $0 )
-        } )
-        
-        node.isSelected = true
+        var visitedNodes:[Node] = []
+
+        self.selectDownstreamNodesRecursive(fromNode: node, visitedNodes:&visitedNodes)
+    }
+    
+    private func selectDownstreamNodesRecursive(fromNode node:Node,  visitedNodes: inout [Node])
+    {
+        if !visitedNodes.contains(node)
+        {
+            visitedNodes.append( node )
+            node.isSelected = true
+
+            node.outputNodes.forEach( {
+                self.selectDownstreamNodesRecursive(fromNode: $0, visitedNodes: &visitedNodes )
+            } )
+        }
     }
     
     func selectUpstreamNodes(fromNode node:Node)
     {
-        node.inputNodes.forEach( {
-            $0.isSelected = true
-            
-            self.selectUpstreamNodes(fromNode: $0 )
-        } )
-        
-        node.isSelected = true
+        var visitedNodes:[Node] = []
+
+        self.selectUpstreamNodesRecursive(fromNode: node, visitedNodes:&visitedNodes)
+    }
+    
+    private func selectUpstreamNodesRecursive(fromNode node:Node,  visitedNodes: inout [Node])
+    {
+        if !visitedNodes.contains(node)
+        {
+            visitedNodes.append( node )
+            node.isSelected = true
+
+            node.inputNodes.forEach( {
+                self.selectUpstreamNodesRecursive(fromNode: $0, visitedNodes: &visitedNodes )
+            } )
+        }
     }
     
     func createSubgraphFromSelection(centeredOnNode node:Node, usingClass subgraphClass:SubgraphNode.Type)
