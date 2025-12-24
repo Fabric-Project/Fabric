@@ -39,7 +39,7 @@ internal final class GraphRendererTextureCache {
         public var framePoolCount: Int = 3
 
         /// When we need a new heap, allocate at least this many bytes (helps avoid tiny heaps).
-        public var minimumHeapSizeBytes: Int = 512 * 1024 * 1024 // 32 MB
+        public var minimumHeapSizeBytes: Int = 128 * 1024 * 1024 // 128 MB
 
         /// Growth factor when sizing a heap for a new texture request.
         /// New heap size = max(minimumHeapSize, textureSize * growthFactor)
