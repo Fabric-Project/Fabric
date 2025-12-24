@@ -7,6 +7,10 @@
 
 import Foundation
 
+/// This Cache holds boxed / type erased values of ports from the last execution frame
+/// We then use this Cache if we detect feedback and need to populate inlets of other connected
+/// 'downstream' nodes which are also upstream (feedback)
+
 internal final class GraphRendererFeedbackCache {
     
     // TODO: in theory we can remove the dirty semantics from node?
