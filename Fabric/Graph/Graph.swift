@@ -411,15 +411,43 @@ internal import AnyCodable
     {
         self.consumerNodes = self.nodes.filter( { $0.nodeExecutionMode == .Consumer } )
         
-        self.firstCamera = self.getFirstCamera()
+        self.firstCamera = Self.getFirstCamera(graph:self)
     }
     
-    func getFirstCamera() -> Camera?
+    static func getFirstCamera(graph:Graph) -> Camera?
     {
-        let sceneObjectNodes:[BaseObjectNode] = self.consumerNodes.compactMap({ $0 as? BaseObjectNode})
+        let sceneObjectNodes:[BaseObjectNode] = graph.consumerNodes.compactMap({ $0 as? BaseObjectNode})
+
         let firstCameraNode = sceneObjectNodes.first(where: { $0.nodeType == .Object(objectType: .Camera)})
 
-        return firstCameraNode?.getObject() as? Camera
+        let camera = firstCameraNode?.getObject() as? Camera
+        
+        // Only recurse if we need to
+        guard let camera else
+        {
+            let subGraphNodes:[SubgraphNode] = graph.consumerNodes.compactMap({
+                
+                // We dont want to leak a Deferred Rendering camera out
+                if let _ =  $0 as? DeferredSubgraphNode
+                {
+                    return nil
+                }
+                
+                return $0 as? SubgraphNode
+            })
+                
+            let subGraphs = subGraphNodes.map({ $0.subGraph } )
+            
+            for subGraph in subGraphs {
+                if let camera = getFirstCamera(graph: subGraph) {
+                    return camera
+                }
+            }
+            
+            return nil
+        }
+
+        return camera
     }
     
     // MARK: -Selection
