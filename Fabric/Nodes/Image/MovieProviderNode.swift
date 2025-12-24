@@ -128,7 +128,7 @@ public class MovieProviderNode : Node
                     {
                         let latestFrameTexture = CVMetalTextureGetTexture(texture!)!
                         
-                        self.outputTexturePort.send( FabricImage(texture: latestFrameTexture) )
+                        self.outputTexturePort.send( FabricImage.unmanaged(texture: latestFrameTexture) )
                     }
 //                }
             }

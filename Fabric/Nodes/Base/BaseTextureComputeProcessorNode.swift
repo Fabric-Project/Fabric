@@ -86,58 +86,26 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
     {
         guard self.inputImage.valueDidChange,
               let inTex = self.inputImage.value?.texture,
-              let device = context.graphRenderer?.device,
+              let outImage = context.graphRenderer?.newImage(withWidth: inTex.width, height: inTex.height),
               let computeEncoder = commandBuffer.makeComputeCommandEncoder()
                 
         else { return }
         
         // Input Texture to Compute
         self.compute.set(inTex, index: .Custom0)
-        
-        if self.compute.computeTextures[.Custom1] == nil
-        {
-            if let outTex = self.makeTextureUsingReferenceTexture(inTex, device: device)
-            {
-                self.compute.set(outTex, index: .Custom1)
-            }
-        }
-        else if let outTex = compute.computeTextures[.Custom1],
-                outTex.width != inTex.width || outTex.height != inTex.height
-        {
-            if let outTex = self.makeTextureUsingReferenceTexture(inTex, device: device)
-            {
-                self.compute.set(outTex, index: .Custom1)
-            }
-        }
+        self.compute.set(outImage.texture, index: .Custom1)
     
         self.compute.update(computeEncoder)
         
         computeEncoder.endEncoding()
         
-        if let outTex = self.compute.computeTextures[.Custom1]
-        {
-            self.outputImage.send(FabricImage(texture: outTex))
-        }
-        else
-        {
-            self.outputImage.send(inputImage.value)
-        }
+        self.outputImage.send(outImage)
     }
-    
+
     private func fileURLToName(fileURL:URL) -> String
     {
         let nodeName =  fileURL.deletingPathExtension().lastPathComponent.replacing("ImageNode", with: "")
 
         return nodeName.titleCase
-    }
-    
-    private func makeTextureUsingReferenceTexture(_ inTex: MTLTexture, device: MTLDevice) -> MTLTexture?
-    {
-        let desc = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: inTex.pixelFormat,
-                                                            width: inTex.width,
-                                                            height: inTex.height,
-                                                            mipmapped: false)
-        desc.usage = [.shaderRead, .shaderWrite]
-        return device.makeTexture(descriptor: desc)
     }
 }

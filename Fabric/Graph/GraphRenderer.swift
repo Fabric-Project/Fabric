@@ -97,7 +97,7 @@ public class GraphRenderer : MetalViewRenderer
         
         if let texture = self.device.makeTexture(descriptor: textureDescriptor)
         {
-            return FabricImage(texture: texture)
+            return FabricImage.unmanaged(texture: texture)
         }
         
         return nil
@@ -237,8 +237,6 @@ public class GraphRenderer : MetalViewRenderer
         // get the connection for
         let inputNodes = node.inputNodes
         
-        self.nodeProcessingStateCache[node.id] = .processing
-
         let previousFrameNumber = executionContext.timing.frameNumber - 1
 
         // Inject cached previous-frame values for back-edges (upstream node is currently .processing)
@@ -285,11 +283,11 @@ public class GraphRenderer : MetalViewRenderer
             node.resize(size: self.renderer.size, scaleFactor: resizeScaleFactor)
         }
         
-//        if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider
-//        {
-//            // This ensures if a node always is marked as dirty (like some nodes) we only execute once per pass
-//            if !nodesWeHaveExecutedThisPass.contains(node)
-//            {
+        if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider
+        {
+            // This ensures if a node always is marked as dirty (like some nodes) we only execute once per pass
+            if !nodesWeHaveExecutedThisPass.contains(node)
+            {
         
 #if DEBUG
                 commandBuffer.pushDebugGroup(node.name)
@@ -308,30 +306,24 @@ public class GraphRenderer : MetalViewRenderer
                 {
                     node.markClean()
                 }
-//            }
-//            else
-//            {
-//                print("We already executed this node?, \(node.name) frame: \(self.executionCount)")
-//                
-//            }
-//            node.lastEvaluationTime = executionContext.timing.time
-//        }
-        
-        self.nodeProcessingStateCache[node.id] = .processed
-        
-        for outlet in node.outputPorts()
-        {
-            if !outlet.connections.isEmpty
-            {
-                let key = PortCacheKey(portID: outlet.id, frameNumber: executionContext.timing.frameNumber)
+                
+                self.nodeProcessingStateCache[node.id] = .processed
+                
+                for outlet in node.outputPorts()
+                {
+                    if !outlet.connections.isEmpty
+                    {
+                        let key = PortCacheKey(portID: outlet.id, frameNumber: executionContext.timing.frameNumber)
 
-                if let boxed = outlet.boxedValue()
-                {
-                    previousFrameCache[key] = boxed
-                }
-                else
-                {
-                    previousFrameCache.removeValue(forKey: key)
+                        if let boxed = outlet.boxedValue()
+                        {
+                            previousFrameCache[key] = boxed
+                        }
+                        else
+                        {
+                            previousFrameCache.removeValue(forKey: key)
+                        }
+                    }
                 }
             }
         }

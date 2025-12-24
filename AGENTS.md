@@ -7,6 +7,8 @@
 > It defines the architectural contracts, design patterns, and coding guidelines
 > that all Fabric contributors (human or AI) must follow.
 > 
+> the public code base exists at https://github.com/Fabric-Project/Fabric and should be consulted
+> 
 > **Purpose:** This spec exists to guide consistent, high-performance, ergonomic development
 > of the Fabric node-based runtime. It is intended for internal engineering and AI-assisted development,
 > not public distribution.

@@ -92,7 +92,7 @@ public class PersonSegmentationMaskNode: Node
             if let inTex = self.inputTexturePort.value?.texture,
                let maskTex =  self.maskForRequest(request, from: inTex)
             {
-                self.outputTexturePort.send( FabricImage(texture: maskTex) )
+                self.outputTexturePort.send( FabricImage.unmanaged(texture: maskTex) )
             }
             else
             {

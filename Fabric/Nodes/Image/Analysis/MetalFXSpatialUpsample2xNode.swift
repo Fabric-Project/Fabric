@@ -27,7 +27,7 @@ final class MetalFXSpatialUpsample2xNode: BaseEffectNode
     private var cachedPixelFormat: MTLPixelFormat = .invalid
 
     // Output texture cache
-    private var outputTexture: MTLTexture?
+//    private var outputTexture: MTLTexture?
     
     override func execute(context: GraphExecutionContext,
                           renderPassDescriptor: MTLRenderPassDescriptor,
@@ -38,7 +38,6 @@ final class MetalFXSpatialUpsample2xNode: BaseEffectNode
         }
 
         guard let inTex = self.inputTexturePort.value?.texture else {
-            outputTexturePort.send(nil)
             return
         }
 
@@ -56,7 +55,7 @@ final class MetalFXSpatialUpsample2xNode: BaseEffectNode
         }
 
         guard let scaler = self.spatialScaler,
-              let outTex = self.outputTexture
+              let outImage = context.graphRenderer?.newImage(withWidth: inTex.width, height: inTex.height)
         else
         {
             self.outputTexturePort.send(nil)
@@ -74,11 +73,11 @@ final class MetalFXSpatialUpsample2xNode: BaseEffectNode
 
         // Per-frame binding & encode (Apple’s recommended pattern) :contentReference[oaicite:5]{index=5}
         scaler.colorTexture = inTex
-        scaler.outputTexture = outTex
+        scaler.outputTexture = outImage.texture
         
-        scaler.encode(commandBuffer: commandBuffer)
+        scaler.encode(commandBuffer: commandBuffer )
 
-        self.outputTexturePort.send(FabricImage(texture: outTex), force: true)
+        self.outputTexturePort.send(outImage)
     }
 
     private func rebuildScalerAndTargets(for input: MTLTexture)
@@ -105,27 +104,10 @@ final class MetalFXSpatialUpsample2xNode: BaseEffectNode
 
         guard let scaler = desc.makeSpatialScaler(device: device) else {
             self.spatialScaler = nil
-            self.outputTexture = nil
-            return
-        }
-
-        // Allocate an output texture that meets MetalFX usage requirements :contentReference[oaicite:7]{index=7}.
-        let outDesc = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: inputPixelFormat,
-                                                              width: outputWidth,
-                                                              height: outputHeight,
-                                                              mipmapped: false)
-        outDesc.storageMode = .private
-        outDesc.usage = scaler.outputTextureUsage
-
-        guard let outTex = device.makeTexture(descriptor: outDesc) else {
-            self.spatialScaler = nil
-            self.outputTexture = nil
             return
         }
 
         self.spatialScaler = scaler
-        self.outputTexture = outTex
-
         self.cachedInWidth = inputWidth
         self.cachedInHeight = inputHeight
         self.cachedPixelFormat = inputPixelFormat

@@ -72,7 +72,7 @@ public class ImageProviderNode : Node
         
         if let texture = self.texture
         {
-            self.outputTexturePort.send(FabricImage(texture: texture))
+            self.outputTexturePort.send(FabricImage.unmanaged(texture: texture))
         }
         
         else

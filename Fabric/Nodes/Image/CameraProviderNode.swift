@@ -200,7 +200,7 @@ public class CameraProviderNode : Node
                 {
                     let latestFrameTexture = CVMetalTextureGetTexture(texture!)!
                     
-                    self.outputTexturePort.send( FabricImage(texture: latestFrameTexture) )
+                    self.outputTexturePort.send( FabricImage.unmanaged(texture: latestFrameTexture) )
                 }
         }
         

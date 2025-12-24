@@ -107,7 +107,8 @@ public class KeypointDistortNode: BaseEffectNode {
         
         if self.inputTexturePort.valueDidChange
         {
-            if let inTex = self.inputTexturePort.value?.texture
+            if let inTex = self.inputTexturePort.value?.texture,
+               let outImage = context.graphRenderer?.newImage(withWidth: inTex.width, height: inTex.height)
             {
                 let minCount = min (self.refKeyPointStructBuffer.count, self.disKeyPointStructBuffer.count)
                 self.countBuffer.update(data: [UInt32(minCount)] )
@@ -118,21 +119,16 @@ public class KeypointDistortNode: BaseEffectNode {
                 
                 self.postMaterial.set(inTex, index: FragmentTextureIndex.Custom0)
 
-//                self.postProcessor.mesh.preDraw = { renderEncoder in
-//                    
-//                    renderEncoder.setFragmentTexture(inTex, index: FragmentTextureIndex.Custom0.rawValue)
-//                }
-                
+                    
                 self.postProcessor.renderer.size.width = Float(inTex.width)
                 self.postProcessor.renderer.size.height = Float(inTex.height)
                 
-                self.postProcessor.draw(renderPassDescriptor: MTLRenderPassDescriptor(), commandBuffer: commandBuffer)
+                let renderPassDesc = MTLRenderPassDescriptor()
+                renderPassDesc.colorAttachments[0].texture = outImage.texture
                 
-                if let outTex = self.postProcessor.renderer.colorTexture
-                {
-                    let outputTexture = FabricImage(texture: outTex)
-                    self.outputTexturePort.send( outputTexture )
-                }
+                self.postProcessor.draw(renderPassDescriptor:renderPassDesc , commandBuffer: commandBuffer)
+
+                self.outputTexturePort.send( outImage )
             }
             else
             {

@@ -138,7 +138,7 @@ public class DeferredSubgraphNode: SubgraphNode
         
         if let texture = self.graphRenderer.renderer.colorTexture
         {
-            self.outputColorTexture.send( FabricImage(texture: texture) )
+            self.outputColorTexture.send( FabricImage.unmanaged(texture: texture) )
         }
         else
         {
@@ -147,7 +147,7 @@ public class DeferredSubgraphNode: SubgraphNode
         
         if let texture = self.graphRenderer.renderer.depthTexture
         {
-            self.outputDepthTexture.send( FabricImage(texture: texture) )
+            self.outputDepthTexture.send( FabricImage.unmanaged(texture: texture) )
         }
         else
         {

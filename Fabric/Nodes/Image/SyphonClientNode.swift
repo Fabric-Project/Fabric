@@ -59,7 +59,7 @@ public class SyphonClientNode : Node
            syphonClient.isValid,
            let texture = syphonClient.newFrameImage()
         {
-            self.outputTexturePort.send(FabricImage(texture: texture))
+            self.outputTexturePort.send(FabricImage.unmanaged(texture: texture))
         }
         else
         {

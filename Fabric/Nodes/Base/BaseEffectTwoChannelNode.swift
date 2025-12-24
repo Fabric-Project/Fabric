@@ -187,7 +187,6 @@ class BaseEffectTwoChannelNode: Node, NodeFileLoadingProtocol
                 }
             }
         }
-        
     }
     
     override func execute(context:GraphExecutionContext,

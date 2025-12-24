@@ -89,7 +89,7 @@ public class ForegroundMaskNode: Node
                let (maskTex, flipped) =  self.maskForRequest(VNGenerateForegroundInstanceMaskRequest(), from: inTex)
             {
              
-                var image = FabricImage(texture: maskTex)
+                let image = FabricImage.unmanaged(texture: maskTex)
                 image.isFlipped = flipped
                 self.outputTexturePort.send( image )
             }

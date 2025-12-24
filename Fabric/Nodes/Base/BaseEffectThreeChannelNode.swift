@@ -217,7 +217,7 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
                 
                 if let outTex = self.postProcessor.renderer.colorTexture
                 {
-                    let outputTexture = FabricImage(texture: outTex)
+                    let outputTexture = FabricImage.unmanaged(texture: outTex)
                     self.outputTexturePort.send( outputTexture )
                 }
             }
