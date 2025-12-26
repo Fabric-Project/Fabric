@@ -114,6 +114,45 @@ public struct NodeCanvas : View
             }
             .focusable(true, interactions: .edit)
             .focusEffectDisabled()
+            .onKeyPress(keys: self.keys() ) { keyPress in
+                switch keyPress.key
+                {
+                    
+                case .upArrow:
+                    print("up arrow")
+                    self.graph.selectNextNode(inDirection: .Up, expandSelection: keyPress.modifiers.contains(.shift))
+                    return .handled
+                    
+                case .downArrow:
+                    print("down arrow")
+                    self.graph.selectNextNode(inDirection: .Down, expandSelection: keyPress.modifiers.contains(.shift))
+                    return .handled
+                    
+                case .leftArrow:
+                    print("left arrow")
+                    self.graph.selectNextNode(inDirection: .Left, expandSelection: keyPress.modifiers.contains(.shift))
+                    return .handled
+                    
+                case .rightArrow:
+                    print("right arrow")
+                    self.graph.selectNextNode(inDirection: .Right, expandSelection: keyPress.modifiers.contains(.shift))
+                    return .handled
+
+                case .escape:
+                    self.graph.deselectAllNodes()
+                    return .handled
+
+                case .deleteForward:
+                    let graph = self.graph.activeSubGraph ?? self.graph
+                    let selectedNodes = graph.nodes.filter({ $0.isSelected })
+                    selectedNodes.forEach( { graph.delete(node: $0) } )
+
+                    return .handled
+                    
+                default:
+                    return .ignored
+                }
+            }
             .onDeleteCommand {
                 
                 let graph = self.graph.activeSubGraph ?? self.graph

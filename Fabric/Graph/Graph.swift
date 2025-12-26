@@ -532,14 +532,6 @@ internal import AnyCodable
                     direction = .Down
                 case .Down:
                     direction = .Up
-//                case .UpLeft:
-//                    direction = .DownLeft
-//                case .UpRight:
-//                    direction = .DownRight
-//                case .DownLeft:
-//                    direction = .UpLeft
-//                case .DownRight:
-//                    direction = .UpRight
                 default:
                     break
                 }
