@@ -24,8 +24,6 @@ class CAMetalDisplayLinkRenderer: GameView
     {
         self.graph = graph
         self.graphRenderer = GraphRenderer(context: self.graph.context)
-        self.graphRenderer.device = self.graph.context.device
-        self.graphRenderer.commandQueue = self.graph.context.device.makeCommandQueue()!
 
 //        self.commandQueue = self.graph.context.device.makeCommandQueue()!
 

@@ -40,6 +40,7 @@ public class GraphRenderer : MetalViewRenderer
     {
         self.context = context
         self.renderer = Renderer(context: context, stencilStoreAction: .store, frameBufferOnly:false)
+
         self.renderer.sortObjects = true
         
         self.defaultCamera.position = simd_float3(0, 0, 2)
@@ -47,7 +48,10 @@ public class GraphRenderer : MetalViewRenderer
         self.textureCache = GraphRendererTextureCache(device: self.context.device)
         
         super.init()
-        
+
+        self.device = context.device
+        self.commandQueue = context.device.makeCommandQueue()!
+
         self.setup()
 //        self.renderer.colorTextureStorageMode = .private
 //        self.renderer.colorMultisampleTextureStorageMode = .private
