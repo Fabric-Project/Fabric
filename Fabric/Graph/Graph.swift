@@ -60,6 +60,18 @@ internal import AnyCodable
 
     public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
 
+    // QOL - this functionally helps auto layout nodes
+    // we have:
+    // - a last added time
+    // - a last offset amount
+    // - a last added reset time
+    // - an acrued offset if within the added time constraint
+    // This effectively means if you add nodes quickly they will be added with offsets
+    private let nodeOffset = CGSize(width: 20, height: 20)
+    private var currentNodeOffset = CGSize.zero
+    private var lastAddedTime:TimeInterval = .zero
+    private var nodeAddedResetTime:TimeInterval = 1.0
+    
     // For Macro support
     public weak var activeSubGraph:Graph? = nil
     {
@@ -182,7 +194,8 @@ internal import AnyCodable
                     let node = try decoder.decode(BaseGeneratorNode.self, from: jsonData)
 
                     self.addNode(node)
-                }                else
+                }
+                else
                 {
                     print("Failed to find nodeClass for \(anyCodableMap.type)")
 
@@ -254,15 +267,31 @@ internal import AnyCodable
     public func addNode(_ node: NodeClassWrapper, initialOffset:CGPoint? ) throws
     {
         let node = try node.initializeNode(context: self.context)
+        
+        var offset = CGSize.zero
+        
         if let initialOffset = initialOffset
         {
-            node.offset = CGSize(width:  initialOffset.x - node.nodeSize.width / 2.0,
-                                 height: initialOffset.y - node.nodeSize.height / 4.0)
+            offset =  CGSize(width:  initialOffset.x - node.nodeSize.width / 2.0,
+                             height: initialOffset.y - node.nodeSize.height / 4.0)
+        }
+             
+        let deltaTime = Date.now.timeIntervalSinceReferenceDate - self.lastAddedTime
+        if deltaTime < self.nodeAddedResetTime
+        {
+            self.currentNodeOffset += self.nodeOffset
+            offset += self.currentNodeOffset
+        }
+        else
+        {
+            self.currentNodeOffset = .zero
         }
         
-        
+        node.offset = offset
         
         self.addNode(node)
+
+        self.lastAddedTime = Date.now.timeIntervalSinceReferenceDate
     }
     
     
