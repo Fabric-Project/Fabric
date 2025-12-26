@@ -29,7 +29,8 @@ struct NodeView : View
                 self.node.isSelected ? Color("NodeBackgroundColorSelected") : Color("NodeBackgroundColor")
                                 
                 Rectangle()
-                    .fill( (self.node.isSelected) ? self.node.nodeType.color().gradient : self.node.nodeType.backgroundColor().gradient )
+                    .fill( Color.black.gradient )
+//                    .fill( (self.node.isSelected) ? self.node.nodeType.color().gradient : self.node.nodeType.backgroundColor().gradient )
                     .frame(height: 30)
             
                 VStack(alignment: .leading, spacing: 10) {
@@ -70,7 +71,7 @@ struct NodeView : View
             .cornerRadius(self.cornerRadius())
             .overlay {
                 RoundedRectangle(cornerRadius: self.cornerRadius())
-                    .stroke( .gray, lineWidth: 1.0)
+                    .stroke(  (self.node.isSelected) ? self.node.nodeType.color() : self.node.nodeType.backgroundColor() , lineWidth: (self.node.isSelected) ? 1.5 : 1.0)
             }
         }
     }
