@@ -79,6 +79,7 @@ struct FileImportParameterView: View, Equatable
                     switch result {
                     case .success(let urls):
                         self.optionsVm.uiValue = urls.map( { $0.standardizedFileURL.absoluteString } )
+                        self.vm.uiValue = self.optionsVm.uiValue.first ?? ""
                         //                    self.thumbnailModels = urls.map({ FileAndThumbnailModel(fileURL: $0, selected: false) } )
                     case .failure(let error):
                         print(error)
