@@ -14,7 +14,8 @@ public struct NodeRegisitryView: View {
     @Binding public var scrollOffset: CGPoint
 
     @State private var searchString:String = ""
-    @State private var selection: Node.NodeTypeGroups = .All
+    @State private var selection = Set<UUID>()
+    @State private var headerSelection: Node.NodeTypeGroups = .All
 
     @State private var numNodesToShow = 0
     @State private var haveNodesToShow = true
@@ -40,11 +41,11 @@ public struct NodeRegisitryView: View {
                 ForEach(Node.NodeTypeGroups.allCases, id: \.self) { nodeGroup in
 
                     nodeGroup.image()
-                        .foregroundStyle( nodeGroup == selection ? Color.accentColor : Color.secondary.opacity(0.5))
+                        .foregroundStyle( nodeGroup == headerSelection ? Color.accentColor : Color.secondary.opacity(0.5))
                         .tag(nodeGroup)
                         .help(nodeGroup.rawValue)
                         .onTapGesture {
-                            self.selection = nodeGroup
+                            self.headerSelection = nodeGroup
                         }
                 }
                 
@@ -57,9 +58,9 @@ public struct NodeRegisitryView: View {
             
             Spacer()
             
-            List
+            List(selection:$selection)
             {
-                ForEach(self.selection.nodeTypes(), id: \.self) { nodeType in
+                ForEach(self.headerSelection.nodeTypes(), id: \.self) { nodeType in
                     
                     if let filteredNodesForType:[NodeClassWrapper] = self.filteredNodesForTypes[nodeType],
                        filteredNodesForType.isEmpty == false
@@ -72,20 +73,43 @@ public struct NodeRegisitryView: View {
                                 let node = filteredNodesForType[idx]
                                 
                                 Text(node.nodeName)
+                                    .id(node.id)
                                     .font( .system(size: 11) )
-                                    .onTapGesture {
-                                        do {
-                                            try self.graph.addNode(node, initialOffset:self.scrollOffset)
-                                        }
-                                        catch
-                                        {
-                                            
-                                        }
-                                    }
                             }
                         }
                     }
                     
+                }
+            }
+            // Below replaces the onTap action that was on the list item
+            // This affords double click to add / return to add
+            // Single click to select
+            // Multi Select
+            // Type to select
+            // Arrow navigation
+            // Weird that its a context menu filter!
+            // This fixes #114 - Anton
+            .contextMenu(forSelectionType: UUID.self)
+            { items in
+                
+                // No context menu ever
+                EmptyView()
+                
+            } primaryAction: { selection in
+
+                for nodeID in selection
+                {
+                    if let node = NodeRegistry.shared.availableNodes.first(where: { $0.id == nodeID })
+                    {
+                        do
+                        {
+                            try self.graph.addNode(node, initialOffset:self.scrollOffset)
+                        }
+                        catch
+                        {
+                            print("Unable to add node:\(node)")
+                        }
+                    }
                 }
             }
             .overlay
@@ -172,6 +196,6 @@ public struct NodeRegisitryView: View {
     
     func calcNumTotalNodes() -> Int
     {
-        self.selection.nodeTypes().compactMap( { self.filteredNodes(forType:$0)} ).joined().count
+        self.headerSelection.nodeTypes().compactMap( { self.filteredNodes(forType:$0)} ).joined().count
     }
 }

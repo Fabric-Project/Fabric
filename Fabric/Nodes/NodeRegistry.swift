@@ -15,15 +15,15 @@ public class NodeRegistry {
         return self.nodesClassLookup[nodeName]
     }
     
-    public var availableNodes:[NodeClassWrapper] {
+    public lazy private(set) var availableNodes:[NodeClassWrapper] = {
         self.nodesClasses.map( { NodeClassWrapper(nodeClass: $0) } ) + self.dynamicEffectNodes
-    }
+    }()
 
-    private var nodesClassLookup: [String: Node.Type] {
+    private lazy var nodesClassLookup: [String: Node.Type] =  {
         self.nodesClasses.reduce(into: [:]) { result, nodeClass in
             result[String(describing: nodeClass)] = nodeClass
         }
-    }
+    }()
     
     private var nodesClasses: [Node.Type] {
         self.cameraNodeClasses

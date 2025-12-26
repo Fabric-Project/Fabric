@@ -70,7 +70,7 @@ internal import AnyCodable
     private let nodeOffset = CGSize(width: 20, height: 20)
     private var currentNodeOffset = CGSize.zero
     private var lastAddedTime:TimeInterval = .zero
-    private var nodeAddedResetTime:TimeInterval = 1.0
+    private var nodeAddedResetTime:TimeInterval = 10.0
     
     // For Macro support
     public weak var activeSubGraph:Graph? = nil
