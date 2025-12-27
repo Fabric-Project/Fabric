@@ -115,43 +115,7 @@ public struct NodeCanvas : View
             .focusable(true, interactions: .edit)
             .focusEffectDisabled()
             .onKeyPress(keys: self.keys() ) { keyPress in
-                switch keyPress.key
-                {
-                    
-                case .upArrow:
-                    print("up arrow")
-                    self.graph.selectNextNode(inDirection: .Up, expandSelection: keyPress.modifiers.contains(.shift))
-                    return .handled
-                    
-                case .downArrow:
-                    print("down arrow")
-                    self.graph.selectNextNode(inDirection: .Down, expandSelection: keyPress.modifiers.contains(.shift))
-                    return .handled
-                    
-                case .leftArrow:
-                    print("left arrow")
-                    self.graph.selectNextNode(inDirection: .Left, expandSelection: keyPress.modifiers.contains(.shift))
-                    return .handled
-                    
-                case .rightArrow:
-                    print("right arrow")
-                    self.graph.selectNextNode(inDirection: .Right, expandSelection: keyPress.modifiers.contains(.shift))
-                    return .handled
-
-                case .escape:
-                    self.graph.deselectAllNodes()
-                    return .handled
-
-                case .deleteForward:
-                    let graph = self.graph.activeSubGraph ?? self.graph
-                    let selectedNodes = graph.nodes.filter({ $0.isSelected })
-                    selectedNodes.forEach( { graph.delete(node: $0) } )
-
-                    return .handled
-                    
-                default:
-                    return .ignored
-                }
+                return self.handleKeyPress(keyPress:keyPress)
             }
             .onDeleteCommand {
                 
@@ -206,6 +170,47 @@ public struct NodeCanvas : View
         }
     }
     
+    private func handleKeyPress(keyPress:KeyPress) -> KeyPress.Result
+    {
+        switch keyPress.key
+        {
+            
+        case .upArrow:
+            print("up arrow")
+            self.graph.selectNextNode(inDirection: .Up, expandSelection: keyPress.modifiers.contains(.shift))
+            return .handled
+            
+        case .downArrow:
+            print("down arrow")
+            self.graph.selectNextNode(inDirection: .Down, expandSelection: keyPress.modifiers.contains(.shift))
+            return .handled
+            
+        case .leftArrow:
+            print("left arrow")
+            self.graph.selectNextNode(inDirection: .Left, expandSelection: keyPress.modifiers.contains(.shift))
+            return .handled
+            
+        case .rightArrow:
+            print("right arrow")
+            self.graph.selectNextNode(inDirection: .Right, expandSelection: keyPress.modifiers.contains(.shift))
+            return .handled
+
+        case .escape:
+            self.graph.deselectAllNodes()
+            return .handled
+
+        case .deleteForward:
+            let graph = self.graph.activeSubGraph ?? self.graph
+            let selectedNodes = graph.nodes.filter({ $0.isSelected })
+            selectedNodes.forEach( { graph.delete(node: $0) } )
+
+            return .handled
+            
+        default:
+            return .ignored
+        }
+    }
+    
     private func calcDragEnded()
     {
         let selectedNodes = graph.nodes.filter { $0.isSelected }
@@ -239,6 +244,7 @@ public struct NodeCanvas : View
 
         self.initialOffsets.removeAll()
     }
+    
     private func calcPortAnchors(_ portAnchors:(PortAnchorKey.Value), geometryProxy geom:GeometryProxy)
     {
         var positions: [UUID: CGPoint] = [:]
