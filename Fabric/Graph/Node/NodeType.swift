@@ -193,10 +193,10 @@ extension Node
                 return Color.nodeShader
                                 
             case .Parameter(_):
-                return Color(hue: 0, saturation: 0, brightness: 0.3)
+                return Color(hue: 0, saturation: 0, brightness: 0.9)
         
             case .Utility:
-                return Color(hue: 0, saturation: 0, brightness: 0.3)
+                return Color(hue: 0, saturation: 0, brightness: 0.9)
             }
             
         }

@@ -30,8 +30,9 @@ fileprivate struct SimpleFloatSlider: View
             
             let sliderWidth = Swift.max(geometry.size.width, 1)
             let cornerRadius = 4.0 // min(12, max(3.0, sliderHeight / 5.0) )
-
-            HStack(alignment: /*@START_MENU_TOKEN@*/.center/*@END_MENU_TOKEN@*/, spacing: 0.0, content:
+            let valueWidth = sliderWidth * CGFloat( remap(self.value, self.min, self.max, 0.0, 1.0) )
+            
+            HStack(alignment: /*@START_MENU_TOKEN@*/.center/*@END_MENU_TOKEN@*/, spacing: 0.0)
             {
                 ZStack(alignment: .leading)
                 {
@@ -40,11 +41,8 @@ fileprivate struct SimpleFloatSlider: View
                     
                     Rectangle()
                         .foregroundColor(self.sliderForegroundColor)
-                        .frame(width: sliderWidth * CGFloat( remap(self.value,
-                                                                   self.min,
-                                                                   self.max,
-                                                                   0.0,
-                                                                   1.0) ) )
+                        .frame(width:valueWidth)
+                    
                     HStack
                     {
                         Text(self.label)
@@ -59,7 +57,6 @@ fileprivate struct SimpleFloatSlider: View
                     .frame(width: sliderWidth, height: Self.sliderHeight)
                 }
                 .frame(width: sliderWidth, height: Self.sliderHeight)
-
                 .gesture(DragGesture(minimumDistance: 0)
                     .onChanged({ v in
                         let normalizedValue = Swift.min(Swift.max(0.0, Float(v.location.x / sliderWidth )), 1.0)
@@ -69,10 +66,10 @@ fileprivate struct SimpleFloatSlider: View
                                            1.0,
                                            self.min,
                                            self.max)
-                    }))
-            })
+                    })
+                )
+            }
             .cornerRadius(cornerRadius)
-
         }
     }
 }
@@ -85,7 +82,6 @@ struct FloatSlider: View, Equatable
     @Bindable var vmMin: ParameterObservableModel<Float>
     @Bindable var vmMax: ParameterObservableModel<Float>
 
- 
     init(param: FloatParameter)
     {
         self.vm = ParameterObservableModel(label: param.label,
@@ -113,18 +109,11 @@ struct FloatSlider: View, Equatable
 
 struct Float2Slider: View, Equatable
 {
-    static let sliderHeight = 20.0
-    
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
 
     @Bindable var vm: ParameterObservableModel<simd_float2>
     @Bindable var vmMin: ParameterObservableModel<simd_float2>
     @Bindable var vmMax: ParameterObservableModel<simd_float2>
-
-    @State var sliderForegroundColor:Color = .black.opacity(0.25)
-    @State var recorderForegroundColor:Color = .orange
-            
-//    private let colors = [Color.red, Color.orange, Color.yellow, Color.green, Color.blue, Color.purple]
 
     init(param: Float2Parameter)
     {
@@ -159,18 +148,11 @@ struct Float2Slider: View, Equatable
 
 struct Float3Slider: View, Equatable
 {
-    static let sliderHeight = 20.0
-    
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
 
     @Bindable var vm: ParameterObservableModel<simd_float3>
     @Bindable var vmMin: ParameterObservableModel<simd_float3>
     @Bindable var vmMax: ParameterObservableModel<simd_float3>
-
-    @State var sliderForegroundColor:Color = .black.opacity(0.25)
-    @State var recorderForegroundColor:Color = .orange
-            
-//    private let colors = [Color.red, Color.orange, Color.yellow, Color.green, Color.blue, Color.purple]
 
     init(param: Float3Parameter)
     {
@@ -202,21 +184,13 @@ struct Float3Slider: View, Equatable
     }
 }
 
-
 struct Float4Slider: View, Equatable
 {
-    static let sliderHeight = 20.0
-    
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
 
     @Bindable var vm: ParameterObservableModel<simd_float4>
     @Bindable var vmMin: ParameterObservableModel<simd_float4>
     @Bindable var vmMax: ParameterObservableModel<simd_float4>
-
-    @State var sliderForegroundColor:Color = .black.opacity(0.25)
-    @State var recorderForegroundColor:Color = .orange
-            
-//    private let colors = [Color.red, Color.orange, Color.yellow, Color.green, Color.blue, Color.purple]
 
     init(param: Float4Parameter)
     {

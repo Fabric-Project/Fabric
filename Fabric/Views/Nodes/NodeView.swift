@@ -39,7 +39,8 @@ struct NodeView : View
                     Text( self.node.name )
                         .font(.system(size: 9))
                         .bold()
-                        .foregroundStyle(.primary)
+//                        .foregroundStyle(.primary)
+                        .foregroundStyle(  self.node.nodeType.color()  )
                         .frame(maxHeight: 20)
                         .padding(.top, 5)
                         .padding(.horizontal, 20)
@@ -71,7 +72,7 @@ struct NodeView : View
             .cornerRadius(self.cornerRadius())
             .overlay {
                 RoundedRectangle(cornerRadius: self.cornerRadius())
-                    .stroke(  (self.node.isSelected) ? self.node.nodeType.color() : self.node.nodeType.backgroundColor() , lineWidth: (self.node.isSelected) ? 1.5 : 1.0)
+                    .stroke(  (self.node.isSelected) ? self.node.nodeType.color() : .gray /*self.node.nodeType.backgroundColor()*/ , lineWidth: (self.node.isSelected) ? 1.5 : 1.0)
             }
         }
     }

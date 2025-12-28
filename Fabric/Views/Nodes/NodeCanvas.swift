@@ -28,16 +28,14 @@ import SwiftUI
 public struct NodeCanvas : View
 {
     @Environment(Graph.self) var graph:Graph
-
+    
+    public init() { }
+    
 //    @State var activityMonitor = NodeCanvasUserActivityMonitor()
     
     // Drag to Offset bullshit
     @State private var initialOffsets: [UUID: CGSize] = [:]
     @State private var activeDragAnchor: UUID? = nil       // which node started the drag
-
-//    @Binding currentFraph
-    
-    public init() { }
 
     @State private var portPositions: [UUID: CGPoint] = [:]
 
@@ -174,41 +172,35 @@ public struct NodeCanvas : View
     {
         switch keyPress.key
         {
-            
         case .upArrow:
             print("up arrow")
             self.graph.selectNextNode(inDirection: .Up, expandSelection: keyPress.modifiers.contains(.shift))
-            return .handled
             
         case .downArrow:
             print("down arrow")
             self.graph.selectNextNode(inDirection: .Down, expandSelection: keyPress.modifiers.contains(.shift))
-            return .handled
             
         case .leftArrow:
             print("left arrow")
             self.graph.selectNextNode(inDirection: .Left, expandSelection: keyPress.modifiers.contains(.shift))
-            return .handled
             
         case .rightArrow:
             print("right arrow")
             self.graph.selectNextNode(inDirection: .Right, expandSelection: keyPress.modifiers.contains(.shift))
-            return .handled
 
         case .escape:
             self.graph.deselectAllNodes()
-            return .handled
 
         case .deleteForward:
             let graph = self.graph.activeSubGraph ?? self.graph
             let selectedNodes = graph.nodes.filter({ $0.isSelected })
             selectedNodes.forEach( { graph.delete(node: $0) } )
-
-            return .handled
             
         default:
             return .ignored
         }
+        
+        return .handled
     }
     
     private func calcDragEnded()

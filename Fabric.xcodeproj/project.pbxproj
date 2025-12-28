@@ -303,7 +303,6 @@
 		1BE007322DBB1FBD0061EAFD /* Exceptions for "Fabric Editor" folder in "Fabric Editor" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Fabric.icon,
 				Info.plist,
 			);
 			target = 1BE007212DBB1FBC0061EAFD /* Fabric Editor */;
