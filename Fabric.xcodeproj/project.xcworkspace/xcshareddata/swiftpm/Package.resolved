@@ -1,5 +1,5 @@
 {
-  "originHash" : "91c85ba95be4f5bc42f9597f959e61c443d0adb39e3086e6907280bfc6c31ee2",
+  "originHash" : "5bdb72dacf36819aa1e2db66db545bcd112ddc06a950d4d0f1ec6a215a6b538e",
   "pins" : [
     {
       "identity" : "anycodable",
@@ -53,6 +53,15 @@
       "state" : {
         "revision" : "7b847a3b7008b2dc2f47ca3110d8c782fb2e5c7e",
         "version" : "1.3.0"
+      }
+    },
+    {
+      "identity" : "swift-concurrency-extras",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/pointfreeco/swift-concurrency-extras",
+      "state" : {
+        "revision" : "5a3825302b1a0d744183200915a47b508c828e6f",
+        "version" : "1.3.2"
       }
     },
     {
@@ -116,6 +125,15 @@
       "state" : {
         "branch" : "master",
         "revision" : "1308781a5a8fdbe9511c8bf7649e7d5dd02a86ef"
+      }
+    },
+    {
+      "identity" : "textual",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/gonzalezreal/textual",
+      "state" : {
+        "revision" : "675933ec315767ad3deacff33fcc46eb2b25ae4c",
+        "version" : "0.1.1"
       }
     }
   ],
