@@ -7,7 +7,7 @@
 
 import Foundation
 import SwiftUI
-import Textual
+internal import Textual
 
 private struct EditorView : View
 {
