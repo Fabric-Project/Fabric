@@ -28,5 +28,4 @@ enum LogicOperator: String, CaseIterable
             return lhs != rhs
         }
     }
-    
 }

@@ -12,7 +12,7 @@ import Metal
 public class BooleanLogicNode : Node
 {
     override public static var name:String { "Boolean Logic Comparisons" }
-    override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
+    override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Boolean) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Compare two Boolean values"}
