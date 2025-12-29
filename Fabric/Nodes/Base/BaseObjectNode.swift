@@ -99,10 +99,7 @@ public class ObjectNode<ObjectType : Satin.Object> : BaseObjectNode
         if  self.inputOrientation.valueDidChange,
             let orientation = self.inputOrientation.value
         {
-            object.orientation = simd_quatf(angle: orientation.w,
-                                            axis: simd_float3(x: orientation.x,
-                                                              y: orientation.y,
-                                                              z: orientation.z) )
+            object.orientation = simd_quatf(vector:orientation).normalized
             shouldOutput = true
         }
         

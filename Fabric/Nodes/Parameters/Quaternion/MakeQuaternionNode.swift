@@ -10,28 +10,46 @@ import Satin
 import simd
 import Metal
 
-public class MakeQuaternionNode : Node, NodeProtocol
+public class MakeQuaternionNode : Node
 {
-    public static let name = "Quaternion"
-    public static var nodeType = Node.NodeType.Parameter
-
-    let outputVector = NodePort<simd_quatf>(name: "Quaternion" , kind: .Outlet)
-
-    // Params
-    let inputAngle = FloatParameter("Angle", 0.0, -180, 180, .slider)
-    let inputAxisParam = Float3Parameter("Axis", simd_float3(0, 1, 0) )
-
-    override public var inputParameters: [any Parameter] {  [inputAngle, inputAxisParam] + super.inputParameters}
+    override public class var name:String { "Quaternion" }
+    override public class var nodeType:Node.NodeType { .Parameter(parameterType: .Quaternion) }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+    override public class var nodeDescription: String { "Create a Quaternion from an Angle and Axis"}
     
-    private var quat = simd_quatf(angle: 0, axis: simd_float3(0, 1, 0))
+    // Ports
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+        
+        return ports +
+        [
+
+            // Params
+             ("inputAngle", ParameterPort(parameter: FloatParameter("Angle", 0.0, .inputfield))),
+             ("inputAxis", ParameterPort(parameter: Float3Parameter("Axis", simd_float3(0, 1, 0), .inputfield))),
+             
+             ("outputQuaterinion", NodePort<simd_float4>(name: "Quaternion" , kind: .Outlet))
+        ]
+    }
     
-    override public var ports:[AnyPort] {  [outputVector] + super.ports }
+    // Port Proxy
+    public var inputAngle:NodePort<Float> { port(named: "inputAngle") }
+    public var inputAxis:NodePort<simd_float3> { port(named: "inputAxis") }
+    public var outputQuaterinion:NodePort<simd_float4> { port(named: "outputQuaterinion") }
     
-    override public  func evaluate(atTime:TimeInterval,
-                            renderPassDescriptor: MTLRenderPassDescriptor,
-                            commandBuffer: MTLCommandBuffer)
+    public override func execute(context:GraphExecutionContext,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
-        self.outputVector.send( simd_quatf(angle: self.inputAngle.value * .pi / 180,
-                                           axis: self.inputAxisParam.value ) )
+        if self.inputAngle.valueDidChange || self.inputAxis.valueDidChange,
+           let inputAngleValue = self.inputAngle.value,
+           let inputAxisValue = self.inputAxis.value
+        {
+            let quat = simd_quatf(angle: inputAngleValue * .pi / 180,
+                                  axis: inputAxisValue ).normalized
+
+            self.outputQuaterinion.send( quat.vector )
+        }
     }
 }

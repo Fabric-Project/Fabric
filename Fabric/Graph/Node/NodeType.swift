@@ -60,7 +60,7 @@ extension Node
             case Number
             case Vector
             case Quaternion
-            case Matrix
+            case Transform
             case Color
             case String
             case Array

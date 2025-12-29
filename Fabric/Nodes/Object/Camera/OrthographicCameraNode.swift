@@ -48,10 +48,7 @@ public class OrthographicCameraNode : ObjectNode<OrthographicCamera>
         self.camera.scale = self.inputScale.value ?? .one
         
         let orientation = self.inputOrientation.value ?? .zero
-        self.camera.orientation = simd_quatf(angle: orientation.w,
-                                             axis: simd_float3(x: orientation.x,
-                                                               y: orientation.y,
-                                                               z: orientation.z) )
+        self.camera.orientation = simd_quatf(vector:orientation)
     }
 
     override public func evaluate(object: Object?, atTime: TimeInterval) -> Bool

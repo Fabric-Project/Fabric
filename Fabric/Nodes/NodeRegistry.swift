@@ -264,6 +264,17 @@ public class NodeRegistry {
         ArrayQueueNode<simd_float4>.self,
         ArrayReplaceValueAtIndexNode<simd_float4>.self,
 
+        // Quaternion
+        MakeQuaternionNode.self,
+        
+        // Transform (Float Matrix 4x4)
+        IdentityTransformNode.self,
+        RotateTransformNode.self,
+        ScaleTransformNode.self,
+        TranslateTransformNode.self,
+        TransposeTransformNode.self,
+        InvertTransformNode.self,
+        DecomposeTransformNode.self,
         ]
     
     private var utilityClasses:[Node.Type] = [
@@ -280,6 +291,9 @@ public class NodeRegistry {
         SampleAndHold<simd_float3>.self,
         SampleAndHold<simd_float4>.self,
         SampleAndHold<String>.self,
+        SampleAndHold<simd_quatf>.self,
+        SampleAndHold<simd_float4x4>.self,
+        SampleAndHold<FabricImage>.self,
 
         SampleAndHold<ContiguousArray<Bool>>.self,
         SampleAndHold<ContiguousArray<Float>>.self,
