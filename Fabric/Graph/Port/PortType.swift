@@ -83,6 +83,8 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         case "Vector 3":      self = .Vector3;   return
         case "Vector 4":      self = .Vector4;   return
         case "Color":         self = .Color;     return
+        case "Quaternion":    self = .Quaternion; return
+        case "Transform":     self = .Transform; return
         case "Geometry":      self = .Geometry;  return
         case "Material":      self = .Material;  return
         case "Shader":        self = .Shader;    return

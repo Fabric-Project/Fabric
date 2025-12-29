@@ -148,6 +148,7 @@ internal import AnyCodable
 
                     self.addNode(node)
                 }
+                
                 // This is stupid? Yes, BaseEffectNode should be designed to cover the cases... but this works, today.
                 else if anyCodableMap.type == String(describing: type(of: BaseEffectThreeChannelNode.self)).replacing(".Type", with:"")
                 {

@@ -120,11 +120,8 @@ public class MeshNode : BaseRenderableNode<Mesh>
                     mesh.scale = self.inputScale.value ?? .zero
                     
                     let orientation = self.inputOrientation.value ?? .zero
-                    mesh.orientation = simd_quatf(angle: orientation.w,
-                                                  axis: simd_float3(x: orientation.x,
-                                                                    y: orientation.y,
-                                                                    z: orientation.z) )
-                    
+                    mesh.orientation = simd_quatf(vector:orientation).normalized
+
                     self.mesh = mesh
                 }
             }
