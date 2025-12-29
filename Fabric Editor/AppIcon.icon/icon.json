@@ -4,8 +4,7 @@
   },
   "groups" : [
     {
-      "blur-material" : null,
-      "hidden" : false,
+      "blur-material" : 0,
       "layers" : [
         {
           "glass" : false,
@@ -28,21 +27,21 @@
           "position" : {
             "scale" : 0.6,
             "translation-in-points" : [
-              44.6640625,
+              -26.3359375,
               25.600000000000023
             ]
           }
         }
       ],
-      "lighting" : "individual",
+      "lighting" : "combined",
       "shadow" : {
-        "kind" : "none",
-        "opacity" : 0.5
+        "kind" : "neutral",
+        "opacity" : 0
       },
       "specular" : false,
       "translucency" : {
-        "enabled" : false,
-        "value" : 0.5
+        "enabled" : true,
+        "value" : 0
       }
     }
   ],
