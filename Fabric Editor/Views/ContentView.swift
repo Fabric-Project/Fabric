@@ -94,6 +94,14 @@ struct ContentView: View {
                             NodeCanvas()
                                 .frame(width: self.canvasSize, height: self.canvasSize)
                                 .environment(self.document.graph)
+                                .contextMenu(menuItems: {
+                                    Button("New Note") {
+                                        
+                                        let note = Note(note: "New Note", rect: CGRect(origin: self.scrollOffset, size:CGSize(width: 500, height: 500)))
+                                        
+                                        self.document.graph.addNote(note)
+                                    }
+                                })
                                 .scaleEffect(finalMagnification * magnifyBy, anchor: magnifyAnchor)
                                 .gesture(
                                     MagnifyGesture()

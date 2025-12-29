@@ -31,6 +31,7 @@ internal import AnyCodable
     @ObservationIgnored public weak var undoManager: UndoManager?
 
     public private(set) var nodes: [Node]
+    public private(set) var notes: [Note]
 
     var needsExecution:Bool {
         self.nodes.reduce(true) { (result, node) -> Bool in
@@ -91,6 +92,7 @@ internal import AnyCodable
         case version
         case nodeMap
         case portConnectionMap
+        case notes
     }
     
     public init(context:Context)
@@ -100,8 +102,8 @@ internal import AnyCodable
         self.version = .alpha1
         self.context = context
         self.nodes = []
+        self.notes = []
     }
-
     
     public required init(from decoder: any Decoder) throws
     {
@@ -119,6 +121,8 @@ internal import AnyCodable
 
         self.nodes = []
 
+        self.notes = try container.decodeIfPresent([Note].self, forKey: .notes) ?? []
+        
         // get a single value container
         var nestedContainer = try container.nestedUnkeyedContainer( forKey: .nodeMap)
         
@@ -249,6 +253,8 @@ internal import AnyCodable
                                    value: AnyCodable($0))
         }
         
+        try container.encode(self.notes, forKey: .notes)
+        
         try container.encode( nodeMap, forKey: .nodeMap)
         
         // encode a connection map for each port
@@ -263,6 +269,16 @@ internal import AnyCodable
         }
         
         try container.encode(allPortConnections, forKey: .portConnectionMap)
+    }
+
+    public func addNote(_ note: Note)
+    {
+        self.notes.append(note)
+    }
+    
+    public func deleteNote(_ note:Note)
+    {
+        self.notes.removeAll(where: { $0.id == note.id })
     }
     
     public func addNode(_ node: NodeClassWrapper, initialOffset:CGPoint? ) throws

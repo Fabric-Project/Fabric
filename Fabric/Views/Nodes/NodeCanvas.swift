@@ -51,6 +51,20 @@ public struct NodeCanvas : View
                     .offset(-geom.size / 2)
                 
                 let graph = self.graph.activeSubGraph ?? self.graph
+                
+                ForEach(graph.notes, id:\.id) { currentNote in
+                        
+                    NoteView(note: currentNote)
+                        .offset(-geom.size / 2)
+                        .offset(x: currentNote.rect.origin.x, y: currentNote.rect.origin.y )
+                        .contextMenu {
+                            Button("Delete Note") {
+                                graph.deleteNote(currentNote)
+                            }
+                        }
+                }
+                
+                
                 ForEach(graph.nodes, id: \.id) { currentNode in
 
                     NodeView(node: currentNode , offset: currentNode.offset)
@@ -127,6 +141,7 @@ public struct NodeCanvas : View
 
                 graph.deselectAllNodes()
             }
+           
             
             .id(self.graph.activeSubGraph?.shouldUpdateConnections ?? self.graph.shouldUpdateConnections)
             // For hiding the nodes after a timeout - used if rendering nodes above content?
