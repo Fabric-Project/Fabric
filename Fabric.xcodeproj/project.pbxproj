@@ -212,6 +212,7 @@
 				Nodes/Object/Lights/DirectionalLightNode.swift,
 				Nodes/Object/Lights/PointLightNode.swift,
 				Nodes/Object/Renderables/InstancedMeshNode.swift,
+				Nodes/Object/Renderables/InstancedModelMeshNode.swift,
 				Nodes/Object/Renderables/MeshNode.swift,
 				Nodes/Object/Renderables/ModelMeshNode.swift,
 				Nodes/Object/SubGraph/DeferredSubgraphNode.swift,

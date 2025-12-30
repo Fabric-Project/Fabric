@@ -20,13 +20,13 @@ public class MeshNode : BaseRenderableNode<Mesh>
         
         let ports = super.registerPorts(context: context)
         
-        return [
+        return ports + [
             ("inputGeometry",  NodePort<Geometry>(name: "Geometry", kind: .Inlet)),
             ("inputMaterial",  NodePort<Material>(name: "Material", kind: .Inlet)),
             ("inputCastsShadow",  ParameterPort(parameter: BoolParameter("Enable Shadows", true, .button) ) ),
             ("inputDoubleSided",  ParameterPort(parameter: BoolParameter("Double Sided", false, .button) ) ),
             ("inputCullingMode",  ParameterPort(parameter: StringParameter("Culling Mode", "Back", ["Back", "Front", "None"], .dropdown) ) ),
-        ] + ports
+        ]
     }
         
     // Ergonomic access (no storage assignment needed)
@@ -58,6 +58,14 @@ public class MeshNode : BaseRenderableNode<Mesh>
         }
     }
     
+    override public func teardown()
+    {
+        super.teardown()
+        self.mesh = nil
+        self.inputGeometry.value = nil
+        self.inputMaterial.value = nil
+    }
+    
     override public func evaluate(object: Object?, atTime: TimeInterval) -> Bool
     {
         var shouldOutput = super.evaluate(object: object, atTime: atTime)
@@ -84,13 +92,6 @@ public class MeshNode : BaseRenderableNode<Mesh>
         return shouldOutput
     }
     
-    override public func teardown()
-    {
-        super.teardown()
-
-        // this ensures any geometry and materials are free'd correctly
-        self.mesh = nil
-    }
     
     public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
@@ -134,8 +135,6 @@ public class MeshNode : BaseRenderableNode<Mesh>
         if let mesh = mesh
         {
             let _ = self.evaluate(object: mesh, atTime: context.timing.time)
-            
-//            self.markDirty()
         }
      }
     

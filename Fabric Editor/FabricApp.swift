@@ -29,6 +29,8 @@ struct FabricApp: App {
         DocumentGroup(newDocument: FabricDocument(withTemplate: true) ) { file in
             
             ContentView(document: file.$document)
+                .focusedSceneValue(\.document, file.$document)
+
                 .onAppear {
                     // THIS SHIT HAS TO BE ON MAIN THREAD FOR APPKIT
                     file.document.setupOutputWindow()
@@ -41,10 +43,15 @@ struct FabricApp: App {
         }
         .commands {
             AboutCommands()
+            
+            DocumentCommands()
+            
             CommandGroup(after: .appInfo)
             {
                 CheckForUpdatesView(updater: updaterController.updater)
             }
+            
+           
         }
         
         Window("About Fabric Editor", id: "about") {
@@ -67,3 +74,42 @@ struct AboutCommands: Commands {
         }
     }
 }
+
+struct DocumentCommands:Commands
+{
+    @FocusedBinding(\.document) var document: FabricDocument?
+    
+    var body: some Commands {
+        CommandGroup(before: .pasteboard)
+        {
+            Button("Select All Nodes")
+            {
+                self.document?.graph.selectAllNodes()
+                print("Select All")
+            }
+            .keyboardShortcut(KeyEquivalent("a"), modifiers: .command)
+            .disabled( self.document?.graph.nodes.isEmpty ?? true)
+        }
+    }
+}
+
+
+struct DocumentFocusedValueKey: FocusedValueKey {
+  typealias Value = Binding<FabricDocument>
+}
+
+extension FocusedValues
+{
+    var document: DocumentFocusedValueKey.Value?
+    {
+        get {
+            self[DocumentFocusedValueKey.self]
+        }
+        set {
+            self[DocumentFocusedValueKey.self] = newValue
+        }
+    }
+}
+
+
+

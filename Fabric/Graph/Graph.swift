@@ -568,7 +568,7 @@ internal import AnyCodable
         }
     }
     
-    func selectNode(node:Node, expandSelection:Bool)
+    public func selectNode(node:Node, expandSelection:Bool)
     {
         if !expandSelection
         {
@@ -584,7 +584,7 @@ internal import AnyCodable
         
     }
     
-    func selectAllNodes()
+    public func selectAllNodes()
     {
         for node in self.nodes
         {
@@ -592,7 +592,7 @@ internal import AnyCodable
         }
     }
     
-    func deselectAllNodes()
+    public func deselectAllNodes()
     {
         for node in self.nodes
         {
@@ -600,7 +600,7 @@ internal import AnyCodable
         }
     }
     
-    func selectDownstreamNodes(fromNode node:Node)
+    public func selectDownstreamNodes(fromNode node:Node)
     {
         var visitedNodes:[Node] = []
 
@@ -620,7 +620,7 @@ internal import AnyCodable
         }
     }
     
-    func selectUpstreamNodes(fromNode node:Node)
+    public func selectUpstreamNodes(fromNode node:Node)
     {
         var visitedNodes:[Node] = []
 

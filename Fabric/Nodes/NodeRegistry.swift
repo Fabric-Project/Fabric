@@ -52,6 +52,7 @@ public class NodeRegistry {
         MeshNode.self,
         ModelMeshNode.self,
         InstancedMeshNode.self,
+        InstancedModelMeshNode.self,
         EnvironmentSkyboxNode.self,
     ]
     
@@ -275,6 +276,12 @@ public class NodeRegistry {
         TransposeTransformNode.self,
         InvertTransformNode.self,
         DecomposeTransformNode.self,
+        
+        ArrayIndexValueNode<simd_float4x4>.self,
+        ArrayCountNode<simd_float4x4>.self,
+        ArrayQueueNode<simd_float4x4>.self,
+        ArrayReplaceValueAtIndexNode<simd_float4x4>.self,
+
         ]
     
     private var utilityClasses:[Node.Type] = [

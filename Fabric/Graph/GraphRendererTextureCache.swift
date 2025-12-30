@@ -112,7 +112,7 @@ internal final class GraphRendererTextureCache {
                                 mipmapped: Bool = false,
                                 label: String? = nil) -> FabricImage? {
 
-        var desc = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: pixelFormat,
+        let desc = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: pixelFormat,
                                                             width: width,
                                                             height: height,
                                                             mipmapped: mipmapped)

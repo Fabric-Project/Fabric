@@ -23,7 +23,7 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
         return [
             ("inputGeometry", NodePort<Geometry>(name: "Geometry", kind: .Inlet)),
             ("inputMaterial", NodePort<Material>(name: "Material", kind: .Inlet)),
-            ("inputPositions", NodePort<ContiguousArray<simd_float3>>(name: "Positions", kind: .Inlet)),
+            ("inputTransforms", NodePort<ContiguousArray<simd_float4x4>>(name: "Transforms", kind: .Inlet)),
             ("inputCastsShadow", ParameterPort(parameter:BoolParameter("Enable Shadows", true, .button))),
             ("inputDoubleSided", ParameterPort(parameter:BoolParameter("Double Sided", false, .button))),
             ("inputCullingMode", ParameterPort(parameter:StringParameter("Culling Mode", "Back", ["Back", "Front", "None"], .dropdown))),
@@ -32,7 +32,7 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
     // Proxy Ports
     public var inputGeometry:NodePort<Geometry> { port(named: "inputGeometry") }
     public var inputMaterial:NodePort<Material> { port(named: "inputMaterial") }
-    public var inputPositions:NodePort<ContiguousArray<simd_float3>> { port(named: "inputPositions") }
+    public var inputTransforms:NodePort<ContiguousArray<simd_float4x4>> { port(named: "inputTransforms") }
     public var inputCastsShadow:ParameterPort<Bool> { port(named: "inputCastsShadow") }
     public var inputDoubleSided:ParameterPort<Bool> { port(named: "inputDoubleSided") }
     public var inputCullingMode:ParameterPort<String> { port(named: "inputCullingMode") }
@@ -61,8 +61,32 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
     {
         super.teardown()
         self.mesh = nil
-        self.inputGeometry.value = nil
-        self.inputMaterial.value = nil
+    }
+    
+    override public func evaluate(object: Object?, atTime: TimeInterval) -> Bool
+    {
+        var shouldOutput = super.evaluate(object: object, atTime: atTime)
+        
+        // If subclass has object that isnt a mesh, but its own scene graph..
+        // We need to handle that in the parent :(
+        guard let mesh = object as? Mesh else { return shouldOutput }
+        
+        if self.inputCastsShadow.valueDidChange,
+           let castShadow = self.inputCastsShadow.value,
+           let receiveShadow = self.inputCastsShadow.value
+        {
+            mesh.castShadow = castShadow
+            mesh.receiveShadow = receiveShadow
+            shouldOutput = true
+        }
+        
+        if self.inputCullingMode.valueDidChange
+        {
+            mesh.cullMode = self.cullMode()
+            shouldOutput = true
+        }
+        
+        return shouldOutput
     }
     
     public override func execute(context:GraphExecutionContext,
@@ -82,7 +106,15 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
                 }
                 else
                 {
-                    self.mesh = InstancedMesh(geometry: geometery, material: material, count: self.inputPositions.value?.count ?? 1)
+                    let mesh = InstancedMesh(geometry: geometery, material: material, count: self.inputTransforms.value?.count ?? 1)
+                    mesh.lookAt(target: simd_float3(repeating: 0))
+                    mesh.position = self.inputPosition.value ?? .zero
+                    mesh.scale = self.inputScale.value ?? .zero
+                    
+                    let orientation = self.inputOrientation.value ?? .zero
+                    mesh.orientation = simd_quatf(vector:orientation).normalized
+
+                    self.mesh = mesh
                 }
             }
             else
@@ -95,33 +127,16 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
         {
             let _ = self.evaluate(object: mesh, atTime: context.timing.time)
             
-            if self.inputPositions.valueDidChange,
-                let positions = self.inputPositions.value
+            if self.inputTransforms.valueDidChange,
+                let transforms = self.inputTransforms.value
             {
-                mesh.drawCount = positions.count
-                
-                positions.enumerated().forEach { index, position in
-                    
-                    let positionMatrix = translationMatrix3f(position)
-                    mesh.setMatrixAt(index: index, matrix: positionMatrix)
-                }
-            }
-            
-            if self.inputCastsShadow.valueDidChange,
-               let inputCastsShadow = self.inputCastsShadow.value
-            {
-                mesh.castShadow = inputCastsShadow
-                mesh.receiveShadow = inputCastsShadow
-            }
-            
-            if self.inputCullingMode.valueDidChange
-            {
-                mesh.cullMode = self.cullMode()
+                mesh.setInstanceMatrices(Array(transforms))
+                mesh.drawCount = transforms.count
             }
         }
      }
     
-    private func cullMode() -> MTLCullMode
+    internal func cullMode() -> MTLCullMode
     {
         switch self.inputCullingMode.value
         {

@@ -11,17 +11,17 @@ import simd
 import Metal
 import MetalKit
 
-public class ModelMeshNode : MeshNode
+public class InstancedModelMeshNode : InstancedMeshNode
 {
-    public override class var name:String { "Model Mesh" }
+    public override class var name:String { "Instanced Model Mesh" }
     public override class var nodeType:Node.NodeType { .Object(objectType: .Loader) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Consumer }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Load an 3D model file from disk, rendering it to the scene"}
+    override public class var nodeDescription: String { "Load an 3D model file from disk, rendering it to the scene multiple times via instances"}
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        
+
         // We prune Geom and Material since we dont really let you fuck with them for now
         let ports = super.registerPorts(context: context).filter({ (name: String, port: Port) in
             !(port.name == "Geometry" || port.name == "Material")
@@ -103,10 +103,25 @@ public class ModelMeshNode : MeshNode
         if let model = self.model
         {
             let _ = self.evaluate(object: model, atTime: context.timing.time)
+            
+            if self.inputTransforms.valueDidChange,
+                let transforms = self.inputTransforms.value
+            {
+                
+                model.getChildren(true).forEach { child in
+                    
+                    if let subMesh = child as? InstancedMesh
+                    {
+                        
+                        subMesh.setInstanceMatrices(Array(transforms))
+                        subMesh.drawCount = transforms.count
+                    }
+                }
+            }
         }
     }
     
-    internal func loadModelFromInputValue()
+    private func loadModelFromInputValue()
     {
         if let path = self.inputFilePathParam.value,
            path.isEmpty == false && self.url != URL(string: path)
@@ -119,7 +134,28 @@ public class ModelMeshNode : MeshNode
                 
                 if let unflattenedModelObject
                 {
-                    self.model = Object.flatten(unflattenedModelObject)
+                    let object = Object.flatten(unflattenedModelObject)
+                    
+                    var instancedChildren:[InstancedMesh] = []
+                    
+                    object.getChildren(true).forEach { child in
+                        
+                        if let subMesh = child as? Mesh
+                        {
+                            let material = subMesh.material
+                            let geometry = subMesh.geometry
+                            
+                            let instancedMesh = InstancedMesh(geometry: geometry, material: material, count: 1)
+                            
+                            subMesh.removeFromParent()
+                            
+                            instancedChildren.append(instancedMesh)
+                        }
+                    }
+                    
+                    object.add(instancedChildren)
+                    
+                    self.model = object
                 }
                 
                 
@@ -134,7 +170,7 @@ public class ModelMeshNode : MeshNode
         }
     }
     
-    internal func updateLightingOnSubmeshes()
+    private func updateLightingOnSubmeshes()
     {
         self.model?.getChildren(true).forEach { child in
             
@@ -149,7 +185,7 @@ public class ModelMeshNode : MeshNode
         }
     }
     
-    internal func updateCullingOnSubmeshes()
+    private func updateCullingOnSubmeshes()
     {
         let cullMode = self.cullMode()
         
