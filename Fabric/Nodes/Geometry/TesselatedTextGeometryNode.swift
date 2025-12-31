@@ -12,7 +12,7 @@ import CoreText
 
 public class TesselatedTextGeometryNode : BaseGeometryNode
 {
-    public override class var name:String { "Tessellated Text Geometry" }
+    public override class var name:String { "2D Text Geometry" }
     
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {

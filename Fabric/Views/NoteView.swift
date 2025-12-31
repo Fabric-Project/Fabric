@@ -21,7 +21,10 @@ private struct EditorView : View
             if self.locked
             {
                 StructuredText(markdown:self.string)
-                    .foregroundStyle( .primary )
+                    .textual.blockSpacing(.fontScaled(bottom: 3.0))
+                    .textual.fontScale(0.8)
+                    .textual.listItemSpacing(.fontScaled(top: 1.4, bottom: 1.4))
+                    .textual.lineSpacing(.fontScaled(2.0))
             }
             else
             {

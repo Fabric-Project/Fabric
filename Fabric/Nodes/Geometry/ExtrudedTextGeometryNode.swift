@@ -12,7 +12,7 @@ import CoreText
 
 public class ExtrudedTextGeometryNode : BaseGeometryNode
 {
-    public override class var name:String { "Extruded Text Geometry" }
+    public override class var name:String { "3D Text Geometry" }
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
