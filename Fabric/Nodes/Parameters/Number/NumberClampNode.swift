@@ -28,9 +28,9 @@ public class NumberClampNode : Node
         
         return ports +
         [
-            ("inputNumber", NodePort<Float>(name: NumberNode.name , kind: .Inlet)),
-            ("inputMinNumber", NodePort<Float>(name: NumberNode.name , kind: .Inlet)),
-            ("inputMaxNumber", NodePort<Float>(name: NumberNode.name , kind: .Inlet)),
+            ("inputNumber", ParameterPort(parameter: FloatParameter("Input Number", 0.0, .inputfield))),
+            ("inputMinNumber", ParameterPort(parameter: FloatParameter("Min Number", 0.0, .inputfield))),
+            ("inputMaxNumber", ParameterPort(parameter: FloatParameter("Max Number", 0.0, .inputfield))),
             ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet)),
         ]
     }
