@@ -65,20 +65,14 @@ public struct NodeRegisitryView: View {
                     if let filteredNodesForType:[NodeClassWrapper] = self.filteredNodesForTypes[nodeType],
                        filteredNodesForType.isEmpty == false
                     {
-                        
-                        Section(header: Text("\(nodeType)")) {
-                            
-                            ForEach( 0 ..< filteredNodesForType.count, id:\.self ) { idx in
-                                
-                                let node = filteredNodesForType[idx]
-                                
+                        Section(header: Text("\(nodeType.rawV)")) {
+                            ForEach(filteredNodesForType, id: \.id) { node in
                                 Text(node.nodeName)
-                                    .id(node.id)
+                                    .tag(node.id)
                                     .font( .system(size: 11) )
                             }
                         }
                     }
-                    
                 }
             }
             // Below replaces the onTap action that was on the list item
