@@ -9,6 +9,19 @@ import Foundation
 import SwiftUI
 internal import Textual
 
+// https://github.com/gonzalezreal/textual/issues/6#issuecomment-3705645200
+private struct CustomParagraphStyle: StructuredText.ParagraphStyle
+{
+    func makeBody(configuration: Configuration) -> some View
+    {
+        configuration.label
+            .textual.fontScale(0.8)
+            .textual.listItemSpacing(.fontScaled(top: 2.0, bottom: 2.0))
+            .textual.blockSpacing(.fontScaled(top: 1.1, bottom: 1.1))
+//            .textual.lineSpacing(.fontScaled(2.0))
+    }
+}
+
 private struct EditorView : View
 {
     @Binding var string:String
@@ -21,10 +34,7 @@ private struct EditorView : View
             if self.locked
             {
                 StructuredText(markdown:self.string)
-                    .textual.blockSpacing(.fontScaled(bottom: 3.0))
-                    .textual.fontScale(0.8)
-                    .textual.listItemSpacing(.fontScaled(top: 1.4, bottom: 1.4))
-                    .textual.lineSpacing(.fontScaled(2.0))
+                    .textual.paragraphStyle(CustomParagraphStyle())
             }
             else
             {
