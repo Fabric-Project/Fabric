@@ -65,7 +65,7 @@ public struct NodeRegisitryView: View {
                     if let filteredNodesForType:[NodeClassWrapper] = self.filteredNodesForTypes[nodeType],
                        filteredNodesForType.isEmpty == false
                     {
-                        Section(header: Text("\(nodeType.rawV)")) {
+                        Section(header: Text("\(nodeType)")) {
                             ForEach(filteredNodesForType, id: \.id) { node in
                                 Text(node.nodeName)
                                     .tag(node.id)
