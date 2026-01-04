@@ -388,7 +388,7 @@ public struct NodeCanvas : View
             }
     }
     
-    private func calcPathUsing(port:(Port), start:CGPoint, end:CGPoint) -> Path
+    private func calcPathUsing(port:Port, start:CGPoint, end:CGPoint) -> Path
     {
         let lowerBound = 5.0
         let upperBound = 10.0
