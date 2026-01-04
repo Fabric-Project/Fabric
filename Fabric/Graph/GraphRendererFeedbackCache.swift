@@ -23,6 +23,8 @@ internal final class GraphRendererFeedbackCache {
 
     private var nodeProcessingStateCache: [UUID: NodeProcessingState] = [:]
         
+    private var nodeProcessingStateStack: [[UUID: NodeProcessingState]] = []
+
     private struct PortCacheKey: Hashable
     {
         let portID: UUID
@@ -32,20 +34,58 @@ internal final class GraphRendererFeedbackCache {
     private var lastCachePruneFrameNumber: Int = -1
     private var previousFrameCache: [PortCacheKey: PortValue] = [:]
     
-    public func resetCacheFor(executionContext:GraphExecutionContext)
+    /// Call at the start of every execute() (including nested subgraph executes).
+    /// This isolates nodeProcessingStateCache so nested executes don't clobber the caller's traversal.
+    public func beginExecutionScope(executionContext: GraphExecutionContext)
     {
-        // Clear execution state
-        self.nodeProcessingStateCache = [:]
         
+        // 1) prune port cache once per frame (shared across scopes)
         let currentFrame = executionContext.timing.frameNumber
         let previousFrame = currentFrame - 1
-
+        
         if self.lastCachePruneFrameNumber != currentFrame
         {
             self.previousFrameCache = previousFrameCache.filter { $0.key.frameNumber == previousFrame }
             self.lastCachePruneFrameNumber = currentFrame
         }
+        
+        // 2) isolate processing state (per-scope)
+        nodeProcessingStateStack.append(nodeProcessingStateCache)
+        nodeProcessingStateCache = [:]
+        
+        print("frameCache beginExecutionScope frame: \(currentFrame)")
     }
+    
+    /// Must be paired with beginExecutionScope via defer.
+    public func endExecutionScope()
+    {
+        guard let restored = nodeProcessingStateStack.popLast()
+        else
+        {
+            // If this ever happens, someone called end without begin.
+            nodeProcessingStateCache = [:]
+            return
+        }
+        
+        nodeProcessingStateCache = restored
+        
+        print("frameCache endExecutionScope")
+
+    }
+    
+//    public func resetCacheFor(executionContext:GraphExecutionContext)
+//    {
+//        self.nodeProcessingStateCache = [:]
+//        
+//        let currentFrame = executionContext.timing.frameNumber
+//        let previousFrame = currentFrame - 1
+//
+//        if self.lastCachePruneFrameNumber != currentFrame
+//        {
+//            self.previousFrameCache = previousFrameCache.filter { $0.key.frameNumber == previousFrame }
+//            self.lastCachePruneFrameNumber = currentFrame
+//        }
+//    }
     
     func processingState(forNode node:Node) -> NodeProcessingState
     {
@@ -88,6 +128,10 @@ internal final class GraphRendererFeedbackCache {
 
                 // This is the critical part: make the inlet read last frame instead of recursing
                 inlet.setBoxedValue(cached)
+                
+                let hit = (cached != nil)
+                print("setFeedbackState Frame: \(currentFrame), Upstream: \(upstreamNode.name):\(upstreamOutlet.name), ID: \(upstreamOutlet.id) hit: \(hit)")
+
             }
         }
     }
@@ -102,6 +146,8 @@ internal final class GraphRendererFeedbackCache {
             {
                 let key = PortCacheKey(portID: outlet.id, frameNumber: currentFrame)
                 
+                let hit = (outlet.boxedValue() != nil)
+                
                 if let boxed = outlet.boxedValue()
                 {
                     previousFrameCache[key] = boxed
@@ -110,6 +156,9 @@ internal final class GraphRendererFeedbackCache {
                 {
                     previousFrameCache.removeValue(forKey: key)
                 }
+                
+                print("cacheProcessedNode Frame: \(currentFrame), Outlet: \(node.name):\(outlet.name), ID: \(outlet.id) boxedValueNonNil: \(hit)")
+
             }
         }
     }
