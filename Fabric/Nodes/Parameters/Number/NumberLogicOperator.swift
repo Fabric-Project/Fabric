@@ -10,13 +10,13 @@ import Satin
 import simd
 import Metal
 
-public class NumberBinaryOperator : Node
+public class NumberLogicOperator : Node
 {
-    override public static var name:String { "Number Binary Operator" }
+    override public static var name:String { "Number Comparison" }
     override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Run an operation on 2 inputs Number and return the resulting Number"}
+    override public class var nodeDescription: String { "Run an comparison on 2 inputs Number and return the result"}
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
@@ -26,8 +26,8 @@ public class NumberBinaryOperator : Node
         [
             ("inputNumber1", ParameterPort(parameter: FloatParameter("Number A", 0.0, .inputfield))),
             ("inputNumber2", ParameterPort(parameter: FloatParameter("Number B", 0.0, .inputfield))),
-            ("inputParam", ParameterPort(parameter: StringParameter("Operator", "Add", BinaryMathOperator.allCases.map(\.rawValue))) ),
-            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet)),
+            ("inputParam", ParameterPort(parameter: StringParameter("Operator", BinaryMathLogicOperator.Equals.rawValue, BinaryMathLogicOperator.allCases.map(\.rawValue))) ),
+            ("outputResult", NodePort<Bool>(name: "Result" , kind: .Outlet)),
         ]
     }
     
@@ -35,16 +35,16 @@ public class NumberBinaryOperator : Node
     public var inputNumber1:ParameterPort<Float> { port(named: "inputNumber1") }
     public var inputNumber2:ParameterPort<Float> { port(named: "inputNumber2") }
     public var inputParam:ParameterPort<String> { port(named: "inputParam") }
-    public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
+    public var outputResult:NodePort<Bool> { port(named: "outputResult") }
     
-    private var mathOperator = BinaryMathOperator.Add
+    private var mathOperator = BinaryMathLogicOperator.Equals
     
     override public func startExecution(context: GraphExecutionContext) {
         super.startExecution(context: context)
         
         if let stringParam = self.inputParam.parameter as? StringParameter
         {
-            stringParam.options = BinaryMathOperator.allCases.map(\.rawValue)
+            stringParam.options = BinaryMathLogicOperator.allCases.map(\.rawValue)
         }
     }
          
@@ -54,7 +54,7 @@ public class NumberBinaryOperator : Node
     {
         if self.inputParam.valueDidChange,
            let param = self.inputParam.value,
-           let mathOp = BinaryMathOperator(rawValue: param)
+           let mathOp = BinaryMathLogicOperator(rawValue: param)
         {
             self.mathOperator = mathOp
         }
@@ -67,7 +67,7 @@ public class NumberBinaryOperator : Node
 
             let number2 = self.inputNumber2.value ?? number1
 
-            self.outputNumber.send(self.mathOperator.perform(lhs: number1,
+            self.outputResult.send(self.mathOperator.perform(lhs: number1,
                                                              rhs: number2) )
         }
     }

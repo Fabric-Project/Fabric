@@ -38,6 +38,10 @@ public class NumberNode : Node
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        self.outputNumber.send(self.inputNumber.value)
+        if self.inputNumber.valueDidChange,
+           let inputNumberValue = self.inputNumber.value
+        {
+            self.outputNumber.send(inputNumberValue)
+        }
     }
 }

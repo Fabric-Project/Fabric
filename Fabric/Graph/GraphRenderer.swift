@@ -147,15 +147,11 @@ public class GraphRenderer : MetalViewRenderer
                         clearFlags:Bool = true,
                         forceEvaluationForTheseNodes:[Node] = [ ])
     {
-        self.feedbackCache.resetCacheFor(executionContext:executionContext)
+
+        self.feedbackCache.beginExecutionScope(executionContext: executionContext)
+        
         self.textureCache.resetCacheFor(executionContext:executionContext)
         
-        defer {
-            if clearFlags
-            {
-                self.graphRequiresResize = false
-            }
-        }
         
         // Processing means we recursed though the `processGraph` call
         var nodesWeHaveProcessedThisPass:[Node] = []
@@ -163,6 +159,21 @@ public class GraphRenderer : MetalViewRenderer
         // Executed means `processGraph` called `execute` on the node sucessfully
         var nodesWeHaveExecutedThisPass:[Node] = []
 
+        
+        defer {
+            
+            self.feedbackCache.endExecutionScope()
+            
+            if clearFlags
+            {
+                self.graphRequiresResize = false
+            }
+            
+            print("GraphRenderer  frame:\(executionContext.timing.frameNumber) renderGraph: \(graph.id): \(nodesWeHaveExecutedThisPass.count) nodesExecuted: \(nodesWeHaveExecutedThisPass.map {  $0.name } )")
+
+        }
+        
+       
         // We have one condition which is tricky
         // We may be executing a graph that is a subgraph which has ZERO providers and ZERO consumers
         // But it may have published output ports
@@ -174,6 +185,8 @@ public class GraphRenderer : MetalViewRenderer
          
         // This is fucking horrible:
         let firstCamera = graph.firstCamera ?? self.cachedCamera ?? self.defaultCamera
+        
+        print("GraphRenderer frame:\(executionContext.timing.frameNumber) renderGraph: \(graph.id): \(nodesToPullFrom.count) nodesToPullFrom: \(nodesToPullFrom.map {  $0.name } )")
         
         if !nodesToPullFrom.isEmpty
         {
@@ -191,6 +204,7 @@ public class GraphRenderer : MetalViewRenderer
             
             self.cachedCamera = firstCamera
         }
+        
     }
 
     private func processGraph(graph:Graph,
@@ -236,6 +250,7 @@ public class GraphRenderer : MetalViewRenderer
                              commandBuffer: commandBuffer,
                              nodesWeHaveProcessedThisPass: &nodesWeHaveProcessedThisPass,
                              nodesWeHaveExecutedThisPass: &nodesWeHaveExecutedThisPass,
+                             clearFlags: clearFlags
                 )
                 
 

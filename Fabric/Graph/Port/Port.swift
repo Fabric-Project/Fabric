@@ -108,6 +108,7 @@ extension UTType
         
     // Maybe a bit too verbose?
     @ObservationIgnored public var portType: PortType { fatalError("Must be implemented") }
+    
     @ObservationIgnored public var valueDidChange:Bool = true
 
     // BARF?
@@ -176,6 +177,10 @@ extension UTType
         print("Deinit Port \(self.id)")
     }
     
+    public func canConnect(to other:Port) -> Bool
+    {
+        self.portType.canConnect(to: other.portType)
+    }
     
     public func connect(to other: Port) { fatalError("override") }
     public func disconnect(from other: Port) { fatalError("override") }

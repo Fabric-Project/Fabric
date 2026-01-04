@@ -111,10 +111,12 @@ public class CursorNode : Node
             
             if upEventTypesWeListenFor.contains(event.type)
             {
+                print("Cursor Up")
                 self.outputTap.send( false )
             }
             else if downEventTypesWeListenFor.contains(event.type)
             {
+                print("Cursor Down")
                 self.outputTap.send( true )
              
                 let point = event.locationInWindow

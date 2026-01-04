@@ -31,7 +31,7 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
     case Shader
     case Image
     case Array(portType:PortType)
-        case Virtual
+    case Virtual
     
     // This is brittle
     public static let allCases : [PortType] = [
@@ -89,6 +89,8 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         case "Material":      self = .Material;  return
         case "Shader":        self = .Shader;    return
         case "Image":         self = .Image;     return
+        case "Virtual":       self = .Virtual;    return
+            
         default: break
         }
         
@@ -126,7 +128,7 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
 //        fatalError("unsupported port type")
     }
     
-    public var type:Any.Type {
+    public var type:Any.Type  {
         switch self {
         case .Bool:
             return Swift.Bool.self
@@ -159,7 +161,7 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         case .Array(portType: let portType):
             return contiguousArrayMetatype(of: portType.type)
         case .Virtual:
-            return AnyLoggable.self
+            return PortType.self
         }
     }
     

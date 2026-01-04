@@ -9,8 +9,23 @@ import Foundation
 
 extension PortType
 {
-    func canConnect(to other: PortType) -> Bool
+    // This is so terrible, needs to sync with below
+    func canConnect(to other:PortType) -> Bool
     {
-        self == other
-    }    
+        switch self
+        {
+        case .Bool, .Int, .Float, .String, .Virtual:
+            switch other
+            {
+            case .Bool, .Int, .Float, .String, .Virtual:
+                return true
+                
+            default:
+                return false
+            }
+
+        default:
+            return self == other
+        }
+    }
 }

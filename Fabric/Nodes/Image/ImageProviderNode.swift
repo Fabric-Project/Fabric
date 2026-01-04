@@ -68,18 +68,17 @@ public class ImageProviderNode : Node
         if self.inputFilePathParam.valueDidChange
         {
             self.loadTextureFromInputValue()
+            
+            if let texture = self.texture
+            {
+                self.outputTexturePort.send(FabricImage.unmanaged(texture: texture))
+            }
+            
+            else
+            {
+                self.outputTexturePort.send(nil)
+            }
         }
-        
-        if let texture = self.texture
-        {
-            self.outputTexturePort.send(FabricImage.unmanaged(texture: texture))
-        }
-        
-        else
-        {
-            self.outputTexturePort.send(nil)
-        }
-        
      }
     
     private func loadTextureFromInputValue()

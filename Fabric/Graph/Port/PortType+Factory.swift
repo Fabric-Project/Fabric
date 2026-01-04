@@ -28,7 +28,7 @@ extension PortType
         case .Material: return try NodePort<Satin.Material>.init(from: decoder)
         case .Shader: return try NodePort<Satin.Shader>.init(from: decoder)
         case .Image: return try NodePort<FabricImage>.init(from: decoder)
-        case .Virtual: return try NodePort<AnyLoggable>.init(from: decoder)
+        case .Virtual: return try NodePort<PortValue>.init(from: decoder)
         // TODO: Array
         case .Array(portType: let arrayType):
             switch arrayType
@@ -49,7 +49,7 @@ extension PortType
             case .Shader: return try NodePort<ContiguousArray<Satin.Shader>>.init(from: decoder)
             case .Image: return try NodePort<ContiguousArray<FabricImage>>.init(from: decoder)
 
-            case .Virtual: return try NodePort<ContiguousArray<AnyLoggable>>.init(from: decoder)
+            case .Virtual: return try NodePort<ContiguousArray<PortValue>>.init(from: decoder)
 
             // we dont yet support nested arrays///
             case .Array(portType: _):

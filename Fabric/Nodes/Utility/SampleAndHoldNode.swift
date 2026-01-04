@@ -10,7 +10,7 @@ import Satin
 import Metal
 import simd
 
-public class SampleAndHold<Value : PortValueRepresentable & Equatable> : Node
+public class SampleAndHoldNode<Value : PortValueRepresentable & Equatable> : Node
 {
     public override class var name:String { "Sample and Hold \(Value.portType.rawValue)" }
     public override class var nodeType:Node.NodeType { Node.NodeType.Utility }
@@ -25,8 +25,9 @@ public class SampleAndHold<Value : PortValueRepresentable & Equatable> : Node
         return ports +
         [
             ("inputValue", NodePort<Value>(name: "Value" , kind: .Inlet)),
-            ("inputSample", ParameterPort(parameter:BoolParameter("Sample", true))),
-            ("inputReset", ParameterPort(parameter:BoolParameter("Reset", false))),
+//            ("inputValue", ParameterPort(parameter: GenericParameter<Value>("Value", Value.defaultValue, .inputfield))),
+            ("inputSample", ParameterPort(parameter:BoolParameter("Sample", true, .button))),
+            ("inputReset", ParameterPort(parameter:BoolParameter("Reset", false,  .button))),
             ("outputValue", NodePort<Value>(name: "Value" , kind: .Outlet)),
         ]
     }
@@ -43,6 +44,13 @@ public class SampleAndHold<Value : PortValueRepresentable & Equatable> : Node
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
+        if self.inputSample.valueDidChange
+        {
+            if let sample = self.inputSample.value
+            {
+                self.inputSample.value = sample
+            }
+        }
         
         if self.inputValue.valueDidChange,
            let inputValue = self.inputValue.value,
