@@ -138,27 +138,27 @@ public class CameraProviderNode : Node
     
     func commonPostSetup()
     {
-//        self.wasConnectedObserver = NotificationCenter.default.addObserver(forName: AVCaptureDevice.wasConnectedNotification, object: nil, queue: .main)
-//        { [weak self] notification in
-//            
-//            guard let self = self,
-//                  let inputCameraParam = self.inputCamera.parameter as? StringParameter
-//            else { return }
-//            
-//            self.devices = self.discoverySession.devices
-//            inputCameraParam.options = self.devices.compactMap( { $0.localizedName } )
-//        }
-//        
-//        self.wasDisconnectedObserver = NotificationCenter.default.addObserver(forName: AVCaptureDevice.wasDisconnectedNotification, object: nil, queue: .main)
-//        { [weak self] notification in
-//            
-//            guard let self = self,
-//                  let inputCameraParam = self.inputCamera.parameter as? StringParameter
-//            else { return }
-//            
-//            self.devices = self.discoverySession.devices
-//            inputCameraParam.options = self.devices.compactMap( { $0.localizedName } )
-//        }
+        self.wasConnectedObserver = NotificationCenter.default.addObserver(forName: AVCaptureDevice.wasConnectedNotification, object: nil, queue: .main)
+        { [weak self] notification in
+            
+            guard let self = self,
+                  let inputCameraParam = self.inputCamera.parameter as? StringParameter
+            else { return }
+            
+            self.devices = self.discoverySession.devices
+            inputCameraParam.options = self.devices.compactMap( { $0.localizedName } )
+        }
+        
+        self.wasDisconnectedObserver = NotificationCenter.default.addObserver(forName: AVCaptureDevice.wasDisconnectedNotification, object: nil, queue: .main)
+        { [weak self] notification in
+            
+            guard let self = self,
+                  let inputCameraParam = self.inputCamera.parameter as? StringParameter
+            else { return }
+            
+            self.devices = self.discoverySession.devices
+            inputCameraParam.options = self.devices.compactMap( { $0.localizedName } )
+        }
         
         self.devices = self.discoverySession.devices
         if let inputCameraParam = self.inputCamera.parameter as? StringParameter
