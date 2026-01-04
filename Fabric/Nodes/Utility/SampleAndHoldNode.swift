@@ -44,21 +44,13 @@ public class SampleAndHoldNode<Value : PortValueRepresentable & Equatable> : Nod
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        if self.inputSample.valueDidChange
-        {
-            if let sample = self.inputSample.value
-            {
-                self.inputSample.value = sample
-            }
-        }
-        
+
         if self.inputValue.valueDidChange,
-           let inputValue = self.inputValue.value,
            let inputSampling = self.inputSample.value
         {
             if inputSampling
             {
-                self.value = inputValue
+                self.value = self.inputValue.value
                 self.outputValue.send(self.value)
             }
         }
