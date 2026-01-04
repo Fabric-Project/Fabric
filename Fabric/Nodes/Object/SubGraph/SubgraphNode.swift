@@ -143,7 +143,5 @@ public class SubgraphNode: BaseObjectNode
                                        clearFlags: false)
         
         self.markClean()
-        
-    }
-    
+    }    
 }
