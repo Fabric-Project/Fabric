@@ -17,9 +17,24 @@ public class NodePort<Value : PortValueRepresentable>: Port
     
     override  internal func setBoxedValue(_ boxed: PortValue?)
     {
-        guard let boxed else { self.send(nil, force: true); return }
+//        guard let boxed else { self.send(nil, force: true); return }
+//        
+//        self.send(Value.fromPortValue(boxed), force: true)
+
         
-        self.send(Value.fromPortValue(boxed), force: true)
+        // Assign w/o propogating via send
+        if let boxed
+        {
+            self.value = Value.fromPortValue(boxed)
+        }
+        else
+        {
+            self.value = nil
+        }
+
+        // Force execution to see this value even if Equatable says “same”
+        self.valueDidChange = true
+        self.node?.markDirty()
     }
     
     public var value: Value?
