@@ -60,9 +60,10 @@ public class LogNode : Node
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        if self.inputAny.valueDidChange
+        if self.inputAny.valueDidChange,
+           let value = self.inputAny.value
         {
-            print("Frame: \(context.timing.frameNumber): \(self.inputAny.value ?? "No Value")" )
+            print("Frame: \(context.timing.frameNumber): \(value)" )
         }
     }
 }
