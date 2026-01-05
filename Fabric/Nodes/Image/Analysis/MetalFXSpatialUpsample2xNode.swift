@@ -55,7 +55,7 @@ final class MetalFXSpatialUpsample2xNode: BaseEffectNode
         }
 
         guard let scaler = self.spatialScaler,
-              let outImage = context.graphRenderer?.newImage(withWidth: inTex.width, height: inTex.height)
+              let outImage = context.graphRenderer?.newImage(withWidth: inTex.width, height: inTex.height, commandBuffer: commandBuffer)
         else
         {
             self.outputTexturePort.send(nil)

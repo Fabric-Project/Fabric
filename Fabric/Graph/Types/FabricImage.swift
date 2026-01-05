@@ -35,27 +35,28 @@ public final class FabricImage: Identifiable, Equatable
     public var isFlipped: Bool = false
 
     // MARK: - Managed/unmanaged
-
-    private var onRelease: ((MTLTexture) -> Void)?
+    private var commandBuffer:MTLCommandBuffer?
+    private var onRelease: ((MTLTexture, MTLCommandBuffer) -> Void)?
     private var didRelease = false
 
     // Factory-only
-    private init(texture: MTLTexture, onRelease: ((MTLTexture) -> Void)?)
+    private init(texture: MTLTexture, commandBuffer:MTLCommandBuffer?, onRelease: ((MTLTexture, MTLCommandBuffer) -> Void)?)
     {
         self.texture = texture
+        self.commandBuffer = commandBuffer
         self.onRelease = onRelease
     }
 
     /// Created by GraphRenderer (or other pool owner). Returned to pool on `release()` / `deinit`.
-    internal static func managed(texture: MTLTexture, onRelease: @escaping (MTLTexture) -> Void) -> FabricImage
+    internal static func managed(texture: MTLTexture,commandBuffer:MTLCommandBuffer, onRelease: @escaping (MTLTexture, MTLCommandBuffer) -> Void) -> FabricImage
     {
-        FabricImage(texture: texture, onRelease: onRelease)
+        FabricImage(texture: texture, commandBuffer: commandBuffer, onRelease: onRelease)
     }
 
     /// Asset / external ownership. No pooling.
     public static func unmanaged(texture: MTLTexture) -> FabricImage
     {
-        FabricImage(texture: texture, onRelease: nil)
+        FabricImage(texture: texture, commandBuffer: nil, onRelease: nil)
     }
 
     deinit
@@ -68,8 +69,13 @@ public final class FabricImage: Identifiable, Equatable
     {
         guard !didRelease else { return }
         didRelease = true
-        onRelease?(texture)
+        // Should not happen?
+        if let commandBuffer
+        {
+            onRelease?(texture, commandBuffer)
+        }
         onRelease = nil
+        commandBuffer = nil
     }
 
     // MARK: - Equatable

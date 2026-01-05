@@ -8,23 +8,6 @@
 import Foundation
 import Metal
 
-// MARK: - TextureHeapCache
-//
-// A standalone manager that allocates textures from one or more MTLHeaps and
-// reuses them via a per-frame ring pool.
-//
-// - Allocations come from heap.makeTexture(descriptor:)
-// - "Deallocation" is implemented as recycling into a pool keyed by a descriptor signature.
-// - Safety: recycled textures go into the *current* frame pool, and are only reused when
-//   that pool comes around again (ring-buffered), avoiding most in-flight reuse hazards.
-//
-// Designed to vend FabricImage using the new API:
-//
-//   FabricImage.managed(texture:onRelease:)  // internal factory
-//   FabricImage.unmanaged(texture:)         // public factory
-//   image.release()                         // optional explicit return; also called in deinit
-//
-
 internal final class GraphRendererTextureCache {
 
     // MARK: Configuration
@@ -34,20 +17,10 @@ internal final class GraphRendererTextureCache {
         public var storageMode: MTLStorageMode = .private
         public var cpuCacheMode: MTLCPUCacheMode = .defaultCache
         public var heapType: MTLHeapType = .automatic
-
-        /// Number of frame pools in the reuse ring. (Triple buffering default.)
         public var framePoolCount: Int = 3
-
-        /// When we need a new heap, allocate at least this many bytes (helps avoid tiny heaps).
         public var minimumHeapSizeBytes: Int = 128 * 1024 * 1024 // 128 MB
-
-        /// Growth factor when sizing a heap for a new texture request.
-        /// New heap size = max(minimumHeapSize, textureSize * growthFactor)
         public var heapGrowthFactor: Int = 2
-
-        /// Alignment floor used when aligning heap sizes.
         public var heapSizeAlignment: Int = 256
-
         public init() {}
     }
 
@@ -64,6 +37,20 @@ internal final class GraphRendererTextureCache {
         let usageRawValue: UInt
         let storageMode: MTLStorageMode
     }
+
+    private let lock = NSLock()
+
+    private struct PendingItem {
+        let frameIndex: Int
+        let key: TextureKey
+        let texture: MTLTexture
+    }
+
+    // Textures released (CPU) but not yet eligible for reuse until CB completes
+    private var pendingTexturesByCommandBufferID: [ObjectIdentifier: [PendingItem]] = [:]
+
+    // Ensures we install exactly one completion handler per command buffer
+    private var completionHandlerInstalledForCommandBufferIDs: Set<ObjectIdentifier> = []
 
     // MARK: State
 
@@ -89,28 +76,29 @@ internal final class GraphRendererTextureCache {
 
     // MARK: Frame lifecycle
 
-    /// Call once per renderer frame (or per graph evaluation tick).
-    /// Use a monotonically increasing frameNumber (e.g. timing.frameNumber).
-    public func resetCacheFor(executionContext:GraphExecutionContext)
+    public func resetCacheFor(executionContext: GraphExecutionContext)
     {
         let frameNumber = executionContext.timing.frameNumber
         let count = max(1, config.framePoolCount)
-        self.frameIndex = ((frameNumber % count) + count) % count
+        let newIndex = ((frameNumber % count) + count) % count
+
+        lock.lock()
+        self.frameIndex = newIndex
+        lock.unlock()
     }
 
     // MARK: Public API: vend images
 
-    /// Create a managed FabricImage allocated from heaps + cache.
-    /// The returned FabricImage will automatically recycle its texture when released/deinitialized,
-    /// assuming FabricImage calls its `onRelease` callback.
-    ///
-    /// You can customize usage as needed. Default is suitable for "render + compute" intermediate images.
     public func newManagedImage(width: Int,
                                 height: Int,
                                 pixelFormat: MTLPixelFormat,
+                                commandBuffer: MTLCommandBuffer,
                                 usage: MTLTextureUsage = [.shaderRead, .shaderWrite, .renderTarget],
                                 mipmapped: Bool = false,
                                 label: String? = nil) -> FabricImage? {
+
+        // MUST be installed before commit; do it here so recycle never needs to.
+        registerCompletionHandlerIfNeeded(commandBuffer: commandBuffer)
 
         let desc = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: pixelFormat,
                                                             width: width,
@@ -123,34 +111,77 @@ internal final class GraphRendererTextureCache {
 
         guard let texture = makeTexture(descriptor: desc, label: label) else { return nil }
 
-        // IMPORTANT: avoid a retain cycle.
-        // The FabricImage retains the onRelease closure; the closure should not strongly retain self.
-        return FabricImage.managed(texture: texture) { [weak self] tex in
-            self?.recycleTexture(tex)
+        let key = TextureKey(width: texture.width,
+                             height: texture.height,
+                             pixelFormat: texture.pixelFormat,
+                             mipmapLevelCount: texture.mipmapLevelCount,
+                             sampleCount: texture.sampleCount,
+                             textureType: texture.textureType,
+                             usageRawValue: texture.usage.rawValue,
+                             storageMode: texture.storageMode)
+
+        return FabricImage.managed(texture: texture, commandBuffer: commandBuffer) { [weak self] tex, cb in
+            self?.enqueueRecycle(tex, key: key, commandBuffer: cb)
         }
     }
 
-    /// Wrap an externally created texture (assets, static defaults, imported resources).
-    /// This does NOT participate in heap allocation or recycling.
     public func newUnmanagedImage(from texture: MTLTexture) -> FabricImage {
         FabricImage.unmanaged(texture: texture)
     }
 
     // MARK: Optional: explicit flush / maintenance
 
-    /// Drops all cached reusable textures (does NOT destroy heaps immediately, but releases references).
-    /// Useful for memory pressure events or when changing output resolution dramatically.
     public func flushReusableTextures() {
+        lock.lock()
         for i in available.indices {
             available[i].removeAll(keepingCapacity: false)
         }
+        lock.unlock()
     }
 
-    /// Drops all heaps and cached textures. Next allocation will recreate heaps.
-    /// Use sparingly (it forces reallocations).
     public func reset() {
-        flushReusableTextures()
+        lock.lock()
+        for i in available.indices {
+            available[i].removeAll(keepingCapacity: false)
+        }
         heaps.removeAll(keepingCapacity: false)
+        pendingTexturesByCommandBufferID.removeAll(keepingCapacity: false)
+        completionHandlerInstalledForCommandBufferIDs.removeAll(keepingCapacity: false)
+        lock.unlock()
+    }
+
+    // MARK: Internals: completion handler install (safe)
+
+    private func registerCompletionHandlerIfNeeded(commandBuffer: MTLCommandBuffer) {
+        let cbID = ObjectIdentifier(commandBuffer)
+
+        lock.lock()
+        let needsInstall = completionHandlerInstalledForCommandBufferIDs.insert(cbID).inserted
+        lock.unlock()
+
+        guard needsInstall else { return }
+
+        commandBuffer.addCompletedHandler { [weak self] _ in
+            self?.drainPendingRecycles(for: cbID)
+        }
+    }
+
+    private func drainPendingRecycles(for commandBufferID: ObjectIdentifier) {
+        let items: [PendingItem]
+
+        lock.lock()
+        items = pendingTexturesByCommandBufferID.removeValue(forKey: commandBufferID) ?? []
+        completionHandlerInstalledForCommandBufferIDs.remove(commandBufferID)
+        lock.unlock()
+
+        guard !items.isEmpty else { return }
+
+        lock.lock()
+        for item in items {
+            let safeIndex = (item.frameIndex + 1) % self.available.count
+            available[safeIndex][item.key, default: []].append(item.texture)
+        }
+        lock.unlock()
     }
 
     // MARK: Internals: allocate/reuse
@@ -165,50 +196,59 @@ internal final class GraphRendererTextureCache {
                              usageRawValue: descriptor.usage.rawValue,
                              storageMode: descriptor.storageMode)
 
-        // 1) Reuse from pool
+        // 1) Reuse from pool (LOCKED: fixes crash)
+        lock.lock()
         if var bucket = available[frameIndex][key], let tex = bucket.popLast() {
             available[frameIndex][key] = bucket
             totalTexturesReused += 1
+            lock.unlock()
+
             if let label { tex.label = label }
             return tex
         }
+        lock.unlock()
 
         // 2) Allocate from existing heap(s)
         if let tex = allocateFromExistingHeaps(descriptor: descriptor, label: label) {
+            lock.lock()
             totalTexturesAllocated += 1
+            lock.unlock()
             return tex
         }
 
         // 3) Grow: create a new heap sized for this texture (plus headroom)
         if let tex = allocateFromNewHeap(descriptor: descriptor, label: label) {
+            lock.lock()
             totalTexturesAllocated += 1
+            lock.unlock()
             return tex
         }
 
         return nil
     }
 
-    private func recycleTexture(_ texture: MTLTexture)
-    {
-        // Only recycle textures that match our storage mode.
-        // (A stronger check is possible, but this is a good first line of defense.)
+    // Enqueue recycle; completion handler will move into `available`.
+    // IMPORTANT: does NOT add handlers (avoid “released after commit” hazard).
+    private func enqueueRecycle(_ texture: MTLTexture,
+                                key: TextureKey,
+                                commandBuffer: MTLCommandBuffer) {
         guard texture.storageMode == config.storageMode else { return }
 
-        let key = TextureKey(width: texture.width,
-                             height: texture.height,
-                             pixelFormat: texture.pixelFormat,
-                             mipmapLevelCount: texture.mipmapLevelCount,
-                             sampleCount: texture.sampleCount,
-                             textureType: texture.textureType,
-                             usageRawValue: texture.usage.rawValue,
-                             storageMode: texture.storageMode)
+        let cbID = ObjectIdentifier(commandBuffer)
 
-        available[frameIndex][key, default: []].append(texture)
+        // Capture the frame pool index at time of release
+        lock.lock()
+        let capturedFrameIndex = self.frameIndex
+        pendingTexturesByCommandBufferID[cbID, default: []].append(
+            PendingItem(frameIndex: capturedFrameIndex, key: key, texture: texture)
+        )
+        lock.unlock()
     }
 
     private func allocateFromExistingHeaps(descriptor: MTLTextureDescriptor, label: String?) -> MTLTexture?
     {
-        // Simple first-fit scan. If you want to optimize, track heap free space heuristics.
+        // NOTE: Metal heap allocation itself is thread-safe, but we keep heaps array stable.
+        // If you ever mutate `heaps` concurrently, wrap the iteration in `lock` too.
         for heap in heaps
         {
             if let tex = heap.makeTexture(descriptor: descriptor)
@@ -231,7 +271,6 @@ internal final class GraphRendererTextureCache {
         let growth = max(1, config.heapGrowthFactor)
         let desired = max(config.minimumHeapSizeBytes, texBytes * growth)
 
-        // Align heap size up to max(texAlign, heapSizeAlignment)
         let alignment = max(texAlign, config.heapSizeAlignment)
         let heapSize = alignUp(desired, to: alignment)
 
@@ -240,12 +279,15 @@ internal final class GraphRendererTextureCache {
         heapDesc.storageMode = config.storageMode
         heapDesc.cpuCacheMode = config.cpuCacheMode
         heapDesc.type = config.heapType
+        heapDesc.hazardTrackingMode = .tracked
 
         guard let heap = device.makeHeap(descriptor: heapDesc) else { return nil }
+
+        lock.lock()
         totalHeapsCreated += 1
         heap.label = "Fabric.TextureHeap.\(totalHeapsCreated)"
-
         heaps.append(heap)
+        lock.unlock()
 
         let tex = heap.makeTexture(descriptor: descriptor)
         if let label { tex?.label = label }
@@ -259,3 +301,4 @@ internal final class GraphRendererTextureCache {
         return (value + mask) & ~mask
     }
 }
+

@@ -76,7 +76,7 @@ public class LUTProcessorNode : BaseEffectNode
         {
             if let inTex = self.inputTexturePort.value?.texture,
                let inTex2 = self.texture,
-               let outImage = context.graphRenderer?.newImage(withWidth: inTex.width, height: inTex.height)
+               let outImage = context.graphRenderer?.newImage(withWidth: inTex.width, height: inTex.height, commandBuffer: commandBuffer)
             {
                 self.postMaterial.set(inTex, index: FragmentTextureIndex.Custom0)
                 self.postMaterial.set(inTex2, index: FragmentTextureIndex.Custom1)

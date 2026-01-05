@@ -108,7 +108,7 @@ public class KeypointDistortNode: BaseEffectNode {
         if self.inputTexturePort.valueDidChange
         {
             if let inTex = self.inputTexturePort.value?.texture,
-               let outImage = context.graphRenderer?.newImage(withWidth: inTex.width, height: inTex.height)
+               let outImage = context.graphRenderer?.newImage(withWidth: inTex.width, height: inTex.height, commandBuffer: commandBuffer)
             {
                 let minCount = min (self.refKeyPointStructBuffer.count, self.disKeyPointStructBuffer.count)
                 self.countBuffer.update(data: [UInt32(minCount)] )

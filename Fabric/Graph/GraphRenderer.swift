@@ -70,14 +70,14 @@ public class GraphRenderer : MetalViewRenderer
     }
     
     // MARK: - Execution Helpers
-    public func newImage(withWidth width:Int, height:Int) -> FabricImage?
+    public func newImage(withWidth width:Int, height:Int, commandBuffer:MTLCommandBuffer) -> FabricImage?
     {
-        return self.newImage(withWidth: width, height: height, format: self.colorPixelFormat)
+        return self.newImage(withWidth: width, height: height, format: self.colorPixelFormat, commandBuffer: commandBuffer)
     }
     
-    public func newImage(withWidth width:Int, height:Int, format:MTLPixelFormat) -> FabricImage?
-    {   
-        return self.textureCache.newManagedImage(width: width, height: height, pixelFormat: format)
+    public func newImage(withWidth width:Int, height:Int, format:MTLPixelFormat, commandBuffer:MTLCommandBuffer) -> FabricImage?
+    {
+        return self.textureCache.newManagedImage(width: width, height: height, pixelFormat: format, commandBuffer: commandBuffer)
         ?? self.newImageDirect(withWidth: width, height: height, format: format)
     }
     
@@ -306,6 +306,7 @@ public class GraphRenderer : MetalViewRenderer
     
     public func executeAndDraw(graph:Graph, executionContext:GraphExecutionContext, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
     {
+        
         self.cachedCamera = nil
         
         // Snapshot and clear the "connections changed" flag up front

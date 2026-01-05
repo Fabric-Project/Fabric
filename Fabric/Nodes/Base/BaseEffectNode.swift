@@ -197,7 +197,7 @@ public class BaseEffectNode: Node, NodeFileLoadingProtocol
         if self.inputTexturePort.valueDidChange || anyPortChanged
         {
             if let inTex = self.inputTexturePort.value?.texture,
-               let outImage = context.graphRenderer?.newImage(withWidth: inTex.width, height: inTex.height)
+               let outImage = context.graphRenderer?.newImage(withWidth: inTex.width, height: inTex.height, commandBuffer: commandBuffer)
             {
                 self.postProcessor.mesh.preDraw = { renderEncoder in
                     
@@ -208,6 +208,7 @@ public class BaseEffectNode: Node, NodeFileLoadingProtocol
                 self.postProcessor.renderer.size.height = Float(inTex.height)
                 
                 let renderPassDesc = MTLRenderPassDescriptor()
+                renderPassDesc.colorAttachments[0].storeAction = .store
                 renderPassDesc.colorAttachments[0].texture = outImage.texture
                 
                 self.postProcessor.draw(renderPassDescriptor:renderPassDesc , commandBuffer: commandBuffer)

@@ -200,7 +200,7 @@ class BaseEffectTwoChannelNode: Node, NodeFileLoadingProtocol
         if  self.inputTexturePort.valueDidChange || self.inputTexture2Port.valueDidChange || anyPortChanged
         {
             if let inTex = self.inputTexturePort.value?.texture,
-               let outImage = context.graphRenderer?.newImage(withWidth: inTex.width, height: inTex.height)
+               let outImage = context.graphRenderer?.newImage(withWidth: inTex.width, height: inTex.height, commandBuffer: commandBuffer)
             {
                 let inTex2 = self.inputTexture2Port.value?.texture ?? inTex
 

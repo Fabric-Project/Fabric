@@ -86,7 +86,7 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
     {
         guard self.inputImage.valueDidChange,
               let inTex = self.inputImage.value?.texture,
-              let outImage = context.graphRenderer?.newImage(withWidth: inTex.width, height: inTex.height),
+              let outImage = context.graphRenderer?.newImage(withWidth: inTex.width, height: inTex.height, commandBuffer: commandBuffer),
               let computeEncoder = commandBuffer.makeComputeCommandEncoder()
                 
         else { return }
