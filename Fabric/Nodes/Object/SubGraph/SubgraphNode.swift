@@ -89,8 +89,10 @@ public class SubgraphNode: BaseObjectNode
     }
      
     // Ensure we always render!
+//    override public var isDirty:Bool { get {  true /*self.subGraph.needsExecution*/  } set { } }
     override public var isDirty:Bool { get {  self.subGraph.needsExecution  } set { } }
-    
+
+
     override public func markClean()
     {
         for node in self.subGraph.nodes
@@ -136,10 +138,12 @@ public class SubgraphNode: BaseObjectNode
                                  commandBuffer: any MTLCommandBuffer)
     {
 
-        context.graphRenderer?.execute(graph: self.subGraph, executionContext: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer, clearFlags: false)
+        context.graphRenderer?.execute(graph: self.subGraph,
+                                       executionContext: context,
+                                       renderPassDescriptor: renderPassDescriptor,
+                                       commandBuffer: commandBuffer,
+                                       clearFlags: false)
         
-        self.markDirty()
-        
-    }
-    
+//        self.markClean()
+    }    
 }

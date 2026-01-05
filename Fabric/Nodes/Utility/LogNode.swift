@@ -23,12 +23,12 @@ public class LogNode : Node
     override public class var nodeDescription: String { "Log Values to the Console"}
 
     // Ports
-    public let inputAny: NodePort<AnyLoggable>
+    public let inputAny: NodePort<String>
     public override var ports: [Port] {  [self.inputAny] + super.ports }
     
     public required init(context: Context)
     {
-        self.inputAny = NodePort<AnyLoggable>(name: "Log Value" , kind: .Inlet)
+        self.inputAny = NodePort<String>(name: "Log Value" , kind: .Inlet)
         
         super.init(context: context)
     }
@@ -51,7 +51,7 @@ public class LogNode : Node
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
-        self.inputAny = try container.decode(NodePort<AnyLoggable>.self, forKey: .inputAnyPort)
+        self.inputAny = try container.decode(NodePort<String>.self, forKey: .inputAnyPort)
         
         try super.init(from: decoder)
     }
@@ -60,9 +60,10 @@ public class LogNode : Node
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        if self.inputAny.valueDidChange
+        if self.inputAny.valueDidChange,
+           let value = self.inputAny.value
         {
-            print( String(reflecting: inputAny.value ) )
+            print("Frame: \(context.timing.frameNumber): \(value)" )
         }
     }
 }

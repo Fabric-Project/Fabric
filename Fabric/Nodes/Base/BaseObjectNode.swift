@@ -64,23 +64,12 @@ public class ObjectNode<ObjectType : Satin.Object> : BaseObjectNode
         
         guard let object else { return shouldOutput }
         
-//        if self.inputVisible.valueDidChange
-//        {
-//            object.visible = self.inputVisible.value
-//            shouldOutput = true
-//        }
-//        
-//        if self.inputRenderPass.valueDidChange
-//        {
-//            object.renderPass = self.inputRenderPass.value
-//            shouldOutput = true
-//        }
-//        
-//        if self.inputRenderPass.valueDidChange
-//        {
-//            object.renderPass = self.inputRenderPass.value
-//            shouldOutput = true
-//        }
+        if self.inputVisible.valueDidChange
+        {
+            object.visible = self.inputVisible.value ?? true
+            shouldOutput = true
+        }
+       
         
         if self.inputScale.valueDidChange,
            let scale = self.inputScale.value

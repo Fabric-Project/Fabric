@@ -17,9 +17,24 @@ public class NodePort<Value : PortValueRepresentable>: Port
     
     override  internal func setBoxedValue(_ boxed: PortValue?)
     {
-        guard let boxed else { self.send(nil, force: true); return }
+//        guard let boxed else { self.send(nil, force: true); return }
+//        
+//        self.send(Value.fromPortValue(boxed), force: true)
+
         
-        self.send(Value.fromPortValue(boxed), force: true)
+        // Assign w/o propogating via send
+        if let boxed
+        {
+            self.value = Value.fromPortValue(boxed)
+        }
+        else
+        {
+            self.value = nil
+        }
+
+        // Force execution to see this value even if Equatable says “same”
+        self.valueDidChange = true
+        self.node?.markDirty()
     }
     
     public var value: Value?
@@ -86,14 +101,17 @@ public class NodePort<Value : PortValueRepresentable>: Port
             self.validatedDisconnect(from: other)
         }
         // In theory we can use this for type casting port to port?
-        else if let other = other as? NodePort<AnyLoggable>
+        else if let other = other as? NodePort<PortValue>
         {
             self.send(nil, to:other, force: true)
             self.validatedDisconnect(from: other)
         }
         else
         {
-            print("Port \(self) Unable to Disconnect from \(other)")
+            print("Disconnect Port \(self) Unable to Send Nil to \(other)")
+//            self.send(nil, to:other, force: true)
+            self.validatedDisconnect(from: other)
+
         }
     }
     
@@ -134,9 +152,6 @@ public class NodePort<Value : PortValueRepresentable>: Port
         
         print("Connections: \(self.debugDescription)) - \(self.connections)")
         print("Connections: \(other.debugDescription) - \(other.connections)")
-
-        self.send(nil, force: true)
-
         
         self.node?.graph?.undoManager?.registerUndo(withTarget: self) { port in
             port.connect(to: other)
@@ -153,18 +168,15 @@ public class NodePort<Value : PortValueRepresentable>: Port
         }
         
         // In theory we can use this for type casting port to port?
-        else if let other = other as? NodePort<AnyLoggable>
+        else if let other = other as? NodePort<PortValue>
         {
             self.connect(to: other)
         }
-        
-        else if self.value is AnyLoggable?
-        {
-            self.validatedConnect(to: other)
-        }
+      
         else
         {
             print("Port \(self) Unable to connect to \(other)")
+            self.validatedConnect(to: other)
         }
     }
     
@@ -173,11 +185,11 @@ public class NodePort<Value : PortValueRepresentable>: Port
         self.validatedConnect(to:other)
     }
     
-    public func connect(to other: NodePort<AnyLoggable>)
+    public func connect(to other: NodePort<PortValue>)
     {
         self.validatedConnect(to:other)
     }
-    
+        
     private func validatedConnect(to other:  Port)
     {
         print("Port \(self) Connect to \(other)")
@@ -249,16 +261,46 @@ public class NodePort<Value : PortValueRepresentable>: Port
         {
             self.value = v
             
-            for p in connections
+            for p in connections.filter( { $0.kind == .Inlet })
             {
                 if let p = p as? NodePort<Value>
                 {
                     self.send(v, to:p, force: force)
                 }
                 
-                else if let p = p as? NodePort<AnyLoggable>
+                else if
+                    let v = v,
+                    v.canConvertTo(other: p.portType)
                 {
-                    self.send(v, to:p, force: force)
+                    if let converted = v.convertTo(other: p.portType) as? Bool,
+                       let p = p as? NodePort<Bool>
+                    {
+                        self.send(converted, to:p, force: force)
+                    }
+                    
+                    else if let converted = v.convertTo(other: p.portType) as? Int,
+                       let p = p as? NodePort<Int>
+                    {
+                        self.send(converted, to:p, force: force)
+                    }
+                    
+                    else if let converted = v.convertTo(other: p.portType) as? Float,
+                       let p = p as? NodePort<Float>
+                    {
+                        self.send(converted, to:p, force: force)
+                    }
+                    
+                    else if let converted = v.convertTo(other: p.portType) as? String,
+                       let p = p as? NodePort<String>
+                    {
+                        self.send(converted, to:p, force: force)
+                    }
+                }
+
+                // Our new boxed virtual
+                else if let p = p as? NodePort<PortValue>
+                {
+                    self.send(v?.toPortValue(), to:p, force: force)
                 }
             }
         }
@@ -272,26 +314,45 @@ public class NodePort<Value : PortValueRepresentable>: Port
         }
     }
     
-    // Send to a loggable (this should eventually turn into a Virtual?
-    private func send(_ v:Value?, to other:  NodePort<AnyLoggable>, force:Bool = false)
+    private func send(_ v:Bool?, to other: NodePort<Bool>, force:Bool = false)
     {
-        if other.value?.asType(Value.self) != v || force
+        if other.value != v || force
         {
-            other.value = AnyLoggable(v)
+            other.value = v
         }
     }
     
-    // if we are a loggable, try casting and sending
-//    private func send(_ v:AnyLoggable, to other: NodePort<Value>, force:Bool = false)
-//    {
-//        if v.asType(type(of:other.value)) != other.value || force
-//        {
-//            if let otherVal = other.value
-//            {
-//                other.value = v.asType(type(of: otherVal ))
-//            }
-//        }
-//    }
+    private func send(_ v:Int?, to other: NodePort<Int>, force:Bool = false)
+    {
+        if other.value != v || force
+        {
+            other.value = v
+        }
+    }
+    
+    private func send(_ v:Float?, to other: NodePort<Float>, force:Bool = false)
+    {
+        if other.value != v || force
+        {
+            other.value = v
+        }
+    }
+    
+    private func send(_ v:String?, to other: NodePort<String>, force:Bool = false)
+    {
+        if other.value != v || force
+        {
+            other.value = v
+        }
+    }
+    
+    private func send(_ v:PortValue?, to other: NodePort<PortValue>, force:Bool = false)
+    {
+        if other.value != v || force
+        {
+            other.value = v
+        }
+    }
         
     private static func calcColor(forType: Any.Type ) -> Color
     {

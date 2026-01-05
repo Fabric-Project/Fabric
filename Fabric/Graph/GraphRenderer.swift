@@ -33,7 +33,11 @@ public class GraphRenderer : MetalViewRenderer
     var resizeScaleFactor:Float = 1.0
 
     // CACHING
-    let feedbackCache = GraphRendererFeedbackCache()
+    // We need one cache per Graph / Subgraph
+    // This avoids issues where the cache purges because of different execution cadences
+    var feedbackCaches: [UUID: GraphRendererFeedbackCache] = [:]
+    
+    
     let textureCache:GraphRendererTextureCache
     
     public init(context:Context)
@@ -147,15 +151,12 @@ public class GraphRenderer : MetalViewRenderer
                         clearFlags:Bool = true,
                         forceEvaluationForTheseNodes:[Node] = [ ])
     {
-        self.feedbackCache.resetCacheFor(executionContext:executionContext)
+
+        let feedbackCache = self.feedbackCache(for: graph.id)
+
+        feedbackCache.resetCacheFor(executionContext: executionContext)
+                
         self.textureCache.resetCacheFor(executionContext:executionContext)
-        
-        defer {
-            if clearFlags
-            {
-                self.graphRequiresResize = false
-            }
-        }
         
         // Processing means we recursed though the `processGraph` call
         var nodesWeHaveProcessedThisPass:[Node] = []
@@ -163,6 +164,19 @@ public class GraphRenderer : MetalViewRenderer
         // Executed means `processGraph` called `execute` on the node sucessfully
         var nodesWeHaveExecutedThisPass:[Node] = []
 
+        
+        defer {
+                        
+            if clearFlags
+            {
+                self.graphRequiresResize = false
+            }
+            
+//            print("GraphRenderer end frame:\(executionContext.timing.frameNumber) renderGraph: \(graph.id): \(nodesWeHaveExecutedThisPass.count) nodesExecuted: \(nodesWeHaveExecutedThisPass.map {  $0.name } )")
+
+        }
+        
+       
         // We have one condition which is tricky
         // We may be executing a graph that is a subgraph which has ZERO providers and ZERO consumers
         // But it may have published output ports
@@ -175,11 +189,14 @@ public class GraphRenderer : MetalViewRenderer
         // This is fucking horrible:
         let firstCamera = graph.firstCamera ?? self.cachedCamera ?? self.defaultCamera
         
+//        print("GraphRenderer begin frame:\(executionContext.timing.frameNumber) renderGraph: \(graph.id): \(nodesToPullFrom.count) nodesToPullFrom: \(nodesToPullFrom.map {  $0.name } )")
+        
         if !nodesToPullFrom.isEmpty
         {
             for pullNode in nodesToPullFrom
             {
                 let _ = processGraph(graph:graph,
+                                     graphFeedbackCache: feedbackCache,
                                      node: pullNode,
                                      executionContext:executionContext,
                                      renderPassDescriptor: renderPassDescriptor,
@@ -191,9 +208,11 @@ public class GraphRenderer : MetalViewRenderer
             
             self.cachedCamera = firstCamera
         }
+        
     }
 
     private func processGraph(graph:Graph,
+                              graphFeedbackCache:GraphRendererFeedbackCache,
                               node: Node,
                               executionContext:GraphExecutionContext,
                               renderPassDescriptor: MTLRenderPassDescriptor,
@@ -203,7 +222,7 @@ public class GraphRenderer : MetalViewRenderer
                               clearFlags:Bool = true)
     {
         
-        switch self.feedbackCache.processingState(forNode: node)
+        switch graphFeedbackCache.processingState(forNode: node)
         {
         case .processed:
             // Already executed, return
@@ -216,7 +235,7 @@ public class GraphRenderer : MetalViewRenderer
         }
         
         // Do this before we hit recursive process graph
-        self.feedbackCache.setProcessingState(.processing, forNode: node, executionContext: executionContext)
+        graphFeedbackCache.setProcessingState(.processing, forNode: node, executionContext: executionContext)
         
         // get the connection for
         let inputNodes = node.inputNodes
@@ -230,12 +249,14 @@ public class GraphRenderer : MetalViewRenderer
 //                nodesWeHaveProcessedThisPass.append(inputNode)
 
                 processGraph(graph: graph,
+                             graphFeedbackCache: graphFeedbackCache,
                              node: inputNode,
                              executionContext:executionContext,
                              renderPassDescriptor: renderPassDescriptor,
                              commandBuffer: commandBuffer,
                              nodesWeHaveProcessedThisPass: &nodesWeHaveProcessedThisPass,
                              nodesWeHaveExecutedThisPass: &nodesWeHaveExecutedThisPass,
+                             clearFlags: clearFlags
                 )
                 
 
@@ -271,9 +292,7 @@ public class GraphRenderer : MetalViewRenderer
                     node.markClean()
                 }
                 
-                self.feedbackCache.setProcessingState(.processed, forNode: node, executionContext: executionContext)
-
-              
+                graphFeedbackCache.setProcessingState(.processed, forNode: node, executionContext: executionContext)
             }
         }
     }
@@ -333,6 +352,18 @@ public class GraphRenderer : MetalViewRenderer
         self.defaultCamera.fov = radToDeg( 2.0 * atan(  (size.height / size.width) / 2.0 ) )
     }
     
+    private func feedbackCache(for graphID: UUID) -> GraphRendererFeedbackCache
+    {
+        guard let cache = self.feedbackCaches[graphID] else {
+            let newCache = GraphRendererFeedbackCache(graphID: graphID)
+            self.feedbackCaches[graphID] = newCache
+            return newCache
+        }
+
+        
+        return cache
+    }
+    
     private func currentGraphExecutionContext() -> GraphExecutionContext
     {
         let currentRenderTime = Date.timeIntervalSinceReferenceDate
@@ -350,5 +381,6 @@ public class GraphRenderer : MetalViewRenderer
                                      iterationInfo: nil,
                                      eventInfo: nil)
     }
+    
 }
 

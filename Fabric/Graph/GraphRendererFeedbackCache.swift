@@ -11,7 +11,8 @@ import Foundation
 /// We then use this Cache if we detect feedback and need to populate inlets of other connected
 /// 'downstream' nodes which are also upstream (feedback)
 
-internal final class GraphRendererFeedbackCache {
+internal final class GraphRendererFeedbackCache
+{
     
     // TODO: in theory we can remove the dirty semantics from node?
     public enum NodeProcessingState
@@ -29,8 +30,15 @@ internal final class GraphRendererFeedbackCache {
         let frameNumber: Int
     }
 
+    private let graphID:UUID
+
     private var lastCachePruneFrameNumber: Int = -1
     private var previousFrameCache: [PortCacheKey: PortValue] = [:]
+    
+    internal init(graphID:UUID)
+    {
+        self.graphID = graphID
+    }
     
     public func resetCacheFor(executionContext:GraphExecutionContext)
     {
@@ -45,6 +53,8 @@ internal final class GraphRendererFeedbackCache {
             self.previousFrameCache = previousFrameCache.filter { $0.key.frameNumber == previousFrame }
             self.lastCachePruneFrameNumber = currentFrame
         }
+        
+//        print("GraphRendererFeedbackCache: resetCacheFor: \(graphID) frame \(currentFrame)")
     }
     
     func processingState(forNode node:Node) -> NodeProcessingState
@@ -88,6 +98,8 @@ internal final class GraphRendererFeedbackCache {
 
                 // This is the critical part: make the inlet read last frame instead of recursing
                 inlet.setBoxedValue(cached)
+                
+//                print("GraphRendererFeedbackCache: setFeedbackState: \(graphID) frame \(currentFrame) node: \(node.name) inlet port: \(inlet.name)")
             }
         }
     }
@@ -110,6 +122,9 @@ internal final class GraphRendererFeedbackCache {
                 {
                     previousFrameCache.removeValue(forKey: key)
                 }
+                
+//                print("GraphRendererFeedbackCache: cacheProcessedNode: \(graphID) frame \(currentFrame) node: \(node.name) outlet port: \(outlet.name)")
+
             }
         }
     }

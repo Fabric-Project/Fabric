@@ -7,6 +7,8 @@
 
 import Foundation
 
+
+
 enum UnaryMathOperator: String, CaseIterable
 {
     case Sine
@@ -61,6 +63,36 @@ enum BinaryMathOperator: String, CaseIterable
         case .Minimum: return min(lhs, rhs)
         case .Maximum: return max(lhs, rhs)
         case .Modulo: return rhs != 0 ? fmod(lhs, rhs) : 0
+        }
+    }
+}
+
+enum BinaryMathLogicOperator: String, CaseIterable
+{
+    case Equals
+    case GreaterThan
+    case GreaterThanEquals
+    case LessThan
+    case LessThanEquals
+    
+    func perform(lhs: Float, rhs: Float) -> Bool
+    {
+        switch self
+        {
+        case .Equals:
+            return lhs == rhs
+            
+        case .GreaterThan:
+            return lhs > rhs
+            
+        case .GreaterThanEquals:
+            return lhs >= rhs
+            
+        case .LessThan:
+            return lhs < rhs
+            
+        case .LessThanEquals:
+            return lhs <= rhs
         }
     }
 }

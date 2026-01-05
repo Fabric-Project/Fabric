@@ -43,7 +43,11 @@ struct NodeOutletView: View
                                   let targetPort = self.graph.nodePort(forID: targetPortID),
                                   targetPort.id != self.port.id,
                                   targetPort.kind == .Inlet,
-                                  targetPort.portType.canConnect(to: self.port.portType) else {
+                                  targetPort.canConnect(to: self.port)
+
+//                                  targetPort.portType.canConnect(to: self.port.portType)
+                            else
+                            {
                                 return
                             }
 
@@ -57,6 +61,8 @@ struct NodeOutletView: View
 
                         [  port.id : anchor ]
                     })
+                .help("\(port.name): \(port.portType.rawValue)")
+
         }
         .frame(height: 15)
     }
