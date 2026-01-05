@@ -61,21 +61,21 @@ fragment half4 postFragment( VertexData                       in   [[stage_in]],
 
     // Duotone ramp based on luma:
     // lum=0 (dark) -> fgColor, lum=1 (light) -> bgColor
-    half3 fgC = half3(u.fgColor.rgb);
-    half3 bgC = half3(u.bgColor.rgb);
-    half3 duo = mix(fgC, bgC, half(lum));
+    half4 fgC = half4(u.fgColor);
+    half4 bgC = half4(u.bgColor);
+    half4 duo = mix(fgC, bgC, half(lum));
 
     // Build background and foreground layers with independent mixing vs original image
     // bgLayer: 0 => original image, 1 => bgColor (but we apply "light side" of duo via bgColor dominance)
     // fgLayer: 0 => original image, 1 => fgColor (dark side)
-    half3 bgLayer = mix(src.rgb, bgC, half(u.bgAmount));
-    half3 fgLayer = mix(src.rgb, fgC, half(u.fgAmount));
+    half4 bgLayer = mix(src, bgC, half(u.bgAmount));
+    half4 fgLayer = mix(src, fgC, half(u.fgAmount));
 
     // Also keep the duotone ramp available as the "paper-to-ink" mapping
     // We'll use it to shade the hatch brightness (so color always comes from fg/bg concept).
     // Base "paper" is background layer; "ink" is foreground layer.
-    half3 paper = bgLayer;
-    half3 ink   = fgLayer;
+    half4 paper = bgLayer;
+    half4 ink   = fgLayer;
 
     // Pixel-space coords for hatch pattern
     float2 texSize = float2(tex0.get_width(), tex0.get_height());
@@ -134,17 +134,18 @@ fragment half4 postFragment( VertexData                       in   [[stage_in]],
     // Combine hatch ink + edge ink (union)
     float combinedInk = clamp(max(inkMask, edgeInk), 0.0f, 1.0f);
 
+
     // Final duotone application:
     // - Paper is background layer
     // - Ink is foreground layer
     // combinedInk decides where ink replaces paper
-    half3 duoOut = mix(paper, ink, half(combinedInk));
+    half4 duoOut = mix(paper, ink, half(combinedInk));
 
     // (Optional) If you want the duotone ramp to influence paper/ink further, you can multiply:
-    // duoOut *= duo;
+//     duoOut *= duo;
     // Leaving it off keeps "paper" and "ink" clean and controllable via bg/fg amounts + colors.
 
-    half4 outColor = half4(duoOut, src.a);
+//    half4 outColor = half4(duoOut, src.a);
 
-    return mix(src, outColor, half(u.amount));
+    return mix(src, duoOut, half(u.amount));
 }
