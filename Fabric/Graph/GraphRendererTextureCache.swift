@@ -240,6 +240,7 @@ internal final class GraphRendererTextureCache {
         heapDesc.storageMode = config.storageMode
         heapDesc.cpuCacheMode = config.cpuCacheMode
         heapDesc.type = config.heapType
+        heapDesc.hazardTrackingMode = .tracked
 
         guard let heap = device.makeHeap(descriptor: heapDesc) else { return nil }
         totalHeapsCreated += 1
