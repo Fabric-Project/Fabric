@@ -1,5 +1,9 @@
 {
-  "id" : "13877360-E87B-4493-8B8A-D30EF2D560A3",
+  "version" : {
+    "alpha1" : {
+
+    }
+  },
   "notes" : [
     {
       "rect" : [
@@ -12,102 +16,11 @@
           500
         ]
       ],
-      "id" : "DE28098A-6802-4A7E-85BE-CCFF27A6C52D",
-      "note" : "# Genuary 4\n\n> Lowres. An image or graphic with low resolution, where details are simplified or pixelated.\n\nThis patch Requires Fabric Alpha 7 or better (stay tuned)\n\nThis patch features\n\n\n* A movie player\n   * Dont forget to load your own content in!\n\n* 2 independent Pixelization -> Crosshatch chains\n* The top path has a a transparent background\n* We composite them over one another\n* We then apply some post processing to get a nice look\n\nThats it!\n\n### Experiment\n\nPlay around with the cross hatch controls, its admittedly a bit finicky and needs to be tuned \n\nPlay around with different pixelization amounts for each pass\n\nTry adding a new pixelization pass and another color \/ cross hatch (hint, you’ll need another composite over too)"
+      "note" : "# Genuary 4\n\n> Lowres. An image or graphic with low resolution, where details are simplified or pixelated.\n\nThis patch Requires Fabric Alpha 7 or better (stay tuned)\n\nThis patch features\n\n\n* A movie player\n   * Dont forget to load your own content in!\n\n* 2 independent Pixelization -> Crosshatch chains\n* The top path has a a transparent background\n* We composite them over one another\n* We then apply some post processing to get a nice look\n\nThats it!\n\n### Experiment\n\nPlay around with the cross hatch controls, its admittedly a bit finicky and needs to be tuned \n\nPlay around with different pixelization amounts for each pass\n\nTry adding a new pixelization pass and another color \/ cross hatch (hint, you’ll need another composite over too)",
+      "id" : "5A9BA7C2-7BC5-4A92-AA3B-5086EF17EF9B"
     }
   ],
-  "version" : {
-    "alpha1" : {
-
-    }
-  },
-  "portConnectionMap" : [
-    "F3E714AD-AFA6-4DE3-B676-9B416D399187",
-    [
-      "0E4B2A64-E551-4C33-B39D-FF5E95E8A7CA"
-    ],
-    "048790B9-C517-459B-B00B-942EA7FD5A26",
-    [
-      "8D9CA7D2-0697-412C-9372-0FB25866A620"
-    ],
-    "71B50B74-3EFA-411D-944F-BC0188E71F56",
-    [
-      "A6F3A30B-E10B-4D3E-9446-91C446AC0A97"
-    ],
-    "A6F3A30B-E10B-4D3E-9446-91C446AC0A97",
-    [
-      "F8374E17-1BAD-43D8-A1D0-C3D1B807993E",
-      "71B50B74-3EFA-411D-944F-BC0188E71F56"
-    ],
-    "32B52647-4389-4F24-B746-DE13C5F4C894",
-    [
-      "B33E67BD-3107-4E7B-8656-88A73FC673EA"
-    ],
-    "8D9CA7D2-0697-412C-9372-0FB25866A620",
-    [
-      "048790B9-C517-459B-B00B-942EA7FD5A26"
-    ],
-    "B33E67BD-3107-4E7B-8656-88A73FC673EA",
-    [
-      "32B52647-4389-4F24-B746-DE13C5F4C894"
-    ],
-    "E73E5AD1-8CD1-42D6-99BF-F47A4D44BBE6",
-    [
-      "6B7501A2-19F3-43E8-B53D-FD5D9E453173"
-    ],
-    "F8374E17-1BAD-43D8-A1D0-C3D1B807993E",
-    [
-      "A6F3A30B-E10B-4D3E-9446-91C446AC0A97"
-    ],
-    "C6182F6D-8409-4C37-88C5-3208D819D4FD",
-    [
-      "BB39F619-6CB8-4CDD-8178-EF1B927742D1"
-    ],
-    "2795A407-AA3C-4457-9EB3-CA65CD7F42A4",
-    [
-      "95B7BCDB-4E9F-4AB5-9BAB-D08015E1F7EE"
-    ],
-    "AE3F6F86-CDED-4D87-87DB-3DC45113CF32",
-    [
-      "FB7B00F6-018B-4E4F-AD0D-9CFFCFC02AA8"
-    ],
-    "6B7501A2-19F3-43E8-B53D-FD5D9E453173",
-    [
-      "E73E5AD1-8CD1-42D6-99BF-F47A4D44BBE6"
-    ],
-    "FE941A85-A74B-4476-9B51-3D8ED5858329",
-    [
-      "A53889EA-3EA0-42F2-99E6-CC5A1C7D1ED1"
-    ],
-    "FB7B00F6-018B-4E4F-AD0D-9CFFCFC02AA8",
-    [
-      "AE3F6F86-CDED-4D87-87DB-3DC45113CF32"
-    ],
-    "B6558BDF-F003-4893-9326-5816D6D1F0CF",
-    [
-      "C9068280-1C58-4749-A3F7-D0EDFCD2FB86"
-    ],
-    "0E4B2A64-E551-4C33-B39D-FF5E95E8A7CA",
-    [
-      "F3E714AD-AFA6-4DE3-B676-9B416D399187"
-    ],
-    "95B7BCDB-4E9F-4AB5-9BAB-D08015E1F7EE",
-    [
-      "2795A407-AA3C-4457-9EB3-CA65CD7F42A4"
-    ],
-    "C9068280-1C58-4749-A3F7-D0EDFCD2FB86",
-    [
-      "B6558BDF-F003-4893-9326-5816D6D1F0CF"
-    ],
-    "BB39F619-6CB8-4CDD-8178-EF1B927742D1",
-    [
-      "C6182F6D-8409-4C37-88C5-3208D819D4FD"
-    ],
-    "A53889EA-3EA0-42F2-99E6-CC5A1C7D1ED1",
-    [
-      "FE941A85-A74B-4476-9B51-3D8ED5858329"
-    ]
-  ],
+  "id" : "13877360-E87B-4493-8B8A-D30EF2D560A3",
   "nodeMap" : [
     {
       "value" : {
@@ -115,213 +28,213 @@
           -192.21075803210988,
           -176.57116175993633
         ],
+        "id" : "962DD9D0-D799-49BE-9D51-A9CEC4C85D76",
         "ports" : [
           {
             "payload" : {
-              "isParameterPort" : true,
               "base" : {
-                "name" : "Visible",
-                "kind" : "Inlet",
+                "id" : "35B07DAC-1DF4-4ABA-BF30-9FA945663C8B",
                 "parameter" : {
-                  "type" : "bool",
                   "base" : {
                     "description" : "",
-                    "label" : "Visible",
-                    "value" : true,
+                    "controlType" : "button",
                     "defaultValue" : true,
+                    "value" : true,
                     "id" : "35B07DAC-1DF4-4ABA-BF30-9FA945663C8B",
-                    "controlType" : "button"
-                  }
+                    "label" : "Visible"
+                  },
+                  "type" : "bool"
                 },
-                "id" : "35B07DAC-1DF4-4ABA-BF30-9FA945663C8B",
+                "name" : "Visible",
+                "published" : false,
+                "kind" : "Inlet",
                 "connections" : [
 
-                ],
-                "published" : false
+                ]
               },
-              "type" : "Bool"
+              "type" : "Bool",
+              "isParameterPort" : true
             },
             "name" : "inputVisible"
           },
           {
             "payload" : {
               "base" : {
+                "name" : "Render Order",
+                "connections" : [
+
+                ],
                 "kind" : "Inlet",
+                "published" : false,
                 "id" : "A17A5E74-7ED1-49A8-8548-7EB3EB85B177",
                 "parameter" : {
                   "base" : {
-                    "max" : 1,
-                    "controlType" : "inputfield",
-                    "defaultValue" : 0,
-                    "value" : 0,
                     "description" : "",
+                    "controlType" : "inputfield",
                     "id" : "A17A5E74-7ED1-49A8-8548-7EB3EB85B177",
+                    "value" : 0,
                     "label" : "Render Order",
-                    "min" : 0
+                    "min" : 0,
+                    "max" : 1,
+                    "defaultValue" : 0
                   },
                   "type" : "int"
-                },
-                "name" : "Render Order",
-                "published" : false,
-                "connections" : [
-
-                ]
+                }
               },
-              "type" : "Int",
-              "isParameterPort" : true
+              "isParameterPort" : true,
+              "type" : "Int"
             },
             "name" : "inputRenderOrder"
           },
           {
             "payload" : {
-              "type" : "Int",
               "isParameterPort" : true,
+              "type" : "Int",
               "base" : {
-                "parameter" : {
-                  "type" : "int",
-                  "base" : {
-                    "max" : 1,
-                    "controlType" : "inputfield",
-                    "defaultValue" : 0,
-                    "value" : 0,
-                    "description" : "",
-                    "id" : "C08CC98C-EE3F-42D2-A4FC-C280354CB200",
-                    "label" : "Render Pass",
-                    "min" : 0
-                  }
-                },
+                "published" : false,
+                "kind" : "Inlet",
                 "connections" : [
 
                 ],
+                "parameter" : {
+                  "base" : {
+                    "description" : "",
+                    "controlType" : "inputfield",
+                    "id" : "C08CC98C-EE3F-42D2-A4FC-C280354CB200",
+                    "value" : 0,
+                    "label" : "Render Pass",
+                    "min" : 0,
+                    "max" : 1,
+                    "defaultValue" : 0
+                  },
+                  "type" : "int"
+                },
                 "name" : "Render Pass",
-                "kind" : "Inlet",
-                "id" : "C08CC98C-EE3F-42D2-A4FC-C280354CB200",
-                "published" : false
+                "id" : "C08CC98C-EE3F-42D2-A4FC-C280354CB200"
               }
             },
             "name" : "inputRenderPass"
           },
           {
             "payload" : {
-              "type" : "Vector 3",
               "isParameterPort" : true,
+              "type" : "Vector 3",
               "base" : {
                 "name" : "Position",
-                "kind" : "Inlet",
-                "published" : false,
                 "parameter" : {
-                  "type" : "float3",
                   "base" : {
-                    "max" : [
-                      1,
-                      1,
-                      1
-                    ],
+                    "description" : "",
                     "controlType" : "inputfield",
-                    "defaultValue" : [
-                      0,
-                      0,
-                      0
-                    ],
+                    "id" : "0289E05B-34D9-4F22-9377-4A7960417648",
                     "value" : [
                       0,
                       0,
                       0
                     ],
-                    "description" : "",
-                    "id" : "0289E05B-34D9-4F22-9377-4A7960417648",
                     "label" : "Position",
                     "min" : [
                       0,
                       0,
                       0
+                    ],
+                    "max" : [
+                      1,
+                      1,
+                      1
+                    ],
+                    "defaultValue" : [
+                      0,
+                      0,
+                      0
                     ]
-                  }
+                  },
+                  "type" : "float3"
                 },
+                "id" : "0289E05B-34D9-4F22-9377-4A7960417648",
+                "published" : false,
                 "connections" : [
 
                 ],
-                "id" : "0289E05B-34D9-4F22-9377-4A7960417648"
+                "kind" : "Inlet"
               }
             },
             "name" : "inputPosition"
           },
           {
             "payload" : {
-              "type" : "Vector 3",
               "base" : {
+                "name" : "Scale",
+                "published" : false,
                 "connections" : [
 
                 ],
-                "name" : "Scale",
-                "published" : false,
                 "parameter" : {
                   "type" : "float3",
                   "base" : {
-                    "max" : [
-                      1,
-                      1,
-                      1
-                    ],
+                    "description" : "",
                     "controlType" : "inputfield",
-                    "defaultValue" : [
-                      1,
-                      1,
-                      1
-                    ],
+                    "id" : "88D851F4-95F9-4D35-85DA-7F97F4A08F7F",
                     "value" : [
                       1,
                       1,
                       1
                     ],
-                    "description" : "",
-                    "id" : "88D851F4-95F9-4D35-85DA-7F97F4A08F7F",
                     "label" : "Scale",
                     "min" : [
                       0,
                       0,
                       0
+                    ],
+                    "max" : [
+                      1,
+                      1,
+                      1
+                    ],
+                    "defaultValue" : [
+                      1,
+                      1,
+                      1
                     ]
                   }
                 },
                 "id" : "88D851F4-95F9-4D35-85DA-7F97F4A08F7F",
                 "kind" : "Inlet"
               },
+              "type" : "Vector 3",
               "isParameterPort" : true
             },
             "name" : "inputScale"
           },
           {
             "payload" : {
-              "type" : "Vector 4",
               "isParameterPort" : true,
               "base" : {
-                "kind" : "Inlet",
+                "published" : false,
                 "parameter" : {
                   "base" : {
-                    "max" : [
-                      1,
-                      1,
-                      1,
-                      1
-                    ],
+                    "description" : "",
                     "controlType" : "inputfield",
-                    "defaultValue" : [
-                      0,
-                      0,
-                      0,
-                      0
-                    ],
+                    "id" : "01932265-5259-4F28-8320-B21A4777AFC9",
                     "value" : [
                       0,
                       0,
                       0,
                       0
                     ],
-                    "description" : "",
-                    "id" : "01932265-5259-4F28-8320-B21A4777AFC9",
                     "label" : "Orientation",
                     "min" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
+                    "max" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "defaultValue" : [
                       0,
                       0,
                       0,
@@ -331,167 +244,158 @@
                   "type" : "float4"
                 },
                 "name" : "Orientation",
+                "kind" : "Inlet",
                 "connections" : [
 
                 ],
-                "published" : false,
                 "id" : "01932265-5259-4F28-8320-B21A4777AFC9"
-              }
+              },
+              "type" : "Vector 4"
             },
             "name" : "inputOrientation"
           },
           {
             "payload" : {
-              "type" : "Geometry",
               "isParameterPort" : false,
               "base" : {
-                "name" : "Geometry",
-                "published" : false,
-                "id" : "B33E67BD-3107-4E7B-8656-88A73FC673EA",
-                "kind" : "Inlet",
                 "connections" : [
                   "32B52647-4389-4F24-B746-DE13C5F4C894"
-                ]
-              }
+                ],
+                "id" : "B33E67BD-3107-4E7B-8656-88A73FC673EA",
+                "published" : false,
+                "name" : "Geometry",
+                "kind" : "Inlet"
+              },
+              "type" : "Geometry"
             },
             "name" : "inputGeometry"
           },
           {
             "payload" : {
-              "isParameterPort" : false,
               "base" : {
+                "kind" : "Inlet",
+                "published" : false,
                 "connections" : [
                   "2795A407-AA3C-4457-9EB3-CA65CD7F42A4"
                 ],
-                "id" : "95B7BCDB-4E9F-4AB5-9BAB-D08015E1F7EE",
-                "kind" : "Inlet",
                 "name" : "Material",
-                "published" : false
+                "id" : "95B7BCDB-4E9F-4AB5-9BAB-D08015E1F7EE"
               },
-              "type" : "Material"
+              "type" : "Material",
+              "isParameterPort" : false
             },
             "name" : "inputMaterial"
           },
           {
             "payload" : {
-              "type" : "Bool",
               "base" : {
                 "parameter" : {
+                  "type" : "bool",
                   "base" : {
-                    "id" : "5D08ED1A-BD16-4201-BEAF-087103129023",
-                    "defaultValue" : true,
                     "description" : "",
-                    "label" : "Enable Shadows",
+                    "id" : "5D08ED1A-BD16-4201-BEAF-087103129023",
                     "value" : true,
-                    "controlType" : "button"
-                  },
-                  "type" : "bool"
+                    "controlType" : "button",
+                    "defaultValue" : true,
+                    "label" : "Enable Shadows"
+                  }
                 },
-                "kind" : "Inlet",
                 "id" : "5D08ED1A-BD16-4201-BEAF-087103129023",
                 "name" : "Enable Shadows",
                 "published" : false,
+                "kind" : "Inlet",
                 "connections" : [
 
                 ]
               },
+              "type" : "Bool",
               "isParameterPort" : true
             },
             "name" : "inputCastsShadow"
           },
           {
             "payload" : {
+              "type" : "Bool",
+              "isParameterPort" : true,
               "base" : {
-                "id" : "647B9A24-BB51-4D31-B0B9-763CB88A1CB6",
                 "published" : false,
                 "parameter" : {
                   "type" : "bool",
                   "base" : {
-                    "controlType" : "button",
+                    "id" : "647B9A24-BB51-4D31-B0B9-763CB88A1CB6",
                     "label" : "Double Sided",
-                    "description" : "",
-                    "value" : false,
                     "defaultValue" : false,
-                    "id" : "647B9A24-BB51-4D31-B0B9-763CB88A1CB6"
+                    "value" : false,
+                    "description" : "",
+                    "controlType" : "button"
                   }
                 },
-                "name" : "Double Sided",
                 "connections" : [
 
                 ],
-                "kind" : "Inlet"
-              },
-              "isParameterPort" : true,
-              "type" : "Bool"
+                "kind" : "Inlet",
+                "name" : "Double Sided",
+                "id" : "647B9A24-BB51-4D31-B0B9-763CB88A1CB6"
+              }
             },
             "name" : "inputDoubleSided"
           },
           {
             "payload" : {
-              "type" : "String",
               "isParameterPort" : true,
+              "type" : "String",
               "base" : {
-                "name" : "Culling Mode",
-                "published" : false,
                 "parameter" : {
+                  "type" : "string",
                   "base" : {
+                    "defaultValue" : "Back",
+                    "controlType" : "dropdown",
+                    "label" : "Culling Mode",
+                    "id" : "8344EE17-B395-4063-A251-9427D8D6EDC6",
+                    "description" : "",
+                    "value" : "Back",
                     "options" : [
                       "Back",
                       "Front",
                       "None"
-                    ],
-                    "description" : "",
-                    "value" : "Back",
-                    "id" : "8344EE17-B395-4063-A251-9427D8D6EDC6",
-                    "controlType" : "dropdown",
-                    "label" : "Culling Mode",
-                    "defaultValue" : "Back"
-                  },
-                  "type" : "string"
+                    ]
+                  }
                 },
                 "id" : "8344EE17-B395-4063-A251-9427D8D6EDC6",
-                "kind" : "Inlet",
                 "connections" : [
 
-                ]
+                ],
+                "published" : false,
+                "kind" : "Inlet",
+                "name" : "Culling Mode"
               }
             },
             "name" : "inputCullingMode"
           }
-        ],
-        "id" : "962DD9D0-D799-49BE-9D51-A9CEC4C85D76"
+        ]
       },
       "type" : "MeshNode"
     },
     {
       "value" : {
-        "nodeOffset" : [
-          0,
-          -200
-        ],
-        "id" : "764CF887-C786-4DD3-B634-1E2560647554",
         "ports" : [
           {
             "name" : "inputLookAt",
             "payload" : {
+              "isParameterPort" : true,
+              "type" : "Vector 3",
               "base" : {
+                "kind" : "Inlet",
+                "connections" : [
+
+                ],
+                "id" : "4FAEC133-1A83-4002-97C4-24465C5B3CAC",
                 "parameter" : {
                   "type" : "float3",
                   "base" : {
-                    "defaultValue" : [
-                      0,
-                      0,
-                      0
-                    ],
-                    "description" : "",
-                    "max" : [
-                      1,
-                      1,
-                      1
-                    ],
                     "controlType" : "inputfield",
-                    "label" : "Look At",
-                    "value" : [
+                    "description" : "",
+                    "defaultValue" : [
                       0,
                       0,
                       0
@@ -501,34 +405,37 @@
                       0,
                       0,
                       0
+                    ],
+                    "max" : [
+                      1,
+                      1,
+                      1
+                    ],
+                    "label" : "Look At",
+                    "value" : [
+                      0,
+                      0,
+                      0
                     ]
                   }
                 },
-                "id" : "4FAEC133-1A83-4002-97C4-24465C5B3CAC",
                 "name" : "Look At",
-                "kind" : "Inlet",
-                "published" : false,
-                "connections" : [
-
-                ]
-              },
-              "type" : "Vector 3",
-              "isParameterPort" : true
+                "published" : false
+              }
             }
           },
           {
             "name" : "inputColor",
             "payload" : {
-              "type" : "Vector 3",
               "base" : {
-                "published" : false,
+                "id" : "C4640109-F68B-4370-B131-18BF9E0FF202",
+                "name" : "Color",
+                "kind" : "Inlet",
                 "connections" : [
 
                 ],
                 "parameter" : {
-                  "type" : "float3",
                   "base" : {
-                    "id" : "C4640109-F68B-4370-B131-18BF9E0FF202",
                     "value" : [
                       1,
                       1,
@@ -539,165 +446,195 @@
                       1,
                       1
                     ],
+                    "controlType" : "inputfield",
+                    "label" : "Color",
                     "max" : [
                       1,
                       1,
                       1
                     ],
+                    "id" : "C4640109-F68B-4370-B131-18BF9E0FF202",
+                    "description" : "",
                     "min" : [
                       0,
                       0,
                       0
-                    ],
-                    "label" : "Color",
-                    "description" : "",
-                    "controlType" : "inputfield"
-                  }
+                    ]
+                  },
+                  "type" : "float3"
                 },
-                "id" : "C4640109-F68B-4370-B131-18BF9E0FF202",
-                "name" : "Color",
-                "kind" : "Inlet"
+                "published" : false
               },
-              "isParameterPort" : true
+              "isParameterPort" : true,
+              "type" : "Vector 3"
             }
           },
           {
             "name" : "inputIntensity",
             "payload" : {
+              "isParameterPort" : true,
               "type" : "Float",
               "base" : {
-                "id" : "7936C674-1880-467F-B6C2-405EF04F21B5",
+                "name" : "Intensity",
+                "kind" : "Inlet",
                 "connections" : [
 
                 ],
+                "id" : "7936C674-1880-467F-B6C2-405EF04F21B5",
+                "published" : false,
                 "parameter" : {
                   "type" : "float",
                   "base" : {
-                    "label" : "Intensity",
                     "id" : "7936C674-1880-467F-B6C2-405EF04F21B5",
-                    "min" : 0,
-                    "defaultValue" : 1,
                     "value" : 1,
-                    "max" : 10,
+                    "min" : 0,
+                    "label" : "Intensity",
+                    "description" : "",
                     "controlType" : "slider",
-                    "description" : ""
+                    "max" : 10,
+                    "defaultValue" : 1
                   }
-                },
-                "name" : "Intensity",
-                "kind" : "Inlet",
-                "published" : false
-              },
-              "isParameterPort" : true
+                }
+              }
             }
           },
           {
             "name" : "inputShadowStrength",
             "payload" : {
-              "type" : "Float",
               "base" : {
+                "kind" : "Inlet",
                 "published" : false,
                 "connections" : [
 
                 ],
-                "kind" : "Inlet",
+                "id" : "9243E9EE-1809-46FA-98F1-1463C2C0FAEA",
                 "parameter" : {
+                  "type" : "float",
                   "base" : {
-                    "id" : "9243E9EE-1809-46FA-98F1-1463C2C0FAEA",
                     "description" : "",
-                    "min" : 0,
-                    "defaultValue" : 0.5,
                     "label" : "Shadow Strength",
+                    "defaultValue" : 0.5,
+                    "value" : 0.5,
                     "controlType" : "slider",
-                    "max" : 1,
-                    "value" : 0.5
-                  },
-                  "type" : "float"
+                    "id" : "9243E9EE-1809-46FA-98F1-1463C2C0FAEA",
+                    "min" : 0,
+                    "max" : 1
+                  }
                 },
-                "name" : "Shadow Strength",
-                "id" : "9243E9EE-1809-46FA-98F1-1463C2C0FAEA"
+                "name" : "Shadow Strength"
               },
-              "isParameterPort" : true
+              "isParameterPort" : true,
+              "type" : "Float"
             }
           },
           {
             "name" : "inputShadowRadius",
             "payload" : {
               "type" : "Float",
+              "isParameterPort" : true,
               "base" : {
-                "name" : "Shadow Radius",
                 "kind" : "Inlet",
-                "id" : "21096F22-D76C-4D08-9A42-1EB6F7884119",
-                "connections" : [
-
-                ],
                 "parameter" : {
                   "type" : "float",
                   "base" : {
-                    "id" : "21096F22-D76C-4D08-9A42-1EB6F7884119",
                     "defaultValue" : 2,
+                    "label" : "Shadow Radius",
+                    "min" : 0,
+                    "max" : 16,
+                    "value" : 2,
                     "controlType" : "slider",
                     "description" : "",
-                    "min" : 0,
-                    "value" : 2,
-                    "max" : 16,
-                    "label" : "Shadow Radius"
+                    "id" : "21096F22-D76C-4D08-9A42-1EB6F7884119"
                   }
                 },
+                "id" : "21096F22-D76C-4D08-9A42-1EB6F7884119",
+                "name" : "Shadow Radius",
+                "connections" : [
+
+                ],
                 "published" : false
-              },
-              "isParameterPort" : true
+              }
             }
           },
           {
             "name" : "inputShadowBias",
             "payload" : {
-              "type" : "Float",
+              "isParameterPort" : true,
               "base" : {
-                "published" : false,
-                "kind" : "Inlet",
                 "id" : "968E177C-6F6B-46A7-AACC-3DFEB880D892",
                 "connections" : [
 
                 ],
+                "name" : "Shadow Bias",
+                "published" : false,
+                "kind" : "Inlet",
                 "parameter" : {
                   "type" : "float",
                   "base" : {
-                    "description" : "",
+                    "max" : 1,
                     "defaultValue" : 0.005,
+                    "min" : 0,
                     "controlType" : "slider",
                     "value" : 0.005,
+                    "label" : "Shadow Bias",
                     "id" : "968E177C-6F6B-46A7-AACC-3DFEB880D892",
-                    "min" : 0,
-                    "max" : 1,
-                    "label" : "Shadow Bias"
+                    "description" : ""
                   }
-                },
-                "name" : "Shadow Bias"
+                }
               },
-              "isParameterPort" : true
+              "type" : "Float"
             }
           },
           {
             "name" : "inputVisible",
             "payload" : {
               "type" : "Bool",
+              "isParameterPort" : true,
               "base" : {
-                "published" : false,
+                "id" : "D7AF3E3C-5A21-4DBF-A507-E970AD36D11F",
                 "name" : "Visible",
+                "published" : false,
+                "parameter" : {
+                  "base" : {
+                    "controlType" : "button",
+                    "label" : "Visible",
+                    "defaultValue" : true,
+                    "id" : "D7AF3E3C-5A21-4DBF-A507-E970AD36D11F",
+                    "value" : true,
+                    "description" : ""
+                  },
+                  "type" : "bool"
+                },
                 "connections" : [
 
                 ],
+                "kind" : "Inlet"
+              }
+            }
+          },
+          {
+            "name" : "inputRenderOrder",
+            "payload" : {
+              "type" : "Int",
+              "base" : {
+                "name" : "Render Order",
                 "kind" : "Inlet",
-                "id" : "D7AF3E3C-5A21-4DBF-A507-E970AD36D11F",
+                "id" : "F0026251-CC92-4283-A70F-25018C3F6DCD",
+                "connections" : [
+
+                ],
+                "published" : false,
                 "parameter" : {
-                  "type" : "bool",
+                  "type" : "int",
                   "base" : {
+                    "max" : 1,
+                    "min" : 0,
+                    "defaultValue" : 0,
+                    "id" : "F0026251-CC92-4283-A70F-25018C3F6DCD",
                     "description" : "",
-                    "value" : true,
-                    "controlType" : "button",
-                    "label" : "Visible",
-                    "id" : "D7AF3E3C-5A21-4DBF-A507-E970AD36D11F",
-                    "defaultValue" : true
+                    "label" : "Render Order",
+                    "controlType" : "inputfield",
+                    "value" : 0
                   }
                 }
               },
@@ -705,40 +642,13 @@
             }
           },
           {
-            "name" : "inputRenderOrder",
-            "payload" : {
-              "base" : {
-                "kind" : "Inlet",
-                "name" : "Render Order",
-                "parameter" : {
-                  "base" : {
-                    "id" : "F0026251-CC92-4283-A70F-25018C3F6DCD",
-                    "max" : 1,
-                    "controlType" : "inputfield",
-                    "description" : "",
-                    "min" : 0,
-                    "label" : "Render Order",
-                    "defaultValue" : 0,
-                    "value" : 0
-                  },
-                  "type" : "int"
-                },
-                "id" : "F0026251-CC92-4283-A70F-25018C3F6DCD",
-                "published" : false,
-                "connections" : [
-
-                ]
-              },
-              "isParameterPort" : true,
-              "type" : "Int"
-            }
-          },
-          {
             "name" : "inputRenderPass",
             "payload" : {
               "type" : "Int",
-              "isParameterPort" : true,
               "base" : {
+                "name" : "Render Pass",
+                "id" : "37919B8C-8F08-4B45-9BB4-17D01CDFB0B8",
+                "published" : false,
                 "kind" : "Inlet",
                 "connections" : [
 
@@ -746,34 +656,33 @@
                 "parameter" : {
                   "type" : "int",
                   "base" : {
-                    "max" : 1,
-                    "value" : 0,
-                    "label" : "Render Pass",
-                    "description" : "",
-                    "id" : "37919B8C-8F08-4B45-9BB4-17D01CDFB0B8",
                     "min" : 0,
+                    "max" : 1,
+                    "label" : "Render Pass",
+                    "value" : 0,
+                    "id" : "37919B8C-8F08-4B45-9BB4-17D01CDFB0B8",
                     "defaultValue" : 0,
+                    "description" : "",
                     "controlType" : "inputfield"
                   }
-                },
-                "published" : false,
-                "id" : "37919B8C-8F08-4B45-9BB4-17D01CDFB0B8",
-                "name" : "Render Pass"
-              }
+                }
+              },
+              "isParameterPort" : true
             }
           },
           {
             "name" : "inputPosition",
             "payload" : {
+              "isParameterPort" : true,
+              "type" : "Vector 3",
               "base" : {
-                "id" : "C8EA1AEA-D162-466C-829E-22668EEDBD9D",
-                "published" : false,
+                "name" : "Position",
                 "connections" : [
 
                 ],
-                "name" : "Position",
-                "kind" : "Inlet",
+                "published" : false,
                 "parameter" : {
+                  "type" : "float3",
                   "base" : {
                     "controlType" : "inputfield",
                     "value" : [
@@ -781,14 +690,8 @@
                       2,
                       5
                     ],
-                    "defaultValue" : [
-                      0,
-                      0,
-                      0
-                    ],
                     "description" : "",
                     "id" : "C8EA1AEA-D162-466C-829E-22668EEDBD9D",
-                    "label" : "Position",
                     "min" : [
                       0,
                       0,
@@ -798,13 +701,18 @@
                       1,
                       1,
                       1
-                    ]
-                  },
-                  "type" : "float3"
-                }
-              },
-              "isParameterPort" : true,
-              "type" : "Vector 3"
+                    ],
+                    "defaultValue" : [
+                      0,
+                      0,
+                      0
+                    ],
+                    "label" : "Position"
+                  }
+                },
+                "id" : "C8EA1AEA-D162-466C-829E-22668EEDBD9D",
+                "kind" : "Inlet"
+              }
             }
           },
           {
@@ -812,42 +720,42 @@
             "payload" : {
               "type" : "Vector 3",
               "base" : {
-                "id" : "A93C4B4E-53A5-495B-ABF8-B6B4C6251C83",
-                "kind" : "Inlet",
                 "parameter" : {
                   "base" : {
-                    "defaultValue" : [
-                      1,
-                      1,
-                      1
-                    ],
                     "min" : [
                       0,
                       0,
                       0
                     ],
-                    "label" : "Scale",
                     "description" : "",
-                    "max" : [
-                      1,
-                      1,
-                      1
-                    ],
                     "value" : [
                       1,
                       1,
                       1
                     ],
-                    "controlType" : "inputfield",
-                    "id" : "A93C4B4E-53A5-495B-ABF8-B6B4C6251C83"
+                    "max" : [
+                      1,
+                      1,
+                      1
+                    ],
+                    "defaultValue" : [
+                      1,
+                      1,
+                      1
+                    ],
+                    "id" : "A93C4B4E-53A5-495B-ABF8-B6B4C6251C83",
+                    "label" : "Scale",
+                    "controlType" : "inputfield"
                   },
                   "type" : "float3"
                 },
-                "published" : false,
+                "kind" : "Inlet",
+                "name" : "Scale",
                 "connections" : [
 
                 ],
-                "name" : "Scale"
+                "published" : false,
+                "id" : "A93C4B4E-53A5-495B-ABF8-B6B4C6251C83"
               },
               "isParameterPort" : true
             }
@@ -858,14 +766,16 @@
               "isParameterPort" : true,
               "type" : "Vector 4",
               "base" : {
-                "published" : false,
-                "id" : "C966473E-2548-4EB7-9F5C-FFA0E758A867",
-                "connections" : [
-
-                ],
+                "kind" : "Inlet",
                 "parameter" : {
-                  "type" : "float4",
                   "base" : {
+                    "description" : "",
+                    "max" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
                     "controlType" : "inputfield",
                     "min" : [
                       0,
@@ -873,76 +783,79 @@
                       0,
                       0
                     ],
-                    "defaultValue" : [
-                      0,
-                      0,
-                      0,
-                      0
-                    ],
-                    "id" : "C966473E-2548-4EB7-9F5C-FFA0E758A867",
-                    "description" : "",
                     "value" : [
                       0,
                       0,
                       0,
                       0
                     ],
-                    "max" : [
-                      1,
-                      1,
-                      1,
-                      1
-                    ],
-                    "label" : "Orientation"
-                  }
+                    "id" : "C966473E-2548-4EB7-9F5C-FFA0E758A867",
+                    "label" : "Orientation",
+                    "defaultValue" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ]
+                  },
+                  "type" : "float4"
                 },
+                "published" : false,
+                "id" : "C966473E-2548-4EB7-9F5C-FFA0E758A867",
                 "name" : "Orientation",
-                "kind" : "Inlet"
+                "connections" : [
+
+                ]
               }
             }
           }
-        ]
+        ],
+        "nodeOffset" : [
+          0,
+          -200
+        ],
+        "id" : "764CF887-C786-4DD3-B634-1E2560647554"
       },
       "type" : "DirectionalLightNode"
     },
     {
       "value" : {
+        "effectPath" : "Effects\/Descimate\/Pixelate.metal",
+        "id" : "D0EE8EF5-C90A-428E-A30D-17EBD544DD59",
         "nodeOffset" : [
           -1368.2731083410563,
           74.9541159031005
         ],
-        "effectPath" : "Effects\/Descimate\/Pixelate.metal",
-        "id" : "D0EE8EF5-C90A-428E-A30D-17EBD544DD59",
         "ports" : [
           {
             "payload" : {
+              "type" : "Image",
+              "isParameterPort" : false,
               "base" : {
-                "kind" : "Inlet",
                 "published" : false,
                 "connections" : [
                   "A6F3A30B-E10B-4D3E-9446-91C446AC0A97"
                 ],
                 "id" : "F8374E17-1BAD-43D8-A1D0-C3D1B807993E",
-                "name" : "Image"
-              },
-              "isParameterPort" : false,
-              "type" : "Image"
+                "name" : "Image",
+                "kind" : "Inlet"
+              }
             },
             "name" : "inputTexturePort"
           },
           {
             "payload" : {
+              "isParameterPort" : false,
               "base" : {
+                "published" : false,
+                "id" : "E73E5AD1-8CD1-42D6-99BF-F47A4D44BBE6",
                 "connections" : [
                   "6B7501A2-19F3-43E8-B53D-FD5D9E453173"
                 ],
-                "id" : "E73E5AD1-8CD1-42D6-99BF-F47A4D44BBE6",
-                "name" : "Image",
                 "kind" : "Outlet",
-                "published" : false
+                "name" : "Image"
               },
-              "type" : "Image",
-              "isParameterPort" : false
+              "type" : "Image"
             },
             "name" : "outputTexturePort"
           },
@@ -950,26 +863,26 @@
             "payload" : {
               "type" : "Float",
               "base" : {
+                "published" : false,
                 "kind" : "Inlet",
+                "name" : "Amount",
                 "parameter" : {
                   "type" : "float",
                   "base" : {
-                    "label" : "Amount",
                     "description" : "",
-                    "value" : 0.016270079,
-                    "controlType" : "slider",
-                    "defaultValue" : 1e-08,
                     "min" : 1e-08,
-                    "id" : "6386BFE9-B2C5-4AAF-9725-D66CB4E91FE0",
-                    "max" : 1
+                    "max" : 1,
+                    "controlType" : "slider",
+                    "id" : "BEAB3E39-C5C5-40A8-8454-C94BDC66135F",
+                    "value" : 0.016270079,
+                    "defaultValue" : 1e-08,
+                    "label" : "Amount"
                   }
                 },
                 "connections" : [
 
                 ],
-                "id" : "B9C87E29-4E4E-4725-AEC2-56ECA38F08E7",
-                "published" : false,
-                "name" : "Amount"
+                "id" : "B9C87E29-4E4E-4725-AEC2-56ECA38F08E7"
               },
               "isParameterPort" : true
             },
@@ -981,580 +894,563 @@
     },
     {
       "value" : {
-        "effectPath" : "Effects\/Descimate\/Cross Hatch.metal",
-        "nodeOffset" : [
-          -1164.2885849538807,
-          79.06859281476227
-        ],
-        "id" : "BE896644-ADA6-456C-AAFC-8883CF3D6975",
         "ports" : [
           {
+            "name" : "inputTexturePort",
             "payload" : {
+              "isParameterPort" : false,
+              "type" : "Image",
               "base" : {
-                "name" : "Image",
-                "kind" : "Inlet",
                 "id" : "6B7501A2-19F3-43E8-B53D-FD5D9E453173",
+                "name" : "Image",
                 "published" : false,
                 "connections" : [
                   "E73E5AD1-8CD1-42D6-99BF-F47A4D44BBE6"
-                ]
-              },
-              "isParameterPort" : false,
-              "type" : "Image"
-            },
-            "name" : "inputTexturePort"
+                ],
+                "kind" : "Inlet"
+              }
+            }
           },
           {
+            "name" : "outputTexturePort",
             "payload" : {
+              "isParameterPort" : false,
+              "type" : "Image",
               "base" : {
-                "name" : "Image",
-                "kind" : "Outlet",
-                "id" : "B6558BDF-F003-4893-9326-5816D6D1F0CF",
                 "published" : false,
                 "connections" : [
                   "C9068280-1C58-4749-A3F7-D0EDFCD2FB86"
-                ]
-              },
-              "type" : "Image",
-              "isParameterPort" : false
-            },
-            "name" : "outputTexturePort"
+                ],
+                "name" : "Image",
+                "id" : "B6558BDF-F003-4893-9326-5816D6D1F0CF",
+                "kind" : "Outlet"
+              }
+            }
           },
           {
+            "name" : "Amount (overall)",
             "payload" : {
+              "type" : "Float",
+              "isParameterPort" : true,
               "base" : {
+                "name" : "Amount (overall)",
+                "id" : "552D9217-9B51-45BD-A193-611830BC7820",
                 "kind" : "Inlet",
                 "parameter" : {
+                  "type" : "float",
                   "base" : {
+                    "defaultValue" : 1,
+                    "controlType" : "slider",
                     "min" : 0,
                     "value" : 1,
                     "description" : "",
-                    "defaultValue" : 1,
-                    "max" : 1,
-                    "id" : "E9A4ABCF-AC17-4E28-BBC9-C9881FD49213",
+                    "id" : "F4C78B50-5B21-4732-9E1B-84D83452BEF8",
                     "label" : "Amount (overall)",
-                    "controlType" : "slider"
-                  },
-                  "type" : "float"
+                    "max" : 1
+                  }
                 },
                 "connections" : [
 
                 ],
-                "id" : "552D9217-9B51-45BD-A193-611830BC7820",
-                "name" : "Amount (overall)",
                 "published" : false
+              }
+            }
+          },
+          {
+            "name" : "Background Amount",
+            "payload" : {
+              "type" : "Float",
+              "isParameterPort" : true,
+              "base" : {
+                "kind" : "Inlet",
+                "parameter" : {
+                  "type" : "float",
+                  "base" : {
+                    "id" : "BB0DB408-832D-455D-A83A-2A4503A15100",
+                    "defaultValue" : 1,
+                    "max" : 1,
+                    "min" : 0,
+                    "description" : "",
+                    "controlType" : "slider",
+                    "value" : 1,
+                    "label" : "Background Amount"
+                  }
+                },
+                "id" : "72E3D4F5-A56C-46A3-9AC9-003CA93A2EE2",
+                "published" : false,
+                "connections" : [
+
+                ],
+                "name" : "Background Amount"
+              }
+            }
+          },
+          {
+            "name" : "Foreground Amount",
+            "payload" : {
+              "base" : {
+                "kind" : "Inlet",
+                "parameter" : {
+                  "type" : "float",
+                  "base" : {
+                    "max" : 1,
+                    "label" : "Foreground Amount",
+                    "description" : "",
+                    "id" : "5C561B31-E2D7-412D-AF07-F45AB2B76913",
+                    "min" : 0,
+                    "controlType" : "slider",
+                    "defaultValue" : 1,
+                    "value" : 1
+                  }
+                },
+                "name" : "Foreground Amount",
+                "id" : "F3A396F9-4927-428D-8A5C-EFDF310393E2",
+                "published" : false,
+                "connections" : [
+
+                ]
               },
               "isParameterPort" : true,
               "type" : "Float"
-            },
-            "name" : "Amount (overall)"
+            }
           },
           {
+            "name" : "Line Density",
             "payload" : {
               "type" : "Float",
               "base" : {
                 "kind" : "Inlet",
-                "published" : false,
-                "id" : "72E3D4F5-A56C-46A3-9AC9-003CA93A2EE2",
                 "parameter" : {
                   "type" : "float",
                   "base" : {
-                    "defaultValue" : 1,
-                    "label" : "Background Amount",
                     "controlType" : "slider",
+                    "id" : "694F57BD-AB82-43FC-9D9E-948E94D62A11",
+                    "label" : "Line Density",
+                    "defaultValue" : 9,
+                    "min" : 1,
+                    "value" : 22.807764,
                     "description" : "",
-                    "max" : 1,
-                    "id" : "ED25E12D-A4C2-4AC8-AE36-D28047104CF2",
-                    "value" : 1,
-                    "min" : 0
+                    "max" : 100
                   }
                 },
-                "name" : "Background Amount",
+                "id" : "228B5097-1D3E-4D56-A1B9-22D0A265A1CE",
+                "connections" : [
+
+                ],
+                "name" : "Line Density",
+                "published" : false
+              },
+              "isParameterPort" : true
+            }
+          },
+          {
+            "name" : "Line Width",
+            "payload" : {
+              "type" : "Float",
+              "base" : {
+                "id" : "D7B6AC0C-B815-46E9-8B1D-21A62BAC83AF",
+                "name" : "Line Width",
+                "kind" : "Inlet",
+                "published" : false,
+                "parameter" : {
+                  "base" : {
+                    "label" : "Line Width",
+                    "value" : 8.0059595,
+                    "id" : "2A0A128F-A487-471D-97DB-66A95230646A",
+                    "description" : "",
+                    "controlType" : "slider",
+                    "defaultValue" : 5,
+                    "max" : 50,
+                    "min" : 0.1
+                  },
+                  "type" : "float"
+                },
                 "connections" : [
 
                 ]
               },
               "isParameterPort" : true
-            },
-            "name" : "Background Amount"
+            }
           },
           {
+            "name" : "Angle",
             "payload" : {
-              "type" : "Float",
-              "isParameterPort" : true,
               "base" : {
+                "name" : "Angle",
+                "published" : false,
                 "connections" : [
 
                 ],
-                "id" : "F3A396F9-4927-428D-8A5C-EFDF310393E2",
-                "parameter" : {
-                  "base" : {
-                    "id" : "A397F885-C85E-4002-9F4D-015E3FD37FF7",
-                    "label" : "Foreground Amount",
-                    "min" : 0,
-                    "defaultValue" : 1,
-                    "max" : 1,
-                    "description" : "",
-                    "value" : 1,
-                    "controlType" : "slider"
-                  },
-                  "type" : "float"
-                },
+                "id" : "0C19B22E-D672-4B78-8FC6-3B8303E2DEC1",
                 "kind" : "Inlet",
-                "published" : false,
-                "name" : "Foreground Amount"
-              }
-            },
-            "name" : "Foreground Amount"
-          },
-          {
-            "payload" : {
-              "type" : "Float",
-              "base" : {
-                "parameter" : {
-                  "base" : {
-                    "min" : 1,
-                    "max" : 100,
-                    "value" : 22.807764,
-                    "id" : "02B5E1BB-CE4A-405C-AE8D-EAD376EE1548",
-                    "controlType" : "slider",
-                    "defaultValue" : 9,
-                    "description" : "",
-                    "label" : "Line Density"
-                  },
-                  "type" : "float"
-                },
-                "id" : "228B5097-1D3E-4D56-A1B9-22D0A265A1CE",
-                "name" : "Line Density",
-                "published" : false,
-                "connections" : [
-
-                ],
-                "kind" : "Inlet"
-              },
-              "isParameterPort" : true
-            },
-            "name" : "Line Density"
-          },
-          {
-            "payload" : {
-              "type" : "Float",
-              "isParameterPort" : true,
-              "base" : {
                 "parameter" : {
                   "type" : "float",
                   "base" : {
-                    "label" : "Line Width",
-                    "max" : 50,
-                    "value" : 8.0059595,
-                    "description" : "",
-                    "min" : 0.1,
-                    "defaultValue" : 5,
-                    "id" : "E9D59418-3358-4099-A611-9ACB5416BA6A",
-                    "controlType" : "slider"
-                  }
-                },
-                "published" : false,
-                "name" : "Line Width",
-                "connections" : [
-
-                ],
-                "kind" : "Inlet",
-                "id" : "D7B6AC0C-B815-46E9-8B1D-21A62BAC83AF"
-              }
-            },
-            "name" : "Line Width"
-          },
-          {
-            "payload" : {
-              "isParameterPort" : true,
-              "type" : "Float",
-              "base" : {
-                "name" : "Angle",
-                "connections" : [
-
-                ],
-                "parameter" : {
-                  "base" : {
+                    "min" : -3.14159,
+                    "id" : "84CA6198-9118-4401-B9A7-44E19C62C5C3",
+                    "label" : "Angle",
+                    "defaultValue" : 0,
                     "description" : "",
                     "controlType" : "slider",
-                    "min" : -3.14159,
-                    "label" : "Angle",
                     "value" : -1.8601402,
-                    "max" : 3.14159,
-                    "id" : "B07C8DD8-B433-4306-8275-58BDCB32E912",
-                    "defaultValue" : 0
+                    "max" : 3.14159
+                  }
+                }
+              },
+              "type" : "Float",
+              "isParameterPort" : true
+            }
+          },
+          {
+            "name" : "Hatch1 Threshold",
+            "payload" : {
+              "isParameterPort" : true,
+              "base" : {
+                "kind" : "Inlet",
+                "published" : false,
+                "parameter" : {
+                  "base" : {
+                    "value" : 0.005801073,
+                    "id" : "327518A0-1C7C-4976-8ED8-4DAF8C3BA309",
+                    "min" : 0,
+                    "defaultValue" : 0.8,
+                    "controlType" : "slider",
+                    "max" : 1,
+                    "label" : "Hatch1 Threshold",
+                    "description" : ""
                   },
                   "type" : "float"
                 },
-                "id" : "0C19B22E-D672-4B78-8FC6-3B8303E2DEC1",
-                "kind" : "Inlet",
-                "published" : false
-              }
-            },
-            "name" : "Angle"
-          },
-          {
-            "payload" : {
-              "type" : "Float",
-              "base" : {
-                "kind" : "Inlet",
-                "id" : "2CB4C25C-E462-40CC-8094-B8500DFE2456",
-                "published" : false,
                 "connections" : [
 
                 ],
                 "name" : "Hatch1 Threshold",
+                "id" : "2CB4C25C-E462-40CC-8094-B8500DFE2456"
+              },
+              "type" : "Float"
+            }
+          },
+          {
+            "name" : "Hatch2 Threshold",
+            "payload" : {
+              "isParameterPort" : true,
+              "type" : "Float",
+              "base" : {
+                "id" : "184E4047-D49E-4705-9055-C9C317582BF8",
+                "name" : "Hatch2 Threshold",
+                "kind" : "Inlet",
+                "parameter" : {
+                  "base" : {
+                    "id" : "AEADBE32-912E-42FE-BD69-7DBE9143E3B5",
+                    "value" : 0,
+                    "min" : 0,
+                    "defaultValue" : 0.6,
+                    "max" : 1,
+                    "controlType" : "slider",
+                    "label" : "Hatch2 Threshold",
+                    "description" : ""
+                  },
+                  "type" : "float"
+                },
+                "published" : false,
+                "connections" : [
+
+                ]
+              }
+            }
+          },
+          {
+            "name" : "Hatch3 Threshold",
+            "payload" : {
+              "type" : "Float",
+              "isParameterPort" : true,
+              "base" : {
+                "id" : "FE8B884B-7D5B-4E77-91D6-7C7BE8F00CFC",
+                "published" : false,
+                "connections" : [
+
+                ],
+                "parameter" : {
+                  "base" : {
+                    "id" : "365EBF66-B145-4C05-B343-48A996DBB8ED",
+                    "min" : 0,
+                    "label" : "Hatch3 Threshold",
+                    "description" : "",
+                    "max" : 1,
+                    "controlType" : "slider",
+                    "defaultValue" : 0.3,
+                    "value" : 0
+                  },
+                  "type" : "float"
+                },
+                "name" : "Hatch3 Threshold",
+                "kind" : "Inlet"
+              }
+            }
+          },
+          {
+            "name" : "Hatch4 Threshold",
+            "payload" : {
+              "type" : "Float",
+              "base" : {
+                "kind" : "Inlet",
+                "id" : "80832B26-64D0-4A3E-B01D-6A028EA7F0A1",
+                "name" : "Hatch4 Threshold",
+                "connections" : [
+
+                ],
+                "published" : false,
                 "parameter" : {
                   "type" : "float",
                   "base" : {
-                    "min" : 0,
-                    "value" : 0.005801073,
-                    "max" : 1,
                     "description" : "",
-                    "defaultValue" : 0.8,
-                    "id" : "9E990AC9-BC4B-4FBB-9C9F-4C829A626D98",
-                    "controlType" : "slider",
-                    "label" : "Hatch1 Threshold"
+                    "min" : 0,
+                    "value" : 0.257705,
+                    "max" : 1,
+                    "defaultValue" : 0.15,
+                    "label" : "Hatch4 Threshold",
+                    "id" : "2F272CC5-F3BA-4597-91FB-3ADD6B664BD2",
+                    "controlType" : "slider"
                   }
                 }
               },
               "isParameterPort" : true
-            },
-            "name" : "Hatch1 Threshold"
+            }
           },
           {
+            "name" : "Hatch1 Brightness",
             "payload" : {
-              "base" : {
-                "published" : false,
-                "connections" : [
-
-                ],
-                "parameter" : {
-                  "type" : "float",
-                  "base" : {
-                    "min" : 0,
-                    "defaultValue" : 0.6,
-                    "label" : "Hatch2 Threshold",
-                    "description" : "",
-                    "id" : "706DA3A2-B1B9-453A-9B64-760FEF49E350",
-                    "max" : 1,
-                    "value" : 0,
-                    "controlType" : "slider"
-                  }
-                },
-                "id" : "184E4047-D49E-4705-9055-C9C317582BF8",
-                "name" : "Hatch2 Threshold",
-                "kind" : "Inlet"
-              },
-              "isParameterPort" : true,
-              "type" : "Float"
-            },
-            "name" : "Hatch2 Threshold"
-          },
-          {
-            "payload" : {
-              "base" : {
-                "connections" : [
-
-                ],
-                "id" : "FE8B884B-7D5B-4E77-91D6-7C7BE8F00CFC",
-                "kind" : "Inlet",
-                "published" : false,
-                "parameter" : {
-                  "base" : {
-                    "description" : "",
-                    "value" : 0,
-                    "id" : "F0440B22-FC05-4C89-82A2-556CE17FC83B",
-                    "min" : 0,
-                    "label" : "Hatch3 Threshold",
-                    "defaultValue" : 0.3,
-                    "max" : 1,
-                    "controlType" : "slider"
-                  },
-                  "type" : "float"
-                },
-                "name" : "Hatch3 Threshold"
-              },
-              "type" : "Float",
-              "isParameterPort" : true
-            },
-            "name" : "Hatch3 Threshold"
-          },
-          {
-            "payload" : {
-              "base" : {
-                "parameter" : {
-                  "base" : {
-                    "min" : 0,
-                    "controlType" : "slider",
-                    "max" : 1,
-                    "description" : "",
-                    "label" : "Hatch4 Threshold",
-                    "defaultValue" : 0.15,
-                    "id" : "CBAAD72C-7220-4B77-963B-F1DEE8A97B7F",
-                    "value" : 0.257705
-                  },
-                  "type" : "float"
-                },
-                "published" : false,
-                "id" : "80832B26-64D0-4A3E-B01D-6A028EA7F0A1",
-                "name" : "Hatch4 Threshold",
-                "kind" : "Inlet",
-                "connections" : [
-
-                ]
-              },
-              "type" : "Float",
-              "isParameterPort" : true
-            },
-            "name" : "Hatch4 Threshold"
-          },
-          {
-            "payload" : {
-              "isParameterPort" : true,
               "type" : "Float",
               "base" : {
-                "name" : "Hatch1 Brightness",
-                "kind" : "Inlet",
-                "published" : false,
-                "parameter" : {
-                  "type" : "float",
-                  "base" : {
-                    "label" : "Hatch1 Brightness",
-                    "description" : "",
-                    "max" : 1,
-                    "min" : 0,
-                    "id" : "0084AE4F-2E9A-4F4E-A280-7929D78D040A",
-                    "controlType" : "slider",
-                    "defaultValue" : 0.8,
-                    "value" : 0
-                  }
-                },
                 "id" : "6144C922-04FE-4D18-8BDE-C6ED7F4AC435",
-                "connections" : [
-
-                ]
-              }
-            },
-            "name" : "Hatch1 Brightness"
-          },
-          {
-            "payload" : {
-              "isParameterPort" : true,
-              "base" : {
                 "kind" : "Inlet",
                 "parameter" : {
                   "type" : "float",
                   "base" : {
-                    "description" : "",
-                    "value" : 0,
-                    "label" : "Hatch2 Brightness",
-                    "id" : "B7606D4A-27AD-474F-9437-4F9CBD43B2F0",
-                    "controlType" : "slider",
-                    "min" : 0,
-                    "defaultValue" : 0.6,
-                    "max" : 1
-                  }
-                },
-                "name" : "Hatch2 Brightness",
-                "published" : false,
-                "id" : "ABC737D9-2A63-4B4B-982A-81878727715D",
-                "connections" : [
-
-                ]
-              },
-              "type" : "Float"
-            },
-            "name" : "Hatch2 Brightness"
-          },
-          {
-            "payload" : {
-              "isParameterPort" : true,
-              "type" : "Float",
-              "base" : {
-                "name" : "Hatch3 Brightness",
-                "kind" : "Inlet",
-                "published" : false,
-                "parameter" : {
-                  "type" : "float",
-                  "base" : {
-                    "value" : 0,
-                    "id" : "3EE3E749-0015-4D31-B013-16C07077038A",
                     "max" : 1,
                     "description" : "",
-                    "min" : 0,
+                    "id" : "2AAF6D82-6EA1-456C-9775-CC8A9D18244D",
+                    "defaultValue" : 0.8,
                     "controlType" : "slider",
-                    "defaultValue" : 0.3,
-                    "label" : "Hatch3 Brightness"
+                    "min" : 0,
+                    "value" : 0,
+                    "label" : "Hatch1 Brightness"
                   }
                 },
                 "connections" : [
 
                 ],
-                "id" : "3469A8D7-A811-401B-BD28-50882D78C996"
-              }
-            },
-            "name" : "Hatch3 Brightness"
+                "name" : "Hatch1 Brightness",
+                "published" : false
+              },
+              "isParameterPort" : true
+            }
           },
           {
+            "name" : "Hatch2 Brightness",
+            "payload" : {
+              "type" : "Float",
+              "isParameterPort" : true,
+              "base" : {
+                "kind" : "Inlet",
+                "published" : false,
+                "connections" : [
+
+                ],
+                "parameter" : {
+                  "type" : "float",
+                  "base" : {
+                    "max" : 1,
+                    "label" : "Hatch2 Brightness",
+                    "description" : "",
+                    "value" : 0,
+                    "defaultValue" : 0.6,
+                    "controlType" : "slider",
+                    "min" : 0,
+                    "id" : "689BA6C4-AECA-457E-9699-31FA9BAC6A2D"
+                  }
+                },
+                "id" : "ABC737D9-2A63-4B4B-982A-81878727715D",
+                "name" : "Hatch2 Brightness"
+              }
+            }
+          },
+          {
+            "name" : "Hatch3 Brightness",
+            "payload" : {
+              "type" : "Float",
+              "isParameterPort" : true,
+              "base" : {
+                "kind" : "Inlet",
+                "id" : "3469A8D7-A811-401B-BD28-50882D78C996",
+                "name" : "Hatch3 Brightness",
+                "published" : false,
+                "connections" : [
+
+                ],
+                "parameter" : {
+                  "type" : "float",
+                  "base" : {
+                    "label" : "Hatch3 Brightness",
+                    "controlType" : "slider",
+                    "defaultValue" : 0.3,
+                    "description" : "",
+                    "id" : "0137DD98-FA42-46E4-B4E6-D34A54095788",
+                    "min" : 0,
+                    "value" : 0,
+                    "max" : 1
+                  }
+                }
+              }
+            }
+          },
+          {
+            "name" : "Hatch4 Brightness",
             "payload" : {
               "type" : "Float",
               "isParameterPort" : true,
               "base" : {
                 "published" : false,
                 "kind" : "Inlet",
+                "connections" : [
+
+                ],
                 "parameter" : {
                   "base" : {
-                    "min" : 0,
-                    "controlType" : "slider",
-                    "value" : 0,
-                    "description" : "",
+                    "id" : "69B80D29-3EF8-4D58-B7C8-B40C32092174",
                     "label" : "Hatch4 Brightness",
-                    "id" : "794E6128-0502-4F2B-906A-D7A1FDFAEBD5",
+                    "max" : 1,
                     "defaultValue" : 0,
-                    "max" : 1
+                    "description" : "",
+                    "min" : 0,
+                    "value" : 0,
+                    "controlType" : "slider"
                   },
                   "type" : "float"
                 },
                 "id" : "D2A64E6B-8F0A-4AA9-81B5-54BC8C85D629",
-                "name" : "Hatch4 Brightness",
-                "connections" : [
-
-                ]
+                "name" : "Hatch4 Brightness"
               }
-            },
-            "name" : "Hatch4 Brightness"
+            }
           },
           {
-            "payload" : {
-              "isParameterPort" : true,
-              "type" : "Float",
-              "base" : {
-                "parameter" : {
-                  "type" : "float",
-                  "base" : {
-                    "value" : 3.5236883,
-                    "min" : 0,
-                    "description" : "",
-                    "max" : 10,
-                    "label" : "Edge Strength",
-                    "defaultValue" : 1,
-                    "controlType" : "slider",
-                    "id" : "529EC7C0-9653-4211-85DE-E24AF8E06645"
-                  }
-                },
-                "id" : "A8354769-785A-4D05-9566-1EA3F5B00025",
-                "name" : "Edge Strength",
-                "kind" : "Inlet",
-                "published" : false,
-                "connections" : [
-
-                ]
-              }
-            },
-            "name" : "Edge Strength"
-          },
-          {
+            "name" : "Edge Strength",
             "payload" : {
               "type" : "Float",
               "isParameterPort" : true,
               "base" : {
-                "kind" : "Inlet",
-                "published" : false,
-                "parameter" : {
-                  "type" : "float",
-                  "base" : {
-                    "max" : 1,
-                    "min" : 0,
-                    "description" : "",
-                    "id" : "0EF2F26C-B194-46F9-A431-FAD176A47719",
-                    "controlType" : "slider",
-                    "label" : "Edge Mix",
-                    "value" : 1,
-                    "defaultValue" : 1
-                  }
-                },
-                "name" : "Edge Mix",
                 "connections" : [
 
                 ],
-                "id" : "ACFE0952-490D-4FD2-92CA-082611645AD4"
+                "id" : "A8354769-785A-4D05-9566-1EA3F5B00025",
+                "published" : false,
+                "name" : "Edge Strength",
+                "parameter" : {
+                  "base" : {
+                    "id" : "BEC43A20-198D-4660-89C5-6003C038D012",
+                    "min" : 0,
+                    "controlType" : "slider",
+                    "value" : 3.5236883,
+                    "label" : "Edge Strength",
+                    "description" : "",
+                    "max" : 10,
+                    "defaultValue" : 1
+                  },
+                  "type" : "float"
+                },
+                "kind" : "Inlet"
               }
-            },
-            "name" : "Edge Mix"
+            }
           },
           {
+            "name" : "Edge Mix",
             "payload" : {
+              "isParameterPort" : true,
+              "type" : "Float",
               "base" : {
+                "parameter" : {
+                  "type" : "float",
+                  "base" : {
+                    "min" : 0,
+                    "max" : 1,
+                    "defaultValue" : 1,
+                    "label" : "Edge Mix",
+                    "description" : "",
+                    "value" : 1,
+                    "controlType" : "slider",
+                    "id" : "EAAFCB4F-99CA-45EB-B686-4F0289F1026D"
+                  }
+                },
+                "connections" : [
+
+                ],
+                "kind" : "Inlet",
+                "published" : false,
+                "name" : "Edge Mix",
+                "id" : "ACFE0952-490D-4FD2-92CA-082611645AD4"
+              }
+            }
+          },
+          {
+            "name" : "Foreground Color",
+            "payload" : {
+              "isParameterPort" : true,
+              "base" : {
+                "published" : false,
+                "name" : "Foreground Color",
+                "kind" : "Inlet",
                 "parameter" : {
                   "type" : "float4",
                   "base" : {
-                    "label" : "Foreground Color",
+                    "description" : "",
+                    "id" : "6CA1231B-AC7F-42DC-8D3E-A728A09999A6",
+                    "min" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
                     "defaultValue" : [
                       1,
                       1,
                       1,
                       1
                     ],
+                    "label" : "Foreground Color",
                     "value" : [
                       0,
                       1,
                       1,
                       1
                     ],
-                    "id" : "27028A3E-CD28-414C-A4F6-07FB19B9CA8D",
-                    "description" : "",
-                    "min" : [
-                      0,
-                      0,
-                      0,
-                      0
-                    ],
+                    "controlType" : "colorpicker",
                     "max" : [
                       1,
                       1,
                       1,
                       1
-                    ],
-                    "controlType" : "colorpicker"
+                    ]
                   }
                 },
-                "kind" : "Inlet",
                 "id" : "EEF18204-3F32-4B48-914E-6CD0CA6D4A3A",
-                "published" : false,
+                "connections" : [
+
+                ]
+              },
+              "type" : "Vector 4"
+            }
+          },
+          {
+            "name" : "Background Color",
+            "payload" : {
+              "type" : "Vector 4",
+              "base" : {
                 "connections" : [
 
                 ],
-                "name" : "Foreground Color"
-              },
-              "isParameterPort" : true,
-              "type" : "Vector 4"
-            },
-            "name" : "Foreground Color"
-          },
-          {
-            "payload" : {
-              "type" : "Vector 4",
-              "isParameterPort" : true,
-              "base" : {
                 "parameter" : {
                   "type" : "float4",
                   "base" : {
-                    "controlType" : "colorpicker",
-                    "id" : "DA959865-8C63-40BE-BFDB-5A5972563B03",
-                    "value" : [
-                      0,
-                      0,
-                      0,
-                      1
-                    ],
-                    "min" : [
-                      0,
-                      0,
-                      0,
-                      0
-                    ],
                     "max" : [
                       1,
                       1,
@@ -1568,63 +1464,13 @@
                       1,
                       1
                     ],
-                    "description" : ""
-                  }
-                },
-                "id" : "8C1F67FE-F117-491B-9443-08632242F076",
-                "name" : "Background Color",
-                "kind" : "Inlet",
-                "published" : false,
-                "connections" : [
-
-                ]
-              }
-            },
-            "name" : "Background Color"
-          }
-        ]
-      },
-      "type" : "BaseEffectNode"
-    },
-    {
-      "value" : {
-        "id" : "A011EDFF-3893-4F5D-AEB4-59773C13FB4B",
-        "nodeOffset" : [
-          -379.17860023501,
-          47.866393016271104
-        ],
-        "ports" : [
-          {
-            "name" : "inputTexture",
-            "payload" : {
-              "isParameterPort" : false,
-              "type" : "Image",
-              "base" : {
-                "published" : false,
-                "connections" : [
-                  "FB7B00F6-018B-4E4F-AD0D-9CFFCFC02AA8"
-                ],
-                "name" : "Image",
-                "id" : "AE3F6F86-CDED-4D87-87DB-3DC45113CF32",
-                "kind" : "Inlet"
-              }
-            }
-          },
-          {
-            "name" : "inputColor",
-            "payload" : {
-              "isParameterPort" : true,
-              "base" : {
-                "name" : "Color",
-                "id" : "130A1A4F-D5E6-41D4-B700-2F24DF55689F",
-                "kind" : "Inlet",
-                "published" : false,
-                "connections" : [
-
-                ],
-                "parameter" : {
-                  "type" : "float4",
-                  "base" : {
+                    "value" : [
+                      0,
+                      0,
+                      0,
+                      1
+                    ],
+                    "description" : "",
                     "min" : [
                       0,
                       0,
@@ -1632,7 +1478,76 @@
                       0
                     ],
                     "controlType" : "colorpicker",
+                    "id" : "ADC4C8F9-749A-4946-B7E3-5B5D9CCF8E2F"
+                  }
+                },
+                "published" : false,
+                "id" : "8C1F67FE-F117-491B-9443-08632242F076",
+                "name" : "Background Color",
+                "kind" : "Inlet"
+              },
+              "isParameterPort" : true
+            }
+          }
+        ],
+        "effectPath" : "Effects\/Descimate\/Cross Hatch.metal",
+        "id" : "BE896644-ADA6-456C-AAFC-8883CF3D6975",
+        "nodeOffset" : [
+          -1164.2885849538807,
+          79.06859281476227
+        ]
+      },
+      "type" : "BaseEffectNode"
+    },
+    {
+      "type" : "BasicTextureMaterialNode",
+      "value" : {
+        "ports" : [
+          {
+            "payload" : {
+              "base" : {
+                "connections" : [
+                  "FB7B00F6-018B-4E4F-AD0D-9CFFCFC02AA8"
+                ],
+                "published" : false,
+                "name" : "Image",
+                "kind" : "Inlet",
+                "id" : "AE3F6F86-CDED-4D87-87DB-3DC45113CF32"
+              },
+              "isParameterPort" : false,
+              "type" : "Image"
+            },
+            "name" : "inputTexture"
+          },
+          {
+            "payload" : {
+              "base" : {
+                "name" : "Color",
+                "id" : "130A1A4F-D5E6-41D4-B700-2F24DF55689F",
+                "published" : false,
+                "kind" : "Inlet",
+                "connections" : [
+
+                ],
+                "parameter" : {
+                  "type" : "float4",
+                  "base" : {
+                    "controlType" : "colorpicker",
+                    "defaultValue" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
                     "label" : "Color",
+                    "id" : "130A1A4F-D5E6-41D4-B700-2F24DF55689F",
+                    "description" : "",
+                    "min" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
                     "value" : [
                       1,
                       1,
@@ -1644,63 +1559,29 @@
                       1,
                       1,
                       1
-                    ],
-                    "defaultValue" : [
-                      1,
-                      1,
-                      1,
-                      1
-                    ],
-                    "description" : "",
-                    "id" : "130A1A4F-D5E6-41D4-B700-2F24DF55689F"
+                    ]
                   }
                 }
               },
-              "type" : "Vector 4"
-            }
+              "type" : "Vector 4",
+              "isParameterPort" : true
+            },
+            "name" : "inputColor"
           },
           {
-            "name" : "inputReceivesLighting",
             "payload" : {
-              "isParameterPort" : true,
               "base" : {
-                "name" : "Receives Lighting",
                 "kind" : "Inlet",
-                "published" : false,
-                "connections" : [
-
-                ],
+                "name" : "Receives Lighting",
+                "id" : "E87D414A-88F0-4691-8BFD-553CBF683F92",
                 "parameter" : {
                   "base" : {
-                    "defaultValue" : true,
-                    "value" : true,
                     "label" : "Receives Lighting",
+                    "description" : "",
+                    "defaultValue" : true,
                     "id" : "E87D414A-88F0-4691-8BFD-553CBF683F92",
                     "controlType" : "button",
-                    "description" : ""
-                  },
-                  "type" : "bool"
-                },
-                "id" : "E87D414A-88F0-4691-8BFD-553CBF683F92"
-              },
-              "type" : "Bool"
-            }
-          },
-          {
-            "name" : "inputWriteDepth",
-            "payload" : {
-              "base" : {
-                "name" : "Write Depth",
-                "id" : "272C4E1E-C05C-4109-88C0-786832389933",
-                "kind" : "Inlet",
-                "parameter" : {
-                  "base" : {
-                    "id" : "272C4E1E-C05C-4109-88C0-786832389933",
-                    "value" : true,
-                    "description" : "",
-                    "label" : "Write Depth",
-                    "defaultValue" : true,
-                    "controlType" : "button"
+                    "value" : true
                   },
                   "type" : "bool"
                 },
@@ -1709,45 +1590,69 @@
 
                 ]
               },
-              "isParameterPort" : true,
-              "type" : "Bool"
-            }
+              "type" : "Bool",
+              "isParameterPort" : true
+            },
+            "name" : "inputReceivesLighting"
           },
           {
-            "name" : "inputDepthTest",
             "payload" : {
-              "type" : "Bool",
               "isParameterPort" : true,
+              "type" : "Bool",
               "base" : {
+                "name" : "Write Depth",
                 "connections" : [
 
                 ],
+                "id" : "272C4E1E-C05C-4109-88C0-786832389933",
+                "published" : false,
+                "kind" : "Inlet",
                 "parameter" : {
                   "base" : {
-                    "label" : "Depth Test",
+                    "id" : "272C4E1E-C05C-4109-88C0-786832389933",
+                    "description" : "",
+                    "defaultValue" : true,
+                    "label" : "Write Depth",
+                    "value" : true,
+                    "controlType" : "button"
+                  },
+                  "type" : "bool"
+                }
+              }
+            },
+            "name" : "inputWriteDepth"
+          },
+          {
+            "payload" : {
+              "type" : "Bool",
+              "base" : {
+                "kind" : "Inlet",
+                "parameter" : {
+                  "type" : "bool",
+                  "base" : {
                     "id" : "4556A4AE-4163-4076-AB33-64C37693B7E3",
+                    "label" : "Depth Test",
                     "controlType" : "button",
                     "description" : "",
                     "value" : true,
                     "defaultValue" : true
-                  },
-                  "type" : "bool"
+                  }
                 },
                 "id" : "4556A4AE-4163-4076-AB33-64C37693B7E3",
-                "kind" : "Inlet",
-                "name" : "Depth Test",
-                "published" : false
-              }
-            }
-          },
-          {
-            "name" : "inputBlending",
-            "payload" : {
-              "isParameterPort" : true,
-              "base" : {
                 "connections" : [
 
                 ],
+                "name" : "Depth Test",
+                "published" : false
+              },
+              "isParameterPort" : true
+            },
+            "name" : "inputDepthTest"
+          },
+          {
+            "payload" : {
+              "base" : {
+                "kind" : "Inlet",
                 "id" : "28D3C0C0-5002-437B-8E41-51C87C0E90BF",
                 "parameter" : {
                   "base" : {
@@ -1758,62 +1663,62 @@
                       "Subtractive"
                     ],
                     "id" : "28D3C0C0-5002-437B-8E41-51C87C0E90BF",
-                    "value" : "Disabled",
                     "defaultValue" : "Disabled",
+                    "value" : "Disabled",
                     "label" : "Blending Mode",
-                    "controlType" : "dropdown",
-                    "description" : ""
+                    "description" : "",
+                    "controlType" : "dropdown"
                   },
                   "type" : "string"
                 },
+                "name" : "Blending Mode",
                 "published" : false,
-                "kind" : "Inlet",
-                "name" : "Blending Mode"
+                "connections" : [
+
+                ]
               },
-              "type" : "String"
-            }
+              "type" : "String",
+              "isParameterPort" : true
+            },
+            "name" : "inputBlending"
           },
           {
-            "name" : "outputMaterial",
             "payload" : {
-              "isParameterPort" : false,
-              "type" : "Material",
               "base" : {
+                "id" : "2795A407-AA3C-4457-9EB3-CA65CD7F42A4",
                 "kind" : "Outlet",
-                "published" : false,
+                "name" : "Material",
                 "connections" : [
                   "95B7BCDB-4E9F-4AB5-9BAB-D08015E1F7EE"
                 ],
-                "name" : "Material",
-                "id" : "2795A407-AA3C-4457-9EB3-CA65CD7F42A4"
-              }
-            }
+                "published" : false
+              },
+              "isParameterPort" : false,
+              "type" : "Material"
+            },
+            "name" : "outputMaterial"
           }
+        ],
+        "id" : "A011EDFF-3893-4F5D-AEB4-59773C13FB4B",
+        "nodeOffset" : [
+          -379.17860023501,
+          47.866393016271104
         ]
-      },
-      "type" : "BasicTextureMaterialNode"
+      }
     },
     {
+      "type" : "PlaneGeometryNode",
       "value" : {
-        "id" : "51ED32C8-6D7A-4F9C-83DB-D6ACB1C3AA32",
         "ports" : [
           {
             "payload" : {
               "base" : {
                 "kind" : "Inlet",
-                "published" : false,
-                "connections" : [
-
-                ],
+                "name" : "Plane",
                 "parameter" : {
-                  "type" : "string",
                   "base" : {
-                    "description" : "",
                     "label" : "Plane",
                     "value" : "XY",
-                    "controlType" : "dropdown",
-                    "id" : "C3D8C28F-46D4-4E84-BFBD-87FAE92EDEC2",
-                    "defaultValue" : "XY",
                     "options" : [
                       "XY",
                       "YX",
@@ -1821,72 +1726,80 @@
                       "ZX",
                       "YZ",
                       "ZY"
-                    ]
-                  }
+                    ],
+                    "defaultValue" : "XY",
+                    "id" : "C3D8C28F-46D4-4E84-BFBD-87FAE92EDEC2",
+                    "controlType" : "dropdown",
+                    "description" : ""
+                  },
+                  "type" : "string"
                 },
-                "id" : "C3D8C28F-46D4-4E84-BFBD-87FAE92EDEC2",
-                "name" : "Plane"
+                "published" : false,
+                "connections" : [
+
+                ],
+                "id" : "C3D8C28F-46D4-4E84-BFBD-87FAE92EDEC2"
               },
-              "type" : "String",
-              "isParameterPort" : true
+              "isParameterPort" : true,
+              "type" : "String"
             },
             "name" : "inputPlane"
           },
           {
             "payload" : {
-              "type" : "Float",
               "isParameterPort" : true,
+              "type" : "Float",
               "base" : {
+                "published" : false,
+                "kind" : "Inlet",
+                "id" : "B93601D9-1864-4398-B406-463F5BCBA02E",
+                "parameter" : {
+                  "type" : "float",
+                  "base" : {
+                    "id" : "B93601D9-1864-4398-B406-463F5BCBA02E",
+                    "label" : "Width",
+                    "min" : 0,
+                    "description" : "",
+                    "defaultValue" : 1,
+                    "value" : 2,
+                    "max" : 1,
+                    "controlType" : "inputfield"
+                  }
+                },
+                "name" : "Width",
                 "connections" : [
 
-                ],
-                "parameter" : {
-                  "base" : {
-                    "max" : 1,
-                    "controlType" : "inputfield",
-                    "min" : 0,
-                    "defaultValue" : 1,
-                    "id" : "B93601D9-1864-4398-B406-463F5BCBA02E",
-                    "description" : "",
-                    "value" : 2,
-                    "label" : "Width"
-                  },
-                  "type" : "float"
-                },
-                "id" : "B93601D9-1864-4398-B406-463F5BCBA02E",
-                "kind" : "Inlet",
-                "name" : "Width",
-                "published" : false
+                ]
               }
             },
             "name" : "inputWidth"
           },
           {
             "payload" : {
-              "type" : "Float",
-              "isParameterPort" : true,
               "base" : {
                 "id" : "0A343A1F-53B5-4C13-9538-37C25C1CBF3B",
-                "kind" : "Inlet",
-                "name" : "Height",
-                "published" : false,
                 "parameter" : {
                   "type" : "float",
                   "base" : {
                     "value" : 1.2,
                     "defaultValue" : 1,
-                    "min" : 0,
-                    "label" : "Height",
+                    "description" : "",
                     "id" : "0A343A1F-53B5-4C13-9538-37C25C1CBF3B",
-                    "controlType" : "inputfield",
+                    "label" : "Height",
+                    "min" : 0,
                     "max" : 1,
-                    "description" : ""
+                    "controlType" : "inputfield"
                   }
                 },
                 "connections" : [
 
-                ]
-              }
+                ],
+                "name" : "Height",
+                "kind" : "Inlet",
+                "published" : false
+              },
+              "isParameterPort" : true,
+              "type" : "Float"
             },
             "name" : "inputHeight"
           },
@@ -1895,24 +1808,24 @@
               "type" : "Int",
               "base" : {
                 "published" : false,
+                "connections" : [
+
+                ],
+                "id" : "01412A21-5DB4-42F8-8031-07F39C13E8E1",
                 "parameter" : {
                   "base" : {
+                    "max" : 1,
+                    "label" : "Width",
+                    "min" : 0,
                     "defaultValue" : 1,
                     "controlType" : "inputfield",
                     "value" : 640,
                     "id" : "01412A21-5DB4-42F8-8031-07F39C13E8E1",
-                    "max" : 1,
-                    "min" : 0,
-                    "label" : "Width",
                     "description" : ""
                   },
                   "type" : "int"
                 },
-                "id" : "01412A21-5DB4-42F8-8031-07F39C13E8E1",
                 "name" : "Width",
-                "connections" : [
-
-                ],
                 "kind" : "Inlet"
               },
               "isParameterPort" : true
@@ -1921,48 +1834,46 @@
           },
           {
             "payload" : {
+              "type" : "Int",
               "isParameterPort" : true,
               "base" : {
-                "name" : "Height",
-                "published" : false,
                 "parameter" : {
                   "base" : {
-                    "label" : "Height",
-                    "id" : "3B2E63DE-A062-4CF8-AE79-85D070553A14",
-                    "description" : "",
-                    "defaultValue" : 1,
                     "value" : 480,
-                    "max" : 1,
+                    "label" : "Height",
+                    "description" : "",
+                    "id" : "3B2E63DE-A062-4CF8-AE79-85D070553A14",
                     "controlType" : "inputfield",
-                    "min" : 0
+                    "min" : 0,
+                    "max" : 1,
+                    "defaultValue" : 1
                   },
                   "type" : "int"
                 },
-                "kind" : "Inlet",
                 "connections" : [
 
                 ],
-                "id" : "3B2E63DE-A062-4CF8-AE79-85D070553A14"
-              },
-              "type" : "Int"
+                "kind" : "Inlet",
+                "id" : "3B2E63DE-A062-4CF8-AE79-85D070553A14",
+                "name" : "Height",
+                "published" : false
+              }
             },
             "name" : "inputResolutionHeight"
           },
           {
             "payload" : {
+              "isParameterPort" : true,
               "type" : "String",
               "base" : {
-                "connections" : [
-
-                ],
                 "parameter" : {
                   "base" : {
-                    "label" : "Primitive",
+                    "defaultValue" : "Triangle",
                     "controlType" : "dropdown",
+                    "label" : "Primitive",
+                    "value" : "Line Strip",
                     "id" : "FA52B2B3-C940-498A-8BBE-57B708B7878A",
                     "description" : "",
-                    "defaultValue" : "Triangle",
-                    "value" : "Line Strip",
                     "options" : [
                       "Point",
                       "Line",
@@ -1973,168 +1884,173 @@
                   },
                   "type" : "string"
                 },
-                "name" : "Primitive",
                 "id" : "FA52B2B3-C940-498A-8BBE-57B708B7878A",
+                "published" : false,
+                "connections" : [
+
+                ],
                 "kind" : "Inlet",
-                "published" : false
-              },
-              "isParameterPort" : true
+                "name" : "Primitive"
+              }
             },
             "name" : "inputPrimitiveType"
           },
           {
             "payload" : {
-              "isParameterPort" : false,
               "type" : "Geometry",
               "base" : {
+                "kind" : "Outlet",
                 "published" : false,
                 "id" : "32B52647-4389-4F24-B746-DE13C5F4C894",
-                "name" : "Geometry",
                 "connections" : [
                   "B33E67BD-3107-4E7B-8656-88A73FC673EA"
                 ],
-                "kind" : "Outlet"
-              }
+                "name" : "Geometry"
+              },
+              "isParameterPort" : false
             },
             "name" : "outputGeometry"
           }
         ],
+        "id" : "51ED32C8-6D7A-4F9C-83DB-D6ACB1C3AA32",
         "nodeOffset" : [
           -400.5758793382256,
           -300.57111250513117
         ]
-      },
-      "type" : "PlaneGeometryNode"
+      }
     },
     {
+      "type" : "BaseEffectNode",
       "value" : {
         "id" : "BE50F872-2D39-40ED-8EA9-3A4E0F697792",
+        "effectPath" : "Effects\/Film\/Vignette.metal",
         "ports" : [
           {
             "payload" : {
               "type" : "Image",
+              "isParameterPort" : false,
               "base" : {
-                "kind" : "Inlet",
                 "published" : false,
-                "name" : "Image",
-                "id" : "8D9CA7D2-0697-412C-9372-0FB25866A620",
                 "connections" : [
                   "048790B9-C517-459B-B00B-942EA7FD5A26"
-                ]
-              },
-              "isParameterPort" : false
+                ],
+                "name" : "Image",
+                "id" : "8D9CA7D2-0697-412C-9372-0FB25866A620",
+                "kind" : "Inlet"
+              }
             },
             "name" : "inputTexturePort"
           },
           {
+            "name" : "outputTexturePort",
             "payload" : {
               "isParameterPort" : false,
-              "type" : "Image",
               "base" : {
                 "id" : "FB7B00F6-018B-4E4F-AD0D-9CFFCFC02AA8",
-                "name" : "Image",
                 "published" : false,
                 "kind" : "Outlet",
+                "name" : "Image",
                 "connections" : [
-                  "AE3F6F86-CDED-4D87-87DB-3DC45113CF32"
+                  "AE3F6F86-CDED-4D87-87DB-3DC45113CF32",
+                  "059228AA-4E86-49FD-ADA4-2995EF2EDC6A"
                 ]
-              }
-            },
-            "name" : "outputTexturePort"
+              },
+              "type" : "Image"
+            }
           },
           {
+            "name" : "Radius",
             "payload" : {
+              "isParameterPort" : true,
               "base" : {
-                "parameter" : {
-                  "type" : "float",
-                  "base" : {
-                    "controlType" : "slider",
-                    "defaultValue" : 0.5,
-                    "id" : "5C777172-BDE6-400F-8343-141A25A76FCC",
-                    "value" : 0.5591039,
-                    "min" : 0,
-                    "description" : "",
-                    "label" : "Radius",
-                    "max" : 1
-                  }
-                },
+                "id" : "637D37C2-2CC6-4838-92F3-0637AFF5EDD2",
                 "name" : "Radius",
                 "kind" : "Inlet",
                 "connections" : [
 
                 ],
-                "published" : false,
-                "id" : "637D37C2-2CC6-4838-92F3-0637AFF5EDD2"
-              },
-              "isParameterPort" : true,
-              "type" : "Float"
-            },
-            "name" : "Radius"
-          },
-          {
-            "payload" : {
-              "base" : {
-                "name" : "Smoothness",
-                "connections" : [
-
-                ],
-                "id" : "CE7BB536-09A3-4179-9DCA-F2AA7484C3EC",
                 "parameter" : {
                   "type" : "float",
                   "base" : {
-                    "value" : 0.23650464,
-                    "id" : "CADFF127-A76A-4F23-9F15-2046B3026EAE",
-                    "description" : "",
-                    "label" : "Smoothness",
+                    "controlType" : "slider",
+                    "id" : "7DF8E4C4-B8AE-45E7-8F1F-EC7BDB2399A7",
+                    "defaultValue" : 0.5,
+                    "label" : "Radius",
                     "max" : 1,
-                    "defaultValue" : 0.1,
-                    "min" : 0.01,
-                    "controlType" : "slider"
+                    "description" : "",
+                    "min" : 0,
+                    "value" : 0.5591039
                   }
                 },
-                "kind" : "Inlet",
                 "published" : false
               },
+              "type" : "Float"
+            }
+          },
+          {
+            "name" : "Smoothness",
+            "payload" : {
+              "isParameterPort" : true,
               "type" : "Float",
-              "isParameterPort" : true
-            },
-            "name" : "Smoothness"
+              "base" : {
+                "name" : "Smoothness",
+                "kind" : "Inlet",
+                "published" : false,
+                "connections" : [
+
+                ],
+                "parameter" : {
+                  "base" : {
+                    "label" : "Smoothness",
+                    "id" : "24F282C6-E085-4A20-9445-2DD66417778F",
+                    "value" : 0.23650464,
+                    "description" : "",
+                    "min" : 0.01,
+                    "max" : 1,
+                    "defaultValue" : 0.1,
+                    "controlType" : "slider"
+                  },
+                  "type" : "float"
+                },
+                "id" : "CE7BB536-09A3-4179-9DCA-F2AA7484C3EC"
+              }
+            }
           }
         ],
-        "effectPath" : "Effects\/Film\/Vignette.metal",
         "nodeOffset" : [
           -564.733196867157,
           51.87970919462077
         ]
-      },
-      "type" : "BaseEffectNode"
+      }
     },
     {
+      "type" : "MovieProviderNode",
       "value" : {
+        "id" : "C472AF90-6032-491E-88B2-4D7EEDC295A2",
         "nodeOffset" : [
           -1654.6832724036512,
           74.06799609046266
         ],
-        "id" : "C472AF90-6032-491E-88B2-4D7EEDC295A2",
         "ports" : [
           {
             "name" : "inputFilePathParam",
             "payload" : {
-              "isParameterPort" : true,
               "base" : {
-                "kind" : "Inlet",
                 "name" : "File Path",
+                "published" : false,
                 "connections" : [
 
                 ],
-                "id" : "F566A9DD-B489-48E1-9529-6B0B33297A95",
+                "kind" : "Inlet",
                 "parameter" : {
                   "type" : "string",
                   "base" : {
-                    "controlType" : "filepicker",
+                    "defaultValue" : "",
                     "id" : "F566A9DD-B489-48E1-9529-6B0B33297A95",
                     "label" : "File Path",
                     "value" : "file:\/\/\/Users\/vade\/Movies\/ArtGrid\/Dance%20Group\/441938_Dance_Crew_Standing_Street_Man_by_Wind_Collective_Artgrid-HD_H264-HD.mp4",
+                    "controlType" : "filepicker",
+                    "description" : "",
                     "options" : [
                       "file:\/\/\/Users\/vade\/Movies\/ArtGrid\/Dance%20Group\/441964_Woman_Young_Pink_Braids_Walking_by_Wind_Collective_Artgrid-HD_H264-HD.mp4",
                       "file:\/\/\/Users\/vade\/Movies\/ArtGrid\/Dance%20Group\/441961_Dance_Crew_Performance_Walking_Dancing_by_Wind_Collective_Artgrid-HD_H264-HD.mp4",
@@ -2163,14 +2079,13 @@
                       "file:\/\/\/Users\/vade\/Movies\/ArtGrid\/Dance%20Group\/441937_Dance_Crew_Dancing_Ghana_Street_Fashion_by_Wind_Collective_Artgrid-HD_H264-HD.mp4",
                       "file:\/\/\/Users\/vade\/Movies\/ArtGrid\/Dance%20Group\/441933_Dance_Crew_Practicing_Dancing_Afrobeat_by_Wind_Collective_Artgrid-HD_H264-HD.mp4",
                       "file:\/\/\/Users\/vade\/Movies\/ArtGrid\/Dance%20Group\/441934_Dance_Crew_Dancing_Circle_Street_by_Wind_Collective_Artgrid-HD_H264-HD.mp4"
-                    ],
-                    "defaultValue" : "",
-                    "description" : ""
+                    ]
                   }
                 },
-                "published" : false
+                "id" : "F566A9DD-B489-48E1-9529-6B0B33297A95"
               },
-              "type" : "String"
+              "type" : "String",
+              "isParameterPort" : true
             }
           },
           {
@@ -2179,111 +2094,112 @@
               "type" : "Image",
               "isParameterPort" : false,
               "base" : {
+                "name" : "Image",
                 "kind" : "Outlet",
                 "connections" : [
-                  "F8374E17-1BAD-43D8-A1D0-C3D1B807993E",
-                  "71B50B74-3EFA-411D-944F-BC0188E71F56"
+                  "71B50B74-3EFA-411D-944F-BC0188E71F56",
+                  "F8374E17-1BAD-43D8-A1D0-C3D1B807993E"
                 ],
-                "id" : "A6F3A30B-E10B-4D3E-9446-91C446AC0A97",
-                "name" : "Image",
-                "published" : false
+                "published" : false,
+                "id" : "A6F3A30B-E10B-4D3E-9446-91C446AC0A97"
               }
             }
           }
         ]
-      },
-      "type" : "MovieProviderNode"
+      }
     },
     {
+      "type" : "BaseEffectNode",
       "value" : {
+        "id" : "A33FB2E3-BE7C-426D-BE58-635B72D7AEA3",
         "ports" : [
           {
             "payload" : {
               "type" : "Image",
               "isParameterPort" : false,
               "base" : {
-                "name" : "Image",
                 "id" : "0E4B2A64-E551-4C33-B39D-FF5E95E8A7CA",
-                "kind" : "Inlet",
                 "connections" : [
                   "F3E714AD-AFA6-4DE3-B676-9B416D399187"
                 ],
-                "published" : false
+                "name" : "Image",
+                "published" : false,
+                "kind" : "Inlet"
               }
             },
             "name" : "inputTexturePort"
           },
           {
             "payload" : {
+              "type" : "Image",
+              "isParameterPort" : false,
               "base" : {
+                "id" : "048790B9-C517-459B-B00B-942EA7FD5A26",
                 "published" : false,
                 "name" : "Image",
                 "connections" : [
                   "8D9CA7D2-0697-412C-9372-0FB25866A620"
                 ],
-                "id" : "048790B9-C517-459B-B00B-942EA7FD5A26",
                 "kind" : "Outlet"
-              },
-              "isParameterPort" : false,
-              "type" : "Image"
+              }
             },
             "name" : "outputTexturePort"
           },
           {
             "payload" : {
+              "isParameterPort" : true,
               "base" : {
-                "kind" : "Inlet",
-                "published" : false,
-                "connections" : [
-
-                ],
                 "parameter" : {
                   "base" : {
-                    "id" : "DCFBF767-B954-4F29-80F6-1A8A13B977F0",
                     "max" : 0.6,
-                    "description" : "",
-                    "label" : "Pincushion",
+                    "id" : "09CE4D93-0952-4A1E-8725-F283B385C10E",
+                    "value" : 0.03504875,
                     "controlType" : "slider",
+                    "description" : "",
                     "defaultValue" : 0,
-                    "min" : -0.6,
-                    "value" : 0.03504875
+                    "label" : "Pincushion",
+                    "min" : -0.6
                   },
                   "type" : "float"
                 },
+                "kind" : "Inlet",
+                "connections" : [
+
+                ],
                 "id" : "57BD5589-816C-4A0A-A43E-BEDB22B81FC3",
-                "name" : "Pincushion"
+                "name" : "Pincushion",
+                "published" : false
               },
-              "type" : "Float",
-              "isParameterPort" : true
+              "type" : "Float"
             },
             "name" : "Pincushion"
           },
           {
             "payload" : {
+              "isParameterPort" : true,
+              "type" : "Float",
               "base" : {
                 "parameter" : {
                   "type" : "float",
                   "base" : {
-                    "min" : 0,
-                    "value" : 0.004225201,
-                    "defaultValue" : 0,
-                    "max" : 0.2,
-                    "id" : "C1572F68-2BCE-4221-8903-E3CD4F36FFF2",
                     "description" : "",
+                    "label" : "Barrel",
                     "controlType" : "slider",
-                    "label" : "Barrel"
+                    "max" : 0.2,
+                    "defaultValue" : 0,
+                    "min" : 0,
+                    "id" : "AC486658-1A1C-4BD4-82E7-0E95DE162C2A",
+                    "value" : 0.004225201
                   }
                 },
-                "kind" : "Inlet",
-                "name" : "Barrel",
-                "id" : "A2596FF0-2AE6-49BE-94B0-DC370FEFCCCB",
+                "published" : false,
                 "connections" : [
 
                 ],
-                "published" : false
-              },
-              "type" : "Float",
-              "isParameterPort" : true
+                "name" : "Barrel",
+                "id" : "A2596FF0-2AE6-49BE-94B0-DC370FEFCCCB",
+                "kind" : "Inlet"
+              }
             },
             "name" : "Barrel"
           }
@@ -2292,34 +2208,28 @@
           -752.5009084665107,
           51.670408066267555
         ],
-        "effectPath" : "Effects\/Lens\/Barrel.metal",
-        "id" : "A33FB2E3-BE7C-426D-BE58-635B72D7AEA3"
-      },
-      "type" : "BaseEffectNode"
+        "effectPath" : "Effects\/Lens\/Barrel.metal"
+      }
     },
     {
+      "type" : "BaseEffectTwoChannelNode",
       "value" : {
-        "id" : "074128EC-C548-4C29-832E-A5FB61AFC709",
         "effectPath" : "EffectsTwoChannel\/Composite\/CompositeOver.metal",
-        "nodeOffset" : [
-          -959.1672384553303,
-          52.12842407858443
-        ],
         "ports" : [
           {
             "name" : "inputTexturePort",
             "payload" : {
+              "isParameterPort" : false,
               "type" : "Image",
               "base" : {
                 "name" : "Image 1",
                 "kind" : "Inlet",
+                "published" : false,
                 "connections" : [
                   "FE941A85-A74B-4476-9B51-3D8ED5858329"
                 ],
-                "id" : "A53889EA-3EA0-42F2-99E6-CC5A1C7D1ED1",
-                "published" : false
-              },
-              "isParameterPort" : false
+                "id" : "A53889EA-3EA0-42F2-99E6-CC5A1C7D1ED1"
+              }
             }
           },
           {
@@ -2329,10 +2239,10 @@
                 "connections" : [
                   "B6558BDF-F003-4893-9326-5816D6D1F0CF"
                 ],
-                "published" : false,
-                "name" : "Image 2",
                 "id" : "C9068280-1C58-4749-A3F7-D0EDFCD2FB86",
-                "kind" : "Inlet"
+                "kind" : "Inlet",
+                "name" : "Image 2",
+                "published" : false
               },
               "type" : "Image",
               "isParameterPort" : false
@@ -2341,57 +2251,60 @@
           {
             "name" : "outputTexturePort",
             "payload" : {
-              "type" : "Image",
               "base" : {
+                "id" : "F3E714AD-AFA6-4DE3-B676-9B416D399187",
                 "connections" : [
                   "0E4B2A64-E551-4C33-B39D-FF5E95E8A7CA"
                 ],
-                "id" : "F3E714AD-AFA6-4DE3-B676-9B416D399187",
-                "published" : false,
                 "name" : "Image",
-                "kind" : "Outlet"
+                "kind" : "Outlet",
+                "published" : false
               },
+              "type" : "Image",
               "isParameterPort" : false
             }
           }
-        ]
-      },
-      "type" : "BaseEffectTwoChannelNode"
+        ],
+        "nodeOffset" : [
+          -959.1672384553303,
+          52.12842407858443
+        ],
+        "id" : "074128EC-C548-4C29-832E-A5FB61AFC709"
+      }
     },
     {
+      "type" : "BaseEffectNode",
       "value" : {
-        "effectPath" : "Effects\/Descimate\/Cross Hatch.metal",
-        "id" : "C8E0CE3D-CD14-436E-B9CB-86ED398D756D",
         "ports" : [
           {
             "payload" : {
+              "type" : "Image",
               "base" : {
                 "id" : "BB39F619-6CB8-4CDD-8178-EF1B927742D1",
-                "published" : false,
-                "name" : "Image",
-                "kind" : "Inlet",
                 "connections" : [
                   "C6182F6D-8409-4C37-88C5-3208D819D4FD"
-                ]
+                ],
+                "kind" : "Inlet",
+                "name" : "Image",
+                "published" : false
               },
-              "isParameterPort" : false,
-              "type" : "Image"
+              "isParameterPort" : false
             },
             "name" : "inputTexturePort"
           },
           {
             "payload" : {
+              "isParameterPort" : false,
+              "type" : "Image",
               "base" : {
-                "published" : false,
                 "id" : "FE941A85-A74B-4476-9B51-3D8ED5858329",
+                "kind" : "Outlet",
+                "published" : false,
                 "name" : "Image",
                 "connections" : [
                   "A53889EA-3EA0-42F2-99E6-CC5A1C7D1ED1"
-                ],
-                "kind" : "Outlet"
-              },
-              "type" : "Image",
-              "isParameterPort" : false
+                ]
+              }
             },
             "name" : "outputTexturePort"
           },
@@ -2402,106 +2315,77 @@
                 "published" : false,
                 "parameter" : {
                   "base" : {
+                    "max" : 1,
                     "controlType" : "slider",
-                    "min" : 0,
-                    "description" : "",
-                    "id" : "BC038913-A18A-4E35-993E-901ADE58A0D2",
-                    "defaultValue" : 1,
-                    "value" : 1,
                     "label" : "Amount (overall)",
-                    "max" : 1
+                    "value" : 1,
+                    "id" : "8E597F06-E59E-4FAA-B7E3-4FC7D2688605",
+                    "description" : "",
+                    "defaultValue" : 1,
+                    "min" : 0
                   },
                   "type" : "float"
                 },
-                "name" : "Amount (overall)",
                 "connections" : [
 
                 ],
-                "id" : "FA1C0016-9590-499B-AC15-46F7231B5A54"
+                "id" : "FA1C0016-9590-499B-AC15-46F7231B5A54",
+                "name" : "Amount (overall)"
               },
-              "isParameterPort" : true,
-              "type" : "Float"
+              "type" : "Float",
+              "isParameterPort" : true
             },
             "name" : "Amount (overall)"
           },
           {
             "payload" : {
-              "isParameterPort" : true,
               "type" : "Float",
+              "isParameterPort" : true,
               "base" : {
-                "name" : "Background Amount",
+                "id" : "5B9C5E89-A07E-4ECA-BFC8-D3161CA0C7E7",
                 "parameter" : {
                   "base" : {
-                    "id" : "BBF9D00A-200F-4AA5-A2DB-4A218E3DE40F",
-                    "max" : 1,
+                    "description" : "",
                     "value" : 1,
                     "defaultValue" : 1,
-                    "controlType" : "slider",
-                    "description" : "",
+                    "id" : "6A44441A-F16C-4AC7-BF98-E909D48410A0",
                     "label" : "Background Amount",
-                    "min" : 0
+                    "min" : 0,
+                    "max" : 1,
+                    "controlType" : "slider"
                   },
                   "type" : "float"
                 },
-                "kind" : "Inlet",
+                "published" : false,
                 "connections" : [
 
                 ],
-                "id" : "5B9C5E89-A07E-4ECA-BFC8-D3161CA0C7E7",
-                "published" : false
+                "name" : "Background Amount",
+                "kind" : "Inlet"
               }
             },
             "name" : "Background Amount"
           },
           {
             "payload" : {
-              "type" : "Float",
-              "isParameterPort" : true,
               "base" : {
-                "kind" : "Inlet",
-                "id" : "A7A4A37B-28F6-4836-BD66-A15489C7D925",
-                "published" : false,
+                "name" : "Foreground Amount",
                 "parameter" : {
+                  "type" : "float",
                   "base" : {
-                    "description" : "",
-                    "defaultValue" : 1,
-                    "min" : 0,
-                    "max" : 1,
-                    "value" : 1,
                     "label" : "Foreground Amount",
-                    "id" : "060D6841-A832-4180-BCAB-0F940E404A1F",
-                    "controlType" : "slider"
-                  },
-                  "type" : "float"
-                },
-                "connections" : [
-
-                ],
-                "name" : "Foreground Amount"
-              }
-            },
-            "name" : "Foreground Amount"
-          },
-          {
-            "payload" : {
-              "base" : {
-                "kind" : "Inlet",
-                "parameter" : {
-                  "base" : {
-                    "value" : 37.84472,
-                    "id" : "2CED6C70-648F-4F66-8251-41247DB3A072",
+                    "value" : 1,
+                    "id" : "75614D3D-3F42-4D69-87A5-624B10F18DF2",
+                    "min" : 0,
+                    "defaultValue" : 1,
                     "controlType" : "slider",
-                    "defaultValue" : 9,
-                    "label" : "Line Density",
-                    "description" : "",
-                    "min" : 1,
-                    "max" : 100
-                  },
-                  "type" : "float"
+                    "max" : 1,
+                    "description" : ""
+                  }
                 },
-                "id" : "41E59781-868A-4384-83A5-87A87B8D8553",
-                "name" : "Line Density",
                 "published" : false,
+                "id" : "A7A4A37B-28F6-4836-BD66-A15489C7D925",
+                "kind" : "Inlet",
                 "connections" : [
 
                 ]
@@ -2509,32 +2393,61 @@
               "isParameterPort" : true,
               "type" : "Float"
             },
+            "name" : "Foreground Amount"
+          },
+          {
+            "payload" : {
+              "isParameterPort" : true,
+              "type" : "Float",
+              "base" : {
+                "name" : "Line Density",
+                "parameter" : {
+                  "base" : {
+                    "value" : 37.84472,
+                    "id" : "052791E7-710E-443D-9BF6-7E966CEEEE26",
+                    "label" : "Line Density",
+                    "max" : 100,
+                    "min" : 1,
+                    "description" : "",
+                    "controlType" : "slider",
+                    "defaultValue" : 9
+                  },
+                  "type" : "float"
+                },
+                "id" : "41E59781-868A-4384-83A5-87A87B8D8553",
+                "kind" : "Inlet",
+                "published" : false,
+                "connections" : [
+
+                ]
+              }
+            },
             "name" : "Line Density"
           },
           {
             "payload" : {
-              "type" : "Float",
               "isParameterPort" : true,
+              "type" : "Float",
               "base" : {
-                "id" : "57050ACE-3E65-4451-AFAD-5C4B285DAFA3",
-                "kind" : "Inlet",
                 "connections" : [
 
                 ],
                 "parameter" : {
                   "type" : "float",
                   "base" : {
-                    "controlType" : "slider",
-                    "defaultValue" : 5,
-                    "max" : 50,
-                    "description" : "",
-                    "id" : "12D0C1AF-F1C6-48E6-97F7-739B153CDC96",
-                    "label" : "Line Width",
                     "value" : 8.115938,
-                    "min" : 0.1
+                    "controlType" : "slider",
+                    "max" : 50,
+                    "id" : "91D3E39E-7C46-4559-9BE4-11F12DD51466",
+                    "defaultValue" : 5,
+                    "min" : 0.1,
+                    "label" : "Line Width",
+                    "description" : ""
                   }
                 },
                 "name" : "Line Width",
+                "id" : "57050ACE-3E65-4451-AFAD-5C4B285DAFA3",
+                "kind" : "Inlet",
                 "published" : false
               }
             },
@@ -2543,87 +2456,87 @@
           {
             "payload" : {
               "base" : {
-                "kind" : "Inlet",
-                "parameter" : {
-                  "type" : "float",
-                  "base" : {
-                    "defaultValue" : 0,
-                    "value" : 0.156494,
-                    "description" : "",
-                    "min" : -3.14159,
-                    "max" : 3.14159,
-                    "label" : "Angle",
-                    "controlType" : "slider",
-                    "id" : "84ABB17D-AECB-4D10-9733-1BA410D67245"
-                  }
-                },
-                "published" : false,
+                "name" : "Angle",
                 "connections" : [
 
                 ],
-                "name" : "Angle",
-                "id" : "9E9CDD57-35CA-400E-904A-8573B13B3337"
+                "kind" : "Inlet",
+                "id" : "9E9CDD57-35CA-400E-904A-8573B13B3337",
+                "parameter" : {
+                  "type" : "float",
+                  "base" : {
+                    "description" : "",
+                    "controlType" : "slider",
+                    "value" : 0.156494,
+                    "defaultValue" : 0,
+                    "min" : -3.14159,
+                    "label" : "Angle",
+                    "max" : 3.14159,
+                    "id" : "3E7D6E28-B85D-4279-AE36-E98852C188AA"
+                  }
+                },
+                "published" : false
               },
-              "isParameterPort" : true,
-              "type" : "Float"
+              "type" : "Float",
+              "isParameterPort" : true
             },
             "name" : "Angle"
           },
           {
             "payload" : {
-              "type" : "Float",
-              "isParameterPort" : true,
               "base" : {
-                "name" : "Hatch1 Threshold",
+                "published" : false,
                 "connections" : [
 
                 ],
+                "name" : "Hatch1 Threshold",
                 "parameter" : {
+                  "type" : "float",
                   "base" : {
-                    "id" : "6FA99FA7-494F-441D-B7A8-D3B2C520AC47",
-                    "value" : 0.18207067,
-                    "defaultValue" : 0.8,
                     "description" : "",
-                    "controlType" : "slider",
-                    "min" : 0,
                     "label" : "Hatch1 Threshold",
-                    "max" : 1
-                  },
-                  "type" : "float"
+                    "max" : 1,
+                    "defaultValue" : 0.8,
+                    "id" : "E7D66EAA-FD63-4A15-8C0C-F05085F0F133",
+                    "min" : 0,
+                    "controlType" : "slider",
+                    "value" : 0.18207067
+                  }
                 },
-                "id" : "C7029B5F-3EFF-437F-B9CF-E6304BD0EBB4",
-                "published" : false,
-                "kind" : "Inlet"
-              }
+                "kind" : "Inlet",
+                "id" : "C7029B5F-3EFF-437F-B9CF-E6304BD0EBB4"
+              },
+              "type" : "Float",
+              "isParameterPort" : true
             },
             "name" : "Hatch1 Threshold"
           },
           {
             "payload" : {
               "type" : "Float",
-              "isParameterPort" : true,
               "base" : {
-                "id" : "218DCD57-8B85-41E3-9F9B-ACF778A81B52",
+                "name" : "Hatch2 Threshold",
                 "kind" : "Inlet",
-                "parameter" : {
-                  "base" : {
-                    "id" : "FA5127D4-B922-443B-9096-DB469FA88313",
-                    "min" : 0,
-                    "controlType" : "slider",
-                    "description" : "",
-                    "value" : 0.3689256,
-                    "defaultValue" : 0.6,
-                    "max" : 1,
-                    "label" : "Hatch2 Threshold"
-                  },
-                  "type" : "float"
-                },
-                "published" : false,
                 "connections" : [
 
                 ],
-                "name" : "Hatch2 Threshold"
-              }
+                "parameter" : {
+                  "base" : {
+                    "controlType" : "slider",
+                    "label" : "Hatch2 Threshold",
+                    "defaultValue" : 0.6,
+                    "max" : 1,
+                    "id" : "0071CFFF-C6FE-4740-AFA5-B0B861912A16",
+                    "description" : "",
+                    "min" : 0,
+                    "value" : 0.3689256
+                  },
+                  "type" : "float"
+                },
+                "id" : "218DCD57-8B85-41E3-9F9B-ACF778A81B52",
+                "published" : false
+              },
+              "isParameterPort" : true
             },
             "name" : "Hatch2 Threshold"
           },
@@ -2631,303 +2544,305 @@
             "payload" : {
               "type" : "Float",
               "base" : {
-                "id" : "4CEB41F5-7FDA-41DB-8608-5A78E4C46BEF",
-                "kind" : "Inlet",
-                "name" : "Hatch3 Threshold",
-                "published" : false,
-                "connections" : [
-
-                ],
                 "parameter" : {
                   "type" : "float",
                   "base" : {
-                    "description" : "",
-                    "max" : 1,
-                    "id" : "4AE359C9-74C6-4C4A-9DB4-7E21C1CCF15A",
-                    "defaultValue" : 0.3,
-                    "value" : 0,
-                    "label" : "Hatch3 Threshold",
                     "min" : 0,
-                    "controlType" : "slider"
+                    "defaultValue" : 0.3,
+                    "controlType" : "slider",
+                    "id" : "3543A21D-1915-4259-AC28-442F14A63C84",
+                    "max" : 1,
+                    "label" : "Hatch3 Threshold",
+                    "value" : 0,
+                    "description" : ""
                   }
-                }
+                },
+                "connections" : [
+
+                ],
+                "name" : "Hatch3 Threshold",
+                "kind" : "Inlet",
+                "id" : "4CEB41F5-7FDA-41DB-8608-5A78E4C46BEF",
+                "published" : false
               },
               "isParameterPort" : true
             },
             "name" : "Hatch3 Threshold"
           },
           {
+            "name" : "Hatch4 Threshold",
             "payload" : {
+              "type" : "Float",
               "isParameterPort" : true,
               "base" : {
                 "id" : "CDD194AC-AC7D-4A71-B15E-D1FA9FEDCC52",
-                "name" : "Hatch4 Threshold",
+                "kind" : "Inlet",
                 "parameter" : {
+                  "type" : "float",
                   "base" : {
-                    "value" : 0.15777308,
-                    "max" : 1,
-                    "description" : "",
+                    "defaultValue" : 0.15,
                     "controlType" : "slider",
+                    "max" : 1,
+                    "value" : 0.15777308,
+                    "id" : "3420053B-ADCD-4519-82F9-9D2852B06AAD",
                     "min" : 0,
                     "label" : "Hatch4 Threshold",
-                    "defaultValue" : 0.15,
-                    "id" : "07A44307-5EDB-4C7B-A039-6EBA1F17126D"
+                    "description" : ""
+                  }
+                },
+                "published" : false,
+                "connections" : [
+
+                ],
+                "name" : "Hatch4 Threshold"
+              }
+            }
+          },
+          {
+            "name" : "Hatch1 Brightness",
+            "payload" : {
+              "type" : "Float",
+              "isParameterPort" : true,
+              "base" : {
+                "name" : "Hatch1 Brightness",
+                "id" : "BD6667E6-CD80-4092-ADCC-44A8253B23FB",
+                "kind" : "Inlet",
+                "connections" : [
+
+                ],
+                "parameter" : {
+                  "type" : "float",
+                  "base" : {
+                    "value" : 0,
+                    "controlType" : "slider",
+                    "max" : 1,
+                    "min" : 0,
+                    "id" : "B5163473-CE49-47FE-9998-F3DF57ACCA16",
+                    "description" : "",
+                    "defaultValue" : 0.8,
+                    "label" : "Hatch1 Brightness"
+                  }
+                },
+                "published" : false
+              }
+            }
+          },
+          {
+            "name" : "Hatch2 Brightness",
+            "payload" : {
+              "type" : "Float",
+              "base" : {
+                "name" : "Hatch2 Brightness",
+                "kind" : "Inlet",
+                "id" : "A5A46BE6-C9AE-440E-9D24-DD38979EEE7F",
+                "parameter" : {
+                  "base" : {
+                    "value" : 0,
+                    "controlType" : "slider",
+                    "max" : 1,
+                    "description" : "",
+                    "label" : "Hatch2 Brightness",
+                    "defaultValue" : 0.6,
+                    "min" : 0,
+                    "id" : "812969C5-45DE-4B33-9010-AA6BBF454A05"
                   },
                   "type" : "float"
                 },
-                "kind" : "Inlet",
                 "published" : false,
                 "connections" : [
 
                 ]
               },
-              "type" : "Float"
-            },
-            "name" : "Hatch4 Threshold"
+              "isParameterPort" : true
+            }
           },
           {
+            "name" : "Hatch3 Brightness",
             "payload" : {
-              "isParameterPort" : true,
               "type" : "Float",
+              "isParameterPort" : true,
               "base" : {
+                "published" : false,
+                "kind" : "Inlet",
                 "connections" : [
 
                 ],
                 "parameter" : {
+                  "type" : "float",
                   "base" : {
-                    "max" : 1,
                     "controlType" : "slider",
-                    "defaultValue" : 0.8,
-                    "value" : 0,
-                    "label" : "Hatch1 Brightness",
-                    "description" : "",
-                    "min" : 0,
-                    "id" : "86CD1EA2-1BF3-4110-A055-66FF489F385B"
-                  },
-                  "type" : "float"
-                },
-                "kind" : "Inlet",
-                "published" : false,
-                "name" : "Hatch1 Brightness",
-                "id" : "BD6667E6-CD80-4092-ADCC-44A8253B23FB"
-              }
-            },
-            "name" : "Hatch1 Brightness"
-          },
-          {
-            "payload" : {
-              "isParameterPort" : true,
-              "type" : "Float",
-              "base" : {
-                "published" : false,
-                "parameter" : {
-                  "base" : {
-                    "min" : 0,
-                    "id" : "C87E8BE4-3580-4F62-95EB-3B926D6777EE",
-                    "label" : "Hatch2 Brightness",
-                    "max" : 1,
                     "description" : "",
                     "value" : 0,
-                    "controlType" : "slider",
-                    "defaultValue" : 0.6
-                  },
-                  "type" : "float"
-                },
-                "id" : "A5A46BE6-C9AE-440E-9D24-DD38979EEE7F",
-                "kind" : "Inlet",
-                "name" : "Hatch2 Brightness",
-                "connections" : [
-
-                ]
-              }
-            },
-            "name" : "Hatch2 Brightness"
-          },
-          {
-            "payload" : {
-              "isParameterPort" : true,
-              "type" : "Float",
-              "base" : {
-                "parameter" : {
-                  "base" : {
-                    "description" : "",
                     "defaultValue" : 0.3,
-                    "max" : 1,
-                    "id" : "39D227BB-F7C1-48D1-A659-47759E6CEA93",
-                    "label" : "Hatch3 Brightness",
-                    "value" : 0,
                     "min" : 0,
-                    "controlType" : "slider"
-                  },
-                  "type" : "float"
+                    "id" : "D3326333-242C-47C1-A620-F54FEAFE9030",
+                    "label" : "Hatch3 Brightness",
+                    "max" : 1
+                  }
                 },
                 "id" : "601C06D6-949B-4162-B764-9AFAE3BB2B96",
-                "published" : false,
-                "name" : "Hatch3 Brightness",
+                "name" : "Hatch3 Brightness"
+              }
+            }
+          },
+          {
+            "name" : "Hatch4 Brightness",
+            "payload" : {
+              "type" : "Float",
+              "isParameterPort" : true,
+              "base" : {
+                "parameter" : {
+                  "base" : {
+                    "id" : "D12F301C-38A2-4633-BD6E-B9F1FEBB9622",
+                    "controlType" : "slider",
+                    "label" : "Hatch4 Brightness",
+                    "value" : 0,
+                    "defaultValue" : 0,
+                    "description" : "",
+                    "min" : 0,
+                    "max" : 1
+                  },
+                  "type" : "float"
+                },
                 "kind" : "Inlet",
+                "name" : "Hatch4 Brightness",
+                "published" : false,
+                "id" : "6F5223D2-DC50-4830-B59C-F06E4E736772",
                 "connections" : [
 
                 ]
               }
-            },
-            "name" : "Hatch3 Brightness"
+            }
           },
           {
+            "name" : "Edge Strength",
             "payload" : {
               "isParameterPort" : true,
-              "type" : "Float",
-              "base" : {
-                "connections" : [
-
-                ],
-                "kind" : "Inlet",
-                "parameter" : {
-                  "type" : "float",
-                  "base" : {
-                    "min" : 0,
-                    "label" : "Hatch4 Brightness",
-                    "description" : "",
-                    "max" : 1,
-                    "value" : 0,
-                    "id" : "682A5C96-8BC1-4AE1-A7F2-E2027DC85FD0",
-                    "defaultValue" : 0,
-                    "controlType" : "slider"
-                  }
-                },
-                "id" : "6F5223D2-DC50-4830-B59C-F06E4E736772",
-                "name" : "Hatch4 Brightness",
-                "published" : false
-              }
-            },
-            "name" : "Hatch4 Brightness"
-          },
-          {
-            "payload" : {
-              "isParameterPort" : true,
-              "type" : "Float",
               "base" : {
                 "name" : "Edge Strength",
+                "parameter" : {
+                  "base" : {
+                    "defaultValue" : 1,
+                    "description" : "",
+                    "label" : "Edge Strength",
+                    "controlType" : "slider",
+                    "value" : 0,
+                    "id" : "30C81A5F-26E3-416D-9517-14C59ECD8262",
+                    "min" : 0,
+                    "max" : 10
+                  },
+                  "type" : "float"
+                },
+                "published" : false,
                 "connections" : [
 
                 ],
-                "id" : "B342F5C2-746F-45F6-97DD-699990522559",
                 "kind" : "Inlet",
+                "id" : "B342F5C2-746F-45F6-97DD-699990522559"
+              },
+              "type" : "Float"
+            }
+          },
+          {
+            "name" : "Edge Mix",
+            "payload" : {
+              "isParameterPort" : true,
+              "base" : {
+                "id" : "30D45D1B-C0D8-4CA6-BD2E-E65D3DE67831",
+                "name" : "Edge Mix",
                 "published" : false,
                 "parameter" : {
                   "type" : "float",
                   "base" : {
-                    "description" : "",
-                    "id" : "7E11A258-2A14-41CC-9728-909B7CB1FCEC",
-                    "max" : 10,
-                    "label" : "Edge Strength",
-                    "value" : 0,
-                    "defaultValue" : 1,
-                    "controlType" : "slider",
-                    "min" : 0
-                  }
-                }
-              }
-            },
-            "name" : "Edge Strength"
-          },
-          {
-            "payload" : {
-              "isParameterPort" : true,
-              "type" : "Float",
-              "base" : {
-                "connections" : [
-
-                ],
-                "name" : "Edge Mix",
-                "kind" : "Inlet",
-                "parameter" : {
-                  "base" : {
-                    "id" : "AEF4A94A-60A8-4C45-BF0D-2DC1A6EEC4C9",
+                    "label" : "Edge Mix",
                     "controlType" : "slider",
                     "description" : "",
                     "value" : 0,
                     "min" : 0,
                     "max" : 1,
-                    "label" : "Edge Mix",
+                    "id" : "042AD1C0-9739-4758-B285-5B0ABC083692",
                     "defaultValue" : 1
-                  },
-                  "type" : "float"
+                  }
                 },
-                "id" : "30D45D1B-C0D8-4CA6-BD2E-E65D3DE67831",
-                "published" : false
-              }
-            },
-            "name" : "Edge Mix"
+                "kind" : "Inlet",
+                "connections" : [
+
+                ]
+              },
+              "type" : "Float"
+            }
           },
           {
+            "name" : "Foreground Color",
             "payload" : {
-              "isParameterPort" : true,
               "type" : "Vector 4",
               "base" : {
                 "published" : false,
-                "connections" : [
-
-                ],
-                "id" : "0FF97D19-F437-41BD-941C-95F6CE5F47FA",
+                "name" : "Foreground Color",
                 "parameter" : {
+                  "type" : "float4",
                   "base" : {
-                    "max" : [
-                      1,
-                      1,
-                      1,
-                      1
-                    ],
-                    "description" : "",
-                    "defaultValue" : [
-                      1,
-                      1,
-                      1,
-                      1
-                    ],
-                    "controlType" : "colorpicker",
-                    "label" : "Foreground Color",
-                    "min" : [
-                      0,
-                      0,
-                      0,
-                      0
-                    ],
-                    "id" : "1C618D2E-3F63-4D85-8BEF-AE0A8BEC563E",
                     "value" : [
                       1,
                       0,
                       0.56226414,
                       1
-                    ]
-                  },
-                  "type" : "float4"
+                    ],
+                    "min" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
+                    "id" : "3D7C77EC-496F-40FC-8D2A-B9A6B68B560F",
+                    "max" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "controlType" : "colorpicker",
+                    "description" : "",
+                    "defaultValue" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "label" : "Foreground Color"
+                  }
                 },
-                "name" : "Foreground Color",
-                "kind" : "Inlet"
-              }
-            },
-            "name" : "Foreground Color"
-          },
-          {
-            "payload" : {
-              "isParameterPort" : true,
-              "type" : "Vector 4",
-              "base" : {
+                "id" : "0FF97D19-F437-41BD-941C-95F6CE5F47FA",
                 "connections" : [
 
                 ],
+                "kind" : "Inlet"
+              },
+              "isParameterPort" : true
+            }
+          },
+          {
+            "name" : "Background Color",
+            "payload" : {
+              "base" : {
                 "name" : "Background Color",
-                "published" : false,
                 "parameter" : {
-                  "type" : "float4",
                   "base" : {
-                    "id" : "AC667B40-94B2-4EC8-84D5-862C36CEC1C7",
                     "value" : [
                       0,
                       1,
                       0,
                       0
                     ],
+                    "label" : "Background Color",
+                    "controlType" : "colorpicker",
+                    "max" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "description" : "",
                     "min" : [
                       0,
                       0,
@@ -2940,104 +2855,191 @@
                       1,
                       1
                     ],
-                    "max" : [
-                      1,
-                      1,
-                      1,
-                      1
-                    ],
-                    "label" : "Background Color",
-                    "controlType" : "colorpicker",
-                    "description" : ""
-                  }
+                    "id" : "FE84B9C5-473B-4479-B472-9CFF7BDD3E3C"
+                  },
+                  "type" : "float4"
                 },
+                "kind" : "Inlet",
                 "id" : "E2F1E380-94E1-44AD-9D3A-C9DC06C29B16",
-                "kind" : "Inlet"
-              }
-            },
-            "name" : "Background Color"
+                "published" : false,
+                "connections" : [
+
+                ]
+              },
+              "type" : "Vector 4",
+              "isParameterPort" : true
+            }
           }
         ],
+        "id" : "C8E0CE3D-CD14-436E-B9CB-86ED398D756D",
+        "effectPath" : "Effects\/Descimate\/Cross Hatch.metal",
         "nodeOffset" : [
           -1174.4641247822447,
           -457.03596474746337
         ]
-      },
-      "type" : "BaseEffectNode"
+      }
     },
     {
       "type" : "BaseEffectNode",
       "value" : {
-        "id" : "C21C712D-6036-4AEC-8780-3CC29E31F30C",
         "ports" : [
           {
-            "name" : "inputTexturePort",
             "payload" : {
+              "isParameterPort" : false,
               "base" : {
-                "name" : "Image",
                 "id" : "71B50B74-3EFA-411D-944F-BC0188E71F56",
+                "name" : "Image",
+                "published" : false,
                 "connections" : [
                   "A6F3A30B-E10B-4D3E-9446-91C446AC0A97"
                 ],
-                "kind" : "Inlet",
-                "published" : false
+                "kind" : "Inlet"
               },
-              "type" : "Image",
-              "isParameterPort" : false
-            }
+              "type" : "Image"
+            },
+            "name" : "inputTexturePort"
           },
           {
-            "name" : "outputTexturePort",
             "payload" : {
               "base" : {
-                "published" : false,
-                "id" : "C6182F6D-8409-4C37-88C5-3208D819D4FD",
                 "name" : "Image",
+                "published" : false,
                 "connections" : [
                   "BB39F619-6CB8-4CDD-8178-EF1B927742D1"
                 ],
+                "id" : "C6182F6D-8409-4C37-88C5-3208D819D4FD",
                 "kind" : "Outlet"
               },
               "isParameterPort" : false,
               "type" : "Image"
-            }
+            },
+            "name" : "outputTexturePort"
           },
           {
-            "name" : "Amount",
             "payload" : {
-              "isParameterPort" : true,
               "base" : {
-                "published" : false,
                 "kind" : "Inlet",
                 "connections" : [
 
                 ],
-                "id" : "D6E8FF34-BFDE-45CC-A944-BC4111B90A1B",
+                "published" : false,
                 "parameter" : {
                   "base" : {
-                    "min" : 1e-08,
                     "value" : 0.051014204,
-                    "controlType" : "slider",
+                    "id" : "A59DD9FD-4CDC-49BA-9F95-3AB0BB41A004",
                     "defaultValue" : 1e-08,
+                    "controlType" : "slider",
+                    "label" : "Amount",
+                    "min" : 1e-08,
                     "max" : 1,
-                    "id" : "C00B8B88-5D63-4C61-B353-6F33FB42A652",
-                    "description" : "",
-                    "label" : "Amount"
+                    "description" : ""
                   },
                   "type" : "float"
                 },
-                "name" : "Amount"
+                "name" : "Amount",
+                "id" : "D6E8FF34-BFDE-45CC-A944-BC4111B90A1B"
               },
+              "isParameterPort" : true,
               "type" : "Float"
-            }
+            },
+            "name" : "Amount"
           }
         ],
         "effectPath" : "Effects\/Descimate\/Pixelate.metal",
+        "id" : "C21C712D-6036-4AEC-8780-3CC29E31F30C",
         "nodeOffset" : [
           -1349.5778727478996,
           -450.3605848696816
         ]
       }
     }
+  ],
+  "portConnectionMap" : [
+    "A53889EA-3EA0-42F2-99E6-CC5A1C7D1ED1",
+    [
+      "FE941A85-A74B-4476-9B51-3D8ED5858329"
+    ],
+    "B33E67BD-3107-4E7B-8656-88A73FC673EA",
+    [
+      "32B52647-4389-4F24-B746-DE13C5F4C894"
+    ],
+    "0E4B2A64-E551-4C33-B39D-FF5E95E8A7CA",
+    [
+      "F3E714AD-AFA6-4DE3-B676-9B416D399187"
+    ],
+    "FE941A85-A74B-4476-9B51-3D8ED5858329",
+    [
+      "A53889EA-3EA0-42F2-99E6-CC5A1C7D1ED1"
+    ],
+    "6B7501A2-19F3-43E8-B53D-FD5D9E453173",
+    [
+      "E73E5AD1-8CD1-42D6-99BF-F47A4D44BBE6"
+    ],
+    "FB7B00F6-018B-4E4F-AD0D-9CFFCFC02AA8",
+    [
+      "AE3F6F86-CDED-4D87-87DB-3DC45113CF32",
+      "059228AA-4E86-49FD-ADA4-2995EF2EDC6A"
+    ],
+    "AE3F6F86-CDED-4D87-87DB-3DC45113CF32",
+    [
+      "FB7B00F6-018B-4E4F-AD0D-9CFFCFC02AA8"
+    ],
+    "32B52647-4389-4F24-B746-DE13C5F4C894",
+    [
+      "B33E67BD-3107-4E7B-8656-88A73FC673EA"
+    ],
+    "2795A407-AA3C-4457-9EB3-CA65CD7F42A4",
+    [
+      "95B7BCDB-4E9F-4AB5-9BAB-D08015E1F7EE"
+    ],
+    "C9068280-1C58-4749-A3F7-D0EDFCD2FB86",
+    [
+      "B6558BDF-F003-4893-9326-5816D6D1F0CF"
+    ],
+    "B6558BDF-F003-4893-9326-5816D6D1F0CF",
+    [
+      "C9068280-1C58-4749-A3F7-D0EDFCD2FB86"
+    ],
+    "8D9CA7D2-0697-412C-9372-0FB25866A620",
+    [
+      "048790B9-C517-459B-B00B-942EA7FD5A26"
+    ],
+    "A6F3A30B-E10B-4D3E-9446-91C446AC0A97",
+    [
+      "71B50B74-3EFA-411D-944F-BC0188E71F56",
+      "F8374E17-1BAD-43D8-A1D0-C3D1B807993E"
+    ],
+    "BB39F619-6CB8-4CDD-8178-EF1B927742D1",
+    [
+      "C6182F6D-8409-4C37-88C5-3208D819D4FD"
+    ],
+    "95B7BCDB-4E9F-4AB5-9BAB-D08015E1F7EE",
+    [
+      "2795A407-AA3C-4457-9EB3-CA65CD7F42A4"
+    ],
+    "F8374E17-1BAD-43D8-A1D0-C3D1B807993E",
+    [
+      "A6F3A30B-E10B-4D3E-9446-91C446AC0A97"
+    ],
+    "71B50B74-3EFA-411D-944F-BC0188E71F56",
+    [
+      "A6F3A30B-E10B-4D3E-9446-91C446AC0A97"
+    ],
+    "F3E714AD-AFA6-4DE3-B676-9B416D399187",
+    [
+      "0E4B2A64-E551-4C33-B39D-FF5E95E8A7CA"
+    ],
+    "C6182F6D-8409-4C37-88C5-3208D819D4FD",
+    [
+      "BB39F619-6CB8-4CDD-8178-EF1B927742D1"
+    ],
+    "048790B9-C517-459B-B00B-942EA7FD5A26",
+    [
+      "8D9CA7D2-0697-412C-9372-0FB25866A620"
+    ],
+    "E73E5AD1-8CD1-42D6-99BF-F47A4D44BBE6",
+    [
+      "6B7501A2-19F3-43E8-B53D-FD5D9E453173"
+    ]
   ]
 }
