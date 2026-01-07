@@ -40,7 +40,7 @@ public class ArcGeometryNode : BaseGeometryNode
     private let _geometry = ArcGeometry(radius: (inner: 0.25, outer:0.75),
                                         angle: (start:0.0, end:degToRad(90.0)), res: (angular:20, radial:5))
 
-    override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
+    override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
     {
         var shouldOutputGeometry = super.evaluate(geometry: geometry, atTime: atTime)
 

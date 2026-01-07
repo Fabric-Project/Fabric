@@ -14,7 +14,7 @@ public class BaseGeometryNode : Node
 {
     override public class var name:String { "Geometry" }
     override public class var nodeType:Node.NodeType { .Geometery }
-    override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Provides \(Self.name)"}
 
@@ -24,18 +24,23 @@ public class BaseGeometryNode : Node
         return ports +
         [
             ("inputPrimitiveType", ParameterPort(parameter:StringParameter("Primitive", "Triangle", ["Point", "Line", "Line Strip", "Triangle", "Triangle Strip"], .dropdown)) ),
-            ("outputGeometry",  NodePort<Geometry>(name: "Geometry", kind: .Outlet)),
+            ("outputGeometry",  NodePort<SatinGeometry>(name: "Geometry", kind: .Outlet)),
         ]
     }
     
     public var inputPrimitiveType: NodePort<String>   { port(named: "inputPrimitiveType") }
-    public var outputGeometry: NodePort<Geometry>   { port(named: "outputGeometry") }
+    public var outputGeometry: NodePort<SatinGeometry>   { port(named: "outputGeometry") }
 
-    open var geometry: Geometry {
+    open var geometry: SatinGeometry {
         fatalError("Subclasses must override geometry")
     }
+    
+    override public func startExecution(context:GraphExecutionContext)
+    {
+        self.geometry.context = self.context
+    }
         
-    public func evaluate(geometry:Geometry, atTime:TimeInterval) -> Bool
+    public func evaluate(geometry:SatinGeometry, atTime:TimeInterval) -> Bool
     {
         var shouldOutput = false
         
@@ -58,9 +63,12 @@ public class BaseGeometryNode : Node
     public override func execute(context: GraphExecutionContext, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: any MTLCommandBuffer)
     {
         let shouldOutput = self.evaluate(geometry: self.geometry, atTime: context.timing.time)
-        
+
         if shouldOutput
         {
+            self.geometry.update()
+
+            print("output geometry on port")
             self.outputGeometry.send(self.geometry)
         }
     }

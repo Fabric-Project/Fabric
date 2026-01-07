@@ -30,7 +30,7 @@ public class CircleGeometryNode : BaseGeometryNode
     
     private let _geometry = CircleGeometry(radius: 1.0, angularResolution: 60, radialResolution: 1)
     
-    override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
+    override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
     {
         var shouldOutputGeometry = super.evaluate(geometry: geometry, atTime: atTime)
 

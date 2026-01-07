@@ -191,12 +191,10 @@ class SuperShapeGeometryNode : BaseGeometryNode
         n32: self.n32Param.value ?? 0.0,
         res: self.resParam.value ?? 0
     )
+    
+    override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool {
         
-    override func execute(context:GraphExecutionContext,
-                          renderPassDescriptor: MTLRenderPassDescriptor,
-                          commandBuffer: MTLCommandBuffer)
-    {
-        var shouldOutput = false
+        var shouldOutput = super.evaluate(geometry: geometry, atTime: atTime)
         
         if self.r1Param.valueDidChange,
            let r1Param = self.r1Param.value
@@ -303,9 +301,6 @@ class SuperShapeGeometryNode : BaseGeometryNode
             shouldOutput = true
         }
 
-        if shouldOutput
-        {
-            self.outputGeometry.send(self.geometry)
-        }
-     }
+       return shouldOutput
+    }
 }

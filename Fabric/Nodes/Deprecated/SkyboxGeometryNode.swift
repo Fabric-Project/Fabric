@@ -17,7 +17,7 @@ public class SkyboxGeometryNode : Node
 
     // Ports
     
-    public let outputGeometry:NodePort<Geometry>
+    public let outputGeometry:NodePort<SatinGeometry>
     
     public override var ports:[Port] {  [outputGeometry] + super.ports}
 
@@ -25,7 +25,7 @@ public class SkyboxGeometryNode : Node
 
     public required init(context:Context)
     {
-        self.outputGeometry = NodePort<Geometry>(name: SkyboxGeometryNode.name, kind: .Outlet)
+        self.outputGeometry = NodePort<SatinGeometry>(name: SkyboxGeometryNode.name, kind: .Outlet)
         super.init(context: context)
     }
     
@@ -37,7 +37,7 @@ public class SkyboxGeometryNode : Node
     public required init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.outputGeometry = try container.decode(NodePort<Geometry>.self, forKey: .outputGeometryPort)
+        self.outputGeometry = try container.decode(NodePort<SatinGeometry>.self, forKey: .outputGeometryPort)
         try super.init(from: decoder)
     }
     

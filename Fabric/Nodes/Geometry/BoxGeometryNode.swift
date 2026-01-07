@@ -34,7 +34,7 @@ public class BoxGeometryNode : BaseGeometryNode
     private let _geometry = BoxGeometry(width: 1, height: 1, depth: 1)
 
     
-    override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
+    override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
     {
         var shouldOutputGeometry = super.evaluate(geometry: geometry, atTime: atTime)
         

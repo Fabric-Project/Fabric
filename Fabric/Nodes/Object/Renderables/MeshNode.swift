@@ -21,7 +21,7 @@ public class MeshNode : BaseRenderableNode<Mesh>
         let ports = super.registerPorts(context: context)
         
         return ports + [
-            ("inputGeometry",  NodePort<Geometry>(name: "Geometry", kind: .Inlet)),
+            ("inputGeometry",  NodePort<SatinGeometry>(name: "Geometry", kind: .Inlet)),
             ("inputMaterial",  NodePort<Material>(name: "Material", kind: .Inlet)),
             ("inputCastsShadow",  ParameterPort(parameter: BoolParameter("Enable Shadows", true, .button) ) ),
             ("inputDoubleSided",  ParameterPort(parameter: BoolParameter("Double Sided", false, .button) ) ),
@@ -30,7 +30,7 @@ public class MeshNode : BaseRenderableNode<Mesh>
     }
         
     // Ergonomic access (no storage assignment needed)
-    public var inputGeometry: NodePort<Geometry>   { port(named: "inputGeometry") }
+    public var inputGeometry: NodePort<SatinGeometry>   { port(named: "inputGeometry") }
     public var inputMaterial: NodePort<Material>   { port(named: "inputMaterial") }
     public var inputCastsShadow: ParameterPort<Bool>   { port(named: "inputCastsShadow") }
     public var inputDoubleSided: ParameterPort<Bool>   { port(named: "inputDoubleSided") }

@@ -34,7 +34,7 @@ public indirect enum PortValue : PortValueRepresentable
     case Vector4(simd_float4)
     case Quaternion(simd_quatf)
     case Transform(simd_float4x4)
-    case Geometry(Satin.Geometry)
+    case Geometry(Satin.SatinGeometry)
     case Material(Satin.Material)
     case Shader(Satin.Shader)
     case Image(FabricImage)
@@ -521,7 +521,7 @@ extension simd.simd_float4x4 : PortValueRepresentable
     }
 }
 
-extension Satin.Geometry : PortValueRepresentable
+extension Satin.SatinGeometry : PortValueRepresentable
 {
     public static var defaultValue: Self? { nil }
     public static var portType: PortType { .Geometry }

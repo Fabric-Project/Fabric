@@ -35,7 +35,7 @@ public class TorusGeometryNode : BaseGeometryNode
 
     private let _geometry = TorusGeometry(minorRadius: 5.0, majorRadius: 0.25, minorResolution: 20, majorResolution: 20)
 
-    override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
+    override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
     {
         var shouldOutputGeometry = super.evaluate(geometry: geometry, atTime: atTime)
 

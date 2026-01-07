@@ -24,7 +24,7 @@ extension PortType
             
         case .Quaternion : return try NodePort<simd_float4>.init(from: decoder)
         case .Transform : return try NodePort<simd_float4x4>.init(from: decoder)
-        case .Geometry: return try NodePort<Satin.Geometry>.init(from: decoder)
+        case .Geometry: return try NodePort<Satin.SatinGeometry>.init(from: decoder)
         case .Material: return try NodePort<Satin.Material>.init(from: decoder)
         case .Shader: return try NodePort<Satin.Shader>.init(from: decoder)
         case .Image: return try NodePort<FabricImage>.init(from: decoder)
@@ -44,7 +44,7 @@ extension PortType
                 
             case .Quaternion: return try NodePort<ContiguousArray<simd_float4>>.init(from: decoder)
             case .Transform: return try NodePort<ContiguousArray<simd_float4x4>>.init(from: decoder)
-            case .Geometry: return try NodePort<ContiguousArray<Satin.Geometry>>.init(from: decoder)
+            case .Geometry: return try NodePort<ContiguousArray<Satin.SatinGeometry>>.init(from: decoder)
             case .Material: return try NodePort<ContiguousArray<Satin.Material>>.init(from: decoder)
             case .Shader: return try NodePort<ContiguousArray<Satin.Shader>>.init(from: decoder)
             case .Image: return try NodePort<ContiguousArray<FabricImage>>.init(from: decoder)

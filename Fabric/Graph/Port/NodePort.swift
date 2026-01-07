@@ -361,7 +361,7 @@ public class NodePort<Value : PortValueRepresentable>: Port
             return Color.nodeTexture
         }
 
-        else if forType == Satin.Geometry.self
+        else if forType == Satin.SatinGeometry.self
         {
             return Color.nodeGeometry
         }

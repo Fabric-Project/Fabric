@@ -151,7 +151,7 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         case .Transform:
             return simd.simd_float4x4.self
         case .Geometry:
-            return Satin.Geometry.self
+            return Satin.SatinGeometry.self
         case .Material:
             return Satin.Material.self
         case .Shader:

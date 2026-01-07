@@ -23,7 +23,7 @@ public class PointPlaneGeometryNode : Node, NodeProtocol
     public override var inputParameters: [any Parameter] { [inputWidthParam, inputHeightParam, inputResolutionParam] + super.inputParameters }
 
     // Ports
-    public let outputGeometry:NodePort<Geometry>
+    public let outputGeometry:NodePort<SatinGeometry>
     public override var ports:[AnyPort] {  [outputGeometry] + super.ports}
 
     private let geometry = PlaneGeometry(width: 1, height: 1, orientation: .xy)
@@ -34,7 +34,7 @@ public class PointPlaneGeometryNode : Node, NodeProtocol
         self.inputHeightParam = FloatParameter("Height", 1.0, .inputfield)
         self.inputResolutionParam = Int2Parameter("Resolution", simd_int2(repeating: 1), .inputfield)
 
-        self.outputGeometry = NodePort<Geometry>(name: PointPlaneGeometryNode.name, kind: .Outlet)
+        self.outputGeometry = NodePort<SatinGeometry>(name: PointPlaneGeometryNode.name, kind: .Outlet)
 
         self.geometry.primitiveType = .triangle
         
@@ -68,7 +68,7 @@ public class PointPlaneGeometryNode : Node, NodeProtocol
         self.inputWidthParam = try container.decode(FloatParameter.self, forKey: .inputWidthParameter)
         self.inputHeightParam = try container.decode(FloatParameter.self, forKey: .inputHeightParameter)
         self.inputResolutionParam = try container.decode(Int2Parameter.self, forKey: .inputResolutionParameter)
-        self.outputGeometry = try container.decode(NodePort<Geometry>.self, forKey: .outputGeometryPort)
+        self.outputGeometry = try container.decode(NodePort<SatinGeometry>.self, forKey: .outputGeometryPort)
         
         self.geometry.primitiveType = .point
 
