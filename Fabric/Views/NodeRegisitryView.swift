@@ -17,9 +17,16 @@ public struct NodeRegisitryView: View {
     @State private var selection = Set<UUID>()
     @State private var headerSelection: Node.NodeTypeGroups = .All
 
-    @State private var numNodesToShow = 0
-    @State private var haveNodesToShow = true
-    @State private var filteredNodesForTypes: [Node.NodeType:[NodeClassWrapper]] = [:]
+    // These are computed properties in an effort to avoid race conditions on multiple states
+    private var filteredNodesForTypes: [Node.NodeType:[NodeClassWrapper]] {
+        Dictionary(uniqueKeysWithValues: Node.NodeType.allCases.map { t in (t, self.filteredNodes(forType: t)) })
+    }
+
+    private var numNodesToShow: Int {
+        self.headerSelection.nodeTypes().flatMap { self.filteredNodes(forType: $0) }.count
+    }
+
+    private var haveNodesToShow: Bool { self.numNodesToShow > 0 }
     
     public init(graph: Graph, scrollOffset: Binding<CGPoint>) {
         self.graph = graph
@@ -34,30 +41,12 @@ public struct NodeRegisitryView: View {
             
             Spacer()
 
-            HStack
-            {
-                Spacer()
-                                    
-                ForEach(Node.NodeTypeGroups.allCases, id: \.self) { nodeGroup in
+            self.headerBar()
 
-                    nodeGroup.image()
-                        .foregroundStyle( nodeGroup == headerSelection ? Color.accentColor : Color.secondary.opacity(0.5))
-                        .tag(nodeGroup)
-                        .help(nodeGroup.rawValue)
-                        .onTapGesture {
-                            self.headerSelection = nodeGroup
-                        }
-                }
-                
-                Spacer()
-            }
-            
             Spacer()
 
             Divider()
-            
-            Spacer()
-            
+
             List(selection:$selection)
             {
                 ForEach(self.headerSelection.nodeTypes(), id: \.self) { nodeType in
@@ -77,11 +66,11 @@ public struct NodeRegisitryView: View {
             }
             // Below replaces the onTap action that was on the list item
             // This affords double click to add / return to add
-            // Single click to select
-            // Multi Select
-            // Type to select
-            // Arrow navigation
-            // Weird that its a context menu filter!
+            // * Single click to select
+            // * Multi Select
+            // * Type to select
+            // * Arrow navigation
+            // Weird that its a context menu filter! But whatever.
             // This fixes #114 - Anton
             .contextMenu(forSelectionType: UUID.self)
             { items in
@@ -108,7 +97,7 @@ public struct NodeRegisitryView: View {
             }
             .overlay
             {
-                VStack
+                VStack(spacing:0)
                 {
                     Spacer()
                     
@@ -120,60 +109,82 @@ public struct NodeRegisitryView: View {
                 }
                 .opacity( self.haveNodesToShow ? 0.0 : 1.0 )
             }
-        }
-        .safeAreaInset(edge: VerticalEdge.bottom, content: {
             
-            VStack
-            {
-                Divider()
-                
-                HStack
-                {
-                    Spacer()
+//            Divider()
+//            
+//            Spacer()
+        }
+        .controlSize(.mini)
+        .searchable(text: $searchString, placement: .sidebar)
+        .searchPresentationToolbarBehavior(.avoidHidingContent)
 
-                    TextField("Search", text: $searchString)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .controlSize(.small)
-                        .onChange(of: self.searchString) { _, _ in
-                            self.numNodesToShow = self.calcNumTotalNodes()
-                            self.haveNodesToShow = self.calcIfWeHaveNodesToShow()
-                            self.filteredNodesForTypes = self.calcFilteredNodesDict()
-                        }
-                    
-                    Spacer()
-                    
-                    Image(systemName: "xmark.circle")
-                        .foregroundStyle(Color.secondary.opacity(0.5))
-                        .onTapGesture {
-                            self.searchString = ""
-                        }
-                    
-                    Spacer()
-                }
-                
-                Text(String( self.numNodesToShow ) + " Nodes")
-                    .font( .caption )
-                    .padding(.vertical, 3)
-            }
-        })
-        .onAppear()
+        
+        // It seems as though our custom search bar vs .searchable behave slightly differently?
+        // Not sure why that is!?
+//        .safeAreaInset(edge: .bottom) {
+//            self.searchBar()
+//        }
+//        .onChange(of: self.searchString) { _, _ in
+//            self.selection.removeAll()
+//        }
+//        .onChange(of: self.headerSelection) { _, _ in
+//            self.selection.removeAll()
+//        }
+//        .onAppear()
+//        {
+//            // not the best..
+//            self.numNodesToShow = self.calcNumTotalNodes()
+//            self.filteredNodesForTypes = self.calcFilteredNodesDict()
+//        }
+    }
+    
+    @ViewBuilder private func headerBar() -> some View
+    {
+        HStack
         {
-            // not the best..
-            self.numNodesToShow = self.calcNumTotalNodes()
-            self.filteredNodesForTypes = self.calcFilteredNodesDict()
+            Spacer()
+            
+            ForEach(Node.NodeTypeGroups.allCases, id: \.self) { nodeGroup in
+                
+                nodeGroup.image()
+                    .foregroundStyle( nodeGroup == headerSelection ? Color.accentColor : Color.secondary.opacity(0.5))
+                    .tag(nodeGroup)
+                    .help(nodeGroup.rawValue)
+                    .onTapGesture {
+                        self.headerSelection = nodeGroup
+                    }
+            }
+            
+            Spacer()
         }
     }
     
-    func calcFilteredNodesDict() -> [Node.NodeType:[NodeClassWrapper]]
+    @ViewBuilder private func searchBar() -> some View
     {
-        var dict = [Node.NodeType:[NodeClassWrapper]]()
-        
-        for nodeType in Node.NodeType.allCases
+        VStack(spacing:0)
         {
-            dict[nodeType] = self.filteredNodes(forType: nodeType)
+            HStack
+            {
+                Spacer()
+
+                TextField("Search", text: $searchString)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .controlSize(.small)
+                Spacer()
+                
+                Image(systemName: "xmark.circle")
+                    .foregroundStyle(Color.secondary.opacity(0.5))
+                    .onTapGesture {
+                        self.searchString = ""
+                    }
+                
+                Spacer()
+            }
+            
+            Text(String( self.numNodesToShow ) + " Nodes")
+                .font( .caption )
+                .padding(.vertical, 3)
         }
-        
-        return dict
     }
     
     func filteredNodes(forType nodeType:Node.NodeType) -> [NodeClassWrapper]
@@ -181,15 +192,5 @@ public struct NodeRegisitryView: View {
         let availableNodes:[NodeClassWrapper] = NodeRegistry.shared.availableNodes
         let nodesForType:[NodeClassWrapper] = availableNodes.filter( { $0.nodeType == nodeType })
         return  self.searchString.isEmpty ? nodesForType : nodesForType.filter {  $0.nodeName.localizedCaseInsensitiveContains(self.searchString) }
-    }
-    
-    func calcIfWeHaveNodesToShow() -> Bool
-    {
-        self.numNodesToShow > 0
-    }
-    
-    func calcNumTotalNodes() -> Int
-    {
-        self.headerSelection.nodeTypes().compactMap( { self.filteredNodes(forType:$0)} ).joined().count
     }
 }

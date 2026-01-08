@@ -283,7 +283,7 @@ public class NodeRegistry {
         TransposeTransformNode.self,
         InvertTransformNode.self,
         DecomposeTransformNode.self,
-        GeometryToTransformArrayNode.self,
+//        GeometryToTransformArrayNode.self,
         ArrayIndexValueNode<simd_float4x4>.self,
         ArrayCountNode<simd_float4x4>.self,
         ArrayQueueNode<simd_float4x4>.self,
