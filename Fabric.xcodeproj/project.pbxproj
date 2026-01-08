@@ -230,6 +230,7 @@
 				Nodes/Parameters/Array/ArrayReplaceValueAtIndexNode.swift,
 				Nodes/Parameters/Array/FloatArrayToVector2ArrayNode.swift,
 				Nodes/Parameters/Array/FloatArrayToVector3ArrayNode.swift,
+				Nodes/Parameters/Array/GeometryToTransformArrayNode.swift,
 				Nodes/Parameters/Array/PolyLineSimplifyNode.swift,
 				Nodes/Parameters/Boolean/BooleanLogicNode.swift,
 				Nodes/Parameters/Boolean/FalseNode.swift,
