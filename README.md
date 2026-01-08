@@ -66,7 +66,7 @@ Fabric includes a licensed Metal port of [Lygia](https://lygia.xyz) shader libra
 > [!WARNING]
 > Please note Fabric is heavily under construction.
 
-- macOS 14 +
+- macOS 15 +
 - XCode 15 +
 
 Please See [Releases](https://github.com/Fabric-Project/Fabric/releases) for code signed App downloads.
