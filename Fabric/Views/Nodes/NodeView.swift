@@ -16,6 +16,10 @@ struct NodeView : View
     
     // Drag to Offset bullshit
     @State var offset = CGSize.zero
+    // Rename
+    @State private var isRenaming: Bool = false
+    @State private var renamingText: String = ""
+    @FocusState private var renameFieldFocused: Bool
     
     var body: some View
     {
@@ -36,14 +40,39 @@ struct NodeView : View
                 VStack(alignment: .leading, spacing: 10) {
 //                    
                     // Name
-                    Text( self.node.name )
+                    if isRenaming {
+                        TextField("", text: $renamingText, onCommit: {
+                            let trimmed = renamingText.trimmingCharacters(in: .whitespacesAndNewlines)
+                            node.displayName = trimmed.isEmpty ? nil : trimmed
+                            isRenaming = false
+                        })
+                        .textFieldStyle(.plain)
+                        .focused($renameFieldFocused)
                         .font(.system(size: 9))
                         .bold()
-//                        .foregroundStyle(.primary)
-                        .foregroundStyle(  self.node.nodeType.color()  )
+                        .foregroundStyle( self.node.nodeType.color() )
                         .frame(maxHeight: 20)
                         .padding(.top, 5)
                         .padding(.horizontal, 20)
+                        .onExitCommand {
+                            isRenaming = false
+                            renameFieldFocused = false
+                        }
+                    } else {
+                        Text( self.node.name )
+                            .font(.system(size: 9))
+                            .bold()
+    //                        .foregroundStyle(.primary)
+                            .foregroundStyle(  self.node.nodeType.color()  )
+                            .frame(maxHeight: 20)
+                            .padding(.top, 5)
+                            .padding(.horizontal, 20)
+                            .onTapGesture(count: 2) { // double tap to rename
+                                renamingText = node.displayName ?? type(of: node).name
+                                isRenaming = true
+                                renameFieldFocused = true
+                            }
+                    }
                     
 //                    Spacer()
                     
