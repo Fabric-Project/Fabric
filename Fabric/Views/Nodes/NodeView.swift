@@ -17,7 +17,7 @@ struct NodeView : View
     // Drag to Offset bullshit
     @State var offset = CGSize.zero
     // Rename
-    @State private var isRenaming: Bool = false
+    @Binding public var renaming: Bool
     @State private var renamingText: String = ""
     @FocusState private var renameFieldFocused: Bool
     
@@ -40,11 +40,11 @@ struct NodeView : View
                 VStack(alignment: .leading, spacing: 10) {
 //                    
                     // Name
-                    if isRenaming {
+                    if renaming {
                         TextField("", text: $renamingText, onCommit: {
                             let trimmed = renamingText.trimmingCharacters(in: .whitespacesAndNewlines)
                             node.displayName = trimmed.isEmpty ? nil : trimmed
-                            isRenaming = false
+                            renaming = false
                         })
                         .textFieldStyle(.plain)
                         .focused($renameFieldFocused)
@@ -55,8 +55,7 @@ struct NodeView : View
                         .padding(.top, 5)
                         .padding(.horizontal, 20)
                         .onExitCommand {
-                            isRenaming = false
-                            renameFieldFocused = false
+                            renaming = false
                         }
                     } else {
                         Text( self.node.name )
@@ -67,10 +66,9 @@ struct NodeView : View
                             .frame(maxHeight: 20)
                             .padding(.top, 5)
                             .padding(.horizontal, 20)
-                            .onTapGesture(count: 2) { // double tap to rename
-                                renamingText = node.displayName ?? type(of: node).name
-                                isRenaming = true
-                                renameFieldFocused = true
+                            .contentShape(Rectangle())
+                            .onTapGesture(count: 2) { // double click to rename
+                                renaming = true
                             }
                     }
                     
@@ -102,6 +100,10 @@ struct NodeView : View
             .overlay {
                 RoundedRectangle(cornerRadius: self.cornerRadius())
                     .stroke(  (self.node.isSelected) ? self.node.nodeType.color() : .gray /*self.node.nodeType.backgroundColor()*/ , lineWidth: (self.node.isSelected) ? 1.5 : 1.0)
+            }
+            .onChange(of: renaming) { _, new in
+                if new { renamingText = self.node.name }
+                renameFieldFocused = new
             }
         }
     }
