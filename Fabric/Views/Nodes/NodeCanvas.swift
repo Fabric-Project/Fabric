@@ -27,9 +27,14 @@ import SwiftUI
 
 public struct NodeCanvas : View
 {
-    @Environment(Graph.self) var graph:Graph
+    let graph:Graph
+    let graphRenderer:GraphRenderer
     
-    public init() { }
+    public init(graph:Graph, graphRender:GraphRenderer)
+    {
+        self.graph = graph
+        self.graphRenderer = graphRender
+    }
     
 //    @State var activityMonitor = NodeCanvasUserActivityMonitor()
     
@@ -67,6 +72,7 @@ public struct NodeCanvas : View
                 ForEach(graph.nodes, id: \.id) { currentNode in
 
                     NodeView(node: currentNode , offset: currentNode.offset)
+                        .environment(self.graph)
                         .offset( currentNode.offset )
                         .highPriorityGesture(
                             TapGesture(count: 1)
@@ -133,7 +139,9 @@ public struct NodeCanvas : View
                 let graph = self.graph.activeSubGraph ?? self.graph
 
                 let selectedNodes = graph.nodes.filter({ $0.isSelected })
-                selectedNodes.forEach( { graph.delete(node: $0) } )
+                selectedNodes.forEach( {
+                    self.graphRenderer.deleteNode($0, fromGraph: graph)
+                } )
             }
             .onTapGesture {
                 let graph = self.graph.activeSubGraph ?? self.graph
@@ -205,9 +213,12 @@ public struct NodeCanvas : View
 
         case .deleteForward:
             let graph = self.graph.activeSubGraph ?? self.graph
+
             let selectedNodes = graph.nodes.filter({ $0.isSelected })
-            selectedNodes.forEach( { graph.delete(node: $0) } )
-            
+            selectedNodes.forEach( {
+                self.graphRenderer.deleteNode($0, fromGraph: graph)
+            } )
+
         default:
             return .ignored
         }

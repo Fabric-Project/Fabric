@@ -28,6 +28,7 @@ class FabricDocument: FileDocument
                            stencilPixelFormat: .stencil8)
     let graph:Graph
     var graphName:String = "Untitled"
+    lazy var graphRenderer:GraphRenderer = GraphRenderer(context: self.context)
     
     @ObservationIgnored var outputWindowManager:DocumentOutputWindowManager? = nil
     
@@ -62,6 +63,8 @@ class FabricDocument: FileDocument
         boxNode.outputGeometry.connect(to: meshNode.inputGeometry)
         materialNode.outputMaterial.connect(to: meshNode.inputMaterial)
 
+        // We add direcrly to the graph because we arent in a dynamic execution state yet.
+        // Note - the editor needs to do this addition Dynamically
         self.graph.addNode(boxNode)
         self.graph.addNode(materialNode)
         self.graph.addNode(meshNode)
@@ -95,16 +98,17 @@ class FabricDocument: FileDocument
       
     }
 
-    func setupOutputWindow()
+    @MainActor func setupOutputWindow()
     {
-        self.outputWindowManager = DocumentOutputWindowManager()
+        self.outputWindowManager = DocumentOutputWindowManager(graphRenderer: self.graphRenderer)
         self.outputWindowManager?.setGraph(graph: self.graph)
         self.outputWindowManager?.setWindowName(self.graphName)
     }
     
-    func closeOutputWindow()
+    @MainActor func closeOutputWindow()
     {
         self.outputWindowManager?.closeOutputWindow()
+        self.outputWindowManager = nil
     }
     
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper

@@ -11,6 +11,8 @@ import Satin
 public struct NodeRegisitryView: View {
 
     public let graph: Graph
+    public var graphRenderer: GraphRenderer?
+    
     @Binding public var scrollOffset: CGPoint
 
     @State private var searchString:String = ""
@@ -28,8 +30,9 @@ public struct NodeRegisitryView: View {
 
     private var haveNodesToShow: Bool { self.numNodesToShow > 0 }
     
-    public init(graph: Graph, scrollOffset: Binding<CGPoint>) {
+    public init(graph: Graph, graphRenderer:GraphRenderer?, scrollOffset: Binding<CGPoint>) {
         self.graph = graph
+        self.graphRenderer = graphRenderer
         self._scrollOffset = scrollOffset
     }
     
@@ -86,7 +89,8 @@ public struct NodeRegisitryView: View {
                     {
                         do
                         {
-                            try self.graph.addNode(node, initialOffset:self.scrollOffset)
+                            try self.graphRenderer?.addNode(node, toGraph: self.graph, initialOffset: self.scrollOffset)
+//                            try self.graph.addNode(node, initialOffset:self.scrollOffset)
                         }
                         catch
                         {

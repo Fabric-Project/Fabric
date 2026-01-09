@@ -39,7 +39,6 @@ struct FabricApp: App {
                     // THIS SHIT HAS TO BE ON MAIN THREAD FOR APPKIT
                     file.document.closeOutputWindow()
                 }
-                
         }
         .commands {
             AboutCommands()

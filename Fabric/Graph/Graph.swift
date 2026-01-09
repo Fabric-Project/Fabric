@@ -281,10 +281,8 @@ internal import AnyCodable
         self.notes.removeAll(where: { $0.id == note.id })
     }
     
-    public func addNode(_ node: NodeClassWrapper, initialOffset:CGPoint? ) throws
+    internal func addNode(_ node: Node, initialOffset:CGPoint? )
     {
-        let node = try node.initializeNode(context: self.context)
-        
         var offset = CGSize.zero
         
         if let initialOffset = initialOffset

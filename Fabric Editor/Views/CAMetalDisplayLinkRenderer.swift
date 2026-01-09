@@ -16,17 +16,13 @@ class CAMetalDisplayLinkRenderer: GameView
     let graphRenderer:GraphRenderer
     let graph:Graph
 
-//    private let commandQueue: (any MTLCommandQueue)
     private let renderPassDescriptor = MTLRenderPassDescriptor()
-    
 
-    init(graph:Graph)
+    init(graph:Graph, graphRenderer:GraphRenderer)
     {
         self.graph = graph
-        self.graphRenderer = GraphRenderer(context: self.graph.context)
-
-//        self.commandQueue = self.graph.context.device.makeCommandQueue()!
-
+        self.graphRenderer = graphRenderer
+        
         super.init(frame: CGRect(origin: .zero, size: CGSize(width: 640, height: 480)))
         
         self.metalLayer.device = self.graph.context.device

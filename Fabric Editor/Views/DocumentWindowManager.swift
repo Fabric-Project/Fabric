@@ -20,17 +20,19 @@ private enum ToolbarID
     
 }
 
-class DocumentOutputWindowManager : NSObject
+@MainActor class DocumentOutputWindowManager : NSObject
 {
     private var outputwindow:NSWindow? = nil
     private var outputRenderer:CAMetalDisplayLinkRenderer? = nil
-    
+    public private(set) var graphRenderer:GraphRenderer
+
     // Toolbar shit
     private weak var playPauseItem: NSToolbarItem?
 
     
-    override init()
+    init(graphRenderer:GraphRenderer)
     {
+        self.graphRenderer = graphRenderer
         self.outputwindow = NSWindow(contentRect: NSRect(x: 100, y: 100, width: 600, height: 600),
                                      styleMask: [.titled, .miniaturizable, .resizable, .unifiedTitleAndToolbar],
                                      backing: .buffered, defer: false)
@@ -40,7 +42,6 @@ class DocumentOutputWindowManager : NSObject
 
         super.init()
 
-        self.outputwindow?.delegate = self
         self.installToolbar()
     }
     
@@ -58,7 +59,7 @@ class DocumentOutputWindowManager : NSObject
     
     func setGraph(graph:Graph)
     {
-        self.outputRenderer = CAMetalDisplayLinkRenderer(graph:graph)
+        self.outputRenderer = CAMetalDisplayLinkRenderer(graph:graph, graphRenderer: self.graphRenderer)
         self.outputRenderer?.frame = CGRect(x: 0,
                                             y: 0,
                                             width: self.outputwindow?.frame.size.width ?? 600,
@@ -76,24 +77,17 @@ class DocumentOutputWindowManager : NSObject
     func closeOutputWindow()
     {
         self.outputwindow?.close()
-    }
-    
-    deinit
-    {
-        print("Free DocumentOutputWindowManager")        
-    }
-}
-
-extension DocumentOutputWindowManager: NSWindowDelegate
-{
-    func windowWillClose(_ notification: Notification)
-    {
-        // Tell the renderer to stop *all* time/display-linked work
         self.outputRenderer?.teardown()
+
 
         // Break strong reference cycles and detach the view from the window
         self.outputwindow?.contentView = nil
         self.outputRenderer = nil
+    }
+    
+    deinit
+    {
+        print("Free DocumentOutputWindowManager")
     }
 }
 

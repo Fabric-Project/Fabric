@@ -44,7 +44,7 @@ struct ContentView: View {
 
         NavigationSplitView(columnVisibility: self.$columnVisibility)
         {
-            NodeRegisitryView(graph: document.graph, scrollOffset: $scrollOffset)
+            NodeRegisitryView(graph: document.graph, graphRenderer:document.graphRenderer, scrollOffset: $scrollOffset)
                 .navigationSplitViewColumnWidth(min: 150, ideal: 200, max:250)
 
         } detail: {
@@ -91,9 +91,8 @@ struct ContentView: View {
                     ScrollViewReader { proxy in
                         ScrollView([.horizontal, .vertical])
                         {
-                            NodeCanvas()
+                            NodeCanvas(graph: self.document.graph, graphRender: self.document.graphRenderer)
                                 .frame(width: self.canvasSize, height: self.canvasSize)
-                                .environment(self.document.graph)
                                 .contextMenu(menuItems: {
                                     Button("New Note") {
                                         

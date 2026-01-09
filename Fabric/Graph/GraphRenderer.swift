@@ -12,6 +12,7 @@ import Satin
 // Graph Execution Engine
 public class GraphRenderer : MetalViewRenderer
 {
+    public private(set) var executionEnabled:Bool = true
     public private(set) var context:Context!
     public let renderer:Renderer
     
@@ -100,6 +101,33 @@ public class GraphRenderer : MetalViewRenderer
         return nil
     }
     
+    // MARK: - Dynamic Node Addition and Removal
+    internal func addNode(_ node: NodeClassWrapper, toGraph graph:Graph, initialOffset:CGPoint? ) throws
+    {
+        let node = try node.initializeNode(context: self.context)
+
+        graph.addNode(node, initialOffset: initialOffset)
+
+        node.startExecution(context:self.currentGraphExecutionContext() )
+        node.enableExecution(context:self.currentGraphExecutionContext() )
+    }
+
+    public func addNode(_ node:Node, toGraph graph: Graph)
+    {
+        graph.addNode(node)
+
+        node.startExecution(context:self.currentGraphExecutionContext() )
+        node.enableExecution(context:self.currentGraphExecutionContext() )
+    }
+    
+    public func deleteNode(_ node:Node, fromGraph graph:Graph)
+    {
+        graph.delete(node:node)
+
+        node.disableExecution(context:self.currentGraphExecutionContext() )
+        node.stopExecution(context:self.currentGraphExecutionContext() )
+    }
+    
     // MARK: - Execution
 
     public func disableExecution(graph:Graph, executionContext:GraphExecutionContext)
@@ -108,6 +136,8 @@ public class GraphRenderer : MetalViewRenderer
         {
             node.disableExecution(context: executionContext)
         }
+        
+        self.executionEnabled = false
     }
     
     public func enableExecution(graph:Graph, executionContext:GraphExecutionContext)
@@ -116,6 +146,8 @@ public class GraphRenderer : MetalViewRenderer
         {
             node.enableExecution(context: executionContext)
         }
+        
+        self.executionEnabled = true
     }
     
     public func startExecution(graph:Graph, executionContext:GraphExecutionContext)
@@ -124,10 +156,20 @@ public class GraphRenderer : MetalViewRenderer
         {
             node.startExecution(context: executionContext)
         }
+        
+        if !self.executionEnabled
+        {
+            self.enableExecution(graph: graph, executionContext: executionContext)
+        }
     }
     
     public func stopExecution(graph:Graph, executionContext:GraphExecutionContext)
     {
+        if self.executionEnabled
+        {
+            self.disableExecution(graph: graph, executionContext: executionContext)
+        }
+
         for node in graph.nodes
         {
             node.stopExecution(context: executionContext)
