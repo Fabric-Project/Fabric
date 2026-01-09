@@ -43,6 +43,11 @@ struct NodeView : View
                     if renaming {
                         TextField("", text: $renamingText, onCommit: {
                             let trimmed = renamingText.trimmingCharacters(in: .whitespacesAndNewlines)
+                            let oldName = node.name
+                            node.graph?.undoManager?.registerUndo(withTarget: node) { node in
+                                node.displayName = oldName
+                            }
+                            node.graph?.undoManager?.setActionName("Rename Node")
                             node.displayName = trimmed.isEmpty ? nil : trimmed
                             renaming = false
                         })
