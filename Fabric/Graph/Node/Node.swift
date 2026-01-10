@@ -14,7 +14,10 @@ import Combine
 @Observable public class Node : Codable, Equatable, Identifiable, Hashable
 {
     // User interface name
-    public class var name:String {  fatalError("\(String(describing:self)) Must implement name") }
+    public class var name: String {  fatalError("\(String(describing:self)) Must implement name") }
+    
+    // Custom name (rename)
+    public var displayName: String?
     
     // User interface organizing principle
     public class var nodeType:Node.NodeType { fatalError("\(String(describing:self)) Must implement nodeType") }
@@ -46,7 +49,7 @@ import Combine
     public var name : String
     {
         let myType = type(of: self)
-        return  myType.name
+        return displayName ?? myType.name
     }
     
     @ObservationIgnored public var nodeType:NodeType
@@ -98,6 +101,7 @@ import Combine
         
         // TODO:
         case name // Override node UI name (not implemented)
+        case displayName
 
         // Depreciated...
         case inputParameters
@@ -116,6 +120,7 @@ import Combine
         
         self.id = try container.decode(UUID.self, forKey: .id)
         self.offset = try container.decode(CGSize.self, forKey: .nodeOffset)
+        self.displayName = try container.decodeIfPresent(String.self, forKey: .displayName)
   
         let snaps = try container.decodeIfPresent([PortRegistry.Snapshot].self, forKey: .ports) ?? []
 
@@ -166,6 +171,7 @@ import Combine
         try container.encode(self.id, forKey: .id)
         try container.encode(self.offset, forKey: .nodeOffset)
         try container.encode(self.registry.encode(), forKey: .ports)
+        try container.encodeIfPresent(self.displayName, forKey: .displayName)
     }
     
     public required init(context:Context)
