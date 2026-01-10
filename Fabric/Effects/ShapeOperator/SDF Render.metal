@@ -17,7 +17,6 @@ typedef struct {
     float borderWidth; // slider, 0.0, 1.0, 0.0, Border Width
     float borderSize; // slider, -1.0, 1.0, 0.0, Border Offset
     float4 backgroundColor; // color,  Background Color
-    float onion; // slider, 0.0, 1.0, 0.5, Onion
 
 } PostUniforms;
 
@@ -28,7 +27,7 @@ fragment half4 postFragment( VertexData in [[stage_in]],
     float4 color = float4(0.0);
 
     float sdf = SAMPLER_FNC( renderTex, in.texcoord ).r;
-  //  sdf = opOnion(sdf, uniforms.onion);
+//    sdf = opOnion(sdf, uniforms.onion);
 
     float sdfStroke = stroke(sdf, uniforms.borderSize, uniforms.borderWidth);
 //    sdfStroke = opOnion(sdfStroke, uniforms.onion);
