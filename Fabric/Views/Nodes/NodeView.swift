@@ -69,9 +69,9 @@ struct NodeView : View
     //                        .foregroundStyle(.primary)
                             .foregroundStyle(  self.node.nodeType.color()  )
                             .frame(maxHeight: 20)
+                            .contentShape(Rectangle())
                             .padding(.top, 5)
                             .padding(.horizontal, 20)
-                            .contentShape(Rectangle())
                             .onTapGesture(count: 2) { // double click to rename
                                 renaming = true
                             }
