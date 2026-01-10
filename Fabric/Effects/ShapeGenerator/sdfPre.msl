@@ -1,0 +1,38 @@
+#include "../../lygia/math.msl"
+#include "../../lygia/space/ratio.msl"
+#include "../../lygia/space/rotate.msl"
+#include "../../lygia/space/scale.msl"
+#include "../../lygia/space/center.msl"
+#include "../../lygia/space/sqTile.msl"
+
+typedef struct {
+    float rotation; // slider, -3.15149, 3.15149, 0.0, Rotation
+    float scale; // slider, 0.000001, 1.0, 0.5, Scale
+    float2 position; // xypad, 0.0, 1.0, 0.5, Position
+    float2 resolution; // xypad, 0.0, 3840.0, 3840.0, Resolution
+    float repeat; // slider, 1.0, 10.0, 1.0, Repeat
+} PostUniforms;
+
+
+fragment half4 postFragment( VertexData in [[stage_in]],
+    constant PostUniforms &uniforms [[buffer( FragmentBufferMaterialUniforms )]])
+{
+    const float2 offset = float2(0.0, 0.33);
+    
+    float2 pixel = 1.0 / uniforms.resolution;
+    
+    float2 st_f = in.position.xy * pixel;
+    
+    st_f = ratio(st_f, uniforms.resolution);
+    
+    st_f.y += 0.25;
+
+    st_f += uniforms.position;// + offset;
+    
+    st_f = sqTile(st_f, uniforms.repeat).xy;
+
+    float s = 1.0 + (1.0 / uniforms.scale);
+    st_f = scale(st_f, s);
+
+    st_f = rotate(st_f, uniforms.rotation);
+    st_f = center(st_f);

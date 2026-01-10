@@ -209,7 +209,8 @@ class BaseGeneratorNode: Node, NodeFileLoadingProtocol
 
         }
         
-        if let outImage = context.graphRenderer?.newImage(withWidth: Int(self.postProcessor.renderer.size.width), height: Int(self.postProcessor.renderer.size.height))
+        if let outImage = context.graphRenderer?.newImage(withWidth: max(1, Int(self.postProcessor.renderer.size.width) ),
+                                                          height: max(1, Int(self.postProcessor.renderer.size.height) ) )
         
         {
             let renderPassDesc = MTLRenderPassDescriptor()
