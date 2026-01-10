@@ -76,6 +76,8 @@ extension Node
             case BaseEffect
             case Loader
             case Generator
+            case ShapeGenerator
+            case ShapeOperator
             case ColorAdjust
             case ColorEffect
             case ColorSpace

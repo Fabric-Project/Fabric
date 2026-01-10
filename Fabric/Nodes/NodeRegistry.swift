@@ -144,7 +144,7 @@ public class NodeRegistry {
             {
                 for fileURL in singleChannelEffects
                 {
-                    let baseClass = imageEffectType == .Generator ? BaseGeneratorNode.self : BaseEffectNode.self
+                    let baseClass = [.Generator, .ShapeGenerator].contains(imageEffectType) ? BaseGeneratorNode.self : BaseEffectNode.self
                     let node = NodeClassWrapper(nodeClass: baseClass,
                                                 nodeType: .Image(imageType: imageEffectType),
                                                 fileURL: fileURL,
