@@ -59,7 +59,7 @@ internal import AnyCodable
 
     @ObservationIgnored weak var lastNode:(Node)? = nil
     
-    @ObservationIgnored public var currentScrollOffset:CGPoint = .zero { didSet { print("currentScrollOffset: \(currentScrollOffset)") } }
+    @ObservationIgnored public var currentScrollOffset:CGPoint = .zero //{ didSet { print("currentScrollOffset: \(currentScrollOffset)") } }
 
     public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
 
@@ -287,7 +287,7 @@ internal import AnyCodable
     {
         let node = try node.initializeNode(context: self.context)
         
-        var offset = self.currentNodeOffset
+        var offset = CGSize(width: self.currentScrollOffset.x, height: self.currentScrollOffset.y)
         
 //        if let initialOffset = initialOffset
 //        {
