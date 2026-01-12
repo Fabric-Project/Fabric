@@ -293,6 +293,7 @@
 				Views/Nodes/NodeCanvasUserActivityMonitor.swift,
 				Views/Nodes/NodeInletView.swift,
 				Views/Nodes/NodeOutletView.swift,
+				Views/Nodes/NodeTitleView.swift,
 				Views/Nodes/NodeView.swift,
 				Views/NodeSelectionInspector.swift,
 				Views/NoteView.swift,

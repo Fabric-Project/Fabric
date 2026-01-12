@@ -39,6 +39,7 @@ public struct NodeCanvas : View
 
     @State private var portPositions: [UUID: CGPoint] = [:]
 
+    
     @State private var renamingNodeID: UUID? = nil // node being renamed
     
     public var body: some View
@@ -67,21 +68,8 @@ public struct NodeCanvas : View
                 }
                 
                 ForEach(graph.nodes, id: \.id) { currentNode in
-
-                    let isRenaming = Binding<Bool>(
-                        get: { self.renamingNodeID == currentNode.id },
-                        set: { newValue in
-                            if newValue {
-                                self.renamingNodeID = currentNode.id
-                            } else {
-                                if self.renamingNodeID == currentNode.id {
-                                    self.renamingNodeID = nil
-                                }
-                            }
-                        }
-                    )
                     
-                    NodeView(node: currentNode , offset: currentNode.offset , renaming: isRenaming)
+                    NodeView(node: currentNode , offset: currentNode.offset)
                         .offset( currentNode.offset )
                         .highPriorityGesture(
                             TapGesture(count: 1)
