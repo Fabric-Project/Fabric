@@ -84,15 +84,16 @@ struct ContentView: View {
 
                     GeometryReader { geom in
                         RadialGradient(colors: [.clear, .black.opacity(0.75)], center: .center, startRadius: 0, endRadius: geom.size.width * 1.5)
-                            .allowsHitTesting(false)
                     }
+                    
+
 
                     ScrollViewReader { proxy in
                         ScrollView([.horizontal, .vertical])
                         {
                             NodeCanvas(graph: self.document.graph)
                                 .id("canvas")
-                                .allowsHitTesting(self.hitTestEnable)
+                                //.allowsHitTesting(self.hitTestEnable)
                                 .frame(width: self.canvasSize, height: self.canvasSize)
                                 .scaleEffect(finalMagnification * magnifyBy, anchor: magnifyAnchor)
                                 .contextMenu(menuItems: {
