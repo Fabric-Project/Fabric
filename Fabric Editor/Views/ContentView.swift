@@ -91,9 +91,11 @@ struct ContentView: View {
                     ScrollViewReader { proxy in
                         ScrollView([.horizontal, .vertical])
                         {
-                            NodeCanvas()
+                            NodeCanvas(graph: self.document.graph)
+                                .id("canvas")
+                                .allowsHitTesting(self.hitTestEnable)
                                 .frame(width: self.canvasSize, height: self.canvasSize)
-                                .environment(self.document.graph)
+                                .scaleEffect(finalMagnification * magnifyBy, anchor: magnifyAnchor)
                                 .contextMenu(menuItems: {
                                     Button("New Note") {
                                         
@@ -104,7 +106,6 @@ struct ContentView: View {
                                         graph.addNote(note)
                                     }
                                 })
-                                .scaleEffect(finalMagnification * magnifyBy, anchor: magnifyAnchor)
                                 .gesture(
                                     MagnifyGesture()
                                         .updating($magnifyBy, body: { value, state, _ in
@@ -149,8 +150,6 @@ struct ContentView: View {
                                             finalMagnification = min(max(finalMagnification * value.magnification, self.zoomMin), self.zoomMax)
                                         }
                                 )
-                                .allowsHitTesting(self.hitTestEnable)
-                                .id("canvas")
                                 .onAppear {
                                     self.document.graph.undoManager = undoManager
 
@@ -189,8 +188,7 @@ struct ContentView: View {
             }
             .inspector(isPresented: self.$inspectorVisibility)
             {
-                NodeSelectionInspector()
-                    .environment(self.document.graph)
+                NodeSelectionInspector(graph:self.document.graph)
                     .inspectorColumnWidth(min:250, ideal:250, max:300)
             }
             .toolbar

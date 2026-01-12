@@ -11,9 +11,8 @@ struct NodeInletView: View
 {
     static let radius:CGFloat = 15
     
-    @Environment(Graph.self) var graph:Graph
-
-    var port: Port
+    let port: Port
+    let graph:Graph
 
     @State private var isDropTargeted = false
 

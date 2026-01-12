@@ -9,10 +9,9 @@ import SwiftUI
 
 struct NodeOutletView: View
 {
-    @Environment(Graph.self) var graph:Graph
-
     let port: Port
-
+    let graph: Graph
+    
     @State private var isDropTargeted = false
 
     var body: some View

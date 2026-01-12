@@ -10,9 +10,8 @@ import Satin
 
 struct NodeView : View
 {
-    @SwiftUI.Environment(Graph.self) var graph:Graph
-    
     let node:Node
+    let graph:Graph
     
     // Drag to Offset bullshit
     @State var offset = CGSize.zero
@@ -40,7 +39,7 @@ struct NodeView : View
 //                    Spacer()
                     
                     ForEach(self.node.ports.filter({$0.kind == .Inlet && $0.direction == .Horizontal}), id: \.id) { port in
-                        NodeInletView(port: port)
+                        NodeInletView(port: port, graph: self.graph)
                     }
                     Spacer(minLength: 0)
                 }
@@ -52,7 +51,7 @@ struct NodeView : View
                         .frame(height: 25)
                     
                     ForEach(self.node.ports.filter({$0.kind == .Outlet && $0.direction == .Horizontal}), id: \.id) { port in
-                        NodeOutletView(port: port)
+                        NodeOutletView(port: port, graph: self.graph)
                     }
                     Spacer(minLength: 0)
                 }

@@ -7,29 +7,14 @@
 
 import SwiftUI
 
-
-//public struct NodeRenameView
-//{
-//    @Environment(\.dismiss) var dismiss // For programmatic dismissal
-//
-//    let node:Node
-//    
-//    var body: some View {
-//            VStack {
-//                TextField("Node Name", text: self.$node.name)
-//                Button("Save") {
-//                    dismiss() // Dismiss the modal
-//                }
-//            }
-//        }
-//}
-
-
 public struct NodeCanvas : View
 {
-    @Environment(Graph.self) var graph:Graph
+    let graph:Graph
     
-    public init() { }
+    public init(graph:Graph)
+    {
+        self.graph = graph
+    }
     
 //    @State var activityMonitor = NodeCanvasUserActivityMonitor()
     
@@ -69,7 +54,7 @@ public struct NodeCanvas : View
                 
                 ForEach(graph.nodes, id: \.id) { currentNode in
                     
-                    NodeView(node: currentNode , offset: currentNode.offset)
+                    NodeView(node: currentNode , graph:self.graph, offset: currentNode.offset)
                         .offset( currentNode.offset )
                         .highPriorityGesture(
                             TapGesture(count: 1)

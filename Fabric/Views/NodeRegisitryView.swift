@@ -114,9 +114,9 @@ public struct NodeRegisitryView: View {
 //            
 //            Spacer()
         }
-        .controlSize(.mini)
         .searchable(text: $searchString, placement: .sidebar)
         .searchPresentationToolbarBehavior(.avoidHidingContent)
+
 
         
         // It seems as though our custom search bar vs .searchable behave slightly differently?

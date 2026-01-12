@@ -8,11 +8,14 @@
 import SwiftUI
 import Satin
 
-public struct NodeSelectionInspector: View {
+public struct NodeSelectionInspector: View
+{
+    let graph:Graph
     
-    @Environment(Graph.self) var graph:Graph
-    
-    public init() { }
+    public init(graph:Graph)
+    {
+        self.graph = graph
+    }
     
     public var body: some View {
         
