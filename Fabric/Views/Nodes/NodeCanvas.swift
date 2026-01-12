@@ -39,6 +39,9 @@ public struct NodeCanvas : View
 
     @State private var portPositions: [UUID: CGPoint] = [:]
 
+    
+    @State private var renamingNodeID: UUID? = nil // node being renamed
+    
     public var body: some View
     {
         GeometryReader { geom in
@@ -65,7 +68,7 @@ public struct NodeCanvas : View
                 }
                 
                 ForEach(graph.nodes, id: \.id) { currentNode in
-
+                    
                     NodeView(node: currentNode , offset: currentNode.offset)
                         .offset( currentNode.offset )
                         .highPriorityGesture(
@@ -182,6 +185,8 @@ public struct NodeCanvas : View
     
     private func handleKeyPress(keyPress:KeyPress) -> KeyPress.Result
     {
+        if renamingNodeID != nil { return .ignored }
+        
         switch keyPress.key
         {
         case .upArrow:
@@ -382,6 +387,12 @@ public struct NodeCanvas : View
                     }
                     
                 }
+            }
+        
+            Button {
+                renamingNodeID = currentNode.id
+            } label: {
+                Text("Rename")
             }
     }
     

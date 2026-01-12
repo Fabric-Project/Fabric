@@ -35,15 +35,7 @@ struct NodeView : View
             
                 VStack(alignment: .leading, spacing: 10) {
 //                    
-                    // Name
-                    Text( self.node.name )
-                        .font(.system(size: 9))
-                        .bold()
-//                        .foregroundStyle(.primary)
-                        .foregroundStyle(  self.node.nodeType.color()  )
-                        .frame(maxHeight: 20)
-                        .padding(.top, 5)
-                        .padding(.horizontal, 20)
+                    NodeTitleView(node: node)
                     
 //                    Spacer()
                     
