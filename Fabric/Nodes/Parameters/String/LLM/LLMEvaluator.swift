@@ -22,8 +22,8 @@ class LLMEvaluator {
     var modelConfiguration = LLMRegistry.qwen3_1_7b_4bit
 
     /// parameters controlling the output
-    let generateParameters = GenerateParameters(maxTokens: 240, temperature: 0.6)
-    let updateInterval = Duration.seconds(0.25)
+    var generateParameters = GenerateParameters( temperature: 0.6)
+    var updateInterval = Duration.seconds(0.25)
 
     /// A task responsible for handling the generation process.
     var generationTask: Task<Void, Error>?
@@ -92,7 +92,10 @@ class LLMEvaluator {
             MLXRandom.seed(UInt64(Date.timeIntervalSinceReferenceDate * 1000))
 
             try await modelContainer.perform { (context: ModelContext) -> Void in
+//                print("LLM preparing user input")
                 let lmInput = try await context.processor.prepare(input: userInput)
+                
+//                print("LLM begin streaming output")
                 let stream = try MLXLMCommon.generate(
                     input: lmInput, parameters: generateParameters, context: context)
 
@@ -100,15 +103,19 @@ class LLMEvaluator {
                 for await batch in stream._throttle(
                     for: updateInterval, reducing: Generation.collect)
                 {
+//                    print("LLM recieved output batch")
+                    
                     let output = batch.compactMap { $0.chunk }.joined(separator: "")
                     if !output.isEmpty {
                         Task { @MainActor [output] in
+//                            print("LLM output append: \(output)")
                             self.output += output
                         }
                     }
 
                     if let completion = batch.compactMap({ $0.info }).first {
                         Task { @MainActor in
+//                            print("LLM stats: \(completion.tokensPerSecond) tokens/s")
                             self.stat = "\(completion.tokensPerSecond) tokens/s"
                         }
                     }

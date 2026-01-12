@@ -232,11 +232,15 @@ public class NodeRegistry {
         FloatArrayToVector3ArrayNode.self,
 
         // String
+        StringNode.self,
         TextFileLoaderNode.self,
+        StringJoinNode.self,
         StringComponentNode.self,
         StringLengthNode.self,
         StringRangeNode.self,
         StringWrapNode.self,
+        StringRemoveWhitespaceNode.self,
+        StringDifferenceNode.self,
 //        ConvertToStringNode.self,
         LocalLLMNode.self,
         ArrayFirstValueNode<String>.self,

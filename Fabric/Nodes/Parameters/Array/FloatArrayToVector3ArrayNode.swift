@@ -50,10 +50,10 @@ public class FloatArrayToVector3ArrayNode: Node
                 self.outputPort.send( ContiguousArray(vectorArray) )
             }
             
-            else
-            {
-                self.outputPort.send( nil )
-            }
+//            else
+//            {
+//                self.outputPort.send( nil )
+//            }
         }
     }
 }

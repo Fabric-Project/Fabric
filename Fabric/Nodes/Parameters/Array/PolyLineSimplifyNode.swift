@@ -51,10 +51,10 @@ public class PolyLineSimplifyNode: Node
                 self.outputPort.send( simplifiedPoints )
             }
             
-            else
-            {
-                self.outputPort.send( nil )
-            }
+//            else
+//            {
+//                self.outputPort.send( nil )
+//            }
         }
     }
 }

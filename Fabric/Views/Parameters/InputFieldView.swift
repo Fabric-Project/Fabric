@@ -30,11 +30,10 @@ struct InputFieldComponentView : View
     
     var body: some View {
         TextField(label, text: binding)
-            .font(.system(size: 10))
-            .textFieldStyle(.roundedBorder)
             .lineLimit(1)
             .frame(width: ParameterConfig.paramWidth, alignment: .leading)
-
+            .font(.system(size: 10))
+            .textFieldStyle(.roundedBorder)
     }
 }
 
@@ -63,8 +62,9 @@ struct InputFieldView: View
 
     init(param:StringParameter)
     {
+        
         self.vm = ParameterObservableModel(label: param.label,
-                                           get: { param.value },
+                                           get: { String(param.value.prefix(100)) },
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher)
     }

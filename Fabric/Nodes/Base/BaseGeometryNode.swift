@@ -66,9 +66,6 @@ public class BaseGeometryNode : Node
 
         if shouldOutput
         {
-            self.geometry.update()
-
-            print("output geometry on port")
             self.outputGeometry.send(self.geometry)
         }
     }
