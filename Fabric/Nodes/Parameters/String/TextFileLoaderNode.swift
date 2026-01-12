@@ -26,7 +26,7 @@ public class TextFileLoaderNode : Node
         return ports +
         [
             ("inputFilePathParam", ParameterPort(parameter: StringParameter("Text File", "", .filepicker))),
-            ("outputPort", NodePort<ContiguousArray<String>>(name: "Components", kind: .Outlet)),
+            ("outputPort", NodePort<String>(name: "Text", kind: .Outlet)),
         ]
     }
     
@@ -52,10 +52,10 @@ public class TextFileLoaderNode : Node
                 self.outputPort.send( string )
             }
             
-            else
-            {
-                self.outputPort.send( nil )
-            }
+//            else
+//            {
+//                self.outputPort.send( nil )
+//            }
         }
     }
     

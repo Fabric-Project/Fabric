@@ -70,10 +70,10 @@ public class StringWrapNode : Node
                 
                 self.outputPort.send( outputString )
             }
-            else
-            {
-                self.outputPort.send( nil )
-            }
+//            else
+//            {
+//                self.outputPort.send( nil )
+//            }
         }
     }
 }

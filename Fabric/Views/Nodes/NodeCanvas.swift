@@ -64,7 +64,6 @@ public struct NodeCanvas : View
                         }
                 }
                 
-                
                 ForEach(graph.nodes, id: \.id) { currentNode in
 
                     NodeView(node: currentNode , offset: currentNode.offset)
@@ -140,9 +139,7 @@ public struct NodeCanvas : View
                 let graph = self.graph.activeSubGraph ?? self.graph
 
                 graph.deselectAllNodes()
-            }
-           
-            
+            }            
             .id(self.graph.activeSubGraph?.shouldUpdateConnections ?? self.graph.shouldUpdateConnections)
             // For hiding the nodes after a timeout - used if rendering nodes above content?
 //            .opacity(self.activityMonitor.isActive ? 1.0 : 0.0)

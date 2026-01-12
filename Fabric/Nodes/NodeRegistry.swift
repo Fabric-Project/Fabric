@@ -144,7 +144,7 @@ public class NodeRegistry {
             {
                 for fileURL in singleChannelEffects
                 {
-                    let baseClass = imageEffectType == .Generator ? BaseGeneratorNode.self : BaseEffectNode.self
+                    let baseClass = [.Generator, .ShapeGenerator].contains(imageEffectType) ? BaseGeneratorNode.self : BaseEffectNode.self
                     let node = NodeClassWrapper(nodeClass: baseClass,
                                                 nodeType: .Image(imageType: imageEffectType),
                                                 fileURL: fileURL,
@@ -232,11 +232,15 @@ public class NodeRegistry {
         FloatArrayToVector3ArrayNode.self,
 
         // String
+        StringNode.self,
         TextFileLoaderNode.self,
+        StringJoinNode.self,
         StringComponentNode.self,
         StringLengthNode.self,
         StringRangeNode.self,
         StringWrapNode.self,
+        StringRemoveWhitespaceNode.self,
+        StringDifferenceNode.self,
 //        ConvertToStringNode.self,
         LocalLLMNode.self,
         ArrayFirstValueNode<String>.self,
@@ -283,7 +287,7 @@ public class NodeRegistry {
         TransposeTransformNode.self,
         InvertTransformNode.self,
         DecomposeTransformNode.self,
-        GeometryToTransformArrayNode.self,
+//        GeometryToTransformArrayNode.self,
         ArrayIndexValueNode<simd_float4x4>.self,
         ArrayCountNode<simd_float4x4>.self,
         ArrayQueueNode<simd_float4x4>.self,

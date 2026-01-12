@@ -97,9 +97,11 @@ struct ContentView: View {
                                 .contextMenu(menuItems: {
                                     Button("New Note") {
                                         
+                                        let graph = self.document.graph.activeSubGraph ?? self.document.graph
+
                                         let note = Note(note: "New Note", rect: CGRect(origin: self.scrollOffset, size:CGSize(width: 500, height: 500)))
                                         
-                                        self.document.graph.addNote(note)
+                                        graph.addNote(note)
                                     }
                                 })
                                 .scaleEffect(finalMagnification * magnifyBy, anchor: magnifyAnchor)

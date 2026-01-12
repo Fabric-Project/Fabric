@@ -53,10 +53,10 @@ public class StringRangeNode : Node
                 
                 self.outputPort.send( String(substring) )
             }
-            else
-            {
-                self.outputPort.send( nil )
-            }
+//            else
+//            {
+//                self.outputPort.send( nil )
+//            }
         }
     }
 }

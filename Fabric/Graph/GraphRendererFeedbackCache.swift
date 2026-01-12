@@ -78,7 +78,7 @@ internal final class GraphRendererFeedbackCache
             self.cacheProcessedNode(node, executionContext: executionContext)
         }
     }
-    
+        
     private func setFeedbackState(forNode node:Node, executionContext:GraphExecutionContext)
     {
         let currentFrame = executionContext.timing.frameNumber
@@ -94,11 +94,11 @@ internal final class GraphRendererFeedbackCache
             if nodeProcessingStateCache[upstreamNode.id, default: .unprocessed] == .processing
             {
                 let key = PortCacheKey(portID: upstreamOutlet.id, frameNumber: previousFrame)
-                let cached = previousFrameCache[key] // PortValue?
-
-                // This is the critical part: make the inlet read last frame instead of recursing
-                inlet.setBoxedValue(cached)
-                
+                if let cached = previousFrameCache[key] // PortValue?
+                {
+                    // This is the critical part: make the inlet read last frame instead of recursing
+                    inlet.setBoxedValue(cached)
+                }
 //                print("GraphRendererFeedbackCache: setFeedbackState: \(graphID) frame \(currentFrame) node: \(node.name) inlet port: \(inlet.name)")
             }
         }

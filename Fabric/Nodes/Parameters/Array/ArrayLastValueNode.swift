@@ -46,10 +46,10 @@ public class ArrayLastValueNode<Value : PortValueRepresentable & Equatable> : No
                 self.outputPort.send( val )
             }
             
-            else
-            {
-                self.outputPort.send( nil )
-            }
+//            else
+//            {
+//                self.outputPort.send( nil )
+//            }
         }
     }
 }

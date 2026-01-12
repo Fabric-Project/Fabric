@@ -72,10 +72,10 @@ public class GeometryToTransformArrayNode : Node
                 self.outputPort.send(output)
             }
             
-            else
-            {
-                self.outputPort.send( nil )
-            }
-//        }
+//            else
+//            {
+//                self.outputPort.send( nil )
+//            }
+        }
     }
 }
