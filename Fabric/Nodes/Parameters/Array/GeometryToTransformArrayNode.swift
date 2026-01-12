@@ -46,13 +46,17 @@ public class GeometryToTransformArrayNode : Node
         // So this is subtle and annoying
         // Because the POINTER value of our Geom hasnt changed, but the buffer may have
         // We really do need to re-calc every frame.
-        
-        // Ideally theres some mechanism to account for this? 
+        // Ideally theres some mechanism to account for this?
         
 //        if self.inputPort.valueDidChange
 //        {
             if let geometry = self.inputPort.value
             {
+                    
+                // Also, because this geometry is not necessarily attached to a mesh,
+                // its update function may not have run, so we manually call it here.
+                geometry.update()
+                
 //                let stride = MemoryLayout<SatinVertex>.stride
                 var output = ContiguousArray<simd_float4x4>()
                 let inputTransform = self.inputTransform.value ?? matrix_identity_float4x4
@@ -71,11 +75,6 @@ public class GeometryToTransformArrayNode : Node
 
                 self.outputPort.send(output)
             }
-            
-//            else
-//            {
-//                self.outputPort.send( nil )
-//            }
-        }
+//        }
     }
 }
