@@ -34,9 +34,6 @@
 		1BC06AF22E0233DC0019808C /* Noise in Frameworks */ = {isa = PBXBuildFile; productRef = 1BC06AF12E0233DC0019808C /* Noise */; };
 		1BC06AF42E0233E00019808C /* AnyCodable in Frameworks */ = {isa = PBXBuildFile; productRef = 1BC06AF32E0233E00019808C /* AnyCodable */; };
 		1BD9EE252EF2004E0075D951 /* MetalFX.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BD9EE242EF2004E0075D951 /* MetalFX.framework */; };
-		1BDAA61E2F122B2900882EC5 /* MetalSplatter in Frameworks */ = {isa = PBXBuildFile; productRef = 1BDAA61D2F122B2900882EC5 /* MetalSplatter */; };
-		1BDAA6202F122B2900882EC5 /* PLYIO in Frameworks */ = {isa = PBXBuildFile; productRef = 1BDAA61F2F122B2900882EC5 /* PLYIO */; };
-		1BDAA6222F122B2900882EC5 /* SplatIO in Frameworks */ = {isa = PBXBuildFile; productRef = 1BDAA6212F122B2900882EC5 /* SplatIO */; };
 		1BE00A5D2DC936A50061EAFD /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5B2DC936A50061EAFD /* CoreFoundation.framework */; };
 		1BE00A5E2DC936A50061EAFD /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5C2DC936A50061EAFD /* Foundation.framework */; };
 		1BE00A612DC936AC0061EAFD /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5F2DC936AC0061EAFD /* MetalKit.framework */; };
@@ -218,7 +215,6 @@
 				Nodes/Object/Renderables/InstancedModelMeshNode.swift,
 				Nodes/Object/Renderables/MeshNode.swift,
 				Nodes/Object/Renderables/ModelMeshNode.swift,
-				Nodes/Object/Renderables/SplatMeshNode.swift,
 				Nodes/Object/SubGraph/DeferredSubgraphNode.swift,
 				Nodes/Object/SubGraph/EnvironmentNode.swift,
 				Nodes/Object/SubGraph/EnvironmentSkyboxNode.swift,
@@ -367,12 +363,10 @@
 				1B9BA4462ECFA97700209F86 /* MLXLLM in Frameworks */,
 				1B9BA4392ECFA7EA00209F86 /* MLX in Frameworks */,
 				1B9BA43F2ECFA7EA00209F86 /* MLXLinalg in Frameworks */,
-				1BDAA6222F122B2900882EC5 /* SplatIO in Frameworks */,
 				1BC06AEA2E0232810019808C /* Satin.framework in Frameworks */,
 				1BB12B482E0267420075C276 /* Accelerate.framework in Frameworks */,
 				1B9BA43D2ECFA7EA00209F86 /* MLXFast in Frameworks */,
 				1B9BA4412ECFA7EA00209F86 /* MLXNN in Frameworks */,
-				1BDAA6202F122B2900882EC5 /* PLYIO in Frameworks */,
 				1BC06AF42E0233E00019808C /* AnyCodable in Frameworks */,
 				1B9BB32B2ED8287F00209F86 /* Syphon.framework in Frameworks */,
 				1BB12B382E0234FC0075C276 /* CoreFoundation.framework in Frameworks */,
@@ -385,7 +379,6 @@
 				1B9BA44A2ECFA97700209F86 /* MLXVLM in Frameworks */,
 				1BC06AF22E0233DC0019808C /* Noise in Frameworks */,
 				1BB12B362E0234FC0075C276 /* Foundation.framework in Frameworks */,
-				1BDAA61E2F122B2900882EC5 /* MetalSplatter in Frameworks */,
 				1B9BA4482ECFA97700209F86 /* MLXLMCommon in Frameworks */,
 				1B46BEA62EB472E800124BDA /* SwiftSimplify in Frameworks */,
 			);
@@ -507,9 +500,6 @@
 				1B9BA4492ECFA97700209F86 /* MLXVLM */,
 				1B9BA4522ECFB42100209F86 /* AsyncAlgorithms */,
 				1B1AEC3D2F03359D0069CC9E /* Textual */,
-				1BDAA61D2F122B2900882EC5 /* MetalSplatter */,
-				1BDAA61F2F122B2900882EC5 /* PLYIO */,
-				1BDAA6212F122B2900882EC5 /* SplatIO */,
 			);
 			productName = Fabric;
 			productReference = 1BC06A7F2E0231520019808C /* Fabric.framework */;
@@ -577,7 +567,6 @@
 				1B9BA4422ECFA97700209F86 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
 				1B9BA4512ECFB42100209F86 /* XCRemoteSwiftPackageReference "swift-async-algorithms" */,
 				1B1AEC3C2F03359D0069CC9E /* XCRemoteSwiftPackageReference "textual" */,
-				1BDAA61C2F122B2900882EC5 /* XCRemoteSwiftPackageReference "MetalSplatter" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1BE007232DBB1FBC0061EAFD /* Products */;
@@ -1046,14 +1035,6 @@
 				minimumVersion = 1.1.0;
 			};
 		};
-		1BDAA61C2F122B2900882EC5 /* XCRemoteSwiftPackageReference "MetalSplatter" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/lanxinger/MetalSplatter";
-			requirement = {
-				branch = main;
-				kind = branch;
-			};
-		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -1131,21 +1112,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 1B9ECA4F2DFBB2CB00D32B4C /* XCRemoteSwiftPackageReference "AnyCodable" */;
 			productName = AnyCodable;
-		};
-		1BDAA61D2F122B2900882EC5 /* MetalSplatter */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 1BDAA61C2F122B2900882EC5 /* XCRemoteSwiftPackageReference "MetalSplatter" */;
-			productName = MetalSplatter;
-		};
-		1BDAA61F2F122B2900882EC5 /* PLYIO */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 1BDAA61C2F122B2900882EC5 /* XCRemoteSwiftPackageReference "MetalSplatter" */;
-			productName = PLYIO;
-		};
-		1BDAA6212F122B2900882EC5 /* SplatIO */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 1BDAA61C2F122B2900882EC5 /* XCRemoteSwiftPackageReference "MetalSplatter" */;
-			productName = SplatIO;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -1,5 +1,5 @@
 {
-  "originHash" : "847f046b5384ef4dc71615ceb54532e965b7e4f67ad492beb310dd6226af4c66",
+  "originHash" : "5bdb72dacf36819aa1e2db66db545bcd112ddc06a950d4d0f1ec6a215a6b538e",
   "pins" : [
     {
       "identity" : "anycodable",
@@ -8,15 +8,6 @@
       "state" : {
         "revision" : "862808b2070cd908cb04f9aafe7de83d35f81b05",
         "version" : "0.6.7"
-      }
-    },
-    {
-      "identity" : "metalsplatter",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/lanxinger/MetalSplatter",
-      "state" : {
-        "branch" : "main",
-        "revision" : "d9002756f34d4041e8a22f2b6f3f4120d61cb86e"
       }
     },
     {
@@ -44,15 +35,6 @@
       "state" : {
         "revision" : "9a1d2a19d3595fcf8d9c447173f9a1687b3dcadb",
         "version" : "2.8.0"
-      }
-    },
-    {
-      "identity" : "swift-argument-parser",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-argument-parser",
-      "state" : {
-        "revision" : "c5d11a805e765f52ba34ec7284bd4fcd6ba68615",
-        "version" : "1.7.0"
       }
     },
     {
@@ -152,15 +134,6 @@
       "state" : {
         "revision" : "675933ec315767ad3deacff33fcc46eb2b25ae4c",
         "version" : "0.1.1"
-      }
-    },
-    {
-      "identity" : "zipfoundation",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/weichsel/ZIPFoundation",
-      "state" : {
-        "revision" : "22787ffb59de99e5dc1fbfe80b19c97a904ad48d",
-        "version" : "0.9.20"
       }
     }
   ],
