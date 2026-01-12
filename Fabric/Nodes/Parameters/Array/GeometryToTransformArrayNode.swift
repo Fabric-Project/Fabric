@@ -43,15 +43,16 @@ public class ArrayCountNode<Value : PortValueRepresentable & Equatable> : Node
     {
         if self.inputPort.valueDidChange
         {
+            
             if let array = self.inputPort.value
             {
                 self.outputPort.send( array.count )
             }
             
-            else
-            {
-                self.outputPort.send( nil )
-            }
+//            else
+//            {
+//                self.outputPort.send( nil )
+//            }
         }
     }
 }

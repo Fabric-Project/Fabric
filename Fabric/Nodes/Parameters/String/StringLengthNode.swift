@@ -44,10 +44,10 @@ public class StringLengthNode : Node
             {
                 self.outputPort.send( string.count )
             }
-            else
-            {
-                self.outputPort.send( nil )
-            }
+//            else
+//            {
+//                self.outputPort.send( nil )
+//            }
         }
     }
 }

@@ -25,8 +25,8 @@ public class GraphRenderer : MetalViewRenderer
     private var lastGraphExecutionTime = Date.timeIntervalSinceReferenceDate
 
     // This is fucking horrible:
+    public private(set) var currentCamera:Camera? = nil
     private let defaultCamera = PerspectiveCamera()
-    private var cachedCamera:Camera? = nil
     private let sceneProxy = Object() // ?  IBLScene()
     
     private var graphRequiresResize:Bool = false
@@ -187,7 +187,7 @@ public class GraphRenderer : MetalViewRenderer
         let nodesToPullFrom = graph.consumerNodes + nodesWithOutputPorts + forceEvaluationForTheseNodes
          
         // This is fucking horrible:
-        let firstCamera = graph.firstCamera ?? self.cachedCamera ?? self.defaultCamera
+        let firstCamera = graph.firstCamera ?? self.currentCamera ?? self.defaultCamera
         
 //        print("GraphRenderer begin frame:\(executionContext.timing.frameNumber) renderGraph: \(graph.id): \(nodesToPullFrom.count) nodesToPullFrom: \(nodesToPullFrom.map {  $0.name } )")
         
@@ -206,7 +206,7 @@ public class GraphRenderer : MetalViewRenderer
                                      clearFlags: clearFlags)
             }
             
-            self.cachedCamera = firstCamera
+            self.currentCamera = firstCamera
         }
         
     }
@@ -306,7 +306,7 @@ public class GraphRenderer : MetalViewRenderer
     
     public func executeAndDraw(graph:Graph, executionContext:GraphExecutionContext, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
     {
-        self.cachedCamera = nil
+        self.currentCamera = nil
         
         // Snapshot and clear the "connections changed" flag up front
         let needsSceneSync = graph.shouldUpdateConnections
@@ -328,7 +328,7 @@ public class GraphRenderer : MetalViewRenderer
         self.renderer.draw(renderPassDescriptor: renderPassDescriptor,
                            commandBuffer: commandBuffer,
                            scene: graph.scene,
-                           camera: self.cachedCamera ?? self.defaultCamera)
+                           camera: self.currentCamera ?? self.defaultCamera)
         
         self.lastGraphExecutionTime = executionContext.timing.time
         self.executionCount += 1

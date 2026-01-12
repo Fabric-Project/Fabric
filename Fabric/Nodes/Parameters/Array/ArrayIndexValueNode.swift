@@ -51,10 +51,10 @@ public class ArrayIndexValueNode<Value : PortValueRepresentable & Equatable> : N
                 self.outputPort.send( val )
             }
             
-            else
-            {
-                self.outputPort.send( nil )
-            }
+//            else
+//            {
+//                self.outputPort.send( nil )
+//            }
         }
     }
 }

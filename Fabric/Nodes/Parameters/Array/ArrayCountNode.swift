@@ -48,10 +48,10 @@ public class ArrayCountNode<Value : PortValueRepresentable & Equatable> : Node
                 self.outputPort.send( array.count )
             }
             
-            else
-            {
-                self.outputPort.send( nil )
-            }
+//            else
+//            {
+//                self.outputPort.send( nil )
+//            }
         }
     }
 }
