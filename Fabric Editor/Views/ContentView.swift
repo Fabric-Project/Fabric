@@ -32,7 +32,6 @@ struct ContentView: View {
     @State private var hitTestEnable:Bool = true
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
     @State private var inspectorVisibility:Bool = true
-    @State private var scrollOffset: CGPoint = .zero
 
     // Magic Numbers...
     private let zoomMin = 0.25
@@ -44,7 +43,7 @@ struct ContentView: View {
 
         NavigationSplitView(columnVisibility: self.$columnVisibility)
         {
-            NodeRegisitryView(graph: document.graph, scrollOffset: $scrollOffset)
+            NodeRegisitryView(graph: self.document.graph)
                 .navigationSplitViewColumnWidth(min: 150, ideal: 200, max:250)
 
         } detail: {
@@ -101,7 +100,7 @@ struct ContentView: View {
                                         
                                         let graph = self.document.graph.activeSubGraph ?? self.document.graph
 
-                                        let note = Note(note: "New Note", rect: CGRect(origin: self.scrollOffset, size:CGSize(width: 500, height: 500)))
+                                        let note = Note(note: "New Note", rect: CGRect(origin: graph.currentScrollOffset, size:CGSize(width: 500, height: 500)))
                                         
                                         graph.addNote(note)
                                     }
@@ -166,6 +165,7 @@ struct ContentView: View {
                                         }
                                     }
                                 }
+                            
                         }
                         .defaultScrollAnchor(.center)
                     }
@@ -179,7 +179,9 @@ struct ContentView: View {
                         
                     } action: { _, newScrollOffset in
                         scrollGeometry = newScrollOffset.geometry
-                        scrollOffset = newScrollOffset.offset
+                        let graph = self.document.graph.activeSubGraph ?? self.document.graph
+                        
+                        graph.currentScrollOffset = newScrollOffset.offset
                     }
                     .onScrollPhaseChange { oldPhase, newPhase in
                         self.hitTestEnable = !newPhase.isScrolling

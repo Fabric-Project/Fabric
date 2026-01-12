@@ -58,6 +58,8 @@ internal import AnyCodable
     @ObservationIgnored var portPositions: [UUID: CGPoint] = [:]
 
     @ObservationIgnored weak var lastNode:(Node)? = nil
+    
+    @ObservationIgnored public var currentScrollOffset:CGPoint = .zero { didSet { print("currentScrollOffset: \(currentScrollOffset)") } }
 
     public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
 
@@ -281,17 +283,17 @@ internal import AnyCodable
         self.notes.removeAll(where: { $0.id == note.id })
     }
     
-    public func addNode(_ node: NodeClassWrapper, initialOffset:CGPoint? ) throws
+    public func addNode(_ node: NodeClassWrapper ) throws
     {
         let node = try node.initializeNode(context: self.context)
         
-        var offset = CGSize.zero
+        var offset = self.currentNodeOffset
         
-        if let initialOffset = initialOffset
-        {
-            offset =  CGSize(width:  initialOffset.x - node.nodeSize.width / 2.0,
-                             height: initialOffset.y - node.nodeSize.height / 4.0)
-        }
+//        if let initialOffset = initialOffset
+//        {
+//            offset =  CGSize(width:  initialOffset.x - node.nodeSize.width / 2.0,
+//                             height: initialOffset.y - node.nodeSize.height / 4.0)
+//        }
              
         let deltaTime = Date.now.timeIntervalSinceReferenceDate - self.lastAddedTime
         if deltaTime < self.nodeAddedResetTime
