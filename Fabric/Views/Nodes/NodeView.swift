@@ -18,10 +18,6 @@ struct NodeView : View
     
     var body: some View
     {
-        GeometryReader { geom in
-            
-//            let nodeClass = self.node 
-            
             // Param List
             ZStack(alignment: .topLeading)
             {
@@ -45,7 +41,6 @@ struct NodeView : View
                 }
                 .frame(width: self.node.nodeSize.width + NodeInletView.radius, alignment: .leading)
                 
-                
                 VStack(alignment: .trailing, spacing: 10) {
                     Spacer(minLength: 0)
                         .frame(height: 25)
@@ -65,7 +60,6 @@ struct NodeView : View
                 RoundedRectangle(cornerRadius: self.cornerRadius())
                     .stroke(  (self.node.isSelected) ? self.node.nodeType.color() : .gray /*self.node.nodeType.backgroundColor()*/ , lineWidth: (self.node.isSelected) ? 1.5 : 1.0)
             }
-        }
     }
     
     func cornerRadius() -> CGFloat {
