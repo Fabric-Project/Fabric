@@ -174,8 +174,9 @@ struct ContentView: View {
                         
                     } action: { _, newScrollOffset in
                         scrollGeometry = newScrollOffset.geometry
-                        let graph = self.document.graph.activeSubGraph ?? self.document.graph
                         
+                        let graph = self.document.graph.activeSubGraph ?? self.document.graph
+
                         graph.currentScrollOffset = newScrollOffset.offset
                     }
                 }
