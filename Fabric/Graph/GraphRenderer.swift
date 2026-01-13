@@ -155,9 +155,7 @@ public class GraphRenderer : MetalViewRenderer
         let feedbackCache = self.feedbackCache(for: graph.id)
 
         feedbackCache.resetCacheFor(executionContext: executionContext)
-                
-        self.textureCache.resetCacheFor(executionContext:executionContext)
-        
+                        
         // Processing means we recursed though the `processGraph` call
         var nodesWeHaveProcessedThisPass:[Node] = []
         
