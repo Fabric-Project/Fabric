@@ -84,7 +84,8 @@ struct DocumentCommands:Commands
         {
             Button("Select All Nodes")
             {
-                self.document?.graph.selectAllNodes()
+                let graph = self.document?.graph.activeSubGraph ?? self.document?.graph
+                graph?.selectAllNodes()
                 print("Select All")
             }
             .keyboardShortcut(KeyEquivalent("a"), modifiers: .command)
