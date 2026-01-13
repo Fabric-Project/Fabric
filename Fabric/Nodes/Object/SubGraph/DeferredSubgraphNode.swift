@@ -120,6 +120,10 @@ public class DeferredSubgraphNode: SubgraphNode
                 || (self.graphRenderer.renderer.size.height != Float(height))
             {
                 self.graphRenderer.resize(size: (Float(width), Float(height)), scaleFactor: 1.0)
+                
+                
+                // if we resize, we want to manage our caches
+                self.graphRenderer.textureCache.flushReusableTextures()
             }
         }
        
@@ -129,16 +133,21 @@ public class DeferredSubgraphNode: SubgraphNode
             self.graphRenderer.renderer.clearColor = .init( clearColor )
         }
                     
-        rpd1.colorAttachments[0].texture = self.graphRenderer.renderer.colorTexture
+        guard let width = self.inputWidth.value,
+              let height = self.inputHeight.value
+        else { return }
 
-        self.graphRenderer.executeAndDraw(graph: self.subGraph,
-                                   executionContext: context,
-                                   renderPassDescriptor: rpd1,
-                                   commandBuffer: commandBuffer)
-        
-        if let texture = self.graphRenderer.renderer.colorTexture
+            
+        if let outputImage = self.graphRenderer.newImage(withWidth: width, height: height)
         {
-            self.outputColorTexture.send( FabricImage.unmanaged(texture: texture) )
+            rpd1.colorAttachments[0].texture = outputImage.texture
+            
+            self.graphRenderer.executeAndDraw(graph: self.subGraph,
+                                       executionContext: context,
+                                       renderPassDescriptor: rpd1,
+                                       commandBuffer: commandBuffer)
+            
+            self.outputColorTexture.send( outputImage )
         }
         else
         {
@@ -157,7 +166,6 @@ public class DeferredSubgraphNode: SubgraphNode
     
     override public func resize(size: (width: Float, height: Float), scaleFactor: Float)
     {
-//        self.graphRenderer.resize(size: size, scaleFactor: scaleFactor)
     }
     
 }
