@@ -1,0 +1,5912 @@
+{
+  "id" : "9029B631-6C8E-4076-93C5-B80631C4547F",
+  "nodeMap" : [
+    {
+      "value" : {
+        "nodeOffset" : [
+          315.91753655318644,
+          89.70958287025769
+        ],
+        "id" : "7FCDCA5F-5783-4950-959B-3A70902497A5",
+        "ports" : [
+          {
+            "payload" : {
+              "base" : {
+                "name" : "Visible",
+                "published" : false,
+                "id" : "52F46C22-4E95-4B7F-BB26-AE51776A92DC",
+                "parameter" : {
+                  "type" : "bool",
+                  "base" : {
+                    "label" : "Visible",
+                    "id" : "52F46C22-4E95-4B7F-BB26-AE51776A92DC",
+                    "controlType" : "button",
+                    "value" : true,
+                    "defaultValue" : true,
+                    "description" : ""
+                  }
+                },
+                "kind" : "Inlet",
+                "connections" : [
+
+                ]
+              },
+              "type" : "Bool",
+              "isParameterPort" : true
+            },
+            "name" : "inputVisible"
+          },
+          {
+            "payload" : {
+              "isParameterPort" : true,
+              "type" : "Int",
+              "base" : {
+                "name" : "Render Order",
+                "kind" : "Inlet",
+                "id" : "90C2714B-05F0-43B5-ACD1-A8843CC49875",
+                "connections" : [
+
+                ],
+                "published" : false,
+                "parameter" : {
+                  "type" : "int",
+                  "base" : {
+                    "label" : "Render Order",
+                    "value" : 0,
+                    "min" : 0,
+                    "defaultValue" : 0,
+                    "id" : "90C2714B-05F0-43B5-ACD1-A8843CC49875",
+                    "description" : "",
+                    "controlType" : "inputfield",
+                    "max" : 1
+                  }
+                }
+              }
+            },
+            "name" : "inputRenderOrder"
+          },
+          {
+            "payload" : {
+              "base" : {
+                "id" : "D8C0F43D-1A83-49F2-A69C-54953433B1C5",
+                "name" : "Render Pass",
+                "kind" : "Inlet",
+                "published" : false,
+                "connections" : [
+
+                ],
+                "parameter" : {
+                  "base" : {
+                    "label" : "Render Pass",
+                    "value" : 0,
+                    "min" : 0,
+                    "defaultValue" : 0,
+                    "id" : "D8C0F43D-1A83-49F2-A69C-54953433B1C5",
+                    "controlType" : "inputfield",
+                    "description" : "",
+                    "max" : 1
+                  },
+                  "type" : "int"
+                }
+              },
+              "isParameterPort" : true,
+              "type" : "Int"
+            },
+            "name" : "inputRenderPass"
+          },
+          {
+            "payload" : {
+              "base" : {
+                "connections" : [
+
+                ],
+                "kind" : "Inlet",
+                "parameter" : {
+                  "base" : {
+                    "label" : "Position",
+                    "value" : [
+                      0,
+                      0,
+                      0
+                    ],
+                    "min" : [
+                      0,
+                      0,
+                      0
+                    ],
+                    "defaultValue" : [
+                      0,
+                      0,
+                      0
+                    ],
+                    "id" : "DECF1C34-A491-42D7-B1A9-9A928E0356F6",
+                    "controlType" : "inputfield",
+                    "description" : "",
+                    "max" : [
+                      1,
+                      1,
+                      1
+                    ]
+                  },
+                  "type" : "float3"
+                },
+                "id" : "DECF1C34-A491-42D7-B1A9-9A928E0356F6",
+                "published" : false,
+                "name" : "Position"
+              },
+              "isParameterPort" : true,
+              "type" : "Vector 3"
+            },
+            "name" : "inputPosition"
+          },
+          {
+            "payload" : {
+              "base" : {
+                "parameter" : {
+                  "base" : {
+                    "label" : "Scale",
+                    "value" : [
+                      0.075,
+                      0.075,
+                      0.075
+                    ],
+                    "min" : [
+                      0,
+                      0,
+                      0
+                    ],
+                    "defaultValue" : [
+                      1,
+                      1,
+                      1
+                    ],
+                    "id" : "6B247F6B-C262-41FD-81D1-4814E2D76C6A",
+                    "description" : "",
+                    "controlType" : "inputfield",
+                    "max" : [
+                      1,
+                      1,
+                      1
+                    ]
+                  },
+                  "type" : "float3"
+                },
+                "id" : "6B247F6B-C262-41FD-81D1-4814E2D76C6A",
+                "connections" : [
+
+                ],
+                "kind" : "Inlet",
+                "name" : "Scale",
+                "published" : false
+              },
+              "isParameterPort" : true,
+              "type" : "Vector 3"
+            },
+            "name" : "inputScale"
+          },
+          {
+            "payload" : {
+              "base" : {
+                "kind" : "Inlet",
+                "connections" : [
+
+                ],
+                "name" : "Orientation",
+                "published" : false,
+                "parameter" : {
+                  "base" : {
+                    "label" : "Orientation",
+                    "value" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
+                    "min" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
+                    "defaultValue" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
+                    "id" : "4FD43E87-BBEF-40E2-9675-EF0394898936",
+                    "description" : "",
+                    "controlType" : "inputfield",
+                    "max" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ]
+                  },
+                  "type" : "float4"
+                },
+                "id" : "4FD43E87-BBEF-40E2-9675-EF0394898936"
+              },
+              "type" : "Vector 4",
+              "isParameterPort" : true
+            },
+            "name" : "inputOrientation"
+          },
+          {
+            "payload" : {
+              "base" : {
+                "id" : "AB59E632-8427-48D0-8E68-D1AF123B7112",
+                "connections" : [
+                  "FE85E1F0-C80E-4769-B153-18BC9B616682"
+                ],
+                "name" : "Geometry",
+                "kind" : "Inlet",
+                "published" : false
+              },
+              "type" : "Geometry",
+              "isParameterPort" : false
+            },
+            "name" : "inputGeometry"
+          },
+          {
+            "payload" : {
+              "type" : "Material",
+              "isParameterPort" : false,
+              "base" : {
+                "published" : false,
+                "connections" : [
+                  "C0AAF272-6F61-475A-BB53-A61BF6C3A9C9"
+                ],
+                "id" : "B38FF357-E43D-4A52-B13D-E1BED0FE4930",
+                "name" : "Material",
+                "kind" : "Inlet"
+              }
+            },
+            "name" : "inputMaterial"
+          },
+          {
+            "payload" : {
+              "type" : "Bool",
+              "isParameterPort" : true,
+              "base" : {
+                "parameter" : {
+                  "base" : {
+                    "controlType" : "button",
+                    "label" : "Enable Shadows",
+                    "defaultValue" : true,
+                    "id" : "FAEDD9BF-3F7C-443F-A5AA-911B322B4781",
+                    "value" : true,
+                    "description" : ""
+                  },
+                  "type" : "bool"
+                },
+                "id" : "FAEDD9BF-3F7C-443F-A5AA-911B322B4781",
+                "name" : "Enable Shadows",
+                "kind" : "Inlet",
+                "published" : false,
+                "connections" : [
+
+                ]
+              }
+            },
+            "name" : "inputCastsShadow"
+          },
+          {
+            "payload" : {
+              "isParameterPort" : true,
+              "base" : {
+                "parameter" : {
+                  "type" : "bool",
+                  "base" : {
+                    "value" : false,
+                    "id" : "B0D8BB83-245F-4661-9B13-2A7EBE84DAD6",
+                    "label" : "Double Sided",
+                    "description" : "",
+                    "defaultValue" : false,
+                    "controlType" : "button"
+                  }
+                },
+                "name" : "Double Sided",
+                "id" : "B0D8BB83-245F-4661-9B13-2A7EBE84DAD6",
+                "kind" : "Inlet",
+                "published" : false,
+                "connections" : [
+
+                ]
+              },
+              "type" : "Bool"
+            },
+            "name" : "inputDoubleSided"
+          },
+          {
+            "payload" : {
+              "type" : "String",
+              "isParameterPort" : true,
+              "base" : {
+                "parameter" : {
+                  "base" : {
+                    "label" : "Culling Mode",
+                    "value" : "Back",
+                    "defaultValue" : "Back",
+                    "id" : "7756F088-9259-4956-8E7F-954F4B4CF326",
+                    "controlType" : "dropdown",
+                    "description" : "",
+                    "options" : [
+                      "Back",
+                      "Front",
+                      "None"
+                    ]
+                  },
+                  "type" : "string"
+                },
+                "published" : false,
+                "id" : "7756F088-9259-4956-8E7F-954F4B4CF326",
+                "name" : "Culling Mode",
+                "connections" : [
+
+                ],
+                "kind" : "Inlet"
+              }
+            },
+            "name" : "inputCullingMode"
+          }
+        ]
+      },
+      "type" : "MeshNode"
+    },
+    {
+      "value" : {
+        "nodeOffset" : [
+          -950.2946390546649,
+          -114.62607119987115
+        ],
+        "id" : "902C8ABD-43B0-48D7-8B3D-F20C62713540",
+        "ports" : [
+          {
+            "payload" : {
+              "type" : "String",
+              "base" : {
+                "parameter" : {
+                  "type" : "string",
+                  "base" : {
+                    "label" : "Model",
+                    "value" : "mlx-community\/Qwen3-1.7B-4bit",
+                    "defaultValue" : "mlx-community\/Qwen3-1.7B-4bit",
+                    "id" : "4AA165A4-BF48-48A5-97AB-D0E9988138CE",
+                    "description" : "",
+                    "controlType" : "dropdown",
+                    "options" : [
+                      "mlx-community\/gemma-2-2b-it-4bit",
+                      "mlx-community\/Qwen2.5-7B-Instruct-4bit",
+                      "mlx-community\/LFM2-1.2B-4bit",
+                      "mlx-community\/lille-130m-instruct-bf16",
+                      "mlx-community\/Qwen3-8B-4bit",
+                      "mlx-community\/MiMo-7B-SFT-4bit",
+                      "mlx-community\/gemma-3n-E4B-it-lm-bf16",
+                      "mlx-community\/Llama-3.2-1B-Instruct-4bit",
+                      "mlx-community\/Meta-Llama-3-8B-Instruct-4bit",
+                      "mlx-community\/phi-2-hf-4bit-mlx",
+                      "mlx-community\/GLM-4-9B-0414-4bit",
+                      "mlx-community\/SmolLM-135M-Instruct-4bit",
+                      "mlx-community\/ERNIE-4.5-0.3B-PT-bf16-ft",
+                      "mlx-community\/gpt-oss-20b-MXFP4-Q8",
+                      "mlx-community\/LFM2-8B-A1B-3bit-MLX",
+                      "mlx-community\/Qwen3-4B-4bit",
+                      "mlx-community\/gemma-3n-E2B-it-lm-bf16",
+                      "mlx-community\/DeepSeek-R1-Distill-Qwen-7B-4bit",
+                      "mlx-community\/SmolLM3-3B-4bit",
+                      "mlx-community\/Qwen3-0.6B-4bit",
+                      "mlx-community\/granite-3.3-2b-instruct-4bit",
+                      "mlx-community\/Mistral-Nemo-Instruct-2407-4bit",
+                      "mlx-community\/gemma-3n-E4B-it-lm-4bit",
+                      "mlx-community\/Granite-4.0-H-Tiny-4bit-DWQ",
+                      "mlx-community\/Qwen3-30B-A3B-4bit",
+                      "dnakov\/nanochat-d20-mlx",
+                      "mlx-community\/gemma-2-9b-it-4bit",
+                      "mlx-community\/OpenELM-270M-Instruct",
+                      "mlx-community\/Meta-Llama-3.1-8B-Instruct-4bit",
+                      "mlx-community\/Llama-3.2-3B-Instruct-4bit",
+                      "mlx-community\/Phi-3.5-MoE-instruct-4bit",
+                      "mlx-community\/CodeLlama-13b-Instruct-hf-4bit-MLX",
+                      "mlx-community\/quantized-gemma-2b-it",
+                      "mlx-community\/Mistral-7B-Instruct-v0.3-4bit",
+                      "mlx-community\/DeepSeek-R1-4bit",
+                      "mlx-community\/Baichuan-M1-14B-Instruct-4bit-ft",
+                      "mlx-community\/Phi-3.5-mini-instruct-4bit",
+                      "mlx-community\/Qwen2.5-1.5B-Instruct-4bit",
+                      "mlx-community\/bitnet-b1.58-2B-4T-4bit",
+                      "mlx-community\/exaone-4.0-1.2b-4bit",
+                      "mlx-community\/AceReason-Nemotron-7B-4bit",
+                      "mlx-community\/Ling-mini-2.0-2bit-DWQ",
+                      "mlx-community\/gemma-3n-E2B-it-lm-4bit",
+                      "mlx-community\/OLMoE-1B-7B-0125-Instruct-4bit",
+                      "mlx-community\/Qwen3-1.7B-4bit",
+                      "mlx-community\/OLMo-2-1124-7B-Instruct-4bit",
+                      "mlx-community\/gemma-3-1b-it-qat-4bit",
+                      "mlx-community\/Qwen1.5-0.5B-Chat-4bit"
+                    ]
+                  }
+                },
+                "name" : "Model",
+                "kind" : "Inlet",
+                "connections" : [
+
+                ],
+                "published" : false,
+                "id" : "4AA165A4-BF48-48A5-97AB-D0E9988138CE"
+              },
+              "isParameterPort" : true
+            },
+            "name" : "inputModel"
+          },
+          {
+            "payload" : {
+              "isParameterPort" : true,
+              "base" : {
+                "published" : false,
+                "kind" : "Inlet",
+                "connections" : [
+                  "5EB81BC4-5BAA-4CDF-B053-35E9F526787E"
+                ],
+                "name" : "Prompt",
+                "id" : "7FECD306-4585-4C1B-9C3D-A7694288E2F8",
+                "parameter" : {
+                  "type" : "string",
+                  "base" : {
+                    "label" : "Prompt",
+                    "value" : "Repeat this the following text exactly:\"id\" : \"7FECD306-4585-4C1B-9C3D-A7694288E2F8\",",
+                    "defaultValue" : "What Color is the Sky?",
+                    "id" : "7FECD306-4585-4C1B-9C3D-A7694288E2F8",
+                    "description" : "",
+                    "controlType" : "inputfield",
+                    "options" : [
+
+                    ]
+                  }
+                }
+              },
+              "type" : "String"
+            },
+            "name" : "inputPrompt"
+          },
+          {
+            "payload" : {
+              "isParameterPort" : true,
+              "type" : "Bool",
+              "base" : {
+                "kind" : "Inlet",
+                "published" : false,
+                "connections" : [
+
+                ],
+                "parameter" : {
+                  "type" : "bool",
+                  "base" : {
+                    "controlType" : "button",
+                    "defaultValue" : false,
+                    "id" : "2C6048A9-348C-43A4-B65D-F00E0473563A",
+                    "label" : "Generate",
+                    "description" : "",
+                    "value" : true
+                  }
+                },
+                "id" : "2C6048A9-348C-43A4-B65D-F00E0473563A",
+                "name" : "Generate"
+              }
+            },
+            "name" : "inputGenerate"
+          },
+          {
+            "payload" : {
+              "isParameterPort" : false,
+              "type" : "String",
+              "base" : {
+                "id" : "F7445203-B563-4502-B1BE-BCC3DB4B58C7",
+                "name" : "Output",
+                "kind" : "Outlet",
+                "published" : false,
+                "connections" : [
+                  "48F14CBF-3FF0-4C91-A3A0-27DB7AB30ADF",
+                  "DA4B40F8-9BD9-45B3-9E74-AA41DF867E16"
+                ]
+              }
+            },
+            "name" : "outputPort"
+          },
+          {
+            "payload" : {
+              "base" : {
+                "published" : false,
+                "parameter" : {
+                  "type" : "float",
+                  "base" : {
+                    "label" : "Temerature",
+                    "value" : 1.6,
+                    "min" : 0,
+                    "defaultValue" : 0.6,
+                    "id" : "230D70B7-2568-4EDC-8BBD-2A82AC6D4B07",
+                    "controlType" : "inputfield",
+                    "description" : "",
+                    "max" : 1
+                  }
+                },
+                "id" : "230D70B7-2568-4EDC-8BBD-2A82AC6D4B07",
+                "name" : "Temerature",
+                "kind" : "Inlet",
+                "connections" : [
+
+                ]
+              },
+              "type" : "Float",
+              "isParameterPort" : true
+            },
+            "name" : "inputTemp"
+          },
+          {
+            "payload" : {
+              "isParameterPort" : true,
+              "base" : {
+                "name" : "Update Interval",
+                "connections" : [
+
+                ],
+                "parameter" : {
+                  "type" : "float",
+                  "base" : {
+                    "label" : "Update Interval",
+                    "value" : 0.001,
+                    "min" : 0,
+                    "defaultValue" : 0.25,
+                    "id" : "92CFEB4D-76AB-4085-884F-AC7D23E7F54F",
+                    "controlType" : "inputfield",
+                    "description" : "",
+                    "max" : 1
+                  }
+                },
+                "published" : false,
+                "id" : "92CFEB4D-76AB-4085-884F-AC7D23E7F54F",
+                "kind" : "Inlet"
+              },
+              "type" : "Float"
+            },
+            "name" : "inputUpdateInterval"
+          },
+          {
+            "payload" : {
+              "isParameterPort" : false,
+              "type" : "String",
+              "base" : {
+                "published" : false,
+                "connections" : [
+                  "3C575A40-56EA-4988-AEA7-8321BBE75CFF"
+                ],
+                "name" : "Stats",
+                "kind" : "Outlet",
+                "id" : "58C6197D-8BA3-47BF-8294-21732E95BE6A"
+              }
+            },
+            "name" : "outputStats"
+          },
+          {
+            "payload" : {
+              "base" : {
+                "id" : "2CE86F6E-563B-41F3-A5C6-C0DF3DB97242",
+                "kind" : "Outlet",
+                "connections" : [
+                  "FF664460-1E75-44B9-AE01-04DDDD5447BA"
+                ],
+                "name" : "Model Info",
+                "published" : false
+              },
+              "type" : "String",
+              "isParameterPort" : false
+            },
+            "name" : "outputModel"
+          }
+        ]
+      },
+      "type" : "LocalLLMNode"
+    },
+    {
+      "value" : {
+        "nodeOffset" : [
+          -2242.403832711656,
+          -233.9227201386293
+        ],
+        "ports" : [
+          {
+            "name" : "inputFilePathParam",
+            "payload" : {
+              "base" : {
+                "parameter" : {
+                  "base" : {
+                    "label" : "Text File",
+                    "value" : "file:\/\/\/Users\/vade\/Documents\/Repositories\/Fabric\/Fabric\/Samples\/Genuary\/Genuary%2011.fabric",
+                    "defaultValue" : "",
+                    "id" : "DDF82B93-E400-4924-AA6F-3E95FD7C6802",
+                    "description" : "",
+                    "controlType" : "filepicker",
+                    "options" : [
+                      "file:\/\/\/Users\/vade\/Documents\/Repositories\/Fabric\/Fabric\/Samples\/Genuary\/Genuary%2011.fabric"
+                    ]
+                  },
+                  "type" : "string"
+                },
+                "id" : "DDF82B93-E400-4924-AA6F-3E95FD7C6802",
+                "published" : false,
+                "connections" : [
+
+                ],
+                "kind" : "Inlet",
+                "name" : "Text File"
+              },
+              "type" : "String",
+              "isParameterPort" : true
+            }
+          },
+          {
+            "name" : "outputPort",
+            "payload" : {
+              "isParameterPort" : false,
+              "base" : {
+                "kind" : "Outlet",
+                "id" : "991C96A6-F6A4-4EF8-9B5C-93DD08896320",
+                "published" : false,
+                "connections" : [
+                  "A46BE930-F851-47F1-952F-BB9B8C9322F5"
+                ],
+                "name" : "Text"
+              },
+              "type" : "String"
+            }
+          }
+        ],
+        "id" : "D995F224-0161-47E8-87B2-ADC6E63550F0"
+      },
+      "type" : "TextFileLoaderNode"
+    },
+    {
+      "value" : {
+        "id" : "700D7D25-077A-4BAF-A684-37127E79B8EB",
+        "ports" : [
+          {
+            "name" : "inputPort",
+            "payload" : {
+              "type" : "String",
+              "base" : {
+                "id" : "195A8E8A-1773-4610-BE4E-D821ADFDBAED",
+                "kind" : "Inlet",
+                "published" : false,
+                "connections" : [
+
+                ],
+                "name" : "String",
+                "parameter" : {
+                  "type" : "string",
+                  "base" : {
+                    "options" : [
+
+                    ],
+                    "label" : "String",
+                    "description" : "",
+                    "id" : "195A8E8A-1773-4610-BE4E-D821ADFDBAED",
+                    "defaultValue" : "",
+                    "value" : "Repeat this the following text exactly:",
+                    "controlType" : "inputfield"
+                  }
+                }
+              },
+              "isParameterPort" : true
+            }
+          },
+          {
+            "name" : "input2Port",
+            "payload" : {
+              "base" : {
+                "name" : "String",
+                "kind" : "Inlet",
+                "published" : false,
+                "connections" : [
+                  "A95302CF-7F0E-4010-8CA2-F63FEF813901"
+                ],
+                "parameter" : {
+                  "base" : {
+                    "id" : "681A6464-C079-4193-90F3-FF5C8DDD1F94",
+                    "controlType" : "inputfield",
+                    "value" : "\"id\" : \"7FECD306-4585-4C1B-9C3D-A7694288E2F8\",",
+                    "defaultValue" : "",
+                    "label" : "String",
+                    "options" : [
+
+                    ],
+                    "description" : ""
+                  },
+                  "type" : "string"
+                },
+                "id" : "681A6464-C079-4193-90F3-FF5C8DDD1F94"
+              },
+              "type" : "String",
+              "isParameterPort" : true
+            }
+          },
+          {
+            "name" : "outputPort",
+            "payload" : {
+              "isParameterPort" : false,
+              "type" : "String",
+              "base" : {
+                "kind" : "Outlet",
+                "id" : "5EB81BC4-5BAA-4CDF-B053-35E9F526787E",
+                "connections" : [
+                  "7FECD306-4585-4C1B-9C3D-A7694288E2F8"
+                ],
+                "published" : false,
+                "name" : "String"
+              }
+            }
+          }
+        ],
+        "nodeOffset" : [
+          -1129.074043269724,
+          -129.44146563764116
+        ]
+      },
+      "type" : "StringJoinNode"
+    },
+    {
+      "value" : {
+        "id" : "AA5301A5-9A14-40FD-9EE2-12D23D6A2E51",
+        "ports" : [
+          {
+            "name" : "inputText",
+            "payload" : {
+              "isParameterPort" : true,
+              "type" : "String",
+              "base" : {
+                "id" : "B7323C3B-FFD2-4F88-A1D0-3DCC1854B30C",
+                "name" : "Text",
+                "connections" : [
+                  "BDA60FF8-3E28-4D75-8134-CF24559D3C96"
+                ],
+                "published" : false,
+                "kind" : "Inlet",
+                "parameter" : {
+                  "base" : {
+                    "value" : "Evaluated:\"id",
+                    "controlType" : "inputfield",
+                    "description" : "",
+                    "label" : "Text",
+                    "defaultValue" : "Testing",
+                    "id" : "B7323C3B-FFD2-4F88-A1D0-3DCC1854B30C",
+                    "options" : [
+
+                    ]
+                  },
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          {
+            "name" : "inputFont",
+            "payload" : {
+              "isParameterPort" : true,
+              "type" : "String",
+              "base" : {
+                "name" : "Font",
+                "kind" : "Inlet",
+                "id" : "90960C09-4BEE-4C82-B103-F29AE6FF0D35",
+                "published" : false,
+                "connections" : [
+
+                ],
+                "parameter" : {
+                  "base" : {
+                    "description" : "",
+                    "defaultValue" : "Helvetica",
+                    "options" : [
+                      "Academy Engraved LET",
+                      "Al Bayan",
+                      "Al Nile",
+                      "Al Tarikh",
+                      "American Typewriter",
+                      "Andale Mono",
+                      "Apple Braille",
+                      "Apple Chancery",
+                      "Apple Color Emoji",
+                      "Apple SD Gothic Neo",
+                      "Apple Symbols",
+                      "AppleGothic",
+                      "AppleMyungjo",
+                      "Archia",
+                      "Arial",
+                      "Arial Black",
+                      "Arial Hebrew",
+                      "Arial Hebrew Scholar",
+                      "Arial Narrow",
+                      "Arial Rounded MT Bold",
+                      "Arial Unicode MS",
+                      "Avenir",
+                      "Avenir Next",
+                      "Avenir Next Condensed",
+                      "Ayuthaya",
+                      "Baghdad",
+                      "Bagnard",
+                      "Bangla MN",
+                      "Bangla Sangam MN",
+                      "Baskerville",
+                      "Beirut",
+                      "Bespoke Serif",
+                      "Big Caslon",
+                      "Big John PRO",
+                      "Bigilla",
+                      "Blender Pro",
+                      "Blender Pro ",
+                      "Bodoni 72",
+                      "Bodoni 72 Oldstyle",
+                      "Bodoni 72 Smallcaps",
+                      "Bodoni Ornaments",
+                      "Bradley Hand",
+                      "Brockmann",
+                      "Brush Script MT",
+                      "CHANEY",
+                      "Canela Text",
+                      "Cassannet Plus",
+                      "Chalkboard",
+                      "Chalkboard SE",
+                      "Chalkduster",
+                      "Charter",
+                      "Cochin",
+                      "Comic Sans MS",
+                      "Copperplate",
+                      "Corsiva Hebrew",
+                      "Courier New",
+                      "DIN Alternate",
+                      "DIN Condensed",
+                      "Damascus",
+                      "DecoType Naskh",
+                      "Devanagari MT",
+                      "Devanagari Sangam MN",
+                      "Didot",
+                      "Diwan Kufi",
+                      "Diwan Thuluth",
+                      "Engry",
+                      "Euphemia UCAS",
+                      "Farah",
+                      "Farisi",
+                      "Film Noir",
+                      "FogtwoNo5",
+                      "Forum",
+                      "Futura",
+                      "GB18030 Bitmap",
+                      "Galvji",
+                      "Geeza Pro",
+                      "Geneva",
+                      "Geomanist",
+                      "Georgia",
+                      "Gill Sans",
+                      "Gottak",
+                      "Grantha Sangam MN",
+                      "GreyscaleBasic",
+                      "Gujarati MT",
+                      "Gujarati Sangam MN",
+                      "Gurmukhi MN",
+                      "Gurmukhi MT",
+                      "Gurmukhi Sangam MN",
+                      "Heiti SC",
+                      "Heiti TC",
+                      "Helvetica",
+                      "Helvetica Neue",
+                      "Herculanum",
+                      "Hiragino Maru Gothic ProN",
+                      "Hiragino Mincho ProN",
+                      "Hiragino Sans",
+                      "Hiragino Sans GB",
+                      "Hoefler Text",
+                      "ITF Devanagari",
+                      "ITF Devanagari Marathi",
+                      "Impact",
+                      "InaiMathi",
+                      "Inconsolata",
+                      "Inconsolata Condensed",
+                      "Inconsolata Expanded",
+                      "Inconsolata ExtraCondensed",
+                      "Inconsolata ExtraExpanded",
+                      "Inconsolata SemiCondensed",
+                      "Inconsolata SemiExpanded",
+                      "Inconsolata UltraCondensed",
+                      "Inconsolata UltraExpanded",
+                      "Inter",
+                      "Kailasa",
+                      "Kannada MN",
+                      "Kannada Sangam MN",
+                      "Kefa",
+                      "Khmer MN",
+                      "Khmer Sangam MN",
+                      "King's Gambit",
+                      "Kohinoor Bangla",
+                      "Kohinoor Devanagari",
+                      "Kohinoor Gujarati",
+                      "Kohinoor Telugu",
+                      "Kokonor",
+                      "Kraut-type-a-fuck",
+                      "Krungthep",
+                      "Krylon",
+                      "KufiStandardGK",
+                      "Lao MN",
+                      "Lao Sangam MN",
+                      "Lucida Grande",
+                      "Luminari",
+                      "Luthon Southard Script",
+                      "Luthon Southard Serif",
+                      "Malayalam MN",
+                      "Malayalam Sangam MN",
+                      "Marker Felt",
+                      "Menlo",
+                      "Microsoft Sans Serif",
+                      "Mishafi",
+                      "Mishafi Gold",
+                      "Monaco",
+                      "Moniqa",
+                      "Mshtakan",
+                      "Mukta Mahee",
+                      "Muna",
+                      "Myanmar MN",
+                      "Myanmar Sangam MN",
+                      "N27",
+                      "Nadeem",
+                      "Neutral Face",
+                      "New Peninim MT",
+                      "Noteworthy",
+                      "Noto Nastaliq Urdu",
+                      "Noto Sans Batak",
+                      "Noto Sans Kannada",
+                      "Noto Sans Myanmar",
+                      "Noto Sans NKo",
+                      "Noto Sans Oriya",
+                      "Noto Sans Syriac",
+                      "Noto Sans Tagalog",
+                      "Noto Serif Myanmar",
+                      "Optima",
+                      "Oriya MN",
+                      "Oriya Sangam MN",
+                      "Orkney",
+                      "PT Mono",
+                      "PT Sans",
+                      "PT Sans Caption",
+                      "PT Sans Narrow",
+                      "PT Serif",
+                      "PT Serif Caption",
+                      "Palatino",
+                      "Papyrus",
+                      "Party LET",
+                      "Phosphate",
+                      "PingFang HK",
+                      "PingFang MO",
+                      "PingFang SC",
+                      "PingFang TC",
+                      "Plaax",
+                      "Plantagenet Cherokee",
+                      "Portia",
+                      "Proxima Nova",
+                      "Publico Text",
+                      "Raanana",
+                      "Raleway",
+                      "Rawest",
+                      "Roboto",
+                      "Roboto Condensed",
+                      "Rockwell",
+                      "SF Compact",
+                      "SF Compact Display",
+                      "SF Compact Rounded",
+                      "SF Compact Text",
+                      "SF Pro",
+                      "SF Pro Display",
+                      "SF Pro Rounded",
+                      "SF Pro Text",
+                      "STIX Two Math",
+                      "STIX Two Text",
+                      "STSong",
+                      "Sana",
+                      "Sathu",
+                      "Savoye LET",
+                      "Shree Devanagari 714",
+                      "SignPainter",
+                      "Silka",
+                      "Silom",
+                      "Sinhala MN",
+                      "Sinhala Sangam MN",
+                      "Skia",
+                      "Snell Roundhand",
+                      "Songti SC",
+                      "Songti TC",
+                      "Sukhumvit Set",
+                      "Symbol",
+                      "Tahoma",
+                      "Tamil MN",
+                      "Tamil Sangam MN",
+                      "Telugu MN",
+                      "Telugu Sangam MN",
+                      "Thonburi",
+                      "Thunder",
+                      "Times New Roman",
+                      "Titillium Web",
+                      "Trattatello",
+                      "Trebuchet MS",
+                      "Verdana",
+                      "Vollkorn",
+                      "Vollkorn SC",
+                      "Waseem",
+                      "Webdings",
+                      "Wingdings",
+                      "Wingdings 2",
+                      "Wingdings 3",
+                      "Wotfard",
+                      "Zapf Dingbats",
+                      "Zapfino"
+                    ],
+                    "id" : "90960C09-4BEE-4C82-B103-F29AE6FF0D35",
+                    "controlType" : "dropdown",
+                    "value" : "Helvetica",
+                    "label" : "Font"
+                  },
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          {
+            "name" : "inputPrimitiveType",
+            "payload" : {
+              "base" : {
+                "published" : false,
+                "name" : "Primitive",
+                "kind" : "Inlet",
+                "parameter" : {
+                  "type" : "string",
+                  "base" : {
+                    "options" : [
+                      "Point",
+                      "Line",
+                      "Line Strip",
+                      "Triangle",
+                      "Triangle Strip"
+                    ],
+                    "id" : "383F8B86-2BA3-4BD4-B1B3-29316475E8F9",
+                    "label" : "Primitive",
+                    "value" : "Triangle",
+                    "description" : "",
+                    "controlType" : "dropdown",
+                    "defaultValue" : "Triangle"
+                  }
+                },
+                "connections" : [
+
+                ],
+                "id" : "383F8B86-2BA3-4BD4-B1B3-29316475E8F9"
+              },
+              "isParameterPort" : true,
+              "type" : "String"
+            }
+          },
+          {
+            "name" : "outputGeometry",
+            "payload" : {
+              "base" : {
+                "published" : false,
+                "id" : "FE85E1F0-C80E-4769-B153-18BC9B616682",
+                "connections" : [
+                  "AB59E632-8427-48D0-8E68-D1AF123B7112"
+                ],
+                "name" : "Geometry",
+                "kind" : "Outlet"
+              },
+              "type" : "Geometry",
+              "isParameterPort" : false
+            }
+          }
+        ],
+        "nodeOffset" : [
+          124.96891787700315,
+          165.64446104130548
+        ]
+      },
+      "type" : "TesselatedTextGeometryNode"
+    },
+    {
+      "value" : {
+        "nodeOffset" : [
+          141.6203764183565,
+          365.8244616606389
+        ],
+        "id" : "A67132B2-C090-439C-8CD9-D04240C5DB41",
+        "ports" : [
+          {
+            "name" : "inputColor",
+            "payload" : {
+              "isParameterPort" : true,
+              "base" : {
+                "name" : "Color",
+                "connections" : [
+
+                ],
+                "published" : false,
+                "parameter" : {
+                  "type" : "float4",
+                  "base" : {
+                    "id" : "C302939F-E262-496F-A13B-6400D2313EFB",
+                    "value" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "description" : "",
+                    "controlType" : "colorpicker",
+                    "min" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
+                    "label" : "Color",
+                    "max" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "defaultValue" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ]
+                  }
+                },
+                "id" : "C302939F-E262-496F-A13B-6400D2313EFB",
+                "kind" : "Inlet"
+              },
+              "type" : "Vector 4"
+            }
+          },
+          {
+            "name" : "inputReceivesLighting",
+            "payload" : {
+              "isParameterPort" : true,
+              "base" : {
+                "id" : "81742BE1-7E21-4027-B308-B7DD0C58E8CA",
+                "connections" : [
+
+                ],
+                "kind" : "Inlet",
+                "published" : false,
+                "parameter" : {
+                  "base" : {
+                    "label" : "Receives Lighting",
+                    "description" : "",
+                    "defaultValue" : true,
+                    "id" : "81742BE1-7E21-4027-B308-B7DD0C58E8CA",
+                    "value" : true,
+                    "controlType" : "button"
+                  },
+                  "type" : "bool"
+                },
+                "name" : "Receives Lighting"
+              },
+              "type" : "Bool"
+            }
+          },
+          {
+            "name" : "inputWriteDepth",
+            "payload" : {
+              "type" : "Bool",
+              "isParameterPort" : true,
+              "base" : {
+                "published" : false,
+                "id" : "1074C5E0-9A12-4C55-9E4E-AEBB8B191EDC",
+                "connections" : [
+
+                ],
+                "kind" : "Inlet",
+                "parameter" : {
+                  "type" : "bool",
+                  "base" : {
+                    "label" : "Write Depth",
+                    "controlType" : "button",
+                    "description" : "",
+                    "value" : true,
+                    "id" : "1074C5E0-9A12-4C55-9E4E-AEBB8B191EDC",
+                    "defaultValue" : true
+                  }
+                },
+                "name" : "Write Depth"
+              }
+            }
+          },
+          {
+            "name" : "inputDepthTest",
+            "payload" : {
+              "base" : {
+                "name" : "Depth Test",
+                "id" : "96F299F2-6528-44CA-ABBE-3233742A4675",
+                "parameter" : {
+                  "base" : {
+                    "controlType" : "button",
+                    "defaultValue" : true,
+                    "value" : true,
+                    "label" : "Depth Test",
+                    "id" : "96F299F2-6528-44CA-ABBE-3233742A4675",
+                    "description" : ""
+                  },
+                  "type" : "bool"
+                },
+                "kind" : "Inlet",
+                "connections" : [
+
+                ],
+                "published" : false
+              },
+              "type" : "Bool",
+              "isParameterPort" : true
+            }
+          },
+          {
+            "name" : "inputBlending",
+            "payload" : {
+              "base" : {
+                "kind" : "Inlet",
+                "id" : "8E1638EF-BBA3-4EE9-B34E-36C59A49E992",
+                "published" : false,
+                "connections" : [
+
+                ],
+                "parameter" : {
+                  "base" : {
+                    "controlType" : "dropdown",
+                    "value" : "Disabled",
+                    "id" : "8E1638EF-BBA3-4EE9-B34E-36C59A49E992",
+                    "defaultValue" : "Disabled",
+                    "description" : "",
+                    "options" : [
+                      "Disabled",
+                      "Alpha",
+                      "Additive",
+                      "Subtractive"
+                    ],
+                    "label" : "Blending Mode"
+                  },
+                  "type" : "string"
+                },
+                "name" : "Blending Mode"
+              },
+              "isParameterPort" : true,
+              "type" : "String"
+            }
+          },
+          {
+            "name" : "outputMaterial",
+            "payload" : {
+              "base" : {
+                "connections" : [
+                  "B38FF357-E43D-4A52-B13D-E1BED0FE4930"
+                ],
+                "id" : "C0AAF272-6F61-475A-BB53-A61BF6C3A9C9",
+                "kind" : "Outlet",
+                "name" : "Material",
+                "published" : false
+              },
+              "isParameterPort" : false,
+              "type" : "Material"
+            }
+          }
+        ]
+      },
+      "type" : "BasicColorMaterialNode"
+    },
+    {
+      "value" : {
+        "ports" : [
+          {
+            "name" : "inputPort",
+            "payload" : {
+              "type" : "String",
+              "base" : {
+                "id" : "A46BE930-F851-47F1-952F-BB9B8C9322F5",
+                "connections" : [
+                  "991C96A6-F6A4-4EF8-9B5C-93DD08896320"
+                ],
+                "published" : false,
+                "name" : "String",
+                "kind" : "Inlet"
+              },
+              "isParameterPort" : false
+            }
+          },
+          {
+            "name" : "outputPort",
+            "payload" : {
+              "type" : "Array of String",
+              "isParameterPort" : false,
+              "base" : {
+                "name" : "Components",
+                "published" : false,
+                "connections" : [
+                  "0F255D03-AAE5-49C4-B490-60556F69FC7F",
+                  "EC7A1C83-46D6-4F3C-93AA-5365965C8657"
+                ],
+                "id" : "000EFE40-7BB8-469C-8481-C92D3B9C7507",
+                "kind" : "Outlet"
+              }
+            }
+          }
+        ],
+        "id" : "95CFBA87-BC70-400B-AF37-1EA8094EC097",
+        "nodeOffset" : [
+          -2054.919801022219,
+          -230.57302399969012
+        ]
+      },
+      "type" : "StringComponentNode"
+    },
+    {
+      "value" : {
+        "nodeOffset" : [
+          -1850.4757922026993,
+          -92.75337463915639
+        ],
+        "ports" : [
+          {
+            "payload" : {
+              "type" : "Array of String",
+              "isParameterPort" : false,
+              "base" : {
+                "kind" : "Inlet",
+                "published" : false,
+                "id" : "0F255D03-AAE5-49C4-B490-60556F69FC7F",
+                "name" : "Array",
+                "connections" : [
+                  "000EFE40-7BB8-469C-8481-C92D3B9C7507"
+                ]
+              }
+            },
+            "name" : "inputPort"
+          },
+          {
+            "payload" : {
+              "isParameterPort" : false,
+              "type" : "Int",
+              "base" : {
+                "published" : false,
+                "connections" : [
+                  "40A23CC9-EA3B-4921-B36E-F623941F50DD"
+                ],
+                "kind" : "Outlet",
+                "id" : "E3DFE412-EBA9-4DA3-9836-2C65BE0FAC0E",
+                "name" : "Count"
+              }
+            },
+            "name" : "outputPort"
+          }
+        ],
+        "id" : "2FAEF511-1F2C-4381-98CB-E050322DFE3A"
+      },
+      "type" : "ArrayCountNode<String>"
+    },
+    {
+      "value" : {
+        "id" : "D071CB81-B307-4F65-A2BA-788FDE9027DA",
+        "nodeOffset" : [
+          -1855.3464249820113,
+          -169.46227541153257
+        ],
+        "ports" : [
+          {
+            "payload" : {
+              "type" : "Float",
+              "isParameterPort" : true,
+              "base" : {
+                "published" : false,
+                "name" : "Number",
+                "kind" : "Inlet",
+                "parameter" : {
+                  "base" : {
+                    "id" : "CADBF075-061E-4C5B-8917-8CE261190B36",
+                    "max" : 1,
+                    "label" : "Number",
+                    "defaultValue" : 0,
+                    "description" : "",
+                    "value" : 1,
+                    "min" : 0,
+                    "controlType" : "inputfield"
+                  },
+                  "type" : "float"
+                },
+                "connections" : [
+
+                ],
+                "id" : "CADBF075-061E-4C5B-8917-8CE261190B36"
+              }
+            },
+            "name" : "inputNumber"
+          },
+          {
+            "payload" : {
+              "type" : "Float",
+              "isParameterPort" : false,
+              "base" : {
+                "id" : "B89AFC87-9CF4-4155-B38C-0F9DA83CA952",
+                "connections" : [
+                  "E0DC246C-7820-41F8-91F5-A2AD73B7276B"
+                ],
+                "kind" : "Outlet",
+                "name" : "Number",
+                "published" : false
+              }
+            },
+            "name" : "outputNumber"
+          }
+        ]
+      },
+      "type" : "NumberIntegralNode"
+    },
+    {
+      "value" : {
+        "ports" : [
+          {
+            "name" : "inputNumber1",
+            "payload" : {
+              "isParameterPort" : true,
+              "base" : {
+                "parameter" : {
+                  "base" : {
+                    "value" : 448.1321,
+                    "defaultValue" : 0,
+                    "description" : "",
+                    "id" : "E0DC246C-7820-41F8-91F5-A2AD73B7276B",
+                    "label" : "Number A",
+                    "min" : 0,
+                    "controlType" : "inputfield",
+                    "max" : 1
+                  },
+                  "type" : "float"
+                },
+                "published" : false,
+                "name" : "Number A",
+                "id" : "E0DC246C-7820-41F8-91F5-A2AD73B7276B",
+                "kind" : "Inlet",
+                "connections" : [
+                  "B89AFC87-9CF4-4155-B38C-0F9DA83CA952"
+                ]
+              },
+              "type" : "Float"
+            }
+          },
+          {
+            "name" : "inputNumber2",
+            "payload" : {
+              "isParameterPort" : true,
+              "type" : "Float",
+              "base" : {
+                "name" : "Number B",
+                "published" : false,
+                "id" : "40A23CC9-EA3B-4921-B36E-F623941F50DD",
+                "connections" : [
+                  "E3DFE412-EBA9-4DA3-9836-2C65BE0FAC0E"
+                ],
+                "kind" : "Inlet",
+                "parameter" : {
+                  "type" : "float",
+                  "base" : {
+                    "label" : "Number B",
+                    "controlType" : "inputfield",
+                    "min" : 0,
+                    "max" : 1,
+                    "id" : "40A23CC9-EA3B-4921-B36E-F623941F50DD",
+                    "description" : "",
+                    "defaultValue" : 0,
+                    "value" : 5899
+                  }
+                }
+              }
+            }
+          },
+          {
+            "name" : "inputParam",
+            "payload" : {
+              "isParameterPort" : true,
+              "type" : "String",
+              "base" : {
+                "name" : "Operator",
+                "kind" : "Inlet",
+                "published" : false,
+                "parameter" : {
+                  "base" : {
+                    "controlType" : "dropdown",
+                    "value" : "Modulo",
+                    "defaultValue" : "Add",
+                    "label" : "Operator",
+                    "id" : "CC276483-F19B-46B8-92F1-517F70CF587B",
+                    "description" : "",
+                    "options" : [
+                      "Add",
+                      "Subtract",
+                      "Multiply",
+                      "Divide",
+                      "Power",
+                      "Minimum",
+                      "Maximum",
+                      "Modulo"
+                    ]
+                  },
+                  "type" : "string"
+                },
+                "id" : "CC276483-F19B-46B8-92F1-517F70CF587B",
+                "connections" : [
+
+                ]
+              }
+            }
+          },
+          {
+            "name" : "outputNumber",
+            "payload" : {
+              "type" : "Float",
+              "base" : {
+                "id" : "FEB43367-4FAC-44E5-B9C8-566BBC6A08C4",
+                "connections" : [
+                  "A0A654FB-4AE4-41A2-BB53-F74404F6AE53"
+                ],
+                "name" : "Number",
+                "kind" : "Outlet",
+                "published" : false
+              },
+              "isParameterPort" : false
+            }
+          }
+        ],
+        "id" : "A4D470BF-6071-454D-A521-149A8E5A06D1",
+        "nodeOffset" : [
+          -1678.8742297026993,
+          -144.5463433891564
+        ]
+      },
+      "type" : "NumberBinaryOperator"
+    },
+    {
+      "value" : {
+        "nodeOffset" : [
+          -1500.2249903798402,
+          -218.0615087392216
+        ],
+        "id" : "32D9DCAA-C659-45C0-A247-429D9EF42F85",
+        "ports" : [
+          {
+            "payload" : {
+              "isParameterPort" : false,
+              "base" : {
+                "id" : "EC7A1C83-46D6-4F3C-93AA-5365965C8657",
+                "name" : "Array",
+                "connections" : [
+                  "000EFE40-7BB8-469C-8481-C92D3B9C7507"
+                ],
+                "kind" : "Inlet",
+                "published" : false
+              },
+              "type" : "Array of String"
+            },
+            "name" : "inputPort"
+          },
+          {
+            "payload" : {
+              "type" : "Int",
+              "base" : {
+                "kind" : "Inlet",
+                "id" : "A0A654FB-4AE4-41A2-BB53-F74404F6AE53",
+                "name" : "Index",
+                "published" : false,
+                "connections" : [
+                  "FEB43367-4FAC-44E5-B9C8-566BBC6A08C4"
+                ],
+                "parameter" : {
+                  "type" : "int",
+                  "base" : {
+                    "id" : "A0A654FB-4AE4-41A2-BB53-F74404F6AE53",
+                    "defaultValue" : 0,
+                    "controlType" : "inputfield",
+                    "description" : "",
+                    "value" : 448,
+                    "min" : 0,
+                    "max" : 1,
+                    "label" : "Index"
+                  }
+                }
+              },
+              "isParameterPort" : true
+            },
+            "name" : "inputIndexParam"
+          },
+          {
+            "payload" : {
+              "isParameterPort" : false,
+              "base" : {
+                "connections" : [
+                  "464F3957-3C0D-4F9D-9F1C-2BE71A8FF20B"
+                ],
+                "name" : "Value",
+                "kind" : "Outlet",
+                "id" : "63A554D7-AA7D-4F94-99E5-8F352278C96C",
+                "published" : false
+              },
+              "type" : "String"
+            },
+            "name" : "outputPort"
+          }
+        ]
+      },
+      "type" : "ArrayIndexValueNode<String>"
+    },
+    {
+      "value" : {
+        "nodeOffset" : [
+          131.1635895185609,
+          -179.8901102693353
+        ],
+        "id" : "A0EE951D-5843-40F1-B321-18D64F2E4689",
+        "ports" : [
+          {
+            "payload" : {
+              "type" : "String",
+              "base" : {
+                "published" : false,
+                "parameter" : {
+                  "base" : {
+                    "options" : [
+
+                    ],
+                    "description" : "",
+                    "defaultValue" : "Testing",
+                    "id" : "FB3EC12A-AA84-47EF-8210-6E8AF7A7558A",
+                    "controlType" : "inputfield",
+                    "value" : "Difference:32:A0-DC1E ,574B986F",
+                    "label" : "Text"
+                  },
+                  "type" : "string"
+                },
+                "id" : "FB3EC12A-AA84-47EF-8210-6E8AF7A7558A",
+                "name" : "Text",
+                "connections" : [
+                  "C84841A5-9190-405E-9986-438565F48A8D"
+                ],
+                "kind" : "Inlet"
+              },
+              "isParameterPort" : true
+            },
+            "name" : "inputText"
+          },
+          {
+            "payload" : {
+              "type" : "String",
+              "base" : {
+                "connections" : [
+
+                ],
+                "name" : "Font",
+                "parameter" : {
+                  "base" : {
+                    "defaultValue" : "Helvetica",
+                    "description" : "",
+                    "id" : "35F12795-1451-4810-8BF6-C39477DE0F41",
+                    "controlType" : "dropdown",
+                    "label" : "Font",
+                    "options" : [
+                      "Academy Engraved LET",
+                      "Al Bayan",
+                      "Al Nile",
+                      "Al Tarikh",
+                      "American Typewriter",
+                      "Andale Mono",
+                      "Apple Braille",
+                      "Apple Chancery",
+                      "Apple Color Emoji",
+                      "Apple SD Gothic Neo",
+                      "Apple Symbols",
+                      "AppleGothic",
+                      "AppleMyungjo",
+                      "Archia",
+                      "Arial",
+                      "Arial Black",
+                      "Arial Hebrew",
+                      "Arial Hebrew Scholar",
+                      "Arial Narrow",
+                      "Arial Rounded MT Bold",
+                      "Arial Unicode MS",
+                      "Avenir",
+                      "Avenir Next",
+                      "Avenir Next Condensed",
+                      "Ayuthaya",
+                      "Baghdad",
+                      "Bagnard",
+                      "Bangla MN",
+                      "Bangla Sangam MN",
+                      "Baskerville",
+                      "Beirut",
+                      "Bespoke Serif",
+                      "Big Caslon",
+                      "Big John PRO",
+                      "Bigilla",
+                      "Blender Pro",
+                      "Blender Pro ",
+                      "Bodoni 72",
+                      "Bodoni 72 Oldstyle",
+                      "Bodoni 72 Smallcaps",
+                      "Bodoni Ornaments",
+                      "Bradley Hand",
+                      "Brockmann",
+                      "Brush Script MT",
+                      "CHANEY",
+                      "Canela Text",
+                      "Cassannet Plus",
+                      "Chalkboard",
+                      "Chalkboard SE",
+                      "Chalkduster",
+                      "Charter",
+                      "Cochin",
+                      "Comic Sans MS",
+                      "Copperplate",
+                      "Corsiva Hebrew",
+                      "Courier New",
+                      "DIN Alternate",
+                      "DIN Condensed",
+                      "Damascus",
+                      "DecoType Naskh",
+                      "Devanagari MT",
+                      "Devanagari Sangam MN",
+                      "Didot",
+                      "Diwan Kufi",
+                      "Diwan Thuluth",
+                      "Engry",
+                      "Euphemia UCAS",
+                      "Farah",
+                      "Farisi",
+                      "Film Noir",
+                      "FogtwoNo5",
+                      "Forum",
+                      "Futura",
+                      "GB18030 Bitmap",
+                      "Galvji",
+                      "Geeza Pro",
+                      "Geneva",
+                      "Geomanist",
+                      "Georgia",
+                      "Gill Sans",
+                      "Gottak",
+                      "Grantha Sangam MN",
+                      "GreyscaleBasic",
+                      "Gujarati MT",
+                      "Gujarati Sangam MN",
+                      "Gurmukhi MN",
+                      "Gurmukhi MT",
+                      "Gurmukhi Sangam MN",
+                      "Heiti SC",
+                      "Heiti TC",
+                      "Helvetica",
+                      "Helvetica Neue",
+                      "Herculanum",
+                      "Hiragino Maru Gothic ProN",
+                      "Hiragino Mincho ProN",
+                      "Hiragino Sans",
+                      "Hiragino Sans GB",
+                      "Hoefler Text",
+                      "ITF Devanagari",
+                      "ITF Devanagari Marathi",
+                      "Impact",
+                      "InaiMathi",
+                      "Inconsolata",
+                      "Inconsolata Condensed",
+                      "Inconsolata Expanded",
+                      "Inconsolata ExtraCondensed",
+                      "Inconsolata ExtraExpanded",
+                      "Inconsolata SemiCondensed",
+                      "Inconsolata SemiExpanded",
+                      "Inconsolata UltraCondensed",
+                      "Inconsolata UltraExpanded",
+                      "Inter",
+                      "Kailasa",
+                      "Kannada MN",
+                      "Kannada Sangam MN",
+                      "Kefa",
+                      "Khmer MN",
+                      "Khmer Sangam MN",
+                      "King's Gambit",
+                      "Kohinoor Bangla",
+                      "Kohinoor Devanagari",
+                      "Kohinoor Gujarati",
+                      "Kohinoor Telugu",
+                      "Kokonor",
+                      "Kraut-type-a-fuck",
+                      "Krungthep",
+                      "Krylon",
+                      "KufiStandardGK",
+                      "Lao MN",
+                      "Lao Sangam MN",
+                      "Lucida Grande",
+                      "Luminari",
+                      "Luthon Southard Script",
+                      "Luthon Southard Serif",
+                      "Malayalam MN",
+                      "Malayalam Sangam MN",
+                      "Marker Felt",
+                      "Menlo",
+                      "Microsoft Sans Serif",
+                      "Mishafi",
+                      "Mishafi Gold",
+                      "Monaco",
+                      "Moniqa",
+                      "Mshtakan",
+                      "Mukta Mahee",
+                      "Muna",
+                      "Myanmar MN",
+                      "Myanmar Sangam MN",
+                      "N27",
+                      "Nadeem",
+                      "Neutral Face",
+                      "New Peninim MT",
+                      "Noteworthy",
+                      "Noto Nastaliq Urdu",
+                      "Noto Sans Batak",
+                      "Noto Sans Kannada",
+                      "Noto Sans Myanmar",
+                      "Noto Sans NKo",
+                      "Noto Sans Oriya",
+                      "Noto Sans Syriac",
+                      "Noto Sans Tagalog",
+                      "Noto Serif Myanmar",
+                      "Optima",
+                      "Oriya MN",
+                      "Oriya Sangam MN",
+                      "Orkney",
+                      "PT Mono",
+                      "PT Sans",
+                      "PT Sans Caption",
+                      "PT Sans Narrow",
+                      "PT Serif",
+                      "PT Serif Caption",
+                      "Palatino",
+                      "Papyrus",
+                      "Party LET",
+                      "Phosphate",
+                      "PingFang HK",
+                      "PingFang MO",
+                      "PingFang SC",
+                      "PingFang TC",
+                      "Plaax",
+                      "Plantagenet Cherokee",
+                      "Portia",
+                      "Proxima Nova",
+                      "Publico Text",
+                      "Raanana",
+                      "Raleway",
+                      "Rawest",
+                      "Roboto",
+                      "Roboto Condensed",
+                      "Rockwell",
+                      "SF Compact",
+                      "SF Compact Display",
+                      "SF Compact Rounded",
+                      "SF Compact Text",
+                      "SF Pro",
+                      "SF Pro Display",
+                      "SF Pro Rounded",
+                      "SF Pro Text",
+                      "STIX Two Math",
+                      "STIX Two Text",
+                      "STSong",
+                      "Sana",
+                      "Sathu",
+                      "Savoye LET",
+                      "Shree Devanagari 714",
+                      "SignPainter",
+                      "Silka",
+                      "Silom",
+                      "Sinhala MN",
+                      "Sinhala Sangam MN",
+                      "Skia",
+                      "Snell Roundhand",
+                      "Songti SC",
+                      "Songti TC",
+                      "Sukhumvit Set",
+                      "Symbol",
+                      "Tahoma",
+                      "Tamil MN",
+                      "Tamil Sangam MN",
+                      "Telugu MN",
+                      "Telugu Sangam MN",
+                      "Thonburi",
+                      "Thunder",
+                      "Times New Roman",
+                      "Titillium Web",
+                      "Trattatello",
+                      "Trebuchet MS",
+                      "Verdana",
+                      "Vollkorn",
+                      "Vollkorn SC",
+                      "Waseem",
+                      "Webdings",
+                      "Wingdings",
+                      "Wingdings 2",
+                      "Wingdings 3",
+                      "Wotfard",
+                      "Zapf Dingbats",
+                      "Zapfino"
+                    ],
+                    "value" : "Helvetica"
+                  },
+                  "type" : "string"
+                },
+                "id" : "35F12795-1451-4810-8BF6-C39477DE0F41",
+                "published" : false,
+                "kind" : "Inlet"
+              },
+              "isParameterPort" : true
+            },
+            "name" : "inputFont"
+          },
+          {
+            "payload" : {
+              "type" : "String",
+              "isParameterPort" : true,
+              "base" : {
+                "kind" : "Inlet",
+                "published" : false,
+                "connections" : [
+
+                ],
+                "name" : "Primitive",
+                "id" : "F916EAE7-E2ED-4611-AFB3-F58D67E010E1",
+                "parameter" : {
+                  "base" : {
+                    "label" : "Primitive",
+                    "description" : "",
+                    "defaultValue" : "Triangle",
+                    "id" : "F916EAE7-E2ED-4611-AFB3-F58D67E010E1",
+                    "options" : [
+                      "Point",
+                      "Line",
+                      "Line Strip",
+                      "Triangle",
+                      "Triangle Strip"
+                    ],
+                    "value" : "Triangle",
+                    "controlType" : "dropdown"
+                  },
+                  "type" : "string"
+                }
+              }
+            },
+            "name" : "inputPrimitiveType"
+          },
+          {
+            "payload" : {
+              "type" : "Geometry",
+              "isParameterPort" : false,
+              "base" : {
+                "name" : "Geometry",
+                "published" : false,
+                "kind" : "Outlet",
+                "connections" : [
+                  "1CD5CA28-98C9-40E3-ADD1-282E746A23AA"
+                ],
+                "id" : "C46DA474-188F-476D-B763-823769E9E608"
+              }
+            },
+            "name" : "outputGeometry"
+          }
+        ]
+      },
+      "type" : "TesselatedTextGeometryNode"
+    },
+    {
+      "value" : {
+        "nodeOffset" : [
+          131.5854645185609,
+          -43.15964151933531
+        ],
+        "id" : "D5146294-290D-478D-B167-05EE4608EF80",
+        "ports" : [
+          {
+            "name" : "inputColor",
+            "payload" : {
+              "type" : "Vector 4",
+              "isParameterPort" : true,
+              "base" : {
+                "published" : false,
+                "name" : "Color",
+                "kind" : "Inlet",
+                "id" : "9258AB40-6901-4FF6-92D6-89B61489EF4D",
+                "connections" : [
+
+                ],
+                "parameter" : {
+                  "base" : {
+                    "max" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "defaultValue" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "value" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "min" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
+                    "label" : "Color",
+                    "controlType" : "colorpicker",
+                    "id" : "9258AB40-6901-4FF6-92D6-89B61489EF4D",
+                    "description" : ""
+                  },
+                  "type" : "float4"
+                }
+              }
+            }
+          },
+          {
+            "name" : "inputReceivesLighting",
+            "payload" : {
+              "type" : "Bool",
+              "isParameterPort" : true,
+              "base" : {
+                "id" : "B9C9202D-E96A-4405-8F82-28D389569B81",
+                "parameter" : {
+                  "base" : {
+                    "controlType" : "button",
+                    "description" : "",
+                    "value" : true,
+                    "id" : "B9C9202D-E96A-4405-8F82-28D389569B81",
+                    "label" : "Receives Lighting",
+                    "defaultValue" : true
+                  },
+                  "type" : "bool"
+                },
+                "kind" : "Inlet",
+                "name" : "Receives Lighting",
+                "published" : false,
+                "connections" : [
+
+                ]
+              }
+            }
+          },
+          {
+            "name" : "inputWriteDepth",
+            "payload" : {
+              "isParameterPort" : true,
+              "base" : {
+                "name" : "Write Depth",
+                "parameter" : {
+                  "base" : {
+                    "label" : "Write Depth",
+                    "description" : "",
+                    "value" : true,
+                    "defaultValue" : true,
+                    "id" : "255281F4-FE7D-4A79-BC1D-8CBC4A99CD15",
+                    "controlType" : "button"
+                  },
+                  "type" : "bool"
+                },
+                "id" : "255281F4-FE7D-4A79-BC1D-8CBC4A99CD15",
+                "connections" : [
+
+                ],
+                "published" : false,
+                "kind" : "Inlet"
+              },
+              "type" : "Bool"
+            }
+          },
+          {
+            "name" : "inputDepthTest",
+            "payload" : {
+              "base" : {
+                "id" : "88EB08E9-B641-4C2D-9F94-6778622CFF9C",
+                "connections" : [
+
+                ],
+                "parameter" : {
+                  "base" : {
+                    "description" : "",
+                    "defaultValue" : true,
+                    "id" : "88EB08E9-B641-4C2D-9F94-6778622CFF9C",
+                    "value" : true,
+                    "label" : "Depth Test",
+                    "controlType" : "button"
+                  },
+                  "type" : "bool"
+                },
+                "name" : "Depth Test",
+                "kind" : "Inlet",
+                "published" : false
+              },
+              "isParameterPort" : true,
+              "type" : "Bool"
+            }
+          },
+          {
+            "name" : "inputBlending",
+            "payload" : {
+              "type" : "String",
+              "isParameterPort" : true,
+              "base" : {
+                "published" : false,
+                "id" : "E591C632-A20D-4CB4-8A4D-829C1687F437",
+                "connections" : [
+
+                ],
+                "kind" : "Inlet",
+                "parameter" : {
+                  "base" : {
+                    "options" : [
+                      "Disabled",
+                      "Alpha",
+                      "Additive",
+                      "Subtractive"
+                    ],
+                    "defaultValue" : "Disabled",
+                    "label" : "Blending Mode",
+                    "description" : "",
+                    "value" : "Disabled",
+                    "id" : "E591C632-A20D-4CB4-8A4D-829C1687F437",
+                    "controlType" : "dropdown"
+                  },
+                  "type" : "string"
+                },
+                "name" : "Blending Mode"
+              }
+            }
+          },
+          {
+            "name" : "outputMaterial",
+            "payload" : {
+              "base" : {
+                "connections" : [
+                  "C78881A2-BA65-4DD3-83E4-6B33023A14F0"
+                ],
+                "kind" : "Outlet",
+                "published" : false,
+                "id" : "4CFE22D6-AD73-4011-BC41-5DE5813597F9",
+                "name" : "Material"
+              },
+              "isParameterPort" : false,
+              "type" : "Material"
+            }
+          }
+        ]
+      },
+      "type" : "BasicColorMaterialNode"
+    },
+    {
+      "value" : {
+        "nodeOffset" : [
+          318.99540231787796,
+          -242.7200224506505
+        ],
+        "id" : "F554C853-6608-4B21-9757-8F7462FF4D92",
+        "ports" : [
+          {
+            "payload" : {
+              "isParameterPort" : true,
+              "base" : {
+                "id" : "99C11543-C43D-42D2-B157-08E7CC5C9F7B",
+                "published" : false,
+                "parameter" : {
+                  "type" : "bool",
+                  "base" : {
+                    "controlType" : "button",
+                    "label" : "Visible",
+                    "value" : true,
+                    "defaultValue" : true,
+                    "description" : "",
+                    "id" : "99C11543-C43D-42D2-B157-08E7CC5C9F7B"
+                  }
+                },
+                "name" : "Visible",
+                "kind" : "Inlet",
+                "connections" : [
+
+                ]
+              },
+              "type" : "Bool"
+            },
+            "name" : "inputVisible"
+          },
+          {
+            "payload" : {
+              "base" : {
+                "name" : "Render Order",
+                "published" : false,
+                "kind" : "Inlet",
+                "id" : "833F28A1-9C2E-43EE-83C3-5C16A1F60D42",
+                "connections" : [
+
+                ],
+                "parameter" : {
+                  "type" : "int",
+                  "base" : {
+                    "id" : "833F28A1-9C2E-43EE-83C3-5C16A1F60D42",
+                    "max" : 1,
+                    "label" : "Render Order",
+                    "controlType" : "inputfield",
+                    "description" : "",
+                    "defaultValue" : 0,
+                    "min" : 0,
+                    "value" : 0
+                  }
+                }
+              },
+              "type" : "Int",
+              "isParameterPort" : true
+            },
+            "name" : "inputRenderOrder"
+          },
+          {
+            "payload" : {
+              "isParameterPort" : true,
+              "base" : {
+                "kind" : "Inlet",
+                "connections" : [
+
+                ],
+                "name" : "Render Pass",
+                "published" : false,
+                "parameter" : {
+                  "type" : "int",
+                  "base" : {
+                    "value" : 0,
+                    "max" : 1,
+                    "label" : "Render Pass",
+                    "id" : "CD1365B7-897C-408A-8BB1-9030C6B4AF74",
+                    "description" : "",
+                    "controlType" : "inputfield",
+                    "min" : 0,
+                    "defaultValue" : 0
+                  }
+                },
+                "id" : "CD1365B7-897C-408A-8BB1-9030C6B4AF74"
+              },
+              "type" : "Int"
+            },
+            "name" : "inputRenderPass"
+          },
+          {
+            "payload" : {
+              "base" : {
+                "name" : "Position",
+                "connections" : [
+
+                ],
+                "kind" : "Inlet",
+                "published" : false,
+                "id" : "75F72ED8-F8CF-4736-80E2-E9EF5EEA3F31",
+                "parameter" : {
+                  "type" : "float3",
+                  "base" : {
+                    "defaultValue" : [
+                      0,
+                      0,
+                      0
+                    ],
+                    "value" : [
+                      0,
+                      -0.25,
+                      0
+                    ],
+                    "controlType" : "inputfield",
+                    "id" : "75F72ED8-F8CF-4736-80E2-E9EF5EEA3F31",
+                    "description" : "",
+                    "max" : [
+                      1,
+                      1,
+                      1
+                    ],
+                    "label" : "Position",
+                    "min" : [
+                      0,
+                      0,
+                      0
+                    ]
+                  }
+                }
+              },
+              "type" : "Vector 3",
+              "isParameterPort" : true
+            },
+            "name" : "inputPosition"
+          },
+          {
+            "payload" : {
+              "isParameterPort" : true,
+              "type" : "Vector 3",
+              "base" : {
+                "parameter" : {
+                  "type" : "float3",
+                  "base" : {
+                    "max" : [
+                      1,
+                      1,
+                      1
+                    ],
+                    "controlType" : "inputfield",
+                    "label" : "Scale",
+                    "id" : "9D4FD514-CAB7-41CB-96C4-0F81C764A272",
+                    "value" : [
+                      0.075,
+                      0.075,
+                      0.075
+                    ],
+                    "description" : "",
+                    "defaultValue" : [
+                      1,
+                      1,
+                      1
+                    ],
+                    "min" : [
+                      0,
+                      0,
+                      0
+                    ]
+                  }
+                },
+                "name" : "Scale",
+                "published" : false,
+                "connections" : [
+
+                ],
+                "id" : "9D4FD514-CAB7-41CB-96C4-0F81C764A272",
+                "kind" : "Inlet"
+              }
+            },
+            "name" : "inputScale"
+          },
+          {
+            "payload" : {
+              "type" : "Vector 4",
+              "isParameterPort" : true,
+              "base" : {
+                "id" : "061503F2-FF7C-4A61-80B4-397AEE13DF63",
+                "parameter" : {
+                  "type" : "float4",
+                  "base" : {
+                    "max" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "controlType" : "inputfield",
+                    "label" : "Orientation",
+                    "min" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
+                    "description" : "",
+                    "id" : "061503F2-FF7C-4A61-80B4-397AEE13DF63",
+                    "value" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
+                    "defaultValue" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ]
+                  }
+                },
+                "published" : false,
+                "name" : "Orientation",
+                "connections" : [
+
+                ],
+                "kind" : "Inlet"
+              }
+            },
+            "name" : "inputOrientation"
+          },
+          {
+            "payload" : {
+              "isParameterPort" : false,
+              "base" : {
+                "id" : "1CD5CA28-98C9-40E3-ADD1-282E746A23AA",
+                "name" : "Geometry",
+                "connections" : [
+                  "C46DA474-188F-476D-B763-823769E9E608"
+                ],
+                "kind" : "Inlet",
+                "published" : false
+              },
+              "type" : "Geometry"
+            },
+            "name" : "inputGeometry"
+          },
+          {
+            "payload" : {
+              "isParameterPort" : false,
+              "base" : {
+                "connections" : [
+                  "4CFE22D6-AD73-4011-BC41-5DE5813597F9"
+                ],
+                "kind" : "Inlet",
+                "id" : "C78881A2-BA65-4DD3-83E4-6B33023A14F0",
+                "name" : "Material",
+                "published" : false
+              },
+              "type" : "Material"
+            },
+            "name" : "inputMaterial"
+          },
+          {
+            "payload" : {
+              "base" : {
+                "kind" : "Inlet",
+                "published" : false,
+                "connections" : [
+
+                ],
+                "parameter" : {
+                  "type" : "bool",
+                  "base" : {
+                    "controlType" : "button",
+                    "id" : "82F62FF9-552C-4C2E-8FEF-5B541D84A581",
+                    "description" : "",
+                    "defaultValue" : true,
+                    "label" : "Enable Shadows",
+                    "value" : true
+                  }
+                },
+                "name" : "Enable Shadows",
+                "id" : "82F62FF9-552C-4C2E-8FEF-5B541D84A581"
+              },
+              "isParameterPort" : true,
+              "type" : "Bool"
+            },
+            "name" : "inputCastsShadow"
+          },
+          {
+            "payload" : {
+              "base" : {
+                "name" : "Double Sided",
+                "published" : false,
+                "id" : "85C53947-0353-4BDC-97DD-3743D3AD5427",
+                "kind" : "Inlet",
+                "connections" : [
+
+                ],
+                "parameter" : {
+                  "type" : "bool",
+                  "base" : {
+                    "id" : "85C53947-0353-4BDC-97DD-3743D3AD5427",
+                    "description" : "",
+                    "defaultValue" : false,
+                    "label" : "Double Sided",
+                    "controlType" : "button",
+                    "value" : false
+                  }
+                }
+              },
+              "isParameterPort" : true,
+              "type" : "Bool"
+            },
+            "name" : "inputDoubleSided"
+          },
+          {
+            "payload" : {
+              "base" : {
+                "connections" : [
+
+                ],
+                "parameter" : {
+                  "type" : "string",
+                  "base" : {
+                    "id" : "456352B1-3E2B-4D9C-A4A5-9F297F3A4DE0",
+                    "value" : "Back",
+                    "controlType" : "dropdown",
+                    "options" : [
+                      "Back",
+                      "Front",
+                      "None"
+                    ],
+                    "defaultValue" : "Back",
+                    "label" : "Culling Mode",
+                    "description" : ""
+                  }
+                },
+                "id" : "456352B1-3E2B-4D9C-A4A5-9F297F3A4DE0",
+                "kind" : "Inlet",
+                "published" : false,
+                "name" : "Culling Mode"
+              },
+              "isParameterPort" : true,
+              "type" : "String"
+            },
+            "name" : "inputCullingMode"
+          }
+        ]
+      },
+      "type" : "MeshNode"
+    },
+    {
+      "value" : {
+        "id" : "F7579D33-BD28-4CBD-A9FF-0028AFFCD749",
+        "ports" : [
+          {
+            "name" : "inputPort",
+            "payload" : {
+              "base" : {
+                "name" : "String",
+                "published" : false,
+                "kind" : "Inlet",
+                "id" : "464F3957-3C0D-4F9D-9F1C-2BE71A8FF20B",
+                "connections" : [
+                  "63A554D7-AA7D-4F94-99E5-8F352278C96C"
+                ]
+              },
+              "type" : "String",
+              "isParameterPort" : false
+            }
+          },
+          {
+            "name" : "outputPort",
+            "payload" : {
+              "type" : "String",
+              "base" : {
+                "id" : "A95302CF-7F0E-4010-8CA2-F63FEF813901",
+                "kind" : "Outlet",
+                "name" : "String",
+                "connections" : [
+                  "E177A8F3-89DC-4A27-85F5-5D0DE9E2FA78",
+                  "681A6464-C079-4193-90F3-FF5C8DDD1F94",
+                  "4E9D2CC8-33AA-4852-83C2-3C4CFCCDF374"
+                ],
+                "published" : false
+              },
+              "isParameterPort" : false
+            }
+          }
+        ],
+        "nodeOffset" : [
+          -1317.7880426892098,
+          -227.31348244114633
+        ]
+      },
+      "type" : "StringRemoveWhitespaceNode"
+    },
+    {
+      "value" : {
+        "nodeOffset" : [
+          -59.38474645232418,
+          -180.95056376451612
+        ],
+        "id" : "4635163A-FCA7-4430-88B6-D915F915D5BF",
+        "ports" : [
+          {
+            "payload" : {
+              "type" : "String",
+              "base" : {
+                "name" : "String",
+                "kind" : "Inlet",
+                "id" : "68725E14-AA7D-4FF9-98EF-B9793DB08775",
+                "parameter" : {
+                  "base" : {
+                    "defaultValue" : "",
+                    "controlType" : "inputfield",
+                    "value" : "Difference:",
+                    "options" : [
+
+                    ],
+                    "label" : "String",
+                    "description" : "",
+                    "id" : "68725E14-AA7D-4FF9-98EF-B9793DB08775"
+                  },
+                  "type" : "string"
+                },
+                "published" : false,
+                "connections" : [
+
+                ]
+              },
+              "isParameterPort" : true
+            },
+            "name" : "inputPort"
+          },
+          {
+            "payload" : {
+              "base" : {
+                "kind" : "Inlet",
+                "parameter" : {
+                  "type" : "string",
+                  "base" : {
+                    "description" : "",
+                    "label" : "String",
+                    "options" : [
+
+                    ],
+                    "id" : "546F5A09-E8E7-46F0-B1FF-2D091F96F4EB",
+                    "defaultValue" : "",
+                    "value" : "32:A0-DC1E ,574B986F",
+                    "controlType" : "inputfield"
+                  }
+                },
+                "connections" : [
+                  "DA7FDF9C-392B-46DF-9A7D-56EE643D3275"
+                ],
+                "id" : "546F5A09-E8E7-46F0-B1FF-2D091F96F4EB",
+                "published" : false,
+                "name" : "String"
+              },
+              "isParameterPort" : true,
+              "type" : "String"
+            },
+            "name" : "input2Port"
+          },
+          {
+            "payload" : {
+              "base" : {
+                "connections" : [
+                  "FB3EC12A-AA84-47EF-8210-6E8AF7A7558A"
+                ],
+                "id" : "C84841A5-9190-405E-9986-438565F48A8D",
+                "name" : "String",
+                "kind" : "Outlet",
+                "published" : false
+              },
+              "type" : "String",
+              "isParameterPort" : false
+            },
+            "name" : "outputPort"
+          }
+        ]
+      },
+      "type" : "StringJoinNode"
+    },
+    {
+      "value" : {
+        "ports" : [
+          {
+            "name" : "inputVisible",
+            "payload" : {
+              "type" : "Bool",
+              "base" : {
+                "connections" : [
+
+                ],
+                "kind" : "Inlet",
+                "name" : "Visible",
+                "parameter" : {
+                  "type" : "bool",
+                  "base" : {
+                    "defaultValue" : true,
+                    "label" : "Visible",
+                    "id" : "99C38F8D-CD86-45C2-8A69-819E306F9B13",
+                    "controlType" : "button",
+                    "value" : true,
+                    "description" : ""
+                  }
+                },
+                "id" : "99C38F8D-CD86-45C2-8A69-819E306F9B13",
+                "published" : false
+              },
+              "isParameterPort" : true
+            }
+          },
+          {
+            "name" : "inputRenderOrder",
+            "payload" : {
+              "type" : "Int",
+              "isParameterPort" : true,
+              "base" : {
+                "kind" : "Inlet",
+                "parameter" : {
+                  "type" : "int",
+                  "base" : {
+                    "value" : 0,
+                    "label" : "Render Order",
+                    "min" : 0,
+                    "max" : 1,
+                    "id" : "FA2114E8-EB0D-40B2-A490-24F79AA2F2B4",
+                    "defaultValue" : 0,
+                    "description" : "",
+                    "controlType" : "inputfield"
+                  }
+                },
+                "published" : false,
+                "name" : "Render Order",
+                "id" : "FA2114E8-EB0D-40B2-A490-24F79AA2F2B4",
+                "connections" : [
+
+                ]
+              }
+            }
+          },
+          {
+            "name" : "inputRenderPass",
+            "payload" : {
+              "type" : "Int",
+              "isParameterPort" : true,
+              "base" : {
+                "kind" : "Inlet",
+                "published" : false,
+                "name" : "Render Pass",
+                "id" : "FB4B0F70-D10D-4454-B082-6E8DF157D0FA",
+                "connections" : [
+
+                ],
+                "parameter" : {
+                  "base" : {
+                    "id" : "FB4B0F70-D10D-4454-B082-6E8DF157D0FA",
+                    "min" : 0,
+                    "label" : "Render Pass",
+                    "description" : "",
+                    "controlType" : "inputfield",
+                    "defaultValue" : 0,
+                    "max" : 1,
+                    "value" : 0
+                  },
+                  "type" : "int"
+                }
+              }
+            }
+          },
+          {
+            "name" : "inputPosition",
+            "payload" : {
+              "isParameterPort" : true,
+              "base" : {
+                "published" : false,
+                "connections" : [
+
+                ],
+                "id" : "585B941C-23B6-44DD-9C33-B76F36D16869",
+                "kind" : "Inlet",
+                "name" : "Position",
+                "parameter" : {
+                  "type" : "float3",
+                  "base" : {
+                    "defaultValue" : [
+                      0,
+                      0,
+                      0
+                    ],
+                    "min" : [
+                      0,
+                      0,
+                      0
+                    ],
+                    "id" : "585B941C-23B6-44DD-9C33-B76F36D16869",
+                    "label" : "Position",
+                    "value" : [
+                      0,
+                      0.5,
+                      0
+                    ],
+                    "description" : "",
+                    "max" : [
+                      1,
+                      1,
+                      1
+                    ],
+                    "controlType" : "inputfield"
+                  }
+                }
+              },
+              "type" : "Vector 3"
+            }
+          },
+          {
+            "name" : "inputScale",
+            "payload" : {
+              "isParameterPort" : true,
+              "base" : {
+                "name" : "Scale",
+                "id" : "4F10D187-C478-40CB-B3EE-53039007D6BF",
+                "kind" : "Inlet",
+                "parameter" : {
+                  "base" : {
+                    "label" : "Scale",
+                    "id" : "4F10D187-C478-40CB-B3EE-53039007D6BF",
+                    "controlType" : "inputfield",
+                    "max" : [
+                      1,
+                      1,
+                      1
+                    ],
+                    "min" : [
+                      0,
+                      0,
+                      0
+                    ],
+                    "description" : "",
+                    "value" : [
+                      0.05,
+                      0.05,
+                      0.05
+                    ],
+                    "defaultValue" : [
+                      1,
+                      1,
+                      1
+                    ]
+                  },
+                  "type" : "float3"
+                },
+                "published" : false,
+                "connections" : [
+
+                ]
+              },
+              "type" : "Vector 3"
+            }
+          },
+          {
+            "name" : "inputOrientation",
+            "payload" : {
+              "isParameterPort" : true,
+              "base" : {
+                "published" : false,
+                "connections" : [
+
+                ],
+                "id" : "9FE921E7-90C9-4DC6-91A0-34B1BADC42CF",
+                "name" : "Orientation",
+                "parameter" : {
+                  "base" : {
+                    "description" : "",
+                    "label" : "Orientation",
+                    "defaultValue" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
+                    "value" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
+                    "min" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
+                    "max" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "id" : "9FE921E7-90C9-4DC6-91A0-34B1BADC42CF",
+                    "controlType" : "inputfield"
+                  },
+                  "type" : "float4"
+                },
+                "kind" : "Inlet"
+              },
+              "type" : "Vector 4"
+            }
+          },
+          {
+            "name" : "inputGeometry",
+            "payload" : {
+              "base" : {
+                "connections" : [
+                  "FC093203-934D-4BD1-AD90-A7D775791C7B"
+                ],
+                "kind" : "Inlet",
+                "id" : "0533E9EF-4C8D-448B-BBC5-511D649251D1",
+                "name" : "Geometry",
+                "published" : false
+              },
+              "isParameterPort" : false,
+              "type" : "Geometry"
+            }
+          },
+          {
+            "name" : "inputMaterial",
+            "payload" : {
+              "base" : {
+                "name" : "Material",
+                "id" : "3BDD3A95-E5A2-48F9-9D90-8FC40234F1FA",
+                "connections" : [
+                  "85856A23-1366-4BEB-A65A-9F842BBE1CC9"
+                ],
+                "published" : false,
+                "kind" : "Inlet"
+              },
+              "type" : "Material",
+              "isParameterPort" : false
+            }
+          },
+          {
+            "name" : "inputCastsShadow",
+            "payload" : {
+              "base" : {
+                "id" : "24822C56-B996-4B45-91A0-B31901945069",
+                "kind" : "Inlet",
+                "connections" : [
+
+                ],
+                "name" : "Enable Shadows",
+                "published" : false,
+                "parameter" : {
+                  "type" : "bool",
+                  "base" : {
+                    "controlType" : "button",
+                    "description" : "",
+                    "value" : true,
+                    "label" : "Enable Shadows",
+                    "id" : "24822C56-B996-4B45-91A0-B31901945069",
+                    "defaultValue" : true
+                  }
+                }
+              },
+              "type" : "Bool",
+              "isParameterPort" : true
+            }
+          },
+          {
+            "name" : "inputDoubleSided",
+            "payload" : {
+              "base" : {
+                "published" : false,
+                "id" : "C9665091-7883-4898-B32B-6023C0177263",
+                "parameter" : {
+                  "base" : {
+                    "label" : "Double Sided",
+                    "description" : "",
+                    "value" : false,
+                    "id" : "C9665091-7883-4898-B32B-6023C0177263",
+                    "defaultValue" : false,
+                    "controlType" : "button"
+                  },
+                  "type" : "bool"
+                },
+                "kind" : "Inlet",
+                "connections" : [
+
+                ],
+                "name" : "Double Sided"
+              },
+              "type" : "Bool",
+              "isParameterPort" : true
+            }
+          },
+          {
+            "name" : "inputCullingMode",
+            "payload" : {
+              "base" : {
+                "published" : false,
+                "id" : "7723679A-525A-4CDB-8457-E8DDDCC42BC0",
+                "connections" : [
+
+                ],
+                "parameter" : {
+                  "base" : {
+                    "description" : "",
+                    "value" : "Back",
+                    "label" : "Culling Mode",
+                    "defaultValue" : "Back",
+                    "options" : [
+                      "Back",
+                      "Front",
+                      "None"
+                    ],
+                    "controlType" : "dropdown",
+                    "id" : "7723679A-525A-4CDB-8457-E8DDDCC42BC0"
+                  },
+                  "type" : "string"
+                },
+                "name" : "Culling Mode",
+                "kind" : "Inlet"
+              },
+              "type" : "String",
+              "isParameterPort" : true
+            }
+          }
+        ],
+        "id" : "A09FB2A9-6F44-4510-B74C-27C7F97A0D88",
+        "nodeOffset" : [
+          -445.0645723427697,
+          573.3895626464418
+        ]
+      },
+      "type" : "MeshNode"
+    },
+    {
+      "value" : {
+        "ports" : [
+          {
+            "name" : "inputVisible",
+            "payload" : {
+              "base" : {
+                "published" : false,
+                "id" : "F5447AF3-DFED-4CE8-AAFA-9208DE468BC8",
+                "parameter" : {
+                  "type" : "bool",
+                  "base" : {
+                    "controlType" : "button",
+                    "label" : "Visible",
+                    "description" : "",
+                    "defaultValue" : true,
+                    "id" : "F5447AF3-DFED-4CE8-AAFA-9208DE468BC8",
+                    "value" : true
+                  }
+                },
+                "kind" : "Inlet",
+                "name" : "Visible",
+                "connections" : [
+
+                ]
+              },
+              "type" : "Bool",
+              "isParameterPort" : true
+            }
+          },
+          {
+            "name" : "inputRenderOrder",
+            "payload" : {
+              "type" : "Int",
+              "base" : {
+                "parameter" : {
+                  "base" : {
+                    "label" : "Render Order",
+                    "controlType" : "inputfield",
+                    "description" : "",
+                    "id" : "49D36C89-6DA0-47B7-A446-C6A19F53A89A",
+                    "max" : 1,
+                    "min" : 0,
+                    "value" : 0,
+                    "defaultValue" : 0
+                  },
+                  "type" : "int"
+                },
+                "id" : "49D36C89-6DA0-47B7-A446-C6A19F53A89A",
+                "kind" : "Inlet",
+                "published" : false,
+                "connections" : [
+
+                ],
+                "name" : "Render Order"
+              },
+              "isParameterPort" : true
+            }
+          },
+          {
+            "name" : "inputRenderPass",
+            "payload" : {
+              "type" : "Int",
+              "isParameterPort" : true,
+              "base" : {
+                "connections" : [
+
+                ],
+                "name" : "Render Pass",
+                "id" : "2E1E522A-3F66-409B-9E9C-DBC661A5372B",
+                "published" : false,
+                "parameter" : {
+                  "base" : {
+                    "label" : "Render Pass",
+                    "description" : "",
+                    "controlType" : "inputfield",
+                    "id" : "2E1E522A-3F66-409B-9E9C-DBC661A5372B",
+                    "max" : 1,
+                    "value" : 0,
+                    "min" : 0,
+                    "defaultValue" : 0
+                  },
+                  "type" : "int"
+                },
+                "kind" : "Inlet"
+              }
+            }
+          },
+          {
+            "name" : "inputPosition",
+            "payload" : {
+              "type" : "Vector 3",
+              "isParameterPort" : true,
+              "base" : {
+                "published" : false,
+                "kind" : "Inlet",
+                "parameter" : {
+                  "type" : "float3",
+                  "base" : {
+                    "description" : "",
+                    "defaultValue" : [
+                      0,
+                      0,
+                      0
+                    ],
+                    "value" : [
+                      0,
+                      -0.5,
+                      0
+                    ],
+                    "controlType" : "inputfield",
+                    "id" : "CA3C16A9-2D20-40E5-868E-ECA62DCBF4DF",
+                    "min" : [
+                      0,
+                      0,
+                      0
+                    ],
+                    "max" : [
+                      1,
+                      1,
+                      1
+                    ],
+                    "label" : "Position"
+                  }
+                },
+                "id" : "CA3C16A9-2D20-40E5-868E-ECA62DCBF4DF",
+                "connections" : [
+
+                ],
+                "name" : "Position"
+              }
+            }
+          },
+          {
+            "name" : "inputScale",
+            "payload" : {
+              "base" : {
+                "parameter" : {
+                  "base" : {
+                    "description" : "",
+                    "id" : "5765E753-FA4C-4325-B428-B7E1D27456CB",
+                    "min" : [
+                      0,
+                      0,
+                      0
+                    ],
+                    "max" : [
+                      1,
+                      1,
+                      1
+                    ],
+                    "controlType" : "inputfield",
+                    "defaultValue" : [
+                      1,
+                      1,
+                      1
+                    ],
+                    "label" : "Scale",
+                    "value" : [
+                      0.05,
+                      0.05,
+                      0.05
+                    ]
+                  },
+                  "type" : "float3"
+                },
+                "published" : false,
+                "id" : "5765E753-FA4C-4325-B428-B7E1D27456CB",
+                "name" : "Scale",
+                "kind" : "Inlet",
+                "connections" : [
+
+                ]
+              },
+              "isParameterPort" : true,
+              "type" : "Vector 3"
+            }
+          },
+          {
+            "name" : "inputOrientation",
+            "payload" : {
+              "isParameterPort" : true,
+              "base" : {
+                "published" : false,
+                "kind" : "Inlet",
+                "name" : "Orientation",
+                "connections" : [
+
+                ],
+                "parameter" : {
+                  "base" : {
+                    "defaultValue" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
+                    "max" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "id" : "00CA46D0-6C70-435D-9367-D90DB3A8D7BA",
+                    "min" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
+                    "value" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
+                    "description" : "",
+                    "controlType" : "inputfield",
+                    "label" : "Orientation"
+                  },
+                  "type" : "float4"
+                },
+                "id" : "00CA46D0-6C70-435D-9367-D90DB3A8D7BA"
+              },
+              "type" : "Vector 4"
+            }
+          },
+          {
+            "name" : "inputGeometry",
+            "payload" : {
+              "type" : "Geometry",
+              "base" : {
+                "name" : "Geometry",
+                "id" : "D830669F-AC93-4E02-9C74-DBEFF9450483",
+                "connections" : [
+                  "99F329CA-A7EF-418E-A988-0E4BEE183C83"
+                ],
+                "kind" : "Inlet",
+                "published" : false
+              },
+              "isParameterPort" : false
+            }
+          },
+          {
+            "name" : "inputMaterial",
+            "payload" : {
+              "base" : {
+                "name" : "Material",
+                "kind" : "Inlet",
+                "published" : false,
+                "connections" : [
+                  "076DDE0C-3631-4F34-BD83-AC1FF8CA98E6"
+                ],
+                "id" : "E8508C19-4C5D-454D-BA25-CE921E09E20A"
+              },
+              "type" : "Material",
+              "isParameterPort" : false
+            }
+          },
+          {
+            "name" : "inputCastsShadow",
+            "payload" : {
+              "type" : "Bool",
+              "base" : {
+                "kind" : "Inlet",
+                "name" : "Enable Shadows",
+                "id" : "D1BAD4BA-9D4C-4325-B05A-97F7DDDC5C0D",
+                "parameter" : {
+                  "type" : "bool",
+                  "base" : {
+                    "value" : true,
+                    "controlType" : "button",
+                    "label" : "Enable Shadows",
+                    "id" : "D1BAD4BA-9D4C-4325-B05A-97F7DDDC5C0D",
+                    "description" : "",
+                    "defaultValue" : true
+                  }
+                },
+                "published" : false,
+                "connections" : [
+
+                ]
+              },
+              "isParameterPort" : true
+            }
+          },
+          {
+            "name" : "inputDoubleSided",
+            "payload" : {
+              "isParameterPort" : true,
+              "type" : "Bool",
+              "base" : {
+                "published" : false,
+                "parameter" : {
+                  "base" : {
+                    "description" : "",
+                    "controlType" : "button",
+                    "label" : "Double Sided",
+                    "value" : false,
+                    "id" : "B6275DBE-F144-4564-9EA0-89B307E53F35",
+                    "defaultValue" : false
+                  },
+                  "type" : "bool"
+                },
+                "connections" : [
+
+                ],
+                "name" : "Double Sided",
+                "id" : "B6275DBE-F144-4564-9EA0-89B307E53F35",
+                "kind" : "Inlet"
+              }
+            }
+          },
+          {
+            "name" : "inputCullingMode",
+            "payload" : {
+              "base" : {
+                "connections" : [
+
+                ],
+                "id" : "E588F05F-9603-4E54-9086-7CDC0B4F69BE",
+                "published" : false,
+                "name" : "Culling Mode",
+                "parameter" : {
+                  "type" : "string",
+                  "base" : {
+                    "options" : [
+                      "Back",
+                      "Front",
+                      "None"
+                    ],
+                    "defaultValue" : "Back",
+                    "id" : "E588F05F-9603-4E54-9086-7CDC0B4F69BE",
+                    "label" : "Culling Mode",
+                    "controlType" : "dropdown",
+                    "description" : "",
+                    "value" : "Back"
+                  }
+                },
+                "kind" : "Inlet"
+              },
+              "isParameterPort" : true,
+              "type" : "String"
+            }
+          }
+        ],
+        "nodeOffset" : [
+          -458.224349262483,
+          184.83567134835994
+        ],
+        "id" : "A1212AFA-4269-4947-90C1-192DA74FEB57"
+      },
+      "type" : "MeshNode"
+    },
+    {
+      "value" : {
+        "nodeOffset" : [
+          -706.1731573300704,
+          845.0403803534327
+        ],
+        "ports" : [
+          {
+            "payload" : {
+              "type" : "Vector 4",
+              "isParameterPort" : true,
+              "base" : {
+                "id" : "0E4CC424-A378-4125-93F2-37B5988C2045",
+                "published" : false,
+                "name" : "Color",
+                "connections" : [
+
+                ],
+                "kind" : "Inlet",
+                "parameter" : {
+                  "type" : "float4",
+                  "base" : {
+                    "value" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "id" : "0E4CC424-A378-4125-93F2-37B5988C2045",
+                    "max" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "defaultValue" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "description" : "",
+                    "min" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
+                    "controlType" : "colorpicker",
+                    "label" : "Color"
+                  }
+                }
+              }
+            },
+            "name" : "inputColor"
+          },
+          {
+            "payload" : {
+              "type" : "Bool",
+              "isParameterPort" : true,
+              "base" : {
+                "connections" : [
+
+                ],
+                "name" : "Receives Lighting",
+                "kind" : "Inlet",
+                "parameter" : {
+                  "base" : {
+                    "label" : "Receives Lighting",
+                    "id" : "EAD5669C-3DBF-4456-9AB4-57B03C6E9547",
+                    "description" : "",
+                    "controlType" : "button",
+                    "value" : true,
+                    "defaultValue" : true
+                  },
+                  "type" : "bool"
+                },
+                "id" : "EAD5669C-3DBF-4456-9AB4-57B03C6E9547",
+                "published" : false
+              }
+            },
+            "name" : "inputReceivesLighting"
+          },
+          {
+            "payload" : {
+              "isParameterPort" : true,
+              "type" : "Bool",
+              "base" : {
+                "connections" : [
+
+                ],
+                "kind" : "Inlet",
+                "name" : "Write Depth",
+                "published" : false,
+                "id" : "4C8A8D1C-86C0-42A6-AC39-98CD74A9770F",
+                "parameter" : {
+                  "type" : "bool",
+                  "base" : {
+                    "controlType" : "button",
+                    "value" : true,
+                    "defaultValue" : true,
+                    "description" : "",
+                    "id" : "4C8A8D1C-86C0-42A6-AC39-98CD74A9770F",
+                    "label" : "Write Depth"
+                  }
+                }
+              }
+            },
+            "name" : "inputWriteDepth"
+          },
+          {
+            "payload" : {
+              "base" : {
+                "published" : false,
+                "id" : "442C0C42-017A-4B07-90AA-C064A5E6506A",
+                "name" : "Depth Test",
+                "connections" : [
+
+                ],
+                "kind" : "Inlet",
+                "parameter" : {
+                  "type" : "bool",
+                  "base" : {
+                    "label" : "Depth Test",
+                    "id" : "442C0C42-017A-4B07-90AA-C064A5E6506A",
+                    "value" : true,
+                    "description" : "",
+                    "defaultValue" : true,
+                    "controlType" : "button"
+                  }
+                }
+              },
+              "isParameterPort" : true,
+              "type" : "Bool"
+            },
+            "name" : "inputDepthTest"
+          },
+          {
+            "payload" : {
+              "type" : "String",
+              "isParameterPort" : true,
+              "base" : {
+                "connections" : [
+
+                ],
+                "published" : false,
+                "kind" : "Inlet",
+                "parameter" : {
+                  "base" : {
+                    "label" : "Blending Mode",
+                    "defaultValue" : "Disabled",
+                    "options" : [
+                      "Disabled",
+                      "Alpha",
+                      "Additive",
+                      "Subtractive"
+                    ],
+                    "value" : "Disabled",
+                    "description" : "",
+                    "id" : "66766909-8C77-44E7-ABA5-BC5919FCE1DF",
+                    "controlType" : "dropdown"
+                  },
+                  "type" : "string"
+                },
+                "id" : "66766909-8C77-44E7-ABA5-BC5919FCE1DF",
+                "name" : "Blending Mode"
+              }
+            },
+            "name" : "inputBlending"
+          },
+          {
+            "payload" : {
+              "type" : "Material",
+              "isParameterPort" : false,
+              "base" : {
+                "name" : "Material",
+                "connections" : [
+                  "3BDD3A95-E5A2-48F9-9D90-8FC40234F1FA"
+                ],
+                "id" : "85856A23-1366-4BEB-A65A-9F842BBE1CC9",
+                "kind" : "Outlet",
+                "published" : false
+              }
+            },
+            "name" : "outputMaterial"
+          }
+        ],
+        "id" : "1F0C9E5C-D727-45CD-A9F5-8E93F5E24B71"
+      },
+      "type" : "BasicColorMaterialNode"
+    },
+    {
+      "value" : {
+        "ports" : [
+          {
+            "payload" : {
+              "base" : {
+                "name" : "Color",
+                "published" : false,
+                "id" : "2321BB6C-BC05-4C97-B749-513501FC2C5F",
+                "connections" : [
+
+                ],
+                "parameter" : {
+                  "type" : "float4",
+                  "base" : {
+                    "controlType" : "colorpicker",
+                    "label" : "Color",
+                    "value" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "max" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "min" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
+                    "description" : "",
+                    "defaultValue" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "id" : "2321BB6C-BC05-4C97-B749-513501FC2C5F"
+                  }
+                },
+                "kind" : "Inlet"
+              },
+              "isParameterPort" : true,
+              "type" : "Vector 4"
+            },
+            "name" : "inputColor"
+          },
+          {
+            "payload" : {
+              "base" : {
+                "published" : false,
+                "connections" : [
+
+                ],
+                "id" : "9782F95A-868B-4C5E-A126-F6889A2F9BDF",
+                "kind" : "Inlet",
+                "name" : "Receives Lighting",
+                "parameter" : {
+                  "base" : {
+                    "label" : "Receives Lighting",
+                    "defaultValue" : true,
+                    "value" : true,
+                    "description" : "",
+                    "id" : "9782F95A-868B-4C5E-A126-F6889A2F9BDF",
+                    "controlType" : "button"
+                  },
+                  "type" : "bool"
+                }
+              },
+              "type" : "Bool",
+              "isParameterPort" : true
+            },
+            "name" : "inputReceivesLighting"
+          },
+          {
+            "payload" : {
+              "base" : {
+                "connections" : [
+
+                ],
+                "name" : "Write Depth",
+                "id" : "497325B8-50A8-4517-8199-E0E4F0EB0FCA",
+                "parameter" : {
+                  "type" : "bool",
+                  "base" : {
+                    "id" : "497325B8-50A8-4517-8199-E0E4F0EB0FCA",
+                    "label" : "Write Depth",
+                    "value" : true,
+                    "description" : "",
+                    "controlType" : "button",
+                    "defaultValue" : true
+                  }
+                },
+                "kind" : "Inlet",
+                "published" : false
+              },
+              "type" : "Bool",
+              "isParameterPort" : true
+            },
+            "name" : "inputWriteDepth"
+          },
+          {
+            "payload" : {
+              "isParameterPort" : true,
+              "type" : "Bool",
+              "base" : {
+                "kind" : "Inlet",
+                "name" : "Depth Test",
+                "id" : "800B7E4B-C5DB-47E0-A13B-56CDBA49E617",
+                "parameter" : {
+                  "type" : "bool",
+                  "base" : {
+                    "controlType" : "button",
+                    "label" : "Depth Test",
+                    "id" : "800B7E4B-C5DB-47E0-A13B-56CDBA49E617",
+                    "description" : "",
+                    "value" : true,
+                    "defaultValue" : true
+                  }
+                },
+                "published" : false,
+                "connections" : [
+
+                ]
+              }
+            },
+            "name" : "inputDepthTest"
+          },
+          {
+            "payload" : {
+              "type" : "String",
+              "isParameterPort" : true,
+              "base" : {
+                "id" : "DBCB2F46-EA77-4D86-B145-71BDB7541212",
+                "parameter" : {
+                  "base" : {
+                    "id" : "DBCB2F46-EA77-4D86-B145-71BDB7541212",
+                    "label" : "Blending Mode",
+                    "controlType" : "dropdown",
+                    "description" : "",
+                    "defaultValue" : "Disabled",
+                    "value" : "Disabled",
+                    "options" : [
+                      "Disabled",
+                      "Alpha",
+                      "Additive",
+                      "Subtractive"
+                    ]
+                  },
+                  "type" : "string"
+                },
+                "name" : "Blending Mode",
+                "published" : false,
+                "connections" : [
+
+                ],
+                "kind" : "Inlet"
+              }
+            },
+            "name" : "inputBlending"
+          },
+          {
+            "payload" : {
+              "type" : "Material",
+              "isParameterPort" : false,
+              "base" : {
+                "published" : false,
+                "kind" : "Outlet",
+                "id" : "076DDE0C-3631-4F34-BD83-AC1FF8CA98E6",
+                "name" : "Material",
+                "connections" : [
+                  "E8508C19-4C5D-454D-BA25-CE921E09E20A"
+                ]
+              }
+            },
+            "name" : "outputMaterial"
+          }
+        ],
+        "nodeOffset" : [
+          -648.3516816531574,
+          355.8518786481209
+        ],
+        "id" : "8ACFB098-7EF5-4212-AF3C-2F38B90E16DE"
+      },
+      "type" : "BasicColorMaterialNode"
+    },
+    {
+      "value" : {
+        "id" : "4A4928E8-F872-44EF-BADE-74A45FF751D6",
+        "nodeOffset" : [
+          -670.6427749152663,
+          691.6140818429349
+        ],
+        "ports" : [
+          {
+            "name" : "inputText",
+            "payload" : {
+              "type" : "String",
+              "base" : {
+                "parameter" : {
+                  "base" : {
+                    "id" : "FF664460-1E75-44B9-AE01-04DDDD5447BA",
+                    "value" : "Loaded id(\"mlx-community\/Qwen3-1.7B-4bit\", revision: \"main\"). Weights: 1640M",
+                    "label" : "Text",
+                    "options" : [
+
+                    ],
+                    "description" : "",
+                    "defaultValue" : "Testing",
+                    "controlType" : "inputfield"
+                  },
+                  "type" : "string"
+                },
+                "id" : "FF664460-1E75-44B9-AE01-04DDDD5447BA",
+                "connections" : [
+                  "2CE86F6E-563B-41F3-A5C6-C0DF3DB97242"
+                ],
+                "name" : "Text",
+                "published" : false,
+                "kind" : "Inlet"
+              },
+              "isParameterPort" : true
+            }
+          },
+          {
+            "name" : "inputFont",
+            "payload" : {
+              "isParameterPort" : true,
+              "type" : "String",
+              "base" : {
+                "kind" : "Inlet",
+                "id" : "8BEC9CF8-06F8-404C-AB43-CC154613659D",
+                "connections" : [
+
+                ],
+                "published" : false,
+                "parameter" : {
+                  "type" : "string",
+                  "base" : {
+                    "defaultValue" : "Helvetica",
+                    "value" : "Helvetica",
+                    "description" : "",
+                    "label" : "Font",
+                    "controlType" : "dropdown",
+                    "options" : [
+                      "Academy Engraved LET",
+                      "Al Bayan",
+                      "Al Nile",
+                      "Al Tarikh",
+                      "American Typewriter",
+                      "Andale Mono",
+                      "Apple Braille",
+                      "Apple Chancery",
+                      "Apple Color Emoji",
+                      "Apple SD Gothic Neo",
+                      "Apple Symbols",
+                      "AppleGothic",
+                      "AppleMyungjo",
+                      "Archia",
+                      "Arial",
+                      "Arial Black",
+                      "Arial Hebrew",
+                      "Arial Hebrew Scholar",
+                      "Arial Narrow",
+                      "Arial Rounded MT Bold",
+                      "Arial Unicode MS",
+                      "Avenir",
+                      "Avenir Next",
+                      "Avenir Next Condensed",
+                      "Ayuthaya",
+                      "Baghdad",
+                      "Bagnard",
+                      "Bangla MN",
+                      "Bangla Sangam MN",
+                      "Baskerville",
+                      "Beirut",
+                      "Bespoke Serif",
+                      "Big Caslon",
+                      "Big John PRO",
+                      "Bigilla",
+                      "Blender Pro",
+                      "Blender Pro ",
+                      "Bodoni 72",
+                      "Bodoni 72 Oldstyle",
+                      "Bodoni 72 Smallcaps",
+                      "Bodoni Ornaments",
+                      "Bradley Hand",
+                      "Brockmann",
+                      "Brush Script MT",
+                      "CHANEY",
+                      "Canela Text",
+                      "Cassannet Plus",
+                      "Chalkboard",
+                      "Chalkboard SE",
+                      "Chalkduster",
+                      "Charter",
+                      "Cochin",
+                      "Comic Sans MS",
+                      "Copperplate",
+                      "Corsiva Hebrew",
+                      "Courier New",
+                      "DIN Alternate",
+                      "DIN Condensed",
+                      "Damascus",
+                      "DecoType Naskh",
+                      "Devanagari MT",
+                      "Devanagari Sangam MN",
+                      "Didot",
+                      "Diwan Kufi",
+                      "Diwan Thuluth",
+                      "Engry",
+                      "Euphemia UCAS",
+                      "Farah",
+                      "Farisi",
+                      "Film Noir",
+                      "FogtwoNo5",
+                      "Forum",
+                      "Futura",
+                      "GB18030 Bitmap",
+                      "Galvji",
+                      "Geeza Pro",
+                      "Geneva",
+                      "Geomanist",
+                      "Georgia",
+                      "Gill Sans",
+                      "Gottak",
+                      "Grantha Sangam MN",
+                      "GreyscaleBasic",
+                      "Gujarati MT",
+                      "Gujarati Sangam MN",
+                      "Gurmukhi MN",
+                      "Gurmukhi MT",
+                      "Gurmukhi Sangam MN",
+                      "Heiti SC",
+                      "Heiti TC",
+                      "Helvetica",
+                      "Helvetica Neue",
+                      "Herculanum",
+                      "Hiragino Maru Gothic ProN",
+                      "Hiragino Mincho ProN",
+                      "Hiragino Sans",
+                      "Hiragino Sans GB",
+                      "Hoefler Text",
+                      "ITF Devanagari",
+                      "ITF Devanagari Marathi",
+                      "Impact",
+                      "InaiMathi",
+                      "Inconsolata",
+                      "Inconsolata Condensed",
+                      "Inconsolata Expanded",
+                      "Inconsolata ExtraCondensed",
+                      "Inconsolata ExtraExpanded",
+                      "Inconsolata SemiCondensed",
+                      "Inconsolata SemiExpanded",
+                      "Inconsolata UltraCondensed",
+                      "Inconsolata UltraExpanded",
+                      "Inter",
+                      "Kailasa",
+                      "Kannada MN",
+                      "Kannada Sangam MN",
+                      "Kefa",
+                      "Khmer MN",
+                      "Khmer Sangam MN",
+                      "King's Gambit",
+                      "Kohinoor Bangla",
+                      "Kohinoor Devanagari",
+                      "Kohinoor Gujarati",
+                      "Kohinoor Telugu",
+                      "Kokonor",
+                      "Kraut-type-a-fuck",
+                      "Krungthep",
+                      "Krylon",
+                      "KufiStandardGK",
+                      "Lao MN",
+                      "Lao Sangam MN",
+                      "Lucida Grande",
+                      "Luminari",
+                      "Luthon Southard Script",
+                      "Luthon Southard Serif",
+                      "Malayalam MN",
+                      "Malayalam Sangam MN",
+                      "Marker Felt",
+                      "Menlo",
+                      "Microsoft Sans Serif",
+                      "Mishafi",
+                      "Mishafi Gold",
+                      "Monaco",
+                      "Moniqa",
+                      "Mshtakan",
+                      "Mukta Mahee",
+                      "Muna",
+                      "Myanmar MN",
+                      "Myanmar Sangam MN",
+                      "N27",
+                      "Nadeem",
+                      "Neutral Face",
+                      "New Peninim MT",
+                      "Noteworthy",
+                      "Noto Nastaliq Urdu",
+                      "Noto Sans Batak",
+                      "Noto Sans Kannada",
+                      "Noto Sans Myanmar",
+                      "Noto Sans NKo",
+                      "Noto Sans Oriya",
+                      "Noto Sans Syriac",
+                      "Noto Sans Tagalog",
+                      "Noto Serif Myanmar",
+                      "Optima",
+                      "Oriya MN",
+                      "Oriya Sangam MN",
+                      "Orkney",
+                      "PT Mono",
+                      "PT Sans",
+                      "PT Sans Caption",
+                      "PT Sans Narrow",
+                      "PT Serif",
+                      "PT Serif Caption",
+                      "Palatino",
+                      "Papyrus",
+                      "Party LET",
+                      "Phosphate",
+                      "PingFang HK",
+                      "PingFang MO",
+                      "PingFang SC",
+                      "PingFang TC",
+                      "Plaax",
+                      "Plantagenet Cherokee",
+                      "Portia",
+                      "Proxima Nova",
+                      "Publico Text",
+                      "Raanana",
+                      "Raleway",
+                      "Rawest",
+                      "Roboto",
+                      "Roboto Condensed",
+                      "Rockwell",
+                      "SF Compact",
+                      "SF Compact Display",
+                      "SF Compact Rounded",
+                      "SF Compact Text",
+                      "SF Pro",
+                      "SF Pro Display",
+                      "SF Pro Rounded",
+                      "SF Pro Text",
+                      "STIX Two Math",
+                      "STIX Two Text",
+                      "STSong",
+                      "Sana",
+                      "Sathu",
+                      "Savoye LET",
+                      "Shree Devanagari 714",
+                      "SignPainter",
+                      "Silka",
+                      "Silom",
+                      "Sinhala MN",
+                      "Sinhala Sangam MN",
+                      "Skia",
+                      "Snell Roundhand",
+                      "Songti SC",
+                      "Songti TC",
+                      "Sukhumvit Set",
+                      "Symbol",
+                      "Tahoma",
+                      "Tamil MN",
+                      "Tamil Sangam MN",
+                      "Telugu MN",
+                      "Telugu Sangam MN",
+                      "Thonburi",
+                      "Thunder",
+                      "Times New Roman",
+                      "Titillium Web",
+                      "Trattatello",
+                      "Trebuchet MS",
+                      "Verdana",
+                      "Vollkorn",
+                      "Vollkorn SC",
+                      "Waseem",
+                      "Webdings",
+                      "Wingdings",
+                      "Wingdings 2",
+                      "Wingdings 3",
+                      "Wotfard",
+                      "Zapf Dingbats",
+                      "Zapfino"
+                    ],
+                    "id" : "8BEC9CF8-06F8-404C-AB43-CC154613659D"
+                  }
+                },
+                "name" : "Font"
+              }
+            }
+          },
+          {
+            "name" : "inputPrimitiveType",
+            "payload" : {
+              "isParameterPort" : true,
+              "type" : "String",
+              "base" : {
+                "id" : "B09ABC09-6905-4352-966D-2E3AC9C1FFDC",
+                "connections" : [
+
+                ],
+                "kind" : "Inlet",
+                "parameter" : {
+                  "type" : "string",
+                  "base" : {
+                    "description" : "",
+                    "options" : [
+                      "Point",
+                      "Line",
+                      "Line Strip",
+                      "Triangle",
+                      "Triangle Strip"
+                    ],
+                    "id" : "B09ABC09-6905-4352-966D-2E3AC9C1FFDC",
+                    "value" : "Triangle",
+                    "controlType" : "dropdown",
+                    "defaultValue" : "Triangle",
+                    "label" : "Primitive"
+                  }
+                },
+                "name" : "Primitive",
+                "published" : false
+              }
+            }
+          },
+          {
+            "name" : "outputGeometry",
+            "payload" : {
+              "base" : {
+                "id" : "FC093203-934D-4BD1-AD90-A7D775791C7B",
+                "name" : "Geometry",
+                "kind" : "Outlet",
+                "published" : false,
+                "connections" : [
+                  "0533E9EF-4C8D-448B-BBC5-511D649251D1"
+                ]
+              },
+              "type" : "Geometry",
+              "isParameterPort" : false
+            }
+          }
+        ]
+      },
+      "type" : "TesselatedTextGeometryNode"
+    },
+    {
+      "value" : {
+        "id" : "3081B1AE-370F-441A-8891-8FCF612B5D23",
+        "nodeOffset" : [
+          -641.6323399787652,
+          201.22787212672029
+        ],
+        "ports" : [
+          {
+            "name" : "inputText",
+            "payload" : {
+              "isParameterPort" : true,
+              "type" : "String",
+              "base" : {
+                "id" : "3C575A40-56EA-4988-AEA7-8321BBE75CFF",
+                "name" : "Text",
+                "kind" : "Inlet",
+                "published" : false,
+                "connections" : [
+                  "58C6197D-8BA3-47BF-8294-21732E95BE6A"
+                ],
+                "parameter" : {
+                  "base" : {
+                    "id" : "3C575A40-56EA-4988-AEA7-8321BBE75CFF",
+                    "description" : "",
+                    "value" : "49.61240456787833 tokens\/s",
+                    "controlType" : "inputfield",
+                    "defaultValue" : "Testing",
+                    "options" : [
+
+                    ],
+                    "label" : "Text"
+                  },
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          {
+            "name" : "inputFont",
+            "payload" : {
+              "isParameterPort" : true,
+              "base" : {
+                "connections" : [
+
+                ],
+                "parameter" : {
+                  "type" : "string",
+                  "base" : {
+                    "controlType" : "dropdown",
+                    "options" : [
+                      "Academy Engraved LET",
+                      "Al Bayan",
+                      "Al Nile",
+                      "Al Tarikh",
+                      "American Typewriter",
+                      "Andale Mono",
+                      "Apple Braille",
+                      "Apple Chancery",
+                      "Apple Color Emoji",
+                      "Apple SD Gothic Neo",
+                      "Apple Symbols",
+                      "AppleGothic",
+                      "AppleMyungjo",
+                      "Archia",
+                      "Arial",
+                      "Arial Black",
+                      "Arial Hebrew",
+                      "Arial Hebrew Scholar",
+                      "Arial Narrow",
+                      "Arial Rounded MT Bold",
+                      "Arial Unicode MS",
+                      "Avenir",
+                      "Avenir Next",
+                      "Avenir Next Condensed",
+                      "Ayuthaya",
+                      "Baghdad",
+                      "Bagnard",
+                      "Bangla MN",
+                      "Bangla Sangam MN",
+                      "Baskerville",
+                      "Beirut",
+                      "Bespoke Serif",
+                      "Big Caslon",
+                      "Big John PRO",
+                      "Bigilla",
+                      "Blender Pro",
+                      "Blender Pro ",
+                      "Bodoni 72",
+                      "Bodoni 72 Oldstyle",
+                      "Bodoni 72 Smallcaps",
+                      "Bodoni Ornaments",
+                      "Bradley Hand",
+                      "Brockmann",
+                      "Brush Script MT",
+                      "CHANEY",
+                      "Canela Text",
+                      "Cassannet Plus",
+                      "Chalkboard",
+                      "Chalkboard SE",
+                      "Chalkduster",
+                      "Charter",
+                      "Cochin",
+                      "Comic Sans MS",
+                      "Copperplate",
+                      "Corsiva Hebrew",
+                      "Courier New",
+                      "DIN Alternate",
+                      "DIN Condensed",
+                      "Damascus",
+                      "DecoType Naskh",
+                      "Devanagari MT",
+                      "Devanagari Sangam MN",
+                      "Didot",
+                      "Diwan Kufi",
+                      "Diwan Thuluth",
+                      "Engry",
+                      "Euphemia UCAS",
+                      "Farah",
+                      "Farisi",
+                      "Film Noir",
+                      "FogtwoNo5",
+                      "Forum",
+                      "Futura",
+                      "GB18030 Bitmap",
+                      "Galvji",
+                      "Geeza Pro",
+                      "Geneva",
+                      "Geomanist",
+                      "Georgia",
+                      "Gill Sans",
+                      "Gottak",
+                      "Grantha Sangam MN",
+                      "GreyscaleBasic",
+                      "Gujarati MT",
+                      "Gujarati Sangam MN",
+                      "Gurmukhi MN",
+                      "Gurmukhi MT",
+                      "Gurmukhi Sangam MN",
+                      "Heiti SC",
+                      "Heiti TC",
+                      "Helvetica",
+                      "Helvetica Neue",
+                      "Herculanum",
+                      "Hiragino Maru Gothic ProN",
+                      "Hiragino Mincho ProN",
+                      "Hiragino Sans",
+                      "Hiragino Sans GB",
+                      "Hoefler Text",
+                      "ITF Devanagari",
+                      "ITF Devanagari Marathi",
+                      "Impact",
+                      "InaiMathi",
+                      "Inconsolata",
+                      "Inconsolata Condensed",
+                      "Inconsolata Expanded",
+                      "Inconsolata ExtraCondensed",
+                      "Inconsolata ExtraExpanded",
+                      "Inconsolata SemiCondensed",
+                      "Inconsolata SemiExpanded",
+                      "Inconsolata UltraCondensed",
+                      "Inconsolata UltraExpanded",
+                      "Inter",
+                      "Kailasa",
+                      "Kannada MN",
+                      "Kannada Sangam MN",
+                      "Kefa",
+                      "Khmer MN",
+                      "Khmer Sangam MN",
+                      "King's Gambit",
+                      "Kohinoor Bangla",
+                      "Kohinoor Devanagari",
+                      "Kohinoor Gujarati",
+                      "Kohinoor Telugu",
+                      "Kokonor",
+                      "Kraut-type-a-fuck",
+                      "Krungthep",
+                      "Krylon",
+                      "KufiStandardGK",
+                      "Lao MN",
+                      "Lao Sangam MN",
+                      "Lucida Grande",
+                      "Luminari",
+                      "Luthon Southard Script",
+                      "Luthon Southard Serif",
+                      "Malayalam MN",
+                      "Malayalam Sangam MN",
+                      "Marker Felt",
+                      "Menlo",
+                      "Microsoft Sans Serif",
+                      "Mishafi",
+                      "Mishafi Gold",
+                      "Monaco",
+                      "Moniqa",
+                      "Mshtakan",
+                      "Mukta Mahee",
+                      "Muna",
+                      "Myanmar MN",
+                      "Myanmar Sangam MN",
+                      "N27",
+                      "Nadeem",
+                      "Neutral Face",
+                      "New Peninim MT",
+                      "Noteworthy",
+                      "Noto Nastaliq Urdu",
+                      "Noto Sans Batak",
+                      "Noto Sans Kannada",
+                      "Noto Sans Myanmar",
+                      "Noto Sans NKo",
+                      "Noto Sans Oriya",
+                      "Noto Sans Syriac",
+                      "Noto Sans Tagalog",
+                      "Noto Serif Myanmar",
+                      "Optima",
+                      "Oriya MN",
+                      "Oriya Sangam MN",
+                      "Orkney",
+                      "PT Mono",
+                      "PT Sans",
+                      "PT Sans Caption",
+                      "PT Sans Narrow",
+                      "PT Serif",
+                      "PT Serif Caption",
+                      "Palatino",
+                      "Papyrus",
+                      "Party LET",
+                      "Phosphate",
+                      "PingFang HK",
+                      "PingFang MO",
+                      "PingFang SC",
+                      "PingFang TC",
+                      "Plaax",
+                      "Plantagenet Cherokee",
+                      "Portia",
+                      "Proxima Nova",
+                      "Publico Text",
+                      "Raanana",
+                      "Raleway",
+                      "Rawest",
+                      "Roboto",
+                      "Roboto Condensed",
+                      "Rockwell",
+                      "SF Compact",
+                      "SF Compact Display",
+                      "SF Compact Rounded",
+                      "SF Compact Text",
+                      "SF Pro",
+                      "SF Pro Display",
+                      "SF Pro Rounded",
+                      "SF Pro Text",
+                      "STIX Two Math",
+                      "STIX Two Text",
+                      "STSong",
+                      "Sana",
+                      "Sathu",
+                      "Savoye LET",
+                      "Shree Devanagari 714",
+                      "SignPainter",
+                      "Silka",
+                      "Silom",
+                      "Sinhala MN",
+                      "Sinhala Sangam MN",
+                      "Skia",
+                      "Snell Roundhand",
+                      "Songti SC",
+                      "Songti TC",
+                      "Sukhumvit Set",
+                      "Symbol",
+                      "Tahoma",
+                      "Tamil MN",
+                      "Tamil Sangam MN",
+                      "Telugu MN",
+                      "Telugu Sangam MN",
+                      "Thonburi",
+                      "Thunder",
+                      "Times New Roman",
+                      "Titillium Web",
+                      "Trattatello",
+                      "Trebuchet MS",
+                      "Verdana",
+                      "Vollkorn",
+                      "Vollkorn SC",
+                      "Waseem",
+                      "Webdings",
+                      "Wingdings",
+                      "Wingdings 2",
+                      "Wingdings 3",
+                      "Wotfard",
+                      "Zapf Dingbats",
+                      "Zapfino"
+                    ],
+                    "label" : "Font",
+                    "value" : "Helvetica",
+                    "id" : "20A7BF98-ECEA-41CC-B247-A8E018B0DE3B",
+                    "defaultValue" : "Helvetica",
+                    "description" : ""
+                  }
+                },
+                "id" : "20A7BF98-ECEA-41CC-B247-A8E018B0DE3B",
+                "published" : false,
+                "kind" : "Inlet",
+                "name" : "Font"
+              },
+              "type" : "String"
+            }
+          },
+          {
+            "name" : "inputPrimitiveType",
+            "payload" : {
+              "isParameterPort" : true,
+              "base" : {
+                "parameter" : {
+                  "type" : "string",
+                  "base" : {
+                    "label" : "Primitive",
+                    "options" : [
+                      "Point",
+                      "Line",
+                      "Line Strip",
+                      "Triangle",
+                      "Triangle Strip"
+                    ],
+                    "defaultValue" : "Triangle",
+                    "value" : "Triangle",
+                    "controlType" : "dropdown",
+                    "id" : "07111E96-4A6D-48A2-BB96-EEA0236285D7",
+                    "description" : ""
+                  }
+                },
+                "id" : "07111E96-4A6D-48A2-BB96-EEA0236285D7",
+                "kind" : "Inlet",
+                "connections" : [
+
+                ],
+                "name" : "Primitive",
+                "published" : false
+              },
+              "type" : "String"
+            }
+          },
+          {
+            "name" : "outputGeometry",
+            "payload" : {
+              "isParameterPort" : false,
+              "base" : {
+                "kind" : "Outlet",
+                "id" : "99F329CA-A7EF-418E-A988-0E4BEE183C83",
+                "name" : "Geometry",
+                "connections" : [
+                  "D830669F-AC93-4E02-9C74-DBEFF9450483"
+                ],
+                "published" : false
+              },
+              "type" : "Geometry"
+            }
+          }
+        ]
+      },
+      "type" : "TesselatedTextGeometryNode"
+    },
+    {
+      "value" : {
+        "ports" : [
+          {
+            "name" : "inputColor",
+            "payload" : {
+              "base" : {
+                "published" : false,
+                "connections" : [
+
+                ],
+                "parameter" : {
+                  "type" : "float4",
+                  "base" : {
+                    "label" : "Color",
+                    "description" : "",
+                    "defaultValue" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "max" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "controlType" : "colorpicker",
+                    "min" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
+                    "id" : "DE43B948-80DD-41C9-A76F-5D3AE2C6E48C",
+                    "value" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ]
+                  }
+                },
+                "id" : "DE43B948-80DD-41C9-A76F-5D3AE2C6E48C",
+                "name" : "Color",
+                "kind" : "Inlet"
+              },
+              "isParameterPort" : true,
+              "type" : "Vector 4"
+            }
+          },
+          {
+            "name" : "inputReceivesLighting",
+            "payload" : {
+              "base" : {
+                "name" : "Receives Lighting",
+                "published" : false,
+                "connections" : [
+
+                ],
+                "id" : "81FB9266-4C7D-4FF4-8AF0-F69D0E7ED1F2",
+                "parameter" : {
+                  "type" : "bool",
+                  "base" : {
+                    "label" : "Receives Lighting",
+                    "controlType" : "button",
+                    "defaultValue" : true,
+                    "id" : "81FB9266-4C7D-4FF4-8AF0-F69D0E7ED1F2",
+                    "description" : "",
+                    "value" : true
+                  }
+                },
+                "kind" : "Inlet"
+              },
+              "isParameterPort" : true,
+              "type" : "Bool"
+            }
+          },
+          {
+            "name" : "inputWriteDepth",
+            "payload" : {
+              "type" : "Bool",
+              "isParameterPort" : true,
+              "base" : {
+                "connections" : [
+
+                ],
+                "id" : "41BBD634-B80A-4CCB-8B6C-DE84CB50394C",
+                "kind" : "Inlet",
+                "published" : false,
+                "parameter" : {
+                  "base" : {
+                    "description" : "",
+                    "value" : true,
+                    "label" : "Write Depth",
+                    "defaultValue" : true,
+                    "id" : "41BBD634-B80A-4CCB-8B6C-DE84CB50394C",
+                    "controlType" : "button"
+                  },
+                  "type" : "bool"
+                },
+                "name" : "Write Depth"
+              }
+            }
+          },
+          {
+            "name" : "inputDepthTest",
+            "payload" : {
+              "type" : "Bool",
+              "isParameterPort" : true,
+              "base" : {
+                "name" : "Depth Test",
+                "connections" : [
+
+                ],
+                "id" : "1A97E2B7-EBEE-4BA1-883C-005C3C1D8852",
+                "published" : false,
+                "parameter" : {
+                  "base" : {
+                    "defaultValue" : true,
+                    "controlType" : "button",
+                    "id" : "1A97E2B7-EBEE-4BA1-883C-005C3C1D8852",
+                    "label" : "Depth Test",
+                    "description" : "",
+                    "value" : true
+                  },
+                  "type" : "bool"
+                },
+                "kind" : "Inlet"
+              }
+            }
+          },
+          {
+            "name" : "inputBlending",
+            "payload" : {
+              "type" : "String",
+              "isParameterPort" : true,
+              "base" : {
+                "id" : "5850E8FE-0B62-4B0A-BE87-35450D0D0E64",
+                "kind" : "Inlet",
+                "name" : "Blending Mode",
+                "published" : false,
+                "parameter" : {
+                  "type" : "string",
+                  "base" : {
+                    "id" : "5850E8FE-0B62-4B0A-BE87-35450D0D0E64",
+                    "controlType" : "dropdown",
+                    "label" : "Blending Mode",
+                    "defaultValue" : "Disabled",
+                    "description" : "",
+                    "value" : "Disabled",
+                    "options" : [
+                      "Disabled",
+                      "Alpha",
+                      "Additive",
+                      "Subtractive"
+                    ]
+                  }
+                },
+                "connections" : [
+
+                ]
+              }
+            }
+          },
+          {
+            "name" : "outputMaterial",
+            "payload" : {
+              "type" : "Material",
+              "base" : {
+                "connections" : [
+                  "82A8500C-93B8-441B-A4A8-6C7D63498E78"
+                ],
+                "name" : "Material",
+                "kind" : "Outlet",
+                "id" : "CFB31431-E216-4BE7-A09B-A47BA1C2C427",
+                "published" : false
+              },
+              "isParameterPort" : false
+            }
+          }
+        ],
+        "id" : "C98AAA42-A4EC-4562-8C1D-C9C246DD2372",
+        "nodeOffset" : [
+          129.39817454649165,
+          -369.1636956335078
+        ]
+      },
+      "type" : "BasicColorMaterialNode"
+    },
+    {
+      "value" : {
+        "nodeOffset" : [
+          120.97981687898209,
+          -504.4539996253279
+        ],
+        "id" : "16BA711B-75FB-4F36-9582-FB12EBA2BA81",
+        "ports" : [
+          {
+            "payload" : {
+              "type" : "String",
+              "isParameterPort" : true,
+              "base" : {
+                "id" : "DC5711E9-C51F-44CD-8378-5300A6059875",
+                "kind" : "Inlet",
+                "published" : false,
+                "parameter" : {
+                  "type" : "string",
+                  "base" : {
+                    "label" : "Text",
+                    "id" : "DC5711E9-C51F-44CD-8378-5300A6059875",
+                    "description" : "",
+                    "value" : "Expected:\"id\" : \"7FECD306-4585-4C1B-9C3D-A7694288E2F8\",",
+                    "controlType" : "inputfield",
+                    "defaultValue" : "Testing",
+                    "options" : [
+
+                    ]
+                  }
+                },
+                "name" : "Text",
+                "connections" : [
+                  "71815475-2503-4359-917C-F5501DCF3EB5"
+                ]
+              }
+            },
+            "name" : "inputText"
+          },
+          {
+            "payload" : {
+              "isParameterPort" : true,
+              "base" : {
+                "name" : "Font",
+                "id" : "EB69A4B5-A23D-43A2-AD5D-059DEF382320",
+                "parameter" : {
+                  "type" : "string",
+                  "base" : {
+                    "description" : "",
+                    "value" : "Helvetica",
+                    "label" : "Font",
+                    "id" : "EB69A4B5-A23D-43A2-AD5D-059DEF382320",
+                    "options" : [
+                      "Academy Engraved LET",
+                      "Al Bayan",
+                      "Al Nile",
+                      "Al Tarikh",
+                      "American Typewriter",
+                      "Andale Mono",
+                      "Apple Braille",
+                      "Apple Chancery",
+                      "Apple Color Emoji",
+                      "Apple SD Gothic Neo",
+                      "Apple Symbols",
+                      "AppleGothic",
+                      "AppleMyungjo",
+                      "Archia",
+                      "Arial",
+                      "Arial Black",
+                      "Arial Hebrew",
+                      "Arial Hebrew Scholar",
+                      "Arial Narrow",
+                      "Arial Rounded MT Bold",
+                      "Arial Unicode MS",
+                      "Avenir",
+                      "Avenir Next",
+                      "Avenir Next Condensed",
+                      "Ayuthaya",
+                      "Baghdad",
+                      "Bagnard",
+                      "Bangla MN",
+                      "Bangla Sangam MN",
+                      "Baskerville",
+                      "Beirut",
+                      "Bespoke Serif",
+                      "Big Caslon",
+                      "Big John PRO",
+                      "Bigilla",
+                      "Blender Pro",
+                      "Blender Pro ",
+                      "Bodoni 72",
+                      "Bodoni 72 Oldstyle",
+                      "Bodoni 72 Smallcaps",
+                      "Bodoni Ornaments",
+                      "Bradley Hand",
+                      "Brockmann",
+                      "Brush Script MT",
+                      "CHANEY",
+                      "Canela Text",
+                      "Cassannet Plus",
+                      "Chalkboard",
+                      "Chalkboard SE",
+                      "Chalkduster",
+                      "Charter",
+                      "Cochin",
+                      "Comic Sans MS",
+                      "Copperplate",
+                      "Corsiva Hebrew",
+                      "Courier New",
+                      "DIN Alternate",
+                      "DIN Condensed",
+                      "Damascus",
+                      "DecoType Naskh",
+                      "Devanagari MT",
+                      "Devanagari Sangam MN",
+                      "Didot",
+                      "Diwan Kufi",
+                      "Diwan Thuluth",
+                      "Engry",
+                      "Euphemia UCAS",
+                      "Farah",
+                      "Farisi",
+                      "Film Noir",
+                      "FogtwoNo5",
+                      "Forum",
+                      "Futura",
+                      "GB18030 Bitmap",
+                      "Galvji",
+                      "Geeza Pro",
+                      "Geneva",
+                      "Geomanist",
+                      "Georgia",
+                      "Gill Sans",
+                      "Gottak",
+                      "Grantha Sangam MN",
+                      "GreyscaleBasic",
+                      "Gujarati MT",
+                      "Gujarati Sangam MN",
+                      "Gurmukhi MN",
+                      "Gurmukhi MT",
+                      "Gurmukhi Sangam MN",
+                      "Heiti SC",
+                      "Heiti TC",
+                      "Helvetica",
+                      "Helvetica Neue",
+                      "Herculanum",
+                      "Hiragino Maru Gothic ProN",
+                      "Hiragino Mincho ProN",
+                      "Hiragino Sans",
+                      "Hiragino Sans GB",
+                      "Hoefler Text",
+                      "ITF Devanagari",
+                      "ITF Devanagari Marathi",
+                      "Impact",
+                      "InaiMathi",
+                      "Inconsolata",
+                      "Inconsolata Condensed",
+                      "Inconsolata Expanded",
+                      "Inconsolata ExtraCondensed",
+                      "Inconsolata ExtraExpanded",
+                      "Inconsolata SemiCondensed",
+                      "Inconsolata SemiExpanded",
+                      "Inconsolata UltraCondensed",
+                      "Inconsolata UltraExpanded",
+                      "Inter",
+                      "Kailasa",
+                      "Kannada MN",
+                      "Kannada Sangam MN",
+                      "Kefa",
+                      "Khmer MN",
+                      "Khmer Sangam MN",
+                      "King's Gambit",
+                      "Kohinoor Bangla",
+                      "Kohinoor Devanagari",
+                      "Kohinoor Gujarati",
+                      "Kohinoor Telugu",
+                      "Kokonor",
+                      "Kraut-type-a-fuck",
+                      "Krungthep",
+                      "Krylon",
+                      "KufiStandardGK",
+                      "Lao MN",
+                      "Lao Sangam MN",
+                      "Lucida Grande",
+                      "Luminari",
+                      "Luthon Southard Script",
+                      "Luthon Southard Serif",
+                      "Malayalam MN",
+                      "Malayalam Sangam MN",
+                      "Marker Felt",
+                      "Menlo",
+                      "Microsoft Sans Serif",
+                      "Mishafi",
+                      "Mishafi Gold",
+                      "Monaco",
+                      "Moniqa",
+                      "Mshtakan",
+                      "Mukta Mahee",
+                      "Muna",
+                      "Myanmar MN",
+                      "Myanmar Sangam MN",
+                      "N27",
+                      "Nadeem",
+                      "Neutral Face",
+                      "New Peninim MT",
+                      "Noteworthy",
+                      "Noto Nastaliq Urdu",
+                      "Noto Sans Batak",
+                      "Noto Sans Kannada",
+                      "Noto Sans Myanmar",
+                      "Noto Sans NKo",
+                      "Noto Sans Oriya",
+                      "Noto Sans Syriac",
+                      "Noto Sans Tagalog",
+                      "Noto Serif Myanmar",
+                      "Optima",
+                      "Oriya MN",
+                      "Oriya Sangam MN",
+                      "Orkney",
+                      "PT Mono",
+                      "PT Sans",
+                      "PT Sans Caption",
+                      "PT Sans Narrow",
+                      "PT Serif",
+                      "PT Serif Caption",
+                      "Palatino",
+                      "Papyrus",
+                      "Party LET",
+                      "Phosphate",
+                      "PingFang HK",
+                      "PingFang MO",
+                      "PingFang SC",
+                      "PingFang TC",
+                      "Plaax",
+                      "Plantagenet Cherokee",
+                      "Portia",
+                      "Proxima Nova",
+                      "Publico Text",
+                      "Raanana",
+                      "Raleway",
+                      "Rawest",
+                      "Roboto",
+                      "Roboto Condensed",
+                      "Rockwell",
+                      "SF Compact",
+                      "SF Compact Display",
+                      "SF Compact Rounded",
+                      "SF Compact Text",
+                      "SF Pro",
+                      "SF Pro Display",
+                      "SF Pro Rounded",
+                      "SF Pro Text",
+                      "STIX Two Math",
+                      "STIX Two Text",
+                      "STSong",
+                      "Sana",
+                      "Sathu",
+                      "Savoye LET",
+                      "Shree Devanagari 714",
+                      "SignPainter",
+                      "Silka",
+                      "Silom",
+                      "Sinhala MN",
+                      "Sinhala Sangam MN",
+                      "Skia",
+                      "Snell Roundhand",
+                      "Songti SC",
+                      "Songti TC",
+                      "Sukhumvit Set",
+                      "Symbol",
+                      "Tahoma",
+                      "Tamil MN",
+                      "Tamil Sangam MN",
+                      "Telugu MN",
+                      "Telugu Sangam MN",
+                      "Thonburi",
+                      "Thunder",
+                      "Times New Roman",
+                      "Titillium Web",
+                      "Trattatello",
+                      "Trebuchet MS",
+                      "Verdana",
+                      "Vollkorn",
+                      "Vollkorn SC",
+                      "Waseem",
+                      "Webdings",
+                      "Wingdings",
+                      "Wingdings 2",
+                      "Wingdings 3",
+                      "Wotfard",
+                      "Zapf Dingbats",
+                      "Zapfino"
+                    ],
+                    "defaultValue" : "Helvetica",
+                    "controlType" : "dropdown"
+                  }
+                },
+                "connections" : [
+
+                ],
+                "published" : false,
+                "kind" : "Inlet"
+              },
+              "type" : "String"
+            },
+            "name" : "inputFont"
+          },
+          {
+            "payload" : {
+              "type" : "String",
+              "isParameterPort" : true,
+              "base" : {
+                "id" : "3B3554F3-8E19-43C2-BB2E-73D33535E9D8",
+                "kind" : "Inlet",
+                "parameter" : {
+                  "base" : {
+                    "label" : "Primitive",
+                    "id" : "3B3554F3-8E19-43C2-BB2E-73D33535E9D8",
+                    "description" : "",
+                    "value" : "Triangle",
+                    "controlType" : "dropdown",
+                    "defaultValue" : "Triangle",
+                    "options" : [
+                      "Point",
+                      "Line",
+                      "Line Strip",
+                      "Triangle",
+                      "Triangle Strip"
+                    ]
+                  },
+                  "type" : "string"
+                },
+                "name" : "Primitive",
+                "published" : false,
+                "connections" : [
+
+                ]
+              }
+            },
+            "name" : "inputPrimitiveType"
+          },
+          {
+            "payload" : {
+              "isParameterPort" : false,
+              "type" : "Geometry",
+              "base" : {
+                "name" : "Geometry",
+                "id" : "4C7B876D-E4FC-44FB-B4FB-B12B04ABA253",
+                "kind" : "Outlet",
+                "published" : false,
+                "connections" : [
+                  "760CAC58-8924-4911-A555-2FBB2D1EEFBB"
+                ]
+              }
+            },
+            "name" : "outputGeometry"
+          }
+        ]
+      },
+      "type" : "TesselatedTextGeometryNode"
+    },
+    {
+      "value" : {
+        "id" : "02FCDDA7-E938-406B-AB81-D087DFEE6F6D",
+        "nodeOffset" : [
+          306.4708772402282,
+          -585.4203135732787
+        ],
+        "ports" : [
+          {
+            "payload" : {
+              "type" : "Bool",
+              "isParameterPort" : true,
+              "base" : {
+                "published" : false,
+                "connections" : [
+
+                ],
+                "parameter" : {
+                  "base" : {
+                    "label" : "Visible",
+                    "defaultValue" : true,
+                    "description" : "",
+                    "value" : true,
+                    "id" : "C729A680-A1CC-448C-A358-FBDBA22BCD42",
+                    "controlType" : "button"
+                  },
+                  "type" : "bool"
+                },
+                "name" : "Visible",
+                "kind" : "Inlet",
+                "id" : "C729A680-A1CC-448C-A358-FBDBA22BCD42"
+              }
+            },
+            "name" : "inputVisible"
+          },
+          {
+            "payload" : {
+              "type" : "Int",
+              "base" : {
+                "id" : "B648E545-00F3-4EC4-B439-5DA6876CFE93",
+                "connections" : [
+
+                ],
+                "name" : "Render Order",
+                "kind" : "Inlet",
+                "published" : false,
+                "parameter" : {
+                  "type" : "int",
+                  "base" : {
+                    "label" : "Render Order",
+                    "min" : 0,
+                    "max" : 1,
+                    "id" : "B648E545-00F3-4EC4-B439-5DA6876CFE93",
+                    "description" : "",
+                    "defaultValue" : 0,
+                    "controlType" : "inputfield",
+                    "value" : 0
+                  }
+                }
+              },
+              "isParameterPort" : true
+            },
+            "name" : "inputRenderOrder"
+          },
+          {
+            "payload" : {
+              "base" : {
+                "connections" : [
+
+                ],
+                "published" : false,
+                "name" : "Render Pass",
+                "parameter" : {
+                  "type" : "int",
+                  "base" : {
+                    "label" : "Render Pass",
+                    "min" : 0,
+                    "max" : 1,
+                    "value" : 0,
+                    "id" : "82CACE10-1C89-4825-B85B-7C5ABC8F7E08",
+                    "defaultValue" : 0,
+                    "controlType" : "inputfield",
+                    "description" : ""
+                  }
+                },
+                "id" : "82CACE10-1C89-4825-B85B-7C5ABC8F7E08",
+                "kind" : "Inlet"
+              },
+              "type" : "Int",
+              "isParameterPort" : true
+            },
+            "name" : "inputRenderPass"
+          },
+          {
+            "payload" : {
+              "isParameterPort" : true,
+              "base" : {
+                "published" : false,
+                "id" : "EC27AE69-9542-47F6-9603-C8E57762AF78",
+                "name" : "Position",
+                "kind" : "Inlet",
+                "parameter" : {
+                  "base" : {
+                    "value" : [
+                      0,
+                      0.25,
+                      0
+                    ],
+                    "description" : "",
+                    "defaultValue" : [
+                      0,
+                      0,
+                      0
+                    ],
+                    "controlType" : "inputfield",
+                    "max" : [
+                      1,
+                      1,
+                      1
+                    ],
+                    "min" : [
+                      0,
+                      0,
+                      0
+                    ],
+                    "id" : "EC27AE69-9542-47F6-9603-C8E57762AF78",
+                    "label" : "Position"
+                  },
+                  "type" : "float3"
+                },
+                "connections" : [
+
+                ]
+              },
+              "type" : "Vector 3"
+            },
+            "name" : "inputPosition"
+          },
+          {
+            "payload" : {
+              "isParameterPort" : true,
+              "type" : "Vector 3",
+              "base" : {
+                "parameter" : {
+                  "base" : {
+                    "description" : "",
+                    "max" : [
+                      1,
+                      1,
+                      1
+                    ],
+                    "controlType" : "inputfield",
+                    "min" : [
+                      0,
+                      0,
+                      0
+                    ],
+                    "value" : [
+                      0.075,
+                      0.075,
+                      0.075
+                    ],
+                    "id" : "649B493C-1BF6-4074-B1A4-549A73CBBEAD",
+                    "label" : "Scale",
+                    "defaultValue" : [
+                      1,
+                      1,
+                      1
+                    ]
+                  },
+                  "type" : "float3"
+                },
+                "kind" : "Inlet",
+                "id" : "649B493C-1BF6-4074-B1A4-549A73CBBEAD",
+                "name" : "Scale",
+                "published" : false,
+                "connections" : [
+
+                ]
+              }
+            },
+            "name" : "inputScale"
+          },
+          {
+            "payload" : {
+              "isParameterPort" : true,
+              "type" : "Vector 4",
+              "base" : {
+                "parameter" : {
+                  "type" : "float4",
+                  "base" : {
+                    "min" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
+                    "defaultValue" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
+                    "controlType" : "inputfield",
+                    "label" : "Orientation",
+                    "max" : [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "value" : [
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
+                    "description" : "",
+                    "id" : "E510D7DC-3445-4777-B1F6-6CF73C04FC04"
+                  }
+                },
+                "connections" : [
+
+                ],
+                "kind" : "Inlet",
+                "name" : "Orientation",
+                "id" : "E510D7DC-3445-4777-B1F6-6CF73C04FC04",
+                "published" : false
+              }
+            },
+            "name" : "inputOrientation"
+          },
+          {
+            "payload" : {
+              "isParameterPort" : false,
+              "base" : {
+                "id" : "760CAC58-8924-4911-A555-2FBB2D1EEFBB",
+                "published" : false,
+                "name" : "Geometry",
+                "kind" : "Inlet",
+                "connections" : [
+                  "4C7B876D-E4FC-44FB-B4FB-B12B04ABA253"
+                ]
+              },
+              "type" : "Geometry"
+            },
+            "name" : "inputGeometry"
+          },
+          {
+            "payload" : {
+              "type" : "Material",
+              "base" : {
+                "connections" : [
+                  "CFB31431-E216-4BE7-A09B-A47BA1C2C427"
+                ],
+                "kind" : "Inlet",
+                "name" : "Material",
+                "published" : false,
+                "id" : "82A8500C-93B8-441B-A4A8-6C7D63498E78"
+              },
+              "isParameterPort" : false
+            },
+            "name" : "inputMaterial"
+          },
+          {
+            "payload" : {
+              "type" : "Bool",
+              "base" : {
+                "parameter" : {
+                  "base" : {
+                    "id" : "D160C68B-87E7-4812-914B-F5161DAB6974",
+                    "label" : "Enable Shadows",
+                    "description" : "",
+                    "controlType" : "button",
+                    "value" : true,
+                    "defaultValue" : true
+                  },
+                  "type" : "bool"
+                },
+                "id" : "D160C68B-87E7-4812-914B-F5161DAB6974",
+                "kind" : "Inlet",
+                "name" : "Enable Shadows",
+                "published" : false,
+                "connections" : [
+
+                ]
+              },
+              "isParameterPort" : true
+            },
+            "name" : "inputCastsShadow"
+          },
+          {
+            "payload" : {
+              "type" : "Bool",
+              "base" : {
+                "id" : "32959026-25D7-4455-A7D8-7CA54DA2A4D9",
+                "kind" : "Inlet",
+                "parameter" : {
+                  "base" : {
+                    "label" : "Double Sided",
+                    "controlType" : "button",
+                    "defaultValue" : false,
+                    "id" : "32959026-25D7-4455-A7D8-7CA54DA2A4D9",
+                    "value" : false,
+                    "description" : ""
+                  },
+                  "type" : "bool"
+                },
+                "name" : "Double Sided",
+                "published" : false,
+                "connections" : [
+
+                ]
+              },
+              "isParameterPort" : true
+            },
+            "name" : "inputDoubleSided"
+          },
+          {
+            "payload" : {
+              "base" : {
+                "published" : false,
+                "id" : "4661F2C8-C9D2-4195-893C-4059D5BE2591",
+                "kind" : "Inlet",
+                "connections" : [
+
+                ],
+                "name" : "Culling Mode",
+                "parameter" : {
+                  "base" : {
+                    "defaultValue" : "Back",
+                    "options" : [
+                      "Back",
+                      "Front",
+                      "None"
+                    ],
+                    "id" : "4661F2C8-C9D2-4195-893C-4059D5BE2591",
+                    "value" : "Back",
+                    "controlType" : "dropdown",
+                    "label" : "Culling Mode",
+                    "description" : ""
+                  },
+                  "type" : "string"
+                }
+              },
+              "type" : "String",
+              "isParameterPort" : true
+            },
+            "name" : "inputCullingMode"
+          }
+        ]
+      },
+      "type" : "MeshNode"
+    },
+    {
+      "value" : {
+        "nodeOffset" : [
+          -135.81315602907853,
+          -519.495051271475
+        ],
+        "id" : "A49753C6-9D19-4F71-B127-C6A0BE1F0301",
+        "ports" : [
+          {
+            "name" : "inputPort",
+            "payload" : {
+              "type" : "String",
+              "isParameterPort" : true,
+              "base" : {
+                "published" : false,
+                "connections" : [
+
+                ],
+                "name" : "String",
+                "id" : "C1F9F5C2-94DC-4575-B2E3-DC1C36ED865E",
+                "parameter" : {
+                  "type" : "string",
+                  "base" : {
+                    "defaultValue" : "",
+                    "id" : "C1F9F5C2-94DC-4575-B2E3-DC1C36ED865E",
+                    "value" : "Expected:",
+                    "description" : "",
+                    "controlType" : "inputfield",
+                    "options" : [
+
+                    ],
+                    "label" : "String"
+                  }
+                },
+                "kind" : "Inlet"
+              }
+            }
+          },
+          {
+            "name" : "input2Port",
+            "payload" : {
+              "base" : {
+                "published" : false,
+                "connections" : [
+                  "A95302CF-7F0E-4010-8CA2-F63FEF813901"
+                ],
+                "id" : "E177A8F3-89DC-4A27-85F5-5D0DE9E2FA78",
+                "parameter" : {
+                  "base" : {
+                    "description" : "",
+                    "options" : [
+
+                    ],
+                    "label" : "String",
+                    "value" : "\"id\" : \"7FECD306-4585-4C1B-9C3D-A7694288E2F8\",",
+                    "defaultValue" : "",
+                    "id" : "E177A8F3-89DC-4A27-85F5-5D0DE9E2FA78",
+                    "controlType" : "inputfield"
+                  },
+                  "type" : "string"
+                },
+                "name" : "String",
+                "kind" : "Inlet"
+              },
+              "isParameterPort" : true,
+              "type" : "String"
+            }
+          },
+          {
+            "name" : "outputPort",
+            "payload" : {
+              "base" : {
+                "id" : "71815475-2503-4359-917C-F5501DCF3EB5",
+                "connections" : [
+                  "DC5711E9-C51F-44CD-8378-5300A6059875"
+                ],
+                "name" : "String",
+                "kind" : "Outlet",
+                "published" : false
+              },
+              "type" : "String",
+              "isParameterPort" : false
+            }
+          }
+        ]
+      },
+      "type" : "StringJoinNode"
+    },
+    {
+      "value" : {
+        "nodeOffset" : [
+          -67.98275857062436,
+          155.608173161183
+        ],
+        "ports" : [
+          {
+            "payload" : {
+              "base" : {
+                "name" : "String",
+                "id" : "B877BE45-D11F-49AB-A919-3EAF419FF3FE",
+                "connections" : [
+
+                ],
+                "kind" : "Inlet",
+                "parameter" : {
+                  "type" : "string",
+                  "base" : {
+                    "id" : "B877BE45-D11F-49AB-A919-3EAF419FF3FE",
+                    "controlType" : "inputfield",
+                    "options" : [
+
+                    ],
+                    "description" : "",
+                    "defaultValue" : "",
+                    "label" : "String",
+                    "value" : "Evaluated:"
+                  }
+                },
+                "published" : false
+              },
+              "isParameterPort" : true,
+              "type" : "String"
+            },
+            "name" : "inputPort"
+          },
+          {
+            "payload" : {
+              "type" : "String",
+              "base" : {
+                "parameter" : {
+                  "type" : "string",
+                  "base" : {
+                    "defaultValue" : "",
+                    "controlType" : "inputfield",
+                    "value" : "\"id",
+                    "description" : "",
+                    "label" : "String",
+                    "id" : "DA4B40F8-9BD9-45B3-9E74-AA41DF867E16",
+                    "options" : [
+
+                    ]
+                  }
+                },
+                "id" : "DA4B40F8-9BD9-45B3-9E74-AA41DF867E16",
+                "kind" : "Inlet",
+                "name" : "String",
+                "connections" : [
+                  "F7445203-B563-4502-B1BE-BCC3DB4B58C7"
+                ],
+                "published" : false
+              },
+              "isParameterPort" : true
+            },
+            "name" : "input2Port"
+          },
+          {
+            "payload" : {
+              "base" : {
+                "name" : "String",
+                "kind" : "Outlet",
+                "published" : false,
+                "id" : "BDA60FF8-3E28-4D75-8134-CF24559D3C96",
+                "connections" : [
+                  "B7323C3B-FFD2-4F88-A1D0-3DCC1854B30C"
+                ]
+              },
+              "isParameterPort" : false,
+              "type" : "String"
+            },
+            "name" : "outputPort"
+          }
+        ],
+        "id" : "6DE243BF-2050-470E-BFDB-8DA10DC4F3D7"
+      },
+      "type" : "StringJoinNode"
+    },
+    {
+      "value" : {
+        "id" : "00235B54-A1F2-490E-B164-393E9E8375A2",
+        "nodeOffset" : [
+          -261.8701518983398,
+          -163.34827241007588
+        ],
+        "ports" : [
+          {
+            "payload" : {
+              "type" : "String",
+              "isParameterPort" : true,
+              "base" : {
+                "parameter" : {
+                  "type" : "string",
+                  "base" : {
+                    "value" : "\"id\" : \"7FECD306-4585-4C1B-9C3D-A7694288E2F8\",",
+                    "label" : "String",
+                    "description" : "",
+                    "defaultValue" : "",
+                    "options" : [
+
+                    ],
+                    "id" : "4E9D2CC8-33AA-4852-83C2-3C4CFCCDF374",
+                    "controlType" : "inputfield"
+                  }
+                },
+                "name" : "String",
+                "kind" : "Inlet",
+                "published" : false,
+                "connections" : [
+                  "A95302CF-7F0E-4010-8CA2-F63FEF813901"
+                ],
+                "id" : "4E9D2CC8-33AA-4852-83C2-3C4CFCCDF374"
+              }
+            },
+            "name" : "inputPort"
+          },
+          {
+            "payload" : {
+              "isParameterPort" : true,
+              "base" : {
+                "id" : "48F14CBF-3FF0-4C91-A3A0-27DB7AB30ADF",
+                "kind" : "Inlet",
+                "connections" : [
+                  "F7445203-B563-4502-B1BE-BCC3DB4B58C7"
+                ],
+                "parameter" : {
+                  "base" : {
+                    "controlType" : "inputfield",
+                    "id" : "48F14CBF-3FF0-4C91-A3A0-27DB7AB30ADF",
+                    "options" : [
+
+                    ],
+                    "value" : "\"id",
+                    "label" : "String",
+                    "defaultValue" : "",
+                    "description" : ""
+                  },
+                  "type" : "string"
+                },
+                "published" : false,
+                "name" : "String"
+              },
+              "type" : "String"
+            },
+            "name" : "input2Port"
+          },
+          {
+            "payload" : {
+              "base" : {
+                "kind" : "Outlet",
+                "connections" : [
+                  "546F5A09-E8E7-46F0-B1FF-2D091F96F4EB"
+                ],
+                "name" : "String",
+                "published" : false,
+                "id" : "DA7FDF9C-392B-46DF-9A7D-56EE643D3275"
+              },
+              "type" : "String",
+              "isParameterPort" : false
+            },
+            "name" : "outputPort"
+          }
+        ]
+      },
+      "type" : "StringDifferenceNode"
+    }
+  ],
+  "portConnectionMap" : [
+    "000EFE40-7BB8-469C-8481-C92D3B9C7507",
+    [
+      "0F255D03-AAE5-49C4-B490-60556F69FC7F",
+      "EC7A1C83-46D6-4F3C-93AA-5365965C8657"
+    ],
+    "B38FF357-E43D-4A52-B13D-E1BED0FE4930",
+    [
+      "C0AAF272-6F61-475A-BB53-A61BF6C3A9C9"
+    ],
+    "546F5A09-E8E7-46F0-B1FF-2D091F96F4EB",
+    [
+      "DA7FDF9C-392B-46DF-9A7D-56EE643D3275"
+    ],
+    "D830669F-AC93-4E02-9C74-DBEFF9450483",
+    [
+      "99F329CA-A7EF-418E-A988-0E4BEE183C83"
+    ],
+    "0533E9EF-4C8D-448B-BBC5-511D649251D1",
+    [
+      "FC093203-934D-4BD1-AD90-A7D775791C7B"
+    ],
+    "4C7B876D-E4FC-44FB-B4FB-B12B04ABA253",
+    [
+      "760CAC58-8924-4911-A555-2FBB2D1EEFBB"
+    ],
+    "DA7FDF9C-392B-46DF-9A7D-56EE643D3275",
+    [
+      "546F5A09-E8E7-46F0-B1FF-2D091F96F4EB"
+    ],
+    "EC7A1C83-46D6-4F3C-93AA-5365965C8657",
+    [
+      "000EFE40-7BB8-469C-8481-C92D3B9C7507"
+    ],
+    "7FECD306-4585-4C1B-9C3D-A7694288E2F8",
+    [
+      "5EB81BC4-5BAA-4CDF-B053-35E9F526787E"
+    ],
+    "1CD5CA28-98C9-40E3-ADD1-282E746A23AA",
+    [
+      "C46DA474-188F-476D-B763-823769E9E608"
+    ],
+    "FC093203-934D-4BD1-AD90-A7D775791C7B",
+    [
+      "0533E9EF-4C8D-448B-BBC5-511D649251D1"
+    ],
+    "A46BE930-F851-47F1-952F-BB9B8C9322F5",
+    [
+      "991C96A6-F6A4-4EF8-9B5C-93DD08896320"
+    ],
+    "076DDE0C-3631-4F34-BD83-AC1FF8CA98E6",
+    [
+      "E8508C19-4C5D-454D-BA25-CE921E09E20A"
+    ],
+    "F7445203-B563-4502-B1BE-BCC3DB4B58C7",
+    [
+      "48F14CBF-3FF0-4C91-A3A0-27DB7AB30ADF",
+      "DA4B40F8-9BD9-45B3-9E74-AA41DF867E16"
+    ],
+    "C46DA474-188F-476D-B763-823769E9E608",
+    [
+      "1CD5CA28-98C9-40E3-ADD1-282E746A23AA"
+    ],
+    "681A6464-C079-4193-90F3-FF5C8DDD1F94",
+    [
+      "A95302CF-7F0E-4010-8CA2-F63FEF813901"
+    ],
+    "A95302CF-7F0E-4010-8CA2-F63FEF813901",
+    [
+      "E177A8F3-89DC-4A27-85F5-5D0DE9E2FA78",
+      "681A6464-C079-4193-90F3-FF5C8DDD1F94",
+      "4E9D2CC8-33AA-4852-83C2-3C4CFCCDF374"
+    ],
+    "99F329CA-A7EF-418E-A988-0E4BEE183C83",
+    [
+      "D830669F-AC93-4E02-9C74-DBEFF9450483"
+    ],
+    "58C6197D-8BA3-47BF-8294-21732E95BE6A",
+    [
+      "3C575A40-56EA-4988-AEA7-8321BBE75CFF"
+    ],
+    "E0DC246C-7820-41F8-91F5-A2AD73B7276B",
+    [
+      "B89AFC87-9CF4-4155-B38C-0F9DA83CA952"
+    ],
+    "B89AFC87-9CF4-4155-B38C-0F9DA83CA952",
+    [
+      "E0DC246C-7820-41F8-91F5-A2AD73B7276B"
+    ],
+    "DA4B40F8-9BD9-45B3-9E74-AA41DF867E16",
+    [
+      "F7445203-B563-4502-B1BE-BCC3DB4B58C7"
+    ],
+    "71815475-2503-4359-917C-F5501DCF3EB5",
+    [
+      "DC5711E9-C51F-44CD-8378-5300A6059875"
+    ],
+    "40A23CC9-EA3B-4921-B36E-F623941F50DD",
+    [
+      "E3DFE412-EBA9-4DA3-9836-2C65BE0FAC0E"
+    ],
+    "FEB43367-4FAC-44E5-B9C8-566BBC6A08C4",
+    [
+      "A0A654FB-4AE4-41A2-BB53-F74404F6AE53"
+    ],
+    "2CE86F6E-563B-41F3-A5C6-C0DF3DB97242",
+    [
+      "FF664460-1E75-44B9-AE01-04DDDD5447BA"
+    ],
+    "A0A654FB-4AE4-41A2-BB53-F74404F6AE53",
+    [
+      "FEB43367-4FAC-44E5-B9C8-566BBC6A08C4"
+    ],
+    "3BDD3A95-E5A2-48F9-9D90-8FC40234F1FA",
+    [
+      "85856A23-1366-4BEB-A65A-9F842BBE1CC9"
+    ],
+    "5EB81BC4-5BAA-4CDF-B053-35E9F526787E",
+    [
+      "7FECD306-4585-4C1B-9C3D-A7694288E2F8"
+    ],
+    "E3DFE412-EBA9-4DA3-9836-2C65BE0FAC0E",
+    [
+      "40A23CC9-EA3B-4921-B36E-F623941F50DD"
+    ],
+    "BDA60FF8-3E28-4D75-8134-CF24559D3C96",
+    [
+      "B7323C3B-FFD2-4F88-A1D0-3DCC1854B30C"
+    ],
+    "FF664460-1E75-44B9-AE01-04DDDD5447BA",
+    [
+      "2CE86F6E-563B-41F3-A5C6-C0DF3DB97242"
+    ],
+    "85856A23-1366-4BEB-A65A-9F842BBE1CC9",
+    [
+      "3BDD3A95-E5A2-48F9-9D90-8FC40234F1FA"
+    ],
+    "DC5711E9-C51F-44CD-8378-5300A6059875",
+    [
+      "71815475-2503-4359-917C-F5501DCF3EB5"
+    ],
+    "48F14CBF-3FF0-4C91-A3A0-27DB7AB30ADF",
+    [
+      "F7445203-B563-4502-B1BE-BCC3DB4B58C7"
+    ],
+    "4E9D2CC8-33AA-4852-83C2-3C4CFCCDF374",
+    [
+      "A95302CF-7F0E-4010-8CA2-F63FEF813901"
+    ],
+    "0F255D03-AAE5-49C4-B490-60556F69FC7F",
+    [
+      "000EFE40-7BB8-469C-8481-C92D3B9C7507"
+    ],
+    "C0AAF272-6F61-475A-BB53-A61BF6C3A9C9",
+    [
+      "B38FF357-E43D-4A52-B13D-E1BED0FE4930"
+    ],
+    "464F3957-3C0D-4F9D-9F1C-2BE71A8FF20B",
+    [
+      "63A554D7-AA7D-4F94-99E5-8F352278C96C"
+    ],
+    "E8508C19-4C5D-454D-BA25-CE921E09E20A",
+    [
+      "076DDE0C-3631-4F34-BD83-AC1FF8CA98E6"
+    ],
+    "C84841A5-9190-405E-9986-438565F48A8D",
+    [
+      "FB3EC12A-AA84-47EF-8210-6E8AF7A7558A"
+    ],
+    "FB3EC12A-AA84-47EF-8210-6E8AF7A7558A",
+    [
+      "C84841A5-9190-405E-9986-438565F48A8D"
+    ],
+    "760CAC58-8924-4911-A555-2FBB2D1EEFBB",
+    [
+      "4C7B876D-E4FC-44FB-B4FB-B12B04ABA253"
+    ],
+    "991C96A6-F6A4-4EF8-9B5C-93DD08896320",
+    [
+      "A46BE930-F851-47F1-952F-BB9B8C9322F5"
+    ],
+    "CFB31431-E216-4BE7-A09B-A47BA1C2C427",
+    [
+      "82A8500C-93B8-441B-A4A8-6C7D63498E78"
+    ],
+    "FE85E1F0-C80E-4769-B153-18BC9B616682",
+    [
+      "AB59E632-8427-48D0-8E68-D1AF123B7112"
+    ],
+    "B7323C3B-FFD2-4F88-A1D0-3DCC1854B30C",
+    [
+      "BDA60FF8-3E28-4D75-8134-CF24559D3C96"
+    ],
+    "82A8500C-93B8-441B-A4A8-6C7D63498E78",
+    [
+      "CFB31431-E216-4BE7-A09B-A47BA1C2C427"
+    ],
+    "E177A8F3-89DC-4A27-85F5-5D0DE9E2FA78",
+    [
+      "A95302CF-7F0E-4010-8CA2-F63FEF813901"
+    ],
+    "AB59E632-8427-48D0-8E68-D1AF123B7112",
+    [
+      "FE85E1F0-C80E-4769-B153-18BC9B616682"
+    ],
+    "4CFE22D6-AD73-4011-BC41-5DE5813597F9",
+    [
+      "C78881A2-BA65-4DD3-83E4-6B33023A14F0"
+    ],
+    "3C575A40-56EA-4988-AEA7-8321BBE75CFF",
+    [
+      "58C6197D-8BA3-47BF-8294-21732E95BE6A"
+    ],
+    "63A554D7-AA7D-4F94-99E5-8F352278C96C",
+    [
+      "464F3957-3C0D-4F9D-9F1C-2BE71A8FF20B"
+    ],
+    "C78881A2-BA65-4DD3-83E4-6B33023A14F0",
+    [
+      "4CFE22D6-AD73-4011-BC41-5DE5813597F9"
+    ]
+  ],
+  "version" : {
+    "alpha1" : {
+
+    }
+  },
+  "notes" : [
+    {
+      "rect" : [
+        [
+          -1019.1517055354498,
+          -683.2586180064127
+        ],
+        [
+          506.4476468692983,
+          574.7259075015936
+        ]
+      ],
+      "id" : "A12D3B66-B1EE-49B3-BBFE-5B2E4688B65A",
+      "note" : "# Genuary 11\n\n> Quine. A Quine is a form of code poetry, it’s a computer program that outputs exactly its own source code.\n\nThis one is a little weird!\n\nThis Fabric Document loads itself with a `text file reader`\n\n\nIt splits the document up into lines, and feeds in line to line into an `Local LLM Node` which will download and run using [MLX](https:\/\/opensource.apple.com\/projects\/mlx\/) machine learning library.\n\nThe `Local LLM Node` will download a MLX model from [Hugging Face MLX Community](https:\/\/huggingface.co\/mlx-community), and install it into your hard drive\n\n\nThe `Local LLM Node` is prompted to just repeat the code back to itself (reading itself as a poem) - however, because the LLM’s arent perfect, it sometimes get things wrong. \n\nWe measure how wrong it us using a `String Difference` Node. \n\n\n### Things to know!\n\n> Right now Fabric doesnt quite handle local file paths well, so you might need to edit the `Text File Reader` node and point it to itself!\n\n> Please node these models can be VERY large, can take VERY long to download, and take a LOT of ram. This document uses a smaller model."
+    }
+  ]
+}
