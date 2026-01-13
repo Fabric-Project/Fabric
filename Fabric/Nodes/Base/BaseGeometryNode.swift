@@ -66,7 +66,13 @@ public class BaseGeometryNode : Node
 
         if shouldOutput
         {
-            self.outputGeometry.send(self.geometry)
+            // We force here, because
+            // 1 - SatinGeometry implements equality with reference === semantics
+            // 2 - our params may have changed (ie shouldOutput is true)
+            //   - but our instance is the same (!)
+            // 3 - We need to ensure other clients which need to get valueDidChange will in fact update
+            
+            self.outputGeometry.send(self.geometry, force:true)
         }
     }
     

@@ -11,7 +11,6 @@ import Satin
 public struct NodeRegisitryView: View {
 
     public let graph: Graph
-    @Binding public var scrollOffset: CGPoint
 
     @State private var searchString:String = ""
     @State private var selection = Set<UUID>()
@@ -28,9 +27,8 @@ public struct NodeRegisitryView: View {
 
     private var haveNodesToShow: Bool { self.numNodesToShow > 0 }
     
-    public init(graph: Graph, scrollOffset: Binding<CGPoint>) {
+    public init(graph: Graph) {
         self.graph = graph
-        self._scrollOffset = scrollOffset
     }
     
     public var body: some View
@@ -86,7 +84,7 @@ public struct NodeRegisitryView: View {
                     {
                         do
                         {
-                            try self.graph.addNode(node, initialOffset:self.scrollOffset)
+                            try self.graph.addNode(node)
                         }
                         catch
                         {

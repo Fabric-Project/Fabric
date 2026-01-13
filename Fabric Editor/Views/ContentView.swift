@@ -29,10 +29,8 @@ struct ContentView: View {
     @State private var magnifyAnchor: UnitPoint = .center
     @State private var scrollGeometry: ScrollGeometry = ScrollGeometry(contentOffset: .zero, contentSize: .zero, contentInsets: .init(top: 0, leading: 0, bottom: 0, trailing: 0), containerSize: .zero)
 
-    @State private var hitTestEnable:Bool = true
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
     @State private var inspectorVisibility:Bool = true
-    @State private var scrollOffset: CGPoint = .zero
 
     // Magic Numbers...
     private let zoomMin = 0.25
@@ -44,7 +42,7 @@ struct ContentView: View {
 
         NavigationSplitView(columnVisibility: self.$columnVisibility)
         {
-            NodeRegisitryView(graph: document.graph, scrollOffset: $scrollOffset)
+            NodeRegisitryView(graph: self.document.graph)
                 .navigationSplitViewColumnWidth(min: 150, ideal: 200, max:250)
 
         } detail: {
@@ -83,17 +81,13 @@ struct ContentView: View {
                     // Render behind nodes ?
                     // SatinMetalView(renderer: document.graphRenderer)
 
-                    GeometryReader { geom in
-                        RadialGradient(colors: [.clear, .black.opacity(0.75)], center: .center, startRadius: 0, endRadius: geom.size.width * 1.5)
-                            .allowsHitTesting(false)
-                    }
-
+                    RadialGradient(colors: [.clear, .black.opacity(0.75)], center: .center, startRadius: 0, endRadius: self.scrollGeometry.containerSize.width * 1.5)
+                    
                     ScrollViewReader { proxy in
                         ScrollView([.horizontal, .vertical])
                         {
                             NodeCanvas(graph: self.document.graph)
                                 .id("canvas")
-                                .allowsHitTesting(self.hitTestEnable)
                                 .frame(width: self.canvasSize, height: self.canvasSize)
                                 .scaleEffect(finalMagnification * magnifyBy, anchor: magnifyAnchor)
                                 .contextMenu(menuItems: {
@@ -101,7 +95,7 @@ struct ContentView: View {
                                         
                                         let graph = self.document.graph.activeSubGraph ?? self.document.graph
 
-                                        let note = Note(note: "New Note", rect: CGRect(origin: self.scrollOffset, size:CGSize(width: 500, height: 500)))
+                                        let note = Note(note: "New Note", rect: CGRect(origin: graph.currentScrollOffset, size:CGSize(width: 500, height: 500)))
                                         
                                         graph.addNote(note)
                                     }
@@ -166,6 +160,7 @@ struct ContentView: View {
                                         }
                                     }
                                 }
+                            
                         }
                         .defaultScrollAnchor(.center)
                     }
@@ -179,10 +174,10 @@ struct ContentView: View {
                         
                     } action: { _, newScrollOffset in
                         scrollGeometry = newScrollOffset.geometry
-                        scrollOffset = newScrollOffset.offset
-                    }
-                    .onScrollPhaseChange { oldPhase, newPhase in
-                        self.hitTestEnable = !newPhase.isScrolling
+                        
+                        let graph = self.document.graph.activeSubGraph ?? self.document.graph
+
+                        graph.currentScrollOffset = newScrollOffset.offset
                     }
                 }
             }

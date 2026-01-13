@@ -58,7 +58,7 @@ internal import AnyCodable
     @ObservationIgnored var portPositions: [UUID: CGPoint] = [:]
 
     @ObservationIgnored weak var lastNode:(Node)? = nil
-
+    
     public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
 
     // QOL - this functionally helps auto layout nodes
@@ -68,11 +68,15 @@ internal import AnyCodable
     // - a last added reset time
     // - an acrued offset if within the added time constraint
     // This effectively means if you add nodes quickly they will be added with offsets
-    private let nodeOffset = CGSize(width: 20, height: 20)
-    private var currentNodeOffset = CGSize.zero
-    private var lastAddedTime:TimeInterval = .zero
-    private var nodeAddedResetTime:TimeInterval = 10.0
+    @ObservationIgnored private let nodeOffset = CGSize(width: 20, height: 20)
+    @ObservationIgnored private var currentNodeOffset = CGSize.zero
+    @ObservationIgnored private var lastAddedTime:TimeInterval = .zero
+    @ObservationIgnored private var nodeAddedResetTime:TimeInterval = 10.0
     
+    // This is set from external views which gives us the offset on the canvas we are inserting a node to.
+    @ObservationIgnored public var currentScrollOffset:CGPoint = .zero
+
+
     // For Macro support
     public weak var activeSubGraph:Graph? = nil
     {
@@ -281,18 +285,19 @@ internal import AnyCodable
         self.notes.removeAll(where: { $0.id == note.id })
     }
     
-    public func addNode(_ node: NodeClassWrapper, initialOffset:CGPoint? ) throws
+    public func addNode(_ node: NodeClassWrapper ) throws
     {
+        if let activeSubGraph
+        {
+            try activeSubGraph.addNode(node)
+            return
+        }
+        
         let node = try node.initializeNode(context: self.context)
         
-        var offset = CGSize.zero
+        var offset = CGSize(width: self.currentScrollOffset.x  - node.nodeSize.width / 2.0,
+                            height: self.currentScrollOffset.y - node.nodeSize.height / 4.0)
         
-        if let initialOffset = initialOffset
-        {
-            offset =  CGSize(width:  initialOffset.x - node.nodeSize.width / 2.0,
-                             height: initialOffset.y - node.nodeSize.height / 4.0)
-        }
-             
         let deltaTime = Date.now.timeIntervalSinceReferenceDate - self.lastAddedTime
         if deltaTime < self.nodeAddedResetTime
         {
@@ -328,25 +333,23 @@ internal import AnyCodable
     
     public func addNode(_ node:Node)
     {
-        
         if let activeSubGraph
         {
             activeSubGraph.addNode(node)
+            return
         }
-        else
-        {
-            print("Graph: \(self.id) Add Node", node.name)
-            self.maybeAddNodeToScene(node)
-            self.nodes.append(node)
-            node.graph = self
-
-            self.undoManager?.registerUndo(withTarget: self) { graph in
-                graph.delete(node: node)
-            }
-            
-            self.undoManager?.setActionName("Add Node")
-            self.shouldUpdateConnections = true
+        
+        print("Graph: \(self.id) Add Node", node.name)
+        self.maybeAddNodeToScene(node)
+        self.nodes.append(node)
+        node.graph = self
+        
+        self.undoManager?.registerUndo(withTarget: self) { graph in
+            graph.delete(node: node)
         }
+        
+        self.undoManager?.setActionName("Add Node")
+        self.shouldUpdateConnections = true
 
         self.updateRenderingNodes()
         //        self.autoConnect(node: node)

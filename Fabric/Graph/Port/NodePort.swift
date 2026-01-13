@@ -41,11 +41,13 @@ public class NodePort<Value : PortValueRepresentable>: Port
     {
         didSet
         {
-            if oldValue != self.value
-            {
-                self.valueDidChange = true
-                self.node?.markDirty()
-            }
+            // We no longer check for equality
+            // 1 - send( .. ) has equality checks
+            // 2 - send( .. ) support force
+            // 3 - we need to be able to have force work!
+            //   - it wont if we do an additional equality check here!
+            self.valueDidChange = true
+            self.node?.markDirty()
         }
     }
         
