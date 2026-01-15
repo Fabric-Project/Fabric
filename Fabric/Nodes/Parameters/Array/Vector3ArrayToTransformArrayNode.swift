@@ -11,9 +11,9 @@ import simd
 import Metal
 import MetalKit
 
-public class Vector2ArrayToVector3ArrayNode: Node
+public class Vector3ArrayToTransformArrayNode: Node
 {
-    public override class var name:String {"Vector 2 Array to Vector 3 Array" }
+    public override class var name:String {"Vector 3 Array to Transform Array" }
     public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
@@ -25,14 +25,14 @@ public class Vector2ArrayToVector3ArrayNode: Node
         
         return ports +
         [
-            ("inputPort",  NodePort<ContiguousArray<simd_float2>>(name: "Vector 2 Array", kind: .Inlet)),
-            ("outputPort", NodePort<ContiguousArray<simd_float3>>(name: "Vector 3 Array", kind: .Outlet)),
+            ("inputPort",  NodePort<ContiguousArray<simd_float3>>(name: "Vector 3 Array", kind: .Inlet)),
+            ("outputPort", NodePort<ContiguousArray<simd_float4x4>>(name: "Transform Array", kind: .Outlet)),
         ]
     }
     
     // Port Proxy
-    public var inputPort:NodePort<ContiguousArray<simd_float2>> { port(named: "inputPort") }
-    public var outputPort:NodePort<ContiguousArray<simd_float3>> { port(named: "outputPort") }
+    public var inputPort:NodePort<ContiguousArray<simd_float3>> { port(named: "inputPort") }
+    public var outputPort:NodePort<ContiguousArray<simd_float4x4>> { port(named: "outputPort") }
     
     override public func execute(context:GraphExecutionContext,
                            renderPassDescriptor: MTLRenderPassDescriptor,
@@ -43,8 +43,8 @@ public class Vector2ArrayToVector3ArrayNode: Node
             if let array = self.inputPort.value
             {
                 let count = array.count
-                let vectorArray = array.enumerated( ).map { (index:Int, value:simd_float2) -> simd_float3 in
-                    return simd_float3(value.x, value.y, 0)
+                let vectorArray = array.enumerated( ).map { (index:Int, value:simd_float3) -> simd_float4x4 in
+                    return translationMatrix3f(value)
                 }
                 
                 self.outputPort.send( ContiguousArray(vectorArray) )

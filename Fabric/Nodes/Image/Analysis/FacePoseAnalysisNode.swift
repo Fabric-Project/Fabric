@@ -12,13 +12,13 @@ import Metal
 import MetalKit
 import Vision
 
-public class HandPoseAnalysisNode: Node
+public class FacePoseAnalysisNode: Node
 {
-    override public class var name:String { "Hand Pose Analysis" }
+    override public class var name:String { "Face Pose Analysis" }
     override public class var nodeType:Node.NodeType { .Image(imageType: .Analysis) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Detect Hand Poses in an Image and outputs in Units" }
+    override public class var nodeDescription: String { "Detect Face Poses in an Image and outputs in Units" }
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
@@ -27,96 +27,40 @@ public class HandPoseAnalysisNode: Node
         return ports +
         [
             ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet)),
-            ("inputHandCount", ParameterPort(parameter: IntParameter("Hand Count", 1, 1, 16, .inputfield))),
             
-            ("outputThumb1", NodePort<simd_float2>(name: "Thumb Tip", kind: .Outlet)),
-            ("outputThumb2", NodePort<simd_float2>(name: "Thumb Joint 1", kind: .Outlet)),
-            ("outputThumb3", NodePort<simd_float2>(name: "Thumb Joint 2", kind: .Outlet)),
-            ("outputThumb4", NodePort<simd_float2>(name: "Thumb Knuckle", kind: .Outlet)),
+            ("outputFaceContour", NodePort<ContiguousArray<simd_float2>>(name: "Face Contour", kind: .Outlet)),
+           
+            ("outputLeftEye", NodePort<ContiguousArray<simd_float2>>(name: "Left Eye", kind: .Outlet)),
+            ("outputRightEye", NodePort<ContiguousArray<simd_float2>>(name: "Right Eye", kind: .Outlet)),
 
-            ("outputIndex1", NodePort<simd_float2>(name: "Index Tip", kind: .Outlet)),
-            ("outputIndex2", NodePort<simd_float2>(name: "Index Joint 1", kind: .Outlet)),
-            ("outputIndex3", NodePort<simd_float2>(name: "Index Joint 2", kind: .Outlet)),
-            ("outputIndex4", NodePort<simd_float2>(name: "Index Knuckle", kind: .Outlet)),
+            ("outputLeftPupil", NodePort<ContiguousArray<simd_float2>>(name: "Left Pupil", kind: .Outlet)),
+            ("outputRightPupil", NodePort<ContiguousArray<simd_float2>>(name: "Right Pupil", kind: .Outlet)),
 
-            ("outputMiddle1", NodePort<simd_float2>(name: "Middle Tip", kind: .Outlet)),
-            ("outputMiddle2", NodePort<simd_float2>(name: "Middle Joint 1", kind: .Outlet)),
-            ("outputMiddle3", NodePort<simd_float2>(name: "Middle Joint 2", kind: .Outlet)),
-            ("outputMiddle4", NodePort<simd_float2>(name: "Middle Knuckle", kind: .Outlet)),
+            ("outputLeftEyebrow", NodePort<ContiguousArray<simd_float2>>(name: "Left Eyebrow", kind: .Outlet)),
+            ("outputRightEyebrow", NodePort<ContiguousArray<simd_float2>>(name: "Right Eyebrow", kind: .Outlet)),
 
-            ("outputRing1", NodePort<simd_float2>(name: "Ring Tip", kind: .Outlet)),
-            ("outputRing2", NodePort<simd_float2>(name: "Ring Joint 1", kind: .Outlet)),
-            ("outputRing3", NodePort<simd_float2>(name: "Ring Joint 2", kind: .Outlet)),
-            ("outputRing4", NodePort<simd_float2>(name: "Ring Knuckle", kind: .Outlet)),
+            ("outputNose", NodePort<ContiguousArray<simd_float2>>(name: "Nose", kind: .Outlet)),
+            ("outputNoseCrest", NodePort<ContiguousArray<simd_float2>>(name: "Nose Crest", kind: .Outlet)),
 
-            ("outputLittle1", NodePort<simd_float2>(name: "Little Tip", kind: .Outlet)),
-            ("outputLittle2", NodePort<simd_float2>(name: "Little Joint 1", kind: .Outlet)),
-            ("outputLittle3", NodePort<simd_float2>(name: "Little Joint 2", kind: .Outlet)),
-            ("outputLittle4", NodePort<simd_float2>(name: "Little Knuckle", kind: .Outlet)),
-
-            ("outputWrist", NodePort<simd_float2>(name: "Wrist", kind: .Outlet)),
         ]
     }
 
     public var inputImage:NodePort<FabricImage>  { port(named: "inputImage") }
 
-    public var outputThumb1:NodePort<simd_float2> { port(named: "outputThumb1") }
-    public var outputThumb2:NodePort<simd_float2> { port(named: "outputThumb2") }
-    public var outputThumb3:NodePort<simd_float2> { port(named: "outputThumb3") }
-    public var outputThumb4:NodePort<simd_float2> { port(named: "outputThumb4") }
-
-    public var outputIndex1:NodePort<simd_float2> { port(named: "outputIndex1") }
-    public var outputIndex2:NodePort<simd_float2> { port(named: "outputIndex2") }
-    public var outputIndex3:NodePort<simd_float2> { port(named: "outputIndex3") }
-    public var outputIndex4:NodePort<simd_float2> { port(named: "outputIndex4") }
-
-    public var outputMiddle1:NodePort<simd_float2> { port(named: "outputMiddle1") }
-    public var outputMiddle2:NodePort<simd_float2> { port(named: "outputMiddle2") }
-    public var outputMiddle3:NodePort<simd_float2> { port(named: "outputMiddle3") }
-    public var outputMiddle4:NodePort<simd_float2> { port(named: "outputMiddle4") }
-
-    public var outputRing1:NodePort<simd_float2> { port(named: "outputRing1") }
-    public var outputRing2:NodePort<simd_float2> { port(named: "outputRing2") }
-    public var outputRing3:NodePort<simd_float2> { port(named: "outputRing3") }
-    public var outputRing4:NodePort<simd_float2> { port(named: "outputRing4") }
+    public var outputFaceContour:NodePort<ContiguousArray<simd_float2>> { port(named: "outputFaceContour") }
     
-    public var outputLittle1:NodePort<simd_float2> { port(named: "outputLittle1") }
-    public var outputLittle2:NodePort<simd_float2> { port(named: "outputLittle2") }
-    public var outputLittle3:NodePort<simd_float2> { port(named: "outputLittle3") }
-    public var outputLittle4:NodePort<simd_float2> { port(named: "outputLittle4") }
+    public var outputLeftEye:NodePort<ContiguousArray<simd_float2>> { port(named: "outputLeftEye") }
+    public var outputRightEye:NodePort<ContiguousArray<simd_float2>> { port(named: "outputRightEye") }
 
-    public var outputWrist:NodePort<simd_float2> { port(named: "outputWrist") }
+    public var outputLeftPupil:NodePort<ContiguousArray<simd_float2>> { port(named: "outputLeftPupil") }
+    public var outputRightPupil:NodePort<ContiguousArray<simd_float2>> { port(named: "outputRightPupil") }
 
-    private let portNameForPoseKey: [VNHumanHandPoseObservation.JointName: String] = [
-        
-        .thumbTip : "outputThumb1",
-        .thumbIP : "outputThumb2",
-        .thumbMP : "outputThumb3",
-        .thumbCMC : "outputThumb4",
-       
-        .indexTip : "outputIndex1",
-        .indexDIP : "outputIndex2",
-        .indexPIP : "outputIndex3",
-        .indexMCP : "outputIndex4",
-        
-        .middleTip : "outputMiddle1",
-        .middleDIP : "outputMiddle2",
-        .middlePIP : "outputMiddle3",
-        .middleMCP : "outputMiddle4",
-        
-        .ringTip : "outputRing1",
-        .ringDIP : "outputRing2",
-        .ringPIP : "outputRing3",
-        .ringMCP : "outputRing4",
-        
-        .littleTip : "outputLittle1",
-        .littleDIP : "outputLittle2",
-        .littlePIP : "outputLittle3",
-        .littleMCP : "outputLittle4",
-        
-        .wrist : "outputWrist",
-        
-        ]
+    public var outputLeftEyebrow:NodePort<ContiguousArray<simd_float2>> { port(named: "outputLeftEyebrow") }
+    public var outputRightEyebrow:NodePort<ContiguousArray<simd_float2>> { port(named: "outputRightEyebrow") }
+
+    public var outputNose:NodePort<ContiguousArray<simd_float2>> { port(named: "outputNose") }
+    public var outputNoseCrest:NodePort<ContiguousArray<simd_float2>> { port(named: "outputNoseCrest") }
+
     
     private var ciContext:CIContext!
     
@@ -136,40 +80,141 @@ public class HandPoseAnalysisNode: Node
         }
     }
     
+    private func normalizedPointToUnits(_ point:CGPoint, imageSize size:CGSize, boundingBox:CGRect) -> simd_float2
+    {
+        let aspect = size.height / size.width
+        
+        let imagePoint = VNImagePointForFaceLandmarkPoint( simd_float2(x:Float(point.x), y:Float(point.y)), boundingBox,  Int(size.width), Int(size.height))
+        
+        let x = remap(Float(imagePoint.x), 0.0, Float(size.width), -1.0, 1.0)
+        let y = remap(Float(imagePoint.y), Float(size.height), 0.0, -Float(aspect), Float(aspect))
+
+        return simd_float2(x: x, y: y)
+    }
+    
+//    private func sendLandmark(_ landmark:VNFaceLandmarks2D, toPort:NodePort<ContiguousArray<simd_float2>> )
+//    {
+//        if let faceContour = observation.landmarks?.faceContour
+//        {
+//            let points = landmark.normalizedPoints.map {
+//                    
+//                return self.normalizedPointToUnits($0, imageSize: imageSize, boundingBox: observation.boundingBox)
+//            }
+//            
+//            self.outputFaceContour.send( ContiguousArray(points) )
+//        }
+//    }
+    
     override public  func execute(context:GraphExecutionContext,
                                   renderPassDescriptor: MTLRenderPassDescriptor,
                                   commandBuffer: MTLCommandBuffer)
     {
         if self.inputImage.valueDidChange
         {
-            let request = VNDetectHumanHandPoseRequest()
+//            let request = VNDetectHumanHandPoseRequest()
+            let request = VNDetectFaceLandmarksRequest()
             request.preferBackgroundProcessing = false
-            request.maximumHandCount = 1
+            
             
             if let inTex = self.inputImage.value?.texture,
-               let allPoints =  self.handPointsForRequest(request, from: inTex)
+               let observation =  self.faceLandmarksForRequest(request, from: inTex)
 //               let graphRenderer = context.graphRenderer
             {
                 
-                let aspect = Float(inTex.height)/Float(inTex.width)
-//                let size = simd_float2(x: graphRenderer.renderer.size.width,
-//                                       y: graphRenderer.renderer.size.height)
-                
-                for poseKey in allPoints.keys
-                {
-                    let jointName = VNHumanHandPoseObservation.JointName(rawValue: poseKey)
+                let imageSize = CGSize(width: inTex.width, height: inTex.height)
+//                let aspect = Float(graphRenderer.renderer.size.height)/Float(graphRenderer.renderer.size.width)
+                //let aspect = Float(inTex.height)/Float(inTex.width)
 
-                    if let portForKey = self.portNameForPoseKey[jointName],
-                       let position = allPoints[poseKey]
-                    {
-                        let port:NodePort<simd_float2> = self.port(named: portForKey)
-                        let ux = remap(Float(position.x), 0.0, 1.0, -1.0, 1.0)
-                        let uy = remap(Float(position.y), 0.0, 1.0, -aspect, aspect)
-                        
-                        port.send( simd_float2(ux, uy) )
-                       //
+                if let faceContour = observation.landmarks?.faceContour
+                {
+                    let points = faceContour.normalizedPoints.map {
+                            
+                        return self.normalizedPointToUnits($0, imageSize: imageSize, boundingBox: observation.boundingBox)
                     }
+                    
+                    self.outputFaceContour.send( ContiguousArray(points) )
                 }
+                
+                if let leftEye = observation.landmarks?.leftEye
+                {
+                    let points = leftEye.normalizedPoints.map {
+                            
+                        return self.normalizedPointToUnits($0, imageSize: imageSize, boundingBox: observation.boundingBox)
+                    }
+                    
+                    self.outputLeftEye.send( ContiguousArray(points) )
+                }
+                
+                if let rightEye = observation.landmarks?.rightEye
+                {
+                    let points = rightEye.normalizedPoints.map {
+                            
+                        return self.normalizedPointToUnits($0, imageSize: imageSize, boundingBox: observation.boundingBox)
+                    }
+                    
+                    self.outputRightEye.send( ContiguousArray(points) )
+                }
+                
+                if let leftPupil = observation.landmarks?.leftPupil
+                {
+                    let points = leftPupil.normalizedPoints.map {
+                            
+                        return self.normalizedPointToUnits($0, imageSize: imageSize, boundingBox: observation.boundingBox)
+                    }
+                    
+                    self.outputLeftPupil.send( ContiguousArray(points) )
+                }
+                
+                if let rightPupil = observation.landmarks?.rightPupil
+                {
+                    let points = rightPupil.normalizedPoints.map {
+                            
+                        return self.normalizedPointToUnits($0, imageSize: imageSize, boundingBox: observation.boundingBox)
+                    }
+                    
+                    self.outputRightPupil.send( ContiguousArray(points) )
+                }
+                
+                if let leftEyebrow = observation.landmarks?.leftEyebrow
+                {
+                    let points = leftEyebrow.normalizedPoints.map {
+                            
+                        return self.normalizedPointToUnits($0, imageSize: imageSize, boundingBox: observation.boundingBox)
+                    }
+                    
+                    self.outputLeftEyebrow.send( ContiguousArray(points) )
+                }
+                
+                if let rightEyebrow = observation.landmarks?.rightEyebrow
+                {
+                    let points = rightEyebrow.normalizedPoints.map {
+                            
+                        return self.normalizedPointToUnits($0, imageSize: imageSize, boundingBox: observation.boundingBox)
+                    }
+                    
+                    self.outputRightEyebrow.send( ContiguousArray(points) )
+                }
+                
+                
+                
+                
+//                for poseKey in allPoints.
+//                {
+//                    let faceLandmark = VNFaceLandmarkRegion2D.
+//                    
+//                    let jointName = VNHumanHandPoseObservation.JointName(rawValue: poseKey)
+//
+//                    if let portForKey = self.portNameForPoseKey[jointName],
+//                       let position = allPoints[poseKey]
+//                    {
+//                        let port:NodePort<simd_float2> = self.port(named: portForKey)
+//                        let ux = remap(Float(position.x), 0.0, 1.0, -1.0, 1.0)
+//                        let uy = remap(Float(position.y), 0.0, 1.0, -aspect, aspect)
+//                        
+//                        port.send( simd_float2(ux, uy) )
+//                       //
+//                    }
+//                }
 //                for position in handPoints
 //                {
 //                    let px = remap(position.x, 0.0, 1.0, 0, size.x)
@@ -194,26 +239,26 @@ public class HandPoseAnalysisNode: Node
         }
     }
         
-    private func handPointsForRequest(_ request: VNDetectHumanHandPoseRequest, from texture:MTLTexture) ->  [VNRecognizedPointKey : VNRecognizedPoint]?
+    private func faceLandmarksForRequest(_ request: VNDetectFaceLandmarksRequest, from texture:MTLTexture) ->  VNFaceObservation?
     {
         if let inputImage = CIImage(mtlTexture: texture)
         {
-            for computeDevice in MLComputeDevice.allComputeDevices
-            {
-                switch computeDevice
-                {
-                case .neuralEngine(let aneDevice):
-                    request.setComputeDevice(.neuralEngine(aneDevice), for: .main)
-                    request.setComputeDevice(.neuralEngine(aneDevice), for: .postProcessing)
-                    
-//                case .gpu(let gpu):
-//                    request.setComputeDevice(.gpu(gpu), for: .main)
-//                    request.setComputeDevice(.gpu(gpu), for: .postProcessing)
-                    
-                default:
-                    break
-                }
-            }
+//            for computeDevice in MLComputeDevice.allComputeDevices
+//            {
+//                switch computeDevice
+//                {
+//                case .neuralEngine(let aneDevice):
+//                    request.setComputeDevice(.neuralEngine(aneDevice), for: .main)
+//                    request.setComputeDevice(.neuralEngine(aneDevice), for: .postProcessing)
+//                    
+////                case .gpu(let gpu):
+////                    request.setComputeDevice(.gpu(gpu), for: .main)
+////                    request.setComputeDevice(.gpu(gpu), for: .postProcessing)
+//                    
+//                default:
+//                    break
+//                }
+//            }
             
             let handler = VNImageRequestHandler(ciImage: inputImage, options: [.ciContext : self.ciContext!])
             
@@ -222,12 +267,11 @@ public class HandPoseAnalysisNode: Node
                 // Perform the Vision request
                 try handler.perform([request])
 
-                guard let observation = request.results?.first as? VNRecognizedPointsObservation
+                guard let observation = request.results?.first as? VNFaceObservation
                 else { return nil }
+                                
                 
-                let allPoints: [VNRecognizedPointKey : VNRecognizedPoint] = try observation.recognizedPoints(forGroupKey: .all)
-                
-                return allPoints
+                return observation
                 
             }
             catch
