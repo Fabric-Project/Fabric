@@ -42,6 +42,11 @@ public class FacePoseAnalysisNode: Node
             ("outputNose", NodePort<ContiguousArray<simd_float2>>(name: "Nose", kind: .Outlet)),
             ("outputNoseCrest", NodePort<ContiguousArray<simd_float2>>(name: "Nose Crest", kind: .Outlet)),
 
+            ("outputMedianLine", NodePort<ContiguousArray<simd_float2>>(name: "Median Line", kind: .Outlet)),
+
+            ("outputInnerLips", NodePort<ContiguousArray<simd_float2>>(name: "Inner Lips", kind: .Outlet)),
+            ("outputOuterLips", NodePort<ContiguousArray<simd_float2>>(name: "Outer Lips", kind: .Outlet)),
+
         ]
     }
 
@@ -60,6 +65,11 @@ public class FacePoseAnalysisNode: Node
 
     public var outputNose:NodePort<ContiguousArray<simd_float2>> { port(named: "outputNose") }
     public var outputNoseCrest:NodePort<ContiguousArray<simd_float2>> { port(named: "outputNoseCrest") }
+
+    public var outputMedianLine:NodePort<ContiguousArray<simd_float2>> { port(named: "outputMedianLine") }
+
+    public var outputInnerLips:NodePort<ContiguousArray<simd_float2>> { port(named: "outputInnerLips") }
+    public var outputOuterLips:NodePort<ContiguousArray<simd_float2>> { port(named: "outputOuterLips") }
 
     
     private var ciContext:CIContext!
@@ -80,50 +90,21 @@ public class FacePoseAnalysisNode: Node
         }
     }
     
-    private func normalizedPointToUnits(_ point:CGPoint, imageSize size:CGSize, boundingBox:CGRect) -> simd_float2
-    {
-        let aspect = size.height / size.width
-        
-        let imagePoint = VNImagePointForFaceLandmarkPoint( simd_float2(x:Float(point.x), y:Float(point.y)), boundingBox,  Int(size.width), Int(size.height))
-        
-        let x = remap(Float(imagePoint.x), 0.0, Float(size.width), -1.0, 1.0)
-        let y = remap(Float(imagePoint.y), Float(size.height), 0.0, -Float(aspect), Float(aspect))
-
-        return simd_float2(x: x, y: y)
-    }
-    
-//    private func sendLandmark(_ landmark:VNFaceLandmarks2D, toPort:NodePort<ContiguousArray<simd_float2>> )
-//    {
-//        if let faceContour = observation.landmarks?.faceContour
-//        {
-//            let points = landmark.normalizedPoints.map {
-//                    
-//                return self.normalizedPointToUnits($0, imageSize: imageSize, boundingBox: observation.boundingBox)
-//            }
-//            
-//            self.outputFaceContour.send( ContiguousArray(points) )
-//        }
-//    }
-    
     override public  func execute(context:GraphExecutionContext,
                                   renderPassDescriptor: MTLRenderPassDescriptor,
                                   commandBuffer: MTLCommandBuffer)
     {
         if self.inputImage.valueDidChange
         {
-//            let request = VNDetectHumanHandPoseRequest()
             let request = VNDetectFaceLandmarksRequest()
             request.preferBackgroundProcessing = false
             
             
             if let inTex = self.inputImage.value?.texture,
                let observation =  self.faceLandmarksForRequest(request, from: inTex)
-//               let graphRenderer = context.graphRenderer
             {
                 
                 let imageSize = CGSize(width: inTex.width, height: inTex.height)
-//                let aspect = Float(graphRenderer.renderer.size.height)/Float(graphRenderer.renderer.size.width)
-                //let aspect = Float(inTex.height)/Float(inTex.width)
 
                 if let faceContour = observation.landmarks?.faceContour
                 {
@@ -195,7 +176,55 @@ public class FacePoseAnalysisNode: Node
                     self.outputRightEyebrow.send( ContiguousArray(points) )
                 }
                 
+                if let nose = observation.landmarks?.nose
+                {
+                    let points = nose.normalizedPoints.map {
+                            
+                        return self.normalizedPointToUnits($0, imageSize: imageSize, boundingBox: observation.boundingBox)
+                    }
+                    
+                    self.outputNose.send( ContiguousArray(points) )
+                }
                 
+                if let noseCrest = observation.landmarks?.noseCrest
+                {
+                    let points = noseCrest.normalizedPoints.map {
+                            
+                        return self.normalizedPointToUnits($0, imageSize: imageSize, boundingBox: observation.boundingBox)
+                    }
+                    
+                    self.outputNoseCrest.send( ContiguousArray(points) )
+                }
+                
+                if let medianLine = observation.landmarks?.medianLine
+                {
+                    let points = medianLine.normalizedPoints.map {
+                            
+                        return self.normalizedPointToUnits($0, imageSize: imageSize, boundingBox: observation.boundingBox)
+                    }
+                    
+                    self.outputMedianLine.send( ContiguousArray(points) )
+                }
+                
+                if let innerLips = observation.landmarks?.innerLips
+                {
+                    let points = innerLips.normalizedPoints.map {
+                            
+                        return self.normalizedPointToUnits($0, imageSize: imageSize, boundingBox: observation.boundingBox)
+                    }
+                    
+                    self.outputInnerLips.send( ContiguousArray(points) )
+                }
+                
+                if let outerLips = observation.landmarks?.outerLips
+                {
+                    let points = outerLips.normalizedPoints.map {
+                            
+                        return self.normalizedPointToUnits($0, imageSize: imageSize, boundingBox: observation.boundingBox)
+                    }
+                    
+                    self.outputOuterLips.send( ContiguousArray(points) )
+                }
                 
                 
 //                for poseKey in allPoints.
@@ -237,6 +266,18 @@ public class FacePoseAnalysisNode: Node
 //                self.outputHandPointsPixels.send( nil )
 //            }
         }
+    }
+    
+    private func normalizedPointToUnits(_ point:CGPoint, imageSize size:CGSize, boundingBox:CGRect) -> simd_float2
+    {
+        let aspect = size.height / size.width
+        
+        let imagePoint = VNImagePointForFaceLandmarkPoint( simd_float2(x:Float(point.x), y:Float(point.y)), boundingBox,  Int(size.width), Int(size.height))
+        
+        let x = remap(Float(imagePoint.x), 0.0, Float(size.width), -1.0, 1.0)
+        let y = remap(Float(imagePoint.y), Float(size.height), 0.0, -Float(aspect), Float(aspect))
+
+        return simd_float2(x: x, y: y)
     }
         
     private func faceLandmarksForRequest(_ request: VNDetectFaceLandmarksRequest, from texture:MTLTexture) ->  VNFaceObservation?
