@@ -189,6 +189,8 @@
 				Nodes/Image/Analysis/FacePoseAnalysisNode.swift,
 				Nodes/Image/Analysis/HandPoseAnalysisNode.swift,
 				Nodes/Image/Analysis/MetalFXSpatialUpsample2xNode.swift,
+				Nodes/Image/Analysis/VLM/LocalVLMNode.swift,
+				Nodes/Image/Analysis/VLM/VLMEvaluator.swift,
 				Nodes/Image/CameraProviderNode.swift,
 				Nodes/Image/ColorAdjust/LUTProcessorNode.swift,
 				Nodes/Image/Distort/KeypointDistortNode.swift,

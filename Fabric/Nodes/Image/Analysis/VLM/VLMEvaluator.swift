@@ -1,12 +1,20 @@
 // Borrowed from https://github.com/ml-explore/mlx-swift-examples/blob/main/Applications/LLMEval/ContentView.swift
 
+import CoreImage
 internal import AsyncAlgorithms
 internal import MLX
 internal import MLXLLM
+internal import MLXVLM
 internal import MLXLMCommon
 
-class LLMEvaluator {
+class VLMEvaluator {
 
+    let videoSystemPrompt =
+        "Focus only on describing the key dramatic action or notable event occurring in this video segment. Skip general context or scene-setting details unless they are crucial to understanding the main action."
+    let imageSystemPrompt =
+        "You are an image understanding model capable of describing the salient features of any image."
+
+    
     var running = false
 
     var includeWeatherTool = false
@@ -19,7 +27,7 @@ class LLMEvaluator {
 
     /// This controls which model loads. `qwen2_5_1_5b` is one of the smaller ones, so this will fit on
     /// more devices.
-    var modelConfiguration = LLMRegistry.qwen3_1_7b_4bit
+    var modelConfiguration = VLMRegistry.smolvlm
 
     /// parameters controlling the output
     var generateParameters = GenerateParameters( temperature: 0.6)
@@ -43,7 +51,7 @@ class LLMEvaluator {
             // limit the buffer cache
             MLX.GPU.set(cacheLimit: 20 * 1024 * 1024)
 
-            let modelContainer = try await LLMModelFactory.shared.loadContainer(
+            let modelContainer = try await VLMModelFactory.shared.loadContainer(
                 configuration: modelConfiguration
             ) {
                 [modelConfiguration] progress in
@@ -67,23 +75,29 @@ class LLMEvaluator {
         }
     }
 
-    private func generate(prompt: String, toolResult: String? = nil) async {
+    private func generate(prompt: String, image: CIImage?, toolResult: String? = nil) async {
+        
+        let images: [UserInput.Image] = if let image { [.ciImage(image)] } else { [] }
 
+        let systemPrompt = !images.isEmpty ? imageSystemPrompt :"You are a helpful assistant."
+        
         self.output = ""
         var chat: [Chat.Message] = [
-            .system("You are a helpful assistant"),
-            .user(prompt),
+            .system(systemPrompt),
+            .user(prompt, images:images),
         ]
 
         if let toolResult {
             chat.append(.tool(toolResult))
         }
 
-        let userInput = UserInput(
+        var userInput = UserInput(
             chat: chat,
             tools: nil,
             additionalContext: ["enable_thinking": enableThinking]
         )
+
+        userInput.processing.resize = .init(width: 448, height: 448)
 
         do {
             let modelContainer = try await load()
@@ -127,13 +141,13 @@ class LLMEvaluator {
         }
     }
 
-    func generate() {
+    func generate(image: CIImage?) {
         guard !running else { return }
         let currentPrompt = prompt
         prompt = ""
         generationTask = Task {
             running = true
-            await generate(prompt: currentPrompt)
+            await generate(prompt: currentPrompt, image:image)
             running = false
         }
     }
