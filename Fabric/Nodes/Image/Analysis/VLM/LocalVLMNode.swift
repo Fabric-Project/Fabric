@@ -9,17 +9,19 @@ import Foundation
 import Satin
 import simd
 import Metal
+import CoreImage
 internal import MLX
 internal import MLXLLM
+internal import MLXVLM
 internal import MLXLMCommon
 
-public class LocalLLMNode : Node
+public class LocalVLMNode : Node
 {
-    override public static var name:String { "Local LLM Node" }
+    override public static var name:String { "Local VLM Node" }
     override public static var nodeType:Node.NodeType { .Parameter(parameterType: .String) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Provide a string prompt to a local LLM for evaluation via MLX-Swift-LM"}
+    override public class var nodeDescription: String { "Provide a string prompt to a local VLLM for evaluation via MLX-Swift-LM"}
     
     // Models download to ~/.cache/huggingface/hub/
     
@@ -29,13 +31,14 @@ public class LocalLLMNode : Node
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
         
-        let defaultModelName =  LLMRegistry.qwen3_1_7b_4bit.name
-        let models = LLMRegistry.shared.models.map(\.name)
+        let defaultModelName =  VLMRegistry.smolvlm.name
+        let models = VLMRegistry.shared.models.map(\.name)
         return ports +
 
         [
             ("inputModel", ParameterPort(parameter: StringParameter("Model", defaultModelName, models, .dropdown))),
-            ("inputPrompt", ParameterPort(parameter: StringParameter("Prompt", "What Color is the Sky?", [], .inputfield))),
+            ("inputPrompt", ParameterPort(parameter: StringParameter("Prompt", "Describe this image?", [], .inputfield))),
+            ("inputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Inlet)),
             ("inputGenerate", ParameterPort(parameter: BoolParameter("Generate", false, .button))),
             ("inputTemp", ParameterPort(parameter: FloatParameter("Temerature", 0.6, .inputfield))),
             ("inputUpdateInterval", ParameterPort(parameter: FloatParameter("Update Interval", 0.25, .inputfield))),
@@ -48,6 +51,7 @@ public class LocalLLMNode : Node
     // Port Proxy
     public var inputModel:NodePort<String> { port(named: "inputModel") }
     public var inputPrompt:NodePort<String> { port(named: "inputPrompt") }
+    public var inputTexturePort:NodePort<FabricImage>  { port(named: "inputTexturePort") }
     public var inputGenerate:NodePort<Bool> { port(named: "inputGenerate") }
     public var inputTemp:NodePort<Float> { port(named: "inputTemp") }
     public var inputUpdateInterval:NodePort<Float> { port(named: "inputUpdateInterval") }
@@ -55,20 +59,27 @@ public class LocalLLMNode : Node
     public var outputStats:NodePort<String> { port(named: "outputStats") }
     public var outputModel:NodePort<String> { port(named: "outputModel") }
 
-    private var llmEvaluator = LLMEvaluator()
+    private var vlmEvaluator = VLMEvaluator()
     
     public required init(context: Context)
     {
         super.init(context: context)
         
         Task {
-            try await self.llmEvaluator.load()
+            try await self.vlmEvaluator.load()
         }
     }
     
     public required init(from decoder: any Decoder) throws
     {
         try super.init(from: decoder)
+    }
+    
+    override public func stopExecution(context: GraphExecutionContext) {
+        
+        self.vlmEvaluator.cancelGeneration()
+
+        super.stopExecution(context: context)
     }
     
     override public func execute(context:GraphExecutionContext,
@@ -79,26 +90,26 @@ public class LocalLLMNode : Node
            let name = self.inputModel.value,
            let modelConfig = LLMRegistry.shared.models.first(where: { $0.name == name })
         {
-            self.llmEvaluator.modelConfiguration = modelConfig
-            self.llmEvaluator.generateParameters = GenerateParameters( temperature: self.inputTemp.value ?? 0.6 )
-            self.llmEvaluator.updateInterval = Duration.seconds( Double(self.inputUpdateInterval.value ?? 0.25 ))
+            self.vlmEvaluator.modelConfiguration = modelConfig
+            self.vlmEvaluator.generateParameters = GenerateParameters(maxTokens: 100, temperature: self.inputTemp.value ?? 0.6 , )
+            self.vlmEvaluator.updateInterval = Duration.seconds( Double(self.inputUpdateInterval.value ?? 0.25 ))
 //            self.llmEvaluator.enableThinking = true
 //            self.llmEvaluator.generateParameters = GenerateParameters()
 
             Task {
-                try await self.llmEvaluator.load()
+                try await self.vlmEvaluator.load()
             }
         }
 
         // Can these change during runtime? 
         if self.inputUpdateInterval.valueDidChange
         {
-            self.llmEvaluator.updateInterval = Duration.seconds( Double(self.inputUpdateInterval.value ?? 0.25 ))
+            self.vlmEvaluator.updateInterval = Duration.seconds( Double(self.inputUpdateInterval.value ?? 0.25 ))
         }
         
         if self.inputTemp.valueDidChange
         {
-            self.llmEvaluator.generateParameters = GenerateParameters( temperature: self.inputTemp.value ?? 0.6 )
+            self.vlmEvaluator.generateParameters = GenerateParameters( temperature: self.inputTemp.value ?? 0.6 )
         }
         
         if self.inputPrompt.valueDidChange
@@ -106,33 +117,38 @@ public class LocalLLMNode : Node
             if let string = self.inputPrompt.value
             {
                 print("Setting LLM Prompt to: \(string)")
-                self.llmEvaluator.prompt = string
+                self.vlmEvaluator.prompt = string
             }
         }
 
-        if self.inputGenerate.valueDidChange || self.inputPrompt.valueDidChange
+        if self.inputGenerate.valueDidChange || self.inputPrompt.valueDidChange || self.inputTexturePort.valueDidChange
         {
-            if self.inputGenerate.value == true
+            if self.inputGenerate.value == true && !self.vlmEvaluator.running
             {
-                self.llmEvaluator.cancelGeneration()
-                
                 if let string = self.inputPrompt.value
                 {
-                    self.llmEvaluator.prompt = string
+                    self.vlmEvaluator.prompt = string
                 }
+                
+                var image:CIImage? = nil
+                
+                if let fabricImage = self.inputTexturePort.value
+                {
+                    image = CIImage(mtlTexture: fabricImage.texture)
+                }
+                
+                print("Evaluating LLM with \(self.vlmEvaluator.prompt)")
 
-                print("Evaluating LLM with \(self.llmEvaluator.prompt)")
-
-                self.llmEvaluator.generate()
+                self.vlmEvaluator.generate(image:image )
             }
-            else
-            {
-                self.llmEvaluator.cancelGeneration()
-            }
+//            else
+//            {
+//                self.vlmEvaluator.cancelGeneration()
+//            }
         }
         
-        self.outputPort.send(self.llmEvaluator.output)
-        self.outputStats.send(self.llmEvaluator.stat)
-        self.outputModel.send(self.llmEvaluator.modelInfo)
+        self.outputPort.send(self.vlmEvaluator.output)
+        self.outputStats.send(self.vlmEvaluator.stat)
+        self.outputModel.send(self.vlmEvaluator.modelInfo)
     }
 }

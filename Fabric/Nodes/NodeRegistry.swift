@@ -101,6 +101,7 @@ public class NodeRegistry {
         PersonSegmentationMaskNode.self,
         FacePoseAnalysisNode.self,
         HandPoseAnalysisNode.self,
+        LocalVLMNode.self,
         ContourPathNode.self,
         MetalFXSpatialUpsample2xNode.self,
         KeypointDistortNode.self,
