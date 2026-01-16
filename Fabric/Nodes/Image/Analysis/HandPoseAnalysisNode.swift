@@ -198,22 +198,22 @@ public class HandPoseAnalysisNode: Node
     {
         if let inputImage = CIImage(mtlTexture: texture)
         {
-            for computeDevice in MLComputeDevice.allComputeDevices
-            {
-                switch computeDevice
-                {
-                case .neuralEngine(let aneDevice):
-                    request.setComputeDevice(.neuralEngine(aneDevice), for: .main)
-                    request.setComputeDevice(.neuralEngine(aneDevice), for: .postProcessing)
-                    
-//                case .gpu(let gpu):
-//                    request.setComputeDevice(.gpu(gpu), for: .main)
-//                    request.setComputeDevice(.gpu(gpu), for: .postProcessing)
-                    
-                default:
-                    break
-                }
-            }
+//            for computeDevice in MLComputeDevice.allComputeDevices
+//            {
+//                switch computeDevice
+//                {
+//                case .neuralEngine(let aneDevice):
+//                    request.setComputeDevice(.neuralEngine(aneDevice), for: .main)
+//                    request.setComputeDevice(.neuralEngine(aneDevice), for: .postProcessing)
+//                    
+////                case .gpu(let gpu):
+////                    request.setComputeDevice(.gpu(gpu), for: .main)
+////                    request.setComputeDevice(.gpu(gpu), for: .postProcessing)
+//                    
+//                default:
+//                    break
+//                }
+//            }
             
             let handler = VNImageRequestHandler(ciImage: inputImage, options: [.ciContext : self.ciContext!])
             
