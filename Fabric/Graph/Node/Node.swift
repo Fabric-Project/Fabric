@@ -382,6 +382,18 @@ import Combine
         
     public func resize(size: (width: Float, height: Float), scaleFactor: Float) { }
    
+    // Settings View Providinging
+    
+    public func providesSettingsView() -> Bool
+    {
+        return false
+    }
+    
+    @ViewBuilder public func settingsView() -> some View
+    {
+        EmptyView()
+    }
+    
     // MARK: - Helpers
     
     func computeNodeSize() -> CGSize
