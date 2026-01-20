@@ -54,7 +54,7 @@ public struct NodeCanvas : View
                 
                 ForEach(graph.nodes, id: \.id) { currentNode in
                     
-                    NodeView(node: currentNode , graph:self.graph, offset: currentNode.offset)
+                    NodeView(node: currentNode , graph:graph, offset: currentNode.offset)
                         .offset(-geom.size / 2)
                         .offset( currentNode.offset )
                         .highPriorityGesture(
@@ -74,7 +74,7 @@ public struct NodeCanvas : View
                                     }
                                     .onEnded { _ in
 
-                                        self.calcDragEnded()
+                                        self.calcDragEnded(activeGraph: graph)
                                     },
                                 
                                 SimultaneousGesture(
@@ -104,6 +104,7 @@ public struct NodeCanvas : View
                     Node.NodeSettingView(node:currentNode)
                         .offset( -geom.size / 2)
                         .offset( currentNode.offset )
+                        .zIndex( 10_000 )
 
 //                    Group
 //                    {
@@ -220,23 +221,23 @@ public struct NodeCanvas : View
         return .handled
     }
     
-    private func calcDragEnded()
+    private func calcDragEnded(activeGraph graph:Graph)
     {
         let selectedNodes = graph.nodes.filter { $0.isSelected }
-        
-        self.graph.undoManager?.beginUndoGrouping()
+
+        graph.undoManager?.beginUndoGrouping()
         
         for node in selectedNodes
         {
             if let offset = initialOffsets[node.id]
             {
-                self.graph.undoManager?.registerUndo(withTarget: node) {
+                graph.undoManager?.registerUndo(withTarget: node) {
                     
                     let cachedOffset = $0.offset
                     
                     // This registers a redo - as an undo
                     // https://nilcoalescing.com/blog/HandlingUndoAndRedoInSwiftUI/
-                    self.graph.undoManager?.registerUndo(withTarget: node) { $0.offset = cachedOffset
+                    graph.undoManager?.registerUndo(withTarget: node) { $0.offset = cachedOffset
                     }
 
                     $0.offset = offset
@@ -244,9 +245,9 @@ public struct NodeCanvas : View
             }
         }
         
-        self.graph.undoManager?.endUndoGrouping()
+        graph.undoManager?.endUndoGrouping()
         
-        self.graph.undoManager?.setActionName("Move Nodes")
+        graph.undoManager?.setActionName("Move Nodes")
         
         selectedNodes.forEach { $0.isDragging = false }
         self.activeDragAnchor = nil
@@ -256,12 +257,14 @@ public struct NodeCanvas : View
     
     private func calcPortAnchors(_ portAnchors:(PortAnchorKey.Value), geometryProxy geom:GeometryProxy)
     {
+        let graph = self.graph.activeSubGraph ?? self.graph
+
         var positions: [UUID: CGPoint] = [:]
         for (portID, anchor) in portAnchors {
             positions[portID] = geom[anchor]
         }
-        self.portPositions = positions
-        self.graph.portPositions = positions
+
+        graph.portPositions = positions
     }
     
     @ViewBuilder private func calcOverlayPaths(_ portAnchors:(PortAnchorKey.Value), geometryProxy geom:GeometryProxy) -> some View
