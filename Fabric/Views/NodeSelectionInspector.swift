@@ -34,6 +34,11 @@ public struct NodeSelectionInspector: View
             
                 Section(header: Text( node.name ) )
                 {
+                    @Bindable var bindableNode:Node = node
+                    
+                    Toggle("Node Settings", isOn: $bindableNode.showSettings)
+                        .opacity(bindableNode.providesSettingsView() ? 1.0 : 0.0)
+
                     ParameterGroupView(parameterGroup: node.parameterGroup)
                 }
             }

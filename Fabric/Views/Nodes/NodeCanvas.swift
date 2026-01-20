@@ -100,6 +100,20 @@ public struct NodeCanvas : View
                         {
                             self.contextMenu(forNode: currentNode, graph: graph)
                         }
+                    
+                    Node.NodeSettingView(node:currentNode)
+                        .offset( -geom.size / 2)
+                        .offset( currentNode.offset )
+
+//                    Group
+//                    {
+//                        if currentNode.providesSettingsView()
+//                        {
+//                            currentNode.settingsView()
+//                                .border(.red, width: 5)
+//                                .frame(width: 500, height: 500)
+//                        }
+//                    }
                 }
             }
             .offset(geom.size / 2)

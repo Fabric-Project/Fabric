@@ -10,6 +10,7 @@
 		1B1AEC3E2F03359D0069CC9E /* Textual in Frameworks */ = {isa = PBXBuildFile; productRef = 1B1AEC3D2F03359D0069CC9E /* Textual */; };
 		1B27F1AF2EC68CE900B17C6C /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 1B27F1AE2EC68CE900B17C6C /* Sparkle */; };
 		1B46BEA62EB472E800124BDA /* SwiftSimplify in Frameworks */ = {isa = PBXBuildFile; productRef = 1B46BEA52EB472E800124BDA /* SwiftSimplify */; };
+		1B8C7D422F1E039B008AE5B8 /* MathParser in Frameworks */ = {isa = PBXBuildFile; productRef = 1B8C7D412F1E039B008AE5B8 /* MathParser */; };
 		1B9BA4392ECFA7EA00209F86 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA4382ECFA7EA00209F86 /* MLX */; };
 		1B9BA43B2ECFA7EA00209F86 /* MLXFFT in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA43A2ECFA7EA00209F86 /* MLXFFT */; };
 		1B9BA43D2ECFA7EA00209F86 /* MLXFast in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA43C2ECFA7EA00209F86 /* MLXFast */; };
@@ -244,6 +245,7 @@
 				Nodes/Parameters/Number/AudioSpectrumNode.swift,
 				Nodes/Parameters/Number/CurrentTimeNode.swift,
 				Nodes/Parameters/Number/GradientNoiseNode.swift,
+				Nodes/Parameters/Number/MathExpressionNode.swift,
 				Nodes/Parameters/Number/MathOperator.swift,
 				Nodes/Parameters/Number/NumberBinaryOperator.swift,
 				Nodes/Parameters/Number/NumberClampNode.swift,
@@ -382,6 +384,7 @@
 				1B1AEC3E2F03359D0069CC9E /* Textual in Frameworks */,
 				1B9BA4532ECFB42100209F86 /* AsyncAlgorithms in Frameworks */,
 				1B9BA4442ECFA97700209F86 /* MLXEmbedders in Frameworks */,
+				1B8C7D422F1E039B008AE5B8 /* MathParser in Frameworks */,
 				1BD9EE252EF2004E0075D951 /* MetalFX.framework in Frameworks */,
 				1B9BA44A2ECFA97700209F86 /* MLXVLM in Frameworks */,
 				1BC06AF22E0233DC0019808C /* Noise in Frameworks */,
@@ -507,6 +510,7 @@
 				1B9BA4492ECFA97700209F86 /* MLXVLM */,
 				1B9BA4522ECFB42100209F86 /* AsyncAlgorithms */,
 				1B1AEC3D2F03359D0069CC9E /* Textual */,
+				1B8C7D412F1E039B008AE5B8 /* MathParser */,
 			);
 			productName = Fabric;
 			productReference = 1BC06A7F2E0231520019808C /* Fabric.framework */;
@@ -574,6 +578,7 @@
 				1B9BA4422ECFA97700209F86 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
 				1B9BA4512ECFB42100209F86 /* XCRemoteSwiftPackageReference "swift-async-algorithms" */,
 				1B1AEC3C2F03359D0069CC9E /* XCRemoteSwiftPackageReference "textual" */,
+				1B8C7D402F1E039B008AE5B8 /* XCRemoteSwiftPackageReference "swift-math-parser" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1BE007232DBB1FBC0061EAFD /* Products */;
@@ -1002,6 +1007,14 @@
 				kind = branch;
 			};
 		};
+		1B8C7D402F1E039B008AE5B8 /* XCRemoteSwiftPackageReference "swift-math-parser" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/bradhowes/swift-math-parser";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.7.3;
+			};
+		};
 		1B9BA4372ECFA7EA00209F86 /* XCRemoteSwiftPackageReference "mlx-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/ml-explore/mlx-swift";
@@ -1059,6 +1072,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 1B46BEA42EB472E800124BDA /* XCRemoteSwiftPackageReference "SwiftSimplify" */;
 			productName = SwiftSimplify;
+		};
+		1B8C7D412F1E039B008AE5B8 /* MathParser */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B8C7D402F1E039B008AE5B8 /* XCRemoteSwiftPackageReference "swift-math-parser" */;
+			productName = MathParser;
 		};
 		1B9BA4382ECFA7EA00209F86 /* MLX */ = {
 			isa = XCSwiftPackageProductDependency;

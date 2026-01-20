@@ -222,6 +222,7 @@ public class NodeRegistry {
         NumberRemapNode.self,
         NumberIntegralNode.self,
         NumberSmoothNode.self,
+        MathExpressionNode.self,
         GradientNoiseNode.self,
         AudioSpectrumNode.self,
         ArrayFirstValueNode<Float>.self,

@@ -80,6 +80,8 @@ import Combine
     public var isDragging:Bool = false
     // var showParams:Bool = false
     
+    internal var showSettings:Bool = false
+
     public var nodeSize:CGSize { self.computeNodeSize() }
     
     public var offset: CGSize = .zero
@@ -383,15 +385,42 @@ import Combine
     public func resize(size: (width: Float, height: Float), scaleFactor: Float) { }
    
     // Settings View Providinging
-    
+
     public func providesSettingsView() -> Bool
     {
         return false
     }
     
-    @ViewBuilder public func settingsView() -> some View
+    internal struct NodeSettingView : View
     {
-        EmptyView()
+        var node: Node
+        
+        internal var body: some View
+        {
+            @Bindable var bindableNode:Node = node
+            
+            ZStack
+            {
+                Color.gray.opacity(0.7)
+                
+                if node.providesSettingsView( )
+                {
+                    node.settingsView()
+                }
+            }
+            .frame(width: 500, height: 500)
+            .clipShape (
+                RoundedRectangle(cornerRadius: 4)
+            )
+            .opacity( node.showSettings ? 1 : 0 )
+
+            
+        }
+    }
+    
+    public func settingsView() -> AnyView
+    {
+        AnyView(EmptyView())
     }
     
     // MARK: - Helpers

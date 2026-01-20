@@ -1,5 +1,5 @@
 {
-  "originHash" : "5bdb72dacf36819aa1e2db66db545bcd112ddc06a950d4d0f1ec6a215a6b538e",
+  "originHash" : "e2d7826124500689359094fde69934583a33787f9d51ac8b9a618a88c38a0973",
   "pins" : [
     {
       "identity" : "anycodable",
@@ -47,6 +47,15 @@
       }
     },
     {
+      "identity" : "swift-case-paths",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/pointfreeco/swift-case-paths",
+      "state" : {
+        "revision" : "6989976265be3f8d2b5802c722f9ba168e227c71",
+        "version" : "1.7.2"
+      }
+    },
+    {
       "identity" : "swift-collections",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-collections.git",
@@ -83,6 +92,15 @@
       }
     },
     {
+      "identity" : "swift-math-parser",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/bradhowes/swift-math-parser",
+      "state" : {
+        "revision" : "5729cd0d70f0c1a2f9e1551fd0914e22a0c6fa7c",
+        "version" : "3.7.3"
+      }
+    },
+    {
       "identity" : "swift-noise",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tayloraswift/swift-noise",
@@ -101,12 +119,30 @@
       }
     },
     {
+      "identity" : "swift-parsing",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/pointfreeco/swift-parsing",
+      "state" : {
+        "revision" : "3432cb81164dd3d69a75d0d63205be5fbae2c34b",
+        "version" : "0.14.1"
+      }
+    },
+    {
       "identity" : "swift-png",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tayloraswift/swift-png",
       "state" : {
         "revision" : "d444d98aa32f022bf4a8e74b5a697c7ee856a6ad",
         "version" : "4.4.9"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-syntax",
+      "state" : {
+        "revision" : "4799286537280063c85a32f09884cfbca301b1a1",
+        "version" : "602.0.0"
       }
     },
     {
@@ -134,6 +170,15 @@
       "state" : {
         "revision" : "675933ec315767ad3deacff33fcc46eb2b25ae4c",
         "version" : "0.1.1"
+      }
+    },
+    {
+      "identity" : "xctest-dynamic-overlay",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/pointfreeco/xctest-dynamic-overlay",
+      "state" : {
+        "revision" : "34e463e98ab8541c604af706c99bed7160f5ec70",
+        "version" : "1.8.1"
       }
     }
   ],
