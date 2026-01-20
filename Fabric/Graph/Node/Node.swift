@@ -248,6 +248,8 @@ import Combine
         {
             self.parameterGroup.append(param)
         }
+        
+        self.graph?.shouldUpdateConnections.toggle()
     }
     
     public func removePort(_ p: Port)
@@ -257,6 +259,8 @@ import Combine
         {
             self.parameterGroup.remove(param)
         }
+        
+        self.graph?.shouldUpdateConnections.toggle()
     }
     
     public func replaceParameterOfPort(_ port:Port, withParam param:(any Parameter))
