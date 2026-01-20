@@ -36,8 +36,19 @@ public class MathExpressionNode : Node
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Provide math function with variables and get a single numerical result"}
    
-    fileprivate var stringExpression:String = "sin(x) + y^2"
-    let mathParser = MathParser()
+    override public var name: String { stringExpression }
+    
+    @ObservationIgnored fileprivate var stringExpression:String = "sin(x) + y^2"
+    {
+        didSet
+        {
+//            self.inputExpression.value = self.stringExpression
+            self.evalExpression()
+        }
+    }
+    
+    @ObservationIgnored private let mathParser = MathParser()
+    @ObservationIgnored private var mathEvaluator:Evaluator? = nil
     
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
@@ -45,11 +56,14 @@ public class MathExpressionNode : Node
         
         return ports +
         [
+//            ("inputExpression", ParameterPort(parameter: StringParameter("Expression", "sin(x) + y^2", .inputfield))),
+
             ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet)),
         ]
     }
     
     // Port Proxy
+//    public var inputExpression:NodePort<String> { port(named: "inputExpression") }
     public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
     
     override public func providesSettingsView() -> Bool {
@@ -66,11 +80,61 @@ public class MathExpressionNode : Node
                                   renderPassDescriptor: MTLRenderPassDescriptor,
                                   commandBuffer: MTLCommandBuffer)
     {
-      
-        let evaluator = mathParser.parse(stringExpression)
         
+        let variablePorts = self.inputPorts()
         
+        let anyVariabledChanged = variablePorts.compactMap(\.valueDidChange).contains(true)
         
-        print(evaluator?.unresolved.variables ?? "no variables")
+        if anyVariabledChanged,
+           let mathEvaluator = self.mathEvaluator
+        {
+            print("executing math expression")
+            let result = mathEvaluator.eval(variables: { variable in
+                                
+                if let port = self.findPort(named: variable) as? NodePort<Float>,
+                   let portValue = port.value
+                {
+                    return Double(portValue)
+                }
+                
+                return Double.nan
+            })
+            
+            self.outputNumber.send( Float(result) ) 
+        }
     }
+    
+    private func evalExpression()
+    {
+        let evaluator = mathParser.parseResult(self.stringExpression)
+        
+        switch evaluator
+        {
+        case .success(let evaluator):
+            self.mathEvaluator = evaluator
+            self.registerPorts(forEvaluator: evaluator)
+            
+        case .failure:
+            self.mathEvaluator = nil
+            
+        }
+    }
+    
+    private func registerPorts(forEvaluator evaluator:Evaluator)
+    {
+        let unresolvedVariables = evaluator.unresolved.variables
+        
+        for unresolvedVariable in unresolvedVariables {
+            let portName = "\(unresolvedVariable)"
+            
+            if self.findPort(named: portName) == nil
+            {
+                let port = ParameterPort(parameter: FloatParameter(portName, 0.0, .inputfield) )
+                
+                self.addDynamicPort(port, name:portName)
+                print("add port \(portName) ")
+            }
+        }
+    }
+    
 }
