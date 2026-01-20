@@ -55,6 +55,7 @@ public struct NodeCanvas : View
                 ForEach(graph.nodes, id: \.id) { currentNode in
                     
                     NodeView(node: currentNode , graph:graph, offset: currentNode.offset)
+    
                         .offset(-geom.size / 2)
                         .offset( currentNode.offset )
                         .highPriorityGesture(
@@ -100,11 +101,9 @@ public struct NodeCanvas : View
                         {
                             self.contextMenu(forNode: currentNode, graph: graph)
                         }
+                        
                     
-                    Node.NodeSettingView(node:currentNode)
-                        .offset( -geom.size / 2)
-                        .offset( currentNode.offset )
-                        .zIndex( 10_000 )
+                   
 
 //                    Group
 //                    {

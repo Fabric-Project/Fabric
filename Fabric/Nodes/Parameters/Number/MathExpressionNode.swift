@@ -100,7 +100,7 @@ public class MathExpressionNode : Node
                 return Double.nan
             })
             
-            self.outputNumber.send( Float(result) ) 
+            self.outputNumber.send( Float(result) )
         }
     }
     
@@ -124,9 +124,22 @@ public class MathExpressionNode : Node
     {
         let unresolvedVariables = evaluator.unresolved.variables
         
-        for unresolvedVariable in unresolvedVariables {
-            let portName = "\(unresolvedVariable)"
-            
+        let unresolvedVariableNames = unresolvedVariables.map( { String($0) } )
+        let existingPortNames = self.inputPorts().map { $0.name }
+        
+        let portsNamesToRemove = Set(existingPortNames).subtracting(Set(unresolvedVariableNames))
+        let portNamesToAdd = Set(unresolvedVariableNames).subtracting(portsNamesToRemove)
+        
+        for portName in portsNamesToRemove
+        {
+            if let port = self.findPort(named: portName) as? NodePort<Float>
+            {
+                self.removePort(port)
+            }
+        }
+        
+        for portName in portNamesToAdd
+        {
             if self.findPort(named: portName) == nil
             {
                 let port = ParameterPort(parameter: FloatParameter(portName, 0.0, .inputfield) )

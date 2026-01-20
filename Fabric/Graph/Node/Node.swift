@@ -70,7 +70,9 @@ import Combine
     public class func registerPorts(context: Context) -> [(name: String, port: Port)] { [] }
     // All port serilization, adding, removing and key value access goes through the port registry
     @ObservationIgnored private let registry = PortRegistry()
-    @ObservationIgnored public let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
+    
+    // Sadly this needs to be observed
+    public let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
 
     public var ports:[Port] { self.registry.all()   }
     public private(set) var inputNodes:[Node] = []
@@ -394,13 +396,37 @@ import Combine
         
     public func resize(size: (width: Float, height: Float), scaleFactor: Float) { }
    
-    // Settings View Providinging
+    // MARK: - Node Settings
 
+    public enum SettingsViewSize
+    {
+        case Small
+        case Medium
+        case Large
+        case Custom(size:CGSize)
+        
+        func size() -> CGSize
+        {
+            switch self
+            {
+            case .Small:
+                return CGSize(width: 300, height: 200)
+            case .Medium:
+                return CGSize(width: 400, height: 300)
+            case .Large:
+                return CGSize(width: 500, height: 400)
+            case .Custom(size: let size):
+                return size
+            }
+        }
+        
+    }
+    
     public func providesSettingsView() -> Bool
     {
         return false
     }
-    
+        
     internal struct NodeSettingView : View
     {
         var node: Node
@@ -408,17 +434,30 @@ import Combine
         internal var body: some View
         {
             @Bindable var bindableNode:Node = node
+            let size = node.settingsSize.size()
             
-            ZStack
+            VStack(alignment: .center)
             {
-                Color.gray.opacity(0.7)
+                HStack()
+                {
+                    Text("\(node.name) Settings" )
+                    
+                    Spacer()
+                    
+                    Button("Close", systemImage: "x.circle") {
+                        node.showSettings = false
+                    }
+                }
+                
+                Spacer()
                 
                 if node.providesSettingsView( )
                 {
                     node.settingsView()
                 }
             }
-            .frame(width: 500, height: 500)
+            .padding()
+            .frame(width: size.width, height: size.height)
             .clipShape (
                 RoundedRectangle(cornerRadius: 4)
             )
@@ -432,6 +471,8 @@ import Combine
     {
         AnyView(EmptyView())
     }
+    
+    public let settingsSize:SettingsViewSize = .Small
     
     // MARK: - Helpers
     
