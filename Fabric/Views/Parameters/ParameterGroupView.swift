@@ -12,16 +12,16 @@ import Satin
 struct ParameterGroupView : View
 {
     let parameterGroup:ParameterGroup
-    
+
     var body: some View
     {
         VStack(alignment: .leading, spacing:15.0)
         {
             Spacer()
             
-            ForEach(self.parameterGroup.params.indices, id: \.self) { index in
+            ForEach(self.parameterGroup.params, id:\.id) { param in
                 
-                self.parameterViewFromParameter(self.parameterGroup.params[index])
+                self.parameterViewFromParameter(param)
             }
             
             Spacer(minLength: 0)

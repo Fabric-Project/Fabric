@@ -48,8 +48,7 @@ struct XYPad: View, Equatable {
 
             ZStack
             {
-                Rectangle()
-                    .foregroundColor(.gray)
+                Color.gray
                     
                 Circle()
                     .frame(width: circleDiameter, height: circleDiameter)
@@ -107,6 +106,7 @@ struct XYPad: View, Equatable {
         }
         
         .frame(height:200)
+        
 
 //        .frame(height: 100)
 
