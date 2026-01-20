@@ -234,10 +234,16 @@ import Combine
         self.registry.port(named: name) as! T
     }
     
-    // Dynamic add/remove (kept by serialization automatically)
-    public func addDynamicPort(_ p: Port)
+    // Convenience for subclasses: typed lookup (so computed props stay nice)
+    public func findPort<T: Port>(named name: String, as type: T.Type = T.self) -> T?
     {
-        self.registry.addDynamic(p, owner: self)
+        self.registry.port(named: name) as? T
+    }
+    
+    // Dynamic add/remove (kept by serialization automatically)
+    public func addDynamicPort(_ p: Port, name:String? = nil)
+    {
+        self.registry.addDynamic(p, owner: self, name:name)
         if let param = p.parameter
         {
             self.parameterGroup.append(param)
