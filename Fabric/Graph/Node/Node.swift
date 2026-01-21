@@ -441,12 +441,16 @@ import Combine
                 HStack()
                 {
                     Text("\(node.name) Settings" )
-                    
+                        .lineLimit(1)
+                        .font(.system(size: 10))
+                        .bold()
+
                     Spacer()
                     
                     Button("Close", systemImage: "x.circle") {
                         node.showSettings = false
                     }
+                    .controlSize(.small)
                 }
                 
                 Spacer()
