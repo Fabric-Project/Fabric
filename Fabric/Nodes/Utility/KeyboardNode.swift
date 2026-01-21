@@ -11,6 +11,14 @@ import Satin
 import simd
 import Metal
 
+extension KeyEquivalent
+{
+    public var description: String
+    {
+        return String(self.character)
+    }
+}
+
 extension EventModifiers : @retroactive Sequence
 {
     
@@ -22,11 +30,11 @@ extension EventModifiers
     {
         switch self
         {
-        case .capsLock: return "Caps Lock &"
-        case .command: return "Command &"
-        case .control: return "Control &"
-        case .option: return "Option &"
-        case .shift: return "Shift &"
+        case .capsLock: return "􀆡 &"
+        case .command: return "⌘ &"
+        case .control: return "⌃ &"
+        case .option: return "⌥ &"
+        case .shift: return "⇧ &"
         default:
             return ""
         }
@@ -47,22 +55,32 @@ extension EventModifiers
 struct KeyboardKeyConfigView : View
 {
     @FocusState private var focused: Bool
-    @State private var keyPress:KeyPress? = nil
 
+    @Bindable var node:KeyboardNode
+    let keypressIndex:Int
+    
      var body: some View {
-         Text("Key Press: \(keyPress?.modifiers.completeDescription ?? "")  \(keyPress?.characters ?? "")")
-             .focusable()
-             .focused($focused)
-             .onKeyPress(phases: .down) { press in
-                 keyPress = press
-                 return .handled
+         
+         let keyPress:KeyPress? = self.node.keyPresses[self.keypressIndex]
+         
+         HStack {
+             
+             Button("Binding \(self.keypressIndex + 1)") {
+                 self.focused = true
              }
-             .onAppear {
-                 focused = true
-             }
-             .lineLimit(1)
-             .font(.system(size: 10))
-             .textFieldStyle(RoundedBorderTextFieldStyle())
+             
+             Text("Key Press: \(keyPress?.modifiers.completeDescription ?? "")  \(keyPress?.key.description ?? "")")
+                 .focusable()
+                 .focused($focused)
+             
+                 .onKeyPress(phases: .down) { press in
+                     self.node.keyPresses[self.keypressIndex] = press
+                     return .handled
+                 }
+                 .lineLimit(1)
+                 .font(.system(size: 10))
+                 .textFieldStyle(RoundedBorderTextFieldStyle())
+         }
      }
 }
 
@@ -72,16 +90,30 @@ struct KeyboardNodeView : View
     
     var body: some View
     {
-        @Bindable var bindableNode = node
-
         VStack(alignment: .leading)
         {
             Text("Configure Keyboard Output")
-            
-            KeyboardKeyConfigView()
+
+            ForEach( 0 ..< self.node.keyPresses.count, id:\.self ) { keyPressIdx in
+                
+                KeyboardKeyConfigView(node:node, keypressIndex: keyPressIdx)
+            }
             
             Spacer()
             
+            HStack
+            {
+                Button("-") {
+                    if self.node.keyPresses.isEmpty { return }
+                    
+                    self.node.keyPresses.removeLast()
+                }
+                
+                Button("+") {
+                    self.node.keyPresses.append(nil)
+
+                }
+            }
         }
     }
 }
@@ -104,6 +136,7 @@ public class KeyboardNode : Node
       
     }
     
+     fileprivate var keyPresses:[KeyPress?] = [nil]
     
     // Settings View
     
