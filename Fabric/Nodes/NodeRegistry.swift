@@ -311,6 +311,7 @@ public class NodeRegistry {
     private var utilityClasses:[Node.Type] = [
         LogNode.self,
         CursorNode.self,
+        KeyboardNode.self,
         RenderInfoNode.self,
         ImageDimensions.self,
         PixelsToUnitsNode.self,

@@ -13,19 +13,17 @@ internal import MathParser
 
 struct MathExpressionView : View
 {
-    let node:MathExpressionNode
+    @Bindable var node:MathExpressionNode
     
     var body: some View
     {
-        @Bindable var bindableNode = node
-
         VStack(alignment: .leading)
         {
             Text("By writing a mathematical expression, you can expose variables and use built in functions or constants to compute a single output value. \n\n [Swift-Math-Expression Documentation](https://github.com/bradhowes/swift-math-parser).")
             
             Spacer()
             
-            TextField("Math Expression", text: $bindableNode.stringExpression)
+            TextField("Math Expression", text: $node.stringExpression)
                 .lineLimit(1)
                 .font(.system(size: 10))
                 .textFieldStyle(RoundedBorderTextFieldStyle())
