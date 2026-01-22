@@ -31,7 +31,7 @@ struct MathExpressionView : View
     }
 }
 
-public class MathExpressionNode : Node
+@Observable public class MathExpressionNode : Node
 {
     override public static var name:String { "Math Expression" }
     override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
