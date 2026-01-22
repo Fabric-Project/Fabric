@@ -3207,7 +3207,7 @@
   ],
   "notes" : [
     {
-      "note" : "# Loval Vision Language Model\n\nA Vision language Model (VLM) is a large language model that understands images or sequences of images. \n\nThis node lets you chose from a selection of VLM’s available to run locally. Node some of these require a LOT of Ram and disk space, and might not be actually able to run on all systems. \n\nWhen you chose a VLM, it will download from Hugging Face and then execute as long as the “Generate” toggle is set to true.\n\nSome VLMs can do instruction following, so experiment with a prompt!\n\nYou can ask them to describe the contents of the image, or whatever you want.\n",
+      "note" : "# Local Vision Language Model\n\nA Vision language Model (VLM) is a large language model that understands images or sequences of images. \n\nThis node lets you chose from a selection of VLM’s available to run locally. Node some of these require a LOT of Ram and disk space, and might not be actually able to run on all systems. \n\nWhen you chose a VLM, it will download from Hugging Face and then execute as long as the “Generate” toggle is set to true.\n\nSome VLMs can do instruction following, so experiment with a prompt!\n\nYou can ask them to describe the contents of the image, or whatever you want.\n",
       "id" : "9C6A223E-3CA9-499A-BFEF-6609A1FC6A41",
       "rect" : [
         [
