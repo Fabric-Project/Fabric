@@ -213,18 +213,12 @@ struct ContentView: View {
                         graph.currentScrollOffset = newScrollOffset.offset
                     }
 #if os(macOS)
-                    .overlay {
-                        ScrollWheelZoomEventMonitor(requiredModifiers: .command) { deltaY, normalizedAnchor in
-                            // Common convention: scroll up (positive deltaY) zooms in.
-                            // Flip sign if you prefer the opposite.
-                            let zoomFactor = exp(Double(deltaY) * 0.01)
+                    .scrollWheelZoom(requiredModifiers: .command) { deltaY, normalizedAnchor in
+                        let zoomFactor = exp(Double(deltaY) * 0.01)
+                        let proposedScale = clampedZoom(finalMagnification * zoomFactor)
 
-                            let proposedScale = clampedZoom(finalMagnification * zoomFactor)
-                            updateMagnifyAnchor(normalizedInContainer: normalizedAnchor, proposedScale: proposedScale)
-                            finalMagnification = proposedScale
-                        }
-                        // The NSView is only here for geometry; the event monitor is local.
-                        .allowsHitTesting(false)
+                        updateMagnifyAnchor(normalizedInContainer: normalizedAnchor, proposedScale: proposedScale)
+                        finalMagnification = proposedScale
                     }
 #endif
                 }
