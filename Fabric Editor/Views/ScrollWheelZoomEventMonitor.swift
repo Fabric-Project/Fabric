@@ -22,6 +22,7 @@ struct ScrollWheelZoomModifier: ViewModifier {
                     consumeScrollEvent: consumeScrollEvent,
                     onZoom: onZoom
                 )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .allowsHitTesting(false)
             }
     }
@@ -47,6 +48,10 @@ extension View {
 /// Uses a local event monitor so it doesn't need to win hit-testing.
 struct ScrollWheelZoomEventMonitor: NSViewRepresentable {
 
+    final class FlippedView: NSView {
+        override var isFlipped: Bool { true }   // origin top-left
+    }
+
     /// Which modifier(s) must be held to trigger zoom (e.g. .command, .option).
     var requiredModifiers: NSEvent.ModifierFlags = .command
 
@@ -58,8 +63,13 @@ struct ScrollWheelZoomEventMonitor: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: .zero)
-        context.coordinator.attach(to: view, requiredModifiers: requiredModifiers, consumeScrollEvent: consumeScrollEvent, onZoom: onZoom)
+        let view = FlippedView(frame: .zero)
+        context.coordinator.attach(
+            to: view,
+            requiredModifiers: requiredModifiers,
+            consumeScrollEvent: consumeScrollEvent,
+            onZoom: onZoom
+        )
         return view
     }
 
@@ -118,7 +128,7 @@ struct ScrollWheelZoomEventMonitor: NSViewRepresentable {
                 // Normalize to SwiftUI-style UnitPoint space: x: 0..1 left->right, y: 0..1 top->bottom
                 let normalized = CGPoint(
                     x: locationInView.x / view.bounds.width,
-                    y: 1.0 - (locationInView.y / view.bounds.height)
+                    y: locationInView.y / view.bounds.height
                 )
 
                 onZoom(event.scrollingDeltaY, normalized)
