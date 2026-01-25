@@ -1,5 +1,5 @@
 //
-//  LogNode.swift
+//  KeyboardNode.swift
 //  Fabric
 //
 //  Created by Anton Marini on 10/10/25.
@@ -21,7 +21,7 @@ extension KeyEquivalent
 
 extension EventModifiers : @retroactive Sequence
 {
-    
+
 }
 
 extension EventModifiers
@@ -39,7 +39,7 @@ extension EventModifiers
             return ""
         }
     }
-    
+
     public var completeDescription: String
     {
         var string = ""
@@ -47,8 +47,32 @@ extension EventModifiers
         {
             string += " " + modifier.description
         }
-        
+
         return string
+    }
+}
+
+// MARK: - Codable Key Binding
+
+/// A Codable representation of a key binding since KeyPress is not Codable
+public struct KeyBinding: Codable, Equatable
+{
+    public let characters: String
+    public let keyDescription: String
+    public let modifiersDescription: String
+
+    public init(from keyPress: KeyPress)
+    {
+        self.characters = keyPress.characters
+        self.keyDescription = keyPress.key.description
+        self.modifiersDescription = keyPress.modifiers.completeDescription
+    }
+
+    public init(characters: String, keyDescription: String, modifiersDescription: String)
+    {
+        self.characters = characters
+        self.keyDescription = keyDescription
+        self.modifiersDescription = modifiersDescription
     }
 }
 
@@ -58,24 +82,24 @@ struct KeyboardKeyConfigView : View
 
     @Bindable var node:KeyboardNode
     let keypressIndex:Int
-    
+
      var body: some View {
-         
-         let keyPress:KeyPress? = self.node.keyPresses[self.keypressIndex]
-         
+
+         let keyBinding:KeyBinding? = self.node.keyBindings[self.keypressIndex]
+
          HStack {
-             
+
              Button("Bind key \(self.keypressIndex + 1)") {
                  self.focused = true
              }
              .controlSize(.small)
-             
-             Text("\(keyPress?.modifiers.completeDescription ?? "Bind a key: ")  \(keyPress?.key.description ?? "")")
+
+             Text("\(keyBinding?.modifiersDescription ?? "Bind a key: ")  \(keyBinding?.keyDescription ?? "")")
                  .focusable()
                  .focused($focused)
-             
+
                  .onKeyPress(phases: .down) { press in
-                     self.node.keyPresses[self.keypressIndex] = press
+                     self.node.keyBindings[self.keypressIndex] = KeyBinding(from: press)
                      return .handled
                  }
                  .lineLimit(1)
@@ -88,7 +112,7 @@ struct KeyboardKeyConfigView : View
 struct KeyboardNodeView : View
 {
     @Bindable var node:KeyboardNode
-    
+
     var body: some View
     {
         VStack(alignment: .leading)
@@ -97,29 +121,29 @@ struct KeyboardNodeView : View
                 .lineLimit(1)
                 .font(.system(size: 10))
 
-            ForEach( 0 ..< self.node.keyPresses.count, id:\.self ) { keyPressIdx in
-                
+            ForEach( 0 ..< self.node.keyBindings.count, id:\.self ) { keyPressIdx in
+
                 KeyboardKeyConfigView(node:node, keypressIndex: keyPressIdx)
             }
-            
+
             Spacer()
-            
+
             HStack
             {
                 Spacer()
 
                 Button("-") {
-                    if self.node.keyPresses.isEmpty { return }
-                    
-                    self.node.keyPresses.removeLast()
+                    if self.node.keyBindings.isEmpty { return }
+
+                    self.node.keyBindings.removeLast()
                 }
-                
+
                 Spacer()
 
                 Button("+") {
-                    self.node.keyPresses.append(nil)
+                    self.node.keyBindings.append(nil)
                 }
-                
+
                 Spacer()
             }
         }
@@ -134,6 +158,42 @@ struct KeyboardNodeView : View
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Configure and detect keypresses"}
 
+    // MARK: - Codable
+
+    private enum KeyboardCodingKeys: String, CodingKey
+    {
+        case keyBindings
+    }
+
+    public required init(from decoder: any Decoder) throws
+    {
+        try super.init(from: decoder)
+
+        let container = try decoder.container(keyedBy: KeyboardCodingKeys.self)
+        let decodedBindings = try container.decodeIfPresent([KeyBinding?].self, forKey: .keyBindings)
+
+        // Use decoded bindings or default to [nil]
+        self.keyBindings = decodedBindings ?? [nil]
+
+        // Rebuild ports based on restored bindings
+        self.rebuildPorts()
+    }
+
+    public override func encode(to encoder: Encoder) throws
+    {
+        try super.encode(to: encoder)
+
+        var container = encoder.container(keyedBy: KeyboardCodingKeys.self)
+        try container.encode(self.keyBindings, forKey: .keyBindings)
+    }
+
+    public required init(context: Context)
+    {
+        super.init(context: context)
+    }
+
+    // MARK: - Execution
+
     public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
@@ -143,12 +203,12 @@ struct KeyboardNodeView : View
            ( event.type == .keyDown || event.type == .keyUp ),
             let characters = event.characters
         {
-            for keyPress in keyPresses {
-                if let keyPress,
-                   let portName = self.portNameForKeyPress(keyPress),
+            for keyBinding in keyBindings {
+                if let keyBinding,
+                   let portName = self.portNameForKeyBinding(keyBinding),
                    let port = self.findPort(named: portName) as? NodePort<Bool>
                 {
-                    if characters == keyPress.characters
+                    if characters == keyBinding.characters
                     {
                         if event.type == .keyDown
                         {
@@ -163,8 +223,10 @@ struct KeyboardNodeView : View
             }
         }
     }
-    
-    fileprivate var keyPresses:[KeyPress?] = [nil] 
+
+    // MARK: - Properties
+
+    fileprivate var keyBindings:[KeyBinding?] = [nil]
     {
         didSet
         {
@@ -172,20 +234,22 @@ struct KeyboardNodeView : View
         }
     }
 
-    // Settings View
+    // MARK: - Settings View
+
     override public func providesSettingsView() -> Bool {
         true
     }
-    
+
     override public func settingsView() -> AnyView
     {
         AnyView(KeyboardNodeView(node: self))
     }
-    
-    // Internal Funcs
+
+    // MARK: - Internal Funcs
+
     private func rebuildPorts()
     {
-        let portNamesWeNeed = self.keyPresses.compactMap{ self.portNameForKeyPress($0) }
+        let portNamesWeNeed = self.keyBindings.compactMap{ self.portNameForKeyBinding($0) }
         let existingPortNames = self.outputPorts().map { $0.name }
 
         let portsNamesToRemove = Set(existingPortNames).subtracting(Set(portNamesWeNeed))
@@ -198,23 +262,23 @@ struct KeyboardNodeView : View
                 self.removePort(port)
             }
         }
-        
+
         for portName in portNamesToAdd
         {
             if self.findPort(named: portName) == nil
             {
                 let port = NodePort<Bool>(name: portName, kind: .Outlet)
-                
+
                 self.addDynamicPort(port)
                 print("add port \(portName) ")
             }
         }
     }
-    
-    private func portNameForKeyPress(_ keyPress:KeyPress?) -> String?
+
+    private func portNameForKeyBinding(_ keyBinding:KeyBinding?) -> String?
     {
-        guard let keyPress else { return nil }
-        
-        return keyPress.characters
+        guard let keyBinding else { return nil }
+
+        return keyBinding.characters
     }
 }
