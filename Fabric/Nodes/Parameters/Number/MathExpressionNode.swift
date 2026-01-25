@@ -38,36 +38,71 @@ struct MathExpressionView : View
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Provide math function with variables and get a single numerical result"}
-   
+
     override public var name: String { stringExpression }
-    
+
+    // MARK: - Codable
+
+    private enum MathExpressionCodingKeys: String, CodingKey
+    {
+        case stringExpression
+    }
+
+    public required init(from decoder: any Decoder) throws
+    {
+        try super.init(from: decoder)
+
+        let container = try decoder.container(keyedBy: MathExpressionCodingKeys.self)
+        let decodedExpression = try container.decodeIfPresent(String.self, forKey: .stringExpression)
+
+        // Use decoded expression or default
+        self.stringExpression = decodedExpression ?? "sin(x) + y^2"
+
+        // Rebuild evaluator and ports based on restored expression
+        self.evalExpression()
+    }
+
+    public override func encode(to encoder: Encoder) throws
+    {
+        try super.encode(to: encoder)
+
+        var container = encoder.container(keyedBy: MathExpressionCodingKeys.self)
+        try container.encode(self.stringExpression, forKey: .stringExpression)
+    }
+
+    public required init(context: Context)
+    {
+        super.init(context: context)
+    }
+
+    // MARK: - Properties
+
     @ObservationIgnored fileprivate var stringExpression:String = "sin(x) + y^2"
     {
         didSet
         {
-//            self.inputExpression.value = self.stringExpression
             self.evalExpression()
         }
     }
-    
+
     @ObservationIgnored private let mathParser = MathParser()
     @ObservationIgnored private var mathEvaluator:Evaluator? = nil
-    
-    // Ports
+
+    // MARK: - Ports
+
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
-        
+
         return ports +
         [
-//            ("inputExpression", ParameterPort(parameter: StringParameter("Expression", "sin(x) + y^2", .inputfield))),
-
             ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet)),
         ]
     }
-    
+
     // Port Proxy
-//    public var inputExpression:NodePort<String> { port(named: "inputExpression") }
     public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
+
+    
     
     override public func providesSettingsView() -> Bool {
         true
