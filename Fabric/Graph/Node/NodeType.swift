@@ -19,7 +19,7 @@ extension Node
         case Image // Texture / Shader
         case Parameter
         case Utility
-            
+
         func nodeTypes() -> [Node.NodeType]
         {
             switch self
@@ -32,7 +32,7 @@ extension Node
             case .Utility: return [Node.NodeType.Utility]
             }
         }
-        
+
         func imageName() -> String
         {
             switch self
@@ -45,7 +45,7 @@ extension Node
             case .Utility: return "gear"
             }
         }
-        
+
         func image() -> Image
         {
             return SwiftUI.Image(systemName: imageName())
@@ -64,7 +64,8 @@ extension Node
             case Color
             case String
             case Array
-            
+            case Network
+
             static func nodeTypes() -> [Node.NodeType] {
                 return Self.allCases.map{ Node.NodeType.Parameter(parameterType:$0) }
             }
@@ -123,7 +124,7 @@ extension Node
         case Image(imageType:ImageType)
         case Parameter(parameterType:ParameterType)
         case Utility
-        
+
         public static var allCases: [Node.NodeType] { return
             [.Renderer ]
             + ObjectType.nodeTypes()

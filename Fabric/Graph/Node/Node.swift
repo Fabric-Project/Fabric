@@ -476,7 +476,7 @@ import Combine
         AnyView(EmptyView())
     }
     
-    public let settingsSize:SettingsViewSize = .Small
+    public var settingsSize:SettingsViewSize { .Small }
     
     // MARK: - Helpers
     
