@@ -64,7 +64,7 @@ extension Node
             case Color
             case String
             case Array
-            case Network
+            case IO
 
             static func nodeTypes() -> [Node.NodeType] {
                 return Self.allCases.map{ Node.NodeType.Parameter(parameterType:$0) }

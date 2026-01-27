@@ -244,7 +244,8 @@
 				Nodes/Parameters/Boolean/FalseNode.swift,
 				Nodes/Parameters/Boolean/LogicOperator.swift,
 				Nodes/Parameters/Boolean/TrueNode.swift,
-				Nodes/Parameters/Network/OSCReceiveNode.swift,
+				Nodes/Parameters/IO/HIDNode.swift,
+				Nodes/Parameters/IO/OSCReceiveNode.swift,
 				Nodes/Parameters/Number/AudioSpectrumNode.swift,
 				Nodes/Parameters/Number/CurrentTimeNode.swift,
 				Nodes/Parameters/Number/GradientNoiseNode.swift,
@@ -777,6 +778,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Fabric Editor/Info.plist";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.graphics-design";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Fabric uses Bluetooth to connect to HID devices like game controllers";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera Effects";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Microphone Effects";
@@ -818,6 +820,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Fabric Editor/Info.plist";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.graphics-design";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Fabric uses Bluetooth to connect to HID devices like game controllers";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera Effects";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Microphone Effects";

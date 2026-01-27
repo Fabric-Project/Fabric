@@ -183,7 +183,7 @@ struct OSCReceiveNodeView: View
 @Observable public class OSCReceiveNode: Node
 {
     override public static var name: String { "OSC Receive" }
-    override public static var nodeType: Node.NodeType { .Parameter(parameterType: .Network) }
+    override public static var nodeType: Node.NodeType { .Parameter(parameterType: .IO) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Receive OSC messages and output values" }
@@ -301,11 +301,11 @@ struct OSCReceiveNodeView: View
                 }
 
             case .int:
-                if let port = self.findPort(named: portName) as? NodePort<Float>,
+                if let port = self.findPort(named: portName) as? NodePort<Int>,
                    let intValue = value as? Int
                 {
                     // Convert to Float for now since we commonly use Float ports
-                    port.send(Float(intValue))
+                    port.send(intValue)
                 }
 
             case .string:
@@ -373,10 +373,6 @@ struct OSCReceiveNodeView: View
                 latestValues[address] = value
             }
             else if let value = firstArg as? Double
-            {
-                latestValues[address] = Float(value)
-            }
-            else if let value = firstArg as? Int32
             {
                 latestValues[address] = Float(value)
             }
@@ -454,8 +450,10 @@ struct OSCReceiveNodeView: View
                 let typeMatches: Bool
                 switch binding.dataType
                 {
-                case .float, .int:
+                case .float:
                     typeMatches = existingPort is NodePort<Float>
+                case .int:
+                    typeMatches = existingPort is NodePort<Int>
                 case .string:
                     typeMatches = existingPort is NodePort<String>
                 case .bool:
@@ -476,8 +474,10 @@ struct OSCReceiveNodeView: View
             let port: Port
             switch binding.dataType
             {
-            case .float, .int:
+            case .float:
                 port = NodePort<Float>(name: portName, kind: .Outlet)
+            case .int:
+                port = NodePort<Int>(name: portName, kind: .Outlet)
             case .string:
                 port = NodePort<String>(name: portName, kind: .Outlet)
             case .bool:

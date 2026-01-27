@@ -33,7 +33,7 @@ public class NodeRegistry {
         + self.materialNodeClasses
         + self.textureNodeClasses
         + self.parameterNodeClasses
-        + self.networkNodeClasses
+        + self.ioNodeClasses
         + self.macroNodeClasses
         + self.utilityClasses
     }
@@ -309,8 +309,9 @@ public class NodeRegistry {
 
         ]
     
-    private var networkNodeClasses: [Node.Type] = [
+    private var ioNodeClasses: [Node.Type] = [
         OSCReceiveNode.self,
+        HIDNode.self,
     ]
 
     private var utilityClasses:[Node.Type] = [
