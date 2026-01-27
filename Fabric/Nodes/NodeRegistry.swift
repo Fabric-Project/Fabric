@@ -312,6 +312,7 @@ public class NodeRegistry {
     private var ioNodeClasses: [Node.Type] = [
         OSCReceiveNode.self,
         HIDNode.self,
+        GameControllerNode.self,
     ]
 
     private var utilityClasses:[Node.Type] = [

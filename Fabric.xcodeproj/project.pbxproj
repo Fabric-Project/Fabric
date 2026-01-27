@@ -244,6 +244,7 @@
 				Nodes/Parameters/Boolean/FalseNode.swift,
 				Nodes/Parameters/Boolean/LogicOperator.swift,
 				Nodes/Parameters/Boolean/TrueNode.swift,
+				Nodes/Parameters/IO/GameControllerNode.swift,
 				Nodes/Parameters/IO/HIDNode.swift,
 				Nodes/Parameters/IO/OSCReceiveNode.swift,
 				Nodes/Parameters/Number/AudioSpectrumNode.swift,
