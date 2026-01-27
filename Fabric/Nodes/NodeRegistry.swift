@@ -313,6 +313,7 @@ public class NodeRegistry {
         OSCReceiveNode.self,
         HIDNode.self,
         GameControllerNode.self,
+        MIDIInputNode.self,
     ]
 
     private var utilityClasses:[Node.Type] = [
