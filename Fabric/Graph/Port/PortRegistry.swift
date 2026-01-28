@@ -41,9 +41,9 @@ final class PortRegistry
         self.byID[port.id] = port
     }
 
-    func addDynamic(_ port: Port, owner: Node)
+    func addDynamic(_ port: Port, owner: Node, name: String? = nil)
     {
-        self.register(port, name: port.name, owner: owner)
+        self.register(port, name: name ?? port.name, owner: owner)
     }
 
     func remove(_ p: Port)

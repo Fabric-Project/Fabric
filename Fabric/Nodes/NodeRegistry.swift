@@ -33,6 +33,7 @@ public class NodeRegistry {
         + self.materialNodeClasses
         + self.textureNodeClasses
         + self.parameterNodeClasses
+        + self.ioNodeClasses
         + self.macroNodeClasses
         + self.utilityClasses
     }
@@ -213,6 +214,7 @@ public class NodeRegistry {
         CurrentTimeNode.self,
         SystemTimeNode.self,
         NumberNode.self,
+        TimelineNode.self,
         NumberUnaryOperator.self,
         NumberBinaryOperator.self,
         NumberLogicOperator.self,
@@ -222,6 +224,7 @@ public class NodeRegistry {
         NumberRemapNode.self,
         NumberIntegralNode.self,
         NumberSmoothNode.self,
+        MathExpressionNode.self,
         GradientNoiseNode.self,
         AudioSpectrumNode.self,
         ArrayFirstValueNode<Float>.self,
@@ -307,9 +310,17 @@ public class NodeRegistry {
 
         ]
     
+    private var ioNodeClasses: [Node.Type] = [
+        OSCReceiveNode.self,
+        HIDNode.self,
+        GameControllerNode.self,
+        MIDIInputNode.self,
+    ]
+
     private var utilityClasses:[Node.Type] = [
         LogNode.self,
         CursorNode.self,
+        KeyboardNode.self,
         RenderInfoNode.self,
         ImageDimensions.self,
         PixelsToUnitsNode.self,

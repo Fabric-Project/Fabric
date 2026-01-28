@@ -10,6 +10,9 @@
 		1B1AEC3E2F03359D0069CC9E /* Textual in Frameworks */ = {isa = PBXBuildFile; productRef = 1B1AEC3D2F03359D0069CC9E /* Textual */; };
 		1B27F1AF2EC68CE900B17C6C /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 1B27F1AE2EC68CE900B17C6C /* Sparkle */; };
 		1B46BEA62EB472E800124BDA /* SwiftSimplify in Frameworks */ = {isa = PBXBuildFile; productRef = 1B46BEA52EB472E800124BDA /* SwiftSimplify */; };
+		1B7733502F25E50200E28FDD /* OSCKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1B77334F2F25E50200E28FDD /* OSCKit */; };
+		1B77335D2F295F5E00E28FDD /* MIDIKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1B77335C2F295F5E00E28FDD /* MIDIKit */; };
+		1B8C7D422F1E039B008AE5B8 /* MathParser in Frameworks */ = {isa = PBXBuildFile; productRef = 1B8C7D412F1E039B008AE5B8 /* MathParser */; };
 		1B9BA4392ECFA7EA00209F86 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA4382ECFA7EA00209F86 /* MLX */; };
 		1B9BA43B2ECFA7EA00209F86 /* MLXFFT in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA43A2ECFA7EA00209F86 /* MLXFFT */; };
 		1B9BA43D2ECFA7EA00209F86 /* MLXFast in Frameworks */ = {isa = PBXBuildFile; productRef = 1B9BA43C2ECFA7EA00209F86 /* MLXFast */; };
@@ -131,6 +134,7 @@
 				Extensions/CGSize.swift,
 				Extensions/CGVector.swift,
 				Extensions/Object.swift,
+				"Extensions/OptionSet+Iterable.swift",
 				"Extensions/simd+hashable.swift",
 				Fabric.docc,
 				Fabric.h,
@@ -241,9 +245,14 @@
 				Nodes/Parameters/Boolean/FalseNode.swift,
 				Nodes/Parameters/Boolean/LogicOperator.swift,
 				Nodes/Parameters/Boolean/TrueNode.swift,
+				Nodes/Parameters/IO/GameControllerNode.swift,
+				Nodes/Parameters/IO/HIDNode.swift,
+				Nodes/Parameters/IO/MIDIInputNode.swift,
+				Nodes/Parameters/IO/OSCReceiveNode.swift,
 				Nodes/Parameters/Number/AudioSpectrumNode.swift,
 				Nodes/Parameters/Number/CurrentTimeNode.swift,
 				Nodes/Parameters/Number/GradientNoiseNode.swift,
+				Nodes/Parameters/Number/MathExpressionNode.swift,
 				Nodes/Parameters/Number/MathOperator.swift,
 				Nodes/Parameters/Number/NumberBinaryOperator.swift,
 				Nodes/Parameters/Number/NumberClampNode.swift,
@@ -258,6 +267,7 @@
 				Nodes/Parameters/Number/Smooth/NumberSmoothNode.swift,
 				Nodes/Parameters/Number/Smooth/OneEuroFilter.swift,
 				Nodes/Parameters/Number/SystemTimeNode.swift,
+				Nodes/Parameters/Number/TimelineNode.swift,
 				Nodes/Parameters/Quaternion/MakeQuaternionNode.swift,
 				Nodes/Parameters/String/LLM/LLMEvaluator.swift,
 				Nodes/Parameters/String/LLM/LocalLLMNode.swift,
@@ -287,6 +297,7 @@
 				Nodes/Parameters/Vector/Vector4DistanceNode.swift,
 				Nodes/Parameters/Vector/Vector4ToFloatNode.swift,
 				Nodes/Utility/CursorNode.swift,
+				Nodes/Utility/KeyboardNode.swift,
 				Nodes/Utility/LogNode.swift,
 				Nodes/Utility/PixelsToUnitsNode.swift,
 				Nodes/Utility/RenderInfoNode.swift,
@@ -377,12 +388,15 @@
 				1BC06AF42E0233E00019808C /* AnyCodable in Frameworks */,
 				1B9BB32B2ED8287F00209F86 /* Syphon.framework in Frameworks */,
 				1BB12B382E0234FC0075C276 /* CoreFoundation.framework in Frameworks */,
+				1B7733502F25E50200E28FDD /* OSCKit in Frameworks */,
 				1B9BA43B2ECFA7EA00209F86 /* MLXFFT in Frameworks */,
 				1BB12B372E0234FC0075C276 /* AVFoundation.framework in Frameworks */,
 				1B1AEC3E2F03359D0069CC9E /* Textual in Frameworks */,
 				1B9BA4532ECFB42100209F86 /* AsyncAlgorithms in Frameworks */,
 				1B9BA4442ECFA97700209F86 /* MLXEmbedders in Frameworks */,
+				1B8C7D422F1E039B008AE5B8 /* MathParser in Frameworks */,
 				1BD9EE252EF2004E0075D951 /* MetalFX.framework in Frameworks */,
+				1B77335D2F295F5E00E28FDD /* MIDIKit in Frameworks */,
 				1B9BA44A2ECFA97700209F86 /* MLXVLM in Frameworks */,
 				1BC06AF22E0233DC0019808C /* Noise in Frameworks */,
 				1BB12B362E0234FC0075C276 /* Foundation.framework in Frameworks */,
@@ -507,6 +521,9 @@
 				1B9BA4492ECFA97700209F86 /* MLXVLM */,
 				1B9BA4522ECFB42100209F86 /* AsyncAlgorithms */,
 				1B1AEC3D2F03359D0069CC9E /* Textual */,
+				1B8C7D412F1E039B008AE5B8 /* MathParser */,
+				1B77334F2F25E50200E28FDD /* OSCKit */,
+				1B77335C2F295F5E00E28FDD /* MIDIKit */,
 			);
 			productName = Fabric;
 			productReference = 1BC06A7F2E0231520019808C /* Fabric.framework */;
@@ -574,6 +591,9 @@
 				1B9BA4422ECFA97700209F86 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
 				1B9BA4512ECFB42100209F86 /* XCRemoteSwiftPackageReference "swift-async-algorithms" */,
 				1B1AEC3C2F03359D0069CC9E /* XCRemoteSwiftPackageReference "textual" */,
+				1B8C7D402F1E039B008AE5B8 /* XCRemoteSwiftPackageReference "swift-math-parser" */,
+				1B77334E2F25E50200E28FDD /* XCRemoteSwiftPackageReference "OSCKit" */,
+				1B77335B2F295F5E00E28FDD /* XCRemoteSwiftPackageReference "MIDIKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1BE007232DBB1FBC0061EAFD /* Products */;
@@ -765,6 +785,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Fabric Editor/Info.plist";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.graphics-design";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Fabric uses Bluetooth to connect to HID devices like game controllers";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera Effects";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Microphone Effects";
@@ -806,6 +827,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Fabric Editor/Info.plist";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.graphics-design";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Fabric uses Bluetooth to connect to HID devices like game controllers";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera Effects";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Microphone Effects";
@@ -1002,6 +1024,30 @@
 				kind = branch;
 			};
 		};
+		1B77334E2F25E50200E28FDD /* XCRemoteSwiftPackageReference "OSCKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/orchetect/OSCKit";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.1.1;
+			};
+		};
+		1B77335B2F295F5E00E28FDD /* XCRemoteSwiftPackageReference "MIDIKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/orchetect/MIDIKit";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.10.7;
+			};
+		};
+		1B8C7D402F1E039B008AE5B8 /* XCRemoteSwiftPackageReference "swift-math-parser" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/bradhowes/swift-math-parser";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.7.3;
+			};
+		};
 		1B9BA4372ECFA7EA00209F86 /* XCRemoteSwiftPackageReference "mlx-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/ml-explore/mlx-swift";
@@ -1059,6 +1105,21 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 1B46BEA42EB472E800124BDA /* XCRemoteSwiftPackageReference "SwiftSimplify" */;
 			productName = SwiftSimplify;
+		};
+		1B77334F2F25E50200E28FDD /* OSCKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B77334E2F25E50200E28FDD /* XCRemoteSwiftPackageReference "OSCKit" */;
+			productName = OSCKit;
+		};
+		1B77335C2F295F5E00E28FDD /* MIDIKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B77335B2F295F5E00E28FDD /* XCRemoteSwiftPackageReference "MIDIKit" */;
+			productName = MIDIKit;
+		};
+		1B8C7D412F1E039B008AE5B8 /* MathParser */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B8C7D402F1E039B008AE5B8 /* XCRemoteSwiftPackageReference "swift-math-parser" */;
+			productName = MathParser;
 		};
 		1B9BA4382ECFA7EA00209F86 /* MLX */ = {
 			isa = XCSwiftPackageProductDependency;

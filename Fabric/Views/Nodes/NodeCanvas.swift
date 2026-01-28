@@ -7,6 +7,37 @@
 
 import SwiftUI
 
+// Stable anchor for settings popover
+// This view intentionally does NOT read any Observable node properties in its own body
+// to avoid re-renders that dismiss the popover.
+// Node properties are only read inside the popover content
+// (which updating won't dismiss the popover).
+private struct NodeSettingsPopoverAnchor: View
+{
+    let node: Node
+    let nodeWidth: CGFloat
+    let nodeHeight: CGFloat
+    let onClose: () -> Void
+    @State private var isPresented: Bool = true
+
+    var body: some View
+    {
+        Rectangle()
+            .fill(Color.clear)
+            .frame(width: nodeWidth, height: nodeHeight)
+            .popover(isPresented: $isPresented) {
+                Node.NodeSettingView(node: node)
+                    .interactiveDismissDisabled(true)
+            }
+            .onChange(of: isPresented) { _, newValue in
+                if !newValue
+                {
+                    onClose()
+                }
+            }
+    }
+}
+
 public struct NodeCanvas : View
 {
     let graph:Graph
@@ -24,8 +55,11 @@ public struct NodeCanvas : View
 
     @State private var portPositions: [UUID: CGPoint] = [:]
 
-    
     @State private var renamingNodeID: UUID? = nil // node being renamed
+
+    // Stable list of nodes with settings open - only mutated on explicit open/close
+    // NOT derived from graph.nodes, so port changes don't cause re-evaluation
+    @State private var settingsEntries: [(id: UUID, node: Node, width: CGFloat, height: CGFloat, offset: CGSize)] = []
     
     public var body: some View
     {
@@ -54,7 +88,8 @@ public struct NodeCanvas : View
                 
                 ForEach(graph.nodes, id: \.id) { currentNode in
                     
-                    NodeView(node: currentNode , graph:self.graph, offset: currentNode.offset)
+                    NodeView(node: currentNode , graph:graph, offset: currentNode.offset)
+    
                         .offset(-geom.size / 2)
                         .offset( currentNode.offset )
                         .highPriorityGesture(
@@ -74,7 +109,7 @@ public struct NodeCanvas : View
                                     }
                                     .onEnded { _ in
 
-                                        self.calcDragEnded()
+                                        self.calcDragEnded(activeGraph: graph)
                                     },
                                 
                                 SimultaneousGesture(
@@ -100,6 +135,23 @@ public struct NodeCanvas : View
                         {
                             self.contextMenu(forNode: currentNode, graph: graph)
                         }
+                        .onChange(of: currentNode.showSettings) { _, show in
+                            self.sychronizeSettingsFor(node: currentNode, show: show)
+                        }
+                }
+
+                // Settings popovers - uses stable @State list so port changes don't
+                // cause ForEach re-evaluation and popover dismissal
+                ForEach(settingsEntries, id: \.id) { entry in
+                    NodeSettingsPopoverAnchor( node: entry.node,
+                                               nodeWidth: entry.width,
+                                               nodeHeight: entry.height,
+                                               onClose: {
+                        // Setting showSettings = false triggers onChange which removes from settingsEntries
+                        entry.node.showSettings = false
+                    })
+                    .offset(-geom.size / 2)
+                    .offset(entry.offset)
                 }
             }
             .offset(geom.size / 2)
@@ -128,7 +180,7 @@ public struct NodeCanvas : View
                 let graph = self.graph.activeSubGraph ?? self.graph
 
                 graph.deselectAllNodes()
-            }            
+            }
             .id(self.graph.activeSubGraph?.shouldUpdateConnections ?? self.graph.shouldUpdateConnections)
             // For hiding the nodes after a timeout - used if rendering nodes above content?
 //            .opacity(self.activityMonitor.isActive ? 1.0 : 0.0)
@@ -206,23 +258,23 @@ public struct NodeCanvas : View
         return .handled
     }
     
-    private func calcDragEnded()
+    private func calcDragEnded(activeGraph graph:Graph)
     {
         let selectedNodes = graph.nodes.filter { $0.isSelected }
-        
-        self.graph.undoManager?.beginUndoGrouping()
+
+        graph.undoManager?.beginUndoGrouping()
         
         for node in selectedNodes
         {
             if let offset = initialOffsets[node.id]
             {
-                self.graph.undoManager?.registerUndo(withTarget: node) {
+                graph.undoManager?.registerUndo(withTarget: node) {
                     
                     let cachedOffset = $0.offset
                     
                     // This registers a redo - as an undo
                     // https://nilcoalescing.com/blog/HandlingUndoAndRedoInSwiftUI/
-                    self.graph.undoManager?.registerUndo(withTarget: node) { $0.offset = cachedOffset
+                    graph.undoManager?.registerUndo(withTarget: node) { $0.offset = cachedOffset
                     }
 
                     $0.offset = offset
@@ -230,9 +282,9 @@ public struct NodeCanvas : View
             }
         }
         
-        self.graph.undoManager?.endUndoGrouping()
+        graph.undoManager?.endUndoGrouping()
         
-        self.graph.undoManager?.setActionName("Move Nodes")
+        graph.undoManager?.setActionName("Move Nodes")
         
         selectedNodes.forEach { $0.isDragging = false }
         self.activeDragAnchor = nil
@@ -242,12 +294,14 @@ public struct NodeCanvas : View
     
     private func calcPortAnchors(_ portAnchors:(PortAnchorKey.Value), geometryProxy geom:GeometryProxy)
     {
+        let graph = self.graph.activeSubGraph ?? self.graph
+
         var positions: [UUID: CGPoint] = [:]
         for (portID, anchor) in portAnchors {
             positions[portID] = geom[anchor]
         }
-        self.portPositions = positions
-        self.graph.portPositions = positions
+
+        graph.portPositions = positions
     }
     
     @ViewBuilder private func calcOverlayPaths(_ portAnchors:(PortAnchorKey.Value), geometryProxy geom:GeometryProxy) -> some View
@@ -438,6 +492,30 @@ public struct NodeCanvas : View
                 path.addLine(to: end)
             }
         }
+    }
+    
+    private func sychronizeSettingsFor(node currentNode:Node, show:Bool)
+    {
+        if show && currentNode.providesSettingsView()
+        {
+            // Snapshot node into stable list
+            if !settingsEntries.contains(where: { $0.id == currentNode.id })
+            {
+                settingsEntries.append((
+                    id: currentNode.id,
+                    node: currentNode,
+                    width: currentNode.nodeSize.width,
+                    height: currentNode.nodeSize.height,
+                    offset: currentNode.offset
+                ))
+            }
+        }
+        else if !show
+        {
+            // Remove from stable list when showSettings becomes false
+            settingsEntries.removeAll { $0.id == currentNode.id }
+        }
+
     }
     
     private func clamp(_ x:CGFloat, lowerBound:CGFloat, upperBound:CGFloat) -> CGFloat
