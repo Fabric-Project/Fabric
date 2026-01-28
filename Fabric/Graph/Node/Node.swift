@@ -430,12 +430,12 @@ import Combine
     internal struct NodeSettingView : View
     {
         var node: Node
-        
+
         internal var body: some View
         {
             @Bindable var bindableNode:Node = node
             let size = node.settingsSize.size()
-            
+
             VStack(alignment: .center)
             {
                 HStack()
@@ -446,15 +446,15 @@ import Combine
                         .bold()
 
                     Spacer()
-                    
+
                     Button("Close", systemImage: "x.circle") {
                         node.showSettings = false
                     }
                     .controlSize(.small)
                 }
-                
+
                 Spacer()
-                
+
                 if node.providesSettingsView( )
                 {
                     node.settingsView()
@@ -465,9 +465,6 @@ import Combine
             .clipShape (
                 RoundedRectangle(cornerRadius: 4)
             )
-            .opacity( node.showSettings ? 1 : 0 )
-
-            
         }
     }
     
