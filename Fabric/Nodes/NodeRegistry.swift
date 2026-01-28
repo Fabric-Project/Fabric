@@ -214,6 +214,7 @@ public class NodeRegistry {
         CurrentTimeNode.self,
         SystemTimeNode.self,
         NumberNode.self,
+        TimelineNode.self,
         NumberUnaryOperator.self,
         NumberBinaryOperator.self,
         NumberLogicOperator.self,
