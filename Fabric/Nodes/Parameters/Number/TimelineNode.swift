@@ -718,7 +718,9 @@ struct TimelineNodeView: View
             tracks.append(TimelineTrack(name: "Track 1", duration: duration))
         }
 
-        rebuildPorts()
+        // Use sync instead of rebuild to preserve ports decoded by super.init
+        // This maintains connection IDs across serialization
+        syncPortsToTracks()
     }
 
     public override func encode(to encoder: Encoder) throws
@@ -764,9 +766,38 @@ struct TimelineNodeView: View
 
     // MARK: - Ports
 
+    /// Synchronize ports to tracks, preserving existing ports when possible
+    /// This is important for maintaining connections across serialization
+    fileprivate func syncPortsToTracks()
+    {
+        let trackNames = Set(tracks.map { $0.name })
+        let existingOutputs = outputPorts()
+        let existingPortNames = Set(existingOutputs.map { $0.name })
+
+        // Remove ports that no longer have matching tracks
+        for port in existingOutputs
+        {
+            if !trackNames.contains(port.name)
+            {
+                removePort(port)
+            }
+        }
+
+        // Add ports for tracks that don't have matching ports
+        for track in tracks
+        {
+            if !existingPortNames.contains(track.name)
+            {
+                let port = NodePort<Float>(name: track.name, kind: .Outlet)
+                addDynamicPort(port)
+            }
+        }
+    }
+
+    /// Force rebuild all ports (used when track names change)
     fileprivate func rebuildPorts()
     {
-        // Remove existing output ports
+        // Remove all existing output ports
         let existingOutputs = outputPorts()
         for port in existingOutputs
         {
@@ -788,14 +819,14 @@ struct TimelineNodeView: View
         let trackNum = tracks.count + 1
         let track = TimelineTrack(name: "Track \(trackNum)", duration: duration)
         tracks.append(track)
-        rebuildPorts()
+        syncPortsToTracks()
     }
 
     fileprivate func removeTrack(id: UUID)
     {
         guard tracks.count > 1 else { return }
         tracks.removeAll { $0.id == id }
-        rebuildPorts()
+        syncPortsToTracks()
     }
 
     // MARK: - Settings View
