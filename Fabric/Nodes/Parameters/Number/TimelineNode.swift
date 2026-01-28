@@ -17,14 +17,18 @@ public struct TimelineKeyframe: Codable, Identifiable, Equatable
     public let id: UUID
     public var time: Float      // 0 to duration
     public var value: Float     // 0 to 1 (strictly clamped)
-    public var tangent: Float   // Symmetric tangent slope for bezier handles
 
-    public init(time: Float, value: Float, tangent: Float = 0)
+    // Handle offset in time/value units (right handle; left handle is mirrored)
+    public var handleTime: Float   // Time offset of right handle (always positive)
+    public var handleValue: Float  // Value offset of right handle (can be positive or negative)
+
+    public init(time: Float, value: Float, handleTime: Float = 0.1, handleValue: Float = 0)
     {
         self.id = UUID()
         self.time = time
         self.value = max(0, min(1, value)) // Clamp to 0-1
-        self.tangent = tangent
+        self.handleTime = max(0.01, handleTime) // Minimum handle length
+        self.handleValue = handleValue
     }
 }
 
@@ -41,8 +45,8 @@ public struct TimelineTrack: Codable, Identifiable, Equatable
         self.name = name
         // Default: linear ramp from 0 to 1
         self.keyframes = [
-            TimelineKeyframe(time: 0, value: 0, tangent: 0),
-            TimelineKeyframe(time: duration, value: 1, tangent: 0)
+            TimelineKeyframe(time: 0, value: 0),
+            TimelineKeyframe(time: duration, value: 1)
         ]
     }
 
@@ -102,19 +106,16 @@ public struct TimelineTrack: Codable, Identifiable, Equatable
         // Normalized time within segment (0 to 1)
         let t = (time - k0.time) / dt
 
-        // Control point distance (1/3 of time span)
-        let cpDist = dt / 3.0
-
-        // P0 = start point
+        // P0 = start point value
         let p0 = k0.value
 
-        // P1 = first control point (influenced by k0's tangent)
-        let p1 = k0.value + k0.tangent * cpDist
+        // P1 = first control point (k0's right handle value offset)
+        let p1 = k0.value + k0.handleValue
 
-        // P2 = second control point (influenced by k1's tangent)
-        let p2 = k1.value - k1.tangent * cpDist
+        // P2 = second control point (k1's left handle, which is mirrored)
+        let p2 = k1.value - k1.handleValue
 
-        // P3 = end point
+        // P3 = end point value
         let p3 = k1.value
 
         // Cubic bezier formula: B(t) = (1-t)³P0 + 3(1-t)²tP1 + 3(1-t)t²P2 + t³P3
@@ -134,9 +135,9 @@ public struct TimelineTrack: Codable, Identifiable, Equatable
 
     // MARK: - Keyframe Management
 
-    public mutating func addKeyframe(at time: Float, value: Float, tangent: Float = 0)
+    public mutating func addKeyframe(at time: Float, value: Float)
     {
-        let keyframe = TimelineKeyframe(time: time, value: value, tangent: tangent)
+        let keyframe = TimelineKeyframe(time: time, value: value)
         keyframes.append(keyframe)
         sortKeyframes()
     }
@@ -146,7 +147,7 @@ public struct TimelineTrack: Codable, Identifiable, Equatable
         keyframes.removeAll { $0.id == id }
     }
 
-    public mutating func updateKeyframe(id: UUID, time: Float? = nil, value: Float? = nil, tangent: Float? = nil)
+    public mutating func updateKeyframe(id: UUID, time: Float? = nil, value: Float? = nil, handleTime: Float? = nil, handleValue: Float? = nil)
     {
         guard let index = keyframes.firstIndex(where: { $0.id == id }) else { return }
 
@@ -158,9 +159,13 @@ public struct TimelineTrack: Codable, Identifiable, Equatable
         {
             keyframes[index].value = max(0, min(1, v)) // Clamp to 0-1
         }
-        if let tan = tangent
+        if let ht = handleTime
         {
-            keyframes[index].tangent = tan
+            keyframes[index].handleTime = max(0.01, ht) // Minimum handle length
+        }
+        if let hv = handleValue
+        {
+            keyframes[index].handleValue = hv
         }
 
         sortKeyframes()
@@ -420,6 +425,37 @@ struct TimelineTrackView: View
         .stroke(Color.red, lineWidth: 2)
     }
 
+    // Convert handle time/value offset to pixel offset
+    private func handleToPixel(handleTime: Float, handleValue: Float, width: CGFloat, height: CGFloat) -> (dx: CGFloat, dy: CGFloat)
+    {
+        let padding: CGFloat = 20
+        let usableWidth = width - 2 * padding
+        let vertPadding: CGFloat = 10
+        let usableHeight = height - 2 * vertPadding
+
+        // Convert time offset to pixel offset
+        let dx = CGFloat(handleTime / node.duration) * usableWidth
+
+        // Convert value offset to pixel offset (inverted Y, scaled for display range)
+        let dy = -CGFloat(handleValue / 1.2) * usableHeight
+
+        return (dx, dy)
+    }
+
+    // Convert pixel offset to handle time/value offset
+    private func pixelToHandle(dx: CGFloat, dy: CGFloat, width: CGFloat, height: CGFloat) -> (handleTime: Float, handleValue: Float)
+    {
+        let padding: CGFloat = 20
+        let usableWidth = width - 2 * padding
+        let vertPadding: CGFloat = 10
+        let usableHeight = height - 2 * vertPadding
+
+        let handleTime = Float(dx / usableWidth) * node.duration
+        let handleValue = Float(-dy / usableHeight) * 1.2
+
+        return (max(0.01, handleTime), handleValue)
+    }
+
     @ViewBuilder
     private func keyframeViews(track: TimelineTrack, trackIndex: Int, width: CGFloat, height: CGFloat) -> some View
     {
@@ -427,10 +463,8 @@ struct TimelineTrackView: View
             let x = timeToX(keyframe.time, width: width)
             let y = valueToY(keyframe.value, height: height)
 
-            // Tangent handle line
-            let handleLength: CGFloat = 30
-            let handleDx = handleLength
-            let handleDy = -CGFloat(keyframe.tangent) * handleLength
+            // Convert handle offset to pixels
+            let (handleDx, handleDy) = handleToPixel(handleTime: keyframe.handleTime, handleValue: keyframe.handleValue, width: width, height: height)
 
             Group
             {
@@ -441,12 +475,13 @@ struct TimelineTrackView: View
                 }
                 .stroke(Color.orange.opacity(0.7), lineWidth: 1)
 
-                // Tangent handle dots
+                // Tangent handle dots (right handle)
                 Circle()
                     .fill(Color.orange)
                     .frame(width: 8, height: 8)
                     .position(x: x + handleDx, y: y + handleDy)
 
+                // Left handle (mirrored)
                 Circle()
                     .fill(Color.orange)
                     .frame(width: 8, height: 8)
@@ -486,7 +521,7 @@ struct TimelineTrackView: View
         // Add new keyframe at click position
         let time = max(0, min(node.duration, xToTime(location.x, width: width)))
         let value = max(0, min(1, yToValue(location.y, height: height)))
-        node.tracks[trackIndex].addKeyframe(at: time, value: value, tangent: 0)
+        node.tracks[trackIndex].addKeyframe(at: time, value: value)
     }
 
     private func handleDoubleClick(at location: CGPoint, width: CGFloat, height: CGFloat, trackIndex: Int)
@@ -528,18 +563,30 @@ struct TimelineTrackView: View
 
         if let tangentID = draggingTangent
         {
-            // Calculate tangent so handle Y matches mouse Y
-            // Handle is displayed at: ky + handleDy where handleDy = -tangent * handleLength
-            // We want: ky + handleDy = mouse.y
-            // So: handleDy = mouse.y - ky
-            // Therefore: tangent = -handleDy / handleLength = -(mouse.y - ky) / handleLength = (ky - mouse.y) / handleLength
+            // Calculate handle position from mouse position relative to keyframe
             if let keyframe = track.keyframes.first(where: { $0.id == tangentID })
             {
+                let kx = timeToX(keyframe.time, width: width)
                 let ky = valueToY(keyframe.value, height: height)
-                let handleLength: CGFloat = 30
 
-                let tangent = Float((ky - location.y) / handleLength)
-                node.tracks[trackIndex].updateKeyframe(id: tangentID, tangent: max(-3, min(3, tangent)))
+                // Mouse offset from keyframe in pixels
+                var dx = location.x - kx
+                var dy = location.y - ky
+
+                // Ensure we're dragging the right handle (positive dx)
+                // If user is on the left side, mirror to right side
+                if dx < 0
+                {
+                    dx = -dx
+                    dy = -dy
+                }
+
+                // Minimum handle distance
+                dx = max(10, dx)
+
+                // Convert pixel offset to handle time/value
+                let (handleTime, handleValue) = pixelToHandle(dx: dx, dy: dy, width: width, height: height)
+                node.tracks[trackIndex].updateKeyframe(id: tangentID, handleTime: handleTime, handleValue: handleValue)
             }
             return
         }
@@ -550,10 +597,8 @@ struct TimelineTrackView: View
             let kx = timeToX(keyframe.time, width: width)
             let ky = valueToY(keyframe.value, height: height)
 
-            // Check tangent handles first
-            let handleLength: CGFloat = 30
-            let handleDx = handleLength
-            let handleDy = -CGFloat(keyframe.tangent) * handleLength
+            // Check tangent handles first - convert handle to pixels
+            let (handleDx, handleDy) = handleToPixel(handleTime: keyframe.handleTime, handleValue: keyframe.handleValue, width: width, height: height)
 
             let rightHandleX = kx + handleDx
             let rightHandleY = ky + handleDy

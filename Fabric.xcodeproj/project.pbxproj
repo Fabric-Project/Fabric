@@ -267,6 +267,7 @@
 				Nodes/Parameters/Number/Smooth/NumberSmoothNode.swift,
 				Nodes/Parameters/Number/Smooth/OneEuroFilter.swift,
 				Nodes/Parameters/Number/SystemTimeNode.swift,
+				Nodes/Parameters/Number/TimelineNode.swift,
 				Nodes/Parameters/Quaternion/MakeQuaternionNode.swift,
 				Nodes/Parameters/String/LLM/LLMEvaluator.swift,
 				Nodes/Parameters/String/LLM/LocalLLMNode.swift,
