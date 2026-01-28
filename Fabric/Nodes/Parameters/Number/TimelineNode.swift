@@ -178,8 +178,10 @@ struct TimelineTrackView: View
     // Interaction state
     @State private var draggingKeyframe: UUID? = nil
     @State private var draggingTangent: UUID? = nil
-    @State private var lastClickTime: Date = .distantPast
-    @State private var lastClickKeyframe: UUID? = nil
+    @State private var dragStartLocation: CGPoint? = nil
+    @State private var didDrag: Bool = false
+    @State private var lastTapTime: Date = .distantPast
+    @State private var lastTapLocation: CGPoint? = nil
 
     private var trackIndex: Int?
     {
@@ -283,19 +285,62 @@ struct TimelineTrackView: View
                     .gesture(
                         DragGesture(minimumDistance: 0)
                             .onChanged { value in
+                                if dragStartLocation == nil
+                                {
+                                    dragStartLocation = value.startLocation
+                                    didDrag = false
+                                }
+
+                                // Check if we've moved enough to consider it a drag
+                                let dragDistance = sqrt(pow(value.location.x - value.startLocation.x, 2) +
+                                                       pow(value.location.y - value.startLocation.y, 2))
+                                if dragDistance > 5
+                                {
+                                    didDrag = true
+                                }
+
                                 handleDrag(value: value, width: geo.size.width, height: geo.size.height, trackIndex: trackIndex)
                             }
-                            .onEnded { _ in
+                            .onEnded { value in
+                                let location = value.startLocation
+
+                                if !didDrag
+                                {
+                                    // This was a click, not a drag
+                                    let now = Date()
+                                    let timeSinceLastTap = now.timeIntervalSince(lastTapTime)
+
+                                    // Check if this is a double-click (within 0.3 seconds and near last tap)
+                                    if let lastLoc = lastTapLocation, timeSinceLastTap < 0.3
+                                    {
+                                        let tapDistance = sqrt(pow(location.x - lastLoc.x, 2) + pow(location.y - lastLoc.y, 2))
+                                        if tapDistance < 20
+                                        {
+                                            handleDoubleClick(at: location, width: geo.size.width, height: geo.size.height, trackIndex: trackIndex)
+                                            lastTapTime = .distantPast
+                                            lastTapLocation = nil
+                                        }
+                                        else
+                                        {
+                                            handleSingleClick(at: location, width: geo.size.width, height: geo.size.height, trackIndex: trackIndex)
+                                            lastTapTime = now
+                                            lastTapLocation = location
+                                        }
+                                    }
+                                    else
+                                    {
+                                        handleSingleClick(at: location, width: geo.size.width, height: geo.size.height, trackIndex: trackIndex)
+                                        lastTapTime = now
+                                        lastTapLocation = location
+                                    }
+                                }
+
                                 draggingKeyframe = nil
                                 draggingTangent = nil
+                                dragStartLocation = nil
+                                didDrag = false
                             }
                     )
-                    .onTapGesture(count: 2) { location in
-                        handleDoubleClick(at: location, width: geo.size.width, height: geo.size.height, trackIndex: trackIndex)
-                    }
-                    .onTapGesture(count: 1) { location in
-                        handleSingleClick(at: location, width: geo.size.width, height: geo.size.height, trackIndex: trackIndex)
-                    }
                 }
                 .frame(height: trackHeight)
                 .border(Color.gray.opacity(0.5), width: 1)
@@ -338,7 +383,6 @@ struct TimelineTrackView: View
             guard track.keyframes.count >= 2 else { return }
 
             var path = Path()
-            let sortedKeyframes = track.keyframes.sorted { $0.time < $1.time }
 
             // Sample the curve
             let numSamples = 200
@@ -484,19 +528,18 @@ struct TimelineTrackView: View
 
         if let tangentID = draggingTangent
         {
-            // Calculate tangent from mouse position relative to keyframe
+            // Calculate tangent so handle Y matches mouse Y
+            // Handle is displayed at: ky + handleDy where handleDy = -tangent * handleLength
+            // We want: ky + handleDy = mouse.y
+            // So: handleDy = mouse.y - ky
+            // Therefore: tangent = -handleDy / handleLength = -(mouse.y - ky) / handleLength = (ky - mouse.y) / handleLength
             if let keyframe = track.keyframes.first(where: { $0.id == tangentID })
             {
-                let kx = timeToX(keyframe.time, width: width)
                 let ky = valueToY(keyframe.value, height: height)
-                let dx = location.x - kx
-                let dy = location.y - ky
+                let handleLength: CGFloat = 30
 
-                if abs(dx) > 5
-                {
-                    let tangent = Float(-dy / dx)
-                    node.tracks[trackIndex].updateKeyframe(id: tangentID, tangent: max(-5, min(5, tangent)))
-                }
+                let tangent = Float((ky - location.y) / handleLength)
+                node.tracks[trackIndex].updateKeyframe(id: tangentID, tangent: max(-3, min(3, tangent)))
             }
             return
         }
