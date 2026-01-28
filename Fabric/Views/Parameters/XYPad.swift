@@ -48,8 +48,7 @@ struct XYPad: View, Equatable {
 
             ZStack
             {
-                Rectangle()
-                    .foregroundColor(.gray)
+                Color.gray
                     
                 Circle()
                     .frame(width: circleDiameter, height: circleDiameter)
@@ -97,19 +96,9 @@ struct XYPad: View, Equatable {
                     
                     self.vm.uiValue = simd_float2(x, y)
                     
-//                    if self.recording.wrappedValue
-//                    {
-//                        self.recorder.record( 1.0 - normalizedValue, atTime: Date.timeIntervalSinceReferenceDate)
-//                    }
                 }))
-
-
         }
-        
         .frame(height:200)
-
-//        .frame(height: 100)
-
     }
 }
 

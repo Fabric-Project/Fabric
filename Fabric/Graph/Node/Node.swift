@@ -70,7 +70,9 @@ import Combine
     public class func registerPorts(context: Context) -> [(name: String, port: Port)] { [] }
     // All port serilization, adding, removing and key value access goes through the port registry
     @ObservationIgnored private let registry = PortRegistry()
-    @ObservationIgnored public let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
+    
+    // Sadly this needs to be observed
+    public let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
 
     public var ports:[Port] { self.registry.all()   }
     public private(set) var inputNodes:[Node] = []
@@ -80,6 +82,8 @@ import Combine
     public var isDragging:Bool = false
     // var showParams:Bool = false
     
+    internal var showSettings:Bool = false
+
     public var nodeSize:CGSize { self.computeNodeSize() }
     
     public var offset: CGSize = .zero
@@ -232,14 +236,22 @@ import Combine
         self.registry.port(named: name) as! T
     }
     
-    // Dynamic add/remove (kept by serialization automatically)
-    public func addDynamicPort(_ p: Port)
+    // Convenience for subclasses: typed lookup (so computed props stay nice)
+    public func findPort<T: Port>(named name: String, as type: T.Type = T.self) -> T?
     {
-        self.registry.addDynamic(p, owner: self)
+        self.registry.port(named: name) as? T
+    }
+    
+    // Dynamic add/remove (kept by serialization automatically)
+    public func addDynamicPort(_ p: Port, name:String? = nil)
+    {
+        self.registry.addDynamic(p, owner: self, name:name)
         if let param = p.parameter
         {
             self.parameterGroup.append(param)
         }
+        
+        self.graph?.shouldUpdateConnections.toggle()
     }
     
     public func removePort(_ p: Port)
@@ -249,6 +261,8 @@ import Combine
         {
             self.parameterGroup.remove(param)
         }
+        
+        self.graph?.shouldUpdateConnections.toggle()
     }
     
     public func replaceParameterOfPort(_ port:Port, withParam param:(any Parameter))
@@ -382,6 +396,85 @@ import Combine
         
     public func resize(size: (width: Float, height: Float), scaleFactor: Float) { }
    
+    // MARK: - Node Settings
+
+    public enum SettingsViewSize
+    {
+        case Small
+        case Medium
+        case Large
+        case Custom(size:CGSize)
+        
+        func size() -> CGSize
+        {
+            switch self
+            {
+            case .Small:
+                return CGSize(width: 300, height: 200)
+            case .Medium:
+                return CGSize(width: 400, height: 300)
+            case .Large:
+                return CGSize(width: 500, height: 400)
+            case .Custom(size: let size):
+                return size
+            }
+        }
+        
+    }
+    
+    public func providesSettingsView() -> Bool
+    {
+        return false
+    }
+        
+    internal struct NodeSettingView : View
+    {
+        var node: Node
+
+        internal var body: some View
+        {
+            @Bindable var bindableNode:Node = node
+            let size = node.settingsSize.size()
+
+            VStack(alignment: .center)
+            {
+                HStack()
+                {
+                    Text("\(node.name) Settings" )
+                        .lineLimit(1)
+                        .font(.system(size: 10))
+                        .bold()
+
+                    Spacer()
+
+                    Button("Close", systemImage: "x.circle") {
+                        node.showSettings = false
+                    }
+                    .controlSize(.small)
+                }
+
+                Spacer()
+
+                if node.providesSettingsView( )
+                {
+                    node.settingsView()
+                }
+            }
+            .padding()
+            .frame(width: size.width, height: size.height)
+            .clipShape (
+                RoundedRectangle(cornerRadius: 4)
+            )
+        }
+    }
+    
+    public func settingsView() -> AnyView
+    {
+        AnyView(EmptyView())
+    }
+    
+    public var settingsSize:SettingsViewSize { .Small }
+    
     // MARK: - Helpers
     
     func computeNodeSize() -> CGSize
