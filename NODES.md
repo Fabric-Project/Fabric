@@ -31,7 +31,7 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Arc
 - [x] Cone
 - [x] Box
-- [ ] Rounded Box
+- [x] Rounded Box
 - [ ] Squircle
 - [x] Capsule
 - [x] IcoSphere
@@ -245,13 +245,19 @@ HDR -> SDR conversion
 - [ ] Segmentation
 - [ ] Tracking 
 - [ ] Classification
-- [ ] Face Detection / Landmark
+- [x] Face Pose Analysis / Landmark
 - [x] Hand Pose Detection / Landmark
 - [ ] Body Pose Detection / Landmark
 - [ ] Depth Map Prediction
 - [x] Metal FX 2x Upsampler (ML based)  
 - [x] FXAA Antialiasing  
+- [x] Keypoint Distort
 - [ ] Image Embedding Vector( via fast Clip like model or Vision Feature Print? whats most useful - careful do we want to stray into comfy ui bullshit? )
+
+### ML / AI
+
+- [x] Local LLM (on-device language model)
+- [x] Vision Language Model (on-device VLM)
 
 
 ### Info 
@@ -266,8 +272,8 @@ HDR -> SDR conversion
 
 - [x] True
 - [x] False
-- [ ] Logic Operator
-- [ ] Signal
+- [x] Logic Operator
+- [x] Signal
 
 ### Index
 
@@ -290,7 +296,8 @@ Have yet to work on Index (integer only) numeric nodes
 - [ ] Counter
 - [ ] LFO
 - [x] Smooth (Kalman or 1 Euro Filter?)
-- [ ] Math Expression
+- [x] Math Expression
+- [x] Number Logic (Comparison)
 
 ### Vector
 
@@ -311,11 +318,18 @@ Have yet to work on Color nodes, ideally all color spaces / images are linear / 
 
 ### Quaternion
 
-Have yet to work on Quaternion nodes, unclear if we def want these types??
+- [x] Make Quaternion
 
-### Matrix
+### Transform (Float4x4 Matrix)
 
-Have yet to work on Matrix nodes, unclear if we def want these types?
+- [x] Identity Transform
+- [x] Rotate Transform
+- [x] Scale Transform
+- [x] Translate Transform
+- [x] Transpose Transform
+- [x] Invert Transform
+- [x] Decompose Transform
+- [x] Geometry to Transform Array
 
 ### String
 
@@ -325,7 +339,10 @@ Have yet to work on Matrix nodes, unclear if we def want these types?
 - [x] String Range
 - [ ] String Case
 - [ ] String Formatter
-- [ ] String Join
+- [x] String Join
+- [x] String Wrap
+- [x] String Remove Whitespace
+- [x] String Difference
 - [ ] String Separator
 - [ ] String Compare
 - [x] Convert to String ( type convert )
@@ -340,6 +357,8 @@ Array nodes are implemented as Swift Generics, and can work with any of the abov
 
 - [x] Queue
 - [x] Array Count
+- [x] First Item
+- [x] Last Item
 - [x] Item at Index
 - [x] Replace Item At Index
 - [x] Poly Line Simplification ( Simplification of Array of Vector 2 Points via Ramer–Douglas–Peucker algo)
@@ -353,21 +372,22 @@ Array nodes are implemented as Swift Generics, and can work with any of the abov
 
 - [x] Sample and Hold
 - [ ] Pulse
-- [ ] Signal
-- [ ] Timeline
+- [x] Signal
+- [x] Timeline (Multi-track keyframe animation with bezier interpolation)
 
 # Other Nodes
 
 ###  I / O
 
 - [x] Audio Input Spectrum
-- [ ] Keyboard
+- [x] Keyboard
 - [x] Mouse / Touch / Cursor (macOS)
-- [ ] OSC Input
+- [x] OSC Input (OSCKit)
 - [ ] OSC Output
-- [ ] Midi Input
-- [ ] Midi Output
-- [ ] HID Input
+- [x] MIDI Input (MIDIKit, learn mode)
+- [ ] MIDI Output
+- [x] HID Input (IOKit)
+- [x] Game Controller Input (GameController.framework)
 - [ ] HID Output
 - [ ] NDI Input
 - [ ] NDI Output
