@@ -764,31 +764,79 @@ internal import AnyCodable
         return nil
     }
 
-    /// Finds all UUID-formatted strings in a JSON string
-    private static func findAllUUIDs(in jsonString: String) -> Set<String>
+    /// Checks if a string looks like a UUID (36 chars, proper format)
+    private static func isUUIDString(_ string: String) -> Bool
     {
-        let pattern = "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
-        let regex = try! NSRegularExpression(pattern: pattern)
-        let range = NSRange(jsonString.startIndex..., in: jsonString)
-        let matches = regex.matches(in: jsonString, range: range)
+        return string.count == 36 && UUID(uuidString: string) != nil
+    }
 
-        return Set(matches.compactMap { match in
-            guard let swiftRange = Range(match.range, in: jsonString) else { return nil }
-            return String(jsonString[swiftRange])
-        })
+    /// Recursively collects all UUID-formatted string values from a JSON object
+    private static func collectUUIDs(from object: Any, into uuids: inout Set<String>)
+    {
+        switch object
+        {
+        case let string as String:
+            if isUUIDString(string)
+            {
+                uuids.insert(string)
+            }
+
+        case let array as [Any]:
+            for element in array
+            {
+                collectUUIDs(from: element, into: &uuids)
+            }
+
+        case let dict as [String: Any]:
+            for (_, value) in dict
+            {
+                collectUUIDs(from: value, into: &uuids)
+            }
+
+        default:
+            break
+        }
+    }
+
+    /// Finds all UUID-formatted strings in JSON data by traversing the parsed structure
+    private static func findAllUUIDs(in jsonData: Data) -> Set<String>
+    {
+        guard let object = try? JSONSerialization.jsonObject(with: jsonData) else { return [] }
+        var uuids = Set<String>()
+        collectUUIDs(from: object, into: &uuids)
+        return uuids
+    }
+
+    /// Recursively replaces UUID strings in a JSON object using a remap table
+    private static func remapUUIDs(in object: Any, remap: [String: String]) -> Any
+    {
+        switch object
+        {
+        case let string as String:
+            return remap[string] ?? string
+
+        case let array as [Any]:
+            return array.map { remapUUIDs(in: $0, remap: remap) }
+
+        case let dict as [String: Any]:
+            var newDict = [String: Any]()
+            for (key, value) in dict
+            {
+                newDict[key] = remapUUIDs(in: value, remap: remap)
+            }
+            return newDict
+
+        default:
+            return object
+        }
     }
 
     /// Rewrites UUID strings in JSON data using a remap table
     private static func rewriteUUIDs(in jsonData: Data, remap: [String: String]) -> Data?
     {
-        guard var jsonString = String(data: jsonData, encoding: .utf8) else { return nil }
-
-        for (oldUUID, newUUID) in remap
-        {
-            jsonString = jsonString.replacingOccurrences(of: oldUUID, with: newUUID)
-        }
-
-        return jsonString.data(using: .utf8)
+        guard let object = try? JSONSerialization.jsonObject(with: jsonData) else { return nil }
+        let remapped = remapUUIDs(in: object, remap: remap)
+        return try? JSONSerialization.data(withJSONObject: remapped)
     }
 
     /// Builds a connection map containing only connections where both ports belong to nodes in the given set
@@ -843,14 +891,11 @@ internal import AnyCodable
                 encodedEntries.append(data)
 
                 // Collect all UUIDs from this node's JSON
-                if let jsonString = String(data: data, encoding: .utf8)
+                for uuid in Graph.findAllUUIDs(in: data)
                 {
-                    for uuid in Graph.findAllUUIDs(in: jsonString)
+                    if uuidRemap[uuid] == nil
                     {
-                        if uuidRemap[uuid] == nil
-                        {
-                            uuidRemap[uuid] = UUID().uuidString
-                        }
+                        uuidRemap[uuid] = UUID().uuidString
                     }
                 }
             }
@@ -984,14 +1029,11 @@ internal import AnyCodable
                 let entryData = try encoder.encode(entry)
                 encodedEntries.append(entryData)
 
-                if let jsonString = String(data: entryData, encoding: .utf8)
+                for uuid in Graph.findAllUUIDs(in: entryData)
                 {
-                    for uuid in Graph.findAllUUIDs(in: jsonString)
+                    if uuidRemap[uuid] == nil
                     {
-                        if uuidRemap[uuid] == nil
-                        {
-                            uuidRemap[uuid] = UUID().uuidString
-                        }
+                        uuidRemap[uuid] = UUID().uuidString
                     }
                 }
             }
