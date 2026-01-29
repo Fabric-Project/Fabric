@@ -170,7 +170,7 @@ public struct NodeCanvas : View
                 return self.handleKeyPress(keyPress:keyPress)
             }
             .onDeleteCommand {
-                
+
                 let graph = self.graph.activeSubGraph ?? self.graph
 
                 let selectedNodes = graph.nodes.filter({ $0.isSelected })
@@ -224,21 +224,49 @@ public struct NodeCanvas : View
     private func handleKeyPress(keyPress:KeyPress) -> KeyPress.Result
     {
         if renamingNodeID != nil { return .ignored }
-        
+
+        // Handle Cmd+key shortcuts
+        if keyPress.modifiers.contains(.command)
+        {
+            let graph = self.graph.activeSubGraph ?? self.graph
+
+            switch keyPress.key
+            {
+            case "c":
+                let selectedNodes = graph.nodes.filter { $0.isSelected }
+                guard !selectedNodes.isEmpty else { return .ignored }
+                graph.copyNodesToPasteboard(selectedNodes)
+                return .handled
+
+            case "v":
+                graph.pasteNodesFromPasteboard()
+                return .handled
+
+            case "d":
+                let selectedNodes = graph.nodes.filter { $0.isSelected }
+                guard !selectedNodes.isEmpty else { return .ignored }
+                graph.duplicateNodes(selectedNodes)
+                return .handled
+
+            default:
+                return .ignored
+            }
+        }
+
         switch keyPress.key
         {
         case .upArrow:
             print("up arrow")
             self.graph.selectNextNode(inDirection: .Up, expandSelection: keyPress.modifiers.contains(.shift))
-            
+
         case .downArrow:
             print("down arrow")
             self.graph.selectNextNode(inDirection: .Down, expandSelection: keyPress.modifiers.contains(.shift))
-            
+
         case .leftArrow:
             print("left arrow")
             self.graph.selectNextNode(inDirection: .Left, expandSelection: keyPress.modifiers.contains(.shift))
-            
+
         case .rightArrow:
             print("right arrow")
             self.graph.selectNextNode(inDirection: .Right, expandSelection: keyPress.modifiers.contains(.shift))
@@ -250,11 +278,11 @@ public struct NodeCanvas : View
             let graph = self.graph.activeSubGraph ?? self.graph
             let selectedNodes = graph.nodes.filter({ $0.isSelected })
             selectedNodes.forEach( { graph.delete(node: $0) } )
-            
+
         default:
             return .ignored
         }
-        
+
         return .handled
     }
     
@@ -434,6 +462,24 @@ public struct NodeCanvas : View
             } label: {
                 Text("Rename")
             }
+
+            Divider()
+
+            Button {
+                let selectedNodes = graph.nodes.filter { $0.isSelected }
+                let nodesToCopy = selectedNodes.isEmpty ? [currentNode] : selectedNodes
+                graph.copyNodesToPasteboard(nodesToCopy)
+            } label: {
+                Text("Copy")
+            }
+
+            Button {
+                let selectedNodes = graph.nodes.filter { $0.isSelected }
+                let nodesToDuplicate = selectedNodes.isEmpty ? [currentNode] : selectedNodes
+                graph.duplicateNodes(nodesToDuplicate)
+            } label: {
+                Text("Duplicate")
+            }
     }
     
     private func calcPathUsing(port:Port, start:CGPoint, end:CGPoint) -> Path
@@ -533,9 +579,9 @@ public struct NodeCanvas : View
     {
 //        if self.focusedView == .canvas
 //        {
-            return [.upArrow, .downArrow, .leftArrow, .rightArrow, .return, .space, .escape, .deleteForward]
+            return [.upArrow, .downArrow, .leftArrow, .rightArrow, .return, .space, .escape, .deleteForward, "c", "v", "d"]
 //        }
-//        
+//
 //        return []
     }
 }

@@ -11,7 +11,7 @@ import Satin
 import Combine
 
 
-@Observable public class Node : Codable, Equatable, Identifiable, Hashable
+@Observable public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
 {
     // User interface name
     public class var name: String {  fatalError("\(String(describing:self)) Must implement name") }
