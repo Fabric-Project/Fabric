@@ -709,4 +709,360 @@ internal import AnyCodable
             self.scene.add(object)
         }
     }
+
+    // MARK: - Copy / Paste / Duplicate
+
+    public static let nodeClipboardType = NSPasteboard.PasteboardType("info.vade.fabric.nodes")
+
+    private struct NodeClipboardData: Codable
+    {
+        let nodeEntries: [AnyCodableMap]
+        let internalConnectionMap: [String: [String]]
+    }
+
+    /// Decodes a single node from an AnyCodableMap, replicating the type resolution from Graph.init(from:)
+    private func decodeNode(from map: AnyCodableMap) -> Node?
+    {
+        do
+        {
+            let encoder = JSONEncoder()
+            let decoder = JSONDecoder()
+            decoder.context = DecoderContext(documentContext: self.context)
+
+            let jsonData = try encoder.encode(map.value)
+
+            if let nodeClass = NodeRegistry.shared.nodeClass(for: map.type)
+            {
+                return try decoder.decode(nodeClass, from: jsonData)
+            }
+            else if map.type == String(describing: type(of: BaseEffectThreeChannelNode.self)).replacing(".Type", with:"")
+            {
+                return try decoder.decode(BaseEffectThreeChannelNode.self, from: jsonData)
+            }
+            else if map.type == String(describing: type(of: BaseEffectTwoChannelNode.self)).replacing(".Type", with:"")
+            {
+                return try decoder.decode(BaseEffectTwoChannelNode.self, from: jsonData)
+            }
+            else if map.type == String(describing: type(of: BaseEffectNode.self)).replacing(".Type", with:"")
+            {
+                return try decoder.decode(BaseEffectNode.self, from: jsonData)
+            }
+            else if map.type == String(describing: type(of: BaseGeneratorNode.self)).replacing(".Type", with:"")
+            {
+                return try decoder.decode(BaseGeneratorNode.self, from: jsonData)
+            }
+            else
+            {
+                print("decodeNode: Failed to find nodeClass for \(map.type)")
+            }
+        }
+        catch
+        {
+            print("decodeNode: Failed to decode node of type \(map.type): \(error)")
+        }
+
+        return nil
+    }
+
+    /// Finds all UUID-formatted strings in a JSON string
+    private static func findAllUUIDs(in jsonString: String) -> Set<String>
+    {
+        let pattern = "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
+        let regex = try! NSRegularExpression(pattern: pattern)
+        let range = NSRange(jsonString.startIndex..., in: jsonString)
+        let matches = regex.matches(in: jsonString, range: range)
+
+        return Set(matches.compactMap { match in
+            guard let swiftRange = Range(match.range, in: jsonString) else { return nil }
+            return String(jsonString[swiftRange])
+        })
+    }
+
+    /// Rewrites UUID strings in JSON data using a remap table
+    private static func rewriteUUIDs(in jsonData: Data, remap: [String: String]) -> Data?
+    {
+        guard var jsonString = String(data: jsonData, encoding: .utf8) else { return nil }
+
+        for (oldUUID, newUUID) in remap
+        {
+            jsonString = jsonString.replacingOccurrences(of: oldUUID, with: newUUID)
+        }
+
+        return jsonString.data(using: .utf8)
+    }
+
+    /// Builds a connection map containing only connections where both ports belong to nodes in the given set
+    private func buildInternalConnectionMap(for nodes: [Node]) -> [UUID: [UUID]]
+    {
+        let allPortIDs = Set(nodes.flatMap { $0.ports.map { $0.id } })
+        var connectionMap: [UUID: [UUID]] = [:]
+
+        for node in nodes
+        {
+            for port in node.ports
+            {
+                let internalConnections = port.connections
+                    .filter { allPortIDs.contains($0.id) }
+                    .map { $0.id }
+
+                if !internalConnections.isEmpty
+                {
+                    connectionMap[port.id] = internalConnections
+                }
+            }
+        }
+
+        return connectionMap
+    }
+
+    /// Duplicates the given nodes, preserving connections between them, and adds them to the graph
+    @discardableResult
+    public func duplicateNodes(_ nodesToDuplicate: [Node], offset: CGSize = CGSize(width: 20, height: 20)) -> [Node]
+    {
+        let targetGraph = self.activeSubGraph ?? self
+        guard !nodesToDuplicate.isEmpty else { return [] }
+
+        // 1. Capture internal connections before anything changes
+        let internalConnections = targetGraph.buildInternalConnectionMap(for: nodesToDuplicate)
+
+        // 2. Encode all nodes and build a unified UUID remap table
+        let encoder = JSONEncoder()
+        var uuidRemap: [String: String] = [:]
+        var encodedEntries: [Data] = []
+
+        for node in nodesToDuplicate
+        {
+            let map = AnyCodableMap(
+                type: String(describing: type(of: node)),
+                value: AnyCodable(node)
+            )
+
+            do
+            {
+                let data = try encoder.encode(map)
+                encodedEntries.append(data)
+
+                // Collect all UUIDs from this node's JSON
+                if let jsonString = String(data: data, encoding: .utf8)
+                {
+                    for uuid in Graph.findAllUUIDs(in: jsonString)
+                    {
+                        if uuidRemap[uuid] == nil
+                        {
+                            uuidRemap[uuid] = UUID().uuidString
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                print("duplicateNodes: Failed to encode \(node.name): \(error)")
+            }
+        }
+
+        // 3. Rewrite UUIDs and decode each node
+        var newNodes: [Node] = []
+
+        for data in encodedEntries
+        {
+            guard let rewrittenData = Graph.rewriteUUIDs(in: data, remap: uuidRemap) else { continue }
+
+            do
+            {
+                let rewrittenMap = try JSONDecoder().decode(AnyCodableMap.self, from: rewrittenData)
+
+                if let newNode = targetGraph.decodeNode(from: rewrittenMap)
+                {
+                    newNode.offset = newNode.offset + offset
+                    newNodes.append(newNode)
+                }
+            }
+            catch
+            {
+                print("duplicateNodes: Failed to decode rewritten node: \(error)")
+            }
+        }
+
+        // 4. Add all new nodes (grouped undo)
+        targetGraph.undoManager?.beginUndoGrouping()
+
+        for newNode in newNodes
+        {
+            targetGraph.addNode(newNode)
+        }
+
+        // 5. Restore internal connections using remapped port IDs
+        for (oldPortID, oldConnectedIDs) in internalConnections
+        {
+            guard let newPortIDString = uuidRemap[oldPortID.uuidString],
+                  let newPortID = UUID(uuidString: newPortIDString),
+                  let newPort = targetGraph.nodePort(forID: newPortID)
+            else { continue }
+
+            for oldConnectedID in oldConnectedIDs
+            {
+                guard let newConnectedIDString = uuidRemap[oldConnectedID.uuidString],
+                      let newConnectedID = UUID(uuidString: newConnectedIDString),
+                      let newConnectedPort = targetGraph.nodePort(forID: newConnectedID)
+                else { continue }
+
+                newPort.connect(to: newConnectedPort)
+            }
+        }
+
+        targetGraph.undoManager?.endUndoGrouping()
+        targetGraph.undoManager?.setActionName("Duplicate Nodes")
+
+        // 6. Select only the new nodes
+        targetGraph.deselectAllNodes()
+        for newNode in newNodes { newNode.isSelected = true }
+
+        targetGraph.shouldUpdateConnections = true
+
+        return newNodes
+    }
+
+    /// Copies selected nodes and their internal connections to the system pasteboard
+    public func copyNodesToPasteboard(_ nodes: [Node])
+    {
+        guard !nodes.isEmpty else { return }
+
+        let internalConnections = buildInternalConnectionMap(for: nodes)
+
+        let nodeEntries: [AnyCodableMap] = nodes.map {
+            AnyCodableMap(
+                type: String(describing: type(of: $0)),
+                value: AnyCodable($0)
+            )
+        }
+
+        // Store connection map with string keys for Codable compatibility
+        let stringConnectionMap: [String: [String]] = internalConnections.reduce(into: [:]) { result, entry in
+            result[entry.key.uuidString] = entry.value.map { $0.uuidString }
+        }
+
+        let clipboardData = NodeClipboardData(
+            nodeEntries: nodeEntries,
+            internalConnectionMap: stringConnectionMap
+        )
+
+        do
+        {
+            let data = try JSONEncoder().encode(clipboardData)
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            pasteboard.setData(data, forType: Graph.nodeClipboardType)
+        }
+        catch
+        {
+            print("copyNodesToPasteboard: Failed to encode: \(error)")
+        }
+    }
+
+    /// Pastes nodes from the system pasteboard into the graph
+    @discardableResult
+    public func pasteNodesFromPasteboard(offset: CGSize = CGSize(width: 20, height: 20)) -> [Node]
+    {
+        let targetGraph = self.activeSubGraph ?? self
+
+        guard let data = NSPasteboard.general.data(forType: Graph.nodeClipboardType) else
+        {
+            return []
+        }
+
+        do
+        {
+            let clipboardData = try JSONDecoder().decode(NodeClipboardData.self, from: data)
+
+            let encoder = JSONEncoder()
+            var uuidRemap: [String: String] = [:]
+            var encodedEntries: [Data] = []
+
+            // First pass: encode all entries and collect every UUID for remapping
+            for entry in clipboardData.nodeEntries
+            {
+                let entryData = try encoder.encode(entry)
+                encodedEntries.append(entryData)
+
+                if let jsonString = String(data: entryData, encoding: .utf8)
+                {
+                    for uuid in Graph.findAllUUIDs(in: jsonString)
+                    {
+                        if uuidRemap[uuid] == nil
+                        {
+                            uuidRemap[uuid] = UUID().uuidString
+                        }
+                    }
+                }
+            }
+
+            // Also ensure connection map UUIDs are in the remap
+            for (portID, connectedIDs) in clipboardData.internalConnectionMap
+            {
+                if uuidRemap[portID] == nil { uuidRemap[portID] = UUID().uuidString }
+                for cid in connectedIDs
+                {
+                    if uuidRemap[cid] == nil { uuidRemap[cid] = UUID().uuidString }
+                }
+            }
+
+            // Second pass: rewrite UUIDs and decode each node
+            var newNodes: [Node] = []
+
+            for entryData in encodedEntries
+            {
+                guard let rewrittenData = Graph.rewriteUUIDs(in: entryData, remap: uuidRemap) else { continue }
+
+                let rewrittenMap = try JSONDecoder().decode(AnyCodableMap.self, from: rewrittenData)
+
+                if let newNode = targetGraph.decodeNode(from: rewrittenMap)
+                {
+                    newNode.offset = newNode.offset + offset
+                    newNodes.append(newNode)
+                }
+            }
+
+            // Add nodes and restore connections
+            targetGraph.undoManager?.beginUndoGrouping()
+
+            for newNode in newNodes
+            {
+                targetGraph.addNode(newNode)
+            }
+
+            // Restore internal connections using remapped IDs
+            for (oldPortIDString, oldConnectedIDStrings) in clipboardData.internalConnectionMap
+            {
+                guard let newPortIDString = uuidRemap[oldPortIDString],
+                      let newPortID = UUID(uuidString: newPortIDString),
+                      let newPort = targetGraph.nodePort(forID: newPortID)
+                else { continue }
+
+                for oldConnectedIDString in oldConnectedIDStrings
+                {
+                    guard let newConnectedIDString = uuidRemap[oldConnectedIDString],
+                          let newConnectedID = UUID(uuidString: newConnectedIDString),
+                          let newConnectedPort = targetGraph.nodePort(forID: newConnectedID)
+                    else { continue }
+
+                    newPort.connect(to: newConnectedPort)
+                }
+            }
+
+            targetGraph.undoManager?.endUndoGrouping()
+            targetGraph.undoManager?.setActionName("Paste Nodes")
+
+            targetGraph.deselectAllNodes()
+            for newNode in newNodes { newNode.isSelected = true }
+
+            targetGraph.shouldUpdateConnections = true
+
+            return newNodes
+        }
+        catch
+        {
+            print("pasteNodesFromPasteboard: Failed: \(error)")
+            return []
+        }
+    }
 }

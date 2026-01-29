@@ -78,7 +78,7 @@ struct AboutCommands: Commands {
 struct DocumentCommands:Commands
 {
     @FocusedBinding(\.document) var document: FabricDocument?
-    
+
     var body: some Commands {
         CommandGroup(before: .pasteboard)
         {
@@ -90,6 +90,38 @@ struct DocumentCommands:Commands
             }
             .keyboardShortcut(KeyEquivalent("a"), modifiers: .command)
             .disabled( self.document?.graph.nodes.isEmpty ?? true)
+        }
+
+        CommandGroup(replacing: .pasteboard)
+        {
+            let graph = self.document?.graph.activeSubGraph ?? self.document?.graph
+            let hasSelection = graph?.nodes.contains(where: { $0.isSelected }) ?? false
+            let hasPasteData = NSPasteboard.general.data(forType: Graph.nodeClipboardType) != nil
+
+            Button("Copy")
+            {
+                guard let graph else { return }
+                let selected = graph.nodes.filter { $0.isSelected }
+                graph.copyNodesToPasteboard(selected)
+            }
+            .keyboardShortcut("c", modifiers: .command)
+            .disabled(!hasSelection)
+
+            Button("Paste")
+            {
+                graph?.pasteNodesFromPasteboard()
+            }
+            .keyboardShortcut("v", modifiers: .command)
+            .disabled(!hasPasteData)
+
+            Button("Duplicate")
+            {
+                guard let graph else { return }
+                let selected = graph.nodes.filter { $0.isSelected }
+                graph.duplicateNodes(selected)
+            }
+            .keyboardShortcut("d", modifiers: .command)
+            .disabled(!hasSelection)
         }
     }
 }
