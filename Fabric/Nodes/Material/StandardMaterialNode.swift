@@ -20,20 +20,20 @@ public class StandardMaterialNode : BaseMaterialNode
         let ports = super.registerPorts(context: context)
         
         return [
-            ("inputDiffuseTexture",  NodePort<FabricImage>(name: "Diffuse Texture", kind: .Inlet)),
-            ("inputNormalTexture",  NodePort<FabricImage>(name: "Normal Texture", kind: .Inlet)),
-            ("inputEmissiveTexture",  NodePort<FabricImage>(name: "Emissive Texture", kind: .Inlet)),
-            ("inputSpecularTexture",  NodePort<FabricImage>(name: "Specular Texture", kind: .Inlet)),
-            ("inputRoughnessTexture",  NodePort<FabricImage>(name: "Roughness Texture", kind: .Inlet)),
-            ("inputMetallicTexture",  NodePort<FabricImage>(name: "Metallic Texture", kind: .Inlet)),
-            ("inputBaseColor",  ParameterPort(parameter:Float4Parameter("Base Color", simd_float4(repeating:1), .colorpicker))),
-            ("inputEmissiveColor",  ParameterPort(parameter:Float4Parameter("Emissive Color", simd_float4(repeating:0), .colorpicker))),
-            ("inputSpecular",  ParameterPort(parameter:FloatParameter("Specular", 0.25, 0.0, 1.0, .slider))),
-            ("inputRoughness",  ParameterPort(parameter:FloatParameter("Roughness", 0.25, 0.0, 1.0, .slider))),
-            ("inputMetallic",  ParameterPort(parameter:FloatParameter("Metallic", 0.75, 0.0, 1.0, .slider))),
-            ("inputOcclusion",  ParameterPort(parameter:FloatParameter("Occlusion", 0.75, 0.0, 1.0, .slider))),
-            ("inputEnvironmentIntensity",  ParameterPort(parameter:FloatParameter("Environment Intensity", 1.0, 0.0, 1.0, .slider))),
-            ("inputGammaCorrection",  ParameterPort(parameter:FloatParameter("Gamma Correction", 1.0, 0.0, 2.4, .slider))),
+            ("inputDiffuseTexture",  NodePort<FabricImage>(name: "Diffuse Texture", kind: .Inlet, description: "Base color/albedo texture map")),
+            ("inputNormalTexture",  NodePort<FabricImage>(name: "Normal Texture", kind: .Inlet, description: "Normal map for surface detail")),
+            ("inputEmissiveTexture",  NodePort<FabricImage>(name: "Emissive Texture", kind: .Inlet, description: "Emission/glow texture map")),
+            ("inputSpecularTexture",  NodePort<FabricImage>(name: "Specular Texture", kind: .Inlet, description: "Specular intensity texture map")),
+            ("inputRoughnessTexture",  NodePort<FabricImage>(name: "Roughness Texture", kind: .Inlet, description: "Surface roughness texture map")),
+            ("inputMetallicTexture",  NodePort<FabricImage>(name: "Metallic Texture", kind: .Inlet, description: "Metallic property texture map")),
+            ("inputBaseColor",  ParameterPort(parameter:Float4Parameter("Base Color", simd_float4(repeating:1), .colorpicker, "Base diffuse color of the material (RGBA)"))),
+            ("inputEmissiveColor",  ParameterPort(parameter:Float4Parameter("Emissive Color", simd_float4(repeating:0), .colorpicker, "Self-illumination color independent of lighting (RGBA)"))),
+            ("inputSpecular",  ParameterPort(parameter:FloatParameter("Specular", 0.25, 0.0, 1.0, .slider, "Intensity of specular highlights (0 = none, 1 = full)"))),
+            ("inputRoughness",  ParameterPort(parameter:FloatParameter("Roughness", 0.25, 0.0, 1.0, .slider, "Surface roughness where 0 is smooth and 1 is fully rough"))),
+            ("inputMetallic",  ParameterPort(parameter:FloatParameter("Metallic", 0.75, 0.0, 1.0, .slider, "Metallic property where 0 is dielectric and 1 is pure metal"))),
+            ("inputOcclusion",  ParameterPort(parameter:FloatParameter("Occlusion", 0.75, 0.0, 1.0, .slider, "Ambient occlusion factor to darken crevices (0-1)"))),
+            ("inputEnvironmentIntensity",  ParameterPort(parameter:FloatParameter("Environment Intensity", 1.0, 0.0, 1.0, .slider, "Strength of environment map reflections (0-1)"))),
+            ("inputGammaCorrection",  ParameterPort(parameter:FloatParameter("Gamma Correction", 1.0, 0.0, 2.4, .slider, "Gamma correction value for color space conversion"))),
             ]
         + ports
     }

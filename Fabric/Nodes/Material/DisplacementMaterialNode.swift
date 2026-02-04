@@ -22,14 +22,14 @@ public class DisplacementMaterialNode: BaseMaterialNode
         let ports = super.registerPorts(context: context)
         
         return [
-            ("inputTexture", NodePort<FabricImage>(name: "Image", kind: .Inlet)),
-            ("inputDisplacementTexture", NodePort<FabricImage>(name: "Displacement Image", kind: .Inlet)),
-            ("inputPointSpriteTexture", NodePort<FabricImage>(name: "Point Sprite Image", kind: .Inlet)),
-            ("inputAmount", ParameterPort(parameter:FloatParameter("Amount", 0.0, 0.0, 2.0, .slider))),
-            ("inputLumaVsRGBAmount", ParameterPort(parameter:FloatParameter("Luma v RGB", 0.0, 0.0, 1.0, .slider))),
-            ("inputMinPointSize", ParameterPort(parameter:FloatParameter("Min PointSize", 1.0, 0.5, 128.0, .slider))),
-            ("inputMaxPointSize", ParameterPort(parameter:FloatParameter("Max PointSize", 1.0, 0.5, 128.0, .slider))),
-            ("inputBrightness", ParameterPort(parameter:FloatParameter("Brightness", 1.0, 0.0, 2.0, .slider))),
+            ("inputTexture", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Color texture to apply to displaced geometry")),
+            ("inputDisplacementTexture", NodePort<FabricImage>(name: "Displacement Image", kind: .Inlet, description: "Grayscale image for vertex displacement")),
+            ("inputPointSpriteTexture", NodePort<FabricImage>(name: "Point Sprite Image", kind: .Inlet, description: "Texture for point sprite rendering")),
+            ("inputAmount", ParameterPort(parameter:FloatParameter("Amount", 0.0, 0.0, 2.0, .slider, "Displacement strength multiplier"))),
+            ("inputLumaVsRGBAmount", ParameterPort(parameter:FloatParameter("Luma v RGB", 0.0, 0.0, 1.0, .slider, "Blend between luminance (0) and RGB (1) for displacement"))),
+            ("inputMinPointSize", ParameterPort(parameter:FloatParameter("Min PointSize", 1.0, 0.5, 128.0, .slider, "Minimum point sprite size in pixels"))),
+            ("inputMaxPointSize", ParameterPort(parameter:FloatParameter("Max PointSize", 1.0, 0.5, 128.0, .slider, "Maximum point sprite size in pixels"))),
+            ("inputBrightness", ParameterPort(parameter:FloatParameter("Brightness", 1.0, 0.0, 2.0, .slider, "Output brightness multiplier"))),
         ] + ports
     }
 

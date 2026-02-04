@@ -19,7 +19,7 @@ public class BasicDiffuseMaterialNode : BasicColorMaterialNode
         let ports = super.registerPorts(context: context)
         
         return  [
-                    ("inputHardness", ParameterPort(parameter:FloatParameter("Hardness", 1, 0, 1, .slider)) ),
+                    ("inputHardness", ParameterPort(parameter:FloatParameter("Hardness", 1, 0, 1, .slider, "Controls diffuse falloff sharpness (0 = soft, 1 = hard)")) ),
                 ] + ports
     }
     

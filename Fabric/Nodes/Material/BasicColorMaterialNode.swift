@@ -19,7 +19,7 @@ public class BasicColorMaterialNode : BaseMaterialNode
         let ports = super.registerPorts(context: context)
         
         return  [
-                    ("inputColor", ParameterPort(parameter:Float4Parameter("Color", .one, .zero, .one, .colorpicker)) ),
+                    ("inputColor", ParameterPort(parameter:Float4Parameter("Color", .one, .zero, .one, .colorpicker, "Flat color applied to the entire surface (RGBA)")) ),
                 ] + ports
     }
     
