@@ -24,10 +24,10 @@ public class NumberLogicOperator : Node
         
         return ports +
         [
-            ("inputNumber1", ParameterPort(parameter: FloatParameter("Number A", 0.0, .inputfield))),
-            ("inputNumber2", ParameterPort(parameter: FloatParameter("Number B", 0.0, .inputfield))),
-            ("inputParam", ParameterPort(parameter: StringParameter("Operator", BinaryMathLogicOperator.Equals.rawValue, BinaryMathLogicOperator.allCases.map(\.rawValue))) ),
-            ("outputResult", NodePort<Bool>(name: "Result" , kind: .Outlet)),
+            ("inputNumber1", ParameterPort(parameter: FloatParameter("Number A", 0.0, .inputfield, "First value to compare"))),
+            ("inputNumber2", ParameterPort(parameter: FloatParameter("Number B", 0.0, .inputfield, "Second value to compare"))),
+            ("inputParam", ParameterPort(parameter: StringParameter("Operator", BinaryMathLogicOperator.Equals.rawValue, BinaryMathLogicOperator.allCases.map(\.rawValue), .dropdown, "Comparison operation to perform")) ),
+            ("outputResult", NodePort<Bool>(name: "Result" , kind: .Outlet, description: "Result of the comparison")),
         ]
     }
     

@@ -24,8 +24,8 @@ public class NumberNode : Node
         
         return ports +
         [
-            ("inputNumber", ParameterPort(parameter: FloatParameter("Number", 0.0, .inputfield))),
-            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet)),
+            ("inputNumber", ParameterPort(parameter: FloatParameter("Number", 0.0, .inputfield, "The constant number value to output"))),
+            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet, description: "The output number value")),
         ]
     }
     

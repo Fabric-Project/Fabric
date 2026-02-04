@@ -27,7 +27,7 @@ public class CurrentTimeNode : Node
         
         return ports +
         [
-            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet)),
+            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet, description: "Elapsed time in seconds since patch execution started")),
         ]
     }
     

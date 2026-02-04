@@ -24,10 +24,10 @@ public class NumberBinaryOperator : Node
         
         return ports +
         [
-            ("inputNumber1", ParameterPort(parameter: FloatParameter("Number A", 0.0, .inputfield))),
-            ("inputNumber2", ParameterPort(parameter: FloatParameter("Number B", 0.0, .inputfield))),
-            ("inputParam", ParameterPort(parameter: StringParameter("Operator", "Add", BinaryMathOperator.allCases.map(\.rawValue))) ),
-            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet)),
+            ("inputNumber1", ParameterPort(parameter: FloatParameter("Number A", 0.0, .inputfield, "First operand for the binary operation"))),
+            ("inputNumber2", ParameterPort(parameter: FloatParameter("Number B", 0.0, .inputfield, "Second operand for the binary operation"))),
+            ("inputParam", ParameterPort(parameter: StringParameter("Operator", "Add", BinaryMathOperator.allCases.map(\.rawValue), .dropdown, "Mathematical operation to perform")) ),
+            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet, description: "Result of the binary operation")),
         ]
     }
     

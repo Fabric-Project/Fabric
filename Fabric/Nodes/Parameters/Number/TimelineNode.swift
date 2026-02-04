@@ -690,7 +690,7 @@ struct TimelineNodeView: View
         
         return ports +
         [
-            ("inputTime", ParameterPort(parameter: FloatParameter("Time", 0.0, .inputfield))),
+            ("inputTime", ParameterPort(parameter: FloatParameter("Time", 0.0, .inputfield, "Current playback time for evaluating the timeline"))),
         ]
     }
     
@@ -788,7 +788,7 @@ struct TimelineNodeView: View
         {
             if !existingPortNames.contains(track.name)
             {
-                let port = NodePort<Float>(name: track.name, kind: .Outlet)
+                let port = NodePort<Float>(name: track.name, kind: .Outlet, description: "Animated value from timeline track")
                 addDynamicPort(port)
             }
         }
@@ -807,7 +807,7 @@ struct TimelineNodeView: View
         // Create output port for each track
         for track in tracks
         {
-            let port = NodePort<Float>(name: track.name, kind: .Outlet)
+            let port = NodePort<Float>(name: track.name, kind: .Outlet, description: "Animated value from timeline track")
             addDynamicPort(port)
         }
     }
