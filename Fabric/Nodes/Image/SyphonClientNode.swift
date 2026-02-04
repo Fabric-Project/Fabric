@@ -26,9 +26,9 @@ public class SyphonClientNode : Node
         
         return ports +
         [
-            ("inputServerName", ParameterPort(parameter: StringParameter("Server Name", "", [String](), .inputfield))),
-            ("inputServerAppName", ParameterPort(parameter: StringParameter("Application Name", "", [String](), .inputfield))),
-            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet)),
+            ("inputServerName", ParameterPort(parameter: StringParameter("Server Name", "", [String](), .inputfield, "Name of the Syphon server to connect to"))),
+            ("inputServerAppName", ParameterPort(parameter: StringParameter("Application Name", "", [String](), .inputfield, "Name of the application hosting the Syphon server"))),
+            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Received Syphon frame")),
         ]
     }
 

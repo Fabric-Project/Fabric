@@ -26,8 +26,8 @@ public class ImageDimensions : Node
         
     public required init(context: Context)
     {
-        self.inputTexture =  NodePort<FabricImage>(name: "Image" , kind: .Inlet)
-        self.outputResolution =  NodePort<simd_float2>(name: "Resolution" , kind: .Outlet)
+        self.inputTexture =  NodePort<FabricImage>(name: "Image" , kind: .Inlet, description: "Input image to measure")
+        self.outputResolution =  NodePort<simd_float2>(name: "Resolution" , kind: .Outlet, description: "Image dimensions in pixels (width, height)")
 
         super.init(context: context)
     }

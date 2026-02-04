@@ -37,8 +37,8 @@ public class MovieProviderNode : Node
         
         return ports +
         [
-            ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker))),
-            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet)),
+            ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the movie file to play"))),
+            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Current video frame")),
         ]
     }
 

@@ -26,8 +26,8 @@ public class SyphonServerNode : Node
         
         return ports +
         [
-            ("inputServerName", ParameterPort(parameter: StringParameter("Syphon Server", "", .inputfield))),
-            ("inputTexture", NodePort<FabricImage>(name: "Image", kind: .Inlet)),
+            ("inputServerName", ParameterPort(parameter: StringParameter("Syphon Server", "", .inputfield, "Name of the Syphon server to create"))),
+            ("inputTexture", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Image to publish via Syphon")),
         ]
     }
 

@@ -73,8 +73,8 @@ public class CameraProviderNode : Node
         
         return ports +
         [
-            ("inputCamera", ParameterPort(parameter: StringParameter("Device Name", "", .dropdown))),
-            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet)),
+            ("inputCamera", ParameterPort(parameter: StringParameter("Device Name", "", .dropdown, "Camera device to capture video from"))),
+            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Live camera feed")),
         ]
     }
 
