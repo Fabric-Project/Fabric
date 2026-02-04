@@ -800,12 +800,12 @@ struct DetectedInputRow: View
             let port: Port
             if input.type == .noteGate
             {
-                port = NodePort<Bool>(name: portName, kind: .Outlet)
+                port = NodePort<Bool>(name: portName, kind: .Outlet, description: "MIDI note gate (true while note is held)")
                 boolValues[input.uniqueKey] = false
             }
             else
             {
-                port = NodePort<Float>(name: portName, kind: .Outlet)
+                port = NodePort<Float>(name: portName, kind: .Outlet, description: "MIDI value normalized from 0 to 1")
                 floatValues[input.uniqueKey] = 0.0
             }
 

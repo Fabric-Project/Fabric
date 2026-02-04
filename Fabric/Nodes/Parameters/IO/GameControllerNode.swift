@@ -408,14 +408,14 @@ struct GameControllerNodeView: View
 
     private func createAxisPort(_ name: String)
     {
-        let port = NodePort<Float>(name: name, kind: .Outlet)
+        let port = NodePort<Float>(name: name, kind: .Outlet, description: "Controller axis value normalized from -1 to 1")
         addDynamicPort(port)
         axisValues[name] = 0.0
     }
 
     private func createButtonPort(_ name: String)
     {
-        let port = NodePort<Bool>(name: name, kind: .Outlet)
+        let port = NodePort<Bool>(name: name, kind: .Outlet, description: "Controller button state (true when pressed)")
         addDynamicPort(port)
         buttonValues[name] = false
     }
