@@ -28,15 +28,15 @@ public class ObjectNode<ObjectType : Satin.Object> : BaseObjectNode
         let ports = super.registerPorts(context: context)
         
         return [
-            ("inputVisible", ParameterPort(parameter:BoolParameter("Visible", true, .button) ) ),
-            ("inputRenderOrder", ParameterPort(parameter:IntParameter("Render Order", 0, .inputfield) ) ),
-            ("inputRenderPass", ParameterPort(parameter:IntParameter("Render Pass", 0, .inputfield) ) ),
+            ("inputVisible", ParameterPort(parameter:BoolParameter("Visible", true, .button, "When enabled, the object is rendered in the scene") ) ),
+            ("inputRenderOrder", ParameterPort(parameter:IntParameter("Render Order", 0, .inputfield, "Draw order within the same render pass (lower = earlier)") ) ),
+            ("inputRenderPass", ParameterPort(parameter:IntParameter("Render Pass", 0, .inputfield, "Render pass index for multi-pass rendering") ) ),
 
-            ("inputPosition", ParameterPort(parameter:Float3Parameter("Position", simd_float3(repeating:0), .inputfield ) ) ),
+            ("inputPosition", ParameterPort(parameter:Float3Parameter("Position", simd_float3(repeating:0), .inputfield, "Position in 3D space (X, Y, Z) in world units") ) ),
 
-            ("inputScale", ParameterPort(parameter:Float3Parameter("Scale", simd_float3(repeating:1), .inputfield ) ) ),
+            ("inputScale", ParameterPort(parameter:Float3Parameter("Scale", simd_float3(repeating:1), .inputfield, "Scale factor along each axis (X, Y, Z)") ) ),
 
-            ("inputOrientation", ParameterPort(parameter:Float4Parameter("Orientation", simd_float4(repeating:0), .inputfield ) ) ),
+            ("inputOrientation", ParameterPort(parameter:Float4Parameter("Orientation", simd_float4(repeating:0), .inputfield, "Rotation as quaternion (X, Y, Z, W)") ) ),
 
         ] + ports
     }

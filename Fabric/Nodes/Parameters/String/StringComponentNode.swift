@@ -26,8 +26,8 @@ public class StringComponentNode : Node
         
         return ports +
         [
-            ("inputPort", NodePort<String>(name: "String", kind: .Inlet)),
-            ("outputPort", NodePort<ContiguousArray<String>>(name: "Components", kind: .Outlet)),
+            ("inputPort", NodePort<String>(name: "String", kind: .Inlet, description: "Input string to split into components")),
+            ("outputPort", NodePort<ContiguousArray<String>>(name: "Components", kind: .Outlet, description: "Array of string components split by newlines")),
         ]
     }
     

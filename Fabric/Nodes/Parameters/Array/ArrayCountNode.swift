@@ -28,8 +28,8 @@ public class ArrayCountNode<Value : PortValueRepresentable & Equatable> : Node
         
         return ports +
         [
-            ("inputPort", NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet)),
-            ("outputPort", NodePort<Int>(name: "Count", kind: .Outlet)),
+            ("inputPort", NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet, description: "Input array to count elements")),
+            ("outputPort", NodePort<Int>(name: "Count", kind: .Outlet, description: "Number of elements in the array")),
         ]
     }
     

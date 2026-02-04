@@ -24,11 +24,11 @@ public class SampleAndHoldNode<Value : PortValueRepresentable & Equatable> : Nod
         
         return ports +
         [
-            ("inputValue", NodePort<Value>(name: "Value" , kind: .Inlet)),
+            ("inputValue", NodePort<Value>(name: "Value" , kind: .Inlet, description: "Value to sample and hold")),
 //            ("inputValue", ParameterPort(parameter: GenericParameter<Value>("Value", Value.defaultValue, .inputfield))),
-            ("inputSample", ParameterPort(parameter:BoolParameter("Sample", true, .button))),
-            ("inputReset", ParameterPort(parameter:BoolParameter("Reset", false,  .button))),
-            ("outputValue", NodePort<Value>(name: "Value" , kind: .Outlet)),
+            ("inputSample", ParameterPort(parameter:BoolParameter("Sample", true, .button, "When enabled, samples and holds the input value"))),
+            ("inputReset", ParameterPort(parameter:BoolParameter("Reset", false,  .button, "Reset the held value to nil"))),
+            ("outputValue", NodePort<Value>(name: "Value" , kind: .Outlet, description: "The last sampled value")),
         ]
     }
     

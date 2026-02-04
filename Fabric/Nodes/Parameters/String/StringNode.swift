@@ -25,8 +25,8 @@ public class StringNode : Node
         
         return ports +
         [
-            ("inputPort",   ParameterPort(parameter: StringParameter("String", "", .inputfield))),
-            ("outputPort",  NodePort<String>(name: "String", kind: .Outlet)),
+            ("inputPort",   ParameterPort(parameter: StringParameter("String", "", .inputfield, "The string value to output"))),
+            ("outputPort",  NodePort<String>(name: "String", kind: .Outlet, description: "The output string value")),
         ]
     }
     

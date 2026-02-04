@@ -22,7 +22,7 @@ public class IteratorNode: SubgraphNode
         
         return ports +
         [
-            ("inputIteratonCount", ParameterPort(parameter: IntParameter("Iterations", 0, 100, 2, .inputfield))),
+            ("inputIteratonCount", ParameterPort(parameter: IntParameter("Iterations", 0, 100, 2, .inputfield, "Number of times to execute the subgraph"))),
         ]
     }
     

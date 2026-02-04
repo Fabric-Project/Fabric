@@ -36,15 +36,15 @@ public class LocalVLMNode : Node
         return ports +
 
         [
-            ("inputModel", ParameterPort(parameter: StringParameter("Model", defaultModelName, models, .dropdown))),
-            ("inputPrompt", ParameterPort(parameter: StringParameter("Prompt", "Describe this image?", [], .inputfield))),
-            ("inputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Inlet)),
-            ("inputGenerate", ParameterPort(parameter: BoolParameter("Generate", false, .button))),
-            ("inputTemp", ParameterPort(parameter: FloatParameter("Temerature", 0.6, .inputfield))),
-            ("inputUpdateInterval", ParameterPort(parameter: FloatParameter("Update Interval", 0.25, .inputfield))),
-            ("outputPort", NodePort<String>(name: "Output", kind: .Outlet)),
-            ("outputStats", NodePort<String>(name: "Stats", kind: .Outlet)),
-            ("outputModel", NodePort<String>(name: "Model Info", kind: .Outlet)),
+            ("inputModel", ParameterPort(parameter: StringParameter("Model", defaultModelName, models, .dropdown, "Vision language model to use"))),
+            ("inputPrompt", ParameterPort(parameter: StringParameter("Prompt", "Describe this image?", [], .inputfield, "Text prompt to send to the model"))),
+            ("inputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Image to analyze with the VLM")),
+            ("inputGenerate", ParameterPort(parameter: BoolParameter("Generate", false, .button, "Trigger text generation"))),
+            ("inputTemp", ParameterPort(parameter: FloatParameter("Temerature", 0.6, .inputfield, "Sampling temperature (higher = more creative)"))),
+            ("inputUpdateInterval", ParameterPort(parameter: FloatParameter("Update Interval", 0.25, .inputfield, "Interval in seconds between output updates"))),
+            ("outputPort", NodePort<String>(name: "Output", kind: .Outlet, description: "Generated text response")),
+            ("outputStats", NodePort<String>(name: "Stats", kind: .Outlet, description: "Generation statistics")),
+            ("outputModel", NodePort<String>(name: "Model Info", kind: .Outlet, description: "Current model information")),
         ]
     }
     

@@ -27,9 +27,9 @@ public class NumberUnaryOperator : Node
         
         return ports +
         [
-            ("inputNumber", ParameterPort(parameter: FloatParameter("Number", 0.0, .inputfield))),
-            ("inputParam", ParameterPort(parameter: StringParameter("Operator", "Sine", UnaryMathOperator.allCases.map(\.rawValue))) ),
-            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet)),
+            ("inputNumber", ParameterPort(parameter: FloatParameter("Number", 0.0, .inputfield, "Input value for the unary operation"))),
+            ("inputParam", ParameterPort(parameter: StringParameter("Operator", "Sine", UnaryMathOperator.allCases.map(\.rawValue), .dropdown, "Mathematical function to apply")) ),
+            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet, description: "Result of the unary operation")),
         ]
     }
     

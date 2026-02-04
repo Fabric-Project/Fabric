@@ -24,10 +24,10 @@ public class DecomposeTransformNode : Node
         
         return ports +
         [
-            ("inputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Inlet)),
-            ("outputTranslation", NodePort<simd_float3>(name: "Translation" , kind: .Outlet)),
-            ("outputScale", NodePort<simd_float3>(name: "Scale" , kind: .Outlet)),
-            ("outputRotation", NodePort<simd_float4>(name: "Rotation" , kind: .Outlet)),
+            ("inputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Inlet, description: "4x4 transform matrix to decompose")),
+            ("outputTranslation", NodePort<simd_float3>(name: "Translation" , kind: .Outlet, description: "Translation component as XYZ position")),
+            ("outputScale", NodePort<simd_float3>(name: "Scale" , kind: .Outlet, description: "Scale component as XYZ scale factors")),
+            ("outputRotation", NodePort<simd_float4>(name: "Rotation" , kind: .Outlet, description: "Rotation component as quaternion vector")),
         ]
     }
     

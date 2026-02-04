@@ -756,11 +756,11 @@ struct HIDNodeView: View
             let port: Port
             if element.isButton
             {
-                port = NodePort<Bool>(name: portName, kind: .Outlet)
+                port = NodePort<Bool>(name: portName, kind: .Outlet, description: "HID button state (true when pressed)")
             }
             else
             {
-                port = NodePort<Float>(name: portName, kind: .Outlet)
+                port = NodePort<Float>(name: portName, kind: .Outlet, description: "HID axis value normalized from 0 to 1")
             }
 
             self.addDynamicPort(port)

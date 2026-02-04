@@ -98,7 +98,9 @@ extension UTType
     public let id:UUID
 
     public let name: String
-    
+
+    public var portDescription: String = ""
+
     public var published: Bool = false
     
     // Kind of lame, but necessary to avoid some type based bullshit.
@@ -127,11 +129,12 @@ extension UTType
         return "\(self.node?.name ?? "No Node!!") - \(String(describing: type(of: self)))  \(id)"
     }
     
-    public init(name: String, kind: PortKind, id:UUID)
+    public init(name: String, kind: PortKind, description: String = "", id:UUID)
     {
         self.id = id
         self.kind = kind
         self.name = name
+        self.portDescription = description
         self.color = .clear
         self.backgroundColor = .clear
     }
@@ -144,20 +147,22 @@ extension UTType
         case kind
         case direction
         case published
+        case portDescription
     }
-    
+
     required public  init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        
+
         self.id = try container.decode(UUID.self, forKey: .id)
         self.name = try container.decode(String.self, forKey: .name)
         self.kind = try container.decode(PortKind.self, forKey: .kind)
         self.published = try container.decodeIfPresent(Bool.self, forKey: .published) ?? false
+        self.portDescription = try container.decodeIfPresent(String.self, forKey: .portDescription) ?? ""
         self.color = .clear
         self.backgroundColor = .clear
     }
-    
+
     public func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
@@ -166,8 +171,14 @@ extension UTType
         try container.encode(kind, forKey: .kind)
         try container.encode(published, forKey: .published)
 
+        // Only encode if non-empty to save space
+        if !portDescription.isEmpty
+        {
+            try container.encode(portDescription, forKey: .portDescription)
+        }
+
         let connectedPortIds = self.connections.map( { $0.id } )
-        
+
         try container.encode(connectedPortIds, forKey: .connections)
     }
     

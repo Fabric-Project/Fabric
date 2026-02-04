@@ -24,9 +24,9 @@ public class RotateTransformNode : Node
         
         return ports +
         [
-            ("inputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Inlet)),
-            ("inputRotation", NodePort<simd_float4>(name: "Rotation" , kind: .Inlet)),
-            ("outputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Outlet)),
+            ("inputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Inlet, description: "4x4 transform matrix to rotate")),
+            ("inputRotation", NodePort<simd_float4>(name: "Rotation" , kind: .Inlet, description: "Quaternion rotation to apply")),
+            ("outputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Outlet, description: "Rotated 4x4 transform matrix")),
         ]
     }
     

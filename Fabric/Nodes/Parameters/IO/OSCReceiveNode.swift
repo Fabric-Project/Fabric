@@ -475,13 +475,13 @@ struct OSCReceiveNodeView: View
             switch binding.dataType
             {
             case .float:
-                port = NodePort<Float>(name: portName, kind: .Outlet)
+                port = NodePort<Float>(name: portName, kind: .Outlet, description: "OSC float value received at \(binding.address)")
             case .int:
-                port = NodePort<Int>(name: portName, kind: .Outlet)
+                port = NodePort<Int>(name: portName, kind: .Outlet, description: "OSC integer value received at \(binding.address)")
             case .string:
-                port = NodePort<String>(name: portName, kind: .Outlet)
+                port = NodePort<String>(name: portName, kind: .Outlet, description: "OSC string value received at \(binding.address)")
             case .bool:
-                port = NodePort<Bool>(name: portName, kind: .Outlet)
+                port = NodePort<Bool>(name: portName, kind: .Outlet, description: "OSC boolean value received at \(binding.address)")
             }
 
             self.addDynamicPort(port)

@@ -24,7 +24,7 @@ public class IdentityTransformNode : Node
         
         return ports +
         [
-            ("outputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Outlet)),
+            ("outputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Outlet, description: "Identity 4x4 transform matrix")),
         ]
     }
     

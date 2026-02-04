@@ -20,7 +20,7 @@ public class BasicTextureMaterialNode : BasicColorMaterialNode
         let ports = super.registerPorts(context: context)
         
         return  [
-                    ("inputTexture", NodePort<FabricImage>(name: "Image", kind: .Inlet) ),
+                    ("inputTexture", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Texture image to apply to the material surface") ),
                 ] + ports
     }
     

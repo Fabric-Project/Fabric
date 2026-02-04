@@ -21,7 +21,7 @@ public class FalseNode : Node
     
     public required init(context: Context)
     {
-        self.outputBoolean = NodePort<Bool>(name: "False" , kind: .Outlet)
+        self.outputBoolean = NodePort<Bool>(name: "False" , kind: .Outlet, description: "Constant false boolean value")
         
         super.init(context: context)
     }

@@ -26,10 +26,10 @@ public class MakeQuaternionNode : Node
         [
 
             // Params
-             ("inputAngle", ParameterPort(parameter: FloatParameter("Angle", 0.0, .inputfield))),
-             ("inputAxis", ParameterPort(parameter: Float3Parameter("Axis", simd_float3(0, 1, 0), .inputfield))),
+             ("inputAngle", ParameterPort(parameter: FloatParameter("Angle", 0.0, .inputfield, "Rotation angle in degrees"))),
+             ("inputAxis", ParameterPort(parameter: Float3Parameter("Axis", simd_float3(0, 1, 0), .inputfield, "Axis of rotation (will be normalized)"))),
              
-             ("outputQuaterinion", NodePort<simd_float4>(name: "Quaternion" , kind: .Outlet))
+             ("outputQuaterinion", NodePort<simd_float4>(name: "Quaternion" , kind: .Outlet, description: "Normalized quaternion as XYZW vector"))
         ]
     }
     

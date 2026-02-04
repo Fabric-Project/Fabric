@@ -29,8 +29,8 @@ public class PersonSegmentationMaskNode: Node
     
     required init(context:Context)
     {
-        self.inputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Inlet)
-        self.outputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Outlet)
+        self.inputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to analyze")
+        self.outputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Person segmentation mask")
         
         let _ = CVMetalTextureCacheCreate(kCFAllocatorDefault,
                                           nil,

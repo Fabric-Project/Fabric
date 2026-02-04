@@ -24,9 +24,9 @@ public class MakeVector2Node : Node
         
         return ports +
         [
-            ("inputXParam", ParameterPort(parameter: FloatParameter("X", 0.0, .inputfield))),
-            ("inputYParam", ParameterPort(parameter: FloatParameter("Y", 0.0, .inputfield))),
-            ("outputVector", NodePort<simd_float2>(name: "Vector 2" , kind: .Outlet)),
+            ("inputXParam", ParameterPort(parameter: FloatParameter("X", 0.0, .inputfield, "X component of the vector"))),
+            ("inputYParam", ParameterPort(parameter: FloatParameter("Y", 0.0, .inputfield, "Y component of the vector"))),
+            ("outputVector", NodePort<simd_float2>(name: "Vector 2" , kind: .Outlet, description: "Combined 2D vector from X and Y components")),
         ]
     }
     

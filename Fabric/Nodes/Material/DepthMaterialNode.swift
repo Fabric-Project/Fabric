@@ -20,10 +20,10 @@ public class DepthMaterialNode : BaseMaterialNode
         let ports = super.registerPorts(context: context)
         
         return  [
-                    ("inputNear", ParameterPort(parameter:FloatParameter("Near", 0.001, 0.0, 1000.0, .slider)) ),
-                    ("inputFar", ParameterPort(parameter:FloatParameter("Far", 500.0, 0.0, 1000.0, .slider)) ),
-                    ("inputInvert", ParameterPort(parameter:BoolParameter("Invert", false, .toggle)) ),
-                    ("inputColor", ParameterPort(parameter:BoolParameter("Color", true, .toggle)) ),
+                    ("inputNear", ParameterPort(parameter:FloatParameter("Near", 0.001, 0.0, 1000.0, .slider, "Near clipping distance for depth visualization")) ),
+                    ("inputFar", ParameterPort(parameter:FloatParameter("Far", 500.0, 0.0, 1000.0, .slider, "Far clipping distance for depth visualization")) ),
+                    ("inputInvert", ParameterPort(parameter:BoolParameter("Invert", false, .toggle, "When enabled, inverts the depth gradient")) ),
+                    ("inputColor", ParameterPort(parameter:BoolParameter("Color", true, .toggle, "When enabled, renders depth as color gradient")) ),
                 ] + ports
     }
     

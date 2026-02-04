@@ -39,8 +39,8 @@ public class BaseEffectNode: Node, NodeFileLoadingProtocol
         
         return ports +
         [
-            ("inputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Inlet)),
-            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet)),
+            ("inputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to process")),
+            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Processed output image")),
         ]
     }
 

@@ -24,9 +24,9 @@ public class ScaleTransformNode : Node
         
         return ports +
         [
-            ("inputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Inlet)),
-            ("inputScale", NodePort<simd_float3>(name: "Scale" , kind: .Inlet)),
-            ("outputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Outlet)),
+            ("inputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Inlet, description: "4x4 transform matrix to scale")),
+            ("inputScale", NodePort<simd_float3>(name: "Scale" , kind: .Inlet, description: "XYZ scale factors to apply")),
+            ("outputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Outlet, description: "Scaled 4x4 transform matrix")),
         ]
     }
     

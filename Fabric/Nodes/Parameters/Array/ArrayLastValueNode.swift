@@ -25,8 +25,8 @@ public class ArrayLastValueNode<Value : PortValueRepresentable & Equatable> : No
         
         return ports +
         [
-            ("inputPort",  NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet)),
-            ("outputPort", NodePort<Value>(name: "Value", kind: .Outlet)),
+            ("inputPort",  NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet, description: "Input array to get the last value from")),
+            ("outputPort", NodePort<Value>(name: "Value", kind: .Outlet, description: "Last element of the array")),
         ]
     }
     

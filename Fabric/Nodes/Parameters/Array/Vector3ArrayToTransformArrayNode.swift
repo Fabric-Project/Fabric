@@ -25,8 +25,8 @@ public class Vector3ArrayToTransformArrayNode: Node
         
         return ports +
         [
-            ("inputPort",  NodePort<ContiguousArray<simd_float3>>(name: "Vector 3 Array", kind: .Inlet)),
-            ("outputPort", NodePort<ContiguousArray<simd_float4x4>>(name: "Transform Array", kind: .Outlet)),
+            ("inputPort",  NodePort<ContiguousArray<simd_float3>>(name: "Vector 3 Array", kind: .Inlet, description: "Input array of 3D position vectors")),
+            ("outputPort", NodePort<ContiguousArray<simd_float4x4>>(name: "Transform Array", kind: .Outlet, description: "Array of translation transforms from the position vectors")),
         ]
     }
     

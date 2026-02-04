@@ -22,7 +22,7 @@ public class TrueNode : Node
     
     public required init(context: Context)
     {
-        outputBoolean = NodePort<Bool>(name: "True" , kind: .Outlet)
+        outputBoolean = NodePort<Bool>(name: "True" , kind: .Outlet, description: "Constant true boolean value")
 
         super.init(context: context)
     }

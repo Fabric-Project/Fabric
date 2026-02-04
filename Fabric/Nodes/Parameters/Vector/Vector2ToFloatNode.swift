@@ -24,9 +24,9 @@ public class Vector2ToFloatNode : Node
         
         return ports +
         [
-            ("inputVectorParam",   ParameterPort(parameter:Float2Parameter("Vector 2", .zero, .inputfield))),
-            ("outputXPort",   NodePort<Float>(name: "X" , kind: .Outlet) ),
-            ("outputYPort",   NodePort<Float>(name: "Y" , kind: .Outlet) ),
+            ("inputVectorParam",   ParameterPort(parameter:Float2Parameter("Vector 2", .zero, .inputfield, "Input vector to decompose into components"))),
+            ("outputXPort",   NodePort<Float>(name: "X" , kind: .Outlet, description: "X component of the input vector") ),
+            ("outputYPort",   NodePort<Float>(name: "Y" , kind: .Outlet, description: "Y component of the input vector") ),
         ]
     }
 

@@ -25,8 +25,8 @@ public class FloatArrayToVector3ArrayNode: Node
         
         return ports +
         [
-            ("inputPort",  NodePort<ContiguousArray<Float>>(name: "Array", kind: .Inlet)),
-            ("outputPort", NodePort<ContiguousArray<simd_float3>>(name: "Vector 3 Array", kind: .Outlet)),
+            ("inputPort",  NodePort<ContiguousArray<Float>>(name: "Array", kind: .Inlet, description: "Input array of float values")),
+            ("outputPort", NodePort<ContiguousArray<simd_float3>>(name: "Vector 3 Array", kind: .Outlet, description: "Array of 3D vectors with normalized index as X, value as Y, and 0 as Z")),
         ]
     }
     

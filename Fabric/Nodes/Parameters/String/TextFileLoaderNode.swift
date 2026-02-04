@@ -25,8 +25,8 @@ public class TextFileLoaderNode : Node
         
         return ports +
         [
-            ("inputFilePathParam", ParameterPort(parameter: StringParameter("Text File", "", .filepicker))),
-            ("outputPort", NodePort<String>(name: "Text", kind: .Outlet)),
+            ("inputFilePathParam", ParameterPort(parameter: StringParameter("Text File", "", .filepicker, "Path to the text file to load"))),
+            ("outputPort", NodePort<String>(name: "Text", kind: .Outlet, description: "Contents of the loaded text file")),
         ]
     }
     

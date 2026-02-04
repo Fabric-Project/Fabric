@@ -29,7 +29,7 @@ public class InstancedModelMeshNode : InstancedMeshNode
 
         return ports +
         [
-            ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker))),
+            ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the 3D model file to load"))),
         ]
     }
 

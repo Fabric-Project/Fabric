@@ -25,9 +25,9 @@ public class StringJoinNode : Node
         
         return ports +
         [
-            ("inputPort",   ParameterPort(parameter: StringParameter("String", "", .inputfield))),
-            ("input2Port",  ParameterPort(parameter: StringParameter("String", "", .inputfield))),
-            ("outputPort",  NodePort<String>(name: "String", kind: .Outlet)),
+            ("inputPort",   ParameterPort(parameter: StringParameter("String", "", .inputfield, "First string to concatenate"))),
+            ("input2Port",  ParameterPort(parameter: StringParameter("String", "", .inputfield, "Second string to concatenate"))),
+            ("outputPort",  NodePort<String>(name: "String", kind: .Outlet, description: "Concatenated result of both input strings")),
         ]
     }
     

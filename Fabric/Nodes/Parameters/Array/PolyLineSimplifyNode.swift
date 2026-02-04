@@ -25,9 +25,9 @@ public class PolyLineSimplifyNode: Node
         
         return ports +
         [
-            ("inputPort",  NodePort<ContiguousArray<simd_float2>>(name: "Array", kind: .Inlet)),
-            ("inputTolerance", ParameterPort(parameter: FloatParameter("Tolerance", 0, .inputfield)) ),
-            ("outputPort", NodePort<ContiguousArray<simd_float2>>(name: "Array", kind: .Outlet)),
+            ("inputPort",  NodePort<ContiguousArray<simd_float2>>(name: "Array", kind: .Inlet, description: "Input polyline as array of 2D points")),
+            ("inputTolerance", ParameterPort(parameter: FloatParameter("Tolerance", 0, .inputfield, "Simplification tolerance for the Douglas-Peucker algorithm")) ),
+            ("outputPort", NodePort<ContiguousArray<simd_float2>>(name: "Array", kind: .Outlet, description: "Simplified polyline with reduced point count")),
         ]
     }
     

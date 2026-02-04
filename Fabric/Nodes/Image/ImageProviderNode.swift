@@ -25,8 +25,8 @@ public class ImageProviderNode : Node
         
         return ports +
         [
-            ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker))),
-            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet)),
+            ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the image file to load"))),
+            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "The loaded image")),
         ]
     }
 

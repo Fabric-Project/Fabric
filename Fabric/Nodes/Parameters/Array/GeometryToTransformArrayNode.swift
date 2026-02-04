@@ -28,9 +28,9 @@ public class GeometryToTransformArrayNode : Node
         
         return ports +
         [
-            ("inputPort", NodePort<SatinGeometry>(name: "Geometry", kind: .Inlet)),
-            ("inputTransform", NodePort<simd_float4x4>(name: "Transform", kind: .Inlet)),
-            ("outputPort", NodePort<ContiguousArray<simd_float4x4>>(name: "Array of Transforms", kind: .Outlet)),
+            ("inputPort", NodePort<SatinGeometry>(name: "Geometry", kind: .Inlet, description: "Source geometry to extract vertex positions from")),
+            ("inputTransform", NodePort<simd_float4x4>(name: "Transform", kind: .Inlet, description: "Transform to apply to each vertex position")),
+            ("outputPort", NodePort<ContiguousArray<simd_float4x4>>(name: "Array of Transforms", kind: .Outlet, description: "Array of translation transforms from geometry vertices")),
         ]
     }
     

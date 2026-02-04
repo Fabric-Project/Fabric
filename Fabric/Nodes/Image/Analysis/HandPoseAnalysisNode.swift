@@ -26,35 +26,35 @@ public class HandPoseAnalysisNode: Node
         
         return ports +
         [
-            ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet)),
-            ("inputHandCount", ParameterPort(parameter: IntParameter("Hand Count", 1, 1, 16, .inputfield))),
-            
-            ("outputThumb1", NodePort<simd_float2>(name: "Thumb Tip", kind: .Outlet)),
-            ("outputThumb2", NodePort<simd_float2>(name: "Thumb Joint 1", kind: .Outlet)),
-            ("outputThumb3", NodePort<simd_float2>(name: "Thumb Joint 2", kind: .Outlet)),
-            ("outputThumb4", NodePort<simd_float2>(name: "Thumb Knuckle", kind: .Outlet)),
+            ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to analyze for hand poses")),
+            ("inputHandCount", ParameterPort(parameter: IntParameter("Hand Count", 1, 1, 16, .inputfield, "Maximum number of hands to detect"))),
 
-            ("outputIndex1", NodePort<simd_float2>(name: "Index Tip", kind: .Outlet)),
-            ("outputIndex2", NodePort<simd_float2>(name: "Index Joint 1", kind: .Outlet)),
-            ("outputIndex3", NodePort<simd_float2>(name: "Index Joint 2", kind: .Outlet)),
-            ("outputIndex4", NodePort<simd_float2>(name: "Index Knuckle", kind: .Outlet)),
+            ("outputThumb1", NodePort<simd_float2>(name: "Thumb Tip", kind: .Outlet, description: "Position of thumb tip in unit coordinates")),
+            ("outputThumb2", NodePort<simd_float2>(name: "Thumb Joint 1", kind: .Outlet, description: "Position of thumb IP joint in unit coordinates")),
+            ("outputThumb3", NodePort<simd_float2>(name: "Thumb Joint 2", kind: .Outlet, description: "Position of thumb MP joint in unit coordinates")),
+            ("outputThumb4", NodePort<simd_float2>(name: "Thumb Knuckle", kind: .Outlet, description: "Position of thumb CMC joint in unit coordinates")),
 
-            ("outputMiddle1", NodePort<simd_float2>(name: "Middle Tip", kind: .Outlet)),
-            ("outputMiddle2", NodePort<simd_float2>(name: "Middle Joint 1", kind: .Outlet)),
-            ("outputMiddle3", NodePort<simd_float2>(name: "Middle Joint 2", kind: .Outlet)),
-            ("outputMiddle4", NodePort<simd_float2>(name: "Middle Knuckle", kind: .Outlet)),
+            ("outputIndex1", NodePort<simd_float2>(name: "Index Tip", kind: .Outlet, description: "Position of index finger tip in unit coordinates")),
+            ("outputIndex2", NodePort<simd_float2>(name: "Index Joint 1", kind: .Outlet, description: "Position of index DIP joint in unit coordinates")),
+            ("outputIndex3", NodePort<simd_float2>(name: "Index Joint 2", kind: .Outlet, description: "Position of index PIP joint in unit coordinates")),
+            ("outputIndex4", NodePort<simd_float2>(name: "Index Knuckle", kind: .Outlet, description: "Position of index MCP joint in unit coordinates")),
 
-            ("outputRing1", NodePort<simd_float2>(name: "Ring Tip", kind: .Outlet)),
-            ("outputRing2", NodePort<simd_float2>(name: "Ring Joint 1", kind: .Outlet)),
-            ("outputRing3", NodePort<simd_float2>(name: "Ring Joint 2", kind: .Outlet)),
-            ("outputRing4", NodePort<simd_float2>(name: "Ring Knuckle", kind: .Outlet)),
+            ("outputMiddle1", NodePort<simd_float2>(name: "Middle Tip", kind: .Outlet, description: "Position of middle finger tip in unit coordinates")),
+            ("outputMiddle2", NodePort<simd_float2>(name: "Middle Joint 1", kind: .Outlet, description: "Position of middle DIP joint in unit coordinates")),
+            ("outputMiddle3", NodePort<simd_float2>(name: "Middle Joint 2", kind: .Outlet, description: "Position of middle PIP joint in unit coordinates")),
+            ("outputMiddle4", NodePort<simd_float2>(name: "Middle Knuckle", kind: .Outlet, description: "Position of middle MCP joint in unit coordinates")),
 
-            ("outputLittle1", NodePort<simd_float2>(name: "Little Tip", kind: .Outlet)),
-            ("outputLittle2", NodePort<simd_float2>(name: "Little Joint 1", kind: .Outlet)),
-            ("outputLittle3", NodePort<simd_float2>(name: "Little Joint 2", kind: .Outlet)),
-            ("outputLittle4", NodePort<simd_float2>(name: "Little Knuckle", kind: .Outlet)),
+            ("outputRing1", NodePort<simd_float2>(name: "Ring Tip", kind: .Outlet, description: "Position of ring finger tip in unit coordinates")),
+            ("outputRing2", NodePort<simd_float2>(name: "Ring Joint 1", kind: .Outlet, description: "Position of ring DIP joint in unit coordinates")),
+            ("outputRing3", NodePort<simd_float2>(name: "Ring Joint 2", kind: .Outlet, description: "Position of ring PIP joint in unit coordinates")),
+            ("outputRing4", NodePort<simd_float2>(name: "Ring Knuckle", kind: .Outlet, description: "Position of ring MCP joint in unit coordinates")),
 
-            ("outputWrist", NodePort<simd_float2>(name: "Wrist", kind: .Outlet)),
+            ("outputLittle1", NodePort<simd_float2>(name: "Little Tip", kind: .Outlet, description: "Position of pinky finger tip in unit coordinates")),
+            ("outputLittle2", NodePort<simd_float2>(name: "Little Joint 1", kind: .Outlet, description: "Position of pinky DIP joint in unit coordinates")),
+            ("outputLittle3", NodePort<simd_float2>(name: "Little Joint 2", kind: .Outlet, description: "Position of pinky PIP joint in unit coordinates")),
+            ("outputLittle4", NodePort<simd_float2>(name: "Little Knuckle", kind: .Outlet, description: "Position of pinky MCP joint in unit coordinates")),
+
+            ("outputWrist", NodePort<simd_float2>(name: "Wrist", kind: .Outlet, description: "Position of wrist in unit coordinates")),
         ]
     }
 

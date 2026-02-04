@@ -24,9 +24,9 @@ public class TranslateTransformNode : Node
         
         return ports +
         [
-            ("inputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Inlet)),
-            ("inputTranslation", NodePort<simd_float3>(name: "Translation" , kind: .Inlet)),
-            ("outputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Outlet)),
+            ("inputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Inlet, description: "4x4 transform matrix to translate")),
+            ("inputTranslation", NodePort<simd_float3>(name: "Translation" , kind: .Inlet, description: "XYZ translation offset to apply")),
+            ("outputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Outlet, description: "Translated 4x4 transform matrix")),
         ]
     }
     

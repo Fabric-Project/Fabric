@@ -28,9 +28,9 @@ public class NumberRoundNode : Node
         
         return ports +
         [
-            ("inputNumber", NodePort<Float>(name: NumberNode.name , kind: .Inlet)),
-            ("inputRoundMethod", ParameterPort(parameter: StringParameter("Round Method", "Round", ["Round", "Floor", "Ceil"], .dropdown))),
-            ("outputNumber", NodePort<Int>(name: NumberNode.name , kind: .Outlet)),
+            ("inputNumber", NodePort<Float>(name: NumberNode.name , kind: .Inlet, description: "Number to round")),
+            ("inputRoundMethod", ParameterPort(parameter: StringParameter("Round Method", "Round", ["Round", "Floor", "Ceil"], .dropdown, "Rounding method (Round, Floor, or Ceiling)"))),
+            ("outputNumber", NodePort<Int>(name: NumberNode.name , kind: .Outlet, description: "The rounded integer value")),
         ]
     }
     

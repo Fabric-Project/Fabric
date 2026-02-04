@@ -18,8 +18,8 @@ public class CircleGeometryNode : BaseGeometryNode
         let ports = super.registerPorts(context: context)
         
         return  [
-        ("inputSize",  ParameterPort(parameter:FloatParameter("Size", 1.0, .inputfield))),
-            
+        ("inputSize",  ParameterPort(parameter:FloatParameter("Size", 1.0, .inputfield, "Radius of the circle in world units"))),
+
         ] + ports
     }
     

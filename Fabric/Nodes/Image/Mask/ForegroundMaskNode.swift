@@ -29,8 +29,8 @@ public class ForegroundMaskNode: Node
     
     required init(context:Context)
     {
-        self.inputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Inlet)
-        self.outputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Outlet)
+        self.inputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to analyze")
+        self.outputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Foreground object mask")
         
         let _ = CVMetalTextureCacheCreate(kCFAllocatorDefault,
                                           nil,

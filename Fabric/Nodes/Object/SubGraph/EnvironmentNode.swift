@@ -21,8 +21,8 @@ public class EnvironmentNode: SubgraphNode
         
         return ports +
         [
-            ("inputEnvironmentTexture", NodePort<FabricImage>(name: "Environment Texture", kind: .Inlet)),
-            ("inputEnvironmentIntensity", ParameterPort(parameter: FloatParameter("Environment Intensity", 1.0, 0.0, 1.0, .slider))),
+            ("inputEnvironmentTexture", NodePort<FabricImage>(name: "Environment Texture", kind: .Inlet, description: "HDR environment map for image-based lighting")),
+            ("inputEnvironmentIntensity", ParameterPort(parameter: FloatParameter("Environment Intensity", 1.0, 0.0, 1.0, .slider, "Brightness multiplier for the environment lighting"))),
 //            ("inputBlur", ParameterPort(parameter: FloatParameter("Blur", 0.0, 0.0, 5.0, .slider))),
         ]
     }

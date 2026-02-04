@@ -39,10 +39,10 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
         
         return ports +
         [
-            ("inputTexturePort", NodePort<FabricImage>(name: "Image 1", kind: .Inlet)),
-            ("inputTexture2Port", NodePort<FabricImage>(name: "Image 2", kind: .Inlet)),
-            ("inputTexture3Port", NodePort<FabricImage>(name: "Image 3", kind: .Inlet)),
-            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet)),
+            ("inputTexturePort", NodePort<FabricImage>(name: "Image 1", kind: .Inlet, description: "First input image to process")),
+            ("inputTexture2Port", NodePort<FabricImage>(name: "Image 2", kind: .Inlet, description: "Second input image to process")),
+            ("inputTexture3Port", NodePort<FabricImage>(name: "Image 3", kind: .Inlet, description: "Third input image to process")),
+            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Processed output image")),
         ]
     }
 

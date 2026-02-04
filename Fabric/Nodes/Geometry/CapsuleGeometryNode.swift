@@ -17,11 +17,11 @@ public class CapsuleGeometryNode : BaseGeometryNode
         let ports = super.registerPorts(context: context)
         
         return  [
-        ("inputRadius",  ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield))),
-        ("inputHeight",  ParameterPort(parameter:FloatParameter("Height", 2.0, .inputfield))),
-        ("inputAngularResolution",  ParameterPort(parameter:IntParameter("Angular Resolution", 30, .inputfield))),
-        ("inputVerticalResolution",  ParameterPort(parameter:IntParameter("Vertical Resolution", 30, .inputfield))),
-            
+        ("inputRadius",  ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield, "Radius of the capsule cylinder and end caps in world units"))),
+        ("inputHeight",  ParameterPort(parameter:FloatParameter("Height", 2.0, .inputfield, "Height of the cylindrical section in world units"))),
+        ("inputAngularResolution",  ParameterPort(parameter:IntParameter("Angular Resolution", 30, .inputfield, "Number of segments around the capsule circumference"))),
+        ("inputVerticalResolution",  ParameterPort(parameter:IntParameter("Vertical Resolution", 30, .inputfield, "Number of segments along the capsule height"))),
+
         ] + ports
     }
     

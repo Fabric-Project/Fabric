@@ -24,11 +24,11 @@ public class MakeVector4Node : Node
         
         return ports +
         [
-            ("inputXParam", ParameterPort(parameter: FloatParameter("X", 0.0, .inputfield))),
-            ("inputYParam", ParameterPort(parameter: FloatParameter("Y", 0.0, .inputfield))),
-            ("inputZParam", ParameterPort(parameter: FloatParameter("Z", 0.0, .inputfield))),
-            ("inputWParam", ParameterPort(parameter: FloatParameter("W", 0.0, .inputfield))),
-            ("outputVector", NodePort<simd_float4>(name: "Vector 4" , kind: .Outlet)),
+            ("inputXParam", ParameterPort(parameter: FloatParameter("X", 0.0, .inputfield, "X component of the vector"))),
+            ("inputYParam", ParameterPort(parameter: FloatParameter("Y", 0.0, .inputfield, "Y component of the vector"))),
+            ("inputZParam", ParameterPort(parameter: FloatParameter("Z", 0.0, .inputfield, "Z component of the vector"))),
+            ("inputWParam", ParameterPort(parameter: FloatParameter("W", 0.0, .inputfield, "W component of the vector"))),
+            ("outputVector", NodePort<simd_float4>(name: "Vector 4" , kind: .Outlet, description: "Combined 4D vector from X, Y, Z and W components")),
         ]
     }
     

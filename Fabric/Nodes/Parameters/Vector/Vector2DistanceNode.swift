@@ -51,10 +51,10 @@ public class Vector2Distance : Node
         
         return ports +
         [
-            ("inputMetricParam",   ParameterPort(parameter:StringParameter("Distance Metric", Vector2Distance.Eucledian.rawValue, Vector2Distance.allCases.map({ $0.rawValue }), .dropdown))),
-            ("inputVectorAParam",   ParameterPort(parameter:Float2Parameter("Vector 2", .zero, .inputfield))),
-            ("inputVectorBParam",   ParameterPort(parameter:Float2Parameter("Vector 2", .zero, .inputfield))),
-            ("outputDistancePort",   NodePort<Float>(name: "Distance" , kind: .Outlet) ),
+            ("inputMetricParam",   ParameterPort(parameter:StringParameter("Distance Metric", Vector2Distance.Eucledian.rawValue, Vector2Distance.allCases.map({ $0.rawValue }), .dropdown, "Distance calculation method"))),
+            ("inputVectorAParam",   ParameterPort(parameter:Float2Parameter("Vector 2", .zero, .inputfield, "First vector for distance calculation"))),
+            ("inputVectorBParam",   ParameterPort(parameter:Float2Parameter("Vector 2", .zero, .inputfield, "Second vector for distance calculation"))),
+            ("outputDistancePort",   NodePort<Float>(name: "Distance" , kind: .Outlet, description: "Calculated distance between the two vectors") ),
         ]
     }
 

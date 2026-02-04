@@ -35,8 +35,8 @@ public class CursorNode : Node
       
     public required init(context: Context)
     {
-        self.outputCursorPosition = NodePort<simd_float2>(name: "Position" , kind: .Outlet)
-        self.outputTap = NodePort<Bool>(name: "Tap" , kind: .Outlet)
+        self.outputCursorPosition = NodePort<simd_float2>(name: "Position" , kind: .Outlet, description: "Current cursor position in pixels")
+        self.outputTap = NodePort<Bool>(name: "Tap" , kind: .Outlet, description: "True when mouse button is pressed")
         
         super.init(context: context)
     }

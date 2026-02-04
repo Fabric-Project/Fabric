@@ -29,8 +29,8 @@ public class NumberIntegralNode : Node
         
         return ports +
         [
-            ("inputNumber", ParameterPort(parameter: FloatParameter("Number", 0.0, .inputfield))),
-            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet)),
+            ("inputNumber", ParameterPort(parameter: FloatParameter("Number", 0.0, .inputfield, "Value to integrate over time"))),
+            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet, description: "Accumulated sum of input values over time")),
         ]
     }
     

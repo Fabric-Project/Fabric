@@ -23,12 +23,12 @@ public class NumberRemapNode : Node
         
         return ports +
         [
-            ("inputNumber", ParameterPort(parameter: FloatParameter("Number", 0.0, .inputfield))),
-            ("inputMinNumber", ParameterPort(parameter: FloatParameter("Input Min", 0.0, .inputfield))),
-            ("inputMaxNumber", ParameterPort(parameter: FloatParameter("Input Max", 1.0, .inputfield))),
-            ("inputNewMinNumber", ParameterPort(parameter: FloatParameter("Output Min", 0.0, .inputfield))),
-            ("inputNewMaxNumber", ParameterPort(parameter: FloatParameter("Output Max", 1.0, .inputfield))),
-            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet)),
+            ("inputNumber", ParameterPort(parameter: FloatParameter("Number", 0.0, .inputfield, "The input value to remap"))),
+            ("inputMinNumber", ParameterPort(parameter: FloatParameter("Input Min", 0.0, .inputfield, "Minimum of the input range"))),
+            ("inputMaxNumber", ParameterPort(parameter: FloatParameter("Input Max", 1.0, .inputfield, "Maximum of the input range"))),
+            ("inputNewMinNumber", ParameterPort(parameter: FloatParameter("Output Min", 0.0, .inputfield, "Minimum of the output range"))),
+            ("inputNewMaxNumber", ParameterPort(parameter: FloatParameter("Output Max", 1.0, .inputfield, "Maximum of the output range"))),
+            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet, description: "The remapped output value")),
         ]
     }
     

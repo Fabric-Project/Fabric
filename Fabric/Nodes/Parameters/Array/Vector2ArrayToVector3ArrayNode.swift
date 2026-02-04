@@ -25,8 +25,8 @@ public class Vector2ArrayToVector3ArrayNode: Node
         
         return ports +
         [
-            ("inputPort",  NodePort<ContiguousArray<simd_float2>>(name: "Vector 2 Array", kind: .Inlet)),
-            ("outputPort", NodePort<ContiguousArray<simd_float3>>(name: "Vector 3 Array", kind: .Outlet)),
+            ("inputPort",  NodePort<ContiguousArray<simd_float2>>(name: "Vector 2 Array", kind: .Inlet, description: "Input array of 2D vectors")),
+            ("outputPort", NodePort<ContiguousArray<simd_float3>>(name: "Vector 3 Array", kind: .Outlet, description: "Array of 3D vectors with Z set to 0")),
         ]
     }
     

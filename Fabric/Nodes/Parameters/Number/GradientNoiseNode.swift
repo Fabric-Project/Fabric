@@ -24,9 +24,9 @@ public class GradientNoiseNode : Node
         
         return ports +
         [
-            ("inputTime", ParameterPort(parameter:  FloatParameter("Time", 0.0, .inputfield))),
-            ("inputFrequency", ParameterPort(parameter:  FloatParameter("Frequency", 1.0, 0.0, 10.0, .slider))),
-            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet)),
+            ("inputTime", ParameterPort(parameter:  FloatParameter("Time", 0.0, .inputfield, "Time value to sample the noise function"))),
+            ("inputFrequency", ParameterPort(parameter:  FloatParameter("Frequency", 1.0, 0.0, 10.0, .slider, "Frequency of the noise pattern (higher = more variation)"))),
+            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet, description: "Smooth random noise value")),
         ]
     }
     

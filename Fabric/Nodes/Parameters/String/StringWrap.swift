@@ -25,9 +25,9 @@ public class StringWrapNode : Node
         
         return ports +
         [
-            ("inputPort", NodePort<String>(name: "String", kind: .Inlet)),
-            ("inputWordWrapCount", ParameterPort(parameter: IntParameter("Word Count", 10, .inputfield))),
-            ("outputPort",  NodePort<String>(name: "String", kind: .Outlet)),
+            ("inputPort", NodePort<String>(name: "String", kind: .Inlet, description: "Input string to wrap")),
+            ("inputWordWrapCount", ParameterPort(parameter: IntParameter("Word Count", 10, .inputfield, "Number of words per line before wrapping"))),
+            ("outputPort",  NodePort<String>(name: "String", kind: .Outlet, description: "String with newlines inserted at word wrap boundaries")),
         ]
     }
     

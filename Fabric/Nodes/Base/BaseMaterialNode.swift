@@ -23,11 +23,11 @@ public class BaseMaterialNode : Node
         
         return ports +
         [
-            ("inputReceivesLighting", ParameterPort(parameter:BoolParameter("Receives Lighting", true, .button) ) ),
-            ("inputWriteDepth", ParameterPort(parameter:BoolParameter("Write Depth", true, .button) ) ),
-            ("inputDepthTest", ParameterPort(parameter:BoolParameter("Depth Test", true, .button) ) ),
-            ("inputBlending", ParameterPort(parameter:StringParameter("Blending Mode", "Disabled", ["Disabled", "Alpha", "Additive", "Subtractive"], .dropdown) ) ),
-            ("outputMaterial",  NodePort<Material>(name: "Material", kind: .Outlet)),
+            ("inputReceivesLighting", ParameterPort(parameter:BoolParameter("Receives Lighting", true, .button, "When enabled, the material responds to scene lighting") ) ),
+            ("inputWriteDepth", ParameterPort(parameter:BoolParameter("Write Depth", true, .button, "When enabled, writes depth values to the depth buffer") ) ),
+            ("inputDepthTest", ParameterPort(parameter:BoolParameter("Depth Test", true, .button, "When enabled, performs depth testing against existing geometry") ) ),
+            ("inputBlending", ParameterPort(parameter:StringParameter("Blending Mode", "Disabled", ["Disabled", "Alpha", "Additive", "Subtractive"], .dropdown, "Blending mode for combining with background pixels") ) ),
+            ("outputMaterial",  NodePort<Material>(name: "Material", kind: .Outlet, description: "The configured material")),
         ]
     }
     
