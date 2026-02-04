@@ -60,7 +60,7 @@ struct NodeOutletView: View
 
                         [  port.id : anchor ]
                     })
-                .help("\(port.name): \(port.portType.rawValue)")
+                .help("\(port.name): \(port.portType.rawValue) - \(port.parameter?.description ?? "" )")
 
         }
         .frame(height: 15)

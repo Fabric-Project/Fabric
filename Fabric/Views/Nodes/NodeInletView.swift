@@ -59,7 +59,7 @@ struct NodeInletView: View
                     }
                 )
                
-                .help("\(port.name): \(port.portType.rawValue)")
+                .help("\(port.name): \(port.portType.rawValue) - \(port.parameter?.description ?? "" )")
 
             Text(self.port.name)
                 .foregroundStyle(Color.secondary)
