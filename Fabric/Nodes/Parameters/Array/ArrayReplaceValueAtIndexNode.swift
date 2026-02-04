@@ -25,10 +25,10 @@ public class ArrayReplaceValueAtIndexNode<Value : PortValueRepresentable & Equat
         
         return ports +
         [
-            ("inputPort",  NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet)),
-            ("inputIndexParam", ParameterPort(parameter: IntParameter("Index", 0, .inputfield)) ),
-            ("inputValue",  NodePort<Value>(name: "Value", kind: .Inlet)),
-            ("outputPort", NodePort<ContiguousArray<Value>>(name: "Array", kind: .Outlet)),
+            ("inputPort",  NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet, description: "Input array to modify")),
+            ("inputIndexParam", ParameterPort(parameter: IntParameter("Index", 0, .inputfield, "Array index where the value will be replaced")) ),
+            ("inputValue",  NodePort<Value>(name: "Value", kind: .Inlet, description: "New value to insert at the specified index")),
+            ("outputPort", NodePort<ContiguousArray<Value>>(name: "Array", kind: .Outlet, description: "Array with the value replaced at the specified index")),
         ]
     }
     

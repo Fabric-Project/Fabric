@@ -25,8 +25,8 @@ public class ArrayFirstValueNode<Value : PortValueRepresentable & Equatable> : N
         
         return ports +
         [
-            ("inputPort",  NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet)),
-            ("outputPort", NodePort<Value>(name: "Value", kind: .Outlet)),
+            ("inputPort",  NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet, description: "Input array to get the first value from")),
+            ("outputPort", NodePort<Value>(name: "Value", kind: .Outlet, description: "First element of the array")),
         ]
     }
     

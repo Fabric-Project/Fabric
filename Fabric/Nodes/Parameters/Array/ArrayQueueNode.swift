@@ -26,9 +26,9 @@ public class ArrayQueueNode<Value : PortValueRepresentable & Equatable> : Node
         
         return ports +
         [
-            ("inputPort", NodePort<Value>(name: "Value", kind: .Inlet)),
-            ("inputSizeParam", ParameterPort(parameter: IntParameter("Size", 0, .inputfield))),
-            ("outputPort", NodePort<ContiguousArray<Value>>(name: "Array", kind: .Outlet)),
+            ("inputPort", NodePort<Value>(name: "Value", kind: .Inlet, description: "Value to insert at the front of the queue")),
+            ("inputSizeParam", ParameterPort(parameter: IntParameter("Size", 0, .inputfield, "Maximum number of elements to keep in the queue"))),
+            ("outputPort", NodePort<ContiguousArray<Value>>(name: "Array", kind: .Outlet, description: "Array containing the queued values")),
         ]
     }
     

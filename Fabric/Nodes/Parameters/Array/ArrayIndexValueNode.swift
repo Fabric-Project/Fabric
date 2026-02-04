@@ -25,9 +25,9 @@ public class ArrayIndexValueNode<Value : PortValueRepresentable & Equatable> : N
         
         return ports +
         [
-            ("inputPort",  NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet)),
-            ("inputIndexParam", ParameterPort(parameter: IntParameter("Index", 0, .inputfield)) ),
-            ("outputPort", NodePort<Value>(name: "Value", kind: .Outlet)),
+            ("inputPort",  NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet, description: "Input array to index into")),
+            ("inputIndexParam", ParameterPort(parameter: IntParameter("Index", 0, .inputfield, "Array index to retrieve the value from")) ),
+            ("outputPort", NodePort<Value>(name: "Value", kind: .Outlet, description: "Element at the specified index")),
         ]
     }
     
