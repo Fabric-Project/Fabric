@@ -23,10 +23,10 @@ public class BooleanLogicNode : Node
         
         return ports +
         [
-            ("inputBool1", ParameterPort(parameter: BoolParameter("Bool A", false, .button))),
-            ("inputBool2", ParameterPort(parameter: BoolParameter("Bool B", false, .button))),
-            ("inputParam", ParameterPort(parameter: StringParameter("Operator", "Equals", LogicOperator.allCases.map(\.rawValue))) ),
-            ("outputBool", NodePort<Bool>(name: "Result" , kind: .Outlet)),
+            ("inputBool1", ParameterPort(parameter: BoolParameter("Bool A", false, .button, "First boolean value to compare"))),
+            ("inputBool2", ParameterPort(parameter: BoolParameter("Bool B", false, .button, "Second boolean value to compare"))),
+            ("inputParam", ParameterPort(parameter: StringParameter("Operator", "Equals", LogicOperator.allCases.map(\.rawValue), .dropdown, "Logic operation to perform on the two values")) ),
+            ("outputBool", NodePort<Bool>(name: "Result" , kind: .Outlet, description: "Result of the boolean logic operation")),
         ]
     }
     
