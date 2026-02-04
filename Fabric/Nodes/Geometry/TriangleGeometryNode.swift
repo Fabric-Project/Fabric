@@ -18,8 +18,8 @@ public class TriangleGeometryNode : BaseGeometryNode
         let ports = super.registerPorts(context: context)
         
         return  [
-        ("inputSize",  ParameterPort(parameter:FloatParameter("Size", 1.0, .inputfield))),
-            
+        ("inputSize",  ParameterPort(parameter:FloatParameter("Size", 1.0, .inputfield, "Size of the equilateral triangle in world units"))),
+
         ] + ports
     }
     

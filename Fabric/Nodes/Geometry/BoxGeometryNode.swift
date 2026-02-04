@@ -17,10 +17,10 @@ public class BoxGeometryNode : BaseGeometryNode
         let ports = super.registerPorts(context: context)
         
         return [
-            ("inputWidthParam", ParameterPort(parameter:FloatParameter("Width", 1.0, .inputfield)) ),
-            ("inputHeightParam", ParameterPort(parameter:FloatParameter("Height", 1.0, .inputfield)) ),
-            ("inputDepthParam", ParameterPort(parameter:FloatParameter("Depth", 1.0, .inputfield)) ),
-            ("inputResolutionParam", ParameterPort(parameter:Float3Parameter("Resolution", simd_float3(repeating: 1), .inputfield)) ),
+            ("inputWidthParam", ParameterPort(parameter:FloatParameter("Width", 1.0, .inputfield, "Width of the box along the X axis in world units")) ),
+            ("inputHeightParam", ParameterPort(parameter:FloatParameter("Height", 1.0, .inputfield, "Height of the box along the Y axis in world units")) ),
+            ("inputDepthParam", ParameterPort(parameter:FloatParameter("Depth", 1.0, .inputfield, "Depth of the box along the Z axis in world units")) ),
+            ("inputResolutionParam", ParameterPort(parameter:Float3Parameter("Resolution", simd_float3(repeating: 1), .inputfield, "Number of segments along each axis (X, Y, Z)")) ),
         ] + ports
     }
     

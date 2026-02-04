@@ -18,11 +18,11 @@ public class RoundRectGeometryNode : BaseGeometryNode
         let ports = super.registerPorts(context: context)
         
         return  [
-        ("inputWidth", ParameterPort(parameter:FloatParameter("Width", 1.0, .inputfield))),
-        ("inputHeight", ParameterPort(parameter:FloatParameter("Height", 1.0, .inputfield))),
-        ("inputRadius", ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield))),
-        ("inputResolutionWidth", ParameterPort(parameter:IntParameter("Width", 1, .inputfield))),
-        ("inputResolutionHeight", ParameterPort(parameter:IntParameter("Height", 1, .inputfield))),
+        ("inputWidth", ParameterPort(parameter:FloatParameter("Width", 1.0, .inputfield, "Width of the rectangle in world units"))),
+        ("inputHeight", ParameterPort(parameter:FloatParameter("Height", 1.0, .inputfield, "Height of the rectangle in world units"))),
+        ("inputRadius", ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield, "Corner radius for the rounded edges in world units"))),
+        ("inputResolutionWidth", ParameterPort(parameter:IntParameter("Width", 1, .inputfield, "Number of segments for the corner curves"))),
+        ("inputResolutionHeight", ParameterPort(parameter:IntParameter("Height", 1, .inputfield, "Number of radial segments from center to edge"))),
 
         ] + ports
     }

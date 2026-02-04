@@ -18,12 +18,12 @@ public class PlaneGeometryNode : BaseGeometryNode
         let ports = super.registerPorts(context: context)
         
         return  [
-            ("inputPlane", ParameterPort(parameter:StringParameter("Plane", "XY", ["XY", "YX", "XZ", "ZX", "YZ", "ZY"], .dropdown))),
-            ("inputWidth", ParameterPort(parameter:FloatParameter("Width", 1.0, .inputfield))),
-            ("inputHeight", ParameterPort(parameter:FloatParameter("Height", 1.0, .inputfield))),
-            ("inputResolutionWidth", ParameterPort(parameter:IntParameter("Width", 1, .inputfield))),
-            ("inputResolutionHeight", ParameterPort(parameter:IntParameter("Height", 1, .inputfield))),
-            
+            ("inputPlane", ParameterPort(parameter:StringParameter("Plane", "XY", ["XY", "YX", "XZ", "ZX", "YZ", "ZY"], .dropdown, "Orientation plane defining which axes the plane spans"))),
+            ("inputWidth", ParameterPort(parameter:FloatParameter("Width", 1.0, .inputfield, "Width of the plane in world units"))),
+            ("inputHeight", ParameterPort(parameter:FloatParameter("Height", 1.0, .inputfield, "Height of the plane in world units"))),
+            ("inputResolutionWidth", ParameterPort(parameter:IntParameter("Width", 1, .inputfield, "Number of segments along the width"))),
+            ("inputResolutionHeight", ParameterPort(parameter:IntParameter("Height", 1, .inputfield, "Number of segments along the height"))),
+
         ] + ports
     }
     

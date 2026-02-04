@@ -137,21 +137,21 @@ class SuperShapeGeometryNode : BaseGeometryNode
         
         return ports +
         [
-            ("r1Param",  ParameterPort(parameter:FloatParameter("R1", 1.0, 0, 2, .slider))),
-            ("a1Param",  ParameterPort(parameter:FloatParameter("A1", 1.0, 0.0, 5.0, .slider))),
-            ("b1Param",  ParameterPort(parameter:FloatParameter("B1", 1.0, 0.0, 5.0, .slider))),
-            ("m1Param",  ParameterPort(parameter:FloatParameter("M1", 10, 0, 20, .slider))),
-            ("n11Param", ParameterPort(parameter:FloatParameter("N11", 1.087265, 0.0, 100.0, .slider))),
-            ("n21Param", ParameterPort(parameter:FloatParameter("N21", 0.938007, 0.0, 100.0, .slider))),
-            ("n31Param", ParameterPort(parameter:FloatParameter("N31", -0.615898, 0.0, 100.0, .slider))),
-            ("r2Param",  ParameterPort(parameter:FloatParameter("R2", 0.984062, 0, 2, .slider))),
-            ("a2Param",  ParameterPort(parameter:FloatParameter("A2", 1.513944, 0.0, 5.0, .slider))),
-            ("b2Param",  ParameterPort(parameter:FloatParameter("B2", 0.642890, 0.0, 5.0, .slider))),
-            ("m2Param",  ParameterPort(parameter:FloatParameter("M2", 5.225158, 0, 20, .slider))),
-            ("n12Param", ParameterPort(parameter:FloatParameter("N12", 1.0, 0.0, 100.0, .slider))),
-            ("n22Param", ParameterPort(parameter:FloatParameter("N22", 1.371561, 0.0, 100.0, .slider))),
-            ("n32Param", ParameterPort(parameter:FloatParameter("N32", 0.651718, 0.0, 100.0, .slider))),
-            ("resParam", ParameterPort(parameter:IntParameter("Resolution", 300, 3, 300, .inputfield))),
+            ("r1Param",  ParameterPort(parameter:FloatParameter("R1", 1.0, 0, 2, .slider, "Radial scale factor for the first supershape formula"))),
+            ("a1Param",  ParameterPort(parameter:FloatParameter("A1", 1.0, 0.0, 5.0, .slider, "Horizontal stretch factor for the first supershape"))),
+            ("b1Param",  ParameterPort(parameter:FloatParameter("B1", 1.0, 0.0, 5.0, .slider, "Vertical stretch factor for the first supershape"))),
+            ("m1Param",  ParameterPort(parameter:FloatParameter("M1", 10, 0, 20, .slider, "Rotational symmetry count for the first supershape"))),
+            ("n11Param", ParameterPort(parameter:FloatParameter("N11", 1.087265, 0.0, 100.0, .slider, "First shape exponent n1 for the first supershape"))),
+            ("n21Param", ParameterPort(parameter:FloatParameter("N21", 0.938007, 0.0, 100.0, .slider, "Second shape exponent n2 for the first supershape"))),
+            ("n31Param", ParameterPort(parameter:FloatParameter("N31", -0.615898, 0.0, 100.0, .slider, "Third shape exponent n3 for the first supershape"))),
+            ("r2Param",  ParameterPort(parameter:FloatParameter("R2", 0.984062, 0, 2, .slider, "Radial scale factor for the second supershape formula"))),
+            ("a2Param",  ParameterPort(parameter:FloatParameter("A2", 1.513944, 0.0, 5.0, .slider, "Horizontal stretch factor for the second supershape"))),
+            ("b2Param",  ParameterPort(parameter:FloatParameter("B2", 0.642890, 0.0, 5.0, .slider, "Vertical stretch factor for the second supershape"))),
+            ("m2Param",  ParameterPort(parameter:FloatParameter("M2", 5.225158, 0, 20, .slider, "Rotational symmetry count for the second supershape"))),
+            ("n12Param", ParameterPort(parameter:FloatParameter("N12", 1.0, 0.0, 100.0, .slider, "First shape exponent n1 for the second supershape"))),
+            ("n22Param", ParameterPort(parameter:FloatParameter("N22", 1.371561, 0.0, 100.0, .slider, "Second shape exponent n2 for the second supershape"))),
+            ("n32Param", ParameterPort(parameter:FloatParameter("N32", 0.651718, 0.0, 100.0, .slider, "Third shape exponent n3 for the second supershape"))),
+            ("resParam", ParameterPort(parameter:IntParameter("Resolution", 300, 3, 300, .inputfield, "Mesh resolution for both angular and vertical divisions"))),
         ]
     }
 

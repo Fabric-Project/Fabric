@@ -19,8 +19,8 @@ public class ExtrudedTextGeometryNode : BaseGeometryNode
         let ports = super.registerPorts(context: context)
         
         return  [
-        ("inputText", ParameterPort(parameter:StringParameter("Text", "Testing", .inputfield))),
-        ("inputFont", ParameterPort(parameter:StringParameter("Font", "Helvetica", Self.installedFonts(), .dropdown))),
+        ("inputText", ParameterPort(parameter:StringParameter("Text", "Testing", .inputfield, "The text string to render as 3D extruded geometry"))),
+        ("inputFont", ParameterPort(parameter:StringParameter("Font", "Helvetica", Self.installedFonts(), .dropdown, "Font family to use for text rendering"))),
 
         ] + ports
     }

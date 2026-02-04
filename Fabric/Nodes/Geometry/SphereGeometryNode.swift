@@ -17,9 +17,9 @@ public class SphereGeometryNode : BaseGeometryNode
         let ports = super.registerPorts(context: context)
         
         return  [
-        ("inputRadius", ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield))),
-        ("inputAngularResolution", ParameterPort(parameter:IntParameter("Angular Resolution", 60, .inputfield))),
-        ("inputVerticalResolution", ParameterPort(parameter:IntParameter("Vertical Resolution", 30, .inputfield))),
+        ("inputRadius", ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield, "Radius of the sphere in world units"))),
+        ("inputAngularResolution", ParameterPort(parameter:IntParameter("Angular Resolution", 60, .inputfield, "Number of segments around the circumference"))),
+        ("inputVerticalResolution", ParameterPort(parameter:IntParameter("Vertical Resolution", 30, .inputfield, "Number of segments from pole to pole"))),
 
         ] + ports
     }

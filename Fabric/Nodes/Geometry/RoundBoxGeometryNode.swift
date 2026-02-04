@@ -19,9 +19,9 @@ public class RoundBoxGeometryNode : BaseGeometryNode
         let ports = super.registerPorts(context: context)
         
         return  [
-        ("inputSize", ParameterPort(parameter:Float3Parameter("Size", .zero, .inputfield))),
-        ("inputRadius", ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield))),
-        ("inputResolution", ParameterPort(parameter:IntParameter("Resolution", 1, .inputfield))),
+        ("inputSize", ParameterPort(parameter:Float3Parameter("Size", .zero, .inputfield, "Dimensions of the box (width, height, depth) in world units"))),
+        ("inputRadius", ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield, "Corner radius for the rounded edges in world units"))),
+        ("inputResolution", ParameterPort(parameter:IntParameter("Resolution", 1, .inputfield, "Number of segments for the rounded corners"))),
 
         ] + ports
     }
