@@ -28,7 +28,7 @@ public class LUTProcessorNode : BaseEffectNode
         
         return ports +
         [
-            ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker))),
+            ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the .cube LUT file"))),
         ]
     }
 

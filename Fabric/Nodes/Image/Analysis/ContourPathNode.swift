@@ -26,15 +26,15 @@ public final class ContourPathNode: Node {
 
         return ports + [
             // Inputs
-            ("inputMask", NodePort<FabricImage>(name: "Mask", kind: .Inlet)),
+            ("inputMask", NodePort<FabricImage>(name: "Mask", kind: .Inlet, description: "Grayscale mask image to extract contours from")),
 
             // Params
-            ("inputIso",  ParameterPort(parameter: FloatParameter("Iso Level", 0.5))),
-            ("inputMaxSegments", ParameterPort(parameter: IntParameter("Max Segments", Self.kMaxSegments))),
-            ("inputJoinEpsilon", ParameterPort(parameter: FloatParameter("Join Epsilon (px)", 1.0))),
+            ("inputIso",  ParameterPort(parameter: FloatParameter("Iso Level", 0.5, .inputfield, "Threshold value for edge detection (0-1)"))),
+            ("inputMaxSegments", ParameterPort(parameter: IntParameter("Max Segments", Self.kMaxSegments, .inputfield, "Maximum number of contour segments to generate"))),
+            ("inputJoinEpsilon", ParameterPort(parameter: FloatParameter("Join Epsilon (px)", 1.0, .inputfield, "Pixel tolerance for joining contour endpoints"))),
 
             // Output (arbitrary payload for now)
-            ("outputContour", NodePort<ContiguousArray<simd_float2>>(name: "Contour (points)", kind: .Outlet)),
+            ("outputContour", NodePort<ContiguousArray<simd_float2>>(name: "Contour (points)", kind: .Outlet, description: "Ordered contour points in pixel coordinates")),
         ]
     }
 
