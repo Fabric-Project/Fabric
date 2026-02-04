@@ -25,8 +25,8 @@ public class StringRemoveWhitespaceNode : Node
         
         return ports +
         [
-            ("inputPort", NodePort<String>(name: "String", kind: .Inlet)),
-            ("outputPort",  NodePort<String>(name: "String", kind: .Outlet)),
+            ("inputPort", NodePort<String>(name: "String", kind: .Inlet, description: "Input string to trim")),
+            ("outputPort",  NodePort<String>(name: "String", kind: .Outlet, description: "String with leading and trailing whitespace removed")),
         ]
     }
     

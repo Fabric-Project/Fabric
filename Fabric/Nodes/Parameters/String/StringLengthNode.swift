@@ -25,8 +25,8 @@ public class StringLengthNode : Node
         
         return ports +
         [
-            ("inputPort",   NodePort<String>(name: "String", kind: .Inlet)),
-            ("outputPort",  NodePort<Int>(name: "Length", kind: .Outlet)),
+            ("inputPort",   NodePort<String>(name: "String", kind: .Inlet, description: "Input string to measure")),
+            ("outputPort",  NodePort<Int>(name: "Length", kind: .Outlet, description: "Character count of the input string")),
         ]
     }
     

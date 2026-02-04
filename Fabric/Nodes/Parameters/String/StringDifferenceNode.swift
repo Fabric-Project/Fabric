@@ -25,9 +25,9 @@ public class StringDifferenceNode : Node
         
         return ports +
         [
-            ("inputPort",   ParameterPort(parameter: StringParameter("String", "", .inputfield))),
-            ("input2Port",  ParameterPort(parameter: StringParameter("String", "", .inputfield))),
-            ("outputPort",  NodePort<String>(name: "String", kind: .Outlet)),
+            ("inputPort",   ParameterPort(parameter: StringParameter("String", "", .inputfield, "First string to compare"))),
+            ("input2Port",  ParameterPort(parameter: StringParameter("String", "", .inputfield, "Second string to compare"))),
+            ("outputPort",  NodePort<String>(name: "String", kind: .Outlet, description: "Characters that differ between the two strings")),
         ]
     }
     
