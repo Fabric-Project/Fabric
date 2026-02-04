@@ -22,11 +22,11 @@ public class DeferredSubgraphNode: SubgraphNode
         let ports = super.registerPorts(context: context)
         
         return  [
-            ("inputWidth", ParameterPort(parameter: IntParameter("Width", 1920, .inputfield))),
-            ("inputHeight", ParameterPort(parameter: IntParameter("Height", 1080, .inputfield))),
-            ("inputClearColor", ParameterPort(parameter: Float4Parameter("Clear Color", simd_float4(repeating:0), .colorpicker))),
-            ("outputColorTexture", NodePort<FabricImage>(name: "Color Texture", kind: .Outlet)),
-            ("outputDepthTexture", NodePort<FabricImage>(name: "Depth Texture", kind: .Outlet)),
+            ("inputWidth", ParameterPort(parameter: IntParameter("Width", 1920, .inputfield, "Output texture width in pixels"))),
+            ("inputHeight", ParameterPort(parameter: IntParameter("Height", 1080, .inputfield, "Output texture height in pixels"))),
+            ("inputClearColor", ParameterPort(parameter: Float4Parameter("Clear Color", simd_float4(repeating:0), .colorpicker, "Background color for the render target"))),
+            ("outputColorTexture", NodePort<FabricImage>(name: "Color Texture", kind: .Outlet, description: "Rendered color output from the subgraph")),
+            ("outputDepthTexture", NodePort<FabricImage>(name: "Depth Texture", kind: .Outlet, description: "Rendered depth buffer from the subgraph")),
         ] + ports
     }
     
