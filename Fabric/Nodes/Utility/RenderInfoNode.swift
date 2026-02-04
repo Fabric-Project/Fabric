@@ -24,9 +24,9 @@ public class RenderInfoNode : Node
         
         return ports +
         [
-            ("outputWidth", NodePort<Float>(name: "Width", kind: .Outlet)),
-            ("outputHeight", NodePort<Float>(name: "Height", kind: .Outlet)),
-            ("outputFrameNumber", NodePort<Int>(name: "Frame Number", kind: .Outlet)),
+            ("outputWidth", NodePort<Float>(name: "Width", kind: .Outlet, description: "Render target width in pixels")),
+            ("outputHeight", NodePort<Float>(name: "Height", kind: .Outlet, description: "Render target height in pixels")),
+            ("outputFrameNumber", NodePort<Int>(name: "Frame Number", kind: .Outlet, description: "Current execution frame count")),
         ]
     }
     public var outputWidth:NodePort<Float>  { port(named: "outputWidth") }

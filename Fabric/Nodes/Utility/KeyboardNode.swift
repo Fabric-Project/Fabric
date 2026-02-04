@@ -267,7 +267,7 @@ struct KeyboardNodeView : View
         {
             if self.findPort(named: portName) == nil
             {
-                let port = NodePort<Bool>(name: portName, kind: .Outlet)
+                let port = NodePort<Bool>(name: portName, kind: .Outlet, description: "True when key '\(portName)' is pressed")
 
                 self.addDynamicPort(port)
                 print("add port \(portName) ")

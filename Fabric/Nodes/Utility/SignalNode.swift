@@ -24,8 +24,8 @@ public class SignalNode : Node
         
         return ports +
         [
-            ("inputValue", NodePort<PortValue>(name: "Value" , kind: .Inlet)),
-            ("outputSignal", NodePort<Bool>(name: "Signal" , kind: .Outlet)),
+            ("inputValue", NodePort<PortValue>(name: "Value" , kind: .Inlet, description: "Value to monitor for changes")),
+            ("outputSignal", NodePort<Bool>(name: "Signal" , kind: .Outlet, description: "True when input value changed this frame")),
         ]
     }
     

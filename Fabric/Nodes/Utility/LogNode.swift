@@ -28,7 +28,7 @@ public class LogNode : Node
     
     public required init(context: Context)
     {
-        self.inputAny = NodePort<String>(name: "Log Value" , kind: .Inlet)
+        self.inputAny = NodePort<String>(name: "Log Value" , kind: .Inlet, description: "Value to print to console")
         
         super.init(context: context)
     }

@@ -25,8 +25,8 @@ public class UnitsoPixelsNode : Node
     
     public required init(context: Context)
     {
-        self.inputUnitPosition = NodePort<Float>(name: "Unit" , kind: .Inlet)
-        self.outputPixelPosition = NodePort<Float>(name: "Pixel" , kind: .Outlet)
+        self.inputUnitPosition = NodePort<Float>(name: "Unit" , kind: .Inlet, description: "Position in normalized units (-1 to 1)")
+        self.outputPixelPosition = NodePort<Float>(name: "Pixel" , kind: .Outlet, description: "Position in pixels")
 
         super.init(context: context)
     }
