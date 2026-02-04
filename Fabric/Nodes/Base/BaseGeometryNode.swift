@@ -23,8 +23,8 @@ public class BaseGeometryNode : Node
         
         return ports +
         [
-            ("inputPrimitiveType", ParameterPort(parameter:StringParameter("Primitive", "Triangle", ["Point", "Line", "Line Strip", "Triangle", "Triangle Strip"], .dropdown)) ),
-            ("outputGeometry",  NodePort<SatinGeometry>(name: "Geometry", kind: .Outlet)),
+            ("inputPrimitiveType", ParameterPort(parameter:StringParameter("Primitive", "Triangle", ["Point", "Line", "Line Strip", "Triangle", "Triangle Strip"], .dropdown, "Rendering primitive type for the geometry mesh")) ),
+            ("outputGeometry",  NodePort<SatinGeometry>(name: "Geometry", kind: .Outlet, description: "The generated geometry mesh")),
         ]
     }
     

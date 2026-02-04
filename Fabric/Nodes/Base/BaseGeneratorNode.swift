@@ -39,9 +39,9 @@ class BaseGeneratorNode: Node, NodeFileLoadingProtocol
         
         return ports +
         [
-            ("inputWidth", ParameterPort(parameter: IntParameter("Width", 512, 1, 8192, .inputfield))),
-            ("inputHeight", ParameterPort(parameter: IntParameter("Height", 512, 1, 8192, .inputfield))),
-            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet)),
+            ("inputWidth", ParameterPort(parameter: IntParameter("Width", 512, 1, 8192, .inputfield, "Output image width in pixels"))),
+            ("inputHeight", ParameterPort(parameter: IntParameter("Height", 512, 1, 8192, .inputfield, "Output image height in pixels"))),
+            ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Generated output image")),
         ]
     }
 

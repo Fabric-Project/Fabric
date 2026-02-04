@@ -34,8 +34,8 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
         
         return ports +
         [
-            ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet)),
-            ("outputImage", NodePort<FabricImage>(name: "Image", kind: .Outlet)),
+            ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to process")),
+            ("outputImage", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Processed output image")),
         ]
     }
 
