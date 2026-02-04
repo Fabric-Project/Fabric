@@ -62,8 +62,8 @@ public class NodePort<Value : PortValueRepresentable>: Port
         case valueType
     }
     
-    override public init(name: String, kind: PortKind, id:UUID = UUID()) {
-        super.init(name: name, kind: kind, id:id)
+    override public init(name: String, kind: PortKind, description: String = "", id:UUID = UUID()) {
+        super.init(name: name, kind: kind, description: description, id:id)
 
         self.color = Self.calcColor(forType: Value.self)
         self.backgroundColor = Self.calcBackgroundColor(forType: Value.self)

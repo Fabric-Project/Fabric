@@ -13,7 +13,18 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
 {
     private var subscription:AnyCancellable? = nil
     private var _parameter: GenericParameter<ParamValue>
-    
+
+    // Proxy the parameter's description
+    // Setter ignores empty values to preserve parameter's description during decoding of old files
+    override public var portDescription: String {
+        get { _parameter.description }
+        set {
+            if !newValue.isEmpty {
+                _parameter.description = newValue
+            }
+        }
+    }
+
     override public var parameter: (any Parameter)?
     {
         get { return _parameter }
