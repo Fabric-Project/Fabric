@@ -23,7 +23,7 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
         let ports = super.registerPorts(context: context)
         
         return  [
-                    ("inputLookAt", ParameterPort(parameter:Float3Parameter("Look At", simd_float3(repeating:0), .inputfield )) ),
+                    ("inputLookAt", ParameterPort(parameter:Float3Parameter("Look At", simd_float3(repeating:0), .inputfield, "Target position the camera points toward")) ),
                 ] + ports
     }
     
