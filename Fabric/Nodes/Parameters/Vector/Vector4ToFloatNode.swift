@@ -24,11 +24,11 @@ public class Vector4ToFloatNode : Node
         
         return ports +
         [
-            ("inputVectorParam",   ParameterPort(parameter:Float4Parameter("Vector 4", .zero, .inputfield))),
-            ("outputXPort",   NodePort<Float>(name: "X" , kind: .Outlet) ),
-            ("outputYPort",   NodePort<Float>(name: "Y" , kind: .Outlet) ),
-            ("outputZPort",   NodePort<Float>(name: "Z" , kind: .Outlet) ),
-            ("outputWPort",   NodePort<Float>(name: "W" , kind: .Outlet) ),
+            ("inputVectorParam",   ParameterPort(parameter:Float4Parameter("Vector 4", .zero, .inputfield, "Input vector to decompose into components"))),
+            ("outputXPort",   NodePort<Float>(name: "X" , kind: .Outlet, description: "X component of the input vector") ),
+            ("outputYPort",   NodePort<Float>(name: "Y" , kind: .Outlet, description: "Y component of the input vector") ),
+            ("outputZPort",   NodePort<Float>(name: "Z" , kind: .Outlet, description: "Z component of the input vector") ),
+            ("outputWPort",   NodePort<Float>(name: "W" , kind: .Outlet, description: "W component of the input vector") ),
         ]
     }
 
