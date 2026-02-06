@@ -9,29 +9,35 @@ import Foundation
 import Satin
 import simd
 import Metal
-import CoreMediaIO
 import AVFoundation
+#if os(macOS)
+import CoreMediaIO
 import VideoToolbox
 import MediaToolbox
+#endif
 
 private let CameraProviderNodeInitializer: Void = {
-    
-    print("One Time Global setup for MovieTextureNode")
-    
+
+    print("One Time Global setup for CameraProviderNode")
+
+    #if os(macOS)
+    // Register professional video workflow codecs (ProRes, etc.) - macOS only
     VTRegisterProfessionalVideoWorkflowVideoDecoders()
     VTRegisterProfessionalVideoWorkflowVideoEncoders()
     MTRegisterProfessionalVideoWorkflowFormatReaders()
 
+    // Enable screen capture devices - macOS only
     var allow : UInt32 = 1
     let sizeOfAllow = MemoryLayout.size(ofValue: allow)
 
     var property = CMIOObjectPropertyAddress(mSelector: CMIOObjectPropertySelector(kCMIOHardwarePropertyAllowScreenCaptureDevices), mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal), mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain))
-    
+
     CMIOObjectSetPropertyData(CMIOObjectID(kCMIOObjectSystemObject), &property, 0, nil, UInt32(sizeOfAllow), &allow)
 
     property = CMIOObjectPropertyAddress(mSelector: CMIOObjectPropertySelector(kCMIOHardwarePropertyAllowWirelessScreenCaptureDevices), mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal), mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain))
 
     CMIOObjectSetPropertyData(CMIOObjectID(kCMIOObjectSystemObject), &property, 0, nil, UInt32(sizeOfAllow), &allow)
+    #endif
 }()
 
 public class CameraProviderNode : Node

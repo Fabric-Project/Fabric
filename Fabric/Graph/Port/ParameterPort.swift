@@ -7,6 +7,7 @@
 
 import Combine
 import Foundation
+import Satin
 
 // A Port that wraps a parameter - use for input ports you want to have as a UI
 public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hashable> : NodePort<ParamValue>

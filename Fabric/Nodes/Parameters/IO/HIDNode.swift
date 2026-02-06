@@ -5,11 +5,15 @@
 //  Created by Claude Code on 1/26/26.
 //
 
+#if os(macOS)
+
 import Foundation
 import SwiftUI
 import Metal
 import IOKit
 import IOKit.hid
+import Satin
+import simd
 
 // MARK: - HID Device Info
 
@@ -819,3 +823,5 @@ struct HIDNodeView: View
         return currentPortNames[element.id]
     }
 }
+
+#endif // os(macOS)

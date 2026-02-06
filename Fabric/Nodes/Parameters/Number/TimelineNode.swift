@@ -8,6 +8,8 @@
 import Foundation
 import SwiftUI
 import Metal
+import Satin
+import simd
 
 // MARK: - Data Model
 

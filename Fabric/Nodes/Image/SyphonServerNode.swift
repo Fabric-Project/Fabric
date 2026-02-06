@@ -1,10 +1,11 @@
-
 //
 //  SyphonProviderNode.swift
 //  Fabric
 //
 //  Created by Anton Marini on 11/27/25.
 //
+
+#if FABRIC_SYPHON_ENABLED
 
 import Foundation
 import Satin
@@ -76,3 +77,5 @@ public class SyphonServerNode : Node
         }
      }
 }
+
+#endif // FABRIC_SYPHON_ENABLED

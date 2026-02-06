@@ -9,6 +9,7 @@ import Combine
 import Metal
 import MetalKit
 import Satin
+import FabricCore
 
 final class SuperShapeGeometry: SatinGeometry {
     var r1: Float { didSet {

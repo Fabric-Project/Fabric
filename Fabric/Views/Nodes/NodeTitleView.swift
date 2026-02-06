@@ -38,7 +38,7 @@ struct NodeTitleView: View {
                 .frame(maxHeight: 20)
                 .padding(.top, 5)
                 .padding(.horizontal, 20)
-                .onExitCommand {
+                .onDisappear {
                     renaming = false
                 }
             } else {

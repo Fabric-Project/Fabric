@@ -710,15 +710,7 @@ internal import AnyCodable
         }
     }
 
-    // MARK: - Copy / Paste / Duplicate
-
-    public static let nodeClipboardType = NSPasteboard.PasteboardType("info.vade.fabric.nodes")
-
-    private struct NodeClipboardData: Codable
-    {
-        let nodeEntries: [AnyCodableMap]
-        let internalConnectionMap: [String: [String]]
-    }
+  
 
     /// Decodes a single node from an AnyCodableMap, replicating the type resolution from Graph.init(from:)
     private func decodeNode(from map: AnyCodableMap) -> Node?
@@ -967,6 +959,22 @@ internal import AnyCodable
         return newNodes
     }
 
+   
+}
+
+#if os(macOS)
+extension Graph
+{
+    // MARK: - Copy / Paste / Duplicate
+
+    public static let nodeClipboardType = NSPasteboard.PasteboardType("info.vade.fabric.nodes")
+
+    private struct NodeClipboardData: Codable
+    {
+        let nodeEntries: [AnyCodableMap]
+        let internalConnectionMap: [String: [String]]
+    }
+    
     /// Copies selected nodes and their internal connections to the system pasteboard
     public func copyNodesToPasteboard(_ nodes: [Node])
     {
@@ -1006,6 +1014,7 @@ internal import AnyCodable
 
     /// Pastes nodes from the system pasteboard into the graph
     @discardableResult
+    
     public func pasteNodesFromPasteboard(offset: CGSize = CGSize(width: 20, height: 20)) -> [Node]
     {
         let targetGraph = self.activeSubGraph ?? self
@@ -1108,3 +1117,4 @@ internal import AnyCodable
         }
     }
 }
+#endif

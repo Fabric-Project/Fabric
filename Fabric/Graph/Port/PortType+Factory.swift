@@ -6,6 +6,8 @@
 //
 
 import Foundation
+import Satin
+import simd
 
 extension PortType
 {
