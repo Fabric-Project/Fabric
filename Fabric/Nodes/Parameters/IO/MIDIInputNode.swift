@@ -9,6 +9,8 @@ import Foundation
 import SwiftUI
 import Metal
 import MIDIKit
+import Satin
+import simd
 
 // MARK: - Detected MIDI Input
 

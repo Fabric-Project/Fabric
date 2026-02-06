@@ -60,7 +60,7 @@ struct FileImportParameterView: View, Equatable
             } label: {
                 Text( vm.uiValue )
             }
-            .menuStyle(.borderedButton)
+            .menuStyle(.button)
             
             HStack(spacing: ParameterConfig.horizontalStackSpacing)
             {

@@ -1,5 +1,5 @@
 {
-  "originHash" : "bf4faf5bd7b66a6d2db8f7be273644f13703020ae5bb299aa9c9a5e032025be7",
+  "originHash" : "13c3a14b60009301035fa1d0a29e687dd06de2fef62eb4db43b674e8e9a56811",
   "pins" : [
     {
       "identity" : "anycodable",
@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/orchetect/MIDIKit",
       "state" : {
-        "revision" : "8af8007269daea0d0cb3788427e63acd04a31a3b",
-        "version" : "0.10.7"
+        "revision" : "5af7926114fab97a9dd8c3e2068e0f9c65c1c20f",
+        "version" : "0.11.0"
       }
     },
     {

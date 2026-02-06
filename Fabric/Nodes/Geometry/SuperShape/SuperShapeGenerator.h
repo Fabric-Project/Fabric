@@ -11,7 +11,15 @@
 #ifndef SuperShapeGenerator_h
 #define SuperShapeGenerator_h
 
+#if __has_include(<Satin/SatinCore.h>)
 #include <Satin/SatinCore.h>
+#elif __has_include(<SatinCore/SatinCore.h>)
+#include <SatinCore/SatinCore.h>
+#elif __has_include("SatinCore.h")
+#include "SatinCore.h"
+#else
+#error "Cannot find SatinCore.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {

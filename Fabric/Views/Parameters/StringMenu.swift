@@ -7,6 +7,7 @@
 
 
 import SwiftUI
+import Satin
 
 struct StringMenu: View
 {
@@ -52,7 +53,8 @@ struct StringMenu: View
             } label: {
                 Text( vm.uiValue )
             }
-            .menuStyle(.borderedButton)
+            .menuStyle(.button
+            )
             .frame(width:ParameterConfig.paramWidth)
 
         }

@@ -5,6 +5,7 @@
 //  Created by Anton Marini on 10/10/25.
 //
 
+#if os(macOS)
 
 import SwiftUI
 import Satin
@@ -282,3 +283,5 @@ struct KeyboardNodeView : View
         return keyBinding.characters
     }
 }
+
+#endif // os(macOS)

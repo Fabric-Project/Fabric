@@ -10,6 +10,7 @@ import Cocoa
 import UniformTypeIdentifiers
 import Metal
 import Fabric
+import Satin
 
 extension UTType {
     static var fabricDocument: UTType {

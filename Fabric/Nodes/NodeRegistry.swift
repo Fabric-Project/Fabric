@@ -5,6 +5,7 @@
 //  Created by Anton Marini on 4/26/25.
 //
 import simd
+import Foundation
 
 public class NodeRegistry {
     
@@ -92,30 +93,36 @@ public class NodeRegistry {
         DisplacementMaterialNode.self,
     ]
     
-    private var textureNodeClasses:[Node.Type] = [
-        MovieProviderNode.self,
-        CameraProviderNode.self,
-        ImageProviderNode.self,
-        SyphonClientNode.self,
-        SyphonServerNode.self,
-        ForegroundMaskNode.self,
-        PersonSegmentationMaskNode.self,
-        FacePoseAnalysisNode.self,
-        HandPoseAnalysisNode.self,
-        LocalVLMNode.self,
-        ContourPathNode.self,
-        MetalFXSpatialUpsample2xNode.self,
-        KeypointDistortNode.self,
-        LUTProcessorNode.self,
-        
-        ArrayIndexValueNode<FabricImage>.self,
-        ArrayCountNode<FabricImage>.self,
-        ArrayQueueNode<FabricImage>.self,
-        ArrayReplaceValueAtIndexNode<FabricImage>.self,
+    private var textureNodeClasses:[Node.Type] {
+        var classes: [Node.Type] = [
+            MovieProviderNode.self,
+            CameraProviderNode.self,
+            ImageProviderNode.self,
+        ]
+        #if FABRIC_SYPHON_ENABLED
+        classes.append(contentsOf: [
+            SyphonClientNode.self,
+            SyphonServerNode.self,
+        ])
+        #endif
+        classes.append(contentsOf: [
+            ForegroundMaskNode.self,
+            PersonSegmentationMaskNode.self,
+            FacePoseAnalysisNode.self,
+            HandPoseAnalysisNode.self,
+            LocalVLMNode.self,
+            ContourPathNode.self,
+            MetalFXSpatialUpsample2xNode.self,
+            KeypointDistortNode.self,
+            LUTProcessorNode.self,
 
-//        BrightnessContrastImageNode.self,
-//        GaussianBlurImageNode.self,
-    ]
+            ArrayIndexValueNode<FabricImage>.self,
+            ArrayCountNode<FabricImage>.self,
+            ArrayQueueNode<FabricImage>.self,
+            ArrayReplaceValueAtIndexNode<FabricImage>.self,
+        ])
+        return classes
+    }
 
     // Sub Patch Iterator, Replicate etc
     private var macroNodeClasses:[Node.Type] = [
@@ -310,40 +317,53 @@ public class NodeRegistry {
 
         ]
     
-    private var ioNodeClasses: [Node.Type] = [
-        OSCReceiveNode.self,
-        HIDNode.self,
-        GameControllerNode.self,
-        MIDIInputNode.self,
-    ]
+    private var ioNodeClasses: [Node.Type] {
+        var classes: [Node.Type] = [
+            OSCReceiveNode.self,
+        ]
+        #if os(macOS)
+        classes.append(HIDNode.self)
+        #endif
+        classes.append(contentsOf: [
+            GameControllerNode.self,
+            MIDIInputNode.self,
+        ])
+        return classes
+    }
 
-    private var utilityClasses:[Node.Type] = [
-        LogNode.self,
-        CursorNode.self,
-        KeyboardNode.self,
-        RenderInfoNode.self,
-        ImageDimensions.self,
-        PixelsToUnitsNode.self,
-        UnitsoPixelsNode.self,
-        
-        SignalNode.self,
-        
-        SampleAndHoldNode<Bool>.self,
-        SampleAndHoldNode<Float>.self,
-        SampleAndHoldNode<simd_float2>.self,
-        SampleAndHoldNode<simd_float3>.self,
-        SampleAndHoldNode<simd_float4>.self,
-        SampleAndHoldNode<String>.self,
-        SampleAndHoldNode<simd_quatf>.self,
-        SampleAndHoldNode<simd_float4x4>.self,
-        SampleAndHoldNode<FabricImage>.self,
+    private var utilityClasses: [Node.Type] {
+        var classes: [Node.Type] = [
+            LogNode.self,
+            CursorNode.self,
+        ]
+        #if os(macOS)
+        classes.append(KeyboardNode.self)
+        #endif
+        classes.append(contentsOf: [
+            RenderInfoNode.self,
+            ImageDimensions.self,
+            PixelsToUnitsNode.self,
+            UnitsoPixelsNode.self,
 
-        SampleAndHoldNode<ContiguousArray<Bool>>.self,
-        SampleAndHoldNode<ContiguousArray<Float>>.self,
-        SampleAndHoldNode<ContiguousArray<simd_float2>>.self,
-        SampleAndHoldNode<ContiguousArray<simd_float3>>.self,
-        SampleAndHoldNode<ContiguousArray<simd_float4>>.self,
-        SampleAndHoldNode<ContiguousArray<String>>.self,
+            SignalNode.self,
 
-    ]
+            SampleAndHoldNode<Bool>.self,
+            SampleAndHoldNode<Float>.self,
+            SampleAndHoldNode<simd_float2>.self,
+            SampleAndHoldNode<simd_float3>.self,
+            SampleAndHoldNode<simd_float4>.self,
+            SampleAndHoldNode<String>.self,
+            SampleAndHoldNode<simd_quatf>.self,
+            SampleAndHoldNode<simd_float4x4>.self,
+            SampleAndHoldNode<FabricImage>.self,
+
+            SampleAndHoldNode<ContiguousArray<Bool>>.self,
+            SampleAndHoldNode<ContiguousArray<Float>>.self,
+            SampleAndHoldNode<ContiguousArray<simd_float2>>.self,
+            SampleAndHoldNode<ContiguousArray<simd_float3>>.self,
+            SampleAndHoldNode<ContiguousArray<simd_float4>>.self,
+            SampleAndHoldNode<ContiguousArray<String>>.self,
+        ])
+        return classes
+    }
 }

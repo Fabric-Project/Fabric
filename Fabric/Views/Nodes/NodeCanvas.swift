@@ -92,6 +92,7 @@ public struct NodeCanvas : View
     
                         .offset(-geom.size / 2)
                         .offset( currentNode.offset )
+                    #if os(macOS)
                         .highPriorityGesture(
                             TapGesture(count: 1)
                                 .modifiers(.shift)
@@ -100,6 +101,7 @@ public struct NodeCanvas : View
                                     currentNode.isSelected.toggle()
                                 },
                         )
+                    #endif
                         .gesture(
                             SimultaneousGesture(
                                 DragGesture(minimumDistance: 3)
@@ -169,6 +171,7 @@ public struct NodeCanvas : View
             .onKeyPress(keys: self.keys() ) { keyPress in
                 return self.handleKeyPress(keyPress:keyPress)
             }
+#if os(macOS)
             .onDeleteCommand {
 
                 let graph = self.graph.activeSubGraph ?? self.graph
@@ -176,6 +179,7 @@ public struct NodeCanvas : View
                 let selectedNodes = graph.nodes.filter({ $0.isSelected })
                 selectedNodes.forEach( { graph.delete(node: $0) } )
             }
+#endif
             .onTapGesture {
                 let graph = self.graph.activeSubGraph ?? self.graph
 
@@ -225,11 +229,12 @@ public struct NodeCanvas : View
     {
         if renamingNodeID != nil { return .ignored }
 
+#if os(macOS)
         // Handle Cmd+key shortcuts
         if keyPress.modifiers.contains(.command)
         {
             let graph = self.graph.activeSubGraph ?? self.graph
-
+            
             switch keyPress.key
             {
             case "c":
@@ -237,21 +242,22 @@ public struct NodeCanvas : View
                 guard !selectedNodes.isEmpty else { return .ignored }
                 graph.copyNodesToPasteboard(selectedNodes)
                 return .handled
-
+                
             case "v":
                 graph.pasteNodesFromPasteboard()
                 return .handled
-
+                
             case "d":
                 let selectedNodes = graph.nodes.filter { $0.isSelected }
                 guard !selectedNodes.isEmpty else { return .ignored }
                 graph.duplicateNodes(selectedNodes)
                 return .handled
-
+                
             default:
                 return .ignored
             }
         }
+#endif
 
         switch keyPress.key
         {
@@ -465,6 +471,7 @@ public struct NodeCanvas : View
 
             Divider()
 
+#if os(macOS)
             Button {
                 let selectedNodes = graph.nodes.filter { $0.isSelected }
                 let nodesToCopy = selectedNodes.isEmpty ? [currentNode] : selectedNodes
@@ -472,7 +479,7 @@ public struct NodeCanvas : View
             } label: {
                 Text("Copy")
             }
-
+#endif
             Button {
                 let selectedNodes = graph.nodes.filter { $0.isSelected }
                 let nodesToDuplicate = selectedNodes.isEmpty ? [currentNode] : selectedNodes

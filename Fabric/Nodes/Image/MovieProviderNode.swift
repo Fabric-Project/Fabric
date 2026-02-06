@@ -10,17 +10,22 @@ import Satin
 import simd
 import Metal
 import AVFoundation
+#if os(macOS)
 import VideoToolbox
 import MediaToolbox
+#endif
 
 private let MovieProviderNodeInitializer: Void = {
-    
+
     print("One Time Global setup for MovieTextureNode")
-    
+
+    #if os(macOS)
+    // Register professional video workflow codecs (ProRes, etc.) - macOS only
     VTRegisterProfessionalVideoWorkflowVideoDecoders()
     VTRegisterProfessionalVideoWorkflowVideoEncoders()
     MTRegisterProfessionalVideoWorkflowFormatReaders()
-   
+    #endif
+
 }()
 
 public class MovieProviderNode : Node

@@ -1,5 +1,6 @@
 // Borrowed from https://github.com/ml-explore/mlx-swift-examples/blob/main/Applications/LLMEval/ContentView.swift
 
+import Foundation
 internal import AsyncAlgorithms
 internal import MLX
 internal import MLXLLM

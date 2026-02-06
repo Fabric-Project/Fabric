@@ -9,6 +9,8 @@ import Foundation
 import SwiftUI
 import Metal
 internal import OSCKit
+import Satin
+import simd
 
 // MARK: - OSC Address Binding
 
