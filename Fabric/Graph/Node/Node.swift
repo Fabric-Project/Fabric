@@ -62,9 +62,9 @@ import Combine
         return Self.nodeExecutionMode
     }
     
-    @ObservationIgnored var context:Context
+    @ObservationIgnored public var context:Context
 
-    @ObservationIgnored weak var graph:Graph?
+    @ObservationIgnored public weak var graph:Graph?
 
     // Method to register ports
     public class func registerPorts(context: Context) -> [(name: String, port: Port)] { [] }
