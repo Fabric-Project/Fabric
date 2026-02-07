@@ -93,6 +93,7 @@ let package = Package(
                 .copy("Materials"),
                 .process("Fabric.xcassets"),
                 .copy("lygia"),
+                .copy("FabricCoreNodes.fabricplugin"),
             ],
             swiftSettings: [
                 .define("FABRIC_SYPHON_ENABLED", .when(platforms: [.macOS])),

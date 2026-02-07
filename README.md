@@ -84,9 +84,25 @@ Checkout our [Architecture Document ](ARCHITECTURE.md) to understand the underly
 We also provide a set of evolving tutorial / getting started and sample Fabric compositions along with a readme walk through. You can use the [Sample Compositions](https://github.com/Fabric-Project/Fabric/tree/main/Samples) 
 to learn and build off of.
 
-You can view a comprehensive list of available and planned [Nodes](NODES.md) here to explore and learn how to compose more advanced and custom setups with Fabric. 
+You can view a comprehensive list of available and planned [Nodes](NODES.md) here to explore and learn how to compose more advanced and custom setups with Fabric.
 
 Don't hesitate to file a feature request if a Node is missing!
+
+# Extending Fabric with Plugins
+
+Fabric supports a plugin architecture that allows developers to create custom nodes. Plugins are `.fabricplugin` bundles that are discovered and loaded at runtime.
+
+**Key features:**
+- Create custom `Node` subclasses with your own functionality
+- Plugins are loaded automatically from standard locations
+- Same API used internally by Fabric's built-in nodes (we dogfood our own plugin system)
+
+**Plugin locations:**
+- `~/Library/Application Support/Fabric/Plugins/` - User plugins
+- `/Library/Application Support/Fabric/Plugins/` - System-wide plugins
+- `Fabric.app/Contents/PlugIns/` - App-bundled plugins
+
+For detailed documentation on creating plugins, see [PLUGINS.md](PLUGINS.md).
 
 # Roadmap
 
