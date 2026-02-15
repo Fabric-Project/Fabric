@@ -7,10 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		1BE00A5D2DC936A50061EAFD /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5B2DC936A50061EAFD /* CoreFoundation.framework */; };
 		1BE00A5E2DC936A50061EAFD /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5C2DC936A50061EAFD /* Foundation.framework */; };
-		1BE00A612DC936AC0061EAFD /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5F2DC936AC0061EAFD /* MetalKit.framework */; };
-		1BE00A622DC936AC0061EAFD /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A602DC936AC0061EAFD /* Metal.framework */; };
 		1BFD79232F367C6E00F84067 /* Fabric in Frameworks */ = {isa = PBXBuildFile; productRef = 1BFD79222F367C6E00F84067 /* Fabric */; };
 		1BFD79262F367D4F00F84067 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 1BFD79252F367D4F00F84067 /* Sparkle */; };
 /* End PBXBuildFile section */
@@ -29,12 +26,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		1BB12B332E0234FC0075C276 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.4.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
-		1BB12B342E0234FC0075C276 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.4.sdk/System/Library/Frameworks/AVFoundation.framework; sourceTree = DEVELOPER_DIR; };
-		1BB12B352E0234FC0075C276 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.4.sdk/System/Library/Frameworks/CoreFoundation.framework; sourceTree = DEVELOPER_DIR; };
-		1BB12B412E0251B20075C276 /* libswiftObjectiveC.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libswiftObjectiveC.tbd; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.4.sdk/usr/lib/swift/libswiftObjectiveC.tbd; sourceTree = DEVELOPER_DIR; };
-		1BB12B422E0251BE0075C276 /* libobjc.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libobjc.tbd; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.4.sdk/usr/lib/libobjc.tbd; sourceTree = DEVELOPER_DIR; };
-		1BB12B472E0267420075C276 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.4.sdk/System/Library/Frameworks/Accelerate.framework; sourceTree = DEVELOPER_DIR; };
 		1BD9EE242EF2004E0075D951 /* MetalFX.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalFX.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.1.sdk/System/Library/Frameworks/MetalFX.framework; sourceTree = DEVELOPER_DIR; };
 		1BE007222DBB1FBC0061EAFD /* Fabric Editor.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Fabric Editor.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1BE00A5B2DC936A50061EAFD /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
@@ -70,10 +61,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				1BFD79232F367C6E00F84067 /* Fabric in Frameworks */,
-				1BE00A5D2DC936A50061EAFD /* CoreFoundation.framework in Frameworks */,
-				1BE00A612DC936AC0061EAFD /* MetalKit.framework in Frameworks */,
 				1BFD79262F367D4F00F84067 /* Sparkle in Frameworks */,
-				1BE00A622DC936AC0061EAFD /* Metal.framework in Frameworks */,
 				1BE00A5E2DC936A50061EAFD /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -102,12 +90,6 @@
 			isa = PBXGroup;
 			children = (
 				1BD9EE242EF2004E0075D951 /* MetalFX.framework */,
-				1BB12B472E0267420075C276 /* Accelerate.framework */,
-				1BB12B422E0251BE0075C276 /* libobjc.tbd */,
-				1BB12B412E0251B20075C276 /* libswiftObjectiveC.tbd */,
-				1BB12B342E0234FC0075C276 /* AVFoundation.framework */,
-				1BB12B352E0234FC0075C276 /* CoreFoundation.framework */,
-				1BB12B332E0234FC0075C276 /* Foundation.framework */,
 				1BE00A602DC936AC0061EAFD /* Metal.framework */,
 				1BE00A5F2DC936AC0061EAFD /* MetalKit.framework */,
 				1BE00A5B2DC936A50061EAFD /* CoreFoundation.framework */,

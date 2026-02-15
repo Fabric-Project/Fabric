@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>info.HiRez.Fabric.CoreNodes</string>
+    <key>CFBundleName</key>
+    <string>FabricCoreNodes</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>FabricPluginAPIVersion</key>
+    <integer>1</integer>
+    <key>FabricPluginDisplayName</key>
+    <string>Fabric Core Nodes</string>
+    <key>FabricPluginAuthor</key>
+    <string>Fabric Project</string>
+    <key>FabricPluginDescription</key>
+    <string>Built-in nodes included with Fabric</string>
+    <key>NSPrincipalClass</key>
+    <string>FabricCoreNodesPlugin</string>
+    <key>FabricPluginNodeClasses</key>
+    <array>
+        <!-- Node classes are provided programmatically via NSPrincipalClass -->
+    </array>
+    <key>FabricPluginEmbedded</key>
+    <true/>
+</dict>
+</plist>
