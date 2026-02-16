@@ -130,7 +130,7 @@ public class BaseEffectNode: Node, NodeFileLoadingProtocol
         
         if let path = try container.decodeIfPresent(String.self, forKey: .effectPath)
         {
-            let bundle = Bundle(for: Self.self)
+            let bundle = Bundle.module
             if let shaderURL = bundle.resourceURL?.appendingPathComponent(path)
             {
                 self.url = shaderURL

@@ -133,8 +133,9 @@ public class NodeRegistry {
         EnvironmentNode.self,
     ]
     
-    private var dynamicEffectNodes:[NodeClassWrapper] {
-        let bundle = Bundle(for: Self.self)
+    private var dynamicEffectNodes:[NodeClassWrapper]
+    {
+        let bundle = Bundle.module
 
         var nodes:[NodeClassWrapper] = []
 

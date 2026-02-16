@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1BB453442F42919100F641AE /* Fabric in Frameworks */ = {isa = PBXBuildFile; productRef = 1BB453432F42919100F641AE /* Fabric */; };
 		1BE00A5D2DC936A50061EAFD /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5B2DC936A50061EAFD /* CoreFoundation.framework */; };
 		1BE00A5E2DC936A50061EAFD /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5C2DC936A50061EAFD /* Foundation.framework */; };
 		1BE00A612DC936AC0061EAFD /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5F2DC936AC0061EAFD /* MetalKit.framework */; };
@@ -71,6 +72,7 @@
 			files = (
 				1BFD79232F367C6E00F84067 /* Fabric in Frameworks */,
 				1BE00A5D2DC936A50061EAFD /* CoreFoundation.framework in Frameworks */,
+				1BB453442F42919100F641AE /* Fabric in Frameworks */,
 				1BE00A612DC936AC0061EAFD /* MetalKit.framework in Frameworks */,
 				1BFD79262F367D4F00F84067 /* Sparkle in Frameworks */,
 				1BE00A622DC936AC0061EAFD /* Metal.framework in Frameworks */,
@@ -139,6 +141,7 @@
 			packageProductDependencies = (
 				1BFD79222F367C6E00F84067 /* Fabric */,
 				1BFD79252F367D4F00F84067 /* Sparkle */,
+				1BB453432F42919100F641AE /* Fabric */,
 			);
 			productName = Fabric;
 			productReference = 1BE007222DBB1FBC0061EAFD /* Fabric Editor.app */;
@@ -170,8 +173,8 @@
 			mainGroup = 1BE007192DBB1FBC0061EAFD;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				1BFD79212F367C6E00F84067 /* XCLocalSwiftPackageReference "../Fabric" */,
 				1BFD79242F367D4F00F84067 /* XCRemoteSwiftPackageReference "Sparkle" */,
+				1BB453422F42919100F641AE /* XCLocalSwiftPackageReference "../Fabric" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1BE007232DBB1FBC0061EAFD /* Products */;
@@ -433,7 +436,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		1BFD79212F367C6E00F84067 /* XCLocalSwiftPackageReference "../Fabric" */ = {
+		1BB453422F42919100F641AE /* XCLocalSwiftPackageReference "../Fabric" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../Fabric;
 		};
@@ -451,6 +454,10 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		1BB453432F42919100F641AE /* Fabric */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Fabric;
+		};
 		1BFD79222F367C6E00F84067 /* Fabric */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Fabric;
