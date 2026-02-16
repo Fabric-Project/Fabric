@@ -4,8 +4,7 @@ using namespace metal;
 
 typedef struct {
     float amount; // slider, 0.0, 5.0, 0.0, Amount
-    float originX; // slider, -2.0, 2.0, 0.0, Origin X
-    float originY; // slider, -2.0, 2.0, 0.0, Origin Y
+    float2 origin; // xypad, -2.0, 2.0, 0.0, Origin
 } PostUniforms;
 
 struct ZoomPassUniforms {
@@ -25,7 +24,7 @@ fragment half4 postFragment(VertexData in [[stage_in]],
     const float amount = uniforms.amount * passUniforms.amountScale;
     const float2 uv = in.texcoord;
 
-    const float2 origin = float2(uniforms.originX + 0.5, uniforms.originY + 0.5);
+    const float2 origin = uniforms.origin + 0.5;//float2(uniforms.originX + 0.5, uniforms.originY + 0.5);
 
     const float2 destination = uv - origin;
 

@@ -3,7 +3,7 @@ import Metal
 import Satin
 import simd
 
-public class BaseMultiPassBlurEffectNode: BaseEffectNode
+public class BaseMultiPassBlurEffectTwoChannelNode: BaseEffectTwoChannelNode
 {
     public struct MultiPassStep
     {
@@ -41,7 +41,8 @@ public class BaseMultiPassBlurEffectNode: BaseEffectNode
 
     public func runPassChain(context: GraphExecutionContext,
                              commandBuffer: MTLCommandBuffer,
-                             inputTexture: MTLTexture,
+                             inputATexture: MTLTexture,
+                             inputBTexture: MTLTexture,
                              steps: [MultiPassStep],
                              prepareStep: (Int, MultiPassStep) -> Void) -> FabricImage?
     {
@@ -53,7 +54,7 @@ public class BaseMultiPassBlurEffectNode: BaseEffectNode
             return nil
         }
 
-        var currentTexture: MTLTexture = inputTexture
+        var currentTexture: MTLTexture = inputATexture
         var currentImage: FabricImage? = nil
 
         for (index, step) in steps.enumerated() {
@@ -66,6 +67,7 @@ public class BaseMultiPassBlurEffectNode: BaseEffectNode
 
             self.postProcessor.mesh.preDraw = { renderEncoder in
                 renderEncoder.setFragmentTexture(currentTexture, index: FragmentTextureIndex.Custom0.rawValue)
+                renderEncoder.setFragmentTexture(inputBTexture, index: FragmentTextureIndex.Custom1.rawValue)
             }
 
             self.postProcessor.renderer.size.width = Float(step.width)

@@ -1,6 +1,7 @@
 using namespace metal;
 
 #include <metal_stdlib>
+#include "../lygia/math/radians.msl"
 
 typedef struct {
     float amount; // slider, 0.0, 5.0, 0.0, Amount
