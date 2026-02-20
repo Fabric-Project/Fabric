@@ -59,18 +59,27 @@ public final class GaussianBlurNode: BaseMultiPassBlurEffectNode {
 
         var steps: [MultiPassStep] = []
 
-        if amount <= Self.lowAmountThreshold {
-            steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 1.0, vector: simd_float2(1.0, 0.0)))
-            steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 1.0, vector: simd_float2(0.0, 1.0)))
-        } else {
+//        if amount <= Self.lowAmountThreshold {
+//            steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 1.0, vector: simd_float2(1.0, 0.0)))
+//            steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 1.0, vector: simd_float2(0.0, 1.0)))
+//        }
+//        else
+//        {
             let stageRatios: [(ratio: Float, multiplier: Float)] = [
-                (0.2, 1.0),
-                (0.3, 1.5),
-                (0.5, 1.5),
-                (0.8, 2.0),
+//                (0.1, 0.4),
+//                (0.2, 0.8),
+//                (0.4, 1.6),
+//                (0.6, 2.4),
+//                (0.8, 1.6),
+                (0.1, 0.111),
+                (0.2, 0.3333),
+                (0.4, 0.666),
+                (0.6, 1.0),
+                (0.8, 0.666),
             ]
 
-            for stage in stageRatios {
+            for stage in stageRatios
+            {
                 let stageSize = self.scaledPassSize(baseWidth: inputTexture.width,
                                                     baseHeight: inputTexture.height,
                                                     amount: amount,
@@ -87,11 +96,11 @@ public final class GaussianBlurNode: BaseMultiPassBlurEffectNode {
                                            vector: simd_float2(0.0, 1.0)))
             }
 
-            steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 1.0, vector: simd_float2(1.0, 0.0)))
-            steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 1.0, vector: simd_float2(0.0, 1.0)))
-        }
+        steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 0.333, vector: simd_float2(1.0, 0.0)))
+        steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 0.333, vector: simd_float2(0.0, 1.0)))
+//        }
 
-        if let outputImage = self.runPassChain(context: context,
+        let outputImage = self.runPassChain(context: context,
                                                commandBuffer: commandBuffer,
                                                inputTexture: inputTexture,
                                                steps: steps,
@@ -105,9 +114,14 @@ public final class GaussianBlurNode: BaseMultiPassBlurEffectNode {
             let passBuffer = self.passUniformsBuffer(forStepIndex: stepIndex)
             passBuffer.update(data: [passUniforms])
             self.postMaterial.set(passBuffer, index: FragmentBufferIndex.Custom0)
-        }) {
+        })
+        
+        if let outputImage
+        {
             self.outputTexturePort.send(outputImage)
-        } else {
+        }
+        else
+        {
             self.outputTexturePort.send(nil)
         }
     }

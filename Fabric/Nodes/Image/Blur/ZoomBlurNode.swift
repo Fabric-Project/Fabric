@@ -64,10 +64,31 @@ public final class ZoomBlurNode: BaseMultiPassBlurEffectNode {
 //                (0.4, 1.5),
 //                (0.6, 1.5),
 //                (0.9, 2.0),
-                (1.0, 1.0),
-                (1.0, 2.0),
-                (1.0, 3.0),
-                (1.0, 2.0),
+                
+//                (1.0, 1.0),
+//                (1.0, 2.0),
+//                (1.0, 3.0),
+//                (1.0, 2.0),
+                
+//                (0.2, 1.0),
+//                (0.3, 1.5),
+//                (0.5, 2.0),
+//                (0.8, 1.5),
+                
+//                (0.2, 1.0),
+//                (0.3, 1.0),
+//                (0.5, 1.0),
+//                (0.8, 1.0),
+                
+                    (0.2, 1.0),
+                    (0.3, 1.5),
+                    (0.5, 2.0),
+                    (0.8, 1.5),
+
+//                (0.2, 0.3333),
+//                (0.4, 0.666),
+//                (0.6, 1.0),
+//                (0.8, 0.666),
             ]
 
             for stage in stageRatios {
@@ -81,7 +102,7 @@ public final class ZoomBlurNode: BaseMultiPassBlurEffectNode {
                                            amountScale: stage.multiplier))
             }
 
-            steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 1.0))
+        steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 1.0))
 //        }
 
         if let outputImage = self.runPassChain(context: context,

@@ -60,10 +60,11 @@ public final class MotionBlurNode: BaseMultiPassBlurEffectNode {
             steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 1.0))
         } else {
             let stageRatios: [(ratio: Float, multiplier: Float)] = [
+                
                 (0.2, 1.0),
                 (0.3, 1.5),
-                (0.5, 1.5),
-                (0.8, 2.0),
+                (0.5, 2.0),
+                (0.8, 1.5),
             ]
 
             for stage in stageRatios {

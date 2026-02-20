@@ -5,6 +5,8 @@ import simd
 
 public class BaseMultiPassBlurEffectNode: BaseEffectNode
 {
+    static let maxBlur:Float = 50.0
+    
     public struct MultiPassStep
     {
         public let width: Int
@@ -29,8 +31,9 @@ public class BaseMultiPassBlurEffectNode: BaseEffectNode
         self.postMaterial.parameters.get(name, as: FloatParameter.self)?.value ?? defaultValue
     }
 
-    public func scaledPassSize(baseWidth: Int, baseHeight: Int, amount: Float, passRatio: Float) -> (width: Int, height: Int) {
-        let normalizedAmount = max(amount / 5.0, 0.0001)
+    public func scaledPassSize(baseWidth: Int, baseHeight: Int, amount: Float, passRatio: Float) -> (width: Int, height: Int)
+    {
+        let normalizedAmount = max(amount / Self.maxBlur, 0.0001)
         let passAmount = min(1.0, passRatio / normalizedAmount)
 
         let width = max(1, Int(Float(baseWidth) * passAmount))
@@ -43,8 +46,7 @@ public class BaseMultiPassBlurEffectNode: BaseEffectNode
                              commandBuffer: MTLCommandBuffer,
                              inputTexture: MTLTexture,
                              steps: [MultiPassStep],
-                             prepareStep: (Int, MultiPassStep) -> Void) -> FabricImage?
-    {
+                             prepareStep: (Int, MultiPassStep) -> Void ) -> FabricImage? {
         guard let graphRenderer = context.graphRenderer else {
             return nil
         }
@@ -61,6 +63,8 @@ public class BaseMultiPassBlurEffectNode: BaseEffectNode
                 currentImage?.release()
                 return nil
             }
+
+            commandBuffer.pushDebugGroup("\(self.name) - pass \(index)")
 
             prepareStep(index, step)
 
@@ -79,6 +83,8 @@ public class BaseMultiPassBlurEffectNode: BaseEffectNode
             currentImage?.release()
             currentImage = nextImage
             currentTexture = nextImage.texture
+            
+            commandBuffer.popDebugGroup()
         }
 
         return currentImage

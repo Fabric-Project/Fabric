@@ -4,7 +4,7 @@ using namespace metal;
 #include "../lygia/math/radians.msl"
 
 typedef struct {
-    float amount; // slider, 0.0, 5.0, 0.0, Amount
+    float amount; // slider, 0.0, 50.0, 0.0, Amount
     float angle; // slider, 0.0, 360.0, 0.0, Angle
 } PostUniforms;
 
@@ -29,10 +29,10 @@ fragment half4 postFragment(VertexData in [[stage_in]],
 
     const float scaledAmount = uniforms.amount * passUniforms.amountScale;
 
-    const float2 step1 = direction * texelSize * (scaledAmount * 1.0);
-    const float2 step2 = direction * texelSize * (scaledAmount * 3.0);
-    const float2 step3 = direction * texelSize * (scaledAmount * 6.0);
-    const float2 step4 = direction * texelSize * (scaledAmount * 9.0);
+    const float2 step1 = direction * texelSize * (scaledAmount / 4.0);
+    const float2 step2 = direction * texelSize * (scaledAmount / 3.0);
+    const float2 step3 = direction * texelSize * (scaledAmount / 2.0);
+    const float2 step4 = direction * texelSize * (scaledAmount / 1.0);
 
     const float2 uv = in.texcoord;
 
@@ -46,5 +46,6 @@ fragment half4 postFragment(VertexData in [[stage_in]],
     half4 sample7 = renderTex.sample(linearSampler, uv - step3);
     half4 sample8 = renderTex.sample(linearSampler, uv - step4);
 
-    return (sample0 + sample1 + sample2 + sample3 + sample4 + sample5 + sample6 + sample7 + sample8) / 9.0h;
+//    return (sample0 + sample1 + sample2 + sample3 + sample4 + sample5 + sample6 + sample7 + sample8) / 9.0h;
+    return (sample0 * 0.39894 + sample1 * 0.24197 + sample2 * 0.24197 + sample3 * 0.05399 + sample4 * 0.05399 + sample5 * 0.00443 + sample6 * 0.00443 + sample7 * 0.00013+ sample8 * 0.00013);
 }
