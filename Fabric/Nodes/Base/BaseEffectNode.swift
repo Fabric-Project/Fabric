@@ -60,6 +60,13 @@ public class BaseEffectNode: Node, NodeFileLoadingProtocol
                                            material: material,
                                            frameBufferOnly: false)
                 
+        self.postProcessor.renderer.depthLoadAction = .dontCare
+        self.postProcessor.renderer.depthStoreAction = .dontCare
+        
+        self.postProcessor.renderer.stencilLoadAction = .dontCare
+        self.postProcessor.renderer.stencilStoreAction = .dontCare
+        
+        
         super.init(context: context)
         
         for param in self.postMaterial.parameters.params {
@@ -85,6 +92,14 @@ public class BaseEffectNode: Node, NodeFileLoadingProtocol
                                            material: material,
                                            frameBufferOnly: false)
                 
+        
+        self.postProcessor.renderer.depthLoadAction = .dontCare
+        self.postProcessor.renderer.depthStoreAction = .dontCare
+        
+        self.postProcessor.renderer.stencilLoadAction = .dontCare
+        self.postProcessor.renderer.stencilStoreAction = .dontCare
+
+        
         super.init(context: context)
         
         for param in self.postMaterial.parameters.params {
@@ -185,6 +200,13 @@ public class BaseEffectNode: Node, NodeFileLoadingProtocol
                 }
             }
         }
+        
+        self.postProcessor.renderer.depthLoadAction = .dontCare
+        self.postProcessor.renderer.depthStoreAction = .dontCare
+        
+        self.postProcessor.renderer.stencilLoadAction = .dontCare
+        self.postProcessor.renderer.stencilStoreAction = .dontCare
+
     }
     
     override public func execute(context:GraphExecutionContext,
