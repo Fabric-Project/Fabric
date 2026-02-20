@@ -126,7 +126,6 @@ struct MathExpressionView : View
         if anyVariabledChanged,
            let mathEvaluator = self.mathEvaluator
         {
-            print("executing math expression")
             let result = mathEvaluator.eval(variables: { variable in
                                 
                 if let port = self.findPort(named: variable) as? NodePort<Float>,

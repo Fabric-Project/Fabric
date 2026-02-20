@@ -106,6 +106,9 @@ public class NodeRegistry {
         ])
         #endif
         classes.append(contentsOf: [
+            GaussianBlurNode.self,
+            MotionBlurNode.self,
+            ZoomBlurNode.self,
             ForegroundMaskNode.self,
             PersonSegmentationMaskNode.self,
             FacePoseAnalysisNode.self,

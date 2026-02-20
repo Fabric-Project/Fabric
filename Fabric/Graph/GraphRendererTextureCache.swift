@@ -48,6 +48,13 @@ internal final class GraphRendererTextureCache {
         /// Alignment floor used when aligning heap sizes.
         public var heapSizeAlignment: Int = 256
 
+        /// Hard cap on number of heaps retained by the cache.
+        /// If reached, allocation misses trigger recovery (flush/reset) before creating more heaps.
+        public var maxHeapCount: Int = 16
+
+        /// Cap per reuse bucket to prevent unbounded growth when sizes churn.
+        public var maxTexturesPerBucket: Int = 8
+
         public init() {}
     }
 
@@ -78,6 +85,10 @@ internal final class GraphRendererTextureCache {
     public private(set) var totalHeapsCreated: Int = 0
     public private(set) var totalTexturesReused: Int = 0
     public private(set) var totalTexturesAllocated: Int = 0
+    public private(set) var totalAllocationMisses: Int = 0
+    public private(set) var totalRecoveryFlushes: Int = 0
+    public private(set) var totalResets: Int = 0
+    public private(set) var totalHeapsEvicted: Int = 0
 
     // MARK: Init
 
@@ -151,6 +162,7 @@ internal final class GraphRendererTextureCache {
     public func reset() {
         flushReusableTextures()
         heaps.removeAll(keepingCapacity: false)
+        totalResets += 1
     }
 
     // MARK: Internals: allocate/reuse
@@ -173,13 +185,38 @@ internal final class GraphRendererTextureCache {
             return tex
         }
 
+        totalAllocationMisses += 1
+
         // 2) Allocate from existing heap(s)
         if let tex = allocateFromExistingHeaps(descriptor: descriptor, label: label) {
             totalTexturesAllocated += 1
             return tex
         }
 
-        // 3) Grow: create a new heap sized for this texture (plus headroom)
+        // 3) Miss recovery path before growing heaps forever:
+        // flush reusable caches first, then retry existing heaps.
+        if !available.isEmpty {
+            flushReusableTextures()
+            totalRecoveryFlushes += 1
+
+            if let tex = allocateFromExistingHeaps(descriptor: descriptor, label: label) {
+                totalTexturesAllocated += 1
+                return tex
+            }
+        }
+
+        // 4) If we are at/over heap cap, reset the cache as a hard recovery.
+        // This prevents unbounded heap retention in highly dynamic workloads.
+        if heaps.count >= max(1, config.maxHeapCount) {
+            reset()
+
+            if let tex = allocateFromExistingHeaps(descriptor: descriptor, label: label) {
+                totalTexturesAllocated += 1
+                return tex
+            }
+        }
+
+        // 5) Grow: create a new heap sized for this texture (plus headroom)
         if let tex = allocateFromNewHeap(descriptor: descriptor, label: label) {
             totalTexturesAllocated += 1
             return tex
@@ -203,7 +240,17 @@ internal final class GraphRendererTextureCache {
                              usageRawValue: texture.usage.rawValue,
                              storageMode: texture.storageMode)
 
-        available[frameIndex][key, default: []].append(texture)
+        var bucket = available[frameIndex][key, default: []]
+        bucket.append(texture)
+
+        // Keep per-bucket cache bounded.
+        let cap = max(1, config.maxTexturesPerBucket)
+        if bucket.count > cap {
+            let overflow = bucket.count - cap
+            bucket.removeFirst(overflow)
+        }
+
+        available[frameIndex][key] = bucket
     }
 
     private func allocateFromExistingHeaps(descriptor: MTLTextureDescriptor, label: String?) -> MTLTexture?
@@ -247,6 +294,7 @@ internal final class GraphRendererTextureCache {
         heap.label = "Fabric.TextureHeap.\(totalHeapsCreated)"
 
         heaps.append(heap)
+        enforceHeapCountLimit()
 
         let tex = heap.makeTexture(descriptor: descriptor)
         if let label { tex?.label = label }
@@ -258,5 +306,15 @@ internal final class GraphRendererTextureCache {
         let a = max(1, alignment)
         let mask = a - 1
         return (value + mask) & ~mask
+    }
+
+    private func enforceHeapCountLimit()
+    {
+        let limit = max(1, config.maxHeapCount)
+        guard heaps.count > limit else { return }
+
+        let overflow = heaps.count - limit
+        heaps.removeFirst(overflow)
+        totalHeapsEvicted += overflow
     }
 }
