@@ -394,6 +394,14 @@ internal import AnyCodable
 
         self.updateRenderingNodes()
     }
+
+    @discardableResult
+    public func deleteNode(forID id: UUID, disconnect: Bool = true) -> Bool
+    {
+        guard let node = self.node(forID: id) else { return false }
+        self.delete(node: node, disconnect: disconnect)
+        return true
+    }
     
     public func node(forID:UUID) -> Node?
     {

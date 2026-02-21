@@ -14,6 +14,7 @@
 		1BE00A622DC936AC0061EAFD /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A602DC936AC0061EAFD /* Metal.framework */; };
 		1BFD79232F367C6E00F84067 /* Fabric in Frameworks */ = {isa = PBXBuildFile; productRef = 1BFD79222F367C6E00F84067 /* Fabric */; };
 		1BFD79262F367D4F00F84067 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 1BFD79252F367D4F00F84067 /* Sparkle */; };
+		2A1B00012F50000100AAA001 /* MCP in Frameworks */ = {isa = PBXBuildFile; productRef = 2A1B00032F50000100AAA001 /* MCP */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -71,6 +72,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				1BFD79232F367C6E00F84067 /* Fabric in Frameworks */,
+				2A1B00012F50000100AAA001 /* MCP in Frameworks */,
 				1BE00A5D2DC936A50061EAFD /* CoreFoundation.framework in Frameworks */,
 				1BB453442F42919100F641AE /* Fabric in Frameworks */,
 				1BE00A612DC936AC0061EAFD /* MetalKit.framework in Frameworks */,
@@ -142,6 +144,7 @@
 				1BFD79222F367C6E00F84067 /* Fabric */,
 				1BFD79252F367D4F00F84067 /* Sparkle */,
 				1BB453432F42919100F641AE /* Fabric */,
+				2A1B00032F50000100AAA001 /* MCP */,
 			);
 			productName = Fabric;
 			productReference = 1BE007222DBB1FBC0061EAFD /* Fabric Editor.app */;
@@ -175,6 +178,7 @@
 			packageReferences = (
 				1BFD79242F367D4F00F84067 /* XCRemoteSwiftPackageReference "Sparkle" */,
 				1BB453422F42919100F641AE /* XCLocalSwiftPackageReference "../Fabric" */,
+				2A1B00022F50000100AAA001 /* XCRemoteSwiftPackageReference "swift-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1BE007232DBB1FBC0061EAFD /* Products */;
@@ -232,6 +236,7 @@
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Fabric uses Bluetooth to connect to HID devices like game controllers";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera Effects";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "MCP Tool usage";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Microphone Effects";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -275,6 +280,7 @@
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Fabric uses Bluetooth to connect to HID devices like game controllers";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera Effects";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "MCP Tool usage";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Microphone Effects";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -451,6 +457,14 @@
 				minimumVersion = 2.8.1;
 			};
 		};
+		2A1B00022F50000100AAA001 /* XCRemoteSwiftPackageReference "swift-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/modelcontextprotocol/swift-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.11.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -466,6 +480,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 1BFD79242F367D4F00F84067 /* XCRemoteSwiftPackageReference "Sparkle" */;
 			productName = Sparkle;
+		};
+		2A1B00032F50000100AAA001 /* MCP */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2A1B00022F50000100AAA001 /* XCRemoteSwiftPackageReference "swift-sdk" */;
+			productName = MCP;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

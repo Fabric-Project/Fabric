@@ -145,6 +145,7 @@ struct ContentView: View {
                                         }
                                 )
                                 .onAppear {
+                                    EditorDocumentStore.shared.setFocusedDocument(self.document)
                                     self.document.graph.undoManager = undoManager
 
                                     // This is hacky as hell, but it seems our scroll offset doesn work since on can fire before other views are fully online?
@@ -159,6 +160,9 @@ struct ContentView: View {
                                             proxy.scrollTo("canvas", anchor: targetPoint)
                                         }
                                     }
+                                }
+                                .onDisappear {
+                                    EditorDocumentStore.shared.clearFocusedDocumentIfMatching(self.document)
                                 }
                             
                         }
