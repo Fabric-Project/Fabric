@@ -45,54 +45,154 @@ final class FabricEditorMCPToolExecutor {
         let bridge = FabricEditorMCPBridge.shared
 
         switch tool {
-        case .getEditorContext:
-            let context = try bridge.getEditorContext()
+        case .getActiveDocumentGraph:
+            let context = try bridge.getActiveDocumentGraphID()
             editorToolLog("tool success tool=\(tool.name)")
             return try self.serializeJSON(context)
 
-        case .listNodeTypes:
-            let nodeTypes = bridge.listNodeTypes()
+        case .makeNewDocument:
+            let response = bridge.makeNewDocument()
+            editorToolLog("tool success tool=\(tool.name) graphID=\(response.graphID)")
+            return try self.serializeJSON(response)
+
+        case .getAvailableNodeTypes:
+            let nodeTypes = bridge.getAvailableNodeTypes()
             editorToolLog("tool success tool=\(tool.name) count=\(nodeTypes.count)")
             return try self.serializeJSON(nodeTypes)
 
-        case .getGraphSnapshot:
-            let selectedOnly = arguments.boolValue(for: "selectedOnly") ?? false
-            let nodeIdStrings = arguments.stringArrayValue(for: "nodeIds") ?? []
-            let nodeIDs = Set(nodeIdStrings.compactMap(UUID.init(uuidString:)))
-            let snapshot = try bridge.getGraphSnapshot(selectedOnly: selectedOnly, nodeIDs: nodeIDs)
-            editorToolLog("tool success tool=\(tool.name) nodeCount=\(snapshot.nodeCount)")
-            return try self.serializeJSON(snapshot)
+        case .getAllAvailableNodeClassNames:
+            let classNames = bridge.getAllAvailableNodeClassNames()
+            editorToolLog("tool success tool=\(tool.name) count=\(classNames.count)")
+            return try self.serializeJSON(classNames)
 
-        case .getNodeDetails:
+        case .getNodeClassNamesForNodeType:
+            guard let nodeType = arguments.stringValue(for: "nodeType") else {
+                throw FabricEditorMCPBridge.BridgeError.invalidOperation("nodeType is required")
+            }
+            let classNames = bridge.getNodeClassNames(forNodeType: nodeType)
+            editorToolLog("tool success tool=\(tool.name) count=\(classNames.count)")
+            return try self.serializeJSON(classNames)
+
+        case .getNodeClassInfo:
+            guard let nodeName = arguments.stringValue(for: "nodeName") else {
+                throw FabricEditorMCPBridge.BridgeError.invalidOperation("nodeName is required")
+            }
+            let info = bridge.getNodeClassInfo(nodeName: nodeName)
+            editorToolLog("tool success tool=\(tool.name)")
+            return try self.serializeJSON(info)
+
+        case .getInstantiatedGraphNodes:
             guard
-                let nodeIDString = arguments.stringValue(for: "nodeId"),
+                let graphIDString = arguments.stringValue(for: "graphID"),
+                let graphID = UUID(uuidString: graphIDString)
+            else {
+                throw FabricEditorMCPBridge.BridgeError.invalidOperation("graphID is required")
+            }
+            let nodes = try bridge.getInstantiatedGraphNodes(graphID: graphID)
+            editorToolLog("tool success tool=\(tool.name) count=\(nodes.count)")
+            return try self.serializeJSON(nodes)
+
+        case .instantiateNodeClass:
+            guard
+                let graphIDString = arguments.stringValue(for: "graphID"),
+                let graphID = UUID(uuidString: graphIDString),
+                let nodeClass = arguments.stringValue(for: "nodeClass")
+            else {
+                throw FabricEditorMCPBridge.BridgeError.invalidOperation("graphID and nodeClass are required")
+            }
+            let response = bridge.instantiateNodeClass(graphID: graphID, nodeClassName: nodeClass)
+            editorToolLog("tool success tool=\(tool.name) success=\(response.success)")
+            return try self.serializeJSON(response)
+
+        case .deleteNode:
+            guard
+                let graphIDString = arguments.stringValue(for: "graphID"),
+                let graphID = UUID(uuidString: graphIDString),
+                let nodeIDString = arguments.stringValue(for: "nodeID"),
                 let nodeID = UUID(uuidString: nodeIDString)
             else {
-                throw FabricEditorMCPBridge.BridgeError.invalidOperation("nodeId is required")
+                throw FabricEditorMCPBridge.BridgeError.invalidOperation("graphID and nodeID are required")
             }
+            let response = bridge.deleteNode(graphID: graphID, nodeID: nodeID)
+            editorToolLog("tool success tool=\(tool.name) success=\(response.success)")
+            return try self.serializeJSON(response)
 
-            let details = try bridge.getNodeDetails(nodeID: nodeID)
-            editorToolLog("tool success tool=\(tool.name) nodeId=\(nodeID.uuidString)")
-            return try self.serializeJSON(details)
-
-        case .validateOperations, .applyOperations:
-            guard let operationsJSONString = arguments.stringValue(for: "operationsJson") else {
-                throw FabricEditorMCPBridge.BridgeError.invalidOperation("operationsJson is required")
+        case .getNodeInfo:
+            guard
+                let graphIDString = arguments.stringValue(for: "graphID"),
+                let graphID = UUID(uuidString: graphIDString),
+                let nodeIDString = arguments.stringValue(for: "nodeID"),
+                let nodeID = UUID(uuidString: nodeIDString)
+            else {
+                throw FabricEditorMCPBridge.BridgeError.invalidOperation("graphID and nodeID are required")
             }
+            let response = try bridge.getNodeInfo(graphID: graphID, nodeID: nodeID)
+            editorToolLog("tool success tool=\(tool.name) nodeID=\(nodeID.uuidString)")
+            return try self.serializeJSON(response)
 
-            let requestData = Data(operationsJSONString.utf8)
-            let request = try JSONDecoder().decode(MCPApplyOperationsRequest.self, from: requestData)
-            let response: MCPApplyResponse
-
-            if tool == .validateOperations {
-                response = try bridge.validateOperations(request)
-            } else {
-                response = try bridge.applyOperations(request)
+        case .moveNodeToOffset:
+            guard
+                let graphIDString = arguments.stringValue(for: "graphID"),
+                let graphID = UUID(uuidString: graphIDString),
+                let nodeIDString = arguments.stringValue(for: "nodeID"),
+                let nodeID = UUID(uuidString: nodeIDString),
+                let offset = arguments.vector2Value(for: "offset")
+            else {
+                throw FabricEditorMCPBridge.BridgeError.invalidOperation("graphID, nodeID and offset are required")
             }
+            let response = bridge.moveNodeToOffset(graphID: graphID, nodeID: nodeID, offset: offset)
+            editorToolLog("tool success tool=\(tool.name) success=\(response.success)")
+            return try self.serializeJSON(response)
 
-            editorToolLog("tool success tool=\(tool.name) operationCount=\(response.operationCount) success=\(response.success)")
+        case .connectNodePortToNodePort:
+            let response = try self.connectOrDisconnect(arguments: arguments, bridge: bridge, connect: true)
+            editorToolLog("tool success tool=\(tool.name) success=\(response.success)")
+            return try self.serializeJSON(response)
+
+        case .disconnectNodePortToNodePort:
+            let response = try self.connectOrDisconnect(arguments: arguments, bridge: bridge, connect: false)
+            editorToolLog("tool success tool=\(tool.name) success=\(response.success)")
             return try self.serializeJSON(response)
         }
+    }
+
+    private func connectOrDisconnect(
+        arguments: [String: Any],
+        bridge: FabricEditorMCPBridge,
+        connect: Bool
+    ) throws -> MCPBoolResult {
+        guard
+            let graphIDString = arguments.stringValue(for: "graphID"),
+            let graphID = UUID(uuidString: graphIDString),
+            let sourceNodeIDString = arguments.stringValue(for: "sourceNode"),
+            let sourceNodeID = UUID(uuidString: sourceNodeIDString),
+            let sourcePortIDString = arguments.stringValue(for: "sourcePort"),
+            let sourcePortID = UUID(uuidString: sourcePortIDString),
+            let destinationNodeIDString = arguments.stringValue(for: "destNode"),
+            let destinationNodeID = UUID(uuidString: destinationNodeIDString),
+            let destinationPortIDString = arguments.stringValue(for: "destinationPort"),
+            let destinationPortID = UUID(uuidString: destinationPortIDString)
+        else {
+            throw FabricEditorMCPBridge.BridgeError.invalidOperation("graphID/sourceNode/sourcePort/destNode/destinationPort are required")
+        }
+
+        if connect {
+            return bridge.connectNodePortToNodePort(
+                graphID: graphID,
+                sourceNodeID: sourceNodeID,
+                sourcePortID: sourcePortID,
+                destinationNodeID: destinationNodeID,
+                destinationPortID: destinationPortID
+            )
+        }
+
+        return bridge.disconnectNodePortToNodePort(
+            graphID: graphID,
+            sourceNodeID: sourceNodeID,
+            sourcePortID: sourcePortID,
+            destinationNodeID: destinationNodeID,
+            destinationPortID: destinationPortID
+        )
     }
 
     private func decodeArguments(from argumentsJSON: String) throws -> [String: Any] {
@@ -145,5 +245,11 @@ private extension Dictionary where Key == String, Value == Any {
     func stringArrayValue(for key: String) -> [String]? {
         guard let raw = self[key] as? [Any] else { return nil }
         return raw.compactMap { $0 as? String }
+    }
+
+    func vector2Value(for key: String) -> MCPVector2? {
+        guard let raw = self[key] as? [String: Any] else { return nil }
+        guard let x = raw["x"] as? Double, let y = raw["y"] as? Double else { return nil }
+        return MCPVector2(x: x, y: y)
     }
 }

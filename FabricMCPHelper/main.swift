@@ -220,27 +220,94 @@ RunLoop.main.run()
 private extension FabricMCPTool {
     var inputSchema: Value {
         switch self {
-        case .getEditorContext, .listNodeTypes, .getGraphSnapshot:
-            return .object([:])
-        case .getNodeDetails:
+        case .getActiveDocumentGraph, .makeNewDocument, .getAvailableNodeTypes, .getAllAvailableNodeClassNames:
             return .object([
                 "type": .string("object"),
-                "properties": .object([
-                    "nodeId": .object([
-                        "type": .string("string")
-                    ])
-                ]),
-                "required": .array([.string("nodeId")])
+                "properties": .object([:]),
+                "required": .array([])
             ])
-        case .validateOperations, .applyOperations:
+        case .getNodeClassNamesForNodeType:
             return .object([
                 "type": .string("object"),
                 "properties": .object([
-                    "operationsJson": .object([
+                    "nodeType": .object([
                         "type": .string("string")
                     ])
                 ]),
-                "required": .array([.string("operationsJson")])
+                "required": .array([.string("nodeType")])
+            ])
+        case .getNodeClassInfo:
+            return .object([
+                "type": .string("object"),
+                "properties": .object([
+                    "nodeName": .object([
+                        "type": .string("string")
+                    ])
+                ]),
+                "required": .array([.string("nodeName")])
+            ])
+        case .getInstantiatedGraphNodes:
+            return .object([
+                "type": .string("object"),
+                "properties": .object([
+                    "graphID": .object([
+                        "type": .string("string")
+                    ])
+                ]),
+                "required": .array([.string("graphID")])
+            ])
+        case .instantiateNodeClass:
+            return .object([
+                "type": .string("object"),
+                "properties": .object([
+                    "graphID": .object(["type": .string("string")]),
+                    "nodeClass": .object(["type": .string("string")])
+                ]),
+                "required": .array([.string("graphID"), .string("nodeClass")])
+            ])
+        case .deleteNode, .getNodeInfo:
+            return .object([
+                "type": .string("object"),
+                "properties": .object([
+                    "graphID": .object(["type": .string("string")]),
+                    "nodeID": .object(["type": .string("string")])
+                ]),
+                "required": .array([.string("graphID"), .string("nodeID")])
+            ])
+        case .moveNodeToOffset:
+            return .object([
+                "type": .string("object"),
+                "properties": .object([
+                    "graphID": .object(["type": .string("string")]),
+                    "nodeID": .object(["type": .string("string")]),
+                    "offset": .object([
+                        "type": .string("object"),
+                        "properties": .object([
+                            "x": .object(["type": .string("number")]),
+                            "y": .object(["type": .string("number")])
+                        ]),
+                        "required": .array([.string("x"), .string("y")])
+                    ])
+                ]),
+                "required": .array([.string("graphID"), .string("nodeID"), .string("offset")])
+            ])
+        case .connectNodePortToNodePort, .disconnectNodePortToNodePort:
+            return .object([
+                "type": .string("object"),
+                "properties": .object([
+                    "graphID": .object(["type": .string("string")]),
+                    "sourceNode": .object(["type": .string("string")]),
+                    "sourcePort": .object(["type": .string("string")]),
+                    "destNode": .object(["type": .string("string")]),
+                    "destinationPort": .object(["type": .string("string")])
+                ]),
+                "required": .array([
+                    .string("graphID"),
+                    .string("sourceNode"),
+                    .string("sourcePort"),
+                    .string("destNode"),
+                    .string("destinationPort")
+                ])
             ])
         }
     }
