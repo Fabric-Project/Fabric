@@ -80,17 +80,6 @@ struct DocumentCommands:Commands
     @FocusedBinding(\.document) var document: FabricDocument?
 
     var body: some Commands {
-        CommandGroup(before: .pasteboard)
-        {
-            Button("Select All Nodes")
-            {
-                let graph = self.document?.graph.activeSubGraph ?? self.document?.graph
-                graph?.selectAllNodes()
-                print("Select All")
-            }
-            .keyboardShortcut(KeyEquivalent("a"), modifiers: .command)
-            .disabled( self.document?.graph.nodes.isEmpty ?? true)
-        }
 
         CommandGroup(replacing: .pasteboard)
         {
@@ -122,6 +111,18 @@ struct DocumentCommands:Commands
             }
             .keyboardShortcut("d", modifiers: .command)
             .disabled(!hasSelection)
+        }
+        
+        CommandGroup(after: .pasteboard)
+        {
+            Button("Select All Nodes")
+            {
+                let graph = self.document?.graph.activeSubGraph ?? self.document?.graph
+                graph?.selectAllNodes()
+                print("Select All")
+            }
+            .keyboardShortcut(KeyEquivalent("a"), modifiers: .command)
+            .disabled( self.document?.graph.nodes.isEmpty ?? true)
         }
     }
 }
