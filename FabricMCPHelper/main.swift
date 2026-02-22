@@ -252,7 +252,9 @@ private extension FabricMCPTool {
                 "properties": .object([
                     "graphID": .object([
                         "type": .string("string")
-                    ])
+                    ]),
+                    "includePorts": .object(["type": .string("boolean")]),
+                    "includeDescriptions": .object(["type": .string("boolean")])
                 ]),
                 "required": .array([.string("graphID")])
             ])
@@ -265,12 +267,23 @@ private extension FabricMCPTool {
                 ]),
                 "required": .array([.string("graphID"), .string("nodeClass")])
             ])
-        case .deleteNode, .getNodeInfo:
+        case .deleteNode:
             return .object([
                 "type": .string("object"),
                 "properties": .object([
                     "graphID": .object(["type": .string("string")]),
                     "nodeID": .object(["type": .string("string")])
+                ]),
+                "required": .array([.string("graphID"), .string("nodeID")])
+            ])
+        case .getNodeInfo:
+            return .object([
+                "type": .string("object"),
+                "properties": .object([
+                    "graphID": .object(["type": .string("string")]),
+                    "nodeID": .object(["type": .string("string")]),
+                    "includePorts": .object(["type": .string("boolean")]),
+                    "includeDescriptions": .object(["type": .string("boolean")])
                 ]),
                 "required": .array([.string("graphID"), .string("nodeID")])
             ])
@@ -308,6 +321,54 @@ private extension FabricMCPTool {
                     .string("destNode"),
                     .string("destinationPort")
                 ])
+            ])
+        case .readParameterPortValue:
+            return .object([
+                "type": .string("object"),
+                "properties": .object([
+                    "graphID": .object(["type": .string("string")]),
+                    "nodeID": .object(["type": .string("string")]),
+                    "portID": .object(["type": .string("string")])
+                ]),
+                "required": .array([
+                    .string("graphID"),
+                    .string("nodeID"),
+                    .string("portID")
+                ])
+            ])
+        case .writeParameterPortValue:
+            return .object([
+                "type": .string("object"),
+                "description": .string("Write a parameter port value. Pass raw JSON values only (not stringified). Example: Float -> 1.25, Bool -> true, Vector 3 -> [1,2,3], Transform -> [16 numbers]."),
+                "properties": .object([
+                    "graphID": .object(["type": .string("string")]),
+                    "nodeID": .object(["type": .string("string")]),
+                    "portID": .object(["type": .string("string")]),
+                    "portValue": .object([
+                        "description": .string("Typed JSON value for the parameter port. Number/Bool/String/Array depending on portType from fabric_read_parameter_port_value. Optional envelope: {\"portType\":\"...\",\"value\":...}.")
+                    ])
+                ]),
+                "required": .array([
+                    .string("graphID"),
+                    .string("nodeID"),
+                    .string("portID"),
+                    .string("portValue")
+                ])
+            ])
+        case .getToolingHints:
+            return .object([
+                "type": .string("object"),
+                "properties": .object([:]),
+                "required": .array([])
+            ])
+        case .getGraphChanges:
+            return .object([
+                "type": .string("object"),
+                "properties": .object([
+                    "graphID": .object(["type": .string("string")]),
+                    "sinceRevisionToken": .object(["type": .string("string")])
+                ]),
+                "required": .array([.string("graphID")])
             ])
         }
     }

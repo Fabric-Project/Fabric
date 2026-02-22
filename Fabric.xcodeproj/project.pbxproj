@@ -23,6 +23,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		1B72266A2F4B847100BAFC49 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1BE0071A2DBB1FBC0061EAFD /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1BE007212DBB1FBC0061EAFD;
+			remoteInfo = "Fabric Editor";
+		};
 		1BB454B42F4A8CB900F641AE /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 1BE0071A2DBB1FBC0061EAFD /* Project object */;
@@ -74,6 +81,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		1B7226662F4B847100BAFC49 /* Fabric Editor MCP Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Fabric Editor MCP Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1BB12B332E0234FC0075C276 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.4.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		1BB12B342E0234FC0075C276 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.4.sdk/System/Library/Frameworks/AVFoundation.framework; sourceTree = DEVELOPER_DIR; };
 		1BB12B352E0234FC0075C276 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.4.sdk/System/Library/Frameworks/CoreFoundation.framework; sourceTree = DEVELOPER_DIR; };
@@ -91,6 +99,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		1B7226702F4B848000BAFC49 /* Exceptions for "Tests" folder in "Fabric Editor MCP Tests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				FabricEditorMCPToolFlowTests.swift,
+			);
+			target = 1B7226652F4B847100BAFC49 /* Fabric Editor MCP Tests */;
+		};
 		1BB454BA2F4A8CB900F641AE /* Exceptions for "FabricMCPService" folder in "FabricMPCService" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -111,13 +126,6 @@
 				FabricMCPContracts.swift,
 			);
 			target = 1BB4551A2F4A9A2300F641AE /* FabricMCPHelper */;
-		};
-		1BE007322DBB1FBD0061EAFD /* Exceptions for "Fabric Editor" folder in "Fabric Editor" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 1BE007212DBB1FBC0061EAFD /* Fabric Editor */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -144,17 +152,29 @@
 			path = FabricMCPHelper;
 			sourceTree = "<group>";
 		};
-		1BE007242DBB1FBC0061EAFD /* Fabric Editor */ = {
+		1BB455AF2F4B7FEA00F641AE /* Tests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				1BE007322DBB1FBD0061EAFD /* Exceptions for "Fabric Editor" folder in "Fabric Editor" target */,
+				1B7226702F4B848000BAFC49 /* Exceptions for "Tests" folder in "Fabric Editor MCP Tests" target */,
 			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		1BE007242DBB1FBC0061EAFD /* Fabric Editor */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Fabric Editor";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		1B7226632F4B847100BAFC49 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1BB454A82F4A8CB900F641AE /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -197,6 +217,7 @@
 				1BE007242DBB1FBC0061EAFD /* Fabric Editor */,
 				1BB454AC2F4A8CB900F641AE /* FabricMCPService */,
 				1BB4550B2F4A99E700F641AE /* FabricMCPHelper */,
+				1BB455AF2F4B7FEA00F641AE /* Tests */,
 				1BE007602DBC37CE0061EAFD /* Frameworks */,
 				1BE007232DBB1FBC0061EAFD /* Products */,
 			);
@@ -208,6 +229,7 @@
 				1BE007222DBB1FBC0061EAFD /* Fabric Editor.app */,
 				1BB454AB2F4A8CB900F641AE /* FabricMPCService.xpc */,
 				1BB4551B2F4A9A2300F641AE /* FabricMCPHelper */,
+				1B7226662F4B847100BAFC49 /* Fabric Editor MCP Tests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -233,6 +255,26 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		1B7226652F4B847100BAFC49 /* Fabric Editor MCP Tests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1B72266C2F4B847100BAFC49 /* Build configuration list for PBXNativeTarget "Fabric Editor MCP Tests" */;
+			buildPhases = (
+				1B7226622F4B847100BAFC49 /* Sources */,
+				1B7226632F4B847100BAFC49 /* Frameworks */,
+				1B7226642F4B847100BAFC49 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				1B72266B2F4B847100BAFC49 /* PBXTargetDependency */,
+			);
+			name = "Fabric Editor MCP Tests";
+			packageProductDependencies = (
+			);
+			productName = "Fabric Editor MCP Tests";
+			productReference = 1B7226662F4B847100BAFC49 /* Fabric Editor MCP Tests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		1BB454AA2F4A8CB900F641AE /* FabricMPCService */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 1BB454B72F4A8CB900F641AE /* Build configuration list for PBXNativeTarget "FabricMPCService" */;
@@ -320,6 +362,10 @@
 				LastSwiftUpdateCheck = 2610;
 				LastUpgradeCheck = 1630;
 				TargetAttributes = {
+					1B7226652F4B847100BAFC49 = {
+						CreatedOnToolsVersion = 26.1.1;
+						TestTargetID = 1BE007212DBB1FBC0061EAFD;
+					};
 					1BB454AA2F4A8CB900F641AE = {
 						CreatedOnToolsVersion = 26.1.1;
 					};
@@ -354,11 +400,19 @@
 				1BE007212DBB1FBC0061EAFD /* Fabric Editor */,
 				1BB454AA2F4A8CB900F641AE /* FabricMPCService */,
 				1BB4551A2F4A9A2300F641AE /* FabricMCPHelper */,
+				1B7226652F4B847100BAFC49 /* Fabric Editor MCP Tests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		1B7226642F4B847100BAFC49 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1BB454A92F4A8CB900F641AE /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -376,6 +430,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		1B7226622F4B847100BAFC49 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1BB454A72F4A8CB900F641AE /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -400,6 +461,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		1B72266B2F4B847100BAFC49 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1BE007212DBB1FBC0061EAFD /* Fabric Editor */;
+			targetProxy = 1B72266A2F4B847100BAFC49 /* PBXContainerItemProxy */;
+		};
 		1BB454B52F4A8CB900F641AE /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 1BB454AA2F4A8CB900F641AE /* FabricMPCService */;
@@ -413,6 +479,48 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		1B72266D2F4B847100BAFC49 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SHG3AW6YV7;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.7;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "graphics.fabric.Fabric-Editor-MCP-Tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Fabric Editor.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Fabric Editor";
+			};
+			name = Debug;
+		};
+		1B72266E2F4B847100BAFC49 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SHG3AW6YV7;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.7;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "graphics.fabric.Fabric-Editor-MCP-Tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Fabric Editor.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Fabric Editor";
+			};
+			name = Release;
+		};
 		1BB454B82F4A8CB900F641AE /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -478,6 +586,7 @@
 				DEVELOPMENT_TEAM = SHG3AW6YV7;
 				ENABLE_HARDENED_RUNTIME = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.7;
+				PRODUCT_BUNDLE_IDENTIFIER = graphics.fabric.FabricMCPHelper;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
@@ -492,6 +601,7 @@
 				DEVELOPMENT_TEAM = SHG3AW6YV7;
 				ENABLE_HARDENED_RUNTIME = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.7;
+				PRODUCT_BUNDLE_IDENTIFIER = graphics.fabric.FabricMCPHelper;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
@@ -707,6 +817,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		1B72266C2F4B847100BAFC49 /* Build configuration list for PBXNativeTarget "Fabric Editor MCP Tests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1B72266D2F4B847100BAFC49 /* Debug */,
+				1B72266E2F4B847100BAFC49 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		1BB454B72F4A8CB900F641AE /* Build configuration list for PBXNativeTarget "FabricMPCService" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

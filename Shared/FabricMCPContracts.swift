@@ -14,6 +14,10 @@ public enum FabricMCPTool: Int, CaseIterable, Sendable {
     case moveNodeToOffset = 11
     case connectNodePortToNodePort = 12
     case disconnectNodePortToNodePort = 13
+    case readParameterPortValue = 14
+    case writeParameterPortValue = 15
+    case getToolingHints = 16
+    case getGraphChanges = 17
 
     public var name: String {
         switch self {
@@ -43,6 +47,14 @@ public enum FabricMCPTool: Int, CaseIterable, Sendable {
             return "fabric_connect_node_port_to_node_port"
         case .disconnectNodePortToNodePort:
             return "fabric_disconnect_node_port_to_node_port"
+        case .readParameterPortValue:
+            return "fabric_read_parameter_port_value"
+        case .writeParameterPortValue:
+            return "fabric_write_parameter_port_value"
+        case .getToolingHints:
+            return "fabric_get_tooling_hints"
+        case .getGraphChanges:
+            return "fabric_get_graph_changes"
         }
     }
 
@@ -74,6 +86,14 @@ public enum FabricMCPTool: Int, CaseIterable, Sendable {
             return "Connect source node output port to destination node input port."
         case .disconnectNodePortToNodePort:
             return "Disconnect source node output port from destination node input port."
+        case .readParameterPortValue:
+            return "Read a parameter port value by graph/node/port UUID."
+        case .writeParameterPortValue:
+            return "Write a parameter port value by graph/node/port UUID. Use raw JSON values (number/bool/string/array/object), not stringified JSON. Use fabric_read_parameter_port_value first to get portType."
+        case .getToolingHints:
+            return "Get canonical Fabric MCP workflows, supported formats, and usage hints for efficient tool calling."
+        case .getGraphChanges:
+            return "Get incremental graph changes since the last observed revision token."
         }
     }
 

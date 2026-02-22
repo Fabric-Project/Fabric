@@ -88,7 +88,13 @@ final class FabricEditorMCPToolExecutor {
             else {
                 throw FabricEditorMCPBridge.BridgeError.invalidOperation("graphID is required")
             }
-            let nodes = try bridge.getInstantiatedGraphNodes(graphID: graphID)
+            let includePorts = arguments.boolValue(for: "includePorts") ?? false
+            let includeDescriptions = arguments.boolValue(for: "includeDescriptions") ?? false
+            let nodes = try bridge.getInstantiatedGraphNodes(
+                graphID: graphID,
+                includePorts: includePorts,
+                includeDescriptions: includeDescriptions
+            )
             editorToolLog("tool success tool=\(tool.name) count=\(nodes.count)")
             return try self.serializeJSON(nodes)
 
@@ -126,7 +132,14 @@ final class FabricEditorMCPToolExecutor {
             else {
                 throw FabricEditorMCPBridge.BridgeError.invalidOperation("graphID and nodeID are required")
             }
-            let response = try bridge.getNodeInfo(graphID: graphID, nodeID: nodeID)
+            let includePorts = arguments.boolValue(for: "includePorts") ?? false
+            let includeDescriptions = arguments.boolValue(for: "includeDescriptions") ?? false
+            let response = try bridge.getNodeInfo(
+                graphID: graphID,
+                nodeID: nodeID,
+                includePorts: includePorts,
+                includeDescriptions: includeDescriptions
+            )
             editorToolLog("tool success tool=\(tool.name) nodeID=\(nodeID.uuidString)")
             return try self.serializeJSON(response)
 
@@ -152,6 +165,59 @@ final class FabricEditorMCPToolExecutor {
         case .disconnectNodePortToNodePort:
             let response = try self.connectOrDisconnect(arguments: arguments, bridge: bridge, connect: false)
             editorToolLog("tool success tool=\(tool.name) success=\(response.success)")
+            return try self.serializeJSON(response)
+
+        case .readParameterPortValue:
+            guard
+                let graphIDString = arguments.stringValue(for: "graphID"),
+                let graphID = UUID(uuidString: graphIDString),
+                let nodeIDString = arguments.stringValue(for: "nodeID"),
+                let nodeID = UUID(uuidString: nodeIDString),
+                let portIDString = arguments.stringValue(for: "portID"),
+                let portID = UUID(uuidString: portIDString)
+            else {
+                throw FabricEditorMCPBridge.BridgeError.invalidOperation("graphID, nodeID and portID are required")
+            }
+            let response = try bridge.readParameterPortValue(graphID: graphID, nodeID: nodeID, portID: portID)
+            editorToolLog("tool success tool=\(tool.name) portID=\(portID.uuidString)")
+            return try self.serializeJSON(response)
+
+        case .writeParameterPortValue:
+            guard
+                let graphIDString = arguments.stringValue(for: "graphID"),
+                let graphID = UUID(uuidString: graphIDString),
+                let nodeIDString = arguments.stringValue(for: "nodeID"),
+                let nodeID = UUID(uuidString: nodeIDString),
+                let portIDString = arguments.stringValue(for: "portID"),
+                let portID = UUID(uuidString: portIDString),
+                let portValue = arguments["portValue"]
+            else {
+                throw FabricEditorMCPBridge.BridgeError.invalidOperation("graphID, nodeID, portID and portValue are required")
+            }
+            let response = bridge.writeParameterPortValue(
+                graphID: graphID,
+                nodeID: nodeID,
+                portID: portID,
+                portValue: portValue
+            )
+            editorToolLog("tool success tool=\(tool.name) success=\(response.success)")
+            return try self.serializeJSON(response)
+
+        case .getToolingHints:
+            let response = bridge.getToolingHints()
+            editorToolLog("tool success tool=\(tool.name)")
+            return try self.serializeJSON(response)
+
+        case .getGraphChanges:
+            guard
+                let graphIDString = arguments.stringValue(for: "graphID"),
+                let graphID = UUID(uuidString: graphIDString)
+            else {
+                throw FabricEditorMCPBridge.BridgeError.invalidOperation("graphID is required")
+            }
+            let sinceRevisionToken = arguments.stringValue(for: "sinceRevisionToken")
+            let response = try bridge.getGraphChanges(graphID: graphID, sinceRevisionToken: sinceRevisionToken)
+            editorToolLog("tool success tool=\(tool.name) changed=\(response.changedNodeIDs.count)")
             return try self.serializeJSON(response)
         }
     }
@@ -239,7 +305,9 @@ private extension Dictionary where Key == String, Value == Any {
     }
 
     func boolValue(for key: String) -> Bool? {
-        self[key] as? Bool
+        if let bool = self[key] as? Bool { return bool }
+        if let number = self[key] as? NSNumber { return number.boolValue }
+        return nil
     }
 
     func stringArrayValue(for key: String) -> [String]? {
