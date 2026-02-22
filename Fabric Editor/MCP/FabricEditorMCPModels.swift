@@ -1,6 +1,5 @@
 import Foundation
 import simd
-import Fabric
 
 struct MCPPortDescriptor: Codable {
     let id: String

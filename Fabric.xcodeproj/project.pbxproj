@@ -8,16 +8,59 @@
 
 /* Begin PBXBuildFile section */
 		1BB453442F42919100F641AE /* Fabric in Frameworks */ = {isa = PBXBuildFile; productRef = 1BB453432F42919100F641AE /* Fabric */; };
+		1BB454B62F4A8CB900F641AE /* FabricMPCService.xpc in Embed XPC Services */ = {isa = PBXBuildFile; fileRef = 1BB454AB2F4A8CB900F641AE /* FabricMPCService.xpc */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		1BB4552A2F4A9D4400F641AE /* MCP in Frameworks */ = {isa = PBXBuildFile; productRef = 1BB455292F4A9D4400F641AE /* MCP */; };
+		1BB4552C2F4A9D5D00F641AE /* MCP in Frameworks */ = {isa = PBXBuildFile; productRef = 1BB4552B2F4A9D5D00F641AE /* MCP */; };
+		1BB4552E2F4A9D6000F641AE /* MCP in Frameworks */ = {isa = PBXBuildFile; productRef = 1BB4552D2F4A9D6000F641AE /* MCP */; };
+		1BB455302F4A9E2900F641AE /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5C2DC936A50061EAFD /* Foundation.framework */; };
+		1BB455702F4A9FE900F641AE /* FabricMCPHelper in CopyFiles */ = {isa = PBXBuildFile; fileRef = 1BB4551B2F4A9A2300F641AE /* FabricMCPHelper */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		1BE00A5D2DC936A50061EAFD /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5B2DC936A50061EAFD /* CoreFoundation.framework */; };
 		1BE00A5E2DC936A50061EAFD /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5C2DC936A50061EAFD /* Foundation.framework */; };
 		1BE00A612DC936AC0061EAFD /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5F2DC936AC0061EAFD /* MetalKit.framework */; };
 		1BE00A622DC936AC0061EAFD /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A602DC936AC0061EAFD /* Metal.framework */; };
 		1BFD79232F367C6E00F84067 /* Fabric in Frameworks */ = {isa = PBXBuildFile; productRef = 1BFD79222F367C6E00F84067 /* Fabric */; };
 		1BFD79262F367D4F00F84067 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 1BFD79252F367D4F00F84067 /* Sparkle */; };
-		2A1B00012F50000100AAA001 /* MCP in Frameworks */ = {isa = PBXBuildFile; productRef = 2A1B00032F50000100AAA001 /* MCP */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		1BB454B42F4A8CB900F641AE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1BE0071A2DBB1FBC0061EAFD /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1BB454AA2F4A8CB900F641AE;
+			remoteInfo = FabricMPCService;
+		};
+		1BB455262F4A9B5C00F641AE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1BE0071A2DBB1FBC0061EAFD /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1BB4551A2F4A9A2300F641AE;
+			remoteInfo = FabricMCPHelper;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXCopyFilesBuildPhase section */
+		1BB454BB2F4A8CB900F641AE /* Embed XPC Services */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/XPCServices";
+			dstSubfolderSpec = 16;
+			files = (
+				1BB454B62F4A8CB900F641AE /* FabricMPCService.xpc in Embed XPC Services */,
+			);
+			name = "Embed XPC Services";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1BB4556F2F4A9FDB00F641AE /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 6;
+			files = (
+				1BB455702F4A9FE900F641AE /* FabricMCPHelper in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1BE00A582DC935C80061EAFD /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -37,6 +80,8 @@
 		1BB12B412E0251B20075C276 /* libswiftObjectiveC.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libswiftObjectiveC.tbd; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.4.sdk/usr/lib/swift/libswiftObjectiveC.tbd; sourceTree = DEVELOPER_DIR; };
 		1BB12B422E0251BE0075C276 /* libobjc.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libobjc.tbd; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.4.sdk/usr/lib/libobjc.tbd; sourceTree = DEVELOPER_DIR; };
 		1BB12B472E0267420075C276 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.4.sdk/System/Library/Frameworks/Accelerate.framework; sourceTree = DEVELOPER_DIR; };
+		1BB454AB2F4A8CB900F641AE /* FabricMPCService.xpc */ = {isa = PBXFileReference; explicitFileType = "wrapper.xpc-service"; includeInIndex = 0; path = FabricMPCService.xpc; sourceTree = BUILT_PRODUCTS_DIR; };
+		1BB4551B2F4A9A2300F641AE /* FabricMCPHelper */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = FabricMCPHelper; sourceTree = BUILT_PRODUCTS_DIR; };
 		1BD9EE242EF2004E0075D951 /* MetalFX.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalFX.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.1.sdk/System/Library/Frameworks/MetalFX.framework; sourceTree = DEVELOPER_DIR; };
 		1BE007222DBB1FBC0061EAFD /* Fabric Editor.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Fabric Editor.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1BE00A5B2DC936A50061EAFD /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
@@ -46,6 +91,27 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		1BB454BA2F4A8CB900F641AE /* Exceptions for "FabricMCPService" folder in "FabricMPCService" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 1BB454AA2F4A8CB900F641AE /* FabricMPCService */;
+		};
+		1BB454C32F4A8E3400F641AE /* Exceptions for "Shared" folder in "FabricMPCService" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				FabricMCPContracts.swift,
+			);
+			target = 1BB454AA2F4A8CB900F641AE /* FabricMPCService */;
+		};
+		1BB455252F4A9B4E00F641AE /* Exceptions for "Shared" folder in "FabricMCPHelper" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				FabricMCPContracts.swift,
+			);
+			target = 1BB4551A2F4A9A2300F641AE /* FabricMCPHelper */;
+		};
 		1BE007322DBB1FBD0061EAFD /* Exceptions for "Fabric Editor" folder in "Fabric Editor" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -56,6 +122,28 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		1BB454AC2F4A8CB900F641AE /* FabricMCPService */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				1BB454BA2F4A8CB900F641AE /* Exceptions for "FabricMCPService" folder in "FabricMPCService" target */,
+			);
+			path = FabricMCPService;
+			sourceTree = "<group>";
+		};
+		1BB454BC2F4A8CC400F641AE /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				1BB454C32F4A8E3400F641AE /* Exceptions for "Shared" folder in "FabricMPCService" target */,
+				1BB455252F4A9B4E00F641AE /* Exceptions for "Shared" folder in "FabricMCPHelper" target */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		1BB4550B2F4A99E700F641AE /* FabricMCPHelper */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = FabricMCPHelper;
+			sourceTree = "<group>";
+		};
 		1BE007242DBB1FBC0061EAFD /* Fabric Editor */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -67,14 +155,31 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		1BB454A82F4A8CB900F641AE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1BB4552C2F4A9D5D00F641AE /* MCP in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1BB455182F4A9A2300F641AE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1BB455302F4A9E2900F641AE /* Foundation.framework in Frameworks */,
+				1BB4552E2F4A9D6000F641AE /* MCP in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1BE0071F2DBB1FBC0061EAFD /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				1BFD79232F367C6E00F84067 /* Fabric in Frameworks */,
-				2A1B00012F50000100AAA001 /* MCP in Frameworks */,
 				1BE00A5D2DC936A50061EAFD /* CoreFoundation.framework in Frameworks */,
 				1BB453442F42919100F641AE /* Fabric in Frameworks */,
+				1BB4552A2F4A9D4400F641AE /* MCP in Frameworks */,
 				1BE00A612DC936AC0061EAFD /* MetalKit.framework in Frameworks */,
 				1BFD79262F367D4F00F84067 /* Sparkle in Frameworks */,
 				1BE00A622DC936AC0061EAFD /* Metal.framework in Frameworks */,
@@ -88,7 +193,10 @@
 		1BE007192DBB1FBC0061EAFD = {
 			isa = PBXGroup;
 			children = (
+				1BB454BC2F4A8CC400F641AE /* Shared */,
 				1BE007242DBB1FBC0061EAFD /* Fabric Editor */,
+				1BB454AC2F4A8CB900F641AE /* FabricMCPService */,
+				1BB4550B2F4A99E700F641AE /* FabricMCPHelper */,
 				1BE007602DBC37CE0061EAFD /* Frameworks */,
 				1BE007232DBB1FBC0061EAFD /* Products */,
 			);
@@ -98,6 +206,8 @@
 			isa = PBXGroup;
 			children = (
 				1BE007222DBB1FBC0061EAFD /* Fabric Editor.app */,
+				1BB454AB2F4A8CB900F641AE /* FabricMPCService.xpc */,
+				1BB4551B2F4A9A2300F641AE /* FabricMCPHelper */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -123,6 +233,51 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		1BB454AA2F4A8CB900F641AE /* FabricMPCService */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1BB454B72F4A8CB900F641AE /* Build configuration list for PBXNativeTarget "FabricMPCService" */;
+			buildPhases = (
+				1BB454A72F4A8CB900F641AE /* Sources */,
+				1BB454A82F4A8CB900F641AE /* Frameworks */,
+				1BB454A92F4A8CB900F641AE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				1BB454AC2F4A8CB900F641AE /* FabricMCPService */,
+			);
+			name = FabricMPCService;
+			packageProductDependencies = (
+				1BB4552B2F4A9D5D00F641AE /* MCP */,
+			);
+			productName = FabricMPCService;
+			productReference = 1BB454AB2F4A8CB900F641AE /* FabricMPCService.xpc */;
+			productType = "com.apple.product-type.xpc-service";
+		};
+		1BB4551A2F4A9A2300F641AE /* FabricMCPHelper */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1BB4551F2F4A9A2300F641AE /* Build configuration list for PBXNativeTarget "FabricMCPHelper" */;
+			buildPhases = (
+				1BB455172F4A9A2300F641AE /* Sources */,
+				1BB455182F4A9A2300F641AE /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				1BB4550B2F4A99E700F641AE /* FabricMCPHelper */,
+			);
+			name = FabricMCPHelper;
+			packageProductDependencies = (
+				1BB4552D2F4A9D6000F641AE /* MCP */,
+			);
+			productName = FabricMCPHelper;
+			productReference = 1BB4551B2F4A9A2300F641AE /* FabricMCPHelper */;
+			productType = "com.apple.product-type.tool";
+		};
 		1BE007212DBB1FBC0061EAFD /* Fabric Editor */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 1BE007332DBB1FBD0061EAFD /* Build configuration list for PBXNativeTarget "Fabric Editor" */;
@@ -131,12 +286,17 @@
 				1BE0071F2DBB1FBC0061EAFD /* Frameworks */,
 				1BE007202DBB1FBC0061EAFD /* Resources */,
 				1BE00A582DC935C80061EAFD /* Embed Frameworks */,
+				1BB454BB2F4A8CB900F641AE /* Embed XPC Services */,
+				1BB4556F2F4A9FDB00F641AE /* CopyFiles */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				1BB455272F4A9B5C00F641AE /* PBXTargetDependency */,
+				1BB454B52F4A8CB900F641AE /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
+				1BB454BC2F4A8CC400F641AE /* Shared */,
 				1BE007242DBB1FBC0061EAFD /* Fabric Editor */,
 			);
 			name = "Fabric Editor";
@@ -144,7 +304,7 @@
 				1BFD79222F367C6E00F84067 /* Fabric */,
 				1BFD79252F367D4F00F84067 /* Sparkle */,
 				1BB453432F42919100F641AE /* Fabric */,
-				2A1B00032F50000100AAA001 /* MCP */,
+				1BB455292F4A9D4400F641AE /* MCP */,
 			);
 			productName = Fabric;
 			productReference = 1BE007222DBB1FBC0061EAFD /* Fabric Editor.app */;
@@ -157,9 +317,15 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1630;
+				LastSwiftUpdateCheck = 2610;
 				LastUpgradeCheck = 1630;
 				TargetAttributes = {
+					1BB454AA2F4A8CB900F641AE = {
+						CreatedOnToolsVersion = 26.1.1;
+					};
+					1BB4551A2F4A9A2300F641AE = {
+						CreatedOnToolsVersion = 26.1.1;
+					};
 					1BE007212DBB1FBC0061EAFD = {
 						CreatedOnToolsVersion = 16.0;
 						LastSwiftMigration = 1630;
@@ -178,7 +344,7 @@
 			packageReferences = (
 				1BFD79242F367D4F00F84067 /* XCRemoteSwiftPackageReference "Sparkle" */,
 				1BB453422F42919100F641AE /* XCLocalSwiftPackageReference "../Fabric" */,
-				2A1B00022F50000100AAA001 /* XCRemoteSwiftPackageReference "swift-sdk" */,
+				1BB455282F4A9D4400F641AE /* XCRemoteSwiftPackageReference "swift-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1BE007232DBB1FBC0061EAFD /* Products */;
@@ -186,11 +352,20 @@
 			projectRoot = "";
 			targets = (
 				1BE007212DBB1FBC0061EAFD /* Fabric Editor */,
+				1BB454AA2F4A8CB900F641AE /* FabricMPCService */,
+				1BB4551A2F4A9A2300F641AE /* FabricMCPHelper */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		1BB454A92F4A8CB900F641AE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1BE007202DBB1FBC0061EAFD /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -201,6 +376,20 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		1BB454A72F4A8CB900F641AE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1BB455172F4A9A2300F641AE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1BE0071E2DBB1FBC0061EAFD /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -210,7 +399,106 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		1BB454B52F4A8CB900F641AE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1BB454AA2F4A8CB900F641AE /* FabricMPCService */;
+			targetProxy = 1BB454B42F4A8CB900F641AE /* PBXContainerItemProxy */;
+		};
+		1BB455272F4A9B5C00F641AE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1BB4551A2F4A9A2300F641AE /* FabricMCPHelper */;
+			targetProxy = 1BB455262F4A9B5C00F641AE /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		1BB454B82F4A8CB900F641AE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = FabricMCPService/FabricMCPService.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SHG3AW6YV7;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FabricMCPService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = FabricMPCService;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				MACOSX_DEPLOYMENT_TARGET = 15.7;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = graphics.fabric.FabricMCPService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		1BB454B92F4A8CB900F641AE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = FabricMCPService/FabricMCPService.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SHG3AW6YV7;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FabricMCPService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = FabricMPCService;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				MACOSX_DEPLOYMENT_TARGET = 15.7;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = graphics.fabric.FabricMCPService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		1BB455202F4A9A2300F641AE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = SHG3AW6YV7;
+				ENABLE_HARDENED_RUNTIME = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.7;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		1BB455212F4A9A2300F641AE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = SHG3AW6YV7;
+				ENABLE_HARDENED_RUNTIME = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.7;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 		1BE007342DBB1FBD0061EAFD /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -236,7 +524,6 @@
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Fabric uses Bluetooth to connect to HID devices like game controllers";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera Effects";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "MCP Tool usage";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Microphone Effects";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -246,7 +533,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
 				MARKETING_VERSION = 0.0.11;
 				OTHER_CODE_SIGN_FLAGS = "--deep";
-				PRODUCT_BUNDLE_IDENTIFIER = "io.hi-rez.Fabric";
+				PRODUCT_BUNDLE_IDENTIFIER = graphics.fabric.FabricEditor;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "Fabric Editor/Views/Fabric-Editor-Bridging-Header.h";
@@ -280,7 +567,6 @@
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Fabric uses Bluetooth to connect to HID devices like game controllers";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera Effects";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "MCP Tool usage";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Microphone Effects";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -290,7 +576,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
 				MARKETING_VERSION = 0.0.11;
 				OTHER_CODE_SIGN_FLAGS = "--deep";
-				PRODUCT_BUNDLE_IDENTIFIER = "io.hi-rez.Fabric";
+				PRODUCT_BUNDLE_IDENTIFIER = graphics.fabric.FabricEditor;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "Fabric Editor/Views/Fabric-Editor-Bridging-Header.h";
@@ -421,6 +707,24 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		1BB454B72F4A8CB900F641AE /* Build configuration list for PBXNativeTarget "FabricMPCService" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1BB454B82F4A8CB900F641AE /* Debug */,
+				1BB454B92F4A8CB900F641AE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		1BB4551F2F4A9A2300F641AE /* Build configuration list for PBXNativeTarget "FabricMCPHelper" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1BB455202F4A9A2300F641AE /* Debug */,
+				1BB455212F4A9A2300F641AE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		1BE0071D2DBB1FBC0061EAFD /* Build configuration list for PBXProject "Fabric" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -449,20 +753,20 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		1BB455282F4A9D4400F641AE /* XCRemoteSwiftPackageReference "swift-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/modelcontextprotocol/swift-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.11.0;
+			};
+		};
 		1BFD79242F367D4F00F84067 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sparkle-project/Sparkle";
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 2.8.1;
-			};
-		};
-		2A1B00022F50000100AAA001 /* XCRemoteSwiftPackageReference "swift-sdk" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/modelcontextprotocol/swift-sdk.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.11.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -472,6 +776,21 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = Fabric;
 		};
+		1BB455292F4A9D4400F641AE /* MCP */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1BB455282F4A9D4400F641AE /* XCRemoteSwiftPackageReference "swift-sdk" */;
+			productName = MCP;
+		};
+		1BB4552B2F4A9D5D00F641AE /* MCP */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1BB455282F4A9D4400F641AE /* XCRemoteSwiftPackageReference "swift-sdk" */;
+			productName = MCP;
+		};
+		1BB4552D2F4A9D6000F641AE /* MCP */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1BB455282F4A9D4400F641AE /* XCRemoteSwiftPackageReference "swift-sdk" */;
+			productName = MCP;
+		};
 		1BFD79222F367C6E00F84067 /* Fabric */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Fabric;
@@ -480,11 +799,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 1BFD79242F367D4F00F84067 /* XCRemoteSwiftPackageReference "Sparkle" */;
 			productName = Sparkle;
-		};
-		2A1B00032F50000100AAA001 /* MCP */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 2A1B00022F50000100AAA001 /* XCRemoteSwiftPackageReference "swift-sdk" */;
-			productName = MCP;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

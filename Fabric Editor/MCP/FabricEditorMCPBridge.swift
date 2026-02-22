@@ -1,5 +1,6 @@
 import Foundation
 import simd
+#if canImport(Fabric)
 import Fabric
 
 @MainActor
@@ -68,7 +69,9 @@ final class FabricEditorMCPBridge {
                 name: node.nodeName,
                 nodeType: node.nodeType.description,
                 className: String(describing: node.nodeClass),
-                summary: node.nodeClass.nodeDescription
+                // Some nodes still inherit the base fatal `nodeDescription`.
+                // Do not evaluate it from MCP listing or the editor process will crash.
+                summary: ""
             )
         }
     }
@@ -380,3 +383,4 @@ final class FabricEditorMCPBridge {
         )
     }
 }
+#endif

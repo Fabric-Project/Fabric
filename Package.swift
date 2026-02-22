@@ -104,7 +104,6 @@ let package = Package(
             name: "Syphon",
             path: "Frameworks/Syphon.xcframework"
         ),
-
     ],
     swiftLanguageModes: [.v5],
     cxxLanguageStandard: .cxx17

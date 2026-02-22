@@ -14,7 +14,8 @@ public class MeshNode : BaseRenderableNode<Mesh>
 {
     override public class var name:String { "Mesh" }
     override public class var nodeType:Node.NodeType { .Object(objectType: .Mesh) }
-
+    override public class var nodeDescription: String { "Renders the connected geometry with the connected material" }
+    
     // Register ports, in order of appearance
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         
