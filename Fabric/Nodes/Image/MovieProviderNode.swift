@@ -56,19 +56,12 @@ public class MovieProviderNode : Node
     @ObservationIgnored private var playerItem:AVPlayerItem? = nil
     @ObservationIgnored private var playerItemVideoOutput:AVPlayerItemVideoOutput
     @ObservationIgnored private var pixelBuffer:CVPixelBuffer? = nil
-    @ObservationIgnored private var textureCache:CVMetalTextureCache?
     @ObservationIgnored private var observer: Any? = nil
     
     required public init(context:Context)
     {
         // Forces the initialization when the class is accessed
         _ = MovieProviderNodeInitializer
-        
-        let _ = CVMetalTextureCacheCreate(kCFAllocatorDefault,
-                                                nil,
-                                                context.device,
-                                                nil,
-                                                &self.textureCache)
         
         self.playerItemVideoOutput = AVPlayerItemVideoOutput(outputSettings: Self.playerOutputSettings() )
         self.playerItemVideoOutput.suppressesPlayerRendering = true
@@ -86,12 +79,7 @@ public class MovieProviderNode : Node
         {
             fatalError("Required Decode Context Not set")
         }
-        let _ = CVMetalTextureCacheCreate(kCFAllocatorDefault,
-                                          nil,
-                                          decodeContext.documentContext.device,
-                                          nil,
-                                          &self.textureCache)
-        
+
         self.playerItemVideoOutput = AVPlayerItemVideoOutput(outputSettings: Self.playerOutputSettings() )
         self.playerItemVideoOutput.suppressesPlayerRendering = true
         
@@ -113,29 +101,11 @@ public class MovieProviderNode : Node
         
         if self.playerItemVideoOutput.hasNewPixelBuffer(forItemTime: itemTime)
         {
-            if let pixelBuffer = self.playerItemVideoOutput.copyPixelBuffer(forItemTime: itemTime, itemTimeForDisplay: nil)
+            if let pixelBuffer = self.playerItemVideoOutput.copyPixelBuffer(forItemTime: itemTime, itemTimeForDisplay: nil),
+               let renderer = context.graphRenderer,
+               let image = renderer.newImage(fromPixelBuffer: pixelBuffer)
             {
-                    CVMetalTextureCacheFlush(self.textureCache!, 0)
-                    
-                    var texture:CVMetalTexture? = nil
-                    
-                    let success = CVMetalTextureCacheCreateTextureFromImage(kCFAllocatorDefault,
-                                                                            self.textureCache!,
-                                                                            pixelBuffer,
-                                                                            nil,
-                                                                            .bgra8Unorm,
-                                                                            CVPixelBufferGetWidth(pixelBuffer),
-                                                                            CVPixelBufferGetHeight(pixelBuffer),
-                                                                            0,
-                                                                            &texture)
-                    
-                    if success == kCVReturnSuccess && texture != nil
-                    {
-                        let latestFrameTexture = CVMetalTextureGetTexture(texture!)!
-                        
-                        self.outputTexturePort.send( FabricImage.unmanaged(texture: latestFrameTexture) )
-                    }
-//                }
+                self.outputTexturePort.send( image )
             }
         }
      }

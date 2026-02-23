@@ -38,7 +38,10 @@ public class GraphRenderer : MetalViewRenderer
     var feedbackCaches: [UUID: GraphRendererFeedbackCache] = [:]
     
     
-    let textureCache:GraphRendererTextureCache
+    // Private is GPU private
+    // Shared is GPU shared - for texture update from CPU
+    let privateTextureCache:GraphRendererTextureCache
+    let sharedTextureCache:GraphRendererTextureCache
     
     public init(context:Context)
     {
@@ -49,8 +52,13 @@ public class GraphRenderer : MetalViewRenderer
         
         self.defaultCamera.position = simd_float3(0, 0, 2)
         self.defaultCamera.lookAt(target: .zero)
-        self.textureCache = GraphRendererTextureCache(device: self.context.device)
+        self.privateTextureCache = GraphRendererTextureCache(device: self.context.device)
         
+        var sharedConfig = GraphRendererTextureCache.Configuration()
+        sharedConfig.storageMode = .shared
+        
+        self.sharedTextureCache = GraphRendererTextureCache(device: self.context.device, config: sharedConfig)
+
         super.init()
 
         self.device = context.device
@@ -76,12 +84,112 @@ public class GraphRenderer : MetalViewRenderer
     }
     
     public func newImage(withWidth width:Int, height:Int, format:MTLPixelFormat) -> FabricImage?
-    {   
-        return self.textureCache.newManagedImage(width: width, height: height, pixelFormat: format)
+    {
+        return self.privateTextureCache.newManagedImage(width: width, height: height, pixelFormat: format)
         ?? self.newImageDirect(withWidth: width, height: height, format: format)
     }
     
-    private func newImageDirect(withWidth width:Int, height:Int, format:MTLPixelFormat) -> FabricImage?
+    // We arent using a CVTextureCacheHere
+    // We dont use it because we want to be able to free the pixel buffer
+    // We want to keep the FabricImage around for any amount of time
+    // We want to leverage our heap for allocation
+    // Maybe theres a better way?
+    
+    public func newImage(fromPixelBuffer pixelBuffer:CVPixelBuffer) -> FabricImage?
+    {
+        // Zero Copy path
+        if let surface = CVPixelBufferGetIOSurface(pixelBuffer)?.takeUnretainedValue()
+        {
+            IOSurfaceIncrementUseCount(surface)
+            
+            return self.newImage(fromSurface: surface)
+        }
+        
+        // Slow fallback path via heap using copy
+        return newSharedImage(fromPixelBuffer: pixelBuffer)
+    }
+    
+    // MARK: - Private Image Helpers
+    
+    private func newSharedImage(fromPixelBuffer pixelBuffer:CVPixelBuffer) -> FabricImage?
+    {
+        guard let format = self.metalPixelFormatForOSType(format:CVPixelBufferGetPixelFormatType(pixelBuffer))
+        else
+        {
+            return nil
+        }
+
+        let width = CVPixelBufferGetWidth(pixelBuffer)
+        let height = CVPixelBufferGetHeight(pixelBuffer)
+        
+        guard let image = self.sharedTextureCache.newManagedImage(width: width, height: height, pixelFormat: format)
+        else
+        {
+            return nil
+        }
+        
+        let bpr = CVPixelBufferGetBytesPerRow(pixelBuffer)
+        
+        CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
+        
+        defer
+        {
+            CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly)
+        }
+        
+        guard let baseAddr = CVPixelBufferGetBaseAddress(pixelBuffer)
+        else
+        {
+            return nil
+        }
+        
+        let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
+        image.texture.replace(region: region, mipmapLevel: 0, withBytes: baseAddr, bytesPerRow: bpr)
+        
+        return image
+    }
+    
+    private func newImage(fromSurface surface:IOSurface) -> FabricImage?
+    {
+        let descriptor = self.metalTextureDescriptorForIOSurface(surface:surface)
+        
+        if let descriptor,
+            let texture = self.device.makeTexture(descriptor: descriptor, iosurface: surface, plane: 0)
+        {
+            return FabricImage.managed(texture: texture) { _ in
+                IOSurfaceDecrementUseCount(surface)
+            }
+        }
+    
+        return nil
+    }
+    
+    private func metalTextureDescriptorForIOSurface(surface:IOSurfaceRef) -> MTLTextureDescriptor?
+    {
+        let width  = IOSurfaceGetWidth(surface)
+        let height = IOSurfaceGetHeight(surface)
+        let format = IOSurfaceGetPixelFormat(surface)
+        
+        guard let metalFormat = self.metalPixelFormatForOSType(format:format) else { return nil }
+        
+        
+        return self.textureDescriptor(width: width, height: height, format:metalFormat)
+    }
+    
+    private func metalPixelFormatForOSType(format:OSType) -> MTLPixelFormat?
+    {
+        switch format
+        {
+        case kCVPixelFormatType_32BGRA:
+            return .bgra8Unorm
+            
+        default:
+            return nil
+            
+        }
+    }
+    
+    private func textureDescriptor(width:Int, height:Int, format:MTLPixelFormat) -> MTLTextureDescriptor
     {
         let textureDescriptor = MTLTextureDescriptor()
         textureDescriptor.width = width
@@ -91,6 +199,13 @@ public class GraphRenderer : MetalViewRenderer
         textureDescriptor.mipmapLevelCount = 1
         textureDescriptor.sampleCount = 1
         textureDescriptor.usage = [.shaderRead, .shaderWrite, .renderTarget]
+        
+        return textureDescriptor
+    }
+    
+    private func newImageDirect(withWidth width:Int, height:Int, format:MTLPixelFormat) -> FabricImage?
+    {
+        let textureDescriptor = self.textureDescriptor(width: width, height: height, format: format)
         
         if let texture = self.device.makeTexture(descriptor: textureDescriptor)
         {

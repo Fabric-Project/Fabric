@@ -120,10 +120,6 @@ public class DeferredSubgraphNode: SubgraphNode
                 || (self.graphRenderer.renderer.size.height != Float(height))
             {
                 self.graphRenderer.resize(size: (Float(width), Float(height)), scaleFactor: 1.0)
-                
-                
-                // if we resize, we want to manage our caches
-                self.graphRenderer.textureCache.flushReusableTextures()
             }
         }
        
