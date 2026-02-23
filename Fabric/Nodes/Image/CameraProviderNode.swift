@@ -92,7 +92,6 @@ public class CameraProviderNode : Node
     @ObservationIgnored private var captureSession: AVCaptureSession
     @ObservationIgnored private let captureDelegate = CaptureDelegate()
 
-    @ObservationIgnored private var textureCache:CVMetalTextureCache?
     @ObservationIgnored private var observer: Any? = nil
     
     @ObservationIgnored private var devices = [AVCaptureDevice]()
@@ -106,12 +105,6 @@ public class CameraProviderNode : Node
         _ = CameraProviderNodeInitializer
         
         self.captureSession = AVCaptureSession()
-
-        let _ = CVMetalTextureCacheCreate(kCFAllocatorDefault,
-                                                nil,
-                                                context.device,
-                                                nil,
-                                                &self.textureCache)
 
         super.init(context: context)
         
@@ -130,13 +123,7 @@ public class CameraProviderNode : Node
         }
         
         self.captureSession = AVCaptureSession()
-        
-        let _ = CVMetalTextureCacheCreate(kCFAllocatorDefault,
-                                          nil,
-                                          decodeContext.documentContext.device,
-                                          nil,
-                                          &self.textureCache)
-        
+                
         try super.init(from:decoder)
         
         self.commonPostSetup()
@@ -186,28 +173,11 @@ public class CameraProviderNode : Node
         }
         
        
-        if let pixelBuffer = self.captureDelegate.pixelBuffer
+        if let pixelBuffer = self.captureDelegate.pixelBuffer,
+           let renderer = context.graphRenderer,
+           let image = renderer.newImage(fromPixelBuffer: pixelBuffer)
         {
-                CVMetalTextureCacheFlush(self.textureCache!, 0)
-                
-                var texture:CVMetalTexture? = nil
-                
-                let success = CVMetalTextureCacheCreateTextureFromImage(kCFAllocatorDefault,
-                                                                        self.textureCache!,
-                                                                        pixelBuffer,
-                                                                        nil,
-                                                                        .bgra8Unorm,
-                                                                        CVPixelBufferGetWidth(pixelBuffer),
-                                                                        CVPixelBufferGetHeight(pixelBuffer),
-                                                                        0,
-                                                                        &texture)
-                
-                if success == kCVReturnSuccess && texture != nil
-                {
-                    let latestFrameTexture = CVMetalTextureGetTexture(texture!)!
-                    
-                    self.outputTexturePort.send( FabricImage.unmanaged(texture: latestFrameTexture) )
-                }
+            self.outputTexturePort.send( image )                
         }
         
      }
