@@ -100,8 +100,6 @@ public class GraphRenderer : MetalViewRenderer
         // Zero Copy path
         if let surface = CVPixelBufferGetIOSurface(pixelBuffer)?.takeUnretainedValue()
         {
-            IOSurfaceIncrementUseCount(surface)
-            
             return self.newImage(fromSurface: surface)
         }
         
@@ -156,6 +154,8 @@ public class GraphRenderer : MetalViewRenderer
         if let descriptor,
             let texture = self.device.makeTexture(descriptor: descriptor, iosurface: surface, plane: 0)
         {
+            IOSurfaceIncrementUseCount(surface)
+
             return FabricImage.managed(texture: texture) { _ in
                 IOSurfaceDecrementUseCount(surface)
             }
@@ -185,7 +185,6 @@ public class GraphRenderer : MetalViewRenderer
             
         default:
             return nil
-            
         }
     }
     
