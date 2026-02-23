@@ -85,6 +85,12 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
             mesh.cullMode = self.cullMode()
             shouldOutput = true
         }
+
+        if self.inputDoubleSided.valueDidChange
+        {
+            mesh.doubleSided = self.inputDoubleSided.value ?? false
+            shouldOutput = true
+        }
         
         return shouldOutput
     }
@@ -101,18 +107,29 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
             {
                 if let mesh = mesh
                 {
-                    mesh.geometry = geometery
-                    mesh.material = material
+                    let geometryJustAttached = mesh.geometry !== geometery
+                    let materialJustAttached = mesh.material !== material
+
+                    if geometryJustAttached
+                    {
+                        let windingOrder = mesh.windingOrder
+                        mesh.geometry = geometery
+                        mesh.windingOrder = windingOrder
+                    }
+
+                    if materialJustAttached
+                    {
+                        mesh.material = material
+                    }
+
+                    self.applyCurrentMeshState(mesh,
+                                               materialJustAttached: materialJustAttached)
                 }
                 else
                 {
                     let mesh = InstancedMesh(geometry: geometery, material: material, count: self.inputTransforms.value?.count ?? 1)
-                    mesh.lookAt(target: simd_float3(repeating: 0))
-                    mesh.position = self.inputPosition.value ?? .zero
-                    mesh.scale = self.inputScale.value ?? .zero
-                    
-                    let orientation = self.inputOrientation.value ?? .zero
-                    mesh.orientation = simd_quatf(vector:orientation).normalized
+                    self.applyCurrentMeshState(mesh,
+                                               materialJustAttached: true)
 
                     self.mesh = mesh
                 }
@@ -135,6 +152,33 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
             }
         }
      }
+
+    private func applyCurrentMeshState(_ mesh: InstancedMesh,
+                                       materialJustAttached: Bool)
+    {
+        mesh.lookAt(target: simd_float3(repeating: 0))
+        mesh.visible = self.inputVisible.value ?? true
+        mesh.renderOrder = self.inputRenderOrder.value ?? 0
+        mesh.renderPass = self.inputRenderPass.value ?? 0
+        mesh.position = self.inputPosition.value ?? .zero
+        mesh.scale = self.inputScale.value ?? simd_float3(repeating: 1)
+
+        let orientation = self.inputOrientation.value ?? .zero
+        mesh.orientation = simd_quatf(vector: orientation).normalized
+
+        let castShadow = self.inputCastsShadow.value ?? true
+        mesh.castShadow = castShadow
+        mesh.receiveShadow = castShadow
+        mesh.cullMode = self.cullMode()
+        mesh.doubleSided = self.inputDoubleSided.value ?? false
+
+        if materialJustAttached,
+           let material = mesh.material
+        {
+            material.castShadow = castShadow
+            material.receiveShadow = castShadow
+        }
+    }
     
     internal func cullMode() -> MTLCullMode
     {

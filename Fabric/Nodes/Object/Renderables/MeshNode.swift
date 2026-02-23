@@ -34,7 +34,7 @@ public class MeshNode : BaseRenderableNode<Mesh>
     public var inputMaterial: NodePort<Material>   { port(named: "inputMaterial") }
     public var inputCastsShadow: ParameterPort<Bool>   { port(named: "inputCastsShadow") }
     public var inputDoubleSided: ParameterPort<Bool>   { port(named: "inputDoubleSided") }
-    public var inputCullingMode: NodePort<String>   { port(named: "inputCullingMode") }
+    public var inputCullingMode: ParameterPort<String>   { port(named: "inputCullingMode") }
 
     
     override public var object:Mesh? {
@@ -88,6 +88,12 @@ public class MeshNode : BaseRenderableNode<Mesh>
             mesh.cullMode = self.cullMode()
             shouldOutput = true
         }
+
+        if self.inputDoubleSided.valueDidChange
+        {
+            mesh.doubleSided = self.inputDoubleSided.value ?? false
+            shouldOutput = true
+        }
         
         return shouldOutput
     }
@@ -108,20 +114,29 @@ public class MeshNode : BaseRenderableNode<Mesh>
             {
                 if let mesh = mesh
                 {
-                    //                print("Mesh Node - Updating Geometry and Material")
-                    //                mesh.cullMode = .none
-                    mesh.geometry = geometry
-                    mesh.material = material
+                    let geometryJustAttached = mesh.geometry !== geometry
+                    let materialJustAttached = mesh.material !== material
+
+                    if geometryJustAttached
+                    {
+                        let windingOrder = mesh.windingOrder
+                        mesh.geometry = geometry
+                        mesh.windingOrder = windingOrder
+                    }
+
+                    if materialJustAttached
+                    {
+                        mesh.material = material
+                    }
+
+                    self.applyCurrentMeshState(mesh,
+                                               materialJustAttached: materialJustAttached)
                 }
                 else
                 {
                     let mesh = Mesh(geometry: geometry, material: material)
-                    mesh.lookAt(target: simd_float3(repeating: 0))
-                    mesh.position = self.inputPosition.value ?? .zero
-                    mesh.scale = self.inputScale.value ?? .zero
-                    
-                    let orientation = self.inputOrientation.value ?? .zero
-                    mesh.orientation = simd_quatf(vector:orientation).normalized
+                    self.applyCurrentMeshState(mesh,
+                                               materialJustAttached: true)
 
                     self.mesh = mesh
                 }
@@ -137,6 +152,33 @@ public class MeshNode : BaseRenderableNode<Mesh>
             let _ = self.evaluate(object: mesh, atTime: context.timing.time)
         }
      }
+
+    private func applyCurrentMeshState(_ mesh: Mesh,
+                                       materialJustAttached: Bool)
+    {
+        mesh.lookAt(target: simd_float3(repeating: 0))
+        mesh.visible = self.inputVisible.value ?? true
+        mesh.renderOrder = self.inputRenderOrder.value ?? 0
+        mesh.renderPass = self.inputRenderPass.value ?? 0
+        mesh.position = self.inputPosition.value ?? .zero
+        mesh.scale = self.inputScale.value ?? simd_float3(repeating: 1)
+
+        let orientation = self.inputOrientation.value ?? .zero
+        mesh.orientation = simd_quatf(vector: orientation).normalized
+
+        let castShadow = self.inputCastsShadow.value ?? true
+        mesh.castShadow = castShadow
+        mesh.receiveShadow = castShadow
+        mesh.cullMode = self.cullMode()
+        mesh.doubleSided = self.inputDoubleSided.value ?? false
+
+        if materialJustAttached,
+           let material = mesh.material
+        {
+            material.castShadow = castShadow
+            material.receiveShadow = castShadow
+        }
+    }
     
     func cullMode() -> MTLCullMode
     {

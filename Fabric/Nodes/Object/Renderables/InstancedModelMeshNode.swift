@@ -86,6 +86,12 @@ public class InstancedModelMeshNode : InstancedMeshNode
             self.updateCullingOnSubmeshes()
             shouldOutput = true
         }
+
+        if self.inputDoubleSided.valueDidChange
+        {
+            self.updateDoubleSidedOnSubmeshes()
+            shouldOutput = true
+        }
         
         return shouldOutput
     }
@@ -161,6 +167,7 @@ public class InstancedModelMeshNode : InstancedMeshNode
                 
                 self.updateLightingOnSubmeshes()
                 self.updateCullingOnSubmeshes()
+                self.updateDoubleSidedOnSubmeshes()
             }
             else
             {
@@ -198,5 +205,17 @@ public class InstancedModelMeshNode : InstancedMeshNode
         }
     }
 
-}
+    private func updateDoubleSidedOnSubmeshes()
+    {
+        let doubleSided = self.inputDoubleSided.value ?? false
 
+        self.model?.getChildren(true).forEach { child in
+
+            if let subMesh = child as? Mesh
+            {
+                subMesh.doubleSided = doubleSided
+            }
+        }
+    }
+
+}
