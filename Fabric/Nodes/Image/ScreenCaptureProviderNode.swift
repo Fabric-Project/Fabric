@@ -299,12 +299,12 @@ public class ScreenCaptureProviderNode: Node
             }
 
         case .window:
-            let windows = shareableContent.windows.filter { $0.isOnScreen && $0.owningApplication?.processID != ProcessInfo.processInfo.processIdentifier }
+            let windows = shareableContent.windows.filter { $0.isOnScreen && $0.isActive && $0.owningApplication?.processID != ProcessInfo.processInfo.processIdentifier }
             for window in windows
             {
                 let appName = window.owningApplication?.applicationName ?? "Unknown App"
                 let title = (window.title?.isEmpty == false) ? window.title! : "Untitled"
-                let option = "\(appName) • \(title)"
+                let option = "\(appName) - \(title)"
                 result[option] = .window(window)
             }
 
