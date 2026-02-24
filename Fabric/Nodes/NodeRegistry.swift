@@ -99,6 +99,9 @@ public class NodeRegistry {
             CameraProviderNode.self,
             ImageProviderNode.self,
         ]
+        #if os(macOS)
+        classes.append(ScreenCaptureProviderNode.self)
+        #endif
         #if FABRIC_SYPHON_ENABLED
         classes.append(contentsOf: [
             SyphonClientNode.self,
