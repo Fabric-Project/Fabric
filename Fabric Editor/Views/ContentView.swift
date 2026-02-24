@@ -10,6 +10,39 @@ import Fabric
 
 struct ContentView: View {
 
+    private func clampedZoom(_ zoom: Double) -> Double {
+        min(max(zoom, zoomMin), zoomMax)
+    }
+
+    private func updateMagnifyAnchor(normalizedInContainer: CGPoint, proposedScale: Double) {
+        guard scrollGeometry.containerSize.width > 0, scrollGeometry.containerSize.height > 0 else {
+            magnifyAnchor = UnitPoint(x: normalizedInContainer.x, y: normalizedInContainer.y)
+            return
+        }
+
+        let scale = proposedScale
+
+        let u = normalizedInContainer.x
+        let v = normalizedInContainer.y
+
+        let containerSize = scrollGeometry.containerSize
+        let contentOffset = scrollGeometry.contentOffset
+
+        let visibleWidthInCanvas  = containerSize.width  / scale
+        let visibleHeightInCanvas = containerSize.height / scale
+
+        let offsetXInCanvas = contentOffset.x / scale
+        let offsetYInCanvas = contentOffset.y / scale
+
+        let canvasX = offsetXInCanvas + u * visibleWidthInCanvas
+        let canvasY = offsetYInCanvas + v * visibleHeightInCanvas
+
+        let newX = max(0, min(1, canvasX / (canvasSize / scale)))
+        let newY = max(0, min(1, canvasY / (canvasSize / scale)))
+
+        magnifyAnchor = UnitPoint(x: newX, y: newY)
+    }
+
     struct ScrollGeomHelper : Equatable
     {
         let offset:CGPoint
@@ -179,6 +212,15 @@ struct ContentView: View {
 
                         graph.currentScrollOffset = newScrollOffset.offset
                     }
+#if os(macOS)
+                    .scrollWheelZoom(requiredModifiers: .command) { deltaY, normalizedAnchor in
+                        let zoomFactor = exp(Double(deltaY) * 0.01)
+                        let proposedScale = clampedZoom(finalMagnification * zoomFactor)
+
+                        updateMagnifyAnchor(normalizedInContainer: normalizedAnchor, proposedScale: proposedScale)
+                        finalMagnification = proposedScale
+                    }
+#endif
                 }
             }
             .inspector(isPresented: self.$inspectorVisibility)
