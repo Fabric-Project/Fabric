@@ -60,6 +60,7 @@ public class NodeRegistry {
     
     private var geometryNodeClasses: [Node.Type] = [ // Geometry
         PlaneGeometryNode.self,
+        PerspectiveQuadGeometryNode.self,
         RoundRectGeometryNode.self,
         TriangleGeometryNode.self,
         CircleGeometryNode.self,
@@ -76,7 +77,7 @@ public class NodeRegistry {
         TesselatedTextGeometryNode.self,
         ExtrudedTextGeometryNode.self,
         PixelArrayToGeometryNode.self,
-        SuperShapeGeometryNode.self
+        SuperShapeGeometryNode.self,
     ]
         
     private var materialNodeClasses:[Node.Type] = [
