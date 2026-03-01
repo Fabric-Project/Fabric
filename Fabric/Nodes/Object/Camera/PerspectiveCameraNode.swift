@@ -21,14 +21,18 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
-        
+
         return  [
                     ("inputLookAt", ParameterPort(parameter:Float3Parameter("Look At", simd_float3(repeating:0), .inputfield, "Target position the camera points toward")) ),
+                    ("inputFOV", ParameterPort(parameter:FloatParameter("FOV", 30.0, 1.0, 179.0, .inputfield, "Field of view in degrees")) ),
+                    ("inputSizingDimension", ParameterPort(parameter:StringParameter("Sizing Dimension", "Width", ["Width", "Height"], .dropdown, "Which dimension the FOV applies to")) ),
                 ] + ports
     }
-    
-    // Proxy Port
+
+    // Proxy Ports
     public var inputLookAt:ParameterPort<simd_float3> { port(named: "inputLookAt") }
+    public var inputFOV:ParameterPort<Float> { port(named: "inputFOV") }
+    public var inputSizingDimension:ParameterPort<String> { port(named: "inputSizingDimension") }
     
     override public var object: PerspectiveCamera?
     {
@@ -36,6 +40,7 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
     }
     
     private let camera = PerspectiveCamera(position: .init(repeating: 5.0), near: 0.01, far: 500.0, fov: 30)
+    private var viewportSize: (width: Float, height: Float) = (1, 1)
 
     override public func startExecution(context:GraphExecutionContext)
     {
@@ -55,7 +60,11 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
 
         // This needs to fire every frame
         self.camera.lookAt(target: self.inputLookAt.value ?? .zero)
-        
+
+        if self.inputFOV.valueDidChange || self.inputSizingDimension.valueDidChange {
+            self.updateFOV()
+        }
+
         return shouldUpdate
     }
     
@@ -68,9 +77,24 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
     
     public override func resize(size: (width: Float, height: Float), scaleFactor: Float)
     {
+        self.viewportSize = size
         self.camera.aspect = size.width / size.height
+        self.updateFOV()
     }
-    
-  
+
+    private func updateFOV()
+    {
+        let fov = self.inputFOV.value ?? 30.0
+        let aspect = viewportSize.width / viewportSize.height
+        let sizing = self.inputSizingDimension.value ?? "Width"
+
+        if sizing == "Width" {
+            let hfovRad = degToRad(fov)
+            let vfovRad = 2.0 * atan(tan(hfovRad / 2.0) / aspect)
+            self.camera.fov = radToDeg(vfovRad)
+        } else {
+            self.camera.fov = fov
+        }
+    }
 }
 
