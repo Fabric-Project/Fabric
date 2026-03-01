@@ -460,8 +460,6 @@ public class GraphRenderer : MetalViewRenderer
         self.resizeScaleFactor = scaleFactor
         
         self.defaultCamera.aspect = size.width / size.height
-        
-        self.defaultCamera.fov = radToDeg( 2.0 * atan(  (size.height / size.width) / 2.0 ) )
     }
     
     private func feedbackCache(for graphID: UUID) -> GraphRendererFeedbackCache
