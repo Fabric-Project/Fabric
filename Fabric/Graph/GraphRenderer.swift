@@ -452,16 +452,25 @@ public class GraphRenderer : MetalViewRenderer
         fatalError("use execute(graph:renderPassDescriptor:commandBuffer:) instead.")
     }
     
+    /// Handle output drawable resize.
+    ///
+    /// Resize policy:
+    /// - **FOV is fixed.** Changing the window size or scale factor only changes the pixel
+    ///   resolution of the render — it must not alter what is visible in the scene.
+    /// - **Aspect ratio tracks the drawable.** When the aspect ratio changes, the horizontal
+    ///   extent in world coordinates stays constant and vertical extent adjusts, revealing
+    ///   more or less content at the top/bottom edges. `perspectiveMatrixf(fov, aspect, …)`
+    ///   handles this via the aspect parameter alone.
+    /// - **Coordinates remain square.** A 1:1 aspect object must appear 1:1 on screen
+    ///   regardless of window shape.
     override public func resize(size: (width: Float, height: Float), scaleFactor: Float)
     {
         self.renderer.resize(size)
-        
+
         self.graphRequiresResize = true
         self.resizeScaleFactor = scaleFactor
-        
+
         self.defaultCamera.aspect = size.width / size.height
-        
-        self.defaultCamera.fov = radToDeg( 2.0 * atan(  (size.height / size.width) / 2.0 ) )
     }
     
     private func feedbackCache(for graphID: UUID) -> GraphRendererFeedbackCache
