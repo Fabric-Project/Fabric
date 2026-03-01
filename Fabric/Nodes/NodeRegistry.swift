@@ -98,6 +98,7 @@ public class NodeRegistry {
             MovieProviderNode.self,
             CameraProviderNode.self,
             ImageProviderNode.self,
+            TestCardProviderNode.self,
         ]
         #if os(macOS)
         classes.append(ScreenCaptureProviderNode.self)
