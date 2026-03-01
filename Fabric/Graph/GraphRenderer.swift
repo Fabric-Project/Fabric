@@ -454,15 +454,13 @@ public class GraphRenderer : MetalViewRenderer
     
     /// Handle output drawable resize.
     ///
-    /// Resize policy:
-    /// - **FOV is fixed.** Changing the window size or scale factor only changes the pixel
-    ///   resolution of the render — it must not alter what is visible in the scene.
-    /// - **Aspect ratio tracks the drawable.** When the aspect ratio changes, the horizontal
-    ///   extent in world coordinates stays constant and vertical extent adjusts, revealing
-    ///   more or less content at the top/bottom edges. `perspectiveMatrixf(fov, aspect, …)`
-    ///   handles this via the aspect parameter alone.
-    /// - **Coordinates remain square.** A 1:1 aspect object must appear 1:1 on screen
-    ///   regardless of window shape.
+    /// Updates the internal renderer size, flags the graph for resize (so every node
+    /// receives the new dimensions), and sets the default camera's aspect ratio.
+    /// Individual camera nodes are responsible for their own projection setup —
+    /// see `PerspectiveCameraNode` and `OrthographicCameraNode`, which have
+    /// sizing-dimension and FOV inputs that control how viewport changes map to
+    /// the visible scene. The default expectation is width = 2 world units, as
+    /// per Quartz Composer convention.
     override public func resize(size: (width: Float, height: Float), scaleFactor: Float)
     {
         self.renderer.resize(size)
