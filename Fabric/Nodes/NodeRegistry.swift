@@ -56,6 +56,7 @@ public class NodeRegistry {
         InstancedMeshNode.self,
         InstancedModelMeshNode.self,
         EnvironmentSkyboxNode.self,
+        BillboardNode.self,
     ]
     
     private var geometryNodeClasses: [Node.Type] = [ // Geometry
