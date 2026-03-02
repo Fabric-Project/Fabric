@@ -232,29 +232,65 @@ final class SubgraphIteratorRenderable: Satin.Renderable
         }
     }
     
+    func startExecution(context:GraphExecutionContext)
+    {
+        guard let subGraph,
+              let graphContext
+        else { return }
+        
+        graphContext.graphRenderer?.startExecution(graph: subGraph, executionContext: context)
+    }
+    
+    func stopExecution(context:GraphExecutionContext)
+    {
+        guard let subGraph,
+              let graphContext
+        else { return }
+
+        graphContext.graphRenderer?.stopExecution(graph: subGraph, executionContext: context)
+    }
+
+    func enableExecution(context:GraphExecutionContext)
+    {
+        guard let subGraph,
+              let graphContext
+        else { return }
+
+        context.graphRenderer?.enableExecution(graph: subGraph, executionContext: context)
+    }
+    
+    func disableExecution(context:GraphExecutionContext)
+    {
+        guard let subGraph,
+              let graphContext
+        else { return }
+
+        context.graphRenderer?.disableExecution(graph: subGraph, executionContext: context)
+    }
+    
     func execute(context: GraphExecutionContext,
                  renderPassDescriptor: MTLRenderPassDescriptor,
                  commandBuffer: any MTLCommandBuffer)
     {
 
-//        guard let subGraph,
-//              let graphContext
-////              let updateCamera,
-////              let updateViewport,
-////              let updateIndex,
-////              let currentRenderPass,
-////              let currentCommandBuffer
-//        else { return }
+        guard let subGraph,
+              let graphContext
+//              let updateCamera,
+//              let updateViewport,
+//              let updateIndex,
+//              let currentRenderPass,
+//              let currentCommandBuffer
+        else { return }
                 
                 
-        // execute the graph once, to just ensure meshes / materials have latest values popogated to nodes
-////        self.subGraph.recursiveMarkDirty()
-//        let _ = graphContext.graphRenderer?.execute(graph: subGraph,
-//                                               executionContext: context,
-//                                               renderPassDescriptor:renderPassDescriptor ,
-//                                                    commandBuffer: commandBuffer, clearFlags: false,
-//                                                    // Woof
-//                                                    forceEvaluationForTheseNodes: subGraph.nodes)
+//         execute the graph once, to just ensure meshes / materials have latest values popogated to nodes
+//        self.subGraph.recursiveMarkDirty()
+        let _ = graphContext.graphRenderer?.execute(graph: subGraph,
+                                               executionContext: context,
+                                               renderPassDescriptor:renderPassDescriptor ,
+                                                    commandBuffer: commandBuffer, clearFlags: false,
+                                                    // Woof
+                                                    forceEvaluationForTheseNodes: subGraph.nodes)
 
     }
 }
