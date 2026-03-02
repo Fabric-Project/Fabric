@@ -186,7 +186,7 @@ extension UTType
     deinit
     {
         self.connections.removeAll()
-        print("Deinit Port \(self.id)")
+//        print("Deinit Port \(self.id)")
     }
     
     public func canConnect(to other:Port) -> Bool

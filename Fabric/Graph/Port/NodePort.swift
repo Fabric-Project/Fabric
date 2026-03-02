@@ -110,7 +110,7 @@ public class NodePort<Value : PortValueRepresentable>: Port
         }
         else
         {
-            print("Disconnect Port \(self) Unable to Send Nil to \(other)")
+//            print("Disconnect Port \(self) Unable to Send Nil to \(other)")
 //            self.send(nil, to:other, force: true)
             self.validatedDisconnect(from: other)
 
@@ -119,7 +119,7 @@ public class NodePort<Value : PortValueRepresentable>: Port
     
     private func validatedDisconnect(from other: Port)
     {
-        print("Port \(self) Disconnect from \(other)")
+//        print("Port \(self) Disconnect from \(other)")
 
         if let node = self.node,
            let otherNode = other.node
@@ -152,8 +152,8 @@ public class NodePort<Value : PortValueRepresentable>: Port
             }
         }
         
-        print("Connections: \(self.debugDescription)) - \(self.connections)")
-        print("Connections: \(other.debugDescription) - \(other.connections)")
+//        print("Connections: \(self.debugDescription)) - \(self.connections)")
+//        print("Connections: \(other.debugDescription) - \(other.connections)")
         
         self.node?.graph?.undoManager?.registerUndo(withTarget: self) { port in
             port.connect(to: other)
@@ -177,7 +177,7 @@ public class NodePort<Value : PortValueRepresentable>: Port
       
         else
         {
-            print("Port \(self) Unable to connect to \(other)")
+//            print("Port \(self) Unable to connect to \(other)")
             self.validatedConnect(to: other)
         }
     }
@@ -194,7 +194,7 @@ public class NodePort<Value : PortValueRepresentable>: Port
         
     private func validatedConnect(to other:  Port)
     {
-        print("Port \(self) Connect to \(other)")
+//        print("Port \(self) Connect to \(other)")
 
         if self.kind == other.kind
         {
@@ -245,8 +245,8 @@ public class NodePort<Value : PortValueRepresentable>: Port
             otherNode.didConnectToNode(node)
         }
         
-        print("Connections: \(self.debugDescription)) - \(self.connections)")
-        print("Connections: \(other.debugDescription) - \(other.connections)")
+//        print("Connections: \(self.debugDescription)) - \(self.connections)")
+//        print("Connections: \(other.debugDescription) - \(other.connections)")
 
         self.send(self.value, force: true)
 

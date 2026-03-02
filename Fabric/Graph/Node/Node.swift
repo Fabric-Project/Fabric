@@ -206,7 +206,7 @@ import Combine
     
     deinit
     {
-        print("Deleted node \(id)")
+//        print("Deleted node \(id)")
     }
     
     
