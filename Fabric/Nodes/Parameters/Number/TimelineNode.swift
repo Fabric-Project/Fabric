@@ -190,14 +190,9 @@ struct TimelineTrackView: View
     @State private var lastTapTime: Date = .distantPast
     @State private var lastTapLocation: CGPoint? = nil
 
-    private var trackIndex: Int?
-    {
-        node.tracks.firstIndex(where: { $0.id == trackID })
-    }
-
     private var track: TimelineTrack?
     {
-        guard let index = trackIndex else { return nil }
+        guard let index = node.indexForTrack(id: trackID) else { return nil }
         return node.tracks[index]
     }
 
@@ -237,7 +232,7 @@ struct TimelineTrackView: View
 
     var body: some View
     {
-        guard let track = track, let trackIndex = trackIndex else
+        guard let track = track else
         {
             return AnyView(EmptyView())
         }
@@ -248,8 +243,8 @@ struct TimelineTrackView: View
                 HStack
                 {
                     TextField("Track Name", text: Binding(
-                        get: { node.tracks[trackIndex].name },
-                        set: { node.tracks[trackIndex].name = $0; node.rebuildPorts() }
+                        get: { node.nameForTrack(id: trackID) },
+                        set: { node.updateTrackName(id: trackID, name: $0) }
                     ))
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .frame(width: 120)
@@ -285,7 +280,7 @@ struct TimelineTrackView: View
                         playhead(width: geo.size.width, height: geo.size.height)
 
                         // Keyframes and handles
-                        keyframeViews(track: track, trackIndex: trackIndex, width: geo.size.width, height: geo.size.height)
+                        keyframeViews(track: track, width: geo.size.width, height: geo.size.height)
                     }
                     .clipped()
                     .contentShape(Rectangle())
@@ -306,7 +301,7 @@ struct TimelineTrackView: View
                                     didDrag = true
                                 }
 
-                                handleDrag(value: value, width: geo.size.width, height: geo.size.height, trackIndex: trackIndex)
+                                handleDrag(value: value, width: geo.size.width, height: geo.size.height, trackID: trackID)
                             }
                             .onEnded { value in
                                 let location = value.startLocation
@@ -323,20 +318,20 @@ struct TimelineTrackView: View
                                         let tapDistance = sqrt(pow(location.x - lastLoc.x, 2) + pow(location.y - lastLoc.y, 2))
                                         if tapDistance < 20
                                         {
-                                            handleDoubleClick(at: location, width: geo.size.width, height: geo.size.height, trackIndex: trackIndex)
+                                            handleDoubleClick(at: location, width: geo.size.width, height: geo.size.height, trackID: trackID)
                                             lastTapTime = .distantPast
                                             lastTapLocation = nil
                                         }
                                         else
                                         {
-                                            handleSingleClick(at: location, width: geo.size.width, height: geo.size.height, trackIndex: trackIndex)
+                                            handleSingleClick(at: location, width: geo.size.width, height: geo.size.height, trackID: trackID)
                                             lastTapTime = now
                                             lastTapLocation = location
                                         }
                                     }
                                     else
                                     {
-                                        handleSingleClick(at: location, width: geo.size.width, height: geo.size.height, trackIndex: trackIndex)
+                                        handleSingleClick(at: location, width: geo.size.width, height: geo.size.height, trackID: trackID)
                                         lastTapTime = now
                                         lastTapLocation = location
                                     }
@@ -459,7 +454,7 @@ struct TimelineTrackView: View
     }
 
     @ViewBuilder
-    private func keyframeViews(track: TimelineTrack, trackIndex: Int, width: CGFloat, height: CGFloat) -> some View
+    private func keyframeViews(track: TimelineTrack, width: CGFloat, height: CGFloat) -> some View
     {
         ForEach(track.keyframes) { keyframe in
             let x = timeToX(keyframe.time, width: width)
@@ -503,8 +498,10 @@ struct TimelineTrackView: View
         }
     }
 
-    private func handleSingleClick(at location: CGPoint, width: CGFloat, height: CGFloat, trackIndex: Int)
+    private func handleSingleClick(at location: CGPoint, width: CGFloat, height: CGFloat, trackID: UUID)
     {
+        guard let trackIndex = node.indexForTrack(id: trackID) else { return }
+
         // Check if clicking on existing keyframe
         let track = node.tracks[trackIndex]
         for keyframe in track.keyframes
@@ -526,8 +523,10 @@ struct TimelineTrackView: View
         node.tracks[trackIndex].addKeyframe(at: time, value: value)
     }
 
-    private func handleDoubleClick(at location: CGPoint, width: CGFloat, height: CGFloat, trackIndex: Int)
+    private func handleDoubleClick(at location: CGPoint, width: CGFloat, height: CGFloat, trackID: UUID)
     {
+        guard let trackIndex = node.indexForTrack(id: trackID) else { return }
+
         let track = node.tracks[trackIndex]
 
         // Find keyframe near click
@@ -549,8 +548,17 @@ struct TimelineTrackView: View
         }
     }
 
-    private func handleDrag(value: DragGesture.Value, width: CGFloat, height: CGFloat, trackIndex: Int)
+    private func handleDrag(value: DragGesture.Value, width: CGFloat, height: CGFloat, trackID: UUID)
     {
+        guard let trackIndex = node.indexForTrack(id: trackID) else
+        {
+            draggingKeyframe = nil
+            draggingTangent = nil
+            dragStartLocation = nil
+            didDrag = false
+            return
+        }
+
         let location = value.location
         let track = node.tracks[trackIndex]
 
@@ -829,6 +837,25 @@ struct TimelineNodeView: View
         guard tracks.count > 1 else { return }
         tracks.removeAll { $0.id == id }
         syncPortsToTracks()
+    }
+
+    fileprivate func indexForTrack(id: UUID) -> Int?
+    {
+        tracks.firstIndex(where: { $0.id == id })
+    }
+
+    fileprivate func nameForTrack(id: UUID) -> String
+    {
+        guard let index = indexForTrack(id: id) else { return "" }
+        return tracks[index].name
+    }
+
+    fileprivate func updateTrackName(id: UUID, name: String)
+    {
+        guard let index = indexForTrack(id: id) else { return }
+        guard tracks[index].name != name else { return }
+        tracks[index].name = name
+        rebuildPorts()
     }
 
     // MARK: - Settings View
