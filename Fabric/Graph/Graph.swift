@@ -693,8 +693,12 @@ internal import AnyCodable
         if let objectNode = node as? BaseObjectNode,
            let object = objectNode.getObject()
         {
-            print("scene added \(objectNode.name)")
+            print("Graph: \(self.id) Scene: Added Child", objectNode.name)
             self.scene.add( object )
+        }
+        else
+        {
+            print("Graph: \(self.id) Scene: Skipped Child", node.name)
         }
     }
     
@@ -711,16 +715,10 @@ internal import AnyCodable
     {
         self.scene.removeAll()
 
-        let objects = self.nodes.compactMap { $0 as? BaseObjectNode }
-            .compactMap { $0.getObject() }
+        print("Graph: \(self.id) Scene: Syncing Nodes")
 
-        for object in objects
-        {
-            self.scene.add(object)
-        }
+        self.nodes.forEach({ self.maybeAddNodeToScene( $0) } )
     }
-
-  
 
     /// Decodes a single node from an AnyCodableMap, replicating the type resolution from Graph.init(from:)
     private func decodeNode(from map: AnyCodableMap) -> Node?
