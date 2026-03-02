@@ -446,7 +446,17 @@ internal import AnyCodable
         return  self.nodes.flatMap( { $0.publishedPorts() } )
     }
     
-    public func nodesWithPublishedOutputs() -> [Node]
+    public func publishedInputPorts() -> [Port]
+    {
+        return  self.nodes.flatMap( { $0.publishedInputPorts() } )
+    }
+    
+    public func publishedOutputPorts() -> [Port]
+    {
+        return  self.nodes.flatMap( { $0.publishedOutputPorts() } )
+    }
+    
+    internal func nodesWithPublishedOutputs() -> [Node]
     {
         return  self.nodes.filter( { $0.publishedOutputPorts().isEmpty == false } )
     }

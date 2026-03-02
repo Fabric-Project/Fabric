@@ -284,12 +284,12 @@ import Combine
 //        self.registry.rebuild(from: <#T##[PortRegistry.Snapshot]#>, declared: <#T##[(name: String, port: Port)]#>, owner: <#T##Node#>)
 //    }
     
-    public func inputPorts() -> [Port]
+    internal func inputPorts() -> [Port]
     {
         return self.ports.filter( { $0.kind == .Inlet } )
     }
     
-    public func outputPorts() -> [Port]
+    internal func outputPorts() -> [Port]
     {
         return self.ports.filter( { $0.kind == .Outlet } )
     }
