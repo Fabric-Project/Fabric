@@ -8,6 +8,8 @@
 #include <metal_stdlib>
 using namespace metal;
 
+#include "../lygia/sdf/lineSDF.msl"
+
 struct TestCardFlags {
     uint showBorder;
     uint showGreys;
@@ -29,10 +31,9 @@ kernel void testCardGenerate
 
     if (gid.x >= w || gid.y >= h) return;
 
-    // Start with black background
     float4 color = float4(0.0, 0.0, 0.0, 1.0);
 
-    // Greyscale cells (drawn first as background)
+    // Greyscale cells (5x2 grid, white-to-black ramp)
     if (flags.showGreys && gid.x >= 2 && gid.x < w - 2 && gid.y >= 2 && gid.y < h - 2)
     {
         uint innerX = gid.x - 2;
@@ -50,7 +51,7 @@ kernel void testCardGenerate
         color = float4(gray, gray, gray, 1.0);
     }
 
-    // Grid
+    // Grid (integer modulo — pixel-exact)
     if (flags.showGrid && flags.gridSpacing > 0)
     {
         uint spacing = flags.gridSpacing;
@@ -60,37 +61,38 @@ kernel void testCardGenerate
         }
     }
 
-    // Diagonals
+    // Diagonals via lygia lineSDF (pixel-space, 1px hard edge)
     if (flags.showDiagonals)
     {
-        float fx = float(gid.x);
-        float fy = float(gid.y);
-        float fw = float(w - 1);
-        float fh = float(h - 1);
-        float diagLen = sqrt(fw * fw + fh * fh);
+        float2 p = float2(gid);
+        float2 tl = float2(0.0);
+        float2 tr = float2(float(w - 1), 0.0);
+        float2 bl = float2(0.0, float(h - 1));
+        float2 br = float2(float(w - 1), float(h - 1));
 
-        float dist1 = abs(fy * fw - fx * fh) / diagLen;
-        float dist2 = abs(fy * fw - (fw - fx) * fh) / diagLen;
-        if (dist1 < 0.5 || dist2 < 0.5)
+        float d1 = lineSDF(p, tl, br);
+        float d2 = lineSDF(p, tr, bl);
+
+        if (d1 < 0.5 || d2 < 0.5)
         {
             color = float4(1.0, 1.0, 1.0, 1.0);
         }
     }
 
-    // Circle
+    // Circle (pixel-space distance, 1px hard edge)
     if (flags.showCircle)
     {
-        float cx = float(w) * 0.5;
-        float cy = float(h) * 0.5;
+        float2 center = float2(w, h) * 0.5;
         float radius = float(min(w, h)) * 0.5;
-        float distFromCenter = length(float2(float(gid.x) - cx, float(gid.y) - cy));
-        if (abs(distFromCenter - radius) < 0.5)
+        float dist = length(float2(gid) - center);
+
+        if (abs(dist - radius) < 0.5)
         {
             color = float4(1.0, 1.0, 1.0, 1.0);
         }
     }
 
-    // Border (drawn last, on top)
+    // Border (pixel-exact: 1px white + 1px black inset)
     if (flags.showBorder)
     {
         if (gid.x == 0 || gid.x == w - 1 || gid.y == 0 || gid.y == h - 1)

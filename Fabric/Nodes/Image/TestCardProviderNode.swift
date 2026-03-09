@@ -61,8 +61,9 @@ public class TestCardProviderNode: Node
     private func setupComputePipeline()
     {
         let device = self.context.device
+        let compiler = MetalFileCompiler(watch: false)
         guard let shaderURL = Bundle.module.url(forResource: "TestCard", withExtension: "metal", subdirectory: "Compute"),
-              let source = try? String(contentsOf: shaderURL, encoding: .utf8),
+              let source = try? compiler.parse(shaderURL),
               let library = try? device.makeLibrary(source: source, options: nil),
               let function = library.makeFunction(name: "testCardGenerate")
         else { return }
