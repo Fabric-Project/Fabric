@@ -355,7 +355,7 @@ internal import AnyCodable
         //        self.autoConnect(node: node)
     }
     
-    func delete(node:Node, disconnect:Bool = true)
+    public func delete(node:Node, disconnect:Bool = true)
     {
         let savedOffset = node.offset
         let savedConnections = node.ports.flatMap { port in
