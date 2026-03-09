@@ -12,7 +12,7 @@ import Metal
 import Satin
 import simd
 
-public class KeypointDistortNode: BaseEffectNode {
+public class KeypointDistortNode: BaseImageNode {
     // MARK: - UI & Type
     override public class var name: String { "Key Point Displacement" }
     override public class var nodeType: Node.NodeType { .Image(imageType: .Distort) }
@@ -20,7 +20,8 @@ public class KeypointDistortNode: BaseEffectNode {
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Uses a pair of Reference Keypoints and Displaced Keypoints to Distort the Image." }
  
-    class override var sourceShaderName:String { "KeypointDistortShader" }
+    public override class var sourceShaderName:String { "KeypointDistortShader" }
+    public override class var defaultImageInputCountHint: Int? { 1 }
     
     // MARK: - Ports (Registry)
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
@@ -105,9 +106,9 @@ public class KeypointDistortNode: BaseEffectNode {
             self.disKeyPointStructBuffer.update(data: inputDisplacedKeyPoints)
         }
         
-        if self.inputTexturePort.valueDidChange
+        if self.imageInputPorts().first?.valueDidChange == true
         {
-            if let inTex = self.inputTexturePort.value?.texture,
+            if let inTex = self.inputImageTexture(at: 0),
                let outImage = context.graphRenderer?.newImage(withWidth: inTex.width, height: inTex.height)
             {
                 let minCount = min (self.refKeyPointStructBuffer.count, self.disKeyPointStructBuffer.count)

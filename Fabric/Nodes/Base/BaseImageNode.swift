@@ -29,6 +29,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
     @ObservationIgnored private var url: URL? = nil
     @ObservationIgnored private var lastKnownInputCount: Int = 1
+    @ObservationIgnored private var cachedImageInputPorts: [NodePort<FabricImage>] = []
 
     enum CodingKeys: String, CodingKey
     {
@@ -53,7 +54,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
     }
 
     public var currentImageInputCount: Int {
-        self.imageInputPorts().count
+        self.cachedImageInputPorts.count
     }
 
     required init(context: Context, fileURL: URL) throws {
@@ -177,6 +178,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
     }
 
     open func postSetupSynchronizePorts(allowReplace: Bool) {
+        self.refreshImageInputPortCache()
 
         let inferredInputCount = self.inferInputCountFromShader() ?? self.lastKnownInputCount
 
@@ -238,6 +240,10 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
     }
 
     func imageInputPorts() -> [NodePort<FabricImage>] {
+        self.cachedImageInputPorts
+    }
+
+    private func refreshImageInputPortCache() {
         let ports = self.ports.compactMap { port -> NodePort<FabricImage>? in
             guard port.kind == .Inlet,
                   port.portType == .Image,
@@ -248,7 +254,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             return port as? NodePort<FabricImage>
         }
 
-        return ports.sorted { lhs, rhs in
+        self.cachedImageInputPorts = ports.sorted { lhs, rhs in
             self.imagePortSortKey(for: lhs) < self.imagePortSortKey(for: rhs)
         }
     }
@@ -277,7 +283,8 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
     private func syncImageInputPorts(targetCount: Int, allowReplace: Bool) {
         let clampedCount = max(0, targetCount)
-        let existingPorts = self.imageInputPorts()
+        self.refreshImageInputPortCache()
+        let existingPorts = self.cachedImageInputPorts
 
         if allowReplace == false {
             if existingPorts.count < clampedCount {
@@ -291,6 +298,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
                     self.removePort(existingPorts[index])
                 }
             }
+            self.refreshImageInputPortCache()
             return
         }
 
@@ -302,6 +310,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             let newPort = self.makeInputPort(index: index)
             self.addDynamicPort(newPort, name: newPort.name)
         }
+        self.refreshImageInputPortCache()
     }
 
     private func syncGeneratorResolutionPorts() {
