@@ -12,6 +12,10 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
     override public class var nodeTimeMode: Node.TimeMode { .None }
 
     override public var name: String {
+        if let displayName {
+            return displayName
+        }
+
         guard let fileURL = self.url else {
             return Self.name
         }
