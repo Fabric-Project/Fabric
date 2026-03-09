@@ -18,6 +18,7 @@ public class LiveImageNode: BaseImageNode
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Live-editable Metal image effect with serialized shader source." }
     override public class var defaultImageInputCountHint: Int? { 1 }
+    override public class var preserveDecodedImageInputPortsOnDecode: Bool { true }
 
     override public class var sourceShaderName: String { "LiveEffectDefaultShader" }
 
@@ -36,12 +37,12 @@ public class LiveImageNode: BaseImageNode
 
     required init(context: Context, fileURL: URL) throws {
         try super.init(context: context, fileURL: fileURL)
-        self.postInit()
+        self.postInit(shouldSynchronizePorts: true)
     }
 
     required init(context: Context) {
         super.init(context: context)
-        self.postInit()
+        self.postInit(shouldSynchronizePorts: true)
     }
 
     required init(from decoder: any Decoder) throws {
@@ -49,7 +50,8 @@ public class LiveImageNode: BaseImageNode
 
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.shaderSource = try container.decodeIfPresent(String.self, forKey: .shaderSource) ?? LiveImageNode.defaultShaderSource()
-        self.postInit()
+        // Keep decoded port UUID topology intact until graph connection remap finishes.
+        self.postInit(shouldSynchronizePorts: false)
     }
 
     deinit {
@@ -101,7 +103,7 @@ public class LiveImageNode: BaseImageNode
         return error.localizedDescription
     }
 
-    private func postInit() {
+    private func postInit(shouldSynchronizePorts: Bool) {
         Self.sweepStaleWorkspacesOnceIfNeeded()
 
         do {
@@ -112,7 +114,7 @@ public class LiveImageNode: BaseImageNode
 
             try self.shaderSource.write(to: self.shaderFileURL!, atomically: true, encoding: .utf8)
             self.retargetMaterial(to: self.shaderFileURL!)
-            self.recompileAndResyncPorts()
+            self.recompileAndResyncPorts(shouldSynchronizePorts: shouldSynchronizePorts)
         }
         catch {
             print("LiveEffect workspace setup failed: \(error.localizedDescription)")
@@ -166,10 +168,10 @@ public class LiveImageNode: BaseImageNode
         }
     }
 
-    private func recompileAndResyncPorts() {
+    private func recompileAndResyncPorts(shouldSynchronizePorts: Bool = true) {
         if let sourceShader = self.postMaterial.shader as? SourceShader {
             sourceShader.reloadFromSource()
-            if sourceShader.pipelineError == nil {
+            if sourceShader.pipelineError == nil && shouldSynchronizePorts {
                 self.postSetupSynchronizePorts(allowReplace: false)
             }
         }

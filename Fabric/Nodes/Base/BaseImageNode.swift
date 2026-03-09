@@ -21,6 +21,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
     open class var sourceShaderName: String { "" }
     open class var defaultImageInputCountHint: Int? { nil }
+    open class var preserveDecodedImageInputPortsOnDecode: Bool { false }
 
     open class PostMaterial: SourceMaterial {}
 
@@ -115,7 +116,8 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
         super.init(context: context)
 
-        self.postSetupSynchronizePorts(allowReplace: false)
+        self.postSetupSynchronizePorts(allowReplace: false,
+                                       preserveExistingImageInputPorts: Self.preserveDecodedImageInputPortsOnDecode)
     }
 
     required init(from decoder: any Decoder) throws {
@@ -177,7 +179,8 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
         try super.init(from: decoder)
 
-        self.postSetupSynchronizePorts(allowReplace: false)
+        self.postSetupSynchronizePorts(allowReplace: false,
+                                       preserveExistingImageInputPorts: Self.preserveDecodedImageInputPortsOnDecode)
     }
 
     override public func encode(to encoder: Encoder) throws {
@@ -195,12 +198,20 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         try super.encode(to: encoder)
     }
 
-    open func postSetupSynchronizePorts(allowReplace: Bool) {
+    open func postSetupSynchronizePorts(allowReplace: Bool, preserveExistingImageInputPorts: Bool = false) {
         self.refreshImageInputPortCache()
+        let existingImageInputCount = self.cachedImageInputPorts.count
 
         let inferredInputCount = self.inferInputCountFromShader() ?? self.lastKnownInputCount
+        let resolvedInputCount: Int
+        if preserveExistingImageInputPorts && existingImageInputCount > 0 {
+            resolvedInputCount = max(existingImageInputCount, inferredInputCount)
+        }
+        else {
+            resolvedInputCount = inferredInputCount
+        }
 
-        self.lastKnownInputCount = max(0, inferredInputCount)
+        self.lastKnownInputCount = max(0, resolvedInputCount)
 
         self.syncImageInputPorts(targetCount: self.lastKnownInputCount, allowReplace: allowReplace)
         self.synchronizeOutputImagePorts()
