@@ -10,7 +10,7 @@ public final class GaussianBlurMaskNode: BaseMultiPassBlurEffectTwoChannelNode {
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Separable Gaussian-style blur with progressive downsample passes." }
 
-    override class var sourceShaderName: String { "GaussianBlurMaskShader" }
+    override public class var sourceShaderName: String { "GaussianBlurMaskShader" }
 
     private struct GaussianPassUniforms {
         var direction: simd_float2
@@ -50,9 +50,7 @@ public final class GaussianBlurMaskNode: BaseMultiPassBlurEffectTwoChannelNode {
 //            return
 //        }
 
-        guard let inputTexture = self.inputTexturePort.value?.texture,
-              let inputMask = self.inputTexture2Port.value?.texture
-        else {
+        guard let (inputTexture, inputMask) = self.validatedTwoInputTextures() else {
             self.outputTexturePort.send(nil)
             return
         }

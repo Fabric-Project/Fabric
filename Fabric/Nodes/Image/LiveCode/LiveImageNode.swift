@@ -10,15 +10,16 @@ import Metal
 import Satin
 import SwiftUI
 
-public final class LiveEffectNode: BaseEffectNode
+public class LiveImageNode: BaseImageNode
 {
-    override public class var name: String { "Live Effect" }
+    override public class var name: String { "Live Image" }
     override public class var nodeType: Node.NodeType { .Image(imageType: .BaseEffect) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Live-editable Metal image effect with serialized shader source." }
+    override public class var defaultImageInputCountHint: Int? { 1 }
 
-    override class var sourceShaderName: String { "LiveEffectDefaultShader" }
+    override public class var sourceShaderName: String { "LiveEffectDefaultShader" }
 
     enum CodingKeys: String, CodingKey {
         case shaderSource
@@ -29,7 +30,7 @@ public final class LiveEffectNode: BaseEffectNode
     private static let rootWorkspaceURL = URL(filePath: "/tmp/fabric-live-shaders", directoryHint: .isDirectory)
     private static let staleWorkspaceTTL: TimeInterval = 24 * 60 * 60
 
-    @ObservationIgnored private(set) var shaderSource: String = LiveEffectNode.defaultShaderSource()
+    @ObservationIgnored private(set) var shaderSource: String = LiveImageNode.defaultShaderSource()
     @ObservationIgnored private var workspaceURL: URL?
     @ObservationIgnored private var shaderFileURL: URL?
 
@@ -47,7 +48,7 @@ public final class LiveEffectNode: BaseEffectNode
         try super.init(from: decoder)
 
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.shaderSource = try container.decodeIfPresent(String.self, forKey: .shaderSource) ?? LiveEffectNode.defaultShaderSource()
+        self.shaderSource = try container.decodeIfPresent(String.self, forKey: .shaderSource) ?? LiveImageNode.defaultShaderSource()
         self.postInit()
     }
 
@@ -69,7 +70,7 @@ public final class LiveEffectNode: BaseEffectNode
     }
 
     override public func settingsView() -> AnyView {
-        AnyView(LiveEffectNodeSettingsView(node: self))
+        AnyView(LiveImageNodeSettingsView(node: self))
     }
 
     override public var settingsSize: SettingsViewSize {
@@ -168,8 +169,10 @@ public final class LiveEffectNode: BaseEffectNode
     private func recompileAndResyncPorts() {
         if let sourceShader = self.postMaterial.shader as? SourceShader {
             sourceShader.reloadFromSource()
+            if sourceShader.pipelineError == nil {
+                self.postSetupSynchronizePorts(allowReplace: false)
+            }
         }
-        self.syncDynamicParameterPortsFromMaterial()
     }
 
     private func syncDynamicParameterPortsFromMaterial() {
@@ -265,3 +268,6 @@ public final class LiveEffectNode: BaseEffectNode
         }
     }
 }
+
+@available(*, deprecated, message: "Use LiveImageNode")
+public final class LiveEffectNode: LiveImageNode {}

@@ -1,5 +1,5 @@
 //
-//  LiveEffectNodeSettingsView.swift
+//  LiveImageNodeSettingsView.swift
 //  Fabric
 //
 //  Created by Codex on 3/4/26.
@@ -10,7 +10,7 @@ import CodeEditorView
 import LanguageSupport
 
 @MainActor
-@Observable final class LiveEffectNodeEditorModel
+@Observable final class LiveImageNodeEditorModel
 {
     struct ShaderDiagnostic: Hashable {
         let line: Int
@@ -21,12 +21,12 @@ import LanguageSupport
     }
 
     var content: String
-    private weak var node: LiveEffectNode?
+    private weak var node: LiveImageNode?
     private var saveTimer: Timer?
     var messages: Set<TextLocated<Message>> = Set()
     var diagnostics: [ShaderDiagnostic] = []
 
-    init(node: LiveEffectNode) {
+    init(node: LiveImageNode) {
         self.node = node
         self.content = node.shaderSource
     }
@@ -165,25 +165,29 @@ import LanguageSupport
     }
 }
 
-struct LiveEffectNodeSettingsView: View
+struct LiveImageNodeSettingsView: View
 {
-    @State private var editorModel: LiveEffectNodeEditorModel
+    @State private var editorModel: LiveImageNodeEditorModel
     @State private var position: CodeEditor.Position = .init()
 
-    init(node: LiveEffectNode) {
-        _editorModel = State(initialValue: LiveEffectNodeEditorModel(node: node))
+    init(node: LiveImageNode) {
+        _editorModel = State(initialValue: LiveImageNodeEditorModel(node: node))
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 12)
+        {
             CodeEditor(text: self.$editorModel.content,
                        position: self.$position,
                        messages: self.$editorModel.messages,
                        language: .metalShaderLanguage(),
                        layout: CodeEditor.LayoutConfiguration(showMinimap: false, wrapText: true))
+            
             if self.editorModel.diagnostics.isEmpty == false {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 6) {
+                ScrollView
+                {
+                    VStack(alignment: .leading, spacing: 6)
+                    {
                         ForEach(Array(self.editorModel.diagnostics.enumerated()), id: \.offset) { _, diagnostic in
                             Text(self.diagnosticLineText(diagnostic))
                                 .font(.caption.monospaced())
@@ -208,7 +212,7 @@ struct LiveEffectNodeSettingsView: View
         }
     }
 
-    private func diagnosticLineText(_ diagnostic: LiveEffectNodeEditorModel.ShaderDiagnostic) -> String {
+    private func diagnosticLineText(_ diagnostic: LiveImageNodeEditorModel.ShaderDiagnostic) -> String {
         let category: String
         switch diagnostic.category {
         case .warning:

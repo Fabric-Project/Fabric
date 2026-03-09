@@ -112,7 +112,8 @@ public class NodeRegistry {
         ])
         #endif
         classes.append(contentsOf: [
-            LiveEffectNode.self,
+            LiveImageNode.self,
+            LUTSDFShapeGeneratorNode.self,
             GaussianBlurNode.self,
             MotionBlurNode.self,
             ZoomBlurNode.self,
@@ -165,8 +166,7 @@ public class NodeRegistry {
             {
                 for fileURL in singleChannelEffects
                 {
-                    let baseClass = [.Generator, .ShapeGenerator].contains(imageEffectType) ? BaseGeneratorNode.self : BaseEffectNode.self
-                    let node = NodeClassWrapper(nodeClass: baseClass,
+                    let node = NodeClassWrapper(nodeClass: BaseImageNode.self,
                                                 nodeType: .Image(imageType: imageEffectType),
                                                 fileURL: fileURL,
                                                 nodeName:self.fileURLToName(fileURL: fileURL))
@@ -175,7 +175,7 @@ public class NodeRegistry {
                 
                 for fileURL in twoChannelEffects
                 {
-                    let node = NodeClassWrapper(nodeClass: BaseEffectTwoChannelNode.self,
+                    let node = NodeClassWrapper(nodeClass: BaseImageNode.self,
                                                 nodeType: .Image(imageType: imageEffectType),
                                                 fileURL: fileURL,
                                                 nodeName:self.fileURLToName(fileURL: fileURL))
@@ -184,7 +184,7 @@ public class NodeRegistry {
 
                 for fileURL in threeChannelEffects
                 {
-                    let node = NodeClassWrapper(nodeClass: BaseEffectThreeChannelNode.self,
+                    let node = NodeClassWrapper(nodeClass: BaseImageNode.self,
                                                 nodeType: .Image(imageType: imageEffectType),
                                                 fileURL: fileURL,
                                                 nodeName:self.fileURLToName(fileURL: fileURL))
