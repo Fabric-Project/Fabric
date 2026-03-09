@@ -47,7 +47,25 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         ]
     }
 
-    public var outputTexturePort: NodePort<FabricImage> { self.port(named: "outputImage0") }
+    public var outputTexturePort: NodePort<FabricImage> {
+        if let connected = self.outputImagePorts().first(where: { $0.connections.isEmpty == false }) {
+            return connected
+        }
+
+        if let canonical: NodePort<FabricImage> = self.findPort(named: "outputImage0") {
+            return canonical
+        }
+
+        if let legacy: NodePort<FabricImage> = self.findPort(named: "outputTexturePort") {
+            return legacy
+        }
+
+        if let fallback = self.outputImagePorts().first {
+            return fallback
+        }
+
+        fatalError("BaseImageNode requires at least one image outlet")
+    }
 
     @ObservationIgnored override public var nodeExecutionMode: ExecutionMode {
         self.currentImageInputCount == 0 ? .Provider : .Processor
@@ -185,10 +203,78 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         self.lastKnownInputCount = max(0, inferredInputCount)
 
         self.syncImageInputPorts(targetCount: self.lastKnownInputCount, allowReplace: allowReplace)
+        self.synchronizeOutputImagePorts()
 
         self.syncGeneratorResolutionPorts()
 
         self.syncDynamicParameterPortsFromMaterial()
+    }
+
+    private func outputImagePorts() -> [NodePort<FabricImage>] {
+        self.ports.compactMap { port -> NodePort<FabricImage>? in
+            guard port.kind == .Outlet,
+                  port.portType == .Image,
+                  port.parameter == nil else {
+                return nil
+            }
+
+            return port as? NodePort<FabricImage>
+        }
+    }
+
+    private func shouldPreferOutputPort(_ port: NodePort<FabricImage>) -> Int {
+        if port.connections.isEmpty == false {
+            return 0
+        }
+
+        if port.name == "outputImage0" {
+            return 1
+        }
+
+        if port.name == "outputTexturePort" {
+            return 2
+        }
+
+        if port.name == "outputImage" {
+            return 3
+        }
+
+        return 10
+    }
+
+    private func synchronizeOutputImagePorts() {
+        var imageOutputs = self.outputImagePorts()
+        guard imageOutputs.count > 1 else { return }
+
+        let canonicalPort = (self.findPort(named: "outputImage0") as? NodePort<FabricImage>)
+            ?? imageOutputs.min { lhs, rhs in
+                let lhsRank = self.shouldPreferOutputPort(lhs)
+                let rhsRank = self.shouldPreferOutputPort(rhs)
+                if lhsRank == rhsRank {
+                    return lhs.connections.count > rhs.connections.count
+                }
+                return lhsRank < rhsRank
+            }
+
+        guard let canonicalPort else { return }
+
+        for legacyPort in imageOutputs where legacyPort.id != canonicalPort.id {
+            if legacyPort.published {
+                canonicalPort.published = true
+            }
+
+            let inboundConnections = legacyPort.connections.filter { $0.kind == .Inlet }
+            for inlet in inboundConnections {
+                canonicalPort.connect(to: inlet)
+            }
+        }
+
+        imageOutputs = self.outputImagePorts()
+        for legacyPort in imageOutputs where legacyPort.id != canonicalPort.id {
+            if legacyPort.connections.isEmpty {
+                self.removePort(legacyPort)
+            }
+        }
     }
     
     private func defaultInputCountForFilePath() -> Int {

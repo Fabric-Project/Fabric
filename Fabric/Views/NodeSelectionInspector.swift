@@ -11,10 +11,12 @@ import Satin
 public struct NodeSelectionInspector: View
 {
     let graph:Graph
+    @Binding private var inputFocus: FabricEditorInputFocus
     
-    public init(graph:Graph)
+    public init(graph:Graph, inputFocus: Binding<FabricEditorInputFocus>)
     {
         self.graph = graph
+        self._inputFocus = inputFocus
     }
     
     public var body: some View {

@@ -11,6 +11,7 @@ import Satin
 public struct NodeRegisitryView: View {
 
     public let graph: Graph
+    @Binding private var inputFocus: FabricEditorInputFocus
 
     @State private var searchString:String = ""
     @State private var selection = Set<UUID>()
@@ -27,8 +28,9 @@ public struct NodeRegisitryView: View {
 
     private var haveNodesToShow: Bool { self.numNodesToShow > 0 }
     
-    public init(graph: Graph) {
+    public init(graph: Graph, inputFocus: Binding<FabricEditorInputFocus>) {
         self.graph = graph
+        self._inputFocus = inputFocus
     }
     
     public var body: some View
@@ -78,6 +80,7 @@ public struct NodeRegisitryView: View {
                 
             } primaryAction: { selection in
 
+                self.inputFocus = .registry
                 for nodeID in selection
                 {
                     if let node = NodeRegistry.shared.availableNodes.first(where: { $0.id == nodeID })
@@ -85,6 +88,7 @@ public struct NodeRegisitryView: View {
                         do
                         {
                             try self.graph.addNode(node)
+                            self.inputFocus = .canvas
                         }
                         catch
                         {
@@ -93,6 +97,11 @@ public struct NodeRegisitryView: View {
                     }
                 }
             }
+            .simultaneousGesture(
+                TapGesture().onEnded {
+                    self.inputFocus = .registry
+                }
+            )
             .overlay
             {
                 VStack(spacing:0)
@@ -114,6 +123,12 @@ public struct NodeRegisitryView: View {
         }
         .searchable(text: $searchString, placement: .sidebar)
         .searchPresentationToolbarBehavior(.avoidHidingContent)
+        .onChange(of: self.searchString) { _, _ in
+            self.inputFocus = .registry
+        }
+        .onChange(of: self.selection) { _, _ in
+            self.inputFocus = .registry
+        }
 
 
         
@@ -149,6 +164,7 @@ public struct NodeRegisitryView: View {
                     .tag(nodeGroup)
                     .help(nodeGroup.rawValue)
                     .onTapGesture {
+                        self.inputFocus = .registry
                         self.headerSelection = nodeGroup
                     }
             }

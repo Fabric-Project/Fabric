@@ -31,6 +31,7 @@ struct ContentView: View {
 
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
     @State private var inspectorVisibility:Bool = true
+    @State private var inputFocus: FabricEditorInputFocus = .canvas
 
     // Magic Numbers...
     private let zoomMin = 0.25
@@ -42,7 +43,7 @@ struct ContentView: View {
 
         NavigationSplitView(columnVisibility: self.$columnVisibility)
         {
-            NodeRegisitryView(graph: self.document.graph)
+            NodeRegisitryView(graph: self.document.graph, inputFocus: self.$inputFocus)
                 .navigationSplitViewColumnWidth(min: 150, ideal: 200, max:250)
 
         } detail: {
@@ -86,8 +87,9 @@ struct ContentView: View {
                     ScrollViewReader { proxy in
                         ScrollView([.horizontal, .vertical])
                         {
-                            NodeCanvas(graph: self.document.graph)
+                            NodeCanvas(graph: self.document.graph, inputFocus: self.$inputFocus)
                                 .id("canvas")
+                                .focusedSceneValue(\.editorInputFocus, self.$inputFocus)
                                 .frame(width: self.canvasSize, height: self.canvasSize)
                                 .scaleEffect(finalMagnification * magnifyBy, anchor: magnifyAnchor)
                                 .contextMenu(menuItems: {
@@ -183,7 +185,7 @@ struct ContentView: View {
             }
             .inspector(isPresented: self.$inspectorVisibility)
             {
-                NodeSelectionInspector(graph:self.document.graph)
+                NodeSelectionInspector(graph:self.document.graph, inputFocus: self.$inputFocus)
                     .inspectorColumnWidth(min:250, ideal:250, max:300)
             }
             .toolbar
