@@ -175,34 +175,14 @@ struct LiveImageNodeSettingsView: View
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12)
-        {
-            CodeEditor(text: self.$editorModel.content,
-                       position: self.$position,
-                       messages: self.$editorModel.messages,
-                       language: .metalShaderLanguage(),
-                       layout: CodeEditor.LayoutConfiguration(showMinimap: false, wrapText: true))
-            
-            if self.editorModel.diagnostics.isEmpty == false {
-                ScrollView
-                {
-                    VStack(alignment: .leading, spacing: 6)
-                    {
-                        ForEach(Array(self.editorModel.diagnostics.enumerated()), id: \.offset) { _, diagnostic in
-                            Text(self.diagnosticLineText(diagnostic))
-                                .font(.caption.monospaced())
-                                .foregroundStyle(self.diagnosticColor(diagnostic.category))
-                                .textSelection(.enabled)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(8)
-                }
-                .frame(minHeight: 80, maxHeight: 180)
-                .background(.black.opacity(0.12))
-                .clipShape(.rect(cornerRadius: 8))
-            }
-        }
+
+        CodeEditor(text: self.$editorModel.content,
+                   position: self.$position,
+                   messages: self.$editorModel.messages,
+                   language: .metalShaderLanguage(),
+                   layout: CodeEditor.LayoutConfiguration(showMinimap: false, wrapText: true))
+        
+
         .environment(\.codeEditorTheme, Theme.vDark )
         .onChange(of: self.editorModel.content) { _, _ in
             self.editorModel.scheduleSave()
