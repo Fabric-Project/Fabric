@@ -278,6 +278,11 @@ import Combine
         
         port.parameter = param
     }
+
+    public func reorderPorts(_ reordered: [Port])
+    {
+        self.registry.reorder(reordered)
+    }
     
 //    public func syncPort(p:Port)
 //    {

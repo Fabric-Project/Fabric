@@ -219,6 +219,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         self.syncGeneratorResolutionPorts()
 
         self.syncDynamicParameterPortsFromMaterial()
+        self.normalizePortOrderForDisplay()
     }
 
     private func outputImagePorts() -> [NodePort<FabricImage>] {
@@ -478,6 +479,41 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
                 self.addDynamicPort(dynamicPort)
             }
         }
+    }
+
+    private func normalizePortOrderForDisplay()
+    {
+        let currentPorts = self.ports
+        let indexByID = Dictionary(uniqueKeysWithValues: currentPorts.enumerated().map { ($1.id, $0) })
+
+        let reordered = currentPorts.sorted { lhs, rhs in
+            let lhsKey = self.portSortKey(lhs, indexByID: indexByID)
+            let rhsKey = self.portSortKey(rhs, indexByID: indexByID)
+            if lhsKey.group == rhsKey.group {
+                return lhsKey.position < rhsKey.position
+            }
+            return lhsKey.group < rhsKey.group
+        }
+
+        if zip(currentPorts, reordered).allSatisfy({ $0.id == $1.id }) {
+            return
+        }
+
+        self.reorderPorts(reordered)
+        self.refreshImageInputPortCache()
+    }
+
+    private func portSortKey(_ port: Port, indexByID: [UUID: Int]) -> (group: Int, position: Int) {
+        let originalIndex = indexByID[port.id] ?? 0
+
+        if port.kind == .Inlet && port.direction == .Horizontal {
+            if port.portType == .Image {
+                return (0, self.imagePortSortKey(for: port))
+            }
+            return (1, originalIndex)
+        }
+
+        return (2, originalIndex)
     }
 
     override public func execute(context: GraphExecutionContext,
