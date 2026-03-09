@@ -17,12 +17,18 @@ struct TestCardFlags {
     uint showCircle;
     uint showGrid;
     uint gridSpacing;
+    uint showText;
+    uint textX;
+    uint textY;
+    uint textW;
+    uint textH;
 };
 
 kernel void testCardGenerate
 (
     uint2 gid [[thread_position_in_grid]],
     texture2d<float, access::write> outTex [[texture(0)]],
+    texture2d<float, access::read> textTex [[texture(1)]],
     constant TestCardFlags &flags [[buffer(0)]]
 )
 {
@@ -89,6 +95,19 @@ kernel void testCardGenerate
         if (abs(dist - radius) < 0.5)
         {
             color = float4(1.0, 1.0, 1.0, 1.0);
+        }
+    }
+
+    // Text label (composited from CPU-rendered texture)
+    if (flags.showText)
+    {
+        uint tx = gid.x - flags.textX;
+        uint ty = gid.y - flags.textY;
+        if (gid.x >= flags.textX && tx < flags.textW &&
+            gid.y >= flags.textY && ty < flags.textH)
+        {
+            float4 texel = textTex.read(uint2(tx, ty));
+            color = mix(color, texel, texel.a);
         }
     }
 
