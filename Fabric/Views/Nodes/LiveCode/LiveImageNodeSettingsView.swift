@@ -245,27 +245,10 @@ struct LiveImageNodeSettingsView: View
 
 extension Theme {
     
-    public static var vDark: Theme
-    = Theme(colourScheme: .dark,
-            fontName: "SFMono-Medium",
-            fontSize: 13.0,
-            textColour: OSColor(red: 0.87, green: 0.87, blue: 0.88, alpha: 1.0),
-            commentColour: OSColor(red: 0.51, green: 0.55, blue: 0.59, alpha: 1.0),
-            stringColour: OSColor(red: 0.94, green: 0.53, blue: 0.46, alpha: 1.0),
-            characterColour: OSColor(red: 0.84, green: 0.79, blue: 0.53, alpha: 1.0),
-            numberColour: OSColor(red: 0.84, green: 0.79, blue: 0.53, alpha: 1.0),
-            identifierColour: OSColor(red: 0.89, green: 0.89, blue: 0.89, alpha: 1.0),
-            operatorColour:  OSColor(red: 0.89, green: 0.89, blue: 0.89, alpha: 1.0),
-            keywordColour: OSColor(red: 0.94, green: 0.51, blue: 0.69, alpha: 1.0),
-            symbolColour: OSColor(red: 0.66, green: 0.80, blue: 0.98, alpha: 1.0),
-            typeColour: OSColor(red: 0.74, green: 0.67, blue: 0.95, alpha: 1.0),
-            fieldColour: OSColor(red: 0.55, green: 0.82, blue: 0.78, alpha: 1.0),
-            caseColour: OSColor(red: 0.96, green: 0.71, blue: 0.47, alpha: 1.0),
-            backgroundColour: OSColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 1.0),
-            currentLineColour: OSColor(red: 0.19, green: 0.20, blue: 0.22, alpha: 1.0),
-            selectionColour: OSColor(red: 0.40, green: 0.44, blue: 0.51, alpha: 1.0),
-            cursorColour: OSColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 1.0),
-            invisiblesColour: OSColor(red: 0.33, green: 0.37, blue: 0.42, alpha: 1.0))
-    
- 
+    public static var vDark: Theme {
+        var theme = Theme.defaultDark
+        theme.fontName = "SFMono-Medium"
+        theme.fontSize = 11.0
+        return theme
+    }
 }
