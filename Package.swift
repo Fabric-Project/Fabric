@@ -27,6 +27,7 @@ let package = Package(
         .package(url: "https://github.com/bradhowes/swift-math-parser", from: "3.5.0"),
         .package(url: "https://github.com/orchetect/OSCKit", from: "2.1.1"),
         .package(url: "https://github.com/orchetect/MIDIKit", from: "0.10.7"),
+        .package(url: "https://github.com/mchakravarty/CodeEditorView.git", from: "0.7.0"),
     ],
     targets: [
         // C++ support for SuperShapeGenerator
@@ -72,6 +73,8 @@ let package = Package(
                 .product(name: "MathParser", package: "swift-math-parser"),
                 .product(name: "OSCKit", package: "OSCKit"),
                 .product(name: "MIDIKit", package: "MIDIKit"),
+                .product(name: "CodeEditorView", package: "CodeEditorView"),
+                .product(name: "LanguageSupport", package: "CodeEditorView"),
                 .target(name: "Syphon", condition: .when(platforms: [.macOS])),
             ],
             path: "Fabric",

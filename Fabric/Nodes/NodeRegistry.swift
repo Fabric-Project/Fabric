@@ -112,6 +112,7 @@ public class NodeRegistry {
         ])
         #endif
         classes.append(contentsOf: [
+            LiveEffectNode.self,
             GaussianBlurNode.self,
             MotionBlurNode.self,
             ZoomBlurNode.self,

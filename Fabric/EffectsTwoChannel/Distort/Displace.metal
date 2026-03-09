@@ -23,7 +23,7 @@ fragment half4 postFragment( VertexData in [[stage_in]],
 {
     half4 displacement = SAMPLER_FNC( renderTex2, in.texcoord );
 
-    half4 color = SAMPLER_FNC( renderTex, mix(in.texcoord, float2(displacement.xy), float2(uniforms.amount) ) );
+    half4 color = SAMPLER_FNC( renderTex, mix(in.texcoord, in.texcoord + float2(displacement.xy), float2(uniforms.amount) ) );
 
     return color;
 }
