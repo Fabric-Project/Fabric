@@ -103,6 +103,10 @@ extension UTType
     public var portDescription: String = ""
 
     public var published: Bool = false
+
+    /// Optional user-facing name for this port when published.
+    /// When set, consumers (e.g. SubgraphNode) should display this instead of `name`.
+    public var publishedName: String?
     
     // Kind of lame, but necessary to avoid some type based bullshit.
     // TODO: Figure out a way to hide setting this (seems not good)
@@ -148,6 +152,7 @@ extension UTType
         case kind
         case direction
         case published
+        case publishedName
         case portDescription
     }
 
@@ -159,6 +164,7 @@ extension UTType
         self.name = try container.decode(String.self, forKey: .name)
         self.kind = try container.decode(PortKind.self, forKey: .kind)
         self.published = try container.decodeIfPresent(Bool.self, forKey: .published) ?? false
+        self.publishedName = try container.decodeIfPresent(String.self, forKey: .publishedName)
         self.portDescription = try container.decodeIfPresent(String.self, forKey: .portDescription) ?? ""
         self.color = .clear
         self.backgroundColor = .clear
@@ -172,7 +178,11 @@ extension UTType
         try container.encode(kind, forKey: .kind)
         try container.encode(published, forKey: .published)
 
-        // Only encode if non-empty to save space
+        // Only encode if non-empty/non-nil to save space
+        if let publishedName
+        {
+            try container.encode(publishedName, forKey: .publishedName)
+        }
         if !portDescription.isEmpty
         {
             try container.encode(portDescription, forKey: .portDescription)
