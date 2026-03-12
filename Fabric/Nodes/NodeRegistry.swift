@@ -257,6 +257,7 @@ public class NodeRegistry {
         
         // String
         StringNode.self,
+        StringComparisonNode.self,
         TextFileLoaderNode.self,
         StringJoinNode.self,
         StringComponentNode.self,
