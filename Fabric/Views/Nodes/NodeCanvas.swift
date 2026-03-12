@@ -59,6 +59,8 @@ public struct NodeCanvas : View
     @State private var portPositions: [UUID: CGPoint] = [:]
 
     @State private var renamingNodeID: UUID? = nil // node being renamed
+    @State private var renamingPort: Port? = nil
+    @State private var portRenameText: String = ""
 
     // Stable list of nodes with settings open - only mutated on explicit open/close
     // NOT derived from graph.nodes, so port changes don't cause re-evaluation
@@ -202,6 +204,27 @@ public struct NodeCanvas : View
 //                           .animation(.easeInOut(duration: 0.5), value: self.activityMonitor.isActive)
             
         } // Pan Canvas
+        .alert("Rename Published Port", isPresented: Binding(
+            get: { renamingPort != nil },
+            set: { if !$0 { renamingPort = nil } }
+        )) {
+            TextField("Published name", text: $portRenameText)
+            Button("OK") {
+                guard let port = renamingPort else { return }
+                let trimmed = portRenameText.trimmingCharacters(in: .whitespacesAndNewlines)
+                port.publishedName = trimmed.isEmpty ? nil : trimmed
+                renamingPort = nil
+            }
+            Button("Clear", role: .destructive) {
+                renamingPort?.publishedName = nil
+                renamingPort = nil
+            }
+            Button("Cancel", role: .cancel) {
+                renamingPort = nil
+            }
+        } message: {
+            Text("Enter a custom name for this published port, or clear to use the default.")
+        }
     }
     
     private func calcDragChanged(forValue value:DragGesture.Value, activeGraph graph:Graph, currentNode:Node)
@@ -444,36 +467,48 @@ public struct NodeCanvas : View
             Menu("Input Ports") {
                 let inputPorts = currentNode.ports.filter { $0.kind == .Inlet }
                 ForEach(inputPorts, id:\.id) { port in
-                    
-                    Button
-                    {
-                        port.published = !port.published
-                        
-                        // Hacky!
-                        graph.rebuildPublishedParameterGroup()
-                        
-                    } label: {
-                        Text( port.published ?  "Unpublish Port: \(port.name)" : "Publish Port: \(port.name)" )
+                    Menu(port.publishedName ?? port.name) {
+                        Button {
+                            port.published = !port.published
+                            if !port.published { port.publishedName = nil }
+                            graph.rebuildPublishedParameterGroup()
+                        } label: {
+                            Text(port.published ? "Unpublish" : "Publish")
+                        }
+
+                        if port.published {
+                            Button {
+                                portRenameText = port.publishedName ?? port.name
+                                renamingPort = port
+                            } label: {
+                                Text("Rename…")
+                            }
+                        }
                     }
                 }
             }
-            
+
             Menu("Output Ports") {
                 let outputPorts = currentNode.ports.filter { $0.kind == .Outlet }
-                
                 ForEach(outputPorts, id:\.id) { port in
-                    
-                    Button {
-                        
-                        port.published = !port.published
-                        
-                        // Hacky!
-                        graph.rebuildPublishedParameterGroup()
-                        
-                    } label: {
-                        Text( port.published ?  "Unpublish Port: \(port.name)" : "Publish Port: \(port.name)" )
+                    Menu(port.publishedName ?? port.name) {
+                        Button {
+                            port.published = !port.published
+                            if !port.published { port.publishedName = nil }
+                            graph.rebuildPublishedParameterGroup()
+                        } label: {
+                            Text(port.published ? "Unpublish" : "Publish")
+                        }
+
+                        if port.published {
+                            Button {
+                                portRenameText = port.publishedName ?? port.name
+                                renamingPort = port
+                            } label: {
+                                Text("Rename…")
+                            }
+                        }
                     }
-                    
                 }
             }
         

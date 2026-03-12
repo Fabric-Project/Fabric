@@ -18,7 +18,7 @@ struct NodeOutletView: View
     {
         HStack
         {
-            Text(self.port.name)
+            Text(self.port.publishedName ?? self.port.name)
                 .foregroundStyle(Color.secondary)
                 .font(.system(size: 9))
                 .lineLimit(1)
