@@ -77,6 +77,11 @@ import Combine
     public var ports:[Port] { self.registry.all()   }
     public private(set) var inputNodes:[Node] = []
     public private(set) var outputNodes:[Node]  = []
+
+    /// Input nodes the graph renderer should evaluate this frame.
+    /// Override to implement conditional execution (e.g. switch/router nodes
+    /// that only pull the selected branch). Default returns all inputNodes.
+    open func activeInputNodes() -> [Node] { inputNodes }
     
     public var isSelected:Bool = false
     public var isDragging:Bool = false
