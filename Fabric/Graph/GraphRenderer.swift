@@ -349,8 +349,8 @@ public class GraphRenderer : MetalViewRenderer
         // Do this before we hit recursive process graph
         graphFeedbackCache.setProcessingState(.processing, forNode: node, executionContext: executionContext)
         
-        // get the connection for
-        let inputNodes = node.inputNodes
+        // get the connection for — respect per-node active filtering (e.g. switch nodes)
+        let inputNodes = node.activeInputNodes()
                
         for inputNode in inputNodes
         {
