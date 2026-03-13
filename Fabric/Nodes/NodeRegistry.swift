@@ -173,6 +173,8 @@ public class NodeRegistry {
         DeferredSubgraphNode.self,
         IteratorNode.self,
         IteratorInfoNode.self,
+        StateSubgraphNode.self,
+        StateInfoNode.self,
         EnvironmentNode.self,
     ]
     

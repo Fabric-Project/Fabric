@@ -479,7 +479,7 @@ public class GraphRenderer : MetalViewRenderer
     private func currentGraphExecutionContext() -> GraphExecutionContext
     {
         let currentRenderTime = Date.timeIntervalSinceReferenceDate
-        
+
         // TODO: This becomes more semantically correct later
         let timing = GraphExecutionTiming(time: currentRenderTime,
                                           deltaTime: currentRenderTime - self.lastGraphExecutionTime,
