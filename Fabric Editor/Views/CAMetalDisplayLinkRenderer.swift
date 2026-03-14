@@ -15,6 +15,7 @@ class CAMetalDisplayLinkRenderer: GameView
 {
     let graphRenderer:GraphRenderer
     let graph:Graph
+    private var lastRenderTime: CFTimeInterval = 0
 
 //    private let commandQueue: (any MTLCommandQueue)
     private let renderPassDescriptor = MTLRenderPassDescriptor()
@@ -121,9 +122,15 @@ class CAMetalDisplayLinkRenderer: GameView
         self.renderPassDescriptor.renderTargetWidth = update.drawable.texture.width
         self.renderPassDescriptor.renderTargetHeight = update.drawable.texture.height
         
-        // TODO: This becomes more semantically correct later
-        let timing = GraphExecutionTiming(time: CACurrentMediaTime(),
-                                          deltaTime: deltaTime,
+        // CAMetalDisplayLink passes a negative deltaTime (time until target
+        // presentation). We need a positive elapsed-since-last-frame value, so
+        // compute our own from consecutive CACurrentMediaTime() calls.
+        let now = CACurrentMediaTime()
+        let frameDelta = self.lastRenderTime > 0 ? now - self.lastRenderTime : 1.0 / 60.0
+        self.lastRenderTime = now
+
+        let timing = GraphExecutionTiming(time: now,
+                                          deltaTime: frameDelta,
                                           displayTime: update.targetPresentationTimestamp,
                                           systemTime: Date.timeIntervalSinceReferenceDate,
                                           frameNumber: self.graphRenderer.frameIndex)
