@@ -238,6 +238,7 @@ public class NodeRegistry {
         NumberRoundNode.self,
         NumberClampNode.self,
         NumberEaseNode.self,
+        NumberTweenNode.self,
         NumberRemapNode.self,
         NumberIntegralNode.self,
         NumberSmoothNode.self,
