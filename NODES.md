@@ -23,7 +23,7 @@ A list of Nodes (planned and implemented) for Fabric.
 
 - [ ] Line
 - [x] Plane
-- [ ] Billboard
+- [ ] Image Mesh
 - [x] Point Plane (Temp until #15 is fixed)
 - [x] Rounded Rect
 - [x] Triangle

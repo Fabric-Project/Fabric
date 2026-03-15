@@ -1,5 +1,5 @@
 //
-//  BillboardNode.swift
+//  ImageMeshNode.swift
 //  Fabric
 //
 //  Created by Toby Harris + Claude Opus 4.6 on 3/1/26.
@@ -10,9 +10,9 @@ import Satin
 import simd
 import Metal
 
-class BillboardNode: BaseRenderableNode<Mesh>
+class ImageMeshNode: BaseRenderableNode<Mesh>
 {
-    override public class var name: String { "Billboard" }
+    override public class var name: String { "Image Mesh" }
     override public class var nodeType: Node.NodeType { .Object(objectType: .Mesh) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Consumer }
     override public class var nodeTimeMode: Node.TimeMode { .None }
@@ -22,8 +22,8 @@ class BillboardNode: BaseRenderableNode<Mesh>
         let ports = super.registerPorts(context: context)
 
         return [
-            ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Image to display on the billboard")),
-            ("inputSize", ParameterPort(parameter: FloatParameter("Size", 1.0, .inputfield, "Size of the billboard in world units"))),
+            ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Image to display on the image mesh")),
+            ("inputSize", ParameterPort(parameter: FloatParameter("Size", 1.0, .inputfield, "Size of the image mesh in world units"))),
             ("inputSizingDimension", ParameterPort(parameter: StringParameter("Sizing Dimension", "Width", ["Width", "Height"], .dropdown, "Which dimension the Size parameter controls"))),
         ] + ports
     }
