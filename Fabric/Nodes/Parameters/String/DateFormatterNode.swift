@@ -12,21 +12,21 @@ public class DateFormatterNode: Node {
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .String) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Format a time value in seconds as a date String" }
+    override public class var nodeDescription: String { "Format a Unix timestamp as a date String" }
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
 
         return ports + [
-            ("inputSeconds", NodePort<Float>(name: "Seconds", kind: .Inlet, description: "Time value in seconds (e.g. seconds since midnight from Clock Time)")),
-            ("inputFormat", ParameterPort(parameter: StringParameter("Format", "HH:mm:ss", .inputfield, "Date format pattern (e.g. HH:mm:ss)"))),
+            ("inputTimestamp", NodePort<Float>(name: "Timestamp", kind: .Inlet, description: "Unix timestamp (seconds since 1970-01-01, e.g. from Clock Time)")),
+            ("inputFormat", ParameterPort(parameter: StringParameter("Format", "yyyy-MM-dd HH:mm:ss", .inputfield, "Date format pattern (e.g. yyyy-MM-dd HH:mm:ss)"))),
             ("outputPort", NodePort<String>(name: "String", kind: .Outlet, description: "Formatted date string")),
         ]
     }
 
     // Port proxies
-    public var inputSeconds: NodePort<Float> { port(named: "inputSeconds") }
+    public var inputTimestamp: NodePort<Float> { port(named: "inputTimestamp") }
     public var inputFormat: ParameterPort<String> { port(named: "inputFormat") }
     public var outputPort: NodePort<String> { port(named: "outputPort") }
 
@@ -40,9 +40,9 @@ public class DateFormatterNode: Node {
             formatter.dateFormat = format
         }
 
-        if inputSeconds.valueDidChange || inputFormat.valueDidChange,
-           let seconds = inputSeconds.value {
-            let date = Calendar.current.startOfDay(for: Date()).addingTimeInterval(TimeInterval(seconds))
+        if inputTimestamp.valueDidChange || inputFormat.valueDidChange,
+           let timestamp = inputTimestamp.value {
+            let date = Date(timeIntervalSince1970: TimeInterval(timestamp))
             outputPort.send(formatter.string(from: date))
         }
     }
