@@ -12,21 +12,21 @@ public class DateFormatterNode: Node {
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .String) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Format a Date as a String using a date format pattern" }
+    override public class var nodeDescription: String { "Format a time value in seconds as a date String" }
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
 
         return ports + [
-            ("inputDate", NodePort<Date>(name: "Date", kind: .Inlet, description: "Input date to format")),
-            ("inputFormat", ParameterPort(parameter: StringParameter("Format", "yyyy-MM-dd HH:mm:ss", .inputfield, "Date format pattern (e.g. yyyy-MM-dd)"))),
+            ("inputSeconds", NodePort<Float>(name: "Seconds", kind: .Inlet, description: "Time value in seconds (e.g. seconds since midnight from Clock Time)")),
+            ("inputFormat", ParameterPort(parameter: StringParameter("Format", "HH:mm:ss", .inputfield, "Date format pattern (e.g. HH:mm:ss)"))),
             ("outputPort", NodePort<String>(name: "String", kind: .Outlet, description: "Formatted date string")),
         ]
     }
 
     // Port proxies
-    public var inputDate: NodePort<Date> { port(named: "inputDate") }
+    public var inputSeconds: NodePort<Float> { port(named: "inputSeconds") }
     public var inputFormat: ParameterPort<String> { port(named: "inputFormat") }
     public var outputPort: NodePort<String> { port(named: "outputPort") }
 
@@ -40,8 +40,9 @@ public class DateFormatterNode: Node {
             formatter.dateFormat = format
         }
 
-        if inputDate.valueDidChange || inputFormat.valueDidChange,
-           let date = inputDate.value {
+        if inputSeconds.valueDidChange || inputFormat.valueDidChange,
+           let seconds = inputSeconds.value {
+            let date = Calendar.current.startOfDay(for: Date()).addingTimeInterval(TimeInterval(seconds))
             outputPort.send(formatter.string(from: date))
         }
     }
