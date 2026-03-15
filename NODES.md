@@ -337,19 +337,19 @@ Have yet to work on Color nodes, ideally all color spaces / images are linear / 
 - [x] String Components
 - [x] String Length
 - [x] String Range
-- [ ] String Case
-- [ ] String Formatter
+- [x] String Case
+- [x] String Formatter
 - [x] String Join
 - [x] String Wrap
 - [x] String Remove Whitespace
 - [x] String Difference
-- [ ] String Separator
-- [ ] String Compare
+- [x] String Separator
+- [x] String Compare
 - [x] Convert to String ( type convert )
-- [ ] Date Formatter
-- [ ] Current Date
-- [ ] Directory Scanner
-- [ ] String to Timecode Format
+- [x] Date Formatter
+- [x] Current Date
+- [x] Directory Scanner
+- [x] String to Timecode Format
 
 ### Array
 
