@@ -21,11 +21,14 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
 
-        return [
+        let visible = ports.filter { $0.name == "inputVisible" }
+        let rest = ports.filter { $0.name != "inputVisible" }
+
+        return visible + [
             ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Image to display on the image mesh")),
             ("inputSize", ParameterPort(parameter: FloatParameter("Size", 1.0, .inputfield, "Size of the image mesh in world units"))),
             ("inputSizingDimension", ParameterPort(parameter: StringParameter("Sizing Dimension", "Width", ["Width", "Height"], .dropdown, "Which dimension the Size parameter controls"))),
-        ] + ports
+        ] + rest
     }
 
     // Port accessors
