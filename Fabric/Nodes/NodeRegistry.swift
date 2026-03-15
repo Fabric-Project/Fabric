@@ -245,6 +245,7 @@ public class NodeRegistry {
         MathExpressionNode.self,
         GradientNoiseNode.self,
         AudioSpectrumNode.self,
+        ColorTweenNode.self,
         ArrayFirstValueNode<Float>.self,
         ArrayLastValueNode<Float>.self,
         ArrayIndexValueNode<Float>.self,
