@@ -24,12 +24,13 @@ public class OrthographicCameraNode : ObjectNode<OrthographicCamera>
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+        let ports = super.registerPorts(context: context).filter { $0.name != "inputPosition" }
 
         return  [
                     ("inputLookAt", ParameterPort(parameter:Float3Parameter("Look At", simd_float3(repeating:0), .inputfield, "Target position the camera points toward")) ),
                     ("inputSize", ParameterPort(parameter:FloatParameter("Size", 2.0, 0.001, 10000.0, .inputfield, "Visible world units along the sizing dimension")) ),
                     ("inputSizingDimension", ParameterPort(parameter:StringParameter("Sizing Dimension", "Width", ["Width", "Height"], .dropdown, "Which dimension the size applies to")) ),
+                    ("inputPosition", ParameterPort(parameter:Float3Parameter("Position", defaultPosition, .inputfield, "Position in 3D space (X, Y, Z) in world units")) ),
                 ] + ports
     }
 
@@ -49,8 +50,6 @@ public class OrthographicCameraNode : ObjectNode<OrthographicCamera>
     override public func startExecution(context:GraphExecutionContext)
     {
         super.startExecution(context: context)
-
-        self.inputPosition.value = Self.defaultPosition
 
         self.camera.lookAt(target: self.inputLookAt.value ?? .zero)
         self.camera.position = self.inputPosition.value ?? Self.defaultPosition

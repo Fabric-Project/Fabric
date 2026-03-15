@@ -42,12 +42,13 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+        let ports = super.registerPorts(context: context).filter { $0.name != "inputPosition" }
 
         return  [
                     ("inputLookAt", ParameterPort(parameter:Float3Parameter("Look At", simd_float3(repeating:0), .inputfield, "Target position the camera points toward")) ),
                     ("inputFOV", ParameterPort(parameter:FloatParameter("FOV", 30.0, 1.0, 179.0, .inputfield, "Field of view in degrees")) ),
                     ("inputSizingDimension", ParameterPort(parameter:StringParameter("Sizing Dimension", "Width", ["Width", "Height"], .dropdown, "Which dimension the FOV applies to")) ),
+                    ("inputPosition", ParameterPort(parameter:Float3Parameter("Position", defaultPosition, .inputfield, "Position in 3D space (X, Y, Z) in world units")) ),
                 ] + ports
     }
 
@@ -67,8 +68,6 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
     override public func startExecution(context:GraphExecutionContext)
     {
         super.startExecution(context: context)
-
-        self.inputPosition.value = Self.defaultPosition
 
         self.camera.lookAt(target: self.inputLookAt.value ?? .zero)
         self.camera.position = self.inputPosition.value ?? Self.defaultPosition
