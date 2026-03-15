@@ -113,7 +113,6 @@ public class NodeRegistry {
         #endif
         classes.append(contentsOf: [
             LiveImageNode.self,
-            LUTSDFShapeGeneratorNode.self,
             GaussianBlurNode.self,
             MotionBlurNode.self,
             ZoomBlurNode.self,
