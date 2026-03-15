@@ -9,7 +9,7 @@ public final class MotionBlurNode: BaseMultiPassBlurEffectNode {
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Directional blur with progressive downsample passes." }
 
-    override class var sourceShaderName: String { "MotionBlurShader" }
+    override public class var sourceShaderName: String { "MotionBlurShader" }
 
     private struct MotionPassUniforms {
         var amountScale: Float
@@ -47,7 +47,7 @@ public final class MotionBlurNode: BaseMultiPassBlurEffectNode {
 //            return
 //        }
 
-        guard let inputTexture = self.inputTexturePort.value?.texture else {
+        guard let inputTexture = self.validatedSingleInputTexture() else {
             self.outputTexturePort.send(nil)
             return
         }

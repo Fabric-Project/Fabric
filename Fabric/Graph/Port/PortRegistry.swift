@@ -53,6 +53,29 @@ final class PortRegistry
         if let i = ordered.firstIndex(where: { $0.id == p.id }) { self.ordered.remove(at: i) }
         self.byName[p.name] = nil
     }
+
+    func reorder(_ reordered: [Port])
+    {
+        guard reordered.count == self.ordered.count else { return }
+
+        let oldIDs = Set(self.ordered.map(\.id))
+        let newIDs = Set(reordered.map(\.id))
+        guard oldIDs == newIDs else { return }
+
+        let namesByID: [UUID: String] = Dictionary(uniqueKeysWithValues: self.byName.map { (key, value) in
+            (value.id, key)
+        })
+
+        self.ordered = reordered
+        self.byName.removeAll(keepingCapacity: true)
+        self.byID.removeAll(keepingCapacity: true)
+
+        for port in self.ordered {
+            let name = namesByID[port.id] ?? port.name
+            self.byName[name] = port
+            self.byID[port.id] = port
+        }
+    }
     
     func port(named name: String) -> Port? { self.byName[name] }
     func all() -> [Port] { self.ordered }

@@ -156,29 +156,16 @@ internal import AnyCodable
 
                     self.addNode(node)
                 }
+                else if anyCodableMap.type == "BaseImageNode"
+                {
+                    let jsonData = try encoder.encode(anyCodableMap.value)
+                    decoder.context = decodeContext
+                    
+                    let node = try decoder.decode(BaseImageNode.self, from: jsonData)
+                    self.addNode(node)
+                }
                 
-                // This is stupid? Yes, BaseEffectNode should be designed to cover the cases... but this works, today.
-                else if anyCodableMap.type == String(describing: type(of: BaseEffectThreeChannelNode.self)).replacing(".Type", with:"")
-                {
-                    let jsonData = try encoder.encode(anyCodableMap.value)
-                    decoder.context = decodeContext
-                    
-                    let node = try decoder.decode(BaseEffectThreeChannelNode.self, from: jsonData)
-
-                    self.addNode(node)
-                }
-                // This is stupid?
-                else if anyCodableMap.type == String(describing: type(of: BaseEffectTwoChannelNode.self)).replacing(".Type", with:"")
-                {
-                    let jsonData = try encoder.encode(anyCodableMap.value)
-                    decoder.context = decodeContext
-                    
-                    let node = try decoder.decode(BaseEffectTwoChannelNode.self, from: jsonData)
-
-                    self.addNode(node)
-                }
-                // This is stupid?
-                else if anyCodableMap.type == String(describing: type(of: BaseEffectNode.self)).replacing(".Type", with:"")
+                else if anyCodableMap.type == "LiveEffectNode"
                 {
                     let encoder = JSONEncoder()
                     let jsonData = try encoder.encode(anyCodableMap.value)
@@ -186,13 +173,30 @@ internal import AnyCodable
                     let decoder = JSONDecoder()
                     decoder.context = decodeContext
                     
-                    let node = try decoder.decode(BaseEffectNode.self, from: jsonData)
+                    let node = try decoder.decode(LiveImageNode.self, from: jsonData)
+                    self.addNode(node)
+                }
+                
+                // MARK: - Deprecated Node Types -> BaseImageNode
+                else if anyCodableMap.type == "BaseEffectThreeChannelNode"
+                {
+                    let jsonData = try encoder.encode(anyCodableMap.value)
+                    decoder.context = decodeContext
+                    
+                    let node = try decoder.decode(BaseImageNode.self, from: jsonData)
 
                     self.addNode(node)
                 }
+                else if anyCodableMap.type == "BaseEffectTwoChannelNode"
+                {
+                    let jsonData = try encoder.encode(anyCodableMap.value)
+                    decoder.context = decodeContext
+                    
+                    let node = try decoder.decode(BaseImageNode.self, from: jsonData)
 
-                // This is stupid?
-                else if anyCodableMap.type == String(describing: type(of: BaseGeneratorNode.self)).replacing(".Type", with:"")
+                    self.addNode(node)
+                }
+                else if anyCodableMap.type == "BaseEffectNode"
                 {
                     let encoder = JSONEncoder()
                     let jsonData = try encoder.encode(anyCodableMap.value)
@@ -200,14 +204,27 @@ internal import AnyCodable
                     let decoder = JSONDecoder()
                     decoder.context = decodeContext
                     
-                    let node = try decoder.decode(BaseGeneratorNode.self, from: jsonData)
+                    let node = try decoder.decode(BaseImageNode.self, from: jsonData)
 
                     self.addNode(node)
                 }
+
+                else if anyCodableMap.type == "BaseGeneratorNode"
+                {
+                    let encoder = JSONEncoder()
+                    let jsonData = try encoder.encode(anyCodableMap.value)
+                    
+                    let decoder = JSONDecoder()
+                    decoder.context = decodeContext
+                    
+                    let node = try decoder.decode(BaseImageNode.self, from: jsonData)
+
+                    self.addNode(node)
+                }
+               
                 else
                 {
                     print("Failed to find nodeClass for \(anyCodableMap.type)")
-
                 }
             }
             catch
@@ -735,21 +752,29 @@ internal import AnyCodable
             {
                 return try decoder.decode(nodeClass, from: jsonData)
             }
-            else if map.type == String(describing: type(of: BaseEffectThreeChannelNode.self)).replacing(".Type", with:"")
+            else if map.type == String(describing: type(of: BaseImageNode.self)).replacing(".Type", with:"")
             {
-                return try decoder.decode(BaseEffectThreeChannelNode.self, from: jsonData)
+                return try decoder.decode(BaseImageNode.self, from: jsonData)
             }
-            else if map.type == String(describing: type(of: BaseEffectTwoChannelNode.self)).replacing(".Type", with:"")
+            else if map.type == "BaseEffectThreeChannelNode"
             {
-                return try decoder.decode(BaseEffectTwoChannelNode.self, from: jsonData)
+                return try decoder.decode(BaseImageNode.self, from: jsonData)
             }
-            else if map.type == String(describing: type(of: BaseEffectNode.self)).replacing(".Type", with:"")
+            else if map.type == "BaseEffectTwoChannelNode"
             {
-                return try decoder.decode(BaseEffectNode.self, from: jsonData)
+                return try decoder.decode(BaseImageNode.self, from: jsonData)
             }
-            else if map.type == String(describing: type(of: BaseGeneratorNode.self)).replacing(".Type", with:"")
+            else if map.type == "BaseEffectNode"
             {
-                return try decoder.decode(BaseGeneratorNode.self, from: jsonData)
+                return try decoder.decode(BaseImageNode.self, from: jsonData)
+            }
+            else if map.type == "BaseGeneratorNode"
+            {
+                return try decoder.decode(BaseImageNode.self, from: jsonData)
+            }
+            else if map.type == "LiveEffectNode"
+            {
+                return try decoder.decode(LiveImageNode.self, from: jsonData)
             }
             else
             {

@@ -20,6 +20,15 @@
       }
     },
     {
+      "identity" : "codeeditorview",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mchakravarty/CodeEditorView.git",
+      "state" : {
+        "revision" : "aba6c189bb2f6fd9d7b8e9f5739aeb3c8c7e3254",
+        "version" : "0.15.4"
+      }
+    },
+    {
       "identity" : "midikit",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/orchetect/MIDIKit",
@@ -53,6 +62,15 @@
       "state" : {
         "revision" : "3855c3f08ea34dc3040423e35dd3437d507ba71c",
         "version" : "2.1.1"
+      }
+    },
+    {
+      "identity" : "rearrange",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ChimeHQ/Rearrange.git",
+      "state" : {
+        "revision" : "5ff7f3363f7a08f77e0d761e38e6add31c2136e1",
+        "version" : "1.8.1"
       }
     },
     {

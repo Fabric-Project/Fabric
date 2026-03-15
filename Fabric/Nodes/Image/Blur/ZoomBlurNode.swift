@@ -9,7 +9,7 @@ public final class ZoomBlurNode: BaseMultiPassBlurEffectNode {
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Radial blur centered around a controllable origin." }
 
-    override class var sourceShaderName: String { "ZoomBlurShader" }
+    override public class var sourceShaderName: String { "ZoomBlurShader" }
 
     private struct ZoomPassUniforms {
         var amountScale: Float
@@ -47,7 +47,7 @@ public final class ZoomBlurNode: BaseMultiPassBlurEffectNode {
 //            return
 //        }
 
-        guard let inputTexture = self.inputTexturePort.value?.texture else {
+        guard let inputTexture = self.validatedSingleInputTexture() else {
             self.outputTexturePort.send(nil)
             return
         }

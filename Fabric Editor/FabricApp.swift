@@ -78,6 +78,11 @@ struct AboutCommands: Commands {
 struct DocumentCommands:Commands
 {
     @FocusedBinding(\.document) var document: FabricDocument?
+    @FocusedBinding(\.editorInputFocus) var editorInputFocus: FabricEditorInputFocus?
+
+    private var isCanvasFocused: Bool {
+        self.editorInputFocus == .canvas
+    }
 
     var body: some Commands {
 
@@ -89,19 +94,31 @@ struct DocumentCommands:Commands
 
             Button("Copy")
             {
-                guard let graph else { return }
-                let selected = graph.nodes.filter { $0.isSelected }
-                graph.copyNodesToPasteboard(selected)
+                if self.isCanvasFocused {
+                    guard let graph else { return }
+                    let selected = graph.nodes.filter { $0.isSelected }
+                    graph.copyNodesToPasteboard(selected)
+                }
+                else
+                {
+                    NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
+                }
             }
             .keyboardShortcut("c", modifiers: .command)
-            .disabled(!hasSelection)
+            .disabled(self.isCanvasFocused ? !hasSelection : false)
 
             Button("Paste")
             {
-                graph?.pasteNodesFromPasteboard()
+                if self.isCanvasFocused {
+                    graph?.pasteNodesFromPasteboard()
+                }
+                else
+                {
+                    NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
+                }
             }
             .keyboardShortcut("v", modifiers: .command)
-            .disabled(!hasPasteData)
+            .disabled(self.isCanvasFocused ? !hasPasteData : false)
 
             Button("Duplicate")
             {
@@ -110,19 +127,24 @@ struct DocumentCommands:Commands
                 graph.duplicateNodes(selected)
             }
             .keyboardShortcut("d", modifiers: .command)
-            .disabled(!hasSelection)
+            .disabled(self.isCanvasFocused ? !hasSelection : true)
         }
         
         CommandGroup(after: .pasteboard)
         {
             Button("Select All Nodes")
             {
-                let graph = self.document?.graph.activeSubGraph ?? self.document?.graph
-                graph?.selectAllNodes()
-                print("Select All")
+                if self.isCanvasFocused {
+                    let graph = self.document?.graph.activeSubGraph ?? self.document?.graph
+                    graph?.selectAllNodes()
+                }
+                else
+                {
+                    NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
+                }
             }
             .keyboardShortcut(KeyEquivalent("a"), modifiers: .command)
-            .disabled( self.document?.graph.nodes.isEmpty ?? true)
+            .disabled(self.isCanvasFocused ? (self.document?.graph.nodes.isEmpty ?? true) : false)
         }
     }
 }
@@ -130,6 +152,10 @@ struct DocumentCommands:Commands
 
 struct DocumentFocusedValueKey: FocusedValueKey {
   typealias Value = Binding<FabricDocument>
+}
+
+struct EditorInputFocusValueKey: FocusedValueKey {
+    typealias Value = Binding<FabricEditorInputFocus>
 }
 
 extension FocusedValues
@@ -143,7 +169,16 @@ extension FocusedValues
             self[DocumentFocusedValueKey.self] = newValue
         }
     }
-}
 
+    var editorInputFocus: EditorInputFocusValueKey.Value?
+    {
+        get {
+            self[EditorInputFocusValueKey.self]
+        }
+        set {
+            self[EditorInputFocusValueKey.self] = newValue
+        }
+    }
+}
 
 

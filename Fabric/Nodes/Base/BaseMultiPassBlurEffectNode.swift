@@ -3,8 +3,9 @@ import Metal
 import Satin
 import simd
 
-public class BaseMultiPassBlurEffectNode: BaseEffectNode
+public class BaseMultiPassBlurEffectNode: BaseImageNode
 {
+    override public class var defaultImageInputCountHint: Int? { 1 }
     static let maxBlur:Float = 50.0
     
     public struct MultiPassStep
@@ -24,11 +25,26 @@ public class BaseMultiPassBlurEffectNode: BaseEffectNode
     }
 
     public static let lowAmountThreshold: Float = 0.0
+    @ObservationIgnored private var hasLoggedInputCountMismatch = false
 
 
     public func floatParameterValue(named name: String, default defaultValue: Float = 0.0) -> Float
     {
         self.postMaterial.parameters.get(name, as: FloatParameter.self)?.value ?? defaultValue
+    }
+
+    public func validatedSingleInputTexture() -> MTLTexture? {
+        let inputs = self.imageInputPorts()
+        if inputs.count != 1 {
+            if self.hasLoggedInputCountMismatch == false {
+                print("\\(self.name) expected exactly 1 input image, but got \\(inputs.count).")
+                self.hasLoggedInputCountMismatch = true
+            }
+            return nil
+        }
+
+        self.hasLoggedInputCountMismatch = false
+        return inputs[0].value?.texture
     }
 
     public func scaledPassSize(baseWidth: Int, baseHeight: Int, amount: Float, passRatio: Float) -> (width: Int, height: Int)

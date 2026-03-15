@@ -15,10 +15,11 @@ import Metal
 import MetalFX
 import Satin
 
-final class MetalFXSpatialUpsample2xNode: BaseEffectNode
+final class MetalFXSpatialUpsample2xNode: BaseImageNode
 {
     override class var name: String { "Upsample" }
     override class var nodeType: Node.NodeType { .Image(imageType: .Analysis) } // fits Image Processing bucket :contentReference[oaicite:4]{index=4}
+    override class var defaultImageInputCountHint: Int? { 1 }
 
     // MetalFX state
     private var spatialScaler: MTLFXSpatialScaler?
@@ -33,11 +34,11 @@ final class MetalFXSpatialUpsample2xNode: BaseEffectNode
                           renderPassDescriptor: MTLRenderPassDescriptor,
                           commandBuffer: MTLCommandBuffer)
     {
-        guard self.inputTexturePort.valueDidChange || isDirty else {
+        guard self.imageInputPorts().first?.valueDidChange == true || isDirty else {
             return
         }
 
-        guard let inTex = self.inputTexturePort.value?.texture else {
+        guard let inTex = self.inputImageTexture(at: 0) else {
             return
         }
 

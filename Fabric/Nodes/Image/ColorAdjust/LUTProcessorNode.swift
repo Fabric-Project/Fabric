@@ -11,7 +11,7 @@ import simd
 import Metal
 import MetalKit
 
-public class LUTProcessorNode : BaseEffectNode
+public class LUTProcessorNode : BaseImageNode
 {
     public override class var name:String { "Color LUT Correction" }
     public override class var nodeType:Node.NodeType { Node.NodeType.Image(imageType: .ColorAdjust) }
@@ -20,7 +20,8 @@ public class LUTProcessorNode : BaseEffectNode
     override public class var nodeDescription: String { "Load an cube LUT from disk, processing an Image's color"}
     
     // Auto load our LUT shader
-    class override var sourceShaderName:String { "LUTShader" }
+    public override class var sourceShaderName:String { "LUTShader" }
+    public override class var defaultImageInputCountHint: Int? { 1 }
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
@@ -72,9 +73,9 @@ public class LUTProcessorNode : BaseEffectNode
             self.loadLUTFromInputValue()
         }
 
-        if self.inputTexturePort.valueDidChange
+        if self.imageInputPorts().first?.valueDidChange == true
         {
-            if let inTex = self.inputTexturePort.value?.texture,
+            if let inTex = self.inputImageTexture(at: 0),
                let inTex2 = self.texture,
                let outImage = context.graphRenderer?.newImage(withWidth: inTex.width, height: inTex.height)
             {

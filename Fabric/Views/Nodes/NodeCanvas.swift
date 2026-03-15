@@ -41,10 +41,12 @@ private struct NodeSettingsPopoverAnchor: View
 public struct NodeCanvas : View
 {
     let graph:Graph
+    @Binding var inputFocus: FabricEditorInputFocus
     
-    public init(graph:Graph)
+    public init(graph:Graph, inputFocus: Binding<FabricEditorInputFocus>)
     {
         self.graph = graph
+        self._inputFocus = inputFocus
     }
     
 //    @State var activityMonitor = NodeCanvasUserActivityMonitor()
@@ -97,6 +99,7 @@ public struct NodeCanvas : View
                             TapGesture(count: 1)
                                 .modifiers(.shift)
                                 .onEnded {
+                                    self.inputFocus = .canvas
                                     // Expand selection
                                     currentNode.isSelected.toggle()
                                 },
@@ -118,6 +121,7 @@ public struct NodeCanvas : View
                                     
                                     TapGesture(count: 1)
                                         .onEnded {
+                                            self.inputFocus = .canvas
                                             // Replace selection
                                             graph.deselectAllNodes()
                                             currentNode.isSelected.toggle()
@@ -125,6 +129,7 @@ public struct NodeCanvas : View
                                     TapGesture(count: 2)
                                         .onEnded
                                     {
+                                        self.inputFocus = .canvas
                                         if let subgraph = currentNode as? SubgraphNode
                                         {
                                             self.graph.activeSubGraph = subgraph.subGraph
@@ -173,6 +178,7 @@ public struct NodeCanvas : View
             }
 #if os(macOS)
             .onDeleteCommand {
+                guard self.inputFocus == .canvas else { return }
 
                 let graph = self.graph.activeSubGraph ?? self.graph
 
@@ -181,6 +187,7 @@ public struct NodeCanvas : View
             }
 #endif
             .onTapGesture {
+                self.inputFocus = .canvas
                 let graph = self.graph.activeSubGraph ?? self.graph
 
                 graph.deselectAllNodes()
@@ -195,6 +202,8 @@ public struct NodeCanvas : View
     
     private func calcDragChanged(forValue value:DragGesture.Value, activeGraph graph:Graph, currentNode:Node)
     {
+        self.inputFocus = .canvas
+
         // If this drag just began, capture snapshots
         if self.activeDragAnchor == nil
         {
@@ -227,6 +236,7 @@ public struct NodeCanvas : View
     
     private func handleKeyPress(keyPress:KeyPress) -> KeyPress.Result
     {
+        guard self.inputFocus == .canvas else { return .ignored }
         if renamingNodeID != nil { return .ignored }
 
 #if os(macOS)
@@ -551,6 +561,8 @@ public struct NodeCanvas : View
     {
         if show && currentNode.providesSettingsView()
         {
+            self.inputFocus = .nodeSettings
+
             // Snapshot node into stable list
             if !settingsEntries.contains(where: { $0.id == currentNode.id })
             {
@@ -567,6 +579,10 @@ public struct NodeCanvas : View
         {
             // Remove from stable list when showSettings becomes false
             settingsEntries.removeAll { $0.id == currentNode.id }
+            if settingsEntries.isEmpty
+            {
+                self.inputFocus = .canvas
+            }
         }
 
     }
