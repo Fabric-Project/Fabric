@@ -26,7 +26,7 @@ public class GraphRenderer : MetalViewRenderer
 
     // This is fucking horrible:
     public private(set) var currentCamera:Camera? = nil
-    private let defaultCamera = PerspectiveCamera()
+    private let defaultCamera = PerspectiveCameraNode.makeDefaultCamera()
     private let sceneProxy = Object() // ?  IBLScene()
     
     private var graphRequiresResize:Bool = false
@@ -49,9 +49,7 @@ public class GraphRenderer : MetalViewRenderer
         self.renderer = Renderer(context: context, stencilStoreAction: .store, frameBufferOnly:false)
 
         self.renderer.sortObjects = true
-        
-        self.defaultCamera.position = simd_float3(0, 0, 2)
-        self.defaultCamera.lookAt(target: .zero)
+
         self.privateTextureCache = GraphRendererTextureCache(device: self.context.device)
         
         var sharedConfig = GraphRendererTextureCache.Configuration()
@@ -454,13 +452,11 @@ public class GraphRenderer : MetalViewRenderer
     
     /// Handle output drawable resize.
     ///
-    /// Updates the internal renderer size, flags the graph for resize (so every node
-    /// receives the new dimensions), and sets the default camera's aspect ratio.
-    /// Individual camera nodes are responsible for their own projection setup —
-    /// see `PerspectiveCameraNode` and `OrthographicCameraNode`, which have
-    /// sizing-dimension and FOV inputs that control how viewport changes map to
-    /// the visible scene. The default expectation is width = 2 world units, as
-    /// per Quartz Composer convention.
+    /// Updates the internal renderer size, flags the graph for resize (so every
+    /// node receives the new dimensions), and updates the default camera via
+    /// ``PerspectiveCameraNode/resizeDefaultCamera(_:size:)``.
+    /// The default expectation is width = 2 world units, as per Quartz
+    /// Composer convention.
     override public func resize(size: (width: Float, height: Float), scaleFactor: Float)
     {
         self.renderer.resize(size)
@@ -468,7 +464,7 @@ public class GraphRenderer : MetalViewRenderer
         self.graphRequiresResize = true
         self.resizeScaleFactor = scaleFactor
 
-        self.defaultCamera.aspect = size.width / size.height
+        PerspectiveCameraNode.resizeDefaultCamera(self.defaultCamera, size: size)
     }
     
     private func feedbackCache(for graphID: UUID) -> GraphRendererFeedbackCache
