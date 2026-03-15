@@ -19,16 +19,20 @@ public class ClockTimeNode: Node {
         let ports = super.registerPorts(context: context)
 
         return ports + [
-            ("outputNumber", NodePort<Float>(name: NumberNode.name, kind: .Outlet, description: "Unix timestamp (seconds since 1970-01-01)")),
+            ("outputSeconds", NodePort<Int>(name: "Seconds", kind: .Outlet, description: "Unix timestamp whole seconds since 1970-01-01")),
+            ("outputFraction", NodePort<Float>(name: "Fraction", kind: .Outlet, description: "Fractional second (0.0 to 1.0)")),
         ]
     }
 
     // Port proxies
-    public var outputNumber: NodePort<Float> { port(named: "outputNumber") }
+    public var outputSeconds: NodePort<Int> { port(named: "outputSeconds") }
+    public var outputFraction: NodePort<Float> { port(named: "outputFraction") }
 
     public override func execute(context: GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer) {
-        outputNumber.send(Float(Date().timeIntervalSince1970))
+        let timestamp = Date().timeIntervalSince1970
+        outputSeconds.send(Int(timestamp))
+        outputFraction.send(Float(timestamp - timestamp.rounded(.down)))
     }
 }

@@ -19,14 +19,14 @@ public class DateFormatterNode: Node {
         let ports = super.registerPorts(context: context)
 
         return ports + [
-            ("inputTimestamp", NodePort<Float>(name: "Timestamp", kind: .Inlet, description: "Unix timestamp (seconds since 1970-01-01, e.g. from Clock Time)")),
+            ("inputSeconds", NodePort<Int>(name: "Seconds", kind: .Inlet, description: "Unix timestamp whole seconds (e.g. from Clock Time)")),
             ("inputFormat", ParameterPort(parameter: StringParameter("Format", "yyyy-MM-dd HH:mm:ss", .inputfield, "Date format pattern (e.g. yyyy-MM-dd HH:mm:ss)"))),
             ("outputPort", NodePort<String>(name: "String", kind: .Outlet, description: "Formatted date string")),
         ]
     }
 
     // Port proxies
-    public var inputTimestamp: NodePort<Float> { port(named: "inputTimestamp") }
+    public var inputSeconds: NodePort<Int> { port(named: "inputSeconds") }
     public var inputFormat: ParameterPort<String> { port(named: "inputFormat") }
     public var outputPort: NodePort<String> { port(named: "outputPort") }
 
@@ -40,9 +40,9 @@ public class DateFormatterNode: Node {
             formatter.dateFormat = format
         }
 
-        if inputTimestamp.valueDidChange || inputFormat.valueDidChange,
-           let timestamp = inputTimestamp.value {
-            let date = Date(timeIntervalSince1970: TimeInterval(timestamp))
+        if inputSeconds.valueDidChange || inputFormat.valueDidChange,
+           let seconds = inputSeconds.value {
+            let date = Date(timeIntervalSince1970: TimeInterval(seconds))
             outputPort.send(formatter.string(from: date))
         }
     }
