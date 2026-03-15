@@ -16,6 +16,7 @@ import LanguageSupport
     var selectedExecutionMode: Node.ExecutionMode
     var selectedTimeMode: Node.TimeMode
     var messages: Set<TextLocated<Message>> = []
+    let languageService: JavaScriptLanguageService
 
     private weak var node: JavaScriptNode?
     private var saveTimer: Timer?
@@ -26,6 +27,7 @@ import LanguageSupport
         self.content = node.scriptSource
         self.selectedExecutionMode = node.selectedExecutionMode
         self.selectedTimeMode = node.selectedTimeMode
+        self.languageService = JavaScriptLanguageService()
         self.refreshMessages()
     }
 
@@ -104,7 +106,7 @@ struct JavaScriptNodeSettingsView: View
             CodeEditor(text: self.$editorModel.content,
                        position: self.$position,
                        messages: self.$editorModel.messages,
-                       language: .none)
+                       language: .javaScriptLanguage(self.editorModel.languageService))
             .environment(\.codeEditorTheme, Theme.vDark)
             .environment(\.codeEditorLayoutConfiguration, .init(showMinimap: false, wrapText: true))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
