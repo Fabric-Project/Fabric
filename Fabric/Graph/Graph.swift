@@ -378,11 +378,11 @@ internal import AnyCodable
         )
     }
 
-    // MARK: - Insert Value Node
+    // MARK: - Insert Parameter Node
 
-    /// Returns the value-provider node class for a given port type,
-    /// or nil if no matching value node exists.
-    public static func valueNodeClass(for portType: PortType) -> Node.Type?
+    /// Returns the parameter node class for a given port type,
+    /// or nil if no matching parameter node exists.
+    public static func parameterNodeClass(for portType: PortType) -> Node.Type?
     {
         switch portType
         {
@@ -399,85 +399,85 @@ internal import AnyCodable
         }
     }
 
-    /// Insert a value node adjacent to the given port.
+    /// Insert a parameter node adjacent to the given port.
     ///
-    /// For an **inlet**: the value node is placed upstream. Existing upstream connections
-    /// move to the value node's input; the value node's outlet connects to the original inlet.
+    /// For an **inlet**: the parameter node is placed upstream. Existing upstream connections
+    /// move to the parameter node's input; the parameter node's outlet connects to the original inlet.
     ///
-    /// For an **outlet**: the value node is placed downstream. Existing downstream connections
-    /// move to the value node's outlet; the original outlet connects to the value node's input.
+    /// For an **outlet**: the parameter node is placed downstream. Existing downstream connections
+    /// move to the parameter node's outlet; the original outlet connects to the parameter node's input.
     ///
-    /// Published state and name transfer to the corresponding port on the value node.
-    public func insertValueNode(for port: Port)
+    /// Published state and name transfer to the corresponding port on the parameter node.
+    public func insertParameterNode(for port: Port)
     {
         guard let sourceNode = port.node,
-              let nodeClass = Self.valueNodeClass(for: port.portType)
+              let nodeClass = Self.parameterNodeClass(for: port.portType)
         else { return }
 
-        let valueNode = nodeClass.init(context: self.context)
+        let paramNode = nodeClass.init(context: self.context)
 
-        let valueOutlet = valueNode.ports.first(where: { $0.kind == .Outlet })
-        let valueInlet  = valueNode.ports.first(where: { $0.kind == .Inlet })
+        let paramOutlet = paramNode.ports.first(where: { $0.kind == .Outlet })
+        let paramInlet  = paramNode.ports.first(where: { $0.kind == .Inlet })
 
         switch port.kind
         {
         case .Inlet:
-            guard let valueOutlet else { return }
+            guard let paramOutlet else { return }
 
-            Self.positionNodeToLeft(of: sourceNode, node: valueNode)
+            Self.positionNodeToLeft(of: sourceNode, node: paramNode)
 
             let existingConnections = Array(port.connections)
 
-            // Transfer published state to the value node's input (or outlet if no input)
+            // Transfer published state to the parameter node's input (or outlet if no input)
             if port.published
             {
                 let savedName = port.publishedName
                 port.published = false
                 port.publishedName = nil
 
-                let publishTarget = valueInlet ?? valueOutlet
+                let publishTarget = paramInlet ?? paramOutlet
                 publishTarget.published = true
                 publishTarget.publishedName = savedName
             }
 
-            // Move existing upstream connections to the value node's input
+            // Move existing upstream connections to the parameter node's input
             for connection in existingConnections { connection.disconnect(from: port) }
-            if let valueInlet
+            if let paramInlet
             {
-                for connection in existingConnections { connection.connect(to: valueInlet) }
+                for connection in existingConnections { connection.connect(to: paramInlet) }
             }
 
-            self.addNode(valueNode)
-            valueOutlet.connect(to: port)
+            self.addNode(paramNode)
+            paramOutlet.connect(to: port)
 
         case .Outlet:
-            guard let valueInlet else { return }
+            guard let paramInlet else { return }
 
-            Self.positionNodeToRight(of: sourceNode, node: valueNode)
+            Self.positionNodeToRight(of: sourceNode, node: paramNode)
 
             let existingConnections = Array(port.connections)
 
-            // Transfer published state to the value node's outlet (or input if no outlet)
+            // Transfer published state to the parameter node's outlet (or input if no outlet)
             if port.published
             {
                 let savedName = port.publishedName
                 port.published = false
                 port.publishedName = nil
 
-                let publishTarget = valueOutlet ?? valueInlet
+                let publishTarget = paramOutlet ?? paramInlet
                 publishTarget.published = true
                 publishTarget.publishedName = savedName
             }
 
-            // Move existing downstream connections to the value node's outlet
+            // Move existing downstream connections to the parameter node's outlet
             for connection in existingConnections { port.disconnect(from: connection) }
-            if let valueOutlet
+            if let paramOutlet
             {
-                for connection in existingConnections { valueOutlet.connect(to: connection) }
+                for connection in existingConnections { paramOutlet.connect(to: connection) }
             }
 
-            self.addNode(valueNode)
-            port.connect(to: valueInlet)
+            self.addNode(paramNode)
+            port.connect(to: paramInlet)
         }
 
         self.rebuildPublishedParameterGroup()
