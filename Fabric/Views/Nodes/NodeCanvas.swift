@@ -468,11 +468,11 @@ public struct NodeCanvas : View
                 let inputPorts = currentNode.ports.filter { $0.kind == .Inlet }
                 ForEach(inputPorts, id:\.id) { port in
                     Menu(port.publishedName ?? port.name) {
-                        if Graph.valueNodeClass(for: port.portType) != nil {
+                        if Graph.parameterNodeClass(for: port.portType) != nil {
                             Button {
-                                graph.insertValueNode(for: port)
+                                graph.insertParameterNode(for: port)
                             } label: {
-                                Text("Insert Value Node")
+                                Text("Insert Parameter Node")
                             }
                         }
 
@@ -500,11 +500,11 @@ public struct NodeCanvas : View
                 let outputPorts = currentNode.ports.filter { $0.kind == .Outlet }
                 ForEach(outputPorts, id:\.id) { port in
                     Menu(port.publishedName ?? port.name) {
-                        if Graph.valueNodeClass(for: port.portType) != nil {
+                        if Graph.parameterNodeClass(for: port.portType) != nil {
                             Button {
-                                graph.insertValueNode(for: port)
+                                graph.insertParameterNode(for: port)
                             } label: {
-                                Text("Insert Value Node")
+                                Text("Insert Parameter Node")
                             }
                         }
 
