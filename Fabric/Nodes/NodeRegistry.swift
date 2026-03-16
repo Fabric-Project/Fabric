@@ -357,6 +357,7 @@ public class NodeRegistry {
             UnitsoPixelsNode.self,
 
             SignalNode.self,
+            SwitchNode.self,
 
             SampleAndHoldNode<Bool>.self,
             SampleAndHoldNode<Float>.self,
