@@ -47,7 +47,15 @@ public struct NodeSelectionInspector: View
         }
         .listStyle(.sidebar)
         .id(graph.shouldUpdateConnections)
-        
+
+    }
+
+    private static func fileContentTypes(for node: Node) -> [UTType]
+    {
+        if let dropTarget = type(of: node) as? any NodeFileDropTarget.Type {
+            return dropTarget.supportedContentTypes
+        }
+        return [.data]
     }
 }
 

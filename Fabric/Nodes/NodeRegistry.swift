@@ -6,6 +6,7 @@
 //
 import simd
 import Foundation
+import UniformTypeIdentifiers
 
 public class NodeRegistry {
     
@@ -14,6 +15,32 @@ public class NodeRegistry {
     
     public func nodeClass(for nodeName: String) -> (Node.Type)? {
         return self.nodesClassLookup[nodeName]
+    }
+
+    /// Returns the first drop-target node class whose `supportedContentTypes`
+    /// conforms to the given UTType. More specific types (e.g. .jpeg) are
+    /// checked via `UTType.conforms(to:)`, so dropping a JPEG will match
+    /// `ImageProviderNode` whose list includes `.image`.
+    public func dropTargetNodeClass(for contentType: UTType) -> (any NodeFileDropTarget.Type)? {
+        for nodeClass in self.nodesClasses {
+            if let dropTarget = nodeClass as? any NodeFileDropTarget.Type {
+                if dropTarget.supportedContentTypes.contains(where: { contentType.conforms(to: $0) }) {
+                    return dropTarget
+                }
+            }
+        }
+        return nil
+    }
+
+    /// All UTTypes accepted by drop-target nodes, for use with drop destination handlers.
+    public var allSupportedDropTypes: [UTType] {
+        var types: [UTType] = []
+        for nodeClass in self.nodesClasses {
+            if let dropTarget = nodeClass as? any NodeFileDropTarget.Type {
+                types.append(contentsOf: dropTarget.supportedContentTypes)
+            }
+        }
+        return types
     }
     
     public lazy private(set) var availableNodes:[NodeClassWrapper] = {

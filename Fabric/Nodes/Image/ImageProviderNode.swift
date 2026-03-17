@@ -10,9 +10,18 @@ import Satin
 import simd
 import Metal
 import MetalKit
+import UniformTypeIdentifiers
 
-public class ImageProviderNode : Node
+public class ImageProviderNode : Node, NodeFileDropTarget
 {
+    public static var supportedContentTypes: [UTType] {
+        [.image, .jpeg, .tiff, .heic, .heif, .png, .bmp, .gif, .webP]
+    }
+
+    public func setFileURL(_ url: URL) {
+        self.inputFilePathParam.value = url.standardizedFileURL.absoluteString
+    }
+
     public override class var name:String { "Image Provider" }
     public override class var nodeType:Node.NodeType { Node.NodeType.Image(imageType: .Loader) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
@@ -53,14 +62,14 @@ public class ImageProviderNode : Node
         {
             fatalError("Required Decode Context Not set")
         }
-        
+
         self.textureLoader = MTKTextureLoader(device: decodeContext.documentContext.device)
 
         try super.init(from:decoder)
-        
+
         self.loadTextureFromInputValue()
     }
-    
+
     override public func execute(context:GraphExecutionContext,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)

@@ -10,9 +10,18 @@ import Satin
 import simd
 import Metal
 import MetalKit
+import UniformTypeIdentifiers
 
-public class TextFileLoaderNode : Node
+public class TextFileLoaderNode : Node, NodeFileDropTarget
 {
+    public static var supportedContentTypes: [UTType] {
+        [.plainText, .json, .xml, .yaml, .sourceCode]
+    }
+
+    public func setFileURL(_ url: URL) {
+        self.inputFilePathParam.value = url.standardizedFileURL.absoluteString
+    }
+
     override public static var name:String { "Text File Loader" }
     override public static var nodeType:Node.NodeType { .Parameter(parameterType: .String) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
@@ -36,8 +45,7 @@ public class TextFileLoaderNode : Node
 
     private var url:URL? = nil
     private var string: String? = nil
-    
-    
+
     override public func execute(context:GraphExecutionContext,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)

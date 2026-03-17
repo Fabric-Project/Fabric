@@ -80,7 +80,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         self.cachedImageInputPorts.count
     }
 
-    required init(context: Context, fileURL: URL) throws {
+    public required init(context: Context, fileURL: URL) throws {
         self.url = fileURL
 
         let material = PostMaterial(pipelineURL: fileURL)

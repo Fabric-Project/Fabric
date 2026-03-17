@@ -10,6 +10,7 @@ import Satin
 import simd
 import Metal
 import AVFoundation
+import UniformTypeIdentifiers
 #if os(macOS)
 import VideoToolbox
 import MediaToolbox
@@ -28,8 +29,16 @@ private let MovieProviderNodeInitializer: Void = {
 
 }()
 
-public class MovieProviderNode : Node
+public class MovieProviderNode : Node, NodeFileDropTarget
 {
+    public static var supportedContentTypes: [UTType] {
+        [.quickTimeMovie, .video, .mpeg4Movie, .avi, .movie]
+    }
+
+    public func setFileURL(_ url: URL) {
+        self.inputFilePathParam.value = url.standardizedFileURL.absoluteString
+    }
+
     override public class var name:String { "Movie Provider" }
     override public class var nodeType:Node.NodeType { Node.NodeType.Image(imageType: .Loader) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
@@ -82,10 +91,10 @@ public class MovieProviderNode : Node
 
         self.playerItemVideoOutput = AVPlayerItemVideoOutput(outputSettings: Self.playerOutputSettings() )
         self.playerItemVideoOutput.suppressesPlayerRendering = true
-        
+
         try super.init(from:decoder)
     }
-    
+
     override public func execute(context:GraphExecutionContext,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
