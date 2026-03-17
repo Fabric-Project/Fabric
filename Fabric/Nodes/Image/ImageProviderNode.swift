@@ -10,12 +10,13 @@ import Satin
 import simd
 import Metal
 import MetalKit
+import ImageIO
 import UniformTypeIdentifiers
 
 public class ImageProviderNode : Node, NodeFileDropTarget
 {
     public static var supportedContentTypes: [UTType] {
-        [.image, .jpeg, .tiff, .heic, .heif, .png, .bmp, .gif, .webP]
+        (CGImageSourceCopyTypeIdentifiers() as! [String]).compactMap { UTType($0) }
     }
 
     public func setFileURL(_ url: URL) {

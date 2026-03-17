@@ -32,7 +32,9 @@ private let MovieProviderNodeInitializer: Void = {
 public class MovieProviderNode : Node, NodeFileDropTarget
 {
     public static var supportedContentTypes: [UTType] {
-        [.quickTimeMovie, .video, .mpeg4Movie, .avi, .movie]
+        AVURLAsset.audiovisualTypes()
+            .compactMap { UTType($0.rawValue) }
+            .filter { $0.conforms(to: .movie) || $0.conforms(to: .video) }
     }
 
     public func setFileURL(_ url: URL) {
