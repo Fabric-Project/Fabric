@@ -340,6 +340,7 @@ Have yet to work on Color nodes, ideally all color spaces / images are linear / 
 - [x] String Range
 - [x] String Case
 - [x] String Formatter
+- [x] String Scanner
 - [x] String Join
 - [x] String Wrap
 - [x] String Remove Whitespace

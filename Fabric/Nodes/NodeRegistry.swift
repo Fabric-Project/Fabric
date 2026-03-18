@@ -269,6 +269,7 @@ public class NodeRegistry {
         StringDifferenceNode.self,
         StringCaseNode.self,
         StringFormatterNode.self,
+        StringScannerNode.self,
         StringSeparatorNode.self,
         DateFormatterNode.self,
         DirectoryScannerNode.self,
