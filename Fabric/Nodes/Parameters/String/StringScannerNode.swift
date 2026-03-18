@@ -15,7 +15,7 @@ struct StringScannerSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading) {
-            Text("Use `{name}` for String, `{name:s}` String, `{name:d}` Int, `{name:b}` Bool, `{name:f}` Float.\n\nExample: `Frame {n:d} at {t:f}s`\n\nThe format string is converted to a regex that captures values from the input string.")
+            Text("Use `{name}` for String, `{name:s}` String, `{name:d}` or `{name:i}` Int, `{name:b}` Bool, `{name:f}` Float.\n\nExample: `Frame {n:d} at {t:f}s`\n\nThe format string is converted to a regex that captures values from the input string.")
 
             Spacer()
 

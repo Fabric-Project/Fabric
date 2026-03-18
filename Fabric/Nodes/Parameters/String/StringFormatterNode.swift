@@ -20,7 +20,7 @@ struct FormatPlaceholder: Equatable {
         guard let spec = formatSpecifier else { return .String }
         let trimmed = spec.trimmingCharacters(in: .whitespaces)
         if trimmed == "b" { return .Bool }
-        if trimmed == "d" { return .Int }
+        if trimmed == "d" || trimmed == "i" { return .Int }
         if trimmed == "s" { return .String }
         // Anything containing 'f', 'e', 'g' (printf float specifiers) → Float
         let lastChar = trimmed.last
@@ -33,7 +33,7 @@ struct FormatPlaceholder: Equatable {
         guard let spec = formatSpecifier else { return nil }
         let trimmed = spec.trimmingCharacters(in: .whitespaces)
         if trimmed == "s" || trimmed == "b" { return nil }
-        if trimmed == "d" { return "%d" }
+        if trimmed == "d" || trimmed == "i" { return "%d" }
         let lastChar = trimmed.last
         if lastChar == "f" || lastChar == "e" || lastChar == "g" {
             return "%\(trimmed)"
@@ -65,7 +65,7 @@ struct StringFormatSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading) {
-            Text("Use `{name}` for String, `{name:s}` String, `{name:d}` Int, `{name:b}` Bool, `{name:f}` or `{name:.2f}` Float.\n\nExample: `Position: {x:.2f}, {y:.2f}`")
+            Text("Use `{name}` for String, `{name:s}` String, `{name:d}` or `{name:i}` Int, `{name:b}` Bool, `{name:f}` or `{name:.2f}` Float.\n\nExample: `Position: {x:.2f}, {y:.2f}`")
 
             Spacer()
 
