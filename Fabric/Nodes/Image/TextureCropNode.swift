@@ -45,7 +45,7 @@ public class TextureCropNode: Node
         let w = max(1, min(inputCropWidth.value ?? 1920, srcTex.width - x))
         let h = max(1, min(inputCropHeight.value ?? 1080, srcTex.height - y))
 
-        guard let outImage = graphRenderer.newImage(withWidth: w, height: h) else { return }
+        guard let outImage = graphRenderer.newImage(withWidth: w, height: h, format: sourceImage.texture.pixelFormat) else { return }
 
         guard let encoder = commandBuffer.makeBlitCommandEncoder() else { return }
         encoder.copy(
