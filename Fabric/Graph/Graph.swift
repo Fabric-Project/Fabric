@@ -365,6 +365,134 @@ internal import AnyCodable
         //        self.autoConnect(node: node)
     }
     
+    // MARK: - Node Positioning
+
+    /// Default horizontal gap between nodes placed adjacently.
+    public static let nodeGap: CGFloat = 40
+
+    /// Position `node` to the left of `referenceNode`, separated by `gap`.
+    public static func positionNodeToLeft(of referenceNode: Node, node: Node, gap: CGFloat = nodeGap)
+    {
+        node.offset = CGSize(
+            width: referenceNode.offset.width - node.nodeSize.width - gap,
+            height: referenceNode.offset.height
+        )
+    }
+
+    /// Position `node` to the right of `referenceNode`, separated by `gap`.
+    public static func positionNodeToRight(of referenceNode: Node, node: Node, gap: CGFloat = nodeGap)
+    {
+        node.offset = CGSize(
+            width: referenceNode.offset.width + referenceNode.nodeSize.width + gap,
+            height: referenceNode.offset.height
+        )
+    }
+
+    // MARK: - Insert Value Node
+
+    /// Returns the value-provider node class for a given port type,
+    /// or nil if no matching value node exists.
+    public static func valueNodeClass(for portType: PortType) -> Node.Type?
+    {
+        switch portType
+        {
+        case .Float, .Int:  return NumberNode.self
+        case .Bool:         return TrueNode.self
+        case .String:       return StringNode.self
+        case .Vector2:      return MakeVector2Node.self
+        case .Vector3:      return MakeVector3Node.self
+        case .Vector4:      return MakeVector4Node.self
+        case .Color:        return MakeVector4Node.self
+        case .Quaternion:   return MakeQuaternionNode.self
+        case .Transform:    return IdentityTransformNode.self
+        default:            return nil
+        }
+    }
+
+    /// Insert a value node adjacent to the given port.
+    ///
+    /// For an **inlet**: the value node is placed upstream. Existing upstream connections
+    /// move to the value node's input; the value node's outlet connects to the original inlet.
+    ///
+    /// For an **outlet**: the value node is placed downstream. Existing downstream connections
+    /// move to the value node's outlet; the original outlet connects to the value node's input.
+    ///
+    /// Published state and name transfer to the corresponding port on the value node.
+    public func insertValueNode(for port: Port)
+    {
+        guard let sourceNode = port.node,
+              let nodeClass = Self.valueNodeClass(for: port.portType)
+        else { return }
+
+        let valueNode = nodeClass.init(context: self.context)
+
+        let valueOutlet = valueNode.ports.first(where: { $0.kind == .Outlet })
+        let valueInlet  = valueNode.ports.first(where: { $0.kind == .Inlet })
+
+        switch port.kind
+        {
+        case .Inlet:
+            guard let valueOutlet else { return }
+
+            Self.positionNodeToLeft(of: sourceNode, node: valueNode)
+
+            let existingConnections = Array(port.connections)
+
+            // Transfer published state to the value node's input (or outlet if no input)
+            if port.published
+            {
+                let savedName = port.publishedName
+                port.published = false
+                port.publishedName = nil
+
+                let publishTarget = valueInlet ?? valueOutlet
+                publishTarget.published = true
+                publishTarget.publishedName = savedName
+            }
+
+            // Move existing upstream connections to the value node's input
+            for connection in existingConnections { connection.disconnect(from: port) }
+            if let valueInlet
+            {
+                for connection in existingConnections { connection.connect(to: valueInlet) }
+            }
+
+            self.addNode(valueNode)
+            valueOutlet.connect(to: port)
+
+        case .Outlet:
+            guard let valueInlet else { return }
+
+            Self.positionNodeToRight(of: sourceNode, node: valueNode)
+
+            let existingConnections = Array(port.connections)
+
+            // Transfer published state to the value node's outlet (or input if no outlet)
+            if port.published
+            {
+                let savedName = port.publishedName
+                port.published = false
+                port.publishedName = nil
+
+                let publishTarget = valueOutlet ?? valueInlet
+                publishTarget.published = true
+                publishTarget.publishedName = savedName
+            }
+
+            // Move existing downstream connections to the value node's outlet
+            for connection in existingConnections { port.disconnect(from: connection) }
+            if let valueOutlet
+            {
+                for connection in existingConnections { valueOutlet.connect(to: connection) }
+            }
+
+            self.addNode(valueNode)
+            port.connect(to: valueInlet)
+        }
+
+        self.rebuildPublishedParameterGroup()
+    }
+
     private func calcInitialNodeOffset(for node:Node) -> CGSize
     {
        return  CGSize(width: self.currentScrollOffset.x  - node.nodeSize.width / 2.0,
