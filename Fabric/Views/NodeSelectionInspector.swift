@@ -54,7 +54,7 @@ public struct NodeSelectionInspector: View
 
     private static func fileContentTypes(for node: Node) -> [UTType]
     {
-        if let dropTarget = type(of: node) as? any NodeFileDropTarget.Type {
+        if let dropTarget = type(of: node) as? any NodeFileLoadingProtocol.Type {
             return dropTarget.supportedContentTypes
         }
         return [.data]

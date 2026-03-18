@@ -29,8 +29,9 @@ private let MovieProviderNodeInitializer: Void = {
 
 }()
 
-public class MovieProviderNode : Node, NodeFileDropTarget
+public class MovieProviderNode : Node, NodeFileLoadingProtocol
 {
+  
     public static var supportedContentTypes: [UTType] {
         AVURLAsset.audiovisualTypes()
             .compactMap { UTType($0.rawValue) }
@@ -78,6 +79,19 @@ public class MovieProviderNode : Node, NodeFileDropTarget
         self.playerItemVideoOutput.suppressesPlayerRendering = true
 
         super.init(context: context)
+    }
+    
+    public required init(context: Satin.Context, fileURL: URL) throws
+    {
+        // Forces the initialization when the class is accessed
+        _ = MovieProviderNodeInitializer
+        
+        self.playerItemVideoOutput = AVPlayerItemVideoOutput(outputSettings: Self.playerOutputSettings() )
+        self.playerItemVideoOutput.suppressesPlayerRendering = true
+
+        super.init(context: context)
+        
+        self.setFileURL(fileURL)
     }
     
     

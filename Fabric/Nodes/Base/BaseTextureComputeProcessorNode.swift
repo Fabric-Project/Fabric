@@ -8,9 +8,12 @@
 import Satin
 import Metal
 import simd
+import UniformTypeIdentifiers
 
 public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
 {
+    public static var supportedContentTypes: [UTType] { [] }
+    
     override public class var name: String { "Base Texture Compute" }
     override public class var nodeType: Node.NodeType { .Image(imageType: .BaseEffect) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
@@ -61,6 +64,11 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
     {
         try super.init(from: decoder)
     }
+    
+    public func setFileURL(_ url: URL) {
+        // no op
+    }
+    
     
     private func setupProcessor(context: Context)
     {

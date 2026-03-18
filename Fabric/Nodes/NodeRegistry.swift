@@ -12,7 +12,6 @@ public class NodeRegistry {
     
     public static let shared = NodeRegistry()
     
-    
     public func nodeClass(for nodeName: String) -> (Node.Type)? {
         return self.nodesClassLookup[nodeName]
     }
@@ -21,27 +20,24 @@ public class NodeRegistry {
     /// conforms to the given UTType. More specific types (e.g. .jpeg) are
     /// checked via `UTType.conforms(to:)`, so dropping a JPEG will match
     /// `ImageProviderNode` whose list includes `.image`.
-    public func dropTargetNodeClass(for contentType: UTType) -> (any NodeFileDropTarget.Type)? {
-        for nodeClass in self.nodesClasses {
-            if let dropTarget = nodeClass as? any NodeFileDropTarget.Type {
-                if dropTarget.supportedContentTypes.contains(where: { contentType.conforms(to: $0) }) {
-                    return dropTarget
-                }
+    public func dropTargetNodeClass(for contentType: UTType) -> (any NodeFileLoadingProtocol.Type)?
+    {
+        for dropNodeClass in self.nodeFileLoadingClasses
+        {
+            if dropNodeClass.supportedContentTypes.contains(where: { contentType.conforms(to: $0) } )
+            {
+                return dropNodeClass
             }
         }
         return nil
     }
-
+    
     /// All UTTypes accepted by drop-target nodes, for use with drop destination handlers.
-    public var allSupportedDropTypes: [UTType] {
-        var types: [UTType] = []
-        for nodeClass in self.nodesClasses {
-            if let dropTarget = nodeClass as? any NodeFileDropTarget.Type {
-                types.append(contentsOf: dropTarget.supportedContentTypes)
-            }
-        }
-        return types
-    }
+    public lazy private(set) var allSupportedDropTypes: [UTType] = {
+        let dropClasses = self.nodeFileLoadingClasses
+        return dropClasses.flatMap ( { $0.supportedContentTypes } )
+    }()
+    
     
     public lazy private(set) var availableNodes:[NodeClassWrapper] = {
         self.nodesClasses.map( { NodeClassWrapper(nodeClass: $0) } ) + self.dynamicEffectNodes
@@ -51,6 +47,10 @@ public class NodeRegistry {
         self.nodesClasses.reduce(into: [:]) { result, nodeClass in
             result[String(describing: nodeClass)] = nodeClass
         }
+    }()
+    
+    private lazy var nodeFileLoadingClasses: [(any NodeFileLoadingProtocol.Type)] =  {
+        self.nodesClasses.compactMap( { $0 as? any NodeFileLoadingProtocol.Type } )
     }()
     
     private var nodesClasses: [Node.Type] {

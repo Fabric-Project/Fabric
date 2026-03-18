@@ -613,23 +613,22 @@ public struct NodeCanvas : View
                 guard let data = data as? Data,
                       let url = URL(dataRepresentation: data, relativeTo: nil, isAbsolute: true)
                 else { return }
-
+                
                 guard let resourceValues = try? url.resourceValues(forKeys: [.contentTypeKey]),
                       let contentType = resourceValues.contentType,
                       let nodeClass = NodeRegistry.shared.dropTargetNodeClass(for: contentType)
                 else { return }
-
-                DispatchQueue.main.async {
-                    let node = nodeClass.init(context: graph.context)
-                    node.setFileURL(url)
-                    node.offset = CGSize(width: location.x - canvasSize.width / 2.0 - node.nodeSize.width / 2.0,
-                                         height: location.y - canvasSize.height / 2.0 - node.nodeSize.height / 2.0)
-                    graph.addNode(node)
-                }
+                
+                let node = nodeClass.init(context: graph.context)
+                node.setFileURL(url)
+                node.offset = CGSize(width: location.x - canvasSize.width / 2.0 - node.nodeSize.width / 2.0,
+                                     height: location.y - canvasSize.height / 2.0 - node.nodeSize.height / 2.0)
+                graph.addNode(node)
             }
+            
             handled = true
         }
-
+        
         return handled
     }
 

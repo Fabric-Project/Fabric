@@ -13,14 +13,10 @@ import MetalKit
 import ImageIO
 import UniformTypeIdentifiers
 
-public class ImageProviderNode : Node, NodeFileDropTarget
+public class ImageProviderNode : Node, NodeFileLoadingProtocol
 {
     public static var supportedContentTypes: [UTType] {
         (CGImageSourceCopyTypeIdentifiers() as! [String]).compactMap { UTType($0) }
-    }
-
-    public func setFileURL(_ url: URL) {
-        self.inputFilePathParam.value = url.standardizedFileURL.absoluteString
     }
 
     public override class var name:String { "Image Provider" }
@@ -47,12 +43,24 @@ public class ImageProviderNode : Node, NodeFileDropTarget
     @ObservationIgnored private var textureLoader:MTKTextureLoader
     @ObservationIgnored private var url: URL? = nil
     
+    public func setFileURL(_ url: URL) {
+        self.inputFilePathParam.value = url.standardizedFileURL.absoluteString
+    }
+    
     public required init(context:Context)
     {
         self.textureLoader = MTKTextureLoader(device: context.device)
 
         super.init(context: context)
   
+        self.loadTextureFromInputValue()
+    }
+    
+    public required init(context: Satin.Context, fileURL: URL) throws
+    {
+        self.textureLoader = MTKTextureLoader(device: context.device)
+        super.init(context: context)
+        self.setFileURL(fileURL)
         self.loadTextureFromInputValue()
     }
     

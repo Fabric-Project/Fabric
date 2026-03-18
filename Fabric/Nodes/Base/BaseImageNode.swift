@@ -3,9 +3,12 @@ import Metal
 import MetalKit
 import Satin
 import simd
+import UniformTypeIdentifiers
 
 public class BaseImageNode: Node, NodeFileLoadingProtocol
 {
+    public static var supportedContentTypes: [UTType] { [] }
+    
     override public class var name: String { "Base Image" }
     override public class var nodeType: Node.NodeType { .Image(imageType: .BaseEffect) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
@@ -122,6 +125,10 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
         self.postSetupSynchronizePorts(allowReplace: false,
                                        preserveExistingImageInputPorts: Self.preserveDecodedImageInputPortsOnDecode)
+    }
+    
+    public func setFileURL(_ url: URL) {
+        // no op in Base Image Node
     }
 
     required init(from decoder: any Decoder) throws {
