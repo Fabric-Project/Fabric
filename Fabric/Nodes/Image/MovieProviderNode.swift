@@ -33,8 +33,13 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
 {
   
     public static var supportedContentTypes: [UTType] {
-        AVURLAsset.audiovisualTypes()
-            .compactMap { UTType($0.rawValue) }
+        if #available(iOS 26.0, macOS 26.0, *)
+        {
+            return AVURLAsset.audiovisualContentTypes.filter { $0.conforms(to: .movie) || $0.conforms(to: .video) }
+        }
+        
+        return AVURLAsset.audiovisualMIMETypes()
+            .compactMap { UTType(mimeType: $0) }
             .filter { $0.conforms(to: .movie) || $0.conforms(to: .video) }
     }
 
