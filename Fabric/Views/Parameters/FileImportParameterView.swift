@@ -1,10 +1,9 @@
 //
-//  FileGridView.swift
-//  v
+//  FileImportParameterView.swift
+//  Fabric
 //
 //  Created by Anton Marini on 7/13/24.
 //
-
 
 import SwiftUI
 import Satin
@@ -15,108 +14,95 @@ struct FileImportParameterView: View, Equatable
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.vm === rhs.vm }
 
     @Bindable var vm: ParameterObservableModel<String>
-    @Bindable var optionsVm: ParameterObservableModel<[String]>
+    let allowedContentTypes: [UTType]
 
     @State private var isImporting: Bool = false
-    @State private var selectedOption: String? = nil
-    
-    init(parameter: StringParameter)
+    @State private var isDropTargeted: Bool = false
+
+    init(parameter: StringParameter, allowedContentTypes: [UTType] = [.data])
     {
         self.vm = ParameterObservableModel(label: parameter.label,
                                            get: { parameter.value },
                                            set: { parameter.value = $0 },
                                            publisher: parameter.valuePublisher )
-        
-        self.optionsVm = ParameterObservableModel(label: parameter.label,
-                                           get: { parameter.options },
-                                           set: { parameter.options = $0 },
-                                           publisher: parameter.optionsPublisher )
+        self.allowedContentTypes = allowedContentTypes
     }
-    
+
+    private var displayFilename: String {
+        guard let urlString = vm.uiValue as String?,
+              !urlString.isEmpty,
+              let url = URL(string: urlString)
+        else { return "No file selected" }
+        return url.lastPathComponent
+    }
+
     var body: some View
     {
-        VStack {
-            
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
+        VStack(alignment: .leading, spacing: 4)
+        {
+            // Row 1: label (left) + filename (right)
+            HStack
             {
-                InputFieldLabelView(label: self.vm.label)
-                
+                Text(self.vm.label)
+                    .font(.system(size: CGFloat(ParameterConfig.labelFont), weight: .bold))
+                    .lineLimit(1)
+
                 Spacer()
+
+                Text(displayFilename)
+                    .font(.system(size: CGFloat(ParameterConfig.controlFont)))
+                    .foregroundStyle(vm.uiValue.isEmpty ? .secondary : .primary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             }
 
-            Menu
+            // Row 2: editable path (drop target) + browse button
+            HStack(spacing: 6)
             {
-                ForEach(self.optionsVm.uiValue, id: \.self) { option in
-                    Button {
-                        selectedOption = option
-                        vm.uiValue = option
-                        print("Selected Option \(option)")
-                    } label: {
-                        // TODO: This could be nicer
-                        Text(option.components(separatedBy: "/").last ?? "")
+                TextField("Drop file here\u{2026}", text: $vm.uiValue)
+                    .font(.system(size: CGFloat(ParameterConfig.controlFont), design: .monospaced))
+                    .textFieldStyle(.plain)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(isDropTargeted ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.05))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .strokeBorder(isDropTargeted ? Color.accentColor : Color.clear, lineWidth: 1)
+                    )
+                    .dropDestination(for: URL.self) { urls, _ in
+                        guard let url = urls.first else { return false }
+                        vm.uiValue = url.standardizedFileURL.absoluteString
+                        return true
+                    } isTargeted: { targeted in
+                        isDropTargeted = targeted
                     }
-                    Divider()
-                }
-            } label: {
-                Text( vm.uiValue )
-            }
-            .menuStyle(.button)
-            
-            HStack(spacing: ParameterConfig.horizontalStackSpacing)
-            {
-                Spacer()
-                
-                Button(action: {
+
+                Button {
                     isImporting = true
-                }, label: {
-                    Text("Select Files")
-                })
-                .fileImporter(isPresented: $isImporting,
-                              allowedContentTypes: self.allowedContentTypes(),
-                              allowsMultipleSelection: true,
-                              onCompletion: { result in
-                    
-                    switch result {
-                    case .success(let urls):
-                        self.optionsVm.uiValue = urls.map( { $0.standardizedFileURL.absoluteString } )
-                        self.vm.uiValue = self.optionsVm.uiValue.first ?? ""
-                        //                    self.thumbnailModels = urls.map({ FileAndThumbnailModel(fileURL: $0, selected: false) } )
-                    case .failure(let error):
-                        print(error)
-                    }
-                })
+                } label: {
+                    Image(systemName: "folder")
+                        .symbolRenderingMode(.monochrome)
+                }
+                .buttonStyle(.borderless)
+                .tint(.primary)
+                .help("Browse\u{2026}")
             }
         }
+        .fileImporter(isPresented: $isImporting,
+                      allowedContentTypes: self.allowedContentTypes,
+                      allowsMultipleSelection: false,
+                      onCompletion: { result in
+            switch result {
+            case .success(let urls):
+                if let url = urls.first {
+                    self.vm.uiValue = url.standardizedFileURL.absoluteString
+                }
+            case .failure(let error):
+                print("FileImportParameterView: \(error)")
+            }
+        })
     }
-    
-    func allowedContentTypes() -> [UTType]
-    {
-        if vm.label.localizedStandardContains("Image")
-        {
-            return [.image, .jpeg, .tiff, .heic, .heif, .png,]
-        }
-        
-        else if vm.label.localizedStandardContains("Video")
-        {
-            return [.quickTimeMovie, .video, .mpeg4Movie]
-        }
-        
-        else if vm.label.localizedStandardContains("Text")
-        {
-            return [.plainText, .json, .xml]
-        }
-        
-        return [.data]
-    }
-    
-//    private func createImageThumbsFromURL(urls:[URL])
-//    {
-//        ThumbnailGenerator.shared.generateThumbnails(for: urls,
-//                                                     size: CGSize(width: 100, height: 60)) { urlImageDict in
-//            self.fileThumbModels = urlImageDict.map( {
-//                let selected = ($0.key.standardizedFileURL.absoluteString == self.currentURL?.standardizedFileURL.absoluteString)
-//                return FileAndThumbnailModel(fileURL: $0.key, thumbnail: $0.value, selected:selected )
-//            } )
-//        }
-//    }
 }

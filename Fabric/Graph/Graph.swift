@@ -312,25 +312,10 @@ internal import AnyCodable
         
         let node = try node.initializeNode(context: self.context)
         
-        var offset = CGSize(width: self.currentScrollOffset.x  - node.nodeSize.width / 2.0,
-                            height: self.currentScrollOffset.y - node.nodeSize.height / 4.0)
-        
-        let deltaTime = Date.now.timeIntervalSinceReferenceDate - self.lastAddedTime
-        if deltaTime < self.nodeAddedResetTime
-        {
-            self.currentNodeOffset += self.nodeOffset
-            offset += self.currentNodeOffset
-        }
-        else
-        {
-            self.currentNodeOffset = .zero
-        }
-        
-        node.offset = offset
+        node.offset = self.calcInitialNodeOffset(for: node)
         
         self.addNode(node)
 
-        self.lastAddedTime = Date.now.timeIntervalSinceReferenceDate
     }
     
     
@@ -358,6 +343,11 @@ internal import AnyCodable
         
         print("Graph: \(self.id) Add Node", node.name)
         self.maybeAddNodeToScene(node)
+    
+        // If we add nodes quickly this function updates an offset
+        // for the UI
+        node.offset += self.calculateAdditionalNodeOffset(for: node)
+        
         self.nodes.append(node)
         node.graph = self
         
@@ -369,7 +359,36 @@ internal import AnyCodable
         self.shouldUpdateConnections = true
 
         self.updateRenderingNodes()
+
+        self.lastAddedTime = Date.now.timeIntervalSinceReferenceDate
+
         //        self.autoConnect(node: node)
+    }
+    
+    private func calcInitialNodeOffset(for node:Node) -> CGSize
+    {
+       return  CGSize(width: self.currentScrollOffset.x  - node.nodeSize.width / 2.0,
+                      height: self.currentScrollOffset.y - node.nodeSize.height / 4.0)
+    }
+    
+        
+    private func calculateAdditionalNodeOffset(for node:Node) -> CGSize
+    {
+        // Calculate Node Add offset if weve added quickly back to back nodes
+        var offset = CGSize.zero
+        
+        let deltaTime = Date.now.timeIntervalSinceReferenceDate - self.lastAddedTime
+        if deltaTime < self.nodeAddedResetTime
+        {
+            self.currentNodeOffset += self.nodeOffset
+            offset += self.currentNodeOffset
+        }
+        else
+        {
+            self.currentNodeOffset = .zero
+        }
+        
+        return offset
     }
     
     public func delete(node:Node, disconnect:Bool = true)

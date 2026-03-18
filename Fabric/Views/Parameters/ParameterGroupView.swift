@@ -8,10 +8,12 @@
 
 import SwiftUI
 import Satin
+import UniformTypeIdentifiers
 
 struct ParameterGroupView : View
 {
     let parameterGroup:ParameterGroup
+    var fileContentTypes: [UTType] = [.data]
 
     var body: some View
     {
@@ -250,21 +252,8 @@ struct ParameterGroupView : View
     private func buildFilePicker(param:any Satin.Parameter) -> any View
     {
         guard let stringParam = param as? StringParameter else { return Text(param.label) }
-                
-//        let valueBinding = Binding<URL?>( get: { URL(fileURLWithPath:  stringParam.value ) },
-//                                    set: { newValue in
-//            stringParam.value = newValue?.standardizedFileURL.absoluteString ?? ""
-//        })
-//
-//        let modelsBinding = Binding<[FileAndThumbnailModel]>( get: {
-//            stringParam.options.compactMap( { FileAndThumbnailModel(fileURL: URL(string:$0)!, selected: false) } )
-//        },
-//                                          set: { newValue in
-//            stringParam.options = newValue.compactMap( { $0.fileURL.standardizedFileURL.absoluteString } )
-//        })
 
-
-        return FileImportParameterView(parameter: stringParam )
+        return FileImportParameterView(parameter: stringParam, allowedContentTypes: self.fileContentTypes)
             .equatable()
     }
 }

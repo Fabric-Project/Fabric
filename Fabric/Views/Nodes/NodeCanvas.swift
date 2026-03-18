@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 // Stable anchor for settings popover
 // This view intentionally does NOT read any Observable node properties in its own body
@@ -191,6 +192,9 @@ public struct NodeCanvas : View
                 let graph = self.graph.activeSubGraph ?? self.graph
 
                 graph.deselectAllNodes()
+            }
+            .onDrop(of: [.fileURL], isTargeted: nil) { providers, location in
+                self.handleFileDrop(providers: providers, location: location, canvasSize: geom.size)
             }
             .id(self.graph.activeSubGraph?.shouldUpdateConnections ?? self.graph.shouldUpdateConnections)
             // For hiding the nodes after a timeout - used if rendering nodes above content?
@@ -598,6 +602,36 @@ public struct NodeCanvas : View
         return distance
     }
     
+    private func handleFileDrop(providers: [NSItemProvider], location: CGPoint, canvasSize: CGSize) -> Bool
+    {
+        let graph = self.graph.activeSubGraph ?? self.graph
+        var handled = false
+
+        for provider in providers
+        {
+            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { data, _ in
+                guard let data = data as? Data,
+                      let url = URL(dataRepresentation: data, relativeTo: nil, isAbsolute: true)
+                else { return }
+                
+                guard let resourceValues = try? url.resourceValues(forKeys: [.contentTypeKey]),
+                      let contentType = resourceValues.contentType,
+                      let nodeClass = NodeRegistry.shared.dropTargetNodeClass(for: contentType)
+                else { return }
+                
+                let node = nodeClass.init(context: graph.context)
+                node.setFileURL(url)
+                node.offset = CGSize(width: location.x - canvasSize.width / 2.0 - node.nodeSize.width / 2.0,
+                                     height: location.y - canvasSize.height / 2.0 - node.nodeSize.height / 2.0)
+                graph.addNode(node)
+            }
+            
+            handled = true
+        }
+        
+        return handled
+    }
+
     private func keys() -> Set<KeyEquivalent>
     {
 //        if self.focusedView == .canvas

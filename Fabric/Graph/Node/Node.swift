@@ -9,6 +9,7 @@ import SwiftUI
 import Metal
 import Satin
 import Combine
+import UniformTypeIdentifiers
 
 
 @Observable public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
@@ -601,7 +602,14 @@ import Combine
     }
 }
 
-protocol NodeFileLoadingProtocol : Node
+/// Nodes that are constructed from a file (e.g. Metal shader effect nodes).
+/// Nodes that accept a user-dropped file via a file-path parameter port.
+/// Conformers declare which UTTypes they handle and receive the URL after
+/// normal construction via ``setFileURL(_:)``.
+public protocol NodeFileLoadingProtocol : Node
 {
     init(context:Context, fileURL:URL) throws
+    func setFileURL(_ url: URL)
+    
+    static var supportedContentTypes: [UTType] { get }
 }

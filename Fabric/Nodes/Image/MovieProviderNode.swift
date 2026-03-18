@@ -10,6 +10,7 @@ import Satin
 import simd
 import Metal
 import AVFoundation
+import UniformTypeIdentifiers
 #if os(macOS)
 import VideoToolbox
 import MediaToolbox
@@ -28,8 +29,19 @@ private let MovieProviderNodeInitializer: Void = {
 
 }()
 
-public class MovieProviderNode : Node
+public class MovieProviderNode : Node, NodeFileLoadingProtocol
 {
+  
+    public static var supportedContentTypes: [UTType] {
+        AVURLAsset.audiovisualTypes()
+            .compactMap { UTType($0.rawValue) }
+            .filter { $0.conforms(to: .movie) || $0.conforms(to: .video) }
+    }
+
+    public func setFileURL(_ url: URL) {
+        self.inputFilePathParam.value = url.standardizedFileURL.absoluteString
+    }
+
     override public class var name:String { "Movie Provider" }
     override public class var nodeType:Node.NodeType { Node.NodeType.Image(imageType: .Loader) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
@@ -69,6 +81,19 @@ public class MovieProviderNode : Node
         super.init(context: context)
     }
     
+    public required init(context: Satin.Context, fileURL: URL) throws
+    {
+        // Forces the initialization when the class is accessed
+        _ = MovieProviderNodeInitializer
+        
+        self.playerItemVideoOutput = AVPlayerItemVideoOutput(outputSettings: Self.playerOutputSettings() )
+        self.playerItemVideoOutput.suppressesPlayerRendering = true
+
+        super.init(context: context)
+        
+        self.setFileURL(fileURL)
+    }
+    
     
     required public init(from decoder: any Decoder) throws
     {
@@ -82,10 +107,10 @@ public class MovieProviderNode : Node
 
         self.playerItemVideoOutput = AVPlayerItemVideoOutput(outputSettings: Self.playerOutputSettings() )
         self.playerItemVideoOutput.suppressesPlayerRendering = true
-        
+
         try super.init(from:decoder)
     }
-    
+
     override public func execute(context:GraphExecutionContext,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)

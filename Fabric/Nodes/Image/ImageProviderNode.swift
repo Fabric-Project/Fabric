@@ -10,9 +10,15 @@ import Satin
 import simd
 import Metal
 import MetalKit
+import ImageIO
+import UniformTypeIdentifiers
 
-public class ImageProviderNode : Node
+public class ImageProviderNode : Node, NodeFileLoadingProtocol
 {
+    public static var supportedContentTypes: [UTType] {
+        (CGImageSourceCopyTypeIdentifiers() as! [String]).compactMap { UTType($0) }
+    }
+
     public override class var name:String { "Image Provider" }
     public override class var nodeType:Node.NodeType { Node.NodeType.Image(imageType: .Loader) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
@@ -37,12 +43,24 @@ public class ImageProviderNode : Node
     @ObservationIgnored private var textureLoader:MTKTextureLoader
     @ObservationIgnored private var url: URL? = nil
     
+    public func setFileURL(_ url: URL) {
+        self.inputFilePathParam.value = url.standardizedFileURL.absoluteString
+    }
+    
     public required init(context:Context)
     {
         self.textureLoader = MTKTextureLoader(device: context.device)
 
         super.init(context: context)
   
+        self.loadTextureFromInputValue()
+    }
+    
+    public required init(context: Satin.Context, fileURL: URL) throws
+    {
+        self.textureLoader = MTKTextureLoader(device: context.device)
+        super.init(context: context)
+        self.setFileURL(fileURL)
         self.loadTextureFromInputValue()
     }
     
@@ -53,14 +71,14 @@ public class ImageProviderNode : Node
         {
             fatalError("Required Decode Context Not set")
         }
-        
+
         self.textureLoader = MTKTextureLoader(device: decodeContext.documentContext.device)
 
         try super.init(from:decoder)
-        
+
         self.loadTextureFromInputValue()
     }
-    
+
     override public func execute(context:GraphExecutionContext,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
