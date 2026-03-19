@@ -45,6 +45,14 @@
 			<key>UTTypeIdentifier</key>
 			<string>info.vade.v.inlet-data</string>
 		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeIdentifier</key>
+			<string>info.vade.fabric.node-registry-item</string>
+		</dict>
 	</array>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
