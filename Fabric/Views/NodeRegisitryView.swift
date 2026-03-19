@@ -23,16 +23,14 @@ public struct NodeRegisitryView: View {
         Dictionary(uniqueKeysWithValues: Node.NodeType.allCases.map { t in (t, self.filteredNodes(forType: t)) })
     }
 
-    private var numNodesToShow: Int {
-        self.headerSelection.nodeTypes().flatMap { self.filteredNodes(forType: $0) }.count
-    }
-
-    private var haveNodesToShow: Bool { self.numNodesToShow > 0 }
-
     /// Flat ordered list of currently visible nodes, respecting header filter and search.
     private var visibleNodes: [NodeClassWrapper] {
         self.headerSelection.nodeTypes().flatMap { self.filteredNodes(forType: $0) }
     }
+
+    private var numNodesToShow: Int { self.visibleNodes.count }
+
+    private var haveNodesToShow: Bool { self.numNodesToShow > 0 }
     
     public init(graph: Graph, inputFocus: Binding<FabricEditorInputFocus>) {
         self.graph = graph
@@ -163,26 +161,6 @@ public struct NodeRegisitryView: View {
             self.addSelectedNodes()
             return .handled
         }
-
-
-        
-        // It seems as though our custom search bar vs .searchable behave slightly differently?
-        // Not sure why that is!?
-//        .safeAreaInset(edge: .bottom) {
-//            self.searchBar()
-//        }
-//        .onChange(of: self.searchString) { _, _ in
-//            self.selection.removeAll()
-//        }
-//        .onChange(of: self.headerSelection) { _, _ in
-//            self.selection.removeAll()
-//        }
-//        .onAppear()
-//        {
-//            // not the best..
-//            self.numNodesToShow = self.calcNumTotalNodes()
-//            self.filteredNodesForTypes = self.calcFilteredNodesDict()
-//        }
     }
     
     @ViewBuilder private func headerBar() -> some View
@@ -204,34 +182,6 @@ public struct NodeRegisitryView: View {
             }
             
             Spacer()
-        }
-    }
-    
-    @ViewBuilder private func searchBar() -> some View
-    {
-        VStack(spacing:0)
-        {
-            HStack
-            {
-                Spacer()
-
-                TextField("Search", text: $searchString)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .controlSize(.small)
-                Spacer()
-                
-                Image(systemName: "xmark.circle")
-                    .foregroundStyle(Color.secondary.opacity(0.5))
-                    .onTapGesture {
-                        self.searchString = ""
-                    }
-                
-                Spacer()
-            }
-            
-            Text(String( self.numNodesToShow ) + " Nodes")
-                .font( .caption )
-                .padding(.vertical, 3)
         }
     }
     
