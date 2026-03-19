@@ -132,7 +132,7 @@ public struct NodeRegisitryView: View {
                     if let id = newSelection.first
                     {
                         withAnimation {
-                            listProxy.scrollTo(id, anchor: .center)
+                            listProxy.scrollTo(id)
                         }
                     }
                 }
