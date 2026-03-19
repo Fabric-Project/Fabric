@@ -28,6 +28,11 @@ public struct NodeRegisitryView: View {
     }
 
     private var haveNodesToShow: Bool { self.numNodesToShow > 0 }
+
+    /// Flat ordered list of currently visible nodes, respecting header filter and search.
+    private var visibleNodes: [NodeClassWrapper] {
+        self.headerSelection.nodeTypes().flatMap { self.filteredNodes(forType: $0) }
+    }
     
     public init(graph: Graph, inputFocus: Binding<FabricEditorInputFocus>) {
         self.graph = graph
@@ -127,6 +132,12 @@ public struct NodeRegisitryView: View {
         .searchPresentationToolbarBehavior(.avoidHidingContent)
         .onChange(of: self.searchString) { _, _ in
             self.inputFocus = .registry
+            let visible = self.visibleNodes
+            let selectionStillValid = self.selection.contains(where: { id in visible.contains(where: { $0.id == id }) })
+            if !selectionStillValid
+            {
+                self.selectFirstNode()
+            }
         }
         .onChange(of: self.selection) { _, _ in
             self.inputFocus = .registry
@@ -136,6 +147,27 @@ public struct NodeRegisitryView: View {
             {
                 self.isSearchFocused = true
             }
+        }
+        .onChange(of: self.isSearchFocused) { _, focused in
+            if focused, self.selection.isEmpty
+            {
+                self.selectFirstNode()
+            }
+        }
+        .onKeyPress(.upArrow) {
+            guard self.isSearchFocused else { return .ignored }
+            self.moveSelection(by: -1)
+            return .handled
+        }
+        .onKeyPress(.downArrow) {
+            guard self.isSearchFocused else { return .ignored }
+            self.moveSelection(by: 1)
+            return .handled
+        }
+        .onKeyPress(.return) {
+            guard self.isSearchFocused, !self.selection.isEmpty else { return .ignored }
+            self.addSelectedNodes()
+            return .handled
         }
 
 
@@ -209,6 +241,58 @@ public struct NodeRegisitryView: View {
         }
     }
     
+    private func addSelectedNodes()
+    {
+        for nodeID in self.selection
+        {
+            if let node = NodeRegistry.shared.availableNodes.first(where: { $0.id == nodeID })
+            {
+                do
+                {
+                    try self.graph.addNode(node)
+                }
+                catch
+                {
+                    print("Unable to add node:\(node)")
+                }
+            }
+        }
+        self.inputFocus = .canvas
+    }
+
+    private func selectFirstNode()
+    {
+        if let first = self.visibleNodes.first
+        {
+            self.selection = [first.id]
+        }
+        else
+        {
+            self.selection.removeAll()
+        }
+    }
+
+    private func moveSelection(by offset: Int)
+    {
+        let nodes = self.visibleNodes
+        guard !nodes.isEmpty else { return }
+
+        let currentID = self.selection.first
+        let currentIndex = currentID.flatMap { id in nodes.firstIndex(where: { $0.id == id }) }
+        let newIndex: Int
+
+        if let currentIndex
+        {
+            newIndex = min(max(currentIndex + offset, 0), nodes.count - 1)
+        }
+        else
+        {
+            newIndex = 0
+        }
+
+        self.selection = [nodes[newIndex].id]
+    }
+
     func filteredNodes(forType nodeType:Node.NodeType) -> [NodeClassWrapper]
     {
         let availableNodes:[NodeClassWrapper] = NodeRegistry.shared.availableNodes
