@@ -16,6 +16,7 @@ public struct NodeRegisitryView: View {
     @State private var searchString:String = ""
     @State private var selection = Set<UUID>()
     @State private var headerSelection: Node.NodeTypeGroups = .All
+    @FocusState private var isSearchFocused: Bool
 
     // These are computed properties in an effort to avoid race conditions on multiple states
     private var filteredNodesForTypes: [Node.NodeType:[NodeClassWrapper]] {
@@ -122,12 +123,19 @@ public struct NodeRegisitryView: View {
 //            Spacer()
         }
         .searchable(text: $searchString, placement: .sidebar)
+        .searchFocused($isSearchFocused)
         .searchPresentationToolbarBehavior(.avoidHidingContent)
         .onChange(of: self.searchString) { _, _ in
             self.inputFocus = .registry
         }
         .onChange(of: self.selection) { _, _ in
             self.inputFocus = .registry
+        }
+        .onChange(of: self.inputFocus) { _, newValue in
+            if newValue == .registry
+            {
+                self.isSearchFocused = true
+            }
         }
 
 

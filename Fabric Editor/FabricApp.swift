@@ -145,6 +145,12 @@ struct DocumentCommands:Commands
             }
             .keyboardShortcut(KeyEquivalent("a"), modifiers: .command)
             .disabled(self.isCanvasFocused ? (self.document?.graph.nodes.isEmpty ?? true) : false)
+
+            Button("Find Nodes")
+            {
+                self.editorInputFocus = .registry
+            }
+            .keyboardShortcut(.return, modifiers: .command)
         }
     }
 }
