@@ -72,11 +72,20 @@ public struct NodeRegisitryView: View {
                         {
                             Section(header: Text("\(nodeType)")) {
                                 ForEach(filteredNodesForType, id: \.id) { node in
-                                    Text(node.nodeName)
-                                        .tag(node.id)
-                                        .id(node.id)
-                                        .font( .system(size: 11) )
-                                        .draggable(NodeRegistryDragData(wrapperID: node.id))
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(node.nodeName)
+                                            .font( .system(size: 11) )
+                                        if self.selection.contains(node.id)
+                                        {
+                                            Text(node.nodeClass.nodeDescription)
+                                                .font( .system(size: 10) )
+                                                .foregroundStyle(.secondary)
+                                                .lineLimit(nil)
+                                        }
+                                    }
+                                    .tag(node.id)
+                                    .id(node.id)
+                                    .draggable(NodeRegistryDragData(wrapperID: node.id))
                                 }
                             }
                         }
