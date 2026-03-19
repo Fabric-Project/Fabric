@@ -13,6 +13,7 @@ import Metal
 public class MeshNode : BaseRenderableNode<Mesh>
 {
     override public class var name:String { "Mesh" }
+    override public class var nodeDescription: String { "Combine a Geometry and Material into a renderable Mesh, with control over shadows, face culling, and double-sided rendering." }
     override public class var nodeType:Node.NodeType { .Object(objectType: .Mesh) }
 
     // Register ports, in order of appearance

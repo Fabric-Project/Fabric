@@ -13,6 +13,7 @@ import Metal
 public class TrueNode : Node
 {
     override public static var name:String { "True" }
+    override public class var nodeDescription: String { "Provide a constant true Boolean value." }
     override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Boolean) }
 
     // Ports
