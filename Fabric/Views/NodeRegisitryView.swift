@@ -59,6 +59,7 @@ public struct NodeRegisitryView: View {
                                 Text(node.nodeName)
                                     .tag(node.id)
                                     .font( .system(size: 11) )
+                                    .draggable(node.id.uuidString)
                             }
                         }
                     }
