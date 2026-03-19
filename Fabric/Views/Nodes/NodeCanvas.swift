@@ -193,7 +193,7 @@ public struct NodeCanvas : View
 
                 graph.deselectAllNodes()
             }
-            .onDrop(of: [.fileURL, .utf8PlainText], isTargeted: nil) { providers, location in
+            .onDrop(of: [.nodeRegistryItem, .fileURL], isTargeted: nil) { providers, location in
                 self.handleDrop(providers: providers, location: location, canvasSize: geom.size)
             }
             .id(self.graph.activeSubGraph?.shouldUpdateConnections ?? self.graph.shouldUpdateConnections)
@@ -607,31 +607,30 @@ public struct NodeCanvas : View
         let graph = self.graph.activeSubGraph ?? self.graph
 
         // Try node registry drag from sidebar first
-        for provider in providers
+        for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.nodeRegistryItem.identifier)
         {
-            if provider.canLoadObject(ofClass: NSString.self)
-            {
-                provider.loadItem(forTypeIdentifier: UTType.utf8PlainText.identifier, options: nil) { data, _ in
-                    guard let data = data as? Data,
-                          let uuidString = String(data: data, encoding: .utf8),
-                          let uuid = UUID(uuidString: uuidString),
-                          let wrapper = NodeRegistry.shared.availableNodes.first(where: { $0.id == uuid })
-                    else { return }
+            provider.loadDataRepresentation(forTypeIdentifier: UTType.nodeRegistryItem.identifier) { data, error in
+                guard let data = data,
+                      let dragData = try? JSONDecoder().decode(NodeRegistryDragData.self, from: data),
+                      let wrapper = NodeRegistry.shared.availableNodes.first(where: { $0.id == dragData.wrapperID })
+                else {
+                    print("NodeCanvas: registry drag decode failed: \(error?.localizedDescription ?? "unknown")")
+                    return
+                }
 
-                    DispatchQueue.main.async {
-                        do {
-                            let node = try wrapper.initializeNode(context: graph.context)
-                            node.offset = CGSize(width: location.x - canvasSize.width / 2.0 - node.nodeSize.width / 2.0,
-                                                 height: location.y - canvasSize.height / 2.0 - node.nodeSize.height / 2.0)
-                            graph.addNode(node)
-                        }
-                        catch {
-                            print("NodeCanvas: failed to create node from registry drag: \(error)")
-                        }
+                DispatchQueue.main.async {
+                    do {
+                        let node = try wrapper.initializeNode(context: graph.context)
+                        node.offset = CGSize(width: location.x - canvasSize.width / 2.0 - node.nodeSize.width / 2.0,
+                                             height: location.y - canvasSize.height / 2.0 - node.nodeSize.height / 2.0)
+                        graph.addNode(node)
+                    }
+                    catch {
+                        print("NodeCanvas: failed to create node from registry drag: \(error)")
                     }
                 }
-                return true
             }
+            return true
         }
 
         // Fall back to file drop from Finder
