@@ -53,75 +53,71 @@ public struct NodeRegisitryView: View {
 
             Divider()
 
-            List(selection:$selection)
-            {
-                ForEach(self.headerSelection.nodeTypes(), id: \.self) { nodeType in
-                    
-                    if let filteredNodesForType:[NodeClassWrapper] = self.filteredNodesForTypes[nodeType],
-                       filteredNodesForType.isEmpty == false
-                    {
-                        Section(header: Text("\(nodeType)")) {
-                            ForEach(filteredNodesForType, id: \.id) { node in
-                                Text(node.nodeName)
-                                    .tag(node.id)
-                                    .font( .system(size: 11) )
-                                    .draggable(NodeRegistryDragData(wrapperID: node.id))
+            ScrollViewReader { listProxy in
+                List(selection:$selection)
+                {
+                    ForEach(self.headerSelection.nodeTypes(), id: \.self) { nodeType in
+
+                        if let filteredNodesForType:[NodeClassWrapper] = self.filteredNodesForTypes[nodeType],
+                           filteredNodesForType.isEmpty == false
+                        {
+                            Section(header: Text("\(nodeType)")) {
+                                ForEach(filteredNodesForType, id: \.id) { node in
+                                    Text(node.nodeName)
+                                        .tag(node.id)
+                                        .id(node.id)
+                                        .font( .system(size: 11) )
+                                        .draggable(NodeRegistryDragData(wrapperID: node.id))
+                                }
                             }
                         }
                     }
                 }
-            }
-            // Below replaces the onTap action that was on the list item
-            // This affords double click to add / return to add
-            // * Single click to select
-            // * Multi Select
-            // * Type to select
-            // * Arrow navigation
-            // Weird that its a context menu filter! But whatever.
-            // This fixes #114 - Anton
-            .contextMenu(forSelectionType: UUID.self)
-            { items in
-                
-                // No context menu ever
-                EmptyView()
-                
-            } primaryAction: { selection in
+                // Below replaces the onTap action that was on the list item
+                // This affords double click to add / return to add
+                // * Single click to select
+                // * Multi Select
+                // * Type to select
+                // * Arrow navigation
+                // Weird that its a context menu filter! But whatever.
+                // This fixes #114 - Anton
+                .contextMenu(forSelectionType: UUID.self)
+                { items in
 
-                self.inputFocus = .registry
-                for nodeID in selection
+                    // No context menu ever
+                    EmptyView()
+
+                } primaryAction: { _ in
+                    self.addSelectedNodes()
+                }
+                .simultaneousGesture(
+                    TapGesture().onEnded {
+                        self.inputFocus = .registry
+                    }
+                )
+                .overlay
                 {
-                    if let node = NodeRegistry.shared.availableNodes.first(where: { $0.id == nodeID })
+                    VStack(spacing:0)
                     {
-                        do
-                        {
-                            try self.graph.addNode(node)
-                            self.inputFocus = .canvas
-                        }
-                        catch
-                        {
-                            print("Unable to add node:\(node)")
+                        Spacer()
+
+                        Text("No Results Found")
+                            .font( .headline)
+                            .foregroundStyle(.secondary)
+
+                        Spacer()
+                    }
+                    .opacity( self.haveNodesToShow ? 0.0 : 1.0 )
+                }
+                .onChange(of: self.selection) { _, newSelection in
+                    self.inputFocus = .registry
+                    if let id = newSelection.first
+                    {
+                        withAnimation {
+                            listProxy.scrollTo(id, anchor: .center)
                         }
                     }
                 }
-            }
-            .simultaneousGesture(
-                TapGesture().onEnded {
-                    self.inputFocus = .registry
-                }
-            )
-            .overlay
-            {
-                VStack(spacing:0)
-                {
-                    Spacer()
-                    
-                    Text("No Results Found")
-                        .font( .headline)
-                        .foregroundStyle(.secondary)
-                    
-                    Spacer()
-                }
-                .opacity( self.haveNodesToShow ? 0.0 : 1.0 )
             }
             
 //            Divider()
@@ -139,9 +135,6 @@ public struct NodeRegisitryView: View {
             {
                 self.selectFirstNode()
             }
-        }
-        .onChange(of: self.selection) { _, _ in
-            self.inputFocus = .registry
         }
         .onChange(of: self.inputFocus) { _, newValue in
             if newValue == .registry
