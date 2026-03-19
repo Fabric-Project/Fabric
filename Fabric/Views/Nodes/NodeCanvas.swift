@@ -193,8 +193,8 @@ public struct NodeCanvas : View
 
                 graph.deselectAllNodes()
             }
-            .onDrop(of: [.fileURL], isTargeted: nil) { providers, location in
-                self.handleFileDrop(providers: providers, location: location, canvasSize: geom.size)
+            .onDrop(of: [.fileURL, .utf8PlainText], isTargeted: nil) { providers, location in
+                self.handleDrop(providers: providers, location: location, canvasSize: geom.size)
             }
             .id(self.graph.activeSubGraph?.shouldUpdateConnections ?? self.graph.shouldUpdateConnections)
             // For hiding the nodes after a timeout - used if rendering nodes above content?
@@ -602,33 +602,63 @@ public struct NodeCanvas : View
         return distance
     }
     
-    private func handleFileDrop(providers: [NSItemProvider], location: CGPoint, canvasSize: CGSize) -> Bool
+    private func handleDrop(providers: [NSItemProvider], location: CGPoint, canvasSize: CGSize) -> Bool
     {
         let graph = self.graph.activeSubGraph ?? self.graph
-        var handled = false
 
+        // Try node registry drag from sidebar first
+        for provider in providers
+        {
+            if provider.canLoadObject(ofClass: NSString.self)
+            {
+                provider.loadItem(forTypeIdentifier: UTType.utf8PlainText.identifier, options: nil) { data, _ in
+                    guard let data = data as? Data,
+                          let uuidString = String(data: data, encoding: .utf8),
+                          let uuid = UUID(uuidString: uuidString),
+                          let wrapper = NodeRegistry.shared.availableNodes.first(where: { $0.id == uuid })
+                    else { return }
+
+                    DispatchQueue.main.async {
+                        do {
+                            let node = try wrapper.initializeNode(context: graph.context)
+                            node.offset = CGSize(width: location.x - canvasSize.width / 2.0 - node.nodeSize.width / 2.0,
+                                                 height: location.y - canvasSize.height / 2.0 - node.nodeSize.height / 2.0)
+                            graph.addNode(node)
+                        }
+                        catch {
+                            print("NodeCanvas: failed to create node from registry drag: \(error)")
+                        }
+                    }
+                }
+                return true
+            }
+        }
+
+        // Fall back to file drop from Finder
+        var handled = false
         for provider in providers
         {
             provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { data, _ in
                 guard let data = data as? Data,
                       let url = URL(dataRepresentation: data, relativeTo: nil, isAbsolute: true)
                 else { return }
-                
+
                 guard let resourceValues = try? url.resourceValues(forKeys: [.contentTypeKey]),
                       let contentType = resourceValues.contentType,
                       let nodeClass = NodeRegistry.shared.dropTargetNodeClass(for: contentType)
                 else { return }
-                
-                let node = nodeClass.init(context: graph.context)
-                node.setFileURL(url)
-                node.offset = CGSize(width: location.x - canvasSize.width / 2.0 - node.nodeSize.width / 2.0,
-                                     height: location.y - canvasSize.height / 2.0 - node.nodeSize.height / 2.0)
-                graph.addNode(node)
+
+                DispatchQueue.main.async {
+                    let node = nodeClass.init(context: graph.context)
+                    node.setFileURL(url)
+                    node.offset = CGSize(width: location.x - canvasSize.width / 2.0 - node.nodeSize.width / 2.0,
+                                         height: location.y - canvasSize.height / 2.0 - node.nodeSize.height / 2.0)
+                    graph.addNode(node)
+                }
             }
-            
             handled = true
         }
-        
+
         return handled
     }
 
