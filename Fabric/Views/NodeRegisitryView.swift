@@ -24,6 +24,17 @@ public struct NodeRegisitryView: View {
     }
 
     /// Flat ordered list of currently visible nodes, respecting header filter and search.
+    ///
+    /// SwiftUI's List handles arrow-key navigation internally, but only when the List itself
+    /// holds keyboard focus. Our UX requires the search field to retain focus for typing while
+    /// arrow keys simultaneously navigate the list. List exposes no API to drive selection
+    /// externally (no moveSelectionDown(), no ordered-item query, no "select first" command),
+    /// and it silently retains stale UUIDs in the selection binding when items leave the data
+    /// source. This property bridges that gap — it gives us the ordered item list needed by
+    /// selectFirstNode(), moveSelection(by:), the search-text onChange validity check,
+    /// and the "No Results Found" overlay (via numNodesToShow / haveNodesToShow).
+    /// When the List has focus (e.g. after a click), its native keyboard handling takes over
+    /// and these helpers are bypassed via the isSearchFocused guard.
     private var visibleNodes: [NodeClassWrapper] {
         self.headerSelection.nodeTypes().flatMap { self.filteredNodes(forType: $0) }
     }
@@ -145,6 +156,8 @@ public struct NodeRegisitryView: View {
                 self.selectFirstNode()
             }
         }
+        // Manual key handling for search-focused mode. When the List has focus these return
+        // .ignored, letting the List's native arrow navigation and primaryAction take over.
         .onKeyPress(.upArrow) {
             guard self.isSearchFocused else { return .ignored }
             self.moveSelection(by: -1)
