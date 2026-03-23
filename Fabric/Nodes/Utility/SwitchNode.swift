@@ -129,15 +129,15 @@ struct SwitchNodeSettingsView: View {
         AnyView(SwitchNodeSettingsView(node: self))
     }
 
-    // MARK: - Public Setters (called from settings view)
+    // MARK: - Public Setters (called from settings view and host app configuration)
 
-    func setInputCount(_ count: Int) {
+    public func setInputCount(_ count: Int) {
         let clamped = max(2, min(count, 16))
         guard clamped != inputCount else { return }
         inputCount = clamped
     }
 
-    func setPortType(_ type: PortType) {
+    public func setPortType(_ type: PortType) {
         guard type != portValueType else { return }
         portValueType = type
     }
