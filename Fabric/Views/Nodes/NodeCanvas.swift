@@ -42,11 +42,13 @@ private struct NodeSettingsPopoverAnchor: View
 public struct NodeCanvas : View
 {
     let graph:Graph
+    let navPath: SubGraphNavigationPath
     @Binding var inputFocus: FabricEditorInputFocus
-    
-    public init(graph:Graph, inputFocus: Binding<FabricEditorInputFocus>)
+
+    public init(graph:Graph, navPath: SubGraphNavigationPath, inputFocus: Binding<FabricEditorInputFocus>)
     {
         self.graph = graph
+        self.navPath = navPath
         self._inputFocus = inputFocus
     }
     
@@ -75,8 +77,8 @@ public struct NodeCanvas : View
                     .resizable(resizingMode: .tile)// Need this pattern image repeated throughout the page
                     .offset(-geom.size / 2)
                 
-                let graph = self.graph.activeSubGraph ?? self.graph
-                
+                let graph = self.navPath.activeGraph
+
                 ForEach(graph.notes, id:\.id) { currentNote in
                         
                     NoteView(note: currentNote)
@@ -133,7 +135,7 @@ public struct NodeCanvas : View
                                         self.inputFocus = .canvas
                                         if let subgraph = currentNode as? SubgraphNode
                                         {
-                                            self.graph.activeSubGraph = subgraph.subGraph
+                                            self.navPath.enter(subgraph)
                                         }
                                     }
                                 )
@@ -181,7 +183,7 @@ public struct NodeCanvas : View
             .onDeleteCommand {
                 guard self.inputFocus == .canvas else { return }
 
-                let graph = self.graph.activeSubGraph ?? self.graph
+                let graph = self.navPath.activeGraph
 
                 let selectedNodes = graph.nodes.filter({ $0.isSelected })
                 selectedNodes.forEach( { graph.delete(node: $0) } )
@@ -189,14 +191,14 @@ public struct NodeCanvas : View
 #endif
             .onTapGesture {
                 self.inputFocus = .canvas
-                let graph = self.graph.activeSubGraph ?? self.graph
+                let graph = self.navPath.activeGraph
 
                 graph.deselectAllNodes()
             }
             .onDrop(of: [.fileURL], isTargeted: nil) { providers, location in
                 self.handleFileDrop(providers: providers, location: location, canvasSize: geom.size)
             }
-            .id(self.graph.activeSubGraph?.shouldUpdateConnections ?? self.graph.shouldUpdateConnections)
+            .id(self.navPath.activeGraph.shouldUpdateConnections)
             // For hiding the nodes after a timeout - used if rendering nodes above content?
 //            .opacity(self.activityMonitor.isActive ? 1.0 : 0.0)
 //                           .animation(.easeInOut(duration: 0.5), value: self.activityMonitor.isActive)
@@ -247,7 +249,7 @@ public struct NodeCanvas : View
         // Handle Cmd+key shortcuts
         if keyPress.modifiers.contains(.command)
         {
-            let graph = self.graph.activeSubGraph ?? self.graph
+            let graph = self.navPath.activeGraph
             
             switch keyPress.key
             {
@@ -295,7 +297,7 @@ public struct NodeCanvas : View
             self.graph.deselectAllNodes()
 
         case .deleteForward:
-            let graph = self.graph.activeSubGraph ?? self.graph
+            let graph = self.navPath.activeGraph
             let selectedNodes = graph.nodes.filter({ $0.isSelected })
             selectedNodes.forEach( { graph.delete(node: $0) } )
 
@@ -342,7 +344,7 @@ public struct NodeCanvas : View
     
     private func calcPortAnchors(_ portAnchors:(PortAnchorKey.Value), geometryProxy geom:GeometryProxy)
     {
-        let graph = self.graph.activeSubGraph ?? self.graph
+        let graph = self.navPath.activeGraph
 
         var positions: [UUID: CGPoint] = [:]
         for (portID, anchor) in portAnchors {
@@ -354,7 +356,7 @@ public struct NodeCanvas : View
     
     @ViewBuilder private func calcOverlayPaths(_ portAnchors:(PortAnchorKey.Value), geometryProxy geom:GeometryProxy) -> some View
     {
-        let graph = self.graph.activeSubGraph ?? self.graph
+        let graph = self.navPath.activeGraph
 
         let ports = graph.nodes.flatMap(\.ports)
 
@@ -604,7 +606,7 @@ public struct NodeCanvas : View
     
     private func handleFileDrop(providers: [NSItemProvider], location: CGPoint, canvasSize: CGSize) -> Bool
     {
-        let graph = self.graph.activeSubGraph ?? self.graph
+        let graph = self.navPath.activeGraph
         var handled = false
 
         for provider in providers

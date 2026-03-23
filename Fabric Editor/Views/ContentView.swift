@@ -32,6 +32,7 @@ struct ContentView: View {
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
     @State private var inspectorVisibility:Bool = true
     @State private var inputFocus: FabricEditorInputFocus = .canvas
+    @State private var navPath: SubGraphNavigationPath?
 
     // Magic Numbers...
     private let zoomMin = 0.25
@@ -49,153 +50,158 @@ struct ContentView: View {
         } detail: {
 
             // Movable Canvas
-            VStack(alignment: .leading, spacing:0)
+            if let navPath
             {
-                Divider()
-
-                Spacer()
-
-                HStack(spacing:5)
+                VStack(alignment: .leading, spacing:0)
                 {
-                    Text("Root Patch")
-                        .font(.headline)
-                        .onTapGesture { self.document.graph.activeSubGraph = nil }
+                    Divider()
 
-                    if let _ = self.document.graph.activeSubGraph
+                    Spacer()
+
+                    HStack(spacing:5)
                     {
-                        Text(">")
+                        Text("Root Patch")
                             .font(.headline)
+                            .onTapGesture { navPath.popToRoot() }
 
-                        Text("Todo: Graphs Need Names")
-                            .font(.headline)
-                    }
-
-                }
-                .padding(.horizontal)
-
-                Spacer()
-
-                Divider()
-
-                ZStack
-                {
-                    // Render behind nodes ?
-                    // SatinMetalView(renderer: document.graphRenderer)
-
-                    RadialGradient(colors: [.clear, .black.opacity(0.75)], center: .center, startRadius: 0, endRadius: self.scrollGeometry.containerSize.width * 1.5)
-                    
-                    ScrollViewReader { proxy in
-                        ScrollView([.horizontal, .vertical])
-                        {
-                            NodeCanvas(graph: self.document.graph, inputFocus: self.$inputFocus)
-                                .id("canvas")
-                                .focusedSceneValue(\.editorInputFocus, self.$inputFocus)
-                                .frame(width: self.canvasSize, height: self.canvasSize)
-                                .scaleEffect(finalMagnification * magnifyBy, anchor: magnifyAnchor)
-                                .contextMenu(menuItems: {
-                                    Button("New Note") {
-                                        
-                                        let graph = self.document.graph.activeSubGraph ?? self.document.graph
-
-                                        let note = Note(note: "New Note", rect: CGRect(origin: graph.currentScrollOffset, size:CGSize(width: 500, height: 500)))
-                                        
-                                        graph.addNote(note)
-                                    }
-                                })
-                                .gesture(
-                                    MagnifyGesture()
-                                        .updating($magnifyBy, body: { value, state, _ in
-                                            
-                                            let proposedScale = finalMagnification * value.magnification
-                                            
-                                            guard (self.zoomMin ..< self.zoomMax).contains(proposedScale)
-                                            else
-                                            {
-                                                return
-                                            }
-                                            
-                                            state = min(max(value.magnification, self.zoomMin), self.zoomMax)
-                                            
-                                            let scale = proposedScale   // or finalMagnification * state
-                                            
-                                            // 0–1 in visible rect
-                                            let u = value.startAnchor.x
-                                            let v = value.startAnchor.y
-                                            
-                                            let containerSize = self.scrollGeometry.containerSize
-                                            let contentOffset = self.scrollGeometry.contentOffset
-                                            
-                                            // Convert scroll geometry into *canvas space* by dividing by scale
-                                            let visibleWidthInCanvas  = containerSize.width  / scale
-                                            let visibleHeightInCanvas = containerSize.height / scale
-                                            
-                                            let offsetXInCanvas = contentOffset.x / scale
-                                            let offsetYInCanvas = contentOffset.y / scale
-                                            
-                                            // Point under the fingers in canvas coords
-                                            let canvasX = offsetXInCanvas + u * visibleWidthInCanvas
-                                            let canvasY = offsetYInCanvas + v * visibleHeightInCanvas
-                                            
-                                            // Normalize to 0–1 over the full scaled canvas
-                                            let newX = max(0, min(1, canvasX / (self.canvasSize / scale)))
-                                            let newY = max(0, min(1, canvasY / (self.canvasSize / scale)))
-                                            
-                                            magnifyAnchor = UnitPoint(x: newX, y: newY)
-                                        })
-                                        .onEnded { value in
-                                            finalMagnification = min(max(finalMagnification * value.magnification, self.zoomMin), self.zoomMax)
-                                        }
-                                )
-                                .onAppear {
-                                    self.document.graph.undoManager = undoManager
-
-                                    // This is hacky as hell, but it seems our scroll offset doesn work since on can fire before other views are fully online?
-                                    // Or at least whatever is happening is fixed by this logic
-                                    // Fixes #100
-                                    DispatchQueue.main.asyncAfter(deadline: .now().advanced(by: .milliseconds(10)) ) {
-                                        
-                                        if let firstNode = self.document.graph.nodes.first
-                                        {
-                                            let targetPoint = UnitPoint( x: (self.halfCanvasSize + firstNode.offset.width) / self.canvasSize,
-                                                                         y: (self.halfCanvasSize + firstNode.offset.height) / self.canvasSize)
-                                            proxy.scrollTo("canvas", anchor: targetPoint)
-                                        }
-                                    }
-                                }
-                            
+                        ForEach(navPath.entries) { entry in
+                            Text(">")
+                                .font(.headline)
+                            Text(entry.name)
+                                .font(.headline)
+                                .onTapGesture { navPath.popTo(entry) }
                         }
-                        .defaultScrollAnchor(.center)
                     }
-                    .onScrollGeometryChange(for: ScrollGeomHelper.self) { geometry in
-                        
-                        let center = CGPoint(x: geometry.contentSize.width / 2,
-                                             y: geometry.contentSize.height / 2)
-                        let offset = (geometry.contentOffset - center) + (geometry.containerSize / 2)
-                        
-                        return ScrollGeomHelper(offset: offset, geometry: geometry)
-                        
-                    } action: { _, newScrollOffset in
-                        scrollGeometry = newScrollOffset.geometry
-                        
-                        let graph = self.document.graph.activeSubGraph ?? self.document.graph
+                    .padding(.horizontal)
 
-                        graph.currentScrollOffset = newScrollOffset.offset
+                    Spacer()
+
+                    Divider()
+
+                    ZStack
+                    {
+                        // Render behind nodes ?
+                        // SatinMetalView(renderer: document.graphRenderer)
+
+                        RadialGradient(colors: [.clear, .black.opacity(0.75)], center: .center, startRadius: 0, endRadius: self.scrollGeometry.containerSize.width * 1.5)
+
+                        ScrollViewReader { proxy in
+                            ScrollView([.horizontal, .vertical])
+                            {
+                                NodeCanvas(graph: self.document.graph, navPath: navPath, inputFocus: self.$inputFocus)
+                                    .id("canvas")
+                                    .focusedSceneValue(\.editorInputFocus, self.$inputFocus)
+                                    .frame(width: self.canvasSize, height: self.canvasSize)
+                                    .scaleEffect(finalMagnification * magnifyBy, anchor: magnifyAnchor)
+                                    .contextMenu(menuItems: {
+                                        Button("New Note") {
+
+                                            let graph = navPath.activeGraph
+
+                                            let note = Note(note: "New Note", rect: CGRect(origin: graph.currentScrollOffset, size:CGSize(width: 500, height: 500)))
+
+                                            graph.addNote(note)
+                                        }
+                                    })
+                                    .gesture(
+                                        MagnifyGesture()
+                                            .updating($magnifyBy, body: { value, state, _ in
+
+                                                let proposedScale = finalMagnification * value.magnification
+
+                                                guard (self.zoomMin ..< self.zoomMax).contains(proposedScale)
+                                                else
+                                                {
+                                                    return
+                                                }
+
+                                                state = min(max(value.magnification, self.zoomMin), self.zoomMax)
+
+                                                let scale = proposedScale   // or finalMagnification * state
+
+                                                // 0–1 in visible rect
+                                                let u = value.startAnchor.x
+                                                let v = value.startAnchor.y
+
+                                                let containerSize = self.scrollGeometry.containerSize
+                                                let contentOffset = self.scrollGeometry.contentOffset
+
+                                                // Convert scroll geometry into *canvas space* by dividing by scale
+                                                let visibleWidthInCanvas  = containerSize.width  / scale
+                                                let visibleHeightInCanvas = containerSize.height / scale
+
+                                                let offsetXInCanvas = contentOffset.x / scale
+                                                let offsetYInCanvas = contentOffset.y / scale
+
+                                                // Point under the fingers in canvas coords
+                                                let canvasX = offsetXInCanvas + u * visibleWidthInCanvas
+                                                let canvasY = offsetYInCanvas + v * visibleHeightInCanvas
+
+                                                // Normalize to 0–1 over the full scaled canvas
+                                                let newX = max(0, min(1, canvasX / (self.canvasSize / scale)))
+                                                let newY = max(0, min(1, canvasY / (self.canvasSize / scale)))
+
+                                                magnifyAnchor = UnitPoint(x: newX, y: newY)
+                                            })
+                                            .onEnded { value in
+                                                finalMagnification = min(max(finalMagnification * value.magnification, self.zoomMin), self.zoomMax)
+                                            }
+                                    )
+                                    .onAppear {
+                                        self.document.graph.undoManager = undoManager
+
+                                        // This is hacky as hell, but it seems our scroll offset doesn work since on can fire before other views are fully online?
+                                        // Or at least whatever is happening is fixed by this logic
+                                        // Fixes #100
+                                        DispatchQueue.main.asyncAfter(deadline: .now().advanced(by: .milliseconds(10)) ) {
+
+                                            if let firstNode = self.document.graph.nodes.first
+                                            {
+                                                let targetPoint = UnitPoint( x: (self.halfCanvasSize + firstNode.offset.width) / self.canvasSize,
+                                                                             y: (self.halfCanvasSize + firstNode.offset.height) / self.canvasSize)
+                                                proxy.scrollTo("canvas", anchor: targetPoint)
+                                            }
+                                        }
+                                    }
+
+                            }
+                            .defaultScrollAnchor(.center)
+                        }
+                        .onScrollGeometryChange(for: ScrollGeomHelper.self) { geometry in
+
+                            let center = CGPoint(x: geometry.contentSize.width / 2,
+                                                 y: geometry.contentSize.height / 2)
+                            let offset = (geometry.contentOffset - center) + (geometry.containerSize / 2)
+
+                            return ScrollGeomHelper(offset: offset, geometry: geometry)
+
+                        } action: { _, newScrollOffset in
+                            scrollGeometry = newScrollOffset.geometry
+
+                            navPath.activeGraph.currentScrollOffset = newScrollOffset.offset
+                        }
                     }
                 }
-            }
-            .inspector(isPresented: self.$inspectorVisibility)
-            {
-                NodeSelectionInspector(graph:self.document.graph, inputFocus: self.$inputFocus)
-                    .inspectorColumnWidth(min:250, ideal:250, max:300)
-            }
-            .toolbar
-            {
-                ToolbarItem(placement: .automatic)
+                .inspector(isPresented: self.$inspectorVisibility)
                 {
-                    Button("Parameters", systemImage: "sidebar.right") {
-                        self.inspectorVisibility.toggle()
+                    NodeSelectionInspector(graph:self.document.graph, navPath: navPath, inputFocus: self.$inputFocus)
+                        .inspectorColumnWidth(min:250, ideal:250, max:300)
+                }
+                .toolbar
+                {
+                    ToolbarItem(placement: .automatic)
+                    {
+                        Button("Parameters", systemImage: "sidebar.right") {
+                            self.inspectorVisibility.toggle()
+                        }
                     }
                 }
+            }
+        }
+        .onAppear {
+            if self.navPath == nil
+            {
+                self.navPath = SubGraphNavigationPath(rootGraph: self.document.graph)
             }
         }
     }
