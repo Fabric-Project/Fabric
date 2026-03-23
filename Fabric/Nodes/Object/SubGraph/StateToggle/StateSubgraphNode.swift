@@ -31,10 +31,6 @@ public class StateSubgraphNode: SubgraphNode {
             ("inputInTime", ParameterPort(parameter: FloatParameter("In Time", 1.0, 0.0, 60.0, .inputfield, "Transition duration when enabling (seconds)"))),
             ("inputOutTime", ParameterPort(parameter: FloatParameter("Out Time", 1.0, 0.0, 60.0, .inputfield, "Transition duration when disabling (seconds)"))),
             ("outputActive", NodePort<Float>(name: "Active", kind: .Outlet, description: "Transition intensity: 0 when off, 0→1 during in, 1 when on, 1→0 during out")),
-            ("outputIn", NodePort<Bool>(name: "In", kind: .Outlet, description: "True during transition in")),
-            ("outputOn", NodePort<Bool>(name: "On", kind: .Outlet, description: "True when fully on")),
-            ("outputOut", NodePort<Bool>(name: "Out", kind: .Outlet, description: "True during transition out")),
-            ("outputElapsed", NodePort<Float>(name: "Elapsed", kind: .Outlet, description: "Seconds since last transition began")),
         ]
     }
 
@@ -43,10 +39,6 @@ public class StateSubgraphNode: SubgraphNode {
     public var inputInTime: ParameterPort<Float> { port(named: "inputInTime") }
     public var inputOutTime: ParameterPort<Float> { port(named: "inputOutTime") }
     public var outputActive: NodePort<Float> { port(named: "outputActive") }
-    public var outputIn: NodePort<Bool> { port(named: "outputIn") }
-    public var outputOn: NodePort<Bool> { port(named: "outputOn") }
-    public var outputOut: NodePort<Bool> { port(named: "outputOut") }
-    public var outputElapsed: NodePort<Float> { port(named: "outputElapsed") }
 
     // MARK: - Transition State
 
@@ -114,10 +106,6 @@ public class StateSubgraphNode: SubgraphNode {
 
         // Send outputs
         outputActive.send(active)
-        outputIn.send(phase == .transIn)
-        outputOn.send(phase == .on)
-        outputOut.send(phase == .transOut)
-        outputElapsed.send(Float(transitionElapsed))
 
         // Hide subgraph scene when fully off so meshes don't render
         subGraph.scene.visible = phase != .off
