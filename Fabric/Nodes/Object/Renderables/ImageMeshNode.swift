@@ -26,6 +26,7 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
 
         return visible + [
             ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Image to display on the image mesh")),
+            ("inputColor", ParameterPort(parameter: Float4Parameter("Color", .one, .zero, .one, .colorpicker, "Tint color applied to the image (RGBA)"))),
             ("inputSize", ParameterPort(parameter: FloatParameter("Size", 1.0, .inputfield, "Size of the image mesh in world units"))),
             ("inputSizingDimension", ParameterPort(parameter: StringParameter("Sizing Dimension", "Width", ["Width", "Height"], .dropdown, "Which dimension the Size parameter controls"))),
         ] + rest
@@ -33,6 +34,7 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
 
     // Port accessors
     public var inputImage: NodePort<FabricImage> { port(named: "inputImage") }
+    public var inputColor: ParameterPort<simd_float4> { port(named: "inputColor") }
     public var inputSize: ParameterPort<Float> { port(named: "inputSize") }
     public var inputSizingDimension: ParameterPort<String> { port(named: "inputSizingDimension") }
 
@@ -72,6 +74,12 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
         {
             self.material.texture = self.inputImage.value?.texture
             self.material.flipped = !(self.inputImage.value?.isFlipped ?? false)
+        }
+
+        if self.inputColor.valueDidChange,
+           let color = self.inputColor.value
+        {
+            self.material.color = color
         }
 
         if self.inputImage.valueDidChange
