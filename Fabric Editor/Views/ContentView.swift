@@ -65,7 +65,7 @@ struct ContentView: View {
                             .onTapGesture { navPath.popToRoot() }
 
                         ForEach(navPath.entries) { entry in
-                            Text(">")
+                            Text("›")
                                 .font(.headline)
                             Text(entry.name)
                                 .font(.headline)
