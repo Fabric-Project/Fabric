@@ -61,7 +61,15 @@ public class SubgraphNode: BaseObjectNode
     public required init(context: Context)
     {
         self.subGraph = Graph(context: context)
-        
+
+        super.init(context: context)
+    }
+
+    /// Initialise with a pre-built sub-graph (e.g. decoded separately by the host app).
+    public init(context: Context, subGraph: Graph)
+    {
+        self.subGraph = subGraph
+
         super.init(context: context)
     }
     
