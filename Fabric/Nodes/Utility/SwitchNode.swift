@@ -269,11 +269,60 @@ struct SwitchNodeSettingsView: View {
     public override func execute(context: GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer) {
-        // Forward the selected input's boxed value to the output and its connections
-        let value = selectedInputPort.boxedValue()
-        outputPort.setBoxedValue(value)
-        for connection in outputPort.connections where connection.kind == .Inlet {
-            connection.setBoxedValue(value)
+        // When the port type is known, use the typed path to avoid the
+        // PortValue box/unbox overhead (indirect enum heap allocation).
+        switch portValueType {
+        case .Image:
+            forwardTyped(selectedInputPort, to: outputPort, as: FabricImage.self)
+        case .Bool:
+            forwardTyped(selectedInputPort, to: outputPort, as: Bool.self)
+        case .Int:
+            forwardTyped(selectedInputPort, to: outputPort, as: Int.self)
+        case .Float:
+            forwardTyped(selectedInputPort, to: outputPort, as: Float.self)
+        case .String:
+            forwardTyped(selectedInputPort, to: outputPort, as: String.self)
+        case .Vector2:
+            forwardTyped(selectedInputPort, to: outputPort, as: simd_float2.self)
+        case .Vector3:
+            forwardTyped(selectedInputPort, to: outputPort, as: simd_float3.self)
+        case .Vector4, .Color:
+            forwardTyped(selectedInputPort, to: outputPort, as: simd_float4.self)
+        default:
+            // Virtual / unknown: fall back to boxed path
+            let value = selectedInputPort.boxedValue()
+            outputPort.setBoxedValue(value)
+            for connection in outputPort.connections where connection.kind == .Inlet {
+                connection.setBoxedValue(value)
+            }
+        }
+    }
+
+    /// Forward a value directly between typed ports, avoiding PortValue boxing.
+    private func forwardTyped<T: PortValueRepresentable>(
+        _ input: Port, to output: Port, as type: T.Type
+    ) {
+        guard let typedInput = input as? NodePort<T>,
+              let typedOutput = output as? NodePort<T> else {
+            // Type mismatch — fall back to boxed path
+            let value = input.boxedValue()
+            output.setBoxedValue(value)
+            for connection in output.connections where connection.kind == .Inlet {
+                connection.setBoxedValue(value)
+            }
+            return
+        }
+
+        let value = typedInput.value
+        typedOutput.value = value
+        typedOutput.valueDidChange = true
+        typedOutput.node?.markDirty()
+        for connection in typedOutput.connections where connection.kind == .Inlet {
+            if let typedConnection = connection as? NodePort<T> {
+                typedConnection.value = value
+                typedConnection.valueDidChange = true
+                typedConnection.node?.markDirty()
+            }
         }
     }
 }
