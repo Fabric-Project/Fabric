@@ -58,6 +58,10 @@ public struct NodeCanvas : View
 
     @State private var portPositions: [UUID: CGPoint] = [:]
 
+    // Marquee (rubber-band) selection
+    @State private var marqueeRect: CGRect? = nil
+    @State private var preMarqueeSelection: Set<UUID> = []
+
     @State private var renamingNodeID: UUID? = nil // node being renamed
 
     // Stable list of nodes with settings open - only mutated on explicit open/close
@@ -187,20 +191,81 @@ public struct NodeCanvas : View
                 selectedNodes.forEach( { graph.delete(node: $0) } )
             }
 #endif
+            .gesture(
+                DragGesture(minimumDistance: 3)
+                    .onChanged { value in
+                        self.inputFocus = .canvas
+                        let graph = self.graph.activeSubGraph ?? self.graph
+                        let canvasSize = geom.size
+
+                        if marqueeRect == nil {
+                            // Starting a new marquee
+                            if NSEvent.modifierFlags.contains(.shift) {
+                                preMarqueeSelection = Set(graph.nodes.filter(\.isSelected).map(\.id))
+                            } else {
+                                preMarqueeSelection = []
+                                graph.deselectAllNodes()
+                            }
+                        }
+
+                        let start = value.startLocation
+                        let origin = CGPoint(
+                            x: min(start.x, value.location.x),
+                            y: min(start.y, value.location.y)
+                        )
+                        let size = CGSize(
+                            width: abs(value.location.x - start.x),
+                            height: abs(value.location.y - start.y)
+                        )
+                        marqueeRect = CGRect(origin: origin, size: size)
+
+                        // Convert marquee to node-offset space (origin at canvas centre)
+                        let marqueeInNodeSpace = CGRect(
+                            x: origin.x - canvasSize.width / 2,
+                            y: origin.y - canvasSize.height / 2,
+                            width: size.width,
+                            height: size.height
+                        )
+
+                        // Select nodes whose bounds intersect the marquee,
+                        // preserving pre-existing selection when shift is held
+                        for node in graph.nodes {
+                            let nodeRect = CGRect(
+                                origin: CGPoint(
+                                    x: node.offset.width - node.nodeSize.width / 2,
+                                    y: node.offset.height - node.nodeSize.height / 2
+                                ),
+                                size: node.nodeSize
+                            )
+                            let inMarquee = nodeRect.intersects(marqueeInNodeSpace)
+                            node.isSelected = inMarquee || preMarqueeSelection.contains(node.id)
+                        }
+                    }
+                    .onEnded { _ in
+                        marqueeRect = nil
+                        preMarqueeSelection = []
+                    }
+            )
             .onTapGesture {
                 self.inputFocus = .canvas
                 let graph = self.graph.activeSubGraph ?? self.graph
-
                 graph.deselectAllNodes()
             }
             .onDrop(of: [.fileURL], isTargeted: nil) { providers, location in
                 self.handleFileDrop(providers: providers, location: location, canvasSize: geom.size)
             }
             .id(self.graph.activeSubGraph?.shouldUpdateConnections ?? self.graph.shouldUpdateConnections)
-            // For hiding the nodes after a timeout - used if rendering nodes above content?
-//            .opacity(self.activityMonitor.isActive ? 1.0 : 0.0)
-//                           .animation(.easeInOut(duration: 0.5), value: self.activityMonitor.isActive)
-            
+            .overlay {
+                // Marquee selection rectangle
+                if let rect = marqueeRect {
+                    Rectangle()
+                        .fill(Color.accentColor.opacity(0.1))
+                        .overlay(Rectangle().strokeBorder(Color.accentColor, lineWidth: 1))
+                        .frame(width: rect.width, height: rect.height)
+                        .position(x: rect.midX, y: rect.midY)
+                        .allowsHitTesting(false)
+                }
+            }
         } // Pan Canvas
     }
     
