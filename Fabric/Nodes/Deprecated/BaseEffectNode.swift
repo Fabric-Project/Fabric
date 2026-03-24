@@ -17,6 +17,7 @@ public class BaseEffectNode: Node, NodeFileLoadingProtocol
     override public class var nodeType:Node.NodeType { .Image(imageType: .BaseEffect) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
+    override public class var nodeDescription: String { "Deprecated single-channel image effect" }
 
     override public var name: String {
         guard let fileURL = self.url else {

@@ -109,6 +109,7 @@ public class PerspectiveQuadGeometry: SatinGeometry
 public class PerspectiveQuadGeometryNode : BaseGeometryNode
 {
     public override class var name: String { "Perspective Quad Geometry" }
+    public override class var nodeDescription: String { "Generates a quad with perspective-correct corner placement" }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)

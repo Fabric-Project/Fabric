@@ -15,6 +15,7 @@ import Metal
 public class SkyboxMaterialNode : BaseMaterialNode
 {
     public override class var name:String {  "Skybox Material" }
+    public override class var nodeDescription: String { "Deprecated skybox material" }
 
     // Parameters
     public let inputEnvironmentIntensity:FloatParameter

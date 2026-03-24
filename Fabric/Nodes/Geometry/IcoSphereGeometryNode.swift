@@ -12,6 +12,7 @@ import Metal
 public class IcoSphereGeometryNode : BaseGeometryNode
 {
     public override class var name:String { "IcoSphere Geometry" }
+    public override class var nodeDescription: String { "Generates icosphere geometry" }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)

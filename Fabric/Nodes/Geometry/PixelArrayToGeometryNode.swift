@@ -12,6 +12,7 @@ import Metal
 public class PixelArrayToGeometryNode : BaseGeometryNode
 {
     public override class var name:String { "2D Pixel Points To Geometry" }
+    public override class var nodeDescription: String { "Converts a 2D pixel array into point geometry" }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)

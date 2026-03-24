@@ -20,6 +20,7 @@ final class MetalFXSpatialUpsample2xNode: BaseImageNode
     override class var name: String { "Upsample" }
     override class var nodeType: Node.NodeType { .Image(imageType: .Analysis) } // fits Image Processing bucket :contentReference[oaicite:4]{index=4}
     override class var defaultImageInputCountHint: Int? { 1 }
+    override class var nodeDescription: String { "Upscales an image 2x using MetalFX spatial upsampling" }
 
     // MetalFX state
     private var spatialScaler: MTLFXSpatialScaler?

@@ -13,6 +13,7 @@ import Metal
 public class CircleGeometryNode : BaseGeometryNode
 {
     public override class var name:String { "Circle Geometry" }
+    public override class var nodeDescription: String { "Generates circle geometry" }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)

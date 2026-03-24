@@ -17,6 +17,7 @@ class BaseGeneratorNode: Node, NodeFileLoadingProtocol
     override class var nodeType:Node.NodeType { .Image(imageType: .Generator) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
     override public class var nodeTimeMode: Node.TimeMode { .None }
+    override class var nodeDescription: String { "Deprecated image generator" }
 
     override public var name: String {
         guard let fileURL = self.url else {
