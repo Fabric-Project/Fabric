@@ -128,20 +128,35 @@ enum GraphAutoLayout {
 
         // For each node, find the lowest port index it connects to on any
         // downstream node. Lower index → higher on screen.
-        var sortKey: [UUID: Int] = [:]
+        // nil means no downstream connection constraint.
+        var portIndexKey: [UUID: Int] = [:]
 
         for node in allNodes {
-            var minPortIndex = Int.max
-            // Check each outlet port for connections to downstream inlet ports
+            var minPortIndex: Int? = nil
             for port in node.ports where port.kind == .Outlet {
                 for connection in port.connections where connection.kind == .Inlet {
-                    if let downstreamNode = connection.node {
-                        let index = downstreamNode.ports.firstIndex(where: { $0.id == connection.id }) ?? Int.max
-                        minPortIndex = min(minPortIndex, index)
+                    if let downstreamNode = connection.node,
+                       let index = downstreamNode.ports.firstIndex(where: { $0.id == connection.id }) {
+                        minPortIndex = min(minPortIndex ?? Int.max, index)
                     }
                 }
             }
-            sortKey[node.id] = minPortIndex == Int.max ? 0 : minPortIndex
+            if let idx = minPortIndex {
+                portIndexKey[node.id] = idx
+            }
+        }
+
+        /// Compare two nodes: first by downstream port index (if constrained),
+        /// then by current Y offset to preserve user ordering.
+        func compareNodes(_ a: Node, _ b: Node) -> Bool {
+            let aKey = portIndexKey[a.id]
+            let bKey = portIndexKey[b.id]
+            switch (aKey, bKey) {
+            case let (a?, b?):  return a < b
+            case (_?, nil):     return true   // constrained before unconstrained
+            case (nil, _?):     return false
+            case (nil, nil):    return a.offset.height < b.offset.height
+            }
         }
 
         // Sort and build output
@@ -155,12 +170,9 @@ enum GraphAutoLayout {
                 let consumers = nodesInColumn.filter { $0.nodeExecutionMode == .Consumer }
                 let disconnected = nodesInColumn.filter { $0.nodeExecutionMode != .Consumer }
 
-                let sortedDisconnected = disconnected.sorted { (sortKey[$0.id] ?? 0) < (sortKey[$1.id] ?? 0) }
-                let sortedConsumers = consumers.sorted { (sortKey[$0.id] ?? 0) < (sortKey[$1.id] ?? 0) }
-
-                nodesInColumn = sortedDisconnected + sortedConsumers
+                nodesInColumn = disconnected.sorted(by: compareNodes) + consumers.sorted(by: compareNodes)
             } else {
-                nodesInColumn.sort { (sortKey[$0.id] ?? 0) < (sortKey[$1.id] ?? 0) }
+                nodesInColumn.sort(by: compareNodes)
             }
 
             result.append((column: col, nodes: nodesInColumn))
