@@ -13,6 +13,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
     override public class var nodeType: Node.NodeType { .Image(imageType: .BaseEffect) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
+    override public class var nodeDescription: String { "Image processing effect" }
 
     override public var name: String {
         if let displayName {
