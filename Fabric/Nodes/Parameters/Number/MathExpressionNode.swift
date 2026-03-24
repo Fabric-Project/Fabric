@@ -121,7 +121,7 @@ struct MathExpressionView : View
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Provide math function with variables and get a single numerical result"}
 
-    override public var name: String { stringExpression }
+    override public var name: String { evaluatedDisplayName }
 
     // MARK: - Codable
 
@@ -183,6 +183,10 @@ struct MathExpressionView : View
         evalExpression()
     }
 
+    /// Updated by evalExpression() — shows the expression on success, or an
+    /// error indicator on parse failure. Observed by SwiftUI via `name`.
+    private var evaluatedDisplayName: String = "sin(x) + y^2"
+
     @ObservationIgnored private let mathParser = MathParser()
     @ObservationIgnored private var mathEvaluator:Evaluator? = nil
 
@@ -224,34 +228,46 @@ struct MathExpressionView : View
         if anyVariabledChanged,
            let mathEvaluator = self.mathEvaluator
         {
+            var sawUnresolvedVariable = false
             let result = mathEvaluator.eval(variables: { variable in
-                                
+
                 if let port = self.findPort(named: variable) as? NodePort<Float>,
                    let portValue = port.value
                 {
                     return Double(portValue)
                 }
-                
-                return Double.nan
+
+                sawUnresolvedVariable = true
+                return 0
             })
-            
-            self.outputNumber.send( Float(result) )
+
+            // Don't emit if any variable was unresolved — the expression's
+            // output is meaningless until every input has propagated at
+            // least once, and emitting NaN would otherwise poison downstream
+            // FloatParameters via the NaN != NaN publisher cycle. Also scrub
+            // legitimate NaN/Inf from the expression itself (0/0, log(-1),
+            // asin out of range, etc).
+            let output = Float(result)
+            guard !sawUnresolvedVariable, output.isFinite else { return }
+
+            self.outputNumber.send( output )
         }
     }
     
     private func evalExpression()
     {
         let evaluator = mathParser.parseResult(self.stringExpression)
-        
+
         switch evaluator
         {
         case .success(let evaluator):
             self.mathEvaluator = evaluator
+            self.evaluatedDisplayName = self.stringExpression
             self.registerPorts(forEvaluator: evaluator)
-            
+
         case .failure:
             self.mathEvaluator = nil
-            
+            self.evaluatedDisplayName = "⚠ \(self.stringExpression)"
         }
     }
     
