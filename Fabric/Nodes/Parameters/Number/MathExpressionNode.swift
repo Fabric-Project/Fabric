@@ -39,7 +39,7 @@ struct MathExpressionView : View
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Provide math function with variables and get a single numerical result"}
 
-    override public var name: String { stringExpression }
+    override public var name: String { evaluatedDisplayName }
 
     // MARK: - Codable
 
@@ -84,6 +84,10 @@ struct MathExpressionView : View
             self.evalExpression()
         }
     }
+
+    /// Updated by evalExpression() — shows the expression on success, or an
+    /// error indicator on parse failure. Observed by SwiftUI via `name`.
+    private var evaluatedDisplayName: String = "sin(x) + y^2"
 
     @ObservationIgnored private let mathParser = MathParser()
     @ObservationIgnored private var mathEvaluator:Evaluator? = nil
@@ -144,16 +148,17 @@ struct MathExpressionView : View
     private func evalExpression()
     {
         let evaluator = mathParser.parseResult(self.stringExpression)
-        
+
         switch evaluator
         {
         case .success(let evaluator):
             self.mathEvaluator = evaluator
+            self.evaluatedDisplayName = self.stringExpression
             self.registerPorts(forEvaluator: evaluator)
-            
+
         case .failure:
             self.mathEvaluator = nil
-            
+            self.evaluatedDisplayName = "⚠ \(self.stringExpression)"
         }
     }
     
