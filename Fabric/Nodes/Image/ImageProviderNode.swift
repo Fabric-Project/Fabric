@@ -86,16 +86,18 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
         if self.inputFilePathParam.valueDidChange
         {
             self.loadTextureFromInputValue()
-            
-            if let texture = self.texture
-            {
-                self.outputTexturePort.send(FabricImage.unmanaged(texture: texture))
-            }
-            
-            else
-            {
-                self.outputTexturePort.send(nil)
-            }
+        }
+
+        // Always send the current texture state. The texture is loaded
+        // during init (from decoder), but valueDidChange may already be
+        // cleared before the first execute, leaving the output port nil.
+        if let texture = self.texture
+        {
+            self.outputTexturePort.send(FabricImage.unmanaged(texture: texture))
+        }
+        else if self.outputTexturePort.value != nil
+        {
+            self.outputTexturePort.send(nil)
         }
      }
     
