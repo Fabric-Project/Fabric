@@ -45,7 +45,7 @@ extension Graph {
 enum GraphAutoLayout {
 
     // Layout constants
-    static let columnSpacing: CGFloat = 150
+    static let columnSpacing: CGFloat = 75
     static let rowSpacing: CGFloat = 20
     static let nodeWidth: CGFloat = 150
 
@@ -172,31 +172,65 @@ enum GraphAutoLayout {
     // MARK: - Position Computation
 
     /// Compute final offsets. Column 0 is at the right, higher columns go left.
-    /// Nodes within a column are stacked vertically with spacing.
+    ///
+    /// Vertical heuristic: the first (top-most) connected upstream node in each
+    /// column top-aligns with its downstream node. Remaining nodes stack below.
     private static func computePositions(orderedColumns: [(column: Int, nodes: [Node])]) -> [(Node, CGSize)] {
         guard !orderedColumns.isEmpty else { return [] }
 
-        let maxColumn = orderedColumns.map(\.column).max() ?? 0
         var result: [(Node, CGSize)] = []
+        // Track assigned centre-Y per node ID for downstream lookups
+        var centreYForNode: [UUID: CGFloat] = [:]
 
-        for (column, nodes) in orderedColumns {
-            // X: column 0 (consumers) at the right, higher columns go left
+        // Sort columns right-to-left (column 0 first) so downstream positions are known
+        let sorted = orderedColumns.sorted { $0.column < $1.column }
+
+        for (column, nodes) in sorted {
             let x = -CGFloat(column) * (columnSpacing + nodeWidth)
 
-            // Y: stack nodes vertically, centred around 0
-            let totalHeight = nodes.enumerated().reduce(CGFloat(0)) { acc, pair in
-                acc + pair.element.nodeSize.height + (pair.offset > 0 ? rowSpacing : 0)
-            }
-            var y = -totalHeight / 2
+            // Find the anchor: the first node in this column that has a downstream
+            // connection to a node already positioned.
+            var anchorY: CGFloat? = nil
 
+            if column > 0, let firstConnected = nodes.first(where: { !$0.outputNodes.isEmpty }) {
+                // Find the top edge of the downstream node
+                anchorY = downstreamTopEdgeY(for: firstConnected, centreYForNode: centreYForNode)
+            }
+
+            // Stack nodes: anchor the first node's top edge to the downstream
+            // node's top edge, then stack the rest below.
+            let startY: CGFloat
+            if let anchor = anchorY {
+                // Top-align: startY is the top edge of the first node
+                startY = anchor
+            } else {
+                // No anchor (column 0 or no connections) — centre around 0
+                let totalHeight = nodes.enumerated().reduce(CGFloat(0)) { acc, pair in
+                    acc + pair.element.nodeSize.height + (pair.offset > 0 ? rowSpacing : 0)
+                }
+                startY = -totalHeight / 2
+            }
+
+            var y = startY
             for node in nodes {
                 let nodeHeight = node.nodeSize.height
                 let centreY = y + nodeHeight / 2
                 result.append((node, CGSize(width: x, height: centreY)))
+                centreYForNode[node.id] = centreY
                 y += nodeHeight + rowSpacing
             }
         }
 
         return result
+    }
+
+    /// Find the top-edge Y of the downstream node that the given node connects to.
+    private static func downstreamTopEdgeY(for node: Node, centreYForNode: [UUID: CGFloat]) -> CGFloat? {
+        for outputNode in node.outputNodes {
+            if let centreY = centreYForNode[outputNode.id] {
+                return centreY - outputNode.nodeSize.height / 2
+            }
+        }
+        return nil
     }
 }
