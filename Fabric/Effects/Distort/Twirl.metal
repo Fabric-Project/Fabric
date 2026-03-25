@@ -1,3 +1,5 @@
+// description: Twirls the image around a centre point
+
 #include <metal_stdlib>
 using namespace metal;
 

@@ -4,6 +4,7 @@
 //
 //  Created by Anton Marini on 7/15/24.
 //
+// description: Expands bright regions (morphological dilation)
 
 #define SAMPLER_PRECISION half4
 #define SAMPLER_TYPE texture2d<half>

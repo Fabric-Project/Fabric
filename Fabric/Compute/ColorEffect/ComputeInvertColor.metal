@@ -4,6 +4,7 @@
 //
 //  Created by Anton Marini on 10/29/25.
 //
+// description: Inverts image colours using a compute shader
 
 #include <metal_stdlib>
 using namespace metal;

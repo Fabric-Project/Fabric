@@ -4,6 +4,8 @@
 //
 //  Created by Anton Marini on 7/15/24.
 //
+// description: Simulates Technicolor Process 3 film look
+
 #include <metal_stdlib>
 using namespace metal;
 

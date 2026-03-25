@@ -4,6 +4,7 @@
 //
 //  Created by Anton Marini on 7/15/24.
 //
+// description: Creates a kaleidoscope mirror effect
 
 #define SAMPLER_PRECISION half4
 #define SAMPLER_TYPE texture2d<half>

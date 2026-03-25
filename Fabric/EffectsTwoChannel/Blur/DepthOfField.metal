@@ -4,6 +4,7 @@
 //
 //  Created by Anton Marini on 7/15/24.
 //
+// description: Applies depth-of-field blur using a depth map
 
 // #define SAMPLEDOF_DEBUG
 #define SAMPLEDOF_TYPE half3

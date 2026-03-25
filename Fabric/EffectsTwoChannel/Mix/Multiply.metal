@@ -4,7 +4,7 @@
 //
 //  Created by Anton Marini on 7/15/24.
 //
-
+// description: Multiply blend mode
 
 #define BLEND_FUNC(a, b) blendMultiply(a, b)
 

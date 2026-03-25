@@ -1,3 +1,5 @@
+// description: Fast approximate anti-aliasing
+
 #include <metal_stdlib>
 using namespace metal;
 

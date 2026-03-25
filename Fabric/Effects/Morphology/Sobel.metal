@@ -4,6 +4,7 @@
 //
 //  Created by Anton Marini on 7/15/24.
 //
+// description: Detects edges using the Sobel operator
 
 #define EDGESOBEL_TYPE half
 #define SAMPLER_PRECISION half4

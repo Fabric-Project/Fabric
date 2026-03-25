@@ -4,7 +4,7 @@
 //
 //  Created by Anton Marini on 6/29/25.
 //
-
+// description: Generates coloured wavelet noise
 
 #include "../../lygia/generative/wavelet.msl"
 

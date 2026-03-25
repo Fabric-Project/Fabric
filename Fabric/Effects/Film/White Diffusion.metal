@@ -4,6 +4,7 @@
 //
 //  Created by Anton Marini on 7/15/24.
 //
+// description: Applies a soft white diffusion glow
 
 #include <metal_stdlib>
 using namespace metal;

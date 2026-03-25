@@ -4,6 +4,7 @@
 //
 //  Created by Anton Marini on 7/15/24.
 //
+// description: Creates concentric outlines from an SDF
 
 #include "../../lygia/sampler.msl"
 #include "../../lygia/draw/fill.msl"

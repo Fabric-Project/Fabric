@@ -1,3 +1,5 @@
+// description: Computes offset optical flow gradient
+
 #include <metal_stdlib>
 using namespace metal;
 

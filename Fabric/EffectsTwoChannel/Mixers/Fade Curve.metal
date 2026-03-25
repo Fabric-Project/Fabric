@@ -4,6 +4,7 @@
 //
 //  Created by Toby Harris on 07/10/2025.
 //
+// description: Cross-fades between two images with an adjustable curve
 
 #define SAMPLER_PRECISION half4
 #define SAMPLER_TYPE texture2d<half>

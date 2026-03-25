@@ -1,3 +1,5 @@
+// description: Creates a spherical dent distortion
+
 #include <metal_stdlib>
 using namespace metal;
 

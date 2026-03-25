@@ -4,6 +4,7 @@
 //
 //  Created by Anton Marini on 7/15/24.
 //
+// description: Intersects two signed distance fields
 
 #include "../../lygia/sampler.msl"
 #include "../../lygia/sdf/opIntersection.msl"

@@ -4,7 +4,7 @@
 //
 //  Created by Anton Marini on 7/15/24.
 //
-
+// description: Applies barrel lens distortion
 
 #define SAMPLER_PRECISION half4
 #define SAMPLER_TYPE texture2d<half>

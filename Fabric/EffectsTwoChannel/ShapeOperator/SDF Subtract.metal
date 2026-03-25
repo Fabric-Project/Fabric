@@ -4,6 +4,7 @@
 //
 //  Created by Anton Marini on 7/15/24.
 //
+// description: Subtracts one signed distance field from another
 
 #include "../../lygia/sampler.msl"
 #include "../../lygia/sdf/opSubtraction.msl"

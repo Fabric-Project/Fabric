@@ -4,6 +4,7 @@
 //
 //  Created by Anton Marini on 10/29/25.
 //
+// description: Generates contour lines from a scalar field
 
 #include <metal_stdlib>
 using namespace metal;

@@ -1,3 +1,5 @@
+// description: Applies a wavy wobble distortion
+
 #include <metal_stdlib>
 using namespace metal;
 

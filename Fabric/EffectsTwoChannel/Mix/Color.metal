@@ -4,7 +4,7 @@
 //
 //  Created by Anton Marini on 7/15/24.
 //
-
+// description: Color blend mode (hue and saturation from source)
 
 #define BLEND_FUNC(a, b) blendColor(a, b)
 

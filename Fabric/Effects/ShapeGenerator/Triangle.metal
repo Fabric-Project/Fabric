@@ -4,7 +4,7 @@
 //
 //  Created by Anton Marini on 7/15/24.
 //
-
+// description: Generates a signed distance field triangle
 
 float sdEquilateralTriangle( float2 p, float r )
 {

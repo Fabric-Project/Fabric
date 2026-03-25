@@ -77,7 +77,7 @@ public struct NodeRegisitryView: View {
                                             .font( .system(size: 11) )
                                         if self.selection.contains(node.id)
                                         {
-                                            Text(node.nodeClass.nodeDescription)
+                                            Text(node.nodeDescription)
                                                 .font( .system(size: 10) )
                                                 .foregroundStyle(.secondary)
                                                 .lineLimit(nil)

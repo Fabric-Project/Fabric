@@ -1,3 +1,5 @@
+// description: Pinches the image towards a centre point
+
 #include <metal_stdlib>
 using namespace metal;
 

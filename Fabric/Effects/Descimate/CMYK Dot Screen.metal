@@ -1,3 +1,5 @@
+// description: Simulates CMYK halftone dot screen printing
+
 #include <metal_stdlib>
 using namespace metal;
 

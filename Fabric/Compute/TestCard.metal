@@ -4,6 +4,7 @@
 //
 //  Created by Claude on 3/1/26.
 //
+// description: Generates a test card pattern
 
 #include <metal_stdlib>
 using namespace metal;

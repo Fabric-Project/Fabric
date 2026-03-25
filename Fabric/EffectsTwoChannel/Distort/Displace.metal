@@ -4,6 +4,7 @@
 //
 //  Created by Anton Marini on 7/15/24.
 //
+// description: Displaces image pixels using a second image
 
 // #define SAMPLEDOF_DEBUG
 #define SAMPLER_PRECISION half4

@@ -4,7 +4,7 @@
 //
 //  Created by Anton Marini on 6/29/25.
 //
-
+// description: Generates fractal Brownian motion noise
 
 #include "../../lygia/generative/fbm.msl"
 

@@ -4,7 +4,7 @@
 //
 //  Created by Anton Marini on 7/15/24.
 //
-
+// description: Generates a signed distance field cross
 
 float sdRoundedX(float2 p, float w, float r )
 {

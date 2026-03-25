@@ -1,3 +1,5 @@
+// description: Remixes colour channels with a matrix
+
 #include <metal_stdlib>
 using namespace metal;
 
