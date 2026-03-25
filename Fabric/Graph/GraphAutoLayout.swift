@@ -223,56 +223,58 @@ enum GraphAutoLayout {
 
     /// Compute final offsets. Column 0 is at the right, higher columns go left.
     ///
-    /// Vertical heuristic: the first (top-most) connected upstream node in each
-    /// column top-aligns with its downstream node. Remaining nodes stack below.
+    /// Each node tries to top-align with its topmost downstream connected node.
+    /// If that would overlap with the node above, it stacks below instead.
+    /// Column 0 (no downstream) centres around Y = 0.
     private static func computePositions(orderedColumns: [(column: Int, nodes: [Node])]) -> [(Node, CGSize)] {
         guard !orderedColumns.isEmpty else { return [] }
 
         var result: [(Node, CGSize)] = []
-        // Track assigned centre-Y per node ID for downstream lookups
         var centreYForNode: [UUID: CGFloat] = [:]
 
-        // Sort columns right-to-left (column 0 first) so downstream positions are known
+        // Process columns right-to-left so downstream positions are known
         let sorted = orderedColumns.sorted { $0.column < $1.column }
 
         for (column, nodes) in sorted {
             let x = -CGFloat(column) * (columnSpacing + nodeWidth)
 
-            // Find the anchor: the topmost downstream top edge across all
-            // connected nodes in this column. This prevents columns from
-            // sagging below the previous column when the first sorted node
-            // connects to a node deep in that column.
-            var anchorY: CGFloat? = nil
-
-            if column > 0 {
-                for node in nodes {
-                    if let topY = downstreamTopEdgeY(for: node, centreYForNode: centreYForNode) {
-                        anchorY = min(anchorY ?? .infinity, topY)
-                    }
-                }
-            }
-
-            // Stack nodes: anchor the first node's top edge to the downstream
-            // node's top edge, then stack the rest below.
-            let startY: CGFloat
-            if let anchor = anchorY {
-                // Top-align: startY is the top edge of the first node
-                startY = anchor
-            } else {
-                // No anchor (column 0 or no connections) — centre around 0
+            if column == 0 {
+                // Rightmost column: centre around 0
                 let totalHeight = nodes.enumerated().reduce(CGFloat(0)) { acc, pair in
                     acc + pair.element.nodeSize.height + (pair.offset > 0 ? rowSpacing : 0)
                 }
-                startY = -totalHeight / 2
-            }
+                var y = -totalHeight / 2
+                for node in nodes {
+                    let centreY = y + node.nodeSize.height / 2
+                    result.append((node, CGSize(width: x, height: centreY)))
+                    centreYForNode[node.id] = centreY
+                    y += node.nodeSize.height + rowSpacing
+                }
+            } else {
+                // Each node tries to top-align with its downstream target.
+                // `bottomOfPrevious` ensures no overlap with the node above.
+                var bottomOfPrevious: CGFloat = -.infinity
 
-            var y = startY
-            for node in nodes {
-                let nodeHeight = node.nodeSize.height
-                let centreY = y + nodeHeight / 2
-                result.append((node, CGSize(width: x, height: centreY)))
-                centreYForNode[node.id] = centreY
-                y += nodeHeight + rowSpacing
+                for node in nodes {
+                    let nodeHeight = node.nodeSize.height
+
+                    // Desired top edge: align with downstream node's top edge
+                    let desiredTop: CGFloat
+                    if let downstreamTop = downstreamTopEdgeY(for: node, centreYForNode: centreYForNode) {
+                        desiredTop = downstreamTop
+                    } else {
+                        // No downstream connection — stack below previous
+                        desiredTop = bottomOfPrevious + rowSpacing
+                    }
+
+                    // Ensure we don't overlap with the node above
+                    let actualTop = max(desiredTop, bottomOfPrevious + rowSpacing)
+                    let centreY = actualTop + nodeHeight / 2
+
+                    result.append((node, CGSize(width: x, height: centreY)))
+                    centreYForNode[node.id] = centreY
+                    bottomOfPrevious = actualTop + nodeHeight
+                }
             }
         }
 

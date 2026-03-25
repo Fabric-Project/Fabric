@@ -166,6 +166,127 @@ struct GraphAutoLayoutTests {
                 "Column 2 top (\(topCol2)) should be at or above column 1 top (\(topCol1))")
     }
 
+    // MARK: - Per-node downstream alignment
+
+    /// Each node should top-align with its topmost downstream connected node,
+    /// unless pushed down by nodes above it in the column.
+    ///
+    ///   Col 1       Col 0
+    ///   A ────────→ C.port0     (A top-aligns with C)
+    ///   B ────────→ C.port1     (B should top-align with its downstream — but C
+    ///                            only has one row, so B stacks below A)
+    ///
+    /// More interesting case with gap:
+    ///   Col 2       Col 1       Col 0
+    ///   X ────────→ A ────────→ D.port0     (X top-aligns with A)
+    ///   Y ────────→ B ────────→ D.port1     (Y should top-align with B,
+    ///                                        not just stack below X)
+    @Test("Nodes top-align with their downstream target, not just stacked")
+    func perNodeDownstreamAlignment() {
+        guard let ctx = makeContext() else { return }
+
+        let d = makeNode(context: ctx) // col 0
+        let a = makeNode(context: ctx) // col 1, row 0
+        let b = makeNode(context: ctx) // col 1, row 1
+        let x = makeNode(context: ctx) // col 2, feeds A
+        let y = makeNode(context: ctx) // col 2, feeds B
+
+        a.outputTexturePort.connect(to: d.inputWidth)
+        b.outputTexturePort.connect(to: d.inputHeight)
+        x.outputTexturePort.connect(to: a.inputWidth)
+        y.outputTexturePort.connect(to: b.inputWidth)
+
+        let layout = GraphAutoLayout.compute(nodes: [d, a, b, x, y])
+
+        // Y should top-align with B, not just stack below X
+        let topB = topEdge(of: b, in: layout)!
+        let topY = topEdge(of: y, in: layout)!
+        #expect(topY == topB,
+                "Y (top \(topY)) should top-align with B (top \(topB))")
+    }
+
+    /// Non-trivial case: extra nodes in column 1 push B down. Y should
+    /// skip the gap to top-align with B, not just stack below X.
+    ///
+    ///   Col 2       Col 1       Col 0
+    ///   X ────────→ A ────────→ D.port0
+    ///               S1 ─────→ D.port1   (spacer, pushes B down)
+    ///               S2 ─────→ D.port2   (spacer)
+    ///   Y ────────→ B          (B has no downstream — disconnected leaf in col 1)
+    ///
+    /// Actually, B needs to be in column 1 with a downstream to D. But
+    /// TestCardProviderNode has only 3 ports. So: use a different topology.
+    ///
+    ///   Col 1       Col 0
+    ///   A ────────→ C.port0
+    ///   B ────────→ C.port1
+    ///   D ────────→ C.port2
+    ///
+    ///   Col 2       Col 1
+    ///   X ────────→ A           (should top-align with A)
+    ///   Y ────────→ D           (should top-align with D, skipping past B)
+    ///
+    @Test("Nodes skip gap to align with downstream target")
+    func nodesSkipGapToAlignWithDownstream() {
+        guard let ctx = makeContext() else { return }
+
+        let c = makeNode(context: ctx) // col 0
+        let a = makeNode(context: ctx) // col 1, row 0
+        let b = makeNode(context: ctx) // col 1, row 1 (no upstream — gap creator)
+        let d = makeNode(context: ctx) // col 1, row 2
+        let x = makeNode(context: ctx) // col 2, feeds A
+        let y = makeNode(context: ctx) // col 2, feeds D
+
+        a.outputTexturePort.connect(to: c.inputWidth)
+        b.outputTexturePort.connect(to: c.inputHeight)
+        d.outputTexturePort.connect(to: c.inputTextString)
+        x.outputTexturePort.connect(to: a.inputWidth)
+        y.outputTexturePort.connect(to: d.inputWidth)
+
+        let layout = GraphAutoLayout.compute(nodes: [c, a, b, d, x, y])
+
+        let topA = topEdge(of: a, in: layout)!
+        let topD = topEdge(of: d, in: layout)!
+        let topX = topEdge(of: x, in: layout)!
+        let topY = topEdge(of: y, in: layout)!
+
+        #expect(topX == topA, "X should top-align with A")
+        #expect(topY == topD,
+                "Y (top \(topY)) should top-align with D (top \(topD)), not just stack below X")
+    }
+
+    /// Same principle applied to the Offstage Left Box: secs*speed should
+    /// top-align with Euler Orientation (its downstream target).
+    @Test("Offstage Left Box: secs*speed top-aligns with Euler Orientation")
+    func offstageLeftBoxSecsTimesSpeedAlignment() {
+        guard let ctx = makeContext() else { return }
+
+        let mesh = makeNode(context: ctx)
+        let vector3 = makeNode(context: ctx)
+        let eulerOrientation = makeNode(context: ctx)
+        let physicalMaterial = makeNode(context: ctx)
+        vector3.outputTexturePort.connect(to: mesh.inputWidth)
+        eulerOrientation.outputTexturePort.connect(to: mesh.inputHeight)
+        physicalMaterial.outputTexturePort.connect(to: mesh.inputTextString)
+
+        let twoMinusActive = makeNode(context: ctx)
+        let secsTimesSpeed = makeNode(context: ctx)
+        let colorTween = makeNode(context: ctx)
+        twoMinusActive.outputTexturePort.connect(to: vector3.inputWidth)
+        secsTimesSpeed.outputTexturePort.connect(to: eulerOrientation.inputWidth)
+        colorTween.outputTexturePort.connect(to: physicalMaterial.inputWidth)
+
+        let allNodes: [Node] = [mesh, vector3, eulerOrientation, physicalMaterial,
+                                twoMinusActive, secsTimesSpeed, colorTween]
+
+        let layout = GraphAutoLayout.compute(nodes: allNodes)
+
+        let topEuler = topEdge(of: eulerOrientation, in: layout)!
+        let topSecs = topEdge(of: secsTimesSpeed, in: layout)!
+        #expect(topSecs == topEuler,
+                "secs*speed (top \(topSecs)) should top-align with Euler Orientation (top \(topEuler))")
+    }
+
     // MARK: - Cross-column vertical ordering
 
     /// Nodes in column N should be ordered by the row of their downstream
