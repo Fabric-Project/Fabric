@@ -52,6 +52,22 @@ public class StateSubgraphNode: SubgraphNode {
     // Ensure we always get executed so we can track transitions
     override public var isDirty: Bool { get { true } set { } }
 
+    override public func markClean() {
+        if phase != .off {
+            super.markClean()
+        } else {
+            // When disabled the inner subgraph is not executed, so don't
+            // cascade markClean into it — that would clear isDirty and
+            // valueDidChange on inner nodes that never ran, preventing them
+            // from re-executing when the subgraph is later enabled.
+            // Only clear our own control ports so edge detection resets.
+            inputEnable.valueDidChange = false
+            inputInTime.valueDidChange = false
+            inputOutTime.valueDidChange = false
+            outputActive.valueDidChange = false
+        }
+    }
+
     // MARK: - Execution
 
     override public func execute(context: GraphExecutionContext,
