@@ -108,6 +108,13 @@ let package = Package(
             path: "Frameworks/Syphon.xcframework"
         ),
 
+        // Tests
+        .testTarget(
+            name: "FabricTests",
+            dependencies: ["Fabric"],
+            path: "Tests"
+        ),
+
     ],
     swiftLanguageModes: [.v5],
     cxxLanguageStandard: .cxx17

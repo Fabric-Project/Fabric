@@ -120,18 +120,67 @@ enum GraphAutoLayout {
     // MARK: - Vertical Ordering
 
     /// Order nodes within each column to minimise wire crossings.
-    /// Sort key: the minimum port index where this node connects on its
-    /// downstream node. Nodes feeding earlier (higher) ports sort first.
-    /// For the rightmost column, disconnected nodes are placed above consumers.
+    ///
+    /// Processes columns right-to-left. For the rightmost column (col 0),
+    /// disconnected nodes are placed above consumers, sorted by downstream
+    /// port index. For subsequent columns, nodes are sorted by:
+    ///   1. Row index of their downstream node in the previous column
+    ///   2. Port index on that downstream node
+    ///   3. Current Y offset (preserve user ordering as tiebreaker)
     private static func orderWithinColumns(columns: [Int: [Node]], allNodes: [Node]) -> [(column: Int, nodes: [Node])] {
         let maxColumn = columns.keys.max() ?? 0
 
-        // For each node, find the lowest port index it connects to on any
-        // downstream node. Lower index → higher on screen.
-        // nil means no downstream connection constraint.
-        var portIndexKey: [UUID: Int] = [:]
+        // Row index of each node within its column, set as we process right-to-left.
+        var rowIndexForNode: [UUID: Int] = [:]
 
-        for node in allNodes {
+        var result: [(column: Int, nodes: [Node])] = []
+
+        for col in 0...maxColumn {
+            guard var nodesInColumn = columns[col] else { continue }
+
+            if col == 0 {
+                // Rightmost column: disconnected nodes above consumers,
+                // each group sorted by downstream port index.
+                let portKeys = downstreamPortIndexKeys(for: nodesInColumn)
+
+                func compare(_ a: Node, _ b: Node) -> Bool {
+                    switch (portKeys[a.id], portKeys[b.id]) {
+                    case let (ak?, bk?):  return ak < bk
+                    case (_?, nil):       return true
+                    case (nil, _?):       return false
+                    case (nil, nil):      return a.offset.height < b.offset.height
+                    }
+                }
+
+                let consumers = nodesInColumn.filter { $0.nodeExecutionMode == .Consumer }
+                let disconnected = nodesInColumn.filter { $0.nodeExecutionMode != .Consumer }
+                nodesInColumn = disconnected.sorted(by: compare) + consumers.sorted(by: compare)
+            } else {
+                // Sort by downstream node's row in the already-ordered columns,
+                // then by port index on that downstream node.
+                nodesInColumn.sort { a, b in
+                    let ak = downstreamSortKey(for: a, rowIndexForNode: rowIndexForNode)
+                    let bk = downstreamSortKey(for: b, rowIndexForNode: rowIndexForNode)
+                    if ak.row != bk.row { return ak.row < bk.row }
+                    if ak.portIndex != bk.portIndex { return ak.portIndex < bk.portIndex }
+                    return a.offset.height < b.offset.height
+                }
+            }
+
+            for (index, node) in nodesInColumn.enumerated() {
+                rowIndexForNode[node.id] = index
+            }
+            result.append((column: col, nodes: nodesInColumn))
+        }
+
+        return result
+    }
+
+    /// For each node, find the minimum port index where it connects on any
+    /// downstream node. Used for column 0 sorting.
+    private static func downstreamPortIndexKeys(for nodes: [Node]) -> [UUID: Int] {
+        var keys: [UUID: Int] = [:]
+        for node in nodes {
             var minPortIndex: Int? = nil
             for port in node.ports where port.kind == .Outlet {
                 for connection in port.connections where connection.kind == .Inlet {
@@ -142,43 +191,32 @@ enum GraphAutoLayout {
                 }
             }
             if let idx = minPortIndex {
-                portIndexKey[node.id] = idx
+                keys[node.id] = idx
+            }
+        }
+        return keys
+    }
+
+    /// Sort key: (downstream node's row in previous column, port index on that node).
+    /// Unconstrained nodes sort last.
+    private static func downstreamSortKey(for node: Node, rowIndexForNode: [UUID: Int]) -> (row: Int, portIndex: Int) {
+        var bestRow = Int.max
+        var bestPortIndex = Int.max
+
+        for port in node.ports where port.kind == .Outlet {
+            for connection in port.connections where connection.kind == .Inlet {
+                if let downstreamNode = connection.node,
+                   let downstreamRow = rowIndexForNode[downstreamNode.id] {
+                    let portIndex = downstreamNode.ports.firstIndex(where: { $0.id == connection.id }) ?? Int.max
+                    if (downstreamRow, portIndex) < (bestRow, bestPortIndex) {
+                        bestRow = downstreamRow
+                        bestPortIndex = portIndex
+                    }
+                }
             }
         }
 
-        /// Compare two nodes: first by downstream port index (if constrained),
-        /// then by current Y offset to preserve user ordering.
-        func compareNodes(_ a: Node, _ b: Node) -> Bool {
-            let aKey = portIndexKey[a.id]
-            let bKey = portIndexKey[b.id]
-            switch (aKey, bKey) {
-            case let (a?, b?):  return a < b
-            case (_?, nil):     return true   // constrained before unconstrained
-            case (nil, _?):     return false
-            case (nil, nil):    return a.offset.height < b.offset.height
-            }
-        }
-
-        // Sort and build output
-        var result: [(column: Int, nodes: [Node])] = []
-
-        for col in 0...maxColumn {
-            guard var nodesInColumn = columns[col] else { continue }
-
-            if col == 0 {
-                // Rightmost column: disconnected nodes above consumers
-                let consumers = nodesInColumn.filter { $0.nodeExecutionMode == .Consumer }
-                let disconnected = nodesInColumn.filter { $0.nodeExecutionMode != .Consumer }
-
-                nodesInColumn = disconnected.sorted(by: compareNodes) + consumers.sorted(by: compareNodes)
-            } else {
-                nodesInColumn.sort(by: compareNodes)
-            }
-
-            result.append((column: col, nodes: nodesInColumn))
-        }
-
-        return result
+        return (bestRow, bestPortIndex)
     }
 
     // MARK: - Position Computation
@@ -200,13 +238,18 @@ enum GraphAutoLayout {
         for (column, nodes) in sorted {
             let x = -CGFloat(column) * (columnSpacing + nodeWidth)
 
-            // Find the anchor: the first node in this column that has a downstream
-            // connection to a node already positioned.
+            // Find the anchor: the topmost downstream top edge across all
+            // connected nodes in this column. This prevents columns from
+            // sagging below the previous column when the first sorted node
+            // connects to a node deep in that column.
             var anchorY: CGFloat? = nil
 
-            if column > 0, let firstConnected = nodes.first(where: { !$0.outputNodes.isEmpty }) {
-                // Find the top edge of the downstream node
-                anchorY = downstreamTopEdgeY(for: firstConnected, centreYForNode: centreYForNode)
+            if column > 0 {
+                for node in nodes {
+                    if let topY = downstreamTopEdgeY(for: node, centreYForNode: centreYForNode) {
+                        anchorY = min(anchorY ?? .infinity, topY)
+                    }
+                }
             }
 
             // Stack nodes: anchor the first node's top edge to the downstream
