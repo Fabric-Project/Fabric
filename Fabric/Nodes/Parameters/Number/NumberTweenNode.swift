@@ -26,7 +26,7 @@ public class NumberEaseNode : Node
         return ports +
         [
             ("inputNumber", ParameterPort(parameter: FloatParameter("Number", 0.0, .inputfield, "Normalized input value (0-1) to apply easing to"))),
-            ("inputParam", ParameterPort(parameter: StringParameter("Easing", "Linear", Easing.allCases.map( {$0.title()} ), .dropdown, "Easing function to apply to the input")) ),
+            ("inputParam", ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing function to apply to the input")) ),
             ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet, description: "The eased output value")),
         ]
     }
@@ -36,15 +36,13 @@ public class NumberEaseNode : Node
     public var inputParam:ParameterPort<String> { port(named: "inputParam") }
     public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
 
-    private let easingMap = Dictionary(uniqueKeysWithValues: zip(Easing.allCases.map( {$0.title()}), Easing.allCases)  )
-
     public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
         if self.inputNumber.valueDidChange,
            let param = self.inputParam.value,
-           let easeFunc = easingMap[param],
+           let easeFunc = TweenEasing.map[param],
            let loopedTime = self.inputNumber.value//.truncatingRemainder(dividingBy: duration) // TODO: ?? should we loop by 1.0?
         {
             self.outputNumber.send( Float( easeFunc.function( Double(loopedTime) ) ) )
@@ -52,44 +50,3 @@ public class NumberEaseNode : Node
      }
 }
 
-// MARK: - Tween Helpers
-
-/// Shared easing lookup used by tween nodes
-let tweenEasingMap = Dictionary(uniqueKeysWithValues: zip(Easing.allCases.map( {$0.title()} ), Easing.allCases))
-
-/// Tracks tween timing state: start time, progress, and whether a tween is active.
-/// Used by NumberTweenNode and ColorTweenNode.
-struct TweenState
-{
-    var startTime:TimeInterval = 0.0
-    var tweening:Bool = false
-    var initialized:Bool = false
-
-    /// Compute normalized progress and eased t for the current frame.
-    /// Returns nil if not currently tweening.
-    mutating func update(time:TimeInterval, duration:Float, easingName:String) -> (t:Float, easedT:Float)?
-    {
-        guard tweening,
-              let easeFunc = tweenEasingMap[easingName]
-        else { return nil }
-
-        let elapsed = time - startTime
-        let d = max(Double(duration), 0.001)
-        let t = min(elapsed / d, 1.0)
-        let easedT = Float(easeFunc.function(t))
-
-        if t >= 1.0
-        {
-            tweening = false
-        }
-
-        return (Float(t), easedT)
-    }
-
-    /// Begin a new tween from the current time.
-    mutating func start(at time:TimeInterval)
-    {
-        startTime = time
-        tweening = true
-    }
-}

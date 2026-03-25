@@ -274,6 +274,8 @@ public class NodeRegistry {
         GradientNoiseNode.self,
         AudioSpectrumNode.self,
         ColorTweenNode.self,
+        EulerOrientationNode.self,
+        OrientationTweenNode.self,
         ArrayFirstValueNode<Float>.self,
         ArrayLastValueNode<Float>.self,
         ArrayIndexValueNode<Float>.self,
