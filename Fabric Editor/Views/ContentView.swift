@@ -59,16 +59,16 @@ struct ContentView: View {
 
                     HStack(spacing:5)
                     {
-                        Text("Root Patch")
+                        Button("Root Patch", action: editingContext.popToRoot)
                             .font(.headline)
-                            .onTapGesture { editingContext.popToRoot() }
+                            .buttonStyle(.plain)
 
                         ForEach(editingContext.entries) { entry in
                             Text("›")
                                 .font(.headline)
-                            Text(entry.name)
+                            Button(entry.name) { editingContext.popTo(entry) }
                                 .font(.headline)
-                                .onTapGesture { editingContext.popTo(entry) }
+                                .buttonStyle(.plain)
                         }
                     }
                     .padding(.horizontal)
