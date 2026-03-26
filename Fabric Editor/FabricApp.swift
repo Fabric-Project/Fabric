@@ -157,10 +157,6 @@ struct EditorInputFocusValueKey: FocusedValueKey {
     typealias Value = Binding<FabricEditorInputFocus>
 }
 
-struct EditingContextFocusedValueKey: FocusedValueKey {
-    typealias Value = CanvasEditingContext
-}
-
 extension FocusedValues
 {
     var document: DocumentFocusedValueKey.Value?
@@ -183,15 +179,7 @@ extension FocusedValues
         }
     }
 
-    var editingContext: EditingContextFocusedValueKey.Value?
-    {
-        get {
-            self[EditingContextFocusedValueKey.self]
-        }
-        set {
-            self[EditingContextFocusedValueKey.self] = newValue
-        }
-    }
+    @Entry var editingContext: CanvasEditingContext? = nil
 }
 
 
