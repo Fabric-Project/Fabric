@@ -43,15 +43,15 @@ struct FabricApp: App {
         }
         .commands {
             AboutCommands()
-            
+
             DocumentCommands()
-            
+
+            ViewCommands()
+
             CommandGroup(after: .appInfo)
             {
                 CheckForUpdatesView(updater: updaterController.updater)
             }
-            
-           
         }
         
         Window("About Fabric Editor", id: "about") {
@@ -149,6 +149,23 @@ struct DocumentCommands:Commands
     }
 }
 
+
+struct ViewCommands: Commands {
+    @FocusedBinding(\.document) var document: FabricDocument?
+
+    var body: some Commands {
+        CommandGroup(after: .toolbar) {
+            Button("Auto Layout Graph") {
+                let graph = document?.graph.activeSubGraph ?? document?.graph
+                graph?.autoLayout()
+            }
+            .keyboardShortcut("l", modifiers: [.command, .option])
+            .disabled(document == nil)
+
+            Divider()
+        }
+    }
+}
 
 struct DocumentFocusedValueKey: FocusedValueKey {
   typealias Value = Binding<FabricDocument>
