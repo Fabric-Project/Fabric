@@ -41,14 +41,12 @@ private struct NodeSettingsPopoverAnchor: View
 
 public struct NodeCanvas : View
 {
-    let graph:Graph
-    let navPath: SubGraphNavigationPath
+    let editingContext: CanvasEditingContext
     @Binding var inputFocus: FabricEditorInputFocus
 
-    public init(graph:Graph, navPath: SubGraphNavigationPath, inputFocus: Binding<FabricEditorInputFocus>)
+    public init(editingContext: CanvasEditingContext, inputFocus: Binding<FabricEditorInputFocus>)
     {
-        self.graph = graph
-        self.navPath = navPath
+        self.editingContext = editingContext
         self._inputFocus = inputFocus
     }
     
@@ -57,8 +55,6 @@ public struct NodeCanvas : View
     // Drag to Offset bullshit
     @State private var initialOffsets: [UUID: CGSize] = [:]
     @State private var activeDragAnchor: UUID? = nil       // which node started the drag
-
-    @State private var portPositions: [UUID: CGPoint] = [:]
 
     @State private var renamingNodeID: UUID? = nil // node being renamed
 
@@ -77,7 +73,7 @@ public struct NodeCanvas : View
                     .resizable(resizingMode: .tile)// Need this pattern image repeated throughout the page
                     .offset(-geom.size / 2)
                 
-                let graph = self.navPath.activeGraph
+                let graph = self.editingContext.activeGraph
 
                 ForEach(graph.notes, id:\.id) { currentNote in
                         
@@ -93,7 +89,7 @@ public struct NodeCanvas : View
                 
                 ForEach(graph.nodes, id: \.id) { currentNode in
                     
-                    NodeView(node: currentNode , graph:graph, offset: currentNode.offset)
+                    NodeView(node: currentNode, editingContext: self.editingContext, offset: currentNode.offset)
     
                         .offset(-geom.size / 2)
                         .offset( currentNode.offset )
@@ -135,7 +131,7 @@ public struct NodeCanvas : View
                                         self.inputFocus = .canvas
                                         if let subgraph = currentNode as? SubgraphNode
                                         {
-                                            self.navPath.enter(subgraph)
+                                            self.editingContext.enter(subgraph)
                                         }
                                     }
                                 )
@@ -183,7 +179,7 @@ public struct NodeCanvas : View
             .onDeleteCommand {
                 guard self.inputFocus == .canvas else { return }
 
-                let graph = self.navPath.activeGraph
+                let graph = self.editingContext.activeGraph
 
                 let selectedNodes = graph.nodes.filter({ $0.isSelected })
                 selectedNodes.forEach( { graph.delete(node: $0) } )
@@ -191,14 +187,14 @@ public struct NodeCanvas : View
 #endif
             .onTapGesture {
                 self.inputFocus = .canvas
-                let graph = self.navPath.activeGraph
+                let graph = self.editingContext.activeGraph
 
                 graph.deselectAllNodes()
             }
             .onDrop(of: [.fileURL], isTargeted: nil) { providers, location in
                 self.handleFileDrop(providers: providers, location: location, canvasSize: geom.size)
             }
-            .id(self.navPath.activeGraph.shouldUpdateConnections)
+            .id(self.editingContext.activeGraph.shouldUpdateConnections)
             // For hiding the nodes after a timeout - used if rendering nodes above content?
 //            .opacity(self.activityMonitor.isActive ? 1.0 : 0.0)
 //                           .animation(.easeInOut(duration: 0.5), value: self.activityMonitor.isActive)
@@ -249,7 +245,7 @@ public struct NodeCanvas : View
         // Handle Cmd+key shortcuts
         if keyPress.modifiers.contains(.command)
         {
-            let graph = self.navPath.activeGraph
+            let graph = self.editingContext.activeGraph
             
             switch keyPress.key
             {
@@ -279,25 +275,25 @@ public struct NodeCanvas : View
         {
         case .upArrow:
             print("up arrow")
-            self.graph.selectNextNode(inDirection: .Up, expandSelection: keyPress.modifiers.contains(.shift))
+            self.editingContext.activeGraph.selectNextNode(inDirection: .Up, expandSelection: keyPress.modifiers.contains(.shift))
 
         case .downArrow:
             print("down arrow")
-            self.graph.selectNextNode(inDirection: .Down, expandSelection: keyPress.modifiers.contains(.shift))
+            self.editingContext.activeGraph.selectNextNode(inDirection: .Down, expandSelection: keyPress.modifiers.contains(.shift))
 
         case .leftArrow:
             print("left arrow")
-            self.graph.selectNextNode(inDirection: .Left, expandSelection: keyPress.modifiers.contains(.shift))
+            self.editingContext.activeGraph.selectNextNode(inDirection: .Left, expandSelection: keyPress.modifiers.contains(.shift))
 
         case .rightArrow:
             print("right arrow")
-            self.graph.selectNextNode(inDirection: .Right, expandSelection: keyPress.modifiers.contains(.shift))
+            self.editingContext.activeGraph.selectNextNode(inDirection: .Right, expandSelection: keyPress.modifiers.contains(.shift))
 
         case .escape:
-            self.graph.deselectAllNodes()
+            self.editingContext.activeGraph.deselectAllNodes()
 
         case .deleteForward:
-            let graph = self.navPath.activeGraph
+            let graph = self.editingContext.activeGraph
             let selectedNodes = graph.nodes.filter({ $0.isSelected })
             selectedNodes.forEach( { graph.delete(node: $0) } )
 
@@ -344,19 +340,19 @@ public struct NodeCanvas : View
     
     private func calcPortAnchors(_ portAnchors:(PortAnchorKey.Value), geometryProxy geom:GeometryProxy)
     {
-        let graph = self.navPath.activeGraph
+        let graph = self.editingContext.activeGraph
 
         var positions: [UUID: CGPoint] = [:]
         for (portID, anchor) in portAnchors {
             positions[portID] = geom[anchor]
         }
 
-        graph.portPositions = positions
+        editingContext.portPositions = positions
     }
     
     @ViewBuilder private func calcOverlayPaths(_ portAnchors:(PortAnchorKey.Value), geometryProxy geom:GeometryProxy) -> some View
     {
-        let graph = self.navPath.activeGraph
+        let graph = self.editingContext.activeGraph
 
         let ports = graph.nodes.flatMap(\.ports)
 
@@ -387,8 +383,8 @@ public struct NodeCanvas : View
             }
         }
         
-        if let sourcePortID = graph.dragPreviewSourcePortID,
-           let targetPosition = graph.dragPreviewTargetPosition,
+        if let sourcePortID = editingContext.dragPreviewSourcePortID,
+           let targetPosition = editingContext.dragPreviewTargetPosition,
            let sourceAnchor = portAnchors[sourcePortID],
            let sourcePort = graph.nodePort(forID: sourcePortID)
         {
@@ -606,7 +602,7 @@ public struct NodeCanvas : View
     
     private func handleFileDrop(providers: [NSItemProvider], location: CGPoint, canvasSize: CGSize) -> Bool
     {
-        let graph = self.navPath.activeGraph
+        let graph = self.editingContext.activeGraph
         var handled = false
 
         for provider in providers

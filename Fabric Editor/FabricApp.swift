@@ -77,7 +77,7 @@ struct AboutCommands: Commands {
 
 struct DocumentCommands:Commands
 {
-    @FocusedBinding(\.document) var document: FabricDocument?
+    @FocusedValue(\.editingContext) var editingContext: CanvasEditingContext?
     @FocusedBinding(\.editorInputFocus) var editorInputFocus: FabricEditorInputFocus?
 
     private var isCanvasFocused: Bool {
@@ -88,7 +88,7 @@ struct DocumentCommands:Commands
 
         CommandGroup(replacing: .pasteboard)
         {
-            let graph = self.document?.graph.activeSubGraph ?? self.document?.graph
+            let graph = editingContext?.activeGraph
             let hasSelection = graph?.nodes.contains(where: { $0.isSelected }) ?? false
             let hasPasteData = NSPasteboard.general.data(forType: Graph.nodeClipboardType) != nil
 
@@ -129,14 +129,13 @@ struct DocumentCommands:Commands
             .keyboardShortcut("d", modifiers: .command)
             .disabled(self.isCanvasFocused ? !hasSelection : true)
         }
-        
+
         CommandGroup(after: .pasteboard)
         {
             Button("Select All Nodes")
             {
                 if self.isCanvasFocused {
-                    let graph = self.document?.graph.activeSubGraph ?? self.document?.graph
-                    graph?.selectAllNodes()
+                    editingContext?.activeGraph.selectAllNodes()
                 }
                 else
                 {
@@ -144,7 +143,7 @@ struct DocumentCommands:Commands
                 }
             }
             .keyboardShortcut(KeyEquivalent("a"), modifiers: .command)
-            .disabled(self.isCanvasFocused ? (self.document?.graph.nodes.isEmpty ?? true) : false)
+            .disabled(self.isCanvasFocused ? (editingContext?.activeGraph.nodes.isEmpty ?? true) : false)
         }
     }
 }
@@ -156,6 +155,10 @@ struct DocumentFocusedValueKey: FocusedValueKey {
 
 struct EditorInputFocusValueKey: FocusedValueKey {
     typealias Value = Binding<FabricEditorInputFocus>
+}
+
+struct EditingContextFocusedValueKey: FocusedValueKey {
+    typealias Value = CanvasEditingContext
 }
 
 extension FocusedValues
@@ -177,6 +180,16 @@ extension FocusedValues
         }
         set {
             self[EditorInputFocusValueKey.self] = newValue
+        }
+    }
+
+    var editingContext: EditingContextFocusedValueKey.Value?
+    {
+        get {
+            self[EditingContextFocusedValueKey.self]
+        }
+        set {
+            self[EditingContextFocusedValueKey.self] = newValue
         }
     }
 }

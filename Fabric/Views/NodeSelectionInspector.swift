@@ -11,20 +11,18 @@ import UniformTypeIdentifiers
 
 public struct NodeSelectionInspector: View
 {
-    let graph:Graph
-    let navPath: SubGraphNavigationPath
+    let editingContext: CanvasEditingContext
     @Binding private var inputFocus: FabricEditorInputFocus
 
-    public init(graph:Graph, navPath: SubGraphNavigationPath, inputFocus: Binding<FabricEditorInputFocus>)
+    public init(editingContext: CanvasEditingContext, inputFocus: Binding<FabricEditorInputFocus>)
     {
-        self.graph = graph
-        self.navPath = navPath
+        self.editingContext = editingContext
         self._inputFocus = inputFocus
     }
 
     public var body: some View {
 
-        let graph = self.navPath.activeGraph
+        let graph = self.editingContext.activeGraph
 
         let selectedNodes = graph.nodes.filter( { $0.isSelected } )
 
