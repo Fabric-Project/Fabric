@@ -258,6 +258,7 @@ public class NodeRegistry {
         // Number
         CurrentTimeNode.self,
         SystemTimeNode.self,
+        ClockTimeNode.self,
         NumberNode.self,
         TimelineNode.self,
         NumberUnaryOperator.self,
@@ -289,6 +290,7 @@ public class NodeRegistry {
         
         // String
         StringNode.self,
+        StringComparisonNode.self,
         TextFileLoaderNode.self,
         StringJoinNode.self,
         StringComponentNode.self,
@@ -297,6 +299,13 @@ public class NodeRegistry {
         StringWrapNode.self,
         StringRemoveWhitespaceNode.self,
         StringDifferenceNode.self,
+        StringCaseNode.self,
+        StringFormatterNode.self,
+        StringScannerNode.self,
+        StringSeparatorNode.self,
+        DateFormatterNode.self,
+        DirectoryScannerNode.self,
+        StringToTimecodeNode.self,
 //        ConvertToStringNode.self,
         LocalLLMNode.self,
         ArrayFirstValueNode<String>.self,
