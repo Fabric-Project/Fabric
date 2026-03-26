@@ -53,7 +53,7 @@ struct NodeView : View
 
         }
         .frame(width: self.node.nodeSize.width, height: self.node.nodeSize.height)
-        .cornerRadius(self.cornerRadius())
+        .clipShape(.rect(cornerRadius: self.cornerRadius()))
         .overlay {
             RoundedRectangle(cornerRadius: self.cornerRadius())
                 .stroke(  (self.node.isSelected) ? self.node.nodeType.color() : .gray /*self.node.nodeType.backgroundColor()*/ , lineWidth: (self.node.isSelected) ? 1.5 : 1.0)
