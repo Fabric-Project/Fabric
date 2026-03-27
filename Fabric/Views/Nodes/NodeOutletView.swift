@@ -39,7 +39,7 @@ struct NodeOutletView: View
                             }
 
                             guard let targetPortID = self.findPortAt(position: value.location, in: value.location),
-                                  let targetPort = self.editingContext.activeGraph.nodePort(forID: targetPortID),
+                                  let targetPort = self.editingContext.currentGraph.nodePort(forID: targetPortID),
                                   targetPort.id != self.port.id,
                                   targetPort.kind == .Inlet,
                                   targetPort.canConnect(to: self.port)

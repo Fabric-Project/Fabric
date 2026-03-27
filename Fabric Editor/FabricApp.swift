@@ -88,7 +88,7 @@ struct DocumentCommands:Commands
 
         CommandGroup(replacing: .pasteboard)
         {
-            let graph = editingContext?.activeGraph
+            let graph = editingContext?.currentGraph
             let hasSelection = graph?.nodes.contains(where: { $0.isSelected }) ?? false
             let hasPasteData = NSPasteboard.general.data(forType: Graph.nodeClipboardType) != nil
 
@@ -135,7 +135,7 @@ struct DocumentCommands:Commands
             Button("Select All Nodes")
             {
                 if self.isCanvasFocused {
-                    editingContext?.activeGraph.selectAllNodes()
+                    editingContext?.currentGraph.selectAllNodes()
                 }
                 else
                 {
@@ -143,7 +143,7 @@ struct DocumentCommands:Commands
                 }
             }
             .keyboardShortcut(KeyEquivalent("a"), modifiers: .command)
-            .disabled(self.isCanvasFocused ? (editingContext?.activeGraph.nodes.isEmpty ?? true) : false)
+            .disabled(self.isCanvasFocused ? (editingContext?.currentGraph.nodes.isEmpty ?? true) : false)
         }
     }
 }

@@ -22,7 +22,7 @@ public class CanvasEditingContext
     public private(set) var entries: [SubgraphNode] = []
 
     /// The graph currently being displayed and edited.
-    public var activeGraph: Graph
+    public var currentGraph: Graph
     {
         entries.last?.subGraph ?? rootGraph
     }
@@ -88,7 +88,7 @@ public class CanvasEditingContext
     /// rapid successive adds so they don't pile on top of each other.
     public func addNode(_ wrapper: NodeClassWrapper) throws
     {
-        let graph = activeGraph
+        let graph = currentGraph
         let node = try wrapper.initializeNode(context: graph.context)
         node.offset = self.calcInteractiveOffset(for: node)
         graph.addNode(node)

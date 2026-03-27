@@ -94,9 +94,9 @@ struct ContentView: View {
                                 .scaleEffect(finalMagnification * magnifyBy, anchor: magnifyAnchor)
                                 .contextMenu(menuItems: {
                                     Button("New Note") {
-                                        let graph = editingContext.activeGraph
+                                        let currentGraph = editingContext.currentGraph
                                         let note = Note(note: "New Note", rect: CGRect(origin: editingContext.currentScrollOffset, size:CGSize(width: 500, height: 500)))
-                                        graph.addNote(note)
+                                        currentGraph.addNote(note)
                                     }
                                 })
                                 .gesture(

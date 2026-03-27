@@ -22,15 +22,15 @@ public struct NodeSelectionInspector: View
 
     public var body: some View {
 
-        let graph = self.editingContext.activeGraph
+        let currentGraph = self.editingContext.currentGraph
 
-        let selectedNodes = graph.nodes.filter( { $0.isSelected } )
+        let selectedNodes = currentGraph.nodes.filter( { $0.isSelected } )
 
         List {
 
             Section(header: Text("Published"))
             {
-                ParameterGroupView(parameterGroup:graph.publishedParameterGroup)
+                ParameterGroupView(parameterGroup:currentGraph.publishedParameterGroup)
             }
 
             ForEach(selectedNodes, id: \.id) { node in
@@ -48,7 +48,7 @@ public struct NodeSelectionInspector: View
             }
         }
         .listStyle(.sidebar)
-        .id(graph.shouldUpdateConnections)
+        .id(currentGraph.shouldUpdateConnections)
 
     }
 
