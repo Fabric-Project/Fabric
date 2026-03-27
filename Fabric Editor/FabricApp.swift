@@ -159,6 +159,8 @@ struct EditorInputFocusValueKey: FocusedValueKey {
 
 extension FocusedValues
 {
+    @Entry var editingContext: CanvasEditingContext? = nil
+
     var document: DocumentFocusedValueKey.Value?
     {
         get {
@@ -178,8 +180,6 @@ extension FocusedValues
             self[EditorInputFocusValueKey.self] = newValue
         }
     }
-
-    @Entry var editingContext: CanvasEditingContext? = nil
 }
 
 
