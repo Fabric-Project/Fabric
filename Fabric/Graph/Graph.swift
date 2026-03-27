@@ -272,7 +272,7 @@ internal import AnyCodable
     
     /// Initialize a node from a wrapper and add it to this graph.
     /// The node receives no special positioning — use
-    /// `CanvasEditingContext.addNode(_:)` for interactive placement.
+    /// `GraphCanvasContext.addNode(_:)` for interactive placement.
     public func addNode(_ node: NodeClassWrapper) throws
     {
         let node = try node.initializeNode(context: self.context)
@@ -280,7 +280,7 @@ internal import AnyCodable
     }
 
     /// Add a node to this graph. The node's offset is taken as-is — callers are
-    /// responsible for positioning (see `CanvasEditingContext.addNode` for
+    /// responsible for positioning (see `GraphCanvasContext.addNode` for
     /// interactive placement with scroll-offset and rapid-add staggering).
     public func addNode(_ node:Node)
     {

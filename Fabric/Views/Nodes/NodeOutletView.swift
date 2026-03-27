@@ -10,7 +10,7 @@ import SwiftUI
 struct NodeOutletView: View
 {
     let port: Port
-    let editingContext: CanvasEditingContext
+    let editingContext: GraphCanvasContext
     
     @State private var isDropTargeted = false
 

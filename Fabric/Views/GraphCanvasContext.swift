@@ -1,5 +1,5 @@
 //
-//  CanvasEditingContext.swift
+//  GraphCanvasContext.swift
 //  Fabric
 //
 //  Created by Claude on 3/26/26.
@@ -14,7 +14,7 @@ import SwiftUI
 /// Views should depend on this single object rather than reaching into
 /// `Graph` for UI concerns. `Graph` remains a pure document model.
 @Observable
-public class CanvasEditingContext
+public class GraphCanvasContext
 {
     // MARK: - Navigation
 

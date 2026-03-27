@@ -12,7 +12,7 @@ struct NodeInletView: View
     static let radius:CGFloat = 15
     
     let port: Port
-    let editingContext: CanvasEditingContext
+    let editingContext: GraphCanvasContext
 
     @State private var isDropTargeted = false
 

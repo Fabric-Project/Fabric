@@ -11,7 +11,7 @@ import Satin
 struct NodeView : View
 {
     @Bindable var node:Node
-    let editingContext: CanvasEditingContext
+    let editingContext: GraphCanvasContext
 
     // Drag to Offset bullshit
     @State var offset = CGSize.zero

@@ -32,11 +32,11 @@ struct ContentView: View {
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
     @State private var inspectorVisibility:Bool = true
     @State private var inputFocus: FabricEditorInputFocus = .canvas
-    @State private var editingContext: CanvasEditingContext
+    @State private var editingContext: GraphCanvasContext
 
     init(document: Binding<FabricDocument>) {
         self._document = document
-        self._editingContext = State(initialValue: CanvasEditingContext(rootGraph: document.wrappedValue.graph))
+        self._editingContext = State(initialValue: GraphCanvasContext(rootGraph: document.wrappedValue.graph))
     }
 
     // Magic Numbers...
@@ -86,7 +86,7 @@ struct ContentView: View {
                     ScrollViewReader { proxy in
                         ScrollView([.horizontal, .vertical])
                         {
-                            NodeCanvas(editingContext: editingContext, inputFocus: self.$inputFocus)
+                            GraphCanvas(editingContext: editingContext, inputFocus: self.$inputFocus)
                                 .id("canvas")
                                 .focusedSceneValue(\.editorInputFocus, self.$inputFocus)
                                 .focusedSceneValue(\.editingContext, editingContext)

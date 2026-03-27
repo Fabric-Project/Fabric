@@ -1,5 +1,5 @@
 //
-//  NodeCanvas.swift
+//  GraphCanvas.swift
 //  v
 //
 //  Created by Anton Marini on 5/26/24.
@@ -39,18 +39,18 @@ private struct NodeSettingsPopoverAnchor: View
     }
 }
 
-public struct NodeCanvas : View
+public struct GraphCanvas : View
 {
-    let editingContext: CanvasEditingContext
+    let editingContext: GraphCanvasContext
     @Binding var inputFocus: FabricEditorInputFocus
 
-    public init(editingContext: CanvasEditingContext, inputFocus: Binding<FabricEditorInputFocus>)
+    public init(editingContext: GraphCanvasContext, inputFocus: Binding<FabricEditorInputFocus>)
     {
         self.editingContext = editingContext
         self._inputFocus = inputFocus
     }
 
-//    @State var activityMonitor = NodeCanvasUserActivityMonitor()
+//    @State var activityMonitor = GraphCanvasUserActivityMonitor()
 
     // Drag to Offset bullshit
     @State private var initialOffsets: [UUID: CGSize] = [:]

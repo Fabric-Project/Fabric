@@ -10,7 +10,7 @@ import Satin
 
 public struct NodeRegisitryView: View {
 
-    public let editingContext: CanvasEditingContext
+    public let editingContext: GraphCanvasContext
     @Binding private var inputFocus: FabricEditorInputFocus
 
     @State private var searchString:String = ""
@@ -28,7 +28,7 @@ public struct NodeRegisitryView: View {
 
     private var haveNodesToShow: Bool { self.numNodesToShow > 0 }
 
-    public init(editingContext: CanvasEditingContext, inputFocus: Binding<FabricEditorInputFocus>) {
+    public init(editingContext: GraphCanvasContext, inputFocus: Binding<FabricEditorInputFocus>) {
         self.editingContext = editingContext
         self._inputFocus = inputFocus
     }

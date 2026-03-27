@@ -77,7 +77,7 @@ struct AboutCommands: Commands {
 
 struct DocumentCommands:Commands
 {
-    @FocusedValue(\.editingContext) var editingContext: CanvasEditingContext?
+    @FocusedValue(\.editingContext) var editingContext: GraphCanvasContext?
     @FocusedBinding(\.editorInputFocus) var editorInputFocus: FabricEditorInputFocus?
 
     private var isCanvasFocused: Bool {
@@ -159,7 +159,7 @@ struct EditorInputFocusValueKey: FocusedValueKey {
 
 extension FocusedValues
 {
-    @Entry var editingContext: CanvasEditingContext? = nil
+    @Entry var editingContext: GraphCanvasContext? = nil
 
     var document: DocumentFocusedValueKey.Value?
     {
