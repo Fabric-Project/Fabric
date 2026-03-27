@@ -18,27 +18,18 @@ public class CanvasEditingContext
 {
     // MARK: - Navigation
 
-    public struct Entry: Identifiable
-    {
-        public let id = UUID()
-        public let node: SubgraphNode
-
-        public var graph: Graph { node.subGraph }
-        public var name: String { node.name }
-    }
-
     public let rootGraph: Graph
-    public private(set) var entries: [Entry] = []
+    public private(set) var entries: [SubgraphNode] = []
 
     /// The graph currently being displayed and edited.
     public var activeGraph: Graph
     {
-        entries.last?.graph ?? rootGraph
+        entries.last?.subGraph ?? rootGraph
     }
 
     public func enter(_ node: SubgraphNode)
     {
-        entries.append(Entry(node: node))
+        entries.append(node)
         syncUndoManager()
     }
 
@@ -49,9 +40,9 @@ public class CanvasEditingContext
         syncUndoManager()
     }
 
-    public func popTo(_ entry: Entry)
+    public func popTo(_ node: SubgraphNode)
     {
-        guard let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
+        guard let index = entries.firstIndex(where: { $0.id == node.id }) else { return }
         entries = Array(entries.prefix(through: index))
         syncUndoManager()
     }
@@ -138,7 +129,7 @@ public class CanvasEditingContext
     /// Propagate the undo manager to the active subgraph so undo works at any nesting level.
     private func syncUndoManager()
     {
-        if let active = entries.last?.graph, let undoManager = rootGraph.undoManager
+        if let active = entries.last?.subGraph, let undoManager = rootGraph.undoManager
         {
             active.undoManager = undoManager
         }

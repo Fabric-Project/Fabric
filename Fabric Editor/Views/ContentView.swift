@@ -65,10 +65,10 @@ struct ContentView: View {
                         .font(.headline)
                         .buttonStyle(.plain)
 
-                    ForEach(editingContext.entries) { entry in
+                    ForEach(editingContext.entries) { node in
                         Text("›")
                             .font(.headline)
-                        Button(entry.name) { editingContext.popTo(entry) }
+                        Button(node.name) { editingContext.popTo(node) }
                             .font(.headline)
                             .buttonStyle(.plain)
                     }
