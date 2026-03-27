@@ -61,7 +61,7 @@ struct ContentView: View {
 
                 HStack(spacing:5)
                 {
-                    Button("Root Patch", action: editingContext.popToRoot)
+                    Button("Root Graph", action: editingContext.popToRoot)
                         .font(.headline)
                         .buttonStyle(.plain)
 
