@@ -798,11 +798,10 @@ internal import AnyCodable
     @discardableResult
     public func duplicateNodes(_ nodesToDuplicate: [Node], offset: CGSize = CGSize(width: 20, height: 20)) -> [Node]
     {
-        let targetGraph = self
         guard !nodesToDuplicate.isEmpty else { return [] }
 
         // 1. Capture internal connections before anything changes
-        let internalConnections = targetGraph.buildInternalConnectionMap(for: nodesToDuplicate)
+        let internalConnections = self.buildInternalConnectionMap(for: nodesToDuplicate)
 
         // 2. Encode all nodes and build a unified UUID remap table
         let encoder = JSONEncoder()
@@ -847,7 +846,7 @@ internal import AnyCodable
             {
                 let rewrittenMap = try JSONDecoder().decode(AnyCodableMap.self, from: rewrittenData)
 
-                if let newNode = targetGraph.decodeNode(from: rewrittenMap)
+                if let newNode = self.decodeNode(from: rewrittenMap)
                 {
                     newNode.offset = newNode.offset + offset
                     newNodes.append(newNode)
@@ -860,11 +859,11 @@ internal import AnyCodable
         }
 
         // 4. Add all new nodes (grouped undo)
-        targetGraph.undoManager?.beginUndoGrouping()
+        self.undoManager?.beginUndoGrouping()
 
         for newNode in newNodes
         {
-            targetGraph.addNode(newNode)
+            self.addNode(newNode)
         }
 
         // 5. Restore internal connections using remapped port IDs
@@ -872,28 +871,28 @@ internal import AnyCodable
         {
             guard let newPortIDString = uuidRemap[oldPortID.uuidString],
                   let newPortID = UUID(uuidString: newPortIDString),
-                  let newPort = targetGraph.nodePort(forID: newPortID)
+                  let newPort = self.nodePort(forID: newPortID)
             else { continue }
 
             for oldConnectedID in oldConnectedIDs
             {
                 guard let newConnectedIDString = uuidRemap[oldConnectedID.uuidString],
                       let newConnectedID = UUID(uuidString: newConnectedIDString),
-                      let newConnectedPort = targetGraph.nodePort(forID: newConnectedID)
+                      let newConnectedPort = self.nodePort(forID: newConnectedID)
                 else { continue }
 
                 newPort.connect(to: newConnectedPort)
             }
         }
 
-        targetGraph.undoManager?.endUndoGrouping()
-        targetGraph.undoManager?.setActionName("Duplicate Nodes")
+        self.undoManager?.endUndoGrouping()
+        self.undoManager?.setActionName("Duplicate Nodes")
 
         // 6. Select only the new nodes
-        targetGraph.deselectAllNodes()
+        self.deselectAllNodes()
         for newNode in newNodes { newNode.isSelected = true }
 
-        targetGraph.shouldUpdateConnections = true
+        self.shouldUpdateConnections = true
 
         return newNodes
     }
@@ -956,8 +955,6 @@ extension Graph
     
     public func pasteNodesFromPasteboard(offset: CGSize = CGSize(width: 20, height: 20)) -> [Node]
     {
-        let targetGraph = self
-
         guard let data = NSPasteboard.general.data(forType: Graph.nodeClipboardType) else
         {
             return []
@@ -1005,7 +1002,7 @@ extension Graph
 
                 let rewrittenMap = try JSONDecoder().decode(AnyCodableMap.self, from: rewrittenData)
 
-                if let newNode = targetGraph.decodeNode(from: rewrittenMap)
+                if let newNode = self.decodeNode(from: rewrittenMap)
                 {
                     newNode.offset = newNode.offset + offset
                     newNodes.append(newNode)
@@ -1013,11 +1010,11 @@ extension Graph
             }
 
             // Add nodes and restore connections
-            targetGraph.undoManager?.beginUndoGrouping()
+            self.undoManager?.beginUndoGrouping()
 
             for newNode in newNodes
             {
-                targetGraph.addNode(newNode)
+                self.addNode(newNode)
             }
 
             // Restore internal connections using remapped IDs
@@ -1025,27 +1022,27 @@ extension Graph
             {
                 guard let newPortIDString = uuidRemap[oldPortIDString],
                       let newPortID = UUID(uuidString: newPortIDString),
-                      let newPort = targetGraph.nodePort(forID: newPortID)
+                      let newPort = self.nodePort(forID: newPortID)
                 else { continue }
 
                 for oldConnectedIDString in oldConnectedIDStrings
                 {
                     guard let newConnectedIDString = uuidRemap[oldConnectedIDString],
                           let newConnectedID = UUID(uuidString: newConnectedIDString),
-                          let newConnectedPort = targetGraph.nodePort(forID: newConnectedID)
+                          let newConnectedPort = self.nodePort(forID: newConnectedID)
                     else { continue }
 
                     newPort.connect(to: newConnectedPort)
                 }
             }
 
-            targetGraph.undoManager?.endUndoGrouping()
-            targetGraph.undoManager?.setActionName("Paste Nodes")
+            self.undoManager?.endUndoGrouping()
+            self.undoManager?.setActionName("Paste Nodes")
 
-            targetGraph.deselectAllNodes()
+            self.deselectAllNodes()
             for newNode in newNodes { newNode.isSelected = true }
 
-            targetGraph.shouldUpdateConnections = true
+            self.shouldUpdateConnections = true
 
             return newNodes
         }
