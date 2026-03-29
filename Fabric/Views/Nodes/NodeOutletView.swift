@@ -16,6 +16,12 @@ struct NodeOutletView: View
 
     var body: some View
     {
+        // Hoist published check: editingContext.currentGraph is a computed
+        // property traversing the subgraph stack. Caching the result avoids
+        // redundant traversal and duplicate observation tracking per render.
+        let graph = editingContext.currentGraph
+        let isPublished = graph.isPublished(port)
+
         HStack
         {
             Text(self.port.name)
@@ -25,7 +31,9 @@ struct NodeOutletView: View
 
             Circle()
                 .fill(port.color)
+                .stroke(Color.red, lineWidth: isPublished ? 1.0 : 0.0)
                 .frame(width: 15)
+                .brightness(isPublished ? 0.2 : 0.0)
                 .gesture(
                     DragGesture(minimumDistance: 0, coordinateSpace: .named("graph"))
                         .onChanged { value in
@@ -64,6 +72,7 @@ struct NodeOutletView: View
 
         }
         .frame(height: 15)
+        .contextMenu { PortContextMenu(port: port, graph: graph) }
     }
 
     private func findPortAt(position: CGPoint, in geometryPosition: CGPoint) -> UUID? {
