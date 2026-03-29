@@ -26,24 +26,30 @@ public class SubgraphNode: BaseObjectNode
     /// Lazily rebuilt when the sub graph's published ports change.
     @ObservationIgnored private var proxyPorts: [Port] = []
 
-    override public var ports:[Port] { self.proxyPorts + super.ports }
+    override public var ports:[Port] {
+        self.rebuildProxyPorts()
+        return self.proxyPorts + super.ports
+    }
 
     /// Rebuild proxy ports from the sub graph's current published ports.
     /// Creates typed ProxyPort wrappers that forward values across the
-    /// sub graph boundary.
+    /// sub graph boundary. Bails early if nothing changed.
     public func rebuildProxyPorts()
     {
         let innerPorts = self.subGraph.getPublishedPorts()
+        let publishedIDs = Set(innerPorts.map(\.id))
+        let existingInnerIDs = Set(self.proxyPorts.compactMap { ($0 as? any ProxyPortProtocol)?.innerPortID })
+
+        // Early out if published set hasn't changed
+        guard publishedIDs != existingInnerIDs else { return }
 
         // Remove proxies whose inner port is no longer published
-        let publishedIDs = Set(innerPorts.map(\.id))
         self.proxyPorts.removeAll { proxy in
             guard let proxy = proxy as? any ProxyPortProtocol else { return true }
             return !publishedIDs.contains(proxy.innerPortID)
         }
 
         // Add proxies for newly published ports
-        let existingInnerIDs = Set(self.proxyPorts.compactMap { ($0 as? any ProxyPortProtocol)?.innerPortID })
         for innerPort in innerPorts where !existingInnerIDs.contains(innerPort.id)
         {
             if let proxy = Self.makeProxy(for: innerPort)
