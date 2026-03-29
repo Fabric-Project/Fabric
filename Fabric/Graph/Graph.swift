@@ -57,6 +57,10 @@ internal import AnyCodable
 
     public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
 
+    /// Called when the set of published ports changes. SubgraphNode uses
+    /// this to rebuild its proxy ports without polling.
+    @ObservationIgnored var onPublishedPortsChanged: (() -> Void)?
+
     enum CodingKeys : String, CodingKey
     {
         case id
@@ -352,6 +356,7 @@ internal import AnyCodable
         let params = allParams.filter { publishedPortIds.contains($0.id) }
         self.publishedParameterGroup.append( params )
         self.shouldUpdateConnections = true
+        self.onPublishedPortsChanged?()
     }
 
     /// All ports in this graph that have been published.
