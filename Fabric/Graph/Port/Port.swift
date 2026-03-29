@@ -92,7 +92,6 @@ extension UTType
     public func hash(into hasher: inout Hasher)
     {
         hasher.combine(id)
-        hasher.combine(published)
         hasher.combine(name)
     }
     
@@ -102,8 +101,9 @@ extension UTType
 
     public var portDescription: String = ""
 
-    public var published: Bool = false
-    
+    /// Legacy: only used during decode migration to Graph.publishedPortIDs.
+    @ObservationIgnored internal var legacyPublished: Bool = false
+
     // Kind of lame, but necessary to avoid some type based bullshit.
     // TODO: Figure out a way to hide setting this (seems not good)
     // unless its a ParameterPort? 
@@ -158,7 +158,9 @@ extension UTType
         self.id = try container.decode(UUID.self, forKey: .id)
         self.name = try container.decode(String.self, forKey: .name)
         self.kind = try container.decode(PortKind.self, forKey: .kind)
-        self.published = try container.decodeIfPresent(Bool.self, forKey: .published) ?? false
+        // Legacy: published is now stored on Graph.publishedPortIDs, but we still
+        // read the old key so Graph.init(from:) can migrate it.
+        self.legacyPublished = try container.decodeIfPresent(Bool.self, forKey: .published) ?? false
         self.portDescription = try container.decodeIfPresent(String.self, forKey: .portDescription) ?? ""
         self.color = .clear
         self.backgroundColor = .clear
@@ -170,7 +172,6 @@ extension UTType
         try container.encode(id, forKey: .id)
         try container.encode(name, forKey: .name)
         try container.encode(kind, forKey: .kind)
-        try container.encode(published, forKey: .published)
 
         // Only encode if non-empty to save space
         if !portDescription.isEmpty

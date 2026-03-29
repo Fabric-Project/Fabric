@@ -283,8 +283,8 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         guard let canonicalPort else { return }
 
         for legacyPort in imageOutputs where legacyPort.id != canonicalPort.id {
-            if legacyPort.published {
-                canonicalPort.published = true
+            if legacyPort.legacyPublished {
+                canonicalPort.legacyPublished = true
             }
 
             let inboundConnections = legacyPort.connections.filter { $0.kind == .Inlet }

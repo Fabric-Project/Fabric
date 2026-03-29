@@ -20,12 +20,16 @@ public class SubgraphNode: BaseObjectNode
 
     let subGraph:Graph
     
+    /// Ports surfaced from the sub graph's published set, plus this node's own ports.
+    /// These appear as regular (unpublished) ports on the SubgraphNode — the parent
+    /// graph independently decides whether to publish them further.
     override public var ports:[Port] { self.subGraph.publishedPorts() + super.ports }
-    
+
     @ObservationIgnored override public var nodeExecutionMode:ExecutionMode
     {
-        let publishedInputPorts = self.ports.filter( { $0.kind == .Inlet && $0.published } )
-        let publishedOutputPorts = self.ports.filter( { $0.kind == .Outlet && $0.published } )
+        let subGraphPorts = self.subGraph.publishedPorts()
+        let publishedInputPorts = subGraphPorts.filter { $0.kind == .Inlet }
+        let publishedOutputPorts = subGraphPorts.filter { $0.kind == .Outlet }
 
         // If we have no inputs or outputs, assume we have shit to 'render'
         if publishedInputPorts.isEmpty && publishedOutputPorts.isEmpty

@@ -56,8 +56,13 @@ internal import AnyCodable
     @ObservationIgnored weak var lastNode:(Node)? = nil
 
     public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
-    
-    
+
+    /// Port IDs that have been published at this graph level.
+    /// Publishing is a relationship between a port and a graph, not an intrinsic
+    /// property of the port — each graph level independently decides which ports
+    /// to expose in its published interface.
+    public var publishedPortIDs: Set<UUID> = []
+
     enum CodingKeys : String, CodingKey
     {
         case id
@@ -65,6 +70,7 @@ internal import AnyCodable
         case nodeMap
         case portConnectionMap
         case notes
+        case publishedPortIDs
     }
     
     public init(context:Context)
@@ -221,9 +227,21 @@ internal import AnyCodable
             }
         }
         
+        // Decode graph-level published port IDs, falling back to legacy port.published migration
+        if let decoded = try container.decodeIfPresent(Set<UUID>.self, forKey: .publishedPortIDs)
+        {
+            self.publishedPortIDs = decoded
+        }
+        else
+        {
+            // Legacy migration: older files stored published on each Port
+            let allPorts = self.nodes.flatMap(\.ports)
+            self.publishedPortIDs = Set(allPorts.filter(\.legacyPublished).map(\.id))
+        }
+
         self.rebuildPublishedParameterGroup()
     }
-    
+
     deinit
     {
         self.nodes.forEach { $0.teardown() }
@@ -258,6 +276,11 @@ internal import AnyCodable
         }
         
         try container.encode(allPortConnections, forKey: .portConnectionMap)
+
+        if !self.publishedPortIDs.isEmpty
+        {
+            try container.encode(self.publishedPortIDs, forKey: .publishedPortIDs)
+        }
     }
 
     public func addNote(_ note: Note)
@@ -347,41 +370,55 @@ internal import AnyCodable
     public func rebuildPublishedParameterGroup()
     {
         self.publishedParameterGroup.clear()
-        
-        let params = self.publishedParameters()
+
+        let allParams = self.nodes.flatMap( { $0.parameterGroup.params } )
+        let params = allParams.filter { self.publishedPortIDs.contains($0.id) }
         self.publishedParameterGroup.append( params )
         self.shouldUpdateConnections = true
     }
-    
-    // This could be more nicely done.
-    public func publishedParameters() -> [any Parameter]
-    {
-        // id's of ports match id's of params for convenience
-        let publishedPortIds = self.nodes.flatMap( { $0.publishedPorts().map { $0.id } } )
-        
-        // expose only params that are published
-        return self.nodes.flatMap( { $0.parameterGroup.params } ).filter { publishedPortIds.contains($0.id) }
-    }
-    
-    // This could be more nicely done.
+
+    /// All ports in this graph that are published at this graph level.
     public func publishedPorts() -> [Port]
     {
-        return  self.nodes.flatMap( { $0.publishedPorts() } )
+        let allPorts = self.nodes.flatMap(\.ports)
+        return allPorts.filter { self.publishedPortIDs.contains($0.id) }
     }
-    
+
     public func publishedInputPorts() -> [Port]
     {
-        return  self.nodes.flatMap( { $0.publishedInputPorts() } )
+        return self.publishedPorts().filter { $0.kind == .Inlet }
     }
-    
+
     public func publishedOutputPorts() -> [Port]
     {
-        return  self.nodes.flatMap( { $0.publishedOutputPorts() } )
+        return self.publishedPorts().filter { $0.kind == .Outlet }
     }
-    
+
     internal func nodesWithPublishedOutputs() -> [Node]
     {
-        return  self.nodes.filter( { $0.publishedOutputPorts().isEmpty == false } )
+        return self.nodes.filter { node in
+            node.ports.contains { $0.kind == .Outlet && self.publishedPortIDs.contains($0.id) }
+        }
+    }
+
+    /// Toggle a port's published state at this graph level.
+    public func togglePublished(port: Port)
+    {
+        if self.publishedPortIDs.contains(port.id)
+        {
+            self.publishedPortIDs.remove(port.id)
+        }
+        else
+        {
+            self.publishedPortIDs.insert(port.id)
+        }
+        self.rebuildPublishedParameterGroup()
+    }
+
+    /// Check if a port is published at this graph level.
+    public func isPublished(_ port: Port) -> Bool
+    {
+        self.publishedPortIDs.contains(port.id)
     }
      
     // MARK: -Rendering Helpers

@@ -21,9 +21,9 @@ struct NodeInletView: View
         HStack {
             Circle()
                 .fill(port.color )
-                .stroke(Color.red, lineWidth: port.published ? 1.0 : 0.0)
+                .stroke(Color.red, lineWidth: editingContext.currentGraph.isPublished(port) ? 1.0 : 0.0)
                 .frame(width: 15)
-                .brightness( port.published ? 0.2 : 0.0)
+                .brightness( editingContext.currentGraph.isPublished(port) ? 0.2 : 0.0)
                 .gesture(
                     DragGesture(minimumDistance: 0, coordinateSpace: .named("graph"))
                         .onChanged { value in
