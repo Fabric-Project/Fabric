@@ -20,11 +20,14 @@ struct PortContextMenu: View
 
     var body: some View
     {
+        // Hoist to avoid redundant dictionary lookup per render.
+        let isPublished = graph.isPublished(port)
+
         Button(action: publish) {
-            Text(graph.isPublished(port) ? "Unpublish" : "Publish")
+            Text(isPublished ? "Unpublish" : "Publish")
         }
 
-        if graph.isPublished(port) {
+        if isPublished {
             Button(action: rename) {
                 Text("Rename…")
             }
