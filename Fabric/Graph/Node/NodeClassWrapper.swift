@@ -7,6 +7,8 @@
 
 import Foundation
 import Satin
+import UniformTypeIdentifiers
+import CoreTransferable
 
 public struct NodeClassWrapper: Identifiable
 {
@@ -50,4 +52,19 @@ public struct NodeClassWrapper: Identifiable
     }
 }
 
+/// Drag-and-drop payload for node registry items.
+public struct NodeRegistryDragData: Codable, Transferable
+{
+    public let wrapperID: UUID
 
+    public static var transferRepresentation: some TransferRepresentation {
+        CodableRepresentation(contentType: .nodeRegistryItem)
+    }
+}
+
+extension UTType
+{
+    /// The host app's Info.plist must declare this identifier under UTExportedTypeDeclarations
+    /// (conforming to public.data) or drag-and-drop will be silently rejected at runtime.
+    public static var nodeRegistryItem: UTType { UTType(exportedAs: "info.vade.fabric.node-registry-item") }
+}

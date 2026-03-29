@@ -189,8 +189,8 @@ public struct GraphCanvas : View
                 self.inputFocus = .canvas
                 self.editingContext.currentGraph.deselectAllNodes()
             }
-            .onDrop(of: [.fileURL], isTargeted: nil) { providers, location in
-                self.handleFileDrop(providers: providers, location: location, canvasSize: geom.size)
+            .onDrop(of: [.nodeRegistryItem, .fileURL], isTargeted: nil) { providers, location in
+                self.handleDrop(providers: providers, location: location, canvasSize: geom.size)
             }
             .id(self.editingContext.currentGraph.shouldUpdateConnections)
            
@@ -318,7 +318,46 @@ public struct GraphCanvas : View
         self.initialOffsets.removeAll()
     }
     
-    // MARK: - Drop Helper
+    // MARK: - Drop Helpers
+
+    // FIXME: NSItemProvider load callbacks run on an arbitrary queue. Graph/Node are not
+    // thread-safe and have no actor isolation, so the addNode calls below rely on AppKit
+    // happening to deliver on main. If Fabric adopts Swift 6 strict concurrency or
+    // @MainActor isolation, these callbacks will need explicit main-thread dispatch.
+
+    private func handleDrop(providers: [NSItemProvider], location: CGPoint, canvasSize: CGSize) -> Bool
+    {
+        let currentGraph = self.editingContext.currentGraph
+
+        // Try node registry drag from sidebar first
+        for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.nodeRegistryItem.identifier)
+        {
+            provider.loadDataRepresentation(forTypeIdentifier: UTType.nodeRegistryItem.identifier) { data, error in
+                guard let data = data,
+                      let dragData = try? JSONDecoder().decode(NodeRegistryDragData.self, from: data),
+                      let wrapper = NodeRegistry.shared.availableNodes.first(where: { $0.id == dragData.wrapperID })
+                else {
+                    print("GraphCanvas: registry drag decode failed: \(error?.localizedDescription ?? "unknown")")
+                    return
+                }
+
+                do {
+                    let node = try wrapper.initializeNode(context: currentGraph.context)
+                    node.offset = CGSize(width: location.x - canvasSize.width / 2.0 - node.nodeSize.width / 2.0,
+                                         height: location.y - canvasSize.height / 2.0 - node.nodeSize.height / 2.0)
+                    currentGraph.addNode(node)
+                }
+                catch {
+                    print("GraphCanvas: failed to create node from registry drag: \(error)")
+                }
+            }
+            return true
+        }
+
+        // Fall back to file drop from Finder
+        return self.handleFileDrop(providers: providers, location: location, canvasSize: canvasSize)
+    }
+
     private func handleFileDrop(providers: [NSItemProvider], location: CGPoint, canvasSize: CGSize) -> Bool
     {
         let currentGraph = self.editingContext.currentGraph

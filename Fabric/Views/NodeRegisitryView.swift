@@ -84,6 +84,7 @@ public struct NodeRegisitryView: View {
                                     }
                                     .tag(node.id)
                                     .id(node.id)
+                                    .draggable(NodeRegistryDragData(wrapperID: node.id))
                                 }
                             }
                         }
