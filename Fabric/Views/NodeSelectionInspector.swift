@@ -11,26 +11,26 @@ import UniformTypeIdentifiers
 
 public struct NodeSelectionInspector: View
 {
-    let graph:Graph
+    let editingContext: GraphCanvasContext
     @Binding private var inputFocus: FabricEditorInputFocus
 
-    public init(graph:Graph, inputFocus: Binding<FabricEditorInputFocus>)
+    public init(editingContext: GraphCanvasContext, inputFocus: Binding<FabricEditorInputFocus>)
     {
-        self.graph = graph
+        self.editingContext = editingContext
         self._inputFocus = inputFocus
     }
 
     public var body: some View {
 
-        let graph = self.graph.activeSubGraph ?? self.graph
+        let currentGraph = self.editingContext.currentGraph
 
-        let selectedNodes = graph.nodes.filter( { $0.isSelected } )
+        let selectedNodes = currentGraph.nodes.filter( { $0.isSelected } )
 
         List {
 
             Section(header: Text("Published"))
             {
-                ParameterGroupView(parameterGroup:graph.publishedParameterGroup)
+                ParameterGroupView(parameterGroup:currentGraph.publishedParameterGroup)
             }
 
             ForEach(selectedNodes, id: \.id) { node in
@@ -48,7 +48,7 @@ public struct NodeSelectionInspector: View
             }
         }
         .listStyle(.sidebar)
-        .id(graph.shouldUpdateConnections)
+        .id(currentGraph.shouldUpdateConnections)
 
     }
 

@@ -10,7 +10,7 @@ import Satin
 
 public struct NodeRegisitryView: View {
 
-    public let graph: Graph
+    public let editingContext: GraphCanvasContext
     @Binding private var inputFocus: FabricEditorInputFocus
 
     @State private var searchString:String = ""
@@ -42,9 +42,9 @@ public struct NodeRegisitryView: View {
     private var numNodesToShow: Int { self.visibleNodes.count }
 
     private var haveNodesToShow: Bool { self.numNodesToShow > 0 }
-    
-    public init(graph: Graph, inputFocus: Binding<FabricEditorInputFocus>) {
-        self.graph = graph
+
+    public init(editingContext: GraphCanvasContext, inputFocus: Binding<FabricEditorInputFocus>) {
+        self.editingContext = editingContext
         self._inputFocus = inputFocus
     }
     
@@ -212,14 +212,15 @@ public struct NodeRegisitryView: View {
         {
             if let node = NodeRegistry.shared.availableNodes.first(where: { $0.id == nodeID })
             {
-                do
-                {
-                    try self.graph.addNode(node)
-                }
-                catch
-                {
-                    print("Unable to add node:\(node)")
-                }
+                 do
+                 {
+                     try self.editingContext.addNode(node)
+                     self.inputFocus = .canvas
+                 }
+                 catch
+                 {
+                     print("Unable to add node:\(node)")
+                 }
             }
         }
         self.inputFocus = .canvas

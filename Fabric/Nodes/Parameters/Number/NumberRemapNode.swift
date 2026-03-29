@@ -40,8 +40,6 @@ public class NumberRemapNode : Node
     public var inputNewMaxNumber:ParameterPort<Float> { port(named: "inputNewMaxNumber") }
     public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
     
-    private let easingMap = Dictionary(uniqueKeysWithValues: zip(Easing.allCases.map( {$0.title()}), Easing.allCases)  )
-
     private var lastValue:Float = 0.0
         
     public override func execute(context:GraphExecutionContext,

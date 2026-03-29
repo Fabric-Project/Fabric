@@ -27,21 +27,23 @@ class FabricDocument: FileDocument
                            colorPixelFormat: .rgba16Float,
                            depthPixelFormat: .depth32Float,
                            stencilPixelFormat: .stencil8)
-    let graph:Graph
+
+    //    let graph:Graph
     var graphName:String = "Untitled"
-    
+    let editingContext: GraphCanvasContext
+
     @ObservationIgnored var outputWindowManager:DocumentOutputWindowManager? = nil
     
     init()
     {
-        self.graph = Graph(context: self.context)
-        
+        let graph = Graph(context: self.context)
+        self.editingContext = GraphCanvasContext(rootGraph: graph)
     }
     
     init(withTemplate: Bool)
     {
         print("Basic Document Init")
-        self.graph = Graph(context: self.context)
+        let graph = Graph(context: self.context)
 
         let boxNode = BoxGeometryNode(context: self.context)
         boxNode.offset = CGSize(width: -400, height:0)
@@ -63,11 +65,13 @@ class FabricDocument: FileDocument
         boxNode.outputGeometry.connect(to: meshNode.inputGeometry)
         materialNode.outputMaterial.connect(to: meshNode.inputMaterial)
 
-        self.graph.addNode(boxNode)
-        self.graph.addNode(materialNode)
-        self.graph.addNode(meshNode)
-        self.graph.addNode(directionalLightNode)
-        self.graph.addNode(cameraNode)
+        self.editingContext = GraphCanvasContext(rootGraph: graph)
+
+        self.editingContext.currentGraph.addNode(boxNode)
+        self.editingContext.currentGraph.addNode(materialNode)
+        self.editingContext.currentGraph.addNode(meshNode)
+        self.editingContext.currentGraph.addNode(directionalLightNode)
+        self.editingContext.currentGraph.addNode(cameraNode)
     }
     
     required init(configuration: ReadConfiguration) throws
@@ -86,20 +90,23 @@ class FabricDocument: FileDocument
         let decodeContext = DecoderContext(documentContext: self.context)
         decoder.context = decodeContext
         
-        self.graph = try decoder.decode(Graph.self, from: data)
+        let graph = try decoder.decode(Graph.self, from: data)
+
+        self.editingContext = GraphCanvasContext(rootGraph: graph)
+
         self.graphName = name
     }
 
     deinit
     {
-        print("Deinit Closing window for graph: \(self.graph.id)")
+        print("Deinit Closing window for graph: \(self.editingContext.rootGraph.id)")
       
     }
 
     func setupOutputWindow()
     {
         self.outputWindowManager = DocumentOutputWindowManager()
-        self.outputWindowManager?.setGraph(graph: self.graph)
+        self.outputWindowManager?.setGraph(graph: self.editingContext.rootGraph)
         self.outputWindowManager?.setWindowName(self.graphName)
     }
     
@@ -113,7 +120,7 @@ class FabricDocument: FileDocument
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted]
         
-        let data = try encoder.encode(self.graph)
+        let data = try encoder.encode(self.editingContext.rootGraph)
         
         return .init(regularFileWithContents: data)
     }

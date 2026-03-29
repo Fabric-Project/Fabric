@@ -10,7 +10,7 @@ import SwiftUI
 struct NodeOutletView: View
 {
     let port: Port
-    let graph: Graph
+    let editingContext: GraphCanvasContext
     
     @State private var isDropTargeted = false
 
@@ -29,17 +29,17 @@ struct NodeOutletView: View
                 .gesture(
                     DragGesture(minimumDistance: 0, coordinateSpace: .named("graph"))
                         .onChanged { value in
-                            self.graph.dragPreviewSourcePortID = self.port.id
-                            self.graph.dragPreviewTargetPosition = value.location
+                            self.editingContext.dragPreviewSourcePortID = self.port.id
+                            self.editingContext.dragPreviewTargetPosition = value.location
                         }
                         .onEnded { value in
                             defer {
-                                self.graph.dragPreviewSourcePortID = nil
-                                self.graph.dragPreviewTargetPosition = nil
+                                self.editingContext.dragPreviewSourcePortID = nil
+                                self.editingContext.dragPreviewTargetPosition = nil
                             }
 
                             guard let targetPortID = self.findPortAt(position: value.location, in: value.location),
-                                  let targetPort = self.graph.nodePort(forID: targetPortID),
+                                  let targetPort = self.editingContext.currentGraph.nodePort(forID: targetPortID),
                                   targetPort.id != self.port.id,
                                   targetPort.kind == .Inlet,
                                   targetPort.canConnect(to: self.port)
@@ -70,7 +70,7 @@ struct NodeOutletView: View
         let hitRadius: CGFloat = 25
         var closestPort: (UUID, CGFloat)? = nil
 
-        for (portID, portPosition) in self.graph.portPositions {
+        for (portID, portPosition) in self.editingContext.portPositions {
             let distance = hypot(position.x - portPosition.x, position.y - portPosition.y)
 
             if distance < hitRadius {

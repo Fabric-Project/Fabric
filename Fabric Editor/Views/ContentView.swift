@@ -33,6 +33,10 @@ struct ContentView: View {
     @State private var inspectorVisibility:Bool = true
     @State private var inputFocus: FabricEditorInputFocus = .canvas
 
+    init(document: Binding<FabricDocument>) {
+        self._document = document
+    }
+
     // Magic Numbers...
     private let zoomMin = 0.25
     private let zoomMax = 2.0
@@ -43,12 +47,10 @@ struct ContentView: View {
 
         NavigationSplitView(columnVisibility: self.$columnVisibility)
         {
-            NodeRegisitryView(graph: self.document.graph, inputFocus: self.$inputFocus)
+            NodeRegisitryView(editingContext: self.document.editingContext, inputFocus: self.$inputFocus)
                 .navigationSplitViewColumnWidth(min: 150, ideal: 200, max:250)
 
         } detail: {
-
-            // Movable Canvas
             VStack(alignment: .leading, spacing:0)
             {
                 Divider()
@@ -57,19 +59,17 @@ struct ContentView: View {
 
                 HStack(spacing:5)
                 {
-                    Text("Root Patch")
+                    Button("Root Graph", action: self.document.editingContext.popToRoot)
                         .font(.headline)
-                        .onTapGesture { self.document.graph.activeSubGraph = nil }
+                        .buttonStyle(.plain)
 
-                    if let _ = self.document.graph.activeSubGraph
-                    {
-                        Text(">")
+                    ForEach(self.document.editingContext.entries) { node in
+                        Text("›")
                             .font(.headline)
-
-                        Text("Todo: Graphs Need Names")
+                        Button(node.name) { self.document.editingContext.popTo(node) }
                             .font(.headline)
+                            .buttonStyle(.plain)
                     }
-
                 }
                 .padding(.horizontal)
 
@@ -79,67 +79,58 @@ struct ContentView: View {
 
                 ZStack
                 {
-                    // Render behind nodes ?
-                    // SatinMetalView(renderer: document.graphRenderer)
-
                     RadialGradient(colors: [.clear, .black.opacity(0.75)], center: .center, startRadius: 0, endRadius: self.scrollGeometry.containerSize.width * 1.5)
-                    
+
                     ScrollViewReader { proxy in
                         ScrollView([.horizontal, .vertical])
                         {
-                            NodeCanvas(graph: self.document.graph, inputFocus: self.$inputFocus)
+                            GraphCanvas(editingContext: self.document.editingContext, inputFocus: self.$inputFocus)
                                 .id("canvas")
                                 .focusedSceneValue(\.editorInputFocus, self.$inputFocus)
+                                .focusedSceneValue(\.editingContext, self.document.editingContext)
                                 .frame(width: self.canvasSize, height: self.canvasSize)
                                 .scaleEffect(finalMagnification * magnifyBy, anchor: magnifyAnchor)
                                 .contextMenu(menuItems: {
                                     Button("New Note") {
-                                        
-                                        let graph = self.document.graph.activeSubGraph ?? self.document.graph
-
-                                        let note = Note(note: "New Note", rect: CGRect(origin: graph.currentScrollOffset, size:CGSize(width: 500, height: 500)))
-                                        
-                                        graph.addNote(note)
+                                        let currentGraph = self.document.editingContext.currentGraph
+                                        let note = Note(note: "New Note", rect: CGRect(origin: self.document.editingContext.currentScrollOffset, size:CGSize(width: 500, height: 500)))
+                                        currentGraph.addNote(note)
                                     }
                                 })
                                 .gesture(
                                     MagnifyGesture()
                                         .updating($magnifyBy, body: { value, state, _ in
-                                            
+
                                             let proposedScale = finalMagnification * value.magnification
-                                            
+
                                             guard (self.zoomMin ..< self.zoomMax).contains(proposedScale)
                                             else
                                             {
                                                 return
                                             }
-                                            
+
                                             state = min(max(value.magnification, self.zoomMin), self.zoomMax)
-                                            
-                                            let scale = proposedScale   // or finalMagnification * state
-                                            
-                                            // 0–1 in visible rect
+
+                                            let scale = proposedScale
+
                                             let u = value.startAnchor.x
                                             let v = value.startAnchor.y
-                                            
+
                                             let containerSize = self.scrollGeometry.containerSize
                                             let contentOffset = self.scrollGeometry.contentOffset
-                                            
-                                            // Convert scroll geometry into *canvas space* by dividing by scale
+
                                             let visibleWidthInCanvas  = containerSize.width  / scale
                                             let visibleHeightInCanvas = containerSize.height / scale
-                                            
+
                                             let offsetXInCanvas = contentOffset.x / scale
                                             let offsetYInCanvas = contentOffset.y / scale
-                                            
-                                            // Point under the fingers in canvas coords
+
                                             let canvasX = offsetXInCanvas + u * visibleWidthInCanvas
                                             let canvasY = offsetYInCanvas + v * visibleHeightInCanvas
-                                            
-                                            // Normalize to 0–1 over the full scaled canvas
+
                                             let newX = max(0, min(1, canvasX / (self.canvasSize / scale)))
                                             let newY = max(0, min(1, canvasY / (self.canvasSize / scale)))
-                                            
+
                                             magnifyAnchor = UnitPoint(x: newX, y: newY)
                                         })
                                         .onEnded { value in
@@ -147,14 +138,10 @@ struct ContentView: View {
                                         }
                                 )
                                 .onAppear {
-                                    self.document.graph.undoManager = undoManager
+                                    self.document.editingContext.rootGraph.undoManager = undoManager
 
-                                    // This is hacky as hell, but it seems our scroll offset doesn work since on can fire before other views are fully online?
-                                    // Or at least whatever is happening is fixed by this logic
-                                    // Fixes #100
                                     DispatchQueue.main.asyncAfter(deadline: .now().advanced(by: .milliseconds(10)) ) {
-                                        
-                                        if let firstNode = self.document.graph.nodes.first
+                                        if let firstNode = self.document.editingContext.rootGraph.nodes.first
                                         {
                                             let targetPoint = UnitPoint( x: (self.halfCanvasSize + firstNode.offset.width) / self.canvasSize,
                                                                          y: (self.halfCanvasSize + firstNode.offset.height) / self.canvasSize)
@@ -162,30 +149,27 @@ struct ContentView: View {
                                         }
                                     }
                                 }
-                            
+
                         }
                         .defaultScrollAnchor(.center)
                     }
                     .onScrollGeometryChange(for: ScrollGeomHelper.self) { geometry in
-                        
+
                         let center = CGPoint(x: geometry.contentSize.width / 2,
                                              y: geometry.contentSize.height / 2)
                         let offset = (geometry.contentOffset - center) + (geometry.containerSize / 2)
-                        
+
                         return ScrollGeomHelper(offset: offset, geometry: geometry)
-                        
+
                     } action: { _, newScrollOffset in
                         scrollGeometry = newScrollOffset.geometry
-                        
-                        let graph = self.document.graph.activeSubGraph ?? self.document.graph
-
-                        graph.currentScrollOffset = newScrollOffset.offset
+                        self.document.editingContext.currentScrollOffset = newScrollOffset.offset
                     }
                 }
             }
             .inspector(isPresented: self.$inspectorVisibility)
             {
-                NodeSelectionInspector(graph:self.document.graph, inputFocus: self.$inputFocus)
+                NodeSelectionInspector(editingContext: self.document.editingContext, inputFocus: self.$inputFocus)
                     .inspectorColumnWidth(min:250, ideal:250, max:300)
             }
             .toolbar

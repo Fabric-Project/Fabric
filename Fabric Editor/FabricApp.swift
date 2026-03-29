@@ -15,7 +15,7 @@ import Sparkle
 struct FabricApp: App {
     
     private let updaterController: SPUStandardUpdaterController
-
+    
     init()
     {
         // If you want to start the updater manually, pass false to startingUpdater and call .startUpdater() later
@@ -43,15 +43,15 @@ struct FabricApp: App {
         }
         .commands {
             AboutCommands()
-            
+
             DocumentCommands()
-            
+
+            ViewCommands()
+
             CommandGroup(after: .appInfo)
             {
                 CheckForUpdatesView(updater: updaterController.updater)
             }
-            
-           
         }
         
         Window("About Fabric Editor", id: "about") {
@@ -77,7 +77,7 @@ struct AboutCommands: Commands {
 
 struct DocumentCommands:Commands
 {
-    @FocusedBinding(\.document) var document: FabricDocument?
+    @FocusedValue(\.editingContext) var editingContext: GraphCanvasContext?
     @FocusedBinding(\.editorInputFocus) var editorInputFocus: FabricEditorInputFocus?
 
     private var isCanvasFocused: Bool {
@@ -88,7 +88,7 @@ struct DocumentCommands:Commands
 
         CommandGroup(replacing: .pasteboard)
         {
-            let graph = self.document?.graph.activeSubGraph ?? self.document?.graph
+            let graph = editingContext?.currentGraph
             let hasSelection = graph?.nodes.contains(where: { $0.isSelected }) ?? false
             let hasPasteData = NSPasteboard.general.data(forType: Graph.nodeClipboardType) != nil
 
@@ -129,14 +129,13 @@ struct DocumentCommands:Commands
             .keyboardShortcut("d", modifiers: .command)
             .disabled(self.isCanvasFocused ? !hasSelection : true)
         }
-        
+
         CommandGroup(after: .pasteboard)
         {
             Button("Select All Nodes")
             {
                 if self.isCanvasFocused {
-                    let graph = self.document?.graph.activeSubGraph ?? self.document?.graph
-                    graph?.selectAllNodes()
+                    editingContext?.currentGraph.selectAllNodes()
                 }
                 else
                 {
@@ -150,11 +149,29 @@ struct DocumentCommands:Commands
             {
                 self.editorInputFocus = .registry
             }
-            .keyboardShortcut(.return, modifiers: .command)
+            .keyboardShortcut("f", modifiers: .command)
+            .disabled(self.isCanvasFocused ? (editingContext?.currentGraph.nodes.isEmpty ?? true) : false)
         }
     }
 }
 
+
+struct ViewCommands: Commands {
+    @FocusedBinding(\.document) var document: FabricDocument?
+
+    var body: some Commands {
+        CommandGroup(after: .toolbar) {
+            Button("Auto Layout Graph") {
+                let graph = document?.editingContext.rootGraph
+                graph?.autoLayout()
+            }
+            .keyboardShortcut("l", modifiers: [.command, .option])
+            .disabled(document == nil)
+
+            Divider()
+        }
+    }
+}
 
 struct DocumentFocusedValueKey: FocusedValueKey {
   typealias Value = Binding<FabricDocument>
@@ -166,6 +183,8 @@ struct EditorInputFocusValueKey: FocusedValueKey {
 
 extension FocusedValues
 {
+    @Entry var editingContext: GraphCanvasContext? = nil
+
     var document: DocumentFocusedValueKey.Value?
     {
         get {
