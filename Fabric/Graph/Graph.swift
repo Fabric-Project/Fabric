@@ -57,15 +57,10 @@ internal import AnyCodable
 
     public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
 
-    /// Port IDs that have been published at this graph level.
-    /// Publishing is a relationship between a port and a graph, not an intrinsic
-    /// property of the port — each graph level independently decides which ports
-    /// to expose in its published interface.
-    public var publishedPortIDs: Set<UUID> = []
-
-    /// Custom display names for published ports, keyed by port ID.
-    /// Absent entries use the port's own name.
-    public var publishedPortNames: [UUID: String] = [:]
+    /// Ports published at this graph level.
+    /// Key presence means the port is published. Value is the custom display
+    /// name — empty string means "use the port's own name".
+    public var publishedPorts: [UUID: String] = [:]
 
     enum CodingKeys : String, CodingKey
     {
@@ -74,8 +69,8 @@ internal import AnyCodable
         case nodeMap
         case portConnectionMap
         case notes
-        case publishedPortIDs
-        case publishedPortNames
+        case publishedPorts
+        case publishedPortIDs // FIXME: Legacy — remove with legacy decode migration
     }
     
     public init(context:Context)
@@ -232,19 +227,22 @@ internal import AnyCodable
             }
         }
         
-        // Decode graph-level published port IDs, falling back to legacy port.published migration
-        if let decoded = try container.decodeIfPresent(Set<UUID>.self, forKey: .publishedPortIDs)
+        // Decode published ports: combined dict, or legacy migration
+        if let decoded = try container.decodeIfPresent([UUID: String].self, forKey: .publishedPorts)
         {
-            self.publishedPortIDs = decoded
+            self.publishedPorts = decoded
+        }
+        // FIXME: Remove legacy branches with legacy decode migration (see Port.swift)
+        else if let legacyIDs = try container.decodeIfPresent(Set<UUID>.self, forKey: .publishedPortIDs)
+        {
+            self.publishedPorts = Dictionary(uniqueKeysWithValues: legacyIDs.map { ($0, "") })
         }
         else
         {
-            // Legacy migration: older files stored published on each Port
             let allPorts = self.nodes.flatMap(\.ports)
-            self.publishedPortIDs = Set(allPorts.filter(\.legacyPublished).map(\.id))
+            let legacyIDs = allPorts.filter(\.legacyPublished).map(\.id)
+            self.publishedPorts = Dictionary(uniqueKeysWithValues: legacyIDs.map { ($0, "") })
         }
-
-        self.publishedPortNames = try container.decodeIfPresent([UUID: String].self, forKey: .publishedPortNames) ?? [:]
 
         self.rebuildPublishedParameterGroup()
     }
@@ -284,14 +282,9 @@ internal import AnyCodable
         
         try container.encode(allPortConnections, forKey: .portConnectionMap)
 
-        if !self.publishedPortIDs.isEmpty
+        if !self.publishedPorts.isEmpty
         {
-            try container.encode(self.publishedPortIDs, forKey: .publishedPortIDs)
-        }
-
-        if !self.publishedPortNames.isEmpty
-        {
-            try container.encode(self.publishedPortNames, forKey: .publishedPortNames)
+            try container.encode(self.publishedPorts, forKey: .publishedPorts)
         }
     }
 
@@ -384,46 +377,41 @@ internal import AnyCodable
         self.publishedParameterGroup.clear()
 
         let allParams = self.nodes.flatMap( { $0.parameterGroup.params } )
-        let params = allParams.filter { self.publishedPortIDs.contains($0.id) }
+        let params = allParams.filter { self.publishedPorts[$0.id] != nil }
         self.publishedParameterGroup.append( params )
         self.shouldUpdateConnections = true
     }
 
-    /// All ports in this graph that are published at this graph level.
-    public func publishedPorts() -> [Port]
+    /// All port objects in this graph that are published at this graph level.
+    public func getPublishedPorts() -> [Port]
     {
         let allPorts = self.nodes.flatMap(\.ports)
-        return allPorts.filter { self.publishedPortIDs.contains($0.id) }
+        return allPorts.filter { self.publishedPorts[$0.id] != nil }
     }
 
     public func publishedInputPorts() -> [Port]
     {
-        return self.publishedPorts().filter { $0.kind == .Inlet }
+        return self.getPublishedPorts().filter { $0.kind == .Inlet }
     }
 
     public func publishedOutputPorts() -> [Port]
     {
-        return self.publishedPorts().filter { $0.kind == .Outlet }
+        return self.getPublishedPorts().filter { $0.kind == .Outlet }
     }
 
     internal func nodesWithPublishedOutputs() -> [Node]
     {
         return self.nodes.filter { node in
-            node.ports.contains { $0.kind == .Outlet && self.publishedPortIDs.contains($0.id) }
+            node.ports.contains { $0.kind == .Outlet && self.publishedPorts[$0.id] != nil }
         }
     }
 
     /// Toggle a port's published state at this graph level.
     public func togglePublished(port: Port)
     {
-        if self.publishedPortIDs.contains(port.id)
+        if self.publishedPorts.removeValue(forKey: port.id) == nil
         {
-            self.publishedPortIDs.remove(port.id)
-            self.publishedPortNames.removeValue(forKey: port.id)
-        }
-        else
-        {
-            self.publishedPortIDs.insert(port.id)
+            self.publishedPorts[port.id] = ""
         }
         self.rebuildPublishedParameterGroup()
     }
@@ -431,19 +419,20 @@ internal import AnyCodable
     /// Check if a port is published at this graph level.
     public func isPublished(_ port: Port) -> Bool
     {
-        self.publishedPortIDs.contains(port.id)
+        self.publishedPorts[port.id] != nil
     }
 
     /// The display name for a published port: custom name if set, otherwise the port's own name.
     public func publishedName(for port: Port) -> String
     {
-        self.publishedPortNames[port.id] ?? port.name
+        guard let name = self.publishedPorts[port.id] else { return port.name }
+        return name.isEmpty ? port.name : name
     }
 
     /// Set or clear a custom published name for a port.
     public func setPublishedName(_ name: String?, for port: Port)
     {
-        self.publishedPortNames[port.id] = name
+        self.publishedPorts[port.id] = name ?? ""
         self.shouldUpdateConnections.toggle()
     }
      

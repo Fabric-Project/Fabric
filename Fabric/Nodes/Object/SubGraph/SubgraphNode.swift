@@ -23,11 +23,11 @@ public class SubgraphNode: BaseObjectNode
     /// Ports surfaced from the sub graph's published set, plus this node's own ports.
     /// These appear as regular (unpublished) ports on the SubgraphNode — the parent
     /// graph independently decides whether to publish them further.
-    override public var ports:[Port] { self.subGraph.publishedPorts() + super.ports }
+    override public var ports:[Port] { self.subGraph.getPublishedPorts() + super.ports }
 
     @ObservationIgnored override public var nodeExecutionMode:ExecutionMode
     {
-        let subGraphPorts = self.subGraph.publishedPorts()
+        let subGraphPorts = self.subGraph.getPublishedPorts()
         let publishedInputPorts = subGraphPorts.filter { $0.kind == .Inlet }
         let publishedOutputPorts = subGraphPorts.filter { $0.kind == .Outlet }
 
