@@ -87,7 +87,6 @@ struct ContentView: View {
                             GraphCanvas(editingContext: self.document.editingContext, inputFocus: self.$inputFocus)
                                 .id("canvas")
                                 .focusedSceneValue(\.editorInputFocus, self.$inputFocus)
-                                .focusedSceneValue(\.editingContext, self.document.editingContext)
                                 .frame(width: self.canvasSize, height: self.canvasSize)
                                 .scaleEffect(finalMagnification * magnifyBy, anchor: magnifyAnchor)
                                 .contextMenu(menuItems: {

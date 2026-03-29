@@ -77,7 +77,7 @@ struct AboutCommands: Commands {
 
 struct DocumentCommands:Commands
 {
-    @FocusedValue(\.editingContext) var editingContext: GraphCanvasContext?
+    @FocusedBinding(\.document) var document: FabricDocument?
     @FocusedBinding(\.editorInputFocus) var editorInputFocus: FabricEditorInputFocus?
 
     private var isCanvasFocused: Bool {
@@ -88,7 +88,7 @@ struct DocumentCommands:Commands
 
         CommandGroup(replacing: .pasteboard)
         {
-            let graph = editingContext?.currentGraph
+            let graph = self.document?.editingContext.currentGraph
             let hasSelection = graph?.nodes.contains(where: { $0.isSelected }) ?? false
             let hasPasteData = NSPasteboard.general.data(forType: Graph.nodeClipboardType) != nil
 
@@ -134,8 +134,9 @@ struct DocumentCommands:Commands
         {
             Button("Select All Nodes")
             {
-                if self.isCanvasFocused {
-                    editingContext?.currentGraph.selectAllNodes()
+                if self.isCanvasFocused
+                {
+                    self.document?.editingContext.currentGraph.selectAllNodes()
                 }
                 else
                 {
@@ -143,14 +144,14 @@ struct DocumentCommands:Commands
                 }
             }
             .keyboardShortcut(KeyEquivalent("a"), modifiers: .command)
-            .disabled(self.isCanvasFocused ? (self.document?.graph.nodes.isEmpty ?? true) : false)
+            .disabled(self.isCanvasFocused ? (self.document?.editingContext.currentGraph.nodes.isEmpty ?? true) : false)
 
             Button("Find Nodes")
             {
                 self.editorInputFocus = .registry
             }
             .keyboardShortcut("f", modifiers: .command)
-            .disabled(self.isCanvasFocused ? (editingContext?.currentGraph.nodes.isEmpty ?? true) : false)
+            .disabled(self.isCanvasFocused ? (self.document?.editingContext.currentGraph.nodes.isEmpty ?? true) : false)
         }
     }
 }
@@ -183,8 +184,6 @@ struct EditorInputFocusValueKey: FocusedValueKey {
 
 extension FocusedValues
 {
-    @Entry var editingContext: GraphCanvasContext? = nil
-
     var document: DocumentFocusedValueKey.Value?
     {
         get {
