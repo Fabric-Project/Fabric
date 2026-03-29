@@ -352,26 +352,6 @@ enum GraphAutoLayout {
         return sourceY - placedY
     }
 
-    // MARK: - Parameter Node Mapping
-
-    /// Returns the parameter node class for a given port type,
-    /// or nil if no matching parameter node exists.
-    static func parameterNodeClass(for portType: PortType) -> Node.Type?
-    {
-        switch portType
-        {
-        case .Float, .Int:  return NumberNode.self
-        case .Bool:         return TrueNode.self
-        case .String:       return StringNode.self
-        case .Vector2:      return MakeVector2Node.self
-        case .Vector3:      return MakeVector3Node.self
-        case .Vector4:      return MakeVector4Node.self
-        case .Color:        return MakeVector4Node.self
-        case .Quaternion:   return MakeQuaternionNode.self
-        case .Transform:    return IdentityTransformNode.self
-        default:            return nil
-        }
-    }
 }
 
 // MARK: - Insert Parameter Node
@@ -391,7 +371,7 @@ extension Graph {
     public func insertParameterNode(for port: Port)
     {
         guard let sourceNode = port.node,
-              let nodeClass = GraphAutoLayout.parameterNodeClass(for: port.portType)
+              let nodeClass = port.portType.parameterNodeClass
         else { return }
 
         let paramNode = nodeClass.init(context: self.context)

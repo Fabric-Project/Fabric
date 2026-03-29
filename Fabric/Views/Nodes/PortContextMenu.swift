@@ -20,7 +20,7 @@ struct PortContextMenu: View
 
     var body: some View
     {
-        let hasParameterNode = GraphAutoLayout.parameterNodeClass(for: port.portType) != nil
+        let hasParameterNode = port.portType.parameterNodeClass != nil
 
         if hasParameterNode {
             Button(action: insertParameterNode) {
