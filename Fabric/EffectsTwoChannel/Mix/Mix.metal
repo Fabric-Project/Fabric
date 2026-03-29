@@ -4,7 +4,7 @@
 //
 //  Created by Anton Marini on 7/15/24.
 //
-
+// description: Mixes two images by an adjustable amount
 
 #define SAMPLER_PRECISION half4
 #define SAMPLER_TYPE texture2d<half>

@@ -16,15 +16,30 @@ public struct NodeRegisitryView: View {
     @State private var searchString:String = ""
     @State private var selection = Set<UUID>()
     @State private var headerSelection: Node.NodeTypeGroups = .All
+    @FocusState private var isSearchFocused: Bool
 
     // These are computed properties in an effort to avoid race conditions on multiple states
     private var filteredNodesForTypes: [Node.NodeType:[NodeClassWrapper]] {
         Dictionary(uniqueKeysWithValues: Node.NodeType.allCases.map { t in (t, self.filteredNodes(forType: t)) })
     }
 
-    private var numNodesToShow: Int {
-        self.headerSelection.nodeTypes().flatMap { self.filteredNodes(forType: $0) }.count
+    /// Flat ordered list of currently visible nodes, respecting header filter and search.
+    ///
+    /// SwiftUI's List handles arrow-key navigation internally, but only when the List itself
+    /// holds keyboard focus. Our UX requires the search field to retain focus for typing while
+    /// arrow keys simultaneously navigate the list. List exposes no API to drive selection
+    /// externally (no moveSelectionDown(), no ordered-item query, no "select first" command),
+    /// and it silently retains stale UUIDs in the selection binding when items leave the data
+    /// source. This property bridges that gap — it gives us the ordered item list needed by
+    /// selectFirstNode(), moveSelection(by:), the search-text onChange validity check,
+    /// and the "No Results Found" overlay (via numNodesToShow / haveNodesToShow).
+    /// When the List has focus (e.g. after a click), its native keyboard handling takes over
+    /// and these helpers are bypassed via the isSearchFocused guard.
+    private var visibleNodes: [NodeClassWrapper] {
+        self.headerSelection.nodeTypes().flatMap { self.filteredNodes(forType: $0) }
     }
+
+    private var numNodesToShow: Int { self.visibleNodes.count }
 
     private var haveNodesToShow: Bool { self.numNodesToShow > 0 }
 
@@ -47,74 +62,79 @@ public struct NodeRegisitryView: View {
 
             Divider()
 
-            List(selection:$selection)
-            {
-                ForEach(self.headerSelection.nodeTypes(), id: \.self) { nodeType in
-                    
-                    if let filteredNodesForType:[NodeClassWrapper] = self.filteredNodesForTypes[nodeType],
-                       filteredNodesForType.isEmpty == false
-                    {
-                        Section(header: Text("\(nodeType)")) {
-                            ForEach(filteredNodesForType, id: \.id) { node in
-                                Text(node.nodeName)
+            ScrollViewReader { listProxy in
+                List(selection:$selection)
+                {
+                    ForEach(self.headerSelection.nodeTypes(), id: \.self) { nodeType in
+
+                        if let filteredNodesForType:[NodeClassWrapper] = self.filteredNodesForTypes[nodeType],
+                           filteredNodesForType.isEmpty == false
+                        {
+                            Section(header: Text("\(nodeType)")) {
+                                ForEach(filteredNodesForType, id: \.id) { node in
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(node.nodeName)
+                                            .font( .system(size: 11) )
+                                        if self.selection.contains(node.id)
+                                        {
+                                            Text(node.nodeDescription)
+                                                .font( .system(size: 10) )
+                                                .foregroundStyle(.secondary)
+                                                .lineLimit(nil)
+                                        }
+                                    }
                                     .tag(node.id)
-                                    .font( .system(size: 11) )
+                                    .id(node.id)
+                                }
                             }
                         }
                     }
                 }
-            }
-            // Below replaces the onTap action that was on the list item
-            // This affords double click to add / return to add
-            // * Single click to select
-            // * Multi Select
-            // * Type to select
-            // * Arrow navigation
-            // Weird that its a context menu filter! But whatever.
-            // This fixes #114 - Anton
-            .contextMenu(forSelectionType: UUID.self)
-            { items in
-                
-                // No context menu ever
-                EmptyView()
-                
-            } primaryAction: { selection in
+                // Below replaces the onTap action that was on the list item
+                // This affords double click to add / return to add
+                // * Single click to select
+                // * Multi Select
+                // * Type to select
+                // * Arrow navigation
+                // Weird that its a context menu filter! But whatever.
+                // This fixes #114 - Anton
+                .contextMenu(forSelectionType: UUID.self)
+                { items in
 
-                self.inputFocus = .registry
-                for nodeID in selection
+                    // No context menu ever
+                    EmptyView()
+
+                } primaryAction: { _ in
+                    self.addSelectedNodes()
+                }
+                .simultaneousGesture(
+                    TapGesture().onEnded {
+                        self.inputFocus = .registry
+                    }
+                )
+                .overlay
                 {
-                    if let node = NodeRegistry.shared.availableNodes.first(where: { $0.id == nodeID })
+                    VStack(spacing:0)
                     {
-                        do
-                        {
-                            try self.editingContext.addNode(node)
-                            self.inputFocus = .canvas
-                        }
-                        catch
-                        {
-                            print("Unable to add node:\(node)")
+                        Spacer()
+
+                        Text("No Results Found")
+                            .font( .headline)
+                            .foregroundStyle(.secondary)
+
+                        Spacer()
+                    }
+                    .opacity( self.haveNodesToShow ? 0.0 : 1.0 )
+                }
+                .onChange(of: self.selection) { _, newSelection in
+                    self.inputFocus = .registry
+                    if let id = newSelection.first
+                    {
+                        withAnimation {
+                            listProxy.scrollTo(id)
                         }
                     }
                 }
-            }
-            .simultaneousGesture(
-                TapGesture().onEnded {
-                    self.inputFocus = .registry
-                }
-            )
-            .overlay
-            {
-                VStack(spacing:0)
-                {
-                    Spacer()
-                    
-                    Text("No Results Found")
-                        .font( .headline)
-                        .foregroundStyle(.secondary)
-                    
-                    Spacer()
-                }
-                .opacity( self.haveNodesToShow ? 0.0 : 1.0 )
             }
             
 //            Divider()
@@ -122,33 +142,46 @@ public struct NodeRegisitryView: View {
 //            Spacer()
         }
         .searchable(text: $searchString, placement: .sidebar)
+        .searchFocused($isSearchFocused)
         .searchPresentationToolbarBehavior(.avoidHidingContent)
         .onChange(of: self.searchString) { _, _ in
             self.inputFocus = .registry
+            let visible = self.visibleNodes
+            let selectionStillValid = self.selection.contains(where: { id in visible.contains(where: { $0.id == id }) })
+            if !selectionStillValid
+            {
+                self.selectFirstNode()
+            }
         }
-        .onChange(of: self.selection) { _, _ in
-            self.inputFocus = .registry
+        .onChange(of: self.inputFocus) { _, newValue in
+            if newValue == .registry
+            {
+                self.isSearchFocused = true
+            }
         }
-
-
-        
-        // It seems as though our custom search bar vs .searchable behave slightly differently?
-        // Not sure why that is!?
-//        .safeAreaInset(edge: .bottom) {
-//            self.searchBar()
-//        }
-//        .onChange(of: self.searchString) { _, _ in
-//            self.selection.removeAll()
-//        }
-//        .onChange(of: self.headerSelection) { _, _ in
-//            self.selection.removeAll()
-//        }
-//        .onAppear()
-//        {
-//            // not the best..
-//            self.numNodesToShow = self.calcNumTotalNodes()
-//            self.filteredNodesForTypes = self.calcFilteredNodesDict()
-//        }
+        .onChange(of: self.isSearchFocused) { _, focused in
+            if focused, self.selection.isEmpty
+            {
+                self.selectFirstNode()
+            }
+        }
+        // Manual key handling for search-focused mode. When the List has focus these return
+        // .ignored, letting the List's native arrow navigation and primaryAction take over.
+        .onKeyPress(.upArrow) {
+            guard self.isSearchFocused else { return .ignored }
+            self.moveSelection(by: -1)
+            return .handled
+        }
+        .onKeyPress(.downArrow) {
+            guard self.isSearchFocused else { return .ignored }
+            self.moveSelection(by: 1)
+            return .handled
+        }
+        .onKeyPress(.return) {
+            guard self.isSearchFocused, !self.selection.isEmpty else { return .ignored }
+            self.addSelectedNodes()
+            return .handled
+        }
     }
     
     @ViewBuilder private func headerBar() -> some View
@@ -173,34 +206,59 @@ public struct NodeRegisitryView: View {
         }
     }
     
-    @ViewBuilder private func searchBar() -> some View
+    private func addSelectedNodes()
     {
-        VStack(spacing:0)
+        for nodeID in self.selection
         {
-            HStack
+            if let node = NodeRegistry.shared.availableNodes.first(where: { $0.id == nodeID })
             {
-                Spacer()
-
-                TextField("Search", text: $searchString)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .controlSize(.small)
-                Spacer()
-                
-                Image(systemName: "xmark.circle")
-                    .foregroundStyle(Color.secondary.opacity(0.5))
-                    .onTapGesture {
-                        self.searchString = ""
-                    }
-                
-                Spacer()
+                 do
+                 {
+                     try self.editingContext.addNode(node)
+                     self.inputFocus = .canvas
+                 }
+                 catch
+                 {
+                     print("Unable to add node:\(node)")
+                 }
             }
-            
-            Text(String( self.numNodesToShow ) + " Nodes")
-                .font( .caption )
-                .padding(.vertical, 3)
+        }
+        self.inputFocus = .canvas
+    }
+
+    private func selectFirstNode()
+    {
+        if let first = self.visibleNodes.first
+        {
+            self.selection = [first.id]
+        }
+        else
+        {
+            self.selection.removeAll()
         }
     }
-    
+
+    private func moveSelection(by offset: Int)
+    {
+        let nodes = self.visibleNodes
+        guard !nodes.isEmpty else { return }
+
+        let currentID = self.selection.first
+        let currentIndex = currentID.flatMap { id in nodes.firstIndex(where: { $0.id == id }) }
+        let newIndex: Int
+
+        if let currentIndex
+        {
+            newIndex = min(max(currentIndex + offset, 0), nodes.count - 1)
+        }
+        else
+        {
+            newIndex = 0
+        }
+
+        self.selection = [nodes[newIndex].id]
+    }
+
     func filteredNodes(forType nodeType:Node.NodeType) -> [NodeClassWrapper]
     {
         let availableNodes:[NodeClassWrapper] = NodeRegistry.shared.availableNodes

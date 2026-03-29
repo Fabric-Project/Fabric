@@ -1,3 +1,5 @@
+// description: Renders image with cross-hatch line shading
+
 #include <metal_stdlib>
 using namespace metal;
 

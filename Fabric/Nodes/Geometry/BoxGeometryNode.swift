@@ -12,6 +12,7 @@ import Metal
 public class BoxGeometryNode : BaseGeometryNode
 {
     public override class var name:String { "Box Geometry" }
+    public override class var nodeDescription: String { "Generates box geometry" }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)

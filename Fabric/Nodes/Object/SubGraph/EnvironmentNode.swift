@@ -14,6 +14,7 @@ public class EnvironmentNode: SubgraphNode
 {
     override public class var name:String { "Environment Node" }
     override public class var nodeType:Node.NodeType { Node.NodeType.Subgraph }
+    override public class var nodeDescription: String { "Subgraph that provides an environment for 3D rendering" }
     
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {

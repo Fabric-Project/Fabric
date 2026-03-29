@@ -14,6 +14,7 @@ public class SkyboxGeometryNode : Node
 {
     override public class var name:String { "Skybox Geometry" }
     override public class var nodeType:Node.NodeType { Node.NodeType.Geometery }
+    override public class var nodeDescription: String { "Deprecated skybox geometry" }
 
     // Ports
     

@@ -4,6 +4,8 @@
 //
 //  Created by Anton Marini on 7/15/24.
 //
+// description: Simulates Technicolor 3-strip warm film look
+
 #include <metal_stdlib>
 using namespace metal;
 

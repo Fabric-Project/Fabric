@@ -4,7 +4,7 @@
 //
 //  Created by Anton Marini on 6/29/25.
 //
-
+// description: Outputs UV coordinates as colour
 
 typedef struct {
 } PostUniforms;

@@ -4,6 +4,7 @@
 //
 //  Created by Toby Harris on 08/10/2025.
 //
+// description: Three-input mixer with per-channel amount controls
 
 #define SAMPLER_PRECISION half4
 #define SAMPLER_TYPE texture2d<half>

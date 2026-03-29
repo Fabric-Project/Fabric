@@ -4,7 +4,7 @@
 //
 //  Created by Anton Marini on 6/29/25.
 //
-
+// description: Generates Voronoi cell noise
 
 #include "../../lygia/generative/voronoise.msl"
 

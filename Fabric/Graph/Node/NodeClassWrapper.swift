@@ -15,7 +15,9 @@ public struct NodeClassWrapper: Identifiable
     public let nodeType:Node.NodeType
     public var fileURL:URL? = nil
     public var nodeName:String
-    
+    public var nodeDescription:String
+
+
     // Specify a overridden node type for say, nodeType image with specific image types (effects)
     public init(nodeClass: Node.Type, nodeType:Node.NodeType? = nil, fileURL:URL? = nil, nodeName:String? = nil)
     {
@@ -23,6 +25,17 @@ public struct NodeClassWrapper: Identifiable
         self.nodeType = nodeType ?? nodeClass.nodeType
         self.fileURL = fileURL
         self.nodeName = nodeName ?? nodeClass.name
+        self.nodeDescription = nodeClass.nodeDescription
+    }
+
+    /// Initialise with an explicit description (e.g. parsed from a shader file).
+    public init(nodeClass: Node.Type, nodeType:Node.NodeType? = nil, fileURL:URL? = nil, nodeName:String? = nil, nodeDescription:String)
+    {
+        self.nodeClass = nodeClass
+        self.nodeType = nodeType ?? nodeClass.nodeType
+        self.fileURL = fileURL
+        self.nodeName = nodeName ?? nodeClass.name
+        self.nodeDescription = nodeDescription
     }
     
     public func initializeNode(context:Context) throws -> Node

@@ -13,6 +13,7 @@ import Metal
 public class RoundRectGeometryNode : BaseGeometryNode
 {
     public override class var name:String { "Round Rect Geometry" }
+    public override class var nodeDescription: String { "Generates rounded rectangle geometry" }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)

@@ -17,6 +17,7 @@ import Metal
 class ShadowMaterialNode : BaseMaterialNode
 {
     override class var name:String {  "Shadow Material" }
+    override class var nodeDescription: String { "Deprecated shadow material" }
 
     // Ports
 

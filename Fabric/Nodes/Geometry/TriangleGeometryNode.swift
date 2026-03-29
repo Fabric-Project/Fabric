@@ -13,6 +13,7 @@ import Metal
 public class TriangleGeometryNode : BaseGeometryNode
 {
     public override class var name:String { "Triangle Geometry" }
+    public override class var nodeDescription: String { "Generates triangle geometry" }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)

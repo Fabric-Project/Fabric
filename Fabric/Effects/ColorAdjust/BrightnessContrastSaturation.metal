@@ -4,6 +4,7 @@
 //
 //  Created by Anton Marini on 6/29/25.
 //
+// description: Adjusts brightness, contrast, and saturation
 
 #define SAMPLER_PRECISION half4
 #define SAMPLER_TYPE texture2d<half>

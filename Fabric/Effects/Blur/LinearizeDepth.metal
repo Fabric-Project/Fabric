@@ -4,6 +4,7 @@
 //
 //  Created by Anton Marini on 7/15/24.
 //
+// description: Converts depth buffer values to linear depth
 
 #define SAMPLER_PRECISION float4
 #define SAMPLER_TYPE texture2d<float>

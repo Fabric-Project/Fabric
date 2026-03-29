@@ -193,37 +193,45 @@ public class NodeRegistry {
             {
                 for fileURL in singleChannelEffects
                 {
+                    let desc = self.shaderDescription(from: fileURL) ?? BaseImageNode.nodeDescription
                     let node = NodeClassWrapper(nodeClass: BaseImageNode.self,
                                                 nodeType: .Image(imageType: imageEffectType),
                                                 fileURL: fileURL,
-                                                nodeName:self.fileURLToName(fileURL: fileURL))
+                                                nodeName:self.fileURLToName(fileURL: fileURL),
+                                                nodeDescription: desc)
                     nodes.append( node )
                 }
-                
+
                 for fileURL in twoChannelEffects
                 {
+                    let desc = self.shaderDescription(from: fileURL) ?? BaseImageNode.nodeDescription
                     let node = NodeClassWrapper(nodeClass: BaseImageNode.self,
                                                 nodeType: .Image(imageType: imageEffectType),
                                                 fileURL: fileURL,
-                                                nodeName:self.fileURLToName(fileURL: fileURL))
+                                                nodeName:self.fileURLToName(fileURL: fileURL),
+                                                nodeDescription: desc)
                     nodes.append( node )
                 }
 
                 for fileURL in threeChannelEffects
                 {
+                    let desc = self.shaderDescription(from: fileURL) ?? BaseImageNode.nodeDescription
                     let node = NodeClassWrapper(nodeClass: BaseImageNode.self,
                                                 nodeType: .Image(imageType: imageEffectType),
                                                 fileURL: fileURL,
-                                                nodeName:self.fileURLToName(fileURL: fileURL))
+                                                nodeName:self.fileURLToName(fileURL: fileURL),
+                                                nodeDescription: desc)
                     nodes.append( node )
                 }
-                
+
                 for fileURL in singleChannelComputeEffects
                 {
+                    let desc = self.shaderDescription(from: fileURL) ?? BaseTextureComputeProcessorNode.nodeDescription
                     let node = NodeClassWrapper(nodeClass: BaseTextureComputeProcessorNode.self,
                                                 nodeType: .Image(imageType: imageEffectType),
                                                 fileURL: fileURL,
-                                                nodeName:self.fileURLToName(fileURL: fileURL))
+                                                nodeName:self.fileURLToName(fileURL: fileURL),
+                                                nodeDescription: desc)
                     nodes.append( node )
                 }
             }
@@ -241,6 +249,21 @@ public class NodeRegistry {
         let nodeName =  fileURL.deletingPathExtension().lastPathComponent.replacing("ImageNode", with: "")
 
         return nodeName.titleCase
+    }
+
+    /// Parse a `// description: ...` comment from a shader file's first few lines.
+    private func shaderDescription(from fileURL: URL) -> String? {
+        guard let data = try? Data(contentsOf: fileURL, options: .mappedIfSafe),
+              let source = String(data: data, encoding: .utf8) else { return nil }
+        // Scan only the first 20 lines for efficiency
+        for line in source.split(separator: "\n", maxSplits: 20, omittingEmptySubsequences: false) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("// description:") {
+                let desc = trimmed.dropFirst("// description:".count).trimmingCharacters(in: .whitespaces)
+                return desc.isEmpty ? nil : desc
+            }
+        }
+        return nil
     }
     
     private var parameterNodeClasses: [Node.Type] = [
