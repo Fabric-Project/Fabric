@@ -69,6 +69,11 @@ struct NodeInletView: View
                 .lineLimit(1)
         }
         .frame(height: 15)
+        // Expand the context menu hit zone to the full row (circle + label).
+        // The contentShape ensures the entire HStack area is tappable for
+        // right-click, while the drag gesture on the Circle still takes
+        // priority for connection dragging.
+        .contentShape(.interaction, Rectangle())
         .modifier(PortRenameAlert(port: port, graph: graph))
     }
 

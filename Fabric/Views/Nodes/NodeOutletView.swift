@@ -68,6 +68,7 @@ struct NodeOutletView: View
 
         }
         .frame(height: 15)
+        .contentShape(.interaction, Rectangle())
         .modifier(PortRenameAlert(port: port, graph: graph))
     }
 
