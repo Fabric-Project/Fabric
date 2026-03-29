@@ -290,4 +290,129 @@ enum GraphAutoLayout {
         }
         return nil
     }
+
+    // MARK: - Adjacency Placement
+
+    /// Position `node` immediately left of `referenceNode`.
+    static func positionToLeft(of referenceNode: Node, node: Node, gap: CGFloat = columnSpacing) {
+        node.offset = CGSize(
+            width: referenceNode.offset.width - node.nodeSize.width - gap,
+            height: referenceNode.offset.height
+        )
+    }
+
+    /// Position `node` immediately right of `referenceNode`.
+    static func positionToRight(of referenceNode: Node, node: Node, gap: CGFloat = columnSpacing) {
+        node.offset = CGSize(
+            width: referenceNode.offset.width + referenceNode.nodeSize.width + gap,
+            height: referenceNode.offset.height
+        )
+    }
+
+    // MARK: - Parameter Node Mapping
+
+    /// Returns the parameter node class for a given port type,
+    /// or nil if no matching parameter node exists.
+    static func parameterNodeClass(for portType: PortType) -> Node.Type?
+    {
+        switch portType
+        {
+        case .Float, .Int:  return NumberNode.self
+        case .Bool:         return TrueNode.self
+        case .String:       return StringNode.self
+        case .Vector2:      return MakeVector2Node.self
+        case .Vector3:      return MakeVector3Node.self
+        case .Vector4:      return MakeVector4Node.self
+        case .Color:        return MakeVector4Node.self
+        case .Quaternion:   return MakeQuaternionNode.self
+        case .Transform:    return IdentityTransformNode.self
+        default:            return nil
+        }
+    }
+}
+
+// MARK: - Insert Parameter Node
+
+extension Graph {
+
+    /// Insert a parameter node adjacent to the given port, connect it,
+    /// and transfer any published state.
+    ///
+    /// For an **inlet**: the parameter node is placed to the left.
+    /// Existing upstream connections move to the parameter node's input;
+    /// the parameter node's outlet connects to the original inlet.
+    ///
+    /// For an **outlet**: the parameter node is placed to the right.
+    /// Existing downstream connections move to the parameter node's outlet;
+    /// the original outlet connects to the parameter node's input.
+    public func insertParameterNode(for port: Port)
+    {
+        guard let sourceNode = port.node,
+              let nodeClass = GraphAutoLayout.parameterNodeClass(for: port.portType)
+        else { return }
+
+        let paramNode = nodeClass.init(context: self.context)
+
+        let paramOutlet = paramNode.ports.first(where: { $0.kind == .Outlet })
+        let paramInlet  = paramNode.ports.first(where: { $0.kind == .Inlet })
+
+        switch port.kind
+        {
+        case .Inlet:
+            guard let paramOutlet else { return }
+
+            GraphAutoLayout.positionToLeft(of: sourceNode, node: paramNode)
+
+            let existingConnections = Array(port.connections)
+
+            // Transfer published state to the parameter node's input (or outlet if no input)
+            if self.isPublished(port)
+            {
+                let savedName = self.publishedPorts[port.id] ?? ""
+                self.publishedPorts.removeValue(forKey: port.id)
+
+                let publishTarget = paramInlet ?? paramOutlet
+                self.publishedPorts[publishTarget.id] = savedName
+            }
+
+            // Move existing upstream connections to the parameter node's input
+            for connection in existingConnections { connection.disconnect(from: port) }
+            if let paramInlet
+            {
+                for connection in existingConnections { connection.connect(to: paramInlet) }
+            }
+
+            self.addNode(paramNode)
+            paramOutlet.connect(to: port)
+
+        case .Outlet:
+            guard let paramInlet else { return }
+
+            GraphAutoLayout.positionToRight(of: sourceNode, node: paramNode)
+
+            let existingConnections = Array(port.connections)
+
+            // Transfer published state to the parameter node's outlet (or input if no outlet)
+            if self.isPublished(port)
+            {
+                let savedName = self.publishedPorts[port.id] ?? ""
+                self.publishedPorts.removeValue(forKey: port.id)
+
+                let publishTarget = paramOutlet ?? paramInlet
+                self.publishedPorts[publishTarget.id] = savedName
+            }
+
+            // Move existing downstream connections to the parameter node's outlet
+            for connection in existingConnections { port.disconnect(from: connection) }
+            if let paramOutlet
+            {
+                for connection in existingConnections { paramOutlet.connect(to: connection) }
+            }
+
+            self.addNode(paramNode)
+            port.connect(to: paramInlet)
+        }
+
+        self.rebuildPublishedParameterGroup()
+    }
 }

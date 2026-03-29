@@ -22,6 +22,13 @@ struct PortContextMenu: View
     {
         // Hoist to avoid redundant dictionary lookup per render.
         let isPublished = graph.isPublished(port)
+        let hasParameterNode = GraphAutoLayout.parameterNodeClass(for: port.portType) != nil
+
+        if hasParameterNode {
+            Button(action: insertParameterNode) {
+                Text("Insert Parameter Node")
+            }
+        }
 
         Button(action: publish) {
             Text(isPublished ? "Unpublish" : "Publish")
@@ -38,6 +45,11 @@ struct PortContextMenu: View
                 Text("Disconnect")
             }
         }
+    }
+
+    private func insertParameterNode()
+    {
+        graph.insertParameterNode(for: port)
     }
 
     private func publish()
