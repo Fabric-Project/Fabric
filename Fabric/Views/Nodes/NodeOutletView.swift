@@ -16,16 +16,20 @@ struct NodeOutletView: View
 
     var body: some View
     {
+        let graph = editingContext.currentGraph
+
         HStack
         {
-            Text(self.port.name)
+            Text(port.displayName)
                 .foregroundStyle(Color.secondary)
                 .font(.system(size: 9))
                 .lineLimit(1)
 
             Circle()
                 .fill(port.color)
+                .stroke(Color.red, lineWidth: port.published ? 1.0 : 0.0)
                 .frame(width: 15)
+                .brightness(port.published ? 0.2 : 0.0)
                 .gesture(
                     DragGesture(minimumDistance: 0, coordinateSpace: .named("graph"))
                         .onChanged { value in
@@ -64,6 +68,8 @@ struct NodeOutletView: View
 
         }
         .frame(height: 15)
+        .contentShape(.interaction, Rectangle())
+        .modifier(PortRenameAlert(port: port, graph: graph))
     }
 
     private func findPortAt(position: CGPoint, in geometryPosition: CGPoint) -> UUID? {
