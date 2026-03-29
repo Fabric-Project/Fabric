@@ -8,37 +8,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-// Stable anchor for settings popover
-// This view intentionally does NOT read any Observable node properties in its own body
-// to avoid re-renders that dismiss the popover.
-// Node properties are only read inside the popover content
-// (which updating won't dismiss the popover).
-private struct NodeSettingsPopoverAnchor: View
-{
-    let node: Node
-    let nodeWidth: CGFloat
-    let nodeHeight: CGFloat
-    let onClose: () -> Void
-    @State private var isPresented: Bool = true
-
-    var body: some View
-    {
-        Rectangle()
-            .fill(Color.clear)
-            .frame(width: nodeWidth, height: nodeHeight)
-            .popover(isPresented: $isPresented) {
-                Node.NodeSettingView(node: node)
-                    .interactiveDismissDisabled(true)
-            }
-            .onChange(of: isPresented) { _, newValue in
-                if !newValue
-                {
-                    onClose()
-                }
-            }
-    }
-}
-
 public struct GraphCanvas : View
 {
     let editingContext: GraphCanvasContext
@@ -56,6 +25,10 @@ public struct GraphCanvas : View
     @State private var initialOffsets: [UUID: CGSize] = [:]
     @State private var activeDragAnchor: UUID? = nil       // which node started the drag
 
+    // Marquee (rubber-band) selection
+    @State private var marqueeRect: CGRect = .zero
+    @State private var preMarqueeSelection: Set<UUID> = []
+    
     @State private var renamingNodeID: UUID? = nil // node being renamed
 
     // Stable list of nodes with settings open - only mutated on explicit open/close
@@ -170,6 +143,19 @@ public struct GraphCanvas : View
             .overlayPreferenceValue(PortAnchorKey.self) { portAnchors in
                 self.calcOverlayPaths(portAnchors, geometryProxy: geom)
             }
+            .overlay
+            {
+                // Marquee selection rectangle
+                let opacity = self.marqueeRect == .zero ? 0.0 : 1.0
+                
+                Rectangle()
+                    .fill(Color.accentColor.opacity(0.1))
+                    .overlay(Rectangle().strokeBorder(Color.accentColor, lineWidth: 1))
+                    .frame(width: self.marqueeRect.width, height: self.marqueeRect.height)
+                    .position(x: self.marqueeRect.midX, y: self.marqueeRect.midY)
+                    .allowsHitTesting(false)
+                    .opacity(opacity)
+            }
             .focusable(true, interactions: .edit)
             .focusEffectDisabled()
             .onKeyPress(keys: self.keys() ) { keyPress in
@@ -185,6 +171,20 @@ public struct GraphCanvas : View
                 selectedNodes.forEach( { currentGraph.delete(node: $0) } )
             }
 #endif
+            .gesture(
+                DragGesture(minimumDistance: 3)
+                    .onChanged { value in
+
+                        self.calcMarqueeDragChanged(forValue: value,
+                                                    currentGraph: self.editingContext.currentGraph,
+                                                    canvasSize: geom.size)
+                    }
+                    .onEnded { _ in
+                        self.marqueeRect = .zero
+                        self.preMarqueeSelection = []
+                    }
+            )
+            
             .onTapGesture {
                 self.inputFocus = .canvas
                 self.editingContext.currentGraph.deselectAllNodes()
@@ -193,13 +193,63 @@ public struct GraphCanvas : View
                 self.handleFileDrop(providers: providers, location: location, canvasSize: geom.size)
             }
             .id(self.editingContext.currentGraph.shouldUpdateConnections)
-            // For hiding the nodes after a timeout - used if rendering nodes above content?
-//            .opacity(self.activityMonitor.isActive ? 1.0 : 0.0)
-//                           .animation(.easeInOut(duration: 0.5), value: self.activityMonitor.isActive)
-
-        } // Pan Canvas
+           
+        }
     }
 
+    // MARK: - Drag Helper Functions
+    
+    private func calcMarqueeDragChanged(forValue value:DragGesture.Value, currentGraph graph:Graph, canvasSize:CGSize)
+    {
+        self.inputFocus = .canvas
+        
+        if self.marqueeRect == .zero
+        {
+            // Starting a new marquee
+            if NSEvent.modifierFlags.contains(.shift)
+            {
+                self.preMarqueeSelection = Set(graph.nodes.filter(\.isSelected).map(\.id))
+            }
+            else
+            {
+                preMarqueeSelection = []
+                graph.deselectAllNodes()
+            }
+        }
+        
+        let start = value.startLocation
+        
+        let origin = CGPoint( x: min(start.x, value.location.x),
+                              y: min(start.y, value.location.y) )
+        
+        let size = CGSize(width: abs(value.location.x - start.x),
+                          height: abs(value.location.y - start.y))
+        
+        self.marqueeRect = CGRect(origin: origin, size: size)
+        
+        // Convert marquee to node-offset space (origin at canvas centre)
+        let marqueeInNodeSpace = CGRect(
+            x: origin.x - canvasSize.width / 2,
+            y: origin.y - canvasSize.height / 2,
+            width: size.width,
+            height: size.height
+        )
+        
+        // Select nodes whose bounds intersect the marquee,
+        // preserving pre-existing selection when shift is held
+        for node in graph.nodes
+        {
+            let origin = CGPoint( x: node.offset.width - node.nodeSize.width / 2,
+                                  y: node.offset.height - node.nodeSize.height / 2 )
+            
+            let nodeRect = CGRect( origin: origin,
+                                   size: node.nodeSize)
+            
+            let inMarquee = nodeRect.intersects(marqueeInNodeSpace)
+            node.isSelected = inMarquee || preMarqueeSelection.contains(node.id)
+        }
+    }
+    
     private func calcDragChanged(forValue value:DragGesture.Value, currentGraph:Graph, currentNode:Node)
     {
         self.inputFocus = .canvas
@@ -232,74 +282,6 @@ public struct GraphCanvas : View
                 n.offset = base + t
             }
         }
-    }
-
-    private func handleKeyPress(keyPress:KeyPress) -> KeyPress.Result
-    {
-        guard self.inputFocus == .canvas else { return .ignored }
-        if renamingNodeID != nil { return .ignored }
-
-#if os(macOS)
-        // Handle Cmd+key shortcuts
-        if keyPress.modifiers.contains(.command)
-        {
-            let currentGraph = self.editingContext.currentGraph
-
-            switch keyPress.key
-            {
-            case "c":
-                let selectedNodes = currentGraph.nodes.filter { $0.isSelected }
-                guard !selectedNodes.isEmpty else { return .ignored }
-                currentGraph.copyNodesToPasteboard(selectedNodes)
-                return .handled
-
-            case "v":
-                currentGraph.pasteNodesFromPasteboard()
-                return .handled
-
-            case "d":
-                let selectedNodes = currentGraph.nodes.filter { $0.isSelected }
-                guard !selectedNodes.isEmpty else { return .ignored }
-                currentGraph.duplicateNodes(selectedNodes)
-                return .handled
-
-            default:
-                return .ignored
-            }
-        }
-#endif
-
-        switch keyPress.key
-        {
-        case .upArrow:
-            print("up arrow")
-            self.editingContext.currentGraph.selectNextNode(inDirection: .Up, expandSelection: keyPress.modifiers.contains(.shift))
-
-        case .downArrow:
-            print("down arrow")
-            self.editingContext.currentGraph.selectNextNode(inDirection: .Down, expandSelection: keyPress.modifiers.contains(.shift))
-
-        case .leftArrow:
-            print("left arrow")
-            self.editingContext.currentGraph.selectNextNode(inDirection: .Left, expandSelection: keyPress.modifiers.contains(.shift))
-
-        case .rightArrow:
-            print("right arrow")
-            self.editingContext.currentGraph.selectNextNode(inDirection: .Right, expandSelection: keyPress.modifiers.contains(.shift))
-
-        case .escape:
-            self.editingContext.currentGraph.deselectAllNodes()
-
-        case .deleteForward:
-            let currentGraph = self.editingContext.currentGraph
-            let selectedNodes = currentGraph.nodes.filter({ $0.isSelected })
-            selectedNodes.forEach( { currentGraph.delete(node: $0) } )
-
-        default:
-            return .ignored
-        }
-
-        return .handled
     }
 
     private func calcDragEnded(currentGraph:Graph)
@@ -335,6 +317,191 @@ public struct GraphCanvas : View
 
         self.initialOffsets.removeAll()
     }
+    
+    // MARK: - Drop Helper
+    private func handleFileDrop(providers: [NSItemProvider], location: CGPoint, canvasSize: CGSize) -> Bool
+    {
+        let currentGraph = self.editingContext.currentGraph
+        var handled = false
+
+        for provider in providers
+        {
+            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { data, _ in
+                guard let data = data as? Data,
+                      let url = URL(dataRepresentation: data, relativeTo: nil, isAbsolute: true)
+                else { return }
+
+                guard let resourceValues = try? url.resourceValues(forKeys: [.contentTypeKey]),
+                      let contentType = resourceValues.contentType,
+                      let nodeClass = NodeRegistry.shared.dropTargetNodeClass(for: contentType)
+                else { return }
+
+                let node = nodeClass.init(context: currentGraph.context)
+                node.setFileURL(url)
+                node.offset = CGSize(width: location.x - canvasSize.width / 2.0 - node.nodeSize.width / 2.0,
+                                     height: location.y - canvasSize.height / 2.0 - node.nodeSize.height / 2.0)
+                currentGraph.addNode(node)
+            }
+
+            handled = true
+        }
+
+        return handled
+    }
+
+    // MARK: - Key Press Functions
+
+    private func keys() -> Set<KeyEquivalent>
+    {
+        return [.upArrow, .downArrow, .leftArrow, .rightArrow, .return, .space, .escape, .deleteForward]
+    }
+    
+    private func handleKeyPress(keyPress:KeyPress) -> KeyPress.Result
+    {
+        guard self.inputFocus == .canvas else { return .ignored }
+        if renamingNodeID != nil { return .ignored }
+
+        switch keyPress.key
+        {
+        case .upArrow:
+            print("up arrow")
+            self.editingContext.currentGraph.selectNextNode(inDirection: .Up, expandSelection: keyPress.modifiers.contains(.shift))
+
+        case .downArrow:
+            print("down arrow")
+            self.editingContext.currentGraph.selectNextNode(inDirection: .Down, expandSelection: keyPress.modifiers.contains(.shift))
+
+        case .leftArrow:
+            print("left arrow")
+            self.editingContext.currentGraph.selectNextNode(inDirection: .Left, expandSelection: keyPress.modifiers.contains(.shift))
+
+        case .rightArrow:
+            print("right arrow")
+            self.editingContext.currentGraph.selectNextNode(inDirection: .Right, expandSelection: keyPress.modifiers.contains(.shift))
+
+        case .escape:
+            self.editingContext.currentGraph.deselectAllNodes()
+
+        case .deleteForward:
+            let currentGraph = self.editingContext.currentGraph
+            let selectedNodes = currentGraph.nodes.filter({ $0.isSelected })
+            selectedNodes.forEach( { currentGraph.delete(node: $0) } )
+
+        default:
+            return .ignored
+        }
+
+        return .handled
+    }
+    
+    // MARK: - Context Menu
+    
+    @ViewBuilder private func contextMenu(forNode currentNode:Node, currentGraph:Graph) -> some View
+    {
+        Menu("Selection")
+        {
+            Button {
+                currentGraph.selectAllNodes()
+            } label : {
+                Text("Select All Nodes")
+            }
+            
+            Button {
+                currentGraph.deselectAllNodes()
+                currentGraph.selectUpstreamNodes(fromNode: currentNode)
+                
+            } label : {
+                Text("Select All Upstream Nodes")
+            }
+            
+            Button {
+                currentGraph.deselectAllNodes()
+                currentGraph.selectDownstreamNodes(fromNode: currentNode)
+                
+            } label : {
+                Text("Select All Downstream Nodes")
+            }
+            
+            Menu("Embed Selection In...") {
+                
+                let embedClasses = [SubgraphNode.self, IteratorNode.self, EnvironmentNode.self, DeferredSubgraphNode.self]
+                
+                ForEach (0 ..< embedClasses.count, id:\.self) { embedClassIndex in
+                    let embedClass = embedClasses[embedClassIndex]
+                    Button {
+                        currentGraph.createSubgraphFromSelection(centeredOnNode: currentNode, usingClass: embedClass)
+                        
+                    } label : {
+                        Text(embedClass.name)
+                    }
+                }
+            }
+        }
+        
+        
+        Menu("Input Ports") {
+            let inputPorts = currentNode.ports.filter { $0.kind == .Inlet }
+            ForEach(inputPorts, id:\.id) { port in
+                
+                Button
+                {
+                    port.published = !port.published
+                    
+                    // Hacky!
+                    currentGraph.rebuildPublishedParameterGroup()
+                    
+                } label: {
+                    Text( port.published ?  "Unpublish Port: \(port.name)" : "Publish Port: \(port.name)" )
+                }
+            }
+        }
+        
+        Menu("Output Ports") {
+            let outputPorts = currentNode.ports.filter { $0.kind == .Outlet }
+            
+            ForEach(outputPorts, id:\.id) { port in
+                
+                Button {
+                    
+                    port.published = !port.published
+                    
+                    // Hacky!
+                    currentGraph.rebuildPublishedParameterGroup()
+                    
+                } label: {
+                    Text( port.published ?  "Unpublish Port: \(port.name)" : "Publish Port: \(port.name)" )
+                }
+                
+            }
+        }
+        
+        Button {
+            renamingNodeID = currentNode.id
+        } label: {
+            Text("Rename")
+        }
+        
+        Divider()
+        
+#if os(macOS)
+        Button {
+            let selectedNodes = currentGraph.nodes.filter { $0.isSelected }
+            let nodesToCopy = selectedNodes.isEmpty ? [currentNode] : selectedNodes
+            currentGraph.copyNodesToPasteboard(nodesToCopy)
+        } label: {
+            Text("Copy")
+        }
+#endif
+        Button {
+            let selectedNodes = currentGraph.nodes.filter { $0.isSelected }
+            let nodesToDuplicate = selectedNodes.isEmpty ? [currentNode] : selectedNodes
+            currentGraph.duplicateNodes(nodesToDuplicate)
+        } label: {
+            Text("Duplicate")
+        }
+    }
+
+   // MARK: - Port / Connection Helpers
 
     private func calcPortAnchors(_ portAnchors:(PortAnchorKey.Value), geometryProxy geom:GeometryProxy)
     {
@@ -343,7 +510,7 @@ public struct GraphCanvas : View
             positions[portID] = geom[anchor]
         }
 
-        editingContext.portPositions = positions
+        self.editingContext.portPositions = positions
     }
 
     @ViewBuilder private func calcOverlayPaths(_ portAnchors:(PortAnchorKey.Value), geometryProxy geom:GeometryProxy) -> some View
@@ -390,111 +557,6 @@ public struct GraphCanvas : View
             path.stroke(sourcePort.backgroundColor.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [5, 3]))
                 .animation(.spring(response: 0.3, dampingFraction: 0.7), value: targetPosition)
         }
-    }
-
-    @ViewBuilder private func contextMenu(forNode currentNode:Node, currentGraph:Graph) -> some View
-    {
-            Menu("Selection")
-            {
-                Button {
-                    currentGraph.selectAllNodes()
-                } label : {
-                    Text("Select All Nodes")
-                }
-
-                Button {
-                    currentGraph.deselectAllNodes()
-                    currentGraph.selectUpstreamNodes(fromNode: currentNode)
-
-                } label : {
-                    Text("Select All Upstream Nodes")
-                }
-
-                Button {
-                    currentGraph.deselectAllNodes()
-                    currentGraph.selectDownstreamNodes(fromNode: currentNode)
-
-                } label : {
-                    Text("Select All Downstream Nodes")
-                }
-
-                Menu("Embed Selection In...") {
-
-                    let embedClasses = [SubgraphNode.self, IteratorNode.self, EnvironmentNode.self, DeferredSubgraphNode.self]
-
-                    ForEach (0 ..< embedClasses.count, id:\.self) { embedClassIndex in
-                        let embedClass = embedClasses[embedClassIndex]
-                        Button {
-                            currentGraph.createSubgraphFromSelection(centeredOnNode: currentNode, usingClass: embedClass)
-
-                        } label : {
-                            Text(embedClass.name)
-                        }
-                    }
-                }
-            }
-
-
-            Menu("Input Ports") {
-                let inputPorts = currentNode.ports.filter { $0.kind == .Inlet }
-                ForEach(inputPorts, id:\.id) { port in
-
-                    Button
-                    {
-                        port.published = !port.published
-
-                        // Hacky!
-                        currentGraph.rebuildPublishedParameterGroup()
-
-                    } label: {
-                        Text( port.published ?  "Unpublish Port: \(port.name)" : "Publish Port: \(port.name)" )
-                    }
-                }
-            }
-
-            Menu("Output Ports") {
-                let outputPorts = currentNode.ports.filter { $0.kind == .Outlet }
-
-                ForEach(outputPorts, id:\.id) { port in
-
-                    Button {
-
-                        port.published = !port.published
-
-                        // Hacky!
-                        currentGraph.rebuildPublishedParameterGroup()
-
-                    } label: {
-                        Text( port.published ?  "Unpublish Port: \(port.name)" : "Publish Port: \(port.name)" )
-                    }
-
-                }
-            }
-
-            Button {
-                renamingNodeID = currentNode.id
-            } label: {
-                Text("Rename")
-            }
-
-            Divider()
-
-#if os(macOS)
-            Button {
-                let selectedNodes = currentGraph.nodes.filter { $0.isSelected }
-                let nodesToCopy = selectedNodes.isEmpty ? [currentNode] : selectedNodes
-                currentGraph.copyNodesToPasteboard(nodesToCopy)
-            } label: {
-                Text("Copy")
-            }
-#endif
-            Button {
-                let selectedNodes = currentGraph.nodes.filter { $0.isSelected }
-                let nodesToDuplicate = selectedNodes.isEmpty ? [currentNode] : selectedNodes
-                currentGraph.duplicateNodes(nodesToDuplicate)
-            } label: {
-                Text("Duplicate")
-            }
     }
 
     private func calcPathUsing(port:Port, start:CGPoint, end:CGPoint) -> Path
@@ -555,6 +617,38 @@ public struct GraphCanvas : View
         }
     }
 
+    // MARK: - Node Settings
+    // Stable anchor for settings popover
+    // This view intentionally does NOT read any Observable node properties in its own body
+    // to avoid re-renders that dismiss the popover.
+    // Node properties are only read inside the popover content
+    // (which updating won't dismiss the popover).
+    private struct NodeSettingsPopoverAnchor: View
+    {
+        let node: Node
+        let nodeWidth: CGFloat
+        let nodeHeight: CGFloat
+        let onClose: () -> Void
+        @State private var isPresented: Bool = true
+
+        var body: some View
+        {
+            Rectangle()
+                .fill(Color.clear)
+                .frame(width: nodeWidth, height: nodeHeight)
+                .popover(isPresented: $isPresented) {
+                    Node.NodeSettingView(node: node)
+                        .interactiveDismissDisabled(true)
+                }
+                .onChange(of: isPresented) { _, newValue in
+                    if !newValue
+                    {
+                        onClose()
+                    }
+                }
+        }
+    }
+
     private func sychronizeSettingsFor(node currentNode:Node, show:Bool)
     {
         if show && currentNode.providesSettingsView()
@@ -585,6 +679,8 @@ public struct GraphCanvas : View
 
     }
 
+    
+    // MARK: - Misc Helpers
     private func clamp(_ x:CGFloat, lowerBound:CGFloat, upperBound:CGFloat) -> CGFloat
     {
         return max(min(x, upperBound), lowerBound)
@@ -594,45 +690,5 @@ public struct GraphCanvas : View
     {
         let distance = hypot(p1.x - p2.x, p1.y - p2.y)
         return distance
-    }
-
-    private func handleFileDrop(providers: [NSItemProvider], location: CGPoint, canvasSize: CGSize) -> Bool
-    {
-        let currentGraph = self.editingContext.currentGraph
-        var handled = false
-
-        for provider in providers
-        {
-            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { data, _ in
-                guard let data = data as? Data,
-                      let url = URL(dataRepresentation: data, relativeTo: nil, isAbsolute: true)
-                else { return }
-
-                guard let resourceValues = try? url.resourceValues(forKeys: [.contentTypeKey]),
-                      let contentType = resourceValues.contentType,
-                      let nodeClass = NodeRegistry.shared.dropTargetNodeClass(for: contentType)
-                else { return }
-
-                let node = nodeClass.init(context: currentGraph.context)
-                node.setFileURL(url)
-                node.offset = CGSize(width: location.x - canvasSize.width / 2.0 - node.nodeSize.width / 2.0,
-                                     height: location.y - canvasSize.height / 2.0 - node.nodeSize.height / 2.0)
-                currentGraph.addNode(node)
-            }
-
-            handled = true
-        }
-
-        return handled
-    }
-
-    private func keys() -> Set<KeyEquivalent>
-    {
-//        if self.focusedView == .canvas
-//        {
-            return [.upArrow, .downArrow, .leftArrow, .rightArrow, .return, .space, .escape, .deleteForward, "c", "v", "d"]
-//        }
-//
-//        return []
     }
 }
