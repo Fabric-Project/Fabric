@@ -75,9 +75,16 @@ struct MathExpressionView : View
         super.init(context: context)
     }
 
+    public convenience init(context: Context, expression: String)
+    {
+        self.init(context: context)
+        self.stringExpression = expression
+        self.evalExpression()
+    }
+
     // MARK: - Properties
 
-    @ObservationIgnored fileprivate var stringExpression:String = "sin(x) + y^2"
+    @ObservationIgnored public var stringExpression:String = "sin(x) + y^2"
     {
         didSet
         {

@@ -751,6 +751,22 @@ struct TimelineNodeView: View
         rebuildPorts()
     }
 
+    public convenience init(context: Context, duration: Float)
+    {
+        self.init(context: context)
+        self.duration = duration
+
+        // didSet may not fire in convenience init due to @Observable —
+        // manually update the default track's last keyframe to match
+        for i in 0..<tracks.count
+        {
+            if let lastIndex = tracks[i].keyframes.indices.last
+            {
+                tracks[i].keyframes[lastIndex].time = duration
+            }
+        }
+    }
+
     // MARK: - Properties
 
     fileprivate var duration: Float = 1.0

@@ -226,6 +226,14 @@ struct OSCReceiveNodeView: View
         super.init(context: context)
     }
 
+    public convenience init(context: Context, listenPort: UInt16, addressBindings: [OSCAddressBinding] = [])
+    {
+        self.init(context: context)
+        self.listenPort = listenPort
+        self.addressBindings = addressBindings
+        self.rebuildPorts()
+    }
+
     // MARK: - Properties
 
     @ObservationIgnored fileprivate var listenPort: UInt16 = 9000
