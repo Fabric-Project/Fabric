@@ -293,20 +293,63 @@ enum GraphAutoLayout {
 
     // MARK: - Adjacency Placement
 
+    // NodeView layout constants (must match NodeView.body / computeNodeSize)
+    private static let titleHeight: CGFloat = 30
+    private static let portVStackSpacing: CGFloat = 10
+    private static let portRowHeight: CGFloat = 15
+    private static let portStride: CGFloat = 25  // portRowHeight + portVStackSpacing
+
+    /// Y offset of a port relative to its node's centre, derived from the
+    /// port's index among same-direction, same-kind ports on the node.
+    static func portYOffset(port: Port, on node: Node) -> CGFloat
+    {
+        let samePorts = node.ports.filter { $0.direction == port.direction && $0.kind == port.kind }
+        let index = samePorts.firstIndex(where: { $0.id == port.id }) ?? 0
+        // Port centre relative to node top:
+        //   titleHeight + portVStackSpacing + index * portStride + portRowHeight / 2
+        let fromTop = titleHeight + portVStackSpacing + CGFloat(index) * portStride + portRowHeight / 2
+        return fromTop - node.nodeSize.height / 2
+    }
+
     /// Position `node` immediately left of `referenceNode`.
-    static func positionToLeft(of referenceNode: Node, node: Node, gap: CGFloat = columnSpacing) {
+    /// When `alignPorts` is provided, the placed node is shifted vertically
+    /// so its connecting port lines up with the source port.
+    static func positionToLeft(of referenceNode: Node, node: Node,
+                               alignPorts: (source: Port, placed: Port)? = nil,
+                               gap: CGFloat = columnSpacing)
+    {
+        let dy = portAlignmentOffset(referenceNode: referenceNode, placedNode: node, alignPorts: alignPorts)
         node.offset = CGSize(
             width: referenceNode.offset.width - node.nodeSize.width - gap,
-            height: referenceNode.offset.height
+            height: referenceNode.offset.height + dy
         )
     }
 
     /// Position `node` immediately right of `referenceNode`.
-    static func positionToRight(of referenceNode: Node, node: Node, gap: CGFloat = columnSpacing) {
+    /// When `alignPorts` is provided, the placed node is shifted vertically
+    /// so its connecting port lines up with the source port.
+    static func positionToRight(of referenceNode: Node, node: Node,
+                                alignPorts: (source: Port, placed: Port)? = nil,
+                                gap: CGFloat = columnSpacing)
+    {
+        let dy = portAlignmentOffset(referenceNode: referenceNode, placedNode: node, alignPorts: alignPorts)
         node.offset = CGSize(
             width: referenceNode.offset.width + referenceNode.nodeSize.width + gap,
-            height: referenceNode.offset.height
+            height: referenceNode.offset.height + dy
         )
+    }
+
+    /// Compute the vertical delta so `placed` port on `placedNode` aligns
+    /// with `source` port on `referenceNode`. Both offsets are relative to
+    /// their respective node centres, so the difference gives the shift
+    /// needed for the placed node's offset.
+    private static func portAlignmentOffset(referenceNode: Node, placedNode: Node,
+                                            alignPorts: (source: Port, placed: Port)?) -> CGFloat
+    {
+        guard let alignPorts else { return 0 }
+        let sourceY = portYOffset(port: alignPorts.source, on: referenceNode)
+        let placedY = portYOffset(port: alignPorts.placed, on: placedNode)
+        return sourceY - placedY
     }
 
     // MARK: - Parameter Node Mapping
@@ -361,7 +404,9 @@ extension Graph {
         case .Inlet:
             guard let paramOutlet else { return }
 
-            GraphAutoLayout.positionToLeft(of: sourceNode, node: paramNode)
+            // Align the parameter node's outlet with the source inlet
+            GraphAutoLayout.positionToLeft(of: sourceNode, node: paramNode,
+                                           alignPorts: (source: port, placed: paramOutlet))
 
             let existingConnections = Array(port.connections)
 
@@ -388,7 +433,9 @@ extension Graph {
         case .Outlet:
             guard let paramInlet else { return }
 
-            GraphAutoLayout.positionToRight(of: sourceNode, node: paramNode)
+            // Align the parameter node's inlet with the source outlet
+            GraphAutoLayout.positionToRight(of: sourceNode, node: paramNode,
+                                            alignPorts: (source: port, placed: paramInlet))
 
             let existingConnections = Array(port.connections)
 
