@@ -19,17 +19,69 @@ public class SubgraphNode: BaseObjectNode
     override public class var nodeDescription: String { "A Sub Graph of Nodes, useful for organizing or encapsulation"}
 
     let subGraph:Graph
-    
-    /// Ports surfaced from the sub graph's published set, plus this node's own ports.
-    /// These appear as regular (unpublished) ports on the SubgraphNode — the parent
-    /// graph independently decides whether to publish them further.
-    override public var ports:[Port] { self.subGraph.getPublishedPorts() + super.ports }
+
+    /// ProxyPorts wrapping the sub graph's published ports.
+    /// Each proxy has node = self (the SubgraphNode) and published = false.
+    /// The parent graph independently decides whether to publish them further.
+    /// Lazily rebuilt when the sub graph's published ports change.
+    @ObservationIgnored private var proxyPorts: [Port] = []
+
+    override public var ports:[Port] { self.proxyPorts + super.ports }
+
+    /// Rebuild proxy ports from the sub graph's current published ports.
+    /// Creates typed ProxyPort wrappers that forward values across the
+    /// sub graph boundary.
+    public func rebuildProxyPorts()
+    {
+        let innerPorts = self.subGraph.getPublishedPorts()
+
+        // Remove proxies whose inner port is no longer published
+        let publishedIDs = Set(innerPorts.map(\.id))
+        self.proxyPorts.removeAll { proxy in
+            guard let proxy = proxy as? any ProxyPortProtocol else { return true }
+            return !publishedIDs.contains(proxy.innerPortID)
+        }
+
+        // Add proxies for newly published ports
+        let existingInnerIDs = Set(self.proxyPorts.compactMap { ($0 as? any ProxyPortProtocol)?.innerPortID })
+        for innerPort in innerPorts where !existingInnerIDs.contains(innerPort.id)
+        {
+            if let proxy = Self.makeProxy(for: innerPort)
+            {
+                proxy.node = self
+                self.proxyPorts.append(proxy)
+            }
+        }
+    }
+
+    /// Type-erase proxy creation — matches the inner port's generic type.
+    private static func makeProxy(for port: Port) -> Port?
+    {
+        switch port
+        {
+        case let p as NodePort<Float>:           return ProxyPort(wrapping: p)
+        case let p as NodePort<Int>:             return ProxyPort(wrapping: p)
+        case let p as NodePort<Bool>:            return ProxyPort(wrapping: p)
+        case let p as NodePort<String>:          return ProxyPort(wrapping: p)
+        case let p as NodePort<simd_float2>:     return ProxyPort(wrapping: p)
+        case let p as NodePort<simd_float3>:     return ProxyPort(wrapping: p)
+        case let p as NodePort<simd_float4>:     return ProxyPort(wrapping: p)
+        case let p as NodePort<FabricImage>:     return ProxyPort(wrapping: p)
+        case let p as NodePort<SatinGeometry>:   return ProxyPort(wrapping: p)
+        case let p as NodePort<Material>:        return ProxyPort(wrapping: p)
+        case let p as NodePort<PortValue>:       return ProxyPort(wrapping: p)
+        case let p as NodePort<simd_quatf>:      return ProxyPort(wrapping: p)
+        case let p as NodePort<simd_float4x4>:   return ProxyPort(wrapping: p)
+        default:
+            print("ProxyPort: unsupported port type for \(port.name): \(type(of: port))")
+            return nil
+        }
+    }
 
     @ObservationIgnored override public var nodeExecutionMode:ExecutionMode
     {
-        let subGraphPorts = self.subGraph.getPublishedPorts()
-        let publishedInputPorts = subGraphPorts.filter { $0.kind == .Inlet }
-        let publishedOutputPorts = subGraphPorts.filter { $0.kind == .Outlet }
+        let publishedInputPorts = self.proxyPorts.filter { $0.kind == .Inlet }
+        let publishedOutputPorts = self.proxyPorts.filter { $0.kind == .Outlet }
 
         // If we have no inputs or outputs, assume we have shit to 'render'
         if publishedInputPorts.isEmpty && publishedOutputPorts.isEmpty
@@ -65,8 +117,9 @@ public class SubgraphNode: BaseObjectNode
     public required init(context: Context)
     {
         self.subGraph = Graph(context: context)
-        
+
         super.init(context: context)
+        self.rebuildProxyPorts()
     }
     
     enum CodingKeys : String, CodingKey
@@ -88,8 +141,9 @@ public class SubgraphNode: BaseObjectNode
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
         self.subGraph = try container.decode(Graph.self, forKey: .subGraph)
-                
+
         try super.init(from: decoder)
+        self.rebuildProxyPorts()
     }
      
     // Ensure we always render!
@@ -147,7 +201,12 @@ public class SubgraphNode: BaseObjectNode
                                        renderPassDescriptor: renderPassDescriptor,
                                        commandBuffer: commandBuffer,
                                        clearFlags: false)
-        
-//        self.markClean()
+
+        // Forward outlet values from inner ports to proxy ports so the
+        // parent graph receives sub graph outputs.
+        for port in self.proxyPorts where port.kind == .Outlet
+        {
+            (port as? any ProxyPortProtocol)?.forwardFromInner()
+        }
     }    
 }

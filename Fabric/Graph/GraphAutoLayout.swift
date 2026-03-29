@@ -411,13 +411,15 @@ extension Graph {
             let existingConnections = Array(port.connections)
 
             // Transfer published state to the parameter node's input (or outlet if no input)
-            if self.isPublished(port)
+            if port.published
             {
-                let savedName = self.publishedPorts[port.id] ?? ""
-                self.publishedPorts.removeValue(forKey: port.id)
+                port.published = false
+                let savedName = port.publishedName
+                port.publishedName = nil
 
                 let publishTarget = paramInlet ?? paramOutlet
-                self.publishedPorts[publishTarget.id] = savedName
+                publishTarget.published = true
+                publishTarget.publishedName = savedName
             }
 
             // Move existing upstream connections to the parameter node's input
@@ -440,13 +442,15 @@ extension Graph {
             let existingConnections = Array(port.connections)
 
             // Transfer published state to the parameter node's outlet (or input if no outlet)
-            if self.isPublished(port)
+            if port.published
             {
-                let savedName = self.publishedPorts[port.id] ?? ""
-                self.publishedPorts.removeValue(forKey: port.id)
+                port.published = false
+                let savedName = port.publishedName
+                port.publishedName = nil
 
                 let publishTarget = paramOutlet ?? paramInlet
-                self.publishedPorts[publishTarget.id] = savedName
+                publishTarget.published = true
+                publishTarget.publishedName = savedName
             }
 
             // Move existing downstream connections to the parameter node's outlet

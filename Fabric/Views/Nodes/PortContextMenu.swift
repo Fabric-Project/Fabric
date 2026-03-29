@@ -20,8 +20,6 @@ struct PortContextMenu: View
 
     var body: some View
     {
-        // Hoist to avoid redundant dictionary lookup per render.
-        let isPublished = graph.isPublished(port)
         let hasParameterNode = GraphAutoLayout.parameterNodeClass(for: port.portType) != nil
 
         if hasParameterNode {
@@ -31,10 +29,10 @@ struct PortContextMenu: View
         }
 
         Button(action: publish) {
-            Text(isPublished ? "Unpublish" : "Publish")
+            Text(port.published ? "Unpublish" : "Publish")
         }
 
-        if isPublished {
+        if port.published {
             Button(action: rename) {
                 Text("Rename…")
             }
@@ -54,7 +52,9 @@ struct PortContextMenu: View
 
     private func publish()
     {
-        graph.togglePublished(port: port)
+        port.published.toggle()
+        if !port.published { port.publishedName = nil }
+        graph.rebuildPublishedParameterGroup()
     }
 
     private func rename()

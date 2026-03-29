@@ -34,7 +34,7 @@ struct PortRenameAlert: ViewModifier
             }
             .onChange(of: isRenaming) {
                 if isRenaming {
-                    renameText = graph.publishedName(for: port)
+                    renameText = port.displayName
                 }
             }
     }
@@ -42,11 +42,13 @@ struct PortRenameAlert: ViewModifier
     private func commitRename()
     {
         let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
-        graph.setPublishedName(trimmed.isEmpty ? nil : trimmed, for: port)
+        port.publishedName = trimmed.isEmpty ? nil : trimmed
+        graph.shouldUpdateConnections.toggle()
     }
 
     private func clearName()
     {
-        graph.setPublishedName(nil, for: port)
+        port.publishedName = nil
+        graph.shouldUpdateConnections.toggle()
     }
 }

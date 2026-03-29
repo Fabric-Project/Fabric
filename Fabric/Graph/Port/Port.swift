@@ -92,6 +92,7 @@ extension UTType
     public func hash(into hasher: inout Hasher)
     {
         hasher.combine(id)
+        hasher.combine(published)
         hasher.combine(name)
     }
     
@@ -101,8 +102,9 @@ extension UTType
 
     public var portDescription: String = ""
 
-    /// Legacy: only used during decode migration to Graph.publishedPortIDs.
-    @ObservationIgnored internal var legacyPublished: Bool = false
+    public var published: Bool = false
+
+    public var publishedName: String? = nil
 
     // Kind of lame, but necessary to avoid some type based bullshit.
     // TODO: Figure out a way to hide setting this (seems not good)
@@ -148,6 +150,7 @@ extension UTType
         case kind
         case direction
         case published
+        case publishedName
         case portDescription
     }
 
@@ -158,9 +161,8 @@ extension UTType
         self.id = try container.decode(UUID.self, forKey: .id)
         self.name = try container.decode(String.self, forKey: .name)
         self.kind = try container.decode(PortKind.self, forKey: .kind)
-        // Legacy: published is now stored on Graph.publishedPortIDs, but we still
-        // read the old key so Graph.init(from:) can migrate it.
-        self.legacyPublished = try container.decodeIfPresent(Bool.self, forKey: .published) ?? false
+        self.published = try container.decodeIfPresent(Bool.self, forKey: .published) ?? false
+        self.publishedName = try container.decodeIfPresent(String.self, forKey: .publishedName)
         self.portDescription = try container.decodeIfPresent(String.self, forKey: .portDescription) ?? ""
         self.color = .clear
         self.backgroundColor = .clear
@@ -172,8 +174,13 @@ extension UTType
         try container.encode(id, forKey: .id)
         try container.encode(name, forKey: .name)
         try container.encode(kind, forKey: .kind)
+        try container.encode(published, forKey: .published)
 
-        // Only encode if non-empty to save space
+        if let publishedName
+        {
+            try container.encode(publishedName, forKey: .publishedName)
+        }
+
         if !portDescription.isEmpty
         {
             try container.encode(portDescription, forKey: .portDescription)
@@ -190,6 +197,9 @@ extension UTType
 //        print("Deinit Port \(self.id)")
     }
     
+    /// The display name: publishedName if set, otherwise the port's own name.
+    public var displayName: String { publishedName ?? name }
+
     public func canConnect(to other:Port) -> Bool
     {
         self.portType.canConnect(to: other.portType)
