@@ -18,10 +18,10 @@ public struct NodeRegisitryView: View {
     @State private var headerSelection: Node.NodeTypeGroups = .All
     @FocusState private var isSearchFocused: Bool
 
-    // These are computed properties in an effort to avoid race conditions on multiple states
-    private var filteredNodesForTypes: [Node.NodeType:[NodeClassWrapper]] {
-        Dictionary(uniqueKeysWithValues: Node.NodeType.allCases.map { t in (t, self.filteredNodes(forType: t)) })
-    }
+
+    @State private var filteredNodesForTypes: [Node.NodeType:[NodeClassWrapper]] = [:]
+    @State private var filteredNodes: [NodeClassWrapper] = []
+
 
     /// Flat ordered list of currently visible nodes, respecting header filter and search.
     ///
@@ -35,11 +35,8 @@ public struct NodeRegisitryView: View {
     /// and the "No Results Found" overlay (via numNodesToShow / haveNodesToShow).
     /// When the List has focus (e.g. after a click), its native keyboard handling takes over
     /// and these helpers are bypassed via the isSearchFocused guard.
-    private var visibleNodes: [NodeClassWrapper] {
-        self.headerSelection.nodeTypes().flatMap { self.filteredNodes(forType: $0) }
-    }
 
-    private var numNodesToShow: Int { self.visibleNodes.count }
+    private var numNodesToShow: Int { self.filteredNodes.count }
 
     private var haveNodesToShow: Bool { self.numNodesToShow > 0 }
 
@@ -72,9 +69,11 @@ public struct NodeRegisitryView: View {
                         {
                             Section(header: Text("\(nodeType)")) {
                                 ForEach(filteredNodesForType, id: \.id) { node in
-                                    VStack(alignment: .leading, spacing: 2) {
+                                    VStack(alignment: .leading, spacing: 4)
+                                    {
                                         Text(node.nodeName)
                                             .font( .system(size: 11) )
+                                        
                                         if self.selection.contains(node.id)
                                         {
                                             Text(node.nodeDescription)
@@ -90,6 +89,12 @@ public struct NodeRegisitryView: View {
                         }
                     }
                 }
+                .focused($isSearchFocused, equals:false)
+                .onAppear()
+                {
+                    self.updateFilteredNodes()
+                }
+            
                 // Below replaces the onTap action that was on the list item
                 // This affords double click to add / return to add
                 // * Single click to select
@@ -146,8 +151,10 @@ public struct NodeRegisitryView: View {
         .searchPresentationToolbarBehavior(.avoidHidingContent)
         .onChange(of: self.searchString) { _, _ in
             self.inputFocus = .registry
-            let visible = self.visibleNodes
-            let selectionStillValid = self.selection.contains(where: { id in visible.contains(where: { $0.id == id }) })
+            
+            self.updateFilteredNodes()
+            
+            let selectionStillValid = self.selection.contains(where: { id in self.filteredNodes.contains(where: { $0.id == id }) })
             if !selectionStillValid
             {
                 self.selectFirstNode()
@@ -206,6 +213,19 @@ public struct NodeRegisitryView: View {
         }
     }
     
+    private func updateFilteredNodes()
+    {
+        let filterResults = self.headerSelection.nodeTypes().map { t in (t, self.filteredNodes(forType: t)) }
+        
+        self.filteredNodesForTypes = Dictionary(uniqueKeysWithValues:filterResults )
+        
+        self.filteredNodes = filterResults.flatMap { $0.1 }
+
+        // This would be nice but dictionary is unordered :(
+//        self.filteredNodes = self.filteredNodesForTypes.values.flatMap( { $0} ).compactMap( { $0 } )
+
+    }
+    
     private func addSelectedNodes()
     {
         for nodeID in self.selection
@@ -228,7 +248,7 @@ public struct NodeRegisitryView: View {
 
     private func selectFirstNode()
     {
-        if let first = self.visibleNodes.first
+        if let first = self.filteredNodes.first
         {
             self.selection = [first.id]
         }
@@ -240,7 +260,7 @@ public struct NodeRegisitryView: View {
 
     private func moveSelection(by offset: Int)
     {
-        let nodes = self.visibleNodes
+        let nodes = self.filteredNodes
         guard !nodes.isEmpty else { return }
 
         let currentID = self.selection.first
