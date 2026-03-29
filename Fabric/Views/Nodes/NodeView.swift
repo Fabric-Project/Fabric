@@ -11,7 +11,7 @@ import Satin
 struct NodeView : View
 {
     @Bindable var node:Node
-    let graph:Graph
+    let editingContext: GraphCanvasContext
 
     // Drag to Offset bullshit
     @State var offset = CGSize.zero
@@ -33,7 +33,7 @@ struct NodeView : View
                 NodeTitleView(node: node)
 
                 ForEach(self.node.ports.filter({$0.kind == .Inlet && $0.direction == .Horizontal}), id: \.id) { port in
-                    NodeInletView(port: port, graph: self.graph)
+                    NodeInletView(port: port, editingContext: self.editingContext)
                 }
                 Spacer(minLength: 0)
             }
@@ -44,7 +44,7 @@ struct NodeView : View
                     .frame(height: 25)
 
                 ForEach(self.node.ports.filter({$0.kind == .Outlet && $0.direction == .Horizontal}), id: \.id) { port in
-                    NodeOutletView(port: port, graph: self.graph)
+                    NodeOutletView(port: port, editingContext: self.editingContext)
                 }
                 Spacer(minLength: 0)
             }
@@ -53,7 +53,7 @@ struct NodeView : View
 
         }
         .frame(width: self.node.nodeSize.width, height: self.node.nodeSize.height)
-        .cornerRadius(self.cornerRadius())
+        .clipShape(.rect(cornerRadius: self.cornerRadius()))
         .overlay {
             RoundedRectangle(cornerRadius: self.cornerRadius())
                 .stroke(  (self.node.isSelected) ? self.node.nodeType.color() : .gray /*self.node.nodeType.backgroundColor()*/ , lineWidth: (self.node.isSelected) ? 1.5 : 1.0)

@@ -77,7 +77,7 @@ struct AboutCommands: Commands {
 
 struct DocumentCommands:Commands
 {
-    @FocusedBinding(\.document) var document: FabricDocument?
+    @FocusedValue(\.editingContext) var editingContext: GraphCanvasContext?
     @FocusedBinding(\.editorInputFocus) var editorInputFocus: FabricEditorInputFocus?
 
     private var isCanvasFocused: Bool {
@@ -88,7 +88,7 @@ struct DocumentCommands:Commands
 
         CommandGroup(replacing: .pasteboard)
         {
-            let graph = self.document?.graph.activeSubGraph ?? self.document?.graph
+            let graph = editingContext?.currentGraph
             let hasSelection = graph?.nodes.contains(where: { $0.isSelected }) ?? false
             let hasPasteData = NSPasteboard.general.data(forType: Graph.nodeClipboardType) != nil
 
@@ -129,14 +129,13 @@ struct DocumentCommands:Commands
             .keyboardShortcut("d", modifiers: .command)
             .disabled(self.isCanvasFocused ? !hasSelection : true)
         }
-        
+
         CommandGroup(after: .pasteboard)
         {
             Button("Select All Nodes")
             {
                 if self.isCanvasFocused {
-                    let graph = self.document?.graph.activeSubGraph ?? self.document?.graph
-                    graph?.selectAllNodes()
+                    editingContext?.currentGraph.selectAllNodes()
                 }
                 else
                 {
@@ -144,7 +143,7 @@ struct DocumentCommands:Commands
                 }
             }
             .keyboardShortcut(KeyEquivalent("a"), modifiers: .command)
-            .disabled(self.isCanvasFocused ? (self.document?.graph.nodes.isEmpty ?? true) : false)
+            .disabled(self.isCanvasFocused ? (editingContext?.currentGraph.nodes.isEmpty ?? true) : false)
         }
     }
 }
@@ -177,6 +176,8 @@ struct EditorInputFocusValueKey: FocusedValueKey {
 
 extension FocusedValues
 {
+    @Entry var editingContext: GraphCanvasContext? = nil
+
     var document: DocumentFocusedValueKey.Value?
     {
         get {
