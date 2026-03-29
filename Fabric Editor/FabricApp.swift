@@ -15,7 +15,7 @@ import Sparkle
 struct FabricApp: App {
     
     private let updaterController: SPUStandardUpdaterController
-
+    
     init()
     {
         // If you want to start the updater manually, pass false to startingUpdater and call .startUpdater() later
@@ -155,7 +155,7 @@ struct ViewCommands: Commands {
     var body: some Commands {
         CommandGroup(after: .toolbar) {
             Button("Auto Layout Graph") {
-                let graph = document?.graph.activeSubGraph ?? document?.graph
+                let graph = document?.editingContext.rootGraph
                 graph?.autoLayout()
             }
             .keyboardShortcut("l", modifiers: [.command, .option])

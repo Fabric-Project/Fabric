@@ -32,11 +32,9 @@ struct ContentView: View {
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
     @State private var inspectorVisibility:Bool = true
     @State private var inputFocus: FabricEditorInputFocus = .canvas
-    @State private var editingContext: GraphCanvasContext
 
     init(document: Binding<FabricDocument>) {
         self._document = document
-        self._editingContext = State(initialValue: GraphCanvasContext(rootGraph: document.wrappedValue.graph))
     }
 
     // Magic Numbers...
@@ -49,7 +47,7 @@ struct ContentView: View {
 
         NavigationSplitView(columnVisibility: self.$columnVisibility)
         {
-            NodeRegisitryView(editingContext: editingContext, inputFocus: self.$inputFocus)
+            NodeRegisitryView(editingContext: self.document.editingContext, inputFocus: self.$inputFocus)
                 .navigationSplitViewColumnWidth(min: 150, ideal: 200, max:250)
 
         } detail: {
@@ -61,14 +59,14 @@ struct ContentView: View {
 
                 HStack(spacing:5)
                 {
-                    Button("Root Graph", action: editingContext.popToRoot)
+                    Button("Root Graph", action: self.document.editingContext.popToRoot)
                         .font(.headline)
                         .buttonStyle(.plain)
 
-                    ForEach(editingContext.entries) { node in
+                    ForEach(self.document.editingContext.entries) { node in
                         Text("›")
                             .font(.headline)
-                        Button(node.name) { editingContext.popTo(node) }
+                        Button(node.name) { self.document.editingContext.popTo(node) }
                             .font(.headline)
                             .buttonStyle(.plain)
                     }
@@ -86,16 +84,16 @@ struct ContentView: View {
                     ScrollViewReader { proxy in
                         ScrollView([.horizontal, .vertical])
                         {
-                            GraphCanvas(editingContext: editingContext, inputFocus: self.$inputFocus)
+                            GraphCanvas(editingContext: self.document.editingContext, inputFocus: self.$inputFocus)
                                 .id("canvas")
                                 .focusedSceneValue(\.editorInputFocus, self.$inputFocus)
-                                .focusedSceneValue(\.editingContext, editingContext)
+                                .focusedSceneValue(\.editingContext, self.document.editingContext)
                                 .frame(width: self.canvasSize, height: self.canvasSize)
                                 .scaleEffect(finalMagnification * magnifyBy, anchor: magnifyAnchor)
                                 .contextMenu(menuItems: {
                                     Button("New Note") {
-                                        let currentGraph = editingContext.currentGraph
-                                        let note = Note(note: "New Note", rect: CGRect(origin: editingContext.currentScrollOffset, size:CGSize(width: 500, height: 500)))
+                                        let currentGraph = self.document.editingContext.currentGraph
+                                        let note = Note(note: "New Note", rect: CGRect(origin: self.document.editingContext.currentScrollOffset, size:CGSize(width: 500, height: 500)))
                                         currentGraph.addNote(note)
                                     }
                                 })
@@ -140,10 +138,10 @@ struct ContentView: View {
                                         }
                                 )
                                 .onAppear {
-                                    self.document.graph.undoManager = undoManager
+                                    self.document.editingContext.rootGraph.undoManager = undoManager
 
                                     DispatchQueue.main.asyncAfter(deadline: .now().advanced(by: .milliseconds(10)) ) {
-                                        if let firstNode = self.document.graph.nodes.first
+                                        if let firstNode = self.document.editingContext.rootGraph.nodes.first
                                         {
                                             let targetPoint = UnitPoint( x: (self.halfCanvasSize + firstNode.offset.width) / self.canvasSize,
                                                                          y: (self.halfCanvasSize + firstNode.offset.height) / self.canvasSize)
@@ -165,13 +163,13 @@ struct ContentView: View {
 
                     } action: { _, newScrollOffset in
                         scrollGeometry = newScrollOffset.geometry
-                        editingContext.currentScrollOffset = newScrollOffset.offset
+                        self.document.editingContext.currentScrollOffset = newScrollOffset.offset
                     }
                 }
             }
             .inspector(isPresented: self.$inspectorVisibility)
             {
-                NodeSelectionInspector(editingContext: editingContext, inputFocus: self.$inputFocus)
+                NodeSelectionInspector(editingContext: self.document.editingContext, inputFocus: self.$inputFocus)
                     .inspectorColumnWidth(min:250, ideal:250, max:300)
             }
             .toolbar

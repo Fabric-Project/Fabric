@@ -26,33 +26,7 @@ public class GraphCanvasContext
     {
         entries.last?.subGraph ?? rootGraph
     }
-
-    public func enter(_ node: SubgraphNode)
-    {
-        entries.append(node)
-        syncUndoManager()
-    }
-
-    public func pop()
-    {
-        guard !entries.isEmpty else { return }
-        entries.removeLast()
-        syncUndoManager()
-    }
-
-    public func popTo(_ node: SubgraphNode)
-    {
-        guard let index = entries.firstIndex(where: { $0.id == node.id }) else { return }
-        entries = Array(entries.prefix(through: index))
-        syncUndoManager()
-    }
-
-    public func popToRoot()
-    {
-        entries.removeAll()
-        syncUndoManager()
-    }
-
+    
     // MARK: - Canvas Interaction State
 
     /// Canvas scroll position; used to calculate initial offset for newly added nodes.
@@ -79,6 +53,32 @@ public class GraphCanvasContext
     public init(rootGraph: Graph)
     {
         self.rootGraph = rootGraph
+    }
+    
+    public func enter(_ node: SubgraphNode)
+    {
+        entries.append(node)
+        syncUndoManager()
+    }
+
+    public func pop()
+    {
+        guard !entries.isEmpty else { return }
+        entries.removeLast()
+        syncUndoManager()
+    }
+
+    public func popTo(_ node: SubgraphNode)
+    {
+        guard let index = entries.firstIndex(where: { $0.id == node.id }) else { return }
+        entries = Array(entries.prefix(through: index))
+        syncUndoManager()
+    }
+
+    public func popToRoot()
+    {
+        entries.removeAll()
+        syncUndoManager()
     }
 
     // MARK: - Interactive Node Addition
