@@ -63,6 +63,10 @@ internal import AnyCodable
     /// to expose in its published interface.
     public var publishedPortIDs: Set<UUID> = []
 
+    /// Custom display names for published ports, keyed by port ID.
+    /// Absent entries use the port's own name.
+    public var publishedPortNames: [UUID: String] = [:]
+
     enum CodingKeys : String, CodingKey
     {
         case id
@@ -71,6 +75,7 @@ internal import AnyCodable
         case portConnectionMap
         case notes
         case publishedPortIDs
+        case publishedPortNames
     }
     
     public init(context:Context)
@@ -239,6 +244,8 @@ internal import AnyCodable
             self.publishedPortIDs = Set(allPorts.filter(\.legacyPublished).map(\.id))
         }
 
+        self.publishedPortNames = try container.decodeIfPresent([UUID: String].self, forKey: .publishedPortNames) ?? [:]
+
         self.rebuildPublishedParameterGroup()
     }
 
@@ -280,6 +287,11 @@ internal import AnyCodable
         if !self.publishedPortIDs.isEmpty
         {
             try container.encode(self.publishedPortIDs, forKey: .publishedPortIDs)
+        }
+
+        if !self.publishedPortNames.isEmpty
+        {
+            try container.encode(self.publishedPortNames, forKey: .publishedPortNames)
         }
     }
 
@@ -407,6 +419,7 @@ internal import AnyCodable
         if self.publishedPortIDs.contains(port.id)
         {
             self.publishedPortIDs.remove(port.id)
+            self.publishedPortNames.removeValue(forKey: port.id)
         }
         else
         {
@@ -419,6 +432,19 @@ internal import AnyCodable
     public func isPublished(_ port: Port) -> Bool
     {
         self.publishedPortIDs.contains(port.id)
+    }
+
+    /// The display name for a published port: custom name if set, otherwise the port's own name.
+    public func publishedName(for port: Port) -> String
+    {
+        self.publishedPortNames[port.id] ?? port.name
+    }
+
+    /// Set or clear a custom published name for a port.
+    public func setPublishedName(_ name: String?, for port: Port)
+    {
+        self.publishedPortNames[port.id] = name
+        self.shouldUpdateConnections.toggle()
     }
      
     // MARK: -Rendering Helpers

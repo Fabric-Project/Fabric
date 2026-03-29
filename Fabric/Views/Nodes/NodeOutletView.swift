@@ -13,6 +13,8 @@ struct NodeOutletView: View
     let editingContext: GraphCanvasContext
     
     @State private var isDropTargeted = false
+    @State private var isRenaming = false
+    @State private var renameText = ""
 
     var body: some View
     {
@@ -24,7 +26,7 @@ struct NodeOutletView: View
 
         HStack
         {
-            Text(self.port.name)
+            Text(graph.publishedName(for: port))
                 .foregroundStyle(Color.secondary)
                 .font(.system(size: 9))
                 .lineLimit(1)
@@ -72,7 +74,25 @@ struct NodeOutletView: View
 
         }
         .frame(height: 15)
-        .contextMenu { PortContextMenu(port: port, graph: graph) }
+        .contextMenu { PortContextMenu(port: port, graph: graph, isRenaming: $isRenaming) }
+        .alert("Rename Published Port", isPresented: $isRenaming) {
+            TextField("Published name", text: $renameText)
+            Button("OK") {
+                let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
+                graph.setPublishedName(trimmed.isEmpty ? nil : trimmed, for: port)
+            }
+            Button("Clear", role: .destructive) {
+                graph.setPublishedName(nil, for: port)
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Enter a custom name for this published port, or clear to use the default.")
+        }
+        .onChange(of: isRenaming) {
+            if isRenaming {
+                renameText = graph.publishedName(for: port)
+            }
+        }
     }
 
     private func findPortAt(position: CGPoint, in geometryPosition: CGPoint) -> UUID? {

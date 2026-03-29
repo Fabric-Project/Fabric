@@ -16,11 +16,18 @@ struct PortContextMenu: View
 {
     let port: Port
     let graph: Graph
+    @Binding var isRenaming: Bool
 
     var body: some View
     {
         Button(action: publish) {
             Text(graph.isPublished(port) ? "Unpublish" : "Publish")
+        }
+
+        if graph.isPublished(port) {
+            Button(action: rename) {
+                Text("Rename…")
+            }
         }
 
         if !port.connections.isEmpty {
@@ -33,6 +40,11 @@ struct PortContextMenu: View
     private func publish()
     {
         graph.togglePublished(port: port)
+    }
+
+    private func rename()
+    {
+        isRenaming = true
     }
 
     private func disconnect()
