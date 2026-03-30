@@ -44,6 +44,10 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
         // Published defaults to false — the parent graph independently
         // decides whether to publish this port further.
         super.init(name: innerPort.name, kind: innerPort.kind, description: innerPort.portDescription)
+        
+        // ensure we proxy other values
+        self.parameter = innerPort.parameter
+        self.value = innerPort.value
     }
 
     required public init(from decoder: any Decoder) throws
@@ -62,7 +66,7 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
             guard self.valueDidChange else { return }
 
             // Forward to inner port, which sends to its sub graph connections
-            innerPort.send(self.value, force: true)
+            self.innerPort.send(self.value, force: true)
         }
     }
 
