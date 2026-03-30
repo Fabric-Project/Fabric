@@ -51,6 +51,18 @@ public class SubgraphNode: BaseObjectNode
                 self.proxyPorts.append(proxy)
             }
         }
+        
+        // Ensure parameter group is updated
+        self.parameterGroup.clear()
+        for port in self.proxyPorts
+        {
+            if let param = port.parameter
+            {
+                self.parameterGroup.append(param)
+            }
+        }
+        
+        self.synchronizeParameters()
     }
 
     /// Type-erase proxy creation — matches the inner port's generic type.
