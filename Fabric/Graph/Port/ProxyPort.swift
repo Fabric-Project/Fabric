@@ -59,22 +59,23 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
 
     /// When the parent graph sends a value to this proxy (inlet case),
     /// forward it to the inner port so the sub graph receives it.
+    
     override public var value: Value?
     {
-        didSet
-        {
-            guard self.valueDidChange else { return }
-
-            // Forward to inner port, which sends to its sub graph connections
-            self.innerPort.send(self.value, force: true)
-        }
+        get { innerPort.value }
+        set { innerPort.value = newValue }
     }
-
+    
+    override public var valueDidChange:Bool
+    {
+        get { innerPort.valueDidChange }
+        set { innerPort.valueDidChange = newValue }
+    }
     /// Pull the inner port's current value and send it to this proxy's
     /// connections in the parent graph. Called by SubgraphNode after
     /// sub graph execution for outlet proxies.
     public func forwardFromInner()
     {
-        self.send(innerPort.value, force: true)
+        self.send(innerPort.value)
     }
 }
