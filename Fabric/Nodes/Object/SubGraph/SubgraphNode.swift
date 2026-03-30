@@ -54,7 +54,8 @@ public class SubgraphNode: BaseObjectNode
         
         // Ensure parameter group is updated
         self.parameterGroup.clear()
-        for port in self.proxyPorts
+        
+        for port in self.ports
         {
             if let param = port.parameter
             {
