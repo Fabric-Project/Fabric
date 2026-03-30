@@ -212,6 +212,16 @@ public class SubgraphNode: BaseObjectNode
         context.graphRenderer?.disableExecution(graph: self.subGraph, executionContext: context)
     }
     
+    public func forwardPortValues()
+    {
+        // Forward outlet values from inner ports to proxy ports so the
+        // parent graph receives sub graph outputs.
+        for port in self.proxyPorts where port.kind == .Outlet
+        {
+            (port as? any ProxyPortProtocol)?.forwardFromInner()
+        }
+    }
+    
     override public func execute(context: GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: any MTLCommandBuffer)
@@ -223,11 +233,6 @@ public class SubgraphNode: BaseObjectNode
                                        commandBuffer: commandBuffer,
                                        clearFlags: false)
 
-        // Forward outlet values from inner ports to proxy ports so the
-        // parent graph receives sub graph outputs.
-        for port in self.proxyPorts where port.kind == .Outlet
-        {
-            (port as? any ProxyPortProtocol)?.forwardFromInner()
-        }
+        self.forwardPortValues()
     }    
 }
