@@ -301,6 +301,7 @@ internal import AnyCodable
         self.shouldUpdateConnections = true
 
         self.updateRenderingNodes()
+        self.rebuildPublishedParameterGroup()
     }
     
     public func delete(node:Node, disconnect:Bool = true)
@@ -334,6 +335,7 @@ internal import AnyCodable
         self.shouldUpdateConnections = true
 
         self.updateRenderingNodes()
+        self.rebuildPublishedParameterGroup()
     }
     
     public func node(forID:UUID) -> Node?
