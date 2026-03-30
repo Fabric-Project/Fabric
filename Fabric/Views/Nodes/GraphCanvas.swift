@@ -478,42 +478,6 @@ public struct GraphCanvas : View
         }
         
         
-        Menu("Input Ports") {
-            let inputPorts = currentNode.ports.filter { $0.kind == .Inlet }
-            ForEach(inputPorts, id:\.id) { port in
-                
-                Button
-                {
-                    port.published = !port.published
-                    
-                    // Hacky!
-                    currentGraph.rebuildPublishedParameterGroup()
-                    
-                } label: {
-                    Text( port.published ?  "Unpublish Port: \(port.name)" : "Publish Port: \(port.name)" )
-                }
-            }
-        }
-        
-        Menu("Output Ports") {
-            let outputPorts = currentNode.ports.filter { $0.kind == .Outlet }
-            
-            ForEach(outputPorts, id:\.id) { port in
-                
-                Button {
-                    
-                    port.published = !port.published
-                    
-                    // Hacky!
-                    currentGraph.rebuildPublishedParameterGroup()
-                    
-                } label: {
-                    Text( port.published ?  "Unpublish Port: \(port.name)" : "Publish Port: \(port.name)" )
-                }
-                
-            }
-        }
-        
         Button {
             renamingNodeID = currentNode.id
         } label: {

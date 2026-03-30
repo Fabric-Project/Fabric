@@ -203,6 +203,30 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
     }
 }
 
+// MARK: - Parameter Node Mapping
+
+extension PortType {
+
+    /// Returns the parameter node class for this port type,
+    /// or nil if no matching parameter node exists.
+    public var parameterNodeClass: Node.Type?
+    {
+        switch self
+        {
+        case .Float, .Int:  return NumberNode.self
+        case .Bool:         return TrueNode.self
+        case .String:       return StringNode.self
+        case .Vector2:      return MakeVector2Node.self
+        case .Vector3:      return MakeVector3Node.self
+        case .Vector4:      return MakeVector4Node.self
+        case .Color:        return MakeVector4Node.self
+        case .Quaternion:   return MakeQuaternionNode.self
+        case .Transform:    return IdentityTransformNode.self
+        default:            return nil
+        }
+    }
+}
+
 // Generic helper that lifts an element metatype to a ContiguousArray metatype.
 @inline(__always)
 fileprivate func contiguousArrayMetatype<Element>(of _: Element.Type) -> ContiguousArray<Element>.Type {

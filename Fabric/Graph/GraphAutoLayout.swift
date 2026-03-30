@@ -290,4 +290,160 @@ enum GraphAutoLayout {
         }
         return nil
     }
+
+    // MARK: - Adjacency Placement
+
+    // NodeView layout constants (must match NodeView.body / computeNodeSize)
+    private static let titleHeight: CGFloat = 30
+    private static let portVStackSpacing: CGFloat = 10
+    private static let portRowHeight: CGFloat = 15
+    private static let portStride: CGFloat = 25  // portRowHeight + portVStackSpacing
+
+    /// Y offset of a port relative to its node's centre, derived from the
+    /// port's index among same-direction, same-kind ports on the node.
+    static func portYOffset(port: Port, on node: Node) -> CGFloat
+    {
+        let samePorts = node.ports.filter { $0.direction == port.direction && $0.kind == port.kind }
+        let index = samePorts.firstIndex(where: { $0.id == port.id }) ?? 0
+        // Port centre relative to node top:
+        //   titleHeight + portVStackSpacing + index * portStride + portRowHeight / 2
+        let fromTop = titleHeight + portVStackSpacing + CGFloat(index) * portStride + portRowHeight / 2
+        return fromTop - node.nodeSize.height / 2
+    }
+
+    /// Position `node` immediately left of `referenceNode`.
+    /// When `alignPorts` is provided, the placed node is shifted vertically
+    /// so its connecting port lines up with the source port.
+    static func positionToLeft(of referenceNode: Node, node: Node,
+                               alignPorts: (source: Port, placed: Port)? = nil,
+                               gap: CGFloat = columnSpacing)
+    {
+        let dy = portAlignmentOffset(referenceNode: referenceNode, placedNode: node, alignPorts: alignPorts)
+        node.offset = CGSize(
+            width: referenceNode.offset.width - node.nodeSize.width - gap,
+            height: referenceNode.offset.height + dy
+        )
+    }
+
+    /// Position `node` immediately right of `referenceNode`.
+    /// When `alignPorts` is provided, the placed node is shifted vertically
+    /// so its connecting port lines up with the source port.
+    static func positionToRight(of referenceNode: Node, node: Node,
+                                alignPorts: (source: Port, placed: Port)? = nil,
+                                gap: CGFloat = columnSpacing)
+    {
+        let dy = portAlignmentOffset(referenceNode: referenceNode, placedNode: node, alignPorts: alignPorts)
+        node.offset = CGSize(
+            width: referenceNode.offset.width + referenceNode.nodeSize.width + gap,
+            height: referenceNode.offset.height + dy
+        )
+    }
+
+    /// Compute the vertical delta so `placed` port on `placedNode` aligns
+    /// with `source` port on `referenceNode`. Both offsets are relative to
+    /// their respective node centres, so the difference gives the shift
+    /// needed for the placed node's offset.
+    private static func portAlignmentOffset(referenceNode: Node, placedNode: Node,
+                                            alignPorts: (source: Port, placed: Port)?) -> CGFloat
+    {
+        guard let alignPorts else { return 0 }
+        let sourceY = portYOffset(port: alignPorts.source, on: referenceNode)
+        let placedY = portYOffset(port: alignPorts.placed, on: placedNode)
+        return sourceY - placedY
+    }
+
+}
+
+// MARK: - Insert Parameter Node
+
+extension Graph {
+
+    /// Insert a parameter node adjacent to the given port, connect it,
+    /// and transfer any published state.
+    ///
+    /// For an **inlet**: the parameter node is placed to the left.
+    /// Existing upstream connections move to the parameter node's input;
+    /// the parameter node's outlet connects to the original inlet.
+    ///
+    /// For an **outlet**: the parameter node is placed to the right.
+    /// Existing downstream connections move to the parameter node's outlet;
+    /// the original outlet connects to the parameter node's input.
+    public func insertParameterNode(for port: Port)
+    {
+        guard let sourceNode = port.node,
+              let nodeClass = port.portType.parameterNodeClass
+        else { return }
+
+        let paramNode = nodeClass.init(context: self.context)
+
+        let paramOutlet = paramNode.ports.first(where: { $0.kind == .Outlet })
+        let paramInlet  = paramNode.ports.first(where: { $0.kind == .Inlet })
+
+        switch port.kind
+        {
+        case .Inlet:
+            guard let paramOutlet else { return }
+
+            // Align the parameter node's outlet with the source inlet
+            GraphAutoLayout.positionToLeft(of: sourceNode, node: paramNode,
+                                           alignPorts: (source: port, placed: paramOutlet))
+
+            let existingConnections = Array(port.connections)
+
+            // Transfer published state to the parameter node's input (or outlet if no input)
+            if port.published
+            {
+                port.published = false
+                let savedName = port.publishedName
+                port.publishedName = nil
+
+                let publishTarget = paramInlet ?? paramOutlet
+                publishTarget.published = true
+                publishTarget.publishedName = savedName
+            }
+
+            // Move existing upstream connections to the parameter node's input
+            for connection in existingConnections { connection.disconnect(from: port) }
+            if let paramInlet
+            {
+                for connection in existingConnections { connection.connect(to: paramInlet) }
+            }
+
+            self.addNode(paramNode)
+            paramOutlet.connect(to: port)
+
+        case .Outlet:
+            guard let paramInlet else { return }
+
+            // Align the parameter node's inlet with the source outlet
+            GraphAutoLayout.positionToRight(of: sourceNode, node: paramNode,
+                                            alignPorts: (source: port, placed: paramInlet))
+
+            let existingConnections = Array(port.connections)
+
+            // Transfer published state to the parameter node's outlet (or input if no outlet)
+            if port.published
+            {
+                port.published = false
+                let savedName = port.publishedName
+                port.publishedName = nil
+
+                let publishTarget = paramOutlet ?? paramInlet
+                publishTarget.published = true
+                publishTarget.publishedName = savedName
+            }
+
+            // Move existing downstream connections to the parameter node's outlet
+            for connection in existingConnections { port.disconnect(from: connection) }
+            if let paramOutlet
+            {
+                for connection in existingConnections { paramOutlet.connect(to: connection) }
+            }
+
+            self.addNode(paramNode)
+            port.connect(to: paramInlet)
+        }
+
+        self.rebuildPublishedParameterGroup()
+    }
 }

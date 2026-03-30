@@ -18,12 +18,14 @@ struct NodeInletView: View
 
     var body: some View
     {
+        let graph = editingContext.currentGraph
+
         HStack {
             Circle()
                 .fill(port.color )
                 .stroke(Color.red, lineWidth: port.published ? 1.0 : 0.0)
                 .frame(width: 15)
-                .brightness( port.published ? 0.2 : 0.0)
+                .brightness(port.published ? 0.2 : 0.0)
                 .gesture(
                     DragGesture(minimumDistance: 0, coordinateSpace: .named("graph"))
                         .onChanged { value in
@@ -61,12 +63,18 @@ struct NodeInletView: View
                
                 .help("\(port.name): \(port.portType.rawValue) - \(port.parameter?.description ?? "" )")
 
-            Text(self.port.name)
+            Text(port.displayName)
                 .foregroundStyle(Color.secondary)
                 .font(.system(size: 9))
                 .lineLimit(1)
         }
         .frame(height: 15)
+        // Expand the context menu hit zone to the full row (circle + label).
+        // The contentShape ensures the entire HStack area is tappable for
+        // right-click, while the drag gesture on the Circle still takes
+        // priority for connection dragging.
+        .contentShape(.interaction, Rectangle())
+        .modifier(PortRenameAlert(port: port, graph: graph))
     }
 
     private func findPortAt(position: CGPoint, in geometryPosition: CGPoint) -> UUID? {
