@@ -353,10 +353,10 @@ internal import AnyCodable
     {
         self.publishedParameterGroup.clear()
 
-        let publishedPortIds = Set(self.nodes.flatMap(\.ports).filter(\.published).map(\.id))
-        let allParams = self.nodes.flatMap( { $0.parameterGroup.params } )
-        let params = allParams.filter { publishedPortIds.contains($0.id) }
-        self.publishedParameterGroup.append( params )
+        let publishedPorts = self.getPublishedPorts()
+        let publishedParams = publishedPorts.compactMap( \.parameter )
+
+        self.publishedParameterGroup.append( publishedParams )
         self.shouldUpdateConnections = true
         self.onPublishedPortsChanged?()
     }
@@ -377,10 +377,24 @@ internal import AnyCodable
         return self.getPublishedPorts().filter { $0.kind == .Outlet }
     }
 
-    internal func nodesWithPublishedOutputs() -> [Node]
+    internal func nodesWithPublishedPorts() -> [Node]
     {
         return self.nodes.filter { node in
-            node.ports.contains { $0.kind == .Outlet && $0.published }
+            node.ports.contains { $0.published }
+        }
+    }
+    
+    internal func nodesWithPublishedInputs() -> [Node]
+    {
+        return self.nodesWithPublishedPorts().filter { node in
+            node.ports.contains { $0.kind == .Inlet }
+        }
+    }
+    
+    internal func nodesWithPublishedOutputs() -> [Node]
+    {
+        return self.nodesWithPublishedPorts().filter { node in
+            node.ports.contains { $0.kind == .Outlet }
         }
     }
      
