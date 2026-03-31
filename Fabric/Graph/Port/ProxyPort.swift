@@ -36,6 +36,11 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
 
     public var innerPortID: UUID { innerPort.id }
 
+    /// Prefers the proxy's own publishedName (set when renamed in the
+    /// parent graph), falling back to the inner port's displayName (which
+    /// reflects sub-graph level renames).
+    override public var displayName: String { publishedName ?? innerPort.displayName }
+
     public init(wrapping innerPort: NodePort<Value>)
     {
         self.innerPort = innerPort
