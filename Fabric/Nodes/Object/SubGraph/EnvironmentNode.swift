@@ -73,6 +73,7 @@ public class EnvironmentNode: SubgraphNode
 //            iblScene.cubemapGenerator?.blur = inputEnvironmentIntensity
 //        }
         
+        // This calls forward for us... 
         super.execute(context: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
     }
 }

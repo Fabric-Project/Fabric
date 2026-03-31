@@ -56,8 +56,11 @@ internal import AnyCodable
     @ObservationIgnored weak var lastNode:(Node)? = nil
 
     public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
-    
-    
+
+    /// Called when the set of published ports changes. SubgraphNode uses
+    /// this to rebuild its proxy ports without polling.
+    @ObservationIgnored var onPublishedPortsChanged: (() -> Void)?
+
     enum CodingKeys : String, CodingKey
     {
         case id
@@ -223,7 +226,7 @@ internal import AnyCodable
         
         self.rebuildPublishedParameterGroup()
     }
-    
+
     deinit
     {
         self.nodes.forEach { $0.teardown() }
@@ -298,6 +301,7 @@ internal import AnyCodable
         self.shouldUpdateConnections = true
 
         self.updateRenderingNodes()
+        self.rebuildPublishedParameterGroup()
     }
     
     public func delete(node:Node, disconnect:Bool = true)
@@ -331,6 +335,7 @@ internal import AnyCodable
         self.shouldUpdateConnections = true
 
         self.updateRenderingNodes()
+        self.rebuildPublishedParameterGroup()
     }
     
     public func node(forID:UUID) -> Node?
@@ -347,41 +352,50 @@ internal import AnyCodable
     public func rebuildPublishedParameterGroup()
     {
         self.publishedParameterGroup.clear()
-        
-        let params = self.publishedParameters()
-        self.publishedParameterGroup.append( params )
+
+        let publishedPorts = self.getPublishedPorts()
+        let publishedParams = publishedPorts.compactMap( \.parameter )
+
+        self.publishedParameterGroup.append( publishedParams )
         self.shouldUpdateConnections = true
+        self.onPublishedPortsChanged?()
     }
-    
-    // This could be more nicely done.
-    public func publishedParameters() -> [any Parameter]
+
+    /// All ports in this graph that have been published.
+    public func getPublishedPorts() -> [Port]
     {
-        // id's of ports match id's of params for convenience
-        let publishedPortIds = self.nodes.flatMap( { $0.publishedPorts().map { $0.id } } )
-        
-        // expose only params that are published
-        return self.nodes.flatMap( { $0.parameterGroup.params } ).filter { publishedPortIds.contains($0.id) }
+        return self.nodes.flatMap(\.ports).filter(\.published)
     }
-    
-    // This could be more nicely done.
-    public func publishedPorts() -> [Port]
-    {
-        return  self.nodes.flatMap( { $0.publishedPorts() } )
-    }
-    
+
     public func publishedInputPorts() -> [Port]
     {
-        return  self.nodes.flatMap( { $0.publishedInputPorts() } )
+        return self.getPublishedPorts().filter { $0.kind == .Inlet }
     }
-    
+
     public func publishedOutputPorts() -> [Port]
     {
-        return  self.nodes.flatMap( { $0.publishedOutputPorts() } )
+        return self.getPublishedPorts().filter { $0.kind == .Outlet }
+    }
+
+    internal func nodesWithPublishedPorts() -> [Node]
+    {
+        return self.nodes.filter { node in
+            node.ports.contains { $0.published }
+        }
+    }
+    
+    internal func nodesWithPublishedInputs() -> [Node]
+    {
+        return self.nodesWithPublishedPorts().filter { node in
+            node.ports.contains { $0.kind == .Inlet }
+        }
     }
     
     internal func nodesWithPublishedOutputs() -> [Node]
     {
-        return  self.nodes.filter( { $0.publishedOutputPorts().isEmpty == false } )
+        return self.nodesWithPublishedPorts().filter { node in
+            node.ports.contains { $0.kind == .Outlet }
+        }
     }
      
     // MARK: -Rendering Helpers

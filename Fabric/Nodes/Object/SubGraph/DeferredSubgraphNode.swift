@@ -158,6 +158,9 @@ public class DeferredSubgraphNode: SubgraphNode
         {
             self.outputDepthTexture.send( nil )
         }
+        
+        // We need to call this to ensure any published port values also get forwarded.
+        self.forwardPortValues(force:true)
     }
     
     override public func resize(size: (width: Float, height: Float), scaleFactor: Float)

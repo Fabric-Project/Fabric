@@ -299,22 +299,22 @@ import UniformTypeIdentifiers
     {
         return self.ports.filter( { $0.kind == .Outlet } )
     }
-    
+
     public func publishedPorts() -> [Port]
     {
-        return self.ports.filter( { $0.published } )
+        return self.ports.filter(\.published)
     }
-    
+
     public func publishedInputPorts() -> [Port]
     {
-        return self.inputPorts().filter( { $0.published } )
+        return self.inputPorts().filter(\.published)
     }
-    
+
     public func publishedOutputPorts() -> [Port]
     {
-        return self.outputPorts().filter( { $0.published  } )
+        return self.outputPorts().filter(\.published)
     }
-    
+
     // MARK: - Connections
         
     public func didConnectToNode(_ node: Node)
