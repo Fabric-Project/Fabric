@@ -189,7 +189,7 @@ The implementation of the cross-platform game view.
 - (void)metalDisplayLink:(CAMetalDisplayLink *)link
              needsUpdate:(CAMetalDisplayLinkUpdate *_Nonnull)update
 {
-    CFTimeInterval deltaTime = _previousTargetPresentationTimestamp - update.targetPresentationTimestamp;
+    CFTimeInterval deltaTime = update.targetPresentationTimestamp - _previousTargetPresentationTimestamp;
     _previousTargetPresentationTimestamp = update.targetPresentationTimestamp;
     
     [self renderUpdate:update with:deltaTime];
