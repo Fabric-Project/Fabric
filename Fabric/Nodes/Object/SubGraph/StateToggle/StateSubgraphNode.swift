@@ -148,6 +148,8 @@ public class StateSubgraphNode: SubgraphNode {
             )
 
             context.userInfo.removeValue(forKey: StateToggleInfo.contextKey)
+
+            self.forwardPortValues(force: true)
         }
     }
 }
