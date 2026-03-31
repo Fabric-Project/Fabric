@@ -44,7 +44,7 @@ struct FormatPlaceholder: Equatable {
 
 /// Parse placeholders from a format string. Matches `{name}` and `{name:spec}`.
 func parseFormatPlaceholders(_ formatString: String) -> [FormatPlaceholder] {
-    let pattern = /\{(\w+)(?::([^}]+))?\}/
+    let pattern = #/\{(\w+)(?::([^}]+))?\}/#
     var placeholders: [FormatPlaceholder] = []
     var seen = Set<String>()
 
@@ -150,7 +150,7 @@ struct StringFormatSettingsView: View {
         guard anyChanged else { return }
 
         var result = formatString
-        let pattern = /\{(\w+)(?::([^}]+))?\}/
+        let pattern = #/\{(\w+)(?::([^}]+))?\}/#
 
         for match in formatString.matches(of: pattern) {
             let name = String(match.1)

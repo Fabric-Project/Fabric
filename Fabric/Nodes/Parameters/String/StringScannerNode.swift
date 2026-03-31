@@ -177,7 +177,7 @@ struct StringScannerSettingsView: View {
     }
 
     private func buildRegex() {
-        let placeholderPattern = /\{(\w+)(?::([^}]+))?\}/
+        let placeholderPattern = #/\{(\w+)(?::([^}]+))?\}/#
 
         var regexString = "^"
         var lastEnd = formatString.startIndex
