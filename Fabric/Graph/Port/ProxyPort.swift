@@ -13,7 +13,7 @@ import Satin
 protocol ProxyPortProtocol
 {
     var innerPortID: UUID { get }
-    func forwardFromInner()
+    func forwardFromInner(force:Bool)
 }
 
 /// A port that wraps an inner port from a sub graph, presenting it as
@@ -74,8 +74,8 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
     /// Pull the inner port's current value and send it to this proxy's
     /// connections in the parent graph. Called by SubgraphNode after
     /// sub graph execution for outlet proxies.
-    public func forwardFromInner()
+    public func forwardFromInner(force:Bool = false)
     {
-        self.send(innerPort.value)
+        self.send(innerPort.value, force:force)
     }
 }

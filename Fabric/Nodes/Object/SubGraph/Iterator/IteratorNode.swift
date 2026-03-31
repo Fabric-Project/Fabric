@@ -96,6 +96,8 @@ public class IteratorNode: SubgraphNode
         // Not sure the best way to avoid this - since we need to have the graph 'configured'
         self.renderProxy.execute(context: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer,)
         
-      
+        // We need to call this to ensure any published port values also get forwarded.
+        self.forwardPortValues(force:true)
+
     }
 }

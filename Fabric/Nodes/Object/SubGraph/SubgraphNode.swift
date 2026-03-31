@@ -212,13 +212,13 @@ public class SubgraphNode: BaseObjectNode
         context.graphRenderer?.disableExecution(graph: self.subGraph, executionContext: context)
     }
     
-    public func forwardPortValues()
+    public func forwardPortValues(force:Bool = false)
     {
         // Forward outlet values from inner ports to proxy ports so the
         // parent graph receives sub graph outputs.
         for port in self.proxyPorts where port.kind == .Outlet
         {
-            (port as? any ProxyPortProtocol)?.forwardFromInner()
+            (port as? any ProxyPortProtocol)?.forwardFromInner(force:force)
         }
     }
     
@@ -233,6 +233,6 @@ public class SubgraphNode: BaseObjectNode
                                        commandBuffer: commandBuffer,
                                        clearFlags: false)
 
-        self.forwardPortValues()
-    }    
+        self.forwardPortValues(force:true)
+    }
 }
