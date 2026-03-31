@@ -751,20 +751,18 @@ struct TimelineNodeView: View
         rebuildPorts()
     }
 
-    public convenience init(context: Context, duration: Float)
+    public convenience init(context: Context, duration: Float, tracks: [TimelineTrack])
     {
         self.init(context: context)
         self.duration = duration
+        self.tracks = tracks
 
-        // didSet may not fire in convenience init due to @Observable —
-        // manually update the default track's last keyframe to match
-        for i in 0..<tracks.count
+        if self.tracks.isEmpty
         {
-            if let lastIndex = tracks[i].keyframes.indices.last
-            {
-                tracks[i].keyframes[lastIndex].time = duration
-            }
+            self.tracks.append(TimelineTrack(name: "Track 1", duration: duration))
         }
+
+        rebuildPorts()
     }
 
     // MARK: - Properties

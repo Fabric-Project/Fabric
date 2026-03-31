@@ -84,7 +84,7 @@ struct MathExpressionView : View
 
     // MARK: - Properties
 
-    @ObservationIgnored public var stringExpression:String = "sin(x) + y^2"
+    @ObservationIgnored fileprivate var stringExpression:String = "sin(x) + y^2"
     {
         didSet
         {

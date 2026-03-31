@@ -193,10 +193,10 @@ struct KeyboardNodeView : View
         super.init(context: context)
     }
 
-    public convenience init(context: Context, keyBindings: [KeyBinding?])
+    public convenience init(context: Context, keyBindings: [KeyBinding])
     {
         self.init(context: context)
-        self.keyBindings = keyBindings
+        self.keyBindings = keyBindings.map { Optional($0) }
         self.rebuildPorts()
     }
 
