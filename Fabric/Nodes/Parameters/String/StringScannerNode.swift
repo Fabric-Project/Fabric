@@ -175,6 +175,7 @@ struct StringScannerSettingsView: View {
 
         self.placeholders = newPlaceholders
         self.buildRegex()
+        self.inputString.valueDidChange = true
     }
 
     private func buildRegex() {
