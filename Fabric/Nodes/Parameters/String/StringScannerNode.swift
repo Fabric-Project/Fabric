@@ -34,7 +34,7 @@ struct StringScannerSettingsView: View {
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .String) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Extract values from a string using named placeholders" }
+    override public class var nodeDescription: String { "Extract values from a string using named placeholders. Inverse of String Formatter." }
 
     override public var name: String { formatString }
 

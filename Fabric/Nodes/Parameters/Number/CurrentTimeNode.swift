@@ -17,7 +17,7 @@ public class CurrentTimeNode : Node
     override public class var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Graph Time"}
+    override public class var nodeDescription: String { "Elapsed time in seconds since graph execution started" }
 
     private var startTime:TimeInterval = 0
 
@@ -27,7 +27,7 @@ public class CurrentTimeNode : Node
 
         return ports +
         [
-            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet, description: "Elapsed time in seconds since graph execution started")),
+            ("outputNumber", NodePort<Float>(name: "Seconds", kind: .Outlet, description: "Elapsed time in seconds since graph execution started")),
         ]
     }
     

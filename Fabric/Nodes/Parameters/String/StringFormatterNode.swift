@@ -84,7 +84,7 @@ struct StringFormatSettingsView: View {
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .String) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Format values into a string using named placeholders" }
+    override public class var nodeDescription: String { "Format values into a string using named placeholders. Inverse of String Scanner." }
 
     override public var name: String { formatString }
 
