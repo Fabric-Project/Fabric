@@ -45,16 +45,17 @@ public class DirectoryScannerNode: Node {
     }
 
     private func scanDirectory(path: String) {
-        let url = URL(fileURLWithPath: path)
+        guard let url = URL(string: path) else { return }
+        let dirPath = url.standardizedFileURL.path(percentEncoded: false)
         let fileManager = FileManager.default
 
         var isDirectory: ObjCBool = false
-        guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory),
+        guard fileManager.fileExists(atPath: dirPath, isDirectory: &isDirectory),
               isDirectory.boolValue else {
             return
         }
 
-        guard let contents = try? fileManager.contentsOfDirectory(atPath: url.path) else {
+        guard let contents = try? fileManager.contentsOfDirectory(atPath: dirPath) else {
             return
         }
 
