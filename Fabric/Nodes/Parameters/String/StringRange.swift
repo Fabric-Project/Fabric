@@ -27,7 +27,7 @@ public class StringRangeNode : Node
         [
             ("inputPort",       ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to extract substring from"))),
             ("inputRangeFrom",  ParameterPort(parameter: IntParameter("From", 0, .inputfield, "Start index for the substring"))),
-            ("inputRangeTo",    ParameterPort(parameter: IntParameter("To", 0, .inputfield, "End index for the substring (exclusive)"))),
+            ("inputRangeTo",    ParameterPort(parameter: IntParameter("To", 1, .inputfield, "End index for the substring (exclusive)"))),
             ("outputPort",      NodePort<String>(name: "String", kind: .Outlet, description: "Extracted substring")),
         ]
     }
