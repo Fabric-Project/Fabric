@@ -110,6 +110,7 @@ struct StringFormatSettingsView: View {
 
     public required init(context: Context) {
         super.init(context: context)
+        self.updatePorts()
     }
 
     // MARK: - Properties
