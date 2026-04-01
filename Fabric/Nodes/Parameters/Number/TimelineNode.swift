@@ -751,6 +751,20 @@ struct TimelineNodeView: View
         rebuildPorts()
     }
 
+    public convenience init(context: Context, duration: Float, tracks: [TimelineTrack])
+    {
+        self.init(context: context)
+        self.duration = duration
+        self.tracks = tracks
+
+        if self.tracks.isEmpty
+        {
+            self.tracks.append(TimelineTrack(name: "Track 1", duration: duration))
+        }
+
+        rebuildPorts()
+    }
+
     // MARK: - Properties
 
     fileprivate var duration: Float = 1.0

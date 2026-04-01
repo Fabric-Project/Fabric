@@ -45,35 +45,58 @@ class FabricDocument: FileDocument
         print("Basic Document Init")
         let graph = Graph(context: self.context)
 
+        // Time source
+        let currentTimeNode = CurrentTimeNode(context: self.context)
+
+        // Math expression: secs * speed
+        let mathNode = MathExpressionNode(context: self.context, expression: "secs * speed")
+
+        // Publish the 'speed' port with a default of 10
+        let speedPort = mathNode.findPort(named: "speed", as: ParameterPort<Float>.self)!
+        speedPort.published = true
+        speedPort.value = 10
+
+        // Euler orientation (drives mesh rotation on X and Y)
+        let eulerNode = EulerOrientationNode(context: self.context)
+
+        // Geometry, material, mesh
         let boxNode = BoxGeometryNode(context: self.context)
-        boxNode.offset = CGSize(width: -400, height:0)
-
         let materialNode = StandardMaterialNode(context: self.context)
-        materialNode.offset = CGSize(width: -400, height: 200)
-
         let meshNode = MeshNode(context: self.context)
-        meshNode.offset = CGSize(width: -200, height: 100)
 
+        // Camera and light
         let cameraNode = PerspectiveCameraNode(context: self.context)
-        cameraNode.offset = CGSize(width: 200 , height: 50)
         cameraNode.inputPosition.value = simd_float3(0, 0, 3)
-        
+
         let directionalLightNode = DirectionalLightNode(context: self.context)
         directionalLightNode.inputPosition.value = SIMD3<Float>(1, 2, 5)
-        directionalLightNode.offset = CGSize(width: 0, height: -200)
 
+        // Connections — animation chain
+        currentTimeNode.outputNumber.connect(to: mathNode.findPort(named: "secs", as: ParameterPort<Float>.self)!)
+        mathNode.outputNumber.connect(to: eulerNode.inputX)
+        mathNode.outputNumber.connect(to: eulerNode.inputY)
+        eulerNode.outputOrientation.connect(to: meshNode.inputOrientation)
+
+        // Connections — geometry
         boxNode.outputGeometry.connect(to: meshNode.inputGeometry)
         materialNode.outputMaterial.connect(to: meshNode.inputMaterial)
 
         self.editingContext = GraphCanvasContext(rootGraph: graph)
 
+        // Add all nodes to graph
+        self.editingContext.currentGraph.addNode(currentTimeNode)
+        self.editingContext.currentGraph.addNode(mathNode)
+        self.editingContext.currentGraph.addNode(eulerNode)
         self.editingContext.currentGraph.addNode(boxNode)
         self.editingContext.currentGraph.addNode(materialNode)
         self.editingContext.currentGraph.addNode(meshNode)
         self.editingContext.currentGraph.addNode(directionalLightNode)
         self.editingContext.currentGraph.addNode(cameraNode)
+
+        // Auto-layout the graph
+        self.editingContext.currentGraph.autoLayout()
     }
-    
+
     required init(configuration: ReadConfiguration) throws
     {
         print("Read Configuration Document Init")

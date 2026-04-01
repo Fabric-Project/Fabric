@@ -193,6 +193,13 @@ struct KeyboardNodeView : View
         super.init(context: context)
     }
 
+    public convenience init(context: Context, keyBindings: [KeyBinding])
+    {
+        self.init(context: context)
+        self.keyBindings = keyBindings.map { Optional($0) }
+        self.rebuildPorts()
+    }
+
     // MARK: - Execution
 
     public override func execute(context:GraphExecutionContext,
