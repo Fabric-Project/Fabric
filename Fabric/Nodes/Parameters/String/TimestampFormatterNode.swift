@@ -1,5 +1,5 @@
 //
-//  DateFormatterNode.swift
+//  TimestampFormatterNode.swift
 //  Fabric
 //
 
@@ -7,8 +7,8 @@ import Foundation
 import Satin
 import Metal
 
-public class DateFormatterNode: Node {
-    override public class var name: String { "Date Formatter" }
+public class TimestampFormatterNode: Node {
+    override public class var name: String { "Timestamp Formatter" }
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .String) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }

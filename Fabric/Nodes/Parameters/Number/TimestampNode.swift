@@ -1,5 +1,5 @@
 //
-//  ClockTimeNode.swift
+//  TimestampNode.swift
 //  Fabric
 //
 
@@ -7,8 +7,8 @@ import Foundation
 import Satin
 import Metal
 
-public class ClockTimeNode: Node {
-    override public class var name: String { "Clock Time" }
+public class TimestampNode: Node {
+    override public class var name: String { "Timestamp" }
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .Number) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
     override public class var nodeTimeMode: Node.TimeMode { .None }

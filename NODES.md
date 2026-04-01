@@ -284,7 +284,7 @@ Have yet to work on Index (integer only) numeric nodes
 - [x] Number
 - [x] Current Time (AKA Patch Time)
 - [x] System Time
-- [x] Clock Time
+- [x] Timestamp
 - [x] Integrator (accrues every frame for now)
 - [ ] Derivator
 - [x] Single Operator Math
@@ -348,7 +348,7 @@ Have yet to work on Color nodes, ideally all color spaces / images are linear / 
 - [x] String Split
 - [x] String Compare
 - [x] Convert to String ( type convert )
-- [x] Date Formatter
+- [x] Timestamp Formatter
 - [x] Directory Scanner
 - [x] String to Timecode Format
 

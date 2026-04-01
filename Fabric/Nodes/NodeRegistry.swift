@@ -281,7 +281,7 @@ public class NodeRegistry {
         // Number
         CurrentTimeNode.self,
         SystemTimeNode.self,
-        ClockTimeNode.self,
+        TimestampNode.self,
         NumberNode.self,
         TimelineNode.self,
         NumberUnaryOperator.self,
@@ -325,7 +325,7 @@ public class NodeRegistry {
         StringFormatterNode.self,
         StringScannerNode.self,
         StringSeparatorNode.self,
-        DateFormatterNode.self,
+        TimestampFormatterNode.self,
         DirectoryScannerNode.self,
         StringToTimecodeNode.self,
 //        ConvertToStringNode.self,
