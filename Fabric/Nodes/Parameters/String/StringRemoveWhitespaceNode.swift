@@ -13,7 +13,7 @@ import MetalKit
 
 public class StringRemoveWhitespaceNode : Node
 {
-    override public static var name:String { "String Whitespace Remove" }
+    override public static var name:String { "String Trim" }
     override public static var nodeType:Node.NodeType { .Parameter(parameterType: .String) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
