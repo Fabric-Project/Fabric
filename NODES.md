@@ -345,7 +345,7 @@ Have yet to work on Color nodes, ideally all color spaces / images are linear / 
 - [x] String Wrap
 - [x] String Remove Whitespace
 - [x] String Difference
-- [x] String Separator
+- [x] String Split
 - [x] String Compare
 - [x] Convert to String ( type convert )
 - [x] Date Formatter

@@ -8,11 +8,11 @@ import Satin
 import Metal
 
 public class StringSeparatorNode: Node {
-    override public class var name: String { "String Separator" }
+    override public class var name: String { "String Split" }
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .String) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Split a String into an Array of Strings using a separator" }
+    override public class var nodeDescription: String { "Split a String into an Array of Strings using a separator. Inverse of String Join." }
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
@@ -20,8 +20,8 @@ public class StringSeparatorNode: Node {
 
         return ports + [
             ("inputPort", ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to split"))),
-            ("inputSeparator", ParameterPort(parameter: StringParameter("Separator", ",", .inputfield, "Separator string to split on"))),
-            ("outputPort", NodePort<ContiguousArray<String>>(name: "Components", kind: .Outlet, description: "Array of string components")),
+            ("inputSeparator", ParameterPort(parameter: StringParameter("Separator", ", ", .inputfield, "Separator string to split on"))),
+            ("outputPort", NodePort<ContiguousArray<String>>(name: "Strings", kind: .Outlet, description: "Array of string components")),
         ]
     }
 

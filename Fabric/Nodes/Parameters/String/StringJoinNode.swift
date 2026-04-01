@@ -17,7 +17,7 @@ public class StringJoinNode : Node
     override public static var nodeType:Node.NodeType { .Parameter(parameterType: .String) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Join an array of Strings into a single String using a separator"}
+    override public class var nodeDescription: String { "Join an array of Strings into a single String using a separator. Inverse of String Split."}
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
@@ -26,7 +26,7 @@ public class StringJoinNode : Node
         return ports +
         [
             ("inputPort",       NodePort<ContiguousArray<String>>(name: "Strings", kind: .Inlet, description: "Array of strings to join")),
-            ("separatorPort",   ParameterPort(parameter: StringParameter("Separator", "", .inputfield, "Separator to place between each string"))),
+            ("separatorPort",   ParameterPort(parameter: StringParameter("Separator", ", ", .inputfield, "Separator to place between each string"))),
             ("outputPort",      NodePort<String>(name: "String", kind: .Outlet, description: "Joined string result")),
         ]
     }
