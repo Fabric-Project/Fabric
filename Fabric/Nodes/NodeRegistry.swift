@@ -320,7 +320,7 @@ public class NodeRegistry {
         StringLengthNode.self,
         StringRangeNode.self,
         StringWrapNode.self,
-        StringRemoveWhitespaceNode.self,
+        StringTrimNode.self,
         StringDifferenceNode.self,
         StringCaseNode.self,
         StringFormatterNode.self,

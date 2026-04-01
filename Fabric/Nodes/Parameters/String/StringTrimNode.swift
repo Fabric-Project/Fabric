@@ -11,7 +11,7 @@ import simd
 import Metal
 import MetalKit
 
-public class StringRemoveWhitespaceNode : Node
+public class StringTrimNode : Node
 {
     override public static var name:String { "String Trim" }
     override public static var nodeType:Node.NodeType { .Parameter(parameterType: .String) }
