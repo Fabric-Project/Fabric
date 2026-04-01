@@ -10,7 +10,7 @@ import Metal
 public class DirectoryScannerNode: Node {
     override public class var name: String { "Directory Scanner" }
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .String) }
-    override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Scan a directory and output file paths as an Array of Strings" }
 
@@ -21,6 +21,7 @@ public class DirectoryScannerNode: Node {
         return ports + [
             ("inputPath", ParameterPort(parameter: StringParameter("Directory", "", .filepicker, "Path to the directory to scan"))),
             ("inputExtension", ParameterPort(parameter: StringParameter("Extension", "", .inputfield, "File extension filter (e.g. png), leave empty for all files"))),
+            ("inputRescan", NodePort<Bool>(name: "Rescan", kind: .Inlet, description: "Signal to rescan the directory")),
             ("outputPaths", NodePort<ContiguousArray<String>>(name: "Paths", kind: .Outlet, description: "Array of file paths found in the directory")),
             ("outputCount", NodePort<Int>(name: "Count", kind: .Outlet, description: "Number of files found")),
         ]
@@ -29,15 +30,24 @@ public class DirectoryScannerNode: Node {
     // Port proxies
     public var inputPath: ParameterPort<String> { port(named: "inputPath") }
     public var inputExtension: ParameterPort<String> { port(named: "inputExtension") }
+    public var inputRescan: NodePort<Bool> { port(named: "inputRescan") }
     public var outputPaths: NodePort<ContiguousArray<String>> { port(named: "outputPaths") }
     public var outputCount: NodePort<Int> { port(named: "outputCount") }
 
-    private var cachedPath: String?
+    @ObservationIgnored private var lastRescan: Bool = false
 
     public override func execute(context: GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer) {
-        if inputPath.valueDidChange || inputExtension.valueDidChange,
+        let rescanTriggered: Bool
+        if let rescan = inputRescan.value, inputRescan.valueDidChange {
+            rescanTriggered = rescan && !lastRescan
+            lastRescan = rescan
+        } else {
+            rescanTriggered = false
+        }
+
+        if inputPath.valueDidChange || inputExtension.valueDidChange || rescanTriggered,
            let path = inputPath.value,
            !path.isEmpty {
             scanDirectory(path: path)
