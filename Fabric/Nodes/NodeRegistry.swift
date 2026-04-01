@@ -316,7 +316,6 @@ public class NodeRegistry {
         StringComparisonNode.self,
         TextFileLoaderNode.self,
         StringJoinNode.self,
-        StringSplitNode.self,
         StringLengthNode.self,
         StringRangeNode.self,
         StringWrapNode.self,
