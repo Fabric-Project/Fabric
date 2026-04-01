@@ -19,14 +19,14 @@ public class StringToTimecodeNode: Node {
         let ports = super.registerPorts(context: context)
 
         return ports + [
-            ("inputTime", NodePort<Float>(name: "Seconds", kind: .Inlet, description: "Time value in seconds")),
+            ("inputTime", ParameterPort(parameter: FloatParameter("Seconds", 0.0, .inputfield, "Time value in seconds"))),
             ("inputFPS", ParameterPort(parameter: IntParameter("FPS", 30, .inputfield, "Frames per second for frame count"))),
             ("outputPort", NodePort<String>(name: "Timecode", kind: .Outlet, description: "Formatted timecode string (HH:MM:SS:FF)")),
         ]
     }
 
     // Port proxies
-    public var inputTime: NodePort<Float> { port(named: "inputTime") }
+    public var inputTime: ParameterPort<Float> { port(named: "inputTime") }
     public var inputFPS: ParameterPort<Int> { port(named: "inputFPS") }
     public var outputPort: NodePort<String> { port(named: "outputPort") }
 

@@ -24,14 +24,14 @@ public class StringSplitNode : Node
 
         return ports +
         [
-            ("inputPort",       NodePort<String>(name: "String", kind: .Inlet, description: "Input string to split")),
+            ("inputPort",       ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to split"))),
             ("separatorPort",   ParameterPort(parameter: StringParameter("Separator", "\n", .inputfield, "Separator to split the string by"))),
             ("outputPort",      NodePort<ContiguousArray<String>>(name: "Strings", kind: .Outlet, description: "Array of string components")),
         ]
     }
 
     // Port Proxy
-    public var inputPort:NodePort<String>                           { port(named: "inputPort") }
+    public var inputPort:ParameterPort<String>                      { port(named: "inputPort") }
     public var separatorPort:NodePort<String>                       { port(named: "separatorPort") }
     public var outputPort:NodePort<ContiguousArray<String>>         { port(named: "outputPort") }
 

@@ -19,14 +19,14 @@ public class StringSeparatorNode: Node {
         let ports = super.registerPorts(context: context)
 
         return ports + [
-            ("inputPort", NodePort<String>(name: "String", kind: .Inlet, description: "Input string to split")),
+            ("inputPort", ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to split"))),
             ("inputSeparator", ParameterPort(parameter: StringParameter("Separator", ",", .inputfield, "Separator string to split on"))),
             ("outputPort", NodePort<ContiguousArray<String>>(name: "Components", kind: .Outlet, description: "Array of string components")),
         ]
     }
 
     // Port proxies
-    public var inputPort: NodePort<String> { port(named: "inputPort") }
+    public var inputPort: ParameterPort<String> { port(named: "inputPort") }
     public var inputSeparator: ParameterPort<String> { port(named: "inputSeparator") }
     public var outputPort: NodePort<ContiguousArray<String>> { port(named: "outputPort") }
 

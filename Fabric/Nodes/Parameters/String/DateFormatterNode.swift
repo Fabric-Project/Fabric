@@ -19,14 +19,14 @@ public class DateFormatterNode: Node {
         let ports = super.registerPorts(context: context)
 
         return ports + [
-            ("inputSeconds", NodePort<Int>(name: "Seconds", kind: .Inlet, description: "Unix timestamp whole seconds (e.g. from Clock Time)")),
+            ("inputSeconds", ParameterPort(parameter: IntParameter("Seconds", 0, .inputfield, "Unix timestamp whole seconds (e.g. from Clock Time)"))),
             ("inputFormat", ParameterPort(parameter: StringParameter("Format", "yyyy-MM-dd HH:mm:ss", .inputfield, "Date format pattern (e.g. yyyy-MM-dd HH:mm:ss)"))),
             ("outputPort", NodePort<String>(name: "String", kind: .Outlet, description: "Formatted date string")),
         ]
     }
 
     // Port proxies
-    public var inputSeconds: NodePort<Int> { port(named: "inputSeconds") }
+    public var inputSeconds: ParameterPort<Int> { port(named: "inputSeconds") }
     public var inputFormat: ParameterPort<String> { port(named: "inputFormat") }
     public var outputPort: NodePort<String> { port(named: "outputPort") }
 

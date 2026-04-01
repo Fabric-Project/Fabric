@@ -19,14 +19,14 @@ public class StringCaseNode: Node {
         let ports = super.registerPorts(context: context)
 
         return ports + [
-            ("inputPort", NodePort<String>(name: "String", kind: .Inlet, description: "Input string to convert")),
+            ("inputPort", ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to convert"))),
             ("inputCase", ParameterPort(parameter: StringParameter("Case", "Uppercase", StringCaseMode.allCases.map(\.rawValue), .dropdown, "Case conversion to apply"))),
             ("outputPort", NodePort<String>(name: "String", kind: .Outlet, description: "Case-converted string")),
         ]
     }
 
     // Port proxies
-    public var inputPort: NodePort<String> { port(named: "inputPort") }
+    public var inputPort: ParameterPort<String> { port(named: "inputPort") }
     public var inputCase: ParameterPort<String> { port(named: "inputCase") }
     public var outputPort: NodePort<String> { port(named: "outputPort") }
 

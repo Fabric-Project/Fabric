@@ -25,13 +25,13 @@ public class StringTrimNode : Node
         
         return ports +
         [
-            ("inputPort", NodePort<String>(name: "String", kind: .Inlet, description: "Input string to trim")),
+            ("inputPort", ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to trim"))),
             ("outputPort",  NodePort<String>(name: "String", kind: .Outlet, description: "String with leading and trailing whitespace removed")),
         ]
     }
     
     // Port Proxy
-    public var inputPort:NodePort<String> { port(named: "inputPort") }
+    public var inputPort:ParameterPort<String> { port(named: "inputPort") }
     public var outputPort:NodePort<String> { port(named: "outputPort") }
 
 

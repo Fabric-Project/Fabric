@@ -25,7 +25,7 @@ public class StringRangeNode : Node
 
         return ports +
         [
-            ("inputPort",       NodePort<String>(name: "String", kind: .Inlet, description: "Input string to extract substring from")),
+            ("inputPort",       ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to extract substring from"))),
             ("inputRangeFrom",  ParameterPort(parameter: IntParameter("From", 0, .inputfield, "Start index for the substring"))),
             ("inputRangeTo",    ParameterPort(parameter: IntParameter("To", 0, .inputfield, "End index for the substring (exclusive)"))),
             ("outputPort",      NodePort<String>(name: "String", kind: .Outlet, description: "Extracted substring")),
@@ -33,7 +33,7 @@ public class StringRangeNode : Node
     }
 
     // Port Proxy
-    public var inputPort:NodePort<String>       { port(named: "inputPort") }
+    public var inputPort:ParameterPort<String>       { port(named: "inputPort") }
     public var inputRangeFrom:ParameterPort<Int> { port(named: "inputRangeFrom") }
     public var inputRangeTo:ParameterPort<Int>  { port(named: "inputRangeTo") }
     public var outputPort:NodePort<String>      { port(named: "outputPort") }

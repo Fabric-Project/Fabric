@@ -25,13 +25,13 @@ public class StringLengthNode : Node
         
         return ports +
         [
-            ("inputPort",   NodePort<String>(name: "String", kind: .Inlet, description: "Input string to measure")),
+            ("inputPort",   ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to measure"))),
             ("outputPort",  NodePort<Int>(name: "Length", kind: .Outlet, description: "Character count of the input string")),
         ]
     }
     
     // Port Proxy
-    public var inputPort:NodePort<String>   { port(named: "inputPort") }
+    public var inputPort:ParameterPort<String>   { port(named: "inputPort") }
     public var outputPort:NodePort<Int>     { port(named: "outputPort") }
     
     override public func execute(context:GraphExecutionContext,

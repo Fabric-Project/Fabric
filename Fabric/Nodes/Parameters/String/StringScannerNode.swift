@@ -79,12 +79,12 @@ struct StringScannerSettingsView: View {
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
         return ports + [
-            ("inputString", NodePort<String>(name: "String", kind: .Inlet, description: "The string to scan")),
+            ("inputString", ParameterPort(parameter: StringParameter("String", "", .inputfield, "The string to scan"))),
             ("outputMatched", NodePort<Bool>(name: "Matched", kind: .Outlet, description: "True if the input string matched the format")),
         ]
     }
 
-    public var inputString: NodePort<String> { port(named: "inputString") }
+    public var inputString: ParameterPort<String> { port(named: "inputString") }
     public var outputMatched: NodePort<Bool> { port(named: "outputMatched") }
 
     override public func providesSettingsView() -> Bool { true }
