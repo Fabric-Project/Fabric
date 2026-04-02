@@ -17,7 +17,7 @@ public class StringJoinNode : Node
     override public static var nodeType:Node.NodeType { .Parameter(parameterType: .String) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Join an array of Strings into a single String using a separator. Inverse of String Split."}
+    override public class var nodeDescription: String { "Join an array of Strings into a single String using a separator. Inverse of String Split. To join two or more string inputs, use String Formatter node."}
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
