@@ -97,6 +97,23 @@ internal import AnyCodable
         self.nodes = []
 
         self.notes = try container.decodeIfPresent([Note].self, forKey: .notes) ?? []
+
+        // For Subgraphs - we capture and reset state
+        // this is needed for ProxyPorts which expose inner graph ports
+        // to parent graph ports
+        // we leverage the decode context current graph to be the subgraph
+        // we we need to 'pop it' - Anton
+        let previousGraph = decodeContext.currentGraph
+        let previousGraphNodes = decodeContext.currentGraphNodes
+
+        decodeContext.currentGraph = self
+        decodeContext.currentGraphNodes = self.nodes
+
+        defer
+        {
+            decodeContext.currentGraph = previousGraph
+            decodeContext.currentGraphNodes = previousGraphNodes
+        }
         
         // get a single value container
         var nestedContainer = try container.nestedUnkeyedContainer( forKey: .nodeMap)
@@ -126,6 +143,7 @@ internal import AnyCodable
                     let node = try decoder.decode(nodeClass, from: jsonData)
 
                     self.addNode(node)
+                    decodeContext.currentGraphNodes = self.nodes
                 }
                 else if anyCodableMap.type == "BaseImageNode"
                 {
@@ -134,6 +152,7 @@ internal import AnyCodable
                     
                     let node = try decoder.decode(BaseImageNode.self, from: jsonData)
                     self.addNode(node)
+                    decodeContext.currentGraphNodes = self.nodes
                 }
                 
                 else if anyCodableMap.type == "LiveEffectNode"
@@ -146,6 +165,7 @@ internal import AnyCodable
                     
                     let node = try decoder.decode(LiveImageNode.self, from: jsonData)
                     self.addNode(node)
+                    decodeContext.currentGraphNodes = self.nodes
                 }
                 
                 // MARK: - Deprecated Node Types -> BaseImageNode
@@ -157,6 +177,7 @@ internal import AnyCodable
                     let node = try decoder.decode(BaseImageNode.self, from: jsonData)
 
                     self.addNode(node)
+                    decodeContext.currentGraphNodes = self.nodes
                 }
                 else if anyCodableMap.type == "BaseEffectTwoChannelNode"
                 {
@@ -166,6 +187,7 @@ internal import AnyCodable
                     let node = try decoder.decode(BaseImageNode.self, from: jsonData)
 
                     self.addNode(node)
+                    decodeContext.currentGraphNodes = self.nodes
                 }
                 else if anyCodableMap.type == "BaseEffectNode"
                 {
@@ -178,6 +200,7 @@ internal import AnyCodable
                     let node = try decoder.decode(BaseImageNode.self, from: jsonData)
 
                     self.addNode(node)
+                    decodeContext.currentGraphNodes = self.nodes
                 }
 
                 else if anyCodableMap.type == "BaseGeneratorNode"
@@ -191,6 +214,7 @@ internal import AnyCodable
                     let node = try decoder.decode(BaseImageNode.self, from: jsonData)
 
                     self.addNode(node)
+                    decodeContext.currentGraphNodes = self.nodes
                 }
                
                 else
@@ -203,8 +227,6 @@ internal import AnyCodable
                 print("Failed to decode node: \(error)")
             }
         }
-        
-        decodeContext.currentGraphNodes = self.nodes
         
         let portMap = try container.decode([UUID:[UUID]].self, forKey: .portConnectionMap)
         

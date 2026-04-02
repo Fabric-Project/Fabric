@@ -140,6 +140,24 @@ private func expectEqual(_ lhs: Float?, _ rhs: Float, tolerance: Float = 0.0001)
     #expect(abs(lhs - rhs) <= tolerance)
 }
 
+private func roundTripGraphToTemporaryFile(_ graph: Graph, context: Context) throws -> Graph {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+
+    let data = try encoder.encode(graph)
+    let fileURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("fabric-graph-roundtrip-\(UUID().uuidString)")
+        .appendingPathExtension("json")
+
+    try data.write(to: fileURL)
+    let loadedData = try Data(contentsOf: fileURL)
+
+    let decoder = JSONDecoder()
+    decoder.context = DecoderContext(documentContext: context)
+
+    return try decoder.decode(Graph.self, from: loadedData)
+}
+
 @Suite("Graph Execution")
 struct GraphExecutionTests {
 
@@ -404,5 +422,211 @@ struct GraphExecutionTests {
         let depthImage = try requireValue(deferred.outputDepthTexture.value, "Expected deferred depth output")
         #expect(depthImage.texture.width == 64)
         #expect(depthImage.texture.height == 32)
+    }
+
+    @Test("Serialized scalar graph decodes and executes like the in-memory graph")
+    func serializedScalarGraphRoundTripsAndExecutes() throws {
+        guard let harness = GraphExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let left = NumberNode(context: harness.context)
+        let right = NumberNode(context: harness.context)
+        let addNode = NumberBinaryOperator(context: harness.context)
+
+        left.inputNumber.value = 8
+        right.inputNumber.value = 13
+        addNode.inputParam.value = "Add"
+
+        graph.addNode(left)
+        graph.addNode(right)
+        graph.addNode(addNode)
+
+        left.outputNumber.connect(to: addNode.inputNumber1)
+        right.outputNumber.connect(to: addNode.inputNumber2)
+        publish(addNode.outputNumber, in: graph)
+
+        let decodedGraph = try roundTripGraphToTemporaryFile(graph, context: harness.context)
+
+        #expect(decodedGraph.nodes.count == 3)
+
+        guard let decodedAddNode = decodedGraph.nodes.compactMap({ $0 as? NumberBinaryOperator }).first else {
+            throw TestFailure("Expected decoded NumberBinaryOperator")
+        }
+
+        #expect(decodedAddNode.inputNumber1.connections.count == 1)
+        #expect(decodedAddNode.inputNumber2.connections.count == 1)
+        #expect(decodedAddNode.outputNumber.published)
+
+        let context = harness.makeExecutionContext(time: 600, deltaTime: 0, frameNumber: 0)
+
+        harness.renderer.startExecution(graph: decodedGraph, executionContext: context)
+        try harness.render(graph: decodedGraph, executionContext: context)
+        harness.renderer.stopExecution(graph: decodedGraph, executionContext: context)
+
+        try expectEqual(decodedAddNode.outputNumber.value, 21)
+    }
+
+    @Test("Serialized subgraph preserves published proxies and decoded execution")
+    func serializedSubgraphRoundTripsAndExecutes() throws {
+        guard let harness = GraphExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let source = NumberNode(context: harness.context)
+        let subgraphNode = SubgraphNode(context: harness.context)
+        let innerAdd = NumberBinaryOperator(context: harness.context)
+
+        source.inputNumber.value = 5
+        innerAdd.inputNumber2.value = 6
+        innerAdd.inputParam.value = "Add"
+
+        graph.addNode(source)
+        graph.addNode(subgraphNode)
+
+        subgraphNode.subGraph.addNode(innerAdd)
+        innerAdd.inputNumber1.published = true
+        innerAdd.outputNumber.published = true
+        subgraphNode.subGraph.rebuildPublishedParameterGroup()
+
+        let proxyInput = try floatPort(named: "Number A", kind: .Inlet, on: subgraphNode)
+        let proxyOutput = try floatPort(named: "Number", kind: .Outlet, on: subgraphNode)
+
+        source.outputNumber.connect(to: proxyInput)
+        publish(proxyOutput, in: graph)
+
+        let decodedGraph = try roundTripGraphToTemporaryFile(graph, context: harness.context)
+
+        guard let decodedSubgraph = decodedGraph.nodes.compactMap({ $0 as? SubgraphNode }).first else {
+            throw TestFailure("Expected decoded SubgraphNode")
+        }
+
+        let decodedProxyInput = try floatPort(named: "Number A", kind: .Inlet, on: decodedSubgraph)
+        let decodedProxyOutput = try floatPort(named: "Number", kind: .Outlet, on: decodedSubgraph)
+
+        #expect(decodedProxyInput.connections.count == 1)
+        #expect(decodedProxyOutput.published)
+        #expect(decodedSubgraph.subGraph.nodes.count == 1)
+
+        let context = harness.makeExecutionContext(time: 700, deltaTime: 0, frameNumber: 0)
+
+        harness.renderer.startExecution(graph: decodedGraph, executionContext: context)
+        try harness.render(graph: decodedGraph, executionContext: context)
+        harness.renderer.stopExecution(graph: decodedGraph, executionContext: context)
+
+        try expectEqual(decodedProxyOutput.value, 11)
+    }
+
+    @Test("Serialized nested subgraph binds proxy ports against the decoded inner graph")
+    func serializedNestedSubgraphRoundTripsAndExecutes() throws {
+        guard let harness = GraphExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let source = NumberNode(context: harness.context)
+        let outerSubgraph = SubgraphNode(context: harness.context)
+        let innerSubgraph = SubgraphNode(context: harness.context)
+        let innerAdd = NumberBinaryOperator(context: harness.context)
+
+        source.inputNumber.value = 5
+        innerAdd.inputNumber2.value = 7
+        innerAdd.inputParam.value = "Add"
+
+        graph.addNode(source)
+        graph.addNode(outerSubgraph)
+
+        innerSubgraph.subGraph.addNode(innerAdd)
+        innerAdd.inputNumber1.published = true
+        innerAdd.outputNumber.published = true
+        innerSubgraph.subGraph.rebuildPublishedParameterGroup()
+
+        let innerProxyInput = try floatPort(named: "Number A", kind: .Inlet, on: innerSubgraph)
+        let innerProxyOutput = try floatPort(named: "Number", kind: .Outlet, on: innerSubgraph)
+        innerProxyInput.published = true
+        innerProxyOutput.published = true
+
+        outerSubgraph.subGraph.addNode(innerSubgraph)
+        outerSubgraph.subGraph.rebuildPublishedParameterGroup()
+
+        let outerProxyInput = try floatPort(named: "Number A", kind: .Inlet, on: outerSubgraph)
+        let outerProxyOutput = try floatPort(named: "Number", kind: .Outlet, on: outerSubgraph)
+
+        source.outputNumber.connect(to: outerProxyInput)
+        publish(outerProxyOutput, in: graph)
+
+        let decodedGraph = try roundTripGraphToTemporaryFile(graph, context: harness.context)
+
+        guard let decodedOuterSubgraph = decodedGraph.nodes.compactMap({ $0 as? SubgraphNode }).first else {
+            throw TestFailure("Expected decoded outer SubgraphNode")
+        }
+
+        let decodedOuterProxyInput = try floatPort(named: "Number A", kind: .Inlet, on: decodedOuterSubgraph)
+        let decodedOuterProxyOutput = try floatPort(named: "Number", kind: .Outlet, on: decodedOuterSubgraph)
+        let decodedInnerSubgraph = try requireValue(
+            decodedOuterSubgraph.subGraph.nodes.compactMap { $0 as? SubgraphNode }.first,
+            "Expected decoded inner SubgraphNode"
+        )
+        let decodedInnerProxyInput = try floatPort(named: "Number A", kind: .Inlet, on: decodedInnerSubgraph)
+        let decodedInnerProxyOutput = try floatPort(named: "Number", kind: .Outlet, on: decodedInnerSubgraph)
+
+        #expect(decodedOuterProxyInput.connections.count == 1)
+        #expect(decodedOuterProxyOutput.published)
+        #expect(decodedInnerProxyInput.published)
+        #expect(decodedInnerProxyOutput.published)
+        #expect(decodedOuterProxyInput.id == decodedInnerProxyInput.id)
+        #expect(decodedOuterProxyOutput.id == decodedInnerProxyOutput.id)
+
+        let context = harness.makeExecutionContext(time: 750, deltaTime: 0, frameNumber: 0)
+
+        harness.renderer.startExecution(graph: decodedGraph, executionContext: context)
+        try harness.render(graph: decodedGraph, executionContext: context)
+        harness.renderer.stopExecution(graph: decodedGraph, executionContext: context)
+
+        try expectEqual(decodedOuterProxyOutput.value, 12)
+    }
+
+    @Test("Serialized deferred subgraph still renders decoded outputs")
+    func serializedDeferredSubgraphRoundTripsAndExecutes() throws {
+        guard let harness = GraphExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let deferred = DeferredSubgraphNode(context: harness.context)
+
+        deferred.inputWidth.value = 48
+        deferred.inputHeight.value = 24
+
+        let geometry = BoxGeometryNode(context: harness.context)
+        let material = BasicColorMaterialNode(context: harness.context)
+        let mesh = MeshNode(context: harness.context)
+
+        deferred.subGraph.addNode(geometry)
+        deferred.subGraph.addNode(material)
+        deferred.subGraph.addNode(mesh)
+
+        geometry.outputGeometry.connect(to: mesh.inputGeometry)
+        material.outputMaterial.connect(to: mesh.inputMaterial)
+
+        graph.addNode(deferred)
+
+        let decodedGraph = try roundTripGraphToTemporaryFile(graph, context: harness.context)
+
+        guard let decodedDeferred = decodedGraph.nodes.compactMap({ $0 as? DeferredSubgraphNode }).first else {
+            throw TestFailure("Expected decoded DeferredSubgraphNode")
+        }
+
+        #expect(decodedDeferred.inputWidth.value == 48)
+        #expect(decodedDeferred.inputHeight.value == 24)
+        #expect(decodedDeferred.subGraph.nodes.compactMap { $0 as? MeshNode }.count == 1)
+
+        let context = harness.makeExecutionContext(time: 800, deltaTime: 0, frameNumber: 0)
+
+        harness.renderer.startExecution(graph: decodedGraph, executionContext: context)
+        try harness.render(graph: decodedGraph, executionContext: context)
+        harness.renderer.stopExecution(graph: decodedGraph, executionContext: context)
+
+        let colorImage = try requireValue(decodedDeferred.outputColorTexture.value, "Expected decoded deferred color output")
+        #expect(colorImage.texture.width == 48)
+        #expect(colorImage.texture.height == 24)
+
+        let depthImage = try requireValue(decodedDeferred.outputDepthTexture.value, "Expected decoded deferred depth output")
+        #expect(depthImage.texture.width == 48)
+        #expect(depthImage.texture.height == 24)
     }
 }
