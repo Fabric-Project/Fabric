@@ -42,7 +42,6 @@ public class Vector3ArrayToTransformArrayNode: Node
         {
             if let array = self.inputPort.value
             {
-                let count = array.count
                 let vectorArray = array.enumerated( ).map { (index:Int, value:simd_float3) -> simd_float4x4 in
                     return translationMatrix3f(value)
                 }

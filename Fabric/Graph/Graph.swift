@@ -97,6 +97,20 @@ internal import AnyCodable
         self.nodes = []
 
         self.notes = try container.decodeIfPresent([Note].self, forKey: .notes) ?? []
+
+        // For Subgraphs - we capture and reset state
+        // this is needed for ProxyPorts which expose inner graph ports
+        // to parent graph ports
+        // we leverage the decode context current graph to be the subgraph
+        // we we need to 'pop it' - Anton
+        let previousGraph = decodeContext.currentGraph
+
+        decodeContext.currentGraph = self
+
+        defer
+        {
+            decodeContext.currentGraph = previousGraph
+        }
         
         // get a single value container
         var nestedContainer = try container.nestedUnkeyedContainer( forKey: .nodeMap)
@@ -203,8 +217,6 @@ internal import AnyCodable
                 print("Failed to decode node: \(error)")
             }
         }
-        
-        decodeContext.currentGraphNodes = self.nodes
         
         let portMap = try container.decode([UUID:[UUID]].self, forKey: .portConnectionMap)
         

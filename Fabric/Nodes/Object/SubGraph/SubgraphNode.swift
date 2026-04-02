@@ -138,6 +138,7 @@ public class SubgraphNode: BaseObjectNode
     enum CodingKeys : String, CodingKey
     {
         case subGraph
+        case proxyPorts
     }
     
     public override func encode(to encoder:Encoder) throws
@@ -145,6 +146,7 @@ public class SubgraphNode: BaseObjectNode
         var container = encoder.container(keyedBy: CodingKeys.self)
         
         try container.encode(self.subGraph, forKey: .subGraph)
+        try container.encode(self.proxyPorts.map(AnyPort.init), forKey: .proxyPorts)
         
         try super.encode(to: encoder)
     }
@@ -154,9 +156,31 @@ public class SubgraphNode: BaseObjectNode
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
         self.subGraph = try container.decode(Graph.self, forKey: .subGraph)
+        
+        // We set the current graph to the subgraph
+        // to allow proxy ports and any other decode contexts to work correctly
+        
+        if let decodeContext = decoder.context
+        {
+            let previousGraph = decodeContext.currentGraph
+
+            decodeContext.currentGraph = self.subGraph
+
+            defer
+            {
+                decodeContext.currentGraph = previousGraph
+            }
+
+            self.proxyPorts = try container.decodeIfPresent([AnyPort].self, forKey: .proxyPorts)?.map(\.base) ?? []
+        }
+        else
+        {
+            self.proxyPorts = try container.decodeIfPresent([AnyPort].self, forKey: .proxyPorts)?.map(\.base) ?? []
+        }
 
         try super.init(from: decoder)
         self.wireSubGraphCallback()
+        self.proxyPorts.forEach { $0.node = self }
         self.rebuildProxyPorts()
     }
 

@@ -256,7 +256,7 @@ final class SubgraphIteratorRenderable: Satin.Renderable
               let graphContext
         else { return }
 
-        context.graphRenderer?.enableExecution(graph: subGraph, executionContext: context)
+        graphContext.graphRenderer?.enableExecution(graph: subGraph, executionContext: context)
     }
     
     func disableExecution(context:GraphExecutionContext)
@@ -265,7 +265,7 @@ final class SubgraphIteratorRenderable: Satin.Renderable
               let graphContext
         else { return }
 
-        context.graphRenderer?.disableExecution(graph: subGraph, executionContext: context)
+        graphContext.graphRenderer?.disableExecution(graph: subGraph, executionContext: context)
     }
     
     func execute(context: GraphExecutionContext,

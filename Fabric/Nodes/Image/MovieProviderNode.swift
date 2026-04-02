@@ -105,11 +105,6 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         // Forces the initialization when the class is accessed
         _ = MovieProviderNodeInitializer
 
-        guard let decodeContext = decoder.context else
-        {
-            fatalError("Required Decode Context Not set")
-        }
-
         self.playerItemVideoOutput = AVPlayerItemVideoOutput(outputSettings: Self.playerOutputSettings() )
         self.playerItemVideoOutput.suppressesPlayerRendering = true
 

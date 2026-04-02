@@ -42,7 +42,6 @@ public class Vector2ArrayToVector3ArrayNode: Node
         {
             if let array = self.inputPort.value
             {
-                let count = array.count
                 let vectorArray = array.enumerated( ).map { (index:Int, value:simd_float2) -> simd_float3 in
                     return simd_float3(value.x, value.y, 0)
                 }
