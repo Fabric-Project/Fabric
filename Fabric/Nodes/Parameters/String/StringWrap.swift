@@ -6,48 +6,132 @@
 import Foundation
 import Satin
 import Metal
+import SwiftUI
 
-public class StringWrapNode: Node {
+// MARK: - Settings View
+
+struct StringWrapSettingsView: View {
+    @Bindable var node: StringWrapNode
+
+    var body: some View {
+        VStack(alignment: .leading) {
+            Text("Wrap at word boundaries using:")
+            Text("**Characters** — line length in characters\n**Words** — number of words per line\n**Aspect** — overall aspect ratio (characters across vs. lines down)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Spacer()
+
+            Picker("", selection: $node.mode) {
+                ForEach(WrapMode.allCases, id: \.self) { mode in
+                    Text(mode.rawValue).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+        }
+    }
+}
+
+// MARK: - String Wrap Node
+
+@Observable public class StringWrapNode: Node {
     override public class var name: String { "String Wrap" }
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .String) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Wrap a String by inserting newlines at word boundaries" }
+    override public class var nodeDescription: String { "Wrap a String by inserting newlines at word boundaries, configurable by character count, word count, or aspect ratio" }
+    override public var settingsSize: SettingsViewSize { .Custom(size: CGSize(width: 400, height: 150)) }
 
-    // Ports
+    // MARK: - Codable
+
+    private enum CodingKeys: String, CodingKey {
+        case mode
+    }
+
+    public required init(context: Context) {
+        super.init(context: context)
+        self.updateLimitPort()
+    }
+
+    public required init(from decoder: any Decoder) throws {
+        try super.init(from: decoder)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if let decoded = try container.decodeIfPresent(String.self, forKey: .mode),
+           let decodedMode = WrapMode(rawValue: decoded) {
+            self.mode = decodedMode
+        }
+        self.updateLimitPort()
+    }
+
+    public override func encode(to encoder: Encoder) throws {
+        try super.encode(to: encoder)
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(self.mode.rawValue, forKey: .mode)
+    }
+
+    // MARK: - Properties
+
+    @ObservationIgnored fileprivate var mode: WrapMode = .Characters {
+        didSet {
+            if oldValue != mode {
+                updateLimitPort()
+            }
+        }
+    }
+
+    // MARK: - Ports
+
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
-
         return ports + [
             ("inputPort", NodePort<String>(name: "String", kind: .Inlet, description: "Input string to wrap")),
-            ("inputMode", ParameterPort(parameter: StringParameter("Mode", "Characters", WrapMode.allCases.map(\.rawValue), .dropdown, "Wrap criterion: Characters, Words, or Aspect"))),
-            ("inputLimit", ParameterPort(parameter: IntParameter("Limit", 40, 1, 10000, .inputfield, "Character or word count per line"))),
-            ("inputAspect", ParameterPort(parameter: FloatParameter("Aspect", 4.0, 0.01, 100.0, .inputfield, "Target aspect ratio (characters across / lines down)"))),
             ("outputPort", NodePort<String>(name: "String", kind: .Outlet, description: "String with newlines inserted at word boundaries")),
         ]
     }
 
-    // Port proxies
     public var inputPort: NodePort<String> { port(named: "inputPort") }
-    public var inputMode: ParameterPort<String> { port(named: "inputMode") }
-    public var inputLimit: ParameterPort<Int> { port(named: "inputLimit") }
-    public var inputAspect: ParameterPort<Float> { port(named: "inputAspect") }
     public var outputPort: NodePort<String> { port(named: "outputPort") }
 
-    private var mode = WrapMode.Characters
+    override public func providesSettingsView() -> Bool { true }
+
+    override public func settingsView() -> AnyView {
+        AnyView(StringWrapSettingsView(node: self))
+    }
+
+    // MARK: - Dynamic Limit Port
+
+    private static let limitPortName = "inputLimit"
+
+    private func updateLimitPort() {
+        // Remove existing limit port
+        if let existing: Port = self.findPort(named: Self.limitPortName) {
+            self.removePort(existing)
+        }
+
+        // Add the appropriate port for the current mode
+        let port: Port
+        switch mode {
+        case .Characters:
+            port = ParameterPort(parameter: IntParameter("Characters", 40, 1, 10000, .inputfield, "Maximum characters per line"))
+        case .Words:
+            port = ParameterPort(parameter: IntParameter("Words", 10, 1, 1000, .inputfield, "Maximum words per line"))
+        case .Aspect:
+            port = ParameterPort(parameter: FloatParameter("Aspect", 4.0, 0.01, 100.0, .inputfield, "Target aspect ratio (characters across / lines down)"))
+        }
+        self.addDynamicPort(port, name: Self.limitPortName)
+
+        // Re-wrap with new setting
+        self.inputPort.valueDidChange = true
+    }
+
+    // MARK: - Execution
 
     override public func execute(context: GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer) {
-        if inputMode.valueDidChange,
-           let param = inputMode.value,
-           let newMode = WrapMode(rawValue: param) {
-            mode = newMode
-        }
-
-        let anyChanged = inputPort.valueDidChange || inputMode.valueDidChange
-                         || inputLimit.valueDidChange || inputAspect.valueDidChange
-        guard anyChanged, let string = inputPort.value else { return }
+        guard let limitPort: Port = self.findPort(named: Self.limitPortName) else { return }
+        guard inputPort.valueDidChange || limitPort.valueDidChange else { return }
+        guard let string = inputPort.value else { return }
 
         let words = string.split(omittingEmptySubsequences: false, whereSeparator: \.isWhitespace)
                           .map(String.init)
@@ -59,11 +143,14 @@ public class StringWrapNode: Node {
         let charLimit: Int
         switch mode {
         case .Characters:
-            charLimit = max(1, inputLimit.value ?? 40)
+            let value = (limitPort as? ParameterPort<Int>)?.value ?? 40
+            charLimit = max(1, value)
         case .Words:
-            charLimit = wordCountToCharLimit(words: words, wordLimit: max(1, inputLimit.value ?? 10))
+            let value = (limitPort as? ParameterPort<Int>)?.value ?? 10
+            charLimit = wordCountToCharLimit(words: words, wordLimit: max(1, value))
         case .Aspect:
-            charLimit = aspectToCharLimit(words: words, aspect: inputAspect.value ?? 4.0)
+            let value = (limitPort as? ParameterPort<Float>)?.value ?? 4.0
+            charLimit = aspectToCharLimit(words: words, aspect: value)
         }
 
         outputPort.send(wrapWords(words, charLimit: charLimit))
@@ -78,12 +165,11 @@ public class StringWrapNode: Node {
             if currentLine.isEmpty {
                 currentLine = word
             } else {
-                let candidate = currentLine + " " + word
                 if currentLine.count >= charLimit {
                     lines.append(currentLine)
                     currentLine = word
                 } else {
-                    currentLine = candidate
+                    currentLine += " " + word
                 }
             }
         }
@@ -97,14 +183,13 @@ public class StringWrapNode: Node {
     private func wordCountToCharLimit(words: [String], wordLimit: Int) -> Int {
         let totalChars = words.reduce(0) { $0 + $1.count }
         let avgWordLen = Double(totalChars) / Double(words.count)
-        // word + space
         return max(1, Int((avgWordLen + 1) * Double(wordLimit)))
     }
 
     /// Calculate a character-per-line limit that fits the text within the target aspect ratio.
     /// aspect = characters across / lines down, so chars = sqrt(totalChars * aspect).
     private func aspectToCharLimit(words: [String], aspect: Float) -> Int {
-        let totalChars = words.reduce(0) { $0 + $1.count } + max(0, words.count - 1) // include spaces
+        let totalChars = words.reduce(0) { $0 + $1.count } + max(0, words.count - 1)
         let charsAcross = sqrt(Double(totalChars) * Double(aspect))
         return max(1, Int(charsAcross))
     }
