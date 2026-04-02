@@ -163,15 +163,12 @@ public class SubgraphNode: BaseObjectNode
         if let decodeContext = decoder.context
         {
             let previousGraph = decodeContext.currentGraph
-            let previousGraphNodes = decodeContext.currentGraphNodes
 
             decodeContext.currentGraph = self.subGraph
-            decodeContext.currentGraphNodes = self.subGraph.nodes
 
             defer
             {
                 decodeContext.currentGraph = previousGraph
-                decodeContext.currentGraphNodes = previousGraphNodes
             }
 
             self.proxyPorts = try container.decodeIfPresent([AnyPort].self, forKey: .proxyPorts)?.map(\.base) ?? []

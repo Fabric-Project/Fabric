@@ -77,7 +77,7 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
         // to be the actual sub graph
         // this allows us to look up the correct inner port.
         let currentGraph = decodeContext.currentGraph
-        let currentGraphNodes = decodeContext.currentGraphNodes ?? currentGraph?.nodes
+        let currentGraphNodes = currentGraph?.nodes
 
         guard let innerPort = currentGraph?.nodePort(forID: innerPortID)
             ?? currentGraphNodes?.flatMap(\.ports).first(where: { $0.id == innerPortID }) else {

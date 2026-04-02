@@ -104,15 +104,12 @@ internal import AnyCodable
         // we leverage the decode context current graph to be the subgraph
         // we we need to 'pop it' - Anton
         let previousGraph = decodeContext.currentGraph
-        let previousGraphNodes = decodeContext.currentGraphNodes
 
         decodeContext.currentGraph = self
-        decodeContext.currentGraphNodes = self.nodes
 
         defer
         {
             decodeContext.currentGraph = previousGraph
-            decodeContext.currentGraphNodes = previousGraphNodes
         }
         
         // get a single value container
@@ -143,7 +140,6 @@ internal import AnyCodable
                     let node = try decoder.decode(nodeClass, from: jsonData)
 
                     self.addNode(node)
-                    decodeContext.currentGraphNodes = self.nodes
                 }
                 else if anyCodableMap.type == "BaseImageNode"
                 {
@@ -152,7 +148,6 @@ internal import AnyCodable
                     
                     let node = try decoder.decode(BaseImageNode.self, from: jsonData)
                     self.addNode(node)
-                    decodeContext.currentGraphNodes = self.nodes
                 }
                 
                 else if anyCodableMap.type == "LiveEffectNode"
@@ -165,7 +160,6 @@ internal import AnyCodable
                     
                     let node = try decoder.decode(LiveImageNode.self, from: jsonData)
                     self.addNode(node)
-                    decodeContext.currentGraphNodes = self.nodes
                 }
                 
                 // MARK: - Deprecated Node Types -> BaseImageNode
@@ -177,7 +171,6 @@ internal import AnyCodable
                     let node = try decoder.decode(BaseImageNode.self, from: jsonData)
 
                     self.addNode(node)
-                    decodeContext.currentGraphNodes = self.nodes
                 }
                 else if anyCodableMap.type == "BaseEffectTwoChannelNode"
                 {
@@ -187,7 +180,6 @@ internal import AnyCodable
                     let node = try decoder.decode(BaseImageNode.self, from: jsonData)
 
                     self.addNode(node)
-                    decodeContext.currentGraphNodes = self.nodes
                 }
                 else if anyCodableMap.type == "BaseEffectNode"
                 {
@@ -200,7 +192,6 @@ internal import AnyCodable
                     let node = try decoder.decode(BaseImageNode.self, from: jsonData)
 
                     self.addNode(node)
-                    decodeContext.currentGraphNodes = self.nodes
                 }
 
                 else if anyCodableMap.type == "BaseGeneratorNode"
@@ -214,7 +205,6 @@ internal import AnyCodable
                     let node = try decoder.decode(BaseImageNode.self, from: jsonData)
 
                     self.addNode(node)
-                    decodeContext.currentGraphNodes = self.nodes
                 }
                
                 else
