@@ -150,7 +150,7 @@ struct DocumentCommands:Commands
             {
                 self.editorInputFocus = .registry
             }
-            .keyboardShortcut("f", modifiers: .command)
+            .keyboardShortcut(.return, modifiers: .command)
             .disabled(self.isCanvasFocused ? (self.document?.editingContext.currentGraph.nodes.isEmpty ?? true) : false)
         }
     }
