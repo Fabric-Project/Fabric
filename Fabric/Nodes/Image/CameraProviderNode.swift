@@ -117,11 +117,6 @@ public class CameraProviderNode : Node
         // Forces the initialization when the class is accessed
         _ = CameraProviderNodeInitializer
         
-        guard let decodeContext = decoder.context else
-        {
-            fatalError("Required Decode Context Not set")
-        }
-        
         self.captureSession = AVCaptureSession()
                 
         try super.init(from:decoder)

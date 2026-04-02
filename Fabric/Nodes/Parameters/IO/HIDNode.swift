@@ -494,7 +494,7 @@ struct HIDNodeView: View
                 .controlSize(.small)
             }
 
-            if let deviceID = node.selectedDeviceID,
+            if let _ = node.selectedDeviceID,
                !node.deviceElements.isEmpty
             {
                 Divider()
