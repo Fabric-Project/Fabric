@@ -20,7 +20,7 @@ public class SystemTimeNode : Node
     override public class var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "System Time"}
+    override public class var nodeDescription: String { "Elapsed system clock time in seconds since execution started" }
 
     private var startTime:TimeInterval = 0
     

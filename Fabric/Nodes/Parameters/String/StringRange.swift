@@ -1,5 +1,5 @@
 //
-//  StringLengthNode.swift
+//  StringRange.swift
 //  Fabric
 //
 //  Created by Anton Marini on 9/17/25.
@@ -22,41 +22,41 @@ public class StringRangeNode : Node
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
-        
+
         return ports +
         [
-            ("inputPort", NodePort<String>(name: "String", kind: .Inlet, description: "Input string to extract substring from")),
-            ("inputRangeTo", ParameterPort(parameter: IntParameter("To", 0, .inputfield, "End index for the substring (exclusive)"))),
-            ("outputPort",  NodePort<String>(name: "String", kind: .Outlet, description: "Extracted substring from start to specified index")),
+            ("inputPort",       ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to extract substring from"))),
+            ("inputRangeFrom",  ParameterPort(parameter: IntParameter("From", 0, .inputfield, "Start index for the substring"))),
+            ("inputRangeTo",    ParameterPort(parameter: IntParameter("To", 1, .inputfield, "End index for the substring (exclusive)"))),
+            ("outputPort",      NodePort<String>(name: "String", kind: .Outlet, description: "Extracted substring")),
         ]
     }
-    
+
     // Port Proxy
-    public var inputPort:NodePort<String> { port(named: "inputPort") }
-    public var inputRangeTo:ParameterPort<Int> { port(named: "inputRangeTo") }
-    public var outputPort:NodePort<String> { port(named: "outputPort") }
+    public var inputPort:ParameterPort<String>       { port(named: "inputPort") }
+    public var inputRangeFrom:ParameterPort<Int> { port(named: "inputRangeFrom") }
+    public var inputRangeTo:ParameterPort<Int>  { port(named: "inputRangeTo") }
+    public var outputPort:NodePort<String>      { port(named: "outputPort") }
 
 
     override public func execute(context:GraphExecutionContext,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {
-        if self.inputPort.valueDidChange || self.inputRangeTo.valueDidChange
+        if self.inputPort.valueDidChange || self.inputRangeFrom.valueDidChange || self.inputRangeTo.valueDidChange
         {
             if let string = self.inputPort.value,
+               let rangeFrom = self.inputRangeFrom.value,
                let rangeTo = self.inputRangeTo.value
             {
-                let offset = max(0, rangeTo )
-                let endIndex = string.index(string.startIndex, offsetBy:offset, limitedBy: string.endIndex)
-                
-                let substring = string[ string.startIndex ..< (endIndex ?? string.endIndex) ]
-                
-                self.outputPort.send( String(substring) )
+                let fromOffset = max(0, rangeFrom)
+                let toOffset = max(fromOffset, rangeTo)
+
+                let startIndex = string.index(string.startIndex, offsetBy: fromOffset, limitedBy: string.endIndex) ?? string.endIndex
+                let endIndex = string.index(string.startIndex, offsetBy: toOffset, limitedBy: string.endIndex) ?? string.endIndex
+
+                self.outputPort.send( String(string[startIndex ..< endIndex]) )
             }
-//            else
-//            {
-//                self.outputPort.send( nil )
-//            }
         }
     }
 }

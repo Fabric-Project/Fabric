@@ -284,6 +284,7 @@ Have yet to work on Index (integer only) numeric nodes
 - [x] Number
 - [x] Current Time (AKA Patch Time)
 - [x] System Time
+- [x] Timestamp
 - [x] Integrator (accrues every frame for now)
 - [ ] Derivator
 - [x] Single Operator Math
@@ -337,19 +338,19 @@ Have yet to work on Color nodes, ideally all color spaces / images are linear / 
 - [x] String Components
 - [x] String Length
 - [x] String Range
-- [ ] String Case
-- [ ] String Formatter
+- [x] String Case
+- [x] String Formatter
+- [x] String Scanner
 - [x] String Join
 - [x] String Wrap
 - [x] String Remove Whitespace
 - [x] String Difference
-- [ ] String Separator
-- [ ] String Compare
+- [x] String Split
+- [x] String Compare
 - [x] Convert to String ( type convert )
-- [ ] Date Formatter
-- [ ] Current Date
-- [ ] Directory Scanner
-- [ ] String to Timecode Format
+- [x] Timestamp Formatter
+- [x] Directory Scanner
+- [x] String to Timecode Format
 
 ### Array
 
