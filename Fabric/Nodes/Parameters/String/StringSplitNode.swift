@@ -1,5 +1,5 @@
 //
-//  StringSeparatorNode.swift
+//  StringSplitNode.swift
 //  Fabric
 //
 
@@ -7,7 +7,7 @@ import Foundation
 import Satin
 import Metal
 
-public class StringSeparatorNode: Node {
+public class StringSplitNode: Node {
     override public class var name: String { "String Split" }
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .String) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }

@@ -1,5 +1,5 @@
 //
-//  TimecodeNode.swift
+//  TimecodeFormatterNode.swift
 //  Fabric
 //
 
@@ -7,8 +7,8 @@ import Foundation
 import Satin
 import Metal
 
-public class TimecodeNode: Node {
-    override public class var name: String { "Timecode" }
+public class TimecodeFormatterNode: Node {
+    override public class var name: String { "Timecode Formatter" }
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .String) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
