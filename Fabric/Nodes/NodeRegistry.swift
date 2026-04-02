@@ -327,7 +327,7 @@ public class NodeRegistry {
         StringSeparatorNode.self,
         TimestampFormatterNode.self,
         DirectoryScannerNode.self,
-        StringToTimecodeNode.self,
+        TimecodeNode.self,
 //        ConvertToStringNode.self,
         LocalLLMNode.self,
         ArrayFirstValueNode<String>.self,
