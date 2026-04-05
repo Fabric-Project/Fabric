@@ -128,6 +128,8 @@ public class NodeRegistry {
             CameraProviderNode.self,
             ImageProviderNode.self,
             TestCardProviderNode.self,
+            SVGImporterNode.self,
+            CGPathRendererNode.self,
         ]
         #if os(macOS)
         classes.append(ScreenCaptureProviderNode.self)
@@ -168,6 +170,8 @@ public class NodeRegistry {
         DeferredSubgraphNode.self,
         IteratorNode.self,
         IteratorInfoNode.self,
+        StateSubgraphNode.self,
+        StateInfoNode.self,
         EnvironmentNode.self,
     ]
     
@@ -419,6 +423,7 @@ public class NodeRegistry {
             UnitsoPixelsNode.self,
 
             SignalNode.self,
+            SwitchNode.self,
 
             SampleAndHoldNode<Bool>.self,
             SampleAndHoldNode<Float>.self,

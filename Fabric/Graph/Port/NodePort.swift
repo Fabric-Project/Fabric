@@ -248,7 +248,15 @@ public class NodePort<Value : PortValueRepresentable>: Port
 //        print("Connections: \(self.debugDescription)) - \(self.connections)")
 //        print("Connections: \(other.debugDescription) - \(other.connections)")
 
-        self.send(self.value, force: true)
+        // Only propagate if the source port has a value.
+        // During graph decoding, output NodePorts have nil (value is not
+        // persisted) and sending nil would overwrite decoded ParameterPort
+        // values on connected inlets. The first execution pass will
+        // propagate the real computed value through the connection.
+        if self.value != nil
+        {
+            self.send(self.value, force: true)
+        }
 
         self.node?.graph?.undoManager?.registerUndo(withTarget: self) { port in
             port.disconnect(from: other)
