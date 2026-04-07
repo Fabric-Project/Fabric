@@ -464,6 +464,7 @@ import UniformTypeIdentifiers
                 if node.providesSettingsView( )
                 {
                     node.settingsView()
+                        .controlSize(.small)
                 }
             }
             .padding()
