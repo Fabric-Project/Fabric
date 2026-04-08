@@ -35,23 +35,35 @@ struct FabricGraphEntity: AppEntity, Sendable {
     let graphURL: String
     let displayName: String
     let graphIdentifier: String
+    let nodeCount: Int
+    let publishedParameterCount: Int
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(
             title: LocalizedStringResource(stringLiteral: self.displayName),
-            subtitle: LocalizedStringResource(stringLiteral: self.graphURL)
+            subtitle: LocalizedStringResource(stringLiteral: "\(self.nodeCount) nodes • \(self.publishedParameterCount) published")
         )
     }
 
-    init(graphURL: String, displayName: String, graphIdentifier: String) {
+    init(
+        graphURL: String,
+        displayName: String,
+        graphIdentifier: String,
+        nodeCount: Int,
+        publishedParameterCount: Int
+    ) {
         self.graphURL = graphURL
         self.displayName = displayName
         self.graphIdentifier = graphIdentifier
+        self.nodeCount = nodeCount
+        self.publishedParameterCount = publishedParameterCount
         self.id = FabricIntentIdentifierCodec.encode([
             "kind": "graph",
             "graphURL": graphURL,
             "displayName": displayName,
             "graphIdentifier": graphIdentifier,
+            "nodeCount": String(nodeCount),
+            "publishedParameterCount": String(publishedParameterCount),
         ])
     }
 
@@ -61,7 +73,11 @@ struct FabricGraphEntity: AppEntity, Sendable {
             payload["kind"] == "graph",
             let graphURL = payload["graphURL"],
             let displayName = payload["displayName"],
-            let graphIdentifier = payload["graphIdentifier"]
+            let graphIdentifier = payload["graphIdentifier"],
+            let nodeCountValue = payload["nodeCount"],
+            let publishedParameterCountValue = payload["publishedParameterCount"],
+            let nodeCount = Int(nodeCountValue),
+            let publishedParameterCount = Int(publishedParameterCountValue)
         else {
             return nil
         }
@@ -70,6 +86,8 @@ struct FabricGraphEntity: AppEntity, Sendable {
         self.graphURL = graphURL
         self.displayName = displayName
         self.graphIdentifier = graphIdentifier
+        self.nodeCount = nodeCount
+        self.publishedParameterCount = publishedParameterCount
     }
 }
 
@@ -147,11 +165,13 @@ struct FabricPortEntity: AppEntity, Sendable {
     let portDisplayName: String
     let kind: String
     let portType: String
+    let isPublished: Bool
+    let connectionCount: Int
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(
             title: LocalizedStringResource(stringLiteral: self.portDisplayName),
-            subtitle: LocalizedStringResource(stringLiteral: "\(self.kind) • \(self.portType)")
+            subtitle: LocalizedStringResource(stringLiteral: "\(self.kind) • \(self.portType) • \(self.connectionCount) connections")
         )
     }
 
@@ -162,7 +182,9 @@ struct FabricPortEntity: AppEntity, Sendable {
         portName: String,
         portDisplayName: String,
         kind: String,
-        portType: String
+        portType: String,
+        isPublished: Bool,
+        connectionCount: Int
     ) {
         self.graphURL = graphURL
         self.nodeIdentifier = nodeIdentifier
@@ -171,6 +193,8 @@ struct FabricPortEntity: AppEntity, Sendable {
         self.portDisplayName = portDisplayName
         self.kind = kind
         self.portType = portType
+        self.isPublished = isPublished
+        self.connectionCount = connectionCount
         self.id = FabricIntentIdentifierCodec.encode([
             "kind": "port",
             "graphURL": graphURL,
@@ -180,6 +204,8 @@ struct FabricPortEntity: AppEntity, Sendable {
             "portDisplayName": portDisplayName,
             "portKind": kind,
             "portType": portType,
+            "isPublished": String(isPublished),
+            "connectionCount": String(connectionCount),
         ])
     }
 
@@ -193,7 +219,11 @@ struct FabricPortEntity: AppEntity, Sendable {
             let portName = payload["portName"],
             let portDisplayName = payload["portDisplayName"],
             let kind = payload["portKind"],
-            let portType = payload["portType"]
+            let portType = payload["portType"],
+            let isPublishedValue = payload["isPublished"],
+            let connectionCountValue = payload["connectionCount"],
+            let isPublished = Bool(isPublishedValue),
+            let connectionCount = Int(connectionCountValue)
         else {
             return nil
         }
@@ -206,6 +236,8 @@ struct FabricPortEntity: AppEntity, Sendable {
         self.portDisplayName = portDisplayName
         self.kind = kind
         self.portType = portType
+        self.isPublished = isPublished
+        self.connectionCount = connectionCount
     }
 }
 

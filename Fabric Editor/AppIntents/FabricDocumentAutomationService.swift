@@ -5,21 +5,24 @@
 //  Created by Codex on 4/7/26.
 //
 
+import AppIntents
 import AppKit
+import Fabric
 import Foundation
 import Metal
-import Fabric
 import Satin
 import simd
 
 enum FabricIntentError: LocalizedError {
+    case invalidGraphFile
     case invalidGraphURL(String)
     case unsupportedGraphFile(URL)
     case fileAlreadyExists(URL)
+    case graphHasNoFile(String)
     case nodeNotFound(String)
     case portNotFound(String)
+    case publishedParameterNotFound(String)
     case notAPublishedParameter(String)
-    case ambiguousPublishedParameter(String)
     case unsupportedParameterType(String)
     case invalidValue(String)
     case incompatiblePorts(String)
@@ -27,20 +30,24 @@ enum FabricIntentError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
+        case .invalidGraphFile:
+            return "Select a valid Fabric graph file."
         case .invalidGraphURL(let value):
             return "Invalid graph URL: \(value)"
         case .unsupportedGraphFile(let url):
             return "Unsupported graph file: \(url.path)"
         case .fileAlreadyExists(let url):
             return "A graph already exists at \(url.path)"
+        case .graphHasNoFile(let name):
+            return "\(name) has not been saved to disk yet."
         case .nodeNotFound(let nodeID):
             return "Node not found: \(nodeID)"
         case .portNotFound(let portID):
             return "Port not found: \(portID)"
-        case .notAPublishedParameter(let label):
-            return "Published parameter not found: \(label)"
-        case .ambiguousPublishedParameter(let label):
-            return "Multiple published parameters match '\(label)'"
+        case .publishedParameterNotFound(let parameterID):
+            return "Published parameter not found: \(parameterID)"
+        case .notAPublishedParameter(let portID):
+            return "Port is not published: \(portID)"
         case .unsupportedParameterType(let label):
             return "Unsupported parameter type for '\(label)'"
         case .invalidValue(let description):
@@ -53,78 +60,87 @@ enum FabricIntentError: LocalizedError {
     }
 }
 
+enum FabricPortKindAppEnum: String, AppEnum {
+    case inlet
+    case outlet
+
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Fabric Port Kind"
+    static let caseDisplayRepresentations: [Self: DisplayRepresentation] = [
+        .inlet: "Inlet",
+        .outlet: "Outlet",
+    ]
+
+    init?(portKind: PortKind) {
+        switch portKind {
+        case .Inlet:
+            self = .inlet
+        case .Outlet:
+            self = .outlet
+        }
+    }
+}
+
 @MainActor
 final class FabricDocumentAutomationService {
     static let shared = FabricDocumentAutomationService()
 
-    private init() {}
-
     struct LoadedGraph {
-        let url: URL
+        let fileURL: URL?
+        let graphURL: String
         let graph: Graph
     }
 
-    func createGraph(at graphURLString: String, useTemplate: Bool) throws -> FabricGraphEntity {
-        let url = try self.graphURL(from: graphURLString)
-        guard url.isFileURL else {
-            throw FabricIntentError.invalidGraphURL(graphURLString)
-        }
-        guard url.pathExtension.localizedCaseInsensitiveCompare("fabric") == .orderedSame else {
-            throw FabricIntentError.unsupportedGraphFile(url)
-        }
-        guard !FileManager.default.fileExists(atPath: url.path) else {
-            throw FabricIntentError.fileAlreadyExists(url)
-        }
+    private let untitledScheme = "fabric-untitled"
+    private var untitledGraphs: [String: Graph] = [:]
 
-        let parentURL = url.deletingLastPathComponent()
-        try FileManager.default.createDirectory(at: parentURL, withIntermediateDirectories: true, attributes: nil)
+    private init() {}
 
-        let document = useTemplate ? FabricDocument(withTemplate: true) : FabricDocument()
-        try self.saveGraph(document.editingContext.rootGraph, to: url)
+    func openGraph(file: IntentFile) throws -> FabricGraphEntity {
+        let url = try self.graphURL(from: file)
         NSWorkspace.shared.open(url)
-        return self.makeGraphEntity(graph: document.editingContext.rootGraph, url: url)
+        let loadedGraph = try self.loadGraph(at: url)
+        return self.makeGraphEntity(graph: loadedGraph.graph, fileURL: loadedGraph.fileURL)
     }
 
-    func openGraph(at graphURLString: String) throws -> FabricGraphEntity {
-        let loadedGraph = try self.loadGraph(at: graphURLString)
-        NSWorkspace.shared.open(loadedGraph.url)
-        return self.makeGraphEntity(graph: loadedGraph.graph, url: loadedGraph.url)
+    func createGraph(useTemplate: Bool) -> FabricGraphEntity {
+        let document = useTemplate ? FabricDocument(withTemplate: true) : FabricDocument()
+        let graph = document.editingContext.rootGraph
+        self.untitledGraphs[graph.id.uuidString] = graph
+        return self.makeGraphEntity(graph: graph, fileURL: nil)
     }
 
-    func graphSummary(for graphURLString: String) throws -> String {
-        let loadedGraph = try self.loadGraph(at: graphURLString)
-        let graph = loadedGraph.graph
-        let publishedCount = graph.getPublishedPorts().count
-        return "\(graph.nodes.count) nodes, \(publishedCount) published ports"
+    func graphDetails(for graphEntity: FabricGraphEntity) throws -> FabricGraphEntity {
+        let loadedGraph = try self.loadGraph(for: graphEntity)
+        return self.makeGraphEntity(graph: loadedGraph.graph, fileURL: loadedGraph.fileURL)
     }
 
-    func graphEntity(for graphURLString: String) throws -> FabricGraphEntity {
-        let loadedGraph = try self.loadGraph(at: graphURLString)
-        return self.makeGraphEntity(graph: loadedGraph.graph, url: loadedGraph.url)
+    func saveGraph(_ graphEntity: FabricGraphEntity) throws -> FabricGraphEntity {
+        let loadedGraph = try self.loadGraph(for: graphEntity)
+        let saveURL = if let fileURL = loadedGraph.fileURL {
+            fileURL
+        } else {
+            try self.defaultUntitledSaveURL()
+        }
+        try self.saveGraph(loadedGraph.graph, to: saveURL)
+        self.untitledGraphs.removeValue(forKey: loadedGraph.graph.id.uuidString)
+        return self.makeGraphEntity(graph: loadedGraph.graph, fileURL: saveURL)
     }
 
-    func listNodes(in graphURLString: String) throws -> [FabricNodeEntity] {
-        let loadedGraph = try self.loadGraph(at: graphURLString)
-        return loadedGraph.graph.nodes.map { self.makeNodeEntity(node: $0, graphURL: loadedGraph.url.absoluteString) }
+    func revealGraphFile(for graphEntity: FabricGraphEntity) throws -> IntentFile {
+        guard let url = try self.fileURL(for: graphEntity) else {
+            throw FabricIntentError.graphHasNoFile(graphEntity.displayName)
+        }
+        NSWorkspace.shared.activateFileViewerSelecting([url])
+        return IntentFile(fileURL: url)
     }
 
-    func listPublishedParameters(in graphURLString: String) throws -> [FabricPublishedParameterEntity] {
-        let loadedGraph = try self.loadGraph(at: graphURLString)
-        return loadedGraph.graph
-            .getPublishedPorts()
-            .compactMap { port in
-                guard let parameter = port.parameter else { return nil }
-                return self.makePublishedParameterEntity(
-                    parameter: parameter,
-                    port: port,
-                    graphURL: loadedGraph.url.absoluteString
-                )
-            }
+    func listRegistryNodes() -> [FabricRegistryNodeEntity] {
+        self.listRegistryNodes(matching: nil)
     }
 
     func listRegistryNodes(matching searchText: String?) -> [FabricRegistryNodeEntity] {
         let normalizedSearchText = searchText?.trimmingCharacters(in: .whitespacesAndNewlines)
-        return NodeRegistry.shared.availableNodes.compactMap { wrapper in
+        return NodeRegistry.shared.availableNodes.filter { wrapper in
             if let normalizedSearchText, !normalizedSearchText.isEmpty {
                 let haystack = [
                     wrapper.nodeName,
@@ -132,35 +148,124 @@ final class FabricDocumentAutomationService {
                     wrapper.nodeType.description,
                     wrapper.nodeDescription,
                 ]
-                let matches = haystack.contains { $0.localizedStandardContains(normalizedSearchText) }
-                if !matches {
-                    return nil
-                }
+                return haystack.contains { $0.localizedStandardContains(normalizedSearchText) }
             }
 
-            return self.makeRegistryNodeEntity(wrapper: wrapper)
+            return true
+        }
+        .map { self.makeRegistryNodeEntity(wrapper: $0) }
+    }
+
+    func registryNodeDetails(for registryNode: FabricRegistryNodeEntity) throws -> FabricRegistryNodeEntity {
+        let wrapper = try self.registryWrapper(for: registryNode)
+        return self.makeRegistryNodeEntity(wrapper: wrapper)
+    }
+
+    func listNodes(in graphEntity: FabricGraphEntity) throws -> [FabricNodeEntity] {
+        let loadedGraph = try self.loadGraph(for: graphEntity)
+        return loadedGraph.graph.nodes.map { self.makeNodeEntity(node: $0, graphURL: loadedGraph.graphURL) }
+    }
+
+    func findNodes(in graphEntity: FabricGraphEntity, matching searchText: String) throws -> [FabricNodeEntity] {
+        let loadedGraph = try self.loadGraph(for: graphEntity)
+        let normalizedSearchText = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return loadedGraph.graph.nodes.compactMap { node in
+            guard !normalizedSearchText.isEmpty else {
+                return self.makeNodeEntity(node: node, graphURL: loadedGraph.graphURL)
+            }
+
+            let haystack = [
+                node.name,
+                String(describing: type(of: node)),
+                node.nodeType.description,
+            ]
+            let matches = haystack.contains { $0.localizedStandardContains(normalizedSearchText) }
+            return matches ? self.makeNodeEntity(node: node, graphURL: loadedGraph.graphURL) : nil
         }
     }
 
     func nodeDetails(for nodeEntity: FabricNodeEntity) throws -> FabricNodeEntity {
-        let loadedGraph = try self.loadGraph(at: nodeEntity.graphURL)
+        let loadedGraph = try self.loadGraph(forGraphURL: nodeEntity.graphURL)
         let node = try self.node(withIdentifier: nodeEntity.nodeIdentifier, in: loadedGraph.graph)
-        return self.makeNodeEntity(node: node, graphURL: loadedGraph.url.absoluteString)
+        return self.makeNodeEntity(node: node, graphURL: loadedGraph.graphURL)
     }
 
-    func ports(for nodeEntity: FabricNodeEntity) throws -> [FabricPortEntity] {
-        let loadedGraph = try self.loadGraph(at: nodeEntity.graphURL)
+    func listPorts(for nodeEntity: FabricNodeEntity) throws -> [FabricPortEntity] {
+        let loadedGraph = try self.loadGraph(forGraphURL: nodeEntity.graphURL)
         let node = try self.node(withIdentifier: nodeEntity.nodeIdentifier, in: loadedGraph.graph)
-        return node.ports.map { self.makePortEntity(port: $0, graphURL: loadedGraph.url.absoluteString) }
+        return node.ports.map { self.makePortEntity(port: $0, graphURL: loadedGraph.graphURL) }
+    }
+
+    func findPorts(
+        for nodeEntity: FabricNodeEntity,
+        matching searchText: String,
+        kind: FabricPortKindAppEnum?,
+        publishedOnly: Bool
+    ) throws -> [FabricPortEntity] {
+        let loadedGraph = try self.loadGraph(forGraphURL: nodeEntity.graphURL)
+        let node = try self.node(withIdentifier: nodeEntity.nodeIdentifier, in: loadedGraph.graph)
+        let normalizedSearchText = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return node.ports.filter { port in
+            if publishedOnly, !port.published {
+                return false
+            }
+
+            if let kind, FabricPortKindAppEnum(portKind: port.kind) != kind {
+                return false
+            }
+
+            if !normalizedSearchText.isEmpty {
+                let haystack = [
+                    port.name,
+                    port.displayName,
+                    port.portType.rawValue,
+                ]
+                return haystack.contains { $0.localizedStandardContains(normalizedSearchText) }
+            }
+
+            return true
+        }
+        .map { self.makePortEntity(port: $0, graphURL: loadedGraph.graphURL) }
+    }
+
+    func listPublishedParameters(in graphEntity: FabricGraphEntity) throws -> [FabricPublishedParameterEntity] {
+        let loadedGraph = try self.loadGraph(for: graphEntity)
+        return self.publishedParameters(in: loadedGraph.graph, graphURL: loadedGraph.graphURL)
+    }
+
+    func findPublishedParameters(in graphEntity: FabricGraphEntity, matching searchText: String) throws -> [FabricPublishedParameterEntity] {
+        let loadedGraph = try self.loadGraph(for: graphEntity)
+        let normalizedSearchText = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return self.publishedParameters(in: loadedGraph.graph, graphURL: loadedGraph.graphURL).filter { parameter in
+            guard !normalizedSearchText.isEmpty else { return true }
+            let haystack = [
+                parameter.label,
+                parameter.parameterType,
+                parameter.controlType,
+                parameter.valueSummary,
+            ]
+            return haystack.contains { $0.localizedStandardContains(normalizedSearchText) }
+        }
+    }
+
+    func publishedParameterDetails(for parameterEntity: FabricPublishedParameterEntity) throws -> FabricPublishedParameterEntity {
+        let loadedGraph = try self.loadGraph(forGraphURL: parameterEntity.graphURL)
+        let parameterPort = try self.publishedPort(withIdentifier: parameterEntity.publishedPortIdentifier, in: loadedGraph.graph)
+        guard let parameter = parameterPort.parameter else {
+            throw FabricIntentError.unsupportedParameterType(parameterEntity.label)
+        }
+        return self.makePublishedParameterEntity(parameter: parameter, port: parameterPort, graphURL: loadedGraph.graphURL)
     }
 
     func addNode(
         registryNode: FabricRegistryNodeEntity,
-        to graphURLString: String,
+        to graphEntity: FabricGraphEntity,
         x: Double?,
         y: Double?
     ) throws -> FabricNodeEntity {
-        let loadedGraph = try self.loadGraph(at: graphURLString)
+        let loadedGraph = try self.loadGraph(for: graphEntity)
         let wrapper = try self.registryWrapper(for: registryNode)
         let node = try wrapper.initializeNode(context: loadedGraph.graph.context)
 
@@ -169,80 +274,227 @@ final class FabricDocumentAutomationService {
         }
 
         loadedGraph.graph.addNode(node)
-        try self.saveGraph(loadedGraph.graph, to: loadedGraph.url)
-        return self.makeNodeEntity(node: node, graphURL: loadedGraph.url.absoluteString)
+        try self.persistGraph(loadedGraph)
+        return self.makeNodeEntity(node: node, graphURL: loadedGraph.graphURL)
     }
 
-    func connectPorts(from sourcePort: FabricPortEntity, to destinationPort: FabricPortEntity) throws -> String {
-        guard sourcePort.graphURL == destinationPort.graphURL else {
+    func removeNode(_ nodeEntity: FabricNodeEntity) throws -> FabricGraphEntity {
+        let loadedGraph = try self.loadGraph(forGraphURL: nodeEntity.graphURL)
+        let node = try self.node(withIdentifier: nodeEntity.nodeIdentifier, in: loadedGraph.graph)
+        loadedGraph.graph.delete(node: node)
+        try self.persistGraph(loadedGraph)
+        return self.makeGraphEntity(graph: loadedGraph.graph, fileURL: loadedGraph.fileURL)
+    }
+
+    func connectPorts(from sourcePortEntity: FabricPortEntity, to destinationPortEntity: FabricPortEntity) throws -> FabricGraphEntity {
+        guard sourcePortEntity.graphURL == destinationPortEntity.graphURL else {
             throw FabricIntentError.incompatiblePorts("Ports must belong to the same graph")
         }
 
-        let loadedGraph = try self.loadGraph(at: sourcePort.graphURL)
-        let source = try self.port(withIdentifier: sourcePort.portIdentifier, in: loadedGraph.graph)
-        let destination = try self.port(withIdentifier: destinationPort.portIdentifier, in: loadedGraph.graph)
+        let loadedGraph = try self.loadGraph(forGraphURL: sourcePortEntity.graphURL)
+        let source = try self.port(withIdentifier: sourcePortEntity.portIdentifier, in: loadedGraph.graph)
+        let destination = try self.port(withIdentifier: destinationPortEntity.portIdentifier, in: loadedGraph.graph)
 
         guard source.kind == .Outlet, destination.kind == .Inlet else {
             throw FabricIntentError.incompatiblePorts("Connect an outlet source to an inlet destination")
         }
 
-        if !source.canConnect(to: destination) {
+        guard source.canConnect(to: destination) else {
             throw FabricIntentError.incompatiblePorts("\(source.displayName) cannot connect to \(destination.displayName)")
         }
 
         source.connect(to: destination)
         loadedGraph.graph.rebuildPublishedParameterGroup()
-        try self.saveGraph(loadedGraph.graph, to: loadedGraph.url)
-
-        return "Connected \(source.displayName) to \(destination.displayName)"
+        try self.persistGraph(loadedGraph)
+        return self.makeGraphEntity(graph: loadedGraph.graph, fileURL: loadedGraph.fileURL)
     }
 
-    func disconnectPorts(from sourcePort: FabricPortEntity, to destinationPort: FabricPortEntity?) throws -> String {
-        let loadedGraph = try self.loadGraph(at: sourcePort.graphURL)
-        let source = try self.port(withIdentifier: sourcePort.portIdentifier, in: loadedGraph.graph)
+    func disconnectPorts(from sourcePortEntity: FabricPortEntity, to destinationPortEntity: FabricPortEntity?) throws -> FabricGraphEntity {
+        let loadedGraph = try self.loadGraph(forGraphURL: sourcePortEntity.graphURL)
+        let source = try self.port(withIdentifier: sourcePortEntity.portIdentifier, in: loadedGraph.graph)
 
-        if let destinationPort {
-            let destination = try self.port(withIdentifier: destinationPort.portIdentifier, in: loadedGraph.graph)
+        if let destinationPortEntity {
+            let destination = try self.port(withIdentifier: destinationPortEntity.portIdentifier, in: loadedGraph.graph)
             source.disconnect(from: destination)
         } else {
             source.disconnectAll()
         }
 
         loadedGraph.graph.rebuildPublishedParameterGroup()
-        try self.saveGraph(loadedGraph.graph, to: loadedGraph.url)
-
-        return destinationPort == nil
-            ? "Disconnected all connections from \(source.displayName)"
-            : "Disconnected \(source.displayName)"
+        try self.persistGraph(loadedGraph)
+        return self.makeGraphEntity(graph: loadedGraph.graph, fileURL: loadedGraph.fileURL)
     }
 
-    func setPublishedParameters(_ assignments: [String], in graphURLString: String) throws -> [FabricPublishedParameterEntity] {
-        let loadedGraph = try self.loadGraph(at: graphURLString)
+    func publishPort(_ portEntity: FabricPortEntity, label: String?) throws -> FabricPublishedParameterEntity {
+        let loadedGraph = try self.loadGraph(forGraphURL: portEntity.graphURL)
+        let port = try self.port(withIdentifier: portEntity.portIdentifier, in: loadedGraph.graph)
+        port.published = true
 
-        for assignment in assignments {
-            let trimmedAssignment = assignment.trimmingCharacters(in: .whitespacesAndNewlines)
-            if trimmedAssignment.isEmpty {
-                continue
-            }
-
-            let pair = try self.parseAssignment(trimmedAssignment)
-            let port = try self.publishedPort(label: pair.label, in: loadedGraph.graph)
-            let parameter = try self.parameter(forPublishedPort: port, label: pair.label)
-            try self.apply(rawValue: pair.value, to: parameter, label: pair.label)
-        }
+        let trimmedLabel = label?.trimmingCharacters(in: .whitespacesAndNewlines)
+        port.publishedName = trimmedLabel?.isEmpty == false ? trimmedLabel : nil
 
         loadedGraph.graph.rebuildPublishedParameterGroup()
-        try self.saveGraph(loadedGraph.graph, to: loadedGraph.url)
-        return try self.listPublishedParameters(in: loadedGraph.url.absoluteString)
+        try self.persistGraph(loadedGraph)
+
+        guard let parameter = port.parameter else {
+            throw FabricIntentError.unsupportedParameterType(port.displayName)
+        }
+
+        return self.makePublishedParameterEntity(parameter: parameter, port: port, graphURL: loadedGraph.graphURL)
     }
 
-    private func loadGraph(at graphURLString: String) throws -> LoadedGraph {
-        let url = try self.graphURL(from: graphURLString)
+    func unpublishPort(_ portEntity: FabricPortEntity) throws -> FabricGraphEntity {
+        let loadedGraph = try self.loadGraph(forGraphURL: portEntity.graphURL)
+        let port = try self.port(withIdentifier: portEntity.portIdentifier, in: loadedGraph.graph)
+        port.published = false
+        port.publishedName = nil
+        loadedGraph.graph.rebuildPublishedParameterGroup()
+        try self.persistGraph(loadedGraph)
+        return self.makeGraphEntity(graph: loadedGraph.graph, fileURL: loadedGraph.fileURL)
+    }
+
+    func unpublishParameter(_ parameterEntity: FabricPublishedParameterEntity) throws -> FabricGraphEntity {
+        let loadedGraph = try self.loadGraph(forGraphURL: parameterEntity.graphURL)
+        let port = try self.publishedPort(withIdentifier: parameterEntity.publishedPortIdentifier, in: loadedGraph.graph)
+        port.published = false
+        port.publishedName = nil
+        loadedGraph.graph.rebuildPublishedParameterGroup()
+        try self.persistGraph(loadedGraph)
+        return self.makeGraphEntity(graph: loadedGraph.graph, fileURL: loadedGraph.fileURL)
+    }
+
+    func setPublishedBoolean(_ parameterEntity: FabricPublishedParameterEntity, value: Bool) throws -> FabricPublishedParameterEntity {
+        let loadedGraph = try self.loadGraph(forGraphURL: parameterEntity.graphURL)
+        let publishedPort = try self.publishedPort(withIdentifier: parameterEntity.publishedPortIdentifier, in: loadedGraph.graph)
+        let parameter = try self.parameter(forPublishedPort: publishedPort, label: parameterEntity.label)
+        guard let boolParameter = parameter as? BoolParameter else {
+            throw FabricIntentError.unsupportedParameterType(parameterEntity.label)
+        }
+        boolParameter.value = value
+        return try self.persistParameterUpdate(graph: loadedGraph, publishedPort: publishedPort, label: parameterEntity.label)
+    }
+
+    func setPublishedNumber(_ parameterEntity: FabricPublishedParameterEntity, value: Double) throws -> FabricPublishedParameterEntity {
+        let loadedGraph = try self.loadGraph(forGraphURL: parameterEntity.graphURL)
+        let publishedPort = try self.publishedPort(withIdentifier: parameterEntity.publishedPortIdentifier, in: loadedGraph.graph)
+        let parameter = try self.parameter(forPublishedPort: publishedPort, label: parameterEntity.label)
+
+        if let floatParameter = parameter as? FloatParameter {
+            floatParameter.value = Float(value)
+        } else if let doubleParameter = parameter as? DoubleParameter {
+            doubleParameter.value = value
+        } else {
+            throw FabricIntentError.unsupportedParameterType(parameterEntity.label)
+        }
+
+        return try self.persistParameterUpdate(graph: loadedGraph, publishedPort: publishedPort, label: parameterEntity.label)
+    }
+
+    func setPublishedInteger(_ parameterEntity: FabricPublishedParameterEntity, value: Int) throws -> FabricPublishedParameterEntity {
+        let loadedGraph = try self.loadGraph(forGraphURL: parameterEntity.graphURL)
+        let publishedPort = try self.publishedPort(withIdentifier: parameterEntity.publishedPortIdentifier, in: loadedGraph.graph)
+        let parameter = try self.parameter(forPublishedPort: publishedPort, label: parameterEntity.label)
+
+        if let intParameter = parameter as? IntParameter {
+            intParameter.value = value
+        } else {
+            throw FabricIntentError.unsupportedParameterType(parameterEntity.label)
+        }
+
+        return try self.persistParameterUpdate(graph: loadedGraph, publishedPort: publishedPort, label: parameterEntity.label)
+    }
+
+    func setPublishedText(_ parameterEntity: FabricPublishedParameterEntity, value: String) throws -> FabricPublishedParameterEntity {
+        let loadedGraph = try self.loadGraph(forGraphURL: parameterEntity.graphURL)
+        let publishedPort = try self.publishedPort(withIdentifier: parameterEntity.publishedPortIdentifier, in: loadedGraph.graph)
+        let parameter = try self.parameter(forPublishedPort: publishedPort, label: parameterEntity.label)
+
+        if let stringParameter = parameter as? StringParameter {
+            stringParameter.value = value
+        } else {
+            throw FabricIntentError.unsupportedParameterType(parameterEntity.label)
+        }
+
+        return try self.persistParameterUpdate(graph: loadedGraph, publishedPort: publishedPort, label: parameterEntity.label)
+    }
+
+    func setPublishedVector(_ parameterEntity: FabricPublishedParameterEntity, components: [Double]) throws -> FabricPublishedParameterEntity {
+        let loadedGraph = try self.loadGraph(forGraphURL: parameterEntity.graphURL)
+        let publishedPort = try self.publishedPort(withIdentifier: parameterEntity.publishedPortIdentifier, in: loadedGraph.graph)
+        let parameter = try self.parameter(forPublishedPort: publishedPort, label: parameterEntity.label)
+
+        if let float2Parameter = parameter as? Float2Parameter {
+            guard components.count == 2 else {
+                throw FabricIntentError.invalidValue("Expected 2 components")
+            }
+            float2Parameter.value = simd_float2(Float(components[0]), Float(components[1]))
+        } else if let float3Parameter = parameter as? Float3Parameter {
+            guard components.count == 3 else {
+                throw FabricIntentError.invalidValue("Expected 3 components")
+            }
+            float3Parameter.value = simd_float3(Float(components[0]), Float(components[1]), Float(components[2]))
+        } else if let float4Parameter = parameter as? Float4Parameter {
+            guard components.count == 4 else {
+                throw FabricIntentError.invalidValue("Expected 4 components")
+            }
+            float4Parameter.value = simd_float4(Float(components[0]), Float(components[1]), Float(components[2]), Float(components[3]))
+        } else {
+            throw FabricIntentError.unsupportedParameterType(parameterEntity.label)
+        }
+
+        return try self.persistParameterUpdate(graph: loadedGraph, publishedPort: publishedPort, label: parameterEntity.label)
+    }
+
+    private func persistParameterUpdate(
+        graph loadedGraph: LoadedGraph,
+        publishedPort: Fabric.Port,
+        label: String
+    ) throws -> FabricPublishedParameterEntity {
+        loadedGraph.graph.rebuildPublishedParameterGroup()
+        try self.persistGraph(loadedGraph)
+        let refreshedPort = try self.publishedPort(withIdentifier: publishedPort.id.uuidString, in: loadedGraph.graph)
+        guard let refreshedParameter = refreshedPort.parameter else {
+            throw FabricIntentError.unsupportedParameterType(label)
+        }
+        return self.makePublishedParameterEntity(parameter: refreshedParameter, port: refreshedPort, graphURL: loadedGraph.graphURL)
+    }
+
+    private func publishedParameters(in graph: Graph, graphURL: String) -> [FabricPublishedParameterEntity] {
+        graph.getPublishedPorts().compactMap { port in
+            guard let parameter = port.parameter else { return nil }
+            return self.makePublishedParameterEntity(parameter: parameter, port: port, graphURL: graphURL)
+        }
+    }
+
+    private func loadGraph(for graphEntity: FabricGraphEntity) throws -> LoadedGraph {
+        if let graph = self.untitledGraphs[graphEntity.graphIdentifier] {
+            return LoadedGraph(fileURL: nil, graphURL: self.untitledGraphURL(for: graph.id), graph: graph)
+        }
+        return try self.loadGraph(forGraphURL: graphEntity.graphURL)
+    }
+
+    private func loadGraph(forGraphURL graphURL: String) throws -> LoadedGraph {
+        if let untitledGraph = self.untitledGraph(for: graphURL) {
+            return LoadedGraph(fileURL: nil, graphURL: graphURL, graph: untitledGraph)
+        }
+        let url = try self.graphURL(from: graphURL)
+        return try self.loadGraph(at: url)
+    }
+
+    private func loadGraph(at url: URL) throws -> LoadedGraph {
         let data = try Data(contentsOf: url)
         let decoder = JSONDecoder()
         decoder.context = DecoderContext(documentContext: self.makeContext())
         let graph = try decoder.decode(Graph.self, from: data)
-        return LoadedGraph(url: url, graph: graph)
+        return LoadedGraph(fileURL: url, graphURL: url.absoluteString, graph: graph)
+    }
+
+    private func persistGraph(_ loadedGraph: LoadedGraph) throws {
+        if let fileURL = loadedGraph.fileURL {
+            try self.saveGraph(loadedGraph.graph, to: fileURL)
+        } else {
+            self.untitledGraphs[loadedGraph.graph.id.uuidString] = loadedGraph.graph
+        }
     }
 
     private func saveGraph(_ graph: Graph, to url: URL) throws {
@@ -262,6 +514,14 @@ final class FabricDocumentAutomationService {
         )
     }
 
+    private func graphURL(from file: IntentFile) throws -> URL {
+        guard let fileURL = file.fileURL else {
+            throw FabricIntentError.invalidGraphFile
+        }
+
+        return try self.validateGraphURL(fileURL)
+    }
+
     private func graphURL(from graphURLString: String) throws -> URL {
         let trimmedValue = graphURLString.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedValue.isEmpty else {
@@ -269,10 +529,57 @@ final class FabricDocumentAutomationService {
         }
 
         if let url = URL(string: trimmedValue), url.scheme != nil {
-            return url.standardizedFileURL
+            return try self.validateGraphURL(url.standardizedFileURL)
         }
 
-        return URL(fileURLWithPath: trimmedValue).standardizedFileURL
+        return try self.validateGraphURL(URL(fileURLWithPath: trimmedValue).standardizedFileURL)
+    }
+
+    private func fileURL(for graphEntity: FabricGraphEntity) throws -> URL? {
+        if self.untitledGraphs[graphEntity.graphIdentifier] != nil {
+            return nil
+        }
+        return try self.graphURL(from: graphEntity.graphURL)
+    }
+
+    private func untitledGraphURL(for graphID: UUID) -> String {
+        "\(self.untitledScheme)://\(graphID.uuidString)"
+    }
+
+    private func untitledGraph(for graphURL: String) -> Graph? {
+        guard
+            let url = URL(string: graphURL),
+            url.scheme == self.untitledScheme,
+            let host = url.host(percentEncoded: false) ?? url.host()
+        else {
+            return nil
+        }
+
+        return self.untitledGraphs[host]
+    }
+
+    private func defaultUntitledSaveURL() throws -> URL {
+        let baseDirectory = URL.documentsDirectory
+        let fileManager = FileManager.default
+        var candidateURL = baseDirectory.appending(path: "Untitled.fabric")
+        var suffix = 2
+
+        while fileManager.fileExists(atPath: candidateURL.path) {
+            candidateURL = baseDirectory.appending(path: "Untitled \(suffix).fabric")
+            suffix += 1
+        }
+
+        return candidateURL
+    }
+
+    private func validateGraphURL(_ url: URL) throws -> URL {
+        guard url.isFileURL else {
+            throw FabricIntentError.invalidGraphURL(url.absoluteString)
+        }
+        guard url.pathExtension.localizedCaseInsensitiveCompare("fabric") == .orderedSame else {
+            throw FabricIntentError.unsupportedGraphFile(url)
+        }
+        return url
     }
 
     private func node(withIdentifier nodeIdentifier: String, in graph: Graph) throws -> Node {
@@ -289,28 +596,12 @@ final class FabricDocumentAutomationService {
         return port
     }
 
-    private func publishedPort(label: String, in graph: Graph) throws -> Fabric.Port {
-        let matches = graph
-            .getPublishedPorts()
-            .filter { $0.displayName.localizedStandardContains(label) || $0.displayName == label || $0.name == label }
-
-        if matches.isEmpty {
-            throw FabricIntentError.notAPublishedParameter(label)
+    private func publishedPort(withIdentifier portIdentifier: String, in graph: Graph) throws -> Fabric.Port {
+        let port = try self.port(withIdentifier: portIdentifier, in: graph)
+        guard port.published else {
+            throw FabricIntentError.notAPublishedParameter(portIdentifier)
         }
-
-        if matches.count > 1 {
-            let exactMatches = matches.filter { $0.displayName == label || $0.name == label }
-            if exactMatches.count == 1, let exactMatch = exactMatches.first {
-                return exactMatch
-            }
-            throw FabricIntentError.ambiguousPublishedParameter(label)
-        }
-
-        guard let match = matches.first else {
-            throw FabricIntentError.notAPublishedParameter(label)
-        }
-
-        return match
+        return port
     }
 
     private func parameter(forPublishedPort port: Fabric.Port, label: String) throws -> any Parameter {
@@ -320,160 +611,25 @@ final class FabricDocumentAutomationService {
         return parameter
     }
 
-    private func parseAssignment(_ assignment: String) throws -> (label: String, value: String) {
-        guard let delimiterIndex = assignment.firstIndex(of: "=") else {
-            throw FabricIntentError.invalidValue("Use Label=Value format")
+    private func registryWrapper(for registryNode: FabricRegistryNodeEntity) throws -> NodeClassWrapper {
+        guard let wrapper = NodeRegistry.shared.availableNodes.first(where: { node in
+            node.nodeName == registryNode.nodeName &&
+            String(describing: node.nodeClass) == registryNode.nodeClassName
+        }) else {
+            throw FabricIntentError.registryNodeNotFound(registryNode.nodeName)
         }
 
-        let label = String(assignment[..<delimiterIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
-        let valueStartIndex = assignment.index(after: delimiterIndex)
-        let value = String(assignment[valueStartIndex...]).trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard !label.isEmpty else {
-            throw FabricIntentError.invalidValue("Missing parameter label")
-        }
-
-        return (label, value)
+        return wrapper
     }
 
-    private func parseFloatComponents(_ rawValue: String, expectedCount: Int) throws -> [Float] {
-        let components = rawValue
-            .split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-
-        guard components.count == expectedCount else {
-            throw FabricIntentError.invalidValue("Expected \(expectedCount) comma-separated values")
-        }
-
-        let numbers = try components.map { component -> Float in
-            guard let value = Float(component) else {
-                throw FabricIntentError.invalidValue("'\(component)' is not a number")
-            }
-            return value
-        }
-
-        return numbers
-    }
-
-    private func apply(rawValue: String, to parameter: any Parameter, label: String) throws {
-        if let parameter = parameter as? BoolParameter {
-            guard let value = Bool(rawValue) else {
-                throw FabricIntentError.invalidValue("'\(rawValue)' is not a Bool")
-            }
-            parameter.value = value
-            return
-        }
-
-        if let parameter = parameter as? GenericParameter<Bool> {
-            guard let value = Bool(rawValue) else {
-                throw FabricIntentError.invalidValue("'\(rawValue)' is not a Bool")
-            }
-            parameter.value = value
-            return
-        }
-
-        if let parameter = parameter as? IntParameter {
-            guard let value = Int(rawValue) else {
-                throw FabricIntentError.invalidValue("'\(rawValue)' is not an Int")
-            }
-            parameter.value = value
-            return
-        }
-
-        if let parameter = parameter as? GenericParameter<Int> {
-            guard let value = Int(rawValue) else {
-                throw FabricIntentError.invalidValue("'\(rawValue)' is not an Int")
-            }
-            parameter.value = value
-            return
-        }
-
-        if let parameter = parameter as? FloatParameter {
-            guard let value = Float(rawValue) else {
-                throw FabricIntentError.invalidValue("'\(rawValue)' is not a Float")
-            }
-            parameter.value = value
-            return
-        }
-
-        if let parameter = parameter as? GenericParameter<Float> {
-            guard let value = Float(rawValue) else {
-                throw FabricIntentError.invalidValue("'\(rawValue)' is not a Float")
-            }
-            parameter.value = value
-            return
-        }
-
-        if let parameter = parameter as? StringParameter {
-            parameter.value = rawValue
-            return
-        }
-
-        if let parameter = parameter as? GenericParameter<String> {
-            parameter.value = rawValue
-            return
-        }
-
-        if let parameter = parameter as? Float2Parameter {
-            let values = try self.parseFloatComponents(rawValue, expectedCount: 2)
-            parameter.value = simd_float2(values[0], values[1])
-            return
-        }
-
-        if let parameter = parameter as? GenericParameter<simd_float2> {
-            let values = try self.parseFloatComponents(rawValue, expectedCount: 2)
-            parameter.value = simd_float2(values[0], values[1])
-            return
-        }
-
-        if let parameter = parameter as? Float3Parameter {
-            let values = try self.parseFloatComponents(rawValue, expectedCount: 3)
-            parameter.value = simd_float3(values[0], values[1], values[2])
-            return
-        }
-
-        if let parameter = parameter as? GenericParameter<simd_float3> {
-            let values = try self.parseFloatComponents(rawValue, expectedCount: 3)
-            parameter.value = simd_float3(values[0], values[1], values[2])
-            return
-        }
-
-        if let parameter = parameter as? Float4Parameter {
-            let values = try self.parseFloatComponents(rawValue, expectedCount: 4)
-            parameter.value = simd_float4(values[0], values[1], values[2], values[3])
-            return
-        }
-
-        if let parameter = parameter as? GenericParameter<simd_float4> {
-            let values = try self.parseFloatComponents(rawValue, expectedCount: 4)
-            parameter.value = simd_float4(values[0], values[1], values[2], values[3])
-            return
-        }
-
-        throw FabricIntentError.unsupportedParameterType(label)
-    }
-
-    private func registryWrapper(for entity: FabricRegistryNodeEntity) throws -> NodeClassWrapper {
-        let matchingWrapper = NodeRegistry.shared.availableNodes.first { wrapper in
-            String(describing: wrapper.nodeClass) == entity.nodeClassName
-                && wrapper.nodeName == entity.nodeName
-                && wrapper.fileURL?.path == entity.sourcePath
-        }
-
-        guard let matchingWrapper else {
-            throw FabricIntentError.registryNodeNotFound(entity.nodeName)
-        }
-
-        return matchingWrapper
-    }
-
-    private func makeGraphEntity(graph: Graph, url: URL) -> FabricGraphEntity {
-        let displayName = url.deletingPathExtension().lastPathComponent
+    private func makeGraphEntity(graph: Graph, fileURL: URL?) -> FabricGraphEntity {
+        let publishedParameterCount = graph.getPublishedPorts().count
         return FabricGraphEntity(
-            graphURL: url.absoluteString,
-            displayName: displayName,
-            graphIdentifier: graph.id.uuidString
+            graphURL: fileURL?.absoluteString ?? self.untitledGraphURL(for: graph.id),
+            displayName: fileURL?.deletingPathExtension().lastPathComponent ?? "Untitled",
+            graphIdentifier: graph.id.uuidString,
+            nodeCount: graph.nodes.count,
+            publishedParameterCount: publishedParameterCount
         )
     }
 
@@ -495,18 +651,24 @@ final class FabricDocumentAutomationService {
             portName: port.name,
             portDisplayName: port.displayName,
             kind: port.kind.rawValue,
-            portType: port.portType.rawValue
+            portType: port.portType.rawValue,
+            isPublished: port.published,
+            connectionCount: port.connections.count
         )
     }
 
-    private func makePublishedParameterEntity(parameter: any Parameter, port: Fabric.Port, graphURL: String) -> FabricPublishedParameterEntity {
+    private func makePublishedParameterEntity(
+        parameter: any Parameter,
+        port: Fabric.Port,
+        graphURL: String
+    ) -> FabricPublishedParameterEntity {
         FabricPublishedParameterEntity(
             graphURL: graphURL,
             parameterIdentifier: parameter.id.uuidString,
             publishedPortIdentifier: port.id.uuidString,
             label: port.displayName,
             valueSummary: self.parameterValueSummary(parameter),
-            controlType: parameter.controlType.rawValue,
+            controlType: String(describing: type(of: parameter)),
             parameterType: port.portType.rawValue
         )
     }
@@ -522,62 +684,31 @@ final class FabricDocumentAutomationService {
     }
 
     private func parameterValueSummary(_ parameter: any Parameter) -> String {
-        if let parameter = parameter as? BoolParameter {
-            return String(parameter.value)
-        }
-
-        if let parameter = parameter as? GenericParameter<Bool> {
-            return String(parameter.value)
-        }
-
-        if let parameter = parameter as? IntParameter {
-            return String(parameter.value)
-        }
-
-        if let parameter = parameter as? GenericParameter<Int> {
-            return String(parameter.value)
-        }
-
-        if let parameter = parameter as? FloatParameter {
-            return String(parameter.value)
-        }
-
-        if let parameter = parameter as? GenericParameter<Float> {
-            return String(parameter.value)
-        }
-
-        if let parameter = parameter as? StringParameter {
+        switch parameter {
+        case let parameter as BoolParameter:
+            return parameter.value.description
+        case let parameter as IntParameter:
+            return parameter.value.description
+        case let parameter as FloatParameter:
+            return parameter.value.formatted(.number.precision(.fractionLength(3)))
+        case let parameter as DoubleParameter:
+            return parameter.value.formatted(.number.precision(.fractionLength(3)))
+        case let parameter as StringParameter:
             return parameter.value
+        case let parameter as Float2Parameter:
+            return [parameter.value.x, parameter.value.y]
+                .map { $0.formatted(.number.precision(.fractionLength(3))) }
+                .joined(separator: ", ")
+        case let parameter as Float3Parameter:
+            return [parameter.value.x, parameter.value.y, parameter.value.z]
+                .map { $0.formatted(.number.precision(.fractionLength(3))) }
+                .joined(separator: ", ")
+        case let parameter as Float4Parameter:
+            return [parameter.value.x, parameter.value.y, parameter.value.z, parameter.value.w]
+                .map { $0.formatted(.number.precision(.fractionLength(3))) }
+                .joined(separator: ", ")
+        default:
+            return parameter.description
         }
-
-        if let parameter = parameter as? GenericParameter<String> {
-            return parameter.value
-        }
-
-        if let parameter = parameter as? Float2Parameter {
-            return "\(parameter.value.x), \(parameter.value.y)"
-        }
-
-        if let parameter = parameter as? GenericParameter<simd_float2> {
-            return "\(parameter.value.x), \(parameter.value.y)"
-        }
-
-        if let parameter = parameter as? Float3Parameter {
-            return "\(parameter.value.x), \(parameter.value.y), \(parameter.value.z)"
-        }
-
-        if let parameter = parameter as? GenericParameter<simd_float3> {
-            return "\(parameter.value.x), \(parameter.value.y), \(parameter.value.z)"
-        }
-
-        if let parameter = parameter as? Float4Parameter {
-            return "\(parameter.value.x), \(parameter.value.y), \(parameter.value.z), \(parameter.value.w)"
-        }
-
-        if let parameter = parameter as? GenericParameter<simd_float4> {
-            return "\(parameter.value.x), \(parameter.value.y), \(parameter.value.z), \(parameter.value.w)"
-        }
-
-        return parameter.debugDescription
     }
 }
