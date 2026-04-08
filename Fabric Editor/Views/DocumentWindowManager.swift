@@ -22,6 +22,7 @@ private enum ToolbarID
 
 class DocumentOutputWindowManager : NSObject
 {
+    weak var ownerDocument: FabricDocument?
     private var outputwindow:NSWindow? = nil
     private var outputRenderer:CAMetalDisplayLinkRenderer? = nil
     
@@ -72,6 +73,19 @@ class DocumentOutputWindowManager : NSObject
         self.outputwindow?.title = name
     }
 
+    func snapshotExportState() -> (time: TimeInterval, size: (width: Int, height: Int))?
+    {
+        guard
+            let outputRenderer = self.outputRenderer,
+            let lastRenderedGraphTime = outputRenderer.lastRenderedGraphTime,
+            let lastRenderedDrawableSize = outputRenderer.lastRenderedDrawableSize
+        else {
+            return nil
+        }
+
+        return (time: lastRenderedGraphTime, size: lastRenderedDrawableSize)
+    }
+
     
     func closeOutputWindow()
     {
@@ -86,6 +100,11 @@ class DocumentOutputWindowManager : NSObject
 
 extension DocumentOutputWindowManager: NSWindowDelegate
 {
+    func windowDidBecomeMain(_ notification: Notification)
+    {
+        ActiveFabricDocumentStore.shared.activeDocument = self.ownerDocument
+    }
+
     func windowWillClose(_ notification: Notification)
     {
         // Tell the renderer to stop *all* time/display-linked work
@@ -156,4 +175,3 @@ extension DocumentOutputWindowManager: NSToolbarDelegate
         self.playPauseItem?.label = isPlaying ? "Play" : "Pause"
     }
 }
-

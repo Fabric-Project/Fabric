@@ -80,6 +80,10 @@ struct DocumentCommands:Commands
     @FocusedBinding(\.document) var document: FabricDocument?
     @FocusedBinding(\.editorInputFocus) var editorInputFocus: FabricEditorInputFocus?
 
+    private var activeDocument: FabricDocument? {
+        self.document ?? ActiveFabricDocumentStore.shared.activeDocument
+    }
+
     private var isCanvasFocused: Bool {
         self.editorInputFocus == .canvas
     }
@@ -153,6 +157,15 @@ struct DocumentCommands:Commands
             .keyboardShortcut(.return, modifiers: .command)
             .disabled(self.isCanvasFocused ? (self.document?.editingContext.currentGraph.nodes.isEmpty ?? true) : false)
         }
+
+        CommandGroup(after: .saveItem)
+        {
+            Button("Export Image…")
+            {
+                self.activeDocument?.exportSnapshotImage()
+            }
+            .disabled(self.activeDocument == nil)
+        }
     }
 }
 
@@ -204,5 +217,3 @@ extension FocusedValues
         }
     }
 }
-
-

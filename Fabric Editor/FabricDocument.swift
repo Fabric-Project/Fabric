@@ -12,6 +12,16 @@ import Metal
 import Fabric
 import Satin
 
+@MainActor
+final class ActiveFabricDocumentStore
+{
+    static let shared = ActiveFabricDocumentStore()
+
+    weak var activeDocument: FabricDocument?
+
+    private init() {}
+}
+
 extension UTType {
     static var fabricDocument: UTType {
         UTType(importedAs: "info.HiRez.fabric")
@@ -126,16 +136,67 @@ class FabricDocument: FileDocument
       
     }
 
+    @MainActor
     func setupOutputWindow()
     {
         self.outputWindowManager = DocumentOutputWindowManager()
+        self.outputWindowManager?.ownerDocument = self
         self.outputWindowManager?.setGraph(graph: self.editingContext.rootGraph)
         self.outputWindowManager?.setWindowName(self.graphName)
+        ActiveFabricDocumentStore.shared.activeDocument = self
     }
     
+    @MainActor
     func closeOutputWindow()
     {
         self.outputWindowManager?.closeOutputWindow()
+        if ActiveFabricDocumentStore.shared.activeDocument === self {
+            ActiveFabricDocumentStore.shared.activeDocument = nil
+        }
+    }
+
+    @MainActor
+    func exportSnapshotImage()
+    {
+        guard let snapshotExportState = self.outputWindowManager?.snapshotExportState() else {
+            self.presentExportAlert(
+                title: "Unable to Export Image",
+                message: "Snapshot export requires an active output window that has already rendered a frame."
+            )
+            return
+        }
+
+        let savePanel = NSSavePanel()
+        savePanel.allowedContentTypes = [.png]
+        savePanel.canCreateDirectories = true
+        savePanel.isExtensionHidden = false
+        savePanel.nameFieldStringValue = self.defaultImageExportFilename()
+
+        guard savePanel.runModal() == .OK, let url = savePanel.url else {
+            return
+        }
+
+        let configuration = GraphImageExportConfiguration(
+            url: url,
+            size: snapshotExportState.size,
+            time: snapshotExportState.time,
+            format: .png
+        )
+
+        let exporter = GraphImageExporter(
+            graph: self.editingContext.rootGraph,
+            context: self.context,
+            configuration: configuration
+        )
+
+        do {
+            try exporter.export()
+        } catch {
+            self.presentExportAlert(
+                title: "Image Export Failed",
+                message: error.localizedDescription
+            )
+        }
     }
     
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper
@@ -146,5 +207,26 @@ class FabricDocument: FileDocument
         let data = try encoder.encode(self.editingContext.rootGraph)
         
         return .init(regularFileWithContents: data)
+    }
+
+    private func defaultImageExportFilename() -> String
+    {
+        let sanitizedGraphName = self.graphName.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if sanitizedGraphName.isEmpty {
+            return "Untitled.png"
+        }
+
+        return "\(sanitizedGraphName).png"
+    }
+
+    @MainActor
+    private func presentExportAlert(title: String, message: String)
+    {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = title
+        alert.informativeText = message
+        alert.runModal()
     }
 }

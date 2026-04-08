@@ -29,11 +29,7 @@ enum GraphImageExportFormat {
         }
     }
 
-    var colorPixelFormat: MTLPixelFormat {
-        .bgra8Unorm
-    }
-
-    var ciFormat: CIFormat {
+    var encodedCIFormat: CIFormat {
         .BGRA8
     }
 }
@@ -67,40 +63,62 @@ final class GraphImageExporter {
 
     func export() throws {
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: self.configuration.format.colorPixelFormat,
+            pixelFormat: .rgba16Float,
             width: self.configuration.size.width,
             height: self.configuration.size.height,
             mipmapped: false
         )
         descriptor.usage = [.renderTarget, .shaderRead]
 
-        guard let texture = self.context.device.makeTexture(descriptor: descriptor) else {
+        guard let colorTexture = self.context.device.makeTexture(descriptor: descriptor) else {
             throw GraphImageExporterError.textureCreationFailed
         }
 
+        let depthDescriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: self.context.depthPixelFormat,
+            width: self.configuration.size.width,
+            height: self.configuration.size.height,
+            mipmapped: false
+        )
+        depthDescriptor.storageMode = .private
+        depthDescriptor.usage = [.renderTarget]
+
+        guard let depthTexture = self.context.device.makeTexture(descriptor: depthDescriptor) else {
+            throw GraphImageExporterError.textureCreationFailed
+        }
+
+        let exportGraph = try self.makeExportGraphCopy()
+
         let renderer = GraphExportRenderer(
-            graph: self.graph,
+            graph: exportGraph,
             context: self.context,
-            size: self.configuration.size,
-            colorPixelFormat: self.configuration.format.colorPixelFormat
+            size: self.configuration.size
         )
 
-        try renderer.renderSingleFrame(into: texture, time: self.configuration.time)
+        try renderer.renderSingleFrame(
+            into: colorTexture,
+            depthTexture: depthTexture,
+            time: self.configuration.time
+        )
 
-        let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+        let sourceColorSpace = CGColorSpace(name: CGColorSpace.linearSRGB) ?? CGColorSpaceCreateDeviceRGB()
+        let outputColorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
         let bounds = CGRect(
             x: 0,
             y: 0,
-            width: texture.width,
-            height: texture.height
+            width: colorTexture.width,
+            height: colorTexture.height
         )
 
-        guard let image = CIImage(mtlTexture: texture, options: [CIImageOption.colorSpace: colorSpace]),
+        guard let image = CIImage(
+            mtlTexture: colorTexture,
+            options: [CIImageOption.colorSpace: sourceColorSpace]
+        ),
               let cgImage = self.ciContext.createCGImage(
                 image,
                 from: bounds,
-                format: self.configuration.format.ciFormat,
-                colorSpace: colorSpace
+                format: self.configuration.format.encodedCIFormat,
+                colorSpace: outputColorSpace
               ) else {
             throw GraphImageExporterError.imageCreationFailed
         }
@@ -128,5 +146,14 @@ final class GraphImageExporter {
         guard CGImageDestinationFinalize(destination) else {
             throw GraphImageExporterError.imageFinalizationFailed
         }
+    }
+
+    private func makeExportGraphCopy() throws -> Graph {
+        let encoder = JSONEncoder()
+        let graphData = try encoder.encode(self.graph)
+
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: self.context)
+        return try decoder.decode(Graph.self, from: graphData)
     }
 }
