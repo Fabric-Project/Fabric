@@ -7,6 +7,7 @@
 
 import Foundation
 import AVFoundation
+import CoreImage
 import CoreVideo
 import Metal
 import Fabric
@@ -17,6 +18,19 @@ enum GraphMovieExportCodec {
     case hevc
     case proRes422
     case proRes4444
+
+    var label: String {
+        switch self {
+        case .h264:
+            return "H.264"
+        case .hevc:
+            return "HEVC"
+        case .proRes422:
+            return "ProRes 422"
+        case .proRes4444:
+            return "ProRes 4444"
+        }
+    }
 
     var avCodec: AVVideoCodecType {
         switch self {
@@ -37,7 +51,7 @@ struct GraphMovieExportConfiguration {
     let size: (width: Int, height: Int)
     let startTime: TimeInterval
     let duration: TimeInterval
-    let frameRate: Int
+    let frameRate: Double
     let codec: GraphMovieExportCodec
 }
 
@@ -50,6 +64,7 @@ enum GraphMovieExporterError: Error {
     case pixelBufferCreationFailed
     case textureCacheCreationFailed
     case textureCreationFailed
+    case writerInputNotReady
     case assetWriterFailed(Error?)
 }
 
@@ -57,14 +72,16 @@ final class GraphMovieExporter {
     private let graph: Graph
     private let context: Context
     private let configuration: GraphMovieExportConfiguration
+    private let ciContext: CIContext
 
     init(graph: Graph, context: Context, configuration: GraphMovieExportConfiguration) {
         self.graph = graph
         self.context = context
         self.configuration = configuration
+        self.ciContext = CIContext(mtlDevice: context.device)
     }
 
-    func export() throws {
+    func export() async throws {
         guard self.configuration.frameRate > 0 else {
             throw GraphMovieExporterError.invalidFrameRate
         }
@@ -73,7 +90,7 @@ final class GraphMovieExporter {
             throw GraphMovieExporterError.invalidDuration
         }
 
-        let frameCount = Int((self.configuration.duration * Double(self.configuration.frameRate)).rounded(.down))
+        let frameCount = Int((self.configuration.duration * self.configuration.frameRate).rounded(.down))
         guard frameCount > 0 else {
             throw GraphMovieExporterError.invalidFrameCount
         }
@@ -131,15 +148,25 @@ final class GraphMovieExporter {
         }
 
         let renderer = GraphExportRenderer(
-            graph: self.graph,
+            graph: try self.makeExportGraphCopy(),
             context: self.context,
-            size: self.configuration.size,
-            colorPixelFormat: .bgra8Unorm
+            size: self.configuration.size
         )
+
+        let colorTexture = try self.makeIntermediateColorTexture()
+        let depthTexture = try self.makeIntermediateDepthTexture()
 
         renderer.start()
 
-        let frameDuration = CMTime(value: 1, timescale: CMTimeScale(self.configuration.frameRate))
+        let frameDuration = self.frameDuration()
+        let sourceColorSpace = CGColorSpace(name: CGColorSpace.linearSRGB) ?? CGColorSpaceCreateDeviceRGB()
+        let outputColorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+        let bounds = CGRect(
+            x: 0,
+            y: 0,
+            width: self.configuration.size.width,
+            height: self.configuration.size.height
+        )
 
         do {
             for frameIndex in 0 ..< frameCount {
@@ -169,14 +196,38 @@ final class GraphMovieExporter {
 
                 guard textureStatus == kCVReturnSuccess,
                       let cvMetalTexture,
-                      let metalTexture = CVMetalTextureGetTexture(cvMetalTexture) else {
+                      CVMetalTextureGetTexture(cvMetalTexture) != nil else {
                     throw GraphMovieExporterError.textureCreationFailed
                 }
 
-                let graphTime = self.configuration.startTime + (Double(frameIndex) / Double(self.configuration.frameRate))
-                try renderer.renderFrame(into: metalTexture, time: graphTime)
+                let graphTime = self.configuration.startTime + (Double(frameIndex) / self.configuration.frameRate)
+                try renderer.renderFrame(
+                    into: colorTexture,
+                    depthTexture: depthTexture,
+                    time: graphTime
+                )
+
+                guard let image = CIImage(
+                    mtlTexture: colorTexture,
+                    options: [CIImageOption.colorSpace: sourceColorSpace]
+                ) else {
+                    throw GraphMovieExporterError.textureCreationFailed
+                }
+
+                let outputImage = self.orientedOutputImage(
+                    from: image,
+                    pixelBuffer: pixelBuffer
+                )
+
+                self.ciContext.render(
+                    outputImage,
+                    to: pixelBuffer,
+                    bounds: bounds,
+                    colorSpace: outputColorSpace
+                )
 
                 let presentationTime = CMTimeMultiply(frameDuration, multiplier: Int32(frameIndex))
+                try await self.waitUntilReadyForMoreMediaData(writer: writer, writerInput: writerInput)
                 guard adaptor.append(pixelBuffer, withPresentationTime: presentationTime) else {
                     throw GraphMovieExporterError.writerInputAppendFailed
                 }
@@ -191,18 +242,103 @@ final class GraphMovieExporter {
         renderer.finish()
         writerInput.markAsFinished()
 
-        let semaphore = DispatchSemaphore(value: 0)
-        var completionError: Error?
-
-        writer.finishWriting {
-            completionError = writer.error
-            semaphore.signal()
-        }
-
-        semaphore.wait()
-
-        if let completionError {
+        if let completionError = try await self.finishWriting(writer) {
             throw GraphMovieExporterError.assetWriterFailed(completionError)
         }
+    }
+
+    private func makeExportGraphCopy() throws -> Graph {
+        let encoder = JSONEncoder()
+        let graphData = try encoder.encode(self.graph)
+
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: self.context)
+        return try decoder.decode(Graph.self, from: graphData)
+    }
+
+    private func frameDuration() -> CMTime {
+        switch self.configuration.frameRate {
+        case 23.976:
+            return CMTime(value: 1001, timescale: 24000)
+        case 29.97:
+            return CMTime(value: 1001, timescale: 30000)
+        case 59.94:
+            return CMTime(value: 1001, timescale: 60000)
+        default:
+            let preferredTimescale: CMTimeScale = 600_000
+            let secondsPerFrame = 1.0 / self.configuration.frameRate
+            let frameValue = Int64((secondsPerFrame * Double(preferredTimescale)).rounded())
+            return CMTime(value: frameValue, timescale: preferredTimescale)
+        }
+    }
+
+    private func makeIntermediateColorTexture() throws -> MTLTexture {
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: self.context.colorPixelFormat,
+            width: self.configuration.size.width,
+            height: self.configuration.size.height,
+            mipmapped: false
+        )
+        descriptor.usage = [.renderTarget, .shaderRead]
+
+        guard let texture = self.context.device.makeTexture(descriptor: descriptor) else {
+            throw GraphMovieExporterError.textureCreationFailed
+        }
+
+        return texture
+    }
+
+    private func makeIntermediateDepthTexture() throws -> MTLTexture {
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: self.context.depthPixelFormat,
+            width: self.configuration.size.width,
+            height: self.configuration.size.height,
+            mipmapped: false
+        )
+        descriptor.storageMode = .private
+        descriptor.usage = [.renderTarget]
+
+        guard let texture = self.context.device.makeTexture(descriptor: descriptor) else {
+            throw GraphMovieExporterError.textureCreationFailed
+        }
+
+        return texture
+    }
+
+    private func finishWriting(_ writer: AVAssetWriter) async throws -> Error? {
+        try await withCheckedThrowingContinuation { continuation in
+            writer.finishWriting {
+                continuation.resume(returning: writer.error)
+            }
+        }
+    }
+
+    private func waitUntilReadyForMoreMediaData(
+        writer: AVAssetWriter,
+        writerInput: AVAssetWriterInput
+    ) async throws {
+        while !writerInput.isReadyForMoreMediaData {
+            if writer.status == .failed || writer.status == .cancelled {
+                throw GraphMovieExporterError.assetWriterFailed(writer.error)
+            }
+
+            try await Task.sleep(for: .milliseconds(1))
+        }
+    }
+
+    private func orientedOutputImage(from image: CIImage, pixelBuffer: CVPixelBuffer) -> CIImage {
+        if self.pixelBufferIsFlipped(pixelBuffer) {
+            return image
+        }
+
+        let imageExtent = image.extent
+        let flipTransform = CGAffineTransform(translationX: 0, y: imageExtent.height)
+            .scaledBy(x: 1, y: -1)
+
+        return image.transformed(by: flipTransform)
+    }
+
+    private func pixelBufferIsFlipped(_ pixelBuffer: CVPixelBuffer) -> Bool {
+        CVImageBufferIsFlipped(pixelBuffer)
     }
 }

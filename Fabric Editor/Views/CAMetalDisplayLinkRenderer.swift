@@ -17,6 +17,18 @@ class CAMetalDisplayLinkRenderer: GameView
     let graph:Graph
     private(set) var lastRenderedGraphTime: TimeInterval?
     private(set) var lastRenderedDrawableSize: (width: Int, height: Int)?
+    var currentDrawablePixelSize: (width: Int, height: Int)?
+    {
+        let drawableSize = self.metalLayer.drawableSize
+        let width = Int(drawableSize.width.rounded())
+        let height = Int(drawableSize.height.rounded())
+
+        guard width > 0, height > 0 else {
+            return self.lastRenderedDrawableSize
+        }
+
+        return (width: width, height: height)
+    }
 
 //    private let commandQueue: (any MTLCommandQueue)
     private let renderPassDescriptor = MTLRenderPassDescriptor()

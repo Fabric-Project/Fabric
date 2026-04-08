@@ -86,6 +86,11 @@ class DocumentOutputWindowManager : NSObject
         return (time: lastRenderedGraphTime, size: lastRenderedDrawableSize)
     }
 
+    func currentViewerSize() -> (width: Int, height: Int)?
+    {
+        self.outputRenderer?.currentDrawablePixelSize
+    }
+
     
     func closeOutputWindow()
     {

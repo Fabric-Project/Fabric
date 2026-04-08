@@ -165,6 +165,12 @@ struct DocumentCommands:Commands
                 self.activeDocument?.exportSnapshotImage()
             }
             .disabled(self.activeDocument == nil)
+
+            Button("Export Movie…")
+            {
+                self.activeDocument?.exportMovie()
+            }
+            .disabled(self.activeDocument == nil)
         }
     }
 }

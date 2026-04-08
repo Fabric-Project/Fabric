@@ -198,6 +198,58 @@ class FabricDocument: FileDocument
             )
         }
     }
+
+    @MainActor
+    func exportMovie()
+    {
+        let initialSettings = MovieExportSettings(
+            startTime: 0,
+            duration: 5,
+            viewerSize: self.outputWindowManager?.currentViewerSize()
+        )
+
+        guard let exportConfiguration = self.presentMovieExportSettingsPanel(initialSettings: initialSettings) else {
+            return
+        }
+
+        let savePanel = NSSavePanel()
+        savePanel.allowedContentTypes = [UTType(filenameExtension: "mov") ?? .movie]
+        savePanel.canCreateDirectories = true
+        savePanel.isExtensionHidden = false
+        savePanel.nameFieldStringValue = self.defaultMovieExportFilename()
+
+        guard savePanel.runModal() == .OK, let url = savePanel.url else {
+            return
+        }
+
+        let configuration = GraphMovieExportConfiguration(
+            url: url,
+            size: exportConfiguration.size,
+            startTime: exportConfiguration.startTime,
+            duration: exportConfiguration.duration,
+            frameRate: exportConfiguration.frameRate,
+            codec: exportConfiguration.codec
+        )
+
+        let exporter = GraphMovieExporter(
+            graph: self.editingContext.rootGraph,
+            context: self.context,
+            configuration: configuration
+        )
+
+        Task {
+            do {
+                try await exporter.export()
+            } catch {
+                await MainActor.run {
+                    self.presentExportAlert(
+                        title: "Movie Export Failed",
+                        message: error.localizedDescription
+                    )
+                }
+            }
+        }
+    }
     
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper
     {
@@ -220,6 +272,17 @@ class FabricDocument: FileDocument
         return "\(sanitizedGraphName).png"
     }
 
+    private func defaultMovieExportFilename() -> String
+    {
+        let sanitizedGraphName = self.graphName.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if sanitizedGraphName.isEmpty {
+            return "Untitled.mov"
+        }
+
+        return "\(sanitizedGraphName).mov"
+    }
+
     @MainActor
     private func presentExportAlert(title: String, message: String)
     {
@@ -228,5 +291,40 @@ class FabricDocument: FileDocument
         alert.messageText = title
         alert.informativeText = message
         alert.runModal()
+    }
+
+    @MainActor
+    private func presentMovieExportSettingsPanel(initialSettings: MovieExportSettings) -> MovieExportConfiguration?
+    {
+        let viewModel = MovieExportSettingsViewModel(initialSettings: initialSettings)
+        let panel = NSPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 460, height: 460),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false
+        )
+        panel.title = "Export Movie"
+        panel.isReleasedWhenClosed = false
+        panel.level = .modalPanel
+        panel.center()
+
+        var selection: MovieExportConfiguration?
+        let rootView = MovieExportSettingsView(
+            viewModel: viewModel,
+            onCancel: {
+                NSApp.stopModal(withCode: .cancel)
+                panel.orderOut(nil)
+            },
+            onExport: {
+                selection = viewModel.makeConfiguration()
+                NSApp.stopModal(withCode: .OK)
+                panel.orderOut(nil)
+            }
+        )
+
+        let hostingController = NSHostingController(rootView: rootView)
+        panel.contentViewController = hostingController
+        NSApp.runModal(for: panel)
+        return selection
     }
 }
