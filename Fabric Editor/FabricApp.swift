@@ -160,17 +160,22 @@ struct DocumentCommands:Commands
 
         CommandGroup(after: .saveItem)
         {
-            Button("Export Image…")
+            Divider() // Optional: separates the submenu from system items
+            
+            Menu("Export")
             {
-                self.activeDocument?.exportSnapshotImage()
+                Button("Image…")
+                {
+                    self.activeDocument?.exportSnapshotImage()
+                }
+                .disabled(self.activeDocument == nil)
+                
+                Button("Movie…")
+                {
+                    self.activeDocument?.exportMovie()
+                }
+                .disabled(self.activeDocument == nil)
             }
-            .disabled(self.activeDocument == nil)
-
-            Button("Export Movie…")
-            {
-                self.activeDocument?.exportMovie()
-            }
-            .disabled(self.activeDocument == nil)
         }
     }
 }
