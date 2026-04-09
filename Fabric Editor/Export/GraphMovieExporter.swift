@@ -214,15 +214,12 @@ final class GraphMovieExporter {
                     throw GraphMovieExporterError.textureCreationFailed
                 }
 
-                let outputImage = self.orientedOutputImage(
-                    from: image,
-                    pixelBuffer: pixelBuffer
-                )
+                let outputImage = self.flippedOutputImage(from: image)
 
                 self.ciContext.render(
                     outputImage,
                     to: pixelBuffer,
-                    bounds: bounds,
+                    bounds: outputImage.extent,
                     colorSpace: outputColorSpace
                 )
 
@@ -326,19 +323,11 @@ final class GraphMovieExporter {
         }
     }
 
-    private func orientedOutputImage(from image: CIImage, pixelBuffer: CVPixelBuffer) -> CIImage {
-        if self.pixelBufferIsFlipped(pixelBuffer) {
-            return image
-        }
-
+    private func flippedOutputImage(from image: CIImage) -> CIImage {
         let imageExtent = image.extent
-        let flipTransform = CGAffineTransform(translationX: 0, y: imageExtent.height)
-            .scaledBy(x: 1, y: -1)
+        let flipTransform = CGAffineTransform(scaleX: 1, y: -1)
+            .translatedBy(x: 0, y: -imageExtent.height)
 
         return image.transformed(by: flipTransform)
-    }
-
-    private func pixelBufferIsFlipped(_ pixelBuffer: CVPixelBuffer) -> Bool {
-        CVImageBufferIsFlipped(pixelBuffer)
     }
 }
