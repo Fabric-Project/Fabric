@@ -73,24 +73,18 @@ class DocumentOutputWindowManager : NSObject
         self.outputwindow?.title = name
     }
 
-    func snapshotExportState() -> (time: TimeInterval, size: (width: Int, height: Int))?
+    func snapshotExportTime() -> TimeInterval
     {
         guard
             let outputRenderer = self.outputRenderer,
-            let lastRenderedGraphTime = outputRenderer.lastRenderedGraphTime,
-            let lastRenderedDrawableSize = outputRenderer.lastRenderedDrawableSize
-        else {
-            return nil
+            let lastRenderedGraphTime = outputRenderer.lastRenderedGraphTime
+        else
+        {
+            return 0
         }
 
-        return (time: lastRenderedGraphTime, size: lastRenderedDrawableSize)
+        return lastRenderedGraphTime
     }
-
-    func currentViewerSize() -> (width: Int, height: Int)?
-    {
-        self.outputRenderer?.currentDrawablePixelSize
-    }
-
     
     func closeOutputWindow()
     {

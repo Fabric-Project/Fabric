@@ -43,6 +43,7 @@ class FabricDocument: FileDocument
     let editingContext: GraphCanvasContext
 
     @ObservationIgnored var outputWindowManager:DocumentOutputWindowManager? = nil
+    @MainActor lazy var movieExportCoordinator = MovieExportCoordinator()
     
     init()
     {
@@ -105,6 +106,13 @@ class FabricDocument: FileDocument
 
         // Auto-layout the graph
         self.editingContext.currentGraph.autoLayout()
+        
+        Task
+        {
+            await MainActor.run {
+                ActiveFabricDocumentStore.shared.activeDocument = self
+            }
+        }
     }
 
     required init(configuration: ReadConfiguration) throws
@@ -128,6 +136,13 @@ class FabricDocument: FileDocument
         self.editingContext = GraphCanvasContext(rootGraph: graph)
 
         self.graphName = name
+        
+        Task
+        {
+            await MainActor.run {
+                ActiveFabricDocumentStore.shared.activeDocument = self
+            }
+        }
     }
 
     deinit
@@ -158,14 +173,7 @@ class FabricDocument: FileDocument
     @MainActor
     func exportSnapshotImage()
     {
-        guard let snapshotExportState = self.outputWindowManager?.snapshotExportState() else {
-            self.presentExportAlert(
-                title: "Unable to Export Image",
-                message: "Snapshot export requires an active output window that has already rendered a frame."
-            )
-            return
-        }
-
+        let snapshotExportTime = self.outputWindowManager?.snapshotExportTime() ?? 0
         let savePanel = NSSavePanel()
         savePanel.allowedContentTypes = [.png]
         savePanel.canCreateDirectories = true
@@ -178,8 +186,8 @@ class FabricDocument: FileDocument
 
         let configuration = GraphImageExportConfiguration(
             url: url,
-            size: snapshotExportState.size,
-            time: snapshotExportState.time,
+            size: (width: 1920, height:1080),
+            time: snapshotExportTime,
             format: .png
         )
 
@@ -202,16 +210,21 @@ class FabricDocument: FileDocument
     @MainActor
     func exportMovie()
     {
-        let initialSettings = MovieExportSettings(
+        self.movieExportCoordinator.present(initialSettings: MovieExportSettings(
             startTime: 0,
-            duration: 5,
-            viewerSize: self.outputWindowManager?.currentViewerSize()
-        )
+            duration: 5
+        ))
+    }
 
-        guard let exportConfiguration = self.presentMovieExportSettingsPanel(initialSettings: initialSettings) else {
-            return
-        }
+    @MainActor
+    func dismissMovieExportSheet()
+    {
+        self.movieExportCoordinator.dismiss()
+    }
 
+    @MainActor
+    func continueMovieExport(with exportConfiguration: MovieExportConfiguration)
+    {
         let savePanel = NSSavePanel()
         savePanel.allowedContentTypes = [UTType(filenameExtension: "mov") ?? .movie]
         savePanel.canCreateDirectories = true
@@ -237,18 +250,37 @@ class FabricDocument: FileDocument
             configuration: configuration
         )
 
-        Task {
+        let totalFrames = configuration.expectedFrameCount ?? 0
+        let exportTask = Task {
             do {
-                try await exporter.export()
+                try await exporter.export { completedFrames, totalFrames in
+                    self.movieExportCoordinator.updateProgress(
+                        completedFrames: completedFrames,
+                        totalFrames: totalFrames
+                    )
+                }
+
+                await MainActor.run {
+                    self.movieExportCoordinator.completeExport()
+                }
+            } catch is CancellationError {
+                await MainActor.run {
+                    self.removeIncompleteMovieExport(at: url)
+                    self.movieExportCoordinator.failExport(message: nil)
+                }
             } catch {
                 await MainActor.run {
-                    self.presentExportAlert(
-                        title: "Movie Export Failed",
-                        message: error.localizedDescription
-                    )
+                    self.removeIncompleteMovieExport(at: url)
+                    self.movieExportCoordinator.failExport(message: error.localizedDescription)
                 }
             }
         }
+
+        self.movieExportCoordinator.beginExport(
+            destinationURL: url,
+            totalFrames: totalFrames,
+            task: exportTask
+        )
     }
     
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper
@@ -294,37 +326,10 @@ class FabricDocument: FileDocument
     }
 
     @MainActor
-    private func presentMovieExportSettingsPanel(initialSettings: MovieExportSettings) -> MovieExportConfiguration?
+    private func removeIncompleteMovieExport(at url: URL)
     {
-        let viewModel = MovieExportSettingsViewModel(initialSettings: initialSettings)
-        let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 460, height: 460),
-            styleMask: [.titled],
-            backing: .buffered,
-            defer: false
-        )
-        panel.title = "Export Movie"
-        panel.isReleasedWhenClosed = false
-        panel.level = .modalPanel
-        panel.center()
-
-        var selection: MovieExportConfiguration?
-        let rootView = MovieExportSettingsView(
-            viewModel: viewModel,
-            onCancel: {
-                NSApp.stopModal(withCode: .cancel)
-                panel.orderOut(nil)
-            },
-            onExport: {
-                selection = viewModel.makeConfiguration()
-                NSApp.stopModal(withCode: .OK)
-                panel.orderOut(nil)
-            }
-        )
-
-        let hostingController = NSHostingController(rootView: rootView)
-        panel.contentViewController = hostingController
-        NSApp.runModal(for: panel)
-        return selection
+        if FileManager.default.fileExists(atPath: url.path()) {
+            try? FileManager.default.removeItem(at: url)
+        }
     }
 }

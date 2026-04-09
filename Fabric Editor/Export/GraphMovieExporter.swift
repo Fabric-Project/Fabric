@@ -13,7 +13,9 @@ import Metal
 import Fabric
 import Satin
 
-enum GraphMovieExportCodec {
+enum GraphMovieExportCodec : String, CaseIterable, Identifiable {
+    var id: String { self.rawValue }
+    
     case h264
     case hevc
     case proRes422
@@ -53,6 +55,23 @@ struct GraphMovieExportConfiguration {
     let duration: TimeInterval
     let frameRate: Double
     let codec: GraphMovieExportCodec
+
+    var expectedFrameCount: Int? {
+        guard self.frameRate > 0 else {
+            return nil
+        }
+
+        guard self.duration > 0 else {
+            return nil
+        }
+
+        let frameCount = Int((self.duration * self.frameRate).rounded(.down))
+        guard frameCount > 0 else {
+            return nil
+        }
+
+        return frameCount
+    }
 }
 
 enum GraphMovieExporterError: Error {
@@ -81,7 +100,9 @@ final class GraphMovieExporter {
         self.ciContext = CIContext(mtlDevice: context.device)
     }
 
-    func export() async throws {
+    func export(
+        progressHandler: (@MainActor @Sendable (_ completedFrames: Int, _ totalFrames: Int) -> Void)? = nil
+    ) async throws {
         guard self.configuration.frameRate > 0 else {
             throw GraphMovieExporterError.invalidFrameRate
         }
@@ -90,8 +111,7 @@ final class GraphMovieExporter {
             throw GraphMovieExporterError.invalidDuration
         }
 
-        let frameCount = Int((self.configuration.duration * self.configuration.frameRate).rounded(.down))
-        guard frameCount > 0 else {
+        guard let frameCount = self.configuration.expectedFrameCount else {
             throw GraphMovieExporterError.invalidFrameCount
         }
 
@@ -170,6 +190,8 @@ final class GraphMovieExporter {
 
         do {
             for frameIndex in 0 ..< frameCount {
+                try Task.checkCancellation()
+
                 var pixelBuffer: CVPixelBuffer?
                 let pixelBufferStatus = CVPixelBufferPoolCreatePixelBuffer(
                     kCFAllocatorDefault,
@@ -228,6 +250,8 @@ final class GraphMovieExporter {
                 guard adaptor.append(pixelBuffer, withPresentationTime: presentationTime) else {
                     throw GraphMovieExporterError.writerInputAppendFailed
                 }
+
+                await progressHandler?(frameIndex + 1, frameCount)
             }
         } catch {
             renderer.finish()
@@ -315,6 +339,8 @@ final class GraphMovieExporter {
         writerInput: AVAssetWriterInput
     ) async throws {
         while !writerInput.isReadyForMoreMediaData {
+            try Task.checkCancellation()
+
             if writer.status == .failed || writer.status == .cancelled {
                 throw GraphMovieExporterError.assetWriterFailed(writer.error)
             }
