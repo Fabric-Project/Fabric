@@ -171,6 +171,28 @@ struct ContentView: View {
                 NodeSelectionInspector(editingContext: self.document.editingContext, inputFocus: self.$inputFocus)
                     .inspectorColumnWidth(min:250, ideal:250, max:300)
             }
+            .sheet(
+                isPresented: Binding(
+                    get: {
+                        self.document.movieExportCoordinator.isPresented
+                    },
+                    set: { isPresented in
+                        if !isPresented {
+                            self.document.dismissMovieExportSheet()
+                        }
+                    }
+                )
+            ) {
+                MovieExportSheetView(
+                    coordinator: self.document.movieExportCoordinator,
+                    onDismiss: {
+                        self.document.dismissMovieExportSheet()
+                    },
+                    onContinue: { configuration in
+                        self.document.continueMovieExport(with: configuration)
+                    }
+                )
+            }
             .toolbar
             {
                 ToolbarItem(placement: .automatic)

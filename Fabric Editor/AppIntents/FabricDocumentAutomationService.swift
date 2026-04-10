@@ -363,7 +363,7 @@ final class FabricDocumentAutomationService {
         return self.makeGraphEntity(graph: loadedGraph.graph, fileURL: loadedGraph.fileURL)
     }
 
-    func setPublishedBoolean(_ parameterEntity: FabricPublishedParameterEntity, value: Bool) throws -> FabricPublishedParameterEntity {
+    func setPublishedBoolean(_ parameterEntity: FabricPublishedParameterEntity, value: Bool) throws -> FabricGraphEntity {
         let loadedGraph = try self.loadGraph(forGraphURL: parameterEntity.graphURL)
         let publishedPort = try self.publishedPort(withIdentifier: parameterEntity.publishedPortIdentifier, in: loadedGraph.graph)
         let parameter = try self.parameter(forPublishedPort: publishedPort, label: parameterEntity.label)
@@ -371,10 +371,10 @@ final class FabricDocumentAutomationService {
             throw FabricIntentError.unsupportedParameterType(parameterEntity.label)
         }
         boolParameter.value = value
-        return try self.persistParameterUpdate(graph: loadedGraph, publishedPort: publishedPort, label: parameterEntity.label)
+        return try self.persistParameterUpdate(graph: loadedGraph, label: parameterEntity.label)
     }
 
-    func setPublishedNumber(_ parameterEntity: FabricPublishedParameterEntity, value: Double) throws -> FabricPublishedParameterEntity {
+    func setPublishedNumber(_ parameterEntity: FabricPublishedParameterEntity, value: Double) throws -> FabricGraphEntity {
         let loadedGraph = try self.loadGraph(forGraphURL: parameterEntity.graphURL)
         let publishedPort = try self.publishedPort(withIdentifier: parameterEntity.publishedPortIdentifier, in: loadedGraph.graph)
         let parameter = try self.parameter(forPublishedPort: publishedPort, label: parameterEntity.label)
@@ -387,10 +387,10 @@ final class FabricDocumentAutomationService {
             throw FabricIntentError.unsupportedParameterType(parameterEntity.label)
         }
 
-        return try self.persistParameterUpdate(graph: loadedGraph, publishedPort: publishedPort, label: parameterEntity.label)
+        return try self.persistParameterUpdate(graph: loadedGraph, label: parameterEntity.label)
     }
 
-    func setPublishedInteger(_ parameterEntity: FabricPublishedParameterEntity, value: Int) throws -> FabricPublishedParameterEntity {
+    func setPublishedInteger(_ parameterEntity: FabricPublishedParameterEntity, value: Int) throws -> FabricGraphEntity {
         let loadedGraph = try self.loadGraph(forGraphURL: parameterEntity.graphURL)
         let publishedPort = try self.publishedPort(withIdentifier: parameterEntity.publishedPortIdentifier, in: loadedGraph.graph)
         let parameter = try self.parameter(forPublishedPort: publishedPort, label: parameterEntity.label)
@@ -401,10 +401,10 @@ final class FabricDocumentAutomationService {
             throw FabricIntentError.unsupportedParameterType(parameterEntity.label)
         }
 
-        return try self.persistParameterUpdate(graph: loadedGraph, publishedPort: publishedPort, label: parameterEntity.label)
+        return try self.persistParameterUpdate(graph: loadedGraph, label: parameterEntity.label)
     }
 
-    func setPublishedText(_ parameterEntity: FabricPublishedParameterEntity, value: String) throws -> FabricPublishedParameterEntity {
+    func setPublishedText(_ parameterEntity: FabricPublishedParameterEntity, value: String) throws -> FabricGraphEntity {
         let loadedGraph = try self.loadGraph(forGraphURL: parameterEntity.graphURL)
         let publishedPort = try self.publishedPort(withIdentifier: parameterEntity.publishedPortIdentifier, in: loadedGraph.graph)
         let parameter = try self.parameter(forPublishedPort: publishedPort, label: parameterEntity.label)
@@ -415,10 +415,10 @@ final class FabricDocumentAutomationService {
             throw FabricIntentError.unsupportedParameterType(parameterEntity.label)
         }
 
-        return try self.persistParameterUpdate(graph: loadedGraph, publishedPort: publishedPort, label: parameterEntity.label)
+        return try self.persistParameterUpdate(graph: loadedGraph, label: parameterEntity.label)
     }
 
-    func setPublishedVector(_ parameterEntity: FabricPublishedParameterEntity, components: [Double]) throws -> FabricPublishedParameterEntity {
+    func setPublishedVector(_ parameterEntity: FabricPublishedParameterEntity, components: [Double]) throws -> FabricGraphEntity {
         let loadedGraph = try self.loadGraph(forGraphURL: parameterEntity.graphURL)
         let publishedPort = try self.publishedPort(withIdentifier: parameterEntity.publishedPortIdentifier, in: loadedGraph.graph)
         let parameter = try self.parameter(forPublishedPort: publishedPort, label: parameterEntity.label)
@@ -442,21 +442,26 @@ final class FabricDocumentAutomationService {
             throw FabricIntentError.unsupportedParameterType(parameterEntity.label)
         }
 
-        return try self.persistParameterUpdate(graph: loadedGraph, publishedPort: publishedPort, label: parameterEntity.label)
+        return try self.persistParameterUpdate(graph: loadedGraph, label: parameterEntity.label)
     }
 
-    private func persistParameterUpdate(
-        graph loadedGraph: LoadedGraph,
-        publishedPort: Fabric.Port,
-        label: String
-    ) throws -> FabricPublishedParameterEntity {
+    func automationLoadedGraph(for graphEntity: FabricGraphEntity) throws -> LoadedGraph {
+        try self.loadGraph(for: graphEntity)
+    }
+
+    func automationContext() -> Context {
+        self.makeContext()
+    }
+
+    private func persistParameterUpdate(graph loadedGraph: LoadedGraph, label: String) throws -> FabricGraphEntity {
         loadedGraph.graph.rebuildPublishedParameterGroup()
         try self.persistGraph(loadedGraph)
-        let refreshedPort = try self.publishedPort(withIdentifier: publishedPort.id.uuidString, in: loadedGraph.graph)
-        guard let refreshedParameter = refreshedPort.parameter else {
+        guard loadedGraph.graph.getPublishedPorts().contains(where: { port in
+            port.parameter?.label == label || port.publishedName == label || port.displayName == label
+        }) else {
             throw FabricIntentError.unsupportedParameterType(label)
         }
-        return self.makePublishedParameterEntity(parameter: refreshedParameter, port: refreshedPort, graphURL: loadedGraph.graphURL)
+        return self.makeGraphEntity(graph: loadedGraph.graph, fileURL: loadedGraph.fileURL)
     }
 
     private func publishedParameters(in graph: Graph, graphURL: String) -> [FabricPublishedParameterEntity] {

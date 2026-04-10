@@ -63,6 +63,84 @@ struct SaveGraphIntent: AppIntent {
     }
 }
 
+struct ExportGraphImageIntent: AppIntent {
+    static let title: LocalizedStringResource = "Export Graph Image"
+    static let description = IntentDescription("Export a Fabric graph to an image file.")
+
+    @Parameter(title: "Graph")
+    var graph: FabricGraphEntity
+
+    @Parameter(title: "Destination Path")
+    var destinationPath: String
+
+    @Parameter(title: "Width", default: 1920)
+    var width: Int
+
+    @Parameter(title: "Height", default: 1080)
+    var height: Int
+
+    @Parameter(title: "Time", default: 0)
+    var time: Double
+
+    @Parameter(title: "Format", default: .png)
+    var format: FabricImageExportFormatAppEnum
+
+    func perform() async throws -> some IntentResult & ReturnsValue<IntentFile> & ProvidesDialog {
+        let file = try await FabricGraphExportAutomation.shared.exportImage(
+            graph: self.graph,
+            destinationPath: self.destinationPath,
+            width: self.width,
+            height: self.height,
+            time: self.time,
+            format: self.format
+        )
+        return .result(value: file, dialog: "Exported an image from \(self.graph.displayName).")
+    }
+}
+
+struct ExportGraphMovieIntent: AppIntent {
+    static let title: LocalizedStringResource = "Export Graph Movie"
+    static let description = IntentDescription("Export a Fabric graph to a movie file.")
+
+    @Parameter(title: "Graph")
+    var graph: FabricGraphEntity
+
+    @Parameter(title: "Destination Path")
+    var destinationPath: String
+
+    @Parameter(title: "Start Time", default: 0)
+    var startTime: Double
+
+    @Parameter(title: "Duration", default: 5)
+    var duration: Double
+
+    @Parameter(title: "Width", default: 1920)
+    var width: Int
+
+    @Parameter(title: "Height", default: 1080)
+    var height: Int
+
+    @Parameter(title: "Frame Rate", default: 30)
+    var frameRate: Double
+
+    @Parameter(title: "Codec", default: .h264)
+    var codec: FabricMovieExportCodecAppEnum
+
+    func perform() async throws -> some IntentResult & ReturnsValue<IntentFile> & ProvidesDialog {
+        let file = try await FabricGraphExportAutomation.shared.exportMovie(
+            graph: self.graph,
+            destinationPath: self.destinationPath,
+            startTime: self.startTime,
+            duration: self.duration,
+            width: self.width,
+            height: self.height,
+            frameRate: self.frameRate,
+            codec: self.codec
+        )
+        return .result(value: file, dialog: "Exported a movie from \(self.graph.displayName).")
+    }
+}
+
 struct RevealGraphFileIntent: AppIntent {
     static let title: LocalizedStringResource = "Reveal Graph File"
     static let description = IntentDescription("Reveal a graph file in Finder.")
@@ -360,9 +438,9 @@ struct SetPublishedBooleanIntent: AppIntent {
     @Parameter(title: "Value")
     var value: Bool
 
-    func perform() async throws -> some IntentResult & ReturnsValue<FabricPublishedParameterEntity> & ProvidesDialog {
-        let parameter = try await FabricDocumentAutomationService.shared.setPublishedBoolean(self.parameter, value: self.value)
-        return .result(value: parameter, dialog: "Set \(parameter.label) to \(self.value ? "on" : "off").")
+    func perform() async throws -> some IntentResult & ReturnsValue<FabricGraphEntity> & ProvidesDialog {
+        let graph = try await FabricDocumentAutomationService.shared.setPublishedBoolean(self.parameter, value: self.value)
+        return .result(value: graph, dialog: "Set \(self.parameter.label) to \(self.value ? "on" : "off").")
     }
 }
 
@@ -376,9 +454,9 @@ struct SetPublishedNumberIntent: AppIntent {
     @Parameter(title: "Value")
     var value: Double
 
-    func perform() async throws -> some IntentResult & ReturnsValue<FabricPublishedParameterEntity> & ProvidesDialog {
-        let parameter = try await FabricDocumentAutomationService.shared.setPublishedNumber(self.parameter, value: self.value)
-        return .result(value: parameter, dialog: "Set \(parameter.label) to \(self.value.formatted()).")
+    func perform() async throws -> some IntentResult & ReturnsValue<FabricGraphEntity> & ProvidesDialog {
+        let graph = try await FabricDocumentAutomationService.shared.setPublishedNumber(self.parameter, value: self.value)
+        return .result(value: graph, dialog: "Set \(self.parameter.label) to \(self.value.formatted()).")
     }
 }
 
@@ -392,9 +470,9 @@ struct SetPublishedIntegerIntent: AppIntent {
     @Parameter(title: "Value")
     var value: Int
 
-    func perform() async throws -> some IntentResult & ReturnsValue<FabricPublishedParameterEntity> & ProvidesDialog {
-        let parameter = try await FabricDocumentAutomationService.shared.setPublishedInteger(self.parameter, value: self.value)
-        return .result(value: parameter, dialog: "Set \(parameter.label) to \(self.value).")
+    func perform() async throws -> some IntentResult & ReturnsValue<FabricGraphEntity> & ProvidesDialog {
+        let graph = try await FabricDocumentAutomationService.shared.setPublishedInteger(self.parameter, value: self.value)
+        return .result(value: graph, dialog: "Set \(self.parameter.label) to \(self.value).")
     }
 }
 
@@ -408,9 +486,9 @@ struct SetPublishedTextIntent: AppIntent {
     @Parameter(title: "Value")
     var value: String
 
-    func perform() async throws -> some IntentResult & ReturnsValue<FabricPublishedParameterEntity> & ProvidesDialog {
-        let parameter = try await FabricDocumentAutomationService.shared.setPublishedText(self.parameter, value: self.value)
-        return .result(value: parameter, dialog: "Updated \(parameter.label).")
+    func perform() async throws -> some IntentResult & ReturnsValue<FabricGraphEntity> & ProvidesDialog {
+        let graph = try await FabricDocumentAutomationService.shared.setPublishedText(self.parameter, value: self.value)
+        return .result(value: graph, dialog: "Updated \(self.parameter.label).")
     }
 }
 
@@ -424,9 +502,9 @@ struct SetPublishedVectorIntent: AppIntent {
     @Parameter(title: "Components")
     var components: [Double]
 
-    func perform() async throws -> some IntentResult & ReturnsValue<FabricPublishedParameterEntity> & ProvidesDialog {
-        let parameter = try await FabricDocumentAutomationService.shared.setPublishedVector(self.parameter, components: self.components)
-        return .result(value: parameter, dialog: "Updated \(parameter.label).")
+    func perform() async throws -> some IntentResult & ReturnsValue<FabricGraphEntity> & ProvidesDialog {
+        let graph = try await FabricDocumentAutomationService.shared.setPublishedVector(self.parameter, components: self.components)
+        return .result(value: graph, dialog: "Updated \(self.parameter.label).")
     }
 }
 
@@ -445,16 +523,6 @@ struct FabricEditorShortcuts: AppShortcutsProvider {
         )
 
         AppShortcut(
-            intent: ListAvailableNodesIntent(),
-            phrases: [
-                "List Fabric nodes in \(.applicationName)",
-                "Show available nodes in \(.applicationName)",
-            ],
-            shortTitle: "Available Nodes",
-            systemImageName: "square.grid.2x2"
-        )
-
-        AppShortcut(
             intent: GetGraphPublishedParametersIntent(),
             phrases: [
                 "Get graph controls in \(.applicationName)",
@@ -465,12 +533,32 @@ struct FabricEditorShortcuts: AppShortcutsProvider {
         )
 
         AppShortcut(
-            intent: AddNodeToGraphIntent(),
+            intent: SetPublishedNumberIntent(),
             phrases: [
-                "Add a node to a graph with \(.applicationName)",
+                "Set a Fabric graph control in \(.applicationName)",
             ],
-            shortTitle: "Add Node",
-            systemImageName: "plus.square.on.square"
+            shortTitle: "Set Number",
+            systemImageName: "dial.medium"
+        )
+
+        AppShortcut(
+            intent: ExportGraphImageIntent(),
+            phrases: [
+                "Export a Fabric image with \(.applicationName)",
+                "Render a graph image in \(.applicationName)",
+            ],
+            shortTitle: "Export Image",
+            systemImageName: "photo"
+        )
+
+        AppShortcut(
+            intent: ExportGraphMovieIntent(),
+            phrases: [
+                "Export a Fabric movie with \(.applicationName)",
+                "Render a graph movie in \(.applicationName)",
+            ],
+            shortTitle: "Export Movie",
+            systemImageName: "film"
         )
     }
 }

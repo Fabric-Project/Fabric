@@ -15,6 +15,7 @@ class CAMetalDisplayLinkRenderer: GameView
 {
     let graphRenderer:GraphRenderer
     let graph:Graph
+    private(set) var lastRenderedGraphTime: TimeInterval?
 
 //    private let commandQueue: (any MTLCommandQueue)
     private let renderPassDescriptor = MTLRenderPassDescriptor()
@@ -126,7 +127,8 @@ class CAMetalDisplayLinkRenderer: GameView
                                           displayTime: update.targetPresentationTimestamp,
                                           systemTime: Date.timeIntervalSinceReferenceDate,
                                           frameNumber: self.graphRenderer.frameIndex)
-        
+        self.lastRenderedGraphTime = timing.time
+
         var eventInfo:GraphEventInfo?
         if let event = self.window?.currentEvent
         {
