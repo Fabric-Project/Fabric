@@ -12,6 +12,16 @@ import Metal
 import Fabric
 import Satin
 
+@MainActor
+final class ActiveFabricDocumentStore
+{
+    static let shared = ActiveFabricDocumentStore()
+
+    weak var activeDocument: FabricDocument?
+
+    private init() {}
+}
+
 extension UTType {
     static var fabricDocument: UTType {
         UTType(importedAs: "info.HiRez.fabric")
@@ -33,6 +43,7 @@ class FabricDocument: FileDocument
     let editingContext: GraphCanvasContext
 
     @ObservationIgnored var outputWindowManager:DocumentOutputWindowManager? = nil
+    @MainActor lazy var movieExportCoordinator = MovieExportCoordinator()
     
     init()
     {
@@ -95,6 +106,13 @@ class FabricDocument: FileDocument
 
         // Auto-layout the graph
         self.editingContext.currentGraph.autoLayout()
+        
+        Task
+        {
+            await MainActor.run {
+                ActiveFabricDocumentStore.shared.activeDocument = self
+            }
+        }
     }
 
     required init(configuration: ReadConfiguration) throws
@@ -118,6 +136,13 @@ class FabricDocument: FileDocument
         self.editingContext = GraphCanvasContext(rootGraph: graph)
 
         self.graphName = name
+        
+        Task
+        {
+            await MainActor.run {
+                ActiveFabricDocumentStore.shared.activeDocument = self
+            }
+        }
     }
 
     deinit
@@ -126,16 +151,136 @@ class FabricDocument: FileDocument
       
     }
 
+    @MainActor
     func setupOutputWindow()
     {
         self.outputWindowManager = DocumentOutputWindowManager()
+        self.outputWindowManager?.ownerDocument = self
         self.outputWindowManager?.setGraph(graph: self.editingContext.rootGraph)
         self.outputWindowManager?.setWindowName(self.graphName)
+        ActiveFabricDocumentStore.shared.activeDocument = self
     }
     
+    @MainActor
     func closeOutputWindow()
     {
         self.outputWindowManager?.closeOutputWindow()
+        if ActiveFabricDocumentStore.shared.activeDocument === self {
+            ActiveFabricDocumentStore.shared.activeDocument = nil
+        }
+    }
+
+    @MainActor
+    func exportSnapshotImage()
+    {
+        let snapshotExportTime = self.outputWindowManager?.snapshotExportTime() ?? 0
+        let savePanel = NSSavePanel()
+        savePanel.allowedContentTypes = [.png]
+        savePanel.canCreateDirectories = true
+        savePanel.isExtensionHidden = false
+        savePanel.nameFieldStringValue = self.defaultImageExportFilename()
+
+        guard savePanel.runModal() == .OK, let url = savePanel.url else {
+            return
+        }
+
+        let configuration = GraphImageExportConfiguration(
+            url: url,
+            size: (width: 1920, height:1080),
+            time: snapshotExportTime,
+            format: .png
+        )
+
+        let exporter = GraphImageExporter(
+            graph: self.editingContext.rootGraph,
+            context: self.context,
+            configuration: configuration
+        )
+
+        do {
+            try exporter.export()
+        } catch {
+            self.presentExportAlert(
+                title: "Image Export Failed",
+                message: error.localizedDescription
+            )
+        }
+    }
+
+    @MainActor
+    func exportMovie()
+    {
+        self.movieExportCoordinator.present(initialSettings: MovieExportSettings(
+            startTime: 0,
+            duration: 5
+        ))
+    }
+
+    @MainActor
+    func dismissMovieExportSheet()
+    {
+        self.movieExportCoordinator.dismiss()
+    }
+
+    @MainActor
+    func continueMovieExport(with exportConfiguration: MovieExportConfiguration)
+    {
+        let savePanel = NSSavePanel()
+        savePanel.allowedContentTypes = [UTType(filenameExtension: "mov") ?? .movie]
+        savePanel.canCreateDirectories = true
+        savePanel.isExtensionHidden = false
+        savePanel.nameFieldStringValue = self.defaultMovieExportFilename()
+
+        guard savePanel.runModal() == .OK, let url = savePanel.url else {
+            return
+        }
+
+        let configuration = GraphMovieExportConfiguration(
+            url: url,
+            size: exportConfiguration.size,
+            startTime: exportConfiguration.startTime,
+            duration: exportConfiguration.duration,
+            frameRate: exportConfiguration.frameRate,
+            codec: exportConfiguration.codec
+        )
+
+        let exporter = GraphMovieExporter(
+            graph: self.editingContext.rootGraph,
+            context: self.context,
+            configuration: configuration
+        )
+
+        let totalFrames = configuration.expectedFrameCount ?? 0
+        let exportTask = Task {
+            do {
+                try await exporter.export { completedFrames, totalFrames in
+                    self.movieExportCoordinator.updateProgress(
+                        completedFrames: completedFrames,
+                        totalFrames: totalFrames
+                    )
+                }
+
+                await MainActor.run {
+                    self.movieExportCoordinator.completeExport()
+                }
+            } catch is CancellationError {
+                await MainActor.run {
+                    self.removeIncompleteMovieExport(at: url)
+                    self.movieExportCoordinator.failExport(message: nil)
+                }
+            } catch {
+                await MainActor.run {
+                    self.removeIncompleteMovieExport(at: url)
+                    self.movieExportCoordinator.failExport(message: error.localizedDescription)
+                }
+            }
+        }
+
+        self.movieExportCoordinator.beginExport(
+            destinationURL: url,
+            totalFrames: totalFrames,
+            task: exportTask
+        )
     }
     
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper
@@ -146,5 +291,45 @@ class FabricDocument: FileDocument
         let data = try encoder.encode(self.editingContext.rootGraph)
         
         return .init(regularFileWithContents: data)
+    }
+
+    private func defaultImageExportFilename() -> String
+    {
+        let sanitizedGraphName = self.graphName.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if sanitizedGraphName.isEmpty {
+            return "Untitled.png"
+        }
+
+        return "\(sanitizedGraphName).png"
+    }
+
+    private func defaultMovieExportFilename() -> String
+    {
+        let sanitizedGraphName = self.graphName.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if sanitizedGraphName.isEmpty {
+            return "Untitled.mov"
+        }
+
+        return "\(sanitizedGraphName).mov"
+    }
+
+    @MainActor
+    private func presentExportAlert(title: String, message: String)
+    {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = title
+        alert.informativeText = message
+        alert.runModal()
+    }
+
+    @MainActor
+    private func removeIncompleteMovieExport(at url: URL)
+    {
+        if FileManager.default.fileExists(atPath: url.path()) {
+            try? FileManager.default.removeItem(at: url)
+        }
     }
 }
