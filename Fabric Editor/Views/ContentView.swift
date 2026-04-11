@@ -32,9 +32,16 @@ struct ContentView: View {
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
     @State private var inspectorVisibility:Bool = true
     @State private var inputFocus: FabricEditorInputFocus = .canvas
+    @State private var isPlaying = true
+    @AppStorage("inlinePreview") private var inlinePreview = false
 
     init(document: Binding<FabricDocument>) {
         self._document = document
+    }
+
+    private func togglePlayback() {
+        self.document.toggleOutputPlayback()
+        self.isPlaying = !self.document.isOutputPaused
     }
 
     // Magic Numbers...
@@ -79,7 +86,11 @@ struct ContentView: View {
 
                 ZStack
                 {
-                    RadialGradient(colors: [.clear, .black.opacity(0.75)], center: .center, startRadius: 0, endRadius: self.scrollGeometry.containerSize.width * 1.5)
+                    if inlinePreview {
+                        OutputPreviewView(graph: self.document.editingContext.rootGraph)
+                    } else {
+                        RadialGradient(colors: [.clear, .black.opacity(0.75)], center: .center, startRadius: 0, endRadius: self.scrollGeometry.containerSize.width * 1.5)
+                    }
 
                     ScrollViewReader { proxy in
                         ScrollView([.horizontal, .vertical])
@@ -139,6 +150,11 @@ struct ContentView: View {
                                 .onAppear {
                                     self.document.editingContext.rootGraph.undoManager = undoManager
 
+                                    if inlinePreview {
+                                        self.document.outputWindowManager?.setPlaybackPaused(true)
+                                        self.document.outputWindowManager?.hideOutputWindow()
+                                    }
+
                                     DispatchQueue.main.asyncAfter(deadline: .now().advanced(by: .milliseconds(10)) ) {
                                         if let firstNode = self.document.editingContext.rootGraph.nodes.first
                                         {
@@ -193,8 +209,25 @@ struct ContentView: View {
                     }
                 )
             }
+            .onChange(of: inlinePreview) {
+                if inlinePreview {
+                    self.document.outputWindowManager?.setPlaybackPaused(true)
+                    self.document.outputWindowManager?.hideOutputWindow()
+                } else {
+                    self.document.outputWindowManager?.showOutputWindow()
+                    self.document.outputWindowManager?.setPlaybackPaused(false)
+                }
+                self.isPlaying = !self.document.isOutputPaused
+            }
             .toolbar
             {
+                ToolbarItem(placement: .automatic)
+                {
+                    Button(isPlaying ? "Pause" : "Play",
+                           systemImage: isPlaying ? "pause.fill" : "play.fill",
+                           action: togglePlayback)
+                }
+
                 ToolbarItem(placement: .automatic)
                 {
                     Button("Parameters", systemImage: "sidebar.right") {

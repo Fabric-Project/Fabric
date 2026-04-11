@@ -183,6 +183,7 @@ struct DocumentCommands:Commands
 
 struct ViewCommands: Commands {
     @FocusedBinding(\.document) var document: FabricDocument?
+    @AppStorage("inlinePreview") var inlinePreview = false
 
     var body: some Commands {
         CommandGroup(after: .toolbar) {
@@ -196,6 +197,9 @@ struct ViewCommands: Commands {
             .disabled(document == nil)
 
             Divider()
+
+            Toggle("Inline Preview", isOn: $inlinePreview)
+                .keyboardShortcut("p", modifiers: [.command, .option])
         }
     }
 }
