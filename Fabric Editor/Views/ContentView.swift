@@ -221,11 +221,13 @@ struct ContentView: View {
             }
             .toolbar
             {
-                ToolbarItem(placement: .automatic)
-                {
-                    Button(isPlaying ? "Pause" : "Play",
-                           systemImage: isPlaying ? "pause.fill" : "play.fill",
-                           action: togglePlayback)
+                if inlinePreview {
+                    ToolbarItem(placement: .automatic)
+                    {
+                        Button(isPlaying ? "Pause" : "Play",
+                               systemImage: isPlaying ? "pause.fill" : "play.fill",
+                               action: togglePlayback)
+                    }
                 }
 
                 ToolbarItem(placement: .automatic)
