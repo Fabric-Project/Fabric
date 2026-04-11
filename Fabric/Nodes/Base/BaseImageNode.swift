@@ -531,10 +531,13 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             if port.portType == .Image {
                 return (0, self.imagePortSortKey(for: port))
             }
-            return (1, originalIndex)
+            if let label = port.parameter?.label, materialSyncExcludedLabels.contains(label) {
+                return (1, originalIndex)
+            }
+            return (2, originalIndex)
         }
 
-        return (2, originalIndex)
+        return (3, originalIndex)
     }
 
     override public func execute(context: GraphExecutionContext,
