@@ -385,7 +385,6 @@ public class NodeRegistry {
         
         // Transform (Float Matrix 4x4)
         PassThroughNode<simd_float4x4>.self,
-        IdentityTransformNode.self,
         RotateTransformNode.self,
         ScaleTransformNode.self,
         TranslateTransformNode.self,
