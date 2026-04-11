@@ -26,6 +26,20 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
         }
     }
 
+    // Color and Vector4 share the same Swift type (simd_float4), so the port
+    // type derived from the generic parameter is always .Vector4. Colorpicker is
+    // the only control type that implies a different PortType than the Swift type
+    // would give — all other control types (slider, dropdown, etc.) are purely UI
+    // presentation choices within their type. Ideally ports would declare .Color
+    // explicitly and the picker would be derived from that, but until Color has its
+    // own value type this is the pragmatic bridge.
+    @ObservationIgnored override public var portType: PortType {
+        if _parameter.controlType == .colorpicker || _parameter.controlType == .colorpalette {
+            return .Color
+        }
+        return super.portType
+    }
+
     override public var parameter: (any Parameter)?
     {
         get { return _parameter }
@@ -37,26 +51,26 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
                 newParam.value = self._parameter.value
                 self._parameter = newParam
                 self.value = self._parameter.value
-                
+
                 self.subscription = _parameter.valuePublisher.eraseToAnyPublisher().sink{ [weak self] value in
                         self?.value = value
                 }
             }
         }
     }
-    
+
     public init(parameter: GenericParameter<ParamValue>)
     {
         self._parameter = parameter
         super.init(name: parameter.label, kind: .Inlet, id:parameter.id)
 
         self.value = self._parameter.value
-        
+
         self.subscription = parameter.valuePublisher.eraseToAnyPublisher().sink{ [weak self] value in
                 self?.value = value
         }
     }
-    
+
     enum CodingKeys : String, CodingKey
     {
         case parameter
@@ -82,7 +96,7 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
         self.value = self._parameter.value
 
         self.subscription = _parameter.valuePublisher.eraseToAnyPublisher().sink{ [weak self] value in
-            
+
                 self?.value = value
         }
     }
