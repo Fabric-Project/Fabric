@@ -128,6 +128,9 @@ public class NodeRegistry {
             CameraProviderNode.self,
             ImageProviderNode.self,
             TestCardProviderNode.self,
+            SVGPathParserNode.self,
+            SVGPathRendererNode.self,
+            SVGNode.self,
         ]
         #if os(macOS)
         classes.append(ScreenCaptureProviderNode.self)
