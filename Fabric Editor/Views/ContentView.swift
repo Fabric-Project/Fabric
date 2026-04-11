@@ -60,30 +60,6 @@ struct ContentView: View {
         } detail: {
             VStack(alignment: .leading, spacing:0)
             {
-                Divider()
-
-                Spacer()
-
-                HStack(spacing:5)
-                {
-                    Button("Root Graph", action: self.document.editingContext.popToRoot)
-                        .font(.headline)
-                        .buttonStyle(.plain)
-
-                    ForEach(self.document.editingContext.entries) { node in
-                        Text("›")
-                            .font(.headline)
-                        Button(node.name) { self.document.editingContext.popTo(node) }
-                            .font(.headline)
-                            .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal)
-
-                Spacer()
-
-                Divider()
-
                 ZStack
                 {
                     if inlinePreview {
@@ -221,6 +197,24 @@ struct ContentView: View {
             }
             .toolbar
             {
+                ToolbarItem(placement: .automatic)
+                {
+                    HStack(spacing: 5) {
+                        Button("Root Graph", action: self.document.editingContext.popToRoot)
+
+                        ForEach(self.document.editingContext.entries) { node in
+                            Image(systemName: "chevron.right")
+                                .imageScale(.small)
+                            Button(node.name) { self.document.editingContext.popTo(node) }
+                            }
+                    }
+                    .font(.subheadline)
+                    .buttonStyle(.accessoryBar)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(.bar, in: .capsule)
+                }
+
                 if inlinePreview {
                     ToolbarItem(placement: .automatic)
                     {
