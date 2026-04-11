@@ -161,6 +161,15 @@ class FabricDocument: FileDocument
         ActiveFabricDocumentStore.shared.activeDocument = self
     }
     
+    var isOutputPaused: Bool {
+        self.outputWindowManager?.isPaused ?? true
+    }
+
+    @MainActor
+    func toggleOutputPlayback() {
+        self.outputWindowManager?.togglePlayback()
+    }
+
     @MainActor
     func closeOutputWindow()
     {

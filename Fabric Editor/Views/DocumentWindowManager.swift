@@ -86,6 +86,37 @@ class DocumentOutputWindowManager : NSObject
         return lastRenderedGraphTime
     }
     
+    var isPaused: Bool {
+        self.outputRenderer?.isPaused ?? true
+    }
+
+    func togglePlayback() {
+        self.outputRenderer?.isPaused.toggle()
+        self.updatePlayPauseButton()
+    }
+
+    func setPlaybackPaused(_ paused: Bool) {
+        self.outputRenderer?.isPaused = paused
+        self.updatePlayPauseButton()
+    }
+
+    private func updatePlayPauseButton() {
+        let paused = self.isPaused
+        self.playPauseItem?.image = NSImage(
+            systemSymbolName: paused ? "play.fill" : "pause.fill",
+            accessibilityDescription: paused ? "Play" : "Pause"
+        )
+        self.playPauseItem?.label = paused ? "Play" : "Pause"
+    }
+
+    func hideOutputWindow() {
+        self.outputwindow?.orderOut(nil)
+    }
+
+    func showOutputWindow() {
+        self.outputwindow?.makeKeyAndOrderFront(nil)
+    }
+
     func closeOutputWindow()
     {
         self.outputwindow?.close()
@@ -151,7 +182,7 @@ extension DocumentOutputWindowManager: NSToolbarDelegate
             item.toolTip = "Start or stop the output render loop"
             item.image = NSImage(systemSymbolName: "pause.fill", accessibilityDescription: nil)
             item.target = self
-            item.action = #selector(togglePlayback)
+            item.action = #selector(toolbarTogglePlayback)
             self.playPauseItem = item
             return item
 
@@ -160,17 +191,7 @@ extension DocumentOutputWindowManager: NSToolbarDelegate
         }
     }
     
-    @objc private func togglePlayback()
-    {
-        self.outputRenderer?.isPaused.toggle()
-        
-        let isPlaying = self.outputRenderer?.isPaused ?? true
-        
-        self.playPauseItem?.image = NSImage(
-               systemSymbolName: isPlaying ? "play.fill" : "pause.fill",
-               accessibilityDescription: nil
-           )
-        
-        self.playPauseItem?.label = isPlaying ? "Play" : "Pause"
+    @objc private func toolbarTogglePlayback() {
+        self.togglePlayback()
     }
 }
