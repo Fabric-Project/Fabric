@@ -27,7 +27,7 @@ public class NumberSmoothNode : Node
         [
             ("inputNumber", ParameterPort(parameter: FloatParameter("Number", 0, .inputfield))),
             ("inputFrequency", ParameterPort(parameter: FloatParameter("Frequency", 120.0, .inputfield))),
-            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet)),
+            ("outputNumber", NodePort<Float>(name: "Number" , kind: .Outlet)),
         ]
     }
     
