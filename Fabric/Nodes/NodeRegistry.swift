@@ -6,6 +6,7 @@
 //
 import simd
 import Foundation
+import Satin
 import UniformTypeIdentifiers
 
 public class NodeRegistry {
@@ -87,6 +88,7 @@ public class NodeRegistry {
     ]
     
     private var geometryNodeClasses: [Node.Type] = [ // Geometry
+        PassThroughNode<SatinGeometry>.self,
         PlaneGeometryNode.self,
         PerspectiveQuadGeometryNode.self,
         RoundRectGeometryNode.self,
@@ -110,6 +112,8 @@ public class NodeRegistry {
         
     private var materialNodeClasses:[Node.Type] = [
         // Materials
+        PassThroughNode<Material>.self,
+        PassThroughNode<Shader>.self,
         BasicColorMaterialNode.self,
         UVMaterialNode.self,
         BasicTextureMaterialNode.self,
@@ -124,6 +128,7 @@ public class NodeRegistry {
     
     private var textureNodeClasses:[Node.Type] {
         var classes: [Node.Type] = [
+            PassThroughNode<FabricImage>.self,
             MovieProviderNode.self,
             CameraProviderNode.self,
             ImageProviderNode.self,
@@ -268,6 +273,7 @@ public class NodeRegistry {
     
     private var parameterNodeClasses: [Node.Type] = [
         // Boolean
+        PassThroughNode<Bool>.self,
         TrueNode.self,
         FalseNode.self,
         BooleanLogicNode.self,
@@ -279,6 +285,8 @@ public class NodeRegistry {
         ArrayReplaceValueAtIndexNode<Bool>.self,
 
         // Number
+        PassThroughNode<Float>.self,
+        PassThroughNode<Int>.self,
         CurrentTimeNode.self,
         SystemTimeNode.self,
         TimestampNode.self,
@@ -312,6 +320,7 @@ public class NodeRegistry {
         Vector3ArrayToTransformArrayNode.self,
         
         // String
+        PassThroughNode<String>.self,
         StringNode.self,
         StringTrimNode.self,
         StringLengthNode.self,
@@ -338,6 +347,7 @@ public class NodeRegistry {
         ArrayReplaceValueAtIndexNode<String>.self,
 
         // Vectors
+        PassThroughNode<simd_float2>.self,
         MakeVector2Node.self,
         Vector2ToFloatNode.self,
         Vector2Distance.self,
@@ -349,6 +359,7 @@ public class NodeRegistry {
         ArrayReplaceValueAtIndexNode<simd_float2>.self,
         PolyLineSimplifyNode.self,
         
+        PassThroughNode<simd_float3>.self,
         MakeVector3Node.self,
         Vector3ToFloatNode.self,
         Vector3Distance.self,
@@ -359,6 +370,7 @@ public class NodeRegistry {
         ArrayQueueNode<simd_float3>.self,
         ArrayReplaceValueAtIndexNode<simd_float3>.self,
 
+        PassThroughNode<simd_float4>.self,
         MakeVector4Node.self,
         Vector4ToFloatNode.self,
         Vector4Distance.self,
@@ -370,9 +382,11 @@ public class NodeRegistry {
         ArrayReplaceValueAtIndexNode<simd_float4>.self,
 
         // Quaternion
+        PassThroughNode<simd_quatf>.self,
         MakeQuaternionNode.self,
         
         // Transform (Float Matrix 4x4)
+        PassThroughNode<simd_float4x4>.self,
         IdentityTransformNode.self,
         RotateTransformNode.self,
         ScaleTransformNode.self,

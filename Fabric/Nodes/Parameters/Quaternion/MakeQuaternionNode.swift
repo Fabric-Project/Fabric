@@ -12,7 +12,7 @@ import Metal
 
 public class MakeQuaternionNode : Node
 {
-    override public class var name:String { "Quaternion" }
+    override public class var name:String { "Make Quaternion" }
     override public class var nodeType:Node.NodeType { .Parameter(parameterType: .Quaternion) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
     override public class var nodeTimeMode: Node.TimeMode { .None }

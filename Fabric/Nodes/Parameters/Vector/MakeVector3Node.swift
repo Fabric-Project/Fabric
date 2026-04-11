@@ -12,7 +12,7 @@ import Metal
 
 public class MakeVector3Node : Node
 {
-    override public static var name:String { "Vector 3" }
+    override public static var name:String { "Make Vector 3" }
     override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Vector) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }

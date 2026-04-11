@@ -213,15 +213,16 @@ extension PortType {
     {
         switch self
         {
-        case .Float, .Int:  return NumberNode.self
-        case .Bool:         return TrueNode.self
-        case .String:       return StringNode.self
-        case .Vector2:      return MakeVector2Node.self
-        case .Vector3:      return MakeVector3Node.self
-        case .Vector4:      return MakeVector4Node.self
-        case .Color:        return MakeVector4Node.self
-        case .Quaternion:   return MakeQuaternionNode.self
-        case .Transform:    return IdentityTransformNode.self
+        case .Float:        return PassThroughNode<Float>.self
+        case .Int:          return PassThroughNode<Int>.self
+        case .Bool:         return PassThroughNode<Bool>.self
+        case .String:       return PassThroughNode<String>.self
+        case .Vector2:      return PassThroughNode<simd_float2>.self
+        case .Vector3:      return PassThroughNode<simd_float3>.self
+        case .Vector4:      return PassThroughNode<simd_float4>.self
+        case .Color:        return PassThroughNode<simd_float4>.self
+        case .Quaternion:   return PassThroughNode<simd_quatf>.self
+        case .Transform:    return PassThroughNode<simd_float4x4>.self
         case .Geometry:     return PassThroughNode<SatinGeometry>.self
         case .Material:     return PassThroughNode<Material>.self
         case .Shader:       return PassThroughNode<Shader>.self
