@@ -274,8 +274,6 @@ public class NodeRegistry {
     private var parameterNodeClasses: [Node.Type] = [
         // Boolean
         PassThroughNode<Bool>.self,
-        TrueNode.self,
-        FalseNode.self,
         BooleanLogicNode.self,
         ArrayFirstValueNode<Bool>.self,
         ArrayLastValueNode<Bool>.self,
@@ -290,7 +288,6 @@ public class NodeRegistry {
         CurrentTimeNode.self,
         SystemTimeNode.self,
         TimestampNode.self,
-        NumberNode.self,
         TimelineNode.self,
         NumberUnaryOperator.self,
         NumberBinaryOperator.self,
@@ -321,7 +318,6 @@ public class NodeRegistry {
         
         // String
         PassThroughNode<String>.self,
-        StringNode.self,
         StringTrimNode.self,
         StringLengthNode.self,
         StringRangeNode.self,
