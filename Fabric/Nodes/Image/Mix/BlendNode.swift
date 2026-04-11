@@ -18,8 +18,20 @@ public class BlendNode: BaseImageNode
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Blend two images using a selectable blend mode" }
 
-    override public class var sourceShaderName: String { "BlendShader" }
     override public class var defaultImageInputCountHint: Int? { 2 }
+
+    required init(context: Context) {
+        let url = Bundle.module.url(forResource: "Additive", withExtension: "metal", subdirectory: "EffectsTwoChannel/Mix")!
+        try! super.init(context: context, fileURL: url)
+    }
+
+    required init(context: Context, fileURL: URL) throws {
+        try super.init(context: context, fileURL: fileURL)
+    }
+
+    required init(from decoder: any Decoder) throws {
+        try super.init(from: decoder)
+    }
 
     private static let modeNames: [String] = [
         "Additive",
@@ -52,14 +64,6 @@ public class BlendNode: BaseImageNode
         "Vivid Light",
     ]
 
-    private static let modeMap: [String: Float] = {
-        var map = [String: Float]()
-        for (index, name) in modeNames.enumerated() {
-            map[name] = Float(index)
-        }
-        return map
-    }()
-
     override public var materialSyncExcludedLabels: Set<String> { ["Mode"] }
 
     // Ports
@@ -74,16 +78,21 @@ public class BlendNode: BaseImageNode
     // Port Proxy
     public var inputMode: ParameterPort<String> { port(named: "Mode") }
 
+    private func shaderURL(for modeName: String) -> URL? {
+        Bundle.module.url(forResource: modeName, withExtension: "metal", subdirectory: "EffectsTwoChannel/Mix")
+    }
+
     override public func execute(context: GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
         if self.inputMode.valueDidChange,
            let modeName = self.inputMode.value,
-           let modeValue = Self.modeMap[modeName]
+           let url = self.shaderURL(for: modeName)
         {
-            if let modeParam = self.postMaterial.parameters.params.first(where: { $0.label == "Mode" }) as? FloatParameter {
-                modeParam.value = modeValue
+            if let sourceShader = self.postMaterial.shader as? SourceShader {
+                sourceShader.pipelineURL = url
+                sourceShader.reloadFromSource()
             }
         }
 
