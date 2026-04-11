@@ -48,7 +48,6 @@ struct StringMenu: View
                     } label: {
                         Text(option)
                     }
-                    Divider()
                 }
             } label: {
                 Text( vm.uiValue )

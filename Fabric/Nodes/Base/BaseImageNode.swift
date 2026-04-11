@@ -463,16 +463,21 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         return ports[index].value?.texture
     }
 
+    /// Parameter labels that material sync should not touch.
+    /// Subclasses can override this to protect ports they manage themselves.
+    open var materialSyncExcludedLabels: Set<String> { [] }
+
     private func syncDynamicParameterPortsFromMaterial() {
         let materialParams = self.postMaterial.parameters.params
         let labels = Set(materialParams.map(\.label))
+        let excluded = self.materialSyncExcludedLabels.union(["Width", "Height"])
 
         let portsToRemove = self.ports.filter { port in
             guard let parameter = port.parameter else {
                 return false
             }
 
-            if parameter.label == "Width" || parameter.label == "Height" {
+            if excluded.contains(parameter.label) {
                 return false
             }
 
@@ -484,6 +489,10 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         }
 
         for param in materialParams {
+            if excluded.contains(param.label) {
+                continue
+            }
+
             if let port = self.ports.first(where: { $0.name == param.label }) {
                 self.replaceParameterOfPort(port, withParam: param)
             }
@@ -522,10 +531,13 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             if port.portType == .Image {
                 return (0, self.imagePortSortKey(for: port))
             }
-            return (1, originalIndex)
+            if let label = port.parameter?.label, materialSyncExcludedLabels.contains(label) {
+                return (1, originalIndex)
+            }
+            return (2, originalIndex)
         }
 
-        return (2, originalIndex)
+        return (3, originalIndex)
     }
 
     override public func execute(context: GraphExecutionContext,
