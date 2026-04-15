@@ -84,6 +84,7 @@ public class NodeRegistry {
         InstancedModelMeshNode.self,
         EnvironmentSkyboxNode.self,
         ImageMeshNode.self,
+        WorldTextBillboardNode.self,
     ]
     
     private var geometryNodeClasses: [Node.Type] = [ // Geometry
@@ -128,6 +129,7 @@ public class NodeRegistry {
             CameraProviderNode.self,
             ImageProviderNode.self,
             TestCardProviderNode.self,
+            TextImageNode.self,
         ]
         #if os(macOS)
         classes.append(ScreenCaptureProviderNode.self)
