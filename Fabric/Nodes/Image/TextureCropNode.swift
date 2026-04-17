@@ -41,11 +41,19 @@ public class TextureCropNode: Node
 
         let srcTex = sourceImage.texture
         let x = max(0, min(inputCropX.value ?? 0, srcTex.width - 1))
-        let y = max(0, min(inputCropY.value ?? 0, srcTex.height - 1))
+        var y = max(0, min(inputCropY.value ?? 0, srcTex.height - 1))
         let w = max(1, min(inputCropWidth.value ?? 1920, srcTex.width - x))
         let h = max(1, min(inputCropHeight.value ?? 1080, srcTex.height - y))
 
-        guard let outImage = graphRenderer.newImage(withWidth: w, height: h, format: sourceImage.texture.pixelFormat) else { return }
+        // For flipped sources (e.g. Syphon/OpenGL with bottom-left origin),
+        // the visual top of the image is stored at the bottom of texture
+        // memory. Invert the Y coordinate so crop regions specified in
+        // visual space select the correct memory rows.
+        if sourceImage.isFlipped {
+            y = max(0, srcTex.height - y - h)
+        }
+
+        guard var outImage = graphRenderer.newImage(withWidth: w, height: h, format: sourceImage.texture.pixelFormat) else { return }
 
         guard let encoder = commandBuffer.makeBlitCommandEncoder() else { return }
         encoder.copy(
@@ -59,6 +67,9 @@ public class TextureCropNode: Node
         )
         encoder.endEncoding()
 
+        // Preserve the source's flip flag so downstream material nodes
+        // apply the correct UV orientation.
+        outImage.isFlipped = sourceImage.isFlipped
         outputTexture.send(outImage)
     }
 }
