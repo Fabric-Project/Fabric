@@ -77,7 +77,13 @@ public class SyphonClientNode : Node
                 self.texture = newTexture
             }
             if let texture = self.texture {
-                self.outputTexturePort.send(FabricImage.unmanaged(texture: texture))
+                var image = FabricImage.unmanaged(texture: texture)
+                // Syphon textures originate from OpenGL (origin at bottom-left),
+                // so they're vertically inverted relative to Metal's top-left
+                // convention. Mark as flipped so downstream nodes (e.g.
+                // BasicTextureMaterialNode) skip their default UV Y-flip.
+                image.isFlipped = true
+                self.outputTexturePort.send(image)
             } else {
                 self.outputTexturePort.send(nil)
             }
