@@ -49,26 +49,28 @@ public class SyphonClientNode : Node
         let desiredServer = self.inputServerName.value ?? ""
         let desiredApp = self.inputServerAppName.value ?? ""
 
-        // State-driven: reconcile desired vs connected server each frame
+        // State-driven: reconcile desired vs connected server each frame.
+        // Only update connectedServerName/connectedAppName when the
+        // connection is actually established (or intentionally cleared).
+        // If the server isn't discovered yet, leave the connected state
+        // unchanged so the condition re-fires next frame and retries.
         if desiredServer != connectedServerName || desiredApp != connectedAppName {
-            connectedServerName = desiredServer
-            connectedAppName = desiredApp
-
             if desiredServer.isEmpty {
                 // No server selected — disconnect
                 self.syphonClient = nil
                 self.texture = nil
+                connectedServerName = desiredServer
+                connectedAppName = desiredApp
             } else if let device = context.graphRenderer?.device,
                       let serverDict = SyphonServerDirectory.shared()
                           .servers(matchingName: desiredServer, appName: desiredApp).first
             {
                 self.syphonClient = SyphonMetalClient(serverDescription: serverDict, device: device)
                 self.texture = nil
-            } else {
-                // Desired server not found — disconnect
-                self.syphonClient = nil
-                self.texture = nil
+                connectedServerName = desiredServer
+                connectedAppName = desiredApp
             }
+            // else: server not yet discovered — retry next frame
         }
 
         // Read frames, retaining the last valid texture between new frames
