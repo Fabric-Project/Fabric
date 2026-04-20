@@ -407,6 +407,7 @@ public class NodeRegistry {
     private var utilityClasses: [Node.Type] {
         var classes: [Node.Type] = [
             LogNode.self,
+            JavaScriptNode.self,
             CursorNode.self,
         ]
         #if os(macOS)

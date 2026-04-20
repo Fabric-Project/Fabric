@@ -62,6 +62,11 @@ import UniformTypeIdentifiers
     {
         return Self.nodeExecutionMode
     }
+
+    @ObservationIgnored public var nodeTimeMode: TimeMode
+    {
+        return Self.nodeTimeMode
+    }
     
     @ObservationIgnored var context:Context
 

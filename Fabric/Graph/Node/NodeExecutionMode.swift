@@ -9,7 +9,7 @@ import Foundation
 
 extension Node
 {
-    public enum ExecutionMode
+    public enum ExecutionMode: String, Codable
     {
         // A provider execution mode.
         // The node executes on demand—that is, whenever data is requested of it, but at most once per frame.
