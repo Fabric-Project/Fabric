@@ -327,6 +327,7 @@ public class NodeRegistry {
         ArrayReplaceValueAtIndexNode<Float>.self,
         FillArrayFloatNode.self,
         RippleFillArrayFloatNode.self,
+        ArrayMathExpressionNode.self,
         FloatArrayToVector2ArrayNode.self,
         FloatArrayToVector3ArrayNode.self,
         Vector2ArrayToVector3ArrayNode.self,
