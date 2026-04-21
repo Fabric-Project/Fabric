@@ -29,13 +29,23 @@ public class RippleFillArrayNode<Value : PortValueRepresentable & Equatable> : N
 
         return ports +
         [
-            ("inputValue", NodePort<Value>(name: "Value", kind: .Inlet, description: "Animated value to stagger across the array")),
+            ("inputValue", makeValuePort()),
             ("inputCount", ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Number of elements in the output array"))),
             ("inputDelaySecs", ParameterPort(parameter: FloatParameter("Delay (secs)", 1.0, 0.0, 60.0, .inputfield, "Window over which changes ripple from element 0 (oldest) to element N-1 (newest)"))),
             ("outputArray", NodePort<ContiguousArray<Value>>(name: "Array", kind: .Outlet, description: "Array of staggered past values")),
         ]
     }
 
+    /// Factory for the value inlet. Concrete per-type subclasses override to
+    /// return a ParameterPort with the appropriate Parameter, enabling
+    /// inspector editing. The default falls back to a NodePort for types
+    /// without a matching Parameter.
+    public class func makeValuePort() -> Port {
+        NodePort<Value>(name: "Value", kind: .Inlet, description: "Animated value to stagger across the array")
+    }
+
+    // ParameterPort<T> is a subclass of NodePort<T>, so this accessor type is
+    // compatible whether the concrete port is a ParameterPort or a NodePort.
     public var inputValue: NodePort<Value> { port(named: "inputValue") }
     public var inputCount: ParameterPort<Int> { port(named: "inputCount") }
     public var inputDelaySecs: ParameterPort<Float> { port(named: "inputDelaySecs") }
@@ -90,5 +100,26 @@ public class RippleFillArrayNode<Value : PortValueRepresentable & Equatable> : N
         }
 
         self.outputArray.send(output)
+    }
+}
+
+public final class RippleFillArrayFloatNode : RippleFillArrayNode<Float>
+{
+    public override class func makeValuePort() -> Port {
+        ParameterPort(parameter: FloatParameter("Value", 0.0, .inputfield, "Animated value to stagger across the array"))
+    }
+}
+
+public final class RippleFillArrayFloat3Node : RippleFillArrayNode<simd_float3>
+{
+    public override class func makeValuePort() -> Port {
+        ParameterPort(parameter: Float3Parameter("Value", .zero, .inputfield, "Animated value to stagger across the array"))
+    }
+}
+
+public final class RippleFillArrayFloat4Node : RippleFillArrayNode<simd_float4>
+{
+    public override class func makeValuePort() -> Port {
+        ParameterPort(parameter: Float4Parameter("Value", simd_float4(0, 0, 0, 1), .inputfield, "Animated value to stagger across the array (X, Y, Z, W)"))
     }
 }
