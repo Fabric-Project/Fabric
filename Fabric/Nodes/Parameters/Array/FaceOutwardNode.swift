@@ -10,7 +10,7 @@ import Metal
 
 public class FaceOutwardNode : Node
 {
-    public override class var name: String { "Face Outward" }
+    public override class var name: String { "Orientation - Face Outward" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
@@ -47,7 +47,7 @@ public class FaceOutwardNode : Node
 
 public class LookAtNode : Node
 {
-    public override class var name: String { "Look At" }
+    public override class var name: String { "Orientation - Look At" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
