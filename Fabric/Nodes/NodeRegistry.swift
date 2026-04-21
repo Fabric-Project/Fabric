@@ -397,6 +397,11 @@ public class NodeRegistry {
         RippleFillArrayFloat3Node.self,
         MakeVector3ArrayNode.self,
         Vector3ArrayToFloatArraysNode.self,
+        RingPointsNode.self,
+        LinePointsNode.self,
+        GridPointsNode.self,
+        FaceOutwardNode.self,
+        LookAtNode.self,
 
         PassThroughNode<simd_float4>.self,
         MakeVector4Node.self,
