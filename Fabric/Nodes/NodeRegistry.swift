@@ -311,6 +311,8 @@ public class NodeRegistry {
         ArrayCountNode<Float>.self,
         ArrayQueueNode<Float>.self,
         ArrayReplaceValueAtIndexNode<Float>.self,
+        FillArrayNode<Float>.self,
+        RippleFillArrayNode<Float>.self,
         FloatArrayToVector2ArrayNode.self,
         FloatArrayToVector3ArrayNode.self,
         Vector2ArrayToVector3ArrayNode.self,
@@ -363,6 +365,8 @@ public class NodeRegistry {
         ArrayCountNode<simd_float3>.self,
         ArrayQueueNode<simd_float3>.self,
         ArrayReplaceValueAtIndexNode<simd_float3>.self,
+        FillArrayNode<simd_float3>.self,
+        RippleFillArrayNode<simd_float3>.self,
 
         MakeVector4Node.self,
         Vector4ToFloatNode.self,
@@ -373,6 +377,8 @@ public class NodeRegistry {
         ArrayCountNode<simd_float4>.self,
         ArrayQueueNode<simd_float4>.self,
         ArrayReplaceValueAtIndexNode<simd_float4>.self,
+        FillArrayNode<simd_float4>.self,
+        RippleFillArrayNode<simd_float4>.self,
 
         // Quaternion
         MakeQuaternionNode.self,
