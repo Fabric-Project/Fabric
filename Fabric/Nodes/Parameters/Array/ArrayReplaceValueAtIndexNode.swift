@@ -42,17 +42,24 @@ public class ArrayReplaceValueAtIndexNode<Value : PortValueRepresentable & Equat
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {
-        if self.inputPort.valueDidChange || self.inputIndexParam.valueDidChange || self.inputValue.valueDidChange,
-           var array = self.inputPort.value,
-           let index = self.inputIndexParam.value,
-           let value = self.inputValue.value
-        {
-            let index = min( max( 0, index ), array.count)
+        guard self.inputPort.valueDidChange
+            || self.inputIndexParam.valueDidChange
+            || self.inputValue.valueDidChange
+        else { return }
 
-            array.remove(at: index)
-            array.insert(value, at: index)
-            
-            self.outputPort.send(array)
+        guard var array = self.inputPort.value,
+              let index = self.inputIndexParam.value,
+              let value = self.inputValue.value
+        else { return }
+
+        // Only replace when the index is in range. Otherwise pass the array
+        // through unchanged — the input array can shrink below a previously
+        // valid index, and the previous `remove(at:)`/`insert(at:)` path
+        // crashed when it did.
+        if index >= 0 && index < array.count {
+            array[index] = value
         }
+
+        self.outputPort.send(array)
     }
 }
