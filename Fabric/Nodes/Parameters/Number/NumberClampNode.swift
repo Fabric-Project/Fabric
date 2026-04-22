@@ -30,7 +30,7 @@ public class NumberClampNode : Node
         [
             ("inputNumber", ParameterPort(parameter: FloatParameter("Input Number", 0.0, .inputfield, "The input value to clamp"))),
             ("inputMinNumber", ParameterPort(parameter: FloatParameter("Min Number", 0.0, .inputfield, "Minimum allowed output value"))),
-            ("inputMaxNumber", ParameterPort(parameter: FloatParameter("Max Number", 0.0, .inputfield, "Maximum allowed output value"))),
+            ("inputMaxNumber", ParameterPort(parameter: FloatParameter("Max Number", 1.0, .inputfield, "Maximum allowed output value"))),
             ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet, description: "The clamped output value")),
         ]
     }
