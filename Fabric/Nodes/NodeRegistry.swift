@@ -83,6 +83,7 @@ public class NodeRegistry {
         ModelMeshNode.self,
         InstancedMeshNode.self,
         InstancedModelMeshNode.self,
+        UVInstancedMeshNode.self,
         EnvironmentSkyboxNode.self,
         ImageMeshNode.self,
     ]
