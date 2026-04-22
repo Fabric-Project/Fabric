@@ -390,6 +390,7 @@ public class NodeRegistry {
         ArrayCountNode<simd_float4>.self,
         ArrayQueueNode<simd_float4>.self,
         ArrayReplaceValueAtIndexNode<simd_float4>.self,
+        StripRectsNode.self,
 
         // Quaternion
         PassThroughNode<simd_quatf>.self,
