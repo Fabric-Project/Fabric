@@ -392,6 +392,7 @@ public class NodeRegistry {
         FillArrayFloat4Node.self,
         RippleFillArrayFloat4Node.self,
         MakeVector4ArrayNode.self,
+        StripRectsNode.self,
 
         // Quaternion
         MakeQuaternionNode.self,
