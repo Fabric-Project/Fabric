@@ -410,6 +410,7 @@ public class NodeRegistry {
         MakeTextureMatrixArrayNode.self,
         TextureMatrixFromRectsNode.self,
         TextureMatrixArrayFromRectsNode.self,
+        MakeTransformsArrayFromRectsNode.self,
         ArrayFirstValueNode<simd_float4x4>.self,
         ArrayLastValueNode<simd_float4x4>.self,
         ArrayIndexValueNode<simd_float4x4>.self,
