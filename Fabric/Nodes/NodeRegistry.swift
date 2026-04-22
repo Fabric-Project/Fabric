@@ -300,6 +300,7 @@ public class NodeRegistry {
         NumberRoundNode.self,
         NumberClampNode.self,
         NumberWrapNode.self,
+        NumberTriggerNode.self,
         NumberEaseNode.self,
         NumberTweenNode.self,
         NumberRemapNode.self,
