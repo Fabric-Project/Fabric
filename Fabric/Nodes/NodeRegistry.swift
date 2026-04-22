@@ -294,6 +294,7 @@ public class NodeRegistry {
         NumberLogicOperator.self,
         NumberRoundNode.self,
         NumberClampNode.self,
+        NumberWrapNode.self,
         NumberEaseNode.self,
         NumberTweenNode.self,
         NumberRemapNode.self,
