@@ -129,7 +129,16 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
     }
     
     public func setFileURL(_ url: URL) {
-        // no op in Base Image Node
+        guard self.url != url else { return }
+        self.url = url
+
+        if let sourceShader = self.postMaterial.shader as? SourceShader {
+            sourceShader.pipelineURL = url
+            sourceShader.reloadFromSource()
+        }
+
+        // New shader may expose a different set of uniforms.
+        self.syncDynamicParameterPortsFromMaterial()
     }
 
     required init(from decoder: any Decoder) throws {

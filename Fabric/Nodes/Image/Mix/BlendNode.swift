@@ -88,10 +88,7 @@ public class BlendNode: BaseImageNode
            let modeName = self.inputMode.value,
            let url = self.shaderURL(for: modeName)
         {
-            if let sourceShader = self.postMaterial.shader as? SourceShader {
-                sourceShader.pipelineURL = url
-                sourceShader.reloadFromSource()
-            }
+            self.setFileURL(url)
         }
 
         super.execute(context: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
