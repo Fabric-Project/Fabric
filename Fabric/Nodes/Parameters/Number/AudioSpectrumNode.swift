@@ -169,9 +169,13 @@ public class AudioSpectrumNode : Node
                 let norm = min(max((db - dbFloor) / (0 - dbFloor), 0), 1)
 
                 // --- envelope ---
-                let ePrev = env[k]
-                let e = (norm > ePrev) ? (ePrev + a * (norm - ePrev))
+                // Self-heal: if env[k] got NaN/Inf (e.g. from a bad biquad
+                // transient) it would otherwise stick forever because
+                // `env + r * (x - env)` with a NaN env is always NaN.
+                let ePrev = env[k].isFinite ? env[k] : 0
+                var e = (norm > ePrev) ? (ePrev + a * (norm - ePrev))
                                        : (ePrev + r * (norm - ePrev))
+                if !e.isFinite { e = 0 }
                 env[k] = e
                 out[k] = e
             }
@@ -290,22 +294,24 @@ public class AudioSpectrumNode : Node
            let attack = self.inputAttack.value,
            let release = self.inputRelease.value
         {
-                self.filterBank?.attackMS = attack
-                self.filterBank?.releaseMS = release
+                self.filterBank?.attackMS = attack.isFinite ? attack : 10.0
+                self.filterBank?.releaseMS = release.isFinite ? release : 10.0
         }
-        
+
         guard let filterBank else { return }
 
         let targetVideoFrameRate:Float = 200
         let numSamplesInAFrame = Int(round( filterBank.sampleRate / targetVideoFrameRate ) )
-            
+
         let batchSize = min(numSamplesInAFrame, self.samples.count)
-        let batchOfSamples = self.samples[ 0 ..< batchSize]
-        
+        guard batchSize > 0 else { return }
+
+        let batchOfSamples: [Float] = self.samples.prefix(batchSize).map { s in s.isFinite ? s : 0 }
+
         let output = filterBank.processAudioData(samples: batchOfSamples)
-        
+
         let normalizedOutput = ContiguousArray<Float>(output.map { ($0.isNaN || $0.isInfinite) ? 0.0 : $0 })
-        
+
         self.outputSpectrum.send( normalizedOutput )
         
         self.samples = Array<Float>(self.samples.dropFirst(batchSize))
@@ -328,18 +334,27 @@ public class AudioSpectrumNode : Node
     
     func createFilterBank(sampleRate:Float, bandCount:Int, normalizedSmoothing:Float)
     {
-        // No idea about this q calc?
-        let q = remap(normalizedSmoothing, 1.0, 0.0, 0.0, Float(bandCount) )
-        
-        self.filterBank = SimpleFilterBank(sampleRate: sampleRate,
-                                           bandCount: bandCount,
+        // Clamp inputs so a zero/NaN sampleRate or NaN smoothing can never
+        // produce NaN biquad coefficients (sin/cos of ∞ → NaN propagates
+        // through the whole filter bank otherwise).
+        let safeRate: Float = (sampleRate.isFinite && sampleRate > 0) ? sampleRate : 48000
+        let safeBands = max(1, bandCount)
+        let safeSmoothing: Float = normalizedSmoothing.isFinite ? normalizedSmoothing : 0
+
+        let q = remap(safeSmoothing, 1.0, 0.0, 0.0, Float(safeBands))
+        let safeQ: Float = (q.isFinite && q > 0) ? q : Float(safeBands)
+
+        self.filterBank = SimpleFilterBank(sampleRate: safeRate,
+                                           bandCount: safeBands,
                                            fMin: 20.0,
-                                           fMax: 15_000.0,//22_000.0,
-                                           Q: q,
+                                           fMax: 15_000.0,
+                                           Q: safeQ,
                                            dbFloor: -120.0)
-        
-        self.filterBank?.attackMS = self.inputAttack.value ?? 10.0
-        self.filterBank?.releaseMS = self.inputRelease.value ?? 10.0
+
+        let rawAttack = self.inputAttack.value ?? 10.0
+        let rawRelease = self.inputRelease.value ?? 10.0
+        self.filterBank?.attackMS = rawAttack.isFinite ? rawAttack : 10.0
+        self.filterBank?.releaseMS = rawRelease.isFinite ? rawRelease : 10.0
     }
     
     var lastCalledTime:TimeInterval = Date.timeIntervalSinceReferenceDate
@@ -347,46 +362,51 @@ public class AudioSpectrumNode : Node
     func processAudioData(buffer: AVAudioPCMBuffer)
     {
         let count = buffer.frameLength
-        
-        if let floatChannelData = buffer.floatChannelData
+        let bufferSampleRate = Float(buffer.format.sampleRate)
+
+        guard let floatChannelData = buffer.floatChannelData else { return }
+
+        var newSamples: [Float] = []
+        newSamples.reserveCapacity(Int(count))
+        for i in 0 ..< count
         {
-            var newSamples: [Float] = []
-            
-            for i in 0 ..< count
-            {
-                newSamples.append(floatChannelData[0][Int(i)])
-            }
-            
-            DispatchQueue.main.async { [weak self] in
-                
-                guard let self else { return }
-                
-                self.samples.append(contentsOf: newSamples)
-            }
+            let s = floatChannelData[0][Int(i)]
+            newSamples.append(s.isFinite ? s : 0)
         }
-        
-        return
+
+        DispatchQueue.main.async { [weak self] in
+
+            guard let self else { return }
+
+            // Build/rebuild the filter bank using the actual stream rate from
+            // the tap. AVAudioEngine.inputNode.inputFormat returns sampleRate=0
+            // on macOS before the engine is running, which would poison the
+            // biquads with NaN — so we defer creation until the first real
+            // buffer where buffer.format.sampleRate is authoritative.
+            if bufferSampleRate.isFinite, bufferSampleRate > 0,
+               self.filterBank == nil || self.filterBank?.sampleRate != bufferSampleRate
+            {
+                self.createFilterBank(sampleRate: bufferSampleRate,
+                                      bandCount: self.bands,
+                                      normalizedSmoothing: self.smoothing)
+            }
+
+            self.samples.append(contentsOf: newSamples)
+        }
     }
-    
+
     private func setupAudioShit()
     {
         do
         {
             let tapNode = self.engine.inputNode
-            
+
             tapNode.removeTap(onBus: 0)
-            
-            let sampleRate = Float(tapNode.inputFormat(forBus: 0).sampleRate)
-            
-            if self.filterBank == nil
-            {
-                self.createFilterBank(sampleRate:sampleRate, bandCount: self.bands, normalizedSmoothing: self.smoothing)
-            }
-            
+
             tapNode.installTap(onBus: 0, bufferSize: 1024, format: nil) { (buffer, time) in
                 self.processAudioData(buffer: buffer)
             }
-            
+
             try self.engine.start()
             
             print(tapNode)
