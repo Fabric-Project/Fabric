@@ -172,8 +172,9 @@ Examples:
 | `MakeVector4Node` † | "Vector 4 From Values" | X, Y, Z, W scalar inputs | `simd_float4` |
 | `MakeColorNode` † | "Color From RGBA" | R, G, B, A scalar inputs | Color (`simd_float4`) |
 | `MakeQuaternionNode` † | "Orientation From Axis Angle" | Axis vector, angle in degrees | Quaternion (`simd_float4`) |
+| `EulerOrientationNode` † | "Orientation From Euler" | X (Pitch), Y (Yaw), Z (Roll) in degrees | Quaternion (`simd_float4`) |
 
-† Display name has been updated to follow the convention; class name retains the legacy `Make<Output>` prefix pending project-file migration tooling.
+† Display name has been updated to follow the convention; class name retains its legacy form pending project-file migration tooling.
 
 Input-shape mnemonics currently in use:
 
@@ -186,6 +187,7 @@ Input-shape mnemonics currently in use:
 | **Values** | Explicit per-element scalar values, edited in the inspector |
 | **RGBA** | Red, Green, Blue, Alpha scalar components of a color |
 | **AxisAngle** | Axis vector and rotation angle — the standard non-matrix rotation representation |
+| **Euler** | Pitch, Yaw, Roll angles in degrees around the X, Y, Z axes |
 
 New mnemonics should be short, capitalised, and unambiguous within the Fabric domain. Add an entry to the table above when introducing one.
 
