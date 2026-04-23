@@ -209,36 +209,42 @@ public class AudioSpectrumNode : Node
     public var outputSpectrum:NodePort<ContiguousArray<Float>> { port(named: "outputSpectrum") }
 
     private var engine = AVAudioEngine()
-    
+
+    // GraphRenderer only calls startExecution once, at renderer setup. Nodes
+    // dropped onto an already-running graph never receive it, so we also
+    // attempt setup lazily from execute() (see requestAudioSetupIfNeeded()).
+    @ObservationIgnored private var didRequestAudioSetup = false
 
     override public func startExecution(context: GraphExecutionContext) {
         super.startExecution(context: context)
+        self.requestAudioSetupIfNeeded()
+    }
+
+    private func requestAudioSetupIfNeeded()
+    {
+        guard !self.didRequestAudioSetup else { return }
+        self.didRequestAudioSetup = true
 
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
-            case .authorized: // The user has previously granted access to the camera.
+            case .authorized:
                 self.setupAudioShit()
-                return
-            case .notDetermined: // The user has not yet been asked for camera access.
-                AVCaptureDevice.requestAccess(for: .audio) { granted in
+            case .notDetermined:
+                AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
                     if granted {
                         print("Granted Mic Access")
-                        self.setupAudioShit()
+                        DispatchQueue.main.async { self?.setupAudioShit() }
                     }
                     else
                     {
                         print("Not Granted Mic Access")
                     }
                 }
-            
-            case .denied: // The user has previously denied access.
-            print("Not Granted Mic Access")
-                return
-
-            case .restricted: // The user can't grant access due to restrictions.
+            case .denied:
+                print("Not Granted Mic Access")
+            case .restricted:
                 print("Restricted from Granting Mic Access")
-                return
-        @unknown default:
-            print("Restricted from Granting Mic Access")
+            @unknown default:
+                print("Restricted from Granting Mic Access")
         }
     }
     
@@ -268,7 +274,8 @@ public class AudioSpectrumNode : Node
     
     override public func execute(context: GraphExecutionContext, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: any MTLCommandBuffer)
     {
-        
+        self.requestAudioSetupIfNeeded()
+
         if self.inputSmoothing.valueDidChange || self.inputBands.valueDidChange,
            let smoothing = self.inputSmoothing.value,
            let bands = self.inputBands.value
