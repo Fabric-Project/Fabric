@@ -1,5 +1,5 @@
 //
-//  TextureMatrixFromRectsNode.swift
+//  Transform2DFromRectsNode.swift
 //  Fabric
 //
 
@@ -8,28 +8,28 @@ import Satin
 import simd
 import Metal
 
-public class TextureMatrixFromRectsNode : Node
+public class Transform2DFromRectsNode : Node
 {
-    override public class var name: String { "Texture Matrix From Rects" }
+    override public class var name: String { "Transform2D From Rects" }
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .Transform) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Produces a 4x4 texture matrix that maps any UV inside Target Rect to the corresponding UV inside Source Rect. Useful for 'sample this region of the source and fit it to this region of the output' — e.g. Ken Burns (animate Source Rect over time) or per-strip scraping (one matrix per strip, output rect to source rect). Rect format is (x, y, width, height) in UV space. Target Rect defaults to the full unit quad (0, 0, 1, 1)." }
+    override public class var nodeDescription: String { "Produces a 4x4 2D transform that maps any point inside Target Rect to the corresponding point inside Source Rect. Useful for 'take this region of the source and fit it to this region of the output' — e.g. Ken Burns over UVs (animate Source Rect) or per-strip scraping (one transform per strip, output rect to source rect). Rect format is (x, y, width, height). Target Rect defaults to the full unit square (0, 0, 1, 1)." }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
 
         return ports +
         [
-            ("inputSourceRect", ParameterPort(parameter: Float4Parameter("Source Rect", simd_float4(0, 0, 1, 1), .inputfield, "Rectangle in source UV space to sample from (x, y, width, height)"))),
-            ("inputTargetRect", ParameterPort(parameter: Float4Parameter("Target Rect", simd_float4(0, 0, 1, 1), .inputfield, "Rectangle in output UV space to sample into (x, y, width, height). Defaults to the full unit quad."))),
-            ("outputMatrix", NodePort<simd_float4x4>(name: "Texture Matrix", kind: .Outlet, description: "4x4 UV transform mapping Target Rect to Source Rect")),
+            ("inputSourceRect", ParameterPort(parameter: Float4Parameter("Source Rect", simd_float4(0, 0, 1, 1), .inputfield, "Rectangle in source space to sample from (x, y, width, height)"))),
+            ("inputTargetRect", ParameterPort(parameter: Float4Parameter("Target Rect", simd_float4(0, 0, 1, 1), .inputfield, "Rectangle in target space to sample into (x, y, width, height). Defaults to the full unit square."))),
+            ("outputTransform2D", NodePort<simd_float4x4>(name: "Transform2D", kind: .Outlet, description: "4x4 2D transform mapping Target Rect to Source Rect")),
         ]
     }
 
     public var inputSourceRect: ParameterPort<simd_float4> { port(named: "inputSourceRect") }
     public var inputTargetRect: ParameterPort<simd_float4> { port(named: "inputTargetRect") }
-    public var outputMatrix: NodePort<simd_float4x4> { port(named: "outputMatrix") }
+    public var outputTransform2D: NodePort<simd_float4x4> { port(named: "outputTransform2D") }
 
     public override func execute(context: GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
@@ -43,7 +43,7 @@ public class TextureMatrixFromRectsNode : Node
         // Degenerate target rect: emit identity rather than divide by zero.
         let eps: Float = 1e-8
         guard abs(target.z) > eps && abs(target.w) > eps else {
-            self.outputMatrix.send(matrix_identity_float4x4)
+            self.outputTransform2D.send(matrix_identity_float4x4)
             return
         }
 
@@ -62,6 +62,6 @@ public class TextureMatrixFromRectsNode : Node
             simd_float4(0,  0,  1, 0),
             simd_float4(tx, ty, 0, 1)
         )
-        self.outputMatrix.send(m)
+        self.outputTransform2D.send(m)
     }
 }
