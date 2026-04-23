@@ -11,7 +11,7 @@ import Metal
 public class UVInstancedMeshNode : BaseRenderableNode<Mesh>
 {
     override public class var name: String { "UV Instanced Mesh" }
-    override public class var nodeDescription: String { "Renders N copies of Geometry, each positioned by Transforms[i] and with UVs transformed by Texture Matrices[i]. Bridges to an eventual Satin v2 per-instance texture-matrix API: today the composite geometry is baked on the CPU each time inputs change; later the same ports will forward directly to Satin's native per-instance texture matrices. Port shape is forward-compatible so graphs survive the migration." }
+    override public class var nodeDescription: String { "Renders N copies of Geometry, each positioned by Transforms[i] and with UVs transformed by UV Transform2Ds[i]. Bridges to an eventual Satin v2 per-instance UV-transform API: today the composite geometry is baked on the CPU each time inputs change; later the same ports will forward directly to Satin's native per-instance UV transforms. Port shape is forward-compatible so graphs survive the migration." }
     override public class var nodeType: Node.NodeType { .Object(objectType: .Mesh) }
 
     // Ports
@@ -22,7 +22,7 @@ public class UVInstancedMeshNode : BaseRenderableNode<Mesh>
             ("inputGeometry", NodePort<SatinGeometry>(name: "Geometry", kind: .Inlet, description: "Template geometry replicated for every instance")),
             ("inputMaterial", NodePort<Material>(name: "Material", kind: .Inlet, description: "Material shared across all instances")),
             ("inputTransforms", NodePort<ContiguousArray<simd_float4x4>>(name: "Transforms", kind: .Inlet, description: "Per-instance model matrices. Output instance count is this array's length.")),
-            ("inputTextureMatrices", NodePort<ContiguousArray<simd_float4x4>>(name: "Texture Matrices", kind: .Inlet, description: "Per-instance UV transforms applied to the template's UVs before sampling. Shorter arrays pad with their last element; unconnected defaults to identity per instance.")),
+            ("inputUVTransform2Ds", NodePort<ContiguousArray<simd_float4x4>>(name: "UV Transform2Ds", kind: .Inlet, description: "Per-instance 2D transforms applied to the template's UVs before sampling. Shorter arrays pad with their last element; unconnected defaults to identity per instance.")),
             ("inputCastsShadow", ParameterPort(parameter: BoolParameter("Enable Shadows", true, .button, "When enabled, the mesh casts and receives shadows"))),
             ("inputDoubleSided", ParameterPort(parameter: BoolParameter("Double Sided", false, .button, "When enabled, renders both front and back faces"))),
             ("inputCullingMode", ParameterPort(parameter: StringParameter("Culling Mode", "Back", ["Back", "Front", "None"], .dropdown, "Which faces to cull during rendering"))),
@@ -33,7 +33,7 @@ public class UVInstancedMeshNode : BaseRenderableNode<Mesh>
     public var inputGeometry: NodePort<SatinGeometry> { port(named: "inputGeometry") }
     public var inputMaterial: NodePort<Material> { port(named: "inputMaterial") }
     public var inputTransforms: NodePort<ContiguousArray<simd_float4x4>> { port(named: "inputTransforms") }
-    public var inputTextureMatrices: NodePort<ContiguousArray<simd_float4x4>> { port(named: "inputTextureMatrices") }
+    public var inputUVTransform2Ds: NodePort<ContiguousArray<simd_float4x4>> { port(named: "inputUVTransform2Ds") }
     public var inputCastsShadow: ParameterPort<Bool> { port(named: "inputCastsShadow") }
     public var inputDoubleSided: ParameterPort<Bool> { port(named: "inputDoubleSided") }
     public var inputCullingMode: ParameterPort<String> { port(named: "inputCullingMode") }
@@ -104,7 +104,7 @@ public class UVInstancedMeshNode : BaseRenderableNode<Mesh>
     {
         let bakeInputsChanged = self.inputGeometry.valueDidChange
             || self.inputTransforms.valueDidChange
-            || self.inputTextureMatrices.valueDidChange
+            || self.inputUVTransform2Ds.valueDidChange
 
         let materialChanged = self.inputMaterial.valueDidChange
 
@@ -117,11 +117,11 @@ public class UVInstancedMeshNode : BaseRenderableNode<Mesh>
             {
                 if bakeInputsChanged
                 {
-                    let textureMatrices = self.inputTextureMatrices.value ?? ContiguousArray<simd_float4x4>()
+                    let uvTransforms = self.inputUVTransform2Ds.value ?? ContiguousArray<simd_float4x4>()
                     let baked = Self.bakeGeometry(
                         template: template,
                         transforms: transforms,
-                        textureMatrices: textureMatrices
+                        uvTransforms: uvTransforms
                     )
 
                     if let existing = self.bakedGeometry
@@ -222,12 +222,12 @@ public class UVInstancedMeshNode : BaseRenderableNode<Mesh>
 
     /// Concatenates N copies of the template geometry, applying the per-instance
     /// model transform to positions and normals (via combineAndTransformGeometryData)
-    /// and the per-instance texture matrix to UVs in a follow-up pass. Returns a
+    /// and the per-instance UV transform to UVs in a follow-up pass. Returns a
     /// freshly-allocated GeometryData whose pointers the caller owns.
     private static func bakeGeometry(
         template: SatinGeometry,
         transforms: ContiguousArray<simd_float4x4>,
-        textureMatrices: ContiguousArray<simd_float4x4>
+        uvTransforms: ContiguousArray<simd_float4x4>
     ) -> GeometryData
     {
         // Ensure template's geometryData is materialised.
@@ -236,12 +236,12 @@ public class UVInstancedMeshNode : BaseRenderableNode<Mesh>
 
         var composite = createGeometryData()
 
-        let fallbackUV = textureMatrices.last ?? matrix_identity_float4x4
+        let fallbackUV = uvTransforms.last ?? matrix_identity_float4x4
 
         for i in 0..<transforms.count
         {
             let transform = transforms[i]
-            let uvMatrix = i < textureMatrices.count ? textureMatrices[i] : fallbackUV
+            let uvMatrix = i < uvTransforms.count ? uvTransforms[i] : fallbackUV
 
             let startVertex = Int(composite.vertexCount)
             combineAndTransformGeometryData(&composite, &templateData, transform)
