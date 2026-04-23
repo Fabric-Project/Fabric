@@ -12,7 +12,7 @@ struct NodeTitleView: View {
     let node: Node
 
     // Rename
-    @State public var renaming: Bool = false
+    @State private var renaming: Bool = false
     @State private var renamingText: String = ""
     @FocusState private var renameFieldFocused: Bool
 
@@ -38,25 +38,17 @@ struct NodeTitleView: View {
         Group {
             if renaming {
                 HStack(spacing: 0) {
-                    TextField("", text: $renamingText, onCommit: {
-                        let trimmed = renamingText.trimmingCharacters(in: .whitespacesAndNewlines)
-                        let oldName = node.name
-                        node.graph?.undoManager?.registerUndo(withTarget: node) { node in
-                            node.displayName = oldName
+                    TextField("", text: $renamingText)
+                        .textFieldStyle(.plain)
+                        .focused($renameFieldFocused)
+                        .font(.system(size: 9))
+                        .bold()
+                        .foregroundStyle(.white)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .onSubmit(commitRename)
+                        .onDisappear {
+                            renaming = false
                         }
-                        node.graph?.undoManager?.setActionName("Rename Node")
-                        node.displayName = trimmed.isEmpty ? nil : trimmed
-                        renaming = false
-                    })
-                    .textFieldStyle(.plain)
-                    .focused($renameFieldFocused)
-                    .font(.system(size: 9))
-                    .bold()
-                    .foregroundStyle(.white)
-                    .fixedSize(horizontal: true, vertical: false)
-                    .onDisappear {
-                        renaming = false
-                    }
 
                     Text(" \(typeName)")
                         .font(.system(size: 9))
@@ -83,9 +75,22 @@ struct NodeTitleView: View {
         .onTapGesture(count: 2) { // double click to rename
             if !renaming { renaming = true }
         }
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Double-tap to rename node")
         .onChange(of: renaming) { _, new in
             if new { renamingText = self.node.name }
             renameFieldFocused = new
         }
+    }
+
+    private func commitRename() {
+        let trimmed = renamingText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let oldName = node.name
+        node.graph?.undoManager?.registerUndo(withTarget: node) { node in
+            node.displayName = oldName
+        }
+        node.graph?.undoManager?.setActionName("Rename Node")
+        node.displayName = trimmed.isEmpty ? nil : trimmed
+        renaming = false
     }
 }
