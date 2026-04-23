@@ -11,7 +11,7 @@ import Metal
 /// Tweens toward a target quaternion orientation over a duration using
 /// spherical linear interpolation (slerp) and an easing curve.
 ///
-/// Connect an Euler Orientation node or any other quaternion source
+/// Connect an Orientation From Euler node or any other quaternion source
 /// to the Target input. The tween follows the shortest rotation path.
 public class OrientationTweenNode : Node
 {
