@@ -64,8 +64,6 @@ public class BlendNode: BaseImageNode
         "Vivid Light",
     ]
 
-    override public var materialSyncExcludedLabels: Set<String> { ["Mode"] }
-
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
