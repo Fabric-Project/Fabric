@@ -13,7 +13,7 @@ import Metal
 /// Constructs a color from individual R, G, B, A float components.
 public class MakeColorNode: Node
 {
-    override public class var name: String { "Make Color" }
+    override public class var name: String { "Color From RGBA" }
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .Color) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }

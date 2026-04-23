@@ -167,6 +167,13 @@ Examples:
 | `TransformsArrayFromRectsNode` | "Transforms Array From Rects" | Single rect array | Unit-quad placement Transforms |
 | `TransformsArrayFromRectPairsNode` | "Transforms Array From Rect Pairs" | Parallel Source/Target rect arrays | Per-element affine maps |
 | `FloatArrayFromValuesNode` | "Float Array From Values" | N editable scalar inputs | Float array |
+| `MakeVector2Node` † | "Vector 2 From Values" | X, Y scalar inputs | `simd_float2` |
+| `MakeVector3Node` † | "Vector 3 From Values" | X, Y, Z scalar inputs | `simd_float3` |
+| `MakeVector4Node` † | "Vector 4 From Values" | X, Y, Z, W scalar inputs | `simd_float4` |
+| `MakeColorNode` † | "Color From RGBA" | R, G, B, A scalar inputs | Color (`simd_float4`) |
+| `MakeQuaternionNode` † | "Orientation From Axis Angle" | Axis vector, angle in degrees | Quaternion (`simd_float4`) |
+
+† Display name has been updated to follow the convention; class name retains the legacy `Make<Output>` prefix pending project-file migration tooling.
 
 Input-shape mnemonics currently in use:
 
@@ -177,6 +184,8 @@ Input-shape mnemonics currently in use:
 | **Rects** | An array of rectangles `(x, y, width, height)` |
 | **RectPairs** | Parallel arrays of source and target rectangles |
 | **Values** | Explicit per-element scalar values, edited in the inspector |
+| **RGBA** | Red, Green, Blue, Alpha scalar components of a color |
+| **AxisAngle** | Axis vector and rotation angle — the standard non-matrix rotation representation |
 
 New mnemonics should be short, capitalised, and unambiguous within the Fabric domain. Add an entry to the table above when introducing one.
 
