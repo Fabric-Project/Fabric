@@ -14,7 +14,7 @@ public class StripRectsNode : Node
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Builds an array of rects representing a horizontal strip layout. Starting at Origin, each element of Widths becomes a rect of the given Height, butted up against the previous one along +X. Output is shaped (x, y, width, height) per rect — plugs into Make Transforms Array From Rects and Transform2D Array From Rects." }
+    override public class var nodeDescription: String { "Builds an array of rects representing a horizontal strip layout. Starting at Origin, each element of Widths becomes a rect of the given Height, butted up against the previous one along +X. Output is shaped (x, y, width, height) per rect — plugs into Transforms Array From Rects and Transforms Array From Rect Pairs." }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)

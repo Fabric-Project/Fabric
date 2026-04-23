@@ -1,5 +1,5 @@
 //
-//  Transform2DArrayFromRectsNode.swift
+//  TransformsArrayFromRectPairsNode.swift
 //  Fabric
 //
 
@@ -8,13 +8,13 @@ import Satin
 import simd
 import Metal
 
-public class Transform2DArrayFromRectsNode : Node
+public class TransformsArrayFromRectPairsNode : Node
 {
-    override public class var name: String { "Transform2D Array From Rects" }
+    override public class var name: String { "Transforms Array From Rect Pairs" }
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .Transform) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Per-element version of Transform2D From Rects: given parallel arrays of source rects and target rects, emits an array of 4x4 2D transforms, each mapping its Target Rect to its Source Rect. Output length matches the longest input; shorter inputs pad with their last element. Defaults per-element: both rects (0, 0, 1, 1)." }
+    override public class var nodeDescription: String { "Per-element version of Transform From Rects: given parallel arrays of source rects and target rects (one source/target pair per element), emits an array of 2D affine transforms, each mapping its Target Rect to its Source Rect. Output length matches the longest input; shorter inputs pad with their last element. Defaults per-element: both rects (0, 0, 1, 1)." }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
@@ -23,13 +23,13 @@ public class Transform2DArrayFromRectsNode : Node
         [
             ("inputSourceRects", NodePort<ContiguousArray<simd_float4>>(name: "Source Rects", kind: .Inlet, description: "Per-element source rect (x, y, width, height)")),
             ("inputTargetRects", NodePort<ContiguousArray<simd_float4>>(name: "Target Rects", kind: .Inlet, description: "Per-element target rect (x, y, width, height)")),
-            ("outputTransform2Ds", NodePort<ContiguousArray<simd_float4x4>>(name: "Transform2Ds", kind: .Outlet, description: "Array of 4x4 2D transforms")),
+            ("outputTransforms", NodePort<ContiguousArray<simd_float4x4>>(name: "Transforms", kind: .Outlet, description: "Array of 2D affine transforms")),
         ]
     }
 
     public var inputSourceRects: NodePort<ContiguousArray<simd_float4>> { port(named: "inputSourceRects") }
     public var inputTargetRects: NodePort<ContiguousArray<simd_float4>> { port(named: "inputTargetRects") }
-    public var outputTransform2Ds: NodePort<ContiguousArray<simd_float4x4>> { port(named: "outputTransform2Ds") }
+    public var outputTransforms: NodePort<ContiguousArray<simd_float4x4>> { port(named: "outputTransforms") }
 
     public override func execute(context: GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
@@ -42,7 +42,7 @@ public class Transform2DArrayFromRectsNode : Node
 
         let count = [sourcesIn?.count ?? 0, targetsIn?.count ?? 0].max() ?? 0
         guard count > 0 else {
-            self.outputTransform2Ds.send(ContiguousArray<simd_float4x4>())
+            self.outputTransforms.send(ContiguousArray<simd_float4x4>())
             return
         }
 
@@ -74,7 +74,7 @@ public class Transform2DArrayFromRectsNode : Node
                 simd_float4(tx, ty, 0, 1)
             ))
         }
-        self.outputTransform2Ds.send(output)
+        self.outputTransforms.send(output)
     }
 
     @inline(__always)

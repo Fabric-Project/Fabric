@@ -1,5 +1,5 @@
 //
-//  MakeFloatArrayNode.swift
+//  FloatArrayFromValuesNode.swift
 //  Fabric
 //
 
@@ -10,8 +10,8 @@ import Metal
 
 // MARK: - Settings View
 
-struct MakeFloatArrayNodeSettingsView: View {
-    @Bindable var node: MakeFloatArrayNode
+struct FloatArrayFromValuesNodeSettingsView: View {
+    @Bindable var node: FloatArrayFromValuesNode
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -30,11 +30,11 @@ struct MakeFloatArrayNodeSettingsView: View {
     }
 }
 
-// MARK: - Make Float Array Node
+// MARK: - Float Array From Values Node
 
-@Observable public class MakeFloatArrayNode: Node
+@Observable public class FloatArrayFromValuesNode: Node
 {
-    public override class var name: String { "Make Float Array" }
+    public override class var name: String { "Float Array From Values" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
@@ -73,27 +73,27 @@ struct MakeFloatArrayNodeSettingsView: View {
 
     // MARK: - Codable
 
-    private enum MakeFloatArrayCodingKeys: String, CodingKey {
+    private enum FloatArrayFromValuesCodingKeys: String, CodingKey {
         case count
     }
 
     public required init(from decoder: any Decoder) throws {
         try super.init(from: decoder)
-        let container = try decoder.container(keyedBy: MakeFloatArrayCodingKeys.self)
+        let container = try decoder.container(keyedBy: FloatArrayFromValuesCodingKeys.self)
         self.count = try container.decodeIfPresent(Int.self, forKey: .count) ?? 2
         rebuildPorts()
     }
 
     public override func encode(to encoder: Encoder) throws {
         try super.encode(to: encoder)
-        var container = encoder.container(keyedBy: MakeFloatArrayCodingKeys.self)
+        var container = encoder.container(keyedBy: FloatArrayFromValuesCodingKeys.self)
         try container.encode(count, forKey: .count)
     }
 
     // MARK: - Settings View
 
     override public func providesSettingsView() -> Bool { true }
-    override public func settingsView() -> AnyView { AnyView(MakeFloatArrayNodeSettingsView(node: self)) }
+    override public func settingsView() -> AnyView { AnyView(FloatArrayFromValuesNodeSettingsView(node: self)) }
 
     // MARK: - Dynamic ports
 
