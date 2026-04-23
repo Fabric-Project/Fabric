@@ -1,5 +1,5 @@
 //
-//  MakeTransformsArrayFromRectsNode.swift
+//  TransformsArrayFromRectsNode.swift
 //  Fabric
 //
 
@@ -8,13 +8,13 @@ import Satin
 import simd
 import Metal
 
-public class MakeTransformsArrayFromRectsNode : Node
+public class TransformsArrayFromRectsNode : Node
 {
-    override public class var name: String { "Make Transforms Array From Rects" }
+    override public class var name: String { "Transforms Array From Rects" }
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .Transform) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Turns an array of rects into an array of 4x4 model transforms. Each transform places a centered unit quad (-0.5..0.5 in local XY) at the rect in the world XY plane (Z = 0): T(rect.x + rect.w/2, rect.y + rect.h/2, 0) * S(rect.w, rect.h, 1). Useful paired with Transform2D Array From Rects to drive the Transforms and UV Transform2Ds inputs of UV Instanced Mesh from the same rect arrays." }
+    override public class var nodeDescription: String { "Turns an array of rects into an array of affine model transforms packed as 4x4 matrices. Each transform places a centered unit quad (-0.5..0.5 in local XY) at the rect in the world XY plane (Z = 0): T(rect.x + rect.w/2, rect.y + rect.h/2, 0) * S(rect.w, rect.h, 1). Useful paired with Transforms Array From Rect Pairs to drive the Geometry Transforms and Material Transforms inputs of UV Instanced Mesh from the same rect arrays." }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
