@@ -129,7 +129,16 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
     }
     
     public func setFileURL(_ url: URL) {
-        // no op in Base Image Node
+        guard self.url != url else { return }
+        self.url = url
+
+        if let sourceShader = self.postMaterial.shader as? SourceShader {
+            sourceShader.pipelineURL = url
+            sourceShader.reloadFromSource()
+        }
+
+        // New shader may expose a different set of uniforms.
+        self.syncDynamicParameterPortsFromMaterial()
     }
 
     required init(from decoder: any Decoder) throws {
@@ -423,29 +432,29 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         self.refreshImageInputPortCache()
     }
 
+    /// Ports the base class manages for generator nodes (image input count == 0).
+    /// Single source of truth: `syncGeneratorResolutionPorts` adds/removes them
+    /// from this list, and `offLimitsLabels` reads their labels to protect them
+    /// from material sync.
+    private static let generatorResolutionPorts: [(label: String, defaultValue: Int, description: String)] = [
+        ("Width",  512, "Output image width in pixels"),
+        ("Height", 512, "Output image height in pixels"),
+    ]
+
     private func syncGeneratorResolutionPorts() {
         let shouldHaveResolutionPorts = self.currentImageInputCount == 0
-        let widthPort = self.resolutionPort(label: "Width")
-        let heightPort = self.resolutionPort(label: "Height")
 
-        if shouldHaveResolutionPorts {
-            if widthPort == nil {
-                let width = ParameterPort(parameter: IntParameter("Width", 512, 1, 8192, .inputfield, "Output image width in pixels"))
-                self.addDynamicPort(width, name: width.name)
-            }
+        for spec in Self.generatorResolutionPorts {
+            let existing = self.resolutionPort(label: spec.label)
 
-            if heightPort == nil {
-                let height = ParameterPort(parameter: IntParameter("Height", 512, 1, 8192, .inputfield, "Output image height in pixels"))
-                self.addDynamicPort(height, name: height.name)
+            if shouldHaveResolutionPorts {
+                if existing == nil {
+                    let port = ParameterPort(parameter: IntParameter(spec.label, spec.defaultValue, 1, 8192, .inputfield, spec.description))
+                    self.addDynamicPort(port, name: port.name)
+                }
             }
-        }
-        else {
-            if let widthPort {
-                self.removePort(widthPort)
-            }
-
-            if let heightPort {
-                self.removePort(heightPort)
+            else if let existing {
+                self.removePort(existing)
             }
         }
     }
@@ -463,20 +472,37 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         return ports[index].value?.texture
     }
 
+    /// Labels of parameter ports that have been claimed by `syncDynamicParameterPortsFromMaterial`.
+    /// Material sync only adds to, rebinds, or removes labels in this set — any
+    /// port whose label isn't in it (subclass-declared ports, base-managed ports
+    /// like Width/Height, or anything else) is implicitly protected.
+    @ObservationIgnored private var materialSyncedLabels: Set<String> = []
+    @ObservationIgnored private var materialSyncedLabelsInitialized: Bool = false
+
+    private func offLimitsLabels() -> Set<String> {
+        let declared = Self.registerPorts(context: self.context).compactMap { $0.port.parameter?.label }
+        let baseManaged = Self.generatorResolutionPorts.map { $0.label }
+        return Set(declared).union(baseManaged)
+    }
+
     private func syncDynamicParameterPortsFromMaterial() {
         let materialParams = self.postMaterial.parameters.params
-        let labels = Set(materialParams.map(\.label))
+        let newLabels = Set(materialParams.map(\.label))
+        let offLimits = self.offLimitsLabels()
 
+        // Seed the tracked set on the first sync after init/decode: any existing
+        // parameter port whose label isn't declared or base-managed must have
+        // been added by a prior material sync.
+        if self.materialSyncedLabelsInitialized == false {
+            let existingParamLabels = Set(self.ports.compactMap { $0.parameter?.label })
+            self.materialSyncedLabels = existingParamLabels.subtracting(offLimits)
+            self.materialSyncedLabelsInitialized = true
+        }
+
+        let labelsToRemove = self.materialSyncedLabels.subtracting(newLabels)
         let portsToRemove = self.ports.filter { port in
-            guard let parameter = port.parameter else {
-                return false
-            }
-
-            if parameter.label == "Width" || parameter.label == "Height" {
-                return false
-            }
-
-            return !labels.contains(port.name)
+            guard let label = port.parameter?.label else { return false }
+            return labelsToRemove.contains(label)
         }
 
         for port in portsToRemove {
@@ -484,6 +510,10 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         }
 
         for param in materialParams {
+            if offLimits.contains(param.label) {
+                continue
+            }
+
             if let port = self.ports.first(where: { $0.name == param.label }) {
                 self.replaceParameterOfPort(port, withParam: param)
             }
@@ -491,6 +521,8 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
                 self.addDynamicPort(dynamicPort)
             }
         }
+
+        self.materialSyncedLabels = newLabels.subtracting(offLimits)
     }
 
     private func normalizePortOrderForDisplay()
@@ -522,10 +554,13 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             if port.portType == .Image {
                 return (0, self.imagePortSortKey(for: port))
             }
+            if let label = port.parameter?.label, self.materialSyncedLabels.contains(label) {
+                return (2, originalIndex)
+            }
             return (1, originalIndex)
         }
 
-        return (2, originalIndex)
+        return (3, originalIndex)
     }
 
     override public func execute(context: GraphExecutionContext,
