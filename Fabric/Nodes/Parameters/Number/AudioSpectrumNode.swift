@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 import Satin
 import simd
 import AVFAudio
@@ -197,15 +198,17 @@ public class AudioSpectrumNode : Node
         return ports +
         [
             ("inputAudioDevice", ParameterPort(parameter: StringParameter("Device Name", "", .dropdown, "Audio input device to capture from"))),
+            ("inputGain", ParameterPort(parameter: FloatParameter("Gain", 1.0, 0.0, 4.0, .slider, "Linear gain applied to input samples before spectral analysis"))),
             ("inputBands", ParameterPort(parameter: IntParameter("Bands", 8, 1, 256, .inputfield, "Number of frequency bands in the spectrum output"))),
             ("inputSmoothing", ParameterPort(parameter: FloatParameter("Smoothing", 0.0, 0.0, 1.0, .slider, "Smoothing factor for frequency band transitions"))),
             ("inputAttack", ParameterPort(parameter: FloatParameter("Attack", 0.0, 0.0, 100.0, .slider, "Attack time in milliseconds for rising levels"))),
             ("inputRelease", ParameterPort(parameter: FloatParameter("Release", 0.0, 0.0, 100.0, .slider, "Release time in milliseconds for falling levels"))),
-            ("outputSpectrum", NodePort<ContiguousArray<Float>>(name: NumberNode.name , kind: .Outlet, description: "Array of frequency band values from 0 to 1")),
+            ("outputSpectrum", NodePort<ContiguousArray<Float>>(name: "Numbers", kind: .Outlet, description: "Array of frequency band values from 0 to 1")),
         ]
     }
     
     public var inputAudioDevice:ParameterPort<String> { port(named: "inputAudioDevice") }
+    public var inputGain:ParameterPort<Float> { port(named: "inputGain") }
     public var inputBands:ParameterPort<Int> { port(named: "inputBands") }
     public var inputSmoothing:ParameterPort<Float> { port(named: "inputSmoothing") }
     public var inputAttack:ParameterPort<Float> { port(named: "inputAttack") }
@@ -297,23 +300,34 @@ public class AudioSpectrumNode : Node
                 self.filterBank?.attackMS = attack.isFinite ? attack : 10.0
                 self.filterBank?.releaseMS = release.isFinite ? release : 10.0
         }
-
+        
         guard let filterBank else { return }
 
         let targetVideoFrameRate:Float = 200
         let numSamplesInAFrame = Int(round( filterBank.sampleRate / targetVideoFrameRate ) )
-
+            
         let batchSize = min(numSamplesInAFrame, self.samples.count)
+        let rawGain = self.inputGain.value ?? 1.0
+        let gain: Float = rawGain.isFinite ? rawGain : 1.0
+
         guard batchSize > 0 else { return }
 
-        let batchOfSamples: [Float] = self.samples.prefix(batchSize).map { s in s.isFinite ? s : 0 }
+        let gainedBatch: [Float] = self.samples.prefix(batchSize).map { s in
+            let v = s * gain
+            return v.isFinite ? v : 0
+        }
 
-        let output = filterBank.processAudioData(samples: batchOfSamples)
+        let output = filterBank.processAudioData(samples: gainedBatch)
 
         let normalizedOutput = ContiguousArray<Float>(output.map { ($0.isNaN || $0.isInfinite) ? 0.0 : $0 })
 
         self.outputSpectrum.send( normalizedOutput )
-        
+
+        if self.showSettings
+        {
+            self.visualizationBandValues = Array(normalizedOutput)
+        }
+
         self.samples = Array<Float>(self.samples.dropFirst(batchSize))
 
         if self.samples.count > self.maxSamples
@@ -380,9 +394,8 @@ public class AudioSpectrumNode : Node
 
             // Build/rebuild the filter bank using the actual stream rate from
             // the tap. AVAudioEngine.inputNode.inputFormat returns sampleRate=0
-            // on macOS before the engine is running, which would poison the
-            // biquads with NaN — so we defer creation until the first real
-            // buffer where buffer.format.sampleRate is authoritative.
+            // on macOS before the engine is running, which poisons the biquads
+            // with NaN — so we defer creation until the first real buffer.
             if bufferSampleRate.isFinite, bufferSampleRate > 0,
                self.filterBank == nil || self.filterBank?.sampleRate != bufferSampleRate
             {
@@ -417,7 +430,34 @@ public class AudioSpectrumNode : Node
         {
             print("Unable to start Audio Engine:", error)
         }
-        
+
+    }
+
+    // MARK: - Visualization
+
+    // Consumed by the settings popover; populated in execute() only while
+    // showSettings is true.
+    @ObservationIgnored public var visualizationBandValues: [Float] = []
+
+    override public func providesSettingsView() -> Bool { true }
+
+    override public func settingsView() -> AnyView
+    {
+        AnyView(AudioSpectrumNodeSettingsView(node: self))
+    }
+
+    override public var settingsSize: SettingsViewSize { .Custom(size: CGSize(width: 460, height: 180)) }
+}
+
+// MARK: - Settings View
+
+private struct AudioSpectrumNodeSettingsView: View
+{
+    @Bindable var node: AudioSpectrumNode
+
+    var body: some View
+    {
+        BandsVisualizer(bands: { node.visualizationBandValues })
     }
 }
 
