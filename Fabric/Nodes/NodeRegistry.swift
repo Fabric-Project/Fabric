@@ -316,6 +316,8 @@ public class NodeRegistry {
         AudioSpectrumNode.self,
         ColorPassThroughNode.self,
         MakeColorNode.self,
+        FloatArrayDynamicsNode.self,
+        FloatArrayRefinerNode.self,
         ColorTweenNode.self,
         EulerOrientationNode.self,
         OrientationTweenNode.self,
