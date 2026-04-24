@@ -202,6 +202,7 @@ struct ArrayMathExpressionView: View
         let nAsDouble = Double(count)
         let tDivisor = Float(max(1, count - 1))
 
+        var sawUnresolvedVariable = false
         var output = ContiguousArray<Float>()
         output.reserveCapacity(count)
         for i in 0..<count
@@ -219,11 +220,22 @@ struct ArrayMathExpressionView: View
                     {
                         return Double(array[i])
                     }
-                    return Double.nan
+                    sawUnresolvedVariable = true
+                    return 0
                 }
             })
-            output.append(Float(result))
+            // Per-element scrub for legitimate math NaN/Inf (0/0, log(-1),
+            // asin out of range, etc) so a single bad element doesn't poison
+            // any downstream FloatParameters via the NaN != NaN publisher
+            // cycle.
+            let f = Float(result)
+            output.append(f.isFinite ? f : 0)
         }
+
+        // Don't emit if any variable was unresolved — the expression's
+        // output is meaningless until every input has propagated at
+        // least once. Matches the scalar Math Expression node's guard.
+        guard !sawUnresolvedVariable else { return }
 
         self.outputArray.send(output)
     }
