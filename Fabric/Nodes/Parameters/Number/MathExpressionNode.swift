@@ -137,18 +137,29 @@ struct MathExpressionView : View
         if anyVariabledChanged,
            let mathEvaluator = self.mathEvaluator
         {
+            var sawUnresolvedVariable = false
             let result = mathEvaluator.eval(variables: { variable in
-                                
+
                 if let port = self.findPort(named: variable) as? NodePort<Float>,
                    let portValue = port.value
                 {
                     return Double(portValue)
                 }
-                
-                return Double.nan
+
+                sawUnresolvedVariable = true
+                return 0
             })
-            
-            self.outputNumber.send( Float(result) )
+
+            // Don't emit if any variable was unresolved — the expression's
+            // output is meaningless until every input has propagated at
+            // least once, and emitting NaN would otherwise poison downstream
+            // FloatParameters via the NaN != NaN publisher cycle. Also scrub
+            // legitimate NaN/Inf from the expression itself (0/0, log(-1),
+            // asin out of range, etc).
+            let output = Float(result)
+            guard !sawUnresolvedVariable, output.isFinite else { return }
+
+            self.outputNumber.send( output )
         }
     }
     
