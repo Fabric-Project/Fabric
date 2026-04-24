@@ -187,27 +187,29 @@ public class AudioSpectrumNode : Node
     override public class var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
     override public class var nodeTimeMode: Node.TimeMode { .Idle }
-    override public class var nodeDescription: String { "Provides Audio Spectrum Data as Number Array"}
-        
+    override public class var nodeDescription: String { "Captures audio from the selected input device and emits a normalized per-band spectrum. Sensitivity controls how responsive the analyzer is to quiet sounds — 0 analyses only louder audio, 1 is full sensitivity. Gain multiplies the bar values after normalization, clamped to [0, 1] — a visual 'overdrive' that pushes bars toward full-scale without touching the underlying signal." }
+
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
-        
+
         return ports +
         [
             ("inputAudioDevice", ParameterPort(parameter: StringParameter("Device Name", "", .dropdown, "Audio input device to capture from"))),
-            ("inputGain", ParameterPort(parameter: FloatParameter("Gain", 1.0, 0.0, 4.0, .slider, "Linear gain applied to input samples before spectral analysis"))),
             ("inputBands", ParameterPort(parameter: IntParameter("Bands", 8, 1, 256, .inputfield, "Number of frequency bands in the spectrum output"))),
+            ("inputSensitivity", ParameterPort(parameter: FloatParameter("Sensitivity", 0.5, 0.0, 1.0, .slider, "How sensitive the analyzer is to quiet sounds. 0 = analyses only louder sounds (quiet audio is ignored). 1 = full sensitivity (picks up even very faint audio). Turn up to make the display react to subtle input; turn down if you only care about peaks."))),
+            ("inputGain", ParameterPort(parameter: FloatParameter("Gain", 1.0, 0.0, 10.0, .slider, "Multiplier applied to the output band values after normalization, clamped to [0, 1]. 1 = pass-through; values > 1 push bars toward full-scale ('visual overdrive' — the bars saturate earlier); values < 1 scale bars down. Purely affects the output, not the underlying audio analysis."))),
             ("inputSmoothing", ParameterPort(parameter: FloatParameter("Smoothing", 0.0, 0.0, 1.0, .slider, "Smoothing factor for frequency band transitions"))),
             ("inputAttack", ParameterPort(parameter: FloatParameter("Attack", 0.0, 0.0, 100.0, .slider, "Attack time in milliseconds for rising levels"))),
             ("inputRelease", ParameterPort(parameter: FloatParameter("Release", 0.0, 0.0, 100.0, .slider, "Release time in milliseconds for falling levels"))),
             ("outputSpectrum", NodePort<ContiguousArray<Float>>(name: "Spectrum", kind: .Outlet, description: "Array of frequency band values from 0 to 1")),
         ]
     }
-    
+
     public var inputAudioDevice:ParameterPort<String> { port(named: "inputAudioDevice") }
-    public var inputGain:ParameterPort<Float> { port(named: "inputGain") }
     public var inputBands:ParameterPort<Int> { port(named: "inputBands") }
+    public var inputSensitivity:ParameterPort<Float> { port(named: "inputSensitivity") }
+    public var inputGain:ParameterPort<Float> { port(named: "inputGain") }
     public var inputSmoothing:ParameterPort<Float> { port(named: "inputSmoothing") }
     public var inputAttack:ParameterPort<Float> { port(named: "inputAttack") }
     public var inputRelease:ParameterPort<Float> { port(named: "inputRelease") }
@@ -396,25 +398,35 @@ public class AudioSpectrumNode : Node
         let numSamplesInAFrame = Int(round( filterBank.sampleRate / targetVideoFrameRate ) )
             
         let batchSize = min(numSamplesInAFrame, self.samples.count)
-        let rawGain = self.inputGain.value ?? 1.0
-        let gain: Float = rawGain.isFinite ? rawGain : 1.0
-
         guard batchSize > 0 else { return }
 
-        let gainedBatch: [Float] = self.samples.prefix(batchSize).map { s in
-            let v = s * gain
-            return v.isFinite ? v : 0
-        }
+        // Sensitivity → filter-bank dbFloor. 0 = least sensitive (−30 dB
+        // floor; only loud signals register); 1 = most sensitive (−120 dB
+        // floor; catches very quiet signals). Updates on the live
+        // filterBank are cheap — just overwrites a Float; no rebuild.
+        let rawSensitivity = self.inputSensitivity.value ?? 0.5
+        let sensitivity: Float = rawSensitivity.isFinite ? max(0, min(1, rawSensitivity)) : 0.5
+        filterBank.dbFloor = -30 - sensitivity * 90
 
-        let output = filterBank.processAudioData(samples: gainedBatch)
+        let batchOfSamples: [Float] = self.samples.prefix(batchSize).map { s in s.isFinite ? s : 0 }
 
-        let normalizedOutput = ContiguousArray<Float>(output.map { ($0.isNaN || $0.isInfinite) ? 0.0 : $0 })
+        let output = filterBank.processAudioData(samples: batchOfSamples)
 
-        self.outputSpectrum.send( normalizedOutput )
+        // Gain: post-normalize multiplier on each band, clamped to [0, 1].
+        // This is a visual overdrive — it doesn't touch the input signal or
+        // the analysis, just pushes the bars up before emit.
+        let rawGain = self.inputGain.value ?? 1.0
+        let gain: Float = rawGain.isFinite ? rawGain : 1.0
+        let shaped = ContiguousArray<Float>(output.map { v in
+            guard v.isFinite else { return Float(0) }
+            return min(Float(1), max(Float(0), v * gain))
+        })
+
+        self.outputSpectrum.send(shaped)
 
         if self.showSettings
         {
-            self.visualizationBandValues = Array(normalizedOutput)
+            self.visualizationBandValues = Array(shaped)
         }
 
         self.samples = Array<Float>(self.samples.dropFirst(batchSize))
