@@ -9,10 +9,8 @@ import Foundation
 import SwiftUI
 import Satin
 import simd
-import AVFAudio
 import AVFoundation
 import Accelerate
-import CoreAudio
 import Dispatch
 
 public class AudioSpectrumNode : Node
@@ -215,12 +213,101 @@ public class AudioSpectrumNode : Node
     public var inputRelease:ParameterPort<Float> { port(named: "inputRelease") }
     public var outputSpectrum:NodePort<ContiguousArray<Float>> { port(named: "outputSpectrum") }
 
-    private var engine = AVAudioEngine()
+    // Delegate receives CMSampleBuffers on the capture queue and forwards
+    // them into the owner's filter-bank sample queue. Weak reference breaks
+    // the otherwise self-retaining delegate/owner cycle.
+    private final class CaptureDelegate: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate
+    {
+        weak var owner: AudioSpectrumNode?
+
+        func captureOutput(_ output: AVCaptureOutput,
+                           didOutput sampleBuffer: CMSampleBuffer,
+                           from connection: AVCaptureConnection)
+        {
+            self.owner?.processAudioSampleBuffer(sampleBuffer)
+        }
+    }
+
+    // AVCaptureSession replaces AVAudioEngine: its per-session input device
+    // selection via AVCaptureDeviceInput is the supported macOS API for
+    // per-node device switching, where AVAudioEngine's AUHAL-routing is not.
+    @ObservationIgnored private var captureSession = AVCaptureSession()
+    @ObservationIgnored private let captureQueue = DispatchQueue(label: "net.sparklive.AudioSpectrum.capture")
+    @ObservationIgnored private var captureDelegate = CaptureDelegate()
 
     // GraphRenderer only calls startExecution once, at renderer setup. Nodes
     // dropped onto an already-running graph never receive it, so we also
     // attempt setup lazily from execute() (see requestAudioSetupIfNeeded()).
     @ObservationIgnored private var didRequestAudioSetup = false
+
+    // Device enumeration. AVCaptureDevice.DiscoverySession gives us the raw
+    // AVCaptureDevice instances which feed straight into AVCaptureDeviceInput
+    // — no UID→AudioDeviceID translation needed.
+    @ObservationIgnored private let discoverySession = AVCaptureDevice.DiscoverySession(
+        deviceTypes: [.microphone, .external],
+        mediaType: .audio,
+        position: .unspecified
+    )
+    @ObservationIgnored private var devices: [AVCaptureDevice] = []
+    @ObservationIgnored private var wasConnectedObserver: Any?
+    @ObservationIgnored private var wasDisconnectedObserver: Any?
+
+    public required init(context: Context)
+    {
+        super.init(context: context)
+        self.commonPostSetup()
+    }
+
+    public required init(from decoder: any Decoder) throws
+    {
+        try super.init(from: decoder)
+        self.commonPostSetup()
+    }
+
+    deinit
+    {
+        if let t = wasConnectedObserver    { NotificationCenter.default.removeObserver(t) }
+        if let t = wasDisconnectedObserver { NotificationCenter.default.removeObserver(t) }
+    }
+
+    private func commonPostSetup()
+    {
+        self.captureDelegate.owner = self
+        self.refreshAudioDeviceOptions()
+
+        self.wasConnectedObserver = NotificationCenter.default.addObserver(
+            forName: AVCaptureDevice.wasConnectedNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.refreshAudioDeviceOptions()
+        }
+        self.wasDisconnectedObserver = NotificationCenter.default.addObserver(
+            forName: AVCaptureDevice.wasDisconnectedNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.refreshAudioDeviceOptions()
+        }
+    }
+
+    private func refreshAudioDeviceOptions()
+    {
+        self.devices = self.discoverySession.devices
+        if let param = self.inputAudioDevice.parameter as? StringParameter
+        {
+            param.options = self.devices.map(\.localizedName)
+        }
+    }
+
+    /// Resolve the AVCaptureDevice the user has picked in the dropdown, or
+    /// the system default audio input if no selection (or the named device
+    /// is gone).
+    private func resolveSelectedAudioDevice() -> AVCaptureDevice?
+    {
+        if let name = self.inputAudioDevice.value, !name.isEmpty,
+           let match = self.devices.first(where: { $0.localizedName == name })
+        {
+            return match
+        }
+        return AVCaptureDevice.default(for: .audio)
+    }
 
     override public func startExecution(context: GraphExecutionContext) {
         super.startExecution(context: context)
@@ -234,12 +321,12 @@ public class AudioSpectrumNode : Node
 
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
             case .authorized:
-                self.setupAudioShit()
+                self.setupCaptureSession()
             case .notDetermined:
                 AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
                     if granted {
                         print("Granted Mic Access")
-                        DispatchQueue.main.async { self?.setupAudioShit() }
+                        DispatchQueue.main.async { self?.setupCaptureSession() }
                     }
                     else
                     {
@@ -254,34 +341,36 @@ public class AudioSpectrumNode : Node
                 print("Restricted from Granting Mic Access")
         }
     }
-    
+
     override public func stopExecution(context: GraphExecutionContext)
     {
         super.stopExecution(context: context)
-
-        let tapNode = self.engine.inputNode
-        
-        tapNode.removeTap(onBus: 0)
-
-        self.engine.stop()
-        
+        if self.captureSession.isRunning
+        {
+            self.captureSession.stopRunning()
+        }
     }
-    
-//    override public func enableExecution(context:GraphExecutionContext)
-//    {
-//        super.enableExecution(context: context)
-//    }
 
     override public func disableExecution(context: GraphExecutionContext)
     {
         super.disableExecution(context: context)
-        
-        self.engine.pause()
+        if self.captureSession.isRunning
+        {
+            self.captureSession.stopRunning()
+        }
     }
-    
+
     override public func execute(context: GraphExecutionContext, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: any MTLCommandBuffer)
     {
         self.requestAudioSetupIfNeeded()
+
+        // Device re-routing: picking a new device rebuilds the capture
+        // session's input. AVCaptureSession supports this cleanly via
+        // beginConfiguration/commit — no engine lifecycle to fight.
+        if self.inputAudioDevice.valueDidChange, self.didRequestAudioSetup
+        {
+            self.setupCaptureSession()
+        }
 
         if self.inputSmoothing.valueDidChange || self.inputBands.valueDidChange,
            let smoothing = self.inputSmoothing.value,
@@ -373,33 +462,65 @@ public class AudioSpectrumNode : Node
     
     var lastCalledTime:TimeInterval = Date.timeIntervalSinceReferenceDate
     
-    func processAudioData(buffer: AVAudioPCMBuffer)
+    /// Called on the capture queue for every audio sample buffer. Extracts
+    /// the first channel's Float32 samples and hands them off to the filter
+    /// bank's sample queue on the main thread.
+    fileprivate func processAudioSampleBuffer(_ sampleBuffer: CMSampleBuffer)
     {
-        let count = buffer.frameLength
-        let bufferSampleRate = Float(buffer.format.sampleRate)
+        guard CMSampleBufferDataIsReady(sampleBuffer) else { return }
+        guard let formatDesc = CMSampleBufferGetFormatDescription(sampleBuffer),
+              let asbdPtr = CMAudioFormatDescriptionGetStreamBasicDescription(formatDesc) else { return }
 
-        guard let floatChannelData = buffer.floatChannelData else { return }
+        let asbd = asbdPtr.pointee
+        let sampleRate = Float(asbd.mSampleRate)
+        let channels = max(1, Int(asbd.mChannelsPerFrame))
+        let isFloat = (asbd.mFormatFlags & kAudioFormatFlagIsFloat) != 0
+        let isInterleaved = (asbd.mFormatFlags & kAudioFormatFlagIsNonInterleaved) == 0
+        let bitsPerChannel = Int(asbd.mBitsPerChannel)
+
+        // AVCaptureAudioDataOutput on macOS delivers Float32 LPCM by default.
+        // If a device delivers anything else, skip the buffer — better silent
+        // drop than garbage samples into the filter bank.
+        guard isFloat, bitsPerChannel == 32 else { return }
+
+        var blockBuffer: CMBlockBuffer?
+        var abl = AudioBufferList()
+        let status = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
+            sampleBuffer,
+            bufferListSizeNeededOut: nil,
+            bufferListOut: &abl,
+            bufferListSize: MemoryLayout<AudioBufferList>.size,
+            blockBufferAllocator: nil,
+            blockBufferMemoryAllocator: nil,
+            flags: kCMSampleBufferFlag_AudioBufferList_Assure16ByteAlignment,
+            blockBufferOut: &blockBuffer
+        )
+        guard status == noErr else { return }
+
+        let buffers = UnsafeMutableAudioBufferListPointer(&abl)
+        guard let firstBuffer = buffers.first, let dataPtr = firstBuffer.mData else { return }
+
+        let stride = isInterleaved ? channels : 1
+        let frameCount = Int(firstBuffer.mDataByteSize) / (stride * MemoryLayout<Float>.size)
+        let floats = dataPtr.assumingMemoryBound(to: Float.self)
 
         var newSamples: [Float] = []
-        newSamples.reserveCapacity(Int(count))
-        for i in 0 ..< count
+        newSamples.reserveCapacity(frameCount)
+        for i in 0..<frameCount
         {
-            let s = floatChannelData[0][Int(i)]
+            let s = floats[i * stride]
             newSamples.append(s.isFinite ? s : 0)
         }
 
         DispatchQueue.main.async { [weak self] in
-
             guard let self else { return }
 
-            // Build/rebuild the filter bank using the actual stream rate from
-            // the tap. AVAudioEngine.inputNode.inputFormat returns sampleRate=0
-            // on macOS before the engine is running, which poisons the biquads
-            // with NaN — so we defer creation until the first real buffer.
-            if bufferSampleRate.isFinite, bufferSampleRate > 0,
-               self.filterBank == nil || self.filterBank?.sampleRate != bufferSampleRate
+            // Lazily (re-)build the filter bank when the stream's sample rate
+            // changes or differs from the last-seen rate.
+            if sampleRate.isFinite, sampleRate > 0,
+               self.filterBank == nil || self.filterBank?.sampleRate != sampleRate
             {
-                self.createFilterBank(sampleRate: bufferSampleRate,
+                self.createFilterBank(sampleRate: sampleRate,
                                       bandCount: self.bands,
                                       normalizedSmoothing: self.smoothing)
             }
@@ -408,29 +529,86 @@ public class AudioSpectrumNode : Node
         }
     }
 
-    private func setupAudioShit()
+    /// Build (or rebuild) the capture session for the currently-selected
+    /// device. Safe to call any number of times.
+    ///
+    /// Recreates the AVCaptureSession itself on each call rather than
+    /// reconfiguring-in-place. Some virtual devices (e.g. Rogue Amoeba's
+    /// Loopback) deliver streams whose format the existing session's
+    /// CMIO audio converter can't re-negotiate mid-session, surfacing as
+    /// `AudioConverterSetProperty(dbca) failed (pcm!)` and a silent output.
+    /// A fresh session forces a fresh converter, which can build the right
+    /// graph for whatever the new device offers.
+    private func setupCaptureSession()
     {
+        guard let device = self.resolveSelectedAudioDevice() else
+        {
+            print("AudioSpectrum: no audio input device available")
+            return
+        }
+
+        // Tear down the previous session entirely — this guarantees the
+        // CMIO audio converter for the old device is released before the
+        // new one is constructed.
+        if self.captureSession.isRunning
+        {
+            self.captureSession.stopRunning()
+        }
+
+        let session = AVCaptureSession()
+        session.beginConfiguration()
+
         do
         {
-            let tapNode = self.engine.inputNode
-
-            tapNode.removeTap(onBus: 0)
-
-            tapNode.installTap(onBus: 0, bufferSize: 1024, format: nil) { (buffer, time) in
-                self.processAudioData(buffer: buffer)
+            let input = try AVCaptureDeviceInput(device: device)
+            guard session.canAddInput(input) else
+            {
+                print("AudioSpectrum: cannot add input for device \(device.localizedName)")
+                session.commitConfiguration()
+                return
             }
+            session.addInput(input)
 
-            try self.engine.start()
-            
-            print(tapNode)
-
-
+            let output = AVCaptureAudioDataOutput()
+            // Pin the output format. Without this, CMIO picks its own target
+            // and chokes on virtual-device streams whose native format it
+            // can't auto-negotiate (AudioConverterSetProperty(dbca) = pcm!).
+            // Asking for mono 48 kHz Float32 LPCM gives the converter an
+            // unambiguous destination to build toward, and matches what
+            // processAudioSampleBuffer() already extracts.
+            output.audioSettings = [
+                AVFormatIDKey:              kAudioFormatLinearPCM,
+                AVLinearPCMBitDepthKey:     32,
+                AVLinearPCMIsFloatKey:      true,
+                AVLinearPCMIsBigEndianKey:  false,
+                AVLinearPCMIsNonInterleaved: false,
+                AVSampleRateKey:            48_000.0,
+                AVNumberOfChannelsKey:      1
+            ]
+            output.setSampleBufferDelegate(self.captureDelegate, queue: self.captureQueue)
+            guard session.canAddOutput(output) else
+            {
+                print("AudioSpectrum: cannot add audio output")
+                session.commitConfiguration()
+                return
+            }
+            session.addOutput(output)
         }
         catch
         {
-            print("Unable to start Audio Engine:", error)
+            print("AudioSpectrum: failed to create capture input:", error)
+            session.commitConfiguration()
+            return
         }
 
+        session.commitConfiguration()
+
+        self.captureSession = session
+        self.captureSession.startRunning()
+
+        // New device may deliver at a different rate — drain the old queue
+        // so the first fresh sample buffer drives the filter-bank rebuild.
+        self.samples.removeAll(keepingCapacity: true)
     }
 
     // MARK: - Visualization
