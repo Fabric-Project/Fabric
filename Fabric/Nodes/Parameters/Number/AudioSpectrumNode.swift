@@ -201,7 +201,7 @@ public class AudioSpectrumNode : Node
             ("inputSmoothing", ParameterPort(parameter: FloatParameter("Smoothing", 0.0, 0.0, 1.0, .slider, "Smoothing factor for frequency band transitions"))),
             ("inputAttack", ParameterPort(parameter: FloatParameter("Attack", 0.0, 0.0, 100.0, .slider, "Attack time in milliseconds for rising levels"))),
             ("inputRelease", ParameterPort(parameter: FloatParameter("Release", 0.0, 0.0, 100.0, .slider, "Release time in milliseconds for falling levels"))),
-            ("outputSpectrum", NodePort<ContiguousArray<Float>>(name: "Numbers", kind: .Outlet, description: "Array of frequency band values from 0 to 1")),
+            ("outputSpectrum", NodePort<ContiguousArray<Float>>(name: "Spectrum", kind: .Outlet, description: "Array of frequency band values from 0 to 1")),
         ]
     }
     
