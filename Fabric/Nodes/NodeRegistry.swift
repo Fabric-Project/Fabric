@@ -306,6 +306,8 @@ public class NodeRegistry {
         MathExpressionNode.self,
         GradientNoiseNode.self,
         AudioSpectrumNode.self,
+        FloatArrayDynamicsNode.self,
+        FloatArrayRefinerNode.self,
         ColorTweenNode.self,
         EulerOrientationNode.self,
         OrientationTweenNode.self,
