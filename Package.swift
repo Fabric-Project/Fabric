@@ -11,6 +11,10 @@ let package = Package(
             name: "Fabric",
             targets: ["Fabric"]
         ),
+        .executable(
+            name: "migrate-fabric",
+            targets: ["MigrateFabric"]
+        ),
     ],
     dependencies: [
         // Local Satin package
@@ -113,6 +117,16 @@ let package = Package(
             name: "FabricTests",
             dependencies: ["Fabric"],
             path: "Tests"
+        ),
+
+        // TEMPORARY migration tool (see Tools/MigrateFabric/main.swift header).
+        .executableTarget(
+            name: "MigrateFabric",
+            dependencies: [
+                "Fabric",
+                .product(name: "Satin", package: "Satin"),
+            ],
+            path: "Tools/MigrateFabric"
         ),
 
     ],
