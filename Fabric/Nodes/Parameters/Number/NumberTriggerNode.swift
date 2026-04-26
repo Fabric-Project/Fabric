@@ -120,40 +120,51 @@ private struct NumberTriggerNodeSettingsView: View
     // drag in progress?" flag (nil between drags).
     @State private var dragYRange: (yMin: Float, yMax: Float)? = nil
 
+    // Plot canvas size, captured via onGeometryChange so the drag handler
+    // doesn't need a wrapping GeometryReader.
+    @State private var plotSize: CGSize = .zero
+
     var body: some View
     {
         TimelineView(.animation(minimumInterval: 1.0/60.0, paused: false)) { timeline in
             HStack(spacing: 8)
             {
                 // Plot lives on the dark scope background.
-                GeometryReader { geom in
-                    Canvas(rendersAsynchronously: false) { ctx, size in
-                        _ = timeline.date
-                        Self.drawPlot(
-                            ctx: ctx,
-                            size: size,
-                            history: node.visualizationTargetHistory,
-                            triggerThreshold: node.inputTriggerThreshold.value ?? 0.8,
-                            releaseThreshold: node.inputReleaseThreshold.value ?? 0.5
-                        )
-                    }
-                    .background(
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Color.black.opacity(0.35))
-                    )
-                    .contentShape(Rectangle())
-                    .gesture(
-                        DragGesture(minimumDistance: 0, coordinateSpace: .local)
-                            .onChanged { value in
-                                handleDrag(start: value.startLocation,
-                                           current: value.location,
-                                           size: geom.size)
-                            }
-                            .onEnded { _ in
-                                dragYRange = nil
-                            }
+                Canvas(rendersAsynchronously: false) { ctx, size in
+                    // Referencing timeline.date inside the Canvas's capture
+                    // scope forces SwiftUI to treat each tick as a distinct
+                    // render — without it the Canvas is considered
+                    // time-invariant and freezes after the first frame.
+                    _ = timeline.date
+                    Self.drawPlot(
+                        ctx: ctx,
+                        size: size,
+                        history: node.visualizationTargetHistory,
+                        triggerThreshold: node.inputTriggerThreshold.value ?? 0.8,
+                        releaseThreshold: node.inputReleaseThreshold.value ?? 0.5
                     )
                 }
+                .background(
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.black.opacity(0.35))
+                )
+                .contentShape(Rectangle())
+                .onGeometryChange(for: CGSize.self, of: \.size) { newSize in
+                    plotSize = newSize
+                }
+                .gesture(
+                    DragGesture(minimumDistance: 0, coordinateSpace: .local)
+                        .onChanged { value in
+                            handleDrag(start: value.startLocation,
+                                       current: value.location,
+                                       size: plotSize)
+                        }
+                        .onEnded { _ in
+                            dragYRange = nil
+                        }
+                )
+                .accessibilityLabel("Trigger threshold visualizer")
+                .accessibilityHint("Drag to set the trigger threshold at the start point and the release threshold at the end point.")
 
                 // Fire indicator sits on the popover's own background, off
                 // the dark plot, so it reads as a separate status element.
@@ -169,6 +180,7 @@ private struct NumberTriggerNodeSettingsView: View
                     Self.drawIndicator(ctx: ctx, size: size, fireAlpha: fireAlpha)
                 }
                 .frame(width: 24)
+                .accessibilityLabel("Trigger fire indicator")
             }
         }
     }
@@ -302,12 +314,12 @@ private struct NumberTriggerNodeSettingsView: View
         }
 
         // Threshold value labels.
-        let triggerText = Text(String(format: "Trigger %.3f", triggerThreshold))
+        let triggerText = Text("Trigger \(triggerThreshold, format: .number.precision(.fractionLength(3)))")
             .font(.system(size: 9, weight: .medium))
-            .foregroundColor(.red.opacity(0.95))
-        let releaseText = Text(String(format: "Release %.3f", releaseThreshold))
+            .foregroundStyle(.red.opacity(0.95))
+        let releaseText = Text("Release \(releaseThreshold, format: .number.precision(.fractionLength(3)))")
             .font(.system(size: 9, weight: .medium))
-            .foregroundColor(.green.opacity(0.95))
+            .foregroundStyle(.green.opacity(0.95))
 
         ctx.draw(triggerText,
                  at: CGPoint(x: labelRightEdge, y: max(10, triggerY - 6)),
