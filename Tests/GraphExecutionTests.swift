@@ -629,4 +629,45 @@ struct GraphExecutionTests {
         #expect(depthImage.texture.width == 48)
         #expect(depthImage.texture.height == 24)
     }
+
+    @Test("Node userData round-trips through serialization")
+    func nodeUserDataRoundTrips() throws {
+        guard let harness = GraphExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let node = NumberNode(context: harness.context)
+
+        let payload = "hello-userdata".data(using: .utf8)!
+        node.userData["com.example.test"] = payload
+        node.userData["com.other.key"] = Data([0x01, 0x02, 0x03])
+
+        graph.addNode(node)
+
+        let decodedGraph = try roundTripGraphToTemporaryFile(graph, context: harness.context)
+
+        guard let decodedNode = decodedGraph.nodes.compactMap({ $0 as? NumberNode }).first else {
+            throw TestFailure("Expected decoded NumberNode")
+        }
+
+        #expect(decodedNode.userData["com.example.test"] == payload)
+        #expect(decodedNode.userData["com.other.key"] == Data([0x01, 0x02, 0x03]))
+        #expect(decodedNode.userData.count == 2)
+    }
+
+    @Test("Node with empty userData decodes as empty dictionary")
+    func nodeEmptyUserDataDecodesEmpty() throws {
+        guard let harness = GraphExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let node = NumberNode(context: harness.context)
+        graph.addNode(node)
+
+        let decodedGraph = try roundTripGraphToTemporaryFile(graph, context: harness.context)
+
+        guard let decodedNode = decodedGraph.nodes.compactMap({ $0 as? NumberNode }).first else {
+            throw TestFailure("Expected decoded NumberNode")
+        }
+
+        #expect(decodedNode.userData.isEmpty)
+    }
 }
