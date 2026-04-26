@@ -31,40 +31,44 @@ struct BandsVisualizer: View
         self.onTap = onTap
     }
 
+    // Captured via onGeometryChange so the tap handler can map x-position
+    // to a band index without wrapping the canvas in a GeometryReader.
+    @State private var canvasSize: CGSize = .zero
+
     var body: some View
     {
         TimelineView(.animation(minimumInterval: 1.0/60.0, paused: false)) { timeline in
-            GeometryReader { geom in
-                Canvas(rendersAsynchronously: false) { ctx, size in
-                    // Referencing timeline.date inside the Canvas's capture
-                    // scope forces SwiftUI to treat each tick as a distinct
-                    // render — without it the Canvas is considered
-                    // time-invariant and freezes after the first frame.
-                    _ = timeline.date
-                    Self.draw(ctx: ctx,
-                              size: size,
-                              bands: bands(),
-                              selected: selected(),
-                              scores: scores())
-                }
-                .background(
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.black.opacity(0.35))
-                )
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 0, coordinateSpace: .local)
-                        .onEnded { value in
-                            guard let onTap else { return }
-                            let bc = bands().count
-                            guard bc > 0, geom.size.width > 0 else { return }
-                            let (barWidth, spacing) = Self.barMetrics(width: geom.size.width, count: bc)
-                            let i = Int(value.startLocation.x / (barWidth + spacing))
-                            guard i >= 0, i < bc else { return }
-                            onTap(i)
-                        }
-                )
+            Canvas(rendersAsynchronously: false) { ctx, size in
+                // Referencing timeline.date inside the Canvas's capture
+                // scope forces SwiftUI to treat each tick as a distinct
+                // render — without it the Canvas is considered
+                // time-invariant and freezes after the first frame.
+                _ = timeline.date
+                Self.draw(ctx: ctx,
+                          size: size,
+                          bands: bands(),
+                          selected: selected(),
+                          scores: scores())
             }
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.black.opacity(0.35))
+            )
+            .contentShape(Rectangle())
+            .onGeometryChange(for: CGSize.self, of: \.size) { newSize in
+                canvasSize = newSize
+            }
+            .onTapGesture(count: 1, coordinateSpace: .local) { location in
+                guard let onTap else { return }
+                let bc = bands().count
+                guard bc > 0, canvasSize.width > 0 else { return }
+                let (barWidth, spacing) = Self.barMetrics(width: canvasSize.width, count: bc)
+                let i = Int(location.x / (barWidth + spacing))
+                guard i >= 0, i < bc else { return }
+                onTap(i)
+            }
+            .accessibilityLabel("Bands visualizer")
+            .accessibilityAddTraits(onTap != nil ? .isButton : [])
         }
     }
 
@@ -100,14 +104,13 @@ struct BandsVisualizer: View
             let rect = CGRect(x: x, y: size.height - h, width: barWidth, height: h)
             let hue = 0.55 - 0.55 * Double(i) / Double(max(1, count - 1))
 
-            let color: Color
-            if hasSelection && !selected.contains(i)
+            let color: Color = if hasSelection && !selected.contains(i)
             {
-                color = Color(hue: hue, saturation: 0.25, brightness: 0.45)
+                Color(hue: hue, saturation: 0.25, brightness: 0.45)
             }
             else
             {
-                color = Color(hue: hue, saturation: 0.85, brightness: 1.0)
+                Color(hue: hue, saturation: 0.85, brightness: 1.0)
             }
             ctx.fill(Path(rect), with: .color(color))
         }
