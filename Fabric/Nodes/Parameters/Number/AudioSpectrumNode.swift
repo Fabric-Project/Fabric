@@ -264,7 +264,14 @@ public class AudioSpectrumNode : Node
         mediaType: .audio,
         position: .unspecified
     )
-    @ObservationIgnored private var devices: [AVCaptureDevice] = []
+    /// Available audio devices. Written from the main queue (via
+    /// `AVCaptureDevice` connect/disconnect notifications) and read from
+    /// the embedder's consumer queue (via `setupCaptureSession` →
+    /// `resolveSelectedAudioDevice`). Mutex provides cross-queue safety.
+    private struct DeviceList: ~Copyable, @unchecked Sendable {
+        var devices: [AVCaptureDevice] = []
+    }
+    @ObservationIgnored private let devicesLock = Mutex<DeviceList>(DeviceList())
     @ObservationIgnored private var wasConnectedObserver: Any?
     @ObservationIgnored private var wasDisconnectedObserver: Any?
 
@@ -305,10 +312,11 @@ public class AudioSpectrumNode : Node
 
     private func refreshAudioDeviceOptions()
     {
-        self.devices = self.discoverySession.devices
+        let fresh = self.discoverySession.devices
+        self.devicesLock.withLock { $0.devices = fresh }
         if let param = self.inputAudioDevice.parameter as? StringParameter
         {
-            param.options = self.devices.map(\.localizedName)
+            param.options = fresh.map(\.localizedName)
         }
     }
 
@@ -317,8 +325,9 @@ public class AudioSpectrumNode : Node
     /// is gone).
     private func resolveSelectedAudioDevice() -> AVCaptureDevice?
     {
+        let knownDevices = self.devicesLock.withLock { $0.devices }
         if let name = self.inputAudioDevice.value, !name.isEmpty,
-           let match = self.devices.first(where: { $0.localizedName == name })
+           let match = knownDevices.first(where: { $0.localizedName == name })
         {
             return match
         }
