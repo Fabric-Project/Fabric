@@ -18,7 +18,7 @@ public class SubgraphNode: BaseObjectNode
     override public class var nodeTimeMode: Node.TimeMode { .TimeBase }
     override public class var nodeDescription: String { "A Sub Graph of Nodes, useful for organizing or encapsulation"}
 
-    let subGraph:Graph
+    public let subGraph: Graph
 
     /// ProxyPorts wrapping the sub graph's published ports.
     /// Each proxy has node = self (the SubgraphNode) and published = false.

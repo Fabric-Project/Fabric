@@ -12,6 +12,7 @@ import simd
 import AVFoundation
 import Accelerate
 import Dispatch
+import Synchronization
 
 public class AudioSpectrumNode : Node
 {
@@ -242,6 +243,19 @@ public class AudioSpectrumNode : Node
     // attempt setup lazily from execute() (see requestAudioSetupIfNeeded()).
     @ObservationIgnored private var didRequestAudioSetup = false
 
+    /// Capture-thread → consumer-thread handoff. The capture callback runs on
+    /// `captureQueue`; `execute()` runs on whatever queue the embedder uses
+    /// (main in Fabric Editor, a private serial queue in Spark Stage). The
+    /// capture thread *only* stages raw samples + the latest observed sample
+    /// rate here; all node-state mutation (filter-bank rebuild, etc.) happens
+    /// on the consumer thread inside `execute()`. This means the producer is
+    /// embedder-agnostic — no need to know which queue runs Fabric.
+    private struct AudioBuffer: ~Copyable {
+        var samples: [Float] = []
+        var lastSeenSampleRate: Float?
+    }
+    @ObservationIgnored private let buffer = Mutex<AudioBuffer>(AudioBuffer())
+
     // Device enumeration. AVCaptureDevice.DiscoverySession gives us the raw
     // AVCaptureDevice instances which feed straight into AVCaptureDeviceInput
     // — no UID→AudioDeviceID translation needed.
@@ -392,13 +406,34 @@ public class AudioSpectrumNode : Node
                 self.filterBank?.releaseMS = release.isFinite ? release : 10.0
         }
         
+        // Adopt the producer's latest observed sample rate before checking
+        // for filter-bank rebuild — keeping all filter-bank mutation on the
+        // consumer thread.
+        let observedRate: Float? = buffer.withLock { $0.lastSeenSampleRate }
+        if let rate = observedRate, rate.isFinite, rate > 0,
+           self.filterBank == nil || self.filterBank?.sampleRate != rate
+        {
+            self.createFilterBank(sampleRate: rate, bandCount: self.bands, normalizedSmoothing: self.smoothing)
+        }
+
         guard let filterBank else { return }
 
         let targetVideoFrameRate:Float = 200
         let numSamplesInAFrame = Int(round( filterBank.sampleRate / targetVideoFrameRate ) )
-            
-        let batchSize = min(numSamplesInAFrame, self.samples.count)
-        guard batchSize > 0 else { return }
+
+        // Drain a batch + cap retained backlog inside the lock. `withLock`'s
+        // defer-based unlock is robust to early returns and future edits.
+        let batchOfSamples: [Float] = buffer.withLock { buf in
+            let batchSize = min(numSamplesInAFrame, buf.samples.count)
+            guard batchSize > 0 else { return [] }
+            let batch = Array(buf.samples.prefix(batchSize)).map { s in s.isFinite ? s : 0 }
+            buf.samples.removeFirst(batchSize)
+            if buf.samples.count > self.maxSamples {
+                buf.samples.removeLast(buf.samples.count - self.maxSamples)
+            }
+            return batch
+        }
+        guard !batchOfSamples.isEmpty else { return }
 
         // Sensitivity → filter-bank dbFloor. 0 = least sensitive (−30 dB
         // floor; only loud signals register); 1 = most sensitive (−120 dB
@@ -407,8 +442,6 @@ public class AudioSpectrumNode : Node
         let rawSensitivity = self.inputSensitivity.value ?? 0.5
         let sensitivity: Float = rawSensitivity.isFinite ? max(0, min(1, rawSensitivity)) : 0.5
         filterBank.dbFloor = -30 - sensitivity * 90
-
-        let batchOfSamples: [Float] = self.samples.prefix(batchSize).map { s in s.isFinite ? s : 0 }
 
         let output = filterBank.processAudioData(samples: batchOfSamples)
 
@@ -428,20 +461,10 @@ public class AudioSpectrumNode : Node
         {
             self.visualizationBandValues = Array(shaped)
         }
-
-        self.samples = Array<Float>(self.samples.dropFirst(batchSize))
-
-        if self.samples.count > self.maxSamples
-        {
-            let overrun =  self.samples.count - self.maxSamples
-            self.samples = Array<Float>(self.samples.dropLast(overrun) )
-        }
     }
     
     var filterBank:SimpleFilterBank? = nil
 
-    // Running list of samples
-    var samples = [Float]()
     let maxSamples = 4096
     
     private var bands:Int = 8
@@ -524,20 +547,15 @@ public class AudioSpectrumNode : Node
             newSamples.append(s.isFinite ? s : 0)
         }
 
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-
-            // Lazily (re-)build the filter bank when the stream's sample rate
-            // changes or differs from the last-seen rate.
-            if sampleRate.isFinite, sampleRate > 0,
-               self.filterBank == nil || self.filterBank?.sampleRate != sampleRate
-            {
-                self.createFilterBank(sampleRate: sampleRate,
-                                      bandCount: self.bands,
-                                      normalizedSmoothing: self.smoothing)
+        // Stage samples + latest sample rate for the consumer to pick up on
+        // its next `execute()`. Producer never touches node state directly —
+        // no queue hop required, no assumption about which thread runs the
+        // graph.
+        buffer.withLock { buf in
+            buf.samples.append(contentsOf: newSamples)
+            if sampleRate.isFinite, sampleRate > 0 {
+                buf.lastSeenSampleRate = sampleRate
             }
-
-            self.samples.append(contentsOf: newSamples)
         }
     }
 
@@ -620,7 +638,10 @@ public class AudioSpectrumNode : Node
 
         // New device may deliver at a different rate — drain the old queue
         // so the first fresh sample buffer drives the filter-bank rebuild.
-        self.samples.removeAll(keepingCapacity: true)
+        buffer.withLock { buf in
+            buf.samples.removeAll(keepingCapacity: true)
+            buf.lastSeenSampleRate = nil
+        }
     }
 
     // MARK: - Visualization
