@@ -304,6 +304,7 @@ public class NodeRegistry {
         NumberIntegralNode.self,
         NumberSmoothNode.self,
         NumberFallNode.self,
+        NumberImpulseNode.self,
         MathExpressionNode.self,
         GradientNoiseNode.self,
         AudioSpectrumNode.self,
