@@ -17,9 +17,21 @@ struct NodeTitleView: View {
     @FocusState private var renameFieldFocused: Bool
 
     private var typeName: String { type(of: node).name }
-    private var hasDisplayName: Bool {
-        if let n = node.displayName, !n.isEmpty { return true }
-        return false
+    /// `true` when the title should split into a primary label + the
+    /// type name underneath. The split fires when the node's instance
+    /// `name` getter returns something other than its type name —
+    /// either because the user renamed (sets `displayName`, the base
+    /// `name` getter picks it up) or because the node overrides
+    /// `name` to derive the title from its own state (e.g.
+    /// MathExpressionNode returning the equation, StringFormatterNode
+    /// returning the format string).
+    private var hasPrimaryLabel: Bool { node.name != typeName }
+    /// What to render in the primary slot. The user's explicit rename
+    /// wins over a node's `name` override so the rename UX stays
+    /// authoritative for every node type.
+    private var primaryLabel: String {
+        if let n = node.displayName, !n.isEmpty { return n }
+        return node.name
     }
 
     private var secondaryColor: Color {
@@ -55,8 +67,8 @@ struct NodeTitleView: View {
                         .bold()
                         .foregroundStyle(secondaryColor)
                 }
-            } else if hasDisplayName, let displayName = node.displayName {
-                let primary = Text(displayName).foregroundStyle(.white)
+            } else if hasPrimaryLabel {
+                let primary = Text(primaryLabel).foregroundStyle(.white)
                 let secondary = Text(" \(typeName)").foregroundStyle(secondaryColor)
                 Text("\(primary)\(secondary)")
                     .font(.system(size: 9))
