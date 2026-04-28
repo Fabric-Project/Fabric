@@ -106,19 +106,25 @@ struct FloatArrayFromValuesNodeSettingsView: View {
             existingCount += 1
         }
 
-        // Remove excess ports (from the end).
+        // Remove excess ports (from the end), or add missing ones.
+        // Mutually exclusive: when reducing, the add-branch's range
+        // `existingCount..<count` would have a lower-bound greater than
+        // the upper-bound and trap. Disconnect any connections before
+        // removing — `removePort` doesn't tear them down on its own,
+        // so the peer keeps a dangling reference to a dropped port and
+        // crashes the next time the graph evaluates its connection list.
         if existingCount > count {
             for i in stride(from: existingCount - 1, through: count, by: -1) {
                 if let p: Port = findPort(named: Self.portKey(i)) {
+                    p.disconnectAll()
                     removePort(p)
                 }
             }
-        }
-
-        // Add missing ports.
-        for i in existingCount..<count {
-            let port = ParameterPort(parameter: FloatParameter("Value \(i)", 0.0, .inputfield, "Value at index \(i)"))
-            addDynamicPort(port, name: Self.portKey(i))
+        } else if count > existingCount {
+            for i in existingCount..<count {
+                let port = ParameterPort(parameter: FloatParameter("Value \(i)", 0.0, .inputfield, "Value at index \(i)"))
+                addDynamicPort(port, name: Self.portKey(i))
+            }
         }
 
         outputDirty = true
