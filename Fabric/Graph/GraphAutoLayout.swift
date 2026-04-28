@@ -281,14 +281,25 @@ enum GraphAutoLayout {
         return result
     }
 
-    /// Find the top-edge Y of the downstream node that the given node connects to.
+    /// Find the top-edge Y of the *topmost* downstream node — the one
+    /// with the smallest centre-Y in the layout. For fan-out sources
+    /// (one Outlet wired to several consumers), the order of
+    /// `outputNodes` is connection-order rather than layout-order, so
+    /// returning the first entry would pin the source to whichever
+    /// consumer the user happened to wire first instead of the
+    /// topmost one. The matching sort in `downstreamSortKey` already
+    /// uses the lowest-row downstream — positioning has to follow the
+    /// same rule for the result to be stable.
     private static func downstreamTopEdgeY(for node: Node, centreYForNode: [UUID: CGFloat]) -> CGFloat? {
+        var best: CGFloat? = nil
         for outputNode in node.outputNodes {
-            if let centreY = centreYForNode[outputNode.id] {
-                return centreY - outputNode.nodeSize.height / 2
+            guard let centreY = centreYForNode[outputNode.id] else { continue }
+            let topEdge = centreY - outputNode.nodeSize.height / 2
+            if best == nil || topEdge < best! {
+                best = topEdge
             }
         }
-        return nil
+        return best
     }
 
     // MARK: - Adjacency Placement
