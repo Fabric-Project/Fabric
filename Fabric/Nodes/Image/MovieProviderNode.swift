@@ -93,15 +93,26 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         return seconds.isFinite ? seconds : 0
     }
 
-    /// Seek the underlying player to `seconds`. Tolerance zero so the
-    /// scrub lands on the exact frame requested. Safe to call from any
-    /// thread that mutates the embedder's render queue.
+    /// Seek the underlying player to `seconds`. Uses a 50 ms tolerance
+    /// each side — precise (zero-tolerance) seeks force AVPlayer into a
+    /// slower, sometimes-stalling seek path that briefly drops the rate
+    /// to 0 and leaves playback frozen. 50 ms is well within one frame
+    /// at common rates and is imperceptible for scrubbing / loop points.
     public func seek(to seconds: TimeInterval)
     {
         guard self.player.currentItem != nil else { return }
         let clamped = max(0, min(seconds, self.duration))
         let target = CMTime(seconds: clamped, preferredTimescale: 600)
-        self.player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
+        let tol = CMTime(seconds: 0.05, preferredTimescale: 600)
+        self.player.seek(to: target, toleranceBefore: tol, toleranceAfter: tol)
+    }
+
+    /// Resume playback (sets `player.rate` back to 1). Used by the
+    /// embedder after a loop-back seek when the player's rate could
+    /// have momentarily dropped to 0.
+    public func play()
+    {
+        self.player.play()
     }
     
     required public init(context:Context)
