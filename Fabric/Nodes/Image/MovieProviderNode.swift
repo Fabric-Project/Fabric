@@ -53,6 +53,14 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     override public class var nodeTimeMode: Node.TimeMode { .TimeBase }
     override public class var nodeDescription: String { "Play a Movie File from disk, providing a stream of output Images"}
 
+    // Seek behaviour options. `frame` is exact (zero-tolerance) seek;
+    // `keyframe` lets AVPlayer pick the nearest keyframe (default
+    // `kCMTimePositiveInfinity` tolerance), which is faster and avoids
+    // the brief stalls that exact seeks can trigger.
+    public static let seekBehaviourFrame = "frame"
+    public static let seekBehaviourKeyframe = "keyframe"
+    public static let seekBehaviourOptions = [seekBehaviourFrame, seekBehaviourKeyframe]
+
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
@@ -61,12 +69,14 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         [
             ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the movie file to play"))),
             ("inputPlayingParam", ParameterPort(parameter: BoolParameter("Playing", true, .toggle, "Play / pause the video"))),
+            ("inputSeekBehaviourParam", ParameterPort(parameter: StringParameter("Seek Behaviour", seekBehaviourKeyframe, seekBehaviourOptions, .dropdown, "How precisely seeks resolve — `frame` for an exact (zero-tolerance) seek, `keyframe` for AVPlayer's default fast seek to the nearest keyframe"))),
             ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Current video frame")),
         ]
     }
 
     public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
     public var inputPlayingParam:ParameterPort<Bool>     { port(named: "inputPlayingParam") }
+    public var inputSeekBehaviourParam:ParameterPort<String> { port(named: "inputSeekBehaviourParam") }
     public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
 
     @ObservationIgnored private var url: URL? = nil
@@ -93,19 +103,37 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         return seconds.isFinite ? seconds : 0
     }
 
-    /// Seek the underlying player to `seconds`. Uses a 50 ms tolerance
-    /// each side — precise (zero-tolerance) seeks force AVPlayer into a
-    /// slower, sometimes-stalling seek path that briefly drops the rate
-    /// to 0 and leaves playback frozen. 50 ms is well within one frame
-    /// at common rates and is imperceptible for scrubbing / loop points.
+    /// Seek the underlying player to `seconds` using the tolerance
+    /// dictated by `inputSeekBehaviourParam`:
+    /// - `frame`: zero-tolerance, exact frame seek (slower, can stall
+    ///   while precise frame is loaded).
+    /// - `keyframe`: `kCMTimePositiveInfinity` tolerance — AVPlayer
+    ///   picks the nearest keyframe, fast and stall-free.
+    ///
+    /// `isSeeking` is set for the duration of the request so embedders
+    /// can debounce repeated seek triggers (e.g. the loop-back enforcer
+    /// in Spark Stage's render-queue snapshot capture). Without it, a
+    /// player that's mid-seek but still reporting a stale `currentTime`
+    /// past the loop's `outPoint` would be re-seeked on every frame,
+    /// each call cancelling the previous and stalling playback.
     public func seek(to seconds: TimeInterval)
     {
         guard self.player.currentItem != nil else { return }
         let clamped = max(0, min(seconds, self.duration))
         let target = CMTime(seconds: clamped, preferredTimescale: 600)
-        let tol = CMTime(seconds: 0.05, preferredTimescale: 600)
-        self.player.seek(to: target, toleranceBefore: tol, toleranceAfter: tol)
+        let mode = self.inputSeekBehaviourParam.value ?? Self.seekBehaviourKeyframe
+        let tol: CMTime = (mode == Self.seekBehaviourFrame) ? .zero : .positiveInfinity
+        self.seeking = true
+        self.player.seek(to: target, toleranceBefore: tol, toleranceAfter: tol) { [weak self] _ in
+            self?.seeking = false
+        }
     }
+
+    /// `true` while a seek is in flight. Embedders should not start a
+    /// new seek (or re-trigger loop logic) while this is set.
+    public var isSeeking: Bool { self.seeking }
+
+    @ObservationIgnored private var seeking: Bool = false
 
     /// Resume playback (sets `player.rate` back to 1). Used by the
     /// embedder after a loop-back seek when the player's rate could
