@@ -56,17 +56,19 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
-        
+
         return ports +
         [
             ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the movie file to play"))),
+            ("inputPlayingParam", ParameterPort(parameter: BoolParameter("Playing", true, .toggle, "Play / pause the video"))),
             ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Current video frame")),
         ]
     }
 
     public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
+    public var inputPlayingParam:ParameterPort<Bool>     { port(named: "inputPlayingParam") }
     public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
-    
+
     @ObservationIgnored private var url: URL? = nil
     @ObservationIgnored private var asset:AVURLAsset? = nil
     @ObservationIgnored private var player:AVPlayer = AVPlayer()
@@ -74,6 +76,33 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     @ObservationIgnored private var playerItemVideoOutput:AVPlayerItemVideoOutput
     @ObservationIgnored private var pixelBuffer:CVPixelBuffer? = nil
     @ObservationIgnored private var observer: Any? = nil
+
+    /// Asset duration in seconds. Returns 0 until the asset's duration has
+    /// loaded.
+    public var duration: TimeInterval {
+        guard let asset else { return 0 }
+        let cmDuration = asset.duration
+        let seconds = CMTimeGetSeconds(cmDuration)
+        return seconds.isFinite ? seconds : 0
+    }
+
+    /// Player's current playback time in seconds.
+    public var currentTime: TimeInterval {
+        let cmTime = self.player.currentTime()
+        let seconds = CMTimeGetSeconds(cmTime)
+        return seconds.isFinite ? seconds : 0
+    }
+
+    /// Seek the underlying player to `seconds`. Tolerance zero so the
+    /// scrub lands on the exact frame requested. Safe to call from any
+    /// thread that mutates the embedder's render queue.
+    public func seek(to seconds: TimeInterval)
+    {
+        guard self.player.currentItem != nil else { return }
+        let clamped = max(0, min(seconds, self.duration))
+        let target = CMTime(seconds: clamped, preferredTimescale: 600)
+        self.player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
+    }
     
     required public init(context:Context)
     {
@@ -115,18 +144,43 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {
-        
         if self.inputFilePathParam.valueDidChange
         {
             loadAssetFromInputValue()
         }
-        
+
+        if self.inputPlayingParam.valueDidChange
+        {
+            if (self.inputPlayingParam.value ?? true)
+            {
+                self.player.play()
+            }
+            else
+            {
+                self.player.pause()
+            }
+        }
+
         let time =  context.timing.time
         let itemTime = self.playerItemVideoOutput.itemTime(forHostTime: time)
-        
+
+        // While paused, AVPlayerItemVideoOutput stops emitting fresh pixel
+        // buffers — so a seek-while-paused needs an explicit `copy` at the
+        // current item time to push the new frame downstream.
         if self.playerItemVideoOutput.hasNewPixelBuffer(forItemTime: itemTime)
         {
             if let pixelBuffer = self.playerItemVideoOutput.copyPixelBuffer(forItemTime: itemTime, itemTimeForDisplay: nil),
+               let renderer = context.graphRenderer,
+               let image = renderer.newImage(fromPixelBuffer: pixelBuffer)
+            {
+                self.outputTexturePort.send( image )
+            }
+        }
+        else if self.player.rate == 0,
+                let item = self.player.currentItem
+        {
+            let pausedTime = item.currentTime()
+            if let pixelBuffer = self.playerItemVideoOutput.copyPixelBuffer(forItemTime: pausedTime, itemTimeForDisplay: nil),
                let renderer = context.graphRenderer,
                let image = renderer.newImage(fromPixelBuffer: pixelBuffer)
             {
@@ -210,7 +264,14 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
 
                 self.player.volume = 0.0
                 self.player.actionAtItemEnd = .none
-                self.player.play()
+                if (self.inputPlayingParam.value ?? true)
+                {
+                    self.player.play()
+                }
+                else
+                {
+                    self.player.pause()
+                }
             }
             else
             {
