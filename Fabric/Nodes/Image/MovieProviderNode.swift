@@ -299,6 +299,37 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     private static let hapPixFmt_DXT5: OSType = 0x44585435   // 'DXT5' RGBA DXT5
     private static let hapPixFmt_BC7A: OSType = 0x42433741   // 'BC7A' RGBA BC7
 
+    /// Human-readable label for the Hap variant carried in `track`'s
+    /// first format description, suitable for logging. Returns `nil`
+    /// for non-Hap tracks.
+    private static func hapCodecLabel(for track: AVAssetTrack) -> String? {
+        guard let desc = track.formatDescriptions.first else { return nil }
+        let cmDesc = desc as! CMFormatDescription
+        let sub = CMFormatDescriptionGetMediaSubType(cmDesc)
+        let fourcc = String(
+            unsafeUninitializedCapacity: 4,
+            initializingUTF8With: { buf in
+                buf[0] = UInt8((sub >> 24) & 0xFF)
+                buf[1] = UInt8((sub >> 16) & 0xFF)
+                buf[2] = UInt8((sub >> 8)  & 0xFF)
+                buf[3] = UInt8( sub        & 0xFF)
+                return 4
+            }
+        )
+        let pretty: String
+        switch sub {
+        case hapCodec_Hap1:  pretty = "Hap"
+        case hapCodec_Hap5:  pretty = "Hap Alpha"
+        case hapCodec_Hap7:  pretty = "Hap 7"
+        case 0x48617059:     pretty = "Hap Q"          // 'HapY'
+        case 0x4861704D:     pretty = "Hap Q Alpha"    // 'HapM'
+        case 0x48617048:     pretty = "Hap HDR"        // 'HapH'
+        case 0x48617041:     pretty = "Hap Alpha-only" // 'HapA'
+        default:             pretty = fourcc
+        }
+        return "\(pretty) [\(fourcc)]"
+    }
+
     /// Decide whether `track`'s codec can take the DXT direct-upload
     /// fast path. Hap (Hap1), Hap Alpha (Hap5), and Hap 7 (Hap7) map
     /// straight to BC1/BC3/BC7 Metal compressed formats. The other
@@ -506,6 +537,14 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
                     output.outputAsRGB = !useDXT
                     if !useDXT {
                         output.destRGBPixelFormat = OSType(kCVPixelFormatType_32BGRA)
+                        // Surface the slow path. RGB conversion does a
+                        // CPU pixel walk + 8MB upload per 1080p frame —
+                        // the operator should know they're on it so
+                        // they can re-encode to a fast-path codec
+                        // (Hap, Hap Alpha, or Hap 7) for live use.
+                        let codec = Self.hapCodecLabel(for: hapTrack) ?? "unknown Hap"
+                        NSLog("MovieProviderNode: Hap RGB fallback path engaged for \"%@\" (codec %@). Re-encode as Hap, Hap Alpha, or Hap 7 for the DXT direct-upload fast path.",
+                              url.lastPathComponent, codec)
                     }
                     output.suppressesPlayerRendering = true
                     playerItem.add(output)
