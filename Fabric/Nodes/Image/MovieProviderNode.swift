@@ -53,20 +53,34 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     override public class var nodeTimeMode: Node.TimeMode { .TimeBase }
     override public class var nodeDescription: String { "Play a Movie File from disk, providing a stream of output Images"}
 
+    // Seek behaviour options. `frame` is exact (zero-tolerance) seek;
+    // `keyframe` lets AVPlayer pick the nearest keyframe (default
+    // `kCMTimePositiveInfinity` tolerance), which is faster and avoids
+    // the brief stalls that exact seeks can trigger.
+    public static let seekBehaviourFrame = "frame"
+    public static let seekBehaviourKeyframe = "keyframe"
+    public static let seekBehaviourOptions = [seekBehaviourFrame, seekBehaviourKeyframe]
+
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
-        
+
         return ports +
         [
             ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the movie file to play"))),
+            ("inputPlayingParam", ParameterPort(parameter: BoolParameter("Playing", true, .toggle, "Play / pause the video"))),
+            ("inputSeekTimeParam", ParameterPort(parameter: FloatParameter("Seek Time", -1.0, .inputfield, "Write a value to seek the player to that time (seconds). Setting to a different value seeks; setting to the same value is a no-op. Negative values are ignored on first load."))),
+            ("inputSeekBehaviourParam", ParameterPort(parameter: StringParameter("Seek Behaviour", seekBehaviourKeyframe, seekBehaviourOptions, .dropdown, "How precisely seeks resolve — `frame` for an exact (zero-tolerance) seek, `keyframe` for AVPlayer's default fast seek to the nearest keyframe"))),
             ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Current video frame")),
         ]
     }
 
     public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
+    public var inputPlayingParam:ParameterPort<Bool>     { port(named: "inputPlayingParam") }
+    public var inputSeekTimeParam:ParameterPort<Float>   { port(named: "inputSeekTimeParam") }
+    public var inputSeekBehaviourParam:ParameterPort<String> { port(named: "inputSeekBehaviourParam") }
     public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
-    
+
     @ObservationIgnored private var url: URL? = nil
     @ObservationIgnored private var asset:AVURLAsset? = nil
     @ObservationIgnored private var player:AVPlayer = AVPlayer()
@@ -74,6 +88,54 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     @ObservationIgnored private var playerItemVideoOutput:AVPlayerItemVideoOutput
     @ObservationIgnored private var pixelBuffer:CVPixelBuffer? = nil
     @ObservationIgnored private var observer: Any? = nil
+
+    /// Asset duration in seconds. Returns 0 until the asset's duration has
+    /// loaded.
+    public var duration: TimeInterval {
+        guard let asset else { return 0 }
+        let cmDuration = asset.duration
+        let seconds = CMTimeGetSeconds(cmDuration)
+        return seconds.isFinite ? seconds : 0
+    }
+
+    /// Player's current playback time in seconds.
+    public var currentTime: TimeInterval {
+        let cmTime = self.player.currentTime()
+        let seconds = CMTimeGetSeconds(cmTime)
+        return seconds.isFinite ? seconds : 0
+    }
+
+    /// `true` while a seek is in flight. Read-only. Embedders should
+    /// avoid writing fresh values to `inputSeekTimeParam` while this
+    /// is set — a player mid-seek still reports a stale `currentTime`
+    /// briefly, and re-driving the seek port on every frame would
+    /// cancel the previous seek and stall playback at the boundary.
+    public var isSeeking: Bool { self.seeking }
+
+    @ObservationIgnored private var seeking: Bool = false
+
+    /// Internal seek implementation driven by `inputSeekTimeParam`
+    /// changes in `execute`. Tolerance is selected from
+    /// `inputSeekBehaviourParam`. Re-primes playback (`player.play()`)
+    /// when the user wants the player playing — some seeks (notably
+    /// zero-tolerance ones) leave `rate` at 0 momentarily, which would
+    /// otherwise stall the player at the seek target.
+    private func performSeek(to seconds: TimeInterval)
+    {
+        guard self.player.currentItem != nil else { return }
+        let clamped = max(0, min(seconds, self.duration))
+        let target = CMTime(seconds: clamped, preferredTimescale: 600)
+        let mode = self.inputSeekBehaviourParam.value ?? Self.seekBehaviourKeyframe
+        let tol: CMTime = (mode == Self.seekBehaviourFrame) ? .zero : .positiveInfinity
+        self.seeking = true
+        self.player.seek(to: target, toleranceBefore: tol, toleranceAfter: tol) { [weak self] _ in
+            self?.seeking = false
+        }
+        if (self.inputPlayingParam.value ?? true)
+        {
+            self.player.play()
+        }
+    }
     
     required public init(context:Context)
     {
@@ -115,18 +177,62 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {
-        
         if self.inputFilePathParam.valueDidChange
         {
             loadAssetFromInputValue()
         }
-        
+
+        if self.inputPlayingParam.valueDidChange
+        {
+            if (self.inputPlayingParam.value ?? true)
+            {
+                self.player.play()
+            }
+            else
+            {
+                self.player.pause()
+            }
+        }
+
+        // Honour seek port. Negative values are the sentinel default —
+        // ignored so the asset isn't seeked to 0 on first load. Skip
+        // when the player is already at the target (a same-target write
+        // arriving while the player happens to be there is a no-op),
+        // but always seek when the player's actual position differs.
+        // This is what makes loop-back enforcement work: every time the
+        // player crosses `outPoint`, the embedder re-writes `inPoint` to
+        // this port and we genuinely re-seek.
+        if self.inputSeekTimeParam.valueDidChange,
+           let raw = self.inputSeekTimeParam.value,
+           raw >= 0
+        {
+            let target = TimeInterval(raw)
+            if abs(target - self.currentTime) > 0.05
+            {
+                performSeek(to: target)
+            }
+        }
+
         let time =  context.timing.time
         let itemTime = self.playerItemVideoOutput.itemTime(forHostTime: time)
-        
+
+        // While paused, AVPlayerItemVideoOutput stops emitting fresh pixel
+        // buffers — so a seek-while-paused needs an explicit `copy` at the
+        // current item time to push the new frame downstream.
         if self.playerItemVideoOutput.hasNewPixelBuffer(forItemTime: itemTime)
         {
             if let pixelBuffer = self.playerItemVideoOutput.copyPixelBuffer(forItemTime: itemTime, itemTimeForDisplay: nil),
+               let renderer = context.graphRenderer,
+               let image = renderer.newImage(fromPixelBuffer: pixelBuffer)
+            {
+                self.outputTexturePort.send( image )
+            }
+        }
+        else if self.player.rate == 0,
+                let item = self.player.currentItem
+        {
+            let pausedTime = item.currentTime()
+            if let pixelBuffer = self.playerItemVideoOutput.copyPixelBuffer(forItemTime: pausedTime, itemTimeForDisplay: nil),
                let renderer = context.graphRenderer,
                let image = renderer.newImage(fromPixelBuffer: pixelBuffer)
             {
@@ -210,7 +316,14 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
 
                 self.player.volume = 0.0
                 self.player.actionAtItemEnd = .none
-                self.player.play()
+                if (self.inputPlayingParam.value ?? true)
+                {
+                    self.player.play()
+                }
+                else
+                {
+                    self.player.pause()
+                }
             }
             else
             {
