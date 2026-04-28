@@ -287,6 +287,51 @@ struct GraphAutoLayoutTests {
                 "secs*speed (top \(topSecs)) should top-align with Euler Orientation (top \(topEuler))")
     }
 
+    // MARK: - Fan-out alignment
+
+    /// When a node's single Outlet connects to multiple downstream
+    /// nodes, that source should top-align with the *topmost*
+    /// downstream — the one at the smallest centre-Y in the layout —
+    /// regardless of the order the connections were made.
+    ///
+    /// The bug: `downstreamTopEdgeY` returns the first entry in
+    /// `outputNodes`, which is connection-order. The matching sort
+    /// (`downstreamSortKey`) already picks the lowest-row downstream;
+    /// positioning has to use the same rule for the result to be
+    /// stable.
+    @Test("Fan-out source top-aligns with topmost downstream, not first-connected")
+    func fanOutTopAlignsWithTopmostDownstream() {
+        guard let ctx = makeContext() else { return }
+
+        let sink = makeNode(context: ctx)         // col 0
+        let topConsumer = makeNode(context: ctx)  // col 1, row 0
+        let midConsumer = makeNode(context: ctx)  // col 1, row 1
+        let botConsumer = makeNode(context: ctx)  // col 1, row 2
+        let source = makeNode(context: ctx)       // col 2 — fan-out
+
+        topConsumer.outputTexturePort.connect(to: sink.inputWidth)
+        midConsumer.outputTexturePort.connect(to: sink.inputHeight)
+        botConsumer.outputTexturePort.connect(to: sink.inputTextString)
+
+        // Connect source to BOTTOM, MIDDLE, TOP in that order.
+        // `outputNodes` ends up [bot, mid, top] — so a positioning
+        // path that picks the first connection ends up aligning with
+        // `bot` rather than the topmost layout neighbour `top`.
+        source.outputTexturePort.connect(to: botConsumer.inputWidth)
+        source.outputTexturePort.connect(to: midConsumer.inputWidth)
+        source.outputTexturePort.connect(to: topConsumer.inputWidth)
+
+        let layout = GraphAutoLayout.compute(
+            nodes: [sink, topConsumer, midConsumer, botConsumer, source]
+        )
+
+        let topOfTopConsumer = topEdge(of: topConsumer, in: layout)!
+        let topOfSource = topEdge(of: source, in: layout)!
+
+        #expect(topOfSource == topOfTopConsumer,
+                "Source (top \(topOfSource)) should top-align with topmost downstream `topConsumer` (top \(topOfTopConsumer)), regardless of connection order")
+    }
+
     // MARK: - Cross-column vertical ordering
 
     /// Nodes in column N should be ordered by the row of their downstream
