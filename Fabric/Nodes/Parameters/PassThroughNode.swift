@@ -9,6 +9,7 @@ import Foundation
 import Satin
 import simd
 import Metal
+import SwiftUI
 
 /// Types that can provide a default `ParameterPort` for editable UI in the node graph.
 public protocol DefaultParameterProviding: PortValueRepresentable {
@@ -103,5 +104,144 @@ public class PassThroughNode<T: PortValueRepresentable>: Node
                                  commandBuffer: MTLCommandBuffer)
     {
         self.output.send(self.input.value)
+    }
+
+    // MARK: - Settings
+
+    /// Settings view is meaningful only for numeric specialisations
+    /// whose `ParameterPort` has a min/max range that can be surfaced
+    /// as a slider. Other types fall through to the default no-op.
+    override public func providesSettingsView() -> Bool {
+        T.self == Float.self || T.self == Int.self
+    }
+
+    override public func settingsView() -> AnyView {
+        if let casted = self as? PassThroughNode<Float> {
+            return AnyView(PassThroughFloatSettingsView(node: casted))
+        }
+        if let casted = self as? PassThroughNode<Int> {
+            return AnyView(PassThroughIntSettingsView(node: casted))
+        }
+        return AnyView(EmptyView())
+    }
+}
+
+// MARK: - Settings views
+
+/// Editable min / max bounds for a `PassThroughNode<Float>`. Toggling
+/// "Slider in inspector" flips the underlying `FloatParameter`'s
+/// `controlType` between `.inputfield` and `.slider`, so
+/// `ParameterGroupView`'s switch picks the appropriate inspector
+/// control on next rebuild.
+struct PassThroughFloatSettingsView: View {
+
+    let node: PassThroughNode<Float>
+
+    /// `Parameter` isn't `@Observable`, so SwiftUI can't pick up
+    /// `parameter.controlType` mutations through a computed binding —
+    /// the Toggle wouldn't visually flip on click. Mirror it as
+    /// local `@State` and write through on change. Safe from the
+    /// earlier popover-rebuild loop because the inspector refresh is
+    /// deferred to `onDisappear` rather than fired inside `onChange`.
+    @State private var useSlider: Bool = false
+    @State private var minBuffer: String = ""
+    @State private var maxBuffer: String = ""
+
+    private var parameter: FloatParameter? { node.input.parameter as? FloatParameter }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Set bounds and switch the inspector control to a slider.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Toggle("Slider in inspector", isOn: $useSlider)
+                .onChange(of: useSlider) { _, new in
+                    parameter?.controlType = new ? .slider : .inputfield
+                }
+
+            HStack {
+                Text("Min").frame(width: 30, alignment: .leading)
+                TextField("0", text: $minBuffer).onSubmit(commit)
+            }
+            HStack {
+                Text("Max").frame(width: 30, alignment: .leading)
+                TextField("1", text: $maxBuffer).onSubmit(commit)
+            }
+        }
+        .onAppear {
+            if let p = parameter {
+                useSlider = p.controlType == .slider
+                minBuffer = String(p.min)
+                maxBuffer = String(p.max)
+            }
+        }
+        // Inspector rebuild is deferred until the popover closes —
+        // `GraphCanvas` keys `.id(...)` to `shouldUpdateConnections`,
+        // so toggling it while the popover is up tears the popover
+        // down and re-renders it.
+        .onDisappear {
+            let graph = node.graph
+            DispatchQueue.main.async { graph?.shouldUpdateConnections.toggle() }
+        }
+    }
+
+    private func commit() {
+        guard let p = parameter else { return }
+        // `FloatParameter.min`/`max` setters fire publishers that
+        // `FloatSlider` subscribes to — no inspector rebuild needed.
+        if let v = Float(minBuffer) { p.min = v }
+        if let v = Float(maxBuffer) { p.max = v }
+    }
+}
+
+/// Mirror of `PassThroughFloatSettingsView` for `PassThroughNode<Int>`.
+struct PassThroughIntSettingsView: View {
+
+    let node: PassThroughNode<Int>
+
+    @State private var useSlider: Bool = false
+    @State private var minBuffer: String = ""
+    @State private var maxBuffer: String = ""
+
+    private var parameter: IntParameter? { node.input.parameter as? IntParameter }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Set bounds and switch the inspector control to a slider.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Toggle("Slider in inspector", isOn: $useSlider)
+                .onChange(of: useSlider) { _, new in
+                    parameter?.controlType = new ? .slider : .inputfield
+                }
+
+            HStack {
+                Text("Min").frame(width: 30, alignment: .leading)
+                TextField("0", text: $minBuffer).onSubmit(commit)
+            }
+            HStack {
+                Text("Max").frame(width: 30, alignment: .leading)
+                TextField("1", text: $maxBuffer).onSubmit(commit)
+            }
+        }
+        .onAppear {
+            if let p = parameter {
+                useSlider = p.controlType == .slider
+                minBuffer = String(p.min)
+                maxBuffer = String(p.max)
+            }
+        }
+        .onDisappear {
+            let graph = node.graph
+            DispatchQueue.main.async { graph?.shouldUpdateConnections.toggle() }
+        }
+    }
+
+    private func commit() {
+        guard let p = parameter else { return }
+        if let v = Int(minBuffer) { p.min = v }
+        if let v = Int(maxBuffer) { p.max = v }
     }
 }
