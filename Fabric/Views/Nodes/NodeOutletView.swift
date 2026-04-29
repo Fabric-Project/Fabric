@@ -64,7 +64,7 @@ struct NodeOutletView: View
 
                         [  port.id : anchor ]
                     })
-                .help("\(port.name): \(port.portType.rawValue) - \(port.parameter?.description ?? "" )")
+                .modifier(PortInspectionTooltip(port: port))
 
         }
         .frame(height: 15)

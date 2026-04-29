@@ -61,7 +61,7 @@ struct NodeInletView: View
                     }
                 )
                
-                .help("\(port.name): \(port.portType.rawValue) - \(port.parameter?.description ?? "" )")
+                .modifier(PortInspectionTooltip(port: port))
 
             Text(port.displayName)
                 .foregroundStyle(Color.secondary)

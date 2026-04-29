@@ -200,6 +200,19 @@ extension UTType
     /// The display name: publishedName if set, otherwise the port's own name.
     public var displayName: String { publishedName ?? name }
 
+    /// Untyped, formatted current value for inspection UI (tooltip,
+    /// debug overlays). Base returns empty; `NodePort<T>` overrides
+    /// to format its typed value.
+    public var valueString: String { "" }
+
+    /// Hover-tooltip string for this port: `displayName: type` plus the
+    /// current value when available.
+    public var inspectionTooltip: String {
+        let head = "\(displayName): \(portType.rawValue)"
+        let value = valueString
+        return value.isEmpty ? head : "\(head) — \(value)"
+    }
+
     public func canConnect(to other:Port) -> Bool
     {
         self.portType.canConnect(to: other.portType)
