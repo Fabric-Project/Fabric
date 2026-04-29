@@ -256,8 +256,8 @@ struct GraphAutoLayoutTests {
     }
 
     /// Same principle applied to the Offstage Left Box: secs*speed should
-    /// top-align with Euler Orientation (its downstream target).
-    @Test("Offstage Left Box: secs*speed top-aligns with Euler Orientation")
+    /// top-align with Orientation From Euler (its downstream target).
+    @Test("Offstage Left Box: secs*speed top-aligns with Orientation From Euler")
     func offstageLeftBoxSecsTimesSpeedAlignment() {
         guard let ctx = makeContext() else { return }
 
@@ -284,7 +284,7 @@ struct GraphAutoLayoutTests {
         let topEuler = topEdge(of: eulerOrientation, in: layout)!
         let topSecs = topEdge(of: secsTimesSpeed, in: layout)!
         #expect(topSecs == topEuler,
-                "secs*speed (top \(topSecs)) should top-align with Euler Orientation (top \(topEuler))")
+                "secs*speed (top \(topSecs)) should top-align with Orientation From Euler (top \(topEuler))")
     }
 
     // MARK: - Fan-out alignment

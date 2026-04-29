@@ -25,7 +25,7 @@ public class NumberWrapNode : Node
             ("inputMinNumber", ParameterPort(parameter: FloatParameter("Min Number", 0.0, .inputfield, "Lower bound (inclusive)"))),
             ("inputMaxNumber", ParameterPort(parameter: FloatParameter("Max Number", 1.0, .inputfield, "Upper bound (see Interval)"))),
             ("inputInterval", ParameterPort(parameter: StringParameter("Interval", "Closed", ["Closed", "Half-open"], .dropdown, "Closed: [Min, Max] — Max passes through. Half-open: [Min, Max) — Max wraps to Min."))),
-            ("outputNumber", NodePort<Float>(name: NumberNode.name, kind: .Outlet, description: "The wrapped output value")),
+            ("outputNumber", NodePort<Float>(name: "Number", kind: .Outlet, description: "The wrapped output value")),
         ]
     }
 

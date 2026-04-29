@@ -14,7 +14,7 @@ import Metal
 /// Rotation order is X → Y → Z (pitch → yaw → roll).
 public class EulerOrientationNode : Node
 {
-    override public class var name:String { "Euler Orientation" }
+    override public class var name:String { "Orientation From Euler" }
     override public class var nodeType:Node.NodeType { .Parameter(parameterType: .Vector) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }

@@ -197,7 +197,7 @@ struct MathExpressionView : View
 
         return ports +
         [
-            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet, description: "Result of evaluating the math expression")),
+            ("outputNumber", NodePort<Float>(name: "Number" , kind: .Outlet, description: "Result of evaluating the math expression")),
         ]
     }
 
