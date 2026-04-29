@@ -8,6 +8,7 @@
 import CoreFoundation
 import SwiftUI
 import Satin
+import simd
 
 // Specialized port which facilitates sending a concrete type supported by Fabric .
 public class NodePort<Value : PortValueRepresentable>: Port
@@ -52,6 +53,11 @@ public class NodePort<Value : PortValueRepresentable>: Port
     }
         
     public var valueType: Any.Type { Value.self }
+
+    override public var valueString: String {
+        guard let value else { return "—" }
+        return PortValueFormatter.format(value, indent: "")
+    }
     
     @ObservationIgnored override public var portType: PortType {
         Value.portType
@@ -407,5 +413,59 @@ public class NodePort<Value : PortValueRepresentable>: Port
     private static func calcDirection(forType: Any.Type ) -> PortDirection
     {
         return .Horizontal
+    }
+}
+
+/// Recursive prettier-style value formatter for `Port.valueString`.
+/// Non-generic so the SIMD matrix specialisations (and any future
+/// type-specific cases) live in one place rather than per generic
+/// instantiation of `NodePort<T>`.
+enum PortValueFormatter
+{
+    static func format(_ value: Any, indent: String = "") -> String
+    {
+        // SIMD matrices: surface columns as a multi-line list so a
+        // 4x4 reads as four lines of vectors rather than one wall of
+        // numbers.
+        if let m = value as? simd_float4x4 {
+            return formatList([m.columns.0, m.columns.1, m.columns.2, m.columns.3], indent: indent)
+        }
+        if let m = value as? simd_float3x3 {
+            return formatList([m.columns.0, m.columns.1, m.columns.2], indent: indent)
+        }
+        if let m = value as? simd_float2x2 {
+            return formatList([m.columns.0, m.columns.1], indent: indent)
+        }
+
+        // Mirror covers Array, ContiguousArray, Set etc. without a
+        // per-element-type cast. String is `.struct`, not
+        // `.collection`, so it stays on the scalar path.
+        let mirror = Mirror(reflecting: value)
+        if mirror.displayStyle == .collection {
+            let items = mirror.children.prefix(101).map { $0.value }
+            return formatList(items, indent: indent)
+        }
+
+        let s = "\(value)"
+        return s.count > 200 ? String(s.prefix(200)) + "…" : s
+    }
+
+    /// Render a list of items as a prettier-style multi-line block,
+    /// recursing into each item via `format(_:indent:)`.
+    private static func formatList(_ items: [Any], indent: String) -> String
+    {
+        if items.isEmpty { return "[]" }
+        let nextIndent = indent + "    "
+        let cap = 100
+        var lines: [String] = []
+        for (i, item) in items.enumerated() {
+            if i >= cap {
+                lines.append("\(nextIndent)…")
+                break
+            }
+            let rendered = format(item, indent: nextIndent)
+            lines.append("\(nextIndent)\(rendered),")
+        }
+        return "[\n" + lines.joined(separator: "\n") + "\n\(indent)]"
     }
 }
