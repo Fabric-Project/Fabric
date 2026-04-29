@@ -366,7 +366,18 @@ internal import AnyCodable
         self.publishedParameterGroup.clear()
 
         let publishedPorts = self.getPublishedPorts()
-        let publishedParams = publishedPorts.compactMap( \.parameter )
+
+        // Sync each parameter's label to its port's displayName so the
+        // inspector reflects renames made via PortRenameAlert. The
+        // parameter is the underlying source of truth for label across
+        // all parameter views (sliders, input fields, color pickers
+        // etc.), and the user's rename was a deliberate naming action.
+        let publishedParams: [any Parameter] = publishedPorts.compactMap { port in
+            guard let param = port.parameter else { return nil }
+            let display = port.displayName
+            if param.label != display { param.label = display }
+            return param
+        }
 
         self.publishedParameterGroup.append( publishedParams )
         self.shouldUpdateConnections = true
