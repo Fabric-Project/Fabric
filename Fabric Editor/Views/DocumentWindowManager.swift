@@ -36,8 +36,12 @@ class DocumentOutputWindowManager : NSObject
                                      styleMask: [.titled, .miniaturizable, .resizable, .unifiedTitleAndToolbar],
                                      backing: .buffered, defer: false)
         self.outputwindow?.isReleasedWhenClosed = false
-        self.outputwindow?.makeKeyAndOrderFront(nil)
         self.outputwindow?.level = .normal // NSWindow.Level(NSWindow.Level.normal.rawValue + 1)
+        // Do not order-front in init — `ContentView.onAppear` decides
+        // whether the window is shown based on the `inlinePreview`
+        // toggle. Otherwise the window flashes onto screen and only
+        // gets hidden after the deeper onAppear path runs, which is
+        // visible to the user when inlinePreview is on at launch.
 
         super.init()
 

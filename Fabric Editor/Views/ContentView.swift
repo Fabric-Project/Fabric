@@ -126,9 +126,16 @@ struct ContentView: View {
                                 .onAppear {
                                     self.document.editingContext.rootGraph.undoManager = undoManager
 
+                                    // The window is constructed but not
+                                    // shown by the manager's init — own
+                                    // initial presentation here so it
+                                    // matches the inlinePreview toggle
+                                    // exactly (no startup flash).
                                     if inlinePreview {
                                         self.document.outputWindowManager?.setPlaybackPaused(true)
                                         self.document.outputWindowManager?.hideOutputWindow()
+                                    } else {
+                                        self.document.outputWindowManager?.showOutputWindow()
                                     }
 
                                     DispatchQueue.main.asyncAfter(deadline: .now().advanced(by: .milliseconds(10)) ) {
