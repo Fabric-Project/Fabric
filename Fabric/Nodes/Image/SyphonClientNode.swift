@@ -37,36 +37,62 @@ public class SyphonClientNode : Node
     public var inputServerAppName:ParameterPort<String>  { port(named: "inputServerAppName") }
     public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
 
-    @ObservationIgnored private var syphonClient:SyphonMetalClient? = nil
+    @ObservationIgnored private var syphonClient: SyphonMetalClient? = nil
     @ObservationIgnored private var texture: (any MTLTexture)? = nil
-    
-    
-    override public func execute(context:GraphExecutionContext,
+    @ObservationIgnored private var connectedServerName: String = ""
+    @ObservationIgnored private var connectedAppName: String = ""
+
+    override public func execute(context: GraphExecutionContext,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {
-        if self.inputServerName.valueDidChange || self.inputServerAppName.valueDidChange,
-           let inputServerName = self.inputServerName.value,
-           let inputServerAppName = self.inputServerAppName.value,
-           let device =  context.graphRenderer?.device
-        {
-            if let firstServerDict = SyphonServerDirectory.shared().servers(matchingName: inputServerName, appName: inputServerAppName).first
+        let desiredServer = self.inputServerName.value ?? ""
+        let desiredApp = self.inputServerAppName.value ?? ""
+
+        // State-driven: reconcile desired vs connected server each frame.
+        // Only update connectedServerName/connectedAppName when the
+        // connection is actually established (or intentionally cleared).
+        // If the server isn't discovered yet, leave the connected state
+        // unchanged so the condition re-fires next frame and retries.
+        if desiredServer != connectedServerName || desiredApp != connectedAppName {
+            if desiredServer.isEmpty {
+                // No server selected — disconnect
+                self.syphonClient = nil
+                self.texture = nil
+                connectedServerName = desiredServer
+                connectedAppName = desiredApp
+            } else if let device = context.graphRenderer?.device,
+                      let serverDict = SyphonServerDirectory.shared()
+                          .servers(matchingName: desiredServer, appName: desiredApp).first
             {
-                self.syphonClient = SyphonMetalClient(serverDescription: firstServerDict, device:device)
+                self.syphonClient = SyphonMetalClient(serverDescription: serverDict, device: device)
+                self.texture = nil
+                connectedServerName = desiredServer
+                connectedAppName = desiredApp
             }
-        }
-        
-        if let syphonClient = self.syphonClient,
-           syphonClient.isValid,
-           let texture = syphonClient.newFrameImage()
-        {
-            self.outputTexturePort.send(FabricImage.unmanaged(texture: texture))
-        }
-        else
-        {
-            self.outputTexturePort.send(nil)
+            // else: server not yet discovered — retry next frame
         }
 
+        // Read frames, retaining the last valid texture between new frames
+        if let syphonClient = self.syphonClient, syphonClient.isValid {
+            if let newTexture = syphonClient.newFrameImage() {
+                self.texture = newTexture
+            }
+            if let texture = self.texture {
+                var image = FabricImage.unmanaged(texture: texture)
+                // Syphon textures originate from OpenGL (origin at bottom-left),
+                // so they're vertically inverted relative to Metal's top-left
+                // convention. Mark as flipped so downstream nodes (e.g.
+                // BasicTextureMaterialNode) skip their default UV Y-flip.
+                image.isFlipped = true
+                self.outputTexturePort.send(image)
+            } else {
+                self.outputTexturePort.send(nil)
+            }
+        } else {
+            self.texture = nil
+            self.outputTexturePort.send(nil)
+        }
     }
 
 }

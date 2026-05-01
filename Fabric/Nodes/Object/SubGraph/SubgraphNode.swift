@@ -18,7 +18,7 @@ public class SubgraphNode: BaseObjectNode
     override public class var nodeTimeMode: Node.TimeMode { .TimeBase }
     override public class var nodeDescription: String { "A Sub Graph of Nodes, useful for organizing or encapsulation"}
 
-    let subGraph:Graph
+    public let subGraph: Graph
 
     /// ProxyPorts wrapping the sub graph's published ports.
     /// Each proxy has node = self (the SubgraphNode) and published = false.
@@ -71,19 +71,27 @@ public class SubgraphNode: BaseObjectNode
     {
         switch port
         {
-        case let p as NodePort<Float>:           return ProxyPort(wrapping: p)
-        case let p as NodePort<Int>:             return ProxyPort(wrapping: p)
-        case let p as NodePort<Bool>:            return ProxyPort(wrapping: p)
-        case let p as NodePort<String>:          return ProxyPort(wrapping: p)
-        case let p as NodePort<simd_float2>:     return ProxyPort(wrapping: p)
-        case let p as NodePort<simd_float3>:     return ProxyPort(wrapping: p)
-        case let p as NodePort<simd_float4>:     return ProxyPort(wrapping: p)
-        case let p as NodePort<FabricImage>:     return ProxyPort(wrapping: p)
-        case let p as NodePort<SatinGeometry>:   return ProxyPort(wrapping: p)
-        case let p as NodePort<Material>:        return ProxyPort(wrapping: p)
-        case let p as NodePort<PortValue>:       return ProxyPort(wrapping: p)
-        case let p as NodePort<simd_quatf>:      return ProxyPort(wrapping: p)
-        case let p as NodePort<simd_float4x4>:   return ProxyPort(wrapping: p)
+        case let p as NodePort<Float>:                              return ProxyPort(wrapping: p)
+        case let p as NodePort<Int>:                                return ProxyPort(wrapping: p)
+        case let p as NodePort<Bool>:                               return ProxyPort(wrapping: p)
+        case let p as NodePort<String>:                             return ProxyPort(wrapping: p)
+        case let p as NodePort<simd_float2>:                        return ProxyPort(wrapping: p)
+        case let p as NodePort<simd_float3>:                        return ProxyPort(wrapping: p)
+        case let p as NodePort<simd_float4>:                        return ProxyPort(wrapping: p)
+        case let p as NodePort<FabricImage>:                        return ProxyPort(wrapping: p)
+        case let p as NodePort<SatinGeometry>:                      return ProxyPort(wrapping: p)
+        case let p as NodePort<Material>:                           return ProxyPort(wrapping: p)
+        case let p as NodePort<PortValue>:                          return ProxyPort(wrapping: p)
+        case let p as NodePort<simd_quatf>:                         return ProxyPort(wrapping: p)
+        case let p as NodePort<simd_float4x4>:                      return ProxyPort(wrapping: p)
+        case let p as NodePort<ContiguousArray<Float>>:             return ProxyPort(wrapping: p)
+        case let p as NodePort<ContiguousArray<Int>>:               return ProxyPort(wrapping: p)
+        case let p as NodePort<ContiguousArray<Bool>>:              return ProxyPort(wrapping: p)
+        case let p as NodePort<ContiguousArray<String>>:            return ProxyPort(wrapping: p)
+        case let p as NodePort<ContiguousArray<simd_float2>>:       return ProxyPort(wrapping: p)
+        case let p as NodePort<ContiguousArray<simd_float3>>:       return ProxyPort(wrapping: p)
+        case let p as NodePort<ContiguousArray<simd_float4>>:       return ProxyPort(wrapping: p)
+        case let p as NodePort<ContiguousArray<simd_float4x4>>:     return ProxyPort(wrapping: p)
         default:
             print("ProxyPort: unsupported port type for \(port.name): \(type(of: port))")
             return nil
@@ -129,6 +137,16 @@ public class SubgraphNode: BaseObjectNode
     public required init(context: Context)
     {
         self.subGraph = Graph(context: context)
+
+        super.init(context: context)
+        self.wireSubGraphCallback()
+        self.rebuildProxyPorts()
+    }
+
+    /// Initialise with a pre-built sub-graph (e.g. decoded separately by the host app).
+    public init(context: Context, subGraph: Graph)
+    {
+        self.subGraph = subGraph
 
         super.init(context: context)
         self.wireSubGraphCallback()

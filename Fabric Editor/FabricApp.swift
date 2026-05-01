@@ -183,17 +183,23 @@ struct DocumentCommands:Commands
 
 struct ViewCommands: Commands {
     @FocusedBinding(\.document) var document: FabricDocument?
+    @AppStorage("inlinePreview") var inlinePreview = false
 
     var body: some Commands {
         CommandGroup(after: .toolbar) {
             Button("Auto Layout Graph") {
-                let graph = document?.editingContext.rootGraph
-                graph?.autoLayout()
+                // Operate on the graph the user is currently looking
+                // at (a subgraph if they've drilled in), not the
+                // document's root.
+                document?.editingContext.currentGraph.autoLayout()
             }
             .keyboardShortcut("l", modifiers: [.command, .option])
             .disabled(document == nil)
 
             Divider()
+
+            Toggle("Inline Preview", isOn: $inlinePreview)
+                .keyboardShortcut("p", modifiers: [.command, .option])
         }
     }
 }

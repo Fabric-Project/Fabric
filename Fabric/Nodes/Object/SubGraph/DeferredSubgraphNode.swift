@@ -46,8 +46,16 @@ public class DeferredSubgraphNode: SubgraphNode
     public required init(context: Context)
     {
         self.graphRenderer = GraphRenderer(context: context)
-        
+
         super.init(context: context)
+    }
+
+    /// Initialise with a pre-built sub-graph (e.g. decoded separately by the host app).
+    public override init(context: Context, subGraph: Graph)
+    {
+        self.graphRenderer = GraphRenderer(context: context)
+
+        super.init(context: context, subGraph: subGraph)
     }
     
     public required init(from decoder: any Decoder) throws

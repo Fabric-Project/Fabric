@@ -166,10 +166,10 @@ struct GraphExecutionTests {
         guard let harness = GraphExecutionTestHarness() else { return }
 
         let graph = Graph(context: harness.context)
-        let numberNode = NumberNode(context: harness.context)
-        numberNode.inputNumber.value = 3.5
+        let numberNode = PassThroughNode<Float>(context: harness.context)
+        numberNode.input.value = 3.5
         graph.addNode(numberNode)
-        publish(numberNode.outputNumber, in: graph)
+        publish(numberNode.output, in: graph)
 
         let context = harness.makeExecutionContext(time: 10, deltaTime: 0, frameNumber: 0)
 
@@ -177,7 +177,7 @@ struct GraphExecutionTests {
         try harness.render(graph: graph, executionContext: context)
         harness.renderer.stopExecution(graph: graph, executionContext: context)
 
-        try expectEqual(numberNode.outputNumber.value, 3.5)
+        try expectEqual(numberNode.output.value, 3.5)
     }
 
     @Test("Connected number nodes feed Number Binary Operator add")
@@ -185,20 +185,20 @@ struct GraphExecutionTests {
         guard let harness = GraphExecutionTestHarness() else { return }
 
         let graph = Graph(context: harness.context)
-        let left = NumberNode(context: harness.context)
-        let right = NumberNode(context: harness.context)
+        let left = PassThroughNode<Float>(context: harness.context)
+        let right = PassThroughNode<Float>(context: harness.context)
         let addNode = NumberBinaryOperator(context: harness.context)
 
-        left.inputNumber.value = 2.25
-        right.inputNumber.value = 4.75
+        left.input.value = 2.25
+        right.input.value = 4.75
         addNode.inputParam.value = "Add"
 
         graph.addNode(left)
         graph.addNode(right)
         graph.addNode(addNode)
 
-        left.outputNumber.connect(to: addNode.inputNumber1)
-        right.outputNumber.connect(to: addNode.inputNumber2)
+        left.output.connect(to: addNode.inputNumber1)
+        right.output.connect(to: addNode.inputNumber2)
         publish(addNode.outputNumber, in: graph)
 
         let context = harness.makeExecutionContext(time: 20, deltaTime: 0, frameNumber: 0)
@@ -215,20 +215,20 @@ struct GraphExecutionTests {
         guard let harness = GraphExecutionTestHarness() else { return }
 
         let graph = Graph(context: harness.context)
-        let left = NumberNode(context: harness.context)
-        let right = NumberNode(context: harness.context)
+        let left = PassThroughNode<Float>(context: harness.context)
+        let right = PassThroughNode<Float>(context: harness.context)
         let addNode = NumberBinaryOperator(context: harness.context)
 
-        left.inputNumber.value = 1
-        right.inputNumber.value = 2
+        left.input.value = 1
+        right.input.value = 2
         addNode.inputParam.value = "Add"
 
         graph.addNode(left)
         graph.addNode(right)
         graph.addNode(addNode)
 
-        left.outputNumber.connect(to: addNode.inputNumber1)
-        right.outputNumber.connect(to: addNode.inputNumber2)
+        left.output.connect(to: addNode.inputNumber1)
+        right.output.connect(to: addNode.inputNumber2)
         publish(addNode.outputNumber, in: graph)
 
         let firstContext = harness.makeExecutionContext(time: 30, deltaTime: 0, frameNumber: 0)
@@ -238,7 +238,7 @@ struct GraphExecutionTests {
         try harness.render(graph: graph, executionContext: firstContext)
         try expectEqual(addNode.outputNumber.value, 3)
 
-        right.inputNumber.value = 9
+        right.input.value = 9
         try harness.render(graph: graph, executionContext: secondContext)
         harness.renderer.stopExecution(graph: graph, executionContext: secondContext)
 
@@ -319,11 +319,11 @@ struct GraphExecutionTests {
         guard let harness = GraphExecutionTestHarness() else { return }
 
         let graph = Graph(context: harness.context)
-        let source = NumberNode(context: harness.context)
+        let source = PassThroughNode<Float>(context: harness.context)
         let subgraphNode = SubgraphNode(context: harness.context)
         let innerAdd = NumberBinaryOperator(context: harness.context)
 
-        source.inputNumber.value = 4
+        source.input.value = 4
         innerAdd.inputNumber2.value = 3
         innerAdd.inputParam.value = "Add"
 
@@ -338,7 +338,7 @@ struct GraphExecutionTests {
         let proxyInput = try floatPort(named: "Number A", kind: .Inlet, on: subgraphNode)
         let proxyOutput = try floatPort(named: "Number", kind: .Outlet, on: subgraphNode)
 
-        source.outputNumber.connect(to: proxyInput)
+        source.output.connect(to: proxyInput)
         publish(proxyOutput, in: graph)
 
         let context = harness.makeExecutionContext(time: 300, deltaTime: 0, frameNumber: 0)
@@ -429,20 +429,20 @@ struct GraphExecutionTests {
         guard let harness = GraphExecutionTestHarness() else { return }
 
         let graph = Graph(context: harness.context)
-        let left = NumberNode(context: harness.context)
-        let right = NumberNode(context: harness.context)
+        let left = PassThroughNode<Float>(context: harness.context)
+        let right = PassThroughNode<Float>(context: harness.context)
         let addNode = NumberBinaryOperator(context: harness.context)
 
-        left.inputNumber.value = 8
-        right.inputNumber.value = 13
+        left.input.value = 8
+        right.input.value = 13
         addNode.inputParam.value = "Add"
 
         graph.addNode(left)
         graph.addNode(right)
         graph.addNode(addNode)
 
-        left.outputNumber.connect(to: addNode.inputNumber1)
-        right.outputNumber.connect(to: addNode.inputNumber2)
+        left.output.connect(to: addNode.inputNumber1)
+        right.output.connect(to: addNode.inputNumber2)
         publish(addNode.outputNumber, in: graph)
 
         let decodedGraph = try roundTripGraphToTemporaryFile(graph, context: harness.context)
@@ -471,11 +471,11 @@ struct GraphExecutionTests {
         guard let harness = GraphExecutionTestHarness() else { return }
 
         let graph = Graph(context: harness.context)
-        let source = NumberNode(context: harness.context)
+        let source = PassThroughNode<Float>(context: harness.context)
         let subgraphNode = SubgraphNode(context: harness.context)
         let innerAdd = NumberBinaryOperator(context: harness.context)
 
-        source.inputNumber.value = 5
+        source.input.value = 5
         innerAdd.inputNumber2.value = 6
         innerAdd.inputParam.value = "Add"
 
@@ -490,7 +490,7 @@ struct GraphExecutionTests {
         let proxyInput = try floatPort(named: "Number A", kind: .Inlet, on: subgraphNode)
         let proxyOutput = try floatPort(named: "Number", kind: .Outlet, on: subgraphNode)
 
-        source.outputNumber.connect(to: proxyInput)
+        source.output.connect(to: proxyInput)
         publish(proxyOutput, in: graph)
 
         let decodedGraph = try roundTripGraphToTemporaryFile(graph, context: harness.context)
@@ -520,12 +520,12 @@ struct GraphExecutionTests {
         guard let harness = GraphExecutionTestHarness() else { return }
 
         let graph = Graph(context: harness.context)
-        let source = NumberNode(context: harness.context)
+        let source = PassThroughNode<Float>(context: harness.context)
         let outerSubgraph = SubgraphNode(context: harness.context)
         let innerSubgraph = SubgraphNode(context: harness.context)
         let innerAdd = NumberBinaryOperator(context: harness.context)
 
-        source.inputNumber.value = 5
+        source.input.value = 5
         innerAdd.inputNumber2.value = 7
         innerAdd.inputParam.value = "Add"
 
@@ -548,7 +548,7 @@ struct GraphExecutionTests {
         let outerProxyInput = try floatPort(named: "Number A", kind: .Inlet, on: outerSubgraph)
         let outerProxyOutput = try floatPort(named: "Number", kind: .Outlet, on: outerSubgraph)
 
-        source.outputNumber.connect(to: outerProxyInput)
+        source.output.connect(to: outerProxyInput)
         publish(outerProxyOutput, in: graph)
 
         let decodedGraph = try roundTripGraphToTemporaryFile(graph, context: harness.context)
@@ -628,5 +628,46 @@ struct GraphExecutionTests {
         let depthImage = try requireValue(decodedDeferred.outputDepthTexture.value, "Expected decoded deferred depth output")
         #expect(depthImage.texture.width == 48)
         #expect(depthImage.texture.height == 24)
+    }
+
+    @Test("Node userData round-trips through serialization")
+    func nodeUserDataRoundTrips() throws {
+        guard let harness = GraphExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let node = NumberNode(context: harness.context)
+
+        let payload = "hello-userdata".data(using: .utf8)!
+        node.userData["com.example.test"] = payload
+        node.userData["com.other.key"] = Data([0x01, 0x02, 0x03])
+
+        graph.addNode(node)
+
+        let decodedGraph = try roundTripGraphToTemporaryFile(graph, context: harness.context)
+
+        guard let decodedNode = decodedGraph.nodes.compactMap({ $0 as? NumberNode }).first else {
+            throw TestFailure("Expected decoded NumberNode")
+        }
+
+        #expect(decodedNode.userData["com.example.test"] == payload)
+        #expect(decodedNode.userData["com.other.key"] == Data([0x01, 0x02, 0x03]))
+        #expect(decodedNode.userData.count == 2)
+    }
+
+    @Test("Node with empty userData decodes as empty dictionary")
+    func nodeEmptyUserDataDecodesEmpty() throws {
+        guard let harness = GraphExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let node = NumberNode(context: harness.context)
+        graph.addNode(node)
+
+        let decodedGraph = try roundTripGraphToTemporaryFile(graph, context: harness.context)
+
+        guard let decodedNode = decodedGraph.nodes.compactMap({ $0 as? NumberNode }).first else {
+            throw TestFailure("Expected decoded NumberNode")
+        }
+
+        #expect(decodedNode.userData.isEmpty)
     }
 }

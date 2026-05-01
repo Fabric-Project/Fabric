@@ -349,8 +349,8 @@ public class GraphRenderer : MetalViewRenderer
         // Do this before we hit recursive process graph
         graphFeedbackCache.setProcessingState(.processing, forNode: node, executionContext: executionContext)
         
-        // get the connection for
-        let inputNodes = node.inputNodes
+        // get the connection for — respect per-node active filtering (e.g. switch nodes)
+        let inputNodes = node.activeInputNodes()
                
         for inputNode in inputNodes
         {
@@ -460,8 +460,6 @@ public class GraphRenderer : MetalViewRenderer
         self.resizeScaleFactor = scaleFactor
         
         self.defaultCamera.aspect = size.width / size.height
-        
-        self.defaultCamera.fov = radToDeg( 2.0 * atan(  (size.height / size.width) / 2.0 ) )
     }
     
     private func feedbackCache(for graphID: UUID) -> GraphRendererFeedbackCache
@@ -479,7 +477,7 @@ public class GraphRenderer : MetalViewRenderer
     private func currentGraphExecutionContext() -> GraphExecutionContext
     {
         let currentRenderTime = Date.timeIntervalSinceReferenceDate
-        
+
         // TODO: This becomes more semantically correct later
         let timing = GraphExecutionTiming(time: currentRenderTime,
                                           deltaTime: currentRenderTime - self.lastGraphExecutionTime,

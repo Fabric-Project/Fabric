@@ -19,6 +19,12 @@ import UniformTypeIdentifiers
     
     // Custom name (rename)
     public var displayName: String?
+
+    /// Opaque metadata addressable by reverse-DNS-style keys. Fabric does not
+    /// interpret the contents; embedding applications use their own key
+    /// (e.g. "com.example.myapp") and encode their own `Codable` payload.
+    /// Round-trips through serialization; empty by default.
+    public var userData: [String: Data] = [:]
     
     // User interface organizing principle
     public class var nodeType:Node.NodeType { fatalError("\(String(describing:self)) Must implement nodeType") }
@@ -78,6 +84,11 @@ import UniformTypeIdentifiers
     public var ports:[Port] { self.registry.all()   }
     public private(set) var inputNodes:[Node] = []
     public private(set) var outputNodes:[Node]  = []
+
+    /// Input nodes the graph renderer should evaluate this frame.
+    /// Override to implement conditional execution (e.g. switch/router nodes
+    /// that only pull the selected branch). Default returns all inputNodes.
+    open func activeInputNodes() -> [Node] { inputNodes }
     
     public var isSelected:Bool = false
     public var isDragging:Bool = false
@@ -107,6 +118,7 @@ import UniformTypeIdentifiers
         // TODO:
         case name // Override node UI name (not implemented)
         case displayName
+        case userData
 
         // Depreciated...
         case inputParameters
@@ -126,6 +138,7 @@ import UniformTypeIdentifiers
         self.id = try container.decode(UUID.self, forKey: .id)
         self.offset = try container.decode(CGSize.self, forKey: .nodeOffset)
         self.displayName = try container.decodeIfPresent(String.self, forKey: .displayName)
+        self.userData = try container.decodeIfPresent([String: Data].self, forKey: .userData) ?? [:]
   
         let snaps = try container.decodeIfPresent([PortRegistry.Snapshot].self, forKey: .ports) ?? []
 
@@ -177,6 +190,9 @@ import UniformTypeIdentifiers
         try container.encode(self.offset, forKey: .nodeOffset)
         try container.encode(self.registry.encode(), forKey: .ports)
         try container.encodeIfPresent(self.displayName, forKey: .displayName)
+        if !self.userData.isEmpty {
+            try container.encode(self.userData, forKey: .userData)
+        }
     }
     
     public required init(context:Context)

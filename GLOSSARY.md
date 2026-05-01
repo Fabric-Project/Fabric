@@ -150,6 +150,51 @@ The Node browser organises Nodes into groups for discovery:
 
 ---
 
+## Node Naming Conventions
+
+### `<Output>From<Input>` for producer nodes
+
+Nodes that construct a value (or array of values) from simpler inputs use the pattern **`<Output>From<Input>`**, where `<Input>` is a short mnemonic describing the shape of the input parameters. The plural form `<Output>sArrayFrom<Input>` applies when the output is an array.
+
+Examples:
+
+| Class | Display name | Inputs | Output |
+|---|---|---|---|
+| `TransformFromPSRPNode` | "Transform From PSRP" | Pan, Scale, Rotation, Pivot | 2D affine Transform |
+| `TransformsArrayFromPSRPNode` | "Transforms Array From PSRP" | PSRP arrays | Array of Transforms |
+| `TransformsArrayFromTRSNode` | "Transforms Array From TRS" | Translation, Rotation, Scale arrays | Array of 3D model Transforms |
+| `TransformFromRectsNode` | "Transform From Rects" | Source Rect, Target Rect | Affine map Target → Source |
+| `TransformsArrayFromRectsNode` | "Transforms Array From Rects" | Single rect array | Unit-quad placement Transforms |
+| `TransformsArrayFromRectPairsNode` | "Transforms Array From Rect Pairs" | Parallel Source/Target rect arrays | Per-element affine maps |
+| `FloatArrayFromValuesNode` | "Float Array From Values" | N editable scalar inputs | Float array |
+| `MakeVector2Node` † | "Vector 2 From Values" | X, Y scalar inputs | `simd_float2` |
+| `MakeVector3Node` † | "Vector 3 From Values" | X, Y, Z scalar inputs | `simd_float3` |
+| `MakeVector4Node` † | "Vector 4 From Values" | X, Y, Z, W scalar inputs | `simd_float4` |
+| `MakeColorNode` † | "Color From RGBA" | R, G, B, A scalar inputs | Color (`simd_float4`) |
+| `MakeQuaternionNode` † | "Orientation From Axis Angle" | Axis vector, angle in degrees | Quaternion (`simd_float4`) |
+| `EulerOrientationNode` † | "Orientation From Euler" | X (Pitch), Y (Yaw), Z (Roll) in degrees | Quaternion (`simd_float4`) |
+
+† Display name has been updated to follow the convention; class name retains its legacy form pending project-file migration tooling.
+
+Input-shape mnemonics currently in use:
+
+| Mnemonic | Meaning |
+|---|---|
+| **PSRP** | Pan, Scale, Rotation, Pivot — the 2D affine parameter tuple |
+| **TRS** | Translation, Rotation (quaternion), Scale — the 3D model-matrix tuple |
+| **Rects** | An array of rectangles `(x, y, width, height)` |
+| **RectPairs** | Parallel arrays of source and target rectangles |
+| **Values** | Explicit per-element scalar values, edited in the inspector |
+| **RGBA** | Red, Green, Blue, Alpha scalar components of a color |
+| **AxisAngle** | Axis vector and rotation angle — the standard non-matrix rotation representation |
+| **Euler** | Pitch, Yaw, Roll angles in degrees around the X, Y, Z axes |
+
+New mnemonics should be short, capitalised, and unambiguous within the Fabric domain. Add an entry to the table above when introducing one.
+
+Prefer this convention over the legacy `Make<Output>` prefix: naming by the input shape tells the reader what drives the output at a glance, where `Make<Output>` does not distinguish between producer nodes that take very different inputs (compare `TransformsArrayFromTRS` vs `TransformsArrayFromPSRP` vs `TransformsArrayFromRects` — all three produce the same output type from different parameterisations).
+
+---
+
 ## Terminology Inconsistencies
 
 Issues found in the current codebase where the same concept goes by different names, or naming is ambiguous.

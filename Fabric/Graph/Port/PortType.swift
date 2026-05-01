@@ -213,15 +213,38 @@ extension PortType {
     {
         switch self
         {
-        case .Float, .Int:  return NumberNode.self
-        case .Bool:         return TrueNode.self
-        case .String:       return StringNode.self
-        case .Vector2:      return MakeVector2Node.self
-        case .Vector3:      return MakeVector3Node.self
-        case .Vector4:      return MakeVector4Node.self
-        case .Color:        return MakeVector4Node.self
-        case .Quaternion:   return MakeQuaternionNode.self
-        case .Transform:    return IdentityTransformNode.self
+        case .Float:        return PassThroughNode<Float>.self
+        case .Int:          return PassThroughNode<Int>.self
+        case .Bool:         return PassThroughNode<Bool>.self
+        case .String:       return PassThroughNode<String>.self
+        case .Vector2:      return PassThroughNode<simd_float2>.self
+        case .Vector3:      return PassThroughNode<simd_float3>.self
+        case .Vector4:      return PassThroughNode<simd_float4>.self
+        case .Color:        return ColorPassThroughNode.self
+        case .Quaternion:   return PassThroughNode<simd_quatf>.self
+        case .Transform:    return PassThroughNode<simd_float4x4>.self
+        case .Geometry:     return PassThroughNode<SatinGeometry>.self
+        case .Material:     return PassThroughNode<Material>.self
+        case .Shader:       return PassThroughNode<Shader>.self
+        case .Image:        return PassThroughNode<FabricImage>.self
+        case .Array(portType: let elementType):
+            switch elementType {
+            case .Bool:      return PassThroughNode<ContiguousArray<Bool>>.self
+            case .Float:     return PassThroughNode<ContiguousArray<Float>>.self
+            case .Int:       return PassThroughNode<ContiguousArray<Int>>.self
+            case .String:    return PassThroughNode<ContiguousArray<String>>.self
+            case .Vector2:   return PassThroughNode<ContiguousArray<simd_float2>>.self
+            case .Vector3:   return PassThroughNode<ContiguousArray<simd_float3>>.self
+            case .Vector4:   return PassThroughNode<ContiguousArray<simd_float4>>.self
+            case .Color:     return PassThroughNode<ContiguousArray<simd_float4>>.self
+            case .Quaternion: return PassThroughNode<ContiguousArray<simd_quatf>>.self
+            case .Transform: return PassThroughNode<ContiguousArray<simd_float4x4>>.self
+            case .Geometry:  return PassThroughNode<ContiguousArray<SatinGeometry>>.self
+            case .Material:  return PassThroughNode<ContiguousArray<Material>>.self
+            case .Shader:    return PassThroughNode<ContiguousArray<Shader>>.self
+            case .Image:     return PassThroughNode<ContiguousArray<FabricImage>>.self
+            default:         return nil
+            }
         default:            return nil
         }
     }
