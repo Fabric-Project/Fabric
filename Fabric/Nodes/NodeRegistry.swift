@@ -108,6 +108,7 @@ public class NodeRegistry {
         ExtrudedTextGeometryNode.self,
         PixelArrayToGeometryNode.self,
         SuperShapeGeometryNode.self,
+        GeometryBoundsNode.self,
     ]
         
     private var materialNodeClasses:[Node.Type] = [
