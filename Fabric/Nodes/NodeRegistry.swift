@@ -168,6 +168,7 @@ public class NodeRegistry {
             ArrayCountNode<FabricImage>.self,
             ArrayQueueNode<FabricImage>.self,
             ArrayReplaceValueAtIndexNode<FabricImage>.self,
+            ArrayConcatNode<FabricImage>.self,
         ])
         return classes
     }
@@ -288,6 +289,7 @@ public class NodeRegistry {
         ArrayCountNode<Bool>.self,
         ArrayQueueNode<Bool>.self,
         ArrayReplaceValueAtIndexNode<Bool>.self,
+        ArrayConcatNode<Bool>.self,
 
         // Number
         PassThroughNode<Float>.self,
@@ -327,6 +329,7 @@ public class NodeRegistry {
         ArrayCountNode<Float>.self,
         ArrayQueueNode<Float>.self,
         ArrayReplaceValueAtIndexNode<Float>.self,
+        ArrayConcatNode<Float>.self,
         FillArrayFloatNode.self,
         RippleFillArrayFloatNode.self,
         ArrayMathExpressionNode.self,
@@ -361,6 +364,7 @@ public class NodeRegistry {
         ArrayCountNode<String>.self,
         ArrayQueueNode<String>.self,
         ArrayReplaceValueAtIndexNode<String>.self,
+        ArrayConcatNode<String>.self,
 
         // Vectors
         PassThroughNode<simd_float2>.self,
@@ -373,6 +377,7 @@ public class NodeRegistry {
         ArrayCountNode<simd_float2>.self,
         ArrayQueueNode<simd_float2>.self,
         ArrayReplaceValueAtIndexNode<simd_float2>.self,
+        ArrayConcatNode<simd_float2>.self,
         MakeVector2ArrayNode.self,
         PolyLineSimplifyNode.self,
         
@@ -386,6 +391,7 @@ public class NodeRegistry {
         ArrayCountNode<simd_float3>.self,
         ArrayQueueNode<simd_float3>.self,
         ArrayReplaceValueAtIndexNode<simd_float3>.self,
+        ArrayConcatNode<simd_float3>.self,
         FillArrayFloat3Node.self,
         RippleFillArrayFloat3Node.self,
         MakeVector3ArrayNode.self,
@@ -401,6 +407,7 @@ public class NodeRegistry {
         ArrayQueueNode<simd_float4>.self,
         ArrayReplaceValueAtIndexNode<simd_float4>.self,
         StripRectsNode.self,
+        ArrayConcatNode<simd_float4>.self,
         FillArrayFloat4Node.self,
         RippleFillArrayFloat4Node.self,
         MakeVector4ArrayNode.self,
@@ -430,6 +437,7 @@ public class NodeRegistry {
         ArrayCountNode<simd_float4x4>.self,
         ArrayQueueNode<simd_float4x4>.self,
         ArrayReplaceValueAtIndexNode<simd_float4x4>.self,
+        ArrayConcatNode<simd_float4x4>.self,
 
         ]
     
