@@ -379,6 +379,7 @@ public class NodeRegistry {
         ArrayReplaceValueAtIndexNode<simd_float2>.self,
         ArrayConcatNode<simd_float2>.self,
         MakeVector2ArrayNode.self,
+        Vector2ArrayToFloatArraysNode.self,
         PolyLineSimplifyNode.self,
         
         PassThroughNode<simd_float3>.self,
@@ -395,6 +396,7 @@ public class NodeRegistry {
         FillArrayFloat3Node.self,
         RippleFillArrayFloat3Node.self,
         MakeVector3ArrayNode.self,
+        Vector3ArrayToFloatArraysNode.self,
 
         PassThroughNode<simd_float4>.self,
         MakeVector4Node.self,
@@ -411,6 +413,7 @@ public class NodeRegistry {
         FillArrayFloat4Node.self,
         RippleFillArrayFloat4Node.self,
         MakeVector4ArrayNode.self,
+        Vector4ArrayToFloatArraysNode.self,
 
         // Quaternion
         PassThroughNode<simd_quatf>.self,

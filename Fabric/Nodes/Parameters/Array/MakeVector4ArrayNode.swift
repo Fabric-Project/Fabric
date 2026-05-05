@@ -10,7 +10,7 @@ import Metal
 
 public class MakeVector4ArrayNode : Node
 {
-    public override class var name: String { "Make Vector 4 Array" }
+    public override class var name: String { "Float Arrays to Vector 4 Array" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
