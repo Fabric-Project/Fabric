@@ -27,7 +27,7 @@ public class NumberBinaryOperator : Node
             ("inputNumber1", ParameterPort(parameter: FloatParameter("Number A", 0.0, .inputfield, "First operand for the binary operation"))),
             ("inputNumber2", ParameterPort(parameter: FloatParameter("Number B", 0.0, .inputfield, "Second operand for the binary operation"))),
             ("inputParam", ParameterPort(parameter: StringParameter("Operator", "Add", BinaryMathOperator.allCases.map(\.rawValue), .dropdown, "Mathematical operation to perform")) ),
-            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet, description: "Result of the binary operation")),
+            ("outputNumber", NodePort<Float>(name: "Number" , kind: .Outlet, description: "Result of the binary operation")),
         ]
     }
     

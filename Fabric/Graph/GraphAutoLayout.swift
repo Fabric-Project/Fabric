@@ -376,13 +376,14 @@ extension Graph {
 
         let paramNode = nodeClass.init(context: self.context)
 
-        let paramOutlet = paramNode.ports.first(where: { $0.kind == .Outlet })
-        let paramInlet  = paramNode.ports.first(where: { $0.kind == .Inlet })
+        let paramOutlet = paramNode.outputPorts().first
+        let paramInlet  = paramNode.inputPorts().first
+
+        guard let paramOutlet, let paramInlet else { return }
 
         switch port.kind
         {
         case .Inlet:
-            guard let paramOutlet else { return }
 
             // Align the parameter node's outlet with the source inlet
             GraphAutoLayout.positionToLeft(of: sourceNode, node: paramNode,
@@ -404,16 +405,13 @@ extension Graph {
 
             // Move existing upstream connections to the parameter node's input
             for connection in existingConnections { connection.disconnect(from: port) }
-            if let paramInlet
-            {
-                for connection in existingConnections { connection.connect(to: paramInlet) }
-            }
+            for connection in existingConnections { connection.connect(to: paramInlet) }
 
             self.addNode(paramNode)
+            paramInlet.setBoxedValue( port.boxedValue() )
             paramOutlet.connect(to: port)
 
         case .Outlet:
-            guard let paramInlet else { return }
 
             // Align the parameter node's inlet with the source outlet
             GraphAutoLayout.positionToRight(of: sourceNode, node: paramNode,
@@ -435,13 +433,12 @@ extension Graph {
 
             // Move existing downstream connections to the parameter node's outlet
             for connection in existingConnections { port.disconnect(from: connection) }
-            if let paramOutlet
-            {
-                for connection in existingConnections { paramOutlet.connect(to: connection) }
-            }
+            for connection in existingConnections { paramOutlet.connect(to: connection) }
 
             self.addNode(paramNode)
+            paramInlet.setBoxedValue( port.boxedValue() )
             port.connect(to: paramInlet)
+
         }
 
         self.rebuildPublishedParameterGroup()

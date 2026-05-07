@@ -27,7 +27,7 @@ public class NumberEaseNode : Node
         [
             ("inputNumber", ParameterPort(parameter: FloatParameter("Number", 0.0, .inputfield, "Normalized input value (0-1) to apply easing to"))),
             ("inputParam", ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing function to apply to the input")) ),
-            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet, description: "The eased output value")),
+            ("outputNumber", NodePort<Float>(name: "Number" , kind: .Outlet, description: "The eased output value")),
         ]
     }
 

@@ -30,7 +30,7 @@ public class SystemTimeNode : Node
         
         return ports +
         [
-            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet, description: "Elapsed system time in seconds since execution started")),
+            ("outputNumber", NodePort<Float>(name: "Number" , kind: .Outlet, description: "Elapsed system time in seconds since execution started")),
         ]
     }
     

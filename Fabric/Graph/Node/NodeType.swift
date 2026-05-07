@@ -28,7 +28,7 @@ extension Node
             case .All: return Node.NodeType.allCases
             case .SceneGraph: return Node.NodeType.ObjectType.nodeTypes() + [.Subgraph]
             case .Mesh: return [.Geometery, .Material]
-            case .Image: return Node.NodeType.ImageType.nodeTypes() + [.Shader]
+            case .Image: return Node.NodeType.ImageType.nodeTypes()
             case .Parameter: return Node.NodeType.ParameterType.nodeTypes()
             case .Utility: return [Node.NodeType.Utility]
             }
@@ -121,7 +121,6 @@ extension Node
         case Object(objectType:ObjectType) // Scene graph, owns transforms
         case Geometery
         case Material
-        case Shader
         case Image(imageType:ImageType)
         case Parameter(parameterType:ParameterType)
         case Utility
@@ -129,7 +128,7 @@ extension Node
         public static var allCases: [Node.NodeType] { return
             [.Renderer ]
             + ObjectType.nodeTypes()
-            + [ .Subgraph, .Geometery, .Material, .Shader, ]
+            + [ .Subgraph, .Geometery, .Material, ]
             + ImageType.nodeTypes()
             + ParameterType.nodeTypes()
             + [ .Utility ]
@@ -144,7 +143,6 @@ extension Node
             case .Object(let objectType): return objectType.rawValue
             case .Geometery: return "Geometery"
             case .Material: return "Material"
-            case .Shader: return "Shader"
             case .Image(imageType: let imageType): return "Image \(imageType.rawValue.titleCase)"
             case .Parameter(let paramType): return "\(paramType.rawValue) Parameter"
             case .Utility: return "Utility"
@@ -193,9 +191,6 @@ extension Node
             case .Renderer:
                 return Color.nodeRender
 
-            case .Shader:
-                return Color.nodeShader
-                                
             case .Parameter(_):
                 return Color(hue: 0, saturation: 0, brightness: 0.9)
         

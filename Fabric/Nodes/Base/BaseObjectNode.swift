@@ -36,7 +36,7 @@ public class ObjectNode<ObjectType : Satin.Object> : BaseObjectNode
 
             ("inputScale", ParameterPort(parameter:Float3Parameter("Scale", simd_float3(repeating:1), .inputfield, "Scale factor along each axis (X, Y, Z)") ) ),
 
-            ("inputOrientation", ParameterPort(parameter:Float4Parameter("Orientation", simd_float4(repeating:0), .inputfield, "Rotation as quaternion (X, Y, Z, W)") ) ),
+            ("inputOrientation", ParameterPort(parameter:Float4Parameter("Orientation", simd_float4(repeating:0), .inputfield, "Orientation as quaternion (X, Y, Z, W)") ) ),
 
         ] + ports
     }

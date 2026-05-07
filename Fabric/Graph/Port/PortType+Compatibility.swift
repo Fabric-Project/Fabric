@@ -19,10 +19,14 @@ extension PortType
             {
             case .Bool, .Int, .Float, .String, .Virtual:
                 return true
-                
+
             default:
                 return false
             }
+
+        // Color and Vector4 share the same Swift type (simd_float4)
+        case .Color, .Vector4:
+            return other == .Color || other == .Vector4
 
         default:
             return self == other

@@ -12,11 +12,11 @@ import Metal
 
 public class MakeVector2Node : Node
 {
-    override public static var name:String { "Vector 2" }
+    override public static var name:String { "Vector 2 From Values" }
     override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Vector) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Converts 2 numcerical components to a Vector 2"}
+    override public class var nodeDescription: String { "Converts 2 numerical components to a Vector 2"}
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {

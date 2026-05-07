@@ -58,7 +58,7 @@ public class ColorTweenNode : Node
     override public class var nodeType:Node.NodeType { .Parameter(parameterType: .Color) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
     override public class var nodeTimeMode: Node.TimeMode { .TimeBase }
-    override public class var nodeDescription: String { "Tween toward a target colour over a duration using an easing curve, interpolated in Oklab perceptual colour space" }
+    override public class var nodeDescription: String { "Tween toward a target color over a duration using an easing curve, interpolated in Oklab perceptual color space" }
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
@@ -66,10 +66,10 @@ public class ColorTweenNode : Node
 
         return ports +
         [
-            ("inputTarget", ParameterPort(parameter: Float4Parameter("Target", simd_float4(0, 0, 0, 1), .colorpicker, "Target colour (RGBA)"))),
+            ("inputTarget", ParameterPort(parameter: Float4Parameter("Target", simd_float4(0, 0, 0, 1), .colorpicker, "Target color (RGBA)"))),
             ("inputDuration", ParameterPort(parameter: FloatParameter("Duration", 1.0, .inputfield, "Tween duration in seconds"))),
             ("inputEasing", ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing curve"))),
-            ("outputColor", NodePort<simd_float4>(name: "Color", kind: .Outlet, description: "Current tweened colour (RGBA)")),
+            ("outputColor", NodePort<simd_float4>(name: "Color", kind: .Outlet, description: "Current tweened color (RGBA)")),
             ("outputProgress", NodePort<Float>(name: "Progress", kind: .Outlet, description: "Tween progress (0-1)")),
         ]
     }

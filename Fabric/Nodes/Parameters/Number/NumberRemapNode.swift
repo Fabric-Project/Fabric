@@ -28,7 +28,7 @@ public class NumberRemapNode : Node
             ("inputMaxNumber", ParameterPort(parameter: FloatParameter("Input Max", 1.0, .inputfield, "Maximum of the input range"))),
             ("inputNewMinNumber", ParameterPort(parameter: FloatParameter("Output Min", 0.0, .inputfield, "Minimum of the output range"))),
             ("inputNewMaxNumber", ParameterPort(parameter: FloatParameter("Output Max", 1.0, .inputfield, "Maximum of the output range"))),
-            ("outputNumber", NodePort<Float>(name: NumberNode.name , kind: .Outlet, description: "The remapped output value")),
+            ("outputNumber", NodePort<Float>(name: "Number" , kind: .Outlet, description: "The remapped output value")),
         ]
     }
     

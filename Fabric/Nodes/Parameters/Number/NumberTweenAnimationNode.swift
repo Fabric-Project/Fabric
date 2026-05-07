@@ -25,7 +25,7 @@ public class NumberTweenNode : Node
             ("inputTarget", ParameterPort(parameter: FloatParameter("Target", 0.0, .inputfield, "The value to tween toward"))),
             ("inputDuration", ParameterPort(parameter: FloatParameter("Duration", 1.0, .inputfield, "Tween duration in seconds"))),
             ("inputEasing", ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing curve"))),
-            ("outputNumber", NodePort<Float>(name: NumberNode.name, kind: .Outlet, description: "Current tweened value")),
+            ("outputNumber", NodePort<Float>(name: "Number", kind: .Outlet, description: "Current tweened value")),
             ("outputProgress", NodePort<Float>(name: "Progress", kind: .Outlet, description: "Tween progress (0-1)")),
         ]
     }
