@@ -28,7 +28,6 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
     case Transform // (mid_matrix4x4
     case Geometry
     case Material
-    case Shader
     case Image
     case Array(portType:PortType)
     case Virtual
@@ -48,7 +47,6 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         
         .Geometry,
         .Material,
-        .Shader,
         .Image,
         
         .Array(portType:.Bool),
@@ -61,7 +59,6 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         .Array(portType:.Color),
         .Array(portType:.Geometry),
         .Array(portType:.Material),
-        .Array(portType:.Shader),
         .Array(portType:.Image),
         
         .Virtual
@@ -87,7 +84,6 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         case "Transform":     self = .Transform; return
         case "Geometry":      self = .Geometry;  return
         case "Material":      self = .Material;  return
-        case "Shader":        self = .Shader;    return
         case "Image":         self = .Image;     return
         case "Virtual":       self = .Virtual;    return
             
@@ -154,8 +150,6 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
             return Satin.SatinGeometry.self
         case .Material:
             return Satin.Material.self
-        case .Shader:
-            return Satin.Shader.self
         case .Image:
             return FabricImage.self
         case .Array(portType: let portType):
@@ -191,8 +185,6 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
             return "Geometry"
         case .Material:
             return "Material"
-        case .Shader:
-            return "Shader"
         case .Image:
             return "Image"
         case .Array(portType: let type):
@@ -225,7 +217,6 @@ extension PortType {
         case .Transform:    return PassThroughNode<simd_float4x4>.self
         case .Geometry:     return PassThroughNode<SatinGeometry>.self
         case .Material:     return PassThroughNode<Material>.self
-        case .Shader:       return PassThroughNode<Shader>.self
         case .Image:        return PassThroughNode<FabricImage>.self
         case .Array(portType: let elementType):
             switch elementType {
@@ -241,7 +232,6 @@ extension PortType {
             case .Transform: return PassThroughNode<ContiguousArray<simd_float4x4>>.self
             case .Geometry:  return PassThroughNode<ContiguousArray<SatinGeometry>>.self
             case .Material:  return PassThroughNode<ContiguousArray<Material>>.self
-            case .Shader:    return PassThroughNode<ContiguousArray<Shader>>.self
             case .Image:     return PassThroughNode<ContiguousArray<FabricImage>>.self
             default:         return nil
             }

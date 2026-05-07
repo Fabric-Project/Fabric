@@ -73,6 +73,9 @@ public class PassThroughNode<T: PortValueRepresentable>: Node
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Patching utility for \(T.portType.rawValue)." }
 
+    // If an instance has connections on its input port, it should be considered a Processor.
+    override public var nodeExecutionMode: Node.ExecutionMode { self.input.connections.isEmpty ? .Provider : .Processor }
+    
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
@@ -102,6 +105,9 @@ public class PassThroughNode<T: PortValueRepresentable>: Node
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        self.output.send(self.input.value)
+        if self.input.valueDidChange
+        {
+            self.output.send(self.input.value)
+        }
     }
 }

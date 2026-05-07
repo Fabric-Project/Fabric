@@ -38,7 +38,6 @@ public indirect enum PortValue : PortValueRepresentable
     case Transform(simd_float4x4)
     case Geometry(Satin.SatinGeometry)
     case Material(Satin.Material)
-    case Shader(Satin.Shader)
     case Image(FabricImage)
     case Virtual(PortValue)
 
@@ -572,39 +571,6 @@ extension Satin.Material : PortValueRepresentable
         switch value
         {
         case let .Material(v):
-            return v as? Self
-        default:
-            return nil
-        }
-    }
-    
-    public func canConvertTo(other:PortType) -> Bool
-    {
-        return false
-    }
-    
-    public func convertTo(other:PortType) -> (any PortValueRepresentable)?
-    {
-        return nil
-    }
-}
-
-extension Satin.Shader : PortValueRepresentable
-{
-    public static var defaultValue: Self? { nil }
-    public static var portType: PortType { .Shader }
-    public var portType: PortType { .Shader }
-
-    public func toPortValue() -> PortValue
-    {
-        .Shader(self)
-    }
-    
-    public static func fromPortValue(_ value: PortValue) ->  Self?
-    {
-        switch value
-        {
-        case let .Shader(v):
             return v as? Self
         default:
             return nil

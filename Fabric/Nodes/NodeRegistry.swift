@@ -113,7 +113,6 @@ public class NodeRegistry {
     private var materialNodeClasses:[Node.Type] = [
         // Materials
         PassThroughNode<Material>.self,
-        PassThroughNode<Shader>.self,
         BasicColorMaterialNode.self,
         UVMaterialNode.self,
         BasicTextureMaterialNode.self,
