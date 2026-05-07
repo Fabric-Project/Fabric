@@ -152,6 +152,7 @@ public class NodeRegistry {
             MetalFXSpatialUpsample2xNode.self,
             KeypointDistortNode.self,
             LUTProcessorNode.self,
+            BlendNode.self,
             TextureCropNode.self,
 
             ArrayIndexValueNode<FabricImage>.self,
