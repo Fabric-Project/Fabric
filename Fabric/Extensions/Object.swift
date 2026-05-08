@@ -18,8 +18,7 @@ public extension Object {
     ///   original hierarchy, each with `localMatrix` set to its original world transform.
     static func flatten(_ object: Object) -> Object {
         // New top-level container; reuse source label and context
-        let flatRoot = Object(label: object.label)
-        flatRoot.context = object.context
+        let flatRoot = Object(context:object.context, label: object.label)
 
         // Collect meshes first (avoid mutating while traversing)
         var meshes: [Mesh] = []

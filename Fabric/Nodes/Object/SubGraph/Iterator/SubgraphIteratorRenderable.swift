@@ -27,15 +27,16 @@ final class SubgraphIteratorRenderable: Satin.Renderable
     var currentCommandBuffer:MTLCommandBuffer? = nil
     var currentRenderPass:MTLRenderPassDescriptor? = nil
     
-    init(iterationCount: Int)
+    init(context:Context, iterationCount: Int)
     {
         self.iterationCount = iterationCount
         
-        super.init()
+        super.init(context:context)
         
         self.doubleSided = false
         self.renderOrder = 0
-        self.renderPass = 0
+        // TODO: Render Layer
+//        self.renderPass = 0
         self.receiveShadow = false
         self.castShadow = false
         self.cullMode = .back
@@ -149,7 +150,7 @@ final class SubgraphIteratorRenderable: Satin.Renderable
                 material.updateUniforms()
 
                 // Copied from Mesh
-                if let vertexUniforms = r.vertexUniforms[renderContext]
+                if let vertexUniforms = r.vertexUniforms[renderContext.id]
                 {
                     let basePtr = vertexUniforms.buffer.contents().advanced(by: vertexUniforms.offset)
                     let length = vertexUniforms.buffer.length - vertexUniforms.offset

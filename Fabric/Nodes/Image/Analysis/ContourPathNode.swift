@@ -90,15 +90,15 @@ public final class ContourPathNode: Node {
             inputMask.valueDidChange,
             let proc = processor,
             let inTex = inputMask.value?.texture,
-            let graphRenderer = context.graphRenderer,
-            let device = graphRenderer.context?.device
+            let graphRenderer = context.graphRenderer
         else {
             outputContour.send(nil)
 //            print("not outputting contour")
             return
         }
         
-        
+        let device = graphRenderer.context.device
+
 //        print("recomputing contour")
 
         // Bind input for sizing/dispatch

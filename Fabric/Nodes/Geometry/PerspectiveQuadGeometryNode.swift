@@ -132,7 +132,7 @@ public class PerspectiveQuadGeometryNode : BaseGeometryNode
 
     public override var geometry: SatinGeometry { _geometry }
 
-    private let _geometry = PerspectiveQuadGeometry()
+    private lazy var _geometry = PerspectiveQuadGeometry(context:self.context)
 
     override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
     {

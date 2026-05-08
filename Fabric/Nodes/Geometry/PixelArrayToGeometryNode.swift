@@ -39,7 +39,7 @@ public class PixelArrayToGeometryNode : BaseGeometryNode
 //    }
         
     // Basic Geom we change later
-    private var _geometry = PolyLine2DGeometry(points: [.zero, .zero, .zero])
+    private lazy var _geometry = PolyLine2DGeometry(context:self.context, points: [.zero, .zero, .zero])
     
 //    override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
 //    {
@@ -94,7 +94,7 @@ public class PixelArrayToGeometryNode : BaseGeometryNode
                 {
                     let pointsCopy = ContiguousArray(points)
                     
-                    let g = PolyLine2DGeometry(points: pointsCopy)
+                    let g = PolyLine2DGeometry(context:self.context, points: pointsCopy)
 
                     let _ = self.evaluate(geometry: g, atTime: 0.0)
                     
@@ -114,8 +114,9 @@ public class PolyLine2DGeometry : SatinGeometry
 {
     var points: ContiguousArray<simd_float2>
     
-    init(points: ContiguousArray<simd_float2>) {
+    init(context:Context, points: ContiguousArray<simd_float2>) {
         self.points = points
+        super.init(context: context)
     }
     
     override public func generateGeometryData() -> GeometryData

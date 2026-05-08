@@ -59,9 +59,7 @@ public class StandardMaterialNode : BaseMaterialNode
         return _material
     }
     
-    private var _material = StandardMaterial()
-    
-   
+    private lazy var _material = StandardMaterial(context:self.context)
     
     public override func evaluate(material: Material, atTime: TimeInterval) -> Bool
     {

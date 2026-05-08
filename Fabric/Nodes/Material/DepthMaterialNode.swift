@@ -36,7 +36,7 @@ public class DepthMaterialNode : BaseMaterialNode
         return _material
     }
     
-    private var _material = DepthMaterial()
+    private lazy var _material = DepthMaterial(context: self.context)
     
     public override func evaluate(material: Material, atTime: TimeInterval) -> Bool
     {

@@ -38,14 +38,18 @@ public class EnvironmentNode: SubgraphNode
     {
         super.init(context: context)
         
-        self.subGraph.scene = IBLScene()
+        self.subGraph.scene = IBLScene(context: context)
     }
     
     public required init(from decoder: any Decoder) throws
     {
+        guard let context = decoder.context?.documentContext as? Context else {
+            fatalError("Failed to decode Context from decoder")
+        }
+        
         try super.init(from: decoder)
         
-        self.subGraph.scene = IBLScene()
+        self.subGraph.scene = IBLScene(context: context)
     }
     
     override public func execute(context: GraphExecutionContext,

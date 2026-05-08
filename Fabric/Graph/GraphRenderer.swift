@@ -12,7 +12,7 @@ import Satin
 // Graph Execution Engine
 public class GraphRenderer : MetalViewRenderer
 {
-    public private(set) var context:Context!
+    public let context:Context
     public let renderer:Renderer
     
     override public var sampleCount: Int { self.context.sampleCount }
@@ -26,8 +26,8 @@ public class GraphRenderer : MetalViewRenderer
 
     // This is fucking horrible:
     public private(set) var currentCamera:Camera? = nil
-    private let defaultCamera = PerspectiveCamera()
-    private let sceneProxy = Object() // ?  IBLScene()
+    private let defaultCamera:PerspectiveCamera
+    private let sceneProxy:Object
     
     private var graphRequiresResize:Bool = false
     var resizeScaleFactor:Float = 1.0
@@ -49,6 +49,9 @@ public class GraphRenderer : MetalViewRenderer
         self.renderer = Renderer(context: context, stencilStoreAction: .store, frameBufferOnly:false)
 
         self.renderer.sortObjects = true
+        
+        self.sceneProxy = Object(context: self.context)
+        self.defaultCamera = PerspectiveCamera(context:self.context)
         
         self.defaultCamera.position = simd_float3(0, 0, 2)
         self.defaultCamera.lookAt(target: .zero)

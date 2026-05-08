@@ -19,5 +19,5 @@ public class UVMaterialNode : BaseMaterialNode
         return _material
     }
     
-    private var _material = UVColorMaterial()
+    private lazy var _material = UVColorMaterial(context:self.context)
 }

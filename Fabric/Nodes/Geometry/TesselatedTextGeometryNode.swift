@@ -32,7 +32,7 @@ public class TesselatedTextGeometryNode : BaseGeometryNode
 
     public override var geometry: TesselatedTextGeometry { _geometry }
 
-    private let _geometry = TesselatedTextGeometry(text: "Testing", fontSize: 1.0)
+    private lazy var _geometry = TesselatedTextGeometry(context:self.context, text: "Testing", fontSize: 1.0)
 
     override public func startExecution(context: GraphExecutionContext) {
         super.startExecution(context: context)

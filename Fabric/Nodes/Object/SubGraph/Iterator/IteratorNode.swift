@@ -40,7 +40,7 @@ public class IteratorNode: SubgraphNode
 
     public required init(context: Context)
     {
-        self.renderProxy = SubgraphIteratorRenderable(iterationCount: 1)
+        self.renderProxy = SubgraphIteratorRenderable(context:context, iterationCount: 1)
 
         super.init(context: context)
         
@@ -49,7 +49,9 @@ public class IteratorNode: SubgraphNode
     
     public required init(from decoder: any Decoder) throws
     {
-        self.renderProxy = SubgraphIteratorRenderable(iterationCount: 1)
+        guard let context = decoder.context?.documentContext as? Context else { fatalError("Unable to get document context") }
+        
+        self.renderProxy = SubgraphIteratorRenderable(context:context, iterationCount: 1)
 
         try super.init(from: decoder)
         

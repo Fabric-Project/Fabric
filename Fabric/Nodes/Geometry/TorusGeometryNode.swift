@@ -34,7 +34,7 @@ public class TorusGeometryNode : BaseGeometryNode
 
     public override var geometry: TorusGeometry { _geometry }
 
-    private let _geometry = TorusGeometry(minorRadius: 5.0, majorRadius: 0.25, minorResolution: 20, majorResolution: 20)
+    private lazy var _geometry = TorusGeometry(context:self.context, minorRadius: 5.0, majorRadius: 0.25, minorResolution: 20, majorResolution: 20)
 
     override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
     {

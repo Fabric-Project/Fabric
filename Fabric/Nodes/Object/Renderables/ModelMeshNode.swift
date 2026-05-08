@@ -121,7 +121,7 @@ public class ModelMeshNode : MeshNode
 
             if FileManager.default.fileExists(atPath: self.url!.standardizedFileURL.path(percentEncoded: false) )
             {
-                let unflattenedModelObject = loadAsset(url:self.url!, textureLoader: self.textureLoader)
+                let unflattenedModelObject = loadAsset(url:self.url!, context:self.context, textureLoader: self.textureLoader)
                 
                 if let unflattenedModelObject
                 {

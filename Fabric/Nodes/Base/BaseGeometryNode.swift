@@ -34,12 +34,7 @@ public class BaseGeometryNode : Node
     open var geometry: SatinGeometry {
         fatalError("Subclasses must override geometry")
     }
-    
-    override public func startExecution(context:GraphExecutionContext)
-    {
-        self.geometry.context = self.context
-    }
-        
+            
     public func evaluate(geometry:SatinGeometry, atTime:TimeInterval) -> Bool
     {
         var shouldOutput = false

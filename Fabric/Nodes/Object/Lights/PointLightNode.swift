@@ -47,7 +47,7 @@ public class PointLightNode : ObjectNode<PointLight>
         return light
     }
     
-    private var light: PointLight =  PointLight(color: simd_float3(1.0, 1.0, 1.0), radius: 150.0)
+    private lazy var light: PointLight =  PointLight(context:self.context, color: simd_float3(1.0, 1.0, 1.0), radius: 150.0)
 
     override public func startExecution(context:GraphExecutionContext)
     {
@@ -56,7 +56,6 @@ public class PointLightNode : ObjectNode<PointLight>
     
     private func setupDefaultLight()
     {
-        self.light.context = self.context
         self.light.lookAt(target: .zero, up: Satin.worldUpDirection)
 
         self.light.castShadow = true

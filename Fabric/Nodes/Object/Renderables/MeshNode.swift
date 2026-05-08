@@ -135,7 +135,7 @@ public class MeshNode : BaseRenderableNode<Mesh>
                 }
                 else
                 {
-                    let mesh = Mesh(geometry: geometry, material: material)
+                    let mesh = Mesh(context:self.context, geometry: geometry, material: material)
                     self.applyCurrentMeshState(mesh,
                                                materialJustAttached: true)
 
@@ -160,7 +160,8 @@ public class MeshNode : BaseRenderableNode<Mesh>
         mesh.lookAt(target: simd_float3(repeating: 0))
         mesh.visible = self.inputVisible.value ?? true
         mesh.renderOrder = self.inputRenderOrder.value ?? 0
-        mesh.renderPass = self.inputRenderPass.value ?? 0
+        // TODO: mesh.renderLayer
+        ///mesh.renderPass = self.inputRenderPass.value ?? 0
         mesh.position = self.inputPosition.value ?? .zero
         mesh.scale = self.inputScale.value ?? simd_float3(repeating: 1)
 

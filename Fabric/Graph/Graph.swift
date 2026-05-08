@@ -39,7 +39,7 @@ internal import AnyCodable
         }
     }
     
-    var scene:Object = Object()
+    var scene:Object
     
     var renderables: [Satin.Renderable] {
         let allNodes = self.nodes
@@ -72,6 +72,7 @@ internal import AnyCodable
     
     public init(context:Context)
     {
+        self.scene = Object(context: context)
         print("Init Graph")
         self.id = UUID()
         self.version = .alpha1
@@ -95,6 +96,7 @@ internal import AnyCodable
         self.version = try container.decode(Graph.Version.self, forKey: .version)
 
         self.nodes = []
+        self.scene = Object(context: context)
 
         self.notes = try container.decodeIfPresent([Note].self, forKey: .notes) ?? []
 

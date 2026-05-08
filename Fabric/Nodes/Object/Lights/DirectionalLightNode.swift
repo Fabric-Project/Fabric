@@ -45,7 +45,7 @@ public class DirectionalLightNode : ObjectNode<DirectionalLight>
         return light
     }
     
-    private var light: DirectionalLight =  DirectionalLight(color: [1.0, 1.0, 1.0], intensity: 1.0)
+    private lazy var light: DirectionalLight = DirectionalLight(context:self.context, color: [1.0, 1.0, 1.0], intensity: 1.0)
   
     override public func startExecution(context:GraphExecutionContext)
     {
@@ -54,7 +54,6 @@ public class DirectionalLightNode : ObjectNode<DirectionalLight>
     
     private func setupDefaultLight()
     {
-        self.light.context = self.context
         self.light.lookAt(target: .zero, up: Satin.worldUpDirection)
 
         self.light.castShadow = true
