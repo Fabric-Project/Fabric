@@ -40,7 +40,7 @@ public class PointLightNode : ObjectNode<PointLight>
     public var inputIntensity: ParameterPort<Float> { port(named: "inputIntensity") }
     public var inputRadius: ParameterPort<Float> { port(named: "inputRadius") }
     public var inputShadowStrength: ParameterPort<Float> { port(named: "inputShadowStrength") }
-    public var inputShadowRadius: ParameterPort<Float> { port(named: "inputShadowBias") }
+    public var inputShadowRadius: ParameterPort<Float> { port(named: "inputShadowRadius") }
     public var inputShadowBias: ParameterPort<Float> { port(named: "inputShadowBias") }
     
     public override var object: PointLight? {
@@ -75,16 +75,16 @@ public class PointLightNode : ObjectNode<PointLight>
     override public func evaluate(object: Object?, atTime: TimeInterval) -> Bool
     {
         var shouldOutput = super.evaluate(object: object, atTime: atTime)
-    
+        
         if self.inputColor.valueDidChange,
-            let color = self.inputColor.value
+           let color = self.inputColor.value
         {
             self.light.color = color
             shouldOutput = true
         }
         
         if self.inputIntensity.valueDidChange,
-            let intensity = self.inputIntensity.value
+           let intensity = self.inputIntensity.value
         {
             self.light.intensity = intensity
             shouldOutput = true
@@ -121,7 +121,8 @@ public class PointLightNode : ObjectNode<PointLight>
         // Needs to fire every frame
         self.light.lookAt(target: self.inputLookAt.value ?? .zero)
         
-        return shouldOutput    }
+        return shouldOutput
+    }
     
     public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
