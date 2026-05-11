@@ -59,7 +59,7 @@ public class PointLightNode : ObjectNode<PointLight>
         self.light.lookAt(target: .zero, up: Satin.worldUpDirection)
 
         self.light.castShadow = true
-        self.light.shadow.resolution = (2048, 2048)
+        self.light.shadow.resolution = (1024, 1024)
         self.light.shadow.bias = 0.0005
         self.light.shadow.strength = 0.5
         self.light.shadow.radius = 2

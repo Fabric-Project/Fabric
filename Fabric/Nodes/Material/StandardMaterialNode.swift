@@ -34,6 +34,7 @@ public class StandardMaterialNode : BaseMaterialNode
             ("inputOcclusion",  ParameterPort(parameter:FloatParameter("Occlusion", 0.75, 0.0, 1.0, .slider, "Ambient occlusion factor to darken crevices (0-1)"))),
             ("inputEnvironmentIntensity",  ParameterPort(parameter:FloatParameter("Environment Intensity", 1.0, 0.0, 1.0, .slider, "Strength of environment map reflections (0-1)"))),
             ("inputGammaCorrection",  ParameterPort(parameter:FloatParameter("Gamma Correction", 1.0, 0.0, 2.4, .slider, "Gamma correction value for color space conversion"))),
+            ("inputPointSize", ParameterPort(parameter:FloatParameter("Point Size", 1.0, 0.5, 64.0, .slider, "Point Size") ) ),
             ]
         + ports
     }
@@ -53,7 +54,8 @@ public class StandardMaterialNode : BaseMaterialNode
     public var inputOcclusion: ParameterPort<Float>{ port(named: "inputOcclusion") }
     public var inputEnvironmentIntensity: ParameterPort<Float>{ port(named: "inputEnvironmentIntensity") }
     public var inputGammaCorrection: ParameterPort<Float>{ port(named: "inputGammaCorrection") }
-    
+    public var inputPointSize:ParameterPort<Float>   { port(named: "inputPointSize") }
+
     
     public override var material: StandardMaterial {
         return _material
@@ -159,6 +161,13 @@ public class StandardMaterialNode : BaseMaterialNode
 //        self.material.setTexture(self.inputBumpTexture.value?.texture, type: .displacement)
 //        self.material.setTexture(self.inputOcclusionTexture.value?.texture, type: .occlusion)
 
+        if self.inputPointSize.valueDidChange,
+           let inputPointSize = self.inputPointSize.value
+        {
+            shouldOutput = true
+            self.material.pointSize = inputPointSize
+        }
+        
         return shouldOutput
     }
 }
