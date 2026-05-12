@@ -75,6 +75,7 @@ public class NodeRegistry {
     private var lightNodeClasses: [Node.Type] = [
         DirectionalLightNode.self,
         PointLightNode.self,
+        SpotLightNode.self,
     ]
     
     private var objectNodeClasses: [Node.Type] = [
