@@ -61,10 +61,9 @@ public class MeshNode : BaseRenderableNode<Mesh>
     
     override public func teardown()
     {
-        super.teardown()
         self.mesh = nil
-        self.inputGeometry.value = nil
-        self.inputMaterial.value = nil
+
+        super.teardown()
     }
     
     override public func evaluate(object: Object?, atTime: TimeInterval) -> Bool
