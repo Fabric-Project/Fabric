@@ -335,7 +335,7 @@ public class AudioSpectrumNode : Node
                 AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
                     if granted {
                         print("Granted Mic Access")
-                        DispatchQueue.main.async { self?.setupCaptureSession() }
+                        self?.setupCaptureSession()
                     }
                     else
                     {
