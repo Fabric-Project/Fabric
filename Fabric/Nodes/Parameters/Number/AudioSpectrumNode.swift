@@ -235,7 +235,7 @@ public class AudioSpectrumNode : Node
     // selection via AVCaptureDeviceInput is the supported macOS API for
     // per-node device switching, where AVAudioEngine's AUHAL-routing is not.
     @ObservationIgnored private var captureSession = AVCaptureSession()
-    @ObservationIgnored private let captureQueue = DispatchQueue(label: "net.sparklive.AudioSpectrum.capture")
+    @ObservationIgnored private let captureQueue = DispatchQueue(label: "fabric.AudioSpectrumNode.capture_queue")
     @ObservationIgnored private var captureDelegate = CaptureDelegate()
 
     // GraphRenderer only calls startExecution once, at renderer setup. Nodes
