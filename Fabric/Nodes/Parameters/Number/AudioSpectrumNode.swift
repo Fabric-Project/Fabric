@@ -12,7 +12,6 @@ import simd
 import AVFoundation
 import Accelerate
 import Dispatch
-import Synchronization
 
 public class AudioSpectrumNode : Node
 {
@@ -243,18 +242,15 @@ public class AudioSpectrumNode : Node
     // attempt setup lazily from execute() (see requestAudioSetupIfNeeded()).
     @ObservationIgnored private var didRequestAudioSetup = false
 
-    /// Capture-thread → consumer-thread handoff. The capture callback runs on
-    /// `captureQueue`; `execute()` runs on whatever queue the embedder uses
-    /// (main in Fabric Editor, a private serial queue in Spark Stage). The
-    /// capture thread *only* stages raw samples + the latest observed sample
-    /// rate here; all node-state mutation (filter-bank rebuild, etc.) happens
-    /// on the consumer thread inside `execute()`. This means the producer is
-    /// embedder-agnostic — no need to know which queue runs Fabric.
-    private struct AudioBuffer: ~Copyable {
-        var samples: [Float] = []
-        var lastSeenSampleRate: Float?
-    }
-    @ObservationIgnored private let buffer = Mutex<AudioBuffer>(AudioBuffer())
+    /// Capture-thread → consumer-thread handoff. The capture callback runs
+    /// on `captureQueue` and appends raw samples + the latest observed
+    /// sample rate to these properties directly. `execute()` runs on the
+    /// embedder's queue (main in Fabric Editor, a private serial queue in
+    /// Spark Stage) and drains via `captureQueue.sync { … }`. All
+    /// node-state mutation (filter-bank rebuild, etc.) happens on the
+    /// consumer thread.
+    @ObservationIgnored private var pendingSamples: [Float] = []
+    @ObservationIgnored private var lastSeenSampleRate: Float?
 
     // Device enumeration. AVCaptureDevice.DiscoverySession gives us the raw
     // AVCaptureDevice instances which feed straight into AVCaptureDeviceInput
@@ -418,7 +414,7 @@ public class AudioSpectrumNode : Node
         // Adopt the producer's latest observed sample rate before checking
         // for filter-bank rebuild — keeping all filter-bank mutation on the
         // consumer thread.
-        let observedRate: Float? = buffer.withLock { $0.lastSeenSampleRate }
+        let observedRate: Float? = captureQueue.sync { self.lastSeenSampleRate }
         if let rate = observedRate, rate.isFinite, rate > 0,
            self.filterBank == nil || self.filterBank?.sampleRate != rate
         {
@@ -430,15 +426,17 @@ public class AudioSpectrumNode : Node
         let targetVideoFrameRate:Float = 200
         let numSamplesInAFrame = Int(round( filterBank.sampleRate / targetVideoFrameRate ) )
 
-        // Drain a batch + cap retained backlog inside the lock. `withLock`'s
-        // defer-based unlock is robust to early returns and future edits.
-        let batchOfSamples: [Float] = buffer.withLock { buf in
-            let batchSize = min(numSamplesInAFrame, buf.samples.count)
+        // Drain a batch + cap retained backlog by sync'ing onto the producer's
+        // queue. The capture delegate is the only other writer to pendingSamples,
+        // and it's serial on captureQueue, so dispatch_sync gives us mutually
+        // exclusive access.
+        let batchOfSamples: [Float] = captureQueue.sync {
+            let batchSize = min(numSamplesInAFrame, self.pendingSamples.count)
             guard batchSize > 0 else { return [] }
-            let batch = Array(buf.samples.prefix(batchSize)).map { s in s.isFinite ? s : 0 }
-            buf.samples.removeFirst(batchSize)
-            if buf.samples.count > self.maxSamples {
-                buf.samples.removeLast(buf.samples.count - self.maxSamples)
+            let batch = Array(self.pendingSamples.prefix(batchSize)).map { s in s.isFinite ? s : 0 }
+            self.pendingSamples.removeFirst(batchSize)
+            if self.pendingSamples.count > self.maxSamples {
+                self.pendingSamples.removeLast(self.pendingSamples.count - self.maxSamples)
             }
             return batch
         }
@@ -557,14 +555,12 @@ public class AudioSpectrumNode : Node
         }
 
         // Stage samples + latest sample rate for the consumer to pick up on
-        // its next `execute()`. Producer never touches node state directly —
-        // no queue hop required, no assumption about which thread runs the
-        // graph.
-        buffer.withLock { buf in
-            buf.samples.append(contentsOf: newSamples)
-            if sampleRate.isFinite, sampleRate > 0 {
-                buf.lastSeenSampleRate = sampleRate
-            }
+        // its next `execute()`. We're already on captureQueue (the buffer
+        // delegate's queue), so these writes are serialized with the
+        // consumer's `captureQueue.sync` drain.
+        self.pendingSamples.append(contentsOf: newSamples)
+        if sampleRate.isFinite, sampleRate > 0 {
+            self.lastSeenSampleRate = sampleRate
         }
     }
 
@@ -647,9 +643,9 @@ public class AudioSpectrumNode : Node
 
         // New device may deliver at a different rate — drain the old queue
         // so the first fresh sample buffer drives the filter-bank rebuild.
-        buffer.withLock { buf in
-            buf.samples.removeAll(keepingCapacity: true)
-            buf.lastSeenSampleRate = nil
+        captureQueue.sync {
+            self.pendingSamples.removeAll(keepingCapacity: true)
+            self.lastSeenSampleRate = nil
         }
     }
 
