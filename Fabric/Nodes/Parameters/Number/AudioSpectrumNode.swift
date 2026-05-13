@@ -237,11 +237,6 @@ public class AudioSpectrumNode : Node
     @ObservationIgnored private let captureQueue = DispatchQueue(label: "fabric.AudioSpectrumNode.capture_queue")
     @ObservationIgnored private var captureDelegate = CaptureDelegate()
 
-    // GraphRenderer only calls startExecution once, at renderer setup. Nodes
-    // dropped onto an already-running graph never receive it, so we also
-    // attempt setup lazily from execute() (see requestAudioSetupIfNeeded()).
-    @ObservationIgnored private var didRequestAudioSetup = false
-
     /// Capture-thread → consumer-thread handoff. The capture callback runs
     /// on `captureQueue` and appends raw samples + the latest observed
     /// sample rate to these properties directly. `execute()` runs on the
@@ -332,13 +327,6 @@ public class AudioSpectrumNode : Node
 
     override public func startExecution(context: GraphExecutionContext) {
         super.startExecution(context: context)
-        self.requestAudioSetupIfNeeded()
-    }
-
-    private func requestAudioSetupIfNeeded()
-    {
-        guard !self.didRequestAudioSetup else { return }
-        self.didRequestAudioSetup = true
 
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
             case .authorized:
@@ -383,12 +371,10 @@ public class AudioSpectrumNode : Node
 
     override public func execute(context: GraphExecutionContext, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: any MTLCommandBuffer)
     {
-        self.requestAudioSetupIfNeeded()
-
         // Device re-routing: picking a new device rebuilds the capture
         // session's input. AVCaptureSession supports this cleanly via
         // beginConfiguration/commit — no engine lifecycle to fight.
-        if self.inputAudioDevice.valueDidChange, self.didRequestAudioSetup
+        if self.inputAudioDevice.valueDidChange
         {
             self.setupCaptureSession()
         }
