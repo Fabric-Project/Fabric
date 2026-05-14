@@ -12,6 +12,7 @@ import simd
 import AVFoundation
 import Accelerate
 import Dispatch
+import Synchronization
 
 public class AudioSpectrumNode : Node
 {
@@ -237,13 +238,12 @@ public class AudioSpectrumNode : Node
     @ObservationIgnored private let captureQueue = DispatchQueue(label: "fabric.AudioSpectrumNode.capture_queue")
     @ObservationIgnored private var captureDelegate = CaptureDelegate()
 
-    /// Capture-thread → consumer-thread handoff. The capture callback runs
-    /// on `captureQueue` and appends raw samples + the latest observed
-    /// sample rate to these properties directly. `execute()` runs on the
-    /// embedder's queue (main in Fabric Editor, a private serial queue in
-    /// Spark Stage) and drains via `captureQueue.sync { … }`. All
-    /// node-state mutation (filter-bank rebuild, etc.) happens on the
-    /// consumer thread.
+    /// Capture-thread → consumer-thread handoff. The capture callback runs on
+    /// `captureQueue` and appends raw samples + the latest observed sample
+    /// rate to these properties directly. `execute()` runs on the embedder's
+    /// queue (main in Fabric Editor, other embedders may use e.g. a private
+    /// serial queue) and drains via `captureQueue.sync { … }`. All node-state
+    /// mutation (filter-bank rebuild, etc.) happens on the consumer thread.
     @ObservationIgnored private var pendingSamples: [Float] = []
     @ObservationIgnored private var lastSeenSampleRate: Float?
 
@@ -255,10 +255,34 @@ public class AudioSpectrumNode : Node
         mediaType: .audio,
         position: .unspecified
     )
-    /// Available audio devices. Written from the main queue (via
-    /// `AVCaptureDevice` connect/disconnect notifications) and read from
-    /// the embedder's consumer queue (via `setupCaptureSession` →
-    /// `resolveSelectedAudioDevice`). Mutex provides cross-queue safety.
+    
+    /// Available audio devices, populated from `AVCaptureDevice`
+    /// connect/disconnect notifications.
+    ///
+    /// The observer is registered with `queue: .main` because the
+    /// handler updates the dropdown's `StringParameter.options`, and
+    /// Fabric's `@Observable` engine types (Node, Parameter, …) are
+    /// main-thread-affine: Observation's change tracking misbehaves on
+    /// non-main mutations. That's a property of Fabric's current
+    /// parameter design — engine state and UI binding state share a
+    /// single object — not a SwiftUI requirement of this node. A
+    /// UI-agnostic factoring would lift the observable wrapper out of
+    /// the engine layer and let nodes own their state on the consumer
+    /// queue, removing the `.main` constraint and the cross-queue case
+    /// it creates.
+    ///
+    /// Given that constraint: writes happen on main, reads happen on
+    /// the embedder's consumer queue (main in the Fabric Editor, a
+    /// private serial queue elsewhere). When the consumer queue is
+    /// main, both collapse to one thread and a lock is redundant —
+    /// that's the path `CameraProviderNode` and
+    /// `ScreenCaptureProviderNode` take, with a plain
+    /// `var devices: [AVCaptureDevice]`. Under a non-main consumer
+    /// queue it's a genuine cross-queue read; the race is benign for
+    /// short reference-array stores (stale dropdown matching, not
+    /// crashes), but this node uses a Mutex to make the hand-off
+    /// explicit rather than rely on the project's tolerated-race
+    /// convention.
     private struct DeviceList: ~Copyable, @unchecked Sendable {
         var devices: [AVCaptureDevice] = []
     }
