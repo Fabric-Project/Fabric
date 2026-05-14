@@ -384,9 +384,6 @@ public class GraphRenderer : MetalViewRenderer
                              nodesWeHaveExecutedThisPass: &nodesWeHaveExecutedThisPass,
                              clearFlags: clearFlags
                 )
-                
-
-//            }
         }
         
         if self.graphRequiresResize
@@ -399,7 +396,7 @@ public class GraphRenderer : MetalViewRenderer
             // This ensures if a node always is marked as dirty (like some nodes) we only execute once per pass
             if !nodesWeHaveExecutedThisPass.contains(node)
             {
-        
+                
 #if DEBUG
                 commandBuffer.pushDebugGroup(node.name)
 #endif

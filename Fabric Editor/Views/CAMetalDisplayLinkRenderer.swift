@@ -21,10 +21,10 @@ class CAMetalDisplayLinkRenderer: GameView
     private let renderPassDescriptor = MTLRenderPassDescriptor()
     
 
-    init(graph:Graph)
+    init(graph:Graph, graphRenderer:GraphRenderer)
     {
         self.graph = graph
-        self.graphRenderer = GraphRenderer(context: self.graph.context)
+        self.graphRenderer = graphRenderer
 
 //        self.commandQueue = self.graph.context.device.makeCommandQueue()!
 
@@ -83,18 +83,7 @@ class CAMetalDisplayLinkRenderer: GameView
     func teardown()
     {
         print("CAMetalDisplayLinkRenderer Teardown")
-        // TODO: This becomes more semantically correct later
-        let timing = GraphExecutionTiming(time: CACurrentMediaTime(),
-                                          deltaTime: 0,
-                                          displayTime: 0,
-                                          systemTime: Date.timeIntervalSinceReferenceDate,
-                                          frameNumber: self.graphRenderer.frameIndex)
-
-        
-        let executionContext = GraphExecutionInfo(timing: timing,
-                                                  iterationInfo: nil,
-                                                  eventInfo: nil)
-        
+                
         self.graphRenderer.disableExecution(graph: self.graph)
         self.graphRenderer.stopExecution(graph: self.graph)
         
