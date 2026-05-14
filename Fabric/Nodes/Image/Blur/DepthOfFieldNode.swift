@@ -16,9 +16,10 @@ public final class DepthOfFieldNode: Node
             ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input color image to blur")),
             ("inputDepthImage", NodePort<FabricImage>(name: "Depth Image", kind: .Inlet, description: "Input depth image for focus reconstruction")),
             ("inputFocusDistance", ParameterPort(parameter: FloatParameter("Focus Distance", 4.0, 0.001, 1000.0, .slider, "Distance from the camera that stays sharp"))),
-            ("inputFocusRange", ParameterPort(parameter: FloatParameter("Focus Range", 1.5, 0.001, 500.0, .slider, "Full depth band that remains acceptably sharp"))),
+            ("inputFocusRange", ParameterPort(parameter: FloatParameter("Focus Range", 1.5, 0.001, 1000.0, .slider, "Full depth band that remains acceptably sharp"))),
             ("inputMaxBlurRadius", ParameterPort(parameter: FloatParameter("Max Blur Radius", 18.0, 0.0, 32.0, .slider, "Maximum circle-of-confusion radius in full-resolution pixels"))),
             ("inputResolutionScale", ParameterPort(parameter: FloatParameter("Resolution Scale", 0.5, 0.25, 1.0, .slider, "Internal processing resolution relative to the input image"))),
+            ("inputBlend", ParameterPort(parameter: FloatParameter("Blend", 1.0, 0.0, 4.0, .slider, "Blend multiplier applied to the near and far compositing ramps"))),
             ("outputImage", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Depth-of-field processed image")),
         ]
     }
@@ -29,6 +30,7 @@ public final class DepthOfFieldNode: Node
     public var inputFocusRange: ParameterPort<Float> { port(named: "inputFocusRange") }
     public var inputMaxBlurRadius: ParameterPort<Float> { port(named: "inputMaxBlurRadius") }
     public var inputResolutionScale: ParameterPort<Float> { port(named: "inputResolutionScale") }
+    public var inputBlend: ParameterPort<Float> { port(named: "inputBlend") }
     public var outputImage: NodePort<FabricImage> { port(named: "outputImage") }
 
     @ObservationIgnored private let postProcessor: BokehDepthOfFieldPostProcessor
@@ -82,6 +84,7 @@ public final class DepthOfFieldNode: Node
         self.postProcessor.focusRange = self.inputFocusRange.value ?? 1.5
         self.postProcessor.maxBlurRadius = self.inputMaxBlurRadius.value ?? 18.0
         self.postProcessor.resolutionScale = self.inputResolutionScale.value ?? 0.5
+        self.postProcessor.blend = self.inputBlend.value ?? 1.0
         self.postProcessor.resize(size: (Float(colorTexture.width), Float(colorTexture.height)), scaleFactor: 1.0)
         self.postProcessor.draw(renderPassDescriptor: MTLRenderPassDescriptor(), commandBuffer: commandBuffer)
 
