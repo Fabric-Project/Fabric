@@ -419,12 +419,12 @@ struct DetectedInputRow: View
 
     // MARK: - Lifecycle
 
-    public override func enableExecution(context: GraphExecutionInfo)
+    public override func enableExecution(renderer: GraphRenderer)
     {
         setupMIDIManager()
     }
 
-    public override func disableExecution(context: GraphExecutionInfo)
+    public override func disableExecution(renderer: GraphRenderer)
     {
         midiManager = nil
     }
@@ -818,9 +818,10 @@ struct DetectedInputRow: View
 
     // MARK: - Execution
 
-    public override func execute(context: GraphExecutionInfo,
-                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                  commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         for input in configuredInputs
         {

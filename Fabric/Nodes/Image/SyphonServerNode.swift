@@ -57,9 +57,10 @@ public class SyphonServerNode : Node
         try super.init(from:decoder)
     }
     
-    override public func execute(context:GraphExecutionInfo,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         if self.inputServerName.valueDidChange,
            let name = self.inputServerName.value

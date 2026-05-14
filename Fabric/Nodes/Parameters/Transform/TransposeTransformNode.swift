@@ -34,7 +34,8 @@ public class TransposeTransformNode : Node
     public var inputTranslation:NodePort<simd_float3> { port(named: "inputTranslation") }
     public var outputTransform:NodePort<simd_float4x4> { port(named: "outputTransform") }
     
-    public override func execute(context:GraphExecutionInfo,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

@@ -69,14 +69,11 @@ public class KeypointDistortNode: BaseImageNode {
         self.countBuffer.update(data: [UInt32(0)])
     }
     
-    override public func execute(context:GraphExecutionInfo,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        guard let graphRenderer = context.graphRenderer,
-              let device = graphRenderer.device
-        else { return }
-        
         
         // If counts are diff, update backing
         if self.inputReferenceKeyPoints.valueDidChange,
@@ -84,7 +81,7 @@ public class KeypointDistortNode: BaseImageNode {
         {
             if self.refKeyPointStructBuffer.count != inputReferenceKeyPoints.count {
                 
-                self.refKeyPointStructBuffer = StructBuffer<simd_float2>(device: device,
+                self.refKeyPointStructBuffer = StructBuffer<simd_float2>(device: renderer.context.device,
                                                                          count: inputReferenceKeyPoints.count,
                                                                          label: "Reference Keypoint Struct Buffer")
             }
@@ -98,7 +95,7 @@ public class KeypointDistortNode: BaseImageNode {
         {
             if self.disKeyPointStructBuffer.count != inputDisplacedKeyPoints.count
             {
-                self.disKeyPointStructBuffer = StructBuffer<simd_float2>(device: device,
+                self.disKeyPointStructBuffer = StructBuffer<simd_float2>(device: renderer.context.device,
                                                                          count: inputDisplacedKeyPoints.count,
                                                                          label: "Displacement Keypoint Struct Buffer")
             }
@@ -109,7 +106,7 @@ public class KeypointDistortNode: BaseImageNode {
         if self.imageInputPorts().first?.valueDidChange == true
         {
             if let inTex = self.inputImageTexture(at: 0),
-               let outImage = context.graphRenderer?.newImage(withWidth: inTex.width, height: inTex.height)
+               let outImage = renderer.newImage(withWidth: inTex.width, height: inTex.height)
             {
                 let minCount = min (self.refKeyPointStructBuffer.count, self.disKeyPointStructBuffer.count)
                 self.countBuffer.update(data: [UInt32(minCount)] )

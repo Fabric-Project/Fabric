@@ -95,7 +95,8 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
         return shouldOutput
     }
     
-    public override func execute(context:GraphExecutionInfo,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
@@ -142,7 +143,7 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
             
         if let mesh = mesh
         {
-            let _ = self.evaluate(object: mesh, atTime: context.timing.time)
+            let _ = self.evaluate(object: mesh, atTime: executionInfo.timing.time)
             
             if self.inputTransforms.valueDidChange,
                 let transforms = self.inputTransforms.value

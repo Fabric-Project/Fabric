@@ -48,11 +48,12 @@ public class OrientationTweenNode : Node
     private var toQuat:simd_quatf = simd_quatf(angle: 0, axis: simd_float3(0, 1, 0))
     private var currentOutput:simd_quatf = simd_quatf(angle: 0, axis: simd_float3(0, 1, 0))
 
-    override public func execute(context:GraphExecutionInfo,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        let time = context.timing.time
+        let time = executionInfo.timing.time
 
         // Detect target change → snap-retarget
         if self.inputTarget.valueDidChange,

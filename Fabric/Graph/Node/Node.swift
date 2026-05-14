@@ -390,22 +390,23 @@ import UniformTypeIdentifiers
     
     // MARK: - Execution
     
-    public func startExecution(context:GraphExecutionInfo) { }
-    public func stopExecution(context:GraphExecutionInfo) { }
+    public func startExecution(renderer:GraphRenderer) { }
+    public func stopExecution(renderer:GraphRenderer) { }
 
-    public func enableExecution(context:GraphExecutionInfo) { }
-    public func disableExecution(context:GraphExecutionInfo) { }
+    public func enableExecution(renderer:GraphRenderer) { }
+    public func disableExecution(renderer:GraphRenderer) { }
     
-    public func execute(context:GraphExecutionInfo,
-                         renderPassDescriptor: MTLRenderPassDescriptor,
-                         commandBuffer: MTLCommandBuffer) { }
+    public func execute(renderer:GraphRenderer,
+                        executionInfo:GraphExecutionInfo,
+                        renderPassDescriptor: MTLRenderPassDescriptor,
+                        commandBuffer: MTLCommandBuffer) { }
         
     public func resize(size: (width: Float, height: Float), scaleFactor: Float) { }
    
     // MARK: - Node Settings
 
     public enum SettingsViewSize
-    {
+    { 
         case Small
         case Medium
         case Large

@@ -111,9 +111,10 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         try super.init(from:decoder)
     }
 
-    override public func execute(context:GraphExecutionInfo,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         
         if self.inputFilePathParam.valueDidChange
@@ -121,13 +122,12 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
             loadAssetFromInputValue()
         }
         
-        let time =  context.timing.time
+        let time =  executionInfo.timing.time
         let itemTime = self.playerItemVideoOutput.itemTime(forHostTime: time)
         
         if self.playerItemVideoOutput.hasNewPixelBuffer(forItemTime: itemTime)
         {
             if let pixelBuffer = self.playerItemVideoOutput.copyPixelBuffer(forItemTime: itemTime, itemTimeForDisplay: nil),
-               let renderer = context.graphRenderer,
                let image = renderer.newImage(fromPixelBuffer: pixelBuffer)
             {
                 self.outputTexturePort.send( image )

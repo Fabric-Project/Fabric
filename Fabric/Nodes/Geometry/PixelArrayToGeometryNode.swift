@@ -78,7 +78,10 @@ public class PixelArrayToGeometryNode : BaseGeometryNode
 //        return shouldOutputGeometry
 //    }
     
-    public override func execute(context: GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: any MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
 //        print("PixelArrayToGeometryNode execute \(context.timing.frameNumber)")
 

@@ -59,11 +59,12 @@ public final class DepthOfFieldNode: Node
         try super.init(from: decoder)
     }
 
-    public override func execute(context: GraphExecutionInfo,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        guard let graphRenderer = context.graphRenderer,
+        guard
               let colorTexture = self.inputImage.value?.texture,
               let depthTexture = self.inputDepthImage.value?.texture
         else
@@ -72,14 +73,14 @@ public final class DepthOfFieldNode: Node
             return
         }
 
-        if graphRenderer.currentCamera == nil
+        if renderer.currentCamera == nil
         {
             self.fallbackCamera.aspect = Float(colorTexture.width) / Float(max(colorTexture.height, 1))
         }
 
         self.postProcessor.colorTexture = colorTexture
         self.postProcessor.depthTexture = depthTexture
-        self.postProcessor.sceneCamera = graphRenderer.currentCamera ?? self.fallbackCamera
+        self.postProcessor.sceneCamera = renderer.currentCamera ?? self.fallbackCamera
         self.postProcessor.focusDistance = self.inputFocusDistance.value ?? 4.0
         self.postProcessor.focusRange = self.inputFocusRange.value ?? 1.5
         self.postProcessor.maxBlurRadius = self.inputMaxBlurRadius.value ?? 18.0
@@ -89,7 +90,7 @@ public final class DepthOfFieldNode: Node
         self.postProcessor.draw(renderPassDescriptor: MTLRenderPassDescriptor(), commandBuffer: commandBuffer)
 
         guard let processedTexture = self.postProcessor.outputTexture,
-              let outputImage = graphRenderer.newImage(withWidth: processedTexture.width,
+              let outputImage = renderer.newImage(withWidth: processedTexture.width,
                                                        height: processedTexture.height,
                                                        format: processedTexture.pixelFormat)
         else

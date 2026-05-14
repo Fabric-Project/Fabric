@@ -74,7 +74,8 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
         self.mesh.doubleSided = true
     }
 
-    override public func execute(context: GraphExecutionInfo,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
@@ -118,6 +119,6 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
             }
         }
 
-        let _ = self.evaluate(object: mesh, atTime: context.timing.time)
+        let _ = self.evaluate(object: mesh, atTime: executionInfo.timing.time)
     }
 }

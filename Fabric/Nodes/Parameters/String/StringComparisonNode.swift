@@ -34,9 +34,11 @@ public class StringComparisonNode: Node {
 
     private var op = StringComparisonOperator.Equals
 
-    public override func execute(context: GraphExecutionInfo,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer) {
+                                 commandBuffer: MTLCommandBuffer)
+    {
         if inputOperator.valueDidChange,
            let param = inputOperator.value,
            let newOp = StringComparisonOperator(rawValue: param) {

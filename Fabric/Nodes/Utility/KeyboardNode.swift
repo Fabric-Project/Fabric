@@ -202,11 +202,12 @@ struct KeyboardNodeView : View
 
     // MARK: - Execution
 
-    public override func execute(context:GraphExecutionInfo,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        if let eventInfo = context.eventInfo,
+        if let eventInfo = executionInfo.eventInfo,
            let event = eventInfo.event,
            ( event.type == .keyDown || event.type == .keyUp ),
             let characters = event.characters

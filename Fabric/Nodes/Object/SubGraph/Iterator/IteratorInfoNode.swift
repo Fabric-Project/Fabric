@@ -63,12 +63,13 @@ public class IteratorInfoNode : Node
         try super.init(from: decoder)
     }
     
-    public override func execute(context:GraphExecutionInfo,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
 //        print("Iterator Info executing")
-        if let iterationInfo = context.iterationInfo
+        if let iterationInfo = executionInfo.iterationInfo
         {
 //            print("Iterator Info Sending Iteration Info for iteration \(iterationInfo.normalizedCurrentIteration)  \(iterationInfo.currentIteration) of \(iterationInfo.totalIterationCount) )")
             self.outputProgress.send( iterationInfo.normalizedCurrentIteration)

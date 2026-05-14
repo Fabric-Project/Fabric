@@ -279,21 +279,22 @@ struct OSCReceiveNodeView: View
 
     // MARK: - Lifecycle
 
-    public override func enableExecution(context: GraphExecutionInfo)
+    public override func enableExecution(renderer: GraphRenderer)
     {
         startListening()
     }
 
-    public override func disableExecution(context: GraphExecutionInfo)
+    public override func disableExecution(renderer: GraphRenderer)
     {
         stopListening()
     }
 
     // MARK: - Execution
 
-    public override func execute(context: GraphExecutionInfo,
-                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                  commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         // Send latest values to ports
         for binding in addressBindings

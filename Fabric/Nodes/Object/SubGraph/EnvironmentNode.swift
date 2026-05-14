@@ -52,9 +52,10 @@ public class EnvironmentNode: SubgraphNode
         self.subGraph.scene = IBLScene(context: context)
     }
     
-    override public func execute(context: GraphExecutionInfo,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: any MTLCommandBuffer)
+                                 commandBuffer: MTLCommandBuffer)
     {
         if self.inputEnvironmentTexture.valueDidChange,
            let environmentTexture = self.inputEnvironmentTexture.value,
@@ -77,7 +78,7 @@ public class EnvironmentNode: SubgraphNode
 //            iblScene.cubemapGenerator?.blur = inputEnvironmentIntensity
 //        }
         
-        // This calls forward for us... 
-        super.execute(context: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+        // This calls forward for us...
+        super.execute(renderer: renderer, executionInfo: executionInfo, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
     }
 }

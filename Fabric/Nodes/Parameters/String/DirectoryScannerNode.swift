@@ -36,9 +36,11 @@ public class DirectoryScannerNode: Node {
 
     @ObservationIgnored private var lastRescan: Bool = false
 
-    public override func execute(context: GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer) {
+                                 commandBuffer: MTLCommandBuffer)
+    {
         let rescanTriggered: Bool
         if let rescan = inputRescan.value, inputRescan.valueDidChange {
             rescanTriggered = rescan && !lastRescan

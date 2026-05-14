@@ -49,11 +49,12 @@ public final class PostProcessMotionBlurNode: Node
         try super.init(from: decoder)
     }
 
-    public override func execute(context: GraphExecutionInfo,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        guard let graphRenderer = context.graphRenderer,
+        guard
               let colorTexture = self.inputImage.value?.texture,
               let velocityTexture = self.inputVelocityImage.value?.texture
         else
@@ -72,9 +73,9 @@ public final class PostProcessMotionBlurNode: Node
         self.postProcessor.draw(renderPassDescriptor: MTLRenderPassDescriptor(), commandBuffer: commandBuffer)
 
         guard let processedTexture = self.postProcessor.outputTexture,
-              let outputImage = graphRenderer.newImage(withWidth: processedTexture.width,
-                                                       height: processedTexture.height,
-                                                       format: processedTexture.pixelFormat)
+              let outputImage = renderer.newImage(withWidth: processedTexture.width,
+                                                  height: processedTexture.height,
+                                                  format: processedTexture.pixelFormat)
         else
         {
             self.outputImage.send(nil)

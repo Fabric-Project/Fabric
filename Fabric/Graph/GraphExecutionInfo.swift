@@ -83,13 +83,10 @@ public class GraphExecutionInfo : Hashable
     }
     
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(self.graphRenderer?.id)
         hasher.combine(self.timing)
         hasher.combine(self.iterationInfo)
         hasher.combine(self.eventInfo)
     }
-    
-    public weak var graphRenderer: GraphRenderer?
 
     /// GraphRenderTiming information specific to the current execution
     public let timing:GraphExecutionTiming
@@ -102,13 +99,11 @@ public class GraphExecutionInfo : Hashable
     
     public var userInfo: [String: (any Hashable)] = [:]
 
-    public init(graphRenderer: GraphRenderer,
-                timing: GraphExecutionTiming,
+    public init(timing: GraphExecutionTiming,
                 iterationInfo: GraphIterationInfo? = nil,
                 eventInfo:GraphEventInfo? = nil,
                 userInfo: [String : any Hashable] = [:])
     {
-        self.graphRenderer = graphRenderer
         self.timing = timing
         self.iterationInfo = iterationInfo
         self.userInfo = userInfo

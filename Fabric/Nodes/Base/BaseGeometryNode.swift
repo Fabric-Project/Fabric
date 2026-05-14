@@ -55,9 +55,9 @@ public class BaseGeometryNode : Node
         return shouldOutput
     }
     
-    public override func execute(context: GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: any MTLCommandBuffer)
+    public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
     {
-        let shouldOutput = self.evaluate(geometry: self.geometry, atTime: context.timing.time)
+        let shouldOutput = self.evaluate(geometry: self.geometry, atTime: executionInfo.timing.time)
 
         if shouldOutput
         {

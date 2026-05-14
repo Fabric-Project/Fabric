@@ -42,12 +42,7 @@ public class BaseMaterialNode : Node
     open var material: Material {
         fatalError("Subclasses must override material")
     }
-    
-    override public func startExecution(context: GraphExecutionInfo)
-    {
-        super.startExecution(context: context)
-    }
-    
+        
     public func evaluate(material:Material, atTime:TimeInterval) -> Bool
     {
         var shouldOutput = false
@@ -89,11 +84,9 @@ public class BaseMaterialNode : Node
         return shouldOutput
     }
     
-    public override func execute(context:GraphExecutionInfo,
-                                 renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
+    public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
     {
-        let shouldOutput = self.evaluate(material: self.material, atTime: context.timing.time)
+        let shouldOutput = self.evaluate(material: self.material, atTime: executionInfo.timing.time)
 
         if shouldOutput
         {

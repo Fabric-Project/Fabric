@@ -35,14 +35,17 @@ public class CurrentTimeNode : Node
     public var inputNumber:ParameterPort<Float> { port(named: "inputNumber") }
     public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
     
-    override public func startExecution(context: GraphExecutionInfo) {
-        self.startTime = context.timing.time
+    override public func startExecution(renderer: GraphRenderer) {
+        self.startTime =  renderer.currentExecutionInfo?.timing.time ?? Date.timeIntervalSinceReferenceDate
     }
     
-    override public func execute(context:GraphExecutionInfo,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        self.outputNumber.send( Float(context.timing.time - startTime) )
+        let currentTime = renderer.currentExecutionInfo?.timing.time ?? Date.timeIntervalSinceReferenceDate
+        
+        self.outputNumber.send( Float(currentTime - startTime) )
     }
 }

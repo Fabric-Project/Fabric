@@ -226,34 +226,35 @@ public class DeferredSubgraphNode: SubgraphNode
         }
     }
     
-    override public func startExecution(context:GraphExecutionInfo)
+    override public func startExecution(renderer:GraphRenderer)
     {
         if self.rendererNeedsSetup
         {
             self.setupRenderer()
         }
 
-        self.graphRenderer.startExecution(graph: self.subGraph, executionContext: context)
+        self.graphRenderer.startExecution(graph: self.subGraph)
     }
     
-    override public func stopExecution(context:GraphExecutionInfo)
+    override public func stopExecution(renderer:GraphRenderer)
     {
-        self.graphRenderer.stopExecution(graph: self.subGraph, executionContext: context)
+        self.graphRenderer.stopExecution(graph: self.subGraph)
     }
 
-    override public func enableExecution(context:GraphExecutionInfo)
+    override public func enableExecution(renderer:GraphRenderer)
     {
-        self.graphRenderer.enableExecution(graph: self.subGraph, executionContext: context)
+        self.graphRenderer.enableExecution(graph: self.subGraph)
     }
     
-    override public func disableExecution(context:GraphExecutionInfo)
+    override public func disableExecution(renderer:GraphRenderer)
     {
-        self.graphRenderer.disableExecution(graph: self.subGraph, executionContext: context)
+        self.graphRenderer.disableExecution(graph: self.subGraph)
     }
     
-    override public func execute(context: GraphExecutionInfo,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: any MTLCommandBuffer)
+                                 commandBuffer: MTLCommandBuffer)
     {
         if self.rendererNeedsSetup
         {
@@ -288,10 +289,11 @@ public class DeferredSubgraphNode: SubgraphNode
         {
             rpd1.colorAttachments[0].texture = outputImage.texture
             
+            
             self.graphRenderer.executeAndDraw(graph: self.subGraph,
-                                       executionContext: context,
-                                       renderPassDescriptor: rpd1,
-                                       commandBuffer: commandBuffer)
+                                              executionInfo: executionInfo,
+                                              renderPassDescriptor: rpd1,
+                                              commandBuffer: commandBuffer)
             
             self.outputColorTexture.send( outputImage )
         }

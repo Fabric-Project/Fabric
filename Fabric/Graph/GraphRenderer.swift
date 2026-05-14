@@ -25,6 +25,7 @@ public class GraphRenderer : MetalViewRenderer
     private var lastGraphExecutionTime = Date.timeIntervalSinceReferenceDate
 
     // This is fucking horrible:
+    public private(set) var currentExecutionInfo:GraphExecutionInfo? = nil
     public private(set) var currentCamera:Camera? = nil
     private let defaultCamera:PerspectiveCamera
     private let sceneProxy:Object
@@ -219,36 +220,46 @@ public class GraphRenderer : MetalViewRenderer
     
     // MARK: - Execution
 
-    public func disableExecution(graph:Graph, executionContext:GraphExecutionInfo)
+   
+    /// Nodes should  prepare resources for  appropriate to set up down any expensive resources needed for rendering
+    public func enableExecution(graph:Graph)
     {
         for node in graph.nodes
         {
-            node.disableExecution(context: executionContext)
+            node.enableExecution(renderer: self)
         }
     }
     
-    public func enableExecution(graph:Graph, executionContext:GraphExecutionInfo)
+    /// Execution will begin eminently, `enableExecution` must have been called and all resources required should have been loaded
+    /// Consider this like a play event - not a load event
+    public func startExecution(graph:Graph)
     {
         for node in graph.nodes
         {
-            node.enableExecution(context: executionContext)
+            node.startExecution(renderer: self)
         }
     }
     
-    public func startExecution(graph:Graph, executionContext:GraphExecutionInfo)
+    /// Execution will stop eminently, but could resume at any moment. Not mandatory to do any resource teardown.
+    /// Consider this like a pause event - not a unload event
+    public func stopExecution(graph:Graph)
     {
         for node in graph.nodes
         {
-            node.startExecution(context: executionContext)
+            node.stopExecution(renderer: self)
         }
     }
     
-    public func stopExecution(graph:Graph, executionContext:GraphExecutionInfo)
+    /// Nodes should not expect to render again until enableExecution - appropriate to tear down any resources needed for rendering
+    public func disableExecution(graph:Graph)
     {
         for node in graph.nodes
         {
-            node.stopExecution(context: executionContext)
+            node.disableExecution(renderer: self)
         }
+        
+        self.currentCamera = nil
+        self.currentExecutionInfo = nil
     }
 
     public func teardown(graph:Graph)
@@ -262,7 +273,7 @@ public class GraphRenderer : MetalViewRenderer
     // MARK: - Execution
     
     public func execute(graph:Graph,
-                        executionContext:GraphExecutionInfo,
+                        executionInfo:GraphExecutionInfo,
                         renderPassDescriptor: MTLRenderPassDescriptor,
                         commandBuffer:MTLCommandBuffer,
                         clearFlags:Bool = true,
@@ -271,7 +282,7 @@ public class GraphRenderer : MetalViewRenderer
 
         let feedbackCache = self.feedbackCache(for: graph.id)
 
-        feedbackCache.resetCacheFor(executionContext: executionContext)
+        feedbackCache.resetCacheFor(executionInfo: executionInfo)
                         
         // Processing means we recursed though the `processGraph` call
         var nodesWeHaveProcessedThisPass:[Node] = []
@@ -313,7 +324,7 @@ public class GraphRenderer : MetalViewRenderer
                 let _ = processGraph(graph:graph,
                                      graphFeedbackCache: feedbackCache,
                                      node: pullNode,
-                                     executionContext:executionContext,
+                                     executionInfo:executionInfo,
                                      renderPassDescriptor: renderPassDescriptor,
                                      commandBuffer: commandBuffer,
                                      nodesWeHaveProcessedThisPass:&nodesWeHaveProcessedThisPass,
@@ -329,7 +340,7 @@ public class GraphRenderer : MetalViewRenderer
     private func processGraph(graph:Graph,
                               graphFeedbackCache:GraphRendererFeedbackCache,
                               node: Node,
-                              executionContext:GraphExecutionInfo,
+                              executionInfo:GraphExecutionInfo,
                               renderPassDescriptor: MTLRenderPassDescriptor,
                               commandBuffer: MTLCommandBuffer,
                               nodesWeHaveProcessedThisPass:inout [Node],
@@ -350,7 +361,7 @@ public class GraphRenderer : MetalViewRenderer
         }
         
         // Do this before we hit recursive process graph
-        graphFeedbackCache.setProcessingState(.processing, forNode: node, executionContext: executionContext)
+        graphFeedbackCache.setProcessingState(.processing, forNode: node, executionInfo: executionInfo)
         
         // get the connection for
         let inputNodes = node.inputNodes
@@ -366,7 +377,7 @@ public class GraphRenderer : MetalViewRenderer
                 processGraph(graph: graph,
                              graphFeedbackCache: graphFeedbackCache,
                              node: inputNode,
-                             executionContext:executionContext,
+                             executionInfo:executionInfo,
                              renderPassDescriptor: renderPassDescriptor,
                              commandBuffer: commandBuffer,
                              nodesWeHaveProcessedThisPass: &nodesWeHaveProcessedThisPass,
@@ -392,7 +403,8 @@ public class GraphRenderer : MetalViewRenderer
 #if DEBUG
                 commandBuffer.pushDebugGroup(node.name)
 #endif
-                node.execute(context: executionContext,
+                node.execute(renderer: self,
+                             executionInfo: executionInfo,
                              renderPassDescriptor: renderPassDescriptor,
                              commandBuffer: commandBuffer)
                 
@@ -407,20 +419,21 @@ public class GraphRenderer : MetalViewRenderer
                     node.markClean()
                 }
                 
-                graphFeedbackCache.setProcessingState(.processed, forNode: node, executionContext: executionContext)
+                graphFeedbackCache.setProcessingState(.processed, forNode: node, executionInfo: executionInfo)
             }
         }
     }
     
     public func executeAndDraw(graph:Graph, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
     {
-        let executionContext = self.currentGraphExecutionContext()
+        let executionInfo = self.currentGraphExecutionInfo()
 
-        self.executeAndDraw(graph: graph, executionContext: executionContext, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+        self.executeAndDraw(graph: graph, executionInfo: executionInfo, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
     }
     
-    public func executeAndDraw(graph:Graph, executionContext:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
+    public func executeAndDraw(graph:Graph, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
     {
+        self.currentExecutionInfo = executionInfo
         self.currentCamera = nil
         
         // Snapshot and clear the "connections changed" flag up front
@@ -428,7 +441,7 @@ public class GraphRenderer : MetalViewRenderer
         graph.shouldUpdateConnections = false
 
         self.execute(graph:graph,
-                     executionContext: executionContext,
+                     executionInfo: executionInfo,
                      renderPassDescriptor: renderPassDescriptor,
                      commandBuffer: commandBuffer)
         
@@ -445,7 +458,7 @@ public class GraphRenderer : MetalViewRenderer
                            scene: graph.scene,
                            camera: self.currentCamera ?? self.defaultCamera)
         
-        self.lastGraphExecutionTime = executionContext.timing.time
+        self.lastGraphExecutionTime = executionInfo.timing.time
         self.executionCount += 1
     }
 
@@ -479,7 +492,7 @@ public class GraphRenderer : MetalViewRenderer
         return cache
     }
     
-    private func currentGraphExecutionContext() -> GraphExecutionInfo
+    private func currentGraphExecutionInfo() -> GraphExecutionInfo
     {
         let currentRenderTime = Date.timeIntervalSinceReferenceDate
         
@@ -491,8 +504,7 @@ public class GraphRenderer : MetalViewRenderer
                                           frameNumber: self.frameIndex)
         
         // weird
-        return GraphExecutionInfo(graphRenderer: self,
-                                     timing: timing,
+        return GraphExecutionInfo(  timing: timing,
                                      iterationInfo: nil,
                                      eventInfo: nil)
     }

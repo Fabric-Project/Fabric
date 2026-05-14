@@ -216,24 +216,24 @@ public class SubgraphNode: BaseObjectNode
         super.markDirty()
     }
     
-    override public func startExecution(context:GraphExecutionInfo)
+    override public func startExecution(renderer:GraphRenderer)
     {
-        context.graphRenderer?.startExecution(graph: self.subGraph, executionContext: context)
+        renderer.startExecution(graph: self.subGraph)
     }
     
-    override public func stopExecution(context:GraphExecutionInfo)
+    override public func stopExecution(renderer:GraphRenderer)
     {
-        context.graphRenderer?.stopExecution(graph: self.subGraph, executionContext: context)
+        renderer.stopExecution(graph: self.subGraph)
     }
 
-    override public func enableExecution(context:GraphExecutionInfo)
+    override public func enableExecution(renderer:GraphRenderer)
     {
-        context.graphRenderer?.enableExecution(graph: self.subGraph, executionContext: context)
+        renderer.enableExecution(graph: self.subGraph)
     }
     
-    override public func disableExecution(context:GraphExecutionInfo)
+    override public func disableExecution(renderer:GraphRenderer)
     {
-        context.graphRenderer?.disableExecution(graph: self.subGraph, executionContext: context)
+        renderer.disableExecution(graph: self.subGraph)
     }
     
     public func forwardPortValues(force:Bool = false)
@@ -246,17 +246,17 @@ public class SubgraphNode: BaseObjectNode
         }
     }
     
-    override public func execute(context: GraphExecutionInfo,
-                                 renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: any MTLCommandBuffer)
-    {
-
-        context.graphRenderer?.execute(graph: self.subGraph,
-                                       executionContext: context,
-                                       renderPassDescriptor: renderPassDescriptor,
-                                       commandBuffer: commandBuffer,
-                                       clearFlags: false)
-
+    override  public func execute(renderer:GraphRenderer,
+                                  executionInfo:GraphExecutionInfo,
+                                  renderPassDescriptor: MTLRenderPassDescriptor,
+                                  commandBuffer: MTLCommandBuffer)    {
+        
+        renderer.execute(graph: self.subGraph,
+                         executionInfo: executionInfo,
+                         renderPassDescriptor: renderPassDescriptor,
+                         commandBuffer: commandBuffer,
+                         clearFlags: false)
+        
         self.forwardPortValues(force:true)
     }
 }

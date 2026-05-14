@@ -35,7 +35,8 @@ public class MakeVector2Node : Node
     public var inputYParam:ParameterPort<Float> { port(named: "inputYParam") }
     public var outputVector:NodePort<simd_float2> { port(named: "outputVector") }
     
-    public override func execute(context:GraphExecutionInfo,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

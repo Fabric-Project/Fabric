@@ -36,9 +36,10 @@ public class ArrayIndexValueNode<Value : PortValueRepresentable & Equatable> : N
     public var inputIndexParam:ParameterPort<Int> { port(named: "inputIndexParam") }
     public var outputPort:NodePort<Value> { port(named: "outputPort") }
     
-    override public func execute(context:GraphExecutionInfo,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         if self.inputPort.valueDidChange || self.inputIndexParam.valueDidChange,
            let index = self.inputIndexParam.value

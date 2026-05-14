@@ -36,9 +36,10 @@ public class StringDifferenceNode : Node
     public var input2Port:NodePort<String>   { port(named: "input2Port") }
     public var outputPort:NodePort<String>     { port(named: "outputPort") }
     
-    override public func execute(context:GraphExecutionContext,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         if self.inputPort.valueDidChange || self.input2Port.valueDidChange
         {

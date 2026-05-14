@@ -37,7 +37,8 @@ public class ColorPassThroughNode: Node
     public var input: NodePort<simd_float4> { port(named: "input") }
     public var output: NodePort<simd_float4> { port(named: "output") }
 
-    public override func execute(context: GraphExecutionInfo,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

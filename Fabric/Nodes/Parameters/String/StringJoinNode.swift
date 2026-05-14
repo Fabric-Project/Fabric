@@ -36,9 +36,10 @@ public class StringJoinNode : Node
     public var separatorPort:NodePort<String>               { port(named: "separatorPort") }
     public var outputPort:NodePort<String>                  { port(named: "outputPort") }
 
-    override public func execute(context:GraphExecutionInfo,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         if self.inputPort.valueDidChange || self.separatorPort.valueDidChange
         {

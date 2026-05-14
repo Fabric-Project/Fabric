@@ -78,9 +78,10 @@ public class PersonSegmentationMaskNode: Node
         try super.init(from:decoder)
     }
     
-    override public  func execute(context:GraphExecutionInfo,
-                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                  commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         
         if self.inputTexturePort.valueDidChange

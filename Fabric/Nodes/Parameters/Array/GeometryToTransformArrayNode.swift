@@ -39,9 +39,10 @@ public class GeometryToTransformArrayNode : Node
     public var inputTransform:NodePort<simd_float4x4> { port(named: "inputTransform") }
     public var outputPort:NodePort<ContiguousArray<simd_float4x4>> { port(named: "outputPort") }
  
-    override public func execute(context:GraphExecutionInfo,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         // So this is subtle and annoying
         // Because the POINTER value of our Geom hasnt changed, but the buffer may have

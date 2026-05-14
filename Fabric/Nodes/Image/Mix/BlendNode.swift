@@ -83,7 +83,8 @@ public class BlendNode: BaseImageNode
         Bundle.module.url(forResource: modeName, withExtension: "metal", subdirectory: "EffectsTwoChannel/Mix")
     }
 
-    override public func execute(context: GraphExecutionInfo,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
@@ -94,6 +95,6 @@ public class BlendNode: BaseImageNode
             self.setFileURL(url)
         }
 
-        super.execute(context: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+        super.execute(renderer: renderer, executionInfo: executionInfo, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
     }
 }

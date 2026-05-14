@@ -121,11 +121,11 @@ struct MathExpressionView : View
     }
     
    
-    public override func execute(context:GraphExecutionInfo,
-                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                  commandBuffer: MTLCommandBuffer)
-    {
-        
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
+    {        
         let variablePorts = self.inputPorts()
         
         let anyVariabledChanged = variablePorts.compactMap(\.valueDidChange).contains(true)

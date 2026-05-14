@@ -120,25 +120,20 @@ public class HandPoseAnalysisNode: Node
     
     private var ciContext:CIContext!
     
-    override public func startExecution(context: GraphExecutionInfo) {
-
-        if let commandQueue = context.graphRenderer?.commandQueue
-        {
-            let options = [
-                CIContextOption.cacheIntermediates : false,
-                CIContextOption.highQualityDownsample : false,
-                CIContextOption.workingFormat : CIFormat.RGBAh.rawValue,
-                CIContextOption.workingColorSpace : nil,
-                CIContextOption.outputColorSpace :nil,
-            ] as? [CIContextOption : Any]
-            
-            self.ciContext = CIContext(mtlCommandQueue: commandQueue, options: options)
-        }
+    override public func startExecution(renderer:GraphRenderer) {
+        
+        let options = [
+            CIContextOption.cacheIntermediates : false,
+            CIContextOption.highQualityDownsample : false,
+            CIContextOption.workingFormat : CIFormat.RGBAh.rawValue,
+            CIContextOption.workingColorSpace : nil,
+            CIContextOption.outputColorSpace :nil,
+        ] as? [CIContextOption : Any]
+        
+        self.ciContext = CIContext(mtlCommandQueue: self.context.commandQueue, options: options)
     }
     
-    override public  func execute(context:GraphExecutionInfo,
-                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                  commandBuffer: MTLCommandBuffer)
+    public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
     {
         if self.inputImage.valueDidChange
         {

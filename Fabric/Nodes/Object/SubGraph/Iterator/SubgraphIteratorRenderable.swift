@@ -23,7 +23,8 @@ final class SubgraphIteratorRenderable: Satin.Renderable
         }
     }
     
-    var graphContext:GraphExecutionInfo? = nil
+    var graphRenderer:GraphRenderer? = nil
+    var graphExecutionInfo:GraphExecutionInfo? = nil
     var currentCommandBuffer:MTLCommandBuffer? = nil
     var currentRenderPass:MTLRenderPassDescriptor? = nil
     
@@ -59,7 +60,7 @@ final class SubgraphIteratorRenderable: Satin.Renderable
     override func isDrawable(renderContext: Satin.Context, shadow: Bool) -> Bool {
         true
     }
-
+    
     override func update(renderContext: Context, camera: Camera, viewport: simd_float4, index: Int)
     {
         // We call update inline in draw, which is only so each draw gets the correct latest iterated values on the graph
@@ -71,7 +72,8 @@ final class SubgraphIteratorRenderable: Satin.Renderable
     override func draw(renderContext: Context, renderEncoderState: RenderEncoderState, shadow: Bool)
     {
         guard let subGraph,
-              let graphContext,
+              let graphRenderer,
+              let graphExecutionInfo,
               let updateCamera,
               let updateViewport,
               let updateIndex,
@@ -93,7 +95,7 @@ final class SubgraphIteratorRenderable: Satin.Renderable
             
             // We should be copying uniforms found in the bindUniforms from
             // Material / Geom / Mesh
-            self.configureOnBindForRenderable(r, inContext: renderContext, shadow: shadow)
+            self.configureOnBindForRenderable(r, inContext: context, shadow: shadow)
         }
         
         for iteration in 0..<iterationCount
@@ -103,26 +105,26 @@ final class SubgraphIteratorRenderable: Satin.Renderable
             let iterationInfo = GraphIterationInfo(totalIterationCount: iterationCount,
                                                    currentIteration: iteration)
             
-            graphContext.iterationInfo = iterationInfo
+            graphExecutionInfo.iterationInfo = iterationInfo
             
 //            self.subGraph.recursiveMarkDirty()
 
             // tick graph forward one iteration
-            graphContext.graphRenderer?.execute(graph: subGraph,
-                                                executionContext: graphContext,
-                                                renderPassDescriptor:currentRenderPass,
-                                                commandBuffer: currentCommandBuffer,
-                                                // Woof
-                                                clearFlags: false,
-                                                forceEvaluationForTheseNodes: subGraph.nodes)
+            graphRenderer.execute(graph: subGraph,
+                             executionInfo: graphExecutionInfo,
+                             renderPassDescriptor:currentRenderPass,
+                             commandBuffer: currentCommandBuffer,
+                             // Woof
+                             clearFlags: false,
+                             forceEvaluationForTheseNodes: subGraph.nodes)
                         
             for r in renderableChildren
             {
-                r.update(renderContext: renderContext, camera: updateCamera, viewport: updateViewport, index: updateIndex)
+                r.update(renderContext: context, camera: updateCamera, viewport: updateViewport, index: updateIndex)
 
                 r.preDraw?(renderEncoderState.renderEncoder)
                 
-                r.draw(renderContext: renderContext, renderEncoderState: renderEncoderState, shadow: shadow)
+                r.draw(renderContext: context, renderEncoderState: renderEncoderState, shadow: shadow)
             }
             
             renderEncoderState.renderEncoder.popDebugGroup()
@@ -134,7 +136,7 @@ final class SubgraphIteratorRenderable: Satin.Renderable
             r.material?.onBind = nil
         }
         
-        graphContext.iterationInfo = nil
+        graphExecutionInfo.iterationInfo = nil
     }
     
     private func configureOnBindForRenderable(_ r:Renderable, inContext renderContext:Context, shadow:Bool)
@@ -233,49 +235,45 @@ final class SubgraphIteratorRenderable: Satin.Renderable
         }
     }
     
-    func startExecution(context:GraphExecutionInfo)
+    func startExecution(renderer:GraphRenderer)
     {
-        guard let subGraph,
-              let graphContext
+        guard let subGraph
         else { return }
         
-        graphContext.graphRenderer?.startExecution(graph: subGraph, executionContext: context)
+        renderer.startExecution(graph: subGraph)
     }
     
-    func stopExecution(context:GraphExecutionInfo)
+    func stopExecution(renderer:GraphRenderer)
     {
-        guard let subGraph,
-              let graphContext
+        guard let subGraph
         else { return }
-
-        graphContext.graphRenderer?.stopExecution(graph: subGraph, executionContext: context)
+    
+        renderer.stopExecution(graph: subGraph)
     }
 
-    func enableExecution(context:GraphExecutionInfo)
+    func enableExecution(renderer:GraphRenderer)
     {
-        guard let subGraph,
-              let graphContext
+        guard let subGraph
         else { return }
 
-        graphContext.graphRenderer?.enableExecution(graph: subGraph, executionContext: context)
+        renderer.enableExecution(graph: subGraph)
     }
     
-    func disableExecution(context:GraphExecutionInfo)
+    func disableExecution(renderer:GraphRenderer)
     {
-        guard let subGraph,
-              let graphContext
+        guard let subGraph
         else { return }
 
-        graphContext.graphRenderer?.disableExecution(graph: subGraph, executionContext: context)
+        renderer.disableExecution(graph: subGraph)
     }
     
-    func execute(context: GraphExecutionInfo,
-                 renderPassDescriptor: MTLRenderPassDescriptor,
-                 commandBuffer: any MTLCommandBuffer)
+    public func execute(renderer:GraphRenderer,
+                        executionInfo:GraphExecutionInfo,
+                        renderPassDescriptor: MTLRenderPassDescriptor,
+                        commandBuffer: MTLCommandBuffer)
     {
 
-        guard let subGraph,
-              let graphContext
+        guard let subGraph
 //              let updateCamera,
 //              let updateViewport,
 //              let updateIndex,
@@ -284,14 +282,15 @@ final class SubgraphIteratorRenderable: Satin.Renderable
         else { return }
                 
                 
-//         execute the graph once, to just ensure meshes / materials have latest values popogated to nodes
-//        self.subGraph.recursiveMarkDirty()
-        let _ = graphContext.graphRenderer?.execute(graph: subGraph,
-                                               executionContext: context,
-                                               renderPassDescriptor:renderPassDescriptor ,
-                                                    commandBuffer: commandBuffer, clearFlags: false,
-                                                    // Woof
-                                                    forceEvaluationForTheseNodes: subGraph.nodes)
+        //         execute the graph once, to just ensure meshes / materials have latest values popogated to nodes
+        //        self.subGraph.recursiveMarkDirty()
+        let _ = renderer.execute(graph: subGraph,
+                                 executionInfo: executionInfo,
+                                 renderPassDescriptor:renderPassDescriptor ,
+                                 commandBuffer: commandBuffer,
+                                 clearFlags: false,
+                                 // Woof
+                                 forceEvaluationForTheseNodes: subGraph.nodes)
 
     }
 }

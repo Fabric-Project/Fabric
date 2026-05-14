@@ -36,9 +36,11 @@ public class StringWrapNode: Node {
 
     private var mode = WrapMode.Characters
 
-    override public func execute(context: GraphExecutionInfo,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer) {
+                                 commandBuffer: MTLCommandBuffer)
+    {
         if inputMode.valueDidChange,
            let param = inputMode.value,
            let newMode = WrapMode(rawValue: param) {

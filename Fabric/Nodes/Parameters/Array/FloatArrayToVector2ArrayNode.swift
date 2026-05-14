@@ -34,9 +34,10 @@ public class FloatArrayToVector2ArrayNode: Node
     public var inputPort:NodePort<ContiguousArray<Float>> { port(named: "inputPort") }
     public var outputPort:NodePort<ContiguousArray<simd_float2>> { port(named: "outputPort") }
     
-    override public func execute(context:GraphExecutionInfo,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         if self.inputPort.valueDidChange
         {
