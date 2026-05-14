@@ -157,7 +157,7 @@ public class CameraProviderNode : Node
     }
     
   
-    override public func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionInfo,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {

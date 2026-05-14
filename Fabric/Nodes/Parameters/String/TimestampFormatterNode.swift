@@ -32,7 +32,7 @@ public class TimestampFormatterNode: Node {
 
     private let formatter = DateFormatter()
 
-    public override func execute(context: GraphExecutionContext,
+    public override func execute(context: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer) {
         if inputFormat.valueDidChange,

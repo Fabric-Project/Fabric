@@ -42,7 +42,7 @@ public class NumberRemapNode : Node
     
     private var lastValue:Float = 0.0
         
-    public override func execute(context:GraphExecutionContext,
+    public override func execute(context:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

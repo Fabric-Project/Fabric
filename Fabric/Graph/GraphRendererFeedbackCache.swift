@@ -40,7 +40,7 @@ internal final class GraphRendererFeedbackCache
         self.graphID = graphID
     }
     
-    public func resetCacheFor(executionContext:GraphExecutionContext)
+    public func resetCacheFor(executionContext:GraphExecutionInfo)
     {
         // Clear execution state
         self.nodeProcessingStateCache = [:]
@@ -62,7 +62,7 @@ internal final class GraphRendererFeedbackCache
         return nodeProcessingStateCache[node.id, default: .unprocessed]
     }
     
-    func setProcessingState(_ state: NodeProcessingState, forNode node:Node, executionContext:GraphExecutionContext)
+    func setProcessingState(_ state: NodeProcessingState, forNode node:Node, executionContext:GraphExecutionInfo)
     {
         nodeProcessingStateCache[node.id] = state
         
@@ -79,7 +79,7 @@ internal final class GraphRendererFeedbackCache
         }
     }
         
-    private func setFeedbackState(forNode node:Node, executionContext:GraphExecutionContext)
+    private func setFeedbackState(forNode node:Node, executionContext:GraphExecutionInfo)
     {
         let currentFrame = executionContext.timing.frameNumber
         let previousFrame = currentFrame - 1
@@ -104,7 +104,7 @@ internal final class GraphRendererFeedbackCache
         }
     }
     
-    private func cacheProcessedNode(_ node: Node, executionContext:GraphExecutionContext)
+    private func cacheProcessedNode(_ node: Node, executionContext:GraphExecutionInfo)
     {
         let currentFrame = executionContext.timing.frameNumber
 

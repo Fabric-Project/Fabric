@@ -43,7 +43,7 @@ public class BaseMaterialNode : Node
         fatalError("Subclasses must override material")
     }
     
-    override public func startExecution(context: GraphExecutionContext)
+    override public func startExecution(context: GraphExecutionInfo)
     {
         super.startExecution(context: context)
     }
@@ -89,7 +89,7 @@ public class BaseMaterialNode : Node
         return shouldOutput
     }
     
-    public override func execute(context:GraphExecutionContext,
+    public override func execute(context:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

@@ -69,7 +69,7 @@ public class KeypointDistortNode: BaseImageNode {
         self.countBuffer.update(data: [UInt32(0)])
     }
     
-    override public func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

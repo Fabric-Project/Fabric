@@ -106,7 +106,7 @@ public class ScreenCaptureProviderNode: Node
         self.scheduleRefreshAndReconfigure()
     }
 
-    override public func stopExecution(context: GraphExecutionContext)
+    override public func stopExecution(context: GraphExecutionInfo)
     {
         self.stopStreamAndClear()
     }
@@ -117,7 +117,7 @@ public class ScreenCaptureProviderNode: Node
         self.stopStreamAndClear()
     }
 
-    override public func execute(context: GraphExecutionContext,
+    override public func execute(context: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

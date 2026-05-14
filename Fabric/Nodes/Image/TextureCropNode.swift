@@ -32,7 +32,7 @@ public class TextureCropNode: Node
     public var inputCropHeight: ParameterPort<Int> { port(named: "inputCropHeight") }
     public var outputTexture: NodePort<FabricImage> { port(named: "outputTexture") }
 
-    override public func execute(context: GraphExecutionContext,
+    override public func execute(context: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

@@ -39,7 +39,7 @@ public class ArrayQueueNode<Value : PortValueRepresentable & Equatable> : Node
     
     private var queue:ContiguousArray<Value> = []
     
-    override public func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionInfo,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {

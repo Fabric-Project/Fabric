@@ -155,7 +155,7 @@ public class TestCardProviderNode: Node
         return texture
     }
 
-    override public func execute(context: GraphExecutionContext,
+    override public func execute(context: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

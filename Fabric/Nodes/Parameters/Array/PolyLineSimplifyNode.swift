@@ -36,7 +36,7 @@ public class PolyLineSimplifyNode: Node
     public var inputTolerance:ParameterPort<Float> { port(named: "inputTolerance") }
     public var outputPort:NodePort<ContiguousArray<simd_float2>> { port(named: "outputPort") }
     
-    override public func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionInfo,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {

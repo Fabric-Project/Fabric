@@ -37,7 +37,7 @@ public class ArrayCountNode<Value : PortValueRepresentable & Equatable> : Node
     public var inputPort:NodePort<ContiguousArray<Value>> { port(named: "inputPort") }
     public var outputPort:NodePort<Int> { port(named: "outputPort") }
  
-    override public func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionInfo,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {

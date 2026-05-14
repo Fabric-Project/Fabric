@@ -83,7 +83,7 @@ public class BlendNode: BaseImageNode
         Bundle.module.url(forResource: modeName, withExtension: "metal", subdirectory: "EffectsTwoChannel/Mix")
     }
 
-    override public func execute(context: GraphExecutionContext,
+    override public func execute(context: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

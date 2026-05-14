@@ -68,7 +68,7 @@ public class SpotLightNode : ObjectNode<SpotLight>
         angleOuter: 25.0
     )
 
-    override public func startExecution(context:GraphExecutionContext)
+    override public func startExecution(context:GraphExecutionInfo)
     {
         self.setupDefaultLight()
     }
@@ -183,7 +183,7 @@ public class SpotLightNode : ObjectNode<SpotLight>
         }
     }
 
-    public override func execute(context:GraphExecutionContext,
+    public override func execute(context:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

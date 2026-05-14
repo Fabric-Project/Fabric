@@ -89,7 +89,7 @@ public class ColorTweenNode : Node
     private var toAlpha:Float = 1.0
     private var currentOutput:simd_float4 = simd_float4(0, 0, 0, 1)
 
-    override public func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

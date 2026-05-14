@@ -60,7 +60,7 @@ public class BaseMultiPassBlurEffectTwoChannelNode: BaseImageNode
         return (width, height)
     }
 
-    public func runPassChain(context: GraphExecutionContext,
+    public func runPassChain(context: GraphExecutionInfo,
                              commandBuffer: MTLCommandBuffer,
                              inputATexture: MTLTexture,
                              inputBTexture: MTLTexture,

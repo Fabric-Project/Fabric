@@ -172,8 +172,8 @@ public final class GraphExportRenderer {
         time: TimeInterval,
         deltaTime: TimeInterval,
         frameNumber: Int
-    ) -> GraphExecutionContext {
-        GraphExecutionContext(
+    ) -> GraphExecutionInfo {
+        GraphExecutionInfo(
             graphRenderer: self.graphRenderer,
             timing: GraphExecutionTiming(
                 time: time,

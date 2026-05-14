@@ -40,7 +40,7 @@ public class NumberSmoothNode : Node
     public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
     
     
-    override public func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

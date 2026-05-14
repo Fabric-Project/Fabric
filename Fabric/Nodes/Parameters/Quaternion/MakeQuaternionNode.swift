@@ -38,7 +38,7 @@ public class MakeQuaternionNode : Node
     public var inputAxis:NodePort<simd_float3> { port(named: "inputAxis") }
     public var outputQuaterinion:NodePort<simd_float4> { port(named: "outputQuaterinion") }
     
-    public override func execute(context:GraphExecutionContext,
+    public override func execute(context:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

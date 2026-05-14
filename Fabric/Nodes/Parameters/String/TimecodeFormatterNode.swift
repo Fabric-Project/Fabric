@@ -30,7 +30,7 @@ public class TimecodeFormatterNode: Node {
     public var inputFPS: ParameterPort<Int> { port(named: "inputFPS") }
     public var outputPort: NodePort<String> { port(named: "outputPort") }
 
-    public override func execute(context: GraphExecutionContext,
+    public override func execute(context: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer) {
         if inputTime.valueDidChange || inputFPS.valueDidChange,

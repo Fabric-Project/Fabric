@@ -64,7 +64,7 @@ public class LUTProcessorNode : BaseImageNode
         self.loadLUTFromInputValue()
     }
     
-    override public func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionInfo,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {

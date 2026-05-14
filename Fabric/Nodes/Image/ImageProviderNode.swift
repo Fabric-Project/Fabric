@@ -79,7 +79,7 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
         self.loadTextureFromInputValue()
     }
 
-    override public func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionInfo,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {

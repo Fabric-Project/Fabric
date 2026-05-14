@@ -887,7 +887,7 @@ struct TimelineNodeView: View
     override public var settingsSize: SettingsViewSize { .Custom(size: CGSize(width: 800, height: 500)) }
     // MARK: - Execution
 
-    public override func execute(context: GraphExecutionContext,
+    public override func execute(context: GraphExecutionInfo,
                                   renderPassDescriptor: MTLRenderPassDescriptor,
                                   commandBuffer: MTLCommandBuffer)
     {

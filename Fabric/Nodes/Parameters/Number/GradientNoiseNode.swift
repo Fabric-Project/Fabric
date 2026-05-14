@@ -41,7 +41,7 @@ public class GradientNoiseNode : Node
     private var fbm = GradientNoise2D(amplitude: 1.0, frequency: 1.0, seed: time(nil) )
     
    
-    public override func execute(context:GraphExecutionContext,
+    public override func execute(context:GraphExecutionInfo,
                                   renderPassDescriptor: MTLRenderPassDescriptor,
                                   commandBuffer: MTLCommandBuffer)
     {

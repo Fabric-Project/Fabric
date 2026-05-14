@@ -23,7 +23,7 @@ final class SubgraphIteratorRenderable: Satin.Renderable
         }
     }
     
-    var graphContext:GraphExecutionContext? = nil
+    var graphContext:GraphExecutionInfo? = nil
     var currentCommandBuffer:MTLCommandBuffer? = nil
     var currentRenderPass:MTLRenderPassDescriptor? = nil
     
@@ -233,7 +233,7 @@ final class SubgraphIteratorRenderable: Satin.Renderable
         }
     }
     
-    func startExecution(context:GraphExecutionContext)
+    func startExecution(context:GraphExecutionInfo)
     {
         guard let subGraph,
               let graphContext
@@ -242,7 +242,7 @@ final class SubgraphIteratorRenderable: Satin.Renderable
         graphContext.graphRenderer?.startExecution(graph: subGraph, executionContext: context)
     }
     
-    func stopExecution(context:GraphExecutionContext)
+    func stopExecution(context:GraphExecutionInfo)
     {
         guard let subGraph,
               let graphContext
@@ -251,7 +251,7 @@ final class SubgraphIteratorRenderable: Satin.Renderable
         graphContext.graphRenderer?.stopExecution(graph: subGraph, executionContext: context)
     }
 
-    func enableExecution(context:GraphExecutionContext)
+    func enableExecution(context:GraphExecutionInfo)
     {
         guard let subGraph,
               let graphContext
@@ -260,7 +260,7 @@ final class SubgraphIteratorRenderable: Satin.Renderable
         graphContext.graphRenderer?.enableExecution(graph: subGraph, executionContext: context)
     }
     
-    func disableExecution(context:GraphExecutionContext)
+    func disableExecution(context:GraphExecutionInfo)
     {
         guard let subGraph,
               let graphContext
@@ -269,7 +269,7 @@ final class SubgraphIteratorRenderable: Satin.Renderable
         graphContext.graphRenderer?.disableExecution(graph: subGraph, executionContext: context)
     }
     
-    func execute(context: GraphExecutionContext,
+    func execute(context: GraphExecutionInfo,
                  renderPassDescriptor: MTLRenderPassDescriptor,
                  commandBuffer: any MTLCommandBuffer)
     {

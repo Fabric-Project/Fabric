@@ -71,7 +71,7 @@ class CAMetalDisplayLinkRenderer: GameView
         }
         
         // weird
-        let executionContext = GraphExecutionContext(graphRenderer: graphRenderer,
+        let executionContext = GraphExecutionInfo(graphRenderer: graphRenderer,
                                                      timing: timing,
                                                      iterationInfo: nil,
                                                      eventInfo: eventInfo)
@@ -91,7 +91,7 @@ class CAMetalDisplayLinkRenderer: GameView
                                           frameNumber: self.graphRenderer.frameIndex)
 
         
-        let executionContext = GraphExecutionContext(graphRenderer: graphRenderer,
+        let executionContext = GraphExecutionInfo(graphRenderer: graphRenderer,
                                                      timing: timing,
                                                      iterationInfo: nil,
                                                      eventInfo: nil)
@@ -136,7 +136,7 @@ class CAMetalDisplayLinkRenderer: GameView
         }
         
         // weird
-        let executionContext = GraphExecutionContext(graphRenderer: self.graphRenderer,
+        let executionContext = GraphExecutionInfo(graphRenderer: self.graphRenderer,
                                                      timing: timing,
                                                      iterationInfo: nil,
                                                      eventInfo: eventInfo)

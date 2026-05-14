@@ -48,7 +48,7 @@ public class OrientationTweenNode : Node
     private var toQuat:simd_quatf = simd_quatf(angle: 0, axis: simd_float3(0, 1, 0))
     private var currentOutput:simd_quatf = simd_quatf(angle: 0, axis: simd_float3(0, 1, 0))
 
-    override public func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

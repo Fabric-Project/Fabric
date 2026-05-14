@@ -49,7 +49,7 @@ public class PointLightNode : ObjectNode<PointLight>
     
     private lazy var light: PointLight =  PointLight(context:self.context, color: simd_float3(1.0, 1.0, 1.0), radius: 150.0)
 
-    override public func startExecution(context:GraphExecutionContext)
+    override public func startExecution(context:GraphExecutionInfo)
     {
         self.setupDefaultLight( )
     }
@@ -124,7 +124,7 @@ public class PointLightNode : ObjectNode<PointLight>
         return shouldOutput
     }
     
-    public override func execute(context:GraphExecutionContext,
+    public override func execute(context:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

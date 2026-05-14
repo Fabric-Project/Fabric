@@ -95,7 +95,7 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
         return shouldOutput
     }
     
-    public override func execute(context:GraphExecutionContext,
+    public override func execute(context:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

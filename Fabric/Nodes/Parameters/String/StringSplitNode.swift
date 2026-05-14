@@ -30,7 +30,7 @@ public class StringSplitNode: Node {
     public var inputSeparator: ParameterPort<String> { port(named: "inputSeparator") }
     public var outputPort: NodePort<ContiguousArray<String>> { port(named: "outputPort") }
 
-    public override func execute(context: GraphExecutionContext,
+    public override func execute(context: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer) {
         if inputPort.valueDidChange || inputSeparator.valueDidChange,

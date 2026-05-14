@@ -57,7 +57,7 @@ public class UnitsoPixelsNode : Node
         try super.init(from: decoder)
     }
     
-    public override func execute(context:GraphExecutionContext,
+    public override func execute(context:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

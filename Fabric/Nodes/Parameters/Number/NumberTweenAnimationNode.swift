@@ -43,7 +43,7 @@ public class NumberTweenNode : Node
     private var toValue:Float = 0.0
     private var currentOutput:Float = 0.0
 
-    override public func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

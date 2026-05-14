@@ -101,7 +101,7 @@ public class PassThroughNode<T: PortValueRepresentable>: Node
     public var input: NodePort<T> { port(named: "input") }
     public var output: NodePort<T> { port(named: "output") }
 
-    public override func execute(context: GraphExecutionContext,
+    public override func execute(context: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

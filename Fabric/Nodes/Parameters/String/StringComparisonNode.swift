@@ -34,7 +34,7 @@ public class StringComparisonNode: Node {
 
     private var op = StringComparisonOperator.Equals
 
-    public override func execute(context: GraphExecutionContext,
+    public override func execute(context: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer) {
         if inputOperator.valueDidChange,

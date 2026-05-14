@@ -558,7 +558,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         return (3, originalIndex)
     }
 
-    override public func execute(context: GraphExecutionContext,
+    override public func execute(context: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

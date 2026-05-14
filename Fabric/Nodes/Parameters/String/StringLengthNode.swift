@@ -34,7 +34,7 @@ public class StringLengthNode : Node
     public var inputPort:ParameterPort<String>   { port(named: "inputPort") }
     public var outputPort:NodePort<Int>     { port(named: "outputPort") }
     
-    override public func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionInfo,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {

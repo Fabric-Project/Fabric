@@ -75,9 +75,9 @@ public struct GraphIterationInfo : Hashable
 }
 
 /// Graph Execution Information that includes metal, timing, node, and custom user info
-public class GraphExecutionContext : Hashable
+public class GraphExecutionInfo : Hashable
 {
-    public static func == (lhs: GraphExecutionContext, rhs: GraphExecutionContext) -> Bool
+    public static func == (lhs: GraphExecutionInfo, rhs: GraphExecutionInfo) -> Bool
     {
         return lhs.hashValue == rhs.hashValue
     }

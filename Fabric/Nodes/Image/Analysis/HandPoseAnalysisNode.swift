@@ -120,7 +120,7 @@ public class HandPoseAnalysisNode: Node
     
     private var ciContext:CIContext!
     
-    override public func startExecution(context: GraphExecutionContext) {
+    override public func startExecution(context: GraphExecutionInfo) {
 
         if let commandQueue = context.graphRenderer?.commandQueue
         {
@@ -136,7 +136,7 @@ public class HandPoseAnalysisNode: Node
         }
     }
     
-    override public  func execute(context:GraphExecutionContext,
+    override public  func execute(context:GraphExecutionInfo,
                                   renderPassDescriptor: MTLRenderPassDescriptor,
                                   commandBuffer: MTLCommandBuffer)
     {

@@ -39,7 +39,7 @@ public class EulerOrientationNode : Node
     public var inputZ:ParameterPort<Float> { port(named: "inputZ") }
     public var outputOrientation:NodePort<simd_float4> { port(named: "outputOrientation") }
 
-    public override func execute(context:GraphExecutionContext,
+    public override func execute(context:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

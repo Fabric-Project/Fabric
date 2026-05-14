@@ -39,7 +39,7 @@ public class GeometryToTransformArrayNode : Node
     public var inputTransform:NodePort<simd_float4x4> { port(named: "inputTransform") }
     public var outputPort:NodePort<ContiguousArray<simd_float4x4>> { port(named: "outputPort") }
  
-    override public func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionInfo,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {

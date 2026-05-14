@@ -35,7 +35,7 @@ public class ScaleTransformNode : Node
     public var inputScale:NodePort<simd_float3> { port(named: "inputScale") }
     public var outputTransform:NodePort<simd_float4x4> { port(named: "outputTransform") }
     
-    public override func execute(context:GraphExecutionContext,
+    public override func execute(context:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

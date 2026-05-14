@@ -66,7 +66,7 @@ public class Vector4Distance : Node
     
     private var metric = Vector4Distance.Eucledian
     
-    public override func execute(context:GraphExecutionContext,
+    public override func execute(context:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

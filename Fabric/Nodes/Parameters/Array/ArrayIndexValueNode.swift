@@ -36,7 +36,7 @@ public class ArrayIndexValueNode<Value : PortValueRepresentable & Equatable> : N
     public var inputIndexParam:ParameterPort<Int> { port(named: "inputIndexParam") }
     public var outputPort:NodePort<Value> { port(named: "outputPort") }
     
-    override public func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionInfo,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {

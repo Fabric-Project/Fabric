@@ -219,7 +219,7 @@ public class GraphRenderer : MetalViewRenderer
     
     // MARK: - Execution
 
-    public func disableExecution(graph:Graph, executionContext:GraphExecutionContext)
+    public func disableExecution(graph:Graph, executionContext:GraphExecutionInfo)
     {
         for node in graph.nodes
         {
@@ -227,7 +227,7 @@ public class GraphRenderer : MetalViewRenderer
         }
     }
     
-    public func enableExecution(graph:Graph, executionContext:GraphExecutionContext)
+    public func enableExecution(graph:Graph, executionContext:GraphExecutionInfo)
     {
         for node in graph.nodes
         {
@@ -235,7 +235,7 @@ public class GraphRenderer : MetalViewRenderer
         }
     }
     
-    public func startExecution(graph:Graph, executionContext:GraphExecutionContext)
+    public func startExecution(graph:Graph, executionContext:GraphExecutionInfo)
     {
         for node in graph.nodes
         {
@@ -243,7 +243,7 @@ public class GraphRenderer : MetalViewRenderer
         }
     }
     
-    public func stopExecution(graph:Graph, executionContext:GraphExecutionContext)
+    public func stopExecution(graph:Graph, executionContext:GraphExecutionInfo)
     {
         for node in graph.nodes
         {
@@ -262,7 +262,7 @@ public class GraphRenderer : MetalViewRenderer
     // MARK: - Execution
     
     public func execute(graph:Graph,
-                        executionContext:GraphExecutionContext,
+                        executionContext:GraphExecutionInfo,
                         renderPassDescriptor: MTLRenderPassDescriptor,
                         commandBuffer:MTLCommandBuffer,
                         clearFlags:Bool = true,
@@ -329,7 +329,7 @@ public class GraphRenderer : MetalViewRenderer
     private func processGraph(graph:Graph,
                               graphFeedbackCache:GraphRendererFeedbackCache,
                               node: Node,
-                              executionContext:GraphExecutionContext,
+                              executionContext:GraphExecutionInfo,
                               renderPassDescriptor: MTLRenderPassDescriptor,
                               commandBuffer: MTLCommandBuffer,
                               nodesWeHaveProcessedThisPass:inout [Node],
@@ -419,7 +419,7 @@ public class GraphRenderer : MetalViewRenderer
         self.executeAndDraw(graph: graph, executionContext: executionContext, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
     }
     
-    public func executeAndDraw(graph:Graph, executionContext:GraphExecutionContext, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
+    public func executeAndDraw(graph:Graph, executionContext:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
     {
         self.currentCamera = nil
         
@@ -479,7 +479,7 @@ public class GraphRenderer : MetalViewRenderer
         return cache
     }
     
-    private func currentGraphExecutionContext() -> GraphExecutionContext
+    private func currentGraphExecutionContext() -> GraphExecutionInfo
     {
         let currentRenderTime = Date.timeIntervalSinceReferenceDate
         
@@ -491,7 +491,7 @@ public class GraphRenderer : MetalViewRenderer
                                           frameNumber: self.frameIndex)
         
         // weird
-        return GraphExecutionContext(graphRenderer: self,
+        return GraphExecutionInfo(graphRenderer: self,
                                      timing: timing,
                                      iterationInfo: nil,
                                      eventInfo: nil)

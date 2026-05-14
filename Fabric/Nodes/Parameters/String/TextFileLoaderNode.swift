@@ -54,7 +54,7 @@ public final class TextFileLoaderNode : Node, NodeFileLoadingProtocol
         self.inputFilePathParam.value = url.standardizedFileURL.absoluteString
     }
 
-    override public func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionInfo,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
    

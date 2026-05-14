@@ -75,14 +75,14 @@ public class LocalVLMNode : Node
         try super.init(from: decoder)
     }
     
-    override public func stopExecution(context: GraphExecutionContext) {
+    override public func stopExecution(context: GraphExecutionInfo) {
         
         self.vlmEvaluator.cancelGeneration()
 
         super.stopExecution(context: context)
     }
     
-    override public func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionInfo,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {

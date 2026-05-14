@@ -186,7 +186,7 @@ struct GameControllerNodeView: View
 
     // MARK: - Lifecycle
 
-    public override func enableExecution(context: GraphExecutionContext)
+    public override func enableExecution(context: GraphExecutionInfo)
     {
         setupNotifications()
         refreshControllers()
@@ -203,7 +203,7 @@ struct GameControllerNodeView: View
         }
     }
 
-    public override func disableExecution(context: GraphExecutionContext)
+    public override func disableExecution(context: GraphExecutionInfo)
     {
         NotificationCenter.default.removeObserver(self)
         currentController = nil
@@ -424,7 +424,7 @@ struct GameControllerNodeView: View
 
     // MARK: - Execution
 
-    public override func execute(context: GraphExecutionContext,
+    public override func execute(context: GraphExecutionInfo,
                                   renderPassDescriptor: MTLRenderPassDescriptor,
                                   commandBuffer: MTLCommandBuffer)
     {

@@ -40,7 +40,7 @@ public class MakeColorNode: Node
     public var inputA: ParameterPort<Float> { port(named: "inputA") }
     public var outputColor: NodePort<simd_float4> { port(named: "outputColor") }
 
-    public override func execute(context: GraphExecutionContext,
+    public override func execute(context: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

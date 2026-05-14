@@ -52,7 +52,7 @@ public class EnvironmentNode: SubgraphNode
         self.subGraph.scene = IBLScene(context: context)
     }
     
-    override public func execute(context: GraphExecutionContext,
+    override public func execute(context: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: any MTLCommandBuffer)
     {

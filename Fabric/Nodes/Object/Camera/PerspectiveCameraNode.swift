@@ -37,7 +37,7 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
     
     private lazy var camera = PerspectiveCamera(context:self.context, position: .init(repeating: 5.0), near: 0.01, far: 500.0, fov: 30)
 
-    override public func startExecution(context:GraphExecutionContext)
+    override public func startExecution(context:GraphExecutionInfo)
     {
         super.startExecution(context: context)
                 
@@ -59,7 +59,7 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
         return shouldUpdate
     }
     
-    public override func execute(context:GraphExecutionContext,
+    public override func execute(context:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

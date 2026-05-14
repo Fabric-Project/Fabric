@@ -78,7 +78,7 @@ public class PersonSegmentationMaskNode: Node
         try super.init(from:decoder)
     }
     
-    override public  func execute(context:GraphExecutionContext,
+    override public  func execute(context:GraphExecutionInfo,
                                   renderPassDescriptor: MTLRenderPassDescriptor,
                                   commandBuffer: MTLCommandBuffer)
     {

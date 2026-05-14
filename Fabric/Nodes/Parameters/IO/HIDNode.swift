@@ -635,12 +635,12 @@ struct HIDNodeView: View
 
     // MARK: - Lifecycle
 
-    public override func enableExecution(context: GraphExecutionContext)
+    public override func enableExecution(context: GraphExecutionInfo)
     {
         setupHIDManager()
     }
 
-    public override func disableExecution(context: GraphExecutionContext)
+    public override func disableExecution(context: GraphExecutionInfo)
     {
         if let deviceID = selectedDeviceID
         {
@@ -694,7 +694,7 @@ struct HIDNodeView: View
 
     // MARK: - Execution
 
-    public override func execute(context: GraphExecutionContext,
+    public override func execute(context: GraphExecutionInfo,
                                   renderPassDescriptor: MTLRenderPassDescriptor,
                                   commandBuffer: MTLCommandBuffer)
     {

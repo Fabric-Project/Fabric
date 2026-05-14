@@ -31,7 +31,7 @@ final class MetalFXSpatialUpsample2xNode: BaseImageNode
     // Output texture cache
 //    private var outputTexture: MTLTexture?
     
-    override func execute(context: GraphExecutionContext,
+    override func execute(context: GraphExecutionInfo,
                           renderPassDescriptor: MTLRenderPassDescriptor,
                           commandBuffer: MTLCommandBuffer)
     {

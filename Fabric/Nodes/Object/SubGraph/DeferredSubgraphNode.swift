@@ -226,7 +226,7 @@ public class DeferredSubgraphNode: SubgraphNode
         }
     }
     
-    override public func startExecution(context:GraphExecutionContext)
+    override public func startExecution(context:GraphExecutionInfo)
     {
         if self.rendererNeedsSetup
         {
@@ -236,22 +236,22 @@ public class DeferredSubgraphNode: SubgraphNode
         self.graphRenderer.startExecution(graph: self.subGraph, executionContext: context)
     }
     
-    override public func stopExecution(context:GraphExecutionContext)
+    override public func stopExecution(context:GraphExecutionInfo)
     {
         self.graphRenderer.stopExecution(graph: self.subGraph, executionContext: context)
     }
 
-    override public func enableExecution(context:GraphExecutionContext)
+    override public func enableExecution(context:GraphExecutionInfo)
     {
         self.graphRenderer.enableExecution(graph: self.subGraph, executionContext: context)
     }
     
-    override public func disableExecution(context:GraphExecutionContext)
+    override public func disableExecution(context:GraphExecutionInfo)
     {
         self.graphRenderer.disableExecution(graph: self.subGraph, executionContext: context)
     }
     
-    override public func execute(context: GraphExecutionContext,
+    override public func execute(context: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: any MTLCommandBuffer)
     {

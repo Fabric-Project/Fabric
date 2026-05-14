@@ -216,22 +216,22 @@ public class SubgraphNode: BaseObjectNode
         super.markDirty()
     }
     
-    override public func startExecution(context:GraphExecutionContext)
+    override public func startExecution(context:GraphExecutionInfo)
     {
         context.graphRenderer?.startExecution(graph: self.subGraph, executionContext: context)
     }
     
-    override public func stopExecution(context:GraphExecutionContext)
+    override public func stopExecution(context:GraphExecutionInfo)
     {
         context.graphRenderer?.stopExecution(graph: self.subGraph, executionContext: context)
     }
 
-    override public func enableExecution(context:GraphExecutionContext)
+    override public func enableExecution(context:GraphExecutionInfo)
     {
         context.graphRenderer?.enableExecution(graph: self.subGraph, executionContext: context)
     }
     
-    override public func disableExecution(context:GraphExecutionContext)
+    override public func disableExecution(context:GraphExecutionInfo)
     {
         context.graphRenderer?.disableExecution(graph: self.subGraph, executionContext: context)
     }
@@ -246,7 +246,7 @@ public class SubgraphNode: BaseObjectNode
         }
     }
     
-    override public func execute(context: GraphExecutionContext,
+    override public func execute(context: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: any MTLCommandBuffer)
     {

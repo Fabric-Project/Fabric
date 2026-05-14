@@ -390,13 +390,13 @@ import UniformTypeIdentifiers
     
     // MARK: - Execution
     
-    public func startExecution(context:GraphExecutionContext) { }
-    public func stopExecution(context:GraphExecutionContext) { }
+    public func startExecution(context:GraphExecutionInfo) { }
+    public func stopExecution(context:GraphExecutionInfo) { }
 
-    public func enableExecution(context:GraphExecutionContext) { }
-    public func disableExecution(context:GraphExecutionContext) { }
+    public func enableExecution(context:GraphExecutionInfo) { }
+    public func disableExecution(context:GraphExecutionInfo) { }
     
-    public func execute(context:GraphExecutionContext,
+    public func execute(context:GraphExecutionInfo,
                          renderPassDescriptor: MTLRenderPassDescriptor,
                          commandBuffer: MTLCommandBuffer) { }
         

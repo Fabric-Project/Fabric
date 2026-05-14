@@ -37,7 +37,7 @@ public class DecomposeTransformNode : Node
     public var outputScale:NodePort<simd_float3> { port(named: "outputScale") }
     public var outputRotation:NodePort<simd_float4> { port(named: "outputRotation") }
 
-    public override func execute(context:GraphExecutionContext,
+    public override func execute(context:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

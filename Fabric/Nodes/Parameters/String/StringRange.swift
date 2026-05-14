@@ -39,7 +39,7 @@ public class StringRangeNode : Node
     public var outputPort:NodePort<String>      { port(named: "outputPort") }
 
 
-    override public func execute(context:GraphExecutionContext,
+    override public func execute(context:GraphExecutionInfo,
                            renderPassDescriptor: MTLRenderPassDescriptor,
                            commandBuffer: MTLCommandBuffer)
     {

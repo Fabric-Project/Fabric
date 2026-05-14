@@ -37,7 +37,7 @@ public class RenderInfoNode : Node
     public var inputTexturePort:NodePort<FabricImage>  { port(named: "inputTexturePort") }
     public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
     
-    public override func execute(context:GraphExecutionContext,
+    public override func execute(context:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

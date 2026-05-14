@@ -82,7 +82,7 @@ public final class ContourPathNode: Node {
     }
 
     // MARK: - Execute
-    override public func execute(context: GraphExecutionContext,
+    override public func execute(context: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
