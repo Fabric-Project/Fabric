@@ -56,26 +56,6 @@ class CAMetalDisplayLinkRenderer: GameView
     
     func setup()
     {
-        
-//        // TODO: This becomes more semantically correct later
-//        let timing = GraphExecutionTiming(time: CACurrentMediaTime(),
-//                                          deltaTime: 0,
-//                                          displayTime: 0,
-//                                          systemTime: Date.timeIntervalSinceReferenceDate,
-//                                          frameNumber: self.graphRenderer.frameIndex)
-//        
-//        var eventInfo:GraphEventInfo?
-//        if let event = self.window?.currentEvent
-//        {
-//            eventInfo = GraphEventInfo(event:event)
-//        }
-//        
-//        // weird
-//        let executionContext = GraphExecutionInfo,
-//                                                     timing: timing,
-//                                                     iterationInfo: nil,
-//                                                     eventInfo: eventInfo)
-        
         self.graphRenderer.enableExecution(graph: graph)
         self.graphRenderer.startExecution(graph: graph)
     }
@@ -132,9 +112,6 @@ class CAMetalDisplayLinkRenderer: GameView
                                      executionInfo: executionInfo,
                                      renderPassDescriptor: self.renderPassDescriptor,
                                      commandBuffer: commandBuffer)
-        //            graphRenderer.draw(renderPassDescriptor: self.renderPassDescriptor, commandBuffer: commandBuffer)
-        
-//        graphRenderer.postDraw(drawable: update.drawable, commandBuffer: commandBuffer)
         commandBuffer.present(update.drawable)
         commandBuffer.commit()
     }
