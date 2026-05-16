@@ -130,6 +130,17 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
 
     @ObservationIgnored private var seeking: Bool = false
 
+    /// Set by `performSeek`'s completion handler when the player is
+    /// paused at seek-land time, cleared after the next `execute()`
+    /// emit attempt. AVPlayerItemVideoOutput stops emitting fresh
+    /// pixel buffers while the player is paused, so without this
+    /// one-shot the seeked-to frame would never reach downstream
+    /// consumers until playback resumed.
+    ///
+    /// Threading note as per `seeking` — written from AVFoundation's
+    /// internal queue, so `@ObservationIgnored`.
+    @ObservationIgnored private var needsEmitAfterSeek: Bool = false
+
     /// Internal seek implementation driven by `inputSeekTimeParam`
     /// changes in `execute`. Tolerance is selected from
     /// `inputSeekBehaviourParam`. Re-primes playback (`player.play()`)
@@ -150,7 +161,16 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         let tol: CMTime = (mode == Self.seekBehaviourFrame) ? .zero : .positiveInfinity
         self.seeking = true
         self.player.seek(to: target, toleranceBefore: tol, toleranceAfter: tol) { [weak self] _ in
-            self?.seeking = false
+            guard let self else { return }
+            self.seeking = false
+            // If the player is paused at seek-land time,
+            // AVPlayerItemVideoOutput won't emit a fresh pixel buffer
+            // on its own — flag the next execute() to push the seeked
+            // frame downstream as a one-shot.
+            if self.player.rate == 0
+            {
+                self.needsEmitAfterSeek = true
+            }
         }
         if (self.inputPlayingParam.value ?? true)
         {
@@ -236,9 +256,6 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
 
         let itemTime = self.playerItemVideoOutput.itemTime(forHostTime: time)
 
-        // While paused, AVPlayerItemVideoOutput stops emitting fresh pixel
-        // buffers — so a seek-while-paused needs an explicit `copy` at the
-        // current item time to push the new frame downstream.
         if self.playerItemVideoOutput.hasNewPixelBuffer(forItemTime: itemTime)
         {
             if let pixelBuffer = self.playerItemVideoOutput.copyPixelBuffer(forItemTime: itemTime, itemTimeForDisplay: nil),
@@ -248,9 +265,13 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
                 self.outputTexturePort.send( image )
             }
         }
-        else if self.player.rate == 0,
+        else if self.needsEmitAfterSeek,
                 let item = self.player.currentItem
         {
+            // One-shot: a seek landed while paused. Copy the player's
+            // current frame and push it; downstream then holds it
+            // until playback resumes or another seek lands.
+            self.needsEmitAfterSeek = false
             let pausedTime = item.currentTime()
             if let pixelBuffer = self.playerItemVideoOutput.copyPixelBuffer(forItemTime: pausedTime, itemTimeForDisplay: nil),
                let renderer = context.graphRenderer,
