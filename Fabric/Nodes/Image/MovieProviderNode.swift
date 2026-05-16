@@ -121,11 +121,12 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         return seconds.isFinite ? seconds : 0
     }
 
-    /// `true` while a seek is in flight. Read-only. Embedders should
-    /// avoid writing fresh values to `inputSeekTimeParam` while this
-    /// is set — a player mid-seek still reports a stale `currentTime`
-    /// briefly, and re-driving the seek port on every frame would
-    /// cancel the previous seek and stall playback at the boundary.
+    /// `true` while a seek is in flight. Read-only. Embedders can
+    /// safely write fresh values to `inputSeekTimeParam` while this
+    /// is set — fresh writes during an in-flight seek are coalesced
+    /// (the latest target wins, intermediate targets are dropped) and
+    /// re-issued once the in-flight seek lands, so neither stall nor
+    /// cancel the previous seek.
     public var isSeeking: Bool { self.seeking }
 
     @ObservationIgnored private var seeking: Bool = false
@@ -141,14 +142,34 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     /// internal queue, so `@ObservationIgnored`.
     @ObservationIgnored private var needsEmitAfterSeek: Bool = false
 
+    /// Coalesce-buffer for seek targets arriving while a previous seek
+    /// is still in flight. Written from `performSeek` on the consumer
+    /// queue; drained from `execute()` once `seeking` clears. Only the
+    /// latest value survives — intermediate targets are dropped, which
+    /// is the point: a seek-storm of nearby targets resolves to one
+    /// final seek to the latest, not N cancelled+restarted seeks.
+    @ObservationIgnored private var pendingSeekTarget: TimeInterval? = nil
+
     /// Internal seek implementation driven by `inputSeekTimeParam`
     /// changes in `execute`. Tolerance is selected from
     /// `inputSeekBehaviourParam`. Re-primes playback (`player.play()`)
     /// when the user wants the player playing — some seeks (notably
     /// zero-tolerance ones) leave `rate` at 0 momentarily, which would
     /// otherwise stall the player at the seek target.
+    ///
+    /// If a seek is already in flight, the new target is stashed in
+    /// `pendingSeekTarget` and the drain in `execute()` re-issues it
+    /// after the in-flight seek lands. Avoids cancelling the in-flight
+    /// seek (which would stall playback) and bounds backlog to one.
     private func performSeek(to seconds: TimeInterval)
     {
+        // Coalesce: while a seek is in flight, just record the latest
+        // target. execute() drains it once `seeking` clears.
+        if self.seeking
+        {
+            self.pendingSeekTarget = seconds
+            return
+        }
         guard self.player.currentItem != nil else { return }
         let clamped = max(0, min(seconds, self.duration))
         // Build the seek time on the video track's natural timescale
@@ -246,6 +267,15 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
            raw >= 0
         {
             performSeek(to: TimeInterval(raw))
+        }
+
+        // Drain any pending seek queued while a previous seek was in
+        // flight. Latest target wins; intermediate targets were
+        // dropped at coalesce time inside performSeek.
+        if !self.seeking, let pending = self.pendingSeekTarget
+        {
+            self.pendingSeekTarget = nil
+            performSeek(to: pending)
         }
 
         let time = context.timing.time
