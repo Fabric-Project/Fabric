@@ -38,7 +38,7 @@ public class RoundRectGeometryNode : BaseGeometryNode
    
     public override var geometry: RoundedRectGeometry { _geometry }
 
-    private let _geometry = RoundedRectGeometry(width: 1, height: 1, radius: 0.2, angularResolution: 32, radialResolution: 32)
+    private lazy var _geometry = RoundedRectGeometry(context:self.context, width: 1, height: 1, radius: 0.2, angularResolution: 32, radialResolution: 32)
     
     override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
     {

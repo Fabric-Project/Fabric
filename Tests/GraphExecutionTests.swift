@@ -51,6 +51,34 @@ private struct GraphExecutionTestHarness {
         )
     }
 
+    func makeTexture(
+        width: Int = 32,
+        height: Int = 32,
+        pixelFormat: MTLPixelFormat = .bgra8Unorm
+    ) throws -> MTLTexture {
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: pixelFormat,
+            width: width,
+            height: height,
+            mipmapped: false
+        )
+        descriptor.usage = [.shaderRead, .renderTarget]
+
+        guard let texture = self.context.device.makeTexture(descriptor: descriptor) else {
+            throw TestFailure("Failed to create test texture")
+        }
+
+        return texture
+    }
+
+    func makeImage(
+        width: Int = 32,
+        height: Int = 32,
+        pixelFormat: MTLPixelFormat = .bgra8Unorm
+    ) throws -> FabricImage {
+        FabricImage.unmanaged(texture: try self.makeTexture(width: width, height: height, pixelFormat: pixelFormat))
+    }
+
     func render(graph: Graph, executionContext: GraphExecutionContext, drawScene: Bool = true) throws {
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(
             pixelFormat: self.context.colorPixelFormat,
@@ -127,6 +155,14 @@ private func intPort(named name: String, kind: PortKind, on node: Node) throws -
     return port
 }
 
+private func imagePort(named name: String, kind: PortKind, on node: Node) throws -> NodePort<FabricImage> {
+    guard let port = node.ports.first(where: { $0.name == name && $0.kind == kind }) as? NodePort<FabricImage> else {
+        throw TestFailure("Missing FabricImage port named \(name)")
+    }
+
+    return port
+}
+
 private func requireValue<T>(_ value: T?, _ message: String) throws -> T {
     guard let value else {
         throw TestFailure(message)
@@ -138,6 +174,18 @@ private func requireValue<T>(_ value: T?, _ message: String) throws -> T {
 private func expectEqual(_ lhs: Float?, _ rhs: Float, tolerance: Float = 0.0001) throws {
     let lhs = try requireValue(lhs, "Expected Float value")
     #expect(abs(lhs - rhs) <= tolerance)
+}
+
+private func expectEqual(_ lhs: simd_float3, _ rhs: simd_float3, tolerance: Float = 0.0001) {
+    #expect(abs(lhs.x - rhs.x) <= tolerance)
+    #expect(abs(lhs.y - rhs.y) <= tolerance)
+    #expect(abs(lhs.z - rhs.z) <= tolerance)
+}
+
+private func expectEqual(_ lhs: simd_float3x3, _ rhs: simd_float3x3, tolerance: Float = 0.0001) {
+    expectEqual(lhs.columns.0, rhs.columns.0, tolerance: tolerance)
+    expectEqual(lhs.columns.1, rhs.columns.1, tolerance: tolerance)
+    expectEqual(lhs.columns.2, rhs.columns.2, tolerance: tolerance)
 }
 
 private func roundTripGraphToTemporaryFile(_ graph: Graph, context: Context) throws -> Graph {
@@ -289,6 +337,136 @@ struct GraphExecutionTests {
         try expectEqual(timeNode.outputNumber.value, 2.5)
     }
 
+    @Test("Spot light node applies spotlight and shadow parameters")
+    func spotLightNodeAppliesSpotlightAndShadowParameters() throws {
+        guard let harness = GraphExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let node = SpotLightNode(context: harness.context)
+        node.inputColor.value = simd_float3(0.25, 0.5, 0.75)
+        node.inputIntensity.value = 42.0
+        node.inputRadius.value = 18.0
+        node.inputAngleInner.value = 40.0
+        node.inputAngleOuter.value = 30.0
+        node.inputLookAt.value = simd_float3(0.0, -1.0, 0.0)
+        node.inputShadowStrength.value = 1.5
+        node.inputShadowRadius.value = 3.25
+        node.inputShadowBias.value = 0.0025
+        graph.addNode(node)
+
+        let executionContext = harness.makeExecutionContext(time: 1.0, deltaTime: 0.0, frameNumber: 0)
+
+        harness.renderer.startExecution(graph: graph, executionContext: executionContext)
+        try harness.render(graph: graph, executionContext: executionContext, drawScene: false)
+        harness.renderer.stopExecution(graph: graph, executionContext: executionContext)
+
+        guard let light = node.getObject() as? SpotLight else {
+            throw TestFailure("Spot light node did not vend a SpotLight object")
+        }
+
+        expectEqual(light.color, simd_float3(0.25, 0.5, 0.75))
+        #expect(abs(light.intensity - 42.0) <= 0.0001)
+        #expect(abs(light.radius - 18.0) <= 0.0001)
+        #expect(abs(light.angleInner - 40.0) <= 0.0001)
+        #expect(abs(light.angleOuter - 40.0) <= 0.0001)
+        #expect(abs(light.shadow.strength - 1.5) <= 0.0001)
+        #expect(abs(light.shadow.radius - 3.25) <= 0.0001)
+        #expect(abs(light.shadow.bias - 0.0025) <= 0.0001)
+        #expect(light.castShadow)
+    }
+
+    @Test("Spot light node supports projector image mode and flipped textures")
+    func spotLightNodeSupportsProjectorImages() throws {
+        guard let harness = GraphExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let node = SpotLightNode(context: harness.context)
+        node.inputProjectionMode.value = "Color"
+
+        let texture = try harness.makeTexture(width: 16, height: 8)
+        let image = FabricImage.unmanaged(texture: texture)
+        image.isFlipped = true
+        node.inputProjectionImage.value = image
+        graph.addNode(node)
+
+        let executionContext = harness.makeExecutionContext(time: 2.0, deltaTime: 0.0, frameNumber: 0)
+
+        harness.renderer.startExecution(graph: graph, executionContext: executionContext)
+        try harness.render(graph: graph, executionContext: executionContext, drawScene: false)
+        harness.renderer.stopExecution(graph: graph, executionContext: executionContext)
+
+        guard let light = node.getObject() as? SpotLight else {
+            throw TestFailure("Spot light node did not vend a SpotLight object")
+        }
+
+        #expect(light.projectionTexture === texture)
+        #expect(light.projectionMode == .color)
+
+        let expectedFlipTransform = simd_float3x3(
+            simd_float3(1.0, 0.0, 0.0),
+            simd_float3(0.0, -1.0, 0.0),
+            simd_float3(0.0, 1.0, 1.0)
+        )
+        expectEqual(light.projectionTransform, expectedFlipTransform)
+    }
+
+    @Test("Spot light node is registered in the node registry")
+    func spotLightNodeIsRegistered() {
+        let nodeClass = NodeRegistry.shared.nodeClass(for: String(describing: SpotLightNode.self))
+        #expect(nodeClass == SpotLightNode.self)
+    }
+
+    @Test("Depth of field node renders an output image from color and depth inputs")
+    func depthOfFieldNodeRendersOutputImage() throws {
+        guard let harness = GraphExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let node = DepthOfFieldNode(context: harness.context)
+        node.inputImage.value = try harness.makeImage(width: 48, height: 32, pixelFormat: harness.context.colorPixelFormat)
+        node.inputDepthImage.value = try harness.makeImage(width: 48, height: 32, pixelFormat: harness.context.depthPixelFormat)
+        graph.addNode(node)
+        publish(node.outputImage, in: graph)
+
+        let executionContext = harness.makeExecutionContext(time: 0, deltaTime: 0, frameNumber: 0)
+
+        harness.renderer.startExecution(graph: graph, executionContext: executionContext)
+        try harness.render(graph: graph, executionContext: executionContext, drawScene: false)
+        harness.renderer.stopExecution(graph: graph, executionContext: executionContext)
+
+        let outputImage = try requireValue(node.outputImage.value, "Expected depth-of-field output image")
+        #expect(outputImage.texture.width == 48)
+        #expect(outputImage.texture.height == 32)
+    }
+
+    @Test("Post process motion blur node renders an output image from color and velocity inputs")
+    func postProcessMotionBlurNodeRendersOutputImage() throws {
+        guard let harness = GraphExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let node = PostProcessMotionBlurNode(context: harness.context)
+        node.inputImage.value = try harness.makeImage(width: 40, height: 24, pixelFormat: harness.context.colorPixelFormat)
+        node.inputVelocityImage.value = try harness.makeImage(width: 40, height: 24, pixelFormat: harness.context.velocityPixelFormat)
+        graph.addNode(node)
+        publish(node.outputImage, in: graph)
+
+        let executionContext = harness.makeExecutionContext(time: 0, deltaTime: 1.0 / 60.0, frameNumber: 0)
+
+        harness.renderer.startExecution(graph: graph, executionContext: executionContext)
+        try harness.render(graph: graph, executionContext: executionContext, drawScene: false)
+        harness.renderer.stopExecution(graph: graph, executionContext: executionContext)
+
+        let outputImage = try requireValue(node.outputImage.value, "Expected motion-blur output image")
+        #expect(outputImage.texture.width == 40)
+        #expect(outputImage.texture.height == 24)
+    }
+
+    @Test("Depth of field and post process motion blur nodes are registered in the node registry")
+    func postProcessBlurNodesAreRegistered() {
+        let availableNames = Set(NodeRegistry.shared.availableNodes.map(\.nodeName))
+        #expect(availableNames.contains(DepthOfFieldNode.name))
+        #expect(availableNames.contains(PostProcessMotionBlurNode.name))
+    }
+
     @Test("Render info reports renderer size and execution count")
     func renderInfoReportsMetrics() throws {
         guard let harness = GraphExecutionTestHarness(renderWidth: 640, renderHeight: 360) else { return }
@@ -422,6 +600,79 @@ struct GraphExecutionTests {
         let depthImage = try requireValue(deferred.outputDepthTexture.value, "Expected deferred depth output")
         #expect(depthImage.texture.width == 64)
         #expect(depthImage.texture.height == 32)
+    }
+
+    @Test("Deferred subgraph MRT toggle adds and removes auxiliary output ports")
+    func deferredSubgraphMRTPortsToggleWithSetting() throws {
+        guard let harness = GraphExecutionTestHarness() else { return }
+
+        let deferred = DeferredSubgraphNode(context: harness.context)
+        #expect(deferred.findPort(named: "outputAlbedoTexture", as: Port.self) == nil)
+        #expect(deferred.findPort(named: "outputEmissiveTexture", as: Port.self) == nil)
+
+        deferred.deferredMRTEnabled = true
+
+        _ = try imagePort(named: "Albedo Texture", kind: .Outlet, on: deferred)
+        _ = try imagePort(named: "Normals Texture", kind: .Outlet, on: deferred)
+        _ = try imagePort(named: "PBR Texture", kind: .Outlet, on: deferred)
+        _ = try imagePort(named: "Velocity Texture", kind: .Outlet, on: deferred)
+        _ = try imagePort(named: "Emissive Texture", kind: .Outlet, on: deferred)
+        _ = try imagePort(named: "Color Texture", kind: .Outlet, on: deferred)
+        _ = try imagePort(named: "Depth Texture", kind: .Outlet, on: deferred)
+
+        deferred.deferredMRTEnabled = false
+
+        #expect(deferred.findPort(named: "outputAlbedoTexture", as: Port.self) == nil)
+        #expect(deferred.findPort(named: "outputNormalsTexture", as: Port.self) == nil)
+        #expect(deferred.findPort(named: "outputPBRTexture", as: Port.self) == nil)
+        #expect(deferred.findPort(named: "outputVelocityTexture", as: Port.self) == nil)
+        #expect(deferred.findPort(named: "outputEmissiveTexture", as: Port.self) == nil)
+        _ = try imagePort(named: "Color Texture", kind: .Outlet, on: deferred)
+        _ = try imagePort(named: "Depth Texture", kind: .Outlet, on: deferred)
+    }
+
+    @Test("Deferred subgraph MRT mode emits auxiliary textures")
+    func deferredSubgraphMRTProducesAuxiliaryTextures() throws {
+        guard let harness = GraphExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let deferred = DeferredSubgraphNode(context: harness.context)
+        deferred.inputWidth.value = 72
+        deferred.inputHeight.value = 40
+        deferred.deferredMRTEnabled = true
+
+        let geometry = BoxGeometryNode(context: harness.context)
+        let material = StandardMaterialNode(context: harness.context)
+        let mesh = MeshNode(context: harness.context)
+
+        deferred.subGraph.addNode(geometry)
+        deferred.subGraph.addNode(material)
+        deferred.subGraph.addNode(mesh)
+
+        geometry.outputGeometry.connect(to: mesh.inputGeometry)
+        material.outputMaterial.connect(to: mesh.inputMaterial)
+
+        graph.addNode(deferred)
+
+        let context = harness.makeExecutionContext(time: 550, deltaTime: 0, frameNumber: 0)
+
+        harness.renderer.startExecution(graph: graph, executionContext: context)
+        try harness.render(graph: graph, executionContext: context)
+        harness.renderer.stopExecution(graph: graph, executionContext: context)
+
+        #expect(deferred.graphRenderer.renderer.renderingMode == .deferredGeometry)
+        #expect(deferred.graphRenderer.renderer.activeOutputs.contains(.velocity))
+
+        let albedoImage = try requireValue(imagePort(named: "Albedo Texture", kind: .Outlet, on: deferred).value, "Expected deferred albedo output")
+        let normalImage = try requireValue(imagePort(named: "Normals Texture", kind: .Outlet, on: deferred).value, "Expected deferred normals output")
+        let pbrImage = try requireValue(imagePort(named: "PBR Texture", kind: .Outlet, on: deferred).value, "Expected deferred PBR output")
+        let velocityImage = try requireValue(imagePort(named: "Velocity Texture", kind: .Outlet, on: deferred).value, "Expected deferred velocity output")
+        let emissiveImage = try requireValue(imagePort(named: "Emissive Texture", kind: .Outlet, on: deferred).value, "Expected deferred emissive output")
+
+        for image in [albedoImage, normalImage, pbrImage, velocityImage, emissiveImage] {
+            #expect(image.texture.width == 72)
+            #expect(image.texture.height == 40)
+        }
     }
 
     @Test("Serialized scalar graph decodes and executes like the in-memory graph")
@@ -628,5 +879,56 @@ struct GraphExecutionTests {
         let depthImage = try requireValue(decodedDeferred.outputDepthTexture.value, "Expected decoded deferred depth output")
         #expect(depthImage.texture.width == 48)
         #expect(depthImage.texture.height == 24)
+    }
+
+    @Test("Serialized deferred MRT subgraph restores auxiliary outputs and executes")
+    func serializedDeferredMRTSubgraphRoundTripsAndExecutes() throws {
+        guard let harness = GraphExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let deferred = DeferredSubgraphNode(context: harness.context)
+        deferred.inputWidth.value = 56
+        deferred.inputHeight.value = 28
+        deferred.deferredMRTEnabled = true
+
+        let geometry = BoxGeometryNode(context: harness.context)
+        let material = StandardMaterialNode(context: harness.context)
+        let mesh = MeshNode(context: harness.context)
+
+        deferred.subGraph.addNode(geometry)
+        deferred.subGraph.addNode(material)
+        deferred.subGraph.addNode(mesh)
+
+        geometry.outputGeometry.connect(to: mesh.inputGeometry)
+        material.outputMaterial.connect(to: mesh.inputMaterial)
+
+        graph.addNode(deferred)
+
+        let decodedGraph = try roundTripGraphToTemporaryFile(graph, context: harness.context)
+
+        guard let decodedDeferred = decodedGraph.nodes.compactMap({ $0 as? DeferredSubgraphNode }).first else {
+            throw TestFailure("Expected decoded DeferredSubgraphNode")
+        }
+
+        #expect(decodedDeferred.deferredMRTEnabled)
+        _ = try imagePort(named: "Albedo Texture", kind: .Outlet, on: decodedDeferred)
+        _ = try imagePort(named: "Normals Texture", kind: .Outlet, on: decodedDeferred)
+        _ = try imagePort(named: "PBR Texture", kind: .Outlet, on: decodedDeferred)
+        _ = try imagePort(named: "Velocity Texture", kind: .Outlet, on: decodedDeferred)
+        _ = try imagePort(named: "Emissive Texture", kind: .Outlet, on: decodedDeferred)
+
+        let context = harness.makeExecutionContext(time: 850, deltaTime: 0, frameNumber: 0)
+
+        harness.renderer.startExecution(graph: decodedGraph, executionContext: context)
+        try harness.render(graph: decodedGraph, executionContext: context)
+        harness.renderer.stopExecution(graph: decodedGraph, executionContext: context)
+
+        let albedoImage = try requireValue(imagePort(named: "Albedo Texture", kind: .Outlet, on: decodedDeferred).value, "Expected decoded deferred albedo output")
+        let velocityImage = try requireValue(imagePort(named: "Velocity Texture", kind: .Outlet, on: decodedDeferred).value, "Expected decoded deferred velocity output")
+
+        #expect(albedoImage.texture.width == 56)
+        #expect(albedoImage.texture.height == 28)
+        #expect(velocityImage.texture.width == 56)
+        #expect(velocityImage.texture.height == 28)
     }
 }

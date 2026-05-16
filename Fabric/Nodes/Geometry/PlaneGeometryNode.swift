@@ -37,7 +37,7 @@ public class PlaneGeometryNode : BaseGeometryNode
     
     public override var geometry: PlaneGeometry { _geometry }
 
-    private let _geometry = PlaneGeometry(width: 1, height: 1, orientation: .xy)
+    private lazy var _geometry = PlaneGeometry(context:self.context, width: 1, height: 1, orientation: .xy)
     
     override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
     {

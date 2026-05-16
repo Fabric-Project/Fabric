@@ -79,9 +79,10 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
         self.loadTextureFromInputValue()
     }
 
-    override public func execute(context:GraphExecutionContext,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         if self.inputFilePathParam.valueDidChange
         {

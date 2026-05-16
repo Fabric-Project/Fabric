@@ -95,9 +95,11 @@ struct StringScannerSettingsView: View {
 
     // MARK: - Execution
 
-    public override func execute(context: GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer) {
+                                 commandBuffer: MTLCommandBuffer)
+    {
         guard inputString.valueDidChange,
               let input = inputString.value,
               let regex = scanRegex else {

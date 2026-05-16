@@ -155,7 +155,8 @@ public class TestCardProviderNode: Node
         return texture
     }
 
-    override public func execute(context: GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
@@ -163,13 +164,13 @@ public class TestCardProviderNode: Node
         let height = max(1, self.inputHeight.value ?? 1080)
 
         guard let pipeline = self.computePipeline,
-              let outImage = context.graphRenderer?.newImage(withWidth: width, height: height),
+              let outImage = renderer.newImage(withWidth: width, height: height),
               let computeEncoder = commandBuffer.makeComputeCommandEncoder()
         else { return }
 
         let showText = self.inputText.value ?? true
         let textString = self.inputTextString.value ?? "Fabric"
-        let textTex = showText ? self.textTexture(device: context.graphRenderer!.context.device, text: textString, outputWidth: width, outputHeight: height) : nil
+        let textTex = showText ? self.textTexture(device: renderer.context.device, text: textString, outputWidth: width, outputHeight: height) : nil
         let texW = UInt32(textTex?.width ?? 0)
         let texH = UInt32(textTex?.height ?? 0)
         let textX = (UInt32(width) - texW) / 2

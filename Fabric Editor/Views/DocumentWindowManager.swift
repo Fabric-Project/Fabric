@@ -57,9 +57,9 @@ class DocumentOutputWindowManager : NSObject
         self.outputwindow?.toolbarStyle = .unified // or .unifiedCompact
     }
     
-    func setGraph(graph:Graph)
+    func setGraph(graph:Graph, graphRenderer:GraphRenderer)
     {
-        self.outputRenderer = CAMetalDisplayLinkRenderer(graph:graph)
+        self.outputRenderer = CAMetalDisplayLinkRenderer(graph:graph, graphRenderer: graphRenderer)
         self.outputRenderer?.frame = CGRect(x: 0,
                                             y: 0,
                                             width: self.outputwindow?.frame.size.width ?? 600,

@@ -36,7 +36,7 @@ public class ConeGeometryNode : BaseGeometryNode
 
     public override var geometry: ConeGeometry { _geometry }
 
-    private let _geometry = ConeGeometry(radius: 1.0, height: 2.0, angularResolution: 20, radialResolution: 2, verticalResolution: 2)
+    private lazy var _geometry = ConeGeometry(context:self.context, radius: 1.0, height: 2.0, angularResolution: 20, radialResolution: 2, verticalResolution: 2)
 
     override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
     {

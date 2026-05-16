@@ -349,8 +349,8 @@ public class AudioSpectrumNode : Node
         return AVCaptureDevice.default(for: .audio)
     }
 
-    override public func startExecution(context: GraphExecutionContext) {
-        super.startExecution(context: context)
+    override public func startExecution(renderer:GraphRenderer) {
+        super.startExecution(renderer:renderer)
 
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
             case .authorized:
@@ -374,26 +374,29 @@ public class AudioSpectrumNode : Node
                 print("Restricted from Granting Mic Access")
         }
     }
-
-    override public func stopExecution(context: GraphExecutionContext)
+    
+    override public func stopExecution(renderer:GraphRenderer)
     {
-        super.stopExecution(context: context)
+        super.stopExecution(renderer:renderer)
         if self.captureSession.isRunning
         {
             self.captureSession.stopRunning()
         }
     }
 
-    override public func disableExecution(context: GraphExecutionContext)
+    override public func disableExecution(renderer:GraphRenderer)
     {
-        super.disableExecution(context: context)
+        super.disableExecution(renderer:renderer)
         if self.captureSession.isRunning
         {
             self.captureSession.stopRunning()
         }
     }
-
-    override public func execute(context: GraphExecutionContext, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: any MTLCommandBuffer)
+    
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         // Device re-routing: picking a new device rebuilds the capture
         // session's input. AVCaptureSession supports this cleanly via

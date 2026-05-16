@@ -9,9 +9,47 @@ import Foundation
 import Satin
 import simd
 import Metal
+import SwiftUI
+
+private struct DeferredSubgraphNodeSettingsView: View
+{
+    @Bindable var node: DeferredSubgraphNode
+
+    var body: some View
+    {
+        VStack(alignment: .leading)
+        {
+            Toggle("Enable Deferred MRT Outputs", isOn: $node.deferredMRTEnabled)
+            Text("Adds auxiliary outputs for albedo, normals, PBR, velocity, and emissive textures using Satin's deferred geometry pipeline.")
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+        }
+    }
+}
 
 public class DeferredSubgraphNode: SubgraphNode
 {
+    private struct AuxiliaryOutputPortDescriptor
+    {
+        let registryName: String
+        let displayName: String
+        let description: String
+    }
+
+    private enum CodingKeys: String, CodingKey
+    {
+        case deferredMRTEnabled
+    }
+
+    private static let deferredOutputs: RendererOutputs = [.color, .albedo, .normals, .pbr, .velocity, .emissive]
+    private static let auxiliaryOutputPorts: [AuxiliaryOutputPortDescriptor] = [
+        .init(registryName: "outputAlbedoTexture", displayName: "Albedo Texture", description: "Deferred albedo render target from the subgraph"),
+        .init(registryName: "outputNormalsTexture", displayName: "Normals Texture", description: "Deferred normal render target from the subgraph"),
+        .init(registryName: "outputPBRTexture", displayName: "PBR Texture", description: "Deferred PBR render target from the subgraph"),
+        .init(registryName: "outputVelocityTexture", displayName: "Velocity Texture", description: "Deferred velocity render target from the subgraph"),
+        .init(registryName: "outputEmissiveTexture", displayName: "Emissive Texture", description: "Deferred emissive render target from the subgraph"),
+    ]
+
     public override class var name:String { "Render To Image and Depth" }
     public override class var nodeType: Node.NodeType { .Subgraph }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Consumer }
@@ -41,13 +79,24 @@ public class DeferredSubgraphNode: SubgraphNode
         return nil
     }
     
-    let graphRenderer:GraphRenderer
+    @ObservationIgnored private var rendererNeedsSetup = true
+    var graphRenderer:GraphRenderer
+
+    public var deferredMRTEnabled: Bool = false
+    {
+        didSet
+        {
+            guard oldValue != deferredMRTEnabled else { return }
+            self.synchronizeDeferredConfiguration()
+        }
+    }
 
     public required init(context: Context)
     {
         self.graphRenderer = GraphRenderer(context: context)
         
         super.init(context: context)
+        self.synchronizeDeferredConfiguration()
     }
     
     public required init(from decoder: any Decoder) throws
@@ -60,6 +109,18 @@ public class DeferredSubgraphNode: SubgraphNode
         self.graphRenderer = GraphRenderer(context: decodeContext.documentContext)
 
         try super.init(from: decoder)
+
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.deferredMRTEnabled = try container.decodeIfPresent(Bool.self, forKey: .deferredMRTEnabled) ?? false
+        self.synchronizeDeferredConfiguration()
+    }
+
+    public override func encode(to encoder: Encoder) throws
+    {
+        try super.encode(to: encoder)
+
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(self.deferredMRTEnabled, forKey: .deferredMRTEnabled)
     }
     
     private func setupRenderer()
@@ -79,37 +140,127 @@ public class DeferredSubgraphNode: SubgraphNode
         
         self.graphRenderer.renderer.stencilTextureStorageMode = .private
         self.graphRenderer.renderer.stencilMultisampleTextureStorageMode = .private
+
+        self.graphRenderer.renderer.albedoTextureStorageMode = .private
+        self.graphRenderer.renderer.normalTextureStorageMode = .private
+        self.graphRenderer.renderer.pbrTextureStorageMode = .private
+        self.graphRenderer.renderer.velocityTextureStorageMode = .private
+        self.graphRenderer.renderer.emissiveTextureStorageMode = .private
         
         self.graphRenderer.resize(size: (Float(self.inputWidth.value ?? 1920), Float(self.inputHeight.value ?? 1080 )), scaleFactor: 1.0)
-
-    }
-    
-    override public func startExecution(context:GraphExecutionContext)
-    {
-        self.setupRenderer()
-
-        self.graphRenderer.startExecution(graph: self.subGraph, executionContext: context)
-    }
-    
-    override public func stopExecution(context:GraphExecutionContext)
-    {
-        self.graphRenderer.stopExecution(graph: self.subGraph, executionContext: context)
+        self.graphRenderer.renderer.clearColor = .init(self.inputClearColor.value ?? simd_float4(repeating: 0))
+        self.rendererNeedsSetup = false
     }
 
-    override public func enableExecution(context:GraphExecutionContext)
+    private func synchronizeDeferredConfiguration()
     {
-        self.graphRenderer.enableExecution(graph: self.subGraph, executionContext: context)
+        self.syncAuxiliaryOutputPorts()
+        self.rebuildGraphRenderer()
+        self.markDirty()
+    }
+
+    private func syncAuxiliaryOutputPorts()
+    {
+        for descriptor in Self.auxiliaryOutputPorts
+        {
+            if deferredMRTEnabled
+            {
+                guard self.findPort(named: descriptor.registryName, as: Port.self) == nil else { continue }
+
+                let port = NodePort<FabricImage>(
+                    name: descriptor.displayName,
+                    kind: .Outlet,
+                    description: descriptor.description
+                )
+                self.addDynamicPort(port, name: descriptor.registryName)
+            }
+            else if let port = self.findPort(named: descriptor.registryName, as: Port.self)
+            {
+                self.removePort(port)
+            }
+        }
+    }
+
+    private func rebuildGraphRenderer()
+    {
+        self.graphRenderer = GraphRenderer(context: self.makeRendererContext())
+        self.rendererNeedsSetup = true
+    }
+
+    private func makeRendererContext() -> Context
+    {
+        guard self.deferredMRTEnabled else {
+            return self.context
+        }
+
+        return Context(
+            id:self.context.id,
+            device: self.context.device,
+            sampleCount: self.context.sampleCount,
+            colorPixelFormat: self.context.colorPixelFormat,
+            depthPixelFormat: self.context.depthPixelFormat,
+            stencilPixelFormat: self.context.stencilPixelFormat,
+            vertexAmplificationCount: self.context.vertexAmplificationCount,
+            maxBuffersInFlight: self.context.maxBuffersInFlight,
+            renderingMode: .deferredGeometry,
+            activeOutputs: Self.deferredOutputs,
+            albedoPixelFormat: self.context.albedoPixelFormat,
+            normalsPixelFormat: self.context.normalsPixelFormat,
+            pbrPixelFormat: self.context.pbrPixelFormat,
+            velocityPixelFormat: self.context.velocityPixelFormat,
+            emissivePixelFormat: self.context.emissivePixelFormat
+        )
+    }
+
+    private func sendAuxiliaryTexture(_ texture: MTLTexture?, toPortNamed portName: String)
+    {
+        guard let port = self.findPort(named: portName, as: NodePort<FabricImage>.self) else { return }
+
+        if let texture
+        {
+            port.send(FabricImage.unmanaged(texture: texture))
+        }
+        else
+        {
+            port.send(nil)
+        }
     }
     
-    override public func disableExecution(context:GraphExecutionContext)
+    override public func startExecution(renderer:GraphRenderer)
     {
-        self.graphRenderer.disableExecution(graph: self.subGraph, executionContext: context)
+        if self.rendererNeedsSetup
+        {
+            self.setupRenderer()
+        }
+
+        self.graphRenderer.startExecution(graph: self.subGraph)
     }
     
-    override public func execute(context: GraphExecutionContext,
+    override public func stopExecution(renderer:GraphRenderer)
+    {
+        self.graphRenderer.stopExecution(graph: self.subGraph)
+    }
+
+    override public func enableExecution(renderer:GraphRenderer)
+    {
+        self.graphRenderer.enableExecution(graph: self.subGraph)
+    }
+    
+    override public func disableExecution(renderer:GraphRenderer)
+    {
+        self.graphRenderer.disableExecution(graph: self.subGraph)
+    }
+    
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: any MTLCommandBuffer)
+                                 commandBuffer: MTLCommandBuffer)
     {
+        if self.rendererNeedsSetup
+        {
+            self.setupRenderer()
+        }
+
         let rpd1 = MTLRenderPassDescriptor()
     
         if self.inputWidth.valueDidChange || self.inputHeight.valueDidChange,
@@ -138,10 +289,11 @@ public class DeferredSubgraphNode: SubgraphNode
         {
             rpd1.colorAttachments[0].texture = outputImage.texture
             
+            
             self.graphRenderer.executeAndDraw(graph: self.subGraph,
-                                       executionContext: context,
-                                       renderPassDescriptor: rpd1,
-                                       commandBuffer: commandBuffer)
+                                              executionInfo: executionInfo,
+                                              renderPassDescriptor: rpd1,
+                                              commandBuffer: commandBuffer)
             
             self.outputColorTexture.send( outputImage )
         }
@@ -158,6 +310,15 @@ public class DeferredSubgraphNode: SubgraphNode
         {
             self.outputDepthTexture.send( nil )
         }
+
+        if self.deferredMRTEnabled
+        {
+            self.sendAuxiliaryTexture(self.graphRenderer.renderer.albedoTexture, toPortNamed: "outputAlbedoTexture")
+            self.sendAuxiliaryTexture(self.graphRenderer.renderer.normalTexture, toPortNamed: "outputNormalsTexture")
+            self.sendAuxiliaryTexture(self.graphRenderer.renderer.pbrTexture, toPortNamed: "outputPBRTexture")
+            self.sendAuxiliaryTexture(self.graphRenderer.renderer.velocityTexture, toPortNamed: "outputVelocityTexture")
+            self.sendAuxiliaryTexture(self.graphRenderer.renderer.emissiveTexture, toPortNamed: "outputEmissiveTexture")
+        }
         
         // We need to call this to ensure any published port values also get forwarded.
         self.forwardPortValues(force:true)
@@ -165,6 +326,21 @@ public class DeferredSubgraphNode: SubgraphNode
     
     override public func resize(size: (width: Float, height: Float), scaleFactor: Float)
     {
+    }
+
+    override public func providesSettingsView() -> Bool
+    {
+        true
+    }
+
+    override public func settingsView() -> AnyView
+    {
+        AnyView(DeferredSubgraphNodeSettingsView(node: self))
+    }
+
+    override public var settingsSize: SettingsViewSize
+    {
+        .Small
     }
     
 }

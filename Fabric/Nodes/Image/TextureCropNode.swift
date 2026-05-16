@@ -32,12 +32,12 @@ public class TextureCropNode: Node
     public var inputCropHeight: ParameterPort<Int> { port(named: "inputCropHeight") }
     public var outputTexture: NodePort<FabricImage> { port(named: "outputTexture") }
 
-    override public func execute(context: GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        guard let sourceImage = inputTexture.value,
-              let graphRenderer = context.graphRenderer else { return }
+        guard let sourceImage = inputTexture.value else { return }
 
         let srcTex = sourceImage.texture
         let x = max(0, min(inputCropX.value ?? 0, srcTex.width - 1))
@@ -45,7 +45,7 @@ public class TextureCropNode: Node
         let w = max(1, min(inputCropWidth.value ?? 1920, srcTex.width - x))
         let h = max(1, min(inputCropHeight.value ?? 1080, srcTex.height - y))
 
-        guard let outImage = graphRenderer.newImage(withWidth: w, height: h, format: sourceImage.texture.pixelFormat) else { return }
+        guard let outImage = renderer.newImage(withWidth: w, height: h, format: sourceImage.texture.pixelFormat) else { return }
 
         guard let encoder = commandBuffer.makeBlitCommandEncoder() else { return }
         encoder.copy(

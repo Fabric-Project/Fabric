@@ -75,6 +75,7 @@ public class NodeRegistry {
     private var lightNodeClasses: [Node.Type] = [
         DirectionalLightNode.self,
         PointLightNode.self,
+        SpotLightNode.self,
     ]
     
     private var objectNodeClasses: [Node.Type] = [
@@ -144,8 +145,10 @@ public class NodeRegistry {
         #endif
         classes.append(contentsOf: [
             LiveImageNode.self,
+            DepthOfFieldNode.self,
             GaussianBlurNode.self,
             MotionBlurNode.self,
+            PostProcessMotionBlurNode.self,
             ZoomBlurNode.self,
             ForegroundMaskNode.self,
             PersonSegmentationMaskNode.self,

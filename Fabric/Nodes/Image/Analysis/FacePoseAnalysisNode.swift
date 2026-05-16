@@ -74,25 +74,23 @@ public class FacePoseAnalysisNode: Node
     
     private var ciContext:CIContext!
     
-    override public func startExecution(context: GraphExecutionContext) {
+    override public func startExecution(renderer:GraphRenderer) {
 
-        if let commandQueue = context.graphRenderer?.commandQueue
-        {
-            let options = [
-                CIContextOption.cacheIntermediates : false,
-                CIContextOption.highQualityDownsample : false,
-                CIContextOption.workingFormat : CIFormat.RGBAh.rawValue,
-                CIContextOption.workingColorSpace : nil,
-                CIContextOption.outputColorSpace :nil,
-            ] as? [CIContextOption : Any]
-            
-            self.ciContext = CIContext(mtlCommandQueue: commandQueue, options: options)
-        }
+        let options = [
+            CIContextOption.cacheIntermediates : false,
+            CIContextOption.highQualityDownsample : false,
+            CIContextOption.workingFormat : CIFormat.RGBAh.rawValue,
+            CIContextOption.workingColorSpace : nil,
+            CIContextOption.outputColorSpace :nil,
+        ] as? [CIContextOption : Any]
+        
+        self.ciContext = CIContext(mtlCommandQueue: self.context.commandQueue, options: options)
     }
     
-    override public  func execute(context:GraphExecutionContext,
-                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                  commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         if self.inputImage.valueDidChange
         {

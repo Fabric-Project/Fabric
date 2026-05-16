@@ -21,10 +21,10 @@ class CAMetalDisplayLinkRenderer: GameView
     private let renderPassDescriptor = MTLRenderPassDescriptor()
     
 
-    init(graph:Graph)
+    init(graph:Graph, graphRenderer:GraphRenderer)
     {
         self.graph = graph
-        self.graphRenderer = GraphRenderer(context: self.graph.context)
+        self.graphRenderer = graphRenderer
 
 //        self.commandQueue = self.graph.context.device.makeCommandQueue()!
 
@@ -56,48 +56,16 @@ class CAMetalDisplayLinkRenderer: GameView
     
     func setup()
     {
-        
-        // TODO: This becomes more semantically correct later
-        let timing = GraphExecutionTiming(time: CACurrentMediaTime(),
-                                          deltaTime: 0,
-                                          displayTime: 0,
-                                          systemTime: Date.timeIntervalSinceReferenceDate,
-                                          frameNumber: self.graphRenderer.frameIndex)
-        
-        var eventInfo:GraphEventInfo?
-        if let event = self.window?.currentEvent
-        {
-            eventInfo = GraphEventInfo(event:event)
-        }
-        
-        // weird
-        let executionContext = GraphExecutionContext(graphRenderer: graphRenderer,
-                                                     timing: timing,
-                                                     iterationInfo: nil,
-                                                     eventInfo: eventInfo)
-        
-        self.graphRenderer.enableExecution(graph: graph, executionContext: executionContext)
-        self.graphRenderer.startExecution(graph: graph, executionContext: executionContext)
+        self.graphRenderer.enableExecution(graph: graph)
+        self.graphRenderer.startExecution(graph: graph)
     }
     
     func teardown()
     {
         print("CAMetalDisplayLinkRenderer Teardown")
-        // TODO: This becomes more semantically correct later
-        let timing = GraphExecutionTiming(time: CACurrentMediaTime(),
-                                          deltaTime: 0,
-                                          displayTime: 0,
-                                          systemTime: Date.timeIntervalSinceReferenceDate,
-                                          frameNumber: self.graphRenderer.frameIndex)
-
-        
-        let executionContext = GraphExecutionContext(graphRenderer: graphRenderer,
-                                                     timing: timing,
-                                                     iterationInfo: nil,
-                                                     eventInfo: nil)
-        
-        self.graphRenderer.disableExecution(graph: self.graph, executionContext: executionContext)
-        self.graphRenderer.stopExecution(graph: self.graph, executionContext: executionContext)
+                
+        self.graphRenderer.disableExecution(graph: self.graph)
+        self.graphRenderer.stopExecution(graph: self.graph)
         
         self.graphRenderer.teardown(graph: self.graph)
         
@@ -136,18 +104,14 @@ class CAMetalDisplayLinkRenderer: GameView
         }
         
         // weird
-        let executionContext = GraphExecutionContext(graphRenderer: self.graphRenderer,
-                                                     timing: timing,
-                                                     iterationInfo: nil,
-                                                     eventInfo: eventInfo)
+        let executionInfo = GraphExecutionInfo(timing: timing,
+                                               iterationInfo: nil,
+                                               eventInfo: eventInfo)
                 
         self.graphRenderer.executeAndDraw(graph: graph,
-                                     executionContext: executionContext,
+                                     executionInfo: executionInfo,
                                      renderPassDescriptor: self.renderPassDescriptor,
                                      commandBuffer: commandBuffer)
-        //            graphRenderer.draw(renderPassDescriptor: self.renderPassDescriptor, commandBuffer: commandBuffer)
-        
-//        graphRenderer.postDraw(drawable: update.drawable, commandBuffer: commandBuffer)
         commandBuffer.present(update.drawable)
         commandBuffer.commit()
     }

@@ -39,7 +39,8 @@ public class NumberRoundNode : Node
     public var inputRoundMethod:ParameterPort<String> { port(named: "inputRoundMethod") }
     public var outputNumber:NodePort<Int> { port(named: "outputNumber") }
     
-    override public func execute(context:GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
