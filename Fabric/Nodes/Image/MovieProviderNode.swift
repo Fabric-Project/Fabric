@@ -216,22 +216,16 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         }
 
         // Honour seek port. Negative values are the sentinel default —
-        // ignored so the asset isn't seeked to 0 on first load. Skip
-        // when the player is already at the target (a same-target write
-        // arriving while the player happens to be there is a no-op),
-        // but always seek when the player's actual position differs.
-        // This is what makes loop-back enforcement work: every time the
-        // player crosses `outPoint`, the embedder re-writes `inPoint` to
-        // this port and we genuinely re-seek.
+        // ignored so the asset isn't seeked to 0 on first load.
+        // `valueDidChange` already filters identical writes, and in
+        // frame mode the user has explicitly asked for frame-accurate
+        // tracking — so we don't second-guess a different-target write
+        // with a magic-number tolerance.
         if self.inputSeekTimeParam.valueDidChange,
            let raw = self.inputSeekTimeParam.value,
            raw >= 0
         {
-            let target = TimeInterval(raw)
-            if abs(target - self.currentTime) > 0.05
-            {
-                performSeek(to: target)
-            }
+            performSeek(to: TimeInterval(raw))
         }
 
         let time = context.timing.time
