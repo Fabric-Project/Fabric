@@ -56,13 +56,17 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     override public class var nodeTimeMode: Node.TimeMode { .TimeBase }
     override public class var nodeDescription: String { "Play a Movie File from disk, providing a stream of output Images"}
 
-    // Seek behaviour options. `frame` is exact (zero-tolerance) seek;
-    // `keyframe` lets AVPlayer pick the nearest keyframe (default
-    // `kCMTimePositiveInfinity` tolerance), which is faster and avoids
-    // the brief stalls that exact seeks can trigger.
-    public static let seekBehaviourFrame = "frame"
-    public static let seekBehaviourKeyframe = "keyframe"
-    public static let seekBehaviourOptions = [seekBehaviourFrame, seekBehaviourKeyframe]
+    /// Seek tolerance window, in seconds, passed directly to AVPlayer
+    /// as `toleranceBefore` / `toleranceAfter`. Set at construction
+    /// only; not exposed as a port.
+    ///
+    /// `.infinity` (the default) maps to `CMTime.positiveInfinity` —
+    /// AVPlayer picks the nearest keyframe, the fastest option and
+    /// the right default for most playback. `0` maps to `CMTime.zero`
+    /// — exact frame-accurate seek, slower and can stall briefly. Any
+    /// positive finite value lets AVPlayer settle within that many
+    /// seconds of the requested target.
+    public let seekTolerance: TimeInterval
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
@@ -73,7 +77,6 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
             ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the movie file to play"))),
             ("inputPlayingParam", ParameterPort(parameter: BoolParameter("Playing", true, .toggle, "Play / pause the video"))),
             ("inputSeekTimeParam", ParameterPort(parameter: FloatParameter("Seek Time", -1.0, .inputfield, "Write a value to seek the player to that time (seconds). Setting to a different value seeks; setting to the same value is a no-op. Negative values are ignored on first load."))),
-            ("inputSeekBehaviourParam", ParameterPort(parameter: StringParameter("Seek Behaviour", seekBehaviourKeyframe, seekBehaviourOptions, .dropdown, "How precisely seeks resolve — `frame` for an exact (zero-tolerance) seek, `keyframe` for AVPlayer's default fast seek to the nearest keyframe"))),
             ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Current video frame")),
         ]
     }
@@ -81,7 +84,6 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
     public var inputPlayingParam:ParameterPort<Bool>     { port(named: "inputPlayingParam") }
     public var inputSeekTimeParam:ParameterPort<Float>   { port(named: "inputSeekTimeParam") }
-    public var inputSeekBehaviourParam:ParameterPort<String> { port(named: "inputSeekBehaviourParam") }
     public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
 
     @ObservationIgnored private var url: URL? = nil
@@ -151,10 +153,10 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     @ObservationIgnored private var pendingSeekTarget: TimeInterval? = nil
 
     /// Internal seek implementation driven by `inputSeekTimeParam`
-    /// changes in `execute`. Tolerance is selected from
-    /// `inputSeekBehaviourParam`. Re-primes playback (`player.play()`)
-    /// when the user wants the player playing — some seeks (notably
-    /// zero-tolerance ones) leave `rate` at 0 momentarily, which would
+    /// changes in `execute`. Tolerance comes from `seekTolerance`
+    /// (set at init). Re-primes playback (`player.play()`) when the
+    /// user wants the player playing — some seeks (notably zero-
+    /// tolerance ones) leave `rate` at 0 momentarily, which would
     /// otherwise stall the player at the seek target.
     ///
     /// If a seek is already in flight, the new target is stashed in
@@ -178,8 +180,9 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         // is available — e.g. asset still loading.
         let timescale = self.asset?.tracks(withMediaType: .video).first?.naturalTimeScale ?? 600
         let target = CMTime(seconds: clamped, preferredTimescale: timescale)
-        let mode = self.inputSeekBehaviourParam.value ?? Self.seekBehaviourKeyframe
-        let tol: CMTime = (mode == Self.seekBehaviourFrame) ? .zero : .positiveInfinity
+        let tol: CMTime = self.seekTolerance.isInfinite
+            ? .positiveInfinity
+            : CMTime(seconds: self.seekTolerance, preferredTimescale: timescale)
         self.seeking = true
         self.player.seek(to: target, toleranceBefore: tol, toleranceAfter: tol) { [weak self] _ in
             guard let self else { return }
@@ -203,32 +206,51 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     {
         // Forces the initialization when the class is accessed
         _ = MovieProviderNodeInitializer
-        
+
+        self.seekTolerance = .infinity
         self.playerItemVideoOutput = AVPlayerItemVideoOutput(outputSettings: Self.playerOutputSettings() )
         self.playerItemVideoOutput.suppressesPlayerRendering = true
 
         super.init(context: context)
     }
-    
+
+    /// Construct with a custom seek tolerance. Pass `0` for exact
+    /// frame-accurate seeks, `.infinity` for fastest keyframe seeks
+    /// (the default of the other initialisers), or a positive finite
+    /// value to let AVPlayer settle within that many seconds.
+    public init(context: Context, seekTolerance: TimeInterval)
+    {
+        // Forces the initialization when the class is accessed
+        _ = MovieProviderNodeInitializer
+
+        self.seekTolerance = seekTolerance
+        self.playerItemVideoOutput = AVPlayerItemVideoOutput(outputSettings: Self.playerOutputSettings() )
+        self.playerItemVideoOutput.suppressesPlayerRendering = true
+
+        super.init(context: context)
+    }
+
     public required init(context: Satin.Context, fileURL: URL) throws
     {
         // Forces the initialization when the class is accessed
         _ = MovieProviderNodeInitializer
-        
+
+        self.seekTolerance = .infinity
         self.playerItemVideoOutput = AVPlayerItemVideoOutput(outputSettings: Self.playerOutputSettings() )
         self.playerItemVideoOutput.suppressesPlayerRendering = true
 
         super.init(context: context)
-        
+
         self.setFileURL(fileURL)
     }
-    
-    
+
+
     required public init(from decoder: any Decoder) throws
     {
         // Forces the initialization when the class is accessed
         _ = MovieProviderNodeInitializer
 
+        self.seekTolerance = .infinity
         self.playerItemVideoOutput = AVPlayerItemVideoOutput(outputSettings: Self.playerOutputSettings() )
         self.playerItemVideoOutput.suppressesPlayerRendering = true
 
