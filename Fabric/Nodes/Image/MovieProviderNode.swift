@@ -123,14 +123,14 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         return seconds.isFinite ? seconds : 0
     }
 
-    /// `true` while a seek is in flight. Read-only. Embedders can
-    /// safely write fresh values to `inputSeekTimeParam` while this
-    /// is set — fresh writes during an in-flight seek are coalesced
-    /// (the latest target wins, intermediate targets are dropped) and
-    /// re-issued once the in-flight seek lands, so neither stall nor
-    /// cancel the previous seek.
-    public var isSeeking: Bool { self.seeking }
-
+    /// Whether a seek is in flight. Used internally by `performSeek`
+    /// to coalesce concurrent seek requests (see `pendingSeekTarget`)
+    /// and by `execute()` to know when to drain that pending target.
+    ///
+    /// `@ObservationIgnored` because the seek completion handler
+    /// fires on an internal AVPlayer queue, off-main. Fabric's
+    /// `@Observable` engine types are main-thread-affine — without
+    /// the opt-out, the off-main write would be Observation UB.
     @ObservationIgnored private var seeking: Bool = false
 
     /// Set by `performSeek`'s completion handler when the player is
