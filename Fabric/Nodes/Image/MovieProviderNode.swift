@@ -140,7 +140,12 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     {
         guard self.player.currentItem != nil else { return }
         let clamped = max(0, min(seconds, self.duration))
-        let target = CMTime(seconds: clamped, preferredTimescale: 600)
+        // Build the seek time on the video track's natural timescale
+        // so frame-accurate seeks land on actual sample boundaries.
+        // Falls back to 600 (a common timebase) when no video track
+        // is available — e.g. asset still loading.
+        let timescale = self.asset?.tracks(withMediaType: .video).first?.naturalTimeScale ?? 600
+        let target = CMTime(seconds: clamped, preferredTimescale: timescale)
         let mode = self.inputSeekBehaviourParam.value ?? Self.seekBehaviourKeyframe
         let tol: CMTime = (mode == Self.seekBehaviourFrame) ? .zero : .positiveInfinity
         self.seeking = true
