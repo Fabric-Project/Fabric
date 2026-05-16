@@ -29,7 +29,7 @@ public class IcoSphereGeometryNode : BaseGeometryNode
     public var inputResolution:ParameterPort<Int> { port(named: "inputResolution")  }
 
     public override var geometry: IcoSphereGeometry { _geometry }
-    private let _geometry = IcoSphereGeometry(radius: 1.0, resolution: 1)
+    private lazy var _geometry = IcoSphereGeometry(context:self.context, radius: 1.0, resolution: 1)
     
     override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
     {

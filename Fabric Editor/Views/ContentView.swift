@@ -47,7 +47,9 @@ struct ContentView: View {
 
         NavigationSplitView(columnVisibility: self.$columnVisibility)
         {
-            NodeRegisitryView(editingContext: self.document.editingContext, inputFocus: self.$inputFocus)
+            NodeRegisitryView(graphRenderer:self.document.renderer,
+                              editingContext: self.document.editingContext,
+                              inputFocus: self.$inputFocus)
                 .navigationSplitViewColumnWidth(min: 150, ideal: 200, max:250)
 
         } detail: {

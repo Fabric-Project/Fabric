@@ -89,13 +89,11 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
     }
 
     // MARK: - Execution
-    override public func execute(context: GraphExecutionContext,
-                                 renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
+    public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
     {
         guard self.inputImage.valueDidChange,
               let inTex = self.inputImage.value?.texture,
-              let outImage = context.graphRenderer?.newImage(withWidth: inTex.width, height: inTex.height),
+              let outImage = renderer.newImage(withWidth: inTex.width, height: inTex.height),
               let computeEncoder = commandBuffer.makeComputeCommandEncoder()
                 
         else { return }

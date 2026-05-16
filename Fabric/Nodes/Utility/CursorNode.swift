@@ -94,19 +94,19 @@ public class CursorNode : Node
 #endif
     
     
-    override public func execute(context:GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
         
 #if os(macOS)
-        if let event = context.eventInfo?.event,
-           let graphRenderer = context.graphRenderer
+        if let event = executionInfo.eventInfo?.event
         {
             if moveEventTypesWeListenFor.contains(event.type)
             {
                 let point = event.locationInWindow
-                self.outputCursorPosition.send( simd_float2(x: Float(point.x) * graphRenderer.resizeScaleFactor, y: Float(point.y) * graphRenderer.resizeScaleFactor) )
+                self.outputCursorPosition.send( simd_float2(x: Float(point.x) * renderer.resizeScaleFactor, y: Float(point.y) * renderer.resizeScaleFactor) )
             }
             
             if upEventTypesWeListenFor.contains(event.type)
@@ -120,7 +120,7 @@ public class CursorNode : Node
                 self.outputTap.send( true )
              
                 let point = event.locationInWindow
-                self.outputCursorPosition.send( simd_float2(x: Float(point.x) * graphRenderer.resizeScaleFactor, y: Float(point.y) * graphRenderer.resizeScaleFactor) )
+                self.outputCursorPosition.send( simd_float2(x: Float(point.x) * renderer.resizeScaleFactor, y: Float(point.y) * renderer.resizeScaleFactor) )
 
             }
         }

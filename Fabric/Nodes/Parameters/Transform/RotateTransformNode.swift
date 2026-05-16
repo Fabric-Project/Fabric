@@ -35,7 +35,8 @@ public class RotateTransformNode : Node
     public var inputRotation:NodePort<simd_float4> { port(named: "inputRotation") }
     public var outputTransform:NodePort<simd_float4x4> { port(named: "outputTransform") }
     
-    public override func execute(context:GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

@@ -257,9 +257,10 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         try super.init(from:decoder)
     }
 
-    override public func execute(context:GraphExecutionContext,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         if self.inputFilePathParam.valueDidChange
         {
@@ -300,10 +301,10 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
             performSeek(to: pending)
         }
 
-        let time = context.timing.time
+        let time = executionInfo.timing.time
 
 #if FABRIC_HAP_ENABLED
-        if self.executeHapPath(context: context, hostTime: time) { return }
+        if self.executeHapPath(renderer: renderer, hostTime: time) { return }
 #endif
 
         let itemTime = self.playerItemVideoOutput.itemTime(forHostTime: time)
@@ -311,7 +312,6 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         if self.playerItemVideoOutput.hasNewPixelBuffer(forItemTime: itemTime)
         {
             if let pixelBuffer = self.playerItemVideoOutput.copyPixelBuffer(forItemTime: itemTime, itemTimeForDisplay: nil),
-               let renderer = context.graphRenderer,
                let image = renderer.newImage(fromPixelBuffer: pixelBuffer)
             {
                 self.outputTexturePort.send( image )
@@ -326,7 +326,6 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
             self.needsEmitAfterSeek = false
             let pausedTime = item.currentTime()
             if let pixelBuffer = self.playerItemVideoOutput.copyPixelBuffer(forItemTime: pausedTime, itemTimeForDisplay: nil),
-               let renderer = context.graphRenderer,
                let image = renderer.newImage(fromPixelBuffer: pixelBuffer)
             {
                 self.outputTexturePort.send( image )
@@ -351,10 +350,9 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     ///   - RGB fallback (HapY / HapM / HapH / HapA): decoder emits
     ///     RGBA bytes; copy into a CVPixelBuffer like the standard
     ///     AVPlayerItemVideoOutput path.
-    private func executeHapPath(context: GraphExecutionContext, hostTime: CFTimeInterval) -> Bool
+    private func executeHapPath(renderer: GraphRenderer, hostTime: CFTimeInterval) -> Bool
     {
-        guard let hapOutput = self.hapOutput,
-              let renderer = context.graphRenderer
+        guard let hapOutput = self.hapOutput
         else { return false }
 
         let itemTime = hapOutput.itemTime(forHostTime: hostTime)

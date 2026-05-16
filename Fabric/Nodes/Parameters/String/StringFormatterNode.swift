@@ -142,9 +142,11 @@ struct StringFormatSettingsView: View {
 
     // MARK: - Execution
 
-    public override func execute(context: GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer) {
+                                 commandBuffer: MTLCommandBuffer)
+    {
         let inputs = self.inputPorts()
         let anyChanged = inputs.compactMap(\.valueDidChange).contains(true)
 

@@ -39,7 +39,8 @@ public class Vector4ToFloatNode : Node
     public var outputZPort:NodePort<Float> { port(named: "outputZPort") }
     public var outputWPort:NodePort<Float> { port(named: "outputWPort") }
     
-    public override func execute(context:GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

@@ -887,11 +887,12 @@ struct TimelineNodeView: View
     override public var settingsSize: SettingsViewSize { .Custom(size: CGSize(width: 800, height: 500)) }
     // MARK: - Execution
 
-    public override func execute(context: GraphExecutionContext,
-                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                  commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
-        let time = self.inputTime.value ?? Float(context.timing.time)
+        let time = self.inputTime.value ?? Float(executionInfo.timing.time)
         
         // Clamp time for display
         currentTime = max(0, min(duration, time))

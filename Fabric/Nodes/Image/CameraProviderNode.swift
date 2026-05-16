@@ -157,9 +157,10 @@ public class CameraProviderNode : Node
     }
     
   
-    override public func execute(context:GraphExecutionContext,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         
         if self.inputCamera.valueDidChange
@@ -169,7 +170,6 @@ public class CameraProviderNode : Node
         
        
         if let pixelBuffer = self.captureDelegate.pixelBuffer,
-           let renderer = context.graphRenderer,
            let image = renderer.newImage(fromPixelBuffer: pixelBuffer)
         {
             self.outputTexturePort.send( image )                

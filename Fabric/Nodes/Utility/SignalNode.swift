@@ -33,7 +33,8 @@ public class SignalNode : Node
     public var inputValue:NodePort<PortValue> { port(named: "inputValue") }
     public var outputSignal:NodePort<Bool> { port(named: "outputSignal") }
         
-    public override func execute(context:GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

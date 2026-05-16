@@ -102,7 +102,7 @@ internal final class GraphRendererTextureCache {
 
     /// Call once per renderer frame (or per graph evaluation tick).
     /// Use a monotonically increasing frameNumber (e.g. timing.frameNumber).
-    public func resetCacheFor(executionContext:GraphExecutionContext)
+    public func resetCacheFor(executionContext:GraphExecutionInfo)
     {
         let frameNumber = executionContext.timing.frameNumber
         let count = max(1, config.framePoolCount)

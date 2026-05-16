@@ -36,9 +36,10 @@ public class PolyLineSimplifyNode: Node
     public var inputTolerance:ParameterPort<Float> { port(named: "inputTolerance") }
     public var outputPort:NodePort<ContiguousArray<simd_float2>> { port(named: "outputPort") }
     
-    override public func execute(context:GraphExecutionContext,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         if self.inputPort.valueDidChange || self.inputTolerance.valueDidChange,
            let tolerance = self.inputTolerance.value

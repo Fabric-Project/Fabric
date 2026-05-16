@@ -21,6 +21,21 @@ public protocol PortValueRepresentable : Equatable
     
     func canConvertTo(other:PortType) -> Bool
     func convertTo(other:PortType) -> (any PortValueRepresentable)?
+    
+    // We use this now for Float to remove NaN and Inf values
+    // But we might use this in the future to cull other types of bad values
+    // ie infs in transforms or vectors?
+    static func normalizePortValueForSend(_ value: Self?) -> Self?
+}
+
+// This shuold be optimized out by the compiler as a no - op for all values save ones that opt in.
+public extension PortValueRepresentable
+{
+    @inlinable
+    static func normalizePortValueForSend(_ value: Self?) -> Self?
+    {
+        value
+    }
 }
 
 // This is a "boxed" value we use in our cache, and for our new virtual type
@@ -102,6 +117,7 @@ public indirect enum PortValue : PortValueRepresentable
 
 extension Swift.Bool : PortValueRepresentable
 {
+    public func safeValueForSend() -> Bool? { self }
     public static var defaultValue: Bool? { false }
     public static var portType: PortType { .Bool }
     public var portType: PortType { .Bool }
@@ -289,6 +305,14 @@ extension Swift.Float : PortValueRepresentable
         default:
             return nil
         }
+    }
+    
+    // Specialize clean up
+    @inlinable
+    public static func normalizePortValueForSend(_ value: Float?) -> Float?
+    {
+        guard let value else { return nil }
+        return value.isFinite ? value : nil
     }
 }
 

@@ -38,7 +38,7 @@ public class TubeGeometryNode : BaseGeometryNode
 
     public override var geometry: TubeGeometry { _geometry }
 
-    private let _geometry = TubeGeometry(radius: 0.25, height: 0.75, startAngle: 0.0, endAngle: degToRad(90.0), angularResolution: 20, verticalResolution: 5)
+    private lazy var _geometry = TubeGeometry(context:self.context, radius: 0.25, height: 0.75, startAngle: 0.0, endAngle: degToRad(90.0), angularResolution: 20, verticalResolution: 5)
 
     override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
     {

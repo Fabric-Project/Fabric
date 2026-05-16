@@ -211,8 +211,8 @@ public class AudioSpectrumNode : Node
     private var engine = AVAudioEngine()
     
 
-    override public func startExecution(context: GraphExecutionContext) {
-        super.startExecution(context: context)
+    override public func startExecution(renderer:GraphRenderer) {
+        super.startExecution(renderer:renderer)
 
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
             case .authorized: // The user has previously granted access to the camera.
@@ -242,9 +242,9 @@ public class AudioSpectrumNode : Node
         }
     }
     
-    override public func stopExecution(context: GraphExecutionContext)
+    override public func stopExecution(renderer:GraphRenderer)
     {
-        super.stopExecution(context: context)
+        super.stopExecution(renderer:renderer)
 
         let tapNode = self.engine.inputNode
         
@@ -259,14 +259,17 @@ public class AudioSpectrumNode : Node
 //        super.enableExecution(context: context)
 //    }
 
-    override public func disableExecution(context: GraphExecutionContext)
+    override public func disableExecution(renderer:GraphRenderer)
     {
-        super.disableExecution(context: context)
+        super.disableExecution(renderer:renderer)
         
         self.engine.pause()
     }
     
-    override public func execute(context: GraphExecutionContext, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: any MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         
         if self.inputSmoothing.valueDidChange || self.inputBands.valueDidChange,

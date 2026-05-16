@@ -38,9 +38,10 @@ public class ArrayReplaceValueAtIndexNode<Value : PortValueRepresentable & Equat
     public var inputValue:NodePort<Value> { port(named: "inputValue") }
     public var outputPort:NodePort<ContiguousArray<Value>> { port(named: "outputPort") }
 
-    override public func execute(context:GraphExecutionContext,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         if self.inputPort.valueDidChange || self.inputIndexParam.valueDidChange || self.inputValue.valueDidChange,
            var array = self.inputPort.value,

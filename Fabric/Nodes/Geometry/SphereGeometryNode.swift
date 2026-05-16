@@ -32,7 +32,7 @@ public class SphereGeometryNode : BaseGeometryNode
 
     public override var geometry: SphereGeometry { _geometry }
 
-    private let _geometry = SphereGeometry(radius: 1.0, angularResolution: 60, verticalResolution: 30)
+    private lazy var _geometry = SphereGeometry(context:self.context, radius: 1.0, angularResolution: 60, verticalResolution: 30)
     
     override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
     {

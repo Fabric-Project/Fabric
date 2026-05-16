@@ -87,8 +87,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
     public required init(context: Context, fileURL: URL) throws {
         self.url = fileURL
 
-        let material = PostMaterial(pipelineURL: fileURL)
-        material.context = context
+        let material = PostMaterial(context:context, pipelineURL: fileURL)
 
         self.postMaterial = material
         self.postProcessor = PostProcessor(context: context,
@@ -109,8 +108,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         let bundle = Bundle.module
         let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
 
-        let material = PostMaterial(pipelineURL: shaderURL!)
-        material.context = context
+        let material = PostMaterial(context:context, pipelineURL: shaderURL!)
 
         self.postMaterial = material
         self.postProcessor = PostProcessor(context: context,
@@ -144,7 +142,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
     required init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
-        guard let decodeContext = decoder.context else {
+        guard let context = decoder.context?.documentContext as? Context else {
             fatalError("Required Decode Context Not set")
         }
 
@@ -155,11 +153,10 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             if let shaderURL = bundle.resourceURL?.appendingPathComponent(path) {
                 self.url = shaderURL
 
-                let material = PostMaterial(pipelineURL: shaderURL)
-                material.context = decodeContext.documentContext
+                let material = PostMaterial(context:context, pipelineURL: shaderURL)
 
                 self.postMaterial = material
-                self.postProcessor = PostProcessor(context: decodeContext.documentContext,
+                self.postProcessor = PostProcessor(context:context,
                                                    material: material,
                                                    frameBufferOnly: false)
             }
@@ -167,11 +164,10 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
                 let bundle = Bundle.module
                 let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
 
-                let material = PostMaterial(pipelineURL: shaderURL!)
-                material.context = decodeContext.documentContext
+                let material = PostMaterial(context:context,pipelineURL: shaderURL!)
 
                 self.postMaterial = material
-                self.postProcessor = PostProcessor(context: decodeContext.documentContext,
+                self.postProcessor = PostProcessor(context:context,
                                                    material: material,
                                                    frameBufferOnly: false)
             }
@@ -180,11 +176,10 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             let bundle = Bundle.module
             let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
 
-            let material = PostMaterial(pipelineURL: shaderURL!)
-            material.context = decodeContext.documentContext
+            let material = PostMaterial(context:context,pipelineURL: shaderURL!)
 
             self.postMaterial = material
-            self.postProcessor = PostProcessor(context: decodeContext.documentContext,
+            self.postProcessor = PostProcessor(context:context,
                                                material: material,
                                                frameBufferOnly: false)
         }
@@ -563,9 +558,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         return (3, originalIndex)
     }
 
-    override public func execute(context: GraphExecutionContext,
-                                 renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
+    public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
     {
         let anyPortChanged = self.ports.reduce(false) { partialResult, next in
             partialResult || next.valueDidChange
@@ -584,7 +577,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             self.postProcessor.renderer.size.width = Float(width)
             self.postProcessor.renderer.size.height = Float(height)
 
-            guard let outImage = context.graphRenderer?.newImage(withWidth: width, height: height) else {
+            guard let outImage = renderer.newImage(withWidth: width, height: height) else {
                 self.outputTexturePort.send(nil)
                 return
             }
@@ -606,7 +599,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             return
         }
 
-        guard let outImage = context.graphRenderer?.newImage(withWidth: inputTexture0.width, height: inputTexture0.height) else {
+        guard let outImage = renderer.newImage(withWidth: inputTexture0.width, height: inputTexture0.height) else {
             self.outputTexturePort.send(nil)
             return
         }

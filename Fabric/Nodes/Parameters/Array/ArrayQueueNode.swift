@@ -39,9 +39,10 @@ public class ArrayQueueNode<Value : PortValueRepresentable & Equatable> : Node
     
     private var queue:ContiguousArray<Value> = []
     
-    override public func execute(context:GraphExecutionContext,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         
         if self.inputSizeParam.valueDidChange,

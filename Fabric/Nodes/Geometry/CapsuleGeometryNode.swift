@@ -34,7 +34,7 @@ public class CapsuleGeometryNode : BaseGeometryNode
 
     public override var geometry: CapsuleGeometry { _geometry }
 
-    private let _geometry = CapsuleGeometry(radius: 1.0, height: 2.0, angularResolution: 30, radialResolution: 30, verticalResolution: 30)
+    private lazy var _geometry = CapsuleGeometry(context:self.context, radius: 1.0, height: 2.0, angularResolution: 30, radialResolution: 30, verticalResolution: 30)
 
     override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
     {

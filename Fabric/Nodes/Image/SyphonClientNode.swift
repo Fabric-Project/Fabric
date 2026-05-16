@@ -41,18 +41,18 @@ public class SyphonClientNode : Node
     @ObservationIgnored private var texture: (any MTLTexture)? = nil
     
     
-    override public func execute(context:GraphExecutionContext,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         if self.inputServerName.valueDidChange || self.inputServerAppName.valueDidChange,
            let inputServerName = self.inputServerName.value,
-           let inputServerAppName = self.inputServerAppName.value,
-           let device =  context.graphRenderer?.device
+           let inputServerAppName = self.inputServerAppName.value
         {
             if let firstServerDict = SyphonServerDirectory.shared().servers(matchingName: inputServerName, appName: inputServerAppName).first
             {
-                self.syphonClient = SyphonMetalClient(serverDescription: firstServerDict, device:device)
+                self.syphonClient = SyphonMetalClient(serverDescription: firstServerDict, device:renderer.device)
             }
         }
         
