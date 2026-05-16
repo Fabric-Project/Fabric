@@ -237,32 +237,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         let time = context.timing.time
 
 #if FABRIC_HAP_ENABLED
-        // Hap path. Two flavours:
-        //   - DXT direct upload (Hap1 / Hap5 / Hap7): the decompressed
-        //     bytes are already in a Metal-compatible BC1/BC3/BC7
-        //     compressed format. We allocate a compressed MTLTexture
-        //     and upload via `replaceRegion` — no CPU pixel walk, no
-        //     8MB memcpy, ~6× less GPU upload bandwidth than RGBA.
-        //   - RGB fallback (HapY / HapM / HapH / HapA): decoder
-        //     emitted RGBA bytes, copy into a CVPixelBuffer like the
-        //     standard AVPlayerItemVideoOutput path.
-        if let hapOutput = self.hapOutput,
-           let renderer = context.graphRenderer
-        {
-            let itemTime = hapOutput.itemTime(forHostTime: time)
-            guard let frame = hapOutput.allocFrameClosest(to: itemTime) else { return }
-            if self.hapUsesDXTPath,
-               let image = Self.makeDXTImage(fromHapFrame: frame, device: renderer.context.device)
-            {
-                self.outputTexturePort.send( image )
-            }
-            else if let pixelBuffer = Self.makePixelBuffer(fromHapFrame: frame),
-                    let image = renderer.newImage(fromPixelBuffer: pixelBuffer)
-            {
-                self.outputTexturePort.send( image )
-            }
-            return
-        }
+        if self.executeHapPath(context: context, hostTime: time) { return }
 #endif
 
         let itemTime = self.playerItemVideoOutput.itemTime(forHostTime: time)
@@ -293,6 +268,44 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
      }
 
 #if FABRIC_HAP_ENABLED
+    /// Emit the current frame via the Hap decoder when one is attached.
+    ///
+    /// Returns `true` when this node is configured for Hap playback
+    /// (the standard `AVPlayerItemVideoOutput` path should be skipped),
+    /// `false` when there's no Hap output for this asset (caller falls
+    /// through to the standard path).
+    ///
+    /// Two flavours of Hap emit:
+    ///   - DXT direct upload (Hap1 / Hap5 / Hap7): the decompressed
+    ///     bytes are already in a Metal-compatible BC1/BC3/BC7
+    ///     compressed format. We allocate a compressed MTLTexture and
+    ///     upload via `replaceRegion` — no CPU pixel walk, no 8MB
+    ///     memcpy, ~6× less GPU upload bandwidth than RGBA.
+    ///   - RGB fallback (HapY / HapM / HapH / HapA): decoder emits
+    ///     RGBA bytes; copy into a CVPixelBuffer like the standard
+    ///     AVPlayerItemVideoOutput path.
+    private func executeHapPath(context: GraphExecutionContext, hostTime: CFTimeInterval) -> Bool
+    {
+        guard let hapOutput = self.hapOutput,
+              let renderer = context.graphRenderer
+        else { return false }
+
+        let itemTime = hapOutput.itemTime(forHostTime: hostTime)
+        guard let frame = hapOutput.allocFrameClosest(to: itemTime) else { return true }
+
+        if self.hapUsesDXTPath,
+           let image = Self.makeDXTImage(fromHapFrame: frame, device: renderer.context.device)
+        {
+            self.outputTexturePort.send( image )
+        }
+        else if let pixelBuffer = Self.makePixelBuffer(fromHapFrame: frame),
+                let image = renderer.newImage(fromPixelBuffer: pixelBuffer)
+        {
+            self.outputTexturePort.send( image )
+        }
+        return true
+    }
+
     // FourCharCode constants from HapInAVFoundation's
     // HapCodecSubTypes.h / PixelFormats.h. Inlined here because
     // Swift's C importer drops multi-char `#define`s like
