@@ -106,9 +106,16 @@ public class PassThroughNode<T: PortValueRepresentable>: Node
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        if self.input.valueDidChange
+        switch self.nodeExecutionMode
         {
+        case .Provider, .Consumer:
             self.output.send(self.input.value)
+            
+        case .Processor:
+            if self.input.valueDidChange
+            {
+                self.output.send(self.input.value)
+            }
         }
     }
 }
