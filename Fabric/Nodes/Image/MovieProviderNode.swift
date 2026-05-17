@@ -371,6 +371,43 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         return true
     }
 
+    /// Attach a Hap DXT decoder output to `playerItem` when the loaded
+    /// asset is Hap-encoded. Returns `true` when a Hap output was
+    /// attached (caller skips the standard `AVPlayerItemVideoOutput`
+    /// path), `false` when the asset is not Hap or output construction
+    /// failed (caller falls through to the standard path).
+    ///
+    /// Picks the live-performance fast path (DXT direct upload) when
+    /// the codec supports it (Hap1 / Hap5 / Hap7); otherwise switches
+    /// the decoder to RGB output and NSLogs a hint, since RGB
+    /// conversion does a CPU pixel walk + full uncompressed upload
+    /// per frame.
+    private func attachHapOutput(to playerItem: AVPlayerItem, url: URL) -> Bool
+    {
+        guard self.asset?.containsHapVideoTrack() == true,
+              let hapTrack = self.asset?.hapVideoTracks().first as? AVAssetTrack,
+              let output = AVPlayerItemHapDXTOutput(hapAssetTrack: hapTrack)
+        else {
+            self.hapOutput = nil
+            self.hapUsesDXTPath = false
+            return false
+        }
+
+        let useDXT = Self.codecSupportsDirectDXTUpload(in: hapTrack)
+        output.outputAsRGB = !useDXT
+        if !useDXT {
+            output.destRGBPixelFormat = OSType(kCVPixelFormatType_32BGRA)
+            let codec = Self.hapCodecLabel(for: hapTrack) ?? "unknown Hap"
+            NSLog("MovieProviderNode: Hap RGB fallback path engaged for \"%@\" (codec %@). Re-encode as Hap, Hap Alpha, or Hap 7 for the DXT direct-upload fast path.",
+                  url.lastPathComponent, codec)
+        }
+        output.suppressesPlayerRendering = true
+        playerItem.add(output)
+        self.hapOutput = output
+        self.hapUsesDXTPath = useDXT
+        return true
+    }
+
     // FourCharCode constants from HapInAVFoundation's
     // HapCodecSubTypes.h / PixelFormats.h. Inlined here because
     // Swift's C importer drops multi-char `#define`s like
@@ -603,36 +640,9 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
 
                 playerItem.preferredForwardBufferDuration = 0.5
 #if FABRIC_HAP_ENABLED
-                // Hap-encoded movies use a dedicated decoder that emits
-                // RGB pixel buffers via HapInAVFoundation. Falls back to
-                // the standard AVPlayerItemVideoOutput for everything else.
-                if self.asset?.containsHapVideoTrack() == true,
-                   let hapTrack = self.asset?.hapVideoTracks().first as? AVAssetTrack,
-                   let output = AVPlayerItemHapDXTOutput(hapAssetTrack: hapTrack) {
-                    // Pick the live-performance fast path (DXT direct
-                    // upload) when the codec supports it; otherwise the
-                    // RGB conversion path covers the harder cases.
-                    let useDXT = Self.codecSupportsDirectDXTUpload(in: hapTrack)
-                    output.outputAsRGB = !useDXT
-                    if !useDXT {
-                        output.destRGBPixelFormat = OSType(kCVPixelFormatType_32BGRA)
-                        // Surface the slow path. RGB conversion does a
-                        // CPU pixel walk + 8MB upload per 1080p frame —
-                        // the operator should know they're on it so
-                        // they can re-encode to a fast-path codec
-                        // (Hap, Hap Alpha, or Hap 7) for live use.
-                        let codec = Self.hapCodecLabel(for: hapTrack) ?? "unknown Hap"
-                        NSLog("MovieProviderNode: Hap RGB fallback path engaged for \"%@\" (codec %@). Re-encode as Hap, Hap Alpha, or Hap 7 for the DXT direct-upload fast path.",
-                              url.lastPathComponent, codec)
-                    }
-                    output.suppressesPlayerRendering = true
-                    playerItem.add(output)
-                    self.hapOutput = output
-                    self.hapUsesDXTPath = useDXT
-                } else {
+                if !self.attachHapOutput(to: playerItem, url: url)
+                {
                     playerItem.add(self.playerItemVideoOutput)
-                    self.hapOutput = nil
-                    self.hapUsesDXTPath = false
                 }
 #else
                 playerItem.add(self.playerItemVideoOutput)
