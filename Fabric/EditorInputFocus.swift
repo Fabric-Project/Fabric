@@ -54,3 +54,36 @@ extension EnvironmentValues
         set { self[EditorInputFocusSetterKey.self] = newValue }
     }
 }
+
+extension View
+{
+    /// Apply to any focusable control (typically a TextField) inside
+    /// a node-settings popover. When the control gains focus, pushes
+    /// the editor's input focus to `.nodeSettings` so the GraphCanvas
+    /// key handler yields arrow keys back to the control.
+    ///
+    /// Bundles the `@Environment(\.setEditorInputFocus)` read and the
+    /// focus-change observer so per-field call sites stay one line.
+    /// Safe to apply to fields that already have their own
+    /// `@FocusState` + `.focused(...)` — SwiftUI tolerates multiple
+    /// `.focused` modifiers on the same field, each tracking it.
+    func reclaimsNodeSettingsFocus() -> some View
+    {
+        modifier(ReclaimsNodeSettingsFocusModifier())
+    }
+}
+
+private struct ReclaimsNodeSettingsFocusModifier: ViewModifier
+{
+    @FocusState private var focused: Bool
+    @Environment(\.setEditorInputFocus) private var setEditorInputFocus
+
+    func body(content: Content) -> some View
+    {
+        content
+            .focused($focused)
+            .onChange(of: focused) { _, isFocused in
+                if isFocused { setEditorInputFocus(.nodeSettings) }
+            }
+    }
+}

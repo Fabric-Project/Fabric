@@ -73,6 +73,7 @@ struct StringFormatSettingsView: View {
                 .lineLimit(1)
                 .font(.system(size: 10))
                 .textFieldStyle(RoundedBorderTextFieldStyle())
+                .reclaimsNodeSettingsFocus()
         }
     }
 }

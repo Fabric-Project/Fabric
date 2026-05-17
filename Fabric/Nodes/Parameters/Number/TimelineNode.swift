@@ -249,6 +249,7 @@ struct TimelineTrackView: View
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .frame(width: 120)
                     .font(.system(size: 10))
+                    .reclaimsNodeSettingsFocus()
 
                     Spacer()
 
@@ -659,6 +660,7 @@ struct TimelineNodeView: View
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .frame(width: 60)
                     .font(.system(size: 10))
+                    .reclaimsNodeSettingsFocus()
 
                 Button("+Track")
                 {

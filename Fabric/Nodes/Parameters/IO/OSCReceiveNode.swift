@@ -81,6 +81,7 @@ struct OSCAddressConfigView: View
                 ))
                 .textFieldStyle(RoundedBorderTextFieldStyle())
                 .font(.system(size: 10))
+                .reclaimsNodeSettingsFocus()
 
                 Picker("", selection: Binding(
                     get: { node.addressBindings[index].dataType },
@@ -128,6 +129,7 @@ struct OSCReceiveNodeView: View
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .font(.system(size: 10))
                     .frame(width: 80)
+                    .reclaimsNodeSettingsFocus()
 
                 Spacer()
 
