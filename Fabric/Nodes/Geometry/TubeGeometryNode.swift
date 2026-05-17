@@ -22,8 +22,8 @@ public class TubeGeometryNode : BaseGeometryNode
             ("inputHeight",  ParameterPort(parameter:FloatParameter("Height", 0.75, .inputfield, "Height of the tube in world units"))),
             ("inputStartAngle",  ParameterPort(parameter:FloatParameter("Start Angle", 0.0, .inputfield, "Starting angle of the tube arc in degrees"))),
             ("inputEndAngle",  ParameterPort(parameter:FloatParameter("End Angle", 90.0, .inputfield, "Ending angle of the tube arc in degrees"))),
-            ("inputAngularResolution",  ParameterPort(parameter:IntParameter("Angular Resolution", 20, .inputfield, "Number of segments around the tube circumference"))),
-            ("inputVerticalResolution",  ParameterPort(parameter:IntParameter("Vertical Resolution", 5, .inputfield, "Number of segments along the tube height"))),
+            ("inputAngularResolution",  ParameterPort(parameter:IntParameter("Angular Segments", 20, .inputfield, "Number of segments around the tube circumference"))),
+            ("inputVerticalResolution",  ParameterPort(parameter:IntParameter("Vertical Segments", 5, .inputfield, "Number of segments along the tube height"))),
 
         ] + ports
     }

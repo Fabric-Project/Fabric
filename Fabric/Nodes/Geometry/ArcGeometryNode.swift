@@ -22,8 +22,8 @@ public class ArcGeometryNode : BaseGeometryNode
             ("inputOuteradius",  ParameterPort(parameter:FloatParameter("Outer Radius", 0.75, .inputfield, "Outer radius of the arc ring in world units"))),
             ("inputStartAngle",  ParameterPort(parameter:FloatParameter("Start Angle", 0.0, .inputfield, "Starting angle of the arc in degrees"))),
             ("inputEndAngle",  ParameterPort(parameter:FloatParameter("End Angle", 90.0, .inputfield, "Ending angle of the arc in degrees"))),
-        ("inputAngularResolution",  ParameterPort(parameter:IntParameter("Angular Resolution", 20, .inputfield, "Number of segments along the arc curve"))),
-        ("inputRadialResolution",  ParameterPort(parameter:IntParameter("Radial Resolution", 5, .inputfield, "Number of segments from inner to outer radius"))),
+        ("inputAngularResolution",  ParameterPort(parameter:IntParameter("Angular Segments", 20, .inputfield, "Number of segments along the arc curve"))),
+        ("inputRadialResolution",  ParameterPort(parameter:IntParameter("Radial Segments", 5, .inputfield, "Number of segments from inner to outer radius"))),
 
         ] + ports
     }

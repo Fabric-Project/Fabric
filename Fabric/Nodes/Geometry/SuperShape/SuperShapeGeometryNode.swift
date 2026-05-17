@@ -152,7 +152,7 @@ class SuperShapeGeometryNode : BaseGeometryNode
             ("n12Param", ParameterPort(parameter:FloatParameter("N12", 1.0, 0.0, 100.0, .slider, "First shape exponent n1 for the second supershape"))),
             ("n22Param", ParameterPort(parameter:FloatParameter("N22", 1.371561, 0.0, 100.0, .slider, "Second shape exponent n2 for the second supershape"))),
             ("n32Param", ParameterPort(parameter:FloatParameter("N32", 0.651718, 0.0, 100.0, .slider, "Third shape exponent n3 for the second supershape"))),
-            ("resParam", ParameterPort(parameter:IntParameter("Resolution", 300, 3, 300, .inputfield, "Mesh resolution for both angular and vertical divisions"))),
+            ("resParam", ParameterPort(parameter:IntParameter("Segments", 300, 3, 300, .inputfield, "Mesh segment count (resolution) for both angular and vertical divisions"))),
         ]
     }
 
