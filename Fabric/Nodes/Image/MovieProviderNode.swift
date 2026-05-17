@@ -333,6 +333,111 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         }
      }
 
+
+    private static func playerOutputSettings() -> [String : Any]
+    {
+        // HD
+//        let colorPropertySettings = [
+//            AVVideoColorPrimariesKey: AVVideoColorPrimaries_ITU_R_709_2,
+//            AVVideoYCbCrMatrixKey: AVVideoTransferFunction_ITU_R_709_2,
+//            AVVideoTransferFunctionKey: AVVideoYCbCrMatrix_ITU_R_709_2
+//        ]
+
+        // HD Wide Gamut
+//        let colorPropertySettings = [
+//            AVVideoColorPrimariesKey: AVVideoColorPrimaries_P3_D65,
+//            AVVideoYCbCrMatrixKey: AVVideoTransferFunction_ITU_R_709_2,
+//            AVVideoTransferFunctionKey: AVVideoYCbCrMatrix_ITU_R_709_2
+//        ]
+
+        // Linear
+//        let colorPropertySettings = [
+//                   AVVideoColorPrimariesKey: AVVideoColorPrimaries_P3_D65,
+//                   AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_2020,
+//                   AVVideoTransferFunctionKey: AVVideoTransferFunction_Linear
+//               ]
+
+        return [
+            String(kCVPixelBufferPixelFormatTypeKey) : Int( kCVPixelFormatType_32BGRA ),
+            String(kCVPixelBufferMetalCompatibilityKey) : true,
+            String(kCVPixelBufferIOSurfacePropertiesKey) : [:],
+//            AVVideoColorPropertiesKey : colorPropertySettings,
+//            AVVideoAllowWideColorKey : true,
+        ] as [String : Any]
+    }
+
+    private func loadAssetFromInputValue()
+    {
+        if let path = self.inputFilePathParam.value,
+           path.isEmpty == false && self.url != URL(string: path)
+        {
+            self.url = URL(string: path)
+
+            if let url,
+                FileManager.default.fileExists(atPath: url.standardizedFileURL.path(percentEncoded: false) )
+            {
+                if let observer = self.observer
+                {
+                    NotificationCenter.default.removeObserver(observer)
+                }
+
+                self.player.pause()
+
+                if let oldItem = self.player.currentItem
+                {
+                    oldItem.remove(self.playerItemVideoOutput)
+#if FABRIC_HAP_ENABLED
+                    if let oldHap = self.hapOutput {
+                        oldItem.remove(oldHap)
+                    }
+#endif
+                }
+
+                self.asset = AVURLAsset(url: url, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
+
+
+                let playerItem = AVPlayerItem(asset: self.asset!, automaticallyLoadedAssetKeys: ["tracks", "metadata", "duration"])
+
+                playerItem.preferredForwardBufferDuration = 0.5
+#if FABRIC_HAP_ENABLED
+                if !self.attachHapOutput(to: playerItem, url: url)
+                {
+                    playerItem.add(self.playerItemVideoOutput)
+                }
+#else
+                playerItem.add(self.playerItemVideoOutput)
+#endif
+
+                self.observer = NotificationCenter.default.addObserver(forName: AVPlayerItem.didPlayToEndTimeNotification,
+                                                       object:playerItem,
+                                                       queue:OperationQueue.main) { note in
+
+                    self.player.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero)
+                    self.player.play()
+                }
+
+                self.player.replaceCurrentItem(with: playerItem)
+
+                self.player.volume = 0.0
+                self.player.actionAtItemEnd = .none
+                if (self.inputPlayingParam.value ?? true)
+                {
+                    self.player.play()
+                }
+                else
+                {
+                    self.player.pause()
+                }
+            }
+            else
+            {
+                self.outputTexturePort.send( nil )
+
+                print("wtf")
+            }
+        }
+    }
+
 #if FABRIC_HAP_ENABLED
     /// Emit the current frame via the Hap decoder when one is attached.
     ///
@@ -572,109 +677,4 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         return pixelBuffer
     }
 #endif
-
-    
-    private static func playerOutputSettings() -> [String : Any]
-    {
-        // HD
-//        let colorPropertySettings = [
-//            AVVideoColorPrimariesKey: AVVideoColorPrimaries_ITU_R_709_2,
-//            AVVideoYCbCrMatrixKey: AVVideoTransferFunction_ITU_R_709_2,
-//            AVVideoTransferFunctionKey: AVVideoYCbCrMatrix_ITU_R_709_2
-//        ]
-        
-        // HD Wide Gamut
-//        let colorPropertySettings = [
-//            AVVideoColorPrimariesKey: AVVideoColorPrimaries_P3_D65,
-//            AVVideoYCbCrMatrixKey: AVVideoTransferFunction_ITU_R_709_2,
-//            AVVideoTransferFunctionKey: AVVideoYCbCrMatrix_ITU_R_709_2
-//        ]
-        
-        // Linear
-//        let colorPropertySettings = [
-//                   AVVideoColorPrimariesKey: AVVideoColorPrimaries_P3_D65,
-//                   AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_2020,
-//                   AVVideoTransferFunctionKey: AVVideoTransferFunction_Linear
-//               ]
-      
-        return [
-            String(kCVPixelBufferPixelFormatTypeKey) : Int( kCVPixelFormatType_32BGRA ),
-            String(kCVPixelBufferMetalCompatibilityKey) : true,
-            String(kCVPixelBufferIOSurfacePropertiesKey) : [:],
-//            AVVideoColorPropertiesKey : colorPropertySettings,
-//            AVVideoAllowWideColorKey : true,
-        ] as [String : Any]
-    }
-    
-    private func loadAssetFromInputValue()
-    {
-        if let path = self.inputFilePathParam.value,
-           path.isEmpty == false && self.url != URL(string: path)
-        {
-            self.url = URL(string: path)
-            
-            if let url,
-                FileManager.default.fileExists(atPath: url.standardizedFileURL.path(percentEncoded: false) )
-            {
-                if let observer = self.observer
-                {
-                    NotificationCenter.default.removeObserver(observer)
-                }
-                
-                self.player.pause()
-
-                if let oldItem = self.player.currentItem
-                {
-                    oldItem.remove(self.playerItemVideoOutput)
-#if FABRIC_HAP_ENABLED
-                    if let oldHap = self.hapOutput {
-                        oldItem.remove(oldHap)
-                    }
-#endif
-                }
-
-                self.asset = AVURLAsset(url: url, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
-
-
-                let playerItem = AVPlayerItem(asset: self.asset!, automaticallyLoadedAssetKeys: ["tracks", "metadata", "duration"])
-
-                playerItem.preferredForwardBufferDuration = 0.5
-#if FABRIC_HAP_ENABLED
-                if !self.attachHapOutput(to: playerItem, url: url)
-                {
-                    playerItem.add(self.playerItemVideoOutput)
-                }
-#else
-                playerItem.add(self.playerItemVideoOutput)
-#endif
-                
-                self.observer = NotificationCenter.default.addObserver(forName: AVPlayerItem.didPlayToEndTimeNotification,
-                                                       object:playerItem,
-                                                       queue:OperationQueue.main) { note in
-
-                    self.player.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero)
-                    self.player.play()
-                }
-
-                self.player.replaceCurrentItem(with: playerItem)
-
-                self.player.volume = 0.0
-                self.player.actionAtItemEnd = .none
-                if (self.inputPlayingParam.value ?? true)
-                {
-                    self.player.play()
-                }
-                else
-                {
-                    self.player.pause()
-                }
-            }
-            else
-            {
-                self.outputTexturePort.send( nil )
-
-                print("wtf")
-            }
-        }
-    }
 }
