@@ -252,7 +252,7 @@ import UniformTypeIdentifiers
             self.parameterGroup.append(param)
         }
         
-        self.graph?.shouldUpdateConnections.toggle()
+        self.graph?.shouldUpdateConnections = true
     }
     
     public func removePort(_ p: Port)
@@ -263,7 +263,7 @@ import UniformTypeIdentifiers
             self.parameterGroup.remove(param)
         }
         
-        self.graph?.shouldUpdateConnections.toggle()
+        self.graph?.shouldUpdateConnections = true
     }
     
     public func replaceParameterOfPort(_ port:Port, withParam param:(any Parameter))

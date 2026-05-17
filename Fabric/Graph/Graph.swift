@@ -49,7 +49,15 @@ internal import AnyCodable
         return renderableNodes.compactMap { $0.getObject() as? Satin.Renderable }
     }
     
-    // Fix for #103 - this now triggers syncNodesToScene() inside of `GraphRenderer`
+    // Dirty flag consumed by `GraphRenderer.executeAndDraw`, which
+    // snapshots and clears it to drive `syncNodesToScene()`, and by
+    // SwiftUI `.id(...)` modifiers in GraphCanvas / NodeSelectionInspector
+    // that force a rebuild on change. Fix for #103.
+    //
+    // **Contract: write `= true` to mark dirty; never `.toggle()`.**
+    // The renderer clears back to `false`. Toggling pairs of writes
+    // in a single batch (e.g. rename = 1 remove + 1 add) cancel out
+    // and silently skip both the scene sync and the `.id(...)` rebuild.
     public var shouldUpdateConnections = false
   
 

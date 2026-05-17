@@ -543,7 +543,7 @@ public struct GraphCanvas : View
                         .onTapGesture(count: 2)
                     {
                         port.disconnect(from:connectedPort)
-                        currentGraph.shouldUpdateConnections.toggle()
+                        currentGraph.shouldUpdateConnections = true
                     }
                 }
             }

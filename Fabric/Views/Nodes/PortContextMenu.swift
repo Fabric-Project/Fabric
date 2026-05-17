@@ -65,6 +65,6 @@ struct PortContextMenu: View
     private func disconnect()
     {
         port.disconnectAll()
-        graph.shouldUpdateConnections.toggle()
+        graph.shouldUpdateConnections = true
     }
 }
