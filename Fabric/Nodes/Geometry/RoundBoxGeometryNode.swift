@@ -22,7 +22,7 @@ public class RoundBoxGeometryNode : BaseGeometryNode
         return  [
         ("inputSize", ParameterPort(parameter:Float3Parameter("Size", .zero, .inputfield, "Dimensions of the box (width, height, depth) in world units"))),
         ("inputRadius", ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield, "Corner radius for the rounded edges in world units"))),
-        ("inputResolution", ParameterPort(parameter:IntParameter("Resolution", 1, .inputfield, "Number of segments for the rounded corners"))),
+        ("inputResolution", ParameterPort(parameter:IntParameter("Segments", 1, .inputfield, "Number of segments for the rounded corners"))),
 
         ] + ports
     }

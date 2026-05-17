@@ -20,8 +20,8 @@ public class TorusGeometryNode : BaseGeometryNode
         return  [
             ("inputMinorRadius",  ParameterPort(parameter:FloatParameter("Minor Radius", 5.0, .inputfield, "Radius of the tube cross-section in world units"))),
             ("inputMajorRadius",  ParameterPort(parameter:FloatParameter("Major Radius", 0.25, .inputfield, "Distance from center to tube center in world units"))),
-            ("inputMinorResolution",  ParameterPort(parameter:IntParameter("Minor Resolution", 20, .inputfield, "Number of segments around the tube cross-section"))),
-            ("inputMajorResolution",  ParameterPort(parameter:IntParameter("Major Resolution", 20, .inputfield, "Number of segments around the torus ring"))),
+            ("inputMinorResolution",  ParameterPort(parameter:IntParameter("Minor Segments", 20, .inputfield, "Number of segments around the tube cross-section"))),
+            ("inputMajorResolution",  ParameterPort(parameter:IntParameter("Major Segments", 20, .inputfield, "Number of segments around the torus ring"))),
 
         ] + ports
     }

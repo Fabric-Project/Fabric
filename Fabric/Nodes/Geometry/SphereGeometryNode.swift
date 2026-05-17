@@ -19,8 +19,8 @@ public class SphereGeometryNode : BaseGeometryNode
         
         return  [
         ("inputRadius", ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield, "Radius of the sphere in world units"))),
-        ("inputAngularResolution", ParameterPort(parameter:IntParameter("Angular Resolution", 60, .inputfield, "Number of segments around the circumference"))),
-        ("inputVerticalResolution", ParameterPort(parameter:IntParameter("Vertical Resolution", 30, .inputfield, "Number of segments from pole to pole"))),
+        ("inputAngularResolution", ParameterPort(parameter:IntParameter("Angular Segments", 60, .inputfield, "Number of segments around the circumference"))),
+        ("inputVerticalResolution", ParameterPort(parameter:IntParameter("Vertical Segments", 30, .inputfield, "Number of segments from pole to pole"))),
 
         ] + ports
     }

@@ -18,8 +18,8 @@ public class IcoSphereGeometryNode : BaseGeometryNode
         let ports = super.registerPorts(context: context)
         
         return  [
-        ("inputRadius",  ParameterPort(parameter:FloatParameter("inputRadius", 1.0, .inputfield, "Radius of the icosphere in world units"))),
-        ("inputResolution",  ParameterPort(parameter:IntParameter("inputResolution", 1, .inputfield, "Subdivision level for mesh detail (higher = more triangles)"))),
+        ("inputRadius",  ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield, "Radius of the icosphere in world units"))),
+        ("inputResolution",  ParameterPort(parameter:IntParameter("Segments", 1, .inputfield, "Subdivision level for mesh detail (higher = more triangles)"))),
 
         ] + ports
     }
