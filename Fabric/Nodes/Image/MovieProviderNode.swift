@@ -359,7 +359,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         guard let frame = hapOutput.allocFrameClosest(to: itemTime) else { return true }
 
         if self.hapUsesDXTPath,
-           let image = Self.makeDXTImage(fromHapFrame: frame, device: renderer.context.device)
+           let image = Self.makeDXTImage(fromHapFrame: frame, renderer: renderer)
         {
             self.outputTexturePort.send( image )
         }
@@ -450,11 +450,12 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     /// bytes into a compressed MTLTexture in one upload. No RGB
     /// expansion, no memcpy of decompressed pixels.
     ///
-    /// Trade-off: a fresh MTLTexture is allocated per frame. Metal's
-    /// allocator handles this well at 60fps for typical Hap frame
-    /// sizes (~0.5–2MB compressed); a texture pool would be a
-    /// follow-up optimisation if profiling shows allocator pressure.
-    private static func makeDXTImage(fromHapFrame frame: HapDecoderFrame, device: MTLDevice) -> FabricImage? {
+    /// Textures come from `GraphRenderer.sharedTextureCache` — heap-
+    /// backed, ring-recycled per-frame. BC formats are sampled-only,
+    /// so we override the cache's default usage to `[.shaderRead]`;
+    /// `.shared` storage is required because the upload is a CPU-side
+    /// `replace(region:)` (illegal on `.private` on macOS).
+    private static func makeDXTImage(fromHapFrame frame: HapDecoderFrame, renderer: GraphRenderer) -> FabricImage? {
         // Hap Q Alpha is encoded as two planes (BC3 + RGTC1). The
         // single-plane Metal upload path here doesn't handle that;
         // those frames fall back via `outputAsRGB` at asset load.
@@ -469,19 +470,14 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         let dxtData = frame.dxtDatas[0]
         guard dxtData != nil else { return nil }
 
-        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: mtlFormat,
+        guard let image = renderer.sharedTextureCache.newManagedImage(
             width: width,
             height: height,
-            mipmapped: false
-        )
-        // BC formats can't be render targets or shader writes — only
-        // sampled. Storage `.shared` keeps the upload a single
-        // CPU→GPU copy on UMA hardware (Apple Silicon).
-        descriptor.usage = [.shaderRead]
-        descriptor.storageMode = .shared
-
-        guard let texture = device.makeTexture(descriptor: descriptor) else { return nil }
+            pixelFormat: mtlFormat,
+            usage: [.shaderRead],
+            mipmapped: false,
+            label: "MovieProviderNode.HapDXT"
+        ) else { return nil }
 
         // BC1 packs a 4×4 block in 8 bytes; BC3 / BC7 in 16 bytes.
         let blocksPerRow = (width + 3) / 4
@@ -489,9 +485,9 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         let bytesPerRow = blocksPerRow * bytesPerBlock
 
         let region = MTLRegionMake2D(0, 0, width, height)
-        texture.replace(region: region, mipmapLevel: 0, withBytes: dxtData!, bytesPerRow: bytesPerRow)
+        image.texture.replace(region: region, mipmapLevel: 0, withBytes: dxtData!, bytesPerRow: bytesPerRow)
 
-        return FabricImage.unmanaged(texture: texture)
+        return image
     }
 
     /// Copy the Hap decoder frame's RGB bytes into a freshly-allocated
