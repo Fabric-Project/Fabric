@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import os
 import Satin
 import simd
 import Metal
@@ -21,7 +22,7 @@ import HapInAVFoundation
 
 private let MovieProviderNodeInitializer: Void = {
 
-    print("One Time Global setup for MovieTextureNode")
+    MovieProviderNode.log.notice("One-time global codec registration for MovieProviderNode")
 
     #if os(macOS)
     // Register professional video workflow codecs (ProRes, etc.) - macOS only
@@ -34,7 +35,8 @@ private let MovieProviderNodeInitializer: Void = {
 
 public class MovieProviderNode : Node, NodeFileLoadingProtocol
 {
-  
+    fileprivate static let log = Logger(subsystem: "graphics.fabric", category: "MovieProviderNode")
+
     public static var supportedContentTypes: [UTType] {
         if #available(iOS 26.0, macOS 26.0, *)
         {
@@ -433,7 +435,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
             {
                 self.outputTexturePort.send( nil )
 
-                print("wtf")
+                Self.log.error("Movie file not found at \(self.url?.path() ?? "<nil>", privacy: .public)")
             }
         }
     }
@@ -484,9 +486,8 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     ///
     /// Picks the live-performance fast path (DXT direct upload) when
     /// the codec supports it (Hap1 / Hap5 / Hap7); otherwise switches
-    /// the decoder to RGB output and NSLogs a hint, since RGB
-    /// conversion does a CPU pixel walk + full uncompressed upload
-    /// per frame.
+    /// the decoder to RGB output and logs a hint, since RGB conversion
+    /// does a CPU pixel walk + full uncompressed upload per frame.
     private func attachHapOutput(to playerItem: AVPlayerItem, url: URL) -> Bool
     {
         guard self.asset?.containsHapVideoTrack() == true,
@@ -503,8 +504,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         if !useDXT {
             output.destRGBPixelFormat = OSType(kCVPixelFormatType_32BGRA)
             let codec = Self.hapCodecLabel(for: hapTrack) ?? "unknown Hap"
-            NSLog("MovieProviderNode: Hap RGB fallback path engaged for \"%@\" (codec %@). Re-encode as Hap, Hap Alpha, or Hap 7 for the DXT direct-upload fast path.",
-                  url.lastPathComponent, codec)
+            Self.log.notice("Hap RGB fallback path engaged for \"\(url.lastPathComponent, privacy: .public)\" (codec \(codec, privacy: .public)). Re-encode as Hap, Hap Alpha, or Hap 7 for the DXT direct-upload fast path.")
         }
         output.suppressesPlayerRendering = true
         playerItem.add(output)
