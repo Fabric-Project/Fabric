@@ -24,9 +24,18 @@ import Foundation
   resorting to Objective-C runtime features or unsafe reflection.
  */
 
+@Observable
 final class PortRegistry
 {
-    // stable order for UI/layout, serialize as array
+    // stable order for UI/layout, serialize as array.
+    // Observed: reads of `Node.ports` go through `all()` → `ordered`,
+    // so SwiftUI views that read `node.ports` re-render naturally
+    // when ports are added, removed, or reordered. (Replaces the
+    // older pattern of bumping `Graph.shouldUpdateConnections` to
+    // refresh ports, which was parity-sensitive: an even number of
+    // toggles in a single batch — e.g. rename = 1 remove + 1 add —
+    // landed on the same Bool value and silently skipped the
+    // `.id(...)` rebuild.)
     private(set) var ordered: [Port] = []
     // lookup by friendly name
     private var byName: [String: Port] = [:]
