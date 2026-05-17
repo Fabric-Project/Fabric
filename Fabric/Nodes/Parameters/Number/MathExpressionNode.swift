@@ -30,9 +30,6 @@ struct MathExpressionView : View
     /// AppKit field is left untouched. The cursor / selection
     /// survives the eval.
     @State private var buffer: String = ""
-    /// Tracks the in-flight debounce. Cancelled on each keystroke so
-    /// only the trailing edit triggers a re-parse + port rebuild.
-    @State private var debounceTask: Task<Void, Never>?
     @FocusState private var focused: Bool
 
     /// How long the field has to stay quiet before the expression
@@ -58,18 +55,24 @@ struct MathExpressionView : View
                 .onChange(of: focused) { _, isFocused in
                     if !isFocused { commit() }
                 }
-                .onChange(of: buffer) { _, _ in
-                    // Schedule the eval. Until it fires (or Enter /
-                    // defocus pre-empts), the buffer is the source of
-                    // truth — the node's `stringExpression` is left
-                    // alone so AppKit doesn't see a re-write of the
-                    // text and reset selection.
-                    debounceTask?.cancel()
-                    debounceTask = Task {
-                        try? await Task.sleep(for: .seconds(Self.debounceSeconds))
-                        guard !Task.isCancelled else { return }
-                        commit()
-                    }
+                .task(id: buffer) {
+                    // Debounce the eval. `.task(id:)` cancels the
+                    // prior sleep on every buffer change and restarts,
+                    // so only the trailing edit triggers a re-parse +
+                    // port rebuild. Until it fires (or Enter / defocus
+                    // pre-empts), the buffer is the source of truth
+                    // — the node's `stringExpression` is left alone
+                    // so AppKit doesn't see a re-write of the text
+                    // and reset selection.
+                    //
+                    // Skip the initial fire on appear: `.onAppear`
+                    // seeds buffer from `node.stringExpression`, and
+                    // there's nothing to commit when they already
+                    // match.
+                    guard buffer != node.stringExpression else { return }
+                    try? await Task.sleep(for: .seconds(Self.debounceSeconds))
+                    guard !Task.isCancelled else { return }
+                    commit()
                 }
                 .onChange(of: node.stringExpression) { _, new in
                     // External edit (undo / redo / scripted). Sync
@@ -83,7 +86,6 @@ struct MathExpressionView : View
     }
 
     private func commit() {
-        debounceTask?.cancel()
         let old = node.stringExpression
         let new = buffer
         if new != old {
@@ -95,21 +97,31 @@ struct MathExpressionView : View
 
     /// Register a single undo step covering this commit's full edit
     /// (every keystroke since the last commit collapses into one
-    /// ⌘Z). The symmetric pattern — undo handler registers redo —
-    /// bounces back and forth across redo / undo cycles.
+    /// ⌘Z). Each invocation re-registers its inverse, so undo / redo
+    /// can bounce back and forth indefinitely.
     private func registerUndo(from old: String, to new: String) {
         guard let undo = node.graph?.undoManager else { return }
-        undo.registerUndo(withTarget: node) { n in
-            let redoTarget = n.stringExpression
-            n.graph?.undoManager?.registerUndo(withTarget: n) { n2 in
-                n2.stringExpression = redoTarget
-                n2.commitExpression()
-            }
-            n.graph?.undoManager?.setActionName("Edit Math Expression")
-            n.stringExpression = old
+        Self.registerReversibleEdit(node: node,
+                                    applying: old,
+                                    inverse: new,
+                                    undoManager: undo)
+    }
+
+    private static func registerReversibleEdit(node: MathExpressionNode,
+                                               applying valueOnInvoke: String,
+                                               inverse: String,
+                                               undoManager: UndoManager) {
+        undoManager.registerUndo(withTarget: node) { n in
+            n.stringExpression = valueOnInvoke
             n.commitExpression()
+            if let um = n.graph?.undoManager {
+                Self.registerReversibleEdit(node: n,
+                                            applying: inverse,
+                                            inverse: valueOnInvoke,
+                                            undoManager: um)
+            }
         }
-        undo.setActionName("Edit Math Expression")
+        undoManager.setActionName("Edit Math Expression")
     }
 }
 
