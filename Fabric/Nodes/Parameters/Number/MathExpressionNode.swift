@@ -32,6 +32,8 @@ struct MathExpressionView : View
     @State private var buffer: String = ""
     @FocusState private var focused: Bool
 
+    @Environment(\.setEditorInputFocus) private var setEditorInputFocus
+
     /// How long the field has to stay quiet before the expression
     /// auto-commits. Enter and defocus bypass this and commit
     /// immediately.
@@ -53,7 +55,13 @@ struct MathExpressionView : View
                 .onAppear { buffer = node.stringExpression }
                 .onSubmit { commit() }
                 .onChange(of: focused) { _, isFocused in
-                    if !isFocused { commit() }
+                    if isFocused {
+                        // Claim arrow keys back from the graph's
+                        // key handler. See EditorInputFocus.swift.
+                        setEditorInputFocus(.nodeSettings)
+                    } else {
+                        commit()
+                    }
                 }
                 .task(id: buffer) {
                     // Debounce the eval. `.task(id:)` cancels the

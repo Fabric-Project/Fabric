@@ -193,7 +193,12 @@ public struct GraphCanvas : View
                 self.handleDrop(providers: providers, location: location, canvasSize: geom.size)
             }
             .id(self.editingContext.currentGraph.shouldUpdateConnections)
-           
+            // Inverse of the graph-tap → .canvas trigger. See
+            // EditorInputFocus.swift for the architectural rationale.
+            .environment(\.setEditorInputFocus) { focus in
+                self.inputFocus = focus
+            }
+
         }
     }
 
