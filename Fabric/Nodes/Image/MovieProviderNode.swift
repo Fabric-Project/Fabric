@@ -107,6 +107,24 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     /// uncompressed pixels. `false` falls back to the RGB output path
     /// for codecs that need post-processing (YCoCg / multi-plane / HDR).
     @ObservationIgnored private var hapUsesDXTPath: Bool = false
+
+    /// Presentation time of the most recently emitted Hap frame.
+    /// Used to dedupe successive `allocFrameClosest(to:)` returns —
+    /// AVPlayerItemVideoOutput offers `hasNewPixelBuffer(forItemTime:)`
+    /// for this on the standard path, but AVPlayerItemHapDXTOutput has
+    /// no equivalent, so we gate on the frame's own PTS. Without the
+    /// gate, every execute() tick re-uploads and re-emits the same
+    /// frame, which burns GPU upload bandwidth and breaks
+    /// `valueDidChange`-style edge detection in connected nodes.
+    ///
+    /// Initialised to `.invalid` so the first frame after asset load
+    /// always emits — `CMTimeCompare`'s behaviour is undefined on
+    /// `.invalid`, hence the explicit `isValid` check at the gate.
+    ///
+    /// `@ObservationIgnored` for the same reason as `seeking` —
+    /// Hap frame timestamps may be inspected from the decoder's
+    /// queue context in future refactors.
+    @ObservationIgnored private var lastEmittedHapTime: CMTime = .invalid
 #endif
 
     /// Asset duration in seconds. Returns 0 until the asset's duration has
@@ -395,6 +413,14 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
 #endif
                 }
 
+#if FABRIC_HAP_ENABLED
+                // New asset's clock is independent of the previous
+                // one — clear the Hap dedupe gate so the first frame
+                // of the new asset always emits regardless of whether
+                // its PTS happens to coincide with the last emit.
+                self.lastEmittedHapTime = .invalid
+#endif
+
                 self.asset = AVURLAsset(url: url, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
 
 
@@ -465,15 +491,34 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         let itemTime = hapOutput.itemTime(forHostTime: hostTime)
         guard let frame = hapOutput.allocFrameClosest(to: itemTime) else { return true }
 
+        // Dedupe successive frames at the same presentation time.
+        // `allocFrameClosest(to:)` happily returns the same frame on
+        // back-to-back ticks (the decoder's notion of "closest" doesn't
+        // care that we just emitted that frame). `CMTimeCompare`'s
+        // behaviour is undefined on `.invalid`, hence the explicit
+        // `isValid` check for the first-frame-after-load case.
+        if self.lastEmittedHapTime.isValid,
+           CMTimeCompare(frame.presentationTime, self.lastEmittedHapTime) == 0
+        {
+            return true
+        }
+
+        var emitted = false
         if self.hapUsesDXTPath,
            let image = Self.makeDXTImage(fromHapFrame: frame, renderer: renderer)
         {
             self.outputTexturePort.send( image )
+            emitted = true
         }
         else if let pixelBuffer = Self.makePixelBuffer(fromHapFrame: frame),
                 let image = renderer.newImage(fromPixelBuffer: pixelBuffer)
         {
             self.outputTexturePort.send( image )
+            emitted = true
+        }
+        if emitted
+        {
+            self.lastEmittedHapTime = frame.presentationTime
         }
         return true
     }
