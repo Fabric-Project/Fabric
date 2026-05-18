@@ -125,6 +125,11 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     /// Hap frame timestamps may be inspected from the decoder's
     /// queue context in future refactors.
     @ObservationIgnored private var lastEmittedHapTime: CMTime = .invalid
+
+    /// One-shot flag so the BC-block-alignment fallback in
+    /// `makeDXTImage` logs at most once per loaded asset, not once
+    /// per frame. Re-armed at asset swap.
+    @ObservationIgnored private var didLogDXTSubBlockPadding: Bool = false
 #endif
 
     /// Asset duration in seconds. Returns 0 until the asset's duration has
@@ -418,7 +423,11 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
                 // one — clear the Hap dedupe gate so the first frame
                 // of the new asset always emits regardless of whether
                 // its PTS happens to coincide with the last emit.
+                // Also re-arm the per-asset BC-padding log so a
+                // newly-loaded sub-block-aligned asset gets its own
+                // hint.
                 self.lastEmittedHapTime = .invalid
+                self.didLogDXTSubBlockPadding = false
 #endif
 
                 self.asset = AVURLAsset(url: url, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
@@ -522,7 +531,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
 
         var emitted = false
         if self.hapUsesDXTPath,
-           let image = Self.makeDXTImage(fromHapFrame: frame, renderer: renderer)
+           let image = self.makeDXTImage(fromHapFrame: frame, renderer: renderer)
         {
             self.outputTexturePort.send( image )
             emitted = true
@@ -659,24 +668,68 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     /// so we override the cache's default usage to `[.shaderRead]`;
     /// `.shared` storage is required because the upload is a CPU-side
     /// `replace(region:)` (illegal on `.private` on macOS).
-    private static func makeDXTImage(fromHapFrame frame: HapDecoderFrame, renderer: GraphRenderer) -> FabricImage? {
+    ///
+    /// The texture is sized at the asset's true pixel dimensions
+    /// (`frame.imgSize`), not the block-padded `frame.dxtImgSize`:
+    /// for assets whose dimensions aren't a multiple of 4, the padded
+    /// size would expose pad pixels along the right/bottom edges to
+    /// any sampler reaching UV >= 1.0 - epsilon. The row stride passed
+    /// to `replace(region:)` still comes from `dxtImgSize.width` —
+    /// that's the stride the Hap decoder actually wrote — and Metal
+    /// accepts a stride wider than `region.width` would imply, just
+    /// skipping the unread tail bytes on each row.
+    ///
+    /// Edge case: BC1/BC3/BC7 textures themselves require dimensions
+    /// that are multiples of 4 (one compressed block per 4×4 region).
+    /// For sub-block-aligned `imgSize` we can't request a smaller
+    /// texture — fall back to the padded `dxtImgSize` (the previous
+    /// behaviour) and log once. Re-encoding the asset at a multiple-
+    /// of-4 resolution is the user-visible fix.
+    private func makeDXTImage(fromHapFrame frame: HapDecoderFrame, renderer: GraphRenderer) -> FabricImage? {
         // Hap Q Alpha is encoded as two planes (BC3 + RGTC1). The
         // single-plane Metal upload path here doesn't handle that;
         // those frames fall back via `outputAsRGB` at asset load.
         guard frame.dxtPlaneCount == 1 else { return nil }
-        guard let mtlFormat = metalFormat(forHapDXT: frame.dxtPixelFormats[0]) else { return nil }
+        guard let mtlFormat = Self.metalFormat(forHapDXT: frame.dxtPixelFormats[0]) else { return nil }
 
         let dxtSize = frame.dxtImgSize
-        let width = Int(dxtSize.width)
-        let height = Int(dxtSize.height)
-        guard width > 0, height > 0 else { return nil }
+        let dxtWidth = Int(dxtSize.width)
+        let dxtHeight = Int(dxtSize.height)
+        let trueSize = frame.imgSize
+        let trueWidth = Int(trueSize.width)
+        let trueHeight = Int(trueSize.height)
+        guard dxtWidth > 0, dxtHeight > 0, trueWidth > 0, trueHeight > 0 else { return nil }
+
+        // BC1 / BC3 / BC7 require texture dimensions that are
+        // multiples of 4. When the asset's true size doesn't satisfy
+        // that, fall back to the padded `dxtImgSize` and log once per
+        // asset — silently dropping the frame would leave the user
+        // wondering why their odd-resolution Hap file plays black.
+        let trueSizeIsBlockAligned = (trueWidth % 4 == 0) && (trueHeight % 4 == 0)
+        let texWidth: Int
+        let texHeight: Int
+        if trueSizeIsBlockAligned
+        {
+            texWidth = trueWidth
+            texHeight = trueHeight
+        }
+        else
+        {
+            if !self.didLogDXTSubBlockPadding
+            {
+                Self.log.notice("Hap DXT asset \"\(self.url?.lastPathComponent ?? "<nil>", privacy: .public)\" is \(trueWidth)×\(trueHeight) — not a multiple of 4. BC textures require block-aligned dimensions; falling back to padded \(dxtWidth)×\(dxtHeight). Re-encode at a multiple-of-4 resolution to drop the right/bottom padding pixels.")
+                self.didLogDXTSubBlockPadding = true
+            }
+            texWidth = dxtWidth
+            texHeight = dxtHeight
+        }
 
         let dxtData = frame.dxtDatas[0]
         guard dxtData != nil else { return nil }
 
         guard let image = renderer.sharedTextureCache.newManagedImage(
-            width: width,
-            height: height,
+            width: texWidth,
+            height: texHeight,
             pixelFormat: mtlFormat,
             usage: [.shaderRead],
             mipmapped: false,
@@ -684,11 +737,14 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         ) else { return nil }
 
         // BC1 packs a 4×4 block in 8 bytes; BC3 / BC7 in 16 bytes.
-        let blocksPerRow = (width + 3) / 4
+        // Row stride is always derived from the padded width — that
+        // is the stride the decoder wrote — even when the destination
+        // texture is the smaller true-size.
+        let blocksPerRow = (dxtWidth + 3) / 4
         let bytesPerBlock = (mtlFormat == .bc1_rgba) ? 8 : 16
         let bytesPerRow = blocksPerRow * bytesPerBlock
 
-        let region = MTLRegionMake2D(0, 0, width, height)
+        let region = MTLRegionMake2D(0, 0, texWidth, texHeight)
         image.texture.replace(region: region, mipmapLevel: 0, withBytes: dxtData!, bytesPerRow: bytesPerRow)
 
         return image
