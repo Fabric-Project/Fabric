@@ -497,10 +497,27 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         // care that we just emitted that frame). `CMTimeCompare`'s
         // behaviour is undefined on `.invalid`, hence the explicit
         // `isValid` check for the first-frame-after-load case.
-        if self.lastEmittedHapTime.isValid,
+        //
+        // A pending post-seek emit (set by `performSeek`'s completion
+        // handler when the player was paused on seek-land) bypasses
+        // the gate: AVPlayer holding `rate == 0` can yield a frame at
+        // the same PTS as the previously emitted one and we still
+        // want it pushed, since downstream may be holding a stale
+        // frame from before the seek. This is the Hap-path analogue
+        // of the non-Hap `else if needsEmitAfterSeek` branch below —
+        // executeHapPath returns before that branch is reachable, so
+        // without this consume the flag would be set and never cleared
+        // on Hap assets.
+        let isAfterSeekEmit = self.needsEmitAfterSeek
+        if !isAfterSeekEmit,
+           self.lastEmittedHapTime.isValid,
            CMTimeCompare(frame.presentationTime, self.lastEmittedHapTime) == 0
         {
             return true
+        }
+        if isAfterSeekEmit
+        {
+            self.needsEmitAfterSeek = false
         }
 
         var emitted = false
