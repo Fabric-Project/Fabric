@@ -440,9 +440,11 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
                 if !self.attachHapOutput(to: playerItem, url: url)
                 {
                     playerItem.add(self.playerItemVideoOutput)
+                    print("MovieProviderNode: AVPlayerItemVideoOutput path engaged for \"\(url.lastPathComponent)\"")
                 }
 #else
                 playerItem.add(self.playerItemVideoOutput)
+                print("MovieProviderNode: AVPlayerItemVideoOutput path engaged for \"\(url.lastPathComponent)\"")
 #endif
 
                 self.observer = NotificationCenter.default.addObserver(forName: AVPlayerItem.didPlayToEndTimeNotification,
@@ -572,9 +574,11 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
 
         let useDXT = Self.codecSupportsDirectDXTUpload(in: hapTrack)
         output.outputAsRGB = !useDXT
-        if !useDXT {
+        let codec = Self.hapCodecLabel(for: hapTrack) ?? "unknown Hap"
+        if useDXT {
+            print("MovieProviderNode: Hap DXT direct upload path engaged for \"\(url.lastPathComponent)\" (codec \(codec))")
+        } else {
             output.destRGBPixelFormat = OSType(kCVPixelFormatType_32BGRA)
-            let codec = Self.hapCodecLabel(for: hapTrack) ?? "unknown Hap"
             Self.log.notice("Hap RGB fallback path engaged for \"\(url.lastPathComponent, privacy: .public)\" (codec \(codec, privacy: .public)). Re-encode as Hap, Hap Alpha, or Hap 7 for the DXT direct-upload fast path.")
         }
         output.suppressesPlayerRendering = true
