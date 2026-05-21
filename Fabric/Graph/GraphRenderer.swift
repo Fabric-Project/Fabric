@@ -10,10 +10,10 @@ import Metal
 import Satin
 
 // Graph Execution Engine
-public class GraphRenderer : MetalViewRenderer
+public class GraphRenderer : ViewRenderer
 {
-    public let context:Context
-    public let renderer:Renderer
+//    public let context:Context
+    public let renderer:RenderEncoder
     
     override public var sampleCount: Int { self.context.sampleCount }
     override public var colorPixelFormat: MTLPixelFormat { self.context.colorPixelFormat }
@@ -44,29 +44,25 @@ public class GraphRenderer : MetalViewRenderer
     let privateTextureCache:GraphRendererTextureCache
     let sharedTextureCache:GraphRendererTextureCache
     
-    public init(context:Context)
+    override public init(context:Context)
     {
-        self.context = context
-        self.renderer = Renderer(context: context, stencilStoreAction: .store, frameBufferOnly:false)
+        self.renderer = RenderEncoder(context: context, stencilStoreAction: .store, frameBufferOnly:false)
 
         self.renderer.sortObjects = true
         
-        self.sceneProxy = Object(context: self.context)
-        self.defaultCamera = PerspectiveCamera(context:self.context)
+        self.sceneProxy = Object(context: context)
+        self.defaultCamera = PerspectiveCamera(context:context)
         
         self.defaultCamera.position = simd_float3(0, 0, 2)
         self.defaultCamera.lookAt(target: .zero)
-        self.privateTextureCache = GraphRendererTextureCache(device: self.context.device)
+        self.privateTextureCache = GraphRendererTextureCache(device: context.device)
         
         var sharedConfig = GraphRendererTextureCache.Configuration()
         sharedConfig.storageMode = .shared
         
-        self.sharedTextureCache = GraphRendererTextureCache(device: self.context.device, config: sharedConfig)
+        self.sharedTextureCache = GraphRendererTextureCache(device: context.device, config: sharedConfig)
 
-        super.init()
-
-        self.device = context.device
-        self.commandQueue = context.device.makeCommandQueue()!
+        super.init(context: context)
 
         self.setup()
 //        self.renderer.colorTextureStorageMode = .private

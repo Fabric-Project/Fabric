@@ -30,11 +30,11 @@ public final class PostProcessMotionBlurNode: Node
     public var inputJitter: ParameterPort<Float> { port(named: "inputJitter") }
     public var outputImage: NodePort<FabricImage> { port(named: "outputImage") }
 
-    @ObservationIgnored private let postProcessor: MotionBlurPostProcessor
+    @ObservationIgnored private let postProcessor: MotionBlurPostProcessEncoder
 
     public required init(context: Context)
     {
-        self.postProcessor = MotionBlurPostProcessor(context: context)
+        self.postProcessor = MotionBlurPostProcessEncoder(context: context)
         super.init(context: context)
     }
 
@@ -45,7 +45,7 @@ public final class PostProcessMotionBlurNode: Node
             fatalError("Required Decode Context Not set")
         }
 
-        self.postProcessor = MotionBlurPostProcessor(context: decodeContext.documentContext)
+        self.postProcessor = MotionBlurPostProcessEncoder(context: decodeContext.documentContext)
         try super.init(from: decoder)
     }
 
