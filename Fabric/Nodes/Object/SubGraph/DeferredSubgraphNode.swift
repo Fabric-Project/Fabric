@@ -125,30 +125,30 @@ public class DeferredSubgraphNode: SubgraphNode
     
     private func setupRenderer()
     {
-        self.graphRenderer.renderer.label = "Deferred Subgraph"
-        self.graphRenderer.renderer.colorStoreAction = .store
-        self.graphRenderer.renderer.depthStoreAction = .store
-        self.graphRenderer.renderer.depthLoadAction = .clear
-        self.graphRenderer.renderer.size.width = Float(self.inputWidth.value ?? 1920)
-        self.graphRenderer.renderer.size.height = Float(self.inputHeight.value ?? 1080 )
+        self.graphRenderer.renderEncoder.label = "Deferred Subgraph"
+        self.graphRenderer.renderEncoder.colorStoreAction = .store
+        self.graphRenderer.renderEncoder.depthStoreAction = .store
+        self.graphRenderer.renderEncoder.depthLoadAction = .clear
+        self.graphRenderer.renderEncoder.size.width = Float(self.inputWidth.value ?? 1920)
+        self.graphRenderer.renderEncoder.size.height = Float(self.inputHeight.value ?? 1080 )
         
-        self.graphRenderer.renderer.colorTextureStorageMode = .private
-        self.graphRenderer.renderer.colorMultisampleTextureStorageMode = .private
+        self.graphRenderer.renderEncoder.colorTextureStorageMode = .private
+        self.graphRenderer.renderEncoder.colorMultisampleTextureStorageMode = .private
         
-        self.graphRenderer.renderer.depthTextureStorageMode = .private
-        self.graphRenderer.renderer.depthMultisampleTextureStorageMode = .private
+        self.graphRenderer.renderEncoder.depthTextureStorageMode = .private
+        self.graphRenderer.renderEncoder.depthMultisampleTextureStorageMode = .private
         
-        self.graphRenderer.renderer.stencilTextureStorageMode = .private
-        self.graphRenderer.renderer.stencilMultisampleTextureStorageMode = .private
+        self.graphRenderer.renderEncoder.stencilTextureStorageMode = .private
+        self.graphRenderer.renderEncoder.stencilMultisampleTextureStorageMode = .private
 
-        self.graphRenderer.renderer.albedoTextureStorageMode = .private
-        self.graphRenderer.renderer.normalTextureStorageMode = .private
-        self.graphRenderer.renderer.pbrTextureStorageMode = .private
-        self.graphRenderer.renderer.velocityTextureStorageMode = .private
-        self.graphRenderer.renderer.emissiveTextureStorageMode = .private
+        self.graphRenderer.renderEncoder.albedoTextureStorageMode = .private
+        self.graphRenderer.renderEncoder.normalTextureStorageMode = .private
+        self.graphRenderer.renderEncoder.pbrTextureStorageMode = .private
+        self.graphRenderer.renderEncoder.velocityTextureStorageMode = .private
+        self.graphRenderer.renderEncoder.emissiveTextureStorageMode = .private
         
         self.graphRenderer.resize(size: (Float(self.inputWidth.value ?? 1920), Float(self.inputHeight.value ?? 1080 )), scaleFactor: 1.0)
-        self.graphRenderer.renderer.clearColor = .init(self.inputClearColor.value ?? simd_float4(repeating: 0))
+        self.graphRenderer.renderEncoder.clearColor = .init(self.inputClearColor.value ?? simd_float4(repeating: 0))
         self.rendererNeedsSetup = false
     }
 
@@ -267,8 +267,8 @@ public class DeferredSubgraphNode: SubgraphNode
            let width = self.inputWidth.value,
            let height = self.inputHeight.value
         {
-            if (self.graphRenderer.renderer.size.width != Float(width))
-                || (self.graphRenderer.renderer.size.height != Float(height))
+            if (self.graphRenderer.renderEncoder.size.width != Float(width))
+                || (self.graphRenderer.renderEncoder.size.height != Float(height))
             {
                 self.graphRenderer.resize(size: (Float(width), Float(height)), scaleFactor: 1.0)
             }
@@ -277,7 +277,7 @@ public class DeferredSubgraphNode: SubgraphNode
         if self.inputClearColor.valueDidChange,
            let clearColor = self.inputClearColor.value
         {
-            self.graphRenderer.renderer.clearColor = .init( clearColor )
+            self.graphRenderer.renderEncoder.clearColor = .init( clearColor )
         }
                     
         guard let width = self.inputWidth.value,
@@ -302,7 +302,7 @@ public class DeferredSubgraphNode: SubgraphNode
             self.outputColorTexture.send( nil )
         }
         
-        if let texture = self.graphRenderer.renderer.depthTexture
+        if let texture = self.graphRenderer.renderEncoder.depthTexture
         {
             self.outputDepthTexture.send( FabricImage.unmanaged(texture: texture) )
         }
@@ -313,11 +313,11 @@ public class DeferredSubgraphNode: SubgraphNode
 
         if self.deferredMRTEnabled
         {
-            self.sendAuxiliaryTexture(self.graphRenderer.renderer.albedoTexture, toPortNamed: "outputAlbedoTexture")
-            self.sendAuxiliaryTexture(self.graphRenderer.renderer.normalTexture, toPortNamed: "outputNormalsTexture")
-            self.sendAuxiliaryTexture(self.graphRenderer.renderer.pbrTexture, toPortNamed: "outputPBRTexture")
-            self.sendAuxiliaryTexture(self.graphRenderer.renderer.velocityTexture, toPortNamed: "outputVelocityTexture")
-            self.sendAuxiliaryTexture(self.graphRenderer.renderer.emissiveTexture, toPortNamed: "outputEmissiveTexture")
+            self.sendAuxiliaryTexture(self.graphRenderer.renderEncoder.albedoTexture, toPortNamed: "outputAlbedoTexture")
+            self.sendAuxiliaryTexture(self.graphRenderer.renderEncoder.normalTexture, toPortNamed: "outputNormalsTexture")
+            self.sendAuxiliaryTexture(self.graphRenderer.renderEncoder.pbrTexture, toPortNamed: "outputPBRTexture")
+            self.sendAuxiliaryTexture(self.graphRenderer.renderEncoder.velocityTexture, toPortNamed: "outputVelocityTexture")
+            self.sendAuxiliaryTexture(self.graphRenderer.renderEncoder.emissiveTexture, toPortNamed: "outputEmissiveTexture")
         }
         
         // We need to call this to ensure any published port values also get forwarded.

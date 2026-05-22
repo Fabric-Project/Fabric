@@ -13,7 +13,7 @@ import Satin
 public class GraphRenderer : ViewRenderer
 {
 //    public let context:Context
-    public let renderer:RenderEncoder
+    public let renderEncoder:RenderEncoder
     
     override public var sampleCount: Int { self.context.sampleCount }
     override public var colorPixelFormat: MTLPixelFormat { self.context.colorPixelFormat }
@@ -59,9 +59,9 @@ public class GraphRenderer : ViewRenderer
     
     override public init(context:Context)
     {
-        self.renderer = RenderEncoder(context: context, stencilStoreAction: .store, frameBufferOnly:false)
+        self.renderEncoder = RenderEncoder(context: context, stencilStoreAction: .store, frameBufferOnly:false)
 
-        self.renderer.sortObjects = true
+        self.renderEncoder.sortObjects = true
         
         self.sceneProxy = Object(context: context)
         self.defaultCamera = PerspectiveCamera(context:context)
@@ -397,7 +397,7 @@ public class GraphRenderer : ViewRenderer
         
         if self.graphRequiresResize
         {
-            node.resize(size: self.renderer.size, scaleFactor: resizeScaleFactor)
+            node.resize(size: self.renderEncoder.size, scaleFactor: resizeScaleFactor)
         }
         
         if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider
@@ -459,7 +459,7 @@ public class GraphRenderer : ViewRenderer
             graph.syncNodesToScene()
         }
                 
-        self.renderer.draw(renderPassDescriptor: renderPassDescriptor,
+        self.renderEncoder.draw(renderPassDescriptor: renderPassDescriptor,
                            commandBuffer: commandBuffer,
                            scene: graph.scene,
                            camera: self.currentCamera ?? self.defaultCamera)
@@ -480,7 +480,7 @@ public class GraphRenderer : ViewRenderer
     
     override public func resize(size: (width: Float, height: Float), scaleFactor: Float)
     {
-        self.renderer.resize(size)
+        self.renderEncoder.resize(size)
         
         self.graphRequiresResize = true
         self.resizeScaleFactor = scaleFactor

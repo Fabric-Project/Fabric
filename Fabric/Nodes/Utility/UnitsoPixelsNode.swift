@@ -67,8 +67,8 @@ public class UnitsoPixelsNode : Node
            let unit = self.inputUnitPosition.value
         {
 //            let aspect = graphRenderer.renderer.size.height/graphRenderer.renderer.size.width
-            let size = simd_float2(x: renderer.renderer.size.width,
-                                   y: renderer.renderer.size.height)
+            let size = simd_float2(x: renderer.renderEncoder.size.width,
+                                   y: renderer.renderEncoder.size.height)
             
             let x = remap( unit, -1.0, 1.0, 0.0, size.x)
 

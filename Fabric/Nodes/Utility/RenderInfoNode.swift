@@ -42,7 +42,7 @@ public class RenderInfoNode : Node
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        let size = renderer.renderer.size
+        let size = renderer.renderEncoder.size
         self.outputWidth.send( size.width )
         self.outputHeight.send( size.height )
         self.outputFrameNumber.send( executionInfo.timing.frameNumber )
