@@ -22,7 +22,7 @@ public class GraphRenderer : ViewRenderer
 
     public var executionCount = 0
     
-    private var lastGraphExecutionTime = Date.timeIntervalSinceReferenceDate
+    public private(set) var lastGraphExecutionTime = Date.timeIntervalSinceReferenceDate
 
     // This is fucking horrible:
     public private(set) var currentExecutionInfo:GraphExecutionInfo? = nil
@@ -37,8 +37,21 @@ public class GraphRenderer : ViewRenderer
     // We need one cache per Graph / Subgraph
     // This avoids issues where the cache purges because of different execution cadences
     var feedbackCaches: [UUID: GraphRendererFeedbackCache] = [:]
-    
-    
+
+    public var graph: Graph? {
+        didSet {
+            if let old = oldValue {
+                stopExecution(graph: old)
+                disableExecution(graph: old)
+                teardown(graph: old)
+            }
+            if let new = graph {
+                enableExecution(graph: new)
+                startExecution(graph: new)
+            }
+        }
+    }
+
     // Private is GPU private
     // Shared is GPU shared - for texture update from CPU
     let privateTextureCache:GraphRendererTextureCache
@@ -458,7 +471,11 @@ public class GraphRenderer : ViewRenderer
     
     public override func draw(renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
     {
-        fatalError("use execute(graph:renderPassDescriptor:commandBuffer:) instead.")
+        guard let graph else { return }
+        renderPassDescriptor.colorAttachments[0].loadAction = .clear
+        renderPassDescriptor.colorAttachments[0].storeAction = .store
+        renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0)
+        executeAndDraw(graph: graph, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
     }
     
     override public func resize(size: (width: Float, height: Float), scaleFactor: Float)
