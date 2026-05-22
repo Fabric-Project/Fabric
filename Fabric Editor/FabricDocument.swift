@@ -33,10 +33,11 @@ class FabricDocument: FileDocument
     static var readableContentTypes: [UTType] { [.fabricDocument] }
 
     @ObservationIgnored let context = Context(device: MTLCreateSystemDefaultDevice()!,
-                           sampleCount: 1,
-                           colorPixelFormat: .rgba16Float,
-                           depthPixelFormat: .depth32Float,
-                           stencilPixelFormat: .stencil8)
+                                              sampleCount: 1,
+                                              colorPixelFormat: .rgba16Float,
+                                              depthPixelFormat: .depth32Float,
+                                              stencilPixelFormat: .stencil8,
+                                              alphaOitEnabled: true)
 
     //    let graph:Graph
     var graphName:String = "Untitled"

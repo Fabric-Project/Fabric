@@ -10,10 +10,10 @@ import Metal
 import Satin
 
 // Graph Execution Engine
-public class GraphRenderer : MetalViewRenderer
+public class GraphRenderer : ViewRenderer
 {
-    public let context:Context
-    public let renderer:Renderer
+//    public let context:Context
+    public let renderer:RenderEncoder
     
     override public var sampleCount: Int { self.context.sampleCount }
     override public var colorPixelFormat: MTLPixelFormat { self.context.colorPixelFormat }
@@ -22,7 +22,7 @@ public class GraphRenderer : MetalViewRenderer
 
     public var executionCount = 0
     
-    private var lastGraphExecutionTime = Date.timeIntervalSinceReferenceDate
+    public private(set) var lastGraphExecutionTime = Date.timeIntervalSinceReferenceDate
 
     // This is fucking horrible:
     public private(set) var currentExecutionInfo:GraphExecutionInfo? = nil
@@ -37,36 +37,45 @@ public class GraphRenderer : MetalViewRenderer
     // We need one cache per Graph / Subgraph
     // This avoids issues where the cache purges because of different execution cadences
     var feedbackCaches: [UUID: GraphRendererFeedbackCache] = [:]
-    
-    
+
+    public var graph: Graph? {
+        didSet {
+            if let old = oldValue {
+                stopExecution(graph: old)
+                disableExecution(graph: old)
+                teardown(graph: old)
+            }
+            if let new = graph {
+                enableExecution(graph: new)
+                startExecution(graph: new)
+            }
+        }
+    }
+
     // Private is GPU private
     // Shared is GPU shared - for texture update from CPU
     let privateTextureCache:GraphRendererTextureCache
     let sharedTextureCache:GraphRendererTextureCache
     
-    public init(context:Context)
+    override public init(context:Context)
     {
-        self.context = context
-        self.renderer = Renderer(context: context, stencilStoreAction: .store, frameBufferOnly:false)
+        self.renderer = RenderEncoder(context: context, stencilStoreAction: .store, frameBufferOnly:false)
 
         self.renderer.sortObjects = true
         
-        self.sceneProxy = Object(context: self.context)
-        self.defaultCamera = PerspectiveCamera(context:self.context)
+        self.sceneProxy = Object(context: context)
+        self.defaultCamera = PerspectiveCamera(context:context)
         
         self.defaultCamera.position = simd_float3(0, 0, 2)
         self.defaultCamera.lookAt(target: .zero)
-        self.privateTextureCache = GraphRendererTextureCache(device: self.context.device)
+        self.privateTextureCache = GraphRendererTextureCache(device: context.device)
         
         var sharedConfig = GraphRendererTextureCache.Configuration()
         sharedConfig.storageMode = .shared
         
-        self.sharedTextureCache = GraphRendererTextureCache(device: self.context.device, config: sharedConfig)
+        self.sharedTextureCache = GraphRendererTextureCache(device: context.device, config: sharedConfig)
 
-        super.init()
-
-        self.device = context.device
-        self.commandQueue = context.device.makeCommandQueue()!
+        super.init(context: context)
 
         self.setup()
 //        self.renderer.colorTextureStorageMode = .private
@@ -462,7 +471,11 @@ public class GraphRenderer : MetalViewRenderer
     
     public override func draw(renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
     {
-        fatalError("use execute(graph:renderPassDescriptor:commandBuffer:) instead.")
+        guard let graph else { return }
+        renderPassDescriptor.colorAttachments[0].loadAction = .clear
+        renderPassDescriptor.colorAttachments[0].storeAction = .store
+        renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0)
+        executeAndDraw(graph: graph, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
     }
     
     override public func resize(size: (width: Float, height: Float), scaleFactor: Float)

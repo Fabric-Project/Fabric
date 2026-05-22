@@ -33,12 +33,12 @@ public final class DepthOfFieldNode: Node
     public var inputBlend: ParameterPort<Float> { port(named: "inputBlend") }
     public var outputImage: NodePort<FabricImage> { port(named: "outputImage") }
 
-    @ObservationIgnored private let postProcessor: BokehDepthOfFieldPostProcessor
+    @ObservationIgnored private let postProcessor: BokehDepthOfFieldPostProcessEncoder
     @ObservationIgnored private let fallbackCamera: PerspectiveCamera
 
     public required init(context: Context)
     {
-        self.postProcessor = BokehDepthOfFieldPostProcessor(context: context)
+        self.postProcessor = BokehDepthOfFieldPostProcessEncoder(context: context)
         self.fallbackCamera = PerspectiveCamera(context: context)
         self.fallbackCamera.position = simd_float3(0.0, 0.0, 2.0)
         self.fallbackCamera.lookAt(target: .zero)
@@ -52,7 +52,7 @@ public final class DepthOfFieldNode: Node
             fatalError("Required Decode Context Not set")
         }
 
-        self.postProcessor = BokehDepthOfFieldPostProcessor(context: decodeContext.documentContext)
+        self.postProcessor = BokehDepthOfFieldPostProcessEncoder(context: decodeContext.documentContext)
         self.fallbackCamera = PerspectiveCamera(context: decodeContext.documentContext)
         self.fallbackCamera.position = simd_float3(0.0, 0.0, 2.0)
         self.fallbackCamera.lookAt(target: .zero)

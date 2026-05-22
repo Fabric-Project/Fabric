@@ -34,7 +34,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
     open class PostMaterial: SourceMaterial {}
 
     let postMaterial: PostMaterial
-    let postProcessor: PostProcessor
+    let postProcessor: PostProcessEncoder
 
     @ObservationIgnored private var url: URL? = nil
     @ObservationIgnored private var lastKnownInputCount: Int = 1
@@ -90,7 +90,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         let material = PostMaterial(context:context, pipelineURL: fileURL)
 
         self.postMaterial = material
-        self.postProcessor = PostProcessor(context: context,
+        self.postProcessor = PostProcessEncoder(context: context,
                                            material: material,
                                            frameBufferOnly: false)
 
@@ -111,7 +111,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         let material = PostMaterial(context:context, pipelineURL: shaderURL!)
 
         self.postMaterial = material
-        self.postProcessor = PostProcessor(context: context,
+        self.postProcessor = PostProcessEncoder(context: context,
                                            material: material,
                                            frameBufferOnly: false)
 
@@ -156,7 +156,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
                 let material = PostMaterial(context:context, pipelineURL: shaderURL)
 
                 self.postMaterial = material
-                self.postProcessor = PostProcessor(context:context,
+                self.postProcessor = PostProcessEncoder(context:context,
                                                    material: material,
                                                    frameBufferOnly: false)
             }
@@ -167,7 +167,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
                 let material = PostMaterial(context:context,pipelineURL: shaderURL!)
 
                 self.postMaterial = material
-                self.postProcessor = PostProcessor(context:context,
+                self.postProcessor = PostProcessEncoder(context:context,
                                                    material: material,
                                                    frameBufferOnly: false)
             }
@@ -179,7 +179,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             let material = PostMaterial(context:context,pipelineURL: shaderURL!)
 
             self.postMaterial = material
-            self.postProcessor = PostProcessor(context:context,
+            self.postProcessor = PostProcessEncoder(context:context,
                                                material: material,
                                                frameBufferOnly: false)
         }
