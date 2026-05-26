@@ -37,7 +37,7 @@ Author
 * images and video analysis pipelines
 * embed your scenes into your own apps
 
-Check out the [Samples](https://github.com/Fabric-Project/Fabric/tree/main/Samples) 
+Check out the [Samples](https://github.com/Fabric-Project/Fabric-Samples) 
 
 Fabric supports, thanks to Satin and Lygia, high fidelity modern rendering techniques including
 
