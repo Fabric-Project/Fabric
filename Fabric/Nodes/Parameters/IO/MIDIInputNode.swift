@@ -466,7 +466,7 @@ struct DetectedInputRow: View
             MIDIInputInfo(
                 id: endpoint.uniqueID.description,
                 name: endpoint.displayName,
-                manufacturer: endpoint.manufacturer
+                manufacturer: endpoint.manufacturer.value
             )
         }
 
