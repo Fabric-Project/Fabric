@@ -1,5 +1,5 @@
 //
-//  MovieProviderNode.swift
+//  HDRTextureNode.swift
 //  Fabric
 //
 //  Created by Anton Marini on 4/27/25.
@@ -42,7 +42,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         {
             return AVURLAsset.audiovisualContentTypes.filter { $0.conforms(to: .movie) || $0.conforms(to: .video) }
         }
-        
+
         return AVURLAsset.audiovisualMIMETypes()
             .compactMap { UTType(mimeType: $0) }
             .filter { $0.conforms(to: .movie) || $0.conforms(to: .video) }
@@ -91,75 +91,55 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     @ObservationIgnored private var url: URL? = nil
     @ObservationIgnored private var asset:AVURLAsset? = nil
     @ObservationIgnored private var player:AVPlayer = AVPlayer()
+    @ObservationIgnored private var playerItem:AVPlayerItem? = nil
     @ObservationIgnored private var playerItemVideoOutput:AVPlayerItemVideoOutput
+    @ObservationIgnored private var pixelBuffer:CVPixelBuffer? = nil
+    @ObservationIgnored private var observer: Any? = nil
 
-    /// Async task spawned by `loadAssetFromInputValue` to do the
-    /// track-load + AVPlayerItemHapMetalOutput construction off the
-    /// execute queue. Cancelled at the start of the next load to drop
-    /// any in-flight stale work. Anything past the Task's last
-    /// cancellation checkpoint that still writes to `pendingLock` is
-    /// caught by the URL-identity guard at drain time.
-    @ObservationIgnored private var assetLoadTask: Task<Void, Never>? = nil
+#if FABRIC_HAP_ENABLED
+    /// Hap decoder output, present only while the loaded asset is a
+    /// Hap-encoded movie. When non-nil, the standard
+    /// `playerItemVideoOutput` is *not* attached to the player item.
+    @ObservationIgnored private var hapOutput: AVPlayerItemHapDXTOutput? = nil
+    /// `true` when the loaded codec is one we can upload as a Metal
+    /// compressed texture (BC1 / BC3 / BC7) directly from the
+    /// HapDecoderFrame's DXT bytes — no RGB pixel walk, no memcpy of
+    /// uncompressed pixels. `false` falls back to the RGB output path
+    /// for codecs that need post-processing (YCoCg / multi-plane / HDR).
+    @ObservationIgnored private var hapUsesDXTPath: Bool = false
 
-    /// Drives the seek-to-zero+play loop at end-of-asset. Iterates
-    /// `NotificationCenter.default.notifications(named:object:)` for
-    /// `AVPlayerItem.didPlayToEndTimeNotification` against the current
-    /// player item. Cancelled at every asset swap; replaced by a new
-    /// Task targeting the new player item.
+    /// Presentation time of the most recently emitted Hap frame.
+    /// Used to dedupe successive `allocFrameClosest(to:)` returns —
+    /// AVPlayerItemVideoOutput offers `hasNewPixelBuffer(forItemTime:)`
+    /// for this on the standard path, but AVPlayerItemHapDXTOutput has
+    /// no equivalent, so we gate on the frame's own PTS. Without the
+    /// gate, every execute() tick re-uploads and re-emits the same
+    /// frame, which burns GPU upload bandwidth and breaks
+    /// `valueDidChange`-style edge detection in connected nodes.
     ///
-    /// Replaces the previous `observer: Any?` + addObserver-with-queue
-    /// pattern — that variant baked in a `.main` queue assumption
-    /// (rejected: Fabric may run off main) and was awkwardly
-    /// cancellable. The async-sequence Task is naturally cancellable,
-    /// imposes no thread assumptions (AVPlayer.seek/.play are
-    /// thread-safe), and collapses observer + cleanup into a single
-    /// field.
-    @ObservationIgnored private var loopTask: Task<Void, Never>? = nil
+    /// Initialised to `.invalid` so the first frame after asset load
+    /// always emits — `CMTimeCompare`'s behaviour is undefined on
+    /// `.invalid`, hence the explicit `isValid` check at the gate.
+    ///
+    /// `@ObservationIgnored` for the same reason as `seeking` —
+    /// Hap frame timestamps may be inspected from the decoder's
+    /// queue context in future refactors.
+    @ObservationIgnored private var lastEmittedHapTime: CMTime = .invalid
 
-    /// Slot for the assembled `AVPlayerItem` + outputs, written from
-    /// the load task, drained at the top of the next `execute()` tick.
-    /// The lock is the single cross-queue handoff — everything else
-    /// runs on the execute queue and stays lock-free.
-    private let pendingLock = OSAllocatedUnfairLock<PendingAttachment?>(uncheckedState: nil)
-
-    /// Video track's natural timescale, captured at load time from the
-    /// async-loaded track. Used by `performSeek` so seeks land on
-    /// sample boundaries without needing the deprecated synchronous
-    /// `tracks(withMediaType:)` accessor at seek time.
-    @ObservationIgnored private var videoNaturalTimeScale: CMTimeScale = 600
-
-#if FABRIC_HAP_ENABLED
-    /// High-level Hap output, attached to the current player item when
-    /// the asset has a Hap video track. `nil` otherwise (including the
-    /// "load in flight" window). The framework auto-attaches the
-    /// underlying `AVPlayerItemHapDXTOutput` during its async init;
-    /// `remove(from:)` detaches it at the next asset swap.
-    @ObservationIgnored private var hapMetalOutput: AVPlayerItemHapMetalOutput? = nil
+    /// One-shot flag so the BC-block-alignment fallback in
+    /// `makeDXTImage` logs at most once per loaded asset, not once
+    /// per frame. Re-armed at asset swap.
+    @ObservationIgnored private var didLogDXTSubBlockPadding: Bool = false
 #endif
 
-    /// Result of an async asset load, handed from the load task to
-    /// `execute()` via `pendingLock`. Once drained, all fields are
-    /// applied to live node state on the execute queue.
-    fileprivate struct PendingAttachment {
-        let url: URL
-        let playerItem: AVPlayerItem
-        let videoNaturalTimeScale: CMTimeScale
-        let durationSeconds: TimeInterval
-#if FABRIC_HAP_ENABLED
-        /// `nil` when the asset has no Hap video tracks — the standard
-        /// `playerItemVideoOutput` is attached to `playerItem` in that
-        /// case instead.
-        let hapMetalOutput: AVPlayerItemHapMetalOutput?
-#endif
+    /// Asset duration in seconds. Returns 0 until the asset's duration has
+    /// loaded.
+    public var duration: TimeInterval {
+        guard let asset else { return 0 }
+        let cmDuration = asset.duration
+        let seconds = CMTimeGetSeconds(cmDuration)
+        return seconds.isFinite ? seconds : 0
     }
-
-    /// Asset duration in seconds. Captured async at load time via
-    /// `try await asset.load(.duration)` — no deprecated synchronous
-    /// `asset.duration` accessor. Returns 0 before the load completes
-    /// and for assets whose duration is infinite (live streams).
-    public var duration: TimeInterval { self.cachedDurationSeconds }
-
-    @ObservationIgnored private var cachedDurationSeconds: TimeInterval = 0
 
     /// Player's current playback time in seconds.
     public var currentTime: TimeInterval {
@@ -219,13 +199,15 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         }
         guard self.player.currentItem != nil else { return }
         let clamped = max(0, min(seconds, self.duration))
-        // Use the timescale captured at load time so seeks land on
-        // sample boundaries without reaching for the deprecated sync
-        // `tracks(withMediaType:)` accessor each time.
-        let target = CMTime(seconds: clamped, preferredTimescale: self.videoNaturalTimeScale)
+        // Build the seek time on the video track's natural timescale
+        // so frame-accurate seeks land on actual sample boundaries.
+        // Falls back to 600 (a common timebase) when no video track
+        // is available — e.g. asset still loading.
+        let timescale = self.asset?.tracks(withMediaType: .video).first?.naturalTimeScale ?? 600
+        let target = CMTime(seconds: clamped, preferredTimescale: timescale)
         let tol: CMTime = self.seekTolerance.isInfinite
             ? .positiveInfinity
-            : CMTime(seconds: self.seekTolerance, preferredTimescale: self.videoNaturalTimeScale)
+            : CMTime(seconds: self.seekTolerance, preferredTimescale: timescale)
         self.seeking = true
         self.player.seek(to: target, toleranceBefore: tol, toleranceAfter: tol) { [weak self] _ in
             guard let self else { return }
@@ -244,7 +226,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
             self.player.play()
         }
     }
-    
+
     required public init(context:Context)
     {
         // Forces the initialization when the class is accessed
@@ -305,15 +287,9 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        // Drain any completed async load from a previous tick. Must
-        // happen before the load kick-off below — otherwise a load
-        // queued this tick would clobber a result delivered between
-        // the last tick and this one.
-        self.drainPendingAttachment()
-
         if self.inputFilePathParam.valueDidChange
         {
-            loadAssetFromInputValue(renderer: renderer)
+            loadAssetFromInputValue()
         }
 
         if self.inputPlayingParam.valueDidChange
@@ -415,345 +391,412 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         ] as [String : Any]
     }
 
-    /// Async-load kick-off. Runs on the execute queue: tears down the
-    /// previous attachment, then spawns a Task that loads tracks,
-    /// constructs the Hap framework's high-level output (or detects
-    /// "no Hap track"), and parks an assembled `PendingAttachment` in
-    /// `pendingLock`. The next `execute()` tick drains and applies it.
-    ///
-    /// Stale-load defense: `assetLoadTask?.cancel()` cooperatively
-    /// stops in-flight work; anything past the last cancellation
-    /// checkpoint that still writes to `pendingLock` is filtered out
-    /// at drain time by the URL-identity check.
-    private func loadAssetFromInputValue(renderer: GraphRenderer)
+    private func loadAssetFromInputValue()
     {
-        guard let path = self.inputFilePathParam.value,
-              !path.isEmpty, self.url != URL(string: path)
-        else { return }
-        self.url = URL(string: path)
-
-        guard let url,
-              FileManager.default.fileExists(atPath: url.standardizedFileURL.path(percentEncoded: false))
-        else {
-            self.outputTexturePort.send( nil )
-            Self.log.error("Movie file not found at \(self.url?.path() ?? "<nil>", privacy: .public)")
-            return
-        }
-
-        // Cancel any in-flight load and the end-of-asset loop — both
-        // were targeting the previous URL.
-        self.assetLoadTask?.cancel()
-        self.assetLoadTask = nil
-        self.loopTask?.cancel()
-        self.loopTask = nil
-
-        // Discard any pending attachment that hasn't been drained yet
-        // — also for a previous URL.
-        _ = self.pendingLock.withLock { state -> PendingAttachment? in
-            let p = state; state = nil; return p
-        }
-
-        // Tear down current playback synchronously. The intentional
-        // blank gap until the new asset's tracks load is preferable
-        // to keeping the previous asset visible on the output port
-        // after the user changed paths.
-        self.player.pause()
-        self.cachedDurationSeconds = 0
-#if FABRIC_HAP_ENABLED
-        if let oldMetal = self.hapMetalOutput, let oldItem = self.player.currentItem {
-            oldMetal.remove(from: oldItem)
-        }
-        self.hapMetalOutput = nil
-#endif
-        if let oldItem = self.player.currentItem
+        if let path = self.inputFilePathParam.value,
+           path.isEmpty == false && self.url != URL(string: path)
         {
-            oldItem.remove(self.playerItemVideoOutput)
-        }
+            self.url = URL(string: path)
 
-        let asset = AVURLAsset(url: url, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
-        self.asset = asset
-
-        // Capture renderer-owned resources for the Task explicitly.
-        // `sharedTextureCache` is captured via the Sendable
-        // FabricHapAllocator wrapper. The standard `playerItemVideoOutput`
-        // is captured directly — only attached to the player item on
-        // the .noHapTrack branch.
-#if FABRIC_HAP_ENABLED
-        let textureAllocator = FabricHapAllocator(cache: renderer.sharedTextureCache)
-#endif
-        let videoOutput = self.playerItemVideoOutput
-
-#if FABRIC_HAP_ENABLED
-        self.assetLoadTask = Task { [weak self, url, asset, textureAllocator, videoOutput] in
-            do {
-                let playerItem = AVPlayerItem(asset: asset)
-                playerItem.preferredForwardBufferDuration = 0.5
-
-                // Capture the video track's natural timescale up-front
-                // so seeks can build sample-accurate CMTimes without
-                // reaching for the deprecated synchronous accessor.
-                let videoTracks = try await asset.loadTracks(withMediaType: .video)
-                let timescale: CMTimeScale
-                do {
-                    timescale = (try await videoTracks.first?.load(.naturalTimeScale)) ?? 600
-                } catch is CancellationError {
-                    return
-                } catch {
-                    timescale = 600
-                }
-
-                try Task.checkCancellation()
-
-                // Capture the asset's duration alongside the timescale
-                // so the public `duration` getter doesn't need to reach
-                // for the deprecated synchronous `asset.duration`
-                // accessor. Infinite (live-stream) durations clamp to 0.
-                let durationSeconds: TimeInterval
-                do {
-                    let cm = try await asset.load(.duration)
-                    let s = CMTimeGetSeconds(cm)
-                    durationSeconds = s.isFinite ? max(0, s) : 0
-                } catch is CancellationError {
-                    return
-                } catch {
-                    durationSeconds = 0
-                }
-
-                try Task.checkCancellation()
-
-                // Auto-attaches the underlying AVPlayerItemHapDXTOutput
-                // to playerItem when the asset has a Hap track. If
-                // mode == .noHapTrack we add the standard video output
-                // below.
-                let metalOutput = try await AVPlayerItemHapMetalOutput(
-                    playerItem: playerItem,
-                    textureAllocator: textureAllocator)
-
-                try Task.checkCancellation()
-
-                // The framework is built BUILD_LIBRARY_FOR_DISTRIBUTION,
-                // so its public enums are treated as having potentially
-                // unknown future cases — `@unknown default` keeps the
-                // switch source-compatible if a new Mode case lands.
-                switch metalOutput.mode {
-                case .dxtDirect(let codec):
-                    print("MovieProviderNode: Hap DXT direct upload path engaged for \"\(url.lastPathComponent)\" (codec \(codec.displayName))")
-                case .rgbFallback(let codec):
-                    Self.log.notice("Hap RGB fallback path engaged for \"\(url.lastPathComponent, privacy: .public)\" (codec \(codec.displayName, privacy: .public)). Re-encode as Hap, Hap Alpha, or Hap 7 for the DXT direct-upload fast path.")
-                case .noHapTrack:
-                    playerItem.add(videoOutput)
-                    print("MovieProviderNode: AVPlayerItemVideoOutput path engaged for \"\(url.lastPathComponent)\"")
-                @unknown default:
-                    playerItem.add(videoOutput)
-                    Self.log.error("Unknown AVPlayerItemHapMetalOutput.Mode for \(url.lastPathComponent, privacy: .public); falling back to standard AVPlayerItemVideoOutput")
-                }
-
-                let pending = PendingAttachment(
-                    url: url,
-                    playerItem: playerItem,
-                    videoNaturalTimeScale: timescale,
-                    durationSeconds: durationSeconds,
-                    hapMetalOutput: metalOutput.mode == .noHapTrack ? nil : metalOutput
-                )
-                self?.pendingLock.withLock { $0 = pending }
-            } catch is CancellationError {
-                return
-            } catch {
-                Self.log.error("Failed to set up player item for \(url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
-            }
-        }
-#else
-        self.assetLoadTask = Task { [weak self, url, asset, videoOutput] in
-            do {
-                let playerItem = AVPlayerItem(asset: asset)
-                playerItem.preferredForwardBufferDuration = 0.5
-
-                let videoTracks = try await asset.loadTracks(withMediaType: .video)
-                let timescale: CMTimeScale
-                do {
-                    timescale = (try await videoTracks.first?.load(.naturalTimeScale)) ?? 600
-                } catch is CancellationError {
-                    return
-                } catch {
-                    timescale = 600
-                }
-
-                try Task.checkCancellation()
-
-                // Capture the asset's duration alongside the timescale
-                // so the public `duration` getter doesn't need to reach
-                // for the deprecated synchronous `asset.duration`
-                // accessor. Infinite (live-stream) durations clamp to 0.
-                let durationSeconds: TimeInterval
-                do {
-                    let cm = try await asset.load(.duration)
-                    let s = CMTimeGetSeconds(cm)
-                    durationSeconds = s.isFinite ? max(0, s) : 0
-                } catch is CancellationError {
-                    return
-                } catch {
-                    durationSeconds = 0
-                }
-
-                try Task.checkCancellation()
-                playerItem.add(videoOutput)
-                print("MovieProviderNode: AVPlayerItemVideoOutput path engaged for \"\(url.lastPathComponent)\"")
-
-                let pending = PendingAttachment(
-                    url: url,
-                    playerItem: playerItem,
-                    videoNaturalTimeScale: timescale,
-                    durationSeconds: durationSeconds
-                )
-                self?.pendingLock.withLock { $0 = pending }
-            } catch is CancellationError {
-                return
-            } catch {
-                Self.log.error("Failed to set up player item for \(url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
-            }
-        }
-#endif
-    }
-
-    /// Drain a pending attachment delivered by `assetLoadTask`. Runs
-    /// on the execute queue at the top of every `execute()` tick.
-    ///
-    /// The URL-identity guard handles the "stale Task wrote pending
-    /// after we cancelled it but before its last cancellation point"
-    /// race: by the time we drain, `self.url` has already moved on,
-    /// so the stale pending is silently dropped.
-    private func drainPendingAttachment()
-    {
-        let pending = pendingLock.withLock { state -> PendingAttachment? in
-            let p = state; state = nil; return p
-        }
-        guard let pending, pending.url == self.url else { return }
-
-        // Wire end-of-asset → seek-to-zero+play loop. Iterating the
-        // async notification sequence inside a Task gives us
-        // cancellation for free and avoids the `.main` queue
-        // assumption the old addObserver path baked in.
-        self.loopTask?.cancel()
-        // Both captures are weak so the loop doesn't outlive its
-        // referents. `self` is the obvious one; the player item is
-        // strongly held by the AVPlayer via `replaceCurrentItem`, so
-        // weak here just means the Task drops out if `self` (and
-        // therefore the player) is gone.
-        self.loopTask = Task { [weak self, weak item = pending.playerItem] in
-            guard let item else { return }
-            for await _ in NotificationCenter.default.notifications(
-                named: AVPlayerItem.didPlayToEndTimeNotification, object: item)
+            if let url,
+                FileManager.default.fileExists(atPath: url.standardizedFileURL.path(percentEncoded: false) )
             {
-                guard let self else { return }
-                // AVPlayer.seek/.play are thread-safe; no need to hop.
-                // Use the completion-handler overload so Swift picks
-                // the sync (fire-and-forget) variant, not the async one.
-                self.player.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero,
-                                 completionHandler: { _ in })
-                self.player.play()
-            }
-        }
+                if let observer = self.observer
+                {
+                    NotificationCenter.default.removeObserver(observer)
+                }
+
+                self.player.pause()
+
+                if let oldItem = self.player.currentItem
+                {
+                    oldItem.remove(self.playerItemVideoOutput)
+#if FABRIC_HAP_ENABLED
+                    if let oldHap = self.hapOutput {
+                        oldItem.remove(oldHap)
+                    }
+#endif
+                }
 
 #if FABRIC_HAP_ENABLED
-        self.hapMetalOutput = pending.hapMetalOutput
+                // New asset's clock is independent of the previous
+                // one — clear the Hap dedupe gate so the first frame
+                // of the new asset always emits regardless of whether
+                // its PTS happens to coincide with the last emit.
+                // Also re-arm the per-asset BC-padding log so a
+                // newly-loaded sub-block-aligned asset gets its own
+                // hint.
+                self.lastEmittedHapTime = .invalid
+                self.didLogDXTSubBlockPadding = false
 #endif
-        self.videoNaturalTimeScale = pending.videoNaturalTimeScale
-        self.cachedDurationSeconds = pending.durationSeconds
 
-        self.player.replaceCurrentItem(with: pending.playerItem)
-        self.player.volume = 0.0
-        self.player.actionAtItemEnd = .none
-        if (self.inputPlayingParam.value ?? true) { self.player.play() }
-        else { self.player.pause() }
+                self.asset = AVURLAsset(url: url, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
+
+
+                let playerItem = AVPlayerItem(asset: self.asset!, automaticallyLoadedAssetKeys: ["tracks", "metadata", "duration"])
+
+                playerItem.preferredForwardBufferDuration = 0.5
+#if FABRIC_HAP_ENABLED
+                if !self.attachHapOutput(to: playerItem, url: url)
+                {
+                    playerItem.add(self.playerItemVideoOutput)
+                    print("MovieProviderNode: AVPlayerItemVideoOutput path engaged for \"\(url.lastPathComponent)\"")
+                }
+#else
+                playerItem.add(self.playerItemVideoOutput)
+                print("MovieProviderNode: AVPlayerItemVideoOutput path engaged for \"\(url.lastPathComponent)\"")
+#endif
+
+                self.observer = NotificationCenter.default.addObserver(forName: AVPlayerItem.didPlayToEndTimeNotification,
+                                                       object:playerItem,
+                                                       queue:OperationQueue.main) { note in
+
+                    self.player.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero)
+                    self.player.play()
+                }
+
+                self.player.replaceCurrentItem(with: playerItem)
+
+                self.player.volume = 0.0
+                self.player.actionAtItemEnd = .none
+                if (self.inputPlayingParam.value ?? true)
+                {
+                    self.player.play()
+                }
+                else
+                {
+                    self.player.pause()
+                }
+            }
+            else
+            {
+                self.outputTexturePort.send( nil )
+
+                Self.log.error("Movie file not found at \(self.url?.path() ?? "<nil>", privacy: .public)")
+            }
+        }
     }
 
 #if FABRIC_HAP_ENABLED
-    /// Emit the current Hap frame when a Hap output is attached.
-    /// Returns `true` when the Hap path "owns" this tick (caller skips
-    /// the standard AVPlayerItemVideoOutput branch), `false` when no
-    /// Hap output is attached — the asset uses the standard pipeline
-    /// in that case (e.g. .noHapTrack assets where loadAsset attached
-    /// the standard video output instead; `hapMetalOutput` is left nil
-    /// in that case).
+    /// Emit the current frame via the Hap decoder when one is attached.
     ///
-    /// All the Hap-specific work (codec detection, DXT direct upload,
-    /// RGB fallback, PTS dedupe, BC alignment fallback) lives in
-    /// `AVPlayerItemHapMetalOutput` upstream — this method is just
-    /// the per-tick ask: "give me the next texture if you've got one."
-    /// A `nil` return means no new frame yet (decoder warming up, or
-    /// dedupe filtered a same-PTS frame); the Hap path still "owns"
-    /// the tick either way, so we return `true` without falling
-    /// through to the standard pipeline.
+    /// Returns `true` when this node is configured for Hap playback
+    /// (the standard `AVPlayerItemVideoOutput` path should be skipped),
+    /// `false` when there's no Hap output for this asset (caller falls
+    /// through to the standard path).
     ///
-    /// Note: `needsEmitAfterSeek` is set by `performSeek`'s completion
-    /// handler for both paths but is only consumed by the standard
-    /// pipeline below. The two paths diverge on paused-seek-to-same-
-    /// frame: the AVF branch re-emits the same buffer (harmless
-    /// redundant downstream tick); the Hap branch skips, because the
-    /// framework's internal dedupe gates on PTS. This asymmetry
-    /// mirrors the underlying API shapes — `AVPlayerItemHapDXTOutput`
-    /// has no `hasNewFrame`-style gate, so dedupe lives in the
-    /// framework; `AVPlayerItemVideoOutput` has `hasNewPixelBuffer`,
-    /// and trusting it keeps the AVF branch short.
+    /// Two flavours of Hap emit:
+    ///   - DXT direct upload (Hap1 / Hap5 / Hap7): the decompressed
+    ///     bytes are already in a Metal-compatible BC1/BC3/BC7
+    ///     compressed format. We allocate a compressed MTLTexture and
+    ///     upload via `replaceRegion` — no CPU pixel walk, no 8MB
+    ///     memcpy, ~6× less GPU upload bandwidth than RGBA.
+    ///   - RGB fallback (HapY / HapM / HapH / HapA): decoder emits
+    ///     RGBA bytes; copy into a CVPixelBuffer like the standard
+    ///     AVPlayerItemVideoOutput path.
     private func executeHapPath(renderer: GraphRenderer, hostTime: CFTimeInterval) -> Bool
     {
-        guard let output = self.hapMetalOutput else { return false }
+        guard let hapOutput = self.hapOutput
+        else { return false }
 
-        let itemTime = output.itemTime(forHostTime: hostTime)
-        guard let managed = output.newTexture(forItemTime: itemTime)
-        else { return true }
+        let itemTime = hapOutput.itemTime(forHostTime: hostTime)
+        guard let frame = hapOutput.allocFrameClosest(to: itemTime) else { return true }
 
-        // `FabricImage` conforms to `HapManagedTexture` via our
-        // adapter, and `FabricHapAllocator` always returns a
-        // `FabricImage`. Force-cast makes the invariant a runtime
-        // assertion — a future allocator change that breaks it
-        // surfaces immediately rather than going through a silently-
-        // less-efficient wrapping fallback.
-        let image: FabricImage = managed as! FabricImage
-        self.outputTexturePort.send(image)
+        // Dedupe successive frames at the same presentation time.
+        // `allocFrameClosest(to:)` happily returns the same frame on
+        // back-to-back ticks (the decoder's notion of "closest" doesn't
+        // care that we just emitted that frame). `CMTimeCompare`'s
+        // behaviour is undefined on `.invalid`, hence the explicit
+        // `isValid` check for the first-frame-after-load case.
+        //
+        // A pending post-seek emit (set by `performSeek`'s completion
+        // handler when the player was paused on seek-land) bypasses
+        // the gate: AVPlayer holding `rate == 0` can yield a frame at
+        // the same PTS as the previously emitted one and we still
+        // want it pushed, since downstream may be holding a stale
+        // frame from before the seek. This is the Hap-path analogue
+        // of the non-Hap `else if needsEmitAfterSeek` branch below —
+        // executeHapPath returns before that branch is reachable, so
+        // without this consume the flag would be set and never cleared
+        // on Hap assets.
+        let isAfterSeekEmit = self.needsEmitAfterSeek
+        if !isAfterSeekEmit,
+           self.lastEmittedHapTime.isValid,
+           CMTimeCompare(frame.presentationTime, self.lastEmittedHapTime) == 0
+        {
+            return true
+        }
+        if isAfterSeekEmit
+        {
+            self.needsEmitAfterSeek = false
+        }
+
+        var emitted = false
+        if self.hapUsesDXTPath,
+           let image = self.makeDXTImage(fromHapFrame: frame, renderer: renderer)
+        {
+            self.outputTexturePort.send( image )
+            emitted = true
+        }
+        else if let pixelBuffer = Self.makePixelBuffer(fromHapFrame: frame),
+                let image = renderer.newImage(fromPixelBuffer: pixelBuffer)
+        {
+            self.outputTexturePort.send( image )
+            emitted = true
+        }
+        if emitted
+        {
+            self.lastEmittedHapTime = frame.presentationTime
+        }
         return true
     }
-#endif
-}
 
-#if FABRIC_HAP_ENABLED
-// MARK: - Hap framework adapters
+    /// Attach a Hap DXT decoder output to `playerItem` when the loaded
+    /// asset is Hap-encoded. Returns `true` when a Hap output was
+    /// attached (caller skips the standard `AVPlayerItemVideoOutput`
+    /// path), `false` when the asset is not Hap or output construction
+    /// failed (caller falls through to the standard path).
+    ///
+    /// Picks the live-performance fast path (DXT direct upload) when
+    /// the codec supports it (Hap1 / Hap5 / Hap7); otherwise switches
+    /// the decoder to RGB output and logs a hint, since RGB conversion
+    /// does a CPU pixel walk + full uncompressed upload per frame.
+    private func attachHapOutput(to playerItem: AVPlayerItem, url: URL) -> Bool
+    {
+        guard self.asset?.containsHapVideoTrack() == true,
+              let hapTrack = self.asset?.hapVideoTracks().first as? AVAssetTrack,
+              let output = AVPlayerItemHapDXTOutput(hapAssetTrack: hapTrack)
+        else {
+            self.hapOutput = nil
+            self.hapUsesDXTPath = false
+            return false
+        }
 
-/// `FabricImage` already wraps an `MTLTexture` plus a release closure
-/// pointing at the originating `GraphRendererTextureCache` slot —
-/// exactly the "managed texture handed to the caller" contract the
-/// Hap framework's `HapManagedTexture` protocol asks for. Adding the
-/// conformance lets the allocator return `FabricImage` instances
-/// directly, no extra wrapper layer needed.
-///
-/// Conditional on `FABRIC_HAP_ENABLED` because `HapManagedTexture`
-/// only exists when the Hap module is linked.
-extension FabricImage: HapManagedTexture {}
-
-/// Bridges Fabric's `GraphRendererTextureCache` to the Hap framework's
-/// allocator protocol. Used for both DXT-direct (BC1/BC3/BC7) and RGB
-/// fallback (.bgra8Unorm) paths — `GraphRendererTextureCache` handles
-/// both pixel formats out of the same heap-backed pool with `.shared`
-/// storage and `.shaderRead` usage.
-///
-/// `@unchecked Sendable`: the only stored state is an immutable
-/// `let` reference to `GraphRendererTextureCache`, whose own
-/// concurrency model is independent of this wrapper. Marking it
-/// `Sendable` lets us capture the allocator into the load Task
-/// without a Swift 6 strict-concurrency warning.
-final class FabricHapAllocator: HapTextureAllocator, @unchecked Sendable {
-    let cache: GraphRendererTextureCache
-    init(cache: GraphRendererTextureCache) { self.cache = cache }
-
-    func makeTexture(width: Int,
-                     height: Int,
-                     pixelFormat: MTLPixelFormat) -> (any HapManagedTexture)? {
-        return cache.newManagedImage(width: width,
-                                     height: height,
-                                     pixelFormat: pixelFormat,
-                                     usage: [.shaderRead],
-                                     mipmapped: false,
-                                     label: "Hap")
+        let useDXT = Self.codecSupportsDirectDXTUpload(in: hapTrack)
+        output.outputAsRGB = !useDXT
+        let codec = Self.hapCodecLabel(for: hapTrack) ?? "unknown Hap"
+        if useDXT {
+            print("MovieProviderNode: Hap DXT direct upload path engaged for \"\(url.lastPathComponent)\" (codec \(codec))")
+        } else {
+            output.destRGBPixelFormat = OSType(kCVPixelFormatType_32BGRA)
+            Self.log.notice("Hap RGB fallback path engaged for \"\(url.lastPathComponent, privacy: .public)\" (codec \(codec, privacy: .public)). Re-encode as Hap, Hap Alpha, or Hap 7 for the DXT direct-upload fast path.")
+        }
+        output.suppressesPlayerRendering = true
+        playerItem.add(output)
+        self.hapOutput = output
+        self.hapUsesDXTPath = useDXT
+        return true
     }
-}
+
+    // FourCharCode constants from HapInAVFoundation's
+    // HapCodecSubTypes.h / PixelFormats.h. Inlined here because
+    // Swift's C importer drops multi-char `#define`s like
+    // `#define kHapCodecSubType 'Hap1'`.
+    private static let hapCodec_Hap1: OSType  = 0x48617031   // 'Hap1'
+    private static let hapCodec_Hap5: OSType  = 0x48617035   // 'Hap5'
+    private static let hapCodec_Hap7: OSType  = 0x48617037   // 'Hap7'
+    private static let hapPixFmt_DXt1: OSType = 0x44587431   // 'DXt1' RGB DXT1
+    private static let hapPixFmt_DXT5: OSType = 0x44585435   // 'DXT5' RGBA DXT5
+    private static let hapPixFmt_BC7A: OSType = 0x42433741   // 'BC7A' RGBA BC7
+
+    /// Human-readable label for the Hap variant carried in `track`'s
+    /// first format description, suitable for logging. Returns `nil`
+    /// for non-Hap tracks.
+    private static func hapCodecLabel(for track: AVAssetTrack) -> String? {
+        guard let desc = track.formatDescriptions.first else { return nil }
+        let cmDesc = desc as! CMFormatDescription
+        let sub = CMFormatDescriptionGetMediaSubType(cmDesc)
+        let fourcc = String(
+            unsafeUninitializedCapacity: 4,
+            initializingUTF8With: { buf in
+                buf[0] = UInt8((sub >> 24) & 0xFF)
+                buf[1] = UInt8((sub >> 16) & 0xFF)
+                buf[2] = UInt8((sub >> 8)  & 0xFF)
+                buf[3] = UInt8( sub        & 0xFF)
+                return 4
+            }
+        )
+        let pretty: String
+        switch sub {
+        case hapCodec_Hap1:  pretty = "Hap"
+        case hapCodec_Hap5:  pretty = "Hap Alpha"
+        case hapCodec_Hap7:  pretty = "Hap 7"
+        case 0x48617059:     pretty = "Hap Q"          // 'HapY'
+        case 0x4861704D:     pretty = "Hap Q Alpha"    // 'HapM'
+        case 0x48617048:     pretty = "Hap HDR"        // 'HapH'
+        case 0x48617041:     pretty = "Hap Alpha-only" // 'HapA'
+        default:             pretty = fourcc
+        }
+        return "\(pretty) [\(fourcc)]"
+    }
+
+    /// Decide whether `track`'s codec can take the DXT direct-upload
+    /// fast path. Hap (Hap1), Hap Alpha (Hap5), and Hap 7 (Hap7) map
+    /// straight to BC1/BC3/BC7 Metal compressed formats. The other
+    /// Hap variants (HapY YCoCg, HapM multi-plane, HapH HDR, HapA
+    /// alpha-only) need post-processing or shader-side colour-space
+    /// conversion that this node doesn't perform — those go through
+    /// the slower RGB fallback.
+    private static func codecSupportsDirectDXTUpload(in track: AVAssetTrack) -> Bool {
+        for desc in track.formatDescriptions {
+            let cmDesc = desc as! CMFormatDescription
+            switch CMFormatDescriptionGetMediaSubType(cmDesc) {
+            case hapCodec_Hap1, hapCodec_Hap5, hapCodec_Hap7:
+                return true
+            default:
+                continue
+            }
+        }
+        return false
+    }
+
+    /// Map a Hap CV pixel format (`kHapCVPixelFormat_*`) to the
+    /// equivalent Metal compressed-texture format. Returns `nil` for
+    /// formats that need additional processing (YCoCg → RGB shader,
+    /// multi-plane planar formats, BC6 HDR).
+    private static func metalFormat(forHapDXT osType: OSType) -> MTLPixelFormat? {
+        switch osType {
+        case hapPixFmt_DXt1: return .bc1_rgba
+        case hapPixFmt_DXT5: return .bc3_rgba
+        case hapPixFmt_BC7A: return .bc7_rgbaUnorm
+        default:             return nil
+        }
+    }
+
+    /// Performant path: turn a HapDecoderFrame's pre-decompressed DXT
+    /// bytes into a compressed MTLTexture in one upload. No RGB
+    /// expansion, no memcpy of decompressed pixels.
+    ///
+    /// Textures come from `GraphRenderer.sharedTextureCache` — heap-
+    /// backed, ring-recycled per-frame. BC formats are sampled-only,
+    /// so we override the cache's default usage to `[.shaderRead]`;
+    /// `.shared` storage is required because the upload is a CPU-side
+    /// `replace(region:)` (illegal on `.private` on macOS).
+    ///
+    /// The texture is sized at the asset's true pixel dimensions
+    /// (`frame.imgSize`), not the block-padded `frame.dxtImgSize`:
+    /// for assets whose dimensions aren't a multiple of 4, the padded
+    /// size would expose pad pixels along the right/bottom edges to
+    /// any sampler reaching UV >= 1.0 - epsilon. The row stride passed
+    /// to `replace(region:)` still comes from `dxtImgSize.width` —
+    /// that's the stride the Hap decoder actually wrote — and Metal
+    /// accepts a stride wider than `region.width` would imply, just
+    /// skipping the unread tail bytes on each row.
+    ///
+    /// Edge case: BC1/BC3/BC7 textures themselves require dimensions
+    /// that are multiples of 4 (one compressed block per 4×4 region).
+    /// For sub-block-aligned `imgSize` we can't request a smaller
+    /// texture — fall back to the padded `dxtImgSize` (the previous
+    /// behaviour) and log once. Re-encoding the asset at a multiple-
+    /// of-4 resolution is the user-visible fix.
+    private func makeDXTImage(fromHapFrame frame: HapDecoderFrame, renderer: GraphRenderer) -> FabricImage? {
+        // Hap Q Alpha is encoded as two planes (BC3 + RGTC1). The
+        // single-plane Metal upload path here doesn't handle that;
+        // those frames fall back via `outputAsRGB` at asset load.
+        guard frame.dxtPlaneCount == 1 else { return nil }
+        guard let mtlFormat = Self.metalFormat(forHapDXT: frame.dxtPixelFormats[0]) else { return nil }
+
+        let dxtSize = frame.dxtImgSize
+        let dxtWidth = Int(dxtSize.width)
+        let dxtHeight = Int(dxtSize.height)
+        let trueSize = frame.imgSize
+        let trueWidth = Int(trueSize.width)
+        let trueHeight = Int(trueSize.height)
+        guard dxtWidth > 0, dxtHeight > 0, trueWidth > 0, trueHeight > 0 else { return nil }
+
+        // BC1 / BC3 / BC7 require texture dimensions that are
+        // multiples of 4. When the asset's true size doesn't satisfy
+        // that, fall back to the padded `dxtImgSize` and log once per
+        // asset — silently dropping the frame would leave the user
+        // wondering why their odd-resolution Hap file plays black.
+        let trueSizeIsBlockAligned = (trueWidth % 4 == 0) && (trueHeight % 4 == 0)
+        let texWidth: Int
+        let texHeight: Int
+        if trueSizeIsBlockAligned
+        {
+            texWidth = trueWidth
+            texHeight = trueHeight
+        }
+        else
+        {
+            if !self.didLogDXTSubBlockPadding
+            {
+                Self.log.notice("Hap DXT asset \"\(self.url?.lastPathComponent ?? "<nil>", privacy: .public)\" is \(trueWidth)×\(trueHeight) — not a multiple of 4. BC textures require block-aligned dimensions; falling back to padded \(dxtWidth)×\(dxtHeight). Re-encode at a multiple-of-4 resolution to drop the right/bottom padding pixels.")
+                self.didLogDXTSubBlockPadding = true
+            }
+            texWidth = dxtWidth
+            texHeight = dxtHeight
+        }
+
+        let dxtData = frame.dxtDatas[0]
+        guard dxtData != nil else { return nil }
+
+        guard let image = renderer.sharedTextureCache.newManagedImage(
+            width: texWidth,
+            height: texHeight,
+            pixelFormat: mtlFormat,
+            usage: [.shaderRead],
+            mipmapped: false,
+            label: "MovieProviderNode.HapDXT"
+        ) else { return nil }
+
+        // BC1 packs a 4×4 block in 8 bytes; BC3 / BC7 in 16 bytes.
+        // Row stride is always derived from the padded width — that
+        // is the stride the decoder wrote — even when the destination
+        // texture is the smaller true-size.
+        let blocksPerRow = (dxtWidth + 3) / 4
+        let bytesPerBlock = (mtlFormat == .bc1_rgba) ? 8 : 16
+        let bytesPerRow = blocksPerRow * bytesPerBlock
+
+        let region = MTLRegionMake2D(0, 0, texWidth, texHeight)
+        image.texture.replace(region: region, mipmapLevel: 0, withBytes: dxtData!, bytesPerRow: bytesPerRow)
+
+        return image
+    }
+
+    /// Copy the Hap decoder frame's RGB bytes into a freshly-allocated
+    /// Metal-compatible CVPixelBuffer. Used as a fallback when the DXT
+    /// fast path can't handle the codec (YCoCg, multi-plane, HDR).
+    /// We don't share the HapDecoderFrame's buffer across frames —
+    /// copying once per frame avoids Swift / CF lifetime gymnastics
+    /// around the Obj-C `alloc*` return convention.
+    private static func makePixelBuffer(fromHapFrame frame: HapDecoderFrame) -> CVPixelBuffer? {
+        guard let rgbData = frame.rgbData else { return nil }
+        let width = Int(frame.rgbImgSize.width)
+        let height = Int(frame.rgbImgSize.height)
+        guard width > 0, height > 0, frame.rgbDataSize > 0 else { return nil }
+
+        let attrs: CFDictionary = [
+            kCVPixelBufferPixelFormatTypeKey: NSNumber(value: kCVPixelFormatType_32BGRA),
+            kCVPixelBufferMetalCompatibilityKey: NSNumber(value: true),
+            kCVPixelBufferIOSurfacePropertiesKey: NSDictionary(),
+        ] as CFDictionary
+
+        var pb: CVPixelBuffer?
+        let err = CVPixelBufferCreate(kCFAllocatorDefault, width, height,
+                                      kCVPixelFormatType_32BGRA, attrs, &pb)
+        guard err == kCVReturnSuccess, let pixelBuffer = pb else { return nil }
+
+        CVPixelBufferLockBaseAddress(pixelBuffer, [])
+        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
+        guard let dst = CVPixelBufferGetBaseAddress(pixelBuffer) else { return nil }
+
+        let dstStride = CVPixelBufferGetBytesPerRow(pixelBuffer)
+        let srcStride = frame.rgbDataSize / height
+        let copyBytes = min(dstStride, srcStride)
+        if dstStride == srcStride {
+            // Fast path: tightly packed, single memcpy.
+            memcpy(dst, rgbData, frame.rgbDataSize)
+        } else {
+            let src = rgbData.assumingMemoryBound(to: UInt8.self)
+            let dstP = dst.assumingMemoryBound(to: UInt8.self)
+            for row in 0..<height {
+                memcpy(dstP.advanced(by: row * dstStride),
+                       src.advanced(by: row * srcStride),
+                       copyBytes)
+            }
+        }
+        return pixelBuffer
+    }
 #endif
+}
