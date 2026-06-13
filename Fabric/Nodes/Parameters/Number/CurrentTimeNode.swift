@@ -36,16 +36,14 @@ public class CurrentTimeNode : Node
     public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
     
     override public func startExecution(renderer: GraphRenderer) {
-        self.startTime =  renderer.currentExecutionInfo?.timing.time ?? Date.timeIntervalSinceReferenceDate
+        self.startTime = CACurrentMediaTime()
     }
-    
+
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        let currentTime = renderer.currentExecutionInfo?.timing.time ?? Date.timeIntervalSinceReferenceDate
-        
-        self.outputNumber.send( Float(currentTime - startTime) )
+        self.outputNumber.send( Float(executionInfo.timing.time - startTime) )
     }
 }

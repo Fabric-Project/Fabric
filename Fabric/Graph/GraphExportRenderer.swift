@@ -50,7 +50,7 @@ public final class GraphExportRenderer {
         self.colorPixelFormat = colorPixelFormat ?? context.colorPixelFormat
         self.depthPixelFormat = depthPixelFormat ?? context.depthPixelFormat
         self.clearColor = clearColor
-        self.graphRenderer = GraphRenderer(context: context)
+        self.graphRenderer = GraphRenderer(context: context, graph: graph)
 
         self.renderPassDescriptor.colorAttachments[0].loadAction = .clear
         self.renderPassDescriptor.colorAttachments[0].storeAction = .store

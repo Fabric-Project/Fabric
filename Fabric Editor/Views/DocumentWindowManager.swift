@@ -56,10 +56,9 @@ class DocumentOutputWindowManager : NSObject
         self.outputwindow?.toolbarStyle = .unified
     }
 
-    func setGraph(graph: Graph, graphRenderer: GraphRenderer)
+    func setGraphRenderer(_ graphRenderer: GraphRenderer)
     {
         self.graphRenderer = graphRenderer
-        graphRenderer.graph = graph
 
         let vc = MetalViewController(renderer: graphRenderer)
         vc.view.frame = self.outputwindow?.contentView?.bounds ?? .zero
@@ -98,8 +97,7 @@ extension DocumentOutputWindowManager: NSWindowDelegate
 
     func windowWillClose(_ notification: Notification)
     {
-        self.graphRenderer?.graph = nil
-        self.outputwindow?.contentViewController = nil
+        self.outputwindow?.contentViewController = nil  // triggers MetalViewController.cleanup() → renderer.cleanup()
         self.outputViewController = nil
         self.graphRenderer = nil
     }

@@ -50,8 +50,8 @@ class FabricDocument: FileDocument
     init()
     {
         let graph = Graph(context: self.context)
-        self.renderer = GraphRenderer(context: self.context)
         self.editingContext = GraphCanvasContext(rootGraph: graph)
+        self.renderer = GraphRenderer(context: self.context, graph: graph)
     }
     
     init(withTemplate: Bool)
@@ -59,8 +59,8 @@ class FabricDocument: FileDocument
         print("Basic Document Init")
         let graph = Graph(context: self.context)
 
-        self.renderer = GraphRenderer(context: self.context)
         self.editingContext = GraphCanvasContext(rootGraph: graph)
+        self.renderer = GraphRenderer(context: self.context, graph: graph)
 
         // Time source
         let currentTimeNode = CurrentTimeNode(context: self.context)
@@ -158,8 +158,8 @@ class FabricDocument: FileDocument
         
         let graph = try decoder.decode(Graph.self, from: data)
 
-        self.renderer = GraphRenderer(context: self.context)
         self.editingContext = GraphCanvasContext(rootGraph: graph)
+        self.renderer = GraphRenderer(context: self.context, graph: graph)
 
         self.graphName = name
         
@@ -182,7 +182,7 @@ class FabricDocument: FileDocument
     {
         self.outputWindowManager = DocumentOutputWindowManager()
         self.outputWindowManager?.ownerDocument = self
-        self.outputWindowManager?.setGraph(graph: self.editingContext.rootGraph, graphRenderer: self.renderer)
+        self.outputWindowManager?.setGraphRenderer(self.renderer)
         self.outputWindowManager?.setWindowName(self.graphName)
         ActiveFabricDocumentStore.shared.activeDocument = self
     }
