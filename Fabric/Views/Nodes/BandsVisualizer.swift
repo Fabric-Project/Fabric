@@ -33,8 +33,8 @@ struct BandsVisualizer: View
 
     var body: some View
     {
-        TimelineView(.animation(minimumInterval: 1.0/60.0, paused: false)) { timeline in
-            GeometryReader { geom in
+        GeometryReader { geom in
+            TimelineView(.animation(minimumInterval: 1.0/60.0, paused: false)) { timeline in
                 Canvas(rendersAsynchronously: false) { ctx, size in
                     // Referencing timeline.date inside the Canvas's capture
                     // scope forces SwiftUI to treat each tick as a distinct
