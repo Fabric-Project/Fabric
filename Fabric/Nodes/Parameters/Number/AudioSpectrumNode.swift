@@ -6,13 +6,13 @@
 //
 
 import Foundation
+import SwiftUI
 import Satin
 import simd
-import AVFAudio
 import AVFoundation
 import Accelerate
-import CoreAudio
 import Dispatch
+import Synchronization
 
 public class AudioSpectrumNode : Node
 {
@@ -169,9 +169,13 @@ public class AudioSpectrumNode : Node
                 let norm = min(max((db - dbFloor) / (0 - dbFloor), 0), 1)
 
                 // --- envelope ---
-                let ePrev = env[k]
-                let e = (norm > ePrev) ? (ePrev + a * (norm - ePrev))
+                // Self-heal: if env[k] got NaN/Inf (e.g. from a bad biquad
+                // transient) it would otherwise stick forever because
+                // `env + r * (x - env)` with a NaN env is always NaN.
+                let ePrev = env[k].isFinite ? env[k] : 0
+                var e = (norm > ePrev) ? (ePrev + a * (norm - ePrev))
                                        : (ePrev + r * (norm - ePrev))
+                if !e.isFinite { e = 0 }
                 env[k] = e
                 out[k] = e
             }
@@ -184,86 +188,209 @@ public class AudioSpectrumNode : Node
     override public class var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
     override public class var nodeTimeMode: Node.TimeMode { .Idle }
-    override public class var nodeDescription: String { "Provides Audio Spectrum Data as Number Array"}
-        
+    override public class var nodeDescription: String { "Captures audio from the selected input device and emits a normalized per-band spectrum. Sensitivity controls how responsive the analyzer is to quiet sounds — 0 analyses only louder audio, 1 is full sensitivity. Gain multiplies the bar values after normalization, clamped to [0, 1] — a visual 'overdrive' that pushes bars toward full-scale without touching the underlying signal." }
+
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
-        
+
         return ports +
         [
             ("inputAudioDevice", ParameterPort(parameter: StringParameter("Device Name", "", .dropdown, "Audio input device to capture from"))),
             ("inputBands", ParameterPort(parameter: IntParameter("Bands", 8, 1, 256, .inputfield, "Number of frequency bands in the spectrum output"))),
+            ("inputSensitivity", ParameterPort(parameter: FloatParameter("Sensitivity", 0.5, 0.0, 1.0, .slider, "How sensitive the analyzer is to quiet sounds. 0 = analyses only louder sounds (quiet audio is ignored). 1 = full sensitivity (picks up even very faint audio). Turn up to make the display react to subtle input; turn down if you only care about peaks."))),
+            ("inputGain", ParameterPort(parameter: FloatParameter("Gain", 1.0, 0.0, 10.0, .slider, "Multiplier applied to the output band values after normalization, clamped to [0, 1]. 1 = pass-through; values > 1 push bars toward full-scale ('visual overdrive' — the bars saturate earlier); values < 1 scale bars down. Purely affects the output, not the underlying audio analysis."))),
             ("inputSmoothing", ParameterPort(parameter: FloatParameter("Smoothing", 0.0, 0.0, 1.0, .slider, "Smoothing factor for frequency band transitions"))),
             ("inputAttack", ParameterPort(parameter: FloatParameter("Attack", 0.0, 0.0, 100.0, .slider, "Attack time in milliseconds for rising levels"))),
             ("inputRelease", ParameterPort(parameter: FloatParameter("Release", 0.0, 0.0, 100.0, .slider, "Release time in milliseconds for falling levels"))),
-            ("outputSpectrum", NodePort<ContiguousArray<Float>>(name: "Number" , kind: .Outlet, description: "Array of frequency band values from 0 to 1")),
+            ("outputSpectrum", NodePort<ContiguousArray<Float>>(name: "Spectrum", kind: .Outlet, description: "Array of frequency band values from 0 to 1")),
         ]
     }
-    
+
     public var inputAudioDevice:ParameterPort<String> { port(named: "inputAudioDevice") }
     public var inputBands:ParameterPort<Int> { port(named: "inputBands") }
+    public var inputSensitivity:ParameterPort<Float> { port(named: "inputSensitivity") }
+    public var inputGain:ParameterPort<Float> { port(named: "inputGain") }
     public var inputSmoothing:ParameterPort<Float> { port(named: "inputSmoothing") }
     public var inputAttack:ParameterPort<Float> { port(named: "inputAttack") }
     public var inputRelease:ParameterPort<Float> { port(named: "inputRelease") }
     public var outputSpectrum:NodePort<ContiguousArray<Float>> { port(named: "outputSpectrum") }
 
-    private var engine = AVAudioEngine()
+    // Delegate receives CMSampleBuffers on the capture queue and forwards
+    // them into the owner's filter-bank sample queue. Weak reference breaks
+    // the otherwise self-retaining delegate/owner cycle.
+    private final class CaptureDelegate: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate
+    {
+        weak var owner: AudioSpectrumNode?
+
+        func captureOutput(_ output: AVCaptureOutput,
+                           didOutput sampleBuffer: CMSampleBuffer,
+                           from connection: AVCaptureConnection)
+        {
+            self.owner?.processAudioSampleBuffer(sampleBuffer)
+        }
+    }
+
+    // AVCaptureSession replaces AVAudioEngine: its per-session input device
+    // selection via AVCaptureDeviceInput is the supported macOS API for
+    // per-node device switching, where AVAudioEngine's AUHAL-routing is not.
+    @ObservationIgnored private var captureSession = AVCaptureSession()
+    @ObservationIgnored private let captureQueue = DispatchQueue(label: "fabric.AudioSpectrumNode.capture_queue")
+    @ObservationIgnored private var captureDelegate = CaptureDelegate()
+
+    /// Capture-thread → consumer-thread handoff. The capture callback runs on
+    /// `captureQueue` and appends raw samples + the latest observed sample
+    /// rate to these properties directly. `execute()` runs on the embedder's
+    /// queue (main in Fabric Editor, other embedders may use e.g. a private
+    /// serial queue) and drains via `captureQueue.sync { … }`. All node-state
+    /// mutation (filter-bank rebuild, etc.) happens on the consumer thread.
+    @ObservationIgnored private var pendingSamples: [Float] = []
+    @ObservationIgnored private var lastSeenSampleRate: Float?
+
+    // Device enumeration. AVCaptureDevice.DiscoverySession gives us the raw
+    // AVCaptureDevice instances which feed straight into AVCaptureDeviceInput
+    // — no UID→AudioDeviceID translation needed.
+    @ObservationIgnored private let discoverySession = AVCaptureDevice.DiscoverySession(
+        deviceTypes: [.microphone, .external],
+        mediaType: .audio,
+        position: .unspecified
+    )
     
+    /// Available audio devices, populated from `AVCaptureDevice`
+    /// connect/disconnect notifications.
+    ///
+    /// The observer is registered with `queue: .main` because the
+    /// handler updates the dropdown's `StringParameter.options`, and
+    /// Fabric's `@Observable` engine types (Node, Parameter, …) are
+    /// main-thread-affine: Observation's change tracking misbehaves on
+    /// non-main mutations. That's a property of Fabric's current
+    /// parameter design — engine state and UI binding state share a
+    /// single object — not a SwiftUI requirement of this node. A
+    /// UI-agnostic factoring would lift the observable wrapper out of
+    /// the engine layer and let nodes own their state on the consumer
+    /// queue, removing the `.main` constraint and the cross-queue case
+    /// it creates.
+    ///
+    /// Given that constraint: writes happen on main, reads happen on
+    /// the embedder's consumer queue (main in the Fabric Editor, a
+    /// private serial queue elsewhere). When the consumer queue is
+    /// main, both collapse to one thread and a lock is redundant —
+    /// that's the path `CameraProviderNode` and
+    /// `ScreenCaptureProviderNode` take, with a plain
+    /// `var devices: [AVCaptureDevice]`. Under a non-main consumer
+    /// queue it's a genuine cross-queue read; the race is benign for
+    /// short reference-array stores (stale dropdown matching, not
+    /// crashes), but this node uses a Mutex to make the hand-off
+    /// explicit rather than rely on the project's tolerated-race
+    /// convention.
+    private struct DeviceList: ~Copyable, @unchecked Sendable {
+        var devices: [AVCaptureDevice] = []
+    }
+    @ObservationIgnored private let devicesLock = Mutex<DeviceList>(DeviceList())
+    @ObservationIgnored private var wasConnectedObserver: Any?
+    @ObservationIgnored private var wasDisconnectedObserver: Any?
+
+    public required init(context: Context)
+    {
+        super.init(context: context)
+        self.commonPostSetup()
+    }
+
+    public required init(from decoder: any Decoder) throws
+    {
+        try super.init(from: decoder)
+        self.commonPostSetup()
+    }
+
+    deinit
+    {
+        if let t = wasConnectedObserver    { NotificationCenter.default.removeObserver(t) }
+        if let t = wasDisconnectedObserver { NotificationCenter.default.removeObserver(t) }
+    }
+
+    private func commonPostSetup()
+    {
+        self.captureDelegate.owner = self
+        self.refreshAudioDeviceOptions()
+
+        self.wasConnectedObserver = NotificationCenter.default.addObserver(
+            forName: AVCaptureDevice.wasConnectedNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.refreshAudioDeviceOptions()
+        }
+        self.wasDisconnectedObserver = NotificationCenter.default.addObserver(
+            forName: AVCaptureDevice.wasDisconnectedNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.refreshAudioDeviceOptions()
+        }
+    }
+
+    private func refreshAudioDeviceOptions()
+    {
+        let fresh = self.discoverySession.devices
+        self.devicesLock.withLock { $0.devices = fresh }
+        if let param = self.inputAudioDevice.parameter as? StringParameter
+        {
+            param.options = fresh.map(\.localizedName)
+        }
+    }
+
+    /// Resolve the AVCaptureDevice the user has picked in the dropdown, or
+    /// the system default audio input if no selection (or the named device
+    /// is gone).
+    private func resolveSelectedAudioDevice() -> AVCaptureDevice?
+    {
+        let knownDevices = self.devicesLock.withLock { $0.devices }
+        if let name = self.inputAudioDevice.value, !name.isEmpty,
+           let match = knownDevices.first(where: { $0.localizedName == name })
+        {
+            return match
+        }
+        return AVCaptureDevice.default(for: .audio)
+    }
 
     override public func startExecution(renderer:GraphRenderer) {
         super.startExecution(renderer:renderer)
 
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
-            case .authorized: // The user has previously granted access to the camera.
-                self.setupAudioShit()
-                return
-            case .notDetermined: // The user has not yet been asked for camera access.
-                AVCaptureDevice.requestAccess(for: .audio) { granted in
+            case .authorized:
+                self.setupCaptureSession()
+            case .notDetermined:
+                AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
                     if granted {
                         print("Granted Mic Access")
-                        self.setupAudioShit()
+                        self?.setupCaptureSession()
                     }
                     else
                     {
                         print("Not Granted Mic Access")
                     }
                 }
-            
-            case .denied: // The user has previously denied access.
-            print("Not Granted Mic Access")
-                return
-
-            case .restricted: // The user can't grant access due to restrictions.
+            case .denied:
+                print("Not Granted Mic Access")
+            case .restricted:
                 print("Restricted from Granting Mic Access")
-                return
-        @unknown default:
-            print("Restricted from Granting Mic Access")
+            @unknown default:
+                print("Restricted from Granting Mic Access")
         }
     }
     
     override public func stopExecution(renderer:GraphRenderer)
     {
         super.stopExecution(renderer:renderer)
-
-        let tapNode = self.engine.inputNode
-        
-        tapNode.removeTap(onBus: 0)
-
-        self.engine.stop()
-        
+        if self.captureSession.isRunning
+        {
+            self.captureSession.stopRunning()
+        }
     }
-    
-//    override public func enableExecution(context:GraphExecutionContext)
-//    {
-//        super.enableExecution(context: context)
-//    }
 
     override public func disableExecution(renderer:GraphRenderer)
     {
         super.disableExecution(renderer:renderer)
-        
-        self.engine.pause()
+        if self.captureSession.isRunning
+        {
+            self.captureSession.stopRunning()
+        }
     }
     
     override public func execute(renderer:GraphRenderer,
@@ -271,7 +398,14 @@ public class AudioSpectrumNode : Node
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        
+        // Device re-routing: picking a new device rebuilds the capture
+        // session's input. AVCaptureSession supports this cleanly via
+        // beginConfiguration/commit — no engine lifecycle to fight.
+        if self.inputAudioDevice.valueDidChange
+        {
+            self.setupCaptureSession()
+        }
+
         if self.inputSmoothing.valueDidChange || self.inputBands.valueDidChange,
            let smoothing = self.inputSmoothing.value,
            let bands = self.inputBands.value
@@ -286,37 +420,71 @@ public class AudioSpectrumNode : Node
            let attack = self.inputAttack.value,
            let release = self.inputRelease.value
         {
-                self.filterBank?.attackMS = attack
-                self.filterBank?.releaseMS = release
+                self.filterBank?.attackMS = attack.isFinite ? attack : 10.0
+                self.filterBank?.releaseMS = release.isFinite ? release : 10.0
         }
         
+        // Adopt the producer's latest observed sample rate before checking
+        // for filter-bank rebuild — keeping all filter-bank mutation on the
+        // consumer thread.
+        let observedRate: Float? = captureQueue.sync { self.lastSeenSampleRate }
+        if let rate = observedRate, rate.isFinite, rate > 0,
+           self.filterBank == nil || self.filterBank?.sampleRate != rate
+        {
+            self.createFilterBank(sampleRate: rate, bandCount: self.bands, normalizedSmoothing: self.smoothing)
+        }
+
         guard let filterBank else { return }
 
         let targetVideoFrameRate:Float = 200
         let numSamplesInAFrame = Int(round( filterBank.sampleRate / targetVideoFrameRate ) )
-            
-        let batchSize = min(numSamplesInAFrame, self.samples.count)
-        let batchOfSamples = self.samples[ 0 ..< batchSize]
-        
-        let output = filterBank.processAudioData(samples: batchOfSamples)
-        
-        let normalizedOutput = ContiguousArray<Float>(output.map { ($0.isNaN || $0.isInfinite) ? 0.0 : $0 })
-        
-        self.outputSpectrum.send( normalizedOutput )
-        
-        self.samples = Array<Float>(self.samples.dropFirst(batchSize))
 
-        if self.samples.count > self.maxSamples
+        // Drain a batch + cap retained backlog by sync'ing onto the producer's
+        // queue. The capture delegate is the only other writer to pendingSamples,
+        // and it's serial on captureQueue, so dispatch_sync gives us mutually
+        // exclusive access.
+        let batchOfSamples: [Float] = captureQueue.sync {
+            let batchSize = min(numSamplesInAFrame, self.pendingSamples.count)
+            guard batchSize > 0 else { return [] }
+            let batch = Array(self.pendingSamples.prefix(batchSize)).map { s in s.isFinite ? s : 0 }
+            self.pendingSamples.removeFirst(batchSize)
+            if self.pendingSamples.count > self.maxSamples {
+                self.pendingSamples.removeLast(self.pendingSamples.count - self.maxSamples)
+            }
+            return batch
+        }
+        guard !batchOfSamples.isEmpty else { return }
+
+        // Sensitivity → filter-bank dbFloor. 0 = least sensitive (−30 dB
+        // floor; only loud signals register); 1 = most sensitive (−120 dB
+        // floor; catches very quiet signals). Updates on the live
+        // filterBank are cheap — just overwrites a Float; no rebuild.
+        let rawSensitivity = self.inputSensitivity.value ?? 0.5
+        let sensitivity: Float = rawSensitivity.isFinite ? max(0, min(1, rawSensitivity)) : 0.5
+        filterBank.dbFloor = -30 - sensitivity * 90
+
+        let output = filterBank.processAudioData(samples: batchOfSamples)
+
+        // Gain: post-normalize multiplier on each band, clamped to [0, 1].
+        // This is a visual overdrive — it doesn't touch the input signal or
+        // the analysis, just pushes the bars up before emit.
+        let rawGain = self.inputGain.value ?? 1.0
+        let gain: Float = rawGain.isFinite ? rawGain : 1.0
+        let shaped = ContiguousArray<Float>(output.map { v in
+            guard v.isFinite else { return Float(0) }
+            return min(Float(1), max(Float(0), v * gain))
+        })
+
+        self.outputSpectrum.send(shaped)
+
+        if self.showSettings
         {
-            let overrun =  self.samples.count - self.maxSamples
-            self.samples = Array<Float>(self.samples.dropLast(overrun) )
+            self.visualizationBandValues = Array(shaped)
         }
     }
     
     var filterBank:SimpleFilterBank? = nil
 
-    // Running list of samples
-    var samples = [Float]()
     let maxSamples = 4096
     
     private var bands:Int = 8
@@ -324,76 +492,201 @@ public class AudioSpectrumNode : Node
     
     func createFilterBank(sampleRate:Float, bandCount:Int, normalizedSmoothing:Float)
     {
-        // No idea about this q calc?
-        let q = remap(normalizedSmoothing, 1.0, 0.0, 0.0, Float(bandCount) )
-        
-        self.filterBank = SimpleFilterBank(sampleRate: sampleRate,
-                                           bandCount: bandCount,
+        // Clamp inputs so a zero/NaN sampleRate or NaN smoothing can never
+        // produce NaN biquad coefficients (sin/cos of ∞ → NaN propagates
+        // through the whole filter bank otherwise).
+        let safeRate: Float = (sampleRate.isFinite && sampleRate > 0) ? sampleRate : 48000
+        let safeBands = max(1, bandCount)
+        let safeSmoothing: Float = normalizedSmoothing.isFinite ? normalizedSmoothing : 0
+
+        let q = remap(safeSmoothing, 1.0, 0.0, 0.0, Float(safeBands))
+        let safeQ: Float = (q.isFinite && q > 0) ? q : Float(safeBands)
+
+        self.filterBank = SimpleFilterBank(sampleRate: safeRate,
+                                           bandCount: safeBands,
                                            fMin: 20.0,
-                                           fMax: 15_000.0,//22_000.0,
-                                           Q: q,
+                                           fMax: 15_000.0,
+                                           Q: safeQ,
                                            dbFloor: -120.0)
-        
-        self.filterBank?.attackMS = self.inputAttack.value ?? 10.0
-        self.filterBank?.releaseMS = self.inputRelease.value ?? 10.0
+
+        let rawAttack = self.inputAttack.value ?? 10.0
+        let rawRelease = self.inputRelease.value ?? 10.0
+        self.filterBank?.attackMS = rawAttack.isFinite ? rawAttack : 10.0
+        self.filterBank?.releaseMS = rawRelease.isFinite ? rawRelease : 10.0
     }
     
     var lastCalledTime:TimeInterval = Date.timeIntervalSinceReferenceDate
     
-    func processAudioData(buffer: AVAudioPCMBuffer)
+    /// Called on the capture queue for every audio sample buffer. Extracts
+    /// the first channel's Float32 samples and hands them off to the filter
+    /// bank's sample queue on the main thread.
+    fileprivate func processAudioSampleBuffer(_ sampleBuffer: CMSampleBuffer)
     {
-        let count = buffer.frameLength
-        
-        if let floatChannelData = buffer.floatChannelData
+        guard CMSampleBufferDataIsReady(sampleBuffer) else { return }
+        guard let formatDesc = CMSampleBufferGetFormatDescription(sampleBuffer),
+              let asbdPtr = CMAudioFormatDescriptionGetStreamBasicDescription(formatDesc) else { return }
+
+        let asbd = asbdPtr.pointee
+        let sampleRate = Float(asbd.mSampleRate)
+        let channels = max(1, Int(asbd.mChannelsPerFrame))
+        let isFloat = (asbd.mFormatFlags & kAudioFormatFlagIsFloat) != 0
+        let isInterleaved = (asbd.mFormatFlags & kAudioFormatFlagIsNonInterleaved) == 0
+        let bitsPerChannel = Int(asbd.mBitsPerChannel)
+
+        // AVCaptureAudioDataOutput on macOS delivers Float32 LPCM by default.
+        // If a device delivers anything else, skip the buffer — better silent
+        // drop than garbage samples into the filter bank.
+        guard isFloat, bitsPerChannel == 32 else { return }
+
+        var blockBuffer: CMBlockBuffer?
+        var abl = AudioBufferList()
+        let status = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
+            sampleBuffer,
+            bufferListSizeNeededOut: nil,
+            bufferListOut: &abl,
+            bufferListSize: MemoryLayout<AudioBufferList>.size,
+            blockBufferAllocator: nil,
+            blockBufferMemoryAllocator: nil,
+            flags: kCMSampleBufferFlag_AudioBufferList_Assure16ByteAlignment,
+            blockBufferOut: &blockBuffer
+        )
+        guard status == noErr else { return }
+
+        let buffers = UnsafeMutableAudioBufferListPointer(&abl)
+        guard let firstBuffer = buffers.first, let dataPtr = firstBuffer.mData else { return }
+
+        let stride = isInterleaved ? channels : 1
+        let frameCount = Int(firstBuffer.mDataByteSize) / (stride * MemoryLayout<Float>.size)
+        let floats = dataPtr.assumingMemoryBound(to: Float.self)
+
+        var newSamples: [Float] = []
+        newSamples.reserveCapacity(frameCount)
+        for i in 0..<frameCount
         {
-            var newSamples: [Float] = []
-            
-            for i in 0 ..< count
-            {
-                newSamples.append(floatChannelData[0][Int(i)])
-            }
-            
-            DispatchQueue.main.async { [weak self] in
-                
-                guard let self else { return }
-                
-                self.samples.append(contentsOf: newSamples)
-            }
+            let s = floats[i * stride]
+            newSamples.append(s.isFinite ? s : 0)
         }
-        
-        return
+
+        // Stage samples + latest sample rate for the consumer to pick up on
+        // its next `execute()`. We're already on captureQueue (the buffer
+        // delegate's queue), so these writes are serialized with the
+        // consumer's `captureQueue.sync` drain.
+        self.pendingSamples.append(contentsOf: newSamples)
+        if sampleRate.isFinite, sampleRate > 0 {
+            self.lastSeenSampleRate = sampleRate
+        }
     }
-    
-    private func setupAudioShit()
+
+    /// Build (or rebuild) the capture session for the currently-selected
+    /// device. Safe to call any number of times.
+    ///
+    /// Recreates the AVCaptureSession itself on each call rather than
+    /// reconfiguring-in-place. Some virtual devices (e.g. Rogue Amoeba's
+    /// Loopback) deliver streams whose format the existing session's
+    /// CMIO audio converter can't re-negotiate mid-session, surfacing as
+    /// `AudioConverterSetProperty(dbca) failed (pcm!)` and a silent output.
+    /// A fresh session forces a fresh converter, which can build the right
+    /// graph for whatever the new device offers.
+    private func setupCaptureSession()
     {
+        guard let device = self.resolveSelectedAudioDevice() else
+        {
+            print("AudioSpectrum: no audio input device available")
+            return
+        }
+
+        // Tear down the previous session entirely — this guarantees the
+        // CMIO audio converter for the old device is released before the
+        // new one is constructed.
+        if self.captureSession.isRunning
+        {
+            self.captureSession.stopRunning()
+        }
+
+        let session = AVCaptureSession()
+        session.beginConfiguration()
+
         do
         {
-            let tapNode = self.engine.inputNode
-            
-            tapNode.removeTap(onBus: 0)
-            
-            let sampleRate = Float(tapNode.inputFormat(forBus: 0).sampleRate)
-            
-            if self.filterBank == nil
+            let input = try AVCaptureDeviceInput(device: device)
+            guard session.canAddInput(input) else
             {
-                self.createFilterBank(sampleRate:sampleRate, bandCount: self.bands, normalizedSmoothing: self.smoothing)
+                print("AudioSpectrum: cannot add input for device \(device.localizedName)")
+                session.commitConfiguration()
+                return
             }
-            
-            tapNode.installTap(onBus: 0, bufferSize: 1024, format: nil) { (buffer, time) in
-                self.processAudioData(buffer: buffer)
+            session.addInput(input)
+
+            let output = AVCaptureAudioDataOutput()
+            // Pin the output format. Without this, CMIO picks its own target
+            // and chokes on virtual-device streams whose native format it
+            // can't auto-negotiate (AudioConverterSetProperty(dbca) = pcm!).
+            // Asking for mono 48 kHz Float32 LPCM gives the converter an
+            // unambiguous destination to build toward, and matches what
+            // processAudioSampleBuffer() already extracts.
+            output.audioSettings = [
+                AVFormatIDKey:              kAudioFormatLinearPCM,
+                AVLinearPCMBitDepthKey:     32,
+                AVLinearPCMIsFloatKey:      true,
+                AVLinearPCMIsBigEndianKey:  false,
+                AVLinearPCMIsNonInterleaved: false,
+                AVSampleRateKey:            48_000.0,
+                AVNumberOfChannelsKey:      1
+            ]
+            output.setSampleBufferDelegate(self.captureDelegate, queue: self.captureQueue)
+            guard session.canAddOutput(output) else
+            {
+                print("AudioSpectrum: cannot add audio output")
+                session.commitConfiguration()
+                return
             }
-            
-            try self.engine.start()
-            
-            print(tapNode)
-
-
+            session.addOutput(output)
         }
         catch
         {
-            print("Unable to start Audio Engine:", error)
+            print("AudioSpectrum: failed to create capture input:", error)
+            session.commitConfiguration()
+            return
         }
-        
+
+        session.commitConfiguration()
+
+        self.captureSession = session
+        self.captureSession.startRunning()
+
+        // New device may deliver at a different rate — drain the old queue
+        // so the first fresh sample buffer drives the filter-bank rebuild.
+        captureQueue.sync {
+            self.pendingSamples.removeAll(keepingCapacity: true)
+            self.lastSeenSampleRate = nil
+        }
+    }
+
+    // MARK: - Visualization
+
+    // Consumed by the settings popover; populated in execute() only while
+    // showSettings is true.
+    @ObservationIgnored public var visualizationBandValues: [Float] = []
+
+    override public func providesSettingsView() -> Bool { true }
+
+    override public func settingsView() -> AnyView
+    {
+        AnyView(AudioSpectrumNodeSettingsView(node: self))
+    }
+
+    override public var settingsSize: SettingsViewSize { .Custom(size: CGSize(width: 460, height: 180)) }
+}
+
+// MARK: - Settings View
+
+private struct AudioSpectrumNodeSettingsView: View
+{
+    @Bindable var node: AudioSpectrumNode
+
+    var body: some View
+    {
+        BandsVisualizer(bands: { node.visualizationBandValues })
     }
 }
 
