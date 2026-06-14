@@ -33,14 +33,12 @@ public struct NodeSelectionInspector: View
 
             ForEach(currentGraph.selectedNodes, id: \.id) { node in
 
-                let vm = currentGraph.viewModel(for: node)
+                @Bindable var nodeViewModel: NodeViewModel = currentGraph.viewModel(for: node)
 
-                Section(header: Text( vm.name ) )
+                Section(header: Text( nodeViewModel.name ) )
                 {
-                    @Bindable var bindableVM: NodeViewModel = vm
-
-                    Toggle("Node Settings", isOn: $bindableVM.showSettings)
-                        .opacity(vm.providesSettingsView() ? 1.0 : 0.0)
+                    Toggle("Node Settings", isOn: $nodeViewModel.showSettings)
+                        .opacity(nodeViewModel.providesSettingsView() ? 1.0 : 0.0)
 
                     ParameterGroupView(parameterGroup: node.parameterGroup,
                                        fileContentTypes: Self.fileContentTypes(for: node))
