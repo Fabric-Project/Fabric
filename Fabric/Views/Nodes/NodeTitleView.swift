@@ -8,33 +8,32 @@
 import SwiftUI
 
 struct NodeTitleView: View {
-    
-    let node: Node
-    
+
+    @Bindable var vm: NodeViewModel
+
     // Rename
     @State public var renaming: Bool = false
     @State private var renamingText: String = ""
     @FocusState private var renameFieldFocused: Bool
 
     var body: some View {
-        // Name
         Group {
             if renaming {
                 TextField("", text: $renamingText, onCommit: {
                     let trimmed = renamingText.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let oldName = node.name
-                    node.graph?.undoManager?.registerUndo(withTarget: node) { node in
-                        node.displayName = oldName
+                    let oldDisplayName = vm.displayName
+                    vm.node.graph?.undoManager?.registerUndo(withTarget: vm) { vm in
+                        vm.displayName = oldDisplayName
                     }
-                    node.graph?.undoManager?.setActionName("Rename Node")
-                    node.displayName = trimmed.isEmpty ? nil : trimmed
+                    vm.node.graph?.undoManager?.setActionName("Rename Node")
+                    vm.displayName = trimmed.isEmpty ? nil : trimmed
                     renaming = false
                 })
                 .textFieldStyle(.plain)
                 .focused($renameFieldFocused)
                 .font(.system(size: 9))
                 .bold()
-                .foregroundStyle( self.node.nodeType.color() )
+                .foregroundStyle( vm.nodeType.color() )
                 .frame(maxHeight: 20)
                 .padding(.top, 5)
                 .padding(.horizontal, 20)
@@ -42,22 +41,21 @@ struct NodeTitleView: View {
                     renaming = false
                 }
             } else {
-                Text( self.node.name )
+                Text( vm.name )
                     .font(.system(size: 9))
                     .bold()
-                //                        .foregroundStyle(.primary)
-                    .foregroundStyle(  self.node.nodeType.color()  )
+                    .foregroundStyle( vm.nodeType.color() )
                     .frame(maxHeight: 20)
                     .contentShape(Rectangle())
                     .padding(.top, 5)
                     .padding(.horizontal, 20)
-                    .onTapGesture(count: 2) { // double click to rename
+                    .onTapGesture(count: 2) {
                         renaming = true
                     }
             }
         }
         .onChange(of: renaming) { _, new in
-            if new { renamingText = self.node.name }
+            if new { renamingText = vm.name }
             renameFieldFocused = new
         }
     }

@@ -33,6 +33,15 @@ internal import AnyCodable
     public private(set) var nodes: [Node]
     public private(set) var notes: [Note]
 
+    /// NodeViewModels shadow the nodes array 1-to-1. Always created/destroyed
+    /// in lockstep with addNode / delete so the array is safe to force-index.
+    private var nodeViewModels: [UUID: NodeViewModel] = [:]
+
+    /// Nodes that are currently selected (as tracked by their NodeViewModels).
+    public var selectedNodes: [Node] {
+        nodes.filter { nodeViewModels[$0.id]?.isSelected == true }
+    }
+
     var needsExecution:Bool {
         self.nodes.reduce(true) { (result, node) -> Bool in
             result || node.isDirty
@@ -304,6 +313,10 @@ internal import AnyCodable
         print("Graph: \(self.id) Add Node", node.name)
         self.maybeAddNodeToScene(node)
 
+        // Create the ViewModel before appending so it is always present
+        // when SwiftUI re-evaluates the ForEach triggered by nodes.append.
+        self.nodeViewModels[node.id] = NodeViewModel(node: node)
+
         self.nodes.append(node)
         node.graph = self
 
@@ -316,6 +329,13 @@ internal import AnyCodable
 
         self.updateRenderingNodes()
         self.rebuildPublishedParameterGroup()
+    }
+
+    /// Returns the NodeViewModel for the given node.
+    /// Always non-nil while the node is in this graph.
+    public func viewModel(for node: Node) -> NodeViewModel
+    {
+        nodeViewModels[node.id]!
     }
     
     public func delete(node:Node, disconnect:Bool = true)
@@ -332,9 +352,15 @@ internal import AnyCodable
 
         self.maybeDeleteNodeFromScene(node)
         self.nodes.removeAll { $0.id == node.id }
+        // Remove ViewModel after removing from nodes so any in-flight
+        // ForEach evaluation still finds it.
+        self.nodeViewModels[node.id] = nil
 
         self.undoManager?.registerUndo(withTarget: self) { graph in
             node.offset = savedOffset
+            // Recreate the ViewModel before appending to nodes (same ordering
+            // as addNode) so SwiftUI always finds it during re-render.
+            graph.nodeViewModels[node.id] = NodeViewModel(node: node)
             graph.nodes.append(node)
             node.graph = graph
             graph.maybeAddNodeToScene(node)
@@ -547,77 +573,75 @@ internal import AnyCodable
     {
         if !expandSelection
         {
-            for node in self.nodes
+            for n in self.nodes
             {
-                node.isSelected = false
+                nodeViewModels[n.id]?.isSelected = false
             }
         }
-        
+
         self.lastNode = node
-        self.lastNode?.isSelected = true
-//        print("selected node:", self.lastNode?.name ?? "No Node")
-        
+        nodeViewModels[node.id]?.isSelected = true
     }
-    
+
     public func selectAllNodes()
     {
         for node in self.nodes
         {
-            node.isSelected = true
+            nodeViewModels[node.id]?.isSelected = true
         }
     }
-    
+
     public func deselectAllNodes()
     {
         for node in self.nodes
         {
-            node.isSelected = false
+            nodeViewModels[node.id]?.isSelected = false
         }
     }
-    
+
     public func selectDownstreamNodes(fromNode node:Node)
     {
         var visitedNodes:[Node] = []
 
         self.selectDownstreamNodesRecursive(fromNode: node, visitedNodes:&visitedNodes)
     }
-    
-    private func selectDownstreamNodesRecursive(fromNode node:Node,  visitedNodes: inout [Node])
+
+    private func selectDownstreamNodesRecursive(fromNode node:Node, visitedNodes: inout [Node])
     {
         if !visitedNodes.contains(node)
         {
             visitedNodes.append( node )
-            node.isSelected = true
+            nodeViewModels[node.id]?.isSelected = true
 
             node.outputNodes.forEach( {
                 self.selectDownstreamNodesRecursive(fromNode: $0, visitedNodes: &visitedNodes )
             } )
         }
     }
-    
+
     public func selectUpstreamNodes(fromNode node:Node)
     {
         var visitedNodes:[Node] = []
 
         self.selectUpstreamNodesRecursive(fromNode: node, visitedNodes:&visitedNodes)
     }
-    
-    private func selectUpstreamNodesRecursive(fromNode node:Node,  visitedNodes: inout [Node])
+
+    private func selectUpstreamNodesRecursive(fromNode node:Node, visitedNodes: inout [Node])
     {
         if !visitedNodes.contains(node)
         {
             visitedNodes.append( node )
-            node.isSelected = true
+            nodeViewModels[node.id]?.isSelected = true
 
             node.inputNodes.forEach( {
                 self.selectUpstreamNodesRecursive(fromNode: $0, visitedNodes: &visitedNodes )
             } )
         }
     }
-    
+
     func createSubgraphFromSelection(centeredOnNode node:Node, usingClass subgraphClass:SubgraphNode.Type)
     {
-        let selectedNodes = self.nodes.filter( { $0.isSelected } )
+        let selectedNodes = self.selectedNodes
         
         let subGraphNode = subgraphClass.init(context: self.context)
         subGraphNode.offset = node.offset
@@ -929,7 +953,7 @@ internal import AnyCodable
 
         // 6. Select only the new nodes
         self.deselectAllNodes()
-        for newNode in newNodes { newNode.isSelected = true }
+        for newNode in newNodes { nodeViewModels[newNode.id]?.isSelected = true }
 
         self.shouldUpdateConnections = true
 
@@ -1079,7 +1103,7 @@ extension Graph
             self.undoManager?.setActionName("Paste Nodes")
 
             self.deselectAllNodes()
-            for newNode in newNodes { newNode.isSelected = true }
+            for newNode in newNodes { nodeViewModels[newNode.id]?.isSelected = true }
 
             self.shouldUpdateConnections = true
 

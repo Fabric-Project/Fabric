@@ -37,8 +37,8 @@ public class SyphonClientNode : Node
     public var inputServerAppName:ParameterPort<String>  { port(named: "inputServerAppName") }
     public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
 
-    @ObservationIgnored private var syphonClient:SyphonMetalClient? = nil
-    @ObservationIgnored private var texture: (any MTLTexture)? = nil
+    private var syphonClient:SyphonMetalClient? = nil
+    private var texture: (any MTLTexture)? = nil
     
     
     override public func execute(renderer:GraphRenderer,

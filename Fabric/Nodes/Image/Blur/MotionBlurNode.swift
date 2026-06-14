@@ -15,7 +15,7 @@ public final class MotionBlurNode: BaseMultiPassBlurEffectNode {
         var amountScale: Float
     }
 
-    @ObservationIgnored private var passUniformsBuffers: [StructBuffer<MotionPassUniforms>] = []
+    private var passUniformsBuffers: [StructBuffer<MotionPassUniforms>] = []
 
     required init(context: Context, fileURL: URL) throws {
         try super.init(context: context, fileURL: fileURL)

@@ -23,7 +23,7 @@ public class BaseMultiPassBlurEffectTwoChannelNode: BaseImageNode
     }
 
     public static let lowAmountThreshold: Float = 0.0
-    @ObservationIgnored private var hasLoggedInputCountMismatch = false
+    private var hasLoggedInputCountMismatch = false
 
 
     public func floatParameterValue(named name: String, default defaultValue: Float = 0.0) -> Float

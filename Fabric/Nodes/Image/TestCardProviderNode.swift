@@ -49,7 +49,7 @@ public class TestCardProviderNode: Node
     public var inputTextString: ParameterPort<String> { port(named: "inputTextString") }
     public var outputTexturePort: NodePort<FabricImage> { port(named: "outputTexturePort") }
 
-    @ObservationIgnored private var computePipeline: MTLComputePipelineState?
+    private var computePipeline: MTLComputePipelineState?
 
     public required init(context: Context)
     {
@@ -91,9 +91,9 @@ public class TestCardProviderNode: Node
         var textH: UInt32
     }
 
-    @ObservationIgnored private var cachedTextTexture: MTLTexture?
-    @ObservationIgnored private var cachedTextString: String?
-    @ObservationIgnored private var cachedTextOutputSize: (Int, Int)?
+    private var cachedTextTexture: MTLTexture?
+    private var cachedTextString: String?
+    private var cachedTextOutputSize: (Int, Int)?
 
     private func textTexture(device: MTLDevice, text: String, outputWidth: Int, outputHeight: Int) -> MTLTexture?
     {
