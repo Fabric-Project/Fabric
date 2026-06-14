@@ -10,17 +10,17 @@ import SwiftUI
 /// content to NodeViewModel.settingsView().
 struct NodeSettingView: View
 {
-    @Bindable var vm: NodeViewModel
+    @Bindable var nodeViewModel: NodeViewModel
 
     var body: some View
     {
-        let size = vm.settingsSize.size()
+        let size = nodeViewModel.settingsSize.size()
 
         VStack(alignment: .center)
         {
             HStack()
             {
-                Text("\(vm.name) Settings")
+                Text("\(nodeViewModel.name) Settings")
                     .lineLimit(1)
                     .font(.system(size: 10))
                     .bold()
@@ -28,16 +28,16 @@ struct NodeSettingView: View
                 Spacer()
 
                 Button("Close", systemImage: "x.circle") {
-                    vm.showSettings = false
+                    nodeViewModel.showSettings = false
                 }
                 .controlSize(.small)
             }
 
             Spacer()
 
-            if vm.providesSettingsView()
+            if nodeViewModel.providesSettingsView()
             {
-                vm.settingsView()
+                nodeViewModel.settingsView()
             }
         }
         .padding()

@@ -31,7 +31,7 @@ public struct GraphCanvas : View
 
     // Stable list of settings panels keyed by NodeViewModel — port changes
     // do not mutate this list so active popovers are never dismissed unexpectedly.
-    @State private var settingsEntries: [(id: UUID, vm: NodeViewModel)] = []
+    @State private var settingsEntries: [(id: UUID, nodeViewModel: NodeViewModel)] = []
 
     public var body: some View
     {
@@ -60,19 +60,19 @@ public struct GraphCanvas : View
 
                 ForEach(currentGraph.nodes, id: \.id) { currentNode in
 
-                    let vm = currentGraph.viewModel(for: currentNode)
+                    let nodeViewModel = currentGraph.viewModel(for: currentNode)
 
-                    NodeView(vm: vm, editingContext: self.editingContext)
+                    NodeView(nodeViewModel: nodeViewModel, editingContext: self.editingContext)
 
                         .offset(-geom.size / 2)
-                        .offset( vm.offset )
+                        .offset( nodeViewModel.offset )
                     #if os(macOS)
                         .highPriorityGesture(
                             TapGesture(count: 1)
                                 .modifiers(.shift)
                                 .onEnded {
                                     self.inputFocus = .canvas
-                                    vm.isSelected.toggle()
+                                    nodeViewModel.isSelected.toggle()
                                 },
                         )
                     #endif
@@ -80,7 +80,7 @@ public struct GraphCanvas : View
                             SimultaneousGesture(
                                 DragGesture(minimumDistance: 3)
                                     .onChanged { value in
-                                        self.calcDragChanged(forValue: value, currentGraph: currentGraph, currentVM: vm)
+                                        self.calcDragChanged(forValue: value, currentGraph: currentGraph, currentNodeViewModel: nodeViewModel)
                                     }
                                     .onEnded { _ in
                                         self.calcDragEnded(currentGraph: currentGraph)
@@ -92,7 +92,7 @@ public struct GraphCanvas : View
                                         .onEnded {
                                             self.inputFocus = .canvas
                                             currentGraph.deselectAllNodes()
-                                            vm.isSelected.toggle()
+                                            nodeViewModel.isSelected.toggle()
                                         },
                                     TapGesture(count: 2)
                                         .onEnded
@@ -108,22 +108,22 @@ public struct GraphCanvas : View
                         )
                         .contextMenu
                         {
-                            self.contextMenu(forNode: currentNode, vm: vm, currentGraph: currentGraph)
+                            self.contextMenu(forNode: currentNode, nodeViewModel: nodeViewModel, currentGraph: currentGraph)
                         }
-                        .onChange(of: vm.showSettings) { _, show in
-                            self.sychronizeSettingsFor(vm: vm, show: show)
+                        .onChange(of: nodeViewModel.showSettings) { _, show in
+                            self.sychronizeSettingsFor(nodeViewModel: nodeViewModel, show: show)
                         }
                 }
 
                 // Settings popovers — stable @State list so port changes don't
                 // cause ForEach re-evaluation and popover dismissal.
                 ForEach(settingsEntries, id: \.id) { entry in
-                    NodeSettingsPopoverAnchor(vm: entry.vm,
+                    NodeSettingsPopoverAnchor(nodeViewModel: entry.nodeViewModel,
                                               onClose: {
-                        entry.vm.showSettings = false
+                        entry.nodeViewModel.showSettings = false
                     })
                     .offset(-geom.size / 2)
-                    .offset(entry.vm.offset)
+                    .offset(entry.nodeViewModel.offset)
                 }
             }
             .offset(geom.size / 2)
@@ -225,26 +225,26 @@ public struct GraphCanvas : View
 
         for node in graph.nodes
         {
-            let vm = graph.viewModel(for: node)
-            let nodeOrigin = CGPoint( x: vm.offset.width  - vm.nodeSize.width  / 2,
-                                      y: vm.offset.height - vm.nodeSize.height / 2 )
-            let nodeRect = CGRect(origin: nodeOrigin, size: vm.nodeSize)
+            let nodeViewModel = graph.viewModel(for: node)
+            let nodeOrigin = CGPoint( x: nodeViewModel.offset.width  - nodeViewModel.nodeSize.width  / 2,
+                                      y: nodeViewModel.offset.height - nodeViewModel.nodeSize.height / 2 )
+            let nodeRect = CGRect(origin: nodeOrigin, size: nodeViewModel.nodeSize)
             let inMarquee = nodeRect.intersects(marqueeInNodeSpace)
-            vm.isSelected = inMarquee || preMarqueeSelection.contains(node.id)
+            nodeViewModel.isSelected = inMarquee || preMarqueeSelection.contains(node.id)
         }
     }
 
-    private func calcDragChanged(forValue value:DragGesture.Value, currentGraph:Graph, currentVM:NodeViewModel)
+    private func calcDragChanged(forValue value:DragGesture.Value, currentGraph:Graph, currentNodeViewModel:NodeViewModel)
     {
         self.inputFocus = .canvas
 
         if self.activeDragAnchor == nil
         {
-            self.activeDragAnchor = currentVM.id
+            self.activeDragAnchor = currentNodeViewModel.id
 
-            if !currentVM.isSelected
+            if !currentNodeViewModel.isSelected
             {
-                currentGraph.selectNode(node: currentVM.node, expandSelection: false)
+                currentGraph.selectNode(node: currentNodeViewModel.node, expandSelection: false)
             }
 
             self.initialOffsets = Dictionary(uniqueKeysWithValues: currentGraph.selectedNodes
@@ -257,9 +257,9 @@ public struct GraphCanvas : View
         let t = value.translation
         for node in currentGraph.selectedNodes
         {
-            let vm = currentGraph.viewModel(for: node)
+            let nodeViewModel = currentGraph.viewModel(for: node)
             if let base = initialOffsets[node.id] {
-                vm.offset = base + t
+                nodeViewModel.offset = base + t
             }
         }
     }
@@ -404,7 +404,7 @@ public struct GraphCanvas : View
 
     // MARK: - Context Menu
 
-    @ViewBuilder private func contextMenu(forNode currentNode:Node, vm: NodeViewModel, currentGraph:Graph) -> some View
+    @ViewBuilder private func contextMenu(forNode currentNode:Node, nodeViewModel: NodeViewModel, currentGraph:Graph) -> some View
     {
         Menu("Selection")
         {
@@ -587,7 +587,7 @@ public struct GraphCanvas : View
     /// changes don't cause re-renders that dismiss the popover.
     private struct NodeSettingsPopoverAnchor: View
     {
-        let vm: NodeViewModel
+        let nodeViewModel: NodeViewModel
         let onClose: () -> Void
         @State private var isPresented: Bool = true
 
@@ -595,9 +595,9 @@ public struct GraphCanvas : View
         {
             Rectangle()
                 .fill(Color.clear)
-                .frame(width: vm.nodeSize.width, height: vm.nodeSize.height)
+                .frame(width: nodeViewModel.nodeSize.width, height: nodeViewModel.nodeSize.height)
                 .popover(isPresented: $isPresented) {
-                    NodeSettingView(vm: vm)
+                    NodeSettingView(nodeViewModel: nodeViewModel)
                         .interactiveDismissDisabled(true)
                 }
                 .onChange(of: isPresented) { _, newValue in
@@ -606,20 +606,20 @@ public struct GraphCanvas : View
         }
     }
 
-    private func sychronizeSettingsFor(vm: NodeViewModel, show: Bool)
+    private func sychronizeSettingsFor(nodeViewModel: NodeViewModel, show: Bool)
     {
-        if show && vm.providesSettingsView()
+        if show && nodeViewModel.providesSettingsView()
         {
             self.inputFocus = .nodeSettings
 
-            if !settingsEntries.contains(where: { $0.id == vm.id })
+            if !settingsEntries.contains(where: { $0.id == nodeViewModel.id })
             {
-                settingsEntries.append((id: vm.id, vm: vm))
+                settingsEntries.append((id: nodeViewModel.id, nodeViewModel: nodeViewModel))
             }
         }
         else if !show
         {
-            settingsEntries.removeAll { $0.id == vm.id }
+            settingsEntries.removeAll { $0.id == nodeViewModel.id }
             if settingsEntries.isEmpty
             {
                 self.inputFocus = .canvas

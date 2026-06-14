@@ -9,7 +9,7 @@ import SwiftUI
 
 struct NodeTitleView: View {
 
-    @Bindable var vm: NodeViewModel
+    @Bindable var nodeViewModel: NodeViewModel
 
     // Rename
     @State public var renaming: Bool = false
@@ -21,19 +21,19 @@ struct NodeTitleView: View {
             if renaming {
                 TextField("", text: $renamingText, onCommit: {
                     let trimmed = renamingText.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let oldDisplayName = vm.displayName
-                    vm.node.graph?.undoManager?.registerUndo(withTarget: vm) { vm in
-                        vm.displayName = oldDisplayName
+                    let oldDisplayName = nodeViewModel.displayName
+                    nodeViewModel.node.graph?.undoManager?.registerUndo(withTarget: nodeViewModel) { nodeViewModel in
+                        nodeViewModel.displayName = oldDisplayName
                     }
-                    vm.node.graph?.undoManager?.setActionName("Rename Node")
-                    vm.displayName = trimmed.isEmpty ? nil : trimmed
+                    nodeViewModel.node.graph?.undoManager?.setActionName("Rename Node")
+                    nodeViewModel.displayName = trimmed.isEmpty ? nil : trimmed
                     renaming = false
                 })
                 .textFieldStyle(.plain)
                 .focused($renameFieldFocused)
                 .font(.system(size: 9))
                 .bold()
-                .foregroundStyle( vm.nodeType.color() )
+                .foregroundStyle( nodeViewModel.nodeType.color() )
                 .frame(maxHeight: 20)
                 .padding(.top, 5)
                 .padding(.horizontal, 20)
@@ -41,10 +41,10 @@ struct NodeTitleView: View {
                     renaming = false
                 }
             } else {
-                Text( vm.name )
+                Text( nodeViewModel.name )
                     .font(.system(size: 9))
                     .bold()
-                    .foregroundStyle( vm.nodeType.color() )
+                    .foregroundStyle( nodeViewModel.nodeType.color() )
                     .frame(maxHeight: 20)
                     .contentShape(Rectangle())
                     .padding(.top, 5)
@@ -55,7 +55,7 @@ struct NodeTitleView: View {
             }
         }
         .onChange(of: renaming) { _, new in
-            if new { renamingText = vm.name }
+            if new { renamingText = nodeViewModel.name }
             renameFieldFocused = new
         }
     }

@@ -10,50 +10,50 @@ import Satin
 
 struct NodeView : View
 {
-    @Bindable var vm: NodeViewModel
+    @Bindable var nodeViewModel: NodeViewModel
     let editingContext: GraphCanvasContext
 
     var body: some View
     {
         ZStack(alignment: .topLeading)
         {
-            vm.isSelected ? Color("NodeBackgroundColorSelected") : Color("NodeBackgroundColor")
+            nodeViewModel.isSelected ? Color("NodeBackgroundColorSelected") : Color("NodeBackgroundColor")
 
             Rectangle()
                 .fill( Color.black.gradient )
                 .frame(height: 30)
 
             VStack(alignment: .leading, spacing: 10) {
-                NodeTitleView(vm: vm)
+                NodeTitleView(nodeViewModel: nodeViewModel)
 
-                ForEach(vm.ports.filter({$0.kind == .Inlet && $0.direction == .Horizontal}), id: \.id) { port in
+                ForEach(nodeViewModel.ports.filter({$0.kind == .Inlet && $0.direction == .Horizontal}), id: \.id) { port in
                     NodeInletView(port: port, editingContext: self.editingContext)
                 }
                 Spacer(minLength: 0)
             }
-            .frame(width: vm.nodeSize.width + NodeInletView.radius, alignment: .leading)
+            .frame(width: nodeViewModel.nodeSize.width + NodeInletView.radius, alignment: .leading)
 
             VStack(alignment: .trailing, spacing: 10) {
                 Spacer(minLength: 0)
                     .frame(height: 25)
 
-                ForEach(vm.ports.filter({$0.kind == .Outlet && $0.direction == .Horizontal}), id: \.id) { port in
+                ForEach(nodeViewModel.ports.filter({$0.kind == .Outlet && $0.direction == .Horizontal}), id: \.id) { port in
                     NodeOutletView(port: port, editingContext: self.editingContext)
                 }
                 Spacer(minLength: 0)
             }
-            .frame(width: vm.nodeSize.width + NodeInletView.radius, alignment: .trailing)
+            .frame(width: nodeViewModel.nodeSize.width + NodeInletView.radius, alignment: .trailing)
         }
-        .frame(width: vm.nodeSize.width, height: vm.nodeSize.height)
+        .frame(width: nodeViewModel.nodeSize.width, height: nodeViewModel.nodeSize.height)
         .clipShape(.rect(cornerRadius: cornerRadius()))
         .overlay {
             RoundedRectangle(cornerRadius: cornerRadius())
-                .stroke(vm.isSelected ? vm.nodeType.color() : .gray, lineWidth: vm.isSelected ? 1.5 : 1.0)
+                .stroke(nodeViewModel.isSelected ? nodeViewModel.nodeType.color() : .gray, lineWidth: nodeViewModel.isSelected ? 1.5 : 1.0)
         }
     }
 
     func cornerRadius() -> CGFloat {
-        switch vm.nodeType {
+        switch nodeViewModel.nodeType {
         case .Subgraph:
             return 5.0
         default:
