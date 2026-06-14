@@ -29,69 +29,28 @@ struct ArrayMathExpressionView: View
     }
 }
 
-@Observable public class ArrayMathExpressionNode: Node
+@Observable public class ArrayMathExpressionNode: MathExpressionBaseNode
 {
     override public static var name: String { "Array Math Expression" }
     override public static var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
-    override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
-    override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Evaluates a math expression once per output element. Output length matches the longest variable-input array (pad with last element); defaults to 1 when no arrays are connected. Special bindings: i (index), n (count), t (progress 0..1). Other identifiers become Float array input ports." }
 
-    override public var name: String { evaluatedDisplayName }
+    override public class var defaultExpression: String { "dist * sin(t * 2 * pi)" }
+    override public class var specialBindings: Set<String> { ["i", "n", "t"] }
 
-    private static let defaultExpression: String = "dist * sin(t * 2 * pi)"
-    private static let specialBindings: Set<String> = ["i", "n", "t"]
-
-    // MARK: - Codable
-
-    private enum ArrayMathExpressionCodingKeys: String, CodingKey
-    {
-        case stringExpression
-    }
-
-    public required init(from decoder: any Decoder) throws
-    {
-        try super.init(from: decoder)
-
-        let container = try decoder.container(keyedBy: ArrayMathExpressionCodingKeys.self)
-        let decodedExpression = try container.decodeIfPresent(String.self, forKey: .stringExpression)
-        self.stringExpression = decodedExpression ?? Self.defaultExpression
-
-        self.evalExpression()
-    }
-
-    public override func encode(to encoder: Encoder) throws
-    {
-        try super.encode(to: encoder)
-
-        var container = encoder.container(keyedBy: ArrayMathExpressionCodingKeys.self)
-        try container.encode(self.stringExpression, forKey: .stringExpression)
-    }
-
-    public required init(context: Context)
-    {
-        super.init(context: context)
-    }
-
-    public convenience init(context: Context, expression: String)
-    {
-        self.init(context: context)
-        self.stringExpression = expression
-        self.evalExpression()
-    }
-
-    // MARK: - Properties
-
-    @ObservationIgnored fileprivate var stringExpression: String = ArrayMathExpressionNode.defaultExpression
-    {
-        didSet { self.evalExpression() }
-    }
-
-    private var evaluatedDisplayName: String = ArrayMathExpressionNode.defaultExpression
-
-    @ObservationIgnored private let mathParser = MathParser()
-    @ObservationIgnored private var mathEvaluator: Evaluator? = nil
     @ObservationIgnored private var forceReeval: Bool = true
+
+    /// A new expression must re-emit even if no input array changed.
+    override public func expressionDidReparse() { self.forceReeval = true }
+
+    override public func makeVariablePort(named name: String) -> Port
+    {
+        NodePort<ContiguousArray<Float>>(
+            name: name,
+            kind: .Inlet,
+            description: "Values for variable '\(name)' — one per output element; shorter arrays pad with last element"
+        )
+    }
 
     // MARK: - Ports
 
@@ -106,57 +65,7 @@ struct ArrayMathExpressionView: View
 
     public var outputArray: NodePort<ContiguousArray<Float>> { port(named: "outputArray") }
 
-    override public func providesSettingsView() -> Bool { true }
     override public func settingsView() -> AnyView { AnyView(ArrayMathExpressionView(node: self)) }
-
-    // MARK: - Expression Parsing
-
-    private func evalExpression()
-    {
-        let result = mathParser.parseResult(self.stringExpression)
-
-        switch result
-        {
-        case .success(let evaluator):
-            self.mathEvaluator = evaluator
-            self.evaluatedDisplayName = self.stringExpression
-            self.registerPorts(forEvaluator: evaluator)
-            self.forceReeval = true
-
-        case .failure:
-            self.mathEvaluator = nil
-            self.evaluatedDisplayName = "⚠ \(self.stringExpression)"
-        }
-    }
-
-    private func registerPorts(forEvaluator evaluator: Evaluator)
-    {
-        let unresolvedVariables = Set(evaluator.unresolved.variables.map { String($0) })
-        let variableNames = unresolvedVariables.subtracting(Self.specialBindings)
-
-        let existingVariablePortNames = Set(self.inputPorts().map { $0.name })
-
-        let portsToRemove = existingVariablePortNames.subtracting(variableNames)
-        let portsToAdd = variableNames.subtracting(existingVariablePortNames)
-
-        for portName in portsToRemove
-        {
-            if let port: Port = findPort(named: portName)
-            {
-                removePort(port)
-            }
-        }
-
-        for portName in portsToAdd
-        {
-            let port = NodePort<ContiguousArray<Float>>(
-                name: portName,
-                kind: .Inlet,
-                description: "Values for variable '\(portName)' — one per output element; shorter arrays pad with last element"
-            )
-            addDynamicPort(port, name: portName)
-        }
-    }
 
     // MARK: - Execution
 
