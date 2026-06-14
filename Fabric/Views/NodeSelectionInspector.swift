@@ -24,8 +24,6 @@ public struct NodeSelectionInspector: View
 
         let currentGraph = self.editingContext.currentGraph
 
-        let selectedNodes = currentGraph.nodes.filter( { $0.isSelected } )
-
         List {
 
             Section(header: Text("Published"))
@@ -33,14 +31,16 @@ public struct NodeSelectionInspector: View
                 ParameterGroupView(parameterGroup:currentGraph.publishedParameterGroup)
             }
 
-            ForEach(selectedNodes, id: \.id) { node in
+            ForEach(currentGraph.selectedNodes, id: \.id) { node in
 
-                Section(header: Text( node.name ) )
+                let vm = currentGraph.viewModel(for: node)
+
+                Section(header: Text( vm.name ) )
                 {
-                    @Bindable var bindableNode:Node = node
+                    @Bindable var bindableVM: NodeViewModel = vm
 
-                    Toggle("Node Settings", isOn: $bindableNode.showSettings)
-                        .opacity(bindableNode.providesSettingsView() ? 1.0 : 0.0)
+                    Toggle("Node Settings", isOn: $bindableVM.showSettings)
+                        .opacity(vm.providesSettingsView() ? 1.0 : 0.0)
 
                     ParameterGroupView(parameterGroup: node.parameterGroup,
                                        fileContentTypes: Self.fileContentTypes(for: node))
@@ -60,7 +60,3 @@ public struct NodeSelectionInspector: View
         return [.data]
     }
 }
-
-//#Preview {
-////    NodeSelectionInspector()
-//}

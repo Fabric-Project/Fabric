@@ -87,17 +87,17 @@ public class CameraProviderNode : Node
     public var inputCamera:ParameterPort<String>  { port(named: "inputCamera") }
     public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
     
-    @ObservationIgnored private let discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInWideAngleCamera, .continuityCamera, .external,], mediaType: nil, position:.unspecified)
-    @ObservationIgnored private var device: AVCaptureDevice? = nil
-    @ObservationIgnored private var captureSession: AVCaptureSession
-    @ObservationIgnored private let captureDelegate = CaptureDelegate()
+    private let discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInWideAngleCamera, .continuityCamera, .external,], mediaType: nil, position:.unspecified)
+    private var device: AVCaptureDevice? = nil
+    private var captureSession: AVCaptureSession
+    private let captureDelegate = CaptureDelegate()
 
-    @ObservationIgnored private var observer: Any? = nil
+    private var observer: Any? = nil
     
-    @ObservationIgnored private var devices = [AVCaptureDevice]()
+    private var devices = [AVCaptureDevice]()
 
-    @ObservationIgnored private var wasConnectedObserver:Any? = nil
-    @ObservationIgnored private var wasDisconnectedObserver:Any? = nil
+    private var wasConnectedObserver:Any? = nil
+    private var wasDisconnectedObserver:Any? = nil
 
     required public init(context:Context)
     {

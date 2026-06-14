@@ -18,7 +18,7 @@ public final class GaussianBlurNode: BaseMultiPassBlurEffectNode {
         var padding: Float
     }
 
-    @ObservationIgnored private var passUniformsBuffers: [StructBuffer<GaussianPassUniforms>] = []
+    private var passUniformsBuffers: [StructBuffer<GaussianPassUniforms>] = []
 
     required init(context: Context, fileURL: URL) throws {
         try super.init(context: context, fileURL: fileURL)

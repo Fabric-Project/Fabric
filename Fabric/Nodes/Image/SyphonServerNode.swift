@@ -35,8 +35,8 @@ public class SyphonServerNode : Node
     public var inputServerName:ParameterPort<String>  { port(named: "inputServerName") }
     public var inputTexture:NodePort<FabricImage> { port(named: "inputTexture") }
 
-    @ObservationIgnored private let syphonServer:SyphonMetalServer
-    @ObservationIgnored private var texture: (any MTLTexture)? = nil
+    private let syphonServer:SyphonMetalServer
+    private var texture: (any MTLTexture)? = nil
     
     public required init(context:Context)
     {

@@ -88,25 +88,25 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     public var inputSeekTimeParam:ParameterPort<Float>   { port(named: "inputSeekTimeParam") }
     public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
 
-    @ObservationIgnored private var url: URL? = nil
-    @ObservationIgnored private var asset:AVURLAsset? = nil
-    @ObservationIgnored private var player:AVPlayer = AVPlayer()
-    @ObservationIgnored private var playerItem:AVPlayerItem? = nil
-    @ObservationIgnored private var playerItemVideoOutput:AVPlayerItemVideoOutput
-    @ObservationIgnored private var pixelBuffer:CVPixelBuffer? = nil
-    @ObservationIgnored private var observer: Any? = nil
+    private var url: URL? = nil
+    private var asset:AVURLAsset? = nil
+    private var player:AVPlayer = AVPlayer()
+    private var playerItem:AVPlayerItem? = nil
+    private var playerItemVideoOutput:AVPlayerItemVideoOutput
+    private var pixelBuffer:CVPixelBuffer? = nil
+    private var observer: Any? = nil
 
 #if FABRIC_HAP_ENABLED
     /// Hap decoder output, present only while the loaded asset is a
     /// Hap-encoded movie. When non-nil, the standard
     /// `playerItemVideoOutput` is *not* attached to the player item.
-    @ObservationIgnored private var hapOutput: AVPlayerItemHapDXTOutput? = nil
+    private var hapOutput: AVPlayerItemHapDXTOutput? = nil
     /// `true` when the loaded codec is one we can upload as a Metal
     /// compressed texture (BC1 / BC3 / BC7) directly from the
     /// HapDecoderFrame's DXT bytes — no RGB pixel walk, no memcpy of
     /// uncompressed pixels. `false` falls back to the RGB output path
     /// for codecs that need post-processing (YCoCg / multi-plane / HDR).
-    @ObservationIgnored private var hapUsesDXTPath: Bool = false
+    private var hapUsesDXTPath: Bool = false
 
     /// Presentation time of the most recently emitted Hap frame.
     /// Used to dedupe successive `allocFrameClosest(to:)` returns —
@@ -124,12 +124,12 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     /// `@ObservationIgnored` for the same reason as `seeking` —
     /// Hap frame timestamps may be inspected from the decoder's
     /// queue context in future refactors.
-    @ObservationIgnored private var lastEmittedHapTime: CMTime = .invalid
+    private var lastEmittedHapTime: CMTime = .invalid
 
     /// One-shot flag so the BC-block-alignment fallback in
     /// `makeDXTImage` logs at most once per loaded asset, not once
     /// per frame. Re-armed at asset swap.
-    @ObservationIgnored private var didLogDXTSubBlockPadding: Bool = false
+    private var didLogDXTSubBlockPadding: Bool = false
 #endif
 
     /// Asset duration in seconds. Returns 0 until the asset's duration has
@@ -156,7 +156,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     /// fires on an internal AVPlayer queue, off-main. Fabric's
     /// `@Observable` engine types are main-thread-affine — without
     /// the opt-out, the off-main write would be Observation UB.
-    @ObservationIgnored private var seeking: Bool = false
+    private var seeking: Bool = false
 
     /// Set by `performSeek`'s completion handler when the player is
     /// paused at seek-land time, cleared after the next `execute()`
@@ -167,7 +167,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     ///
     /// Threading note as per `seeking` — written from AVFoundation's
     /// internal queue, so `@ObservationIgnored`.
-    @ObservationIgnored private var needsEmitAfterSeek: Bool = false
+    private var needsEmitAfterSeek: Bool = false
 
     /// Coalesce-buffer for seek targets arriving while a previous seek
     /// is still in flight. Written from `performSeek` on the consumer
@@ -175,7 +175,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     /// latest value survives — intermediate targets are dropped, which
     /// is the point: a seek-storm of nearby targets resolves to one
     /// final seek to the latest, not N cancelled+restarted seeks.
-    @ObservationIgnored private var pendingSeekTarget: TimeInterval? = nil
+    private var pendingSeekTarget: TimeInterval? = nil
 
     /// Internal seek implementation driven by `inputSeekTimeParam`
     /// changes in `execute`. Tolerance comes from `seekTolerance`

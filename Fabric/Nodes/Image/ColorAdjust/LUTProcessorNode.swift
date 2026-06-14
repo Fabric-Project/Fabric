@@ -35,8 +35,8 @@ public class LUTProcessorNode : BaseImageNode
 
     public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
 
-    @ObservationIgnored private var texture: (any MTLTexture)? = nil
-    @ObservationIgnored private var url: URL? = nil
+    private var texture: (any MTLTexture)? = nil
+    private var url: URL? = nil
     
     public required init(context:Context, fileURL:URL? = nil)
     {

@@ -15,7 +15,7 @@ public final class ZoomBlurNode: BaseMultiPassBlurEffectNode {
         var amountScale: Float
     }
 
-    @ObservationIgnored private var passUniformsBuffers: [StructBuffer<ZoomPassUniforms>] = []
+    private var passUniformsBuffers: [StructBuffer<ZoomPassUniforms>] = []
 
     required init(context: Context, fileURL: URL) throws {
         try super.init(context: context, fileURL: fileURL)

@@ -24,7 +24,7 @@ public class SubgraphNode: BaseObjectNode
     /// Each proxy has node = self (the SubgraphNode) and published = false.
     /// The parent graph independently decides whether to publish them further.
     /// Lazily rebuilt when the sub graph's published ports change.
-    @ObservationIgnored private var proxyPorts: [Port] = []
+    private var proxyPorts: [Port] = []
 
     override public var ports:[Port] { self.proxyPorts + super.ports }
 
@@ -98,7 +98,7 @@ public class SubgraphNode: BaseObjectNode
         }
     }
 
-    @ObservationIgnored override public var nodeExecutionMode:ExecutionMode
+    override public var nodeExecutionMode:ExecutionMode
     {
         let publishedInputPorts = self.proxyPorts.filter { $0.kind == .Inlet }
         let publishedOutputPorts = self.proxyPorts.filter { $0.kind == .Outlet }

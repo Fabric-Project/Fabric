@@ -36,9 +36,9 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
     let postMaterial: PostMaterial
     let postProcessor: PostProcessEncoder
 
-    @ObservationIgnored private var url: URL? = nil
-    @ObservationIgnored private var lastKnownInputCount: Int = 1
-    @ObservationIgnored private var cachedImageInputPorts: [NodePort<FabricImage>] = []
+    private var url: URL? = nil
+    private var lastKnownInputCount: Int = 1
+    private var cachedImageInputPorts: [NodePort<FabricImage>] = []
 
     enum CodingKeys: String, CodingKey
     {
@@ -76,7 +76,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         fatalError("BaseImageNode requires at least one image outlet")
     }
 
-    @ObservationIgnored override public var nodeExecutionMode: ExecutionMode {
+    override public var nodeExecutionMode: ExecutionMode {
         self.currentImageInputCount == 0 ? .Provider : .Processor
     }
 
@@ -471,8 +471,8 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
     /// Material sync only adds to, rebinds, or removes labels in this set — any
     /// port whose label isn't in it (subclass-declared ports, base-managed ports
     /// like Width/Height, or anything else) is implicitly protected.
-    @ObservationIgnored private var materialSyncedLabels: Set<String> = []
-    @ObservationIgnored private var materialSyncedLabelsInitialized: Bool = false
+    private var materialSyncedLabels: Set<String> = []
+    private var materialSyncedLabelsInitialized: Bool = false
 
     private func offLimitsLabels() -> Set<String> {
         let declared = Self.registerPorts(context: self.context).compactMap { $0.port.parameter?.label }
