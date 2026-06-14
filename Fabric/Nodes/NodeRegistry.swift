@@ -316,6 +316,7 @@ public class NodeRegistry {
         ArrayCountNode<Float>.self,
         ArrayQueueNode<Float>.self,
         ArrayReplaceValueAtIndexNode<Float>.self,
+        ArrayMathExpressionNode.self,
         FloatArrayToVector2ArrayNode.self,
         FloatArrayToVector3ArrayNode.self,
         Vector2ArrayToVector3ArrayNode.self,
