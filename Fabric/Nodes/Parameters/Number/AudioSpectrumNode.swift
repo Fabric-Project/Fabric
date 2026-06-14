@@ -202,6 +202,71 @@ public class AudioSpectrumNode : Node
         }
     }
 
+    // Lock-free triple buffer for capture-queue → execute-queue handoff.
+    // Three pre-allocated buffers rotate among three owners (producer, consumer,
+    // spare) using a single Atomic<Int>. The producer never touches the buffer
+    // the consumer is currently reading, and vice versa — no lock required on
+    // either thread.
+    private final class TripleBuffer: @unchecked Sendable {
+        private let capacity: Int
+        private var buffers: [ContiguousArray<Float>]
+        // Exact frame count written per buffer. Written before the releasing
+        // exchange, read after the acquiring exchange — happens-before covers it.
+        private var sampleCounts: [Int]
+        // bits [1:0] = spare buffer index (0, 1, or 2), bit [2] = new-data flag
+        private let state: Atomic<Int>
+        // Float.bitPattern; 0 means sample rate not yet known
+        private let sampleRateBits: Atomic<UInt32>
+        // Thread-private — each index is only touched by one side
+        private var producerIndex: Int = 0   // capture queue only
+        private var consumerIndex: Int = 1   // execute thread only
+
+        init(capacity: Int) {
+            self.capacity       = capacity
+            self.buffers        = (0..<3).map { _ in ContiguousArray(repeating: Float(0), count: capacity) }
+            self.sampleCounts   = [0, 0, 0]
+            self.state          = Atomic<Int>(2)   // spare = buffer[2], no new data
+            self.sampleRateBits = Atomic<UInt32>(0)
+        }
+
+        // Capture-queue only — no allocation, no lock.
+        func write(floats: UnsafePointer<Float>, stride: Int, frameCount: Int, sampleRate: Float) {
+            let n = min(frameCount, capacity)
+            for i in 0..<n {
+                let s = floats[i * stride]
+                buffers[producerIndex][i] = s.isFinite ? s : 0
+            }
+            sampleCounts[producerIndex] = n
+            if sampleRate.isFinite, sampleRate > 0 {
+                sampleRateBits.store(sampleRate.bitPattern, ordering: .releasing)
+            }
+            let old = state.exchange(producerIndex | 0x4, ordering: .releasing)
+            producerIndex = old & 0x3
+        }
+
+        // Execute thread only — calls body only when new data is available.
+        func withLatestBuffer(_ body: (UnsafeBufferPointer<Float>, Int, Float?) -> Void) {
+            let old = state.exchange(consumerIndex, ordering: .acquiring)
+            guard (old & 0x4) != 0 else { return }
+            consumerIndex = old & 0x3
+            let count = sampleCounts[consumerIndex]
+            guard count > 0 else { return }
+            let bits = sampleRateBits.load(ordering: .relaxed)
+            let rate: Float? = bits == 0 ? nil : Float(bitPattern: bits)
+            buffers[consumerIndex].withUnsafeBufferPointer { ptr in
+                body(UnsafeBufferPointer(start: ptr.baseAddress!, count: count), count, rate)
+            }
+        }
+
+        // Clears the new-data flag so stale data from the previous device
+        // isn't consumed after a session switch.
+        func invalidate() {
+            let cur = state.load(ordering: .relaxed)
+            state.store(cur & 0x3, ordering: .relaxed)
+            sampleRateBits.store(0, ordering: .relaxed)
+        }
+    }
+
     override public class var name:String { "Audio Spectrum" }
     override public class var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
@@ -235,7 +300,7 @@ public class AudioSpectrumNode : Node
     public var outputSpectrum:NodePort<ContiguousArray<Float>> { port(named: "outputSpectrum") }
 
     // Delegate receives CMSampleBuffers on the capture queue and forwards
-    // them into the owner's captureState. Weak reference breaks the
+    // them into the owner's tripleBuffer. Weak reference breaks the
     // otherwise self-retaining delegate/owner cycle.
     private final class CaptureDelegate: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate
     {
@@ -256,19 +321,7 @@ public class AudioSpectrumNode : Node
     @ObservationIgnored private let captureQueue   = DispatchQueue(label: "fabric.AudioSpectrumNode.capture_queue")
     @ObservationIgnored private var captureDelegate = CaptureDelegate()
 
-    /// Capture-thread → consumer-thread handoff via a Mutex.
-    ///
-    /// The capture delegate (running on `captureQueue`) writes samples and the
-    /// observed sample rate into `captureState` under the lock. `execute()` swaps
-    /// the sample buffer out in one O(1) lock acquisition — no `captureQueue.sync`
-    /// cross-queue blocking on the render thread. `captureQueue` is retained only
-    /// as the AVCaptureSession delegate dispatch queue; it is no longer used as a
-    /// synchronization primitive.
-    private struct CaptureState {
-        var samples:    [Float] = []
-        var sampleRate: Float?  = nil
-    }
-    @ObservationIgnored private let captureState = Mutex<CaptureState>(CaptureState())
+    @ObservationIgnored private let tripleBuffer = TripleBuffer(capacity: 4096)
 
     // Device enumeration. AVCaptureDevice.DiscoverySession gives us the raw
     // AVCaptureDevice instances which feed straight into AVCaptureDeviceInput
@@ -290,9 +343,8 @@ public class AudioSpectrumNode : Node
     /// parameter design — engine state and UI binding state share a
     /// single object — not a SwiftUI requirement of this node.
     ///
-    /// `captureState` (a `Mutex`) is separate and is written from the
-    /// capture queue and read from the consumer (execute) queue — no
-    /// `.main` constraint applies there.
+    /// `tripleBuffer` is written from the capture queue and read from the
+    /// execute thread lock-free — no `.main` constraint applies there.
     private struct DeviceList: ~Copyable, @unchecked Sendable {
         var devices: [AVCaptureDevice] = []
     }
@@ -417,37 +469,20 @@ public class AudioSpectrumNode : Node
         if self.inputAttack.valueDidChange,   let v = self.inputAttack.value   { filterBank?.attackMS  = v }
         if self.inputRelease.valueDidChange,  let v = self.inputRelease.value  { filterBank?.releaseMS = v }
 
-        // Single lock: swap the captured sample backlog + read observed rate.
-        // The swap is O(1) (pointer exchange); the lock is held for nanoseconds.
-        var capturedSamples: [Float] = []
-        var capturedRate:    Float?  = nil
-        captureState.withLock { state in
-            swap(&capturedSamples, &state.samples)
-            capturedRate = state.sampleRate
+        var processedOutput: ContiguousArray<Float>? = nil
+        tripleBuffer.withLatestBuffer { ptr, count, rate in
+            let activeRate = rate ?? self.filterBank?.sampleRate ?? 48000
+            if needsRebuild || (rate != nil && rate != self.filterBank?.sampleRate) {
+                self.createFilterBank(sampleRate: activeRate, bandCount: self.bands, normalizedSmoothing: self.smoothing)
+            }
+            guard let fb = self.filterBank else { return }
+            let framesPerTick = Int(round(fb.sampleRate / 200))
+            let batchCount = min(framesPerTick, count)
+            let sensitivity = max(0, min(1, self.inputSensitivity.value ?? 0.5))
+            fb.dbFloor = -30 - sensitivity * 90
+            processedOutput = fb.processAudioData(UnsafeBufferPointer(start: ptr.baseAddress!, count: batchCount))
         }
-
-        // Rebuild once with the best available rate — covers both structural
-        // param changes and a first-seen rate change in the same tick.
-        let activeRate = capturedRate ?? filterBank?.sampleRate ?? 48000
-        if needsRebuild || (capturedRate != nil && capturedRate != filterBank?.sampleRate)
-        {
-            createFilterBank(sampleRate: activeRate, bandCount: bands, normalizedSmoothing: smoothing)
-        }
-
-        guard let filterBank, !capturedSamples.isEmpty else { return }
-
-        let framesPerTick = Int(round(filterBank.sampleRate / 200))
-        let batchCount    = min(framesPerTick, capturedSamples.count)
-
-        // Sensitivity → filter-bank dbFloor. 0 = least sensitive (−30 dB floor);
-        // 1 = most sensitive (−120 dB floor).
-        let sensitivity = max(0, min(1, self.inputSensitivity.value ?? 0.5))
-        filterBank.dbFloor = -30 - sensitivity * 90
-
-        // Pass UnsafeBufferPointer sub-range — no copy.
-        var output = capturedSamples.withUnsafeBufferPointer { ptr in
-            filterBank.processAudioData(UnsafeBufferPointer(start: ptr.baseAddress!, count: batchCount))
-        }
+        guard var output = processedOutput else { return }
 
         // Apply gain + clamp in-place with vDSP — no extra allocation.
         var gain = self.inputGain.value ?? 1.0
@@ -533,16 +568,7 @@ public class AudioSpectrumNode : Node
         let frameCount = Int(firstBuffer.mDataByteSize) / (stride * MemoryLayout<Float>.size)
         let floats     = dataPtr.assumingMemoryBound(to: Float.self)
 
-        // Append directly into captureState — eliminates the previous
-        // intermediate [Float] allocation and the separate append call.
-        captureState.withLock { state in
-            if sampleRate.isFinite, sampleRate > 0 { state.sampleRate = sampleRate }
-            state.samples.reserveCapacity(state.samples.count + frameCount)
-            for i in 0..<frameCount {
-                let s = floats[i * stride]
-                state.samples.append(s.isFinite ? s : 0)
-            }
-        }
+        tripleBuffer.write(floats: floats, stride: stride, frameCount: frameCount, sampleRate: sampleRate)
     }
 
     /// Build (or rebuild) the capture session for the currently-selected device.
@@ -609,12 +635,7 @@ public class AudioSpectrumNode : Node
         self.captureSession = session
         self.captureSession.startRunning()
 
-        // Flush stale samples so the first buffer from the new device drives
-        // the filter-bank rebuild, not leftover data from the old device.
-        captureState.withLock { state in
-            state.samples.removeAll(keepingCapacity: true)
-            state.sampleRate = nil
-        }
+        tripleBuffer.invalidate()
     }
 
     // MARK: - Visualization
