@@ -14,7 +14,7 @@ public class LinePointsNode : Node
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Generates N points evenly spaced along a line, centred on the origin. The Orientation quaternion rotates a canonical local frame (line runs along local +X) into world space. Identity orientation places the line along the world +X axis." }
+    override public class var nodeDescription: String { "Generates N points evenly spaced along a line of total length Spread, with the first and last points at the ends. A single point sits at the centre. The Orientation quaternion rotates a canonical local frame (line runs along local +X) into world space. Identity orientation places the line along the world +X axis." }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
@@ -56,8 +56,10 @@ public class LinePointsNode : Node
         // +X axis into world space once; each point is then x * xAxis.
         let xAxis = matrix_float3x3(orientation).columns.0
 
-        let step = spread / Float(count)
-        var x = -spread * 0.5 + step * 0.5
+        // Endpoint-inclusive: the first and last points sit at ±Spread/2 so
+        // they span the full Spread. A single point sits at the centre.
+        let step = count > 1 ? spread / Float(count - 1) : 0
+        var x = count > 1 ? -spread * 0.5 : 0
 
         var output = ContiguousArray<simd_float3>()
         output.reserveCapacity(count)
