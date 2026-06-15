@@ -13,7 +13,7 @@ import MetalKit
 
 public class FloatArrayToVector3ArrayNode: Node
 {
-    public override class var name:String {"Float Array to Vector 3 Array" }
+    public override class var name:String {"Vector 3 Array From Float Array" }
     public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }

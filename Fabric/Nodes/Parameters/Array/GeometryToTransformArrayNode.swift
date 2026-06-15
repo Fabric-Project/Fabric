@@ -14,7 +14,7 @@ import MetalKit
 
 public class GeometryToTransformArrayNode : Node
 {
-    public override class var name:String { "Geometry To Array of Transforms" }
+    public override class var name:String { "Transform Array From Geometry" }
     public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Transform) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
