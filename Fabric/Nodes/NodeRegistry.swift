@@ -353,6 +353,7 @@ public class NodeRegistry {
         // Vectors
         PassThroughNode<simd_float2>.self,
         MakeVector2Node.self,
+        VectorTweenNode<simd_float2>.self,
         Vector2ToFloatNode.self,
         Vector2Distance.self,
         ArrayFirstValueNode<simd_float2>.self,
@@ -362,10 +363,12 @@ public class NodeRegistry {
         ArrayQueueNode<simd_float2>.self,
         ArrayReplaceValueAtIndexNode<simd_float2>.self,
         Vector2ArrayFromXYNode.self,
+        VectorArrayTweenNode<simd_float2>.self,
         PolyLineSimplifyNode.self,
         
         PassThroughNode<simd_float3>.self,
         MakeVector3Node.self,
+        VectorTweenNode<simd_float3>.self,
         Vector3ToFloatNode.self,
         Vector3Distance.self,
         ArrayFirstValueNode<simd_float3>.self,
@@ -385,9 +388,11 @@ public class NodeRegistry {
         ArrayWithCountNode<simd_float3>.self,
         ArrayFromRippledValueNode<simd_float3>.self,
         Vector3ArrayFromXYZNode.self,
+        VectorArrayTweenNode<simd_float3>.self,
 
         PassThroughNode<simd_float4>.self,
         MakeVector4Node.self,
+        VectorTweenNode<simd_float4>.self,
         Vector4ToFloatNode.self,
         Vector4Distance.self,
         ArrayFirstValueNode<simd_float4>.self,
@@ -399,6 +404,7 @@ public class NodeRegistry {
         ArrayWithCountNode<simd_float4>.self,
         ArrayFromRippledValueNode<simd_float4>.self,
         Vector4ArrayFromXYZWNode.self,
+        VectorArrayTweenNode<simd_float4>.self,
 
         PassThroughNode<simd_quatf>.self,
         MakeQuaternionNode.self,
