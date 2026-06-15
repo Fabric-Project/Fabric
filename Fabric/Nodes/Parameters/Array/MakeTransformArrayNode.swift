@@ -61,10 +61,17 @@ public class MakeTransformArrayNode : Node
         var output = ContiguousArray<simd_float4x4>()
         output.reserveCapacity(count)
         for i in 0..<count {
-            let t = translationMatrix3f(positions[i])
-            let r = matrix_float4x4(orientationQuats[i])
-            let s = scaleMatrix3f(scales[i])
-            output.append(simd_mul(simd_mul(t, r), s))
+            // T*R*S in closed form: scale the rotation's columns and drop the
+            // position into the translation column. Avoids building three
+            // matrices and two 4x4 multiplies per element. The rotation's
+            // columns 0-2 carry w = 0, so scaling preserves the affine row.
+            let s = scales[i]
+            var m = matrix_float4x4(orientationQuats[i])
+            m.columns.0 *= s.x
+            m.columns.1 *= s.y
+            m.columns.2 *= s.z
+            m.columns.3 = simd_float4(positions[i], 1)
+            output.append(m)
         }
         self.outputTransforms.send(output)
     }

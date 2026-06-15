@@ -52,14 +52,17 @@ public class LinePointsNode : Node
         let spread = max(0.0, self.inputSpread.value ?? 1.0)
         let orientation = simd_quatf(vector: self.inputOrientation.value ?? simd_float4(0, 0, 0, 1)).normalized
 
+        // The orientation is constant across all points, so resolve the local
+        // +X axis into world space once; each point is then x * xAxis.
+        let xAxis = matrix_float3x3(orientation).columns.0
+
         let step = spread / Float(count)
         var x = -spread * 0.5 + step * 0.5
 
         var output = ContiguousArray<simd_float3>()
         output.reserveCapacity(count)
         for _ in 0..<count {
-            let local = simd_float3(x, 0, 0)
-            output.append(orientation.act(local))
+            output.append(x * xAxis)
             x += step
         }
         self.outputPositions.send(output)

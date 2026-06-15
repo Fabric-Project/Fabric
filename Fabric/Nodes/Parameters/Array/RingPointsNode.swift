@@ -56,14 +56,20 @@ public class RingPointsNode : Node
         let arcRads = (self.inputArcDegrees.value ?? 360.0) * Float.pi / 180.0
         let orientation = simd_quatf(vector: self.inputOrientation.value ?? simd_float4(0, 0, 0, 1)).normalized
 
+        // The orientation is constant across all points, so resolve the ring's
+        // local X/Y axes into world space once; each point is then a linear
+        // combination of them.
+        let basis = matrix_float3x3(orientation)
+        let xAxis = basis.columns.0
+        let yAxis = basis.columns.1
+
         let step = arcRads / Float(count)
         var theta = -arcRads * 0.5 + step * 0.5
 
         var output = ContiguousArray<simd_float3>()
         output.reserveCapacity(count)
         for _ in 0..<count {
-            let local = simd_float3(radius * cos(theta), radius * sin(theta), 0)
-            output.append(orientation.act(local))
+            output.append((radius * cos(theta)) * xAxis + (radius * sin(theta)) * yAxis)
             theta += step
         }
         self.outputPositions.send(output)
