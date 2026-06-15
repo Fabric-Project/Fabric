@@ -317,7 +317,7 @@ public class NodeRegistry {
         ArrayQueueNode<Float>.self,
         ArrayReplaceValueAtIndexNode<Float>.self,
         ArrayMathExpressionNode.self,
-        ArrayFromValueNode<Float>.self,
+        ArrayWithCountNode<Float>.self,
         ArrayFromRippledValueNode<Float>.self,
         FloatArrayToVector2ArrayNode.self,
         FloatArrayToVector3ArrayNode.self,
@@ -382,7 +382,7 @@ public class NodeRegistry {
         OrientationArrayFromAxisAngleNode.self,
         OrientationArrayTweenNode.self,
         TransformArrayFromTRSNode.self,
-        ArrayFromValueNode<simd_float3>.self,
+        ArrayWithCountNode<simd_float3>.self,
         ArrayFromRippledValueNode<simd_float3>.self,
         Vector3ArrayFromXYZNode.self,
 
@@ -396,7 +396,7 @@ public class NodeRegistry {
         ArrayCountNode<simd_float4>.self,
         ArrayQueueNode<simd_float4>.self,
         ArrayReplaceValueAtIndexNode<simd_float4>.self,
-        ArrayFromValueNode<simd_float4>.self,
+        ArrayWithCountNode<simd_float4>.self,
         ArrayFromRippledValueNode<simd_float4>.self,
         Vector4ArrayFromXYZWNode.self,
 
