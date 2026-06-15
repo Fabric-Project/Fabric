@@ -38,15 +38,11 @@ public class OrientationArrayTweenNode : Node
     public var outputOrientations: NodePort<ContiguousArray<simd_float4>> { port(named: "outputOrientations") }
     public var outputProgress: NodePort<Float> { port(named: "outputProgress") }
 
-    // Tween state (one clock shared across elements; per-element endpoints)
-    private var tween = TweenState()
-    private var fromQuats: [simd_quatf] = []
-    private var toQuats: [simd_quatf] = []
-    private var currentOutputs: [simd_quatf] = []
-    // Emit on the next idle frame after a state change; avoids re-sending the
-    // whole array every frame while at rest. Starts true so the first frame
-    // emits (an empty array when Targets is unconnected).
-    private var pendingEmit = true
+    // Interpolation is slerp; endpoints are stored as normalized quaternion
+    // vectors so the shared driver can hold them as plain `simd_float4`.
+    private let driver = TweenArrayDriver<simd_float4>(interpolate: {
+        simd_slerp(simd_quatf(vector: $0), simd_quatf(vector: $1), $2).vector
+    })
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
@@ -55,74 +51,15 @@ public class OrientationArrayTweenNode : Node
     {
         let time = executionInfo.timing.time
 
-        // Detect target change → snap-retarget
-        if self.inputTargets.valueDidChange,
-           let targetVecs = self.inputTargets.value
-        {
-            let newTargets = targetVecs.map { simd_quatf(safeVector: $0) }
-
-            if !tween.initialized
-            {
-                fromQuats = newTargets
-                toQuats = newTargets
-                currentOutputs = newTargets
-                tween.initialized = true
-                pendingEmit = true
-            }
-            else if newTargets != toQuats
-            {
-                // Tween each element from its current value; elements beyond
-                // the previous count start already at their target.
-                var newFrom = [simd_quatf]()
-                newFrom.reserveCapacity(newTargets.count)
-                for i in 0..<newTargets.count {
-                    newFrom.append(i < currentOutputs.count ? currentOutputs[i] : newTargets[i])
-                }
-                fromQuats = newFrom
-                toQuats = newTargets
-                currentOutputs = newFrom
-                tween.start(at: time)
-                pendingEmit = true
-            }
+        if self.inputTargets.valueDidChange, let targets = self.inputTargets.value {
+            // Normalize each target quaternion up front; the driver then slerps
+            // unit quaternions and stores them as packed float4.
+            driver.setTargets(targets.map { simd_quatf(safeVector: $0).vector }, at: time)
         }
 
-        // Drive the tween
-        if let duration = self.inputDuration.value,
-           let easingName = self.inputEasing.value,
-           let result = tween.update(time: time, duration: duration, easingName: easingName)
-        {
-            var output = ContiguousArray<simd_float4>()
-            output.reserveCapacity(toQuats.count)
-            for i in 0..<toQuats.count
-            {
-                let c = result.t >= 1.0 ? toQuats[i] : simd_slerp(fromQuats[i], toQuats[i], result.easedT)
-                currentOutputs[i] = c
-                output.append(c.vector)
-            }
-            self.outputOrientations.send(output)
-            self.outputProgress.send(result.t)
-            pendingEmit = false
-        }
-        else if pendingEmit
-        {
-            // Emit the settled state once (after init / a retarget that didn't
-            // tween), then stay quiet until something changes.
-            if tween.initialized
-            {
-                var output = ContiguousArray<simd_float4>()
-                output.reserveCapacity(currentOutputs.count)
-                for c in currentOutputs { output.append(c.vector) }
-                self.outputOrientations.send(output)
-                self.outputProgress.send(tween.tweening ? 0.0 : 1.0)
-            }
-            else
-            {
-                // Targets unconnected / never received — emit an empty array so
-                // downstream gets a value, like the other array nodes.
-                self.outputOrientations.send(ContiguousArray<simd_float4>())
-                self.outputProgress.send(1.0)
-            }
-            pendingEmit = false
+        if let result = driver.update(time: time, duration: self.inputDuration.value, easingName: self.inputEasing.value) {
+            self.outputOrientations.send(result.values)
+            self.outputProgress.send(result.progress)
         }
     }
 }

@@ -27,7 +27,7 @@ func makeInspectorValuePort<Value: PortValueRepresentable>(
     } else if Value.self == simd_float3.self {
         return ParameterPort(parameter: Float3Parameter(name, .zero, .inputfield, description))
     } else if Value.self == simd_float4.self {
-        return ParameterPort(parameter: Float4Parameter(name, simd_float4(0, 0, 0, 1), .inputfield, description))
+        return ParameterPort(parameter: Float4Parameter(name, .zero, .inputfield, description))
     } else {
         return NodePort<Value>(name: name, kind: .Inlet, description: description)
     }

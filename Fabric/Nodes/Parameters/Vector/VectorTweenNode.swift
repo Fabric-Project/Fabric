@@ -40,11 +40,7 @@ public class VectorTweenNode<Value> : Node where Value: PortValueRepresentable &
     public var outputValue: NodePort<Value> { port(named: "outputValue") }
     public var outputProgress: NodePort<Float> { port(named: "outputProgress") }
 
-    // Tween state
-    private var tween = TweenState()
-    private var fromValue: Value = .zero
-    private var toValue: Value = .zero
-    private var currentOutput: Value = .zero
+    private let driver = TweenDriver<Value>(interpolate: { $0 + ($1 - $0) * $2 })
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
@@ -53,37 +49,13 @@ public class VectorTweenNode<Value> : Node where Value: PortValueRepresentable &
     {
         let time = executionInfo.timing.time
 
-        // Detect target change → snap-retarget
-        if self.inputTarget.valueDidChange,
-           let newTarget = self.inputTarget.value
-        {
-            if !tween.initialized
-            {
-                toValue = newTarget
-                currentOutput = newTarget
-                tween.initialized = true
-            }
-            else if newTarget != toValue
-            {
-                fromValue = currentOutput
-                toValue = newTarget
-                tween.start(at: time)
-            }
+        if self.inputTarget.valueDidChange, let target = self.inputTarget.value {
+            driver.setTarget(target, at: time)
         }
 
-        // Drive the tween
-        if let duration = self.inputDuration.value,
-           let easingName = self.inputEasing.value,
-           let result = tween.update(time: time, duration: duration, easingName: easingName)
-        {
-            currentOutput = result.t >= 1.0 ? toValue : fromValue + (toValue - fromValue) * result.easedT
-            self.outputValue.send(currentOutput)
-            self.outputProgress.send(result.t)
-        }
-        else if tween.initialized
-        {
-            self.outputValue.send(currentOutput)
-            self.outputProgress.send(tween.tweening ? 0.0 : 1.0)
+        if let result = driver.update(time: time, duration: self.inputDuration.value, easingName: self.inputEasing.value) {
+            self.outputValue.send(result.value)
+            self.outputProgress.send(result.progress)
         }
     }
 }

@@ -38,15 +38,7 @@ public class VectorArrayTweenNode<Value> : Node where Value: PortValueRepresenta
     public var outputValues: NodePort<ContiguousArray<Value>> { port(named: "outputValues") }
     public var outputProgress: NodePort<Float> { port(named: "outputProgress") }
 
-    // Tween state (one clock shared across elements; per-element endpoints)
-    private var tween = TweenState()
-    private var fromValues: [Value] = []
-    private var toValues: [Value] = []
-    private var currentOutputs: [Value] = []
-    // Emit on the next idle frame after a state change; avoids re-sending the
-    // whole array every frame while at rest. Starts true so the first frame
-    // emits (an empty array when Targets is unconnected).
-    private var pendingEmit = true
+    private let driver = TweenArrayDriver<Value>(interpolate: { $0 + ($1 - $0) * $2 })
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
@@ -55,70 +47,13 @@ public class VectorArrayTweenNode<Value> : Node where Value: PortValueRepresenta
     {
         let time = executionInfo.timing.time
 
-        // Detect target change → snap-retarget
-        if self.inputTargets.valueDidChange,
-           let targetVals = self.inputTargets.value
-        {
-            let newTargets = Array(targetVals)
-
-            if !tween.initialized
-            {
-                fromValues = newTargets
-                toValues = newTargets
-                currentOutputs = newTargets
-                tween.initialized = true
-                pendingEmit = true
-            }
-            else if newTargets != toValues
-            {
-                // Tween each element from its current value; elements beyond
-                // the previous count start already at their target.
-                var newFrom = [Value]()
-                newFrom.reserveCapacity(newTargets.count)
-                for i in 0..<newTargets.count {
-                    newFrom.append(i < currentOutputs.count ? currentOutputs[i] : newTargets[i])
-                }
-                fromValues = newFrom
-                toValues = newTargets
-                currentOutputs = newFrom
-                tween.start(at: time)
-                pendingEmit = true
-            }
+        if self.inputTargets.valueDidChange, let targets = self.inputTargets.value {
+            driver.setTargets(Array(targets), at: time)
         }
 
-        // Drive the tween
-        if let duration = self.inputDuration.value,
-           let easingName = self.inputEasing.value,
-           let result = tween.update(time: time, duration: duration, easingName: easingName)
-        {
-            var output = ContiguousArray<Value>()
-            output.reserveCapacity(toValues.count)
-            for i in 0..<toValues.count
-            {
-                let c = result.t >= 1.0 ? toValues[i] : fromValues[i] + (toValues[i] - fromValues[i]) * result.easedT
-                currentOutputs[i] = c
-                output.append(c)
-            }
-            self.outputValues.send(output)
-            self.outputProgress.send(result.t)
-            pendingEmit = false
-        }
-        else if pendingEmit
-        {
-            if tween.initialized
-            {
-                var output = ContiguousArray<Value>()
-                output.reserveCapacity(currentOutputs.count)
-                for c in currentOutputs { output.append(c) }
-                self.outputValues.send(output)
-                self.outputProgress.send(tween.tweening ? 0.0 : 1.0)
-            }
-            else
-            {
-                self.outputValues.send(ContiguousArray<Value>())
-                self.outputProgress.send(1.0)
-            }
-            pendingEmit = false
+        if let result = driver.update(time: time, duration: self.inputDuration.value, easingName: self.inputEasing.value) {
+            self.outputValues.send(result.values)
+            self.outputProgress.send(result.progress)
         }
     }
 }
