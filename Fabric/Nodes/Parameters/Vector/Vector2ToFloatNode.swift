@@ -12,11 +12,11 @@ import Metal
 
 public class Vector2ToFloatNode : Node
 {
-    override public static var name:String { "Vector 2 to Float" }
+    override public static var name:String { "XY From Vector 2" }
     override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Vector) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Converts a Vector 2 to its 2 numerical components"}
+    override public class var nodeDescription: String { "Splits a Vector 2 into its X and Y components"}
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {

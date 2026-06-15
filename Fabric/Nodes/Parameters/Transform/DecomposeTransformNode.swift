@@ -12,11 +12,11 @@ import Metal
 
 public class DecomposeTransformNode : Node
 {
-    override public class var name:String { "Decompose A Transform" }
+    override public class var name:String { "TRS From Transform" }
     override public class var nodeType:Node.NodeType { .Parameter(parameterType: .Transform) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Decompose a Transform into a Translation, Scale and Rotation"}
+    override public class var nodeDescription: String { "Decomposes a Transform into its Translation, Rotation and Scale components"}
     
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
