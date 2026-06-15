@@ -371,6 +371,11 @@ public class NodeRegistry {
         ArrayCountNode<simd_float3>.self,
         ArrayQueueNode<simd_float3>.self,
         ArrayReplaceValueAtIndexNode<simd_float3>.self,
+        RingPointsNode.self,
+        LinePointsNode.self,
+        GridPointsNode.self,
+        LookAtNode.self,
+        MakeTransformArrayNode.self,
 
         PassThroughNode<simd_float4>.self,
         MakeVector4Node.self,

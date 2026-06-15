@@ -105,7 +105,7 @@ struct ArrayMathExpressionView: View
         var variableArrays: [String: [Float]] = [:]
         for (name, source) in sourceArrays
         {
-            variableArrays[name] = padLast(source, count: count)
+            variableArrays[name] = source.paddedToLast(count: count, fallback: 0)
         }
 
         let nAsDouble = Double(count)
@@ -135,15 +135,5 @@ struct ArrayMathExpressionView: View
         }
 
         self.outputArray.send(output)
-    }
-
-    // MARK: - Helpers
-
-    @inline(__always)
-    private func padLast(_ array: ContiguousArray<Float>, count: Int) -> [Float]
-    {
-        if array.isEmpty { return Array(repeating: 0, count: count) }
-        if array.count >= count { return Array(array.prefix(count)) }
-        return Array(array) + Array(repeating: array.last!, count: count - array.count)
     }
 }
