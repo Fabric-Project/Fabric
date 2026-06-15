@@ -317,6 +317,8 @@ public class NodeRegistry {
         ArrayQueueNode<Float>.self,
         ArrayReplaceValueAtIndexNode<Float>.self,
         ArrayMathExpressionNode.self,
+        FillArrayNode<Float>.self,
+        RippleFillArrayNode<Float>.self,
         FloatArrayToVector2ArrayNode.self,
         FloatArrayToVector3ArrayNode.self,
         Vector2ArrayToVector3ArrayNode.self,
@@ -376,6 +378,8 @@ public class NodeRegistry {
         GridPointsNode.self,
         LookAtNode.self,
         MakeTransformArrayNode.self,
+        FillArrayNode<simd_float3>.self,
+        RippleFillArrayNode<simd_float3>.self,
 
         PassThroughNode<simd_float4>.self,
         MakeVector4Node.self,
@@ -387,6 +391,8 @@ public class NodeRegistry {
         ArrayCountNode<simd_float4>.self,
         ArrayQueueNode<simd_float4>.self,
         ArrayReplaceValueAtIndexNode<simd_float4>.self,
+        FillArrayNode<simd_float4>.self,
+        RippleFillArrayNode<simd_float4>.self,
 
         // Quaternion
         PassThroughNode<simd_quatf>.self,
