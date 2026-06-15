@@ -1,5 +1,5 @@
 //
-//  MakeTransformArrayNode.swift
+//  TransformArrayFromTRSNode.swift
 //  Fabric
 //
 
@@ -8,7 +8,7 @@ import Satin
 import simd
 import Metal
 
-public class MakeTransformArrayNode : Node
+public class TransformArrayFromTRSNode : Node
 {
     public override class var name: String { "Transform Array From TRS" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }

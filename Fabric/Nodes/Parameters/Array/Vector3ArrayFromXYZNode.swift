@@ -1,5 +1,5 @@
 //
-//  MakeVector3ArrayNode.swift
+//  Vector3ArrayFromXYZNode.swift
 //  Fabric
 //
 
@@ -8,7 +8,7 @@ import Satin
 import simd
 import Metal
 
-public class MakeVector3ArrayNode : Node
+public class Vector3ArrayFromXYZNode : Node
 {
     public override class var name: String { "Vector 3 Array From XYZ" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }

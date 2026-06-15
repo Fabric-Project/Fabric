@@ -1,5 +1,5 @@
 //
-//  RippleFillArrayNode.swift
+//  ArrayFromRippledValueNode.swift
 //  Fabric
 //
 
@@ -8,7 +8,7 @@ import Satin
 import simd
 import Metal
 
-public class RippleFillArrayNode<Value : PortValueRepresentable> : Node
+public class ArrayFromRippledValueNode<Value : PortValueRepresentable> : Node
 {
     public override class var name: String { "\(Value.portType.rawValue) Array From Rippled Value" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }

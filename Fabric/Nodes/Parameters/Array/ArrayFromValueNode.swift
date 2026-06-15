@@ -1,5 +1,5 @@
 //
-//  FillArrayNode.swift
+//  ArrayFromValueNode.swift
 //  Fabric
 //
 
@@ -8,7 +8,7 @@ import Satin
 import simd
 import Metal
 
-public class FillArrayNode<Value : PortValueRepresentable> : Node
+public class ArrayFromValueNode<Value : PortValueRepresentable> : Node
 {
     public override class var name: String { "\(Value.portType.rawValue) Array From Value" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
