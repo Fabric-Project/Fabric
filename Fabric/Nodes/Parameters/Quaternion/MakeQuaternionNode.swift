@@ -47,8 +47,9 @@ public class MakeQuaternionNode : Node
            let inputAngleValue = self.inputAngle.value,
            let inputAxisValue = self.inputAxis.value
         {
-            let quat = simd_quatf(angle: inputAngleValue * .pi / 180,
-                                  axis: inputAxisValue ).normalized
+            // Normalizes the axis (as the Axis port documents) and falls back
+            // to identity for a zero axis.
+            let quat = simd_quatf(axis: inputAxisValue, angleDegrees: inputAngleValue)
 
             self.outputQuaterinion.send( quat.vector )
         }

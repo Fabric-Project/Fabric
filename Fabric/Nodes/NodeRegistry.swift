@@ -377,7 +377,10 @@ public class NodeRegistry {
         RingPointsNode.self,
         LinePointsNode.self,
         GridPointsNode.self,
-        LookAtNode.self,
+        OrientationArrayFromTargetNode.self,
+        OrientationArrayFromEulerNode.self,
+        OrientationArrayFromAxisAngleNode.self,
+        OrientationArrayTweenNode.self,
         TransformArrayFromTRSNode.self,
         ArrayFromValueNode<simd_float3>.self,
         ArrayFromRippledValueNode<simd_float3>.self,
@@ -397,10 +400,10 @@ public class NodeRegistry {
         ArrayFromRippledValueNode<simd_float4>.self,
         Vector4ArrayFromXYZWNode.self,
 
-        // Quaternion
         PassThroughNode<simd_quatf>.self,
         MakeQuaternionNode.self,
-        
+        OrientationFromTargetNode.self,
+
         // Transform (Float Matrix 4x4)
         PassThroughNode<simd_float4x4>.self,
         RotateTransformNode.self,

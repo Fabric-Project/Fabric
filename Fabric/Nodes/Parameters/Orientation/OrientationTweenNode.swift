@@ -59,7 +59,7 @@ public class OrientationTweenNode : Node
         if self.inputTarget.valueDidChange,
            let targetVec = self.inputTarget.value
         {
-            let newTarget = simd_quatf(vector: targetVec).normalized
+            let newTarget = simd_quatf(safeVector: targetVec)
 
             if !tween.initialized
             {

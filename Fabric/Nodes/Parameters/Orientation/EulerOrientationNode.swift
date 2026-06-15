@@ -49,17 +49,7 @@ public class EulerOrientationNode : Node
               || self.inputZ.valueDidChange
         else { return }
 
-        let degToRad = Float.pi / 180.0
-        let x = (self.inputX.value ?? 0) * degToRad
-        let y = (self.inputY.value ?? 0) * degToRad
-        let z = (self.inputZ.value ?? 0) * degToRad
-
-        // Compose quaternion: X * Y * Z (pitch * yaw * roll)
-        let qx = simd_quatf(angle: x, axis: simd_float3(1, 0, 0))
-        let qy = simd_quatf(angle: y, axis: simd_float3(0, 1, 0))
-        let qz = simd_quatf(angle: z, axis: simd_float3(0, 0, 1))
-        let q = (qx * qy * qz).normalized
-
-        self.outputOrientation.send(q.vector)
+        let euler = simd_float3(self.inputX.value ?? 0, self.inputY.value ?? 0, self.inputZ.value ?? 0)
+        self.outputOrientation.send(simd_quatf(eulerAnglesDegrees: euler).vector)
     }
 }
