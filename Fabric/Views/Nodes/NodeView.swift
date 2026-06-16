@@ -15,6 +15,9 @@ struct NodeView : View
 
     var body: some View
     {
+        let inlets = nodeViewModel.ports.filter({$0.kind == .Inlet})
+        let outlets = nodeViewModel.ports.filter({$0.kind == .Outlet})
+
         ZStack(alignment: .topLeading)
         {
             nodeViewModel.isSelected ? Color("NodeBackgroundColorSelected") : Color("NodeBackgroundColor")
@@ -26,7 +29,7 @@ struct NodeView : View
             VStack(alignment: .leading, spacing: 10) {
                 NodeTitleView(nodeViewModel: nodeViewModel)
 
-                ForEach(nodeViewModel.ports.filter({$0.kind == .Inlet && $0.direction == .Horizontal}), id: \.id) { port in
+                ForEach(inlets) { port in
                     NodeInletView(port: port, editingContext: self.editingContext)
                 }
                 Spacer(minLength: 0)
@@ -37,7 +40,7 @@ struct NodeView : View
                 Spacer(minLength: 0)
                     .frame(height: 25)
 
-                ForEach(nodeViewModel.ports.filter({$0.kind == .Outlet && $0.direction == .Horizontal}), id: \.id) { port in
+                ForEach(outlets) { port in
                     NodeOutletView(port: port, editingContext: self.editingContext)
                 }
                 Spacer(minLength: 0)

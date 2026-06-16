@@ -46,7 +46,7 @@ public struct GraphCanvas : View
 
                 let currentGraph = self.editingContext.currentGraph
 
-                ForEach(currentGraph.notes, id:\.id) { currentNote in
+                ForEach(currentGraph.notes) { currentNote in
 
                     NoteView(note: currentNote)
                         .offset(-geom.size / 2)
@@ -58,7 +58,7 @@ public struct GraphCanvas : View
                         }
                 }
 
-                ForEach(currentGraph.nodes, id: \.id) { currentNode in
+                ForEach(currentGraph.nodes) { currentNode in
 
                     let nodeViewModel = currentGraph.viewModel(for: currentNode)
 
@@ -117,7 +117,7 @@ public struct GraphCanvas : View
 
                 // Settings popovers — stable @State list so port changes don't
                 // cause ForEach re-evaluation and popover dismissal.
-                ForEach(settingsEntries, id: \.id) { entry in
+                ForEach(settingsEntries, id: \.self.0) { entry in
                     NodeSettingsPopoverAnchor(nodeViewModel: entry.nodeViewModel,
                                               onClose: {
                         entry.nodeViewModel.showSettings = false
@@ -489,11 +489,13 @@ public struct GraphCanvas : View
 
         let ports = currentGraph.nodes.flatMap(\.ports)
 
-        ForEach( ports.filter({ $0.kind == .Outlet }), id: \.id) { port in
+        let outlets = ports.filter({ $0.kind == .Outlet })
+
+        ForEach(outlets) { port in
 
             let connectedPorts:[Port] = port.connections.filter({ $0.kind == .Inlet })
 
-            ForEach( connectedPorts , id: \.id) { connectedPort in
+            ForEach( connectedPorts ) { connectedPort in
 
                 if let sourceAnchor = portAnchors[port.id],
                    let destAnchor = portAnchors[connectedPort.id]
