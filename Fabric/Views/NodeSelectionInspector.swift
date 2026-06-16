@@ -31,7 +31,7 @@ public struct NodeSelectionInspector: View
                 ParameterGroupView(parameterGroup:currentGraph.publishedParameterGroup)
             }
 
-            ForEach(currentGraph.selectedNodes, id: \.id) { node in
+            ForEach(currentGraph.selectedNodes) { node in
 
                 @Bindable var nodeViewModel: NodeViewModel = currentGraph.viewModel(for: node)
 
@@ -40,7 +40,7 @@ public struct NodeSelectionInspector: View
                     Toggle("Node Settings", isOn: $nodeViewModel.showSettings)
                         .opacity(nodeViewModel.providesSettingsView() ? 1.0 : 0.0)
 
-                    ParameterGroupView(parameterGroup: node.parameterGroup,
+                    ParameterGroupView(parameterGroup: nodeViewModel.parameterGroup,
                                        fileContentTypes: Self.fileContentTypes(for: node))
                 }
             }

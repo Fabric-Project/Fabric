@@ -49,6 +49,8 @@ public struct NodeRegisitryView: View {
     
     public var body: some View
     {
+        let nodeTypes = self.headerSelection.nodeTypes()
+        
         VStack(spacing: 0)
         {
             Divider()
@@ -64,13 +66,13 @@ public struct NodeRegisitryView: View {
             ScrollViewReader { listProxy in
                 List(selection:$selection)
                 {
-                    ForEach(self.headerSelection.nodeTypes(), id: \.self) { nodeType in
+                    ForEach(nodeTypes, id: \.self) { nodeType in
 
                         if let filteredNodesForType:[NodeClassWrapper] = self.filteredNodesForTypes[nodeType],
                            filteredNodesForType.isEmpty == false
                         {
                             Section(header: Text("\(nodeType)")) {
-                                ForEach(filteredNodesForType, id: \.id) { node in
+                                ForEach(filteredNodesForType) { node in
                                     VStack(alignment: .leading, spacing: 4)
                                     {
                                         Text(node.nodeName)
