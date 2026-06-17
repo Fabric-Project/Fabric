@@ -81,17 +81,7 @@ import Metal
                   let outputRotation: NodePort<simd_float4> = findPort(named: "outputRotation")
             else { return }
 
-            let translation = simd_make_float3(transform.columns.3)
-            let sx = transform.columns.0
-            let sy = transform.columns.1
-            let sz = transform.columns.2
-
-            let scale = simd_make_float3(simd_length(sx), simd_length(sy), simd_length(sz))
-            let rx = simd_make_float3(sx) / scale.x
-            let ry = simd_make_float3(sy) / scale.y
-            let rz = simd_make_float3(sz) / scale.z
-
-            let orientation = simd_quatf(simd_float3x3(rx, ry, rz)).normalized
+            let (translation, orientation, scale) = transform.decomposedTRS
 
             outputTranslation.send(translation)
             outputScale.send(scale)
