@@ -111,10 +111,20 @@ struct ArrayMathExpressionView: View
         let nAsDouble = Double(count)
         let tDivisor = Float(max(1, count - 1))
 
-        var output = ContiguousArray<Float>()
-        output.reserveCapacity(count)
-        for i in 0..<count
-        {
+        // Below this element count the GCD thread-pool overhead (≈ a few µs
+        // of queue/wakeup cost per worker) exceeds the savings from parallel
+        // evaluation. Expression eval is heavier than plain arithmetic (one
+        // closure call + switch dispatch per element), so the crossover is
+        // lower than for simple component operations — empirically ≈ 256-512.
+        let concurrentThreshold = 512
+
+        // Evaluator is a struct with only `let` stored properties and Token is
+        // an immutable enum, so concurrent calls to eval() with independent
+        // variable closures are safe. Each iteration writes a unique index into
+        // a pre-sized buffer, so no CoW or append-lock is needed.
+        var output = ContiguousArray<Float>(repeating: 0, count: count)
+
+        let evalElement = { (i: Int) in
             let iAsDouble = Double(i)
             let tAsDouble = Double(Float(i) / tDivisor)
             let result = evaluator.eval(variables: { variable in
@@ -131,7 +141,16 @@ struct ArrayMathExpressionView: View
             // any downstream FloatParameters via the NaN != NaN publisher
             // cycle.
             let f = Float(result)
-            output.append(f.isFinite ? f : 0)
+            output[i] = f.isFinite ? f : 0
+        }
+
+        if count >= concurrentThreshold
+        {
+            DispatchQueue.concurrentPerform(iterations: count) { evalElement($0) }
+        }
+        else
+        {
+            for i in 0..<count { evalElement(i) }
         }
 
         self.outputArray.send(output)

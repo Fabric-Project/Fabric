@@ -1,5 +1,5 @@
 //
-//  ArrayWithCountNode.swift
+//  RepeatValueNode.swift
 //  Fabric
 //
 
@@ -8,9 +8,9 @@ import Satin
 import simd
 import Metal
 
-public class ArrayWithCountNode<Value : PortValueRepresentable> : Node
+public class RepeatValueNode<Value : PortValueRepresentable> : Node
 {
-    public override class var name: String { "\(Value.portType.rawValue) Array With Count" }
+    public override class var name: String { "\(Value.portType.rawValue) Repeat Value" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }

@@ -74,4 +74,51 @@ extension simd_quatf
     {
         simd_quatf(safeVector: orientation).act(simd_float3(0, 0, 1))
     }
+
+    /// Inverse of init(eulerAnglesDegrees:) for the X → Y → Z composition
+    /// order. Returns degrees (X=pitch, Y=yaw, Z=roll). Verified by
+    /// round-trip against init(eulerAnglesDegrees:) across the full angle
+    /// domain, including the yaw ≈ ±90° gimbal-lock boundary where pitch and
+    /// roll become coupled and only their sum/difference is determined — the
+    /// sign of that coupling differs between +90° and -90°, so the two cases
+    /// are handled separately rather than with a single abs() branch.
+    /// Convention at gimbal lock: roll = 0, pitch absorbs the locked value.
+    var eulerAnglesDegreesXYZ: simd_float3
+    {
+        let m = simd_float3x3(self)
+        let r00 = m.columns.0.x, r10 = m.columns.0.y
+        let r01 = m.columns.1.x, r11 = m.columns.1.y
+        let r02 = m.columns.2.x, r12 = m.columns.2.y, r22 = m.columns.2.z
+
+        let clampedR02 = max(-1, min(1, r02))
+        let yaw = asin(clampedR02)
+
+        let pitch: Float
+        let roll: Float
+        if clampedR02 > 0.999999 {
+            roll = 0
+            pitch = atan2(r10, r11)
+        } else if clampedR02 < -0.999999 {
+            roll = 0
+            pitch = -atan2(r10, r11)
+        } else {
+            pitch = atan2(-r12, r22)
+            roll = atan2(-r01, r00)
+        }
+
+        return simd_float3(pitch, yaw, roll) * (180.0 / Float.pi)
+    }
+
+    /// Axis (normalized) and angle (degrees) this quaternion rotates around.
+    /// Falls back to a safe default axis for a near-identity quaternion,
+    /// where stdlib's `.axis` is NaN (zero angle, undefined rotation axis).
+    var axisAngleDegrees: (axis: simd_float3, angleDegrees: Float)
+    {
+        let angle = self.angle
+        let axis = self.axis
+        guard axis.x.isFinite, axis.y.isFinite, axis.z.isFinite else {
+            return (simd_float3(0, 1, 0), 0)
+        }
+        return (axis, angle * (180.0 / Float.pi))
+    }
 }

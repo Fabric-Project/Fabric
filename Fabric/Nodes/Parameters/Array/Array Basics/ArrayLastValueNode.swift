@@ -11,13 +11,13 @@ import simd
 import Metal
 import MetalKit
 
-public class ArrayIndexValueNode<Value : PortValueRepresentable & Equatable> : Node
+public class ArrayLastValueNode<Value : PortValueRepresentable & Equatable> : Node
 {
-    public override class var name:String {"\(Value.portType.rawValue) Value at Array Index" }
+    public override class var name:String {"\(Value.portType.rawValue) Array Last Value" }
     public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Provides the value of \(Value.portType.rawValue) at an input index number"}
+    override public class var nodeDescription: String { "Provides the last \(Value.portType.rawValue) value"}
     
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
@@ -25,15 +25,13 @@ public class ArrayIndexValueNode<Value : PortValueRepresentable & Equatable> : N
         
         return ports +
         [
-            ("inputPort",  NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet, description: "Input array to index into")),
-            ("inputIndexParam", ParameterPort(parameter: IntParameter("Index", 0, .inputfield, "Array index to retrieve the value from")) ),
-            ("outputPort", NodePort<Value>(name: "Value", kind: .Outlet, description: "Element at the specified index")),
+            ("inputPort",  NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet, description: "Input array to get the last value from")),
+            ("outputPort", NodePort<Value>(name: "Value", kind: .Outlet, description: "Last element of the array")),
         ]
     }
     
     // Port Proxy
     public var inputPort:NodePort<ContiguousArray<Value>> { port(named: "inputPort") }
-    public var inputIndexParam:ParameterPort<Int> { port(named: "inputIndexParam") }
     public var outputPort:NodePort<Value> { port(named: "outputPort") }
     
     override public func execute(renderer:GraphRenderer,
@@ -41,13 +39,10 @@ public class ArrayIndexValueNode<Value : PortValueRepresentable & Equatable> : N
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        if self.inputPort.valueDidChange || self.inputIndexParam.valueDidChange,
-           let index = self.inputIndexParam.value
+        if self.inputPort.valueDidChange
         {
-            let index = max( 0, index )
-            
             if let array = self.inputPort.value,
-               let val = array.safeGet(index: index)
+               let val = array.last
             {
                 self.outputPort.send( val )
             }

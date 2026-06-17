@@ -13,7 +13,7 @@ import MetalKit
 
 public class ArrayReplaceValueAtIndexNode<Value : PortValueRepresentable & Equatable> : Node
 {
-    public override class var name:String {"Replace \(Value.portType.rawValue) Value at Array Index" }
+    public override class var name:String {"\(Value.portType.rawValue) Array Replace Value at Index" }
     public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }

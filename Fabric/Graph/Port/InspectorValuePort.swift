@@ -12,7 +12,7 @@ import simd
 /// Vector4), and falls back to a plain `NodePort` for value types without one.
 ///
 /// This lets a single generic node (registered per type, e.g.
-/// `ArrayWithCountNode<Float>.self`) expose an inspector-editable value inlet
+/// `RepeatValueNode<Float>.self`) expose an inspector-editable value inlet
 /// without needing a hand-written concrete subclass per type.
 func makeInspectorValuePort<Value: PortValueRepresentable>(
     _ type: Value.Type,

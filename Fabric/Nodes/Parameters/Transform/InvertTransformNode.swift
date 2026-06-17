@@ -12,7 +12,7 @@ import Metal
 
 public class InvertTransformNode : Node
 {
-    override public class var name:String { "Invert A Transform" }
+    override public class var name:String { "Transform Invert" }
     override public class var nodeType:Node.NodeType { .Parameter(parameterType: .Transform) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
