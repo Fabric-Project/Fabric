@@ -9,7 +9,7 @@ import Foundation
 import simd
 import Metal
 
-/// The named and functional inverse of "Points From Geometry": rebuilds a
+/// The named and functional inverse of "Points From Geometry": builds a
 /// point geometry from per-vertex Positions, Orientations and UVs. Each input
 /// array produces one vertex; the orientation's local +Z becomes the vertex
 /// normal (the inverse of how "Points From Geometry" derives an orientation
@@ -21,7 +21,7 @@ import Metal
 public class PixelArrayToGeometryNode : BaseGeometryNode
 {
     public override class var name:String { "Geometry From Points" }
-    public override class var nodeDescription: String { "Rebuilds a point geometry from per-vertex Positions, Orientations and UVs — the inverse of Points From Geometry. Orientation and UV are optional: normals default to +Z and UVs to a planar projection of the points." }
+    public override class var nodeDescription: String { "Builds a point geometry from per-vertex Positions, Orientations and UVs — the inverse of Points From Geometry. Orientation and UV are optional: normals default to +Z and UVs to a planar projection of the points." }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         // Drop the base's Triangle-defaulted Primitive port; this node emits a
@@ -60,14 +60,23 @@ public class PixelArrayToGeometryNode : BaseGeometryNode
             {
                 let count = positions.count
 
-                // Orientation → normal. Unconnected (or empty) broadcasts the
-                // identity quaternion, so every normal falls back to +Z.
-                let orientations = (self.inputOrientations.value ?? [])
-                    .paddedToLast(count: count, fallback: simd_float4(0, 0, 0, 1))
-                var normals = ContiguousArray<simd_float3>(); normals.reserveCapacity(count)
-                for q in orientations
+                // Orientation → normal (the orientation's local +Z). With
+                // Orientations unconnected — the common 2D case — every normal
+                // is +Z, so skip the per-element quaternion work entirely.
+                let normals: ContiguousArray<simd_float3>
+                if let wiredOrientations = self.inputOrientations.value, !wiredOrientations.isEmpty
                 {
-                    normals.append(simd_quatf.upDirection(from: q))
+                    let orientations = wiredOrientations.paddedToLast(count: count, fallback: simd_float4(0, 0, 0, 1))
+                    var ns = ContiguousArray<simd_float3>(); ns.reserveCapacity(count)
+                    for q in orientations
+                    {
+                        ns.append(simd_quatf.upDirection(from: q))
+                    }
+                    normals = ns
+                }
+                else
+                {
+                    normals = ContiguousArray(repeating: simd_float3(0, 0, 1), count: count)
                 }
 
                 // UVs: use the wired array (padded) if present, otherwise a
@@ -99,21 +108,30 @@ public class PixelArrayToGeometryNode : BaseGeometryNode
     /// for the flat 2D case. A degenerate (zero-extent) axis maps to 0.
     private static func planarUVs(for positions: ContiguousArray<simd_float3>) -> ContiguousArray<simd_float2>
     {
-        var minXY = simd_float2(positions[0].x, positions[0].y)
-        var maxXY = minXY
+        // No simd call reduces across an array (simd_reduce_* fold the lanes of
+        // one vector), so the bounds scan is a loop — as in Satin's own
+        // computeBoundsFromVertices. Reduce over the full float3 to stay in SIMD
+        // and avoid a per-element shuffle; the unused z lane comes for free.
+        var minP = positions[0]
+        var maxP = positions[0]
         for p in positions
         {
-            minXY = simd.min(minXY, simd_float2(p.x, p.y))
-            maxXY = simd.max(maxXY, simd_float2(p.x, p.y))
+            minP = simd.min(minP, p)
+            maxP = simd.max(maxP, p)
         }
-        let range = maxXY - minXY
+
+        let minXY = simd_float2(minP.x, minP.y)
+        let range = simd_float2(maxP.x, maxP.y) - minXY
+
+        // Hoist the zero-extent guard out of the loop and turn the per-point
+        // divide into one vector multiply by the precomputed reciprocal.
+        let invRange = simd_float2(range.x > 1e-6 ? 1 / range.x : 0,
+                                   range.y > 1e-6 ? 1 / range.y : 0)
 
         var uvs = ContiguousArray<simd_float2>(); uvs.reserveCapacity(positions.count)
         for p in positions
         {
-            let u = range.x > 1e-6 ? (p.x - minXY.x) / range.x : 0
-            let v = range.y > 1e-6 ? (p.y - minXY.y) / range.y : 0
-            uvs.append(simd_float2(u, v))
+            uvs.append((simd_float2(p.x, p.y) - minXY) * invRange)
         }
         return uvs
     }

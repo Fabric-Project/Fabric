@@ -106,17 +106,17 @@ import MetalKit
         case "Transform":
             guard let outputTransforms: NodePort<ContiguousArray<simd_float4x4>> = findPort(named: "outputTransforms") else { return }
 
+            let vertices = UnsafeBufferPointer(start: geometry.geometryData.vertexData, count: vertexCount)
+
             var output = ContiguousArray<simd_float4x4>()
             output.reserveCapacity(vertexCount)
-            for i in 0 ..< vertexCount
+            for vertex in vertices
             {
-                let vertex = geometry.geometryData.vertexData.advanced(by: i)
-
                 // Local frame: rotation from the vertex normal, translation at
                 // the vertex position. inputTransform * local places & orients
                 // the whole set, so the matrix carries any input scale too.
-                var local = matrix_float4x4(simd_quatf(lookingAlong: vertex.pointee.normal, up: Self.referenceUp))
-                local.columns.3 = simd_float4(vertex.pointee.position, 1)
+                var local = matrix_float4x4(simd_quatf(lookingAlong: vertex.normal, up: Self.referenceUp))
+                local.columns.3 = simd_float4(vertex.position, 1)
                 output.append( simd_mul(inputTransform, local) )
             }
             outputTransforms.send(output)
@@ -132,20 +132,20 @@ import MetalKit
             // Scale is intentionally dropped — a point has no meaningful scale.
             let inputRotation = inputTransform.decomposedTRS.rotation
 
+            let vertices = UnsafeBufferPointer(start: geometry.geometryData.vertexData, count: vertexCount)
+
             var positions = ContiguousArray<simd_float3>(); positions.reserveCapacity(vertexCount)
             var orientations = ContiguousArray<simd_float4>(); orientations.reserveCapacity(vertexCount)
             var uvs = ContiguousArray<simd_float2>(); uvs.reserveCapacity(vertexCount)
 
-            for i in 0 ..< vertexCount
+            for vertex in vertices
             {
-                let vertex = geometry.geometryData.vertexData.advanced(by: i)
-
-                let worldPosition = simd_mul(inputTransform, simd_float4(vertex.pointee.position, 1))
-                let normalOrientation = simd_quatf(lookingAlong: vertex.pointee.normal, up: Self.referenceUp)
+                let worldPosition = simd_mul(inputTransform, simd_float4(vertex.position, 1))
+                let normalOrientation = simd_quatf(lookingAlong: vertex.normal, up: Self.referenceUp)
 
                 positions.append( simd_make_float3(worldPosition) )
                 orientations.append( (inputRotation * normalOrientation).normalized.vector )
-                uvs.append( vertex.pointee.uv )
+                uvs.append( vertex.uv )
             }
 
             outputPositions.send(positions)
