@@ -8,7 +8,7 @@ import Satin
 import simd
 import Metal
 
-public class ComposeVectorNode<Value: PortValueRepresentable & ComponentRepresentable>: Node
+public class ComposeVectorNode<Value: PortValueRepresentable & ComponentRepresentable>: Node where Value.Component: DefaultParameterProviding
 {
     public override class var name: String { "\(Value.portType.rawValue) Compose" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Vector) }
@@ -20,7 +20,7 @@ public class ComposeVectorNode<Value: PortValueRepresentable & ComponentRepresen
         let ports = super.registerPorts(context: context)
 
         let componentPorts: [(name: String, port: Port)] = Value.componentLabels.enumerated().map { (i, label) in
-            ("inputComponent\(i)", makeInspectorValuePort(Value.Component.self, name: label, description: "\(label) component"))
+            ("inputComponent\(i)", Value.Component.makeDefaultParameterPort(name: label, description: "\(label) component"))
         }
 
         return ports + componentPorts +

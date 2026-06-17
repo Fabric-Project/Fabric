@@ -8,7 +8,7 @@ import Satin
 import simd
 import Metal
 
-public class DecomposeVectorNode<Value: PortValueRepresentable & ComponentRepresentable>: Node
+public class DecomposeVectorNode<Value: PortValueRepresentable & ComponentRepresentable & DefaultParameterProviding>: Node
 {
     public override class var name: String { "\(Value.portType.rawValue) Decompose" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Vector) }
@@ -25,7 +25,7 @@ public class DecomposeVectorNode<Value: PortValueRepresentable & ComponentRepres
 
         return ports +
         [
-            ("inputVector", makeInspectorValuePort(Value.self, name: Value.portType.rawValue, description: "Vector to decompose into components")),
+            ("inputVector", Value.makeDefaultParameterPort(name: Value.portType.rawValue, description: "Vector to decompose into components")),
         ] + outputPorts
     }
 

@@ -8,7 +8,7 @@ import Satin
 import simd
 import Metal
 
-public class RepeatValueNode<Value : PortValueRepresentable> : Node
+public class RepeatValueNode<Value : PortValueRepresentable & DefaultParameterProviding> : Node
 {
     public override class var name: String { "\(Value.portType.rawValue) Repeat Value" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
@@ -21,7 +21,7 @@ public class RepeatValueNode<Value : PortValueRepresentable> : Node
 
         return ports +
         [
-            ("inputValue", makeInspectorValuePort(Value.self, name: "Value", description: "Value to place in every array element")),
+            ("inputValue", Value.makeDefaultParameterPort(name: "Value", description: "Value to place in every array element")),
             ("inputCount", ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Number of elements to fill"))),
             ("outputArray", NodePort<ContiguousArray<Value>>(name: "Array", kind: .Outlet, description: "Array of length Count containing Value in every slot")),
         ]

@@ -8,7 +8,7 @@ import Satin
 import simd
 import Metal
 
-public class ArrayFromRippledValueNode<Value : PortValueRepresentable> : Node
+public class ArrayFromRippledValueNode<Value : PortValueRepresentable & DefaultParameterProviding> : Node
 {
     public override class var name: String { "\(Value.portType.rawValue) Array From Rippled Value" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
@@ -30,7 +30,7 @@ public class ArrayFromRippledValueNode<Value : PortValueRepresentable> : Node
 
         return ports +
         [
-            ("inputValue", makeInspectorValuePort(Value.self, name: "Value", description: "Animated value to stagger across the array")),
+            ("inputValue", Value.makeDefaultParameterPort(name: "Value", description: "Animated value to stagger across the array")),
             ("inputCount", ParameterPort(parameter: IntParameter("Count", 6, 0, 1024, .inputfield, "Number of elements in the output array"))),
             ("inputDelaySecs", ParameterPort(parameter: FloatParameter("Delay (secs)", 1.0, 0.0, 60.0, .inputfield, "Window over which changes ripple from element 0 (oldest) to element N-1 (newest)"))),
             ("outputArray", NodePort<ContiguousArray<Value>>(name: "Array", kind: .Outlet, description: "Array of staggered past values")),
