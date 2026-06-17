@@ -9,10 +9,10 @@ import Foundation
 import simd
 import Metal
 
-/// The named and functional inverse of "Points From Geometry": builds a
+/// The named and functional inverse of "Geometry Decompose": builds a
 /// point geometry from per-vertex Positions, Orientations and UVs. Each input
 /// array produces one vertex; the orientation's local +Z becomes the vertex
-/// normal (the inverse of how "Points From Geometry" derives an orientation
+/// normal (the inverse of how "Geometry Decompose" derives an orientation
 /// from a normal via `simd_quatf(lookingAlong:up:)`).
 ///
 /// Orientation and UV are optional so the common 2D case stays trivial: with
@@ -20,8 +20,8 @@ import Metal
 /// UVs default to a planar [0,1] projection of the points' XY bounds.
 public class PixelArrayToGeometryNode : BaseGeometryNode
 {
-    public override class var name:String { "Geometry From Points" }
-    public override class var nodeDescription: String { "Builds a point geometry from per-vertex Positions, Orientations and UVs — the inverse of Points From Geometry. Orientation and UV are optional: normals default to +Z and UVs to a planar projection of the points." }
+    public override class var name:String { "Geometry Compose" }
+    public override class var nodeDescription: String { "Builds a point geometry from per-vertex Positions, Orientations and UVs — the inverse of Geometry Decompose. Orientation and UV are optional: normals default to +Z and UVs to a planar projection of the points." }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         // Drop the base's Triangle-defaulted Primitive port; this node emits a

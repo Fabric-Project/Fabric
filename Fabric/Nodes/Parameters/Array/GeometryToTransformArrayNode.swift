@@ -14,7 +14,7 @@ import MetalKit
 
 @Observable public class GeometryToTransformArrayNode : StrategyNode
 {
-    public override class var name:String { "Points From Geometry" }
+    public override class var name:String { "Geometry Decompose" }
     public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
