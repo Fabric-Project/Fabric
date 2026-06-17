@@ -459,21 +459,23 @@ public class AudioSpectrumNode : Node
         if self.inputAudioDevice.valueDidChange
         {
             self.setupCaptureSession()
+            pendingRebuild = true
         }
 
         // Collect parameter changes; mark rebuild for structural params.
         // Attack/release are cheap live updates — no rebuild needed.
-        var needsRebuild = filterBank == nil
-        if self.inputSmoothing.valueDidChange, let v = self.inputSmoothing.value { smoothing = v; needsRebuild = true }
-        if self.inputBands.valueDidChange,    let v = self.inputBands.value    { bands = v;    needsRebuild = true }
+        if filterBank == nil { pendingRebuild = true }
+        if self.inputSmoothing.valueDidChange, let v = self.inputSmoothing.value { smoothing = v; pendingRebuild = true }
+        if self.inputBands.valueDidChange,    let v = self.inputBands.value    { bands = v;    pendingRebuild = true }
         if self.inputAttack.valueDidChange,   let v = self.inputAttack.value   { filterBank?.attackMS  = v }
         if self.inputRelease.valueDidChange,  let v = self.inputRelease.value  { filterBank?.releaseMS = v }
 
         var processedOutput: ContiguousArray<Float>? = nil
         tripleBuffer.withLatestBuffer { ptr, count, rate in
             let activeRate = rate ?? self.filterBank?.sampleRate ?? 48000
-            if needsRebuild || (rate != nil && rate != self.filterBank?.sampleRate) {
+            if self.pendingRebuild || (rate != nil && rate != self.filterBank?.sampleRate) {
                 self.createFilterBank(sampleRate: activeRate, bandCount: self.bands, normalizedSmoothing: self.smoothing)
+                self.pendingRebuild = false
             }
             guard let fb = self.filterBank else { return }
             let framesPerTick = Int(round(fb.sampleRate / 200))
@@ -506,6 +508,9 @@ public class AudioSpectrumNode : Node
 
     private var bands:    Int   = 8
     private var smoothing: Float = 0.0
+    // Persistent flag so a rebuild request is never lost when withLatestBuffer
+    // returns early (no new audio data) on the same frame as a parameter change.
+    private var pendingRebuild: Bool = true
 
     func createFilterBank(sampleRate: Float, bandCount: Int, normalizedSmoothing: Float)
     {
@@ -514,8 +519,11 @@ public class AudioSpectrumNode : Node
         let safeRate: Float = (sampleRate.isFinite && sampleRate > 0) ? sampleRate : 48000
         let safeBands = max(1, bandCount)
 
-        let q = remap(normalizedSmoothing, 1.0, 0.0, 0.0, Float(safeBands))
-        let safeQ: Float = (q.isFinite && q > 0) ? q : Float(safeBands)
+        // Map smoothing to a fixed Q range independent of band count.
+        // smoothing=0 → Q=12 (narrow bands, precise); smoothing=1 → Q=1 (wide bands, smooth).
+        // Using a fixed range avoids the spectrum shape changing when band count changes.
+        let q = remap(normalizedSmoothing, 1.0, 0.0, 1.0, 12.0)
+        let safeQ: Float = (q.isFinite && q > 0) ? q : 4.3
 
         self.filterBank = SimpleFilterBank(sampleRate: safeRate,
                                            bandCount: safeBands,
