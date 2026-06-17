@@ -10,7 +10,7 @@ import Metal
 
 public class ArrayFromRippledValueNode<Value : PortValueRepresentable & DefaultParameterProviding> : Node
 {
-    public override class var name: String { "\(Value.portType.rawValue) Array From Rippled Value" }
+    public override class var name: String { "\(Value.portType.rawValue) Ripple Repeat Value" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
     override public class var nodeTimeMode: Node.TimeMode { .None }

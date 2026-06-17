@@ -10,7 +10,7 @@ import Metal
 
 @Observable public class ComposeTransformNode: StrategyNode
 {
-    public override class var name: String { "Compose Transform" }
+    public override class var name: String { "Transform Compose" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Transform) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
