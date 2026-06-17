@@ -89,26 +89,36 @@ import Metal
                 return
             }
 
-            let positions = (posIn ?? []).paddedToLast(count: count, fallback: simd_float3(0, 0, 0))
-            let orientationQuats = (orIn ?? []).paddedToLast(count: count, fallback: simd_float4(0, 0, 0, 1))
-                .map { simd_quatf(safeVector: $0) }
-            let scales = (scIn ?? []).paddedToLast(count: count, fallback: simd_float3(1, 1, 1))
+            let positions    = (posIn ?? []).paddedToLast(count: count, fallback: simd_float3(0, 0, 0))
+            let orientations = (orIn ?? []).paddedToLast(count: count, fallback: simd_float4(0, 0, 0, 1))
+            let scales       = (scIn ?? []).paddedToLast(count: count, fallback: simd_float3(1, 1, 1))
 
-            var output = ContiguousArray<simd_float4x4>()
-            output.reserveCapacity(count)
-            for i in 0..<count {
-                // T*R*S in closed form: scale the rotation's columns and drop
-                // the position into the translation column. Avoids building
-                // three matrices and two 4x4 multiplies per element. The
-                // rotation's columns 0-2 carry w = 0, so scaling preserves
-                // the affine row.
-                let s = scales[i]
-                var m = matrix_float4x4(orientationQuats[i])
-                m.columns.0 *= s.x
-                m.columns.1 *= s.y
-                m.columns.2 *= s.z
-                m.columns.3 = simd_float4(positions[i], 1)
-                output.append(m)
+            var output = ContiguousArray<simd_float4x4>(repeating: matrix_identity_float4x4, count: count)
+            // simd_quatf(safeVector:) is folded into the parallel loop — saves
+            // the serial pre-pass and intermediate [simd_quatf] allocation.
+            let concurrentThreshold = 128
+            if count >= concurrentThreshold {
+                output.withUnsafeMutableBufferPointer { buf in
+                    DispatchQueue.concurrentPerform(iterations: count) { i in
+                        let s = scales[i]
+                        var m = matrix_float4x4(simd_quatf(safeVector: orientations[i]))
+                        m.columns.0 *= s.x
+                        m.columns.1 *= s.y
+                        m.columns.2 *= s.z
+                        m.columns.3 = simd_float4(positions[i], 1)
+                        buf[i] = m
+                    }
+                }
+            } else {
+                for i in 0..<count {
+                    let s = scales[i]
+                    var m = matrix_float4x4(simd_quatf(safeVector: orientations[i]))
+                    m.columns.0 *= s.x
+                    m.columns.1 *= s.y
+                    m.columns.2 *= s.z
+                    m.columns.3 = simd_float4(positions[i], 1)
+                    output[i] = m
+                }
             }
             outputTransforms.send(output)
 
@@ -138,10 +148,18 @@ import Metal
             let c2s = (c2In ?? []).paddedToLast(count: count, fallback: simd_float4(0, 0, 1, 0))
             let c3s = (c3In ?? []).paddedToLast(count: count, fallback: simd_float4(0, 0, 0, 1))
 
-            var output = ContiguousArray<simd_float4x4>()
-            output.reserveCapacity(count)
-            for i in 0..<count {
-                output.append(simd_float4x4(c0s[i], c1s[i], c2s[i], c3s[i]))
+            var output = ContiguousArray<simd_float4x4>(repeating: matrix_identity_float4x4, count: count)
+            let concurrentThreshold = 128
+            if count >= concurrentThreshold {
+                output.withUnsafeMutableBufferPointer { buf in
+                    DispatchQueue.concurrentPerform(iterations: count) { i in
+                        buf[i] = simd_float4x4(c0s[i], c1s[i], c2s[i], c3s[i])
+                    }
+                }
+            } else {
+                for i in 0..<count {
+                    output[i] = simd_float4x4(c0s[i], c1s[i], c2s[i], c3s[i])
+                }
             }
             outputTransforms.send(output)
 

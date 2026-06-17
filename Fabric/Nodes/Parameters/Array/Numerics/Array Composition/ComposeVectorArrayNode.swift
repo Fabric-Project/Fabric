@@ -49,10 +49,19 @@ public class ComposeVectorArrayNode<Value: PortValueRepresentable & ComponentRep
         let fallback = Value.Component.defaultValue!
         let padded = componentPorts.map { ($0.value ?? []).paddedToLast(count: count, fallback: fallback) }
 
-        var output = ContiguousArray<Value>()
-        output.reserveCapacity(count)
-        for i in 0..<count {
-            output.append(Value(componentValues: padded.map { $0[i] }))
+        let defaultValue = Value(componentValues: Array(repeating: fallback, count: Value.componentLabels.count))
+        var output = ContiguousArray<Value>(repeating: defaultValue, count: count)
+        let concurrentThreshold = 128
+        if count >= concurrentThreshold {
+            output.withUnsafeMutableBufferPointer { buf in
+                DispatchQueue.concurrentPerform(iterations: count) { i in
+                    buf[i] = Value(componentValues: padded.map { $0[i] })
+                }
+            }
+        } else {
+            for i in 0..<count {
+                output[i] = Value(componentValues: padded.map { $0[i] })
+            }
         }
         self.outputArray.send(output)
     }

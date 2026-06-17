@@ -87,10 +87,19 @@ import Metal
                 return
             }
 
-            var output = ContiguousArray<simd_float4>()
-            output.reserveCapacity(eulerAngles.count)
-            for angles in eulerAngles {
-                output.append(simd_quatf(eulerAnglesDegrees: angles).vector)
+            let count = eulerAngles.count
+            var output = ContiguousArray<simd_float4>(repeating: simd_float4(0, 0, 0, 1), count: count)
+            let concurrentThreshold = 128
+            if count >= concurrentThreshold {
+                output.withUnsafeMutableBufferPointer { buf in
+                    DispatchQueue.concurrentPerform(iterations: count) { i in
+                        buf[i] = simd_quatf(eulerAnglesDegrees: eulerAngles[i]).vector
+                    }
+                }
+            } else {
+                for i in 0..<count {
+                    output[i] = simd_quatf(eulerAnglesDegrees: eulerAngles[i]).vector
+                }
             }
             outputOrientations.send(output)
 
@@ -111,10 +120,18 @@ import Metal
             let axes = (axesIn ?? []).paddedToLast(count: count, fallback: simd_float3(0, 1, 0))
             let angles = (anglesIn ?? []).paddedToLast(count: count, fallback: 0)
 
-            var output = ContiguousArray<simd_float4>()
-            output.reserveCapacity(count)
-            for i in 0..<count {
-                output.append(simd_quatf(axis: axes[i], angleDegrees: angles[i]).vector)
+            var output = ContiguousArray<simd_float4>(repeating: simd_float4(0, 0, 0, 1), count: count)
+            let concurrentThreshold = 128
+            if count >= concurrentThreshold {
+                output.withUnsafeMutableBufferPointer { buf in
+                    DispatchQueue.concurrentPerform(iterations: count) { i in
+                        buf[i] = simd_quatf(axis: axes[i], angleDegrees: angles[i]).vector
+                    }
+                }
+            } else {
+                for i in 0..<count {
+                    output[i] = simd_quatf(axis: axes[i], angleDegrees: angles[i]).vector
+                }
             }
             outputOrientations.send(output)
 
@@ -143,12 +160,22 @@ import Metal
             let ups = (upIn ?? []).paddedToLast(count: count, fallback: simd_float4(0, 0, 0, 1))
             let aims = (aimIn ?? []).paddedToLast(count: count, fallback: simd_float4(0, 0, 0, 1))
 
-            var output = ContiguousArray<simd_float4>()
-            output.reserveCapacity(count)
-            for i in 0..<count {
-                let up = simd_quatf.upDirection(from: ups[i])
-                let look = simd_quatf(lookingAlong: targets[i] - positions[i], up: up)
-                output.append((look * simd_quatf(safeVector: aims[i])).vector)
+            var output = ContiguousArray<simd_float4>(repeating: simd_float4(0, 0, 0, 1), count: count)
+            let concurrentThreshold = 128
+            if count >= concurrentThreshold {
+                output.withUnsafeMutableBufferPointer { buf in
+                    DispatchQueue.concurrentPerform(iterations: count) { i in
+                        let up = simd_quatf.upDirection(from: ups[i])
+                        let look = simd_quatf(lookingAlong: targets[i] - positions[i], up: up)
+                        buf[i] = (look * simd_quatf(safeVector: aims[i])).vector
+                    }
+                }
+            } else {
+                for i in 0..<count {
+                    let up = simd_quatf.upDirection(from: ups[i])
+                    let look = simd_quatf(lookingAlong: targets[i] - positions[i], up: up)
+                    output[i] = (look * simd_quatf(safeVector: aims[i])).vector
+                }
             }
             outputOrientations.send(output)
 
