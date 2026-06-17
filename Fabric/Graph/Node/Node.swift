@@ -406,7 +406,8 @@ import UniformTypeIdentifiers
     // MARK: - Node Settings
 
     public enum SettingsViewSize
-    { 
+    {
+        case Mini
         case Small
         case Medium
         case Large
@@ -416,6 +417,8 @@ import UniformTypeIdentifiers
         {
             switch self
             {
+            case .Mini:
+                return CGSize(width: 300, height: 100)
             case .Small:
                 return CGSize(width: 300, height: 200)
             case .Medium:

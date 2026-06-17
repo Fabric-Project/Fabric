@@ -66,6 +66,8 @@ import SwiftUI
 
     override public func providesSettingsView() -> Bool { true }
 
+    override public var settingsSize:SettingsViewSize { .Mini }
+
     override public func settingsView() -> AnyView
     {
         AnyView(StrategyPickerView(node: self))
@@ -90,6 +92,7 @@ private struct StrategyPickerView: View
         {
             ForEach(type(of: node).strategies, id: \.self) { Text($0).tag($0) }
         }
-        .pickerStyle(.segmented)
+        .pickerStyle(.menu)
+        .controlSize(ControlSize.small)
     }
 }

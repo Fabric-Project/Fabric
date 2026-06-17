@@ -284,6 +284,8 @@ public class NodeRegistry {
         ArrayCountNode<Bool>.self,
         ArrayQueueNode<Bool>.self,
         ArrayReplaceValueAtIndexNode<Bool>.self,
+        ArrayAppendNode<Bool>.self,
+        ArraySplitAtIndexNode<Bool>.self,
         RepeatValueNode<Bool>.self,
 
         // Index
@@ -294,6 +296,8 @@ public class NodeRegistry {
         ArrayCountNode<Int>.self,
         ArrayQueueNode<Int>.self,
         ArrayReplaceValueAtIndexNode<Int>.self,
+        ArrayAppendNode<Int>.self,
+        ArraySplitAtIndexNode<Int>.self,
         RepeatValueNode<Int>.self,
         
         // Number
@@ -325,6 +329,8 @@ public class NodeRegistry {
         ArrayCountNode<Float>.self,
         ArrayQueueNode<Float>.self,
         ArrayReplaceValueAtIndexNode<Float>.self,
+        ArrayAppendNode<Float>.self,
+        ArraySplitAtIndexNode<Float>.self,
         ArrayMathExpressionNode.self,
         RepeatValueNode<Float>.self,
         ArrayFromRippledValueNode<Float>.self,
@@ -355,6 +361,8 @@ public class NodeRegistry {
         ArrayCountNode<String>.self,
         ArrayQueueNode<String>.self,
         ArrayReplaceValueAtIndexNode<String>.self,
+        ArrayAppendNode<String>.self,
+        ArraySplitAtIndexNode<String>.self,
         RepeatValueNode<String>.self,
         
         // Vectors
@@ -369,6 +377,8 @@ public class NodeRegistry {
         ArrayCountNode<simd_float2>.self,
         ArrayQueueNode<simd_float2>.self,
         ArrayReplaceValueAtIndexNode<simd_float2>.self,
+        ArrayAppendNode<simd_float2>.self,
+        ArraySplitAtIndexNode<simd_float2>.self,
         RepeatValueNode<simd_float2>.self,
         ArrayFromRippledValueNode<simd_float2>.self,
         ArrayResampleNode<simd_float2>.self,
@@ -379,8 +389,8 @@ public class NodeRegistry {
         
         PassThroughNode<simd_float3>.self,
         ComposeVectorNode<simd_float3>.self,
-        VectorTweenNode<simd_float3>.self,
         DecomposeVectorNode<simd_float3>.self,
+        VectorTweenNode<simd_float3>.self,
         Vector3Distance.self,
         ArrayFirstValueNode<simd_float3>.self,
         ArrayLastValueNode<simd_float3>.self,
@@ -388,12 +398,10 @@ public class NodeRegistry {
         ArrayCountNode<simd_float3>.self,
         ArrayQueueNode<simd_float3>.self,
         ArrayReplaceValueAtIndexNode<simd_float3>.self,
-        RingPointsNode.self,
-        LinePointsNode.self,
-        GridPointsNode.self,
+        ArrayAppendNode<simd_float3>.self,
+        ArraySplitAtIndexNode<simd_float3>.self,
         OrientationArrayTweenNode.self,
         ComposeTransformArrayNode.self,
-        DecomposeTransformArrayNode.self,
         RepeatValueNode<simd_float3>.self,
         ArrayFromRippledValueNode<simd_float3>.self,
         ArrayResampleNode<simd_float3>.self,
@@ -405,8 +413,8 @@ public class NodeRegistry {
 
         PassThroughNode<simd_float4>.self,
         ComposeVectorNode<simd_float4>.self,
-        VectorTweenNode<simd_float4>.self,
         DecomposeVectorNode<simd_float4>.self,
+        VectorTweenNode<simd_float4>.self,
         Vector4Distance.self,
         ArrayFirstValueNode<simd_float4>.self,
         ArrayLastValueNode<simd_float4>.self,
@@ -414,6 +422,8 @@ public class NodeRegistry {
         ArrayCountNode<simd_float4>.self,
         ArrayQueueNode<simd_float4>.self,
         ArrayReplaceValueAtIndexNode<simd_float4>.self,
+        ArrayAppendNode<simd_float4>.self,
+        ArraySplitAtIndexNode<simd_float4>.self,
         RepeatValueNode<simd_float4>.self,
         ArrayFromRippledValueNode<simd_float4>.self,
         ArrayResampleNode<simd_float4>.self,
@@ -441,7 +451,10 @@ public class NodeRegistry {
         ArrayCountNode<simd_float4x4>.self,
         ArrayQueueNode<simd_float4x4>.self,
         ArrayReplaceValueAtIndexNode<simd_float4x4>.self,
+        ArrayAppendNode<simd_float4x4>.self,
+        ArraySplitAtIndexNode<simd_float4x4>.self,
         RepeatValueNode<simd_float4x4>.self,
+        DecomposeTransformArrayNode.self,
 
         ]
     
