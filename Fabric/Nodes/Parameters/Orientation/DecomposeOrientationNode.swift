@@ -8,7 +8,7 @@ import Satin
 import simd
 import Metal
 
-@Observable public class DecomposeOrientationNode: StrategyNode
+public class DecomposeOrientationNode: StrategyNode
 {
     public override class var name: String { "Orientation Decompose" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Quaternion) }

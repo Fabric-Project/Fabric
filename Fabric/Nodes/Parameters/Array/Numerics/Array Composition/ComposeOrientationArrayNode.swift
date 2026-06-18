@@ -8,7 +8,7 @@ import Satin
 import simd
 import Metal
 
-@Observable public class ComposeOrientationArrayNode: StrategyNode
+public class ComposeOrientationArrayNode: StrategyNode
 {
     public override class var name: String { "Orientation Array Compose" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }

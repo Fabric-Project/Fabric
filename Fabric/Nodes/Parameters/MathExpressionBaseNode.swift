@@ -18,13 +18,13 @@ internal import MathParser
 /// expression is turned into output. Everything else — the editable string,
 /// the title shown on parse success/failure, (de)serialization, and keeping
 /// the dynamic ports in sync with the expression's variables — lives here.
-@Observable public class MathExpressionBaseNode: Node
+public class MathExpressionBaseNode: Node
 {
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
 
     /// Shown as the node's title: the expression on success, or a warning
-    /// indicator on parse failure. Observed by SwiftUI via `name`.
+    /// indicator on parse failure. NodeViewModel caches via nameSubject.
     override public var name: String { evaluatedDisplayName }
 
     // MARK: - Subclass customization
@@ -98,17 +98,40 @@ internal import MathParser
 
     // MARK: - Properties
 
-    @ObservationIgnored var stringExpression: String
+    var stringExpression: String
     {
         didSet { self.evalExpression() }
     }
 
     private var evaluatedDisplayName: String = ""
 
-    @ObservationIgnored private let mathParser = MathParser()
-    @ObservationIgnored private(set) var mathEvaluator: Evaluator? = nil
+    private let mathParser = MathParser()
+    private(set) var mathEvaluator: Evaluator? = nil
 
     override public func providesSettingsView() -> Bool { true }
+
+    // MARK: - Settings Model
+
+    @Observable final class SettingsModel
+    {
+        var stringExpression: String
+        {
+            didSet
+            {
+                guard stringExpression != node?.stringExpression else { return }
+                node?.stringExpression = stringExpression
+            }
+        }
+        private weak var node: MathExpressionBaseNode?
+
+        init(node: MathExpressionBaseNode)
+        {
+            self.node = node
+            self.stringExpression = node.stringExpression
+        }
+    }
+
+    internal lazy var _settingsModel: SettingsModel = SettingsModel(node: self)
 
     // MARK: - Expression parsing
 
@@ -126,6 +149,8 @@ internal import MathParser
             self.mathEvaluator = nil
             self.evaluatedDisplayName = "⚠ \(self.stringExpression)"
         }
+
+        self.nameSubject.send()
     }
 
     /// Sync dynamic input ports to the expression's free variables, leaving

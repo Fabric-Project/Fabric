@@ -8,7 +8,7 @@ import Satin
 import simd
 import Metal
 
-@Observable public class DecomposeOrientationArrayNode: StrategyNode
+public class DecomposeOrientationArrayNode: StrategyNode
 {
     public override class var name: String { "Orientation Array Decompose" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }

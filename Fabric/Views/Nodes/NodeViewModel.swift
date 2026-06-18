@@ -57,8 +57,10 @@ import Satin
     public var name: String
     {
         if let d = _displayName, !d.isEmpty { return d }
-        return type(of: node).name
+        return _nodeName
     }
+
+    private var _nodeName: String
 
     // MARK: - Forwarded node metadata
 
@@ -89,6 +91,7 @@ import Satin
         self.node         = node
         self._offset      = node.offset
         self._displayName = node.displayName
+        self._nodeName    = node.name
         self.ports        = node.ports
         self.nodeSize     = node.nodeSize
 
@@ -109,6 +112,15 @@ import Satin
                 guard let self else { return }
                 self.ports    = node.ports
                 self.nodeSize = node.nodeSize
+            }
+            .store(in: &cancellables)
+
+        // Sync cached name when nodes with dynamic names (e.g. MathExpressionNode,
+        // StringFormatterNode) change their computed name after user edits.
+        node.nameSubject
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in
+                self?._nodeName = node.name
             }
             .store(in: &cancellables)
     }

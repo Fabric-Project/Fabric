@@ -98,6 +98,10 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     /// Fires whenever the port list changes (addDynamicPort / removePort).
     public let portsChangedSubject = PassthroughSubject<Void, Never>()
 
+    /// Fires whenever the node's computed `name` changes (e.g. after a math
+    /// expression re-parses). NodeViewModel subscribes and caches the result.
+    public let nameSubject = PassthroughSubject<Void, Never>()
+
     // Dirty Handling
     private(set) public var isDirty: Bool = true
 

@@ -11,7 +11,7 @@ internal import MathParser
 
 struct ArrayMathExpressionView: View
 {
-    @Bindable var node: ArrayMathExpressionNode
+    @Bindable var model: MathExpressionBaseNode.SettingsModel
 
     var body: some View
     {
@@ -21,7 +21,7 @@ struct ArrayMathExpressionView: View
 
             Spacer()
 
-            TextField("Array Math Expression", text: $node.stringExpression)
+            TextField("Array Math Expression", text: $model.stringExpression)
                 .lineLimit(1)
                 .font(.system(size: 10))
                 .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -29,7 +29,7 @@ struct ArrayMathExpressionView: View
     }
 }
 
-@Observable public class ArrayMathExpressionNode: MathExpressionBaseNode
+public class ArrayMathExpressionNode: MathExpressionBaseNode
 {
     override public static var name: String { "Array Math Expression" }
     override public static var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
@@ -38,7 +38,7 @@ struct ArrayMathExpressionView: View
     override public class var defaultExpression: String { "dist * sin(t * 2 * pi)" }
     override public class var specialBindings: Set<String> { ["i", "n", "t"] }
 
-    @ObservationIgnored private var forceReeval: Bool = true
+    private var forceReeval: Bool = true
 
     /// A new expression must re-emit even if no input array changed.
     override public func expressionDidReparse() { self.forceReeval = true }
@@ -65,7 +65,7 @@ struct ArrayMathExpressionView: View
 
     public var outputArray: NodePort<ContiguousArray<Float>> { port(named: "outputArray") }
 
-    override public func settingsView() -> AnyView { AnyView(ArrayMathExpressionView(node: self)) }
+    override public func settingsView() -> AnyView { AnyView(ArrayMathExpressionView(model: _settingsModel)) }
 
     // MARK: - Execution
 
