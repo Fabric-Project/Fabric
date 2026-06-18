@@ -12,11 +12,11 @@ import Metal
 
 public class RotateTransformNode : Node
 {
-    override public class var name:String { "Rotate A Transform" }
+    override public class var name:String { "Transform Rotate" }
     override public class var nodeType:Node.NodeType { .Parameter(parameterType: .Transform) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Rotate a Transform"}
+    override public class var nodeDescription: String { "Rotate a transform"}
     
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {

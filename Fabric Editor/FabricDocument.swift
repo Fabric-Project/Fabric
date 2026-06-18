@@ -79,8 +79,11 @@ class FabricDocument: FileDocument
         speedPort.value = 10
 
         
-        // Euler orientation (drives mesh rotation on X and Y)
-        let eulerNode = EulerOrientationNode(context: self.context)
+        // Euler orientation (drives mesh rotation on X and Y). Defaults to
+        // the "Euler" strategy, whose inputX/inputY/inputZ/outputOrientation
+        // ports are dynamic (added by StrategyNode), hence findPort below
+        // instead of typed accessor properties.
+        let eulerNode = ComposeOrientationNode(context: self.context)
         eulerNode.enableExecution(renderer: self.renderer)
         eulerNode.startExecution(renderer: self.renderer)
 
@@ -110,9 +113,9 @@ class FabricDocument: FileDocument
 
         // Connections — animation chain
         currentTimeNode.outputNumber.connect(to: mathNode.findPort(named: "secs", as: ParameterPort<Float>.self)!)
-        mathNode.outputNumber.connect(to: eulerNode.inputX)
-        mathNode.outputNumber.connect(to: eulerNode.inputY)
-        eulerNode.outputOrientation.connect(to: meshNode.inputOrientation)
+        mathNode.outputNumber.connect(to: eulerNode.findPort(named: "inputX", as: ParameterPort<Float>.self)!)
+        mathNode.outputNumber.connect(to: eulerNode.findPort(named: "inputY", as: ParameterPort<Float>.self)!)
+        eulerNode.findPort(named: "outputOrientation", as: NodePort<simd_float4>.self)!.connect(to: meshNode.inputOrientation)
 
         // Connections — geometry
         boxNode.outputGeometry.connect(to: meshNode.inputGeometry)

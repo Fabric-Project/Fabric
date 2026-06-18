@@ -12,11 +12,11 @@ import Metal
 
 public class ScaleTransformNode : Node
 {
-    override public class var name:String { "Make Scale Transform" }
+    override public class var name:String { "Transform Scale" }
     override public class var nodeType:Node.NodeType { .Parameter(parameterType: .Transform) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Scale a Transform"}
+    override public class var nodeDescription: String { "Scale a transform"}
     
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {

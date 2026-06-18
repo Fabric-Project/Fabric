@@ -13,13 +13,12 @@ import MetalKit
 
 public class ArrayQueueNode<Value : PortValueRepresentable & Equatable> : Node
 {
-    public override class var name:String { "\(Value.portType.rawValue) Queue" }
+    public override class var name:String { "\(Value.portType.rawValue) Array Queue Value" }
     public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Inserts \(Value.portType.rawValue) items into an beginning on an Array."}
+    override public class var nodeDescription: String { "Inserts \(Value.portType.rawValue) items into an beginning of an Array."}
 
-    
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)

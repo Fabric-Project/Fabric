@@ -11,13 +11,13 @@ import simd
 import Metal
 import MetalKit
 
-public class Vector3ArrayToTransformArrayNode: Node
+public class ArrayLastValueNode<Value : PortValueRepresentable & Equatable> : Node
 {
-    public override class var name:String {"Vector 3 Array to Transform Array" }
+    public override class var name:String {"\(Value.portType.rawValue) Array Last Value" }
     public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Converts an array of Vector 2s into an array of Vector 3s"}
+    override public class var nodeDescription: String { "Provides the last \(Value.portType.rawValue) value"}
     
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
@@ -25,14 +25,14 @@ public class Vector3ArrayToTransformArrayNode: Node
         
         return ports +
         [
-            ("inputPort",  NodePort<ContiguousArray<simd_float3>>(name: "Vector 3 Array", kind: .Inlet, description: "Input array of 3D position vectors")),
-            ("outputPort", NodePort<ContiguousArray<simd_float4x4>>(name: "Transform Array", kind: .Outlet, description: "Array of translation transforms from the position vectors")),
+            ("inputPort",  NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet, description: "Input array to get the last value from")),
+            ("outputPort", NodePort<Value>(name: "Value", kind: .Outlet, description: "Last element of the array")),
         ]
     }
     
     // Port Proxy
-    public var inputPort:NodePort<ContiguousArray<simd_float3>> { port(named: "inputPort") }
-    public var outputPort:NodePort<ContiguousArray<simd_float4x4>> { port(named: "outputPort") }
+    public var inputPort:NodePort<ContiguousArray<Value>> { port(named: "inputPort") }
+    public var outputPort:NodePort<Value> { port(named: "outputPort") }
     
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
@@ -41,13 +41,10 @@ public class Vector3ArrayToTransformArrayNode: Node
     {
         if self.inputPort.valueDidChange
         {
-            if let array = self.inputPort.value
+            if let array = self.inputPort.value,
+               let val = array.last
             {
-                let vectorArray = array.enumerated( ).map { (index:Int, value:simd_float3) -> simd_float4x4 in
-                    return translationMatrix3f(value)
-                }
-                
-                self.outputPort.send( ContiguousArray(vectorArray) )
+                self.outputPort.send( val )
             }
             
 //            else
