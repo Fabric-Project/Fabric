@@ -104,6 +104,7 @@ public class NodeRegistry {
         CapsuleGeometryNode.self,
         TubeGeometryNode.self,
         TorusGeometryNode.self,
+        CycloramaGeometryNode.self,
 //        SkyboxGeometryNode.self,
         TesselatedTextGeometryNode.self,
         ExtrudedTextGeometryNode.self,
