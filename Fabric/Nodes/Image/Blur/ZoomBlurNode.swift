@@ -15,7 +15,7 @@ public final class ZoomBlurNode: BaseMultiPassBlurEffectNode {
         var amountScale: Float
     }
 
-    @ObservationIgnored private var passUniformsBuffers: [StructBuffer<ZoomPassUniforms>] = []
+    private var passUniformsBuffers: [StructBuffer<ZoomPassUniforms>] = []
 
     required init(context: Context, fileURL: URL) throws {
         try super.init(context: context, fileURL: fileURL)
@@ -39,13 +39,11 @@ public final class ZoomBlurNode: BaseMultiPassBlurEffectNode {
         return self.passUniformsBuffers[index]
     }
 
-    override public func execute(context: GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-//        guard self.shouldExecuteThisFrame() else {
-//            return
-//        }
 
         guard let inputTexture = self.validatedSingleInputTexture() else {
             self.outputTexturePort.send(nil)
@@ -105,7 +103,8 @@ public final class ZoomBlurNode: BaseMultiPassBlurEffectNode {
         steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 1.0))
 //        }
 
-        if let outputImage = self.runPassChain(context: context,
+        if let outputImage = self.runPassChain(renderer: renderer,
+                                               executionInfo: executionInfo,
                                                commandBuffer: commandBuffer,
                                                inputTexture: inputTexture,
                                                steps: steps,

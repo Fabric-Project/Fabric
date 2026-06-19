@@ -35,8 +35,8 @@ public class SyphonServerNode : Node
     public var inputServerName:ParameterPort<String>  { port(named: "inputServerName") }
     public var inputTexture:NodePort<FabricImage> { port(named: "inputTexture") }
 
-    @ObservationIgnored private let syphonServer:SyphonMetalServer
-    @ObservationIgnored private var texture: (any MTLTexture)? = nil
+    private let syphonServer:SyphonMetalServer
+    private var texture: (any MTLTexture)? = nil
     
     public required init(context:Context)
     {
@@ -57,9 +57,10 @@ public class SyphonServerNode : Node
         try super.init(from:decoder)
     }
     
-    override public func execute(context:GraphExecutionContext,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         if self.inputServerName.valueDidChange,
            let name = self.inputServerName.value

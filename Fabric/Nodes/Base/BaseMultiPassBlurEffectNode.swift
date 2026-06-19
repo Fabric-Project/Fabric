@@ -25,7 +25,7 @@ public class BaseMultiPassBlurEffectNode: BaseImageNode
     }
 
     public static let lowAmountThreshold: Float = 0.0
-    @ObservationIgnored private var hasLoggedInputCountMismatch = false
+    private var hasLoggedInputCountMismatch = false
 
 
     public func floatParameterValue(named name: String, default defaultValue: Float = 0.0) -> Float
@@ -58,14 +58,12 @@ public class BaseMultiPassBlurEffectNode: BaseImageNode
         return (width, height)
     }
 
-    public func runPassChain(context: GraphExecutionContext,
+    public func runPassChain(renderer:GraphRenderer,
+                             executionInfo: GraphExecutionInfo,
                              commandBuffer: MTLCommandBuffer,
                              inputTexture: MTLTexture,
                              steps: [MultiPassStep],
                              prepareStep: (Int, MultiPassStep) -> Void ) -> FabricImage? {
-        guard let graphRenderer = context.graphRenderer else {
-            return nil
-        }
 
         guard !steps.isEmpty else {
             return nil
@@ -75,7 +73,7 @@ public class BaseMultiPassBlurEffectNode: BaseImageNode
         var currentImage: FabricImage? = nil
 
         for (index, step) in steps.enumerated() {
-            guard let nextImage = graphRenderer.newImage(withWidth: step.width, height: step.height) else {
+            guard let nextImage = renderer.newImage(withWidth: step.width, height: step.height) else {
                 currentImage?.release()
                 return nil
             }

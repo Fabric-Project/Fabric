@@ -24,7 +24,7 @@ public class SubgraphNode: BaseObjectNode
     /// Each proxy has node = self (the SubgraphNode) and published = false.
     /// The parent graph independently decides whether to publish them further.
     /// Lazily rebuilt when the sub graph's published ports change.
-    @ObservationIgnored private var proxyPorts: [Port] = []
+    private var proxyPorts: [Port] = []
 
     override public var ports:[Port] { self.proxyPorts + super.ports }
 
@@ -71,26 +71,34 @@ public class SubgraphNode: BaseObjectNode
     {
         switch port
         {
-        case let p as NodePort<Float>:           return ProxyPort(wrapping: p)
-        case let p as NodePort<Int>:             return ProxyPort(wrapping: p)
-        case let p as NodePort<Bool>:            return ProxyPort(wrapping: p)
-        case let p as NodePort<String>:          return ProxyPort(wrapping: p)
-        case let p as NodePort<simd_float2>:     return ProxyPort(wrapping: p)
-        case let p as NodePort<simd_float3>:     return ProxyPort(wrapping: p)
-        case let p as NodePort<simd_float4>:     return ProxyPort(wrapping: p)
-        case let p as NodePort<FabricImage>:     return ProxyPort(wrapping: p)
-        case let p as NodePort<SatinGeometry>:   return ProxyPort(wrapping: p)
-        case let p as NodePort<Material>:        return ProxyPort(wrapping: p)
-        case let p as NodePort<PortValue>:       return ProxyPort(wrapping: p)
-        case let p as NodePort<simd_quatf>:      return ProxyPort(wrapping: p)
-        case let p as NodePort<simd_float4x4>:   return ProxyPort(wrapping: p)
+        case let p as NodePort<Float>:                              return ProxyPort(wrapping: p)
+        case let p as NodePort<Int>:                                return ProxyPort(wrapping: p)
+        case let p as NodePort<Bool>:                               return ProxyPort(wrapping: p)
+        case let p as NodePort<String>:                             return ProxyPort(wrapping: p)
+        case let p as NodePort<simd_float2>:                        return ProxyPort(wrapping: p)
+        case let p as NodePort<simd_float3>:                        return ProxyPort(wrapping: p)
+        case let p as NodePort<simd_float4>:                        return ProxyPort(wrapping: p)
+        case let p as NodePort<FabricImage>:                        return ProxyPort(wrapping: p)
+        case let p as NodePort<SatinGeometry>:                      return ProxyPort(wrapping: p)
+        case let p as NodePort<Material>:                           return ProxyPort(wrapping: p)
+        case let p as NodePort<PortValue>:                          return ProxyPort(wrapping: p)
+        case let p as NodePort<simd_quatf>:                         return ProxyPort(wrapping: p)
+        case let p as NodePort<simd_float4x4>:                      return ProxyPort(wrapping: p)
+        case let p as NodePort<ContiguousArray<Float>>:             return ProxyPort(wrapping: p)
+        case let p as NodePort<ContiguousArray<Int>>:               return ProxyPort(wrapping: p)
+        case let p as NodePort<ContiguousArray<Bool>>:              return ProxyPort(wrapping: p)
+        case let p as NodePort<ContiguousArray<String>>:            return ProxyPort(wrapping: p)
+        case let p as NodePort<ContiguousArray<simd_float2>>:       return ProxyPort(wrapping: p)
+        case let p as NodePort<ContiguousArray<simd_float3>>:       return ProxyPort(wrapping: p)
+        case let p as NodePort<ContiguousArray<simd_float4>>:       return ProxyPort(wrapping: p)
+        case let p as NodePort<ContiguousArray<simd_float4x4>>:     return ProxyPort(wrapping: p)
         default:
             print("ProxyPort: unsupported port type for \(port.name): \(type(of: port))")
             return nil
         }
     }
 
-    @ObservationIgnored override public var nodeExecutionMode:ExecutionMode
+    override public var nodeExecutionMode:ExecutionMode
     {
         let publishedInputPorts = self.proxyPorts.filter { $0.kind == .Inlet }
         let publishedOutputPorts = self.proxyPorts.filter { $0.kind == .Outlet }
@@ -216,24 +224,24 @@ public class SubgraphNode: BaseObjectNode
         super.markDirty()
     }
     
-    override public func startExecution(context:GraphExecutionContext)
+    override public func startExecution(renderer:GraphRenderer)
     {
-        context.graphRenderer?.startExecution(graph: self.subGraph, executionContext: context)
+        renderer.startExecution(graph: self.subGraph)
     }
     
-    override public func stopExecution(context:GraphExecutionContext)
+    override public func stopExecution(renderer:GraphRenderer)
     {
-        context.graphRenderer?.stopExecution(graph: self.subGraph, executionContext: context)
+        renderer.stopExecution(graph: self.subGraph)
     }
 
-    override public func enableExecution(context:GraphExecutionContext)
+    override public func enableExecution(renderer:GraphRenderer)
     {
-        context.graphRenderer?.enableExecution(graph: self.subGraph, executionContext: context)
+        renderer.enableExecution(graph: self.subGraph)
     }
     
-    override public func disableExecution(context:GraphExecutionContext)
+    override public func disableExecution(renderer:GraphRenderer)
     {
-        context.graphRenderer?.disableExecution(graph: self.subGraph, executionContext: context)
+        renderer.disableExecution(graph: self.subGraph)
     }
     
     public func forwardPortValues(force:Bool = false)
@@ -246,17 +254,17 @@ public class SubgraphNode: BaseObjectNode
         }
     }
     
-    override public func execute(context: GraphExecutionContext,
-                                 renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: any MTLCommandBuffer)
-    {
-
-        context.graphRenderer?.execute(graph: self.subGraph,
-                                       executionContext: context,
-                                       renderPassDescriptor: renderPassDescriptor,
-                                       commandBuffer: commandBuffer,
-                                       clearFlags: false)
-
+    override  public func execute(renderer:GraphRenderer,
+                                  executionInfo:GraphExecutionInfo,
+                                  renderPassDescriptor: MTLRenderPassDescriptor,
+                                  commandBuffer: MTLCommandBuffer)    {
+        
+        renderer.execute(graph: self.subGraph,
+                         executionInfo: executionInfo,
+                         renderPassDescriptor: renderPassDescriptor,
+                         commandBuffer: commandBuffer,
+                         clearFlags: false)
+        
         self.forwardPortValues(force:true)
     }
 }

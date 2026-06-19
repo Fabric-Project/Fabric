@@ -39,9 +39,9 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
     public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
     public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
 
-    @ObservationIgnored private var texture: (any MTLTexture)? = nil
-    @ObservationIgnored private var textureLoader:MTKTextureLoader
-    @ObservationIgnored private var url: URL? = nil
+    private var texture: (any MTLTexture)? = nil
+    private var textureLoader:MTKTextureLoader
+    private var url: URL? = nil
     
     public func setFileURL(_ url: URL) {
         self.inputFilePathParam.value = url.standardizedFileURL.absoluteString
@@ -79,9 +79,10 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
         self.loadTextureFromInputValue()
     }
 
-    override public func execute(context:GraphExecutionContext,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         if self.inputFilePathParam.valueDidChange
         {

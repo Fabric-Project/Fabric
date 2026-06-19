@@ -10,6 +10,7 @@ import Satin
 
 public struct NodeRegisitryView: View {
 
+    public let graphRenderer: GraphRenderer
     public let editingContext: GraphCanvasContext
     @Binding private var inputFocus: FabricEditorInputFocus
 
@@ -40,13 +41,16 @@ public struct NodeRegisitryView: View {
 
     private var haveNodesToShow: Bool { self.numNodesToShow > 0 }
 
-    public init(editingContext: GraphCanvasContext, inputFocus: Binding<FabricEditorInputFocus>) {
+    public init(graphRenderer:GraphRenderer, editingContext: GraphCanvasContext, inputFocus: Binding<FabricEditorInputFocus>) {
+        self.graphRenderer = graphRenderer
         self.editingContext = editingContext
         self._inputFocus = inputFocus
     }
     
     public var body: some View
     {
+        let nodeTypes = self.headerSelection.nodeTypes()
+        
         VStack(spacing: 0)
         {
             Divider()
@@ -62,13 +66,13 @@ public struct NodeRegisitryView: View {
             ScrollViewReader { listProxy in
                 List(selection:$selection)
                 {
-                    ForEach(self.headerSelection.nodeTypes(), id: \.self) { nodeType in
+                    ForEach(nodeTypes, id: \.self) { nodeType in
 
                         if let filteredNodesForType:[NodeClassWrapper] = self.filteredNodesForTypes[nodeType],
                            filteredNodesForType.isEmpty == false
                         {
                             Section(header: Text("\(nodeType)")) {
-                                ForEach(filteredNodesForType, id: \.id) { node in
+                                ForEach(filteredNodesForType) { node in
                                     VStack(alignment: .leading, spacing: 4)
                                     {
                                         Text(node.nodeName)
@@ -231,16 +235,24 @@ public struct NodeRegisitryView: View {
     {
         for nodeID in self.selection
         {
-            if let node = NodeRegistry.shared.availableNodes.first(where: { $0.id == nodeID })
+            if let nodeWrapper = NodeRegistry.shared.availableNodes.first(where: { $0.id == nodeID })
             {
                  do
                  {
-                     try self.editingContext.addNode(node)
+                     let node = try nodeWrapper.initializeNode(context: self.graphRenderer.context)
+                     
+                     try self.editingContext.layoutNode(node)
+                     
+                     node.enableExecution(renderer: self.graphRenderer)
+                     node.startExecution(renderer: self.graphRenderer)
+                     
+                     self.editingContext.currentGraph.addNode(node)
+                     
                      self.inputFocus = .canvas
                  }
                  catch
                  {
-                     print("Unable to add node:\(node)")
+                     print("Unable to add node:\(nodeWrapper)")
                  }
             }
         }

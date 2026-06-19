@@ -75,6 +75,7 @@ public class NodeRegistry {
     private var lightNodeClasses: [Node.Type] = [
         DirectionalLightNode.self,
         PointLightNode.self,
+        SpotLightNode.self,
     ]
     
     private var objectNodeClasses: [Node.Type] = [
@@ -103,6 +104,7 @@ public class NodeRegistry {
         CapsuleGeometryNode.self,
         TubeGeometryNode.self,
         TorusGeometryNode.self,
+        CycloramaGeometryNode.self,
 //        SkyboxGeometryNode.self,
         TesselatedTextGeometryNode.self,
         ExtrudedTextGeometryNode.self,
@@ -144,8 +146,10 @@ public class NodeRegistry {
         #endif
         classes.append(contentsOf: [
             LiveImageNode.self,
+            DepthOfFieldNode.self,
             GaussianBlurNode.self,
             MotionBlurNode.self,
+            PostProcessMotionBlurNode.self,
             ZoomBlurNode.self,
             ForegroundMaskNode.self,
             PersonSegmentationMaskNode.self,
@@ -281,10 +285,24 @@ public class NodeRegistry {
         ArrayCountNode<Bool>.self,
         ArrayQueueNode<Bool>.self,
         ArrayReplaceValueAtIndexNode<Bool>.self,
+        ArrayAppendNode<Bool>.self,
+        ArraySplitAtIndexNode<Bool>.self,
+        RepeatValueNode<Bool>.self,
 
+        // Index
+        PassThroughNode<Int>.self,
+        ArrayFirstValueNode<Int>.self,
+        ArrayLastValueNode<Int>.self,
+        ArrayIndexValueNode<Int>.self,
+        ArrayCountNode<Int>.self,
+        ArrayQueueNode<Int>.self,
+        ArrayReplaceValueAtIndexNode<Int>.self,
+        ArrayAppendNode<Int>.self,
+        ArraySplitAtIndexNode<Int>.self,
+        RepeatValueNode<Int>.self,
+        
         // Number
         PassThroughNode<Float>.self,
-        PassThroughNode<Int>.self,
         CurrentTimeNode.self,
         SystemTimeNode.self,
         TimestampNode.self,
@@ -305,7 +323,6 @@ public class NodeRegistry {
         ColorPassThroughNode.self,
         MakeColorNode.self,
         ColorTweenNode.self,
-        EulerOrientationNode.self,
         OrientationTweenNode.self,
         ArrayFirstValueNode<Float>.self,
         ArrayLastValueNode<Float>.self,
@@ -313,11 +330,13 @@ public class NodeRegistry {
         ArrayCountNode<Float>.self,
         ArrayQueueNode<Float>.self,
         ArrayReplaceValueAtIndexNode<Float>.self,
-        FloatArrayToVector2ArrayNode.self,
-        FloatArrayToVector3ArrayNode.self,
-        Vector2ArrayToVector3ArrayNode.self,
-        Vector3ArrayToTransformArrayNode.self,
-        
+        ArrayAppendNode<Float>.self,
+        ArraySplitAtIndexNode<Float>.self,
+        ArrayMathExpressionNode.self,
+        RepeatValueNode<Float>.self,
+        ArrayFromRippledValueNode<Float>.self,
+        ArrayResampleNode<Float>.self,
+
         // String
         PassThroughNode<String>.self,
         StringTrimNode.self,
@@ -343,11 +362,15 @@ public class NodeRegistry {
         ArrayCountNode<String>.self,
         ArrayQueueNode<String>.self,
         ArrayReplaceValueAtIndexNode<String>.self,
-
+        ArrayAppendNode<String>.self,
+        ArraySplitAtIndexNode<String>.self,
+        RepeatValueNode<String>.self,
+        
         // Vectors
         PassThroughNode<simd_float2>.self,
-        MakeVector2Node.self,
-        Vector2ToFloatNode.self,
+        ComposeVectorNode<simd_float2>.self,
+        DecomposeVectorNode<simd_float2>.self,
+        VectorTweenNode<simd_float2>.self,
         Vector2Distance.self,
         ArrayFirstValueNode<simd_float2>.self,
         ArrayLastValueNode<simd_float2>.self,
@@ -355,11 +378,20 @@ public class NodeRegistry {
         ArrayCountNode<simd_float2>.self,
         ArrayQueueNode<simd_float2>.self,
         ArrayReplaceValueAtIndexNode<simd_float2>.self,
+        ArrayAppendNode<simd_float2>.self,
+        ArraySplitAtIndexNode<simd_float2>.self,
+        RepeatValueNode<simd_float2>.self,
+        ArrayFromRippledValueNode<simd_float2>.self,
+        ArrayResampleNode<simd_float2>.self,
+        ComposeVectorArrayNode<simd_float2>.self,
+        DecomposeVectorArrayNode<simd_float2>.self,
+        VectorArrayTweenNode<simd_float2>.self,
         PolyLineSimplifyNode.self,
         
         PassThroughNode<simd_float3>.self,
-        MakeVector3Node.self,
-        Vector3ToFloatNode.self,
+        ComposeVectorNode<simd_float3>.self,
+        DecomposeVectorNode<simd_float3>.self,
+        VectorTweenNode<simd_float3>.self,
         Vector3Distance.self,
         ArrayFirstValueNode<simd_float3>.self,
         ArrayLastValueNode<simd_float3>.self,
@@ -367,10 +399,23 @@ public class NodeRegistry {
         ArrayCountNode<simd_float3>.self,
         ArrayQueueNode<simd_float3>.self,
         ArrayReplaceValueAtIndexNode<simd_float3>.self,
+        ArrayAppendNode<simd_float3>.self,
+        ArraySplitAtIndexNode<simd_float3>.self,
+        OrientationArrayTweenNode.self,
+        ComposeTransformArrayNode.self,
+        RepeatValueNode<simd_float3>.self,
+        ArrayFromRippledValueNode<simd_float3>.self,
+        ArrayResampleNode<simd_float3>.self,
+        ComposeVectorArrayNode<simd_float3>.self,
+        DecomposeVectorArrayNode<simd_float3>.self,
+        ComposeOrientationArrayNode.self,
+        DecomposeOrientationArrayNode.self,
+        VectorArrayTweenNode<simd_float3>.self,
 
         PassThroughNode<simd_float4>.self,
-        MakeVector4Node.self,
-        Vector4ToFloatNode.self,
+        ComposeVectorNode<simd_float4>.self,
+        DecomposeVectorNode<simd_float4>.self,
+        VectorTweenNode<simd_float4>.self,
         Vector4Distance.self,
         ArrayFirstValueNode<simd_float4>.self,
         ArrayLastValueNode<simd_float4>.self,
@@ -378,11 +423,19 @@ public class NodeRegistry {
         ArrayCountNode<simd_float4>.self,
         ArrayQueueNode<simd_float4>.self,
         ArrayReplaceValueAtIndexNode<simd_float4>.self,
+        ArrayAppendNode<simd_float4>.self,
+        ArraySplitAtIndexNode<simd_float4>.self,
+        RepeatValueNode<simd_float4>.self,
+        ArrayFromRippledValueNode<simd_float4>.self,
+        ArrayResampleNode<simd_float4>.self,
+        ComposeVectorArrayNode<simd_float4>.self,
+        DecomposeVectorArrayNode<simd_float4>.self,
+        VectorArrayTweenNode<simd_float4>.self,
 
-        // Quaternion
         PassThroughNode<simd_quatf>.self,
-        MakeQuaternionNode.self,
-        
+        ComposeOrientationNode.self,
+        DecomposeOrientationNode.self,
+
         // Transform (Float Matrix 4x4)
         PassThroughNode<simd_float4x4>.self,
         RotateTransformNode.self,
@@ -390,6 +443,7 @@ public class NodeRegistry {
         TranslateTransformNode.self,
         TransposeTransformNode.self,
         InvertTransformNode.self,
+        ComposeTransformNode.self,
         DecomposeTransformNode.self,
         GeometryToTransformArrayNode.self,
         ArrayFirstValueNode<simd_float4x4>.self,
@@ -398,6 +452,10 @@ public class NodeRegistry {
         ArrayCountNode<simd_float4x4>.self,
         ArrayQueueNode<simd_float4x4>.self,
         ArrayReplaceValueAtIndexNode<simd_float4x4>.self,
+        ArrayAppendNode<simd_float4x4>.self,
+        ArraySplitAtIndexNode<simd_float4x4>.self,
+        RepeatValueNode<simd_float4x4>.self,
+        DecomposeTransformArrayNode.self,
 
         ]
     

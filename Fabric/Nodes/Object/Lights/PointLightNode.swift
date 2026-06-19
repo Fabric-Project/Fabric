@@ -40,27 +40,26 @@ public class PointLightNode : ObjectNode<PointLight>
     public var inputIntensity: ParameterPort<Float> { port(named: "inputIntensity") }
     public var inputRadius: ParameterPort<Float> { port(named: "inputRadius") }
     public var inputShadowStrength: ParameterPort<Float> { port(named: "inputShadowStrength") }
-    public var inputShadowRadius: ParameterPort<Float> { port(named: "inputShadowBias") }
+    public var inputShadowRadius: ParameterPort<Float> { port(named: "inputShadowRadius") }
     public var inputShadowBias: ParameterPort<Float> { port(named: "inputShadowBias") }
     
     public override var object: PointLight? {
         return light
     }
     
-    private var light: PointLight =  PointLight(color: simd_float3(1.0, 1.0, 1.0), radius: 150.0)
+    private lazy var light: PointLight =  PointLight(context:self.context, color: simd_float3(1.0, 1.0, 1.0), radius: 150.0)
 
-    override public func startExecution(context:GraphExecutionContext)
+    override public func startExecution(renderer:GraphRenderer)
     {
         self.setupDefaultLight( )
     }
     
     private func setupDefaultLight()
     {
-        self.light.context = self.context
         self.light.lookAt(target: .zero, up: Satin.worldUpDirection)
 
         self.light.castShadow = true
-        self.light.shadow.resolution = (2048, 2048)
+        self.light.shadow.resolution = (1024, 1024)
         self.light.shadow.bias = 0.0005
         self.light.shadow.strength = 0.5
         self.light.shadow.radius = 2
@@ -76,16 +75,16 @@ public class PointLightNode : ObjectNode<PointLight>
     override public func evaluate(object: Object?, atTime: TimeInterval) -> Bool
     {
         var shouldOutput = super.evaluate(object: object, atTime: atTime)
-    
+        
         if self.inputColor.valueDidChange,
-            let color = self.inputColor.value
+           let color = self.inputColor.value
         {
             self.light.color = color
             shouldOutput = true
         }
         
         if self.inputIntensity.valueDidChange,
-            let intensity = self.inputIntensity.value
+           let intensity = self.inputIntensity.value
         {
             self.light.intensity = intensity
             shouldOutput = true
@@ -122,12 +121,14 @@ public class PointLightNode : ObjectNode<PointLight>
         // Needs to fire every frame
         self.light.lookAt(target: self.inputLookAt.value ?? .zero)
         
-        return shouldOutput    }
+        return shouldOutput
+    }
     
-    public override func execute(context:GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        let _ = self.evaluate(object: self.light, atTime: context.timing.time)
+        let _ = self.evaluate(object: self.light, atTime: executionInfo.timing.time)
     }
 }

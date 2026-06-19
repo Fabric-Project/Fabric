@@ -11,7 +11,7 @@ import Metal
 /// Tweens toward a target quaternion orientation over a duration using
 /// spherical linear interpolation (slerp) and an easing curve.
 ///
-/// Connect an Orientation From Euler node or any other quaternion source
+/// Connect a Compose Orientation node or any other quaternion source
 /// to the Target input. The tween follows the shortest rotation path.
 public class OrientationTweenNode : Node
 {
@@ -42,57 +42,26 @@ public class OrientationTweenNode : Node
     public var outputOrientation:NodePort<simd_float4> { port(named: "outputOrientation") }
     public var outputProgress:NodePort<Float> { port(named: "outputProgress") }
 
-    // Tween state
-    private var tween = TweenState()
-    private var fromQuat:simd_quatf = simd_quatf(angle: 0, axis: simd_float3(0, 1, 0))
-    private var toQuat:simd_quatf = simd_quatf(angle: 0, axis: simd_float3(0, 1, 0))
-    private var currentOutput:simd_quatf = simd_quatf(angle: 0, axis: simd_float3(0, 1, 0))
+    // Interpolation is slerp; endpoints are stored as normalized quaternion
+    // vectors so the shared driver can hold them as plain `simd_float4`.
+    private let driver = TweenDriver<simd_float4>(interpolate: {
+        simd_slerp(simd_quatf(vector: $0), simd_quatf(vector: $1), $2).vector
+    })
 
-    override public func execute(context:GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        let time = context.timing.time
+        let time = executionInfo.timing.time
 
-        // Detect target change → snap-retarget
-        if self.inputTarget.valueDidChange,
-           let targetVec = self.inputTarget.value
-        {
-            let newTarget = simd_quatf(vector: targetVec).normalized
-
-            if !tween.initialized
-            {
-                toQuat = newTarget
-                currentOutput = newTarget
-                tween.initialized = true
-            }
-            else if newTarget != toQuat
-            {
-                fromQuat = currentOutput
-                toQuat = newTarget
-                tween.start(at: time)
-            }
+        if self.inputTarget.valueDidChange, let targetVec = self.inputTarget.value {
+            driver.setTarget(simd_quatf(safeVector: targetVec).vector, at: time)
         }
 
-        // Drive the tween
-        if let duration = self.inputDuration.value,
-           let easingName = self.inputEasing.value,
-           let result = tween.update(time: time, duration: duration, easingName: easingName)
-        {
-            currentOutput = simd_slerp(fromQuat, toQuat, result.easedT)
-
-            if result.t >= 1.0
-            {
-                currentOutput = toQuat
-            }
-
-            self.outputOrientation.send(currentOutput.vector)
-            self.outputProgress.send(result.t)
-        }
-        else if tween.initialized
-        {
-            self.outputOrientation.send(currentOutput.vector)
-            self.outputProgress.send(tween.tweening ? 0.0 : 1.0)
+        if let result = driver.update(time: time, duration: self.inputDuration.value, easingName: self.inputEasing.value) {
+            self.outputOrientation.send(result.value)
+            self.outputProgress.send(result.progress)
         }
     }
 }

@@ -10,6 +10,8 @@ import SwiftUI
 import Satin
 
 // Specialized port which facilitates sending a concrete type supported by Fabric .
+
+
 public class NodePort<Value : PortValueRepresentable>: Port
 {
     // BARF
@@ -248,7 +250,15 @@ public class NodePort<Value : PortValueRepresentable>: Port
 //        print("Connections: \(self.debugDescription)) - \(self.connections)")
 //        print("Connections: \(other.debugDescription) - \(other.connections)")
 
-        self.send(self.value, force: true)
+        // Only propagate if the source port has a value.
+        // During graph decoding, output NodePorts have nil (value is not
+        // persisted) and sending nil would overwrite decoded ParameterPort
+        // values on connected inlets. The first execution pass will
+        // propagate the real computed value through the connection.
+        if self.value != nil
+        {
+            self.send(self.value, force: true)
+        }
 
         self.node?.graph?.undoManager?.registerUndo(withTarget: self) { port in
             port.disconnect(from: other)
@@ -310,12 +320,10 @@ public class NodePort<Value : PortValueRepresentable>: Port
     
     private func send(_ v:Value?, to other: NodePort<Value>, force:Bool = false)
     {
-        if other.value != v || force
-        {
-            other.value = v
-        }
+        // Specialized version
+       _send(v, to: other, force: force)
     }
-    
+
     private func send(_ v:Bool?, to other: NodePort<Bool>, force:Bool = false)
     {
         if other.value != v || force
@@ -334,7 +342,11 @@ public class NodePort<Value : PortValueRepresentable>: Port
     
     private func send(_ v:Float?, to other: NodePort<Float>, force:Bool = false)
     {
-        if other.value != v || force
+        let isNotNan = !(v?.isNaN ?? false)
+        let isNotInf = !(v?.isInfinite ?? false)
+
+        let safe = other.value != v && isNotInf && isNotNan
+        if  safe || force
         {
             other.value = v
         }
@@ -399,5 +411,28 @@ public class NodePort<Value : PortValueRepresentable>: Port
     private static func calcDirection(forType: Any.Type ) -> PortDirection
     {
         return .Horizontal
+    }
+}
+
+
+extension NodePort
+{
+    @_specialize(exported: true, where Value == Bool)
+    @_specialize(exported: true, where Value == Int)
+    @_specialize(exported: true, where Value == Float)
+    @_specialize(exported: true, where Value == String)
+    @_specialize(exported: true, where Value == matrix_float4x4)
+    @_specialize(exported: true, where Value == simd_float3)
+    @_specialize(exported: true, where Value == simd_float3)
+    @_specialize(exported: true, where Value == simd_float4)
+    @_specialize(exported: true, where Value == simd_quatf)
+    @usableFromInline
+    func _send(_ v: Value?, to other: NodePort<Value>, force: Bool = false) {
+        let v = Value.normalizePortValueForSend(v)
+
+        if other.value != v || force
+        {
+            other.value = v
+        }
     }
 }

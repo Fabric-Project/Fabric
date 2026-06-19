@@ -61,7 +61,7 @@ func parseFormatPlaceholders(_ formatString: String) -> [FormatPlaceholder] {
 // MARK: - Settings View
 
 struct StringFormatSettingsView: View {
-    @Bindable var node: StringFormatterNode
+    @Bindable var model: StringFormatterNode.SettingsModel
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -69,7 +69,7 @@ struct StringFormatSettingsView: View {
 
             Spacer()
 
-            TextField("Format String", text: $node.formatString)
+            TextField("Format String", text: $model.formatString)
                 .lineLimit(1)
                 .font(.system(size: 10))
                 .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -79,7 +79,7 @@ struct StringFormatSettingsView: View {
 
 // MARK: - String Formatter Node
 
-@Observable public class StringFormatterNode: Node {
+public class StringFormatterNode: Node {
     override public class var name: String { "String Formatter" }
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .String) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
@@ -115,13 +115,14 @@ struct StringFormatSettingsView: View {
 
     // MARK: - Properties
 
-    @ObservationIgnored fileprivate var formatString: String = "Hello {name}" {
+    fileprivate var formatString: String = "Hello {name}" {
         didSet {
             self.updatePorts()
+            self.nameSubject.send()
         }
     }
 
-    @ObservationIgnored private var placeholders: [FormatPlaceholder] = []
+    private var placeholders: [FormatPlaceholder] = []
 
     // MARK: - Ports
 
@@ -137,14 +138,39 @@ struct StringFormatSettingsView: View {
     override public func providesSettingsView() -> Bool { true }
 
     override public func settingsView() -> AnyView {
-        AnyView(StringFormatSettingsView(node: self))
+        AnyView(StringFormatSettingsView(model: _settingsModel))
     }
+
+    // MARK: - Settings Model
+
+    @Observable final class SettingsModel
+    {
+        var formatString: String
+        {
+            didSet
+            {
+                guard formatString != node?.formatString else { return }
+                node?.formatString = formatString
+            }
+        }
+        private weak var node: StringFormatterNode?
+
+        init(node: StringFormatterNode)
+        {
+            self.node = node
+            self.formatString = node.formatString
+        }
+    }
+
+    private lazy var _settingsModel = SettingsModel(node: self)
 
     // MARK: - Execution
 
-    public override func execute(context: GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer) {
+                                 commandBuffer: MTLCommandBuffer)
+    {
         let inputs = self.inputPorts()
         let anyChanged = inputs.compactMap(\.valueDidChange).contains(true)
 

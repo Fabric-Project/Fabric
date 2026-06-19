@@ -56,14 +56,15 @@ public class LogNode : Node
         try super.init(from: decoder)
     }
             
-    public override func execute(context:GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
         if self.inputAny.valueDidChange,
            let value = self.inputAny.value
         {
-            print("Frame: \(context.timing.frameNumber): \(value)" )
+            print("Frame: \(executionInfo.timing.frameNumber): \(value)" )
         }
     }
 }

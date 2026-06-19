@@ -95,7 +95,8 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
         return shouldOutput
     }
     
-    public override func execute(context:GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
@@ -127,7 +128,7 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
                 }
                 else
                 {
-                    let mesh = InstancedMesh(geometry: geometery, material: material, count: self.inputTransforms.value?.count ?? 1)
+                    let mesh = InstancedMesh(context:self.context, geometry: geometery, material: material, count: self.inputTransforms.value?.count ?? 1)
                     self.applyCurrentMeshState(mesh,
                                                materialJustAttached: true)
 
@@ -142,7 +143,7 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
             
         if let mesh = mesh
         {
-            let _ = self.evaluate(object: mesh, atTime: context.timing.time)
+            let _ = self.evaluate(object: mesh, atTime: executionInfo.timing.time)
             
             if self.inputTransforms.valueDidChange,
                 let transforms = self.inputTransforms.value
@@ -159,7 +160,9 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
         mesh.lookAt(target: simd_float3(repeating: 0))
         mesh.visible = self.inputVisible.value ?? true
         mesh.renderOrder = self.inputRenderOrder.value ?? 0
-        mesh.renderPass = self.inputRenderPass.value ?? 0
+        // TODO:
+        mesh.renderLayer
+//        mesh.renderLayer = self.inputRenderPass.value ?? 0
         mesh.position = self.inputPosition.value ?? .zero
         mesh.scale = self.inputScale.value ?? simd_float3(repeating: 1)
 

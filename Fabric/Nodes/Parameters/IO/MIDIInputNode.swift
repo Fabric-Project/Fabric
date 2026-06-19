@@ -113,7 +113,7 @@ public struct MIDIInputInfo: Codable, Equatable, Identifiable, Hashable
 
 struct MIDIInputNodeView: View
 {
-    @Bindable var node: MIDIInputNode
+    @Bindable var model: MIDIInputNode.SettingsModel
 
     var body: some View
     {
@@ -129,23 +129,23 @@ struct MIDIInputNodeView: View
                 Text("Device:")
                     .font(.system(size: 10))
 
-                Picker("", selection: $node.selectedInputID)
+                Picker("", selection: $model.selectedInputID)
                 {
                     Text("None").tag(String?.none)
 
-                    ForEach(node.availableInputs) { input in
+                    ForEach(model.availableInputs) { input in
                         Text(input.displayName).tag(Optional(input.id))
                     }
                 }
                 .pickerStyle(.menu)
-                .disabled(node.isListening)
+                .disabled(model.isListening)
 
                 Button("Refresh")
                 {
-                    node.refreshInputs()
+                    model.refreshInputs()
                 }
                 .controlSize(.small)
-                .disabled(node.isListening)
+                .disabled(model.isListening)
             }
 
             Divider()
@@ -153,7 +153,7 @@ struct MIDIInputNodeView: View
             // Learn mode controls
             HStack
             {
-                if node.isListening
+                if model.isListening
                 {
                     Circle()
                         .fill(.red)
@@ -167,13 +167,13 @@ struct MIDIInputNodeView: View
 
                     Button("Stop")
                     {
-                        node.stopListening()
+                        model.stopListening()
                     }
                     .controlSize(.small)
 
                     Button("Clear")
                     {
-                        node.clearDetected()
+                        model.clearDetected()
                     }
                     .controlSize(.small)
                 }
@@ -186,21 +186,21 @@ struct MIDIInputNodeView: View
 
                     Button("Listen")
                     {
-                        node.startListening()
+                        model.startListening()
                     }
                     .controlSize(.small)
-                    .disabled(node.selectedInputID == nil)
+                    .disabled(model.selectedInputID == nil)
                 }
             }
 
             // Detected inputs during learn mode OR configured ports
-            if node.isListening
+            if model.isListening
             {
                 ScrollView
                 {
                     VStack(alignment: .leading, spacing: 2)
                     {
-                        if node.detectedInputs.isEmpty
+                        if model.detectedInputs.isEmpty
                         {
                             Text("Move controls on your MIDI device...")
                                 .font(.system(size: 9))
@@ -209,7 +209,7 @@ struct MIDIInputNodeView: View
                         }
                         else
                         {
-                            ForEach(Array(node.detectedInputs.sorted(by: { $0.portName < $1.portName }))) { input in
+                            ForEach(Array(model.detectedInputs.sorted(by: { $0.portName < $1.portName }))) { input in
                                 DetectedInputRow(input: input)
                             }
                         }
@@ -217,7 +217,7 @@ struct MIDIInputNodeView: View
                 }
                 .frame(maxHeight: 150)
             }
-            else if !node.configuredInputs.isEmpty
+            else if !model.configuredInputs.isEmpty
             {
                 Text("Configured Ports:")
                     .font(.system(size: 10))
@@ -227,7 +227,7 @@ struct MIDIInputNodeView: View
                 {
                     VStack(alignment: .leading, spacing: 2)
                     {
-                        ForEach(node.configuredInputs) { input in
+                        ForEach(model.configuredInputs) { input in
                             HStack
                             {
                                 Text(input.portName)
@@ -236,7 +236,7 @@ struct MIDIInputNodeView: View
                                 Spacer()
 
                                 Button(action: {
-                                    node.removeConfiguredInput(id: input.id)
+                                    model.removeConfiguredInput(id: input.id)
                                 }) {
                                     Image(systemName: "minus.circle")
                                         .font(.system(size: 10))
@@ -253,7 +253,7 @@ struct MIDIInputNodeView: View
                     Spacer()
                     Button("Clear All")
                     {
-                        node.clearConfigured()
+                        model.clearConfigured()
                     }
                     .controlSize(.small)
                 }
@@ -308,7 +308,7 @@ struct DetectedInputRow: View
 
 // MARK: - MIDI Input Node
 
-@Observable public class MIDIInputNode: Node
+public class MIDIInputNode: Node
 {
     override public static var name: String { "MIDI Input" }
     override public static var nodeType: Node.NodeType { .Parameter(parameterType: .IO) }
@@ -372,59 +372,97 @@ struct DetectedInputRow: View
 
     // MARK: - Properties
 
-    @ObservationIgnored private var midiManager: MIDIManager?
-    @ObservationIgnored private var savedInputInfo: MIDIInputInfo?
+    private var midiManager: MIDIManager?
+    private var savedInputInfo: MIDIInputInfo?
 
-    // UI-bound properties (must NOT be @ObservationIgnored for SwiftUI updates)
     fileprivate var selectedInputID: String?
     {
         didSet
         {
             setupMIDIConnection()
+            _settingsModelStorage?.selectedInputID = selectedInputID
         }
     }
 
     fileprivate var availableInputs: [MIDIInputInfo] = []
 
-    // Learn mode state
     fileprivate var isListening: Bool = false
     fileprivate var detectedInputs: Set<DetectedMIDIInput> = []
+    {
+        didSet { _settingsModelStorage?.detectedInputs = detectedInputs }
+    }
 
-    // Configured inputs (after learning)
     fileprivate var configuredInputs: [DetectedMIDIInput] = []
     {
         didSet
         {
             rebuildPorts()
+            _settingsModelStorage?.configuredInputs = configuredInputs
         }
     }
 
-    // Latest values for execution (these don't need UI observation)
-    @ObservationIgnored private var floatValues: [String: Float] = [:]
-    @ObservationIgnored private var boolValues: [String: Bool] = [:]
+    private var floatValues: [String: Float] = [:]
+    private var boolValues: [String: Bool] = [:]
 
     // MARK: - Settings View
 
-    override public func providesSettingsView() -> Bool
-    {
-        true
-    }
+    override public func providesSettingsView() -> Bool { true }
 
     override public func settingsView() -> AnyView
     {
-        AnyView(MIDIInputNodeView(node: self))
+        if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
+        return AnyView(MIDIInputNodeView(model: _settingsModelStorage!))
     }
 
     override public var settingsSize: SettingsViewSize { .Medium }
 
+    // MARK: - Settings Model
+
+    @Observable final class SettingsModel
+    {
+        var selectedInputID: String?
+        {
+            didSet
+            {
+                guard selectedInputID != node?.selectedInputID else { return }
+                node?.selectedInputID = selectedInputID
+            }
+        }
+        var availableInputs: [MIDIInputInfo] = []
+        var isListening: Bool = false
+        var detectedInputs: Set<DetectedMIDIInput> = []
+        var configuredInputs: [DetectedMIDIInput] = []
+
+        private weak var node: MIDIInputNode?
+
+        init(node: MIDIInputNode)
+        {
+            self.node = node
+            self.selectedInputID = node.selectedInputID
+            self.availableInputs = node.availableInputs
+            self.isListening = node.isListening
+            self.detectedInputs = node.detectedInputs
+            self.configuredInputs = node.configuredInputs
+        }
+
+        func startListening() { node?.startListening() }
+        func stopListening() { node?.stopListening() }
+        func clearDetected() { node?.clearDetected() }
+        func clearConfigured() { node?.clearConfigured() }
+        func refreshInputs() { node?.refreshInputs() }
+        func removeConfiguredInput(id: UUID) { node?.removeConfiguredInput(id: id) }
+    }
+
+    private var _settingsModelStorage: SettingsModel? = nil
+
     // MARK: - Lifecycle
 
-    public override func enableExecution(context: GraphExecutionContext)
+    public override func enableExecution(renderer: GraphRenderer)
     {
         setupMIDIManager()
     }
 
-    public override func disableExecution(context: GraphExecutionContext)
+    public override func disableExecution(renderer: GraphRenderer)
     {
         midiManager = nil
     }
@@ -461,7 +499,6 @@ struct DetectedInputRow: View
     {
         guard let manager = midiManager else { return }
 
-        // List output endpoints - these are devices that SEND MIDI data (controllers, keyboards, etc.)
         availableInputs = manager.endpoints.outputs.map { endpoint in
             MIDIInputInfo(
                 id: endpoint.uniqueID.description,
@@ -469,6 +506,8 @@ struct DetectedInputRow: View
                 manufacturer: endpoint.manufacturer
             )
         }
+
+        _settingsModelStorage?.availableInputs = availableInputs
 
         print("[MIDI] Found \(availableInputs.count) MIDI sources:")
         for input in availableInputs
@@ -520,6 +559,7 @@ struct DetectedInputRow: View
         print("[MIDI] Learn mode starting... isListening was \(isListening)")
         isListening = true
         detectedInputs.removeAll()
+        _settingsModelStorage?.isListening = true
         print("[MIDI] Learn mode started. isListening is now \(isListening)")
     }
 
@@ -528,11 +568,9 @@ struct DetectedInputRow: View
         print("[MIDI] Stopping learn mode. Detected \(detectedInputs.count) inputs")
         isListening = false
 
-        // Convert detected inputs to configured inputs
         for detected in detectedInputs
         {
             print("[MIDI] Processing detected: \(detected.portName)")
-            // Skip if we already have this input configured
             if !configuredInputs.contains(where: { $0.uniqueKey == detected.uniqueKey })
             {
                 configuredInputs.append(detected)
@@ -545,6 +583,7 @@ struct DetectedInputRow: View
         }
 
         detectedInputs.removeAll()
+        _settingsModelStorage?.isListening = false
         print("[MIDI] Learn mode stopped. Total configured: \(configuredInputs.count) inputs. isListening is now \(isListening)")
     }
 
@@ -818,9 +857,10 @@ struct DetectedInputRow: View
 
     // MARK: - Execution
 
-    public override func execute(context: GraphExecutionContext,
-                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                  commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         for input in configuredInputs
         {

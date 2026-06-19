@@ -34,11 +34,13 @@ public class DirectoryScannerNode: Node {
     public var outputPaths: NodePort<ContiguousArray<String>> { port(named: "outputPaths") }
     public var outputCount: NodePort<Int> { port(named: "outputCount") }
 
-    @ObservationIgnored private var lastRescan: Bool = false
+    private var lastRescan: Bool = false
 
-    public override func execute(context: GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer) {
+                                 commandBuffer: MTLCommandBuffer)
+    {
         let rescanTriggered: Bool
         if let rescan = inputRescan.value, inputRescan.valueDidChange {
             rescanTriggered = rescan && !lastRescan

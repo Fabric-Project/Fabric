@@ -11,7 +11,7 @@ import SwiftUI
 // MARK: - Settings View
 
 struct StringScannerSettingsView: View {
-    @Bindable var node: StringScannerNode
+    @Bindable var model: StringScannerNode.SettingsModel
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -19,7 +19,7 @@ struct StringScannerSettingsView: View {
 
             Spacer()
 
-            TextField("Format String", text: $node.formatString)
+            TextField("Format String", text: $model.formatString)
                 .lineLimit(1)
                 .font(.system(size: 10))
                 .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -29,7 +29,7 @@ struct StringScannerSettingsView: View {
 
 // MARK: - String Scanner Node
 
-@Observable public class StringScannerNode: Node {
+public class StringScannerNode: Node {
     override public class var name: String { "String Scanner" }
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .String) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
@@ -65,14 +65,15 @@ struct StringScannerSettingsView: View {
 
     // MARK: - Properties
 
-    @ObservationIgnored fileprivate var formatString: String = "Frame {n:d} at {t:f}s" {
+    fileprivate var formatString: String = "Frame {n:d} at {t:f}s" {
         didSet {
             self.updatePorts()
+            self.nameSubject.send()
         }
     }
 
-    @ObservationIgnored private var placeholders: [FormatPlaceholder] = []
-    @ObservationIgnored private var scanRegex: Regex<AnyRegexOutput>? = nil
+    private var placeholders: [FormatPlaceholder] = []
+    private var scanRegex: Regex<AnyRegexOutput>? = nil
 
     // MARK: - Ports
 
@@ -90,14 +91,39 @@ struct StringScannerSettingsView: View {
     override public func providesSettingsView() -> Bool { true }
 
     override public func settingsView() -> AnyView {
-        AnyView(StringScannerSettingsView(node: self))
+        AnyView(StringScannerSettingsView(model: _settingsModel))
     }
+
+    // MARK: - Settings Model
+
+    @Observable final class SettingsModel
+    {
+        var formatString: String
+        {
+            didSet
+            {
+                guard formatString != node?.formatString else { return }
+                node?.formatString = formatString
+            }
+        }
+        private weak var node: StringScannerNode?
+
+        init(node: StringScannerNode)
+        {
+            self.node = node
+            self.formatString = node.formatString
+        }
+    }
+
+    private lazy var _settingsModel = SettingsModel(node: self)
 
     // MARK: - Execution
 
-    public override func execute(context: GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer) {
+                                 commandBuffer: MTLCommandBuffer)
+    {
         guard inputString.valueDidChange,
               let input = inputString.value,
               let regex = scanRegex else {

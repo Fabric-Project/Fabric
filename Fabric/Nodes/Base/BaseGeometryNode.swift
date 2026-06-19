@@ -34,12 +34,7 @@ public class BaseGeometryNode : Node
     open var geometry: SatinGeometry {
         fatalError("Subclasses must override geometry")
     }
-    
-    override public func startExecution(context:GraphExecutionContext)
-    {
-        self.geometry.context = self.context
-    }
-        
+            
     public func evaluate(geometry:SatinGeometry, atTime:TimeInterval) -> Bool
     {
         var shouldOutput = false
@@ -60,9 +55,9 @@ public class BaseGeometryNode : Node
         return shouldOutput
     }
     
-    public override func execute(context: GraphExecutionContext, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: any MTLCommandBuffer)
+    public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
     {
-        let shouldOutput = self.evaluate(geometry: self.geometry, atTime: context.timing.time)
+        let shouldOutput = self.evaluate(geometry: self.geometry, atTime: executionInfo.timing.time)
 
         if shouldOutput
         {

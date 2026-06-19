@@ -20,9 +20,9 @@ public class ConeGeometryNode : BaseGeometryNode
         return  [
         ("inputRadius",  ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield, "Radius of the cone base in world units"))),
         ("inputHeight",  ParameterPort(parameter:FloatParameter("Height", 2.0, .inputfield, "Height of the cone from base to tip in world units"))),
-        ("inputAngularResolution",  ParameterPort(parameter:IntParameter("Angular Resolution", 20, .inputfield, "Number of segments around the cone circumference"))),
-        ("inputRadialResolution",  ParameterPort(parameter:IntParameter("Radial Resolution", 2, .inputfield, "Number of segments from center to edge on the base"))),
-        ("inputVerticalResolution",  ParameterPort(parameter:IntParameter("Vertical Resolution", 2, .inputfield, "Number of segments along the cone height"))),
+        ("inputAngularResolution",  ParameterPort(parameter:IntParameter("Angular Segments", 20, .inputfield, "Number of segments around the cone circumference"))),
+        ("inputRadialResolution",  ParameterPort(parameter:IntParameter("Radial Segments", 2, .inputfield, "Number of segments from center to edge on the base"))),
+        ("inputVerticalResolution",  ParameterPort(parameter:IntParameter("Vertical Segments", 2, .inputfield, "Number of segments along the cone height"))),
 
         ] + ports
     }
@@ -36,7 +36,7 @@ public class ConeGeometryNode : BaseGeometryNode
 
     public override var geometry: ConeGeometry { _geometry }
 
-    private let _geometry = ConeGeometry(radius: 1.0, height: 2.0, angularResolution: 20, radialResolution: 2, verticalResolution: 2)
+    private lazy var _geometry = ConeGeometry(context:self.context, radius: 1.0, height: 2.0, angularResolution: 20, radialResolution: 2, verticalResolution: 2)
 
     override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
     {

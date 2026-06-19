@@ -40,12 +40,12 @@ internal final class GraphRendererFeedbackCache
         self.graphID = graphID
     }
     
-    public func resetCacheFor(executionContext:GraphExecutionContext)
+    public func resetCacheFor(executionInfo:GraphExecutionInfo)
     {
         // Clear execution state
         self.nodeProcessingStateCache = [:]
         
-        let currentFrame = executionContext.timing.frameNumber
+        let currentFrame = executionInfo.timing.frameNumber
         let previousFrame = currentFrame - 1
 
         if self.lastCachePruneFrameNumber != currentFrame
@@ -62,7 +62,7 @@ internal final class GraphRendererFeedbackCache
         return nodeProcessingStateCache[node.id, default: .unprocessed]
     }
     
-    func setProcessingState(_ state: NodeProcessingState, forNode node:Node, executionContext:GraphExecutionContext)
+    func setProcessingState(_ state: NodeProcessingState, forNode node:Node, executionInfo:GraphExecutionInfo)
     {
         nodeProcessingStateCache[node.id] = state
         
@@ -72,16 +72,16 @@ internal final class GraphRendererFeedbackCache
             return
             
         case .processing:
-            self.setFeedbackState(forNode: node, executionContext: executionContext)
+            self.setFeedbackState(forNode: node, executionInfo: executionInfo)
             
         case .processed:
-            self.cacheProcessedNode(node, executionContext: executionContext)
+            self.cacheProcessedNode(node, executionInfo: executionInfo)
         }
     }
         
-    private func setFeedbackState(forNode node:Node, executionContext:GraphExecutionContext)
+    private func setFeedbackState(forNode node:Node, executionInfo:GraphExecutionInfo)
     {
-        let currentFrame = executionContext.timing.frameNumber
+        let currentFrame = executionInfo.timing.frameNumber
         let previousFrame = currentFrame - 1
 
         // Inject cached previous-frame values for back-edges (upstream node is currently .processing)
@@ -104,9 +104,9 @@ internal final class GraphRendererFeedbackCache
         }
     }
     
-    private func cacheProcessedNode(_ node: Node, executionContext:GraphExecutionContext)
+    private func cacheProcessedNode(_ node: Node, executionInfo:GraphExecutionInfo)
     {
-        let currentFrame = executionContext.timing.frameNumber
+        let currentFrame = executionInfo.timing.frameNumber
 
         for outlet in node.outputPorts()
         {
