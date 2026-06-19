@@ -341,7 +341,7 @@ internal import AnyCodable
     /// Always non-nil while the node is in this graph.
     public func viewModel(for node: Node) -> NodeViewModel
     {
-        nodeViewModels[node.id] ?? NodeViewModel(node: node)
+        nodeViewModels[node.id]!
     }
     
     public func delete(node:Node, disconnect:Bool = true)
