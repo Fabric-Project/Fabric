@@ -13,13 +13,13 @@ import SwiftUI
 
 private struct DeferredSubgraphNodeSettingsView: View
 {
-    @Bindable var node: DeferredSubgraphNode
+    @Bindable var model: DeferredSubgraphNode.SettingsModel
 
     var body: some View
     {
         VStack(alignment: .leading)
         {
-            Toggle("Enable Deferred MRT Outputs", isOn: $node.deferredMRTEnabled)
+            Toggle("Enable Deferred MRT Outputs", isOn: $model.deferredMRTEnabled)
             Text("Adds auxiliary outputs for albedo, normals, PBR, velocity, and emissive textures using Satin's deferred geometry pipeline.")
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)
@@ -40,6 +40,22 @@ public class DeferredSubgraphNode: SubgraphNode
     {
         case deferredMRTEnabled
     }
+
+    @Observable final class SettingsModel {
+        var deferredMRTEnabled: Bool {
+            didSet {
+                guard deferredMRTEnabled != node?.deferredMRTEnabled else { return }
+                node?.deferredMRTEnabled = deferredMRTEnabled
+            }
+        }
+        private weak var node: DeferredSubgraphNode?
+        init(node: DeferredSubgraphNode) {
+            self.node = node
+            self.deferredMRTEnabled = node.deferredMRTEnabled
+        }
+    }
+
+    private lazy var _settingsModel = SettingsModel(node: self)
 
     private static let deferredOutputs: RendererOutputs = [.color, .albedo, .normals, .pbr, .velocity, .emissive]
     private static let auxiliaryOutputPorts: [AuxiliaryOutputPortDescriptor] = [
@@ -79,7 +95,7 @@ public class DeferredSubgraphNode: SubgraphNode
         return nil
     }
     
-    @ObservationIgnored private var rendererNeedsSetup = true
+    private var rendererNeedsSetup = true
     var graphRenderer:GraphRenderer
 
     public var deferredMRTEnabled: Bool = false
@@ -335,7 +351,7 @@ public class DeferredSubgraphNode: SubgraphNode
 
     override public func settingsView() -> AnyView
     {
-        AnyView(DeferredSubgraphNodeSettingsView(node: self))
+        AnyView(DeferredSubgraphNodeSettingsView(model: _settingsModel))
     }
 
     override public var settingsSize: SettingsViewSize

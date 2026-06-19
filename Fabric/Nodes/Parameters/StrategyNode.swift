@@ -17,13 +17,13 @@ import Satin
 import Metal
 import SwiftUI
 
-@Observable public class StrategyNode: Node
+public class StrategyNode: Node
 {
     /// Ordered strategy names, shown in the Settings view picker.
     public class var strategies: [String] { [] }
     public class var defaultStrategy: String { strategies.first ?? "" }
 
-    @ObservationIgnored var strategy: String
+    var strategy: String
     {
         didSet { self.rebuildPorts(forStrategy: strategy) }
     }
@@ -66,11 +66,11 @@ import SwiftUI
 
     override public func providesSettingsView() -> Bool { true }
 
-    override public var settingsSize:SettingsViewSize { .Mini }
+    override public var settingsSize: SettingsViewSize { .Mini }
 
     override public func settingsView() -> AnyView
     {
-        AnyView(StrategyPickerView(node: self))
+        AnyView(StrategyPickerView(model: _settingsModel))
     }
 
     /// Subclasses: diff current dynamic ports against the wanted set for
@@ -80,19 +80,44 @@ import SwiftUI
     /// already uses. Called on creation, on every Settings-view strategy
     /// change, and once after decode.
     public func rebuildPorts(forStrategy strategy: String) { }
+
+    // MARK: - Settings Model
+
+    @Observable final class SettingsModel
+    {
+        let strategies: [String]
+        var strategy: String
+        {
+            didSet
+            {
+                guard strategy != node?.strategy else { return }
+                node?.strategy = strategy
+            }
+        }
+        private weak var node: StrategyNode?
+
+        init(node: StrategyNode)
+        {
+            self.node = node
+            self.strategies = type(of: node).strategies
+            self.strategy = node.strategy
+        }
+    }
+
+    private lazy var _settingsModel = SettingsModel(node: self)
 }
 
 private struct StrategyPickerView: View
 {
-    @Bindable var node: StrategyNode
+    @Bindable var model: StrategyNode.SettingsModel
 
     var body: some View
     {
-        Picker("Strategy", selection: $node.strategy)
+        Picker("Strategy", selection: $model.strategy)
         {
-            ForEach(type(of: node).strategies, id: \.self) { Text($0).tag($0) }
+            ForEach(model.strategies, id: \.self) { Text($0).tag($0) }
         }
         .pickerStyle(.menu)
-        .controlSize(ControlSize.small)
+        .controlSize(.small)
     }
 }

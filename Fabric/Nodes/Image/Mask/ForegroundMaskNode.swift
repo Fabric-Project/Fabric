@@ -25,7 +25,7 @@ public class ForegroundMaskNode: Node
     let outputTexturePort:NodePort<FabricImage>
     override public var ports: [Port] { [inputTexturePort, outputTexturePort] + super.ports}
     
-    @ObservationIgnored private var textureCache:CVMetalTextureCache?
+    private var textureCache:CVMetalTextureCache?
     
     required init(context:Context)
     {

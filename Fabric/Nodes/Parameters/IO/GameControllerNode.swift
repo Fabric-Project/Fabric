@@ -31,7 +31,7 @@ public struct GameControllerInfo: Codable, Equatable, Identifiable, Hashable
 
 struct GameControllerNodeView: View
 {
-    @Bindable var node: GameControllerNode
+    @Bindable var model: GameControllerNode.SettingsModel
 
     var body: some View
     {
@@ -46,11 +46,11 @@ struct GameControllerNodeView: View
                 Text("Controller:")
                     .font(.system(size: 10))
 
-                Picker("", selection: $node.selectedControllerID)
+                Picker("", selection: $model.selectedControllerID)
                 {
                     Text("None").tag(String?.none)
 
-                    ForEach(node.availableControllers) { controller in
+                    ForEach(model.availableControllers) { controller in
                         Text(controller.displayName).tag(Optional(controller.id))
                     }
                 }
@@ -58,13 +58,13 @@ struct GameControllerNodeView: View
 
                 Button("Refresh")
                 {
-                    node.refreshControllers()
+                    model.refreshControllers()
                 }
                 .controlSize(.small)
             }
 
-            if let controllerID = node.selectedControllerID,
-               let controller = node.availableControllers.first(where: { $0.id == controllerID })
+            if let controllerID = model.selectedControllerID,
+               let controller = model.availableControllers.first(where: { $0.id == controllerID })
             {
                 Divider()
 
@@ -81,7 +81,7 @@ struct GameControllerNodeView: View
                         .font(.system(size: 9))
                         .foregroundColor(.secondary)
 
-                    Text("Outputs: \(node.outputPorts().count)")
+                    Text("Outputs: \(model.outputPortCount)")
                         .font(.system(size: 9))
                         .foregroundColor(.secondary)
                 }
@@ -95,7 +95,7 @@ struct GameControllerNodeView: View
 
 // MARK: - Game Controller Node
 
-@Observable public class GameControllerNode: Node
+public class GameControllerNode: Node
 {
     override public static var name: String { "Game Controller" }
     override public static var nodeType: Node.NodeType { .Parameter(parameterType: .IO) }
@@ -153,36 +153,66 @@ struct GameControllerNodeView: View
 
     // MARK: - Properties
 
-    @ObservationIgnored private var savedControllerInfo: GameControllerInfo?
-    @ObservationIgnored private var currentController: GCController?
+    private var savedControllerInfo: GameControllerInfo?
+    private var currentController: GCController?
 
-    @ObservationIgnored fileprivate var selectedControllerID: String?
+    fileprivate var selectedControllerID: String?
     {
         didSet
         {
             setupController()
+            _settingsModelStorage?.selectedControllerID = selectedControllerID
+            _settingsModelStorage?.outputPortCount = outputPorts().count
         }
     }
 
-    @ObservationIgnored fileprivate var availableControllers: [GameControllerInfo] = []
+    fileprivate var availableControllers: [GameControllerInfo] = []
 
     // Latest input values
-    @ObservationIgnored private var axisValues: [String: Float] = [:]
-    @ObservationIgnored private var buttonValues: [String: Bool] = [:]
+    private var axisValues: [String: Float] = [:]
+    private var buttonValues: [String: Bool] = [:]
 
     // MARK: - Settings View
 
-    override public func providesSettingsView() -> Bool
-    {
-        true
-    }
+    override public func providesSettingsView() -> Bool { true }
 
     override public func settingsView() -> AnyView
     {
-        AnyView(GameControllerNodeView(node: self))
+        if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
+        return AnyView(GameControllerNodeView(model: _settingsModelStorage!))
     }
 
     override public var settingsSize: SettingsViewSize { .Small }
+
+    // MARK: - Settings Model
+
+    @Observable final class SettingsModel
+    {
+        var selectedControllerID: String?
+        {
+            didSet
+            {
+                guard selectedControllerID != node?.selectedControllerID else { return }
+                node?.selectedControllerID = selectedControllerID
+            }
+        }
+        var availableControllers: [GameControllerInfo] = []
+        var outputPortCount: Int = 0
+
+        private weak var node: GameControllerNode?
+
+        init(node: GameControllerNode)
+        {
+            self.node = node
+            self.selectedControllerID = node.selectedControllerID
+            self.availableControllers = node.availableControllers
+            self.outputPortCount = node.outputPorts().count
+        }
+
+        func refreshControllers() { node?.refreshControllers() }
+    }
+
+    private var _settingsModelStorage: SettingsModel? = nil
 
     // MARK: - Lifecycle
 
@@ -247,6 +277,8 @@ struct GameControllerNodeView: View
             )
         }
 
+        _settingsModelStorage?.availableControllers = availableControllers
+
         print("[GameController] Found \(availableControllers.count) controllers:")
         for info in availableControllers
         {
@@ -285,6 +317,8 @@ struct GameControllerNodeView: View
         {
             setupMicroGamepad(microGamepad)
         }
+
+        _settingsModelStorage?.outputPortCount = outputPorts().count
     }
 
     // MARK: - Extended Gamepad Setup

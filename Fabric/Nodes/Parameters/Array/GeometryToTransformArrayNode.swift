@@ -12,7 +12,7 @@ import simd
 import Metal
 import MetalKit
 
-@Observable public class GeometryToTransformArrayNode : StrategyNode
+public class GeometryToTransformArrayNode : StrategyNode
 {
     public override class var name:String { "Geometry Decompose" }
     public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }

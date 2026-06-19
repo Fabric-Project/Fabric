@@ -13,7 +13,7 @@ internal import MathParser
 
 struct MathExpressionView : View
 {
-    @Bindable var node:MathExpressionNode
+    @Bindable var model: MathExpressionBaseNode.SettingsModel
 
     var body: some View
     {
@@ -23,7 +23,7 @@ struct MathExpressionView : View
 
             Spacer()
 
-            TextField("Math Expression", text: $node.stringExpression)
+            TextField("Math Expression", text: $model.stringExpression)
                 .lineLimit(1)
                 .font(.system(size: 10))
                 .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -31,7 +31,7 @@ struct MathExpressionView : View
     }
 }
 
-@Observable public class MathExpressionNode : MathExpressionBaseNode
+public class MathExpressionNode : MathExpressionBaseNode
 {
     override public static var name:String { "Math Expression" }
     override public static var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
@@ -60,7 +60,7 @@ struct MathExpressionView : View
 
     override public func settingsView() -> AnyView
     {
-        AnyView(MathExpressionView(node: self))
+        AnyView(MathExpressionView(model: _settingsModel))
     }
 
     // MARK: - Execution

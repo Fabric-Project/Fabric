@@ -317,16 +317,16 @@ public class AudioSpectrumNode : Node
     // AVCaptureSession replaces AVAudioEngine: its per-session input device
     // selection via AVCaptureDeviceInput is the supported macOS API for
     // per-node device switching, where AVAudioEngine's AUHAL-routing is not.
-    @ObservationIgnored private var captureSession = AVCaptureSession()
-    @ObservationIgnored private let captureQueue   = DispatchQueue(label: "fabric.AudioSpectrumNode.capture_queue")
-    @ObservationIgnored private var captureDelegate = CaptureDelegate()
+    private var captureSession = AVCaptureSession()
+    private let captureQueue   = DispatchQueue(label: "fabric.AudioSpectrumNode.capture_queue")
+    private var captureDelegate = CaptureDelegate()
 
-    @ObservationIgnored private let tripleBuffer = TripleBuffer(capacity: 4096)
+    private let tripleBuffer = TripleBuffer(capacity: 4096)
 
     // Device enumeration. AVCaptureDevice.DiscoverySession gives us the raw
     // AVCaptureDevice instances which feed straight into AVCaptureDeviceInput
     // — no UID→AudioDeviceID translation needed.
-    @ObservationIgnored private let discoverySession = AVCaptureDevice.DiscoverySession(
+    private let discoverySession = AVCaptureDevice.DiscoverySession(
         deviceTypes: [.microphone, .external],
         mediaType: .audio,
         position: .unspecified
@@ -348,9 +348,9 @@ public class AudioSpectrumNode : Node
     private struct DeviceList: ~Copyable, @unchecked Sendable {
         var devices: [AVCaptureDevice] = []
     }
-    @ObservationIgnored private let devicesLock = Mutex<DeviceList>(DeviceList())
-    @ObservationIgnored private var wasConnectedObserver: Any?
-    @ObservationIgnored private var wasDisconnectedObserver: Any?
+    private let devicesLock = Mutex<DeviceList>(DeviceList())
+    private var wasConnectedObserver: Any?
+    private var wasDisconnectedObserver: Any?
 
     public required init(context: Context)
     {
@@ -650,13 +650,21 @@ public class AudioSpectrumNode : Node
 
     // Consumed by the settings popover; populated in execute() only while
     // showSettings is true.
-    @ObservationIgnored public var visualizationBandValues: [Float] = []
+    public var visualizationBandValues: [Float] = []
 
     override public func providesSettingsView() -> Bool { true }
 
+    final class SettingsModel {
+        weak var node: AudioSpectrumNode?
+        var bandValues: [Float] { node?.visualizationBandValues ?? [] }
+        init(node: AudioSpectrumNode) { self.node = node }
+    }
+
+    private lazy var _settingsModel = SettingsModel(node: self)
+
     override public func settingsView() -> AnyView
     {
-        AnyView(AudioSpectrumNodeSettingsView(node: self))
+        AnyView(AudioSpectrumNodeSettingsView(model: _settingsModel))
     }
 
     override public var settingsSize: SettingsViewSize { .Custom(size: CGSize(width: 460, height: 180)) }
@@ -666,10 +674,10 @@ public class AudioSpectrumNode : Node
 
 private struct AudioSpectrumNodeSettingsView: View
 {
-    @Bindable var node: AudioSpectrumNode
+    let model: AudioSpectrumNode.SettingsModel
 
     var body: some View
     {
-        BandsVisualizer(bands: { node.visualizationBandValues })
+        BandsVisualizer(bands: { model.bandValues })
     }
 }

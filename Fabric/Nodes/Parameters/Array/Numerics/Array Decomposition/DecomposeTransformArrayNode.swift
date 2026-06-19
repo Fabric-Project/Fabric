@@ -8,7 +8,7 @@ import Satin
 import simd
 import Metal
 
-@Observable public class DecomposeTransformArrayNode: StrategyNode
+public class DecomposeTransformArrayNode: StrategyNode
 {
     public override class var name: String { "Transform Array Decompose" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }

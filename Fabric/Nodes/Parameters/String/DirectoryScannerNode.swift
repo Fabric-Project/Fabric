@@ -34,7 +34,7 @@ public class DirectoryScannerNode: Node {
     public var outputPaths: NodePort<ContiguousArray<String>> { port(named: "outputPaths") }
     public var outputCount: NodePort<Int> { port(named: "outputCount") }
 
-    @ObservationIgnored private var lastRescan: Bool = false
+    private var lastRescan: Bool = false
 
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
