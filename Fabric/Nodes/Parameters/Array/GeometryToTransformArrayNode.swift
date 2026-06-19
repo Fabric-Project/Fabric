@@ -26,7 +26,7 @@ public class GeometryToTransformArrayNode : StrategyNode
     /// The roll about the normal is otherwise undetermined; a fixed world up
     /// keeps it deterministic. `simd_quatf(lookingAlong:up:)` falls back to the
     /// most perpendicular world axis when a normal is parallel to this.
-    private static let referenceUp = simd_float3(0, 1, 0)
+    private static let referenceUp = worldUpDirection
 
     // The Geometry and Transform inputs are constant across output formats, so
     // they live as static ports and never churn when the format changes — only
