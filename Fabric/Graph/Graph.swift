@@ -35,7 +35,13 @@ internal import AnyCodable
 
     /// NodeViewModels shadow the nodes array 1-to-1. Always created/destroyed
     /// in lockstep with addNode / delete so the array is safe to force-index.
-    private var nodeViewModels: [UUID: NodeViewModel] = [:]
+    /// @ObservationIgnored: dict key mutations must not trigger SwiftUI re-renders.
+    /// Individual ViewModel properties are @Observable themselves, so changes to
+    /// isSelected / offset / etc. still propagate. The ForEach is driven solely by
+    /// the `nodes` array; since ViewModel insertion precedes nodes.append and
+    /// ViewModel removal follows nodes.removeAll, the invariant is always intact
+    /// by the time SwiftUI evaluates the ForEach body.
+    @ObservationIgnored private var nodeViewModels: [UUID: NodeViewModel] = [:]
 
     /// Nodes that are currently selected (as tracked by their NodeViewModels).
     public var selectedNodes: [Node] {
