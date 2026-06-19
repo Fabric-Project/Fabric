@@ -544,22 +544,7 @@ public class NodeRegistry {
 
             SignalNode.self,
 
-            SampleAndHoldNode<Bool>.self,
-            SampleAndHoldNode<Float>.self,
-            SampleAndHoldNode<simd_float2>.self,
-            SampleAndHoldNode<simd_float3>.self,
-            SampleAndHoldNode<simd_float4>.self,
-            SampleAndHoldNode<String>.self,
-            SampleAndHoldNode<simd_quatf>.self,
-            SampleAndHoldNode<simd_float4x4>.self,
-            SampleAndHoldNode<FabricImage>.self,
-
-            SampleAndHoldNode<ContiguousArray<Bool>>.self,
-            SampleAndHoldNode<ContiguousArray<Float>>.self,
-            SampleAndHoldNode<ContiguousArray<simd_float2>>.self,
-            SampleAndHoldNode<ContiguousArray<simd_float3>>.self,
-            SampleAndHoldNode<ContiguousArray<simd_float4>>.self,
-            SampleAndHoldNode<ContiguousArray<String>>.self,
+            SampleAndHoldNode.self,
         ])
         return classes
     }

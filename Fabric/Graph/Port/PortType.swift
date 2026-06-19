@@ -32,7 +32,8 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
     case Array(portType:PortType)
     case Virtual
     
-    // This is brittle
+    // Leaf and commonly-used nested types for UI menus and serialization dispatch.
+    // Does NOT enumerate all possible recursive combinations — use PortType(rawValue:) for dynamic reconstruction.
     public static let allCases : [PortType] = [
         .Bool,
         .Float,
@@ -60,7 +61,7 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         .Array(portType:.Geometry),
         .Array(portType:.Material),
         .Array(portType:.Image),
-        
+
         .Virtual
 
     ]
@@ -155,7 +156,7 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         case .Array(portType: let portType):
             return contiguousArrayMetatype(of: portType.type)
         case .Virtual:
-            return PortType.self
+            return PortValue.self
         }
     }
     
@@ -219,23 +220,32 @@ extension PortType {
         case .Material:     return PassThroughNode<Material>.self
         case .Image:        return PassThroughNode<FabricImage>.self
         case .Array(portType: let elementType):
-            switch elementType {
-            case .Bool:      return PassThroughNode<ContiguousArray<Bool>>.self
-            case .Float:     return PassThroughNode<ContiguousArray<Float>>.self
-            case .Int:       return PassThroughNode<ContiguousArray<Int>>.self
-            case .String:    return PassThroughNode<ContiguousArray<String>>.self
-            case .Vector2:   return PassThroughNode<ContiguousArray<simd_float2>>.self
-            case .Vector3:   return PassThroughNode<ContiguousArray<simd_float3>>.self
-            case .Vector4:   return PassThroughNode<ContiguousArray<simd_float4>>.self
-            case .Color:     return PassThroughNode<ContiguousArray<simd_float4>>.self
-            case .Quaternion: return PassThroughNode<ContiguousArray<simd_quatf>>.self
-            case .Transform: return PassThroughNode<ContiguousArray<simd_float4x4>>.self
-            case .Geometry:  return PassThroughNode<ContiguousArray<Geometry>>.self
-            case .Material:  return PassThroughNode<ContiguousArray<Material>>.self
-            case .Image:     return PassThroughNode<ContiguousArray<FabricImage>>.self
-            default:         return nil
-            }
+            return Self.arrayParameterNodeClass(for: elementType)
         default:            return nil
+        }
+    }
+
+    /// Maps a leaf element type to the PassThroughNode class for ContiguousArray<Element>.
+    /// Any non-leaf element type (i.e. a nested Array or unknown type) falls back to
+    /// ContiguousArray<PortValue> boxing, which handles arbitrary nesting depth.
+    private static func arrayParameterNodeClass(for elementType: PortType) -> Node.Type?
+    {
+        switch elementType
+        {
+        case .Bool:      return PassThroughNode<ContiguousArray<Bool>>.self
+        case .Int:       return PassThroughNode<ContiguousArray<Int>>.self
+        case .Float:     return PassThroughNode<ContiguousArray<Float>>.self
+        case .String:    return PassThroughNode<ContiguousArray<String>>.self
+        case .Vector2:   return PassThroughNode<ContiguousArray<simd_float2>>.self
+        case .Vector3:   return PassThroughNode<ContiguousArray<simd_float3>>.self
+        case .Vector4, .Color:
+                         return PassThroughNode<ContiguousArray<simd_float4>>.self
+        case .Quaternion: return PassThroughNode<ContiguousArray<simd_quatf>>.self
+        case .Transform: return PassThroughNode<ContiguousArray<simd_float4x4>>.self
+        case .Geometry:  return PassThroughNode<ContiguousArray<Geometry>>.self
+        case .Material:  return PassThroughNode<ContiguousArray<Material>>.self
+        case .Image:     return PassThroughNode<ContiguousArray<FabricImage>>.self
+        default:         return PassThroughNode<ContiguousArray<PortValue>>.self
         }
     }
 }

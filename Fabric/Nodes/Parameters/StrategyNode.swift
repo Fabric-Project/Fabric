@@ -23,6 +23,9 @@ public class StrategyNode: Node
     public class var strategies: [String] { [] }
     public class var defaultStrategy: String { strategies.first ?? "" }
 
+    /// When true, the picker inserts a visual separator after the first strategy in the list.
+    public class var separatorAfterFirstStrategy: Bool { false }
+
     var strategy: String
     {
         didSet { self.rebuildPorts(forStrategy: strategy) }
@@ -86,6 +89,7 @@ public class StrategyNode: Node
     @Observable final class SettingsModel
     {
         let strategies: [String]
+        let separatorAfterFirst: Bool
         var strategy: String
         {
             didSet
@@ -100,6 +104,7 @@ public class StrategyNode: Node
         {
             self.node = node
             self.strategies = type(of: node).strategies
+            self.separatorAfterFirst = type(of: node).separatorAfterFirstStrategy
             self.strategy = node.strategy
         }
     }
@@ -113,9 +118,18 @@ private struct StrategyPickerView: View
 
     var body: some View
     {
-        Picker("Strategy", selection: $model.strategy)
+        Picker("Type", selection: $model.strategy)
         {
-            ForEach(model.strategies, id: \.self) { Text($0).tag($0) }
+            if model.separatorAfterFirst, let first = model.strategies.first
+            {
+                Text(first).tag(first)
+                Divider()
+                ForEach(model.strategies.dropFirst(), id: \.self) { Text($0).tag($0) }
+            }
+            else
+            {
+                ForEach(model.strategies, id: \.self) { Text($0).tag($0) }
+            }
         }
         .pickerStyle(.menu)
         .controlSize(.small)
