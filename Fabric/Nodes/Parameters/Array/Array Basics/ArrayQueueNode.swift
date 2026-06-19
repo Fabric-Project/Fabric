@@ -22,43 +22,53 @@ public class ArrayQueueNode<Value : PortValueRepresentable & Equatable> : Node
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
-        
+
         return ports +
         [
-            ("inputPort", NodePort<Value>(name: "Value", kind: .Inlet, description: "Value to insert at the front of the queue")),
+            ("inputPort",      NodePort<Value>(name: "Value",  kind: .Inlet,  description: "Value to insert at the front of the queue")),
             ("inputSizeParam", ParameterPort(parameter: IntParameter("Size", 0, .inputfield, "Maximum number of elements to keep in the queue"))),
-            ("outputPort", NodePort<ContiguousArray<Value>>(name: "Array", kind: .Outlet, description: "Array containing the queued values")),
+            ("resetPort",      NodePort<Bool>(name: "Reset",   kind: .Inlet,  description: "When true, drops all queued items while maintaining capacity")),
+            ("outputPort",     NodePort<ContiguousArray<Value>>(name: "Array", kind: .Outlet, description: "Array containing the queued values")),
         ]
     }
-    
+
     // Port Proxy
     public var inputPort:NodePort<Value> { port(named: "inputPort") }
     public var inputSizeParam:ParameterPort<Int> { port(named: "inputSizeParam") }
+    public var resetPort:NodePort<Bool> { port(named: "resetPort") }
     public var outputPort:NodePort<ContiguousArray<Value>> { port(named: "outputPort") }
-    
+
     private var queue:ContiguousArray<Value> = []
-    
+
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        
-        if self.inputSizeParam.valueDidChange,
-           let size = self.inputSizeParam.value
+        if self.resetPort.valueDidChange,
+           self.resetPort.value == true
         {
-            self.queue = ContiguousArray( self.queue.prefix( size ) )
+            self.queue.removeAll(keepingCapacity: true)
+            self.outputPort.send(self.queue)
         }
-        
-        if self.inputPort.valueDidChange,
-           let value = self.inputPort.value,
-           let size = self.inputSizeParam.value
+        else
         {
-            self.queue.insert(value, at: 0)
+            if self.inputSizeParam.valueDidChange,
+               let size = self.inputSizeParam.value
+            {
+                self.queue = ContiguousArray( self.queue.prefix( size ) )
+            }
             
-            self.queue = ContiguousArray( self.queue.prefix( size ) )
-
-            self.outputPort.send( self.queue )
+            if self.inputPort.valueDidChange,
+               let value = self.inputPort.value,
+               let size = self.inputSizeParam.value
+            {
+                self.queue.insert(value, at: 0)
+                
+                self.queue = ContiguousArray( self.queue.prefix( size ) )
+                
+                self.outputPort.send( self.queue )
+            }
         }
     }
 }
