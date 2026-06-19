@@ -1,0 +1,277 @@
+//
+//  GraphCanvas.swift
+//  Fabric
+//
+//  Created by Anton Marini on 5/26/24.
+//
+
+import SwiftUI
+import UniformTypeIdentifiers
+
+typealias GraphSettingsEntry = (id: UUID, nodeViewModel: NodeViewModel, anchorSize: CGSize)
+
+public struct GraphCanvas : View
+{
+    let editingContext: GraphCanvasContext
+    @Binding var inputFocus: FabricEditorInputFocus
+
+    public init(editingContext: GraphCanvasContext, inputFocus: Binding<FabricEditorInputFocus>)
+    {
+        self.editingContext = editingContext
+        self._inputFocus = inputFocus
+    }
+
+    // Marquee (rubber-band) selection
+    @State private var marqueeRect: CGRect = .zero
+    @State private var preMarqueeSelection: Set<UUID> = []
+
+    @State private var renamingNodeID: UUID? = nil
+
+    // Stable list of settings panels keyed by NodeViewModel — port changes
+    // do not mutate this list so active popovers are never dismissed unexpectedly.
+    @State private var settingsEntries: [GraphSettingsEntry] = []
+
+    public var body: some View
+    {
+        GeometryReader { geom in
+
+            ZStack
+            {
+                GraphBackground(geom: geom)
+
+                GraphNotesView(editingContext: editingContext, geom: geom)
+
+                GraphNodesView(editingContext: editingContext,
+                               geom: geom,
+                               inputFocus: $inputFocus,
+                               settingsEntries: $settingsEntries,
+                               renamingNodeID: $renamingNodeID)
+
+                GraphNodeSettingsView(settingsEntries: $settingsEntries, geom: geom)
+            }
+            .offset(geom.size / 2)
+            .clipShape(Rectangle())
+            .contentShape(Rectangle())
+            .coordinateSpace(name: "graph")
+            .onPreferenceChange(PortAnchorKey.self) { portAnchors in
+                self.calcPortAnchors(portAnchors, geometryProxy: geom)
+            }
+            .overlayPreferenceValue(PortAnchorKey.self) { portAnchors in
+                GraphConnectionsView(editingContext: editingContext,
+                                     portAnchors: portAnchors,
+                                     geom: geom)
+                .id(editingContext.currentGraph.shouldUpdateConnections)
+            }
+            .overlay
+            {
+                let opacity = self.marqueeRect == .zero ? 0.0 : 1.0
+
+                Rectangle()
+                    .fill(Color.accentColor.opacity(0.1))
+                    .overlay(Rectangle().strokeBorder(Color.accentColor, lineWidth: 1))
+                    .frame(width: self.marqueeRect.width, height: self.marqueeRect.height)
+                    .position(x: self.marqueeRect.midX, y: self.marqueeRect.midY)
+                    .allowsHitTesting(false)
+                    .opacity(opacity)
+            }
+            .focusable(true, interactions: .edit)
+            .focusEffectDisabled()
+            .onKeyPress(keys: self.keys()) { keyPress in
+                return self.handleKeyPress(keyPress: keyPress)
+            }
+#if os(macOS)
+            .onDeleteCommand {
+                guard self.inputFocus == .canvas else { return }
+
+                let currentGraph = self.editingContext.currentGraph
+                currentGraph.selectedNodes.forEach { currentGraph.delete(node: $0) }
+            }
+#endif
+            .gesture(
+                DragGesture(minimumDistance: 3)
+                    .onChanged { value in
+                        self.calcMarqueeDragChanged(forValue: value,
+                                                    currentGraph: self.editingContext.currentGraph,
+                                                    canvasSize: geom.size)
+                    }
+                    .onEnded { _ in
+                        self.marqueeRect = .zero
+                        self.preMarqueeSelection = []
+                    }
+            )
+            .onTapGesture {
+                self.inputFocus = .canvas
+                self.editingContext.currentGraph.deselectAllNodes()
+            }
+            .onDrop(of: [.nodeRegistryItem, .fileURL], isTargeted: nil) { providers, location in
+                self.handleDrop(providers: providers, location: location, canvasSize: geom.size)
+            }
+        }
+    }
+
+    // MARK: - Marquee Drag
+
+    private func calcMarqueeDragChanged(forValue value: DragGesture.Value, currentGraph graph: Graph, canvasSize: CGSize)
+    {
+        self.inputFocus = .canvas
+
+        if self.marqueeRect == .zero
+        {
+            if NSEvent.modifierFlags.contains(.shift)
+            {
+                self.preMarqueeSelection = Set(graph.selectedNodes.map(\.id))
+            }
+            else
+            {
+                preMarqueeSelection = []
+                graph.deselectAllNodes()
+            }
+        }
+
+        let start = value.startLocation
+
+        let origin = CGPoint(x: min(start.x, value.location.x),
+                             y: min(start.y, value.location.y))
+
+        let size = CGSize(width: abs(value.location.x - start.x),
+                          height: abs(value.location.y - start.y))
+
+        self.marqueeRect = CGRect(origin: origin, size: size)
+
+        let marqueeInNodeSpace = CGRect(
+            x: origin.x - canvasSize.width / 2,
+            y: origin.y - canvasSize.height / 2,
+            width: size.width,
+            height: size.height
+        )
+
+        for node in graph.nodes
+        {
+            let nodeViewModel = graph.viewModel(for: node)
+            let nodeOrigin = CGPoint(x: nodeViewModel.offset.width  - nodeViewModel.nodeSize.width  / 2,
+                                     y: nodeViewModel.offset.height - nodeViewModel.nodeSize.height / 2)
+            let nodeRect = CGRect(origin: nodeOrigin, size: nodeViewModel.nodeSize)
+            let inMarquee = nodeRect.intersects(marqueeInNodeSpace)
+            nodeViewModel.isSelected = inMarquee || preMarqueeSelection.contains(node.id)
+        }
+    }
+
+    // MARK: - Drop Helpers
+
+    // FIXME: NSItemProvider load callbacks run on an arbitrary queue. Graph/Node are not
+    // thread-safe and have no actor isolation, so the addNode calls below rely on AppKit
+    // happening to deliver on main. If Fabric adopts Swift 6 strict concurrency or
+    // @MainActor isolation, these callbacks will need explicit main-thread dispatch.
+
+    private func handleDrop(providers: [NSItemProvider], location: CGPoint, canvasSize: CGSize) -> Bool
+    {
+        let currentGraph = self.editingContext.currentGraph
+
+        for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.nodeRegistryItem.identifier)
+        {
+            provider.loadDataRepresentation(forTypeIdentifier: UTType.nodeRegistryItem.identifier) { data, error in
+                guard let data = data,
+                      let dragData = try? JSONDecoder().decode(NodeRegistryDragData.self, from: data),
+                      let wrapper = NodeRegistry.shared.availableNodes.first(where: { $0.id == dragData.wrapperID })
+                else {
+                    print("GraphCanvas: registry drag decode failed: \(error?.localizedDescription ?? "unknown")")
+                    return
+                }
+
+                do {
+                    let node = try wrapper.initializeNode(context: currentGraph.context)
+                    node.offset = CGSize(width: location.x - canvasSize.width / 2.0 - node.nodeSize.width / 2.0,
+                                         height: location.y - canvasSize.height / 2.0 - node.nodeSize.height / 2.0)
+                    currentGraph.addNode(node)
+                }
+                catch {
+                    print("GraphCanvas: failed to create node from registry drag: \(error)")
+                }
+            }
+            return true
+        }
+
+        return self.handleFileDrop(providers: providers, location: location, canvasSize: canvasSize)
+    }
+
+    private func handleFileDrop(providers: [NSItemProvider], location: CGPoint, canvasSize: CGSize) -> Bool
+    {
+        let currentGraph = self.editingContext.currentGraph
+        var handled = false
+
+        for provider in providers
+        {
+            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { data, _ in
+                guard let data = data as? Data,
+                      let url = URL(dataRepresentation: data, relativeTo: nil, isAbsolute: true)
+                else { return }
+
+                guard let resourceValues = try? url.resourceValues(forKeys: [.contentTypeKey]),
+                      let contentType = resourceValues.contentType,
+                      let nodeClass = NodeRegistry.shared.dropTargetNodeClass(for: contentType)
+                else { return }
+
+                let node = nodeClass.init(context: currentGraph.context)
+                node.setFileURL(url)
+                node.offset = CGSize(width: location.x - canvasSize.width / 2.0 - node.nodeSize.width / 2.0,
+                                     height: location.y - canvasSize.height / 2.0 - node.nodeSize.height / 2.0)
+                currentGraph.addNode(node)
+            }
+
+            handled = true
+        }
+
+        return handled
+    }
+
+    // MARK: - Key Press
+
+    private func keys() -> Set<KeyEquivalent>
+    {
+        return [.upArrow, .downArrow, .leftArrow, .rightArrow, .return, .space, .escape, .deleteForward]
+    }
+
+    private func handleKeyPress(keyPress: KeyPress) -> KeyPress.Result
+    {
+        guard self.inputFocus == .canvas else { return .ignored }
+        if renamingNodeID != nil { return .ignored }
+
+        switch keyPress.key
+        {
+        case .upArrow:
+            self.editingContext.currentGraph.selectNextNode(inDirection: .Up, expandSelection: keyPress.modifiers.contains(.shift))
+
+        case .downArrow:
+            self.editingContext.currentGraph.selectNextNode(inDirection: .Down, expandSelection: keyPress.modifiers.contains(.shift))
+
+        case .leftArrow:
+            self.editingContext.currentGraph.selectNextNode(inDirection: .Left, expandSelection: keyPress.modifiers.contains(.shift))
+
+        case .rightArrow:
+            self.editingContext.currentGraph.selectNextNode(inDirection: .Right, expandSelection: keyPress.modifiers.contains(.shift))
+
+        case .escape:
+            self.editingContext.currentGraph.deselectAllNodes()
+
+        case .deleteForward:
+            let currentGraph = self.editingContext.currentGraph
+            currentGraph.selectedNodes.forEach { currentGraph.delete(node: $0) }
+
+        default:
+            return .ignored
+        }
+
+        return .handled
+    }
+
+    // MARK: - Port / Connection Helpers
+
+    private func calcPortAnchors(_ portAnchors: PortAnchorKey.Value, geometryProxy geom: GeometryProxy)
+    {
+        var positions: [UUID: CGPoint] = [:]
+        for (portID, anchor) in portAnchors {
+            positions[portID] = geom[anchor]
+        }
+        self.editingContext.portPositions = positions
+    }
+}
