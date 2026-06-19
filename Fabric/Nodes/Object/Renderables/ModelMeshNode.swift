@@ -96,8 +96,7 @@ public class ModelMeshNode : MeshNode
         return shouldOutput
     }
     
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
+    public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
@@ -109,7 +108,7 @@ public class ModelMeshNode : MeshNode
 
         if let model = self.model
         {
-            let _ = self.evaluate(object: model, atTime: executionInfo.timing.time)
+            let _ = self.evaluate(object: model, atTime: context.timing.time)
         }
     }
     
@@ -122,7 +121,7 @@ public class ModelMeshNode : MeshNode
 
             if FileManager.default.fileExists(atPath: self.url!.standardizedFileURL.path(percentEncoded: false) )
             {
-                let unflattenedModelObject = loadAsset(url:self.url!, context:self.context, textureLoader: self.textureLoader)
+                let unflattenedModelObject = loadAsset(url:self.url!, textureLoader: self.textureLoader)
                 
                 if let unflattenedModelObject
                 {

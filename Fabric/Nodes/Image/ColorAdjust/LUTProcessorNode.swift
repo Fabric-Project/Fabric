@@ -35,8 +35,8 @@ public class LUTProcessorNode : BaseImageNode
 
     public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
 
-    private var texture: (any MTLTexture)? = nil
-    private var url: URL? = nil
+    @ObservationIgnored private var texture: (any MTLTexture)? = nil
+    @ObservationIgnored private var url: URL? = nil
     
     public required init(context:Context, fileURL:URL? = nil)
     {
@@ -64,10 +64,9 @@ public class LUTProcessorNode : BaseImageNode
         self.loadLUTFromInputValue()
     }
     
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
-                                 renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
+    override public func execute(context:GraphExecutionContext,
+                           renderPassDescriptor: MTLRenderPassDescriptor,
+                           commandBuffer: MTLCommandBuffer)
     {
         if self.inputFilePathParam.valueDidChange
         {
@@ -78,7 +77,7 @@ public class LUTProcessorNode : BaseImageNode
         {
             if let inTex = self.inputImageTexture(at: 0),
                let inTex2 = self.texture,
-               let outImage = renderer.newImage(withWidth: inTex.width, height: inTex.height)
+               let outImage = context.graphRenderer?.newImage(withWidth: inTex.width, height: inTex.height)
             {
                 self.postMaterial.set(inTex, index: FragmentTextureIndex.Custom0)
                 self.postMaterial.set(inTex2, index: FragmentTextureIndex.Custom1)

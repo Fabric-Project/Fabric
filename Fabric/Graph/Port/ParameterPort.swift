@@ -119,17 +119,7 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
     {
         didSet
         {
-            // Overriding the property's didSet replaces the parent's
-            // observer, so the change-tracking bookkeeping the parent
-            // does (NodePort.value) has to be repeated here. Without it,
-            // values pushed in via the parameter's Combine publisher
-            // (the path UI dropdowns / inputfields go through) update
-            // the value but never raise `valueDidChange`, so executors
-            // that gate on `valueDidChange` — e.g. NumberBinaryOperator
-            // re-parsing its operator string — silently miss the change
-            // and stay on the previous value.
-            self.valueDidChange = true
-            self.node?.markDirty()
+            guard self.valueDidChange else { return }
 
             if let value,
                self._parameter.value != value

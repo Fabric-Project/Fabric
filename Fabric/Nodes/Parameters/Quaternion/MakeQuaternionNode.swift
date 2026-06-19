@@ -1,0 +1,55 @@
+//
+//  MakeQuaternionNode.swift
+//  Fabric
+//
+//  Created by Anton Marini on 5/4/25.
+//
+
+import Foundation
+import Satin
+import simd
+import Metal
+
+public class MakeQuaternionNode : Node
+{
+    override public class var name:String { "Orientation From Axis Angle" }
+    override public class var nodeType:Node.NodeType { .Parameter(parameterType: .Quaternion) }
+    override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
+    override public class var nodeTimeMode: Node.TimeMode { .None }
+    override public class var nodeDescription: String { "Create an Orientation from an Angle and Axis, output as a normalized quaternion"}
+
+    // Ports
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+
+        return ports +
+        [
+
+            // Params
+             ("inputAngle", ParameterPort(parameter: FloatParameter("Angle", 0.0, .inputfield, "Rotation angle in degrees"))),
+             ("inputAxis", ParameterPort(parameter: Float3Parameter("Axis", simd_float3(0, 1, 0), .inputfield, "Axis of rotation (will be normalized)"))),
+
+             ("outputQuaterinion", NodePort<simd_float4>(name: "Orientation" , kind: .Outlet, description: "Normalized orientation as quaternion (X, Y, Z, W)"))
+        ]
+    }
+    
+    // Port Proxy
+    public var inputAngle:NodePort<Float> { port(named: "inputAngle") }
+    public var inputAxis:NodePort<simd_float3> { port(named: "inputAxis") }
+    public var outputQuaterinion:NodePort<simd_float4> { port(named: "outputQuaterinion") }
+    
+    public override func execute(context:GraphExecutionContext,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
+    {
+        if self.inputAngle.valueDidChange || self.inputAxis.valueDidChange,
+           let inputAngleValue = self.inputAngle.value,
+           let inputAxisValue = self.inputAxis.value
+        {
+            let quat = simd_quatf(angle: inputAngleValue * .pi / 180,
+                                  axis: inputAxisValue ).normalized
+
+            self.outputQuaterinion.send( quat.vector )
+        }
+    }
+}

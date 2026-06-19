@@ -32,11 +32,9 @@ public class StringCaseNode: Node {
 
     private var mode = StringCaseMode.Uppercase
 
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
+    public override func execute(context: GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
-    {
+                                 commandBuffer: MTLCommandBuffer) {
         if inputCase.valueDidChange,
            let param = inputCase.value,
            let newMode = StringCaseMode(rawValue: param) {

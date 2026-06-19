@@ -1,10 +1,32 @@
 # Fabric Engineering Specification
 
-Review README.md, Architecture.md, Glossary.md, Nodes.md, 
+**Revision B — 2025-12-22**
+
+> This document supersedes transient chat discussions and supplements
+> the public documentation (`README.md`, `ARCHITECTURE.md`, `NODES.md`, etc.) - which you should consult.
+> It defines the architectural contracts, design patterns, and coding guidelines
+> that all Fabric contributors (human or AI) must follow.
+> 
+> the public code base exists at https://github.com/Fabric-Project/Fabric and should be consulted
+> 
+> **Purpose:** This spec exists to guide consistent, high-performance, ergonomic development
+> of the Fabric node-based runtime. It is intended for internal engineering and AI-assisted development,
+> not public distribution.
+
+## Immediate Next Goals
+
+Major Effort:
+
+We need deterministic, non-recursive evaluation of graphs that contain feedback loops (cycles). The current pull-eval recursion breaks on cycles unless we short-circuit, but short-circuiting without defined semantics breaks outputs. The correct semantics for most Fabric feedback graphs are “temporal feedback” (cycle reads previous-frame values), which requires a stable previous-frame snapshot per output port.
+
+Separate concerns:
+- PortType - schema/editor-time contract (connectability, UI, serialization, declared type).
+- PortValue - runtime value container (optional in Step 1, useful for cache/inspection later).
+- NodePort<T> - remains strongly typed for node authors.
+- Feedback - should be an execution/renderer caching details and not baked into ports/nodes for 3rd party devs to reason about.
+- Update Classes that vend `FabricImages` to always output a new image per frame using our `GraphRenderers` helper method `newImage(withWidth width:Int, height:Int) -> FabricImage?`
 
 ## Engineering Guidelines
-
-For all development:
 
 ### General
 - Do not introduce third-party frameworks without asking first.
@@ -23,6 +45,7 @@ For all development:
 - Prefer modern Foundation API, for example URL.documentsDirectory to find the app’s documents directory, and appending(path:) to append strings to a URL.
 - Never use C-style number formatting such as Text(String(format: "%.2f", abs(myNumber))); always use Text(abs(change), format: .number.precision(.fractionLength(2))) instead.
 - Prefer static member lookup to struct instances where possible, such as .circle rather than Circle(), and .borderedProminent rather than BorderedProminentButtonStyle().
+- Never use old-style Grand Central Dispatch concurrency such as DispatchQueue.main.async(). If behavior like this is needed, always use modern Swift concurrency.
 - Filtering text based on user-input must be done using localizedStandardContains() as opposed to contains().
 - Avoid force unwraps and force try unless it is unrecoverable.
 
@@ -57,6 +80,13 @@ For all development:
     - We mark properties on models which are @Observable with @ObservationIgnored for any public variables that
     - We avoid leaning heavily on @Environment as it can cause views to redraw
 
+---
+
+## 0. Revision Summary
+
+**Locked decisions:**
+- **Typed ports only** for now; “virtual” types postponed.
+- **Current publish/unpublish** behavior retained pending UX feedback.
 
 ---
 
@@ -66,10 +96,6 @@ For all development:
 - **Performance over cleverness:** zero redundant work, stable identities.
 - **Ergonomics:** readable APIs, minimal boilerplate, 3rd-party-friendly.
 - **Surgical change policy:** reversible, minimal churn, backward-compatible until explicit migration.
-
-**Current Pragmatic Conceccions:**
-- **Typed ports only** for now; “virtual” types postponed.
-- **Vec4 proxies pure Vec4, Orientation (Quaternion) and Color. This can be revisited in the future. 
 
 ---
 
@@ -81,11 +107,6 @@ For all development:
 - Execution is **pull-based**; one execute per node per pass.
 - `GraphRenderer` (executor and scheduler) today does not use `nodeExecutionMode` or `nodeTimeMode` but will in the future.
 - **Iterator (QC-style)** remains the multi-evaluation macro; refinements allowed, paradigm fixed.
-
-- Node Settings:
-  - Nodes may opt into a QC like ’Settings View’
-  - Any Node whose execution logic would change the  type, or number of ports should have only have that logic fire via changing a Setting, NOT at runtime
-  - Settings should have a custom Init override, and be exposed as a enum or struct that can be set via the procedural Node / Graph API. This avoids UI only configuration.
 
 ### 2.2  Ports & Registration
 - **Registry = source of truth.**  
@@ -164,23 +185,52 @@ For all development:
 
 ---
 
-## 6. Code Review Checklist
-- [ ] Node has semantically correct type, execution mode, and time mode. 
+## 6. Immediate Next Steps
+
+### A. Port Registration Ergonomics
+- Design a lightweight DSL/macro for registration.  
+  - Preserve type safety and runtime structure.  
+  - Explicit order and super-extension.
+- Implement var-proxy helpers for typed port access.
+
+### B. Migration Pass
+- Pilot migration on one node per family (Geometry, Material, Effect, Object, Utility).
+- Validate registration readability, serialization, UI order, dirty propagation.
+
+### C. Iterator Refinements
+- Optimize per-iteration state apply.  
+- Add max iteration and early exit guards.  
+- Add profiling hooks (time, count).
+
+---
+
+## 7. Non-Goals (for now)
+- Virtual port type with type casting.  
+- Push-based global scheduler. 
+- Non-Apple platform targets.
+
+---
+
+## 8. Code Review Checklist
 - [ ] Node metadata present and stable  
 - [ ] `registerPorts(context:)` calls `super`, order intentional  
 - [ ] ParameterPorts seed and subscribe once  
 - [ ] `execute` idempotent per frame, no allocations  
 - [ ] Outputs use `send(force:true)` appropriately  
-- [ ] No recursive topology recompute
+- [ ] No recursive topology recompute  
+- [ ] Serialization via registry + UUID  
 - [ ] Subgraph nodes discover cameras and apply state before execute
-- [ ] Serialization via registry + UUID
-- [ ] If Node dynamically changes port count or type, we should only trigger via Setting in Settings View, not within the graph
-- [ ] If we have a Settings View, we should have a custom initializer so procedural graph creation has an entry to settings.
-- [ ] If we have a Settings View and a custom initializer, use a custom struct or enum for the settings
-- [ ] New Nodes should live in an appropriate spot in the NodeRegistry
+
 ---
 
-## Historical Context
+## 9. Open Items / Parking Lot
+- Ensure
+- Extend Utility/Log node for safe “virtual” debugging.  
+- Plan one-time save-migration once registration API stabilizes.
+
+---
+
+## 10. Historical Context
 This specification incorporates prior engineering discussions and decisions.
 The chat history should be retained for design rationale and provenance,
 while this file serves as the canonical, version-controlled contract

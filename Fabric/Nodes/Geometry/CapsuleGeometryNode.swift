@@ -20,8 +20,8 @@ public class CapsuleGeometryNode : BaseGeometryNode
         return  [
         ("inputRadius",  ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield, "Radius of the capsule cylinder and end caps in world units"))),
         ("inputHeight",  ParameterPort(parameter:FloatParameter("Height", 2.0, .inputfield, "Height of the cylindrical section in world units"))),
-        ("inputAngularResolution",  ParameterPort(parameter:IntParameter("Angular Segments", 30, .inputfield, "Number of segments around the capsule circumference"))),
-        ("inputVerticalResolution",  ParameterPort(parameter:IntParameter("Vertical Segments", 30, .inputfield, "Number of segments along the capsule height"))),
+        ("inputAngularResolution",  ParameterPort(parameter:IntParameter("Angular Resolution", 30, .inputfield, "Number of segments around the capsule circumference"))),
+        ("inputVerticalResolution",  ParameterPort(parameter:IntParameter("Vertical Resolution", 30, .inputfield, "Number of segments along the capsule height"))),
 
         ] + ports
     }
@@ -34,7 +34,7 @@ public class CapsuleGeometryNode : BaseGeometryNode
 
     public override var geometry: CapsuleGeometry { _geometry }
 
-    private lazy var _geometry = CapsuleGeometry(context:self.context, radius: 1.0, height: 2.0, angularResolution: 30, radialResolution: 30, verticalResolution: 30)
+    private let _geometry = CapsuleGeometry(radius: 1.0, height: 2.0, angularResolution: 30, radialResolution: 30, verticalResolution: 30)
 
     override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
     {

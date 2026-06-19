@@ -96,8 +96,7 @@ public class InstancedModelMeshNode : InstancedMeshNode
         return shouldOutput
     }
     
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
+    public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
@@ -109,7 +108,7 @@ public class InstancedModelMeshNode : InstancedMeshNode
 
         if let model = self.model
         {
-            let _ = self.evaluate(object: model, atTime: executionInfo.timing.time)
+            let _ = self.evaluate(object: model, atTime: context.timing.time)
             
             if self.inputTransforms.valueDidChange,
                 let transforms = self.inputTransforms.value
@@ -137,7 +136,7 @@ public class InstancedModelMeshNode : InstancedMeshNode
 
             if FileManager.default.fileExists(atPath: self.url!.standardizedFileURL.path(percentEncoded: false) )
             {
-                let unflattenedModelObject = loadAsset(url:self.url!, context: self.context, textureLoader: self.textureLoader)
+                let unflattenedModelObject = loadAsset(url:self.url!, textureLoader: self.textureLoader)
                 
                 if let unflattenedModelObject
                 {
@@ -147,12 +146,12 @@ public class InstancedModelMeshNode : InstancedMeshNode
                     
                     object.getChildren(true).forEach { child in
                         
-                        if let subMesh = child as? Mesh,
-                           let geometry = subMesh.geometry
+                        if let subMesh = child as? Mesh
                         {
                             let material = subMesh.material
-
-                            let instancedMesh = InstancedMesh(context:self.context, geometry: geometry, material: material, count: 1)
+                            let geometry = subMesh.geometry
+                            
+                            let instancedMesh = InstancedMesh(geometry: geometry, material: material, count: 1)
                             
                             subMesh.removeFromParent()
                             

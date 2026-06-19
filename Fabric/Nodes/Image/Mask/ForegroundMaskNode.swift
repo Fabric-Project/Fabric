@@ -25,7 +25,7 @@ public class ForegroundMaskNode: Node
     let outputTexturePort:NodePort<FabricImage>
     override public var ports: [Port] { [inputTexturePort, outputTexturePort] + super.ports}
     
-    private var textureCache:CVMetalTextureCache?
+    @ObservationIgnored private var textureCache:CVMetalTextureCache?
     
     required init(context:Context)
     {
@@ -78,10 +78,9 @@ public class ForegroundMaskNode: Node
         try super.init(from:decoder)
     }
     
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
-                                 renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
+    override public  func execute(context:GraphExecutionContext,
+                                  renderPassDescriptor: MTLRenderPassDescriptor,
+                                  commandBuffer: MTLCommandBuffer)
     {
         
         if self.inputTexturePort.valueDidChange

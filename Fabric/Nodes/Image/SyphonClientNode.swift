@@ -37,22 +37,22 @@ public class SyphonClientNode : Node
     public var inputServerAppName:ParameterPort<String>  { port(named: "inputServerAppName") }
     public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
 
-    private var syphonClient:SyphonMetalClient? = nil
-    private var texture: (any MTLTexture)? = nil
+    @ObservationIgnored private var syphonClient:SyphonMetalClient? = nil
+    @ObservationIgnored private var texture: (any MTLTexture)? = nil
     
     
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
-                                 renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
+    override public func execute(context:GraphExecutionContext,
+                           renderPassDescriptor: MTLRenderPassDescriptor,
+                           commandBuffer: MTLCommandBuffer)
     {
         if self.inputServerName.valueDidChange || self.inputServerAppName.valueDidChange,
            let inputServerName = self.inputServerName.value,
-           let inputServerAppName = self.inputServerAppName.value
+           let inputServerAppName = self.inputServerAppName.value,
+           let device =  context.graphRenderer?.device
         {
             if let firstServerDict = SyphonServerDirectory.shared().servers(matchingName: inputServerName, appName: inputServerAppName).first
             {
-                self.syphonClient = SyphonMetalClient(serverDescription: firstServerDict, device:renderer.device)
+                self.syphonClient = SyphonMetalClient(serverDescription: firstServerDict, device:device)
             }
         }
         

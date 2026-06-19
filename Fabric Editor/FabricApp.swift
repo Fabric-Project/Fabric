@@ -93,14 +93,15 @@ struct DocumentCommands:Commands
         CommandGroup(replacing: .pasteboard)
         {
             let graph = self.document?.editingContext.currentGraph
-            let hasSelection = !(graph?.selectedNodes.isEmpty ?? true)
+            let hasSelection = graph?.nodes.contains(where: { $0.isSelected }) ?? false
             let hasPasteData = NSPasteboard.general.data(forType: Graph.nodeClipboardType) != nil
 
             Button("Copy")
             {
                 if self.isCanvasFocused {
                     guard let graph else { return }
-                    graph.copyNodesToPasteboard(graph.selectedNodes)
+                    let selected = graph.nodes.filter { $0.isSelected }
+                    graph.copyNodesToPasteboard(selected)
                 }
                 else
                 {
@@ -126,7 +127,8 @@ struct DocumentCommands:Commands
             Button("Duplicate")
             {
                 guard let graph else { return }
-                graph.duplicateNodes(graph.selectedNodes)
+                let selected = graph.nodes.filter { $0.isSelected }
+                graph.duplicateNodes(selected)
             }
             .keyboardShortcut("d", modifiers: .command)
             .disabled(self.isCanvasFocused ? !hasSelection : true)
@@ -185,10 +187,8 @@ struct ViewCommands: Commands {
     var body: some Commands {
         CommandGroup(after: .toolbar) {
             Button("Auto Layout Graph") {
-                // Operate on the graph the user is currently looking
-                // at (a subgraph if they've drilled in), not the
-                // document's root.
-                document?.editingContext.currentGraph.autoLayout()
+                let graph = document?.editingContext.rootGraph
+                graph?.autoLayout()
             }
             .keyboardShortcut("l", modifiers: [.command, .option])
             .disabled(document == nil)

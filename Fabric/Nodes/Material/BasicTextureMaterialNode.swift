@@ -30,7 +30,7 @@ public class BasicTextureMaterialNode : BasicColorMaterialNode
         return _material
     }
     
-    private lazy var _material = BasicTextureMaterial(context: self.context)
+    private var _material = BasicTextureMaterial()
 
     public override func evaluate(material:Material, atTime:TimeInterval) -> Bool
     {

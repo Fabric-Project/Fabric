@@ -82,20 +82,23 @@ public final class ContourPathNode: Node {
     }
 
     // MARK: - Execute
-    public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
+    override public func execute(context: GraphExecutionContext,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         guard
             inputMask.valueDidChange,
             let proc = processor,
-            let inTex = inputMask.value?.texture
+            let inTex = inputMask.value?.texture,
+            let graphRenderer = context.graphRenderer,
+            let device = graphRenderer.context?.device
         else {
             outputContour.send(nil)
 //            print("not outputting contour")
             return
         }
         
-        let device = renderer.context.device
-
+        
 //        print("recomputing contour")
 
         // Bind input for sizing/dispatch

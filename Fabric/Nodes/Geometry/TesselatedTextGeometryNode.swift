@@ -32,10 +32,10 @@ public class TesselatedTextGeometryNode : BaseGeometryNode
 
     public override var geometry: TesselatedTextGeometry { _geometry }
 
-    private lazy var _geometry = TesselatedTextGeometry(context:self.context, text: "Testing", fontSize: 1.0)
+    private let _geometry = TesselatedTextGeometry(text: "Testing", fontSize: 1.0)
 
-    override public func startExecution(renderer:GraphRenderer) {
-        super.startExecution(renderer:renderer)
+    override public func startExecution(context: GraphExecutionContext) {
+        super.startExecution(context: context)
 
         if let fontParam = self.inputFont.parameter as? StringParameter
         {

@@ -40,8 +40,7 @@ public class SampleAndHoldNode<Value : PortValueRepresentable & Equatable> : Nod
 
     private var value:Value?
         
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
+    public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

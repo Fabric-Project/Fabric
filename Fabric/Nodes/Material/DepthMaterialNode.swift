@@ -24,7 +24,6 @@ public class DepthMaterialNode : BaseMaterialNode
                     ("inputFar", ParameterPort(parameter:FloatParameter("Far", 500.0, 0.0, 1000.0, .slider, "Far clipping distance for depth visualization")) ),
                     ("inputInvert", ParameterPort(parameter:BoolParameter("Invert", false, .toggle, "When enabled, inverts the depth gradient")) ),
                     ("inputColor", ParameterPort(parameter:BoolParameter("Color", true, .toggle, "When enabled, renders depth as color gradient")) ),
-                    ("inputPointSize", ParameterPort(parameter:FloatParameter("Point Size", 1.0, 0.5, 64.0, .slider, "Point Size") ) ),
                 ] + ports
     }
     
@@ -32,13 +31,12 @@ public class DepthMaterialNode : BaseMaterialNode
     public var inputFar:ParameterPort<Float> { port(named: "inputFar") }
     public var inputInvert:ParameterPort<Bool> { port(named: "inputInvert") }
     public var inputColor:ParameterPort<Bool> { port(named: "inputColor") }
-    public var inputPointSize:ParameterPort<Float> { port(named: "inputPointSize") }
 
     public override var material: DepthMaterial {
         return _material
     }
     
-    private lazy var _material = DepthMaterial(context: self.context)
+    private var _material = DepthMaterial()
     
     public override func evaluate(material: Material, atTime: TimeInterval) -> Bool
     {
@@ -70,13 +68,6 @@ public class DepthMaterialNode : BaseMaterialNode
         {
             self.material.color = color
             shouldOutput = true
-        }
-
-        if self.inputPointSize.valueDidChange,
-           let inputPointSize = self.inputPointSize.value
-        {
-            shouldOutput = true
-            self.material.pointSize = inputPointSize
         }
         
         return shouldOutput

@@ -40,8 +40,7 @@ public class NumberUnaryOperator : Node
         
     private var mathOperator = UnaryMathOperator.Sine
     
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
+    public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

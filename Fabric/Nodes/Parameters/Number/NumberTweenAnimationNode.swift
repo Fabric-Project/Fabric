@@ -43,12 +43,11 @@ public class NumberTweenNode : Node
     private var toValue:Float = 0.0
     private var currentOutput:Float = 0.0
 
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
+    override public func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        let time = executionInfo.timing.time
+        let time = context.timing.time
 
         // Detect target change → snap-retarget
         if self.inputTarget.valueDidChange,

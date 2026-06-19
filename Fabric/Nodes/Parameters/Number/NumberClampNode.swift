@@ -41,8 +41,7 @@ public class NumberClampNode : Node
     public var inputMaxNumber:ParameterPort<Float> { port(named: "inputMaxNumber") }
     public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
     
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
+    override public func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

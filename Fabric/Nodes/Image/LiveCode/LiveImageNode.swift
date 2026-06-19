@@ -31,9 +31,9 @@ public class LiveImageNode: BaseImageNode
     private static let rootWorkspaceURL = URL(filePath: "/tmp/fabric-live-shaders", directoryHint: .isDirectory)
     private static let staleWorkspaceTTL: TimeInterval = 24 * 60 * 60
 
-    private(set) var shaderSource: String = LiveImageNode.defaultShaderSource()
-    private var workspaceURL: URL?
-    private var shaderFileURL: URL?
+    @ObservationIgnored private(set) var shaderSource: String = LiveImageNode.defaultShaderSource()
+    @ObservationIgnored private var workspaceURL: URL?
+    @ObservationIgnored private var shaderFileURL: URL?
 
     required init(context: Context, fileURL: URL) throws {
         try super.init(context: context, fileURL: fileURL)
