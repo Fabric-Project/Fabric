@@ -129,6 +129,7 @@ public class NodeRegistry {
         BourSurfaceGeometryNode.self,
         BreatherSurfaceGeometryNode.self,
         DiniSurfaceGeometryNode.self,
+        MathExpressionParametricGeometryNode.self,
     ]
         
     private var materialNodeClasses:[Node.Type] = [
