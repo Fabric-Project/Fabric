@@ -59,7 +59,6 @@ public class DirectionalLightNode : ObjectNode<DirectionalLight>
         self.light.castShadow = true
         self.light.shadow.resolution = (1024, 1024)
         self.light.shadow.bias = 0.0005
-        self.light.shadow.normalBias = 0.0005
         self.light.shadow.strength = 0.5
         self.light.shadow.radius = 2
 
@@ -107,7 +106,6 @@ public class DirectionalLightNode : ObjectNode<DirectionalLight>
            let inputShadowBias = self.inputShadowBias.value
         {
             self.light.shadow.bias = inputShadowBias
-            self.light.shadow.normalBias = inputShadowBias
             shouldOutput = true
         }
         
