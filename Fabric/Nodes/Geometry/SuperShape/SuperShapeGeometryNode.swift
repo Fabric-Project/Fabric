@@ -101,7 +101,7 @@ final class SuperShapeGeometry: SatinGeometry {
         }
     }}
 
-    init(context:Context, r1: Float, a1: Float, b1: Float, m1: Float, n11: Float, n21: Float, n31: Float, r2: Float, a2: Float, b2: Float, m2: Float, n12: Float, n22: Float, n32: Float, res: Int) {
+    init(r1: Float, a1: Float, b1: Float, m1: Float, n11: Float, n21: Float, n31: Float, r2: Float, a2: Float, b2: Float, m2: Float, n12: Float, n22: Float, n32: Float, res: Int) {
         self.r1 = r1
         self.a1 = a1
         self.b1 = b1
@@ -117,7 +117,7 @@ final class SuperShapeGeometry: SatinGeometry {
         self.n22 = n22
         self.n32 = n32
         self.res = res
-        super.init(context: context)
+        super.init()
     }
 
     override public func generateGeometryData() -> GeometryData {
@@ -152,7 +152,7 @@ class SuperShapeGeometryNode : BaseGeometryNode
             ("n12Param", ParameterPort(parameter:FloatParameter("N12", 1.0, 0.0, 100.0, .slider, "First shape exponent n1 for the second supershape"))),
             ("n22Param", ParameterPort(parameter:FloatParameter("N22", 1.371561, 0.0, 100.0, .slider, "Second shape exponent n2 for the second supershape"))),
             ("n32Param", ParameterPort(parameter:FloatParameter("N32", 0.651718, 0.0, 100.0, .slider, "Third shape exponent n3 for the second supershape"))),
-            ("resParam", ParameterPort(parameter:IntParameter("Segments", 300, 3, 300, .inputfield, "Mesh segment count (resolution) for both angular and vertical divisions"))),
+            ("resParam", ParameterPort(parameter:IntParameter("Resolution", 300, 3, 300, .inputfield, "Mesh resolution for both angular and vertical divisions"))),
         ]
     }
 
@@ -175,22 +175,23 @@ class SuperShapeGeometryNode : BaseGeometryNode
 
     public override var geometry: SuperShapeGeometry { _geometry }
 
-    private lazy var _geometry = SuperShapeGeometry(context:self.context,
-                                                    r1: self.r1Param.value ?? 0.0,
-                                                    a1: self.a1Param.value ?? 0.0,
-                                                    b1: self.b1Param.value ?? 0.0,
-                                                    m1: self.m1Param.value ?? 0.0,
-                                                    n11: self.n11Param.value ?? 0.0,
-                                                    n21: self.n21Param.value ?? 0.0,
-                                                    n31: self.n31Param.value ?? 0.0,
-                                                    r2: self.r2Param.value ?? 0.0,
-                                                    a2: self.a2Param.value ?? 0.0,
-                                                    b2: self.b2Param.value ?? 0.0,
-                                                    m2: self.m2Param.value ?? 0.0,
-                                                    n12: self.n12Param.value ?? 0.0,
-                                                    n22: self.n22Param.value ?? 0.0,
-                                                    n32: self.n32Param.value ?? 0.0,
-                                                    res: self.resParam.value ?? 0)
+    private lazy var _geometry = SuperShapeGeometry(
+        r1: self.r1Param.value ?? 0.0,
+        a1: self.a1Param.value ?? 0.0,
+        b1: self.b1Param.value ?? 0.0,
+        m1: self.m1Param.value ?? 0.0,
+        n11: self.n11Param.value ?? 0.0,
+        n21: self.n21Param.value ?? 0.0,
+        n31: self.n31Param.value ?? 0.0,
+        r2: self.r2Param.value ?? 0.0,
+        a2: self.a2Param.value ?? 0.0,
+        b2: self.b2Param.value ?? 0.0,
+        m2: self.m2Param.value ?? 0.0,
+        n12: self.n12Param.value ?? 0.0,
+        n22: self.n22Param.value ?? 0.0,
+        n32: self.n32Param.value ?? 0.0,
+        res: self.resParam.value ?? 0
+    )
     
     override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool {
         

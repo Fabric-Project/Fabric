@@ -40,7 +40,7 @@ public class IteratorNode: SubgraphNode
 
     public required init(context: Context)
     {
-        self.renderProxy = SubgraphIteratorRenderable(context:context, iterationCount: 1)
+        self.renderProxy = SubgraphIteratorRenderable(iterationCount: 1)
 
         super.init(context: context)
         
@@ -49,42 +49,38 @@ public class IteratorNode: SubgraphNode
     
     public required init(from decoder: any Decoder) throws
     {
-        guard let context = decoder.context?.documentContext as? Context else { fatalError("Unable to get document context") }
-        
-        self.renderProxy = SubgraphIteratorRenderable(context:context, iterationCount: 1)
+        self.renderProxy = SubgraphIteratorRenderable(iterationCount: 1)
 
         try super.init(from: decoder)
         
         self.renderProxy.subGraph = self.subGraph
     }
     
-    override public func startExecution(renderer:GraphRenderer)
+    override public func startExecution(context:GraphExecutionContext)
     {
-        self.renderProxy.startExecution(renderer:renderer)
+        self.renderProxy.startExecution(context: context)
     }
     
-    override public func stopExecution(renderer:GraphRenderer)
+    override public func stopExecution(context:GraphExecutionContext)
     {
-        self.renderProxy.stopExecution(renderer: renderer)
+        self.renderProxy.stopExecution(context: context)
     }
 
-    override public func enableExecution(renderer:GraphRenderer)
+    override public func enableExecution(context:GraphExecutionContext)
     {
-        self.renderProxy.enableExecution(renderer: renderer)
+        self.renderProxy.enableExecution(context: context)
     }
     
-    override public func disableExecution(renderer:GraphRenderer)
+    override public func disableExecution(context:GraphExecutionContext)
     {
-        self.renderProxy.disableExecution(renderer: renderer)
+        self.renderProxy.disableExecution(context: context)
     }
     
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
+    override public func execute(context: GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
+                                 commandBuffer: any MTLCommandBuffer)
     {
-        self.renderProxy.graphRenderer = renderer
-        self.renderProxy.graphExecutionInfo = executionInfo
+        self.renderProxy.graphContext = context
         self.renderProxy.currentRenderPass = renderPassDescriptor
         self.renderProxy.currentCommandBuffer = commandBuffer
 //        self.renderProxy.renderables = self.subGraph.renderables
@@ -98,7 +94,7 @@ public class IteratorNode: SubgraphNode
         // execute the graph once, to just ensure meshes / materials have latest values popogated to nodes
         // this does technically introduce one additional draw call
         // Not sure the best way to avoid this - since we need to have the graph 'configured'
-        self.renderProxy.execute(renderer: renderer, executionInfo: executionInfo, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+        self.renderProxy.execute(context: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer,)
         
         // We need to call this to ensure any published port values also get forwarded.
         self.forwardPortValues(force:true)

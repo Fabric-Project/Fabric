@@ -72,9 +72,9 @@ Fabric includes a licensed Metal port of [Lygia](https://lygia.xyz) shader libra
 Please See [Releases](https://github.com/Fabric-Project/Fabric/releases) for code signed App downloads.
 
 For Developers:
-1. Checkout Fabric with submodules enabled, as `Satin`, `Syphon` and `HapInAVFoundation` are dependencies. (`git clone --recurse-submodules ...`)
+1. Checkout Fabric with submodules enabled, as `Satin` and `Syphon` are dependencies. (`git clone --recurse-submodules ...`)
 2. If you already cloned without submodules, run `git submodule update --init --recursive`.
-3. if building for macOS, run ` ./scripts/build-syphon-xcframework.sh` and ` ./scripts/build-hapinavfoundation-xcframework.sh`
+3. if building for macOS, run ` ./scripts/build-syphon-xcframework.sh`
 4. Open the XCode project
 5. Ensure that `Fabric Editor` is the active target.
 6. Build and run. 

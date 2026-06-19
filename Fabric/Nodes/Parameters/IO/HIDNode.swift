@@ -462,7 +462,7 @@ class HIDManager
 
 struct HIDNodeView: View
 {
-    @Bindable var model: HIDNode.SettingsModel
+    @Bindable var node: HIDNode
 
     var body: some View
     {
@@ -477,11 +477,11 @@ struct HIDNodeView: View
                 Text("Device:")
                     .font(.system(size: 10))
 
-                Picker("", selection: $model.selectedDeviceID)
+                Picker("", selection: $node.selectedDeviceID)
                 {
                     Text("None").tag(String?.none)
 
-                    ForEach(model.availableDevices) { device in
+                    ForEach(node.availableDevices) { device in
                         Text(device.displayName).tag(Optional(device.id))
                     }
                 }
@@ -489,24 +489,24 @@ struct HIDNodeView: View
 
                 Button("Refresh")
                 {
-                    model.refreshDevices()
+                    node.refreshDevices()
                 }
                 .controlSize(.small)
             }
 
-            if let _ = model.selectedDeviceID,
-               !model.deviceElements.isEmpty
+            if let _ = node.selectedDeviceID,
+               !node.deviceElements.isEmpty
             {
                 Divider()
 
-                Text("Device Elements (\(model.deviceElements.count)):")
+                Text("Device Elements (\(node.deviceElements.count)):")
                     .font(.system(size: 10))
 
                 ScrollView
                 {
                     VStack(alignment: .leading, spacing: 2)
                     {
-                        ForEach(model.deviceElements) { element in
+                        ForEach(node.deviceElements) { element in
                             HStack
                             {
                                 Text(element.displayName)
@@ -532,7 +532,7 @@ struct HIDNodeView: View
 
 // MARK: - HID Node
 
-public class HIDNode: Node
+@Observable public class HIDNode: Node
 {
     override public static var name: String { "HID Device" }
     override public static var nodeType: Node.NodeType { .Parameter(parameterType: .IO) }
@@ -587,14 +587,14 @@ public class HIDNode: Node
 
     // MARK: - Properties
 
-    private var hidManager: HIDManager?
-    private var savedDeviceInfo: HIDDeviceInfo?
+    @ObservationIgnored private var hidManager: HIDManager?
+    @ObservationIgnored private var savedDeviceInfo: HIDDeviceInfo?
 
-    fileprivate var selectedDeviceID: String?
+    @ObservationIgnored fileprivate var selectedDeviceID: String?
     {
         didSet
         {
-            if let oldValue
+            if let oldValue = oldValue
             {
                 hidManager?.stopMonitoring(deviceID: oldValue)
             }
@@ -610,67 +610,37 @@ public class HIDNode: Node
                 deviceElements = []
                 rebuildPorts()
             }
-
-            _settingsModelStorage?.selectedDeviceID = selectedDeviceID
-            _settingsModelStorage?.deviceElements = deviceElements
         }
     }
 
-    fileprivate var availableDevices: [HIDDeviceInfo] = []
-    fileprivate var deviceElements: [HIDElementInfo] = []
+    @ObservationIgnored fileprivate var availableDevices: [HIDDeviceInfo] = []
+    @ObservationIgnored fileprivate var deviceElements: [HIDElementInfo] = []
 
-    private var latestValues: [String: Int] = [:]
+    // Store latest values for each element
+    @ObservationIgnored private var latestValues: [String: Int] = [:]
 
     // MARK: - Settings View
 
-    override public func providesSettingsView() -> Bool { true }
+    override public func providesSettingsView() -> Bool
+    {
+        true
+    }
 
     override public func settingsView() -> AnyView
     {
-        if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
-        return AnyView(HIDNodeView(model: _settingsModelStorage!))
+        AnyView(HIDNodeView(node: self))
     }
 
     override public var settingsSize: SettingsViewSize { .Medium }
 
-    // MARK: - Settings Model
-
-    @Observable final class SettingsModel
-    {
-        var selectedDeviceID: String?
-        {
-            didSet
-            {
-                guard selectedDeviceID != node?.selectedDeviceID else { return }
-                node?.selectedDeviceID = selectedDeviceID
-            }
-        }
-        var availableDevices: [HIDDeviceInfo] = []
-        var deviceElements: [HIDElementInfo] = []
-
-        private weak var node: HIDNode?
-
-        init(node: HIDNode)
-        {
-            self.node = node
-            self.selectedDeviceID = node.selectedDeviceID
-            self.availableDevices = node.availableDevices
-            self.deviceElements = node.deviceElements
-        }
-
-        func refreshDevices() { node?.refreshDevices() }
-    }
-
-    private var _settingsModelStorage: SettingsModel? = nil
-
     // MARK: - Lifecycle
 
-    public override func enableExecution(renderer:GraphRenderer)
+    public override func enableExecution(context: GraphExecutionContext)
     {
         setupHIDManager()
     }
 
-    public override func disableExecution(renderer:GraphRenderer)
+    public override func disableExecution(context: GraphExecutionContext)
     {
         if let deviceID = selectedDeviceID
         {
@@ -712,7 +682,6 @@ public class HIDNode: Node
     fileprivate func refreshDevices()
     {
         availableDevices = hidManager?.getAvailableDevices() ?? []
-        _settingsModelStorage?.availableDevices = availableDevices
     }
 
     private func handleValueChange(deviceID: String, element: HIDElementInfo, value: Int)
@@ -725,10 +694,9 @@ public class HIDNode: Node
 
     // MARK: - Execution
 
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
-                                 renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
+    public override func execute(context: GraphExecutionContext,
+                                  renderPassDescriptor: MTLRenderPassDescriptor,
+                                  commandBuffer: MTLCommandBuffer)
     {
         for element in deviceElements
         {

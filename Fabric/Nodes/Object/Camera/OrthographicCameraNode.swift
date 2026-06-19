@@ -35,11 +35,11 @@ public class OrthographicCameraNode : ObjectNode<OrthographicCamera>
         camera
     }
     
-    private lazy var camera = OrthographicCamera(context:self.context, left: -1, right: 1, bottom: -1, top: 1, near: 0.01, far: 500.0)
+    private let camera = OrthographicCamera(left: -1, right: 1, bottom: -1, top: 1, near: 0.01, far: 500.0)
 
-    override public func startExecution(renderer:GraphRenderer)
+    override public func startExecution(context:GraphExecutionContext)
     {
-        super.startExecution(renderer: renderer)
+        super.startExecution(context: context)
         
         self.inputPosition.value = .init(repeating: 5.0)
         
@@ -61,12 +61,11 @@ public class OrthographicCameraNode : ObjectNode<OrthographicCamera>
         return shouldUpdate
     }
     
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
+    public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        let _ = self.evaluate(object: self.object, atTime: executionInfo.timing.time)
+        let _ = self.evaluate(object: self.object, atTime: context.timing.time)
     }
     
     public override func resize(size: (width: Float, height: Float), scaleFactor: Float)

@@ -86,10 +86,12 @@ public class GraphCanvasContext
     /// Add a node from a registry wrapper via user interaction.
     /// Positions the node at the current scroll center and staggers
     /// rapid successive adds so they don't pile on top of each other.
-    public func layoutNode(_ node: Node) throws
+    public func addNode(_ wrapper: NodeClassWrapper) throws
     {
         let graph = currentGraph
+        let node = try wrapper.initializeNode(context: graph.context)
         node.offset = self.calcInteractiveOffset(for: node)
+        graph.addNode(node)
     }
 
     /// Calculates the offset for a user-initiated add: centered on the

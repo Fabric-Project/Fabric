@@ -69,7 +69,7 @@ public class PBRMaterialNode : StandardMaterialNode
         return _material
     }
     
-    private lazy var _material = PhysicalMaterial(context:self.context)
+    private var _material = PhysicalMaterial()
 
     override public func evaluate(material: Material, atTime: TimeInterval) -> Bool
     {

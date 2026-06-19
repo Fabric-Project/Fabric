@@ -51,10 +51,7 @@ final class PortRegistry
         p.disconnectAll()
         self.byID[p.id] = nil
         if let i = ordered.firstIndex(where: { $0.id == p.id }) { self.ordered.remove(at: i) }
-        for (name, port) in self.byName where port.id == p.id
-        {
-            self.byName[name] = nil
-        }
+        self.byName[p.name] = nil
     }
 
     func reorder(_ reordered: [Port])

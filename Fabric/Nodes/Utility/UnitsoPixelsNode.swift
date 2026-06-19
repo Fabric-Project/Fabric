@@ -57,18 +57,18 @@ public class UnitsoPixelsNode : Node
         try super.init(from: decoder)
     }
     
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
+    public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
         
         if self.inputUnitPosition.valueDidChange,
-           let unit = self.inputUnitPosition.value
+           let unit = self.inputUnitPosition.value,
+           let graphRenderer = context.graphRenderer
         {
 //            let aspect = graphRenderer.renderer.size.height/graphRenderer.renderer.size.width
-            let size = simd_float2(x: renderer.renderEncoder.size.width,
-                                   y: renderer.renderEncoder.size.height)
+            let size = simd_float2(x: graphRenderer.renderer.size.width,
+                                   y: graphRenderer.renderer.size.height)
             
             let x = remap( unit, -1.0, 1.0, 0.0, size.x)
 

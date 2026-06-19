@@ -31,7 +31,7 @@ public struct GameControllerInfo: Codable, Equatable, Identifiable, Hashable
 
 struct GameControllerNodeView: View
 {
-    @Bindable var model: GameControllerNode.SettingsModel
+    @Bindable var node: GameControllerNode
 
     var body: some View
     {
@@ -46,11 +46,11 @@ struct GameControllerNodeView: View
                 Text("Controller:")
                     .font(.system(size: 10))
 
-                Picker("", selection: $model.selectedControllerID)
+                Picker("", selection: $node.selectedControllerID)
                 {
                     Text("None").tag(String?.none)
 
-                    ForEach(model.availableControllers) { controller in
+                    ForEach(node.availableControllers) { controller in
                         Text(controller.displayName).tag(Optional(controller.id))
                     }
                 }
@@ -58,13 +58,13 @@ struct GameControllerNodeView: View
 
                 Button("Refresh")
                 {
-                    model.refreshControllers()
+                    node.refreshControllers()
                 }
                 .controlSize(.small)
             }
 
-            if let controllerID = model.selectedControllerID,
-               let controller = model.availableControllers.first(where: { $0.id == controllerID })
+            if let controllerID = node.selectedControllerID,
+               let controller = node.availableControllers.first(where: { $0.id == controllerID })
             {
                 Divider()
 
@@ -81,7 +81,7 @@ struct GameControllerNodeView: View
                         .font(.system(size: 9))
                         .foregroundColor(.secondary)
 
-                    Text("Outputs: \(model.outputPortCount)")
+                    Text("Outputs: \(node.outputPorts().count)")
                         .font(.system(size: 9))
                         .foregroundColor(.secondary)
                 }
@@ -95,7 +95,7 @@ struct GameControllerNodeView: View
 
 // MARK: - Game Controller Node
 
-public class GameControllerNode: Node
+@Observable public class GameControllerNode: Node
 {
     override public static var name: String { "Game Controller" }
     override public static var nodeType: Node.NodeType { .Parameter(parameterType: .IO) }
@@ -153,70 +153,40 @@ public class GameControllerNode: Node
 
     // MARK: - Properties
 
-    private var savedControllerInfo: GameControllerInfo?
-    private var currentController: GCController?
+    @ObservationIgnored private var savedControllerInfo: GameControllerInfo?
+    @ObservationIgnored private var currentController: GCController?
 
-    fileprivate var selectedControllerID: String?
+    @ObservationIgnored fileprivate var selectedControllerID: String?
     {
         didSet
         {
             setupController()
-            _settingsModelStorage?.selectedControllerID = selectedControllerID
-            _settingsModelStorage?.outputPortCount = outputPorts().count
         }
     }
 
-    fileprivate var availableControllers: [GameControllerInfo] = []
+    @ObservationIgnored fileprivate var availableControllers: [GameControllerInfo] = []
 
     // Latest input values
-    private var axisValues: [String: Float] = [:]
-    private var buttonValues: [String: Bool] = [:]
+    @ObservationIgnored private var axisValues: [String: Float] = [:]
+    @ObservationIgnored private var buttonValues: [String: Bool] = [:]
 
     // MARK: - Settings View
 
-    override public func providesSettingsView() -> Bool { true }
+    override public func providesSettingsView() -> Bool
+    {
+        true
+    }
 
     override public func settingsView() -> AnyView
     {
-        if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
-        return AnyView(GameControllerNodeView(model: _settingsModelStorage!))
+        AnyView(GameControllerNodeView(node: self))
     }
 
     override public var settingsSize: SettingsViewSize { .Small }
 
-    // MARK: - Settings Model
-
-    @Observable final class SettingsModel
-    {
-        var selectedControllerID: String?
-        {
-            didSet
-            {
-                guard selectedControllerID != node?.selectedControllerID else { return }
-                node?.selectedControllerID = selectedControllerID
-            }
-        }
-        var availableControllers: [GameControllerInfo] = []
-        var outputPortCount: Int = 0
-
-        private weak var node: GameControllerNode?
-
-        init(node: GameControllerNode)
-        {
-            self.node = node
-            self.selectedControllerID = node.selectedControllerID
-            self.availableControllers = node.availableControllers
-            self.outputPortCount = node.outputPorts().count
-        }
-
-        func refreshControllers() { node?.refreshControllers() }
-    }
-
-    private var _settingsModelStorage: SettingsModel? = nil
-
     // MARK: - Lifecycle
 
-    public override func enableExecution(renderer:GraphRenderer)
+    public override func enableExecution(context: GraphExecutionContext)
     {
         setupNotifications()
         refreshControllers()
@@ -233,7 +203,7 @@ public class GameControllerNode: Node
         }
     }
 
-    public override func disableExecution(renderer:GraphRenderer)
+    public override func disableExecution(context: GraphExecutionContext)
     {
         NotificationCenter.default.removeObserver(self)
         currentController = nil
@@ -277,8 +247,6 @@ public class GameControllerNode: Node
             )
         }
 
-        _settingsModelStorage?.availableControllers = availableControllers
-
         print("[GameController] Found \(availableControllers.count) controllers:")
         for info in availableControllers
         {
@@ -317,8 +285,6 @@ public class GameControllerNode: Node
         {
             setupMicroGamepad(microGamepad)
         }
-
-        _settingsModelStorage?.outputPortCount = outputPorts().count
     }
 
     // MARK: - Extended Gamepad Setup
@@ -458,10 +424,9 @@ public class GameControllerNode: Node
 
     // MARK: - Execution
 
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
-                                 renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
+    public override func execute(context: GraphExecutionContext,
+                                  renderPassDescriptor: MTLRenderPassDescriptor,
+                                  commandBuffer: MTLCommandBuffer)
     {
         // Send axis values
         for (name, value) in axisValues

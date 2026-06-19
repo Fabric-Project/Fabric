@@ -21,7 +21,7 @@ struct ParameterGroupView : View
         {
             Spacer()
             
-            ForEach(self.parameterGroup.params, id:\.self.id) { param in
+            ForEach(self.parameterGroup.params, id:\.id) { param in
                 
                 self.parameterViewFromParameter(param)
             }

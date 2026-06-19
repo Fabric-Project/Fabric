@@ -31,10 +31,9 @@ final class MetalFXSpatialUpsample2xNode: BaseImageNode
     // Output texture cache
 //    private var outputTexture: MTLTexture?
     
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
-                                 renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
+    override func execute(context: GraphExecutionContext,
+                          renderPassDescriptor: MTLRenderPassDescriptor,
+                          commandBuffer: MTLCommandBuffer)
     {
         guard self.imageInputPorts().first?.valueDidChange == true || isDirty else {
             return
@@ -58,7 +57,7 @@ final class MetalFXSpatialUpsample2xNode: BaseImageNode
         }
 
         guard let scaler = self.spatialScaler,
-              let outImage = renderer.newImage(withWidth: inTex.width, height: inTex.height)
+              let outImage = context.graphRenderer?.newImage(withWidth: inTex.width, height: inTex.height)
         else
         {
             self.outputTexturePort.send(nil)

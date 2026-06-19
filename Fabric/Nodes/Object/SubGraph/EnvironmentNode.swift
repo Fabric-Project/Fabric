@@ -38,24 +38,19 @@ public class EnvironmentNode: SubgraphNode
     {
         super.init(context: context)
         
-        self.subGraph.scene = IBLScene(context: context)
+        self.subGraph.scene = IBLScene()
     }
     
     public required init(from decoder: any Decoder) throws
     {
-        guard let context = decoder.context?.documentContext as? Context else {
-            fatalError("Failed to decode Context from decoder")
-        }
-        
         try super.init(from: decoder)
         
-        self.subGraph.scene = IBLScene(context: context)
+        self.subGraph.scene = IBLScene()
     }
     
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
+    override public func execute(context: GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
+                                 commandBuffer: any MTLCommandBuffer)
     {
         if self.inputEnvironmentTexture.valueDidChange,
            let environmentTexture = self.inputEnvironmentTexture.value,
@@ -78,7 +73,7 @@ public class EnvironmentNode: SubgraphNode
 //            iblScene.cubemapGenerator?.blur = inputEnvironmentIntensity
 //        }
         
-        // This calls forward for us...
-        super.execute(renderer: renderer, executionInfo: executionInfo, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+        // This calls forward for us... 
+        super.execute(context: context, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
     }
 }

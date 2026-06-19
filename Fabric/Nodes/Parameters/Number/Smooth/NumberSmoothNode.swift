@@ -40,8 +40,7 @@ public class NumberSmoothNode : Node
     public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
     
     
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
+    override public func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
@@ -53,7 +52,7 @@ public class NumberSmoothNode : Node
         
         if let inputNumber = self.inputNumber.value
         {
-            let filtered = oneEuroFilter.Filter(Double(inputNumber), timestamp: executionInfo.timing.systemTime)
+            let filtered = oneEuroFilter.Filter(Double(inputNumber), timestamp: context.timing.systemTime)
 
             self.outputNumber.send( Float(filtered) )
         }

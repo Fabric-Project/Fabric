@@ -34,11 +34,11 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
     open class PostMaterial: SourceMaterial {}
 
     let postMaterial: PostMaterial
-    let postProcessor: PostProcessEncoder
+    let postProcessor: PostProcessor
 
-    private var url: URL? = nil
-    private var lastKnownInputCount: Int = 1
-    private var cachedImageInputPorts: [NodePort<FabricImage>] = []
+    @ObservationIgnored private var url: URL? = nil
+    @ObservationIgnored private var lastKnownInputCount: Int = 1
+    @ObservationIgnored private var cachedImageInputPorts: [NodePort<FabricImage>] = []
 
     enum CodingKeys: String, CodingKey
     {
@@ -76,7 +76,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         fatalError("BaseImageNode requires at least one image outlet")
     }
 
-    override public var nodeExecutionMode: ExecutionMode {
+    @ObservationIgnored override public var nodeExecutionMode: ExecutionMode {
         self.currentImageInputCount == 0 ? .Provider : .Processor
     }
 
@@ -87,10 +87,11 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
     public required init(context: Context, fileURL: URL) throws {
         self.url = fileURL
 
-        let material = PostMaterial(context:context, pipelineURL: fileURL)
+        let material = PostMaterial(pipelineURL: fileURL)
+        material.context = context
 
         self.postMaterial = material
-        self.postProcessor = PostProcessEncoder(context: context,
+        self.postProcessor = PostProcessor(context: context,
                                            material: material,
                                            frameBufferOnly: false)
 
@@ -108,10 +109,11 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         let bundle = Bundle.module
         let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
 
-        let material = PostMaterial(context:context, pipelineURL: shaderURL!)
+        let material = PostMaterial(pipelineURL: shaderURL!)
+        material.context = context
 
         self.postMaterial = material
-        self.postProcessor = PostProcessEncoder(context: context,
+        self.postProcessor = PostProcessor(context: context,
                                            material: material,
                                            frameBufferOnly: false)
 
@@ -142,7 +144,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
     required init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
-        guard let context = decoder.context?.documentContext as? Context else {
+        guard let decodeContext = decoder.context else {
             fatalError("Required Decode Context Not set")
         }
 
@@ -153,10 +155,11 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             if let shaderURL = bundle.resourceURL?.appendingPathComponent(path) {
                 self.url = shaderURL
 
-                let material = PostMaterial(context:context, pipelineURL: shaderURL)
+                let material = PostMaterial(pipelineURL: shaderURL)
+                material.context = decodeContext.documentContext
 
                 self.postMaterial = material
-                self.postProcessor = PostProcessEncoder(context:context,
+                self.postProcessor = PostProcessor(context: decodeContext.documentContext,
                                                    material: material,
                                                    frameBufferOnly: false)
             }
@@ -164,10 +167,11 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
                 let bundle = Bundle.module
                 let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
 
-                let material = PostMaterial(context:context,pipelineURL: shaderURL!)
+                let material = PostMaterial(pipelineURL: shaderURL!)
+                material.context = decodeContext.documentContext
 
                 self.postMaterial = material
-                self.postProcessor = PostProcessEncoder(context:context,
+                self.postProcessor = PostProcessor(context: decodeContext.documentContext,
                                                    material: material,
                                                    frameBufferOnly: false)
             }
@@ -176,10 +180,11 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             let bundle = Bundle.module
             let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
 
-            let material = PostMaterial(context:context,pipelineURL: shaderURL!)
+            let material = PostMaterial(pipelineURL: shaderURL!)
+            material.context = decodeContext.documentContext
 
             self.postMaterial = material
-            self.postProcessor = PostProcessEncoder(context:context,
+            self.postProcessor = PostProcessor(context: decodeContext.documentContext,
                                                material: material,
                                                frameBufferOnly: false)
         }
@@ -471,8 +476,8 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
     /// Material sync only adds to, rebinds, or removes labels in this set — any
     /// port whose label isn't in it (subclass-declared ports, base-managed ports
     /// like Width/Height, or anything else) is implicitly protected.
-    private var materialSyncedLabels: Set<String> = []
-    private var materialSyncedLabelsInitialized: Bool = false
+    @ObservationIgnored private var materialSyncedLabels: Set<String> = []
+    @ObservationIgnored private var materialSyncedLabelsInitialized: Bool = false
 
     private func offLimitsLabels() -> Set<String> {
         let declared = Self.registerPorts(context: self.context).compactMap { $0.port.parameter?.label }
@@ -558,7 +563,9 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         return (3, originalIndex)
     }
 
-    public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
+    override public func execute(context: GraphExecutionContext,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
     {
         let anyPortChanged = self.ports.reduce(false) { partialResult, next in
             partialResult || next.valueDidChange
@@ -577,7 +584,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             self.postProcessor.renderer.size.width = Float(width)
             self.postProcessor.renderer.size.height = Float(height)
 
-            guard let outImage = renderer.newImage(withWidth: width, height: height) else {
+            guard let outImage = context.graphRenderer?.newImage(withWidth: width, height: height) else {
                 self.outputTexturePort.send(nil)
                 return
             }
@@ -599,7 +606,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             return
         }
 
-        guard let outImage = renderer.newImage(withWidth: inputTexture0.width, height: inputTexture0.height) else {
+        guard let outImage = context.graphRenderer?.newImage(withWidth: inputTexture0.width, height: inputTexture0.height) else {
             self.outputTexturePort.send(nil)
             return
         }

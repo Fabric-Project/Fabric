@@ -32,11 +32,10 @@ public class ExtrudedTextGeometryNode : BaseGeometryNode
     
     public override var geometry: ExtrudedTextGeometry { _geometry }
 
-    private lazy var _geometry = ExtrudedTextGeometry(context:self.context, text: "Testing", fontSize: 1.0)
+    private let _geometry = ExtrudedTextGeometry(text: "Testing", fontSize: 1.0)
 
-    override public func startExecution(renderer: GraphRenderer)
-    {
-        super.startExecution(renderer:renderer)
+    override public func startExecution(context: GraphExecutionContext) {
+        super.startExecution(context: context)
 
         if let fontParam = self.inputFont.parameter as? StringParameter
         {

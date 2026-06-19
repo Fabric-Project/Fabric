@@ -89,12 +89,11 @@ public class ColorTweenNode : Node
     private var toAlpha:Float = 1.0
     private var currentOutput:simd_float4 = simd_float4(0, 0, 0, 1)
 
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
+    override public func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        let time = executionInfo.timing.time
+        let time = context.timing.time
 
         // Detect target change → snap-retarget
         if self.inputTarget.valueDidChange,

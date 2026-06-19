@@ -10,25 +10,26 @@ import AppKit
 import Metal
 import simd
 import Fabric
-import Satin
 
 
 private enum ToolbarID
 {
     static let output = NSToolbar.Identifier("OutputToolbar")
-    static let playPause = NSToolbarItem.Identifier("playPause")
+    
+    static let playPause   = NSToolbarItem.Identifier("playPause")
+    
 }
 
 class DocumentOutputWindowManager : NSObject
 {
     weak var ownerDocument: FabricDocument?
-    private var outputwindow: NSWindow? = nil
-    private var outputViewController: MetalViewController? = nil
-    private weak var graphRenderer: GraphRenderer? = nil
-
+    private var outputwindow:NSWindow? = nil
+    private var outputRenderer:CAMetalDisplayLinkRenderer? = nil
+    
     // Toolbar shit
     private weak var playPauseItem: NSToolbarItem?
 
+    
     override init()
     {
         self.outputwindow = NSWindow(contentRect: NSRect(x: 100, y: 100, width: 600, height: 600),
@@ -36,55 +37,63 @@ class DocumentOutputWindowManager : NSObject
                                      backing: .buffered, defer: false)
         self.outputwindow?.isReleasedWhenClosed = false
         self.outputwindow?.makeKeyAndOrderFront(nil)
-        self.outputwindow?.level = .normal
+        self.outputwindow?.level = .normal // NSWindow.Level(NSWindow.Level.normal.rawValue + 1)
 
         super.init()
 
         self.outputwindow?.delegate = self
         self.installToolbar()
     }
-
+    
     private func installToolbar()
     {
         let tb = NSToolbar(identifier: ToolbarID.output)
         tb.delegate = self
-        tb.displayMode = .iconOnly
-        tb.sizeMode = .regular
+        tb.displayMode = .iconOnly      // or .iconAndLabel
+        tb.sizeMode   = .regular
         tb.allowsUserCustomization = false
 
         self.outputwindow?.toolbar = tb
-        self.outputwindow?.toolbarStyle = .unified
+        self.outputwindow?.toolbarStyle = .unified // or .unifiedCompact
     }
-
-    func setGraphRenderer(_ graphRenderer: GraphRenderer)
+    
+    func setGraph(graph:Graph)
     {
-        self.graphRenderer = graphRenderer
-
-        let vc = MetalViewController(renderer: graphRenderer)
-        vc.view.frame = self.outputwindow?.contentView?.bounds ?? .zero
-
-        self.outputViewController = vc
-        self.outputwindow?.contentViewController = vc
+        self.outputRenderer = CAMetalDisplayLinkRenderer(graph:graph)
+        self.outputRenderer?.frame = CGRect(x: 0,
+                                            y: 0,
+                                            width: self.outputwindow?.frame.size.width ?? 600,
+                                            height: self.outputwindow?.frame.size.height ?? 600)
+            
+        self.outputwindow?.contentView = self.outputRenderer
     }
-
-    func setWindowName(_ name: String)
+    
+    func setWindowName(_ name:String)
     {
         self.outputwindow?.title = name
     }
 
     func snapshotExportTime() -> TimeInterval
     {
-        return self.graphRenderer?.lastGraphExecutionTime ?? 0
-    }
+        guard
+            let outputRenderer = self.outputRenderer,
+            let lastRenderedGraphTime = outputRenderer.lastRenderedGraphTime
+        else
+        {
+            return 0
+        }
 
+        return lastRenderedGraphTime
+    }
+    
     func closeOutputWindow()
     {
         self.outputwindow?.close()
     }
-
+    
     deinit
     {
-        print("Free DocumentOutputWindowManager")
+        print("Free DocumentOutputWindowManager")        
     }
 }
 
@@ -97,9 +106,12 @@ extension DocumentOutputWindowManager: NSWindowDelegate
 
     func windowWillClose(_ notification: Notification)
     {
-        self.outputwindow?.contentViewController = nil  // triggers MetalViewController.cleanup() → renderer.cleanup()
-        self.outputViewController = nil
-        self.graphRenderer = nil
+        // Tell the renderer to stop *all* time/display-linked work
+        self.outputRenderer?.teardown()
+
+        // Break strong reference cycles and detach the view from the window
+        self.outputwindow?.contentView = nil
+        self.outputRenderer = nil
     }
 }
 
@@ -110,6 +122,8 @@ extension DocumentOutputWindowManager: NSToolbarDelegate
     {
         [
             ToolbarID.playPause,
+//            ToolbarID.snapshot,
+//            ToolbarID.fit,
             .flexibleSpace,
             .space,
         ]
@@ -119,6 +133,8 @@ extension DocumentOutputWindowManager: NSToolbarDelegate
     {
         [.flexibleSpace,
          ToolbarID.playPause,
+//         ToolbarID.snapshot,
+//         ToolbarID.fit
         ]
     }
 
@@ -128,6 +144,7 @@ extension DocumentOutputWindowManager: NSToolbarDelegate
 
         switch itemIdentifier
         {
+
         case ToolbarID.playPause:
             let item = NSToolbarItem(itemIdentifier: itemIdentifier)
             item.label = "Pause"
@@ -142,16 +159,18 @@ extension DocumentOutputWindowManager: NSToolbarDelegate
             return nil
         }
     }
-
+    
     @objc private func togglePlayback()
     {
-        guard let metalView = self.graphRenderer?.metalView else { return }
-        metalView.isPaused.toggle()
-
+        self.outputRenderer?.isPaused.toggle()
+        
+        let isPlaying = self.outputRenderer?.isPaused ?? true
+        
         self.playPauseItem?.image = NSImage(
-            systemSymbolName: metalView.isPaused ? "play.fill" : "pause.fill",
-            accessibilityDescription: nil
-        )
-        self.playPauseItem?.label = metalView.isPaused ? "Play" : "Pause"
+               systemSymbolName: isPlaying ? "play.fill" : "pause.fill",
+               accessibilityDescription: nil
+           )
+        
+        self.playPauseItem?.label = isPlaying ? "Play" : "Pause"
     }
 }

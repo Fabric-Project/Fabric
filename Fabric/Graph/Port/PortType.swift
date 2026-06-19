@@ -25,7 +25,7 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
     case Vector4
     case Color
     case Quaternion //(simd quatf)
-    case Transform // (simd_float4x4)
+    case Transform // (mid_matrix4x4
     case Geometry
     case Material
     case Image

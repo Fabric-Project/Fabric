@@ -75,17 +75,16 @@ public class LocalVLMNode : Node
         try super.init(from: decoder)
     }
     
-    override public func stopExecution(renderer:GraphRenderer) {
+    override public func stopExecution(context: GraphExecutionContext) {
         
         self.vlmEvaluator.cancelGeneration()
 
-        super.stopExecution(renderer:renderer)
+        super.stopExecution(context: context)
     }
     
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
-                                 renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
+    override public func execute(context:GraphExecutionContext,
+                           renderPassDescriptor: MTLRenderPassDescriptor,
+                           commandBuffer: MTLCommandBuffer)
     {
         if self.inputModel.valueDidChange,
            let name = self.inputModel.value,

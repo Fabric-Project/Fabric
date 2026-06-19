@@ -23,21 +23,19 @@ final class SubgraphIteratorRenderable: Satin.Renderable
         }
     }
     
-    var graphRenderer:GraphRenderer? = nil
-    var graphExecutionInfo:GraphExecutionInfo? = nil
+    var graphContext:GraphExecutionContext? = nil
     var currentCommandBuffer:MTLCommandBuffer? = nil
     var currentRenderPass:MTLRenderPassDescriptor? = nil
     
-    init(context:Context, iterationCount: Int)
+    init(iterationCount: Int)
     {
         self.iterationCount = iterationCount
         
-        super.init(context:context)
+        super.init()
         
         self.doubleSided = false
         self.renderOrder = 0
-        // TODO: Render Layer
-//        self.renderPass = 0
+        self.renderPass = 0
         self.receiveShadow = false
         self.castShadow = false
         self.cullMode = .back
@@ -60,7 +58,7 @@ final class SubgraphIteratorRenderable: Satin.Renderable
     override func isDrawable(renderContext: Satin.Context, shadow: Bool) -> Bool {
         true
     }
-    
+
     override func update(renderContext: Context, camera: Camera, viewport: simd_float4, index: Int)
     {
         // We call update inline in draw, which is only so each draw gets the correct latest iterated values on the graph
@@ -72,8 +70,7 @@ final class SubgraphIteratorRenderable: Satin.Renderable
     override func draw(renderContext: Context, renderEncoderState: RenderEncoderState, shadow: Bool)
     {
         guard let subGraph,
-              let graphRenderer,
-              let graphExecutionInfo,
+              let graphContext,
               let updateCamera,
               let updateViewport,
               let updateIndex,
@@ -95,7 +92,7 @@ final class SubgraphIteratorRenderable: Satin.Renderable
             
             // We should be copying uniforms found in the bindUniforms from
             // Material / Geom / Mesh
-            self.configureOnBindForRenderable(r, inContext: context, shadow: shadow)
+            self.configureOnBindForRenderable(r, inContext: renderContext, shadow: shadow)
         }
         
         for iteration in 0..<iterationCount
@@ -105,26 +102,26 @@ final class SubgraphIteratorRenderable: Satin.Renderable
             let iterationInfo = GraphIterationInfo(totalIterationCount: iterationCount,
                                                    currentIteration: iteration)
             
-            graphExecutionInfo.iterationInfo = iterationInfo
+            graphContext.iterationInfo = iterationInfo
             
 //            self.subGraph.recursiveMarkDirty()
 
             // tick graph forward one iteration
-            graphRenderer.execute(graph: subGraph,
-                             executionInfo: graphExecutionInfo,
-                             renderPassDescriptor:currentRenderPass,
-                             commandBuffer: currentCommandBuffer,
-                             // Woof
-                             clearFlags: false,
-                             forceEvaluationForTheseNodes: subGraph.nodes)
+            graphContext.graphRenderer?.execute(graph: subGraph,
+                                                executionContext: graphContext,
+                                                renderPassDescriptor:currentRenderPass,
+                                                commandBuffer: currentCommandBuffer,
+                                                // Woof
+                                                clearFlags: false,
+                                                forceEvaluationForTheseNodes: subGraph.nodes)
                         
             for r in renderableChildren
             {
-                r.update(renderContext: context, camera: updateCamera, viewport: updateViewport, index: updateIndex)
+                r.update(renderContext: renderContext, camera: updateCamera, viewport: updateViewport, index: updateIndex)
 
                 r.preDraw?(renderEncoderState.renderEncoder)
                 
-                r.draw(renderContext: context, renderEncoderState: renderEncoderState, shadow: shadow)
+                r.draw(renderContext: renderContext, renderEncoderState: renderEncoderState, shadow: shadow)
             }
             
             renderEncoderState.renderEncoder.popDebugGroup()
@@ -136,7 +133,7 @@ final class SubgraphIteratorRenderable: Satin.Renderable
             r.material?.onBind = nil
         }
         
-        graphExecutionInfo.iterationInfo = nil
+        graphContext.iterationInfo = nil
     }
     
     private func configureOnBindForRenderable(_ r:Renderable, inContext renderContext:Context, shadow:Bool)
@@ -152,75 +149,132 @@ final class SubgraphIteratorRenderable: Satin.Renderable
                 material.updateUniforms()
 
                 // Copied from Mesh
-                if let vertexUniforms = r.vertexUniforms[renderContext.id]
+                if let vertexUniforms = r.vertexUniforms[renderContext]
                 {
                     let basePtr = vertexUniforms.buffer.contents().advanced(by: vertexUniforms.offset)
                     let length = vertexUniforms.buffer.length - vertexUniforms.offset
                     
                     if shader.vertexWantsVertexUniforms
                     {
-                        encoder.setVertexBuffer(vertexUniforms.buffer, offset: vertexUniforms.offset, index: VertexBufferIndex.VertexUniforms.rawValue)
+                        encoder.setVertexBytes(basePtr, length: length, index: VertexBufferIndex.VertexUniforms.rawValue)
                     }
                     
                     if shader.fragmentWantsVertexUniforms
                     {
-                        encoder.setFragmentBuffer(vertexUniforms.buffer, offset: vertexUniforms.offset, index: FragmentBufferIndex.VertexUniforms.rawValue)
+                        encoder.setFragmentBytes(basePtr, length: length, index: FragmentBufferIndex.VertexUniforms.rawValue)
                     }
                 }
                 
                 // Copied from Material
                 if shader.vertexWantsMaterialUniforms
                 {
-                    encoder.setVertexBuffer(uniforms.buffer, offset: uniforms.offset, index: VertexBufferIndex.MaterialUniforms.rawValue)
+                    let basePtr = uniforms.buffer.contents().advanced(by: uniforms.offset)
+                    let length = uniforms.buffer.length - uniforms.offset
+                    encoder.setVertexBytes(basePtr, length: length, index: VertexBufferIndex.MaterialUniforms.rawValue)
                 }
                 
                 if !shadow, shader.fragmentWantsMaterialUniforms
                 {
-                    encoder.setFragmentBuffer(uniforms.buffer, offset: uniforms.offset, index: FragmentBufferIndex.VertexUniforms.rawValue)
+                    let basePtr = uniforms.buffer.contents().advanced(by: uniforms.offset)
+                    let length = uniforms.buffer.length - uniforms.offset
+                    encoder.setFragmentBytes(basePtr, length: length, index: FragmentBufferIndex.MaterialUniforms.rawValue)
                 }
+                
+//                        for index in shader.vertexBufferBindingIsUsed
+//                        {
+//                            if let uniformBuffer = material.vertexUniformBuffers[index]
+//                            {
+//                                let basePtr = uniformBuffer.buffer.contents().advanced(by: uniforms.offset)
+//                                let length = uniformBuffer.buffer.length - uniforms.offset
+//                                renderEncoderState.renderEncoder.setVertexBytes(basePtr, length: length, index: index.rawValue)
+//                            }
+//                            else if let structBuffer = material.vertexStructBuffers[index]
+//                            {
+//                                let basePtr = structBuffer.buffer.contents().advanced(by: structBuffer.offset)
+//                                let length = structBuffer.buffer.length - structBuffer.offset
+//                                renderEncoderState.renderEncoder.setVertexBytes(basePtr, length: length, index: index.rawValue)
+//                            }
+//                            else if let buffer = material.vertexBuffers[index]
+//                            {
+//                                let basePtr = buffer.contents()
+//                                let length = buffer.length
+//                                renderEncoderState.renderEncoder.setVertexBytes(basePtr, length: length, index: index.rawValue)
+//                            }
+//                        }
+//
+//                        for index in shader.fragmentBufferBindingIsUsed
+//                        {
+//                            if let uniformBuffer = material.fragmentUniformBuffers[index]
+//                            {
+//                                let basePtr = uniformBuffer.buffer.contents().advanced(by: uniforms.offset)
+//                                let length = uniformBuffer.buffer.length - uniforms.offset
+//                                renderEncoderState.renderEncoder.setFragmentBytes(basePtr, length: length, index: index.rawValue)
+//                            }
+//                            else if let structBuffer = material.fragmentStructBuffers[index]
+//                            {
+//                                let basePtr = structBuffer.buffer.contents().advanced(by: structBuffer.offset)
+//                                let length = structBuffer.buffer.length - structBuffer.offset
+//                                renderEncoderState.renderEncoder.setFragmentBytes(basePtr, length: length, index: index.rawValue)
+//                            }
+//                            else if let buffer = material.fragmentBuffers[index]
+//                            {
+//                                let basePtr = buffer.contents()
+//                                let length = buffer.length
+//                                renderEncoderState.renderEncoder.setFragmentBytes(basePtr, length: length, index: index.rawValue)
+//                            }
+//                        }
+//
+//                        if let pipeline = shader.getPipeline(renderContext: renderContext, shadow: shadow)
+//                        {
+//                            renderEncoderState.renderEncoder.setRenderPipelineState(pipeline)
+//                        }
             }
         }
     }
     
-    func startExecution(renderer:GraphRenderer)
+    func startExecution(context:GraphExecutionContext)
     {
-        guard let subGraph
+        guard let subGraph,
+              let graphContext
         else { return }
         
-        renderer.startExecution(graph: subGraph)
+        graphContext.graphRenderer?.startExecution(graph: subGraph, executionContext: context)
     }
     
-    func stopExecution(renderer:GraphRenderer)
+    func stopExecution(context:GraphExecutionContext)
     {
-        guard let subGraph
-        else { return }
-    
-        renderer.stopExecution(graph: subGraph)
-    }
-
-    func enableExecution(renderer:GraphRenderer)
-    {
-        guard let subGraph
+        guard let subGraph,
+              let graphContext
         else { return }
 
-        renderer.enableExecution(graph: subGraph)
+        graphContext.graphRenderer?.stopExecution(graph: subGraph, executionContext: context)
     }
-    
-    func disableExecution(renderer:GraphRenderer)
+
+    func enableExecution(context:GraphExecutionContext)
     {
-        guard let subGraph
+        guard let subGraph,
+              let graphContext
         else { return }
 
-        renderer.disableExecution(graph: subGraph)
+        graphContext.graphRenderer?.enableExecution(graph: subGraph, executionContext: context)
     }
     
-    public func execute(renderer:GraphRenderer,
-                        executionInfo:GraphExecutionInfo,
-                        renderPassDescriptor: MTLRenderPassDescriptor,
-                        commandBuffer: MTLCommandBuffer)
+    func disableExecution(context:GraphExecutionContext)
+    {
+        guard let subGraph,
+              let graphContext
+        else { return }
+
+        graphContext.graphRenderer?.disableExecution(graph: subGraph, executionContext: context)
+    }
+    
+    func execute(context: GraphExecutionContext,
+                 renderPassDescriptor: MTLRenderPassDescriptor,
+                 commandBuffer: any MTLCommandBuffer)
     {
 
-        guard let subGraph
+        guard let subGraph,
+              let graphContext
 //              let updateCamera,
 //              let updateViewport,
 //              let updateIndex,
@@ -229,15 +283,14 @@ final class SubgraphIteratorRenderable: Satin.Renderable
         else { return }
                 
                 
-        //         execute the graph once, to just ensure meshes / materials have latest values popogated to nodes
-        //        self.subGraph.recursiveMarkDirty()
-        let _ = renderer.execute(graph: subGraph,
-                                 executionInfo: executionInfo,
-                                 renderPassDescriptor:renderPassDescriptor ,
-                                 commandBuffer: commandBuffer,
-                                 clearFlags: false,
-                                 // Woof
-                                 forceEvaluationForTheseNodes: subGraph.nodes)
+//         execute the graph once, to just ensure meshes / materials have latest values popogated to nodes
+//        self.subGraph.recursiveMarkDirty()
+        let _ = graphContext.graphRenderer?.execute(graph: subGraph,
+                                               executionContext: context,
+                                               renderPassDescriptor:renderPassDescriptor ,
+                                                    commandBuffer: commandBuffer, clearFlags: false,
+                                                    // Woof
+                                                    forceEvaluationForTheseNodes: subGraph.nodes)
 
     }
 }

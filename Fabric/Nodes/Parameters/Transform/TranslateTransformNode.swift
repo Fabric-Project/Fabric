@@ -12,11 +12,11 @@ import Metal
 
 public class TranslateTransformNode : Node
 {
-    override public class var name:String { "Transform Translate" }
+    override public class var name:String { "Translate A Transform" }
     override public class var nodeType:Node.NodeType { .Parameter(parameterType: .Transform) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Translate a transform"}
+    override public class var nodeDescription: String { "Translate a Transform"}
     
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
@@ -35,8 +35,7 @@ public class TranslateTransformNode : Node
     public var inputTranslation:NodePort<simd_float3> { port(named: "inputTranslation") }
     public var outputTransform:NodePort<simd_float4x4> { port(named: "outputTransform") }
     
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
+    public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

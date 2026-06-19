@@ -36,8 +36,7 @@ public class NumberEaseNode : Node
     public var inputParam:ParameterPort<String> { port(named: "inputParam") }
     public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
 
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
+    public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {

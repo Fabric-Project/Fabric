@@ -57,7 +57,7 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Perspective Camera
 - [x] Directional Light
 - [x] Point Light
-- [x] Spot Light
+- [ ] Spot Light
 
 # Macro Patches
 
@@ -409,3 +409,4 @@ Array nodes are implemented as Swift Generics, and can work with any of the abov
 
  
  
+

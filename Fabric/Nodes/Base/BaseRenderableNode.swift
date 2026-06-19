@@ -29,8 +29,7 @@ public class BaseRenderableNode<ObjectType : Renderable> : ObjectNode<ObjectType
         
         if self.inputRenderPass.valueDidChange
         {
-            // TODO: 
-//            renderable.renderPass = self.inputRenderPass.value ?? 0
+            renderable.renderPass = self.inputRenderPass.value ?? 0
             shouldOutput = true
         }
         

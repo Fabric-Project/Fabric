@@ -76,7 +76,6 @@ let package = Package(
                 .product(name: "CodeEditorView", package: "CodeEditorView"),
                 .product(name: "LanguageSupport", package: "CodeEditorView"),
                 .target(name: "Syphon", condition: .when(platforms: [.macOS])),
-                .target(name: "HapInAVFoundation", condition: .when(platforms: [.macOS])),
             ],
             path: "Fabric",
             exclude: [
@@ -100,7 +99,6 @@ let package = Package(
             ],
             swiftSettings: [
                 .define("FABRIC_SYPHON_ENABLED", .when(platforms: [.macOS])),
-                .define("FABRIC_HAP_ENABLED", .when(platforms: [.macOS])),
             ]
         ),
 
@@ -108,14 +106,6 @@ let package = Package(
         .binaryTarget(
             name: "Syphon",
             path: "Frameworks/Syphon.xcframework"
-        ),
-
-        // HapInAVFoundation — Hap codec decoder for AVFoundation
-        // (macOS only). Embedded libsquish + libsnappy come along
-        // inside the xcframework.
-        .binaryTarget(
-            name: "HapInAVFoundation",
-            path: "Frameworks/HapInAVFoundation.xcframework"
         ),
 
         // Tests

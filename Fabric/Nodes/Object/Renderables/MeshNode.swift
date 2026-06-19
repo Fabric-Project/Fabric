@@ -61,9 +61,10 @@ public class MeshNode : BaseRenderableNode<Mesh>
     
     override public func teardown()
     {
-        self.mesh = nil
-
         super.teardown()
+        self.mesh = nil
+        self.inputGeometry.value = nil
+        self.inputMaterial.value = nil
     }
     
     override public func evaluate(object: Object?, atTime: TimeInterval) -> Bool
@@ -99,8 +100,7 @@ public class MeshNode : BaseRenderableNode<Mesh>
     }
     
     
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
+    public override func execute(context:GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
@@ -135,7 +135,7 @@ public class MeshNode : BaseRenderableNode<Mesh>
                 }
                 else
                 {
-                    let mesh = Mesh(context:self.context, geometry: geometry, material: material)
+                    let mesh = Mesh(geometry: geometry, material: material)
                     self.applyCurrentMeshState(mesh,
                                                materialJustAttached: true)
 
@@ -150,7 +150,7 @@ public class MeshNode : BaseRenderableNode<Mesh>
          
         if let mesh = mesh
         {
-            let _ = self.evaluate(object: mesh, atTime: executionInfo.timing.time)
+            let _ = self.evaluate(object: mesh, atTime: context.timing.time)
         }
      }
 
@@ -160,8 +160,7 @@ public class MeshNode : BaseRenderableNode<Mesh>
         mesh.lookAt(target: simd_float3(repeating: 0))
         mesh.visible = self.inputVisible.value ?? true
         mesh.renderOrder = self.inputRenderOrder.value ?? 0
-        // TODO: mesh.renderLayer
-        ///mesh.renderPass = self.inputRenderPass.value ?? 0
+        mesh.renderPass = self.inputRenderPass.value ?? 0
         mesh.position = self.inputPosition.value ?? .zero
         mesh.scale = self.inputScale.value ?? simd_float3(repeating: 1)
 

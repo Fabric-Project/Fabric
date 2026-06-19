@@ -96,34 +96,18 @@ public class PassThroughNode<T: PortValueRepresentable>: Node
             ("output", NodePort<T>(name: T.portType.rawValue, kind: .Outlet, description: "Output \(T.portType.rawValue)")),
         ]
     }
-    
-    override public required init(from decoder: any Decoder) throws {
-        try super.init(from: decoder)
-    }
-    
-    public required init(context: Context) {
-        super.init(context: context)
-    }
-    
+
     // Port Proxy
     public var input: NodePort<T> { port(named: "input") }
     public var output: NodePort<T> { port(named: "output") }
 
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
+    public override func execute(context: GraphExecutionContext,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        switch self.nodeExecutionMode
+        if self.input.valueDidChange
         {
-        case .Provider, .Consumer:
             self.output.send(self.input.value)
-            
-        case .Processor:
-            if self.input.valueDidChange
-            {
-                self.output.send(self.input.value)
-            }
         }
     }
 }
