@@ -39,7 +39,7 @@ public class PlaneGeometryNode : BaseGeometryNode
 
     private lazy var _geometry = PlaneGeometry(context:self.context, width: 1, height: 1, orientation: .xy)
     
-    override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
+    override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
     {
         var shouldOutputGeometry = super.evaluate(geometry: geometry, atTime: atTime)
 

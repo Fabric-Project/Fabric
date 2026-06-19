@@ -51,7 +51,7 @@ public indirect enum PortValue : PortValueRepresentable
     case Vector4(simd_float4)
     case Quaternion(simd_quatf)
     case Transform(simd_float4x4)
-    case Geometry(Satin.SatinGeometry)
+    case Geometry(Satin.Geometry)
     case Material(Satin.Material)
     case Image(FabricImage)
     case Virtual(PortValue)
@@ -546,7 +546,7 @@ extension simd.simd_float4x4 : PortValueRepresentable
     }
 }
 
-extension Satin.SatinGeometry : PortValueRepresentable
+extension Satin.Geometry : PortValueRepresentable
 {
     public static var defaultValue: Self? { nil }
     public static var portType: PortType { .Geometry }
@@ -556,7 +556,7 @@ extension Satin.SatinGeometry : PortValueRepresentable
     {
         .Geometry(self)
     }
-    
+
     public static func fromPortValue(_ value: PortValue) ->  Self?
     {
         switch value
@@ -567,12 +567,12 @@ extension Satin.SatinGeometry : PortValueRepresentable
             return nil
         }
     }
-    
+
     public func canConvertTo(other:PortType) -> Bool
     {
         return false
     }
-    
+
     public func convertTo(other:PortType) -> (any PortValueRepresentable)?
     {
         return nil

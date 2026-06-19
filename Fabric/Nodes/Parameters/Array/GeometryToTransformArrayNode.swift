@@ -36,13 +36,13 @@ public class GeometryToTransformArrayNode : StrategyNode
 
         return ports +
         [
-            ("inputPort", NodePort<SatinGeometry>(name: "Geometry", kind: .Inlet, description: "Source geometry to extract vertex positions and normals from")),
+            ("inputPort", NodePort<Geometry>(name: "Geometry", kind: .Inlet, description: "Source geometry to extract vertex positions and normals from")),
             ("inputTransform", NodePort<simd_float4x4>(name: "Transform", kind: .Inlet, description: "Transform to apply to each point")),
         ]
     }
 
     // Port Proxy
-    public var inputPort:NodePort<SatinGeometry> { port(named: "inputPort") }
+    public var inputPort:NodePort<Geometry> { port(named: "inputPort") }
     public var inputTransform:NodePort<simd_float4x4> { port(named: "inputTransform") }
 
     private static let allDynamicNames: Set<String> = [
@@ -92,21 +92,34 @@ public class GeometryToTransformArrayNode : StrategyNode
         // This is subtle: the geometry POINTER can stay identical while its
         // backing buffer changes, so we re-extract every frame rather than
         // gating on valueDidChange.
-        guard let geometry = self.inputPort.value else { return }
+        guard let inputGeometry = self.inputPort.value else { return }
 
-        // The geometry is not necessarily attached to a mesh, so its update
-        // function may not have run — call it manually here.
-        geometry.update()
+        // Resolve vertex data depending on geometry type.
+        // SatinGeometry exposes a C GeometryData struct; ParametricGeometry
+        // stores vertices in a public Swift array. Both contain SatinVertex.
+        let vertices: [SatinVertex]
+        if let satinGeo = inputGeometry as? SatinGeometry {
+            // Geometry is not necessarily attached to a mesh, so its update
+            // function may not have run — call it manually here.
+            satinGeo.update()
+            let count = Int(satinGeo.geometryData.vertexCount)
+            vertices = Array(UnsafeBufferPointer(start: satinGeo.geometryData.vertexData, count: count))
+        } else if let parametricGeo = inputGeometry as? ParametricGeometry {
+            // generateGeometry() re-evaluates the parametric surface using the
+            // current generator/ranges set by the upstream node's evaluate call.
+//            parametricGeo.generateGeometry()
+            vertices = parametricGeo.vertexData
+        } else {
+            return
+        }
 
+        let vertexCount = vertices.count
         let inputTransform = self.inputTransform.value ?? matrix_identity_float4x4
-        let vertexCount = Int(geometry.geometryData.vertexCount)
 
         switch self.strategy
         {
         case "Transform":
             guard let outputTransforms: NodePort<ContiguousArray<simd_float4x4>> = findPort(named: "outputTransforms") else { return }
-
-            let vertices = UnsafeBufferPointer(start: geometry.geometryData.vertexData, count: vertexCount)
 
             var output = ContiguousArray<simd_float4x4>()
             output.reserveCapacity(vertexCount)
@@ -131,8 +144,6 @@ public class GeometryToTransformArrayNode : StrategyNode
             // it once and compose it with each per-vertex normal orientation.
             // Scale is intentionally dropped — a point has no meaningful scale.
             let inputRotation = inputTransform.decomposedTRS.rotation
-
-            let vertices = UnsafeBufferPointer(start: geometry.geometryData.vertexData, count: vertexCount)
 
             var positions = ContiguousArray<simd_float3>(); positions.reserveCapacity(vertexCount)
             var orientations = ContiguousArray<simd_float4>(); orientations.reserveCapacity(vertexCount)

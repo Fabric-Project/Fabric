@@ -31,7 +31,7 @@ public class CircleGeometryNode : BaseGeometryNode
     
     private lazy var _geometry = CircleGeometry(context:self.context, radius: 1.0, angularResolution: 60, radialResolution: 1)
     
-    override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
+    override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
     {
         var shouldOutputGeometry = super.evaluate(geometry: geometry, atTime: atTime)
 

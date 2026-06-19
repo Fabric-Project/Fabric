@@ -47,7 +47,7 @@ public class PixelArrayToGeometryNode : BaseGeometryNode
                                                     normals: [],
                                                     uvs: [])
 
-    override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
+    override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
     {
         // Base applies primitive-type changes / dirty state to the current geometry.
         var shouldOutput = super.evaluate(geometry: geometry, atTime: atTime)

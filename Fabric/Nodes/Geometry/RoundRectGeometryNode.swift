@@ -40,7 +40,7 @@ public class RoundRectGeometryNode : BaseGeometryNode
 
     private lazy var _geometry = RoundedRectGeometry(context:self.context, width: 1, height: 1, radius: 0.2, angularResolution: 32, radialResolution: 32)
     
-    override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
+    override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
     {
         var shouldOutputGeometry = super.evaluate(geometry: geometry, atTime: atTime)
 

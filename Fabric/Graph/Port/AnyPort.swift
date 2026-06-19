@@ -45,7 +45,7 @@ open class AnyPort: Codable {
             case .Vector4, .Color: self.base = try ProxyPort<simd_float4>(from: portDecoder)
             case .Quaternion: self.base = try ProxyPort<simd_quatf>(from: portDecoder)
             case .Transform: self.base = try ProxyPort<simd_float4x4>(from: portDecoder)
-            case .Geometry: self.base = try ProxyPort<SatinGeometry>(from: portDecoder)
+            case .Geometry: self.base = try ProxyPort<Geometry>(from: portDecoder)
             case .Material: self.base = try ProxyPort<Material>(from: portDecoder)
             case .Image: self.base = try ProxyPort<FabricImage>(from: portDecoder)
             case .Virtual: self.base = try ProxyPort<PortValue>(from: portDecoder)
