@@ -21,10 +21,10 @@ A list of Nodes (planned and implemented) for Fabric.
 
 <img width="1184" height="671" alt="image" src="https://github.com/user-attachments/assets/345dab62-c203-418b-ac5a-24fb6f6f9b6d" />
 
+### Primitives
 - [ ] Line
 - [x] Plane
-- [ ] Image Mesh
-- [x] Point Plane (Temp until #15 is fixed)
+- [x] Perspective Quad
 - [x] Rounded Rect
 - [x] Triangle
 - [x] Circle
@@ -39,12 +39,27 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Sphere
 - [x] Tube
 - [x] Torus
-- [x] Tesselated Text
-- [x] Extruded Text
-- [x] Supershape
-- [x] Skybox
-- [x] Geometry from 2D PolyLine (needs better Triangulation)
-- [ ] Parametric
+- [x] Cyclorama
+- [x] Tesselated Text (2D)
+- [x] Extruded Text (3D)
+- [x] Super Shape (3D Supershape formula)
+- [x] Geometry Compose (Pixel Array → Geometry)
+
+### Parametric Surfaces
+- [x] Möbius Strip
+- [x] Helicoid
+- [x] Superellipsoid
+- [x] Klein Bottle
+- [x] Catenoid
+- [x] Paraboloid
+- [x] Enneper Surface
+- [x] Pseudosphere
+- [x] Dupin Cyclide
+- [x] Roman Surface
+- [x] Cross Cap
+- [x] Bour Surface
+- [x] Breather Surface
+- [x] Dini Surface
 
 # Object
 

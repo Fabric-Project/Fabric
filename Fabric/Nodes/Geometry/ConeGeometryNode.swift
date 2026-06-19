@@ -38,7 +38,7 @@ public class ConeGeometryNode : BaseGeometryNode
 
     private lazy var _geometry = ConeGeometry(context:self.context, radius: 1.0, height: 2.0, angularResolution: 20, radialResolution: 2, verticalResolution: 2)
 
-    override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
+    override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
     {
         var shouldOutputGeometry = super.evaluate(geometry: geometry, atTime: atTime)
 

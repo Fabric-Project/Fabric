@@ -192,7 +192,7 @@ class SuperShapeGeometryNode : BaseGeometryNode
                                                     n32: self.n32Param.value ?? 0.0,
                                                     res: self.resParam.value ?? 0)
     
-    override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool {
+    override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool {
         
         var shouldOutput = super.evaluate(geometry: geometry, atTime: atTime)
         

@@ -45,9 +45,14 @@ public class NodeRegistry {
     }()
 
     private lazy var nodesClassLookup: [String: Node.Type] =  {
-        self.nodesClasses.reduce(into: [:]) { result, nodeClass in
+        var result = self.nodesClasses.reduce(into: [String: Node.Type]()) { result, nodeClass in
             result[String(describing: nodeClass)] = nodeClass
         }
+        // Legacy class-name aliases: old saved graphs used SatinGeometry in generic type params.
+        // Both module-qualified and bare forms are covered since Swift's output can vary.
+        result["PassThroughNode<SatinGeometry>"] = PassThroughNode<Geometry>.self
+        result["PassThroughNode<Satin.SatinGeometry>"] = PassThroughNode<Geometry>.self
+        return result
     }()
     
     private lazy var nodeFileLoadingClasses: [(any NodeFileLoadingProtocol.Type)] =  {
@@ -89,7 +94,7 @@ public class NodeRegistry {
     ]
     
     private var geometryNodeClasses: [Node.Type] = [ // Geometry
-        PassThroughNode<SatinGeometry>.self,
+        PassThroughNode<Geometry>.self,
         PlaneGeometryNode.self,
         PerspectiveQuadGeometryNode.self,
         RoundRectGeometryNode.self,
@@ -110,6 +115,20 @@ public class NodeRegistry {
         ExtrudedTextGeometryNode.self,
         PixelArrayToGeometryNode.self,
         SuperShapeGeometryNode.self,
+        MobiusStripGeometryNode.self,
+        HelicoidGeometryNode.self,
+        SuperellipsoidGeometryNode.self,
+        KleinBottleGeometryNode.self,
+        CatenoidGeometryNode.self,
+        ParaboloidGeometryNode.self,
+        EnneperSurfaceGeometryNode.self,
+        PseudosphereGeometryNode.self,
+        DupinCyclideGeometryNode.self,
+        RomanSurfaceGeometryNode.self,
+        CrossCapGeometryNode.self,
+        BourSurfaceGeometryNode.self,
+        BreatherSurfaceGeometryNode.self,
+        DiniSurfaceGeometryNode.self,
     ]
         
     private var materialNodeClasses:[Node.Type] = [

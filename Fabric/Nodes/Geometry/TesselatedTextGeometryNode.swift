@@ -43,7 +43,7 @@ public class TesselatedTextGeometryNode : BaseGeometryNode
         }
     }
     
-    override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
+    override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
     {
         var shouldOutputGeometry = false 
         if self.inputText.valueDidChange,

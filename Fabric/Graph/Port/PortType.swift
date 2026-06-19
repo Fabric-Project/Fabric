@@ -147,7 +147,7 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         case .Transform:
             return simd.simd_float4x4.self
         case .Geometry:
-            return Satin.SatinGeometry.self
+            return Satin.Geometry.self
         case .Material:
             return Satin.Material.self
         case .Image:
@@ -215,7 +215,7 @@ extension PortType {
         case .Color:        return ColorPassThroughNode.self
         case .Quaternion:   return PassThroughNode<simd_quatf>.self
         case .Transform:    return PassThroughNode<simd_float4x4>.self
-        case .Geometry:     return PassThroughNode<SatinGeometry>.self
+        case .Geometry:     return PassThroughNode<Geometry>.self
         case .Material:     return PassThroughNode<Material>.self
         case .Image:        return PassThroughNode<FabricImage>.self
         case .Array(portType: let elementType):
@@ -230,7 +230,7 @@ extension PortType {
             case .Color:     return PassThroughNode<ContiguousArray<simd_float4>>.self
             case .Quaternion: return PassThroughNode<ContiguousArray<simd_quatf>>.self
             case .Transform: return PassThroughNode<ContiguousArray<simd_float4x4>>.self
-            case .Geometry:  return PassThroughNode<ContiguousArray<SatinGeometry>>.self
+            case .Geometry:  return PassThroughNode<ContiguousArray<Geometry>>.self
             case .Material:  return PassThroughNode<ContiguousArray<Material>>.self
             case .Image:     return PassThroughNode<ContiguousArray<FabricImage>>.self
             default:         return nil

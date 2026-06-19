@@ -21,7 +21,7 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
         let ports = super.registerPorts(context: context)
         
         return [
-            ("inputGeometry", NodePort<SatinGeometry>(name: "Geometry", kind: .Inlet, description: "Geometry mesh to render")),
+            ("inputGeometry", NodePort<Geometry>(name: "Geometry", kind: .Inlet, description: "Geometry mesh to render")),
             ("inputMaterial", NodePort<Material>(name: "Material", kind: .Inlet, description: "Material to apply to the geometry")),
             ("inputTransforms", NodePort<ContiguousArray<simd_float4x4>>(name: "Transforms", kind: .Inlet, description: "Array of transforms for each instance")),
             ("inputCastsShadow", ParameterPort(parameter:BoolParameter("Enable Shadows", true, .button, "When enabled, the mesh casts and receives shadows"))),
@@ -30,7 +30,7 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
         ] + ports
     }
     // Proxy Ports
-    public var inputGeometry:NodePort<SatinGeometry> { port(named: "inputGeometry") }
+    public var inputGeometry:NodePort<Geometry> { port(named: "inputGeometry") }
     public var inputMaterial:NodePort<Material> { port(named: "inputMaterial") }
     public var inputTransforms:NodePort<ContiguousArray<simd_float4x4>> { port(named: "inputTransforms") }
     public var inputCastsShadow:ParameterPort<Bool> { port(named: "inputCastsShadow") }

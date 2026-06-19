@@ -79,7 +79,7 @@ public class SubgraphNode: BaseObjectNode
         case let p as NodePort<simd_float3>:                        return ProxyPort(wrapping: p)
         case let p as NodePort<simd_float4>:                        return ProxyPort(wrapping: p)
         case let p as NodePort<FabricImage>:                        return ProxyPort(wrapping: p)
-        case let p as NodePort<SatinGeometry>:                      return ProxyPort(wrapping: p)
+        case let p as NodePort<Geometry>:                           return ProxyPort(wrapping: p)
         case let p as NodePort<Material>:                           return ProxyPort(wrapping: p)
         case let p as NodePort<PortValue>:                          return ProxyPort(wrapping: p)
         case let p as NodePort<simd_quatf>:                         return ProxyPort(wrapping: p)
