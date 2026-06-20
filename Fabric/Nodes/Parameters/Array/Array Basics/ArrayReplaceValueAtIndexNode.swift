@@ -32,18 +32,20 @@ public class ArrayReplaceValueAtIndexNode: TypeAgnosticNode
         super.rebuildPorts(forStrategy: strategy)
         guard let elementType = PortType(rawValue: strategy) else { return }
 
-        for name in Self.dynamicPortNames {
-            if let p: Port = findPort(named: name) { removePort(p) }
-        }
-
         let arrayType: PortType = elementType == .Virtual ? .Virtual : .Array(portType: elementType)
-        let inputPort  = arrayType.makeFreshPort(name: "Array", kind: .Inlet,  description: "Input array to modify")
-        let inputValue = elementType.makeFreshPort(name: "Value", kind: .Inlet, description: "New value to insert at the specified index")
-        let outputPort = arrayType.makeFreshPort(name: "Array", kind: .Outlet, description: "Array with the value replaced at the specified index")
 
-        addDynamicPort(inputPort,  name: "inputPort")
-        addDynamicPort(inputValue, name: "inputValue")
-        addDynamicPort(outputPort, name: "outputPort")
+        if let existing: Port = findPort(named: "inputPort"),  existing.portType != arrayType   { removePort(existing) }
+        if let existing: Port = findPort(named: "inputValue"), existing.portType != elementType { removePort(existing) }
+        if let existing: Port = findPort(named: "outputPort"), existing.portType != arrayType   { removePort(existing) }
+        if findPort(named: "inputPort") == nil {
+            addDynamicPort(arrayType.makeFreshPort(name: "Array", kind: .Inlet,  description: "Input array to modify"), name: "inputPort")
+        }
+        if findPort(named: "inputValue") == nil {
+            addDynamicPort(elementType.makeFreshPort(name: "Value", kind: .Inlet, description: "New value to insert at the specified index"), name: "inputValue")
+        }
+        if findPort(named: "outputPort") == nil {
+            addDynamicPort(arrayType.makeFreshPort(name: "Array", kind: .Outlet, description: "Array with the value replaced at the specified index"), name: "outputPort")
+        }
 
         let portOrder = ["inputPort", "inputIndexParam", "inputValue", "outputPort"]
         let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }

@@ -16,7 +16,7 @@ public class ComposeTransformNode: StrategyNode
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Builds a Transform via one of several strategies: Position/Orientation/Scale (TRS), or directly from its four column vectors." }
 
-    public override class var strategies: [String] { ["TRS", "Columns"] }
+    public override class var strategyOptions: [any NodeStrategyOption] { TransformCompositionMode.allCases }
 
     private static let allDynamicNames: Set<String> = [
         "inputPosition", "inputOrientation", "inputScale",

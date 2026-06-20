@@ -67,6 +67,16 @@ public class NodeRegistry {
             result["ArrayReplaceValueAtIndexNode<\(suffix)>"] = ArrayReplaceValueAtIndexNode.self
             result["ArraySplitAtIndexNode<\(suffix)>"]        = ArraySplitAtIndexNode.self
         }
+
+        // Vector compose/decompose nodes were previously generic; old docs map to consolidated versions.
+        let vectorSuffixes = ["simd_float2", "simd_float3", "simd_float4"]
+        for suffix in vectorSuffixes {
+            result["ComposeVectorNode<\(suffix)>"]       = ComposeVectorNode.self
+            result["DecomposeVectorNode<\(suffix)>"]     = DecomposeVectorNode.self
+            result["ComposeVectorArrayNode<\(suffix)>"]  = ComposeVectorArrayNode.self
+            result["DecomposeVectorArrayNode<\(suffix)>"] = DecomposeVectorArrayNode.self
+        }
+
         return result
     }()
     
@@ -366,23 +376,23 @@ public class NodeRegistry {
         RepeatValueNode<String>.self,
         
         // Vectors
+        // Consolidated non-generic compose/decompose nodes (type chosen in Settings).
+        ComposeVectorNode.self,
+        DecomposeVectorNode.self,
+        ComposeVectorArrayNode.self,
+        DecomposeVectorArrayNode.self,
+
         PassThroughNode<simd_float2>.self,
-        ComposeVectorNode<simd_float2>.self,
-        DecomposeVectorNode<simd_float2>.self,
         VectorTweenNode<simd_float2>.self,
         Vector2Distance.self,
         RepeatValueNode<simd_float2>.self,
         ArrayFromRippledValueNode<simd_float2>.self,
         ArrayResampleNode<simd_float2>.self,
         ArrayRangeInterpolationNode<simd_float2>.self,
-        ComposeVectorArrayNode<simd_float2>.self,
-        DecomposeVectorArrayNode<simd_float2>.self,
         VectorArrayTweenNode<simd_float2>.self,
         PolyLineSimplifyNode.self,
-        
+
         PassThroughNode<simd_float3>.self,
-        ComposeVectorNode<simd_float3>.self,
-        DecomposeVectorNode<simd_float3>.self,
         VectorTweenNode<simd_float3>.self,
         Vector3Distance.self,
         OrientationArrayTweenNode.self,
@@ -391,23 +401,17 @@ public class NodeRegistry {
         ArrayFromRippledValueNode<simd_float3>.self,
         ArrayResampleNode<simd_float3>.self,
         ArrayRangeInterpolationNode<simd_float3>.self,
-        ComposeVectorArrayNode<simd_float3>.self,
-        DecomposeVectorArrayNode<simd_float3>.self,
         ComposeOrientationArrayNode.self,
         DecomposeOrientationArrayNode.self,
         VectorArrayTweenNode<simd_float3>.self,
 
         PassThroughNode<simd_float4>.self,
-        ComposeVectorNode<simd_float4>.self,
-        DecomposeVectorNode<simd_float4>.self,
         VectorTweenNode<simd_float4>.self,
         Vector4Distance.self,
         RepeatValueNode<simd_float4>.self,
         ArrayFromRippledValueNode<simd_float4>.self,
         ArrayResampleNode<simd_float4>.self,
         ArrayRangeInterpolationNode<simd_float4>.self,
-        ComposeVectorArrayNode<simd_float4>.self,
-        DecomposeVectorArrayNode<simd_float4>.self,
         VectorArrayTweenNode<simd_float4>.self,
 
         PassThroughNode<simd_quatf>.self,

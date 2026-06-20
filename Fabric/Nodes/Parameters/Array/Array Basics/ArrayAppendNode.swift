@@ -23,18 +23,20 @@ public class ArrayAppendNode: TypeAgnosticNode
         super.rebuildPorts(forStrategy: strategy)
         guard let elementType = PortType(rawValue: strategy) else { return }
 
-        for name in Self.dynamicPortNames {
-            if let p: Port = findPort(named: name) { removePort(p) }
-        }
-
         let arrayType: PortType = elementType == .Virtual ? .Virtual : .Array(portType: elementType)
-        let inputArrayA = arrayType.makeFreshPort(name: "Array A", kind: .Inlet,  description: "First array")
-        let inputArrayB = arrayType.makeFreshPort(name: "Array B", kind: .Inlet,  description: "Second array, appended after Array A")
-        let outputPort  = arrayType.makeFreshPort(name: "Array",   kind: .Outlet, description: "Concatenated array")
 
-        addDynamicPort(inputArrayA, name: "inputArrayA")
-        addDynamicPort(inputArrayB, name: "inputArrayB")
-        addDynamicPort(outputPort,  name: "outputPort")
+        for name in ["inputArrayA", "inputArrayB", "outputPort"] {
+            if let p: Port = findPort(named: name), p.portType != arrayType { removePort(p) }
+        }
+        if findPort(named: "inputArrayA") == nil {
+            addDynamicPort(arrayType.makeFreshPort(name: "Array A", kind: .Inlet,  description: "First array"), name: "inputArrayA")
+        }
+        if findPort(named: "inputArrayB") == nil {
+            addDynamicPort(arrayType.makeFreshPort(name: "Array B", kind: .Inlet,  description: "Second array, appended after Array A"), name: "inputArrayB")
+        }
+        if findPort(named: "outputPort") == nil {
+            addDynamicPort(arrayType.makeFreshPort(name: "Array",   kind: .Outlet, description: "Concatenated array"), name: "outputPort")
+        }
 
         let portOrder = ["inputArrayA", "inputArrayB", "outputPort"]
         let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }

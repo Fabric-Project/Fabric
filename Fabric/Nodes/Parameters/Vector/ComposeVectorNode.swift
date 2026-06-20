@@ -8,39 +8,91 @@ import Satin
 import simd
 import Metal
 
-public class ComposeVectorNode<Value: PortValueRepresentable & ComponentRepresentable>: Node where Value.Component: DefaultParameterProviding
+public class ComposeVectorNode: StrategyNode
 {
-    public override class var name: String { "\(Value.portType.rawValue) Compose" }
+    public override class var name: String { "Vector Compose" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Vector) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Combines \(Value.componentLabels.joined(separator: ", ")) components into a \(Value.portType.rawValue)" }
+    override public class var nodeDescription: String { "Combines X/Y/Z/W components into a vector. Choose the vector type in Settings." }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public override class var strategyOptions: [any NodeStrategyOption] { VectorType.allCases }
 
-        let componentPorts: [(name: String, port: Port)] = Value.componentLabels.enumerated().map { (i, label) in
-            ("inputComponent\(i)", Value.Component.makeDefaultParameterPort(name: label, description: "\(label) component"))
-        }
+    private static let allDynamicNames: Set<String> = [
+        "inputComponent0", "inputComponent1", "inputComponent2", "inputComponent3",
+        "outputVector",
+    ]
 
-        return ports + componentPorts +
-        [
-            ("outputVector", NodePort<Value>(name: Value.portType.rawValue, kind: .Outlet, description: "Combined \(Value.portType.rawValue)")),
-        ]
+    public convenience init(context: Context, vectorType: VectorType)
+    {
+        self.init(context: context, strategy: vectorType)
     }
 
-    private func inputComponentPort(_ i: Int) -> NodePort<Value.Component> { port(named: "inputComponent\(i)") }
-    public var outputVector: NodePort<Value> { port(named: "outputVector") }
+    public override func rebuildPorts(forStrategy strategy: String)
+    {
+        guard let vt = VectorType.allCases.first(where: { $0.rawValue == strategy }) else { return }
+
+        // Remove component ports beyond the needed count
+        for i in vt.componentLabels.count..<4 {
+            if let p: Port = findPort(named: "inputComponent\(i)") { removePort(p) }
+        }
+        // Add missing component ports
+        for (i, label) in vt.componentLabels.enumerated() {
+            if findPort(named: "inputComponent\(i)") == nil {
+                let p = ParameterPort(parameter: FloatParameter(label, 0.0, .inputfield, "\(label) component"))
+                addDynamicPort(p, name: "inputComponent\(i)")
+            }
+        }
+
+        // Replace output port only when the vector type changes
+        if let existing: Port = findPort(named: "outputVector"), existing.portType != vt.portType {
+            removePort(existing)
+        }
+        if findPort(named: "outputVector") == nil {
+            let outputPort: Port
+            switch vt {
+            case .float2: outputPort = NodePort<simd_float2>(name: vt.portType.rawValue, kind: .Outlet, description: "Combined \(vt.portType.rawValue)")
+            case .float3: outputPort = NodePort<simd_float3>(name: vt.portType.rawValue, kind: .Outlet, description: "Combined \(vt.portType.rawValue)")
+            case .float4: outputPort = NodePort<simd_float4>(name: vt.portType.rawValue, kind: .Outlet, description: "Combined \(vt.portType.rawValue)")
+            }
+            addDynamicPort(outputPort, name: "outputVector")
+        }
+
+        displayName = "\(vt.portType.rawValue) Compose"
+    }
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        let componentPorts = (0..<Value.componentLabels.count).map { inputComponentPort($0) }
-        guard componentPorts.contains(where: { $0.valueDidChange }) else { return }
+        guard let vt = VectorType.allCases.first(where: { $0.rawValue == strategy }) else { return }
 
-        let values = componentPorts.map { $0.value ?? Value.Component.defaultValue! }
-        self.outputVector.send(Value(componentValues: values))
+        let compCount = vt.componentLabels.count
+        let anyChanged = (0..<compCount).contains { i in
+            let p: ParameterPort<Float>? = findPort(named: "inputComponent\(i)")
+            return p?.valueDidChange == true
+        }
+        guard anyChanged else { return }
+
+        func comp(_ i: Int) -> Float {
+            let p: ParameterPort<Float>? = findPort(named: "inputComponent\(i)")
+            return p?.value ?? 0
+        }
+
+        switch vt {
+        case .float2:
+            if let out: NodePort<simd_float2> = findPort(named: "outputVector") {
+                out.send(simd_float2(comp(0), comp(1)))
+            }
+        case .float3:
+            if let out: NodePort<simd_float3> = findPort(named: "outputVector") {
+                out.send(simd_float3(comp(0), comp(1), comp(2)))
+            }
+        case .float4:
+            if let out: NodePort<simd_float4> = findPort(named: "outputVector") {
+                out.send(simd_float4(comp(0), comp(1), comp(2), comp(3)))
+            }
+        }
     }
 }

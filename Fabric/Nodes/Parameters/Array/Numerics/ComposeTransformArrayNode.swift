@@ -16,7 +16,7 @@ public class ComposeTransformArrayNode: StrategyNode
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Builds an array of Transforms via one of several strategies: per-element Positions/Orientations/Scales (TRS), or directly from four per-element column arrays. Inputs are zipped per element; output length matches the longest, shorter inputs pad with their last element." }
 
-    public override class var strategies: [String] { ["TRS", "Columns"] }
+    public override class var strategyOptions: [any NodeStrategyOption] { TransformCompositionMode.allCases }
 
     private static let allDynamicNames: Set<String> = [
         "inputPositions", "inputOrientations", "inputScales",

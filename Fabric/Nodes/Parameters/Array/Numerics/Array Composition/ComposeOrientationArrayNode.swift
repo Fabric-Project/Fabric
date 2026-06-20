@@ -16,7 +16,7 @@ public class ComposeOrientationArrayNode: StrategyNode
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Builds an array of Orientation quaternions via one of several strategies: Euler angles, Axis + Angle, or aiming at a Target. Inputs are zipped per element; output length matches the longest, shorter inputs pad with their last element." }
 
-    public override class var strategies: [String] { ["Euler", "Axis Angle", "Target"] }
+    public override class var strategyOptions: [any NodeStrategyOption] { OrientationCompositionMode.allCases }
 
     private static let allDynamicNames: Set<String> = [
         "inputEulerAngles",

@@ -26,7 +26,7 @@ public class ArrayQueueNode: TypeAgnosticNode
     {
         super.registerPorts(context: context) + [
             ("inputSizeParam", ParameterPort(parameter: IntParameter("Size", 0, .inputfield, "Maximum number of elements to keep in the queue"))),
-            ("resetPort",      NodePort<Bool>(name: "Reset", kind: .Inlet, description: "When true, drops all queued items while maintaining capacity")),
+            ("resetPort",     ParameterPort(parameter: BoolParameter("Reset", false, .button,  "When true, drops all queued items while maintaining capacity")))
         ]
     }
 
@@ -41,18 +41,25 @@ public class ArrayQueueNode: TypeAgnosticNode
         super.rebuildPorts(forStrategy: strategy)
         guard let elementType = PortType(rawValue: strategy) else { return }
 
-        for name in Self.dynamicPortNames {
-            if let p: Port = findPort(named: name) { removePort(p) }
+        let arrayType: PortType = elementType == .Virtual ? .Virtual : .Array(portType: elementType)
+
+        // Replace inputPort only when the element type changes
+        if let existing: Port = findPort(named: "inputPort"), existing.portType != elementType {
+            removePort(existing)
+        }
+        if findPort(named: "inputPort") == nil {
+            let inputPort = elementType.makeFreshPort(name: "Value", kind: .Inlet, description: "Value to insert at the front of the queue")
+            addDynamicPort(inputPort, name: "inputPort")
         }
 
-        // Element inlet: scalar port matching the chosen element type
-        let inputPort  = elementType.makeFreshPort(name: "Value", kind: .Inlet,  description: "Value to insert at the front of the queue")
-        // Array outlet: typed array, or Virtual for the untyped case
-        let arrayType: PortType = elementType == .Virtual ? .Virtual : .Array(portType: elementType)
-        let outputPort = arrayType.makeFreshPort(name: "Array", kind: .Outlet, description: "Array containing the queued values")
-
-        addDynamicPort(inputPort,  name: "inputPort")
-        addDynamicPort(outputPort, name: "outputPort")
+        // Replace outputPort only when the array type changes
+        if let existing: Port = findPort(named: "outputPort"), existing.portType != arrayType {
+            removePort(existing)
+        }
+        if findPort(named: "outputPort") == nil {
+            let outputPort = arrayType.makeFreshPort(name: "Array", kind: .Outlet, description: "Array containing the queued values")
+            addDynamicPort(outputPort, name: "outputPort")
+        }
 
         queue.removeAll()
 

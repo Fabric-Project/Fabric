@@ -32,16 +32,16 @@ public class ArrayIndexValueNode: TypeAgnosticNode
         super.rebuildPorts(forStrategy: strategy)
         guard let elementType = PortType(rawValue: strategy) else { return }
 
-        for name in Self.dynamicPortNames {
-            if let p: Port = findPort(named: name) { removePort(p) }
-        }
-
         let arrayType: PortType = elementType == .Virtual ? .Virtual : .Array(portType: elementType)
-        let inputPort  = arrayType.makeFreshPort(name: "Array", kind: .Inlet,  description: "Input array to index into")
-        let outputPort = elementType.makeFreshPort(name: "Value", kind: .Outlet, description: "Element at the specified index")
 
-        addDynamicPort(inputPort,  name: "inputPort")
-        addDynamicPort(outputPort, name: "outputPort")
+        if let existing: Port = findPort(named: "inputPort"),  existing.portType != arrayType   { removePort(existing) }
+        if let existing: Port = findPort(named: "outputPort"), existing.portType != elementType { removePort(existing) }
+        if findPort(named: "inputPort") == nil {
+            addDynamicPort(arrayType.makeFreshPort(name: "Array", kind: .Inlet,  description: "Input array to index into"), name: "inputPort")
+        }
+        if findPort(named: "outputPort") == nil {
+            addDynamicPort(elementType.makeFreshPort(name: "Value", kind: .Outlet, description: "Element at the specified index"), name: "outputPort")
+        }
 
         let portOrder = ["inputPort", "inputIndexParam", "outputPort"]
         let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }

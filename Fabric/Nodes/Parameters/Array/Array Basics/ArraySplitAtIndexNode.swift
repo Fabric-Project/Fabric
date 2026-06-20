@@ -32,18 +32,20 @@ public class ArraySplitAtIndexNode: TypeAgnosticNode
         super.rebuildPorts(forStrategy: strategy)
         guard let elementType = PortType(rawValue: strategy) else { return }
 
-        for name in Self.dynamicPortNames {
-            if let p: Port = findPort(named: name) { removePort(p) }
-        }
-
         let arrayType: PortType = elementType == .Virtual ? .Virtual : .Array(portType: elementType)
-        let inputPort    = arrayType.makeFreshPort(name: "Array",  kind: .Inlet,  description: "Input array to split")
-        let outputBefore = arrayType.makeFreshPort(name: "Before", kind: .Outlet, description: "Elements at indices 0 ..< Index")
-        let outputFrom   = arrayType.makeFreshPort(name: "From",   kind: .Outlet, description: "Elements at indices Index ..< count")
 
-        addDynamicPort(inputPort,    name: "inputPort")
-        addDynamicPort(outputBefore, name: "outputBefore")
-        addDynamicPort(outputFrom,   name: "outputFrom")
+        for name in ["inputPort", "outputBefore", "outputFrom"] {
+            if let p: Port = findPort(named: name), p.portType != arrayType { removePort(p) }
+        }
+        if findPort(named: "inputPort") == nil {
+            addDynamicPort(arrayType.makeFreshPort(name: "Array",  kind: .Inlet,  description: "Input array to split"), name: "inputPort")
+        }
+        if findPort(named: "outputBefore") == nil {
+            addDynamicPort(arrayType.makeFreshPort(name: "Before", kind: .Outlet, description: "Elements at indices 0 ..< Index"), name: "outputBefore")
+        }
+        if findPort(named: "outputFrom") == nil {
+            addDynamicPort(arrayType.makeFreshPort(name: "From",   kind: .Outlet, description: "Elements at indices Index ..< count"), name: "outputFrom")
+        }
 
         let portOrder = ["inputPort", "inputIndex", "outputBefore", "outputFrom"]
         let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }

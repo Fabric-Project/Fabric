@@ -7,6 +7,9 @@ import Foundation
 import Satin
 import Metal
 
+// PortType already has a rawValue: String computed property, satisfying NodeStrategyOption.
+extension PortType: NodeStrategyOption {}
+
 /// Base class for nodes whose behavior is identical regardless of data type.
 /// The type picker is a practical concession to the type system, not a semantic choice.
 public class TypeAgnosticNode: StrategyNode
@@ -16,7 +19,7 @@ public class TypeAgnosticNode: StrategyNode
     /// where the user picks the element type and the node creates typed array ports accordingly.
     public class var includesArrayTypesInStrategy: Bool { true }
 
-    public override class var strategies: [String]
+    public override class var strategyOptions: [any NodeStrategyOption]
     {
         let includesArrayTypes = Self.includesArrayTypesInStrategy
         var types: [PortType] = [.Virtual]
@@ -25,14 +28,19 @@ public class TypeAgnosticNode: StrategyNode
             if !includesArrayTypes, case .Array = portType { return false }
             return true
         }
-        return types.map(\.rawValue)
+        return types
     }
 
-    public override class var defaultStrategy: String { PortType.Virtual.rawValue }
     public override class var separatorAfterFirstStrategy: Bool { true }
 
     /// The currently active port type, derived from the strategy string.
     public var selectedPortType: PortType { PortType(rawValue: strategy) ?? .Virtual }
+
+    /// Convenience programmatic init for a specific port type.
+    public convenience init(context: Context, portType: PortType)
+    {
+        self.init(context: context, initialStrategy: portType.rawValue)
+    }
 
     /// Sets displayName from the current strategy. Subclasses must call super first.
     public override func rebuildPorts(forStrategy strategy: String)

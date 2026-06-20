@@ -17,10 +17,90 @@ import Satin
 import Metal
 import SwiftUI
 
+// MARK: - NodeStrategyOption
+
+/// Any enum or type whose rawValue String identifies a StrategyNode strategy.
+/// Conforming types serve as compile-time-checked strategy parameters for
+/// programmatic node construction, replacing raw String literals.
+public protocol NodeStrategyOption {
+    var rawValue: String { get }
+}
+
+// MARK: - Shared family enums
+
+/// Transform composition/decomposition mode: Translation-Rotation-Scale or
+/// raw column vectors.  Shared by ComposeTransformNode, DecomposeTransformNode,
+/// ComposeTransformArrayNode, and DecomposeTransformArrayNode.
+public enum TransformCompositionMode: String, NodeStrategyOption, CaseIterable {
+    case trs     = "TRS"
+    case columns = "Columns"
+}
+
+/// Orientation composition mode: Euler angles, Axis + Angle, or aim-at-Target.
+/// Shared by ComposeOrientationNode and ComposeOrientationArrayNode.
+public enum OrientationCompositionMode: String, NodeStrategyOption, CaseIterable {
+    case euler     = "Euler"
+    case axisAngle = "Axis Angle"
+    case target    = "Target"
+}
+
+/// Orientation decomposition mode.
+/// Shared by DecomposeOrientationNode and DecomposeOrientationArrayNode.
+public enum OrientationDecompositionMode: String, NodeStrategyOption, CaseIterable {
+    case toEuler     = "To Euler"
+    case toAxisAngle = "To Axis Angle"
+}
+
+/// Geometry-to-transform extraction mode.
+/// Used by GeometryToTransformArrayNode.
+public enum GeometryToTransformMode: String, NodeStrategyOption, CaseIterable {
+    case transform  = "Transform"
+    case components = "Components"
+}
+
+/// Vector type for consolidated Compose/Decompose vector nodes (single and array).
+/// Raw values delegate to PortType so serialised strategy strings never drift.
+public enum VectorType: NodeStrategyOption, CaseIterable {
+    case float2, float3, float4
+
+    public var rawValue: String {
+        switch self {
+        case .float2: return PortType.Vector2.rawValue
+        case .float3: return PortType.Vector3.rawValue
+        case .float4: return PortType.Vector4.rawValue
+        }
+    }
+
+    /// Convenience back-conversion for execute dispatch.
+    public var portType: PortType {
+        switch self {
+        case .float2: return .Vector2
+        case .float3: return .Vector3
+        case .float4: return .Vector4
+        }
+    }
+
+    /// Component labels and count for this vector type.
+    public var componentLabels: [String] {
+        switch self {
+        case .float2: return ["X", "Y"]
+        case .float3: return ["X", "Y", "Z"]
+        case .float4: return ["X", "Y", "Z", "W"]
+        }
+    }
+}
+
+// MARK: - StrategyNode
+
 public class StrategyNode: Node
 {
-    /// Ordered strategy names, shown in the Settings view picker.
-    public class var strategies: [String] { [] }
+    /// Ordered strategy options — the single source of truth for the picker and
+    /// for programmatic construction.  Subclasses override this; never override
+    /// `strategies` directly.
+    public class var strategyOptions: [any NodeStrategyOption] { [] }
+
+    /// Derived from strategyOptions — do not override.
+    public class var strategies: [String] { strategyOptions.map(\.rawValue) }
     public class var defaultStrategy: String { strategies.first ?? "" }
 
     /// When true, the picker inserts a visual separator after the first strategy in the list.
@@ -65,6 +145,21 @@ public class StrategyNode: Node
         self.strategy = Self.defaultStrategy
         super.init(context: context)
         self.rebuildPorts(forStrategy: self.strategy)
+    }
+
+    /// Designated init for programmatic construction with a specific initial strategy.
+    /// Sets strategy before super.init so didSet never fires, then calls rebuildPorts exactly once.
+    public init(context: Context, initialStrategy: String)
+    {
+        self.strategy = initialStrategy
+        super.init(context: context)
+        self.rebuildPorts(forStrategy: self.strategy)
+    }
+
+    /// Convenience init for compile-time-checked programmatic construction.
+    public convenience init(context: Context, strategy: some NodeStrategyOption)
+    {
+        self.init(context: context, initialStrategy: strategy.rawValue)
     }
 
     override public func providesSettingsView() -> Bool { true }

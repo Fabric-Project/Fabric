@@ -32,16 +32,17 @@ public class ArrayShuffleNode: TypeAgnosticNode
         super.rebuildPorts(forStrategy: strategy)
         guard let elementType = PortType(rawValue: strategy) else { return }
 
-        for name in Self.dynamicPortNames {
-            if let p: Port = findPort(named: name) { removePort(p) }
-        }
-
         let arrayType: PortType = elementType == .Virtual ? .Virtual : .Array(portType: elementType)
-        let inputPort  = arrayType.makeFreshPort(name: "Array", kind: .Inlet,  description: "Input array")
-        let outputPort = arrayType.makeFreshPort(name: "Array", kind: .Outlet, description: "Shuffled or original array")
 
-        addDynamicPort(inputPort,  name: "inputPort")
-        addDynamicPort(outputPort, name: "outputPort")
+        for name in ["inputPort", "outputPort"] {
+            if let p: Port = findPort(named: name), p.portType != arrayType { removePort(p) }
+        }
+        if findPort(named: "inputPort") == nil {
+            addDynamicPort(arrayType.makeFreshPort(name: "Array", kind: .Inlet,  description: "Input array"), name: "inputPort")
+        }
+        if findPort(named: "outputPort") == nil {
+            addDynamicPort(arrayType.makeFreshPort(name: "Array", kind: .Outlet, description: "Shuffled or original array"), name: "outputPort")
+        }
 
         let portOrder = ["inputPort", "inputShuffle", "outputPort"]
         let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }
