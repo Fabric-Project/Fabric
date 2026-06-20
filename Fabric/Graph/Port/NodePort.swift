@@ -319,6 +319,13 @@ public class NodePort<Value : PortValueRepresentable>: Port
                 {
                     self.send(v?.toPortValue(), to:p, force: force)
                 }
+
+                // Virtual → typed fallback: let the target port unbox via fromPortValue.
+                // Handles e.g. NodePort<PortValue> outlet → NodePort<ContiguousArray<T>> inlet.
+                else
+                {
+                    p.sendBoxed(v?.toPortValue())
+                }
             }
         }
     }
