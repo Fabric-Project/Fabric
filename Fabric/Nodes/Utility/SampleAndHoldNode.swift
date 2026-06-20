@@ -10,7 +10,7 @@ import Satin
 import Metal
 import simd
 
-public class SampleAndHoldNode: StrategyNode
+public class SampleAndHoldNode: TypeAgnosticNode
 {
     public override class var name: String { "Sample and Hold" }
     public override class var nodeType: Node.NodeType { .Utility }
@@ -18,20 +18,11 @@ public class SampleAndHoldNode: StrategyNode
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Samples any value type when enabled and holds it until reset. Choose the value type in Settings." }
 
-    // The set of names that rebuildPorts manages. Used to evict stale ports on strategy change.
-    private static let allDynamicPortNames: Set<String> = ["inputValue", "outputValue"]
+    private static let dynamicPortNames: Set<String> = ["inputValue", "outputValue"]
 
-    public override class var strategies: [String] {
-        [PortType.Virtual.rawValue] + PortType.allCases.filter { $0 != .Virtual }.map(\.rawValue)
-    }
-    public override class var defaultStrategy: String { PortType.Virtual.rawValue }
-    public override class var separatorAfterFirstStrategy: Bool { true }
-
-    // Fixed parameter ports (always present, not rebuilt on strategy change)
     public var inputSample: ParameterPort<Bool> { port(named: "inputSample") }
     public var inputReset: ParameterPort<Bool>  { port(named: "inputReset") }
 
-    // The last sampled value, boxed so it survives port type changes.
     private var heldValue: PortValue?
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
@@ -44,10 +35,10 @@ public class SampleAndHoldNode: StrategyNode
 
     public override func rebuildPorts(forStrategy strategy: String)
     {
+        super.rebuildPorts(forStrategy: strategy)
         guard let portType = PortType(rawValue: strategy) else { return }
 
-        for name in Self.allDynamicPortNames
-        {
+        for name in Self.dynamicPortNames {
             if let p: Port = findPort(named: name) { removePort(p) }
         }
 
@@ -59,9 +50,6 @@ public class SampleAndHoldNode: StrategyNode
 
         heldValue = nil
 
-        displayName = portType == .Virtual ? nil : "Sample and Hold \(portType.rawValue)"
-
-        // Enforce stable port order: Value in, Value out, Sample, Reset
         let portOrder = ["inputValue", "outputValue", "inputSample", "inputReset"]
         let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }
         if reordered.count == self.ports.count { reorderPorts(reordered) }

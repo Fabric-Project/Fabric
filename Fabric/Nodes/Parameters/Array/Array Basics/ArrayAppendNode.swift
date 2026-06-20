@@ -7,38 +7,57 @@ import Foundation
 import Satin
 import Metal
 
-public class ArrayAppendNode<Value : PortValueRepresentable & Equatable> : Node
+public class ArrayAppendNode: TypeAgnosticNode
 {
-    public override class var name: String { "\(Value.portType.rawValue) Array Append" }
+    public override class var name: String { "Array Append" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Appends Array B onto the end of Array A, producing a single concatenated \(Value.portType.rawValue) array." }
+    override public class var nodeDescription: String { "Appends Array B onto the end of Array A, producing a single concatenated array. Choose element type in Settings." }
+    override public class var includesArrayTypesInStrategy: Bool { false }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    private static let dynamicPortNames: Set<String> = ["inputArrayA", "inputArrayB", "outputPort"]
 
-        return ports +
-        [
-            ("inputArrayA", NodePort<ContiguousArray<Value>>(name: "Array A", kind: .Inlet, description: "First \(Value.portType.rawValue) array")),
-            ("inputArrayB", NodePort<ContiguousArray<Value>>(name: "Array B", kind: .Inlet, description: "Second \(Value.portType.rawValue) array, appended after Array A")),
-            ("outputPort",  NodePort<ContiguousArray<Value>>(name: "Array",   kind: .Outlet, description: "Concatenated \(Value.portType.rawValue) array")),
-        ]
+    public override func rebuildPorts(forStrategy strategy: String)
+    {
+        super.rebuildPorts(forStrategy: strategy)
+        guard let elementType = PortType(rawValue: strategy) else { return }
+
+        for name in Self.dynamicPortNames {
+            if let p: Port = findPort(named: name) { removePort(p) }
+        }
+
+        let arrayType: PortType = elementType == .Virtual ? .Virtual : .Array(portType: elementType)
+        let inputArrayA = arrayType.makeFreshPort(name: "Array A", kind: .Inlet,  description: "First array")
+        let inputArrayB = arrayType.makeFreshPort(name: "Array B", kind: .Inlet,  description: "Second array, appended after Array A")
+        let outputPort  = arrayType.makeFreshPort(name: "Array",   kind: .Outlet, description: "Concatenated array")
+
+        addDynamicPort(inputArrayA, name: "inputArrayA")
+        addDynamicPort(inputArrayB, name: "inputArrayB")
+        addDynamicPort(outputPort,  name: "outputPort")
+
+        let portOrder = ["inputArrayA", "inputArrayB", "outputPort"]
+        let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }
+        if reordered.count == self.ports.count { reorderPorts(reordered) }
     }
-
-    public var inputArrayA: NodePort<ContiguousArray<Value>> { port(named: "inputArrayA") }
-    public var inputArrayB: NodePort<ContiguousArray<Value>> { port(named: "inputArrayB") }
-    public var outputPort:  NodePort<ContiguousArray<Value>> { port(named: "outputPort") }
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        guard self.inputArrayA.valueDidChange || self.inputArrayB.valueDidChange else { return }
+        guard let inputPortA: Port = findPort(named: "inputArrayA"),
+              let inputPortB: Port = findPort(named: "inputArrayB"),
+              let outputPort: Port = findPort(named: "outputPort") else { return }
 
-        let a = self.inputArrayA.value ?? []
-        let b = self.inputArrayB.value ?? []
-        self.outputPort.send(a + b)
+        guard inputPortA.valueDidChange || inputPortB.valueDidChange else { return }
+
+        let a: ContiguousArray<PortValue>
+        if let boxed = inputPortA.snapshotValue(), case .Array(let elems) = boxed { a = elems } else { a = [] }
+
+        let b: ContiguousArray<PortValue>
+        if let boxed = inputPortB.snapshotValue(), case .Array(let elems) = boxed { b = elems } else { b = [] }
+
+        outputPort.sendBoxed(.Array(a + b))
     }
 }

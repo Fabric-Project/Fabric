@@ -122,6 +122,18 @@ For all development:
 - BaseRenderableNode.swift 
 - BaseTextureComputeProcessorNode.swift
 
+### 2.6 Type-Agnostic Nodes
+
+Some nodes operate identically regardless of what data flows through them (e.g. Sample and Hold, Queue). Because ports are typed, these nodes use a Settings picker to declare which type they carry — but the picker is a practical requirement of the type system, not a semantic choice. The node's behavior does not change.
+
+- Default to `PortType.Virtual`, which accepts any connection and requires no configuration.
+- Virtual appears first in the type picker, separated from concrete types.
+- Switching type rebuilds the dynamic ports; port order must be explicit and stable.
+- When a concrete type is active, the node's display name reflects it (e.g. `"Sample and Hold Float"`).
+- `snapshotValue()` / `sendBoxed()` are the runtime-polymorphic read/write API for ports whose type is only known at runtime.
+
+**Base class:** `TypeAgnosticNode`. **Reference implementation:** `SampleAndHoldNode`.
+
 ---
 
 ## 3. Best-Practice Rules

@@ -7,49 +7,72 @@ import Foundation
 import Satin
 import Metal
 
-public class ArraySplitAtIndexNode<Value : PortValueRepresentable & Equatable> : Node
+public class ArraySplitAtIndexNode: TypeAgnosticNode
 {
-    public override class var name: String { "\(Value.portType.rawValue) Array Split at Index" }
+    public override class var name: String { "Array Split at Index" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Splits a \(Value.portType.rawValue) array at Index into two arrays: elements before the index and elements from the index onward." }
+    override public class var nodeDescription: String { "Splits an array at Index into two: elements before the index and elements from the index onward. Choose element type in Settings." }
+    override public class var includesArrayTypesInStrategy: Bool { false }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    private static let dynamicPortNames: Set<String> = ["inputPort", "outputBefore", "outputFrom"]
 
-        return ports +
-        [
-            ("inputPort",    NodePort<ContiguousArray<Value>>(name: "Array",  kind: .Inlet,  description: "Input \(Value.portType.rawValue) array to split")),
-            ("inputIndex",   ParameterPort(parameter: IntParameter("Index", 0, .inputfield, "Split position; elements before this index go to Before, elements from this index onward go to From"))),
-            ("outputBefore", NodePort<ContiguousArray<Value>>(name: "Before", kind: .Outlet, description: "Elements at indices 0 ..< Index")),
-            ("outputFrom",   NodePort<ContiguousArray<Value>>(name: "From",   kind: .Outlet, description: "Elements at indices Index ..< count")),
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    {
+        super.registerPorts(context: context) + [
+            ("inputIndex", ParameterPort(parameter: IntParameter("Index", 0, .inputfield, "Split position; elements before this index go to Before, elements from this index onward go to From"))),
         ]
     }
 
-    public var inputPort:    NodePort<ContiguousArray<Value>> { port(named: "inputPort") }
-    public var inputIndex:   ParameterPort<Int>               { port(named: "inputIndex") }
-    public var outputBefore: NodePort<ContiguousArray<Value>> { port(named: "outputBefore") }
-    public var outputFrom:   NodePort<ContiguousArray<Value>> { port(named: "outputFrom") }
+    public var inputIndex: ParameterPort<Int> { port(named: "inputIndex") }
+
+    public override func rebuildPorts(forStrategy strategy: String)
+    {
+        super.rebuildPorts(forStrategy: strategy)
+        guard let elementType = PortType(rawValue: strategy) else { return }
+
+        for name in Self.dynamicPortNames {
+            if let p: Port = findPort(named: name) { removePort(p) }
+        }
+
+        let arrayType: PortType = elementType == .Virtual ? .Virtual : .Array(portType: elementType)
+        let inputPort    = arrayType.makeFreshPort(name: "Array",  kind: .Inlet,  description: "Input array to split")
+        let outputBefore = arrayType.makeFreshPort(name: "Before", kind: .Outlet, description: "Elements at indices 0 ..< Index")
+        let outputFrom   = arrayType.makeFreshPort(name: "From",   kind: .Outlet, description: "Elements at indices Index ..< count")
+
+        addDynamicPort(inputPort,    name: "inputPort")
+        addDynamicPort(outputBefore, name: "outputBefore")
+        addDynamicPort(outputFrom,   name: "outputFrom")
+
+        let portOrder = ["inputPort", "inputIndex", "outputBefore", "outputFrom"]
+        let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }
+        if reordered.count == self.ports.count { reorderPorts(reordered) }
+    }
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        guard self.inputPort.valueDidChange || self.inputIndex.valueDidChange else { return }
+        guard let inputPort:    Port = findPort(named: "inputPort"),
+              let outputBefore: Port = findPort(named: "outputBefore"),
+              let outputFrom:   Port = findPort(named: "outputFrom") else { return }
 
-        guard let array = self.inputPort.value,
-              let index = self.inputIndex.value
+        guard inputPort.valueDidChange || inputIndex.valueDidChange else { return }
+
+        guard let boxed = inputPort.snapshotValue(),
+              case .Array(let elements) = boxed,
+              let index = inputIndex.value
         else
         {
-            self.outputBefore.send(ContiguousArray<Value>())
-            self.outputFrom.send(ContiguousArray<Value>())
+            outputBefore.sendBoxed(.Array(ContiguousArray()))
+            outputFrom.sendBoxed(.Array(ContiguousArray()))
             return
         }
 
-        let clamped = max(0, min(index, array.count))
-        self.outputBefore.send(ContiguousArray(array[0..<clamped]))
-        self.outputFrom.send(ContiguousArray(array[clamped...]))
+        let clamped = max(0, min(index, elements.count))
+        outputBefore.sendBoxed(.Array(ContiguousArray(elements[0..<clamped])))
+        outputFrom.sendBoxed(.Array(ContiguousArray(elements[clamped...])))
     }
 }

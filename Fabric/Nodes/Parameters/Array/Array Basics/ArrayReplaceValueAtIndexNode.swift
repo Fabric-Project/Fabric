@@ -1,66 +1,75 @@
 //
-//  ArrayIndexValueNode.swift
+//  ArrayReplaceValueAtIndexNode.swift
 //  Fabric
-//
-//  Created by Anton Marini on 9/17/25.
 //
 
 import Foundation
 import Satin
-import simd
 import Metal
-import MetalKit
 
-public class ArrayReplaceValueAtIndexNode<Value : PortValueRepresentable & Equatable> : Node
+public class ArrayReplaceValueAtIndexNode: TypeAgnosticNode
 {
-    public override class var name:String {"\(Value.portType.rawValue) Array Replace Value at Index" }
-    public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
+    public override class var name: String { "Array Replace Value at Index" }
+    public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Replaces the value of \(Value.portType.rawValue) at an input index with a new Value"}
-    
-    // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports +
-        [
-            ("inputPort",  NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet, description: "Input array to modify")),
-            ("inputIndexParam", ParameterPort(parameter: IntParameter("Index", 0, .inputfield, "Array index where the value will be replaced")) ),
-            ("inputValue",  NodePort<Value>(name: "Value", kind: .Inlet, description: "New value to insert at the specified index")),
-            ("outputPort", NodePort<ContiguousArray<Value>>(name: "Array", kind: .Outlet, description: "Array with the value replaced at the specified index")),
+    override public class var nodeDescription: String { "Replaces the element at the specified index with a new value. Choose element type in Settings." }
+    override public class var includesArrayTypesInStrategy: Bool { false }
+
+    private static let dynamicPortNames: Set<String> = ["inputPort", "inputValue", "outputPort"]
+
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    {
+        super.registerPorts(context: context) + [
+            ("inputIndexParam", ParameterPort(parameter: IntParameter("Index", 0, .inputfield, "Array index where the value will be replaced"))),
         ]
     }
-    
-    // Port Proxy
-    public var inputPort:NodePort<ContiguousArray<Value>> { port(named: "inputPort") }
-    public var inputIndexParam:ParameterPort<Int> { port(named: "inputIndexParam") }
-    public var inputValue:NodePort<Value> { port(named: "inputValue") }
-    public var outputPort:NodePort<ContiguousArray<Value>> { port(named: "outputPort") }
 
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
+    public var inputIndexParam: ParameterPort<Int> { port(named: "inputIndexParam") }
+
+    public override func rebuildPorts(forStrategy strategy: String)
+    {
+        super.rebuildPorts(forStrategy: strategy)
+        guard let elementType = PortType(rawValue: strategy) else { return }
+
+        for name in Self.dynamicPortNames {
+            if let p: Port = findPort(named: name) { removePort(p) }
+        }
+
+        let arrayType: PortType = elementType == .Virtual ? .Virtual : .Array(portType: elementType)
+        let inputPort  = arrayType.makeFreshPort(name: "Array", kind: .Inlet,  description: "Input array to modify")
+        let inputValue = elementType.makeFreshPort(name: "Value", kind: .Inlet, description: "New value to insert at the specified index")
+        let outputPort = arrayType.makeFreshPort(name: "Array", kind: .Outlet, description: "Array with the value replaced at the specified index")
+
+        addDynamicPort(inputPort,  name: "inputPort")
+        addDynamicPort(inputValue, name: "inputValue")
+        addDynamicPort(outputPort, name: "outputPort")
+
+        let portOrder = ["inputPort", "inputIndexParam", "inputValue", "outputPort"]
+        let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }
+        if reordered.count == self.ports.count { reorderPorts(reordered) }
+    }
+
+    override public func execute(renderer: GraphRenderer,
+                                 executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        guard self.inputPort.valueDidChange
-            || self.inputIndexParam.valueDidChange
-            || self.inputValue.valueDidChange
-        else { return }
+        guard let inputPort:  Port = findPort(named: "inputPort"),
+              let inputValue: Port = findPort(named: "inputValue"),
+              let outputPort: Port = findPort(named: "outputPort") else { return }
 
-        guard var array = self.inputPort.value,
-              let index = self.inputIndexParam.value,
-              let value = self.inputValue.value
-        else { return }
+        guard inputPort.valueDidChange || inputIndexParam.valueDidChange || inputValue.valueDidChange else { return }
 
-        // Only replace when the index is in range. Otherwise pass the array
-        // through unchanged — the input array can shrink below a previously
-        // valid index, and the previous `remove(at:)`/`insert(at:)` path
-        // crashed when it did.
-        if index >= 0 && index < array.count {
-            array[index] = value
+        guard let boxed = inputPort.snapshotValue(),
+              case .Array(var elements) = boxed,
+              let index = inputIndexParam.value,
+              let replacement = inputValue.snapshotValue() else { return }
+
+        if index >= 0 && index < elements.count {
+            elements[index] = replacement
         }
 
-        self.outputPort.send(array)
+        outputPort.sendBoxed(.Array(elements))
     }
 }

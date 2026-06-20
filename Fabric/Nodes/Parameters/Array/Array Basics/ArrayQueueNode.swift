@@ -11,64 +11,83 @@ import simd
 import Metal
 import MetalKit
 
-public class ArrayQueueNode<Value : PortValueRepresentable & Equatable> : Node
+public class ArrayQueueNode: TypeAgnosticNode
 {
-    public override class var name:String { "\(Value.portType.rawValue) Array Queue Value" }
-    public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
+    public override class var name: String { "Array Queue Value" }
+    public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Inserts \(Value.portType.rawValue) items into an beginning of an Array."}
+    override public class var nodeDescription: String { "Inserts items into the beginning of an array queue. Choose element type in Settings." }
+    override public class var includesArrayTypesInStrategy: Bool { false }
 
-    // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    private static let dynamicPortNames: Set<String> = ["inputPort", "outputPort"]
 
-        return ports +
-        [
-            ("inputPort",      NodePort<Value>(name: "Value",  kind: .Inlet,  description: "Value to insert at the front of the queue")),
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    {
+        super.registerPorts(context: context) + [
             ("inputSizeParam", ParameterPort(parameter: IntParameter("Size", 0, .inputfield, "Maximum number of elements to keep in the queue"))),
-            ("resetPort",      NodePort<Bool>(name: "Reset",   kind: .Inlet,  description: "When true, drops all queued items while maintaining capacity")),
-            ("outputPort",     NodePort<ContiguousArray<Value>>(name: "Array", kind: .Outlet, description: "Array containing the queued values")),
+            ("resetPort",      NodePort<Bool>(name: "Reset", kind: .Inlet, description: "When true, drops all queued items while maintaining capacity")),
         ]
     }
 
-    // Port Proxy
-    public var inputPort:NodePort<Value> { port(named: "inputPort") }
-    public var inputSizeParam:ParameterPort<Int> { port(named: "inputSizeParam") }
-    public var resetPort:NodePort<Bool> { port(named: "resetPort") }
-    public var outputPort:NodePort<ContiguousArray<Value>> { port(named: "outputPort") }
+    public var inputSizeParam: ParameterPort<Int> { port(named: "inputSizeParam") }
+    public var resetPort: NodePort<Bool>           { port(named: "resetPort") }
 
-    private var queue:ContiguousArray<Value> = []
+    // Type-agnostic queue; PortValue boxing lets this work identically for Virtual and typed ports.
+    private var queue: ContiguousArray<PortValue> = []
 
-    override public func execute(renderer:GraphRenderer,
-                                 executionInfo:GraphExecutionInfo,
+    public override func rebuildPorts(forStrategy strategy: String)
+    {
+        super.rebuildPorts(forStrategy: strategy)
+        guard let elementType = PortType(rawValue: strategy) else { return }
+
+        for name in Self.dynamicPortNames {
+            if let p: Port = findPort(named: name) { removePort(p) }
+        }
+
+        // Element inlet: scalar port matching the chosen element type
+        let inputPort  = elementType.makeFreshPort(name: "Value", kind: .Inlet,  description: "Value to insert at the front of the queue")
+        // Array outlet: typed array, or Virtual for the untyped case
+        let arrayType: PortType = elementType == .Virtual ? .Virtual : .Array(portType: elementType)
+        let outputPort = arrayType.makeFreshPort(name: "Array", kind: .Outlet, description: "Array containing the queued values")
+
+        addDynamicPort(inputPort,  name: "inputPort")
+        addDynamicPort(outputPort, name: "outputPort")
+
+        queue.removeAll()
+
+        let portOrder = ["inputPort", "inputSizeParam", "resetPort", "outputPort"]
+        let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }
+        if reordered.count == self.ports.count { reorderPorts(reordered) }
+    }
+
+    override public func execute(renderer: GraphRenderer,
+                                 executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        if self.resetPort.valueDidChange,
-           self.resetPort.value == true
+        guard let inputPort:  Port = findPort(named: "inputPort"),
+              let outputPort: Port = findPort(named: "outputPort") else { return }
+
+        if resetPort.valueDidChange, resetPort.value == true
         {
-            self.queue.removeAll(keepingCapacity: true)
-            self.outputPort.send(self.queue)
+            queue.removeAll(keepingCapacity: true)
+            outputPort.sendBoxed(.Array(queue))
+            return
         }
-        else
+
+        if inputSizeParam.valueDidChange, let size = inputSizeParam.value
         {
-            if self.inputSizeParam.valueDidChange,
-               let size = self.inputSizeParam.value
-            {
-                self.queue = ContiguousArray( self.queue.prefix( size ) )
-            }
-            
-            if self.inputPort.valueDidChange,
-               let value = self.inputPort.value,
-               let size = self.inputSizeParam.value
-            {
-                self.queue.insert(value, at: 0)
-                
-                self.queue = ContiguousArray( self.queue.prefix( size ) )
-                
-                self.outputPort.send( self.queue )
-            }
+            queue = ContiguousArray(queue.prefix(size))
+        }
+
+        if inputPort.valueDidChange,
+           let value = inputPort.snapshotValue(),
+           let size  = inputSizeParam.value
+        {
+            queue.insert(value, at: 0)
+            queue = ContiguousArray(queue.prefix(size))
+            outputPort.sendBoxed(.Array(queue))
         }
     }
 }
