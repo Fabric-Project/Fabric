@@ -49,6 +49,7 @@ final class SubgraphIteratorRenderable: Satin.Renderable
         // A material is required so Satin's shouldRender() passes and draw() is called.
         // This material is not used for drawing in any way.
         self.material = BasicColorMaterial(context: context)
+        self.rendersIntoAllMaterialPasses = true
     }
 
     required init(from decoder: any Decoder) throws {
@@ -63,10 +64,6 @@ final class SubgraphIteratorRenderable: Satin.Renderable
         }
     }
 
-    private var updateCamera:Camera? = nil
-    private var updateViewport:simd_float4? = nil
-    private var updateIndex:Int?
-
     // Tracks the last count we called prepareForRepeatedEncoding with, per renderable identity.
     private var preparedForCount: Int = 0
     private var preparedRenderableCount: Int = 0
@@ -75,72 +72,21 @@ final class SubgraphIteratorRenderable: Satin.Renderable
         true
     }
 
-    override func update(renderContext: Context, camera: Camera, viewport: simd_float4, index: Int)
-    {
-        // Store camera/viewport so each per-iteration draw can use them.
-        self.updateCamera = camera
-        self.updateViewport = viewport
-        self.updateIndex = index
-    }
-
     override func draw(renderContext: Context, renderEncoderState: RenderEncoderState, shadow: Bool)
     {
         guard let subGraph,
-              let updateCamera,
-              let updateViewport,
-              let updateIndex
+              let renderEncoder = graphRenderer?.renderEncoder
         else { return }
-
-        if subGraph.shouldUpdateConnections {
-            subGraph.syncNodesToScene()
-            subGraph.shouldUpdateConnections = false
-        }
-
-        let subgraphObjects = [subGraph.scene] + subGraph.scene.getChildren()
-        let renderableChildren = subgraphObjects
-            .compactMap { $0 as? Renderable }
-            .filter(\.isVisible)
-            .sorted { $0.renderOrder < $1.renderOrder }
 
         for iteration in 0..<iterationCount
         {
             renderEncoderState.renderEncoder.pushDebugGroup("Iterator \(iteration)")
-
-            for renderable in renderableChildren {
-                renderable.selectRepeatedEncodingSlot(iteration: iteration, count: iterationCount)
-
-                if renderable.vertexUniforms[renderContext.id] == nil {
-                    renderable.vertexUniforms[renderContext.id] = VertexUniformBuffer(
-                        context: renderContext.with(iterationsPerFrame: iterationCount)
-                    )
-                }
-
-                renderable.update(renderContext: renderContext,
-                                  camera: updateCamera,
-                                  viewport: updateViewport,
-                                  index: updateIndex)
-
-                guard renderable.isDrawable(renderContext: renderContext, shadow: shadow) else { continue }
-
-                renderable.preDraw?(renderEncoderState.renderEncoder)
-
-                renderEncoderState.windingOrder = renderable.windingOrder
-                renderEncoderState.triangleFillMode = renderable.triangleFillMode
-
-                if renderable.doubleSided, renderable.cullMode == .none, renderable.opaque == false {
-                    renderEncoderState.cullMode = .front
-                    renderable.draw(renderContext: renderContext, renderEncoderState: renderEncoderState, shadow: shadow)
-
-                    renderEncoderState.cullMode = .back
-                    renderable.draw(renderContext: renderContext, renderEncoderState: renderEncoderState, shadow: shadow)
-                }
-                else {
-                    renderEncoderState.cullMode = renderable.cullMode
-                    renderable.draw(renderContext: renderContext, renderEncoderState: renderEncoderState, shadow: shadow)
-                }
-            }
-            
-
+            renderEncoder.encodeCurrentPass(
+                scene: subGraph.scene,
+                renderEncoderState: renderEncoderState,
+                repeatedIteration: iteration,
+                repeatedCount: iterationCount
+            )
             renderEncoderState.renderEncoder.popDebugGroup()
         }
     }
