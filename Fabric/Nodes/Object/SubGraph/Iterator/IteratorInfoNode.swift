@@ -71,7 +71,6 @@ public class IteratorInfoNode : Node
 //        print("Iterator Info executing")
         if let iterationInfo = executionInfo.iterationInfo
         {
-//            print("Iterator Info Sending Iteration Info for iteration \(iterationInfo.normalizedCurrentIteration)  \(iterationInfo.currentIteration) of \(iterationInfo.totalIterationCount) )")
             self.outputProgress.send( iterationInfo.normalizedCurrentIteration)
             self.outputIndex.send( iterationInfo.currentIteration)
             self.outputIterationCount.send( iterationInfo.totalIterationCount)

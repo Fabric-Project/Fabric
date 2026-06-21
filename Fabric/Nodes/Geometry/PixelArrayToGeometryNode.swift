@@ -42,10 +42,11 @@ public class PixelArrayToGeometryNode : BaseGeometryNode
 
     public override var geometry: PointCloudGeometry { _geometry }
 
-    private lazy var _geometry = PointCloudGeometry(context: self.context,
-                                                    positions: [],
-                                                    normals: [],
-                                                    uvs: [])
+    private lazy var _geometry: PointCloudGeometry = {
+        let g = PointCloudGeometry(context: self.context, positions: [], normals: [], uvs: [])
+        g.mutability = .dynamicData
+        return g
+    }()
 
     override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
     {
@@ -91,12 +92,8 @@ public class PixelArrayToGeometryNode : BaseGeometryNode
                     uvs = Self.planarUVs(for: positions)
                 }
 
-                let g = PointCloudGeometry(context: self.context,
-                                           positions: positions,
-                                           normals: normals,
-                                           uvs: uvs)
-                g.primitiveType = self.primitiveType()
-                self._geometry = g
+                self._geometry.setData(positions: positions, normals: normals, uvs: uvs)
+                self._geometry.primitiveType = self.primitiveType()
                 shouldOutput = true
             }
         }
@@ -155,6 +152,18 @@ public final class PointCloudGeometry : SatinGeometry
         self.normals = normals
         self.uvs = uvs
         super.init(context: context)
+    }
+
+    /// Update vertex data in-place rather than creating a new geometry object.
+    /// Sets `_updateData = true` so the next `update()` call regenerates GPU buffers.
+    func setData(positions: ContiguousArray<simd_float3>,
+                 normals: ContiguousArray<simd_float3>,
+                 uvs: ContiguousArray<simd_float2>)
+    {
+        self.positions = positions
+        self.normals = normals
+        self.uvs = uvs
+        _updateData = true
     }
 
     override public func generateGeometryData() -> GeometryData

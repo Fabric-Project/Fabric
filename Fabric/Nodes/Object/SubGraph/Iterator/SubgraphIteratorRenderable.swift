@@ -11,233 +11,210 @@ import Observation
 
 // PROXY encoder which gives us a hook to Satins internal encoder
 // via the Renderable Protocol draw method
-// this isnt ideal, as we dont quite match all of the semantics, but we do try.
 final class SubgraphIteratorRenderable: Satin.Renderable
 {
     var subGraph:Graph? = nil
     {
         didSet
         {
-            guard let subGraph else { return }
-            self.add(subGraph.scene)
+            if let oldScene = oldValue?.scene {
+                self.remove(oldScene)
+            }
+
+            // Do not parent the subgraph scene under this proxy. Satin's RenderEncoder
+            // recursively collects visible descendants, which would draw iterator child
+            // meshes once outside this loop with the final iteration's values.
+            preparedForCount = 0  // force re-prepare when subgraph changes
         }
     }
-    
+
     var graphRenderer:GraphRenderer? = nil
     var graphExecutionInfo:GraphExecutionInfo? = nil
     var currentCommandBuffer:MTLCommandBuffer? = nil
     var currentRenderPass:MTLRenderPassDescriptor? = nil
-    
+
     init(context:Context, iterationCount: Int)
     {
         self.iterationCount = iterationCount
-        
+
         super.init(context:context)
-        
+
         self.doubleSided = false
         self.renderOrder = 0
-        // TODO: Render Layer
-//        self.renderPass = 0
         self.receiveShadow = false
         self.castShadow = false
         self.cullMode = .back
         self.windingOrder = .counterClockwise
         self.triangleFillMode = .fill
+        // A material is required so Satin's shouldRender() passes and draw() is called.
+        // This material is not used for drawing in any way.
+        self.material = BasicColorMaterial(context: context)
     }
-    
+
     required init(from decoder: any Decoder) throws {
         fatalError("init(from:) has not been implemented")
     }
-    
-//    var renderables: [any Satin.Renderable] = []
-   
-    var iterationCount: Int
-        
+
+    var iterationCount: Int {
+        didSet {
+            if iterationCount != oldValue {
+                preparedForCount = 0  // force re-prepare on next draw
+            }
+        }
+    }
+
     private var updateCamera:Camera? = nil
     private var updateViewport:simd_float4? = nil
     private var updateIndex:Int?
-    
+
+    // Tracks the last count we called prepareForRepeatedEncoding with, per renderable identity.
+    private var preparedForCount: Int = 0
+    private var preparedRenderableCount: Int = 0
+
     override func isDrawable(renderContext: Satin.Context, shadow: Bool) -> Bool {
         true
     }
-    
+
     override func update(renderContext: Context, camera: Camera, viewport: simd_float4, index: Int)
     {
-        // We call update inline in draw, which is only so each draw gets the correct latest iterated values on the graph
+        // Store camera/viewport so each per-iteration draw can use them.
         self.updateCamera = camera
         self.updateViewport = viewport
         self.updateIndex = index
     }
-    
+
     override func draw(renderContext: Context, renderEncoderState: RenderEncoderState, shadow: Bool)
     {
         guard let subGraph,
-              let graphRenderer,
-              let graphExecutionInfo,
               let updateCamera,
               let updateViewport,
-              let updateIndex,
-              let currentRenderPass,
-              let currentCommandBuffer
+              let updateIndex
         else { return }
 
-        // TODO: Test if this needs to be recu
-        let renderableChildren = self.getChildren().compactMap( { $0 as? Renderable } )
-        
-        for r in renderableChildren
-        {
-            // Since each Mesh / Material / Geom has its own set of buffers
-            // Each iteration those buffers do not have a unique pointer address
-            // This means we need to copy directly into the encoder
-            // This is suboptimal!
-            // But this works!
-            // Fuck!!
-            
-            // We should be copying uniforms found in the bindUniforms from
-            // Material / Geom / Mesh
-            self.configureOnBindForRenderable(r, inContext: context, shadow: shadow)
+        if subGraph.shouldUpdateConnections {
+            subGraph.syncNodesToScene()
+            subGraph.shouldUpdateConnections = false
         }
-        
+
+        let subgraphObjects = [subGraph.scene] + subGraph.scene.getChildren()
+        let renderableChildren = subgraphObjects
+            .compactMap { $0 as? Renderable }
+            .filter(\.isVisible)
+            .sorted { $0.renderOrder < $1.renderOrder }
+
         for iteration in 0..<iterationCount
         {
             renderEncoderState.renderEncoder.pushDebugGroup("Iterator \(iteration)")
-            
-            let iterationInfo = GraphIterationInfo(totalIterationCount: iterationCount,
-                                                   currentIteration: iteration)
-            
-            graphExecutionInfo.iterationInfo = iterationInfo
-            
-//            self.subGraph.recursiveMarkDirty()
 
-            // tick graph forward one iteration
-            graphRenderer.execute(graph: subGraph,
-                             executionInfo: graphExecutionInfo,
-                             renderPassDescriptor:currentRenderPass,
-                             commandBuffer: currentCommandBuffer,
-                             // Woof
-                             clearFlags: false,
-                             forceEvaluationForTheseNodes: subGraph.nodes)
-                        
-            for r in renderableChildren
-            {
-                r.update(renderContext: context, camera: updateCamera, viewport: updateViewport, index: updateIndex)
+            for renderable in renderableChildren {
+                renderable.selectRepeatedEncodingSlot(iteration: iteration, count: iterationCount)
 
-                r.preDraw?(renderEncoderState.renderEncoder)
-                
-                r.draw(renderContext: context, renderEncoderState: renderEncoderState, shadow: shadow)
+                if renderable.vertexUniforms[renderContext.id] == nil {
+                    renderable.vertexUniforms[renderContext.id] = VertexUniformBuffer(
+                        context: renderContext.with(iterationsPerFrame: iterationCount)
+                    )
+                }
+
+                renderable.update(renderContext: renderContext,
+                                  camera: updateCamera,
+                                  viewport: updateViewport,
+                                  index: updateIndex)
+
+                guard renderable.isDrawable(renderContext: renderContext, shadow: shadow) else { continue }
+
+                renderable.preDraw?(renderEncoderState.renderEncoder)
+
+                renderEncoderState.windingOrder = renderable.windingOrder
+                renderEncoderState.triangleFillMode = renderable.triangleFillMode
+
+                if renderable.doubleSided, renderable.cullMode == .none, renderable.opaque == false {
+                    renderEncoderState.cullMode = .front
+                    renderable.draw(renderContext: renderContext, renderEncoderState: renderEncoderState, shadow: shadow)
+
+                    renderEncoderState.cullMode = .back
+                    renderable.draw(renderContext: renderContext, renderEncoderState: renderEncoderState, shadow: shadow)
+                }
+                else {
+                    renderEncoderState.cullMode = renderable.cullMode
+                    renderable.draw(renderContext: renderContext, renderEncoderState: renderEncoderState, shadow: shadow)
+                }
             }
             
+
             renderEncoderState.renderEncoder.popDebugGroup()
         }
-        
-        
-        for r in renderableChildren
-        {
-            r.material?.onBind = nil
-        }
-        
-        graphExecutionInfo.iterationInfo = nil
     }
-    
-    private func configureOnBindForRenderable(_ r:Renderable, inContext renderContext:Context, shadow:Bool)
-    {
-        if let material = r.material,
-           let uniforms = material.uniforms,
-           let shader = material.shader
-        {
-            material.onBind = { [weak r, weak uniforms, weak shader] encoder in
-                
-                guard let r, let uniforms, let shader else { return }
-                
-                material.updateUniforms()
 
-                // Copied from Mesh
-                if let vertexUniforms = r.vertexUniforms[renderContext.id]
-                {
-                    let basePtr = vertexUniforms.buffer.contents().advanced(by: vertexUniforms.offset)
-                    let length = vertexUniforms.buffer.length - vertexUniforms.offset
-                    
-                    if shader.vertexWantsVertexUniforms
-                    {
-                        encoder.setVertexBuffer(vertexUniforms.buffer, offset: vertexUniforms.offset, index: VertexBufferIndex.VertexUniforms.rawValue)
-                    }
-                    
-                    if shader.fragmentWantsVertexUniforms
-                    {
-                        encoder.setFragmentBuffer(vertexUniforms.buffer, offset: vertexUniforms.offset, index: FragmentBufferIndex.VertexUniforms.rawValue)
-                    }
-                }
-                
-                // Copied from Material
-                if shader.vertexWantsMaterialUniforms
-                {
-                    encoder.setVertexBuffer(uniforms.buffer, offset: uniforms.offset, index: VertexBufferIndex.MaterialUniforms.rawValue)
-                }
-                
-                if !shadow, shader.fragmentWantsMaterialUniforms
-                {
-                    encoder.setFragmentBuffer(uniforms.buffer, offset: uniforms.offset, index: FragmentBufferIndex.VertexUniforms.rawValue)
-                }
-            }
-        }
-    }
-    
     func startExecution(renderer:GraphRenderer)
     {
-        guard let subGraph
-        else { return }
-        
+        guard let subGraph else { return }
         renderer.startExecution(graph: subGraph)
     }
-    
+
     func stopExecution(renderer:GraphRenderer)
     {
-        guard let subGraph
-        else { return }
-    
+        guard let subGraph else { return }
         renderer.stopExecution(graph: subGraph)
     }
 
     func enableExecution(renderer:GraphRenderer)
     {
-        guard let subGraph
-        else { return }
-
+        guard let subGraph else { return }
         renderer.enableExecution(graph: subGraph)
     }
-    
+
     func disableExecution(renderer:GraphRenderer)
     {
-        guard let subGraph
-        else { return }
-
+        guard let subGraph else { return }
         renderer.disableExecution(graph: subGraph)
     }
-    
+
     public func execute(renderer:GraphRenderer,
                         executionInfo:GraphExecutionInfo,
                         renderPassDescriptor: MTLRenderPassDescriptor,
                         commandBuffer: MTLCommandBuffer)
     {
+        guard let subGraph else { return }
 
-        guard let subGraph
-//              let updateCamera,
-//              let updateViewport,
-//              let updateIndex,
-//              let currentRenderPass,
-//              let currentCommandBuffer
-        else { return }
-                
-                
-        //         execute the graph once, to just ensure meshes / materials have latest values popogated to nodes
-        //        self.subGraph.recursiveMarkDirty()
-        let _ = renderer.execute(graph: subGraph,
-                                 executionInfo: executionInfo,
-                                 renderPassDescriptor:renderPassDescriptor ,
-                                 commandBuffer: commandBuffer,
-                                 clearFlags: false,
-                                 // Woof
-                                 forceEvaluationForTheseNodes: subGraph.nodes)
+        if subGraph.shouldUpdateConnections {
+            subGraph.syncNodesToScene()
+            subGraph.shouldUpdateConnections = false
+        }
 
+        for iteration in 0..<iterationCount {
+            let iterationInfo = GraphIterationInfo(totalIterationCount: iterationCount,
+                                                   currentIteration: iteration)
+            executionInfo.iterationInfo = iterationInfo
+
+            renderer.execute(graph: subGraph,
+                             executionInfo: executionInfo,
+                             renderPassDescriptor: renderPassDescriptor,
+                             commandBuffer: commandBuffer,
+                             clearFlags: false,
+                             forceEvaluationForTheseNodes: subGraph.nodes)
+
+            if subGraph.shouldUpdateConnections {
+                subGraph.syncNodesToScene()
+                subGraph.shouldUpdateConnections = false
+            }
+
+            let subgraphObjects = [subGraph.scene] + subGraph.scene.getChildren()
+            let renderableChildren = subgraphObjects.compactMap { $0 as? Renderable }
+
+            if iterationCount != preparedForCount || renderableChildren.count != preparedRenderableCount {
+                for renderable in renderableChildren {
+                    renderable.prepareForRepeatedEncoding(count: iterationCount)
+                }
+                preparedForCount = iterationCount
+                preparedRenderableCount = renderableChildren.count
+            }
+
+            for object in subgraphObjects {
+                object.update()
+                object.encode(commandBuffer)
+            }
+        }
+
+        executionInfo.iterationInfo = nil
     }
 }

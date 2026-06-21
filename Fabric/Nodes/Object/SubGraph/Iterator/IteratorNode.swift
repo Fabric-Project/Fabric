@@ -87,21 +87,18 @@ public class IteratorNode: SubgraphNode
         self.renderProxy.graphExecutionInfo = executionInfo
         self.renderProxy.currentRenderPass = renderPassDescriptor
         self.renderProxy.currentCommandBuffer = commandBuffer
-//        self.renderProxy.renderables = self.subGraph.renderables
 
-        if self.inputIteratonCount.valueDidChange,
-            let count = self.inputIteratonCount.value
+        if let count = self.inputIteratonCount.value
         {
             self.renderProxy.iterationCount = count
         }
-        
+
         // execute the graph once, to just ensure meshes / materials have latest values popogated to nodes
         // this does technically introduce one additional draw call
         // Not sure the best way to avoid this - since we need to have the graph 'configured'
         self.renderProxy.execute(renderer: renderer, executionInfo: executionInfo, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
-        
+
         // We need to call this to ensure any published port values also get forwarded.
         self.forwardPortValues(force:true)
-
     }
 }

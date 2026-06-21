@@ -58,12 +58,24 @@ public class ArrayIndexValueNode: TypeAgnosticNode
 
         guard inputPort.valueDidChange || inputIndexParam.valueDidChange else { return }
 
-        guard let boxed = inputPort.snapshotValue(),
-              case .Array(let elements) = boxed,
-              let index = inputIndexParam.value else { return }
-
-        if let val = elements.safeGet(index: max(0, index)) {
-            outputPort.sendBoxed(val)
+        guard
+            let boxed = inputPort.snapshotValue(),
+            case .Array(let elements) = boxed,
+            let index = inputIndexParam.value
+        else
+        {
+            outputPort.sendBoxed(nil)
+            return
         }
+
+        guard
+            let val = elements.safeGet(index: max(0, index))
+        else
+        {
+            outputPort.sendBoxed(nil)
+            return
+        }
+
+        outputPort.sendBoxed(val)
     }
 }
