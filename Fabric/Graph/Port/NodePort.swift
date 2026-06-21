@@ -33,14 +33,19 @@ public class NodePort<Value : PortValueRepresentable>: Port
 
     override internal func sendBoxed(_ boxed: PortValue?)
     {
+        sendBoxed(boxed, force: false)
+    }
+
+    override internal func sendBoxed(_ boxed: PortValue?, force: Bool)
+    {
         if let boxed
         {
-            if let value = Value.fromPortValue(boxed) { self.send(value) }
+            if let value = Value.fromPortValue(boxed) { self.send(value, force: force) }
             // Type mismatch — don't send anything.
         }
         else
         {
-            self.send(nil)
+            self.send(nil, force: force)
         }
     }
     
