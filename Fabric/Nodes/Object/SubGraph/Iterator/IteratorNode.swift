@@ -112,15 +112,21 @@ public class IteratorNode: SubgraphNode
             subgraphObjects = objectsInSubgraph()
             renderableChildren = renderables(in: subgraphObjects)
             
-//            // This resizes buffers if , doesnt encode.
-//            prepareRepeatedEncodingIfNeeded(
-//                renderables: renderableChildren,
-//                count: iterationCount
-//            )
+            prepareRepeatedEncodingIfNeeded(
+                renderables: renderableChildren,
+                count: iterationCount
+            )
 
             for object in subgraphObjects {
                 object.update()
                 object.encode(commandBuffer)
+            }
+
+            for renderable in renderableChildren {
+                renderable.captureRepeatedEncodingState(
+                    iteration: iteration,
+                    count: iterationCount
+                )
             }
         }
 
