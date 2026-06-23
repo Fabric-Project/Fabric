@@ -131,6 +131,8 @@ public class GraphRenderer : ViewRenderer
         renderPassDescriptor.colorAttachments[0].storeAction = .store
         renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0)
 
+        let feedbackCache = self.feedbackCache(for: graph.id)
+
         for node in scheduledNodes {
             if graphRequiresResize {
                 node.resize(size: renderEncoder.size, scaleFactor: resizeScaleFactor)
@@ -147,6 +149,7 @@ public class GraphRenderer : ViewRenderer
             commandBuffer.popDebugGroup()
 #endif
             node.markClean()
+            feedbackCache.cacheProcessedNode(node, executionInfo: currentExecutionInfo)
         }
 
         graphRequiresResize = false
@@ -204,7 +207,12 @@ public class GraphRenderer : ViewRenderer
 
         if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider {
             orderedNodes.append(node)
-            feedbackCache.setProcessingState(.processed, forNode: node, executionInfo: currentExecutionInfo)
+            feedbackCache.setProcessingState(
+                .processed,
+                forNode: node,
+                executionInfo: currentExecutionInfo,
+                cacheProcessedOutputs: false
+            )
         }
     }
 
@@ -260,6 +268,7 @@ public class GraphRenderer : ViewRenderer
         if !nodesToPullFrom.isEmpty {
             var nodesWeHaveProcessedThisPass: [Node] = []
             var nodesWeHaveExecutedThisPass: [Node] = []
+            var nodeIDsWeHaveExecutedThisPass = Set<UUID>()
 
             for pullNode in nodesToPullFrom {
                 processGraph(graph: graph,
@@ -270,6 +279,7 @@ public class GraphRenderer : ViewRenderer
                              commandBuffer: commandBuffer,
                              nodesWeHaveProcessedThisPass: &nodesWeHaveProcessedThisPass,
                              nodesWeHaveExecutedThisPass: &nodesWeHaveExecutedThisPass,
+                             nodeIDsWeHaveExecutedThisPass: &nodeIDsWeHaveExecutedThisPass,
                              clearFlags: clearFlags)
             }
 
@@ -285,6 +295,7 @@ public class GraphRenderer : ViewRenderer
                               commandBuffer: MTLCommandBuffer,
                               nodesWeHaveProcessedThisPass: inout [Node],
                               nodesWeHaveExecutedThisPass: inout [Node],
+                              nodeIDsWeHaveExecutedThisPass: inout Set<UUID>,
                               clearFlags: Bool = true)
     {
         switch graphFeedbackCache.processingState(forNode: node) {
@@ -307,6 +318,7 @@ public class GraphRenderer : ViewRenderer
                          commandBuffer: commandBuffer,
                          nodesWeHaveProcessedThisPass: &nodesWeHaveProcessedThisPass,
                          nodesWeHaveExecutedThisPass: &nodesWeHaveExecutedThisPass,
+                         nodeIDsWeHaveExecutedThisPass: &nodeIDsWeHaveExecutedThisPass,
                          clearFlags: clearFlags)
         }
 
@@ -315,7 +327,7 @@ public class GraphRenderer : ViewRenderer
         }
 
         if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider {
-            if !nodesWeHaveExecutedThisPass.contains(node) {
+            if !nodeIDsWeHaveExecutedThisPass.contains(node.id) {
 #if DEBUG
                 commandBuffer.pushDebugGroup(node.name)
 #endif
@@ -327,6 +339,7 @@ public class GraphRenderer : ViewRenderer
                 commandBuffer.popDebugGroup()
 #endif
                 nodesWeHaveExecutedThisPass.append(node)
+                nodeIDsWeHaveExecutedThisPass.insert(node.id)
 
                 if clearFlags {
                     node.markClean()

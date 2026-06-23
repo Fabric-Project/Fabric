@@ -82,7 +82,12 @@ internal final class GraphRendererFeedbackCache
         return nodeProcessingStateCache[node.id, default: .unprocessed]
     }
     
-    func setProcessingState(_ state: NodeProcessingState, forNode node:Node, executionInfo:GraphExecutionInfo)
+    func setProcessingState(
+        _ state: NodeProcessingState,
+        forNode node:Node,
+        executionInfo:GraphExecutionInfo,
+        cacheProcessedOutputs: Bool = true
+    )
     {
         nodeProcessingStateCache[node.id] = state
         
@@ -94,8 +99,11 @@ internal final class GraphRendererFeedbackCache
         case .processing:
             self.setFeedbackState(forNode: node, executionInfo: executionInfo)
             
-        case .processed:
+        case .processed where cacheProcessedOutputs:
             self.cacheProcessedNode(node, executionInfo: executionInfo)
+
+        case .processed:
+            return
         }
     }
         
@@ -169,7 +177,7 @@ internal final class GraphRendererFeedbackCache
         return signature
     }
     
-    private func cacheProcessedNode(_ node: Node, executionInfo:GraphExecutionInfo)
+    func cacheProcessedNode(_ node: Node, executionInfo:GraphExecutionInfo)
     {
         let currentFrame = executionInfo.timing.frameNumber
 
