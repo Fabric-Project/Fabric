@@ -32,6 +32,8 @@ public class SubgraphNode: BaseObjectNode
     /// Called via callback when the sub graph's published ports change.
     public func rebuildProxyPorts()
     {
+        self.invalidatePortCaches()
+
         let innerPorts = self.subGraph.getPublishedPorts()
         let publishedIDs = Set(innerPorts.map(\.id))
 
@@ -65,6 +67,7 @@ public class SubgraphNode: BaseObjectNode
 
         self.synchronizeParameters()
 
+        self.invalidatePortCaches()
         self.graph?.shouldUpdateConnections.toggle()
         self.portsChangedSubject.send()
     }

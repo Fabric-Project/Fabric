@@ -266,7 +266,6 @@ public class GraphRenderer : ViewRenderer
         let firstCamera = graph.firstCamera ?? self.currentCamera ?? self.defaultCamera
 
         if !nodesToPullFrom.isEmpty {
-            var nodesWeHaveProcessedThisPass: [Node] = []
             var nodesWeHaveExecutedThisPass: [Node] = []
             var nodeIDsWeHaveExecutedThisPass = Set<UUID>()
 
@@ -277,7 +276,6 @@ public class GraphRenderer : ViewRenderer
                              executionInfo: executionInfo,
                              renderPassDescriptor: renderPassDescriptor,
                              commandBuffer: commandBuffer,
-                             nodesWeHaveProcessedThisPass: &nodesWeHaveProcessedThisPass,
                              nodesWeHaveExecutedThisPass: &nodesWeHaveExecutedThisPass,
                              nodeIDsWeHaveExecutedThisPass: &nodeIDsWeHaveExecutedThisPass,
                              clearFlags: clearFlags)
@@ -293,7 +291,6 @@ public class GraphRenderer : ViewRenderer
                               executionInfo: GraphExecutionInfo,
                               renderPassDescriptor: MTLRenderPassDescriptor,
                               commandBuffer: MTLCommandBuffer,
-                              nodesWeHaveProcessedThisPass: inout [Node],
                               nodesWeHaveExecutedThisPass: inout [Node],
                               nodeIDsWeHaveExecutedThisPass: inout Set<UUID>,
                               clearFlags: Bool = true)
@@ -316,7 +313,6 @@ public class GraphRenderer : ViewRenderer
                          executionInfo: executionInfo,
                          renderPassDescriptor: renderPassDescriptor,
                          commandBuffer: commandBuffer,
-                         nodesWeHaveProcessedThisPass: &nodesWeHaveProcessedThisPass,
                          nodesWeHaveExecutedThisPass: &nodesWeHaveExecutedThisPass,
                          nodeIDsWeHaveExecutedThisPass: &nodeIDsWeHaveExecutedThisPass,
                          clearFlags: clearFlags)
