@@ -30,10 +30,27 @@ internal final class GraphRendererFeedbackCache
         let frameNumber: Int
     }
 
+    private struct FeedbackCandidateCache
+    {
+        let signature: [UUID]
+        let candidates: [FeedbackCandidate]
+    }
+
+    private struct FeedbackCandidate
+    {
+        let inlet: Port
+        let upstreamOutlet: Port
+        let upstreamNodeID: UUID
+    }
+
     private let graphID:UUID
 
     private var lastCachePruneFrameNumber: Int = -1
     private var previousFrameCache: [PortCacheKey: PortValue] = [:]
+
+    // Resolved inlet -> upstream outlet pairs for feedback checks.
+    // Rebuilt automatically when a node's inlet connection signature changes.
+    private var feedbackCandidateCache: [UUID: FeedbackCandidateCache] = [:]
     
     internal init(graphID:UUID)
     {
@@ -89,23 +106,67 @@ internal final class GraphRendererFeedbackCache
         let previousFrame = executionInfo.timing.frameNumber - 1
 
         // Inject cached previous-frame values for back-edges (upstream node is currently .processing)
-        for inlet in node.inputPorts()
+        for candidate in feedbackCandidates(forNode: node)
         {
-            // In Fabric, inlets typically have at most 1 connection; if more, decide policy.
-            guard let upstreamOutlet = inlet.connections.first(where: { $0.kind == .Outlet }) else { continue }
-            guard let upstreamNode = upstreamOutlet.node else { continue }
-
-            if nodeProcessingStateCache[upstreamNode.id, default: .unprocessed] == .processing
+            if nodeProcessingStateCache[candidate.upstreamNodeID, default: .unprocessed] == .processing
             {
-                let key = PortCacheKey(portID: upstreamOutlet.id, frameNumber: previousFrame)
+                let key = PortCacheKey(portID: candidate.upstreamOutlet.id, frameNumber: previousFrame)
                 if let cached = previousFrameCache[key] // PortValue?
                 {
                     // This is the critical part: make the inlet read last frame instead of recursing
-                    inlet.restoreValue(from: cached)
+                    candidate.inlet.restoreValue(from: cached)
                 }
-//                print("GraphRendererFeedbackCache: setFeedbackState: \(graphID) node: \(node.name) inlet port: \(inlet.name)")
+//                print("GraphRendererFeedbackCache: setFeedbackState: \(graphID) node: \(node.name) inlet port: \(candidate.inlet.name)")
             }
         }
+    }
+
+    private func feedbackCandidates(forNode node: Node) -> [FeedbackCandidate]
+    {
+        let inputPorts = node.inputPorts()
+        let signature = feedbackCandidateSignature(forInputPorts: inputPorts)
+
+        if let cached = feedbackCandidateCache[node.id],
+           cached.signature == signature
+        {
+            return cached.candidates
+        }
+
+        let candidates = inputPorts.compactMap { inlet -> FeedbackCandidate? in
+            // In Fabric, inlets typically have at most 1 connection; if more, preserve current first-outlet policy.
+            guard let upstreamOutlet = inlet.connections.first(where: { $0.kind == .Outlet }),
+                  let upstreamNode = upstreamOutlet.node
+            else { return nil }
+
+            return FeedbackCandidate(
+                inlet: inlet,
+                upstreamOutlet: upstreamOutlet,
+                upstreamNodeID: upstreamNode.id
+            )
+        }
+
+        feedbackCandidateCache[node.id] = FeedbackCandidateCache(
+            signature: signature,
+            candidates: candidates
+        )
+
+        return candidates
+    }
+
+    // Cheap topology fingerprint for this node's inlets and their connections.
+    private func feedbackCandidateSignature(forInputPorts inputPorts: [Port]) -> [UUID]
+    {
+        var signature: [UUID] = []
+        signature.reserveCapacity(inputPorts.reduce(inputPorts.count) { $0 + $1.connections.count })
+
+        for inlet in inputPorts {
+            signature.append(inlet.id)
+            for connection in inlet.connections {
+                signature.append(connection.id)
+            }
+        }
+
+        return signature
     }
     
     private func cacheProcessedNode(_ node: Node, executionInfo:GraphExecutionInfo)
