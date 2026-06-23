@@ -50,7 +50,10 @@ internal final class GraphRendererFeedbackCache
 
         if self.lastCachePruneFrameNumber != currentFrame
         {
-            self.previousFrameCache = previousFrameCache.filter { $0.key.frameNumber == previousFrame }
+            let staleKeys = previousFrameCache.keys.filter { $0.frameNumber < previousFrame }
+            for key in staleKeys {
+                previousFrameCache.removeValue(forKey: key)
+            }
             self.lastCachePruneFrameNumber = currentFrame
         }
         
@@ -81,8 +84,9 @@ internal final class GraphRendererFeedbackCache
         
     private func setFeedbackState(forNode node:Node, executionInfo:GraphExecutionInfo)
     {
-        let currentFrame = executionInfo.timing.frameNumber
-        let previousFrame = currentFrame - 1
+        guard !previousFrameCache.isEmpty else { return }
+
+        let previousFrame = executionInfo.timing.frameNumber - 1
 
         // Inject cached previous-frame values for back-edges (upstream node is currently .processing)
         for inlet in node.inputPorts()
@@ -99,7 +103,7 @@ internal final class GraphRendererFeedbackCache
                     // This is the critical part: make the inlet read last frame instead of recursing
                     inlet.restoreValue(from: cached)
                 }
-//                print("GraphRendererFeedbackCache: setFeedbackState: \(graphID) frame \(currentFrame) node: \(node.name) inlet port: \(inlet.name)")
+//                print("GraphRendererFeedbackCache: setFeedbackState: \(graphID) node: \(node.name) inlet port: \(inlet.name)")
             }
         }
     }
