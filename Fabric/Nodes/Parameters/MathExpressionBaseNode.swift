@@ -52,10 +52,6 @@ public class MathExpressionBaseNode: Node
     /// subclasses manage these themselves (e.g. a mode-dependent Count input).
     public var reservedVariablePortNames: Set<String> { [] }
 
-    /// Re-parse the current expression and resync ports. For subclasses whose
-    /// port construction depends on a setting other than the expression text.
-    public func reevaluateExpression() { self.evalExpression() }
-
     // MARK: - Codable
 
     private enum MathExpressionCodingKeys: String, CodingKey
@@ -88,11 +84,12 @@ public class MathExpressionBaseNode: Node
 
     public required init(context: Context)
     {
-        // Initializing assignment — didSet does not fire, so a freshly
-        // created node does not evaluate until its expression is edited.
+        // Initializing assignment — didSet does not fire here; evaluate
+        // explicitly below so a freshly created node's variable ports exist
+        // immediately rather than only after the first edit.
         self.stringExpression = Self.defaultExpression
         super.init(context: context)
-        self.evaluatedDisplayName = Self.defaultExpression
+        self.evalExpression()
     }
 
     public convenience init(context: Context, expression: String)

@@ -56,20 +56,6 @@ public class ArrayMathExpressionBaseNode: MathExpressionBaseNode
     var forceReeval: Bool = true
     override public func expressionDidReparse() { self.forceReeval = true }
 
-    public required init(context: Context)
-    {
-        super.init(context: context)
-        // The base leaves a freshly created node unevaluated, so its default
-        // expression's variable ports wouldn't exist until the first edit.
-        // Evaluate now so those input ports appear on creation.
-        self.reevaluateExpression()
-    }
-
-    public required init(from decoder: any Decoder) throws
-    {
-        try super.init(from: decoder)
-    }
-
     // MARK: - Ports
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
