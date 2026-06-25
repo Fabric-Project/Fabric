@@ -48,6 +48,14 @@ public class MathExpressionBaseNode: Node
     /// nothing; subclasses can use it to force a re-emit.
     public func expressionDidReparse() {}
 
+    /// Input port names the variable-port sync must never add or remove —
+    /// subclasses manage these themselves (e.g. a mode-dependent Count input).
+    public var reservedVariablePortNames: Set<String> { [] }
+
+    /// Re-parse the current expression and resync ports. For subclasses whose
+    /// port construction depends on a setting other than the expression text.
+    public func reevaluateExpression() { self.evalExpression() }
+
     // MARK: - Codable
 
     private enum MathExpressionCodingKeys: String, CodingKey
@@ -157,9 +165,10 @@ public class MathExpressionBaseNode: Node
     /// any reserved `specialBindings` to be resolved at evaluation time.
     private func registerPorts(forEvaluator evaluator: Evaluator)
     {
+        let reserved = self.reservedVariablePortNames
         let unresolved = Set(evaluator.unresolved.variables.map { String($0) })
-        let variableNames = unresolved.subtracting(Self.specialBindings)
-        let existingNames = Set(self.inputPorts().map { $0.name })
+        let variableNames = unresolved.subtracting(Self.specialBindings).subtracting(reserved)
+        let existingNames = Set(self.inputPorts().map { $0.name }).subtracting(reserved)
 
         for name in existingNames.subtracting(variableNames)
         {
