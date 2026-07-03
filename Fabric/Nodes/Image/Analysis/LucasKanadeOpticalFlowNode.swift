@@ -44,7 +44,14 @@ public class LucasKanadeOpticalFlowNode: Node
              ParameterPort(parameter: StringParameter(
                 "Quality", "Medium",
                 ["Low", "Medium", "High", "Very High"], .dropdown,
-                "Pyramid depth: Low = 2 LK levels, Medium = 3, High/Very High = 4"))),
+                "Pyramid depth: Low = 2 LK levels, Medium = 3, High = 4, Very High = 5"))),
+            ("inputPreviousFlow",
+             NodePort<FabricImage>(name: "Previous Flow", kind: .Inlet,
+                                  description: "Optional previous RG flow field used for temporal smoothing")),
+            ("inputTemporalSmoothing",
+             ParameterPort(parameter: FloatParameter(
+                "Temporal Smoothing", 0.0, 0.0, 0.99, .slider,
+                "Previous-flow weight. Zero disables smoothing; 0.9 retains 90% of the previous flow."))),
             ("outputFlow",
              NodePort<FabricImage>(name: "Flow", kind: .Outlet,
                                   description: "RG16Float: R = dX, G = dY in UV space [-1, 1]")),
@@ -54,6 +61,8 @@ public class LucasKanadeOpticalFlowNode: Node
     public var inputImage:     NodePort<FabricImage> { port(named: "inputImage") }
     public var inputPrevImage: NodePort<FabricImage> { port(named: "inputPrevImage") }
     public var inputQuality:   NodePort<String>       { port(named: "inputQuality") }
+    public var inputPreviousFlow: NodePort<FabricImage> { port(named: "inputPreviousFlow") }
+    public var inputTemporalSmoothing: NodePort<Float> { port(named: "inputTemporalSmoothing") }
     public var outputFlow:     NodePort<FabricImage>  { port(named: "outputFlow") }
 
     // ── Compute pipelines ─────────────────────────────────────────────────
@@ -61,6 +70,7 @@ public class LucasKanadeOpticalFlowNode: Node
     private var flowLevelPipeline:         MTLComputePipelineState?
     private var medianFilterPipeline:       MTLComputePipelineState?
     private var bilateralUpsamplePipeline: MTLComputePipelineState?
+    private var temporalSmoothingPipeline:  MTLComputePipelineState?
 
     // Uniform struct — mirrors LKUniforms in LucasKanadeFlow.metal exactly.
     private struct LKUniforms {
@@ -104,6 +114,7 @@ public class LucasKanadeOpticalFlowNode: Node
         flowLevelPipeline         = pipeline("lk_flow_level")
         medianFilterPipeline       = pipeline("lk_median_filter")
         bilateralUpsamplePipeline = pipeline("lk_bilateral_upsample")
+        temporalSmoothingPipeline  = pipeline("lk_temporal_smooth")
     }
 
     // MARK: - Execute
@@ -116,12 +127,15 @@ public class LucasKanadeOpticalFlowNode: Node
         guard
             self.inputImage.valueDidChange
                 || self.inputPrevImage.valueDidChange
-                || self.inputQuality.valueDidChange,
+                || self.inputQuality.valueDidChange
+                || self.inputPreviousFlow.valueDidChange
+                || self.inputTemporalSmoothing.valueDidChange,
             let inTex      = self.inputImage.value?.texture,
             let preProc    = preprocessPipeline,
             let flowLvl    = flowLevelPipeline,
             let median     = medianFilterPipeline,
-            let bilat      = bilateralUpsamplePipeline
+            let bilat      = bilateralUpsamplePipeline,
+            let temporalSmooth = temporalSmoothingPipeline
         else { return }
 
         // Fall back to the current frame as "previous" when inputPrevImage is not
@@ -258,10 +272,33 @@ public class LucasKanadeOpticalFlowNode: Node
             prevFlowTex = upsampledFlowImage.texture
         }
 
+        let reconstructedFlow = upsampledFlowImages.last ?? medianFlow
+        var outputImage = reconstructedFlow
+
+        if let previousFlowTexture = inputPreviousFlow.value?.texture,
+           (inputTemporalSmoothing.value ?? 0.0) > 0.0,
+           let temporallySmoothedFlow = renderer.newImage(withWidth: W,
+                                                          height: H,
+                                                          format: .rg16Float)
+        {
+            var previousFlowWeight = min(max(inputTemporalSmoothing.value ?? 0.0, 0.0), 0.99)
+            flowEncoder.pushDebugGroup("LK Temporal Smoothing")
+            flowEncoder.setComputePipelineState(temporalSmooth)
+            flowEncoder.setTexture(reconstructedFlow.texture, index: 0)
+            flowEncoder.setTexture(previousFlowTexture, index: 1)
+            flowEncoder.setTexture(temporallySmoothedFlow.texture, index: 2)
+            flowEncoder.setBytes(&previousFlowWeight,
+                                 length: MemoryLayout<Float>.size,
+                                 index: 0)
+            dispatch(flowEncoder, width: W, height: H)
+            flowEncoder.popDebugGroup()
+            outputImage = temporallySmoothedFlow
+        }
+
         flowEncoder.endEncoding()
         commandBuffer.popDebugGroup()
 
-        outputFlow.send(upsampledFlowImages.last ?? medianFlow)
+        outputFlow.send(outputImage)
     }
 
     // MARK: - Helpers

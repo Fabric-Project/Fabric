@@ -106,9 +106,6 @@ kernel void lk_flow_level(
     int   cx         = int(lid.x) + HALO;
     int   cy         = int(lid.y) + HALO;
     float2 invSize = float2(invW, invH);
-    float2 stepX   = float2(invW, 0);
-    float2 stepY   = float2(0, invH);
-
     float Ixx = 0, Iyy = 0, Ixy = 0, Ixt = 0, Iyt = 0;
 
     for (int wy = -2; wy <= 2; wy++) {
@@ -118,14 +115,14 @@ kernel void lk_flow_level(
             float3 T = float3(shPrev[ny * SW + nx].rgb);
 
             float2 wUV = uv + v0 + float2(wx, wy) * invSize;
-            float3 Ce = float3(currPyramid.sample(s, wUV + stepX, level(float(u.pyramidLevel))).rgb);
-            float3 Cw = float3(currPyramid.sample(s, wUV - stepX, level(float(u.pyramidLevel))).rgb);
-            float3 Cs = float3(currPyramid.sample(s, wUV + stepY, level(float(u.pyramidLevel))).rgb);
-            float3 Cn = float3(currPyramid.sample(s, wUV - stepY, level(float(u.pyramidLevel))).rgb);
             float3 C = float3(currPyramid.sample(s, wUV, level(float(u.pyramidLevel))).rgb);
 
-            float3 Ix = 0.5f * (Ce - Cw);
-            float3 Iy = 0.5f * (Cs - Cn);
+            // Inverse-additive LK uses the template gradient. It is already in
+            // tile memory, reducing this loop from five texture samples to one.
+            float3 Ix = 0.5f * (float3(shPrev[ny * SW + nx + 1].rgb)
+                              - float3(shPrev[ny * SW + nx - 1].rgb));
+            float3 Iy = 0.5f * (float3(shPrev[(ny + 1) * SW + nx].rgb)
+                              - float3(shPrev[(ny - 1) * SW + nx].rgb));
             float3 It = C - T;
 
             Ixx += dot(Ix, Ix);
@@ -273,4 +270,25 @@ kernel void lk_bilateral_upsample(
     }
 
     outFlow.write(half4(bestFlow, 0, 1), gid);
+}
+
+// ─── Pass 5: temporal flow smoothing ──────────────────────────────────────
+
+kernel void lk_temporal_smooth(
+    texture2d<half, access::sample> currentFlow [[texture(0)]],
+    texture2d<half, access::sample> previousFlow [[texture(1)]],
+    texture2d<half, access::write> outputFlow [[texture(2)]],
+    constant float& previousFlowWeight [[buffer(0)]],
+    uint2 gid [[thread_position_in_grid]])
+{
+    const uint width = outputFlow.get_width();
+    const uint height = outputFlow.get_height();
+    if (gid.x >= width || gid.y >= height) return;
+
+    constexpr sampler sampleLinear(filter::linear, address::clamp_to_edge);
+    float2 uv = (float2(gid) + 0.5f) / float2(width, height);
+    float2 current = float2(currentFlow.sample(sampleLinear, uv).rg);
+    float2 previous = float2(previousFlow.sample(sampleLinear, uv).rg);
+    float2 smoothed = mix(current, previous, saturate(previousFlowWeight));
+    outputFlow.write(half4(half2(smoothed), 0.0h, 1.0h), gid);
 }
