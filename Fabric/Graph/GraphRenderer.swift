@@ -418,12 +418,35 @@ public class GraphRenderer : ViewRenderer
             ?? self.newImageDirect(withWidth: width, height: height, format: format)
     }
 
+    public func newImage(withWidth width: Int,
+                         height: Int,
+                         format: MTLPixelFormat,
+                         mipmapped: Bool) -> FabricImage?
+    {
+        guard mipmapped else {
+            return newImage(withWidth: width, height: height, format: format)
+        }
+
+        return privateTextureCache.newManagedImage(width: width,
+                                                   height: height,
+                                                   pixelFormat: format,
+                                                   mipmapped: true)
+            ?? newImageDirect(withWidth: width, height: height, format: format, mipmapped: true)
+    }
+
     public func newImage(fromPixelBuffer pixelBuffer: CVPixelBuffer) -> FabricImage?
     {
+        var image:FabricImage?
         if let surface = CVPixelBufferGetIOSurface(pixelBuffer)?.takeUnretainedValue() {
-            return self.newImage(fromSurface: surface)
+             image = self.newImage(fromSurface: surface)
+            
         }
-        return newSharedImage(fromPixelBuffer: pixelBuffer)
+       
+        image = newSharedImage(fromPixelBuffer: pixelBuffer)
+        
+        image?.isFlipped = CVImageBufferIsFlipped(pixelBuffer)
+        
+        return image
     }
 
     // MARK: - Private Image Helpers
@@ -448,6 +471,8 @@ public class GraphRenderer : ViewRenderer
 
         let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
         image.texture.replace(region: region, mipmapLevel: 0, withBytes: baseAddr, bytesPerRow: bpr)
+        
+        
         return image
     }
 
@@ -478,8 +503,29 @@ public class GraphRenderer : ViewRenderer
     private func metalPixelFormatForOSType(format: OSType) -> MTLPixelFormat?
     {
         switch format {
-        case kCVPixelFormatType_32BGRA:
-            return .bgra8Unorm
+        // 8-bit packed RGBA
+        case kCVPixelFormatType_32BGRA:         return .bgra8Unorm
+        case kCVPixelFormatType_32RGBA:         return .rgba8Unorm
+
+        // 10-bit HDR
+        case kCVPixelFormatType_ARGB2101010LEPacked: return .bgr10a2Unorm
+
+        // 16-bit half-float
+        case kCVPixelFormatType_64RGBAHalf:     return .rgba16Float
+
+        // 32-bit float
+        case kCVPixelFormatType_128RGBAFloat:   return .rgba32Float
+
+        // Single-component
+        case kCVPixelFormatType_OneComponent8:       return .r8Unorm
+        case kCVPixelFormatType_OneComponent16Half:  return .r16Float
+        case kCVPixelFormatType_OneComponent32Float: return .r32Float
+
+        // Two-component (e.g. optical flow: X in R, Y in G)
+        case kCVPixelFormatType_TwoComponent8:       return .rg8Unorm
+        case kCVPixelFormatType_TwoComponent16Half:  return .rg16Float
+        case kCVPixelFormatType_TwoComponent32Float: return .rg32Float
+
         default:
             return nil
         }
@@ -505,5 +551,20 @@ public class GraphRenderer : ViewRenderer
             return FabricImage.unmanaged(texture: texture)
         }
         return nil
+    }
+
+    private func newImageDirect(withWidth width: Int,
+                                height: Int,
+                                format: MTLPixelFormat,
+                                mipmapped: Bool) -> FabricImage?
+    {
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format,
+                                                                  width: width,
+                                                                  height: height,
+                                                                  mipmapped: mipmapped)
+        descriptor.usage = [.shaderRead, .shaderWrite, .renderTarget]
+
+        guard let texture = device.makeTexture(descriptor: descriptor) else { return nil }
+        return FabricImage.unmanaged(texture: texture)
     }
 }
