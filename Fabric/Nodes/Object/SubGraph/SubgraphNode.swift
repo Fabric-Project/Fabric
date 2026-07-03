@@ -68,7 +68,7 @@ public class SubgraphNode: BaseObjectNode
         self.synchronizeParameters()
 
         self.invalidatePortCaches()
-        self.graph?.shouldUpdateConnections.toggle()
+        self.graph?.shouldUpdateConnections = true
         self.portsChangedSubject.send()
     }
 

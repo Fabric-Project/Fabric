@@ -176,6 +176,9 @@ public class GraphRenderer : ViewRenderer
 
         pendingSceneSync = graph.shouldUpdateConnections
         graph.shouldUpdateConnections = false
+        if pendingSceneSync {
+            feedbackCache.invalidateTopologyCaches()
+        }
 
         let nodesWithOutputPorts = graph.nodesWithPublishedOutputs()
         let pullNodes = graph.consumerNodes + nodesWithOutputPorts
@@ -227,6 +230,9 @@ public class GraphRenderer : ViewRenderer
     {
         let needsSceneSync = graph.shouldUpdateConnections
         graph.shouldUpdateConnections = false
+        if needsSceneSync {
+            invalidateFeedbackTopologyCaches(for: graph)
+        }
 
         self.execute(graph: graph,
                      executionInfo: executionInfo,
@@ -392,6 +398,11 @@ public class GraphRenderer : ViewRenderer
         let newCache = GraphRendererFeedbackCache(graphID: graphID)
         feedbackCaches[graphID] = newCache
         return newCache
+    }
+
+    func invalidateFeedbackTopologyCaches(for graph: Graph)
+    {
+        feedbackCache(for: graph.id).invalidateTopologyCaches()
     }
 
     // MARK: - Execution Helpers

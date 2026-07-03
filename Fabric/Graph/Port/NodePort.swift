@@ -171,7 +171,7 @@ public class NodePort<Value : PortValueRepresentable>: Port
             port.connect(to: other)
         }
         self.node?.graph?.undoManager?.setActionName("Disconnect Ports")
-        self.node?.graph?.shouldUpdateConnections.toggle()
+        self.node?.graph?.shouldUpdateConnections = true
     }
 
     override public func connect(to other: Port)
@@ -274,7 +274,7 @@ public class NodePort<Value : PortValueRepresentable>: Port
             port.disconnect(from: other)
         }
         self.node?.graph?.undoManager?.setActionName("Connect Ports")
-        self.node?.graph?.shouldUpdateConnections.toggle()
+        self.node?.graph?.shouldUpdateConnections = true
     }
 
     public func send(_ v: Value?, force:Bool = false)

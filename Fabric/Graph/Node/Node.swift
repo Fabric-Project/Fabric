@@ -267,7 +267,7 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
             self.parameterGroup.append(param)
         }
 
-        self.graph?.shouldUpdateConnections.toggle()
+        self.graph?.shouldUpdateConnections = true
         self.portsChangedSubject.send()
     }
 
@@ -280,7 +280,7 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
             self.parameterGroup.remove(param)
         }
 
-        self.graph?.shouldUpdateConnections.toggle()
+        self.graph?.shouldUpdateConnections = true
         self.portsChangedSubject.send()
     }
 

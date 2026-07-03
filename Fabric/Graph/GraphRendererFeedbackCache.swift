@@ -30,12 +30,6 @@ internal final class GraphRendererFeedbackCache
         let frameNumber: Int
     }
 
-    private struct FeedbackCandidateCache
-    {
-        let signature: [UUID]
-        let candidates: [FeedbackCandidate]
-    }
-
     private struct FeedbackCandidate
     {
         let inlet: Port
@@ -49,8 +43,9 @@ internal final class GraphRendererFeedbackCache
     private var previousFrameCache: [PortCacheKey: PortValue] = [:]
 
     // Resolved inlet -> upstream outlet pairs for feedback checks.
-    // Rebuilt automatically when a node's inlet connection signature changes.
-    private var feedbackCandidateCache: [UUID: FeedbackCandidateCache] = [:]
+    // Rebuilt when the graph reports a topology change.
+    private var feedbackCandidateCache: [UUID: [FeedbackCandidate]] = [:]
+    private var connectedOutputPortCache: [UUID: [Port]] = [:]
     
     internal init(graphID:UUID)
     {
@@ -75,6 +70,12 @@ internal final class GraphRendererFeedbackCache
         }
         
 //        print("GraphRendererFeedbackCache: resetCacheFor: \(graphID) frame \(currentFrame)")
+    }
+
+    func invalidateTopologyCaches()
+    {
+        feedbackCandidateCache.removeAll(keepingCapacity: true)
+        connectedOutputPortCache.removeAll(keepingCapacity: true)
     }
     
     func processingState(forNode node:Node) -> NodeProcessingState
@@ -131,16 +132,12 @@ internal final class GraphRendererFeedbackCache
 
     private func feedbackCandidates(forNode node: Node) -> [FeedbackCandidate]
     {
-        let inputPorts = node.inputPorts()
-        let signature = feedbackCandidateSignature(forInputPorts: inputPorts)
-
-        if let cached = feedbackCandidateCache[node.id],
-           cached.signature == signature
+        if let cached = feedbackCandidateCache[node.id]
         {
-            return cached.candidates
+            return cached
         }
 
-        let candidates = inputPorts.compactMap { inlet -> FeedbackCandidate? in
+        let candidates = node.inputPorts().compactMap { inlet -> FeedbackCandidate? in
             // In Fabric, inlets typically have at most 1 connection; if more, preserve current first-outlet policy.
             guard let upstreamOutlet = inlet.connections.first(where: { $0.kind == .Outlet }),
                   let upstreamNode = upstreamOutlet.node
@@ -153,53 +150,42 @@ internal final class GraphRendererFeedbackCache
             )
         }
 
-        feedbackCandidateCache[node.id] = FeedbackCandidateCache(
-            signature: signature,
-            candidates: candidates
-        )
+        feedbackCandidateCache[node.id] = candidates
 
         return candidates
     }
 
-    // Cheap topology fingerprint for this node's inlets and their connections.
-    private func feedbackCandidateSignature(forInputPorts inputPorts: [Port]) -> [UUID]
-    {
-        var signature: [UUID] = []
-        signature.reserveCapacity(inputPorts.reduce(inputPorts.count) { $0 + $1.connections.count })
-
-        for inlet in inputPorts {
-            signature.append(inlet.id)
-            for connection in inlet.connections {
-                signature.append(connection.id)
-            }
-        }
-
-        return signature
-    }
-    
     func cacheProcessedNode(_ node: Node, executionInfo:GraphExecutionInfo)
     {
         let currentFrame = executionInfo.timing.frameNumber
 
-        for outlet in node.outputPorts()
+        for outlet in connectedOutputPorts(forNode: node)
         {
-            if !outlet.connections.isEmpty
-            {
-                let key = PortCacheKey(portID: outlet.id, frameNumber: currentFrame)
-                
-                if let boxed = outlet.snapshotValue()
-                {
-                    previousFrameCache[key] = boxed
-                }
-                else
-                {
-                    previousFrameCache.removeValue(forKey: key)
-                }
-                
-//                print("GraphRendererFeedbackCache: cacheProcessedNode: \(graphID) frame \(currentFrame) node: \(node.name) outlet port: \(outlet.name)")
+            let key = PortCacheKey(portID: outlet.id, frameNumber: currentFrame)
 
+            if let boxed = outlet.snapshotValue()
+            {
+                previousFrameCache[key] = boxed
             }
+            else
+            {
+                previousFrameCache.removeValue(forKey: key)
+            }
+
+//            print("GraphRendererFeedbackCache: cacheProcessedNode: \(graphID) frame \(currentFrame) node: \(node.name) outlet port: \(outlet.name)")
         }
+    }
+
+    private func connectedOutputPorts(forNode node: Node) -> [Port]
+    {
+        if let cached = connectedOutputPortCache[node.id]
+        {
+            return cached
+        }
+
+        let connectedOutputs = node.outputPorts().filter { !$0.connections.isEmpty }
+        connectedOutputPortCache[node.id] = connectedOutputs
+        return connectedOutputs
     }
     
 }

@@ -106,6 +106,10 @@ public struct GraphCanvas : View
             .onDrop(of: [.nodeRegistryItem, .fileURL], isTargeted: nil) { providers, location in
                 self.handleDrop(providers: providers, location: location, canvasSize: geom.size)
             }
+            .onChange(of: editingContext.currentGraph.nodes.count) { _, _ in
+                let nodeIDs = Set(editingContext.currentGraph.nodes.map(\.id))
+                settingsEntries.removeAll { !nodeIDs.contains($0.id) }
+            }
         }
     }
 
