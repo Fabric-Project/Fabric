@@ -441,8 +441,11 @@ public class GraphRenderer : ViewRenderer
              image = self.newImage(fromSurface: surface)
             
         }
-       
-        image = newSharedImage(fromPixelBuffer: pixelBuffer)
+        
+        if image == nil
+        {
+            image = newSharedImage(fromPixelBuffer: pixelBuffer)
+        }
         
         image?.isFlipped = CVImageBufferIsFlipped(pixelBuffer)
         
