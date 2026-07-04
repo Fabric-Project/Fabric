@@ -94,12 +94,9 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
                                            material: material,
                                            frameBufferOnly: false)
 
-        self.postProcessor.renderer.depthLoadAction = .dontCare
-        self.postProcessor.renderer.depthStoreAction = .dontCare
-        self.postProcessor.renderer.stencilLoadAction = .dontCare
-        self.postProcessor.renderer.stencilStoreAction = .dontCare
-
         super.init(context: context)
+
+        self.postInit()
 
         self.postSetupSynchronizePorts(allowReplace: true)
     }
@@ -115,12 +112,9 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
                                            material: material,
                                            frameBufferOnly: false)
 
-        self.postProcessor.renderer.depthLoadAction = .dontCare
-        self.postProcessor.renderer.depthStoreAction = .dontCare
-        self.postProcessor.renderer.stencilLoadAction = .dontCare
-        self.postProcessor.renderer.stencilStoreAction = .dontCare
-
         super.init(context: context)
+
+        self.postInit()
 
         self.postSetupSynchronizePorts(allowReplace: false,
                                        preserveExistingImageInputPorts: Self.preserveDecodedImageInputPortsOnDecode)
@@ -188,13 +182,11 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             ?? Self.defaultImageInputCountHint
             ?? Self.defaultInputCountForPath(decodedEffectPath, fallback: 1)
 
-        self.postProcessor.renderer.depthLoadAction = .dontCare
-        self.postProcessor.renderer.depthStoreAction = .dontCare
-        self.postProcessor.renderer.stencilLoadAction = .dontCare
-        self.postProcessor.renderer.stencilStoreAction = .dontCare
 
         try super.init(from: decoder)
 
+        self.postInit()
+        
         self.postSetupSynchronizePorts(allowReplace: false,
                                        preserveExistingImageInputPorts: Self.preserveDecodedImageInputPortsOnDecode)
     }
@@ -214,6 +206,19 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         try super.encode(to: encoder)
     }
 
+    private func postInit()
+    {
+        self.postProcessor.label = self.name + " Post Processor"
+        
+        self.postProcessor.renderer.depthTextureStorageMode = .memoryless
+        self.postProcessor.renderer.depthLoadAction = .dontCare
+        self.postProcessor.renderer.depthStoreAction = .dontCare
+
+        self.postProcessor.renderer.stencilTextureStorageMode = .memoryless
+        self.postProcessor.renderer.stencilLoadAction = .dontCare
+        self.postProcessor.renderer.stencilStoreAction = .dontCare
+    }
+    
     open func postSetupSynchronizePorts(allowReplace: Bool, preserveExistingImageInputPorts: Bool = false) {
         self.refreshImageInputPortCache()
         let existingImageInputCount = self.cachedImageInputPorts.count
@@ -564,6 +569,9 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             partialResult || next.valueDidChange
         }
 
+        commandBuffer.pushDebugGroup(self.name + " Execute")
+        defer { commandBuffer.popDebugGroup() }
+        
         if self.currentImageInputCount == 0 {
             guard let widthPort = self.resolutionPort(label: "Width"),
                   let heightPort = self.resolutionPort(label: "Height") else {
@@ -584,6 +592,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
             let renderPassDesc = MTLRenderPassDescriptor()
             renderPassDesc.colorAttachments[0].texture = outImage.texture
+            
             self.postProcessor.mesh.preDraw = nil
             self.postProcessor.draw(renderPassDescriptor: renderPassDesc, commandBuffer: commandBuffer)
             self.outputTexturePort.send(outImage)
