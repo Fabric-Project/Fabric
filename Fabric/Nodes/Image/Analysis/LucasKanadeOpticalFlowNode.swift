@@ -205,7 +205,6 @@ public class LucasKanadeOpticalFlowNode: Node
         enc.setTexture(inTex,                   index: 0)
         enc.setTexture(currentPyramid.texture,  index: 1)
         dispatch(enc, width: W, height: H)
-        enc.memoryBarrier(scope: .textures)
         enc.setTexture(prevInTex,               index: 0)
         enc.setTexture(previousPyramid.texture, index: 1)
         dispatch(enc, width: W, height: H)
@@ -253,7 +252,13 @@ public class LucasKanadeOpticalFlowNode: Node
                  width: medianFlow.texture.width,
                  height: medianFlow.texture.height)
         flowEncoder.popDebugGroup()
-        barrier()
+
+        let temporalSmoothing = min(max(inputTemporalSmoothing.value ?? 0.0, 0.0), 0.99)
+        let previousFlowTexture = inputPreviousFlow.value?.texture
+        let shouldApplyTemporalSmoothing = previousFlowTexture != nil && temporalSmoothing > 0.0
+        if upsampledFlowImages.isEmpty == false || shouldApplyTemporalSmoothing {
+            barrier()
+        }
 
         // ── Edge-aware upsample chain ─────────────────────────────────────
         var prevFlowTex = medianFlow.texture
@@ -266,22 +271,24 @@ public class LucasKanadeOpticalFlowNode: Node
             flowEncoder.setTexture(currentPyramid.texture,
                                    index: 1)
             flowEncoder.setTexture(upsampledFlowImage.texture, index: 2)
-            dispatch(flowEncoder, width: bwOut, height: bhOut)
+            dispatchEdgeAwareUpsample(flowEncoder, width: bwOut, height: bhOut)
             flowEncoder.popDebugGroup()
-            barrier()
+            if idx < upsampledFlowImages.count - 1 || shouldApplyTemporalSmoothing {
+                barrier()
+            }
             prevFlowTex = upsampledFlowImage.texture
         }
 
         let reconstructedFlow = upsampledFlowImages.last ?? medianFlow
         var outputImage = reconstructedFlow
 
-        if let previousFlowTexture = inputPreviousFlow.value?.texture,
-           (inputTemporalSmoothing.value ?? 0.0) > 0.0,
+        if let previousFlowTexture,
+           shouldApplyTemporalSmoothing,
            let temporallySmoothedFlow = renderer.newImage(withWidth: W,
                                                           height: H,
                                                           format: .rg16Float)
         {
-            var previousFlowWeight = min(max(inputTemporalSmoothing.value ?? 0.0, 0.0), 0.99)
+            var previousFlowWeight = temporalSmoothing
             flowEncoder.pushDebugGroup("LK Temporal Smoothing")
             flowEncoder.setComputePipelineState(temporalSmooth)
             flowEncoder.setTexture(reconstructedFlow.texture, index: 0)
@@ -331,5 +338,18 @@ public class LucasKanadeOpticalFlowNode: Node
         enc.dispatchThreads(
             MTLSize(width: width, height: height, depth: 1),
             threadsPerThreadgroup: MTLSize(width: 16, height: 16, depth: 1))
+    }
+
+    // The edge-aware kernel keeps eighteen samples and eight candidate sums
+    // live per thread. Smaller groups leave more room for concurrent SIMD
+    // groups when register pressure limits occupancy.
+    private func dispatchEdgeAwareUpsample(_ encoder: MTLComputeCommandEncoder,
+                                           width: Int,
+                                           height: Int)
+    {
+        encoder.dispatchThreads(
+            MTLSize(width: width, height: height, depth: 1),
+            threadsPerThreadgroup: MTLSize(width: 8, height: 8, depth: 1)
+        )
     }
 }
