@@ -437,12 +437,12 @@ public class GraphRenderer : ViewRenderer
     public func newImage(fromPixelBuffer pixelBuffer: CVPixelBuffer) -> FabricImage?
     {
         var image:FabricImage?
-        if let surface = CVPixelBufferGetIOSurface(pixelBuffer)?.takeUnretainedValue() {
-             image = self.newImage(fromSurface: surface)
-            
-        }
         
-        if image == nil
+        if let surface = CVPixelBufferGetIOSurface(pixelBuffer)?.takeUnretainedValue()
+        {
+             image = self.newImage(fromSurface: surface)
+        }
+        else
         {
             image = newSharedImage(fromPixelBuffer: pixelBuffer)
         }
