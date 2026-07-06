@@ -210,6 +210,7 @@ public class NodeRegistry {
             LUTProcessorNode.self,
             BlendNode.self,
             TextureCropNode.self,
+            ImageResampleNode.self,
         ])
         return classes
     }
