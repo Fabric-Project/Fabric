@@ -42,7 +42,7 @@ struct ParameterGroupView : View
         case .slider:
             switch param.type
             {
-            case .double, .float:
+            case .double, .float, .int:
                 return  AnyView(self.buildSlider(param: param))
                 
             default:
@@ -53,13 +53,13 @@ struct ParameterGroupView : View
         case .multislider:
             switch param.type
             {
-            case .float2:
+            case .float2, .int2:
                 return  AnyView(self.build2Slider(param: param))
 
-            case .float3:
+            case .float3, .int3:
                 return  AnyView(self.build3Slider(param: param))
 
-            case .float4:
+            case .float4, .int4:
                 return  AnyView(self.build4Slider(param: param))
 
             default:
@@ -85,7 +85,7 @@ struct ParameterGroupView : View
         case .none:
             switch param.type
             {
-            case .double, .float:
+            case .double, .float, .int:
                 return  AnyView(self.buildSlider(param: param))
                             
             default:
@@ -132,6 +132,11 @@ struct ParameterGroupView : View
             return EquatableView<FloatSlider>( content: FloatSlider(param:floatParam) )
         }
         
+        else if let intParam = param as? IntParameter
+        {
+            return EquatableView<IntSlider>( content: IntSlider(param:intParam) )
+        }
+        
         return Text(param.label)
     }
     
@@ -141,6 +146,12 @@ struct ParameterGroupView : View
         {
             return EquatableView<Float2Slider>( content: Float2Slider(param:floatParam) )
         }
+
+        else if let intParam = param as? Int2Parameter
+        {
+            return EquatableView<Int2Slider>( content: Int2Slider(param:intParam) )
+        }
+
         
         return Text(param.label)
     }
@@ -152,6 +163,11 @@ struct ParameterGroupView : View
             return EquatableView<Float3Slider>( content: Float3Slider(param:floatParam) )
         }
         
+        else if let intParam = param as? Int3Parameter
+        {
+            return EquatableView<Int3Slider>( content: Int3Slider(param:intParam) )
+        }
+        
         return Text(param.label)
     }
     
@@ -160,6 +176,11 @@ struct ParameterGroupView : View
         if let floatParam = param as? Float4Parameter
         {
             return EquatableView<Float4Slider>( content: Float4Slider(param:floatParam) )
+        }
+        
+        else if let intParam = param as? Int4Parameter
+        {
+            return EquatableView<Int4Slider>( content: Int4Slider(param:intParam) )
         }
         
         return Text(param.label)
