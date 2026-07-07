@@ -79,14 +79,24 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
             ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the movie file to play"))),
             ("inputPlayingParam", ParameterPort(parameter: BoolParameter("Playing", true, .toggle, "Play / pause the video"))),
             ("inputSeekTimeParam", ParameterPort(parameter: FloatParameter("Seek Time", -1.0, .inputfield, "Write a value to seek the player to that time (seconds). Setting to a different value seeks; setting to the same value is a no-op. Negative values are ignored on first load."))),
+            ("inputVolumeParam", ParameterPort(parameter: FloatParameter("Volume", 0.0, 0.0, 1.0, .slider, "Audio playback volume where 0 is silent and 1 is full volume"))),
             ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Current video frame")),
+            ("outputCurrentTimePort", NodePort<Float>(name: "Current Time", kind: .Outlet, description: "Current movie playback time in seconds")),
+            ("outputDurationPort", NodePort<Float>(name: "Duration", kind: .Outlet, description: "Movie duration in seconds")),
+            ("outputNormalizedTimePort", NodePort<Float>(name: "Normalized Time", kind: .Outlet, description: "Current playback position normalized from 0 to 1")),
+            ("outputDidPlayToEndPort", NodePort<Bool>(name: "Did Play To End", kind: .Outlet, description: "True for one execution pass when playback reaches the end")),
         ]
     }
 
     public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
     public var inputPlayingParam:ParameterPort<Bool>     { port(named: "inputPlayingParam") }
     public var inputSeekTimeParam:ParameterPort<Float>   { port(named: "inputSeekTimeParam") }
-    public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
+    public var inputVolumeParam:ParameterPort<Float>     { port(named: "inputVolumeParam") }
+    public var outputTexturePort:NodePort<FabricImage>   { port(named: "outputTexturePort") }
+    public var outputCurrentTimePort:NodePort<Float>     { port(named: "outputCurrentTimePort") }
+    public var outputDurationPort:NodePort<Float>        { port(named: "outputDurationPort") }
+    public var outputNormalizedTimePort:NodePort<Float>  { port(named: "outputNormalizedTimePort") }
+    public var outputDidPlayToEndPort:NodePort<Bool>     { port(named: "outputDidPlayToEndPort") }
 
     private var url: URL? = nil
     private var asset:AVURLAsset? = nil
@@ -95,6 +105,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     private var playerItemVideoOutput:AVPlayerItemVideoOutput
     private var pixelBuffer:CVPixelBuffer? = nil
     private var observer: Any? = nil
+    private var didPlayToEndPendingPulse: Bool = false
 
 #if FABRIC_HAP_ENABLED
     /// Hap decoder output, present only while the loaded asset is a
@@ -146,6 +157,42 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         let cmTime = self.player.currentTime()
         let seconds = CMTimeGetSeconds(cmTime)
         return seconds.isFinite ? seconds : 0
+    }
+
+    private var normalizedTime: TimeInterval {
+        let duration = self.duration
+        guard duration > 0 else { return 0 }
+        return max(0, min(self.currentTime / duration, 1))
+    }
+
+    private func volumeInputValue() -> Float {
+        max(0, min(self.inputVolumeParam.value ?? 0, 1))
+    }
+
+    private func sendPlaybackInfo()
+    {
+        self.outputCurrentTimePort.send(Float(self.currentTime))
+        self.outputDurationPort.send(Float(self.duration))
+        self.outputNormalizedTimePort.send(Float(self.normalizedTime))
+
+        if self.didPlayToEndPendingPulse
+        {
+            self.didPlayToEndPendingPulse = false
+            self.outputDidPlayToEndPort.send(true, force: true)
+        }
+        else
+        {
+            self.outputDidPlayToEndPort.send(false, force: true)
+        }
+    }
+
+    private func resetPlaybackInfo()
+    {
+        self.didPlayToEndPendingPulse = false
+        self.outputCurrentTimePort.send(0, force: true)
+        self.outputDurationPort.send(0, force: true)
+        self.outputNormalizedTimePort.send(0, force: true)
+        self.outputDidPlayToEndPort.send(false, force: true)
     }
 
     /// Whether a seek is in flight. Used internally by `performSeek`
@@ -304,6 +351,11 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
             }
         }
 
+        if self.inputVolumeParam.valueDidChange
+        {
+            self.player.volume = self.volumeInputValue()
+        }
+
         // Honour seek port. Negative values are the sentinel default —
         // ignored so the asset isn't seeked to 0 on first load.
         // `valueDidChange` already filters identical writes, and in
@@ -327,6 +379,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         }
 
         let time = executionInfo.timing.time
+        self.sendPlaybackInfo()
 
 #if FABRIC_HAP_ENABLED
         if self.executeHapPath(renderer: renderer, hostTime: time) { return }
@@ -391,32 +444,60 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         ] as [String : Any]
     }
 
+    private func unloadCurrentAsset()
+    {
+        if let observer = self.observer
+        {
+            NotificationCenter.default.removeObserver(observer)
+            self.observer = nil
+        }
+
+        self.player.pause()
+
+        if let oldItem = self.player.currentItem
+        {
+            oldItem.remove(self.playerItemVideoOutput)
+#if FABRIC_HAP_ENABLED
+            if let oldHap = self.hapOutput
+            {
+                oldItem.remove(oldHap)
+            }
+#endif
+        }
+
+        self.player.replaceCurrentItem(with: nil)
+        self.asset = nil
+        self.url = nil
+        self.outputTexturePort.send(nil)
+        self.resetPlaybackInfo()
+
+#if FABRIC_HAP_ENABLED
+        self.hapOutput = nil
+        self.hapUsesDXTPath = false
+        self.lastEmittedHapTime = .invalid
+        self.didLogDXTSubBlockPadding = false
+#endif
+    }
+
     private func loadAssetFromInputValue()
     {
-        if let path = self.inputFilePathParam.value,
-           path.isEmpty == false && self.url != URL(string: path)
+        guard let path = self.inputFilePathParam.value,
+              path.isEmpty == false
+        else
+        {
+            self.unloadCurrentAsset()
+            return
+        }
+
+        if self.url != URL(string: path)
         {
             self.url = URL(string: path)
 
             if let url,
                 FileManager.default.fileExists(atPath: url.standardizedFileURL.path(percentEncoded: false) )
             {
-                if let observer = self.observer
-                {
-                    NotificationCenter.default.removeObserver(observer)
-                }
-
-                self.player.pause()
-
-                if let oldItem = self.player.currentItem
-                {
-                    oldItem.remove(self.playerItemVideoOutput)
-#if FABRIC_HAP_ENABLED
-                    if let oldHap = self.hapOutput {
-                        oldItem.remove(oldHap)
-                    }
-#endif
-                }
+                self.unloadCurrentAsset()
+                self.url = url
 
 #if FABRIC_HAP_ENABLED
                 // New asset's clock is independent of the previous
@@ -449,15 +530,17 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
 
                 self.observer = NotificationCenter.default.addObserver(forName: AVPlayerItem.didPlayToEndTimeNotification,
                                                        object:playerItem,
-                                                       queue:OperationQueue.main) { note in
+                                                       queue:OperationQueue.main) { [weak self] _ in
 
+                    guard let self else { return }
+                    self.didPlayToEndPendingPulse = true
                     self.player.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero)
                     self.player.play()
                 }
 
                 self.player.replaceCurrentItem(with: playerItem)
 
-                self.player.volume = 0.0
+                self.player.volume = self.volumeInputValue()
                 self.player.actionAtItemEnd = .none
                 if (self.inputPlayingParam.value ?? true)
                 {
@@ -470,9 +553,9 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
             }
             else
             {
-                self.outputTexturePort.send( nil )
-
-                Self.log.error("Movie file not found at \(self.url?.path() ?? "<nil>", privacy: .public)")
+                let invalidURL = self.url
+                self.unloadCurrentAsset()
+                Self.log.error("Movie file not found at \(invalidURL?.path() ?? "<nil>", privacy: .public)")
             }
         }
     }
