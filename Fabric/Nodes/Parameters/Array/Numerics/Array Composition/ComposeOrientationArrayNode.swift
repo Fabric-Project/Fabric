@@ -11,7 +11,7 @@ import Metal
 public class ComposeOrientationArrayNode: StrategyNode
 {
     public override class var name: String { "Orientation Array Compose" }
-    public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
+    public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Quaternion) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Builds an array of Orientation quaternions via one of several strategies: Euler angles, Axis + Angle, or aiming at a Target. Inputs are zipped per element; output length matches the longest, shorter inputs pad with their last element." }

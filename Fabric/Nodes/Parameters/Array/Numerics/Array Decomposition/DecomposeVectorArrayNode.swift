@@ -11,7 +11,7 @@ import Metal
 public class DecomposeVectorArrayNode: StrategyNode
 {
     public override class var name: String { "Vector Array Decompose" }
-    public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
+    public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Vector) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Splits a vector array into per-element component arrays. Choose the vector type in Settings." }

@@ -268,7 +268,7 @@ public class AudioSpectrumNode : Node
     }
 
     override public class var name:String { "Audio Spectrum" }
-    override public class var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
+    override public class var nodeType:Node.NodeType { .Parameter(parameterType: .IO) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
     override public class var nodeTimeMode: Node.TimeMode { .Idle }
     override public class var nodeDescription: String { "Captures audio from the selected input device and emits a normalized per-band spectrum. Sensitivity controls how responsive the analyzer is to quiet sounds — 0 analyses only louder audio, 1 is full sensitivity. Gain multiplies the bar values after normalization, clamped to [0, 1] — a visual 'overdrive' that pushes bars toward full-scale without touching the underlying signal." }

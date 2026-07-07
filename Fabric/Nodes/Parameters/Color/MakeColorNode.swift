@@ -29,7 +29,7 @@ public class MakeColorNode: Node
             ("inputG", ParameterPort(parameter: FloatParameter("G", 0.0, .inputfield, "Green component (0–1)"))),
             ("inputB", ParameterPort(parameter: FloatParameter("B", 0.0, .inputfield, "Blue component (0–1)"))),
             ("inputA", ParameterPort(parameter: FloatParameter("A", 1.0, .inputfield, "Alpha component (0–1)"))),
-            ("outputColor", NodePort<simd_float4>(name: "Color", kind: .Outlet, description: "Combined RGBA color")),
+            ("outputColor", ColorNodePort(name: "Color", kind: .Outlet, description: "Combined RGBA color")),
         ]
     }
 

@@ -22,12 +22,13 @@ extension PortType
         case .Vector2:    return try isParameterPort ? ParameterPort<simd_float2>.init(from: decoder)   : NodePort<simd_float2>.init(from: decoder)
         case .Vector3:    return try isParameterPort ? ParameterPort<simd_float3>.init(from: decoder)   : NodePort<simd_float3>.init(from: decoder)
         case .Vector4:    return try isParameterPort ? ParameterPort<simd_float4>.init(from: decoder)   : NodePort<simd_float4>.init(from: decoder)
-        case .Color:      return try isParameterPort ? ParameterPort<simd_float4>.init(from: decoder)   : NodePort<simd_float4>.init(from: decoder)
+        case .Color:      return try isParameterPort ? ParameterPort<simd_float4>.init(from: decoder)   : ColorNodePort.init(from: decoder)
         case .Quaternion: return try NodePort<simd_quatf>.init(from: decoder)
         case .Transform:  return try NodePort<simd_float4x4>.init(from: decoder)
         case .Geometry:   return try NodePort<Satin.Geometry>.init(from: decoder)
         case .Material:   return try NodePort<Satin.Material>.init(from: decoder)
         case .Image:      return try NodePort<FabricImage>.init(from: decoder)
+        case .NumericVirtual: return try NumericVirtualPort.init(from: decoder)
         case .Virtual:    return try NodePort<PortValue>.init(from: decoder)
 
         case .Array(portType: let elementType):
@@ -55,8 +56,10 @@ extension PortType
             return try isParameterPort ? ParameterPort<ContiguousArray<simd_float2>>.init(from: decoder) : NodePort<ContiguousArray<simd_float2>>.init(from: decoder)
         case .Vector3:
             return try isParameterPort ? ParameterPort<ContiguousArray<simd_float3>>.init(from: decoder) : NodePort<ContiguousArray<simd_float3>>.init(from: decoder)
-        case .Vector4, .Color:
+        case .Vector4:
             return try isParameterPort ? ParameterPort<ContiguousArray<simd_float4>>.init(from: decoder) : NodePort<ContiguousArray<simd_float4>>.init(from: decoder)
+        case .Color:
+            return try isParameterPort ? ParameterPort<ContiguousArray<simd_float4>>.init(from: decoder) : ColorArrayNodePort.init(from: decoder)
         case .Quaternion:
             return try NodePort<ContiguousArray<simd_quatf>>.init(from: decoder)
         case .Transform:
@@ -88,15 +91,40 @@ extension PortType
         case .Vector2:    return NodePort<simd_float2>(name: name, kind: kind, description: description)
         case .Vector3:    return NodePort<simd_float3>(name: name, kind: kind, description: description)
         case .Vector4:    return NodePort<simd_float4>(name: name, kind: kind, description: description)
-        case .Color:      return NodePort<simd_float4>(name: name, kind: kind, description: description)
+        case .Color:      return ColorNodePort(name: name, kind: kind, description: description)
         case .Quaternion: return NodePort<simd_quatf>(name: name, kind: kind, description: description)
         case .Transform:  return NodePort<simd_float4x4>(name: name, kind: kind, description: description)
         case .Geometry:   return NodePort<Satin.Geometry>(name: name, kind: kind, description: description)
         case .Material:   return NodePort<Satin.Material>(name: name, kind: kind, description: description)
         case .Image:      return NodePort<FabricImage>(name: name, kind: kind, description: description)
+        case .NumericVirtual: return NumericVirtualPort(name: name, kind: kind, description: description)
         case .Virtual:    return NodePort<PortValue>(name: name, kind: kind, description: description)
         case .Array(portType: let elementType):
             return Self.makeFreshArrayPort(elementType: elementType, name: name, kind: kind, description: description)
+        }
+    }
+
+    public func makeFreshPort(name: String, kind: PortKind, description: String = "", id: UUID) -> Port
+    {
+        switch self
+        {
+        case .Bool:       return NodePort<Bool>(name: name, kind: kind, description: description, id: id)
+        case .Int:        return NodePort<Int>(name: name, kind: kind, description: description, id: id)
+        case .Float:      return NodePort<Float>(name: name, kind: kind, description: description, id: id)
+        case .String:     return NodePort<String>(name: name, kind: kind, description: description, id: id)
+        case .Vector2:    return NodePort<simd_float2>(name: name, kind: kind, description: description, id: id)
+        case .Vector3:    return NodePort<simd_float3>(name: name, kind: kind, description: description, id: id)
+        case .Vector4:    return NodePort<simd_float4>(name: name, kind: kind, description: description, id: id)
+        case .Color:      return ColorNodePort(name: name, kind: kind, description: description, id: id)
+        case .Quaternion: return NodePort<simd_quatf>(name: name, kind: kind, description: description, id: id)
+        case .Transform:  return NodePort<simd_float4x4>(name: name, kind: kind, description: description, id: id)
+        case .Geometry:   return NodePort<Satin.Geometry>(name: name, kind: kind, description: description, id: id)
+        case .Material:   return NodePort<Satin.Material>(name: name, kind: kind, description: description, id: id)
+        case .Image:      return NodePort<FabricImage>(name: name, kind: kind, description: description, id: id)
+        case .NumericVirtual: return NumericVirtualPort(name: name, kind: kind, description: description, id: id)
+        case .Virtual:    return NodePort<PortValue>(name: name, kind: kind, description: description, id: id)
+        case .Array(portType: let elementType):
+            return Self.makeFreshArrayPort(elementType: elementType, name: name, kind: kind, description: description, id: id)
         }
     }
 
@@ -110,14 +138,39 @@ extension PortType
         case .String:      return NodePort<ContiguousArray<String>>(name: name, kind: kind, description: description)
         case .Vector2:     return NodePort<ContiguousArray<simd_float2>>(name: name, kind: kind, description: description)
         case .Vector3:     return NodePort<ContiguousArray<simd_float3>>(name: name, kind: kind, description: description)
-        case .Vector4, .Color:
+        case .Vector4:
                            return NodePort<ContiguousArray<simd_float4>>(name: name, kind: kind, description: description)
+        case .Color:
+                           return ColorArrayNodePort(name: name, kind: kind, description: description)
         case .Quaternion:  return NodePort<ContiguousArray<simd_quatf>>(name: name, kind: kind, description: description)
         case .Transform:   return NodePort<ContiguousArray<simd_float4x4>>(name: name, kind: kind, description: description)
         case .Geometry:    return NodePort<ContiguousArray<Satin.Geometry>>(name: name, kind: kind, description: description)
         case .Material:    return NodePort<ContiguousArray<Satin.Material>>(name: name, kind: kind, description: description)
         case .Image:       return NodePort<ContiguousArray<FabricImage>>(name: name, kind: kind, description: description)
         default:           return NodePort<ContiguousArray<PortValue>>(name: name, kind: kind, description: description)
+        }
+    }
+
+    private static func makeFreshArrayPort(elementType: PortType, name: String, kind: PortKind, description: String, id: UUID) -> Port
+    {
+        switch elementType
+        {
+        case .Bool:        return NodePort<ContiguousArray<Bool>>(name: name, kind: kind, description: description, id: id)
+        case .Int:         return NodePort<ContiguousArray<Int>>(name: name, kind: kind, description: description, id: id)
+        case .Float:       return NodePort<ContiguousArray<Float>>(name: name, kind: kind, description: description, id: id)
+        case .String:      return NodePort<ContiguousArray<String>>(name: name, kind: kind, description: description, id: id)
+        case .Vector2:     return NodePort<ContiguousArray<simd_float2>>(name: name, kind: kind, description: description, id: id)
+        case .Vector3:     return NodePort<ContiguousArray<simd_float3>>(name: name, kind: kind, description: description, id: id)
+        case .Vector4:
+                           return NodePort<ContiguousArray<simd_float4>>(name: name, kind: kind, description: description, id: id)
+        case .Color:
+                           return ColorArrayNodePort(name: name, kind: kind, description: description, id: id)
+        case .Quaternion:  return NodePort<ContiguousArray<simd_quatf>>(name: name, kind: kind, description: description, id: id)
+        case .Transform:   return NodePort<ContiguousArray<simd_float4x4>>(name: name, kind: kind, description: description, id: id)
+        case .Geometry:    return NodePort<ContiguousArray<Satin.Geometry>>(name: name, kind: kind, description: description, id: id)
+        case .Material:    return NodePort<ContiguousArray<Satin.Material>>(name: name, kind: kind, description: description, id: id)
+        case .Image:       return NodePort<ContiguousArray<FabricImage>>(name: name, kind: kind, description: description, id: id)
+        default:           return NodePort<ContiguousArray<PortValue>>(name: name, kind: kind, description: description, id: id)
         }
     }
 

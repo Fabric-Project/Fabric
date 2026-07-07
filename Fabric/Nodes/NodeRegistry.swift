@@ -320,17 +320,23 @@ public class NodeRegistry {
     }
     
     private var parameterNodeClasses: [Node.Type] = [
-        // Boolean
+        // Numeric, type-agnostic value operations.
+        DistanceNode.self,
+        EasingNode.self,
+        TweenNode.self,
+        RepeatNode.self,
+        RippleRepeatNode.self,
+        PairwiseDistanceArrayNode.self,
+        ArrayRangeInterpolateNode.self,
+        ArrayResampleTypeAgnosticNode.self,
+
+        // Boolean.
         PassThroughNode<Bool>.self,
         BooleanLogicNode.self,
-        RepeatValueNode<Bool>.self,
 
-        // Index
-        PassThroughNode<Int>.self,
-        RepeatValueNode<Int>.self,
-        
-        // Number
+        // Number and index.
         PassThroughNode<Float>.self,
+        PassThroughNode<Int>.self,
         CurrentTimeNode.self,
         SystemTimeNode.self,
         TimestampNode.self,
@@ -340,116 +346,84 @@ public class NodeRegistry {
         NumberLogicOperator.self,
         NumberRoundNode.self,
         NumberClampNode.self,
-        NumberEaseNode.self,
-        NumberTweenNode.self,
         NumberRemapNode.self,
         NumberIntegralNode.self,
         NumberSmoothNode.self,
         MathExpressionNode.self,
         GradientNoiseNode.self,
         AudioSpectrumNode.self,
+        ArrayMathExpressionNode.self,
+
+        // Vector: scalar/vector operations first, vector-array operations last.
+        PassThroughNode<simd_float2>.self,
+        PassThroughNode<simd_float3>.self,
+        PassThroughNode<simd_float4>.self,
+        ComposeVectorNode.self,
+        DecomposeVectorNode.self,
+        ComposeVectorArrayNode.self,
+        DecomposeVectorArrayNode.self,
+
+        // Orientation: single orientation operations first, orientation-array operations last.
+        PassThroughNode<simd_quatf>.self,
+        ComposeOrientationNode.self,
+        DecomposeOrientationNode.self,
+        ComposeOrientationArrayNode.self,
+        DecomposeOrientationArrayNode.self,
+
+        // Transform: single transform operations first, transform-array operations last.
+        PassThroughNode<simd_float4x4>.self,
+        ComposeTransformNode.self,
+        DecomposeTransformNode.self,
+        TranslateTransformNode.self,
+        RotateTransformNode.self,
+        ScaleTransformNode.self,
+        TransposeTransformNode.self,
+        InvertTransformNode.self,
+        ComposeTransformArrayNode.self,
+        DecomposeTransformArrayNode.self,
+        GeometryToTransformArrayNode.self,
+
+        // Color.
         ColorPassThroughNode.self,
         MakeColorNode.self,
-        ColorTweenNode.self,
-        OrientationTweenNode.self,
-        ArrayMathExpressionNode.self,
-        RepeatValueNode<Float>.self,
-        ArrayFromRippledValueNode<Float>.self,
-        ArrayResampleNode<Float>.self,
-        ArrayRangeInterpolationNode<Float>.self,
 
-        // String
+        // String.
         PassThroughNode<String>.self,
         StringTrimNode.self,
         StringLengthNode.self,
         StringRangeNode.self,
         StringWrapNode.self,
         StringCaseNode.self,
+        StringComparisonNode.self,
         StringFormatterNode.self,
         StringScannerNode.self,
-        StringComparisonNode.self,
         StringJoinNode.self,
-        StringDifferenceNode.self,
         StringSplitNode.self,
+        StringDifferenceNode.self,
         TimestampFormatterNode.self,
         TimecodeFormatterNode.self,
 //        ConvertToStringNode.self,
         LocalLLMNode.self,
         DirectoryScannerNode.self,
         TextFileLoaderNode.self,
-        RepeatValueNode<String>.self,
-        
-        // Vectors
-        // Consolidated non-generic compose/decompose nodes (type chosen in Settings).
-        ComposeVectorNode.self,
-        DecomposeVectorNode.self,
-        ComposeVectorArrayNode.self,
-        DecomposeVectorArrayNode.self,
 
-        PassThroughNode<simd_float2>.self,
-        VectorTweenNode<simd_float2>.self,
-        Vector2Distance.self,
-        RepeatValueNode<simd_float2>.self,
-        ArrayFromRippledValueNode<simd_float2>.self,
-        ArrayResampleNode<simd_float2>.self,
-        ArrayRangeInterpolationNode<simd_float2>.self,
-        VectorArrayTweenNode<simd_float2>.self,
-        PolyLineSimplifyNode.self,
-
-        PassThroughNode<simd_float3>.self,
-        VectorTweenNode<simd_float3>.self,
-        Vector3Distance.self,
-        OrientationArrayTweenNode.self,
-        ComposeTransformArrayNode.self,
-        RepeatValueNode<simd_float3>.self,
-        ArrayFromRippledValueNode<simd_float3>.self,
-        ArrayResampleNode<simd_float3>.self,
-        ArrayRangeInterpolationNode<simd_float3>.self,
-        ComposeOrientationArrayNode.self,
-        DecomposeOrientationArrayNode.self,
-        VectorArrayTweenNode<simd_float3>.self,
-
-        PassThroughNode<simd_float4>.self,
-        VectorTweenNode<simd_float4>.self,
-        Vector4Distance.self,
-        RepeatValueNode<simd_float4>.self,
-        ArrayFromRippledValueNode<simd_float4>.self,
-        ArrayResampleNode<simd_float4>.self,
-        ArrayRangeInterpolationNode<simd_float4>.self,
-        VectorArrayTweenNode<simd_float4>.self,
-
-        PassThroughNode<simd_quatf>.self,
-        ComposeOrientationNode.self,
-        DecomposeOrientationNode.self,
-
-        // Transform (Float Matrix 4x4)
-        PassThroughNode<simd_float4x4>.self,
-        RotateTransformNode.self,
-        ScaleTransformNode.self,
-        TranslateTransformNode.self,
-        TransposeTransformNode.self,
-        InvertTransformNode.self,
-        ComposeTransformNode.self,
-        DecomposeTransformNode.self,
-        GeometryToTransformArrayNode.self,
-        RepeatValueNode<simd_float4x4>.self,
-        DecomposeTransformArrayNode.self,
-
-        // Type-agnostic array structure nodes (Virtual by default; type selected in Settings)
-        // RepeatValueNode stays generic — the value inlet requires a typed default parameter port.
+        // Array: generic structure nodes, then more specialized array generators/processors.
+        ArrayCountNode.self,
         ArrayFirstValueNode.self,
         ArrayLastValueNode.self,
         ArrayIndexValueNode.self,
-        ArrayCountNode.self,
         ArrayAppendNode.self,
         ArrayReplaceValueAtIndexNode.self,
         ArraySplitAtIndexNode.self,
+        ArraySubarrayNode.self,
         ArrayQueueNode.self,
         ArrayReverseNode.self,
         ArrayShuffleNode.self,
-        ArraySubarrayNode.self,
-
-        ]
+        LinePointsNode.self,
+        RingPointsNode.self,
+        GridPointsNode.self,
+        PolyLineSimplifyNode.self,
+    ]
     
     private var ioNodeClasses: [Node.Type] {
         var classes: [Node.Type] = [

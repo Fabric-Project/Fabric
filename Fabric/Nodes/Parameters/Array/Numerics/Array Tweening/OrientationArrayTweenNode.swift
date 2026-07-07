@@ -14,7 +14,7 @@ import Metal
 public class OrientationArrayTweenNode : Node
 {
     override public class var name: String { "Orientation Array Tween" }
-    override public class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
+    override public class var nodeType: Node.NodeType { .Parameter(parameterType: .Quaternion) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
     override public class var nodeTimeMode: Node.TimeMode { .TimeBase }
     override public class var nodeDescription: String { "Tweens each element of an orientation array toward the matching Target over a duration using slerp and an easing curve. All elements share one tween clock. When the Targets array changes, each element tweens from its current value; elements beyond the previous count start at their target." }

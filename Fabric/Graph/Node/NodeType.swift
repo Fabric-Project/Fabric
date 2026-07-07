@@ -57,12 +57,15 @@ extension Node
     {
         public enum ParameterType : String, CaseIterable, Equatable, Hashable
         {
+            case Numeric // This is for Nodes that can handle any numeric type
             case Boolean
             case Number
             case Vector
             case Quaternion
             case Transform
             case Color
+
+            // Non Numeric
             case String
             case Array
             case IO

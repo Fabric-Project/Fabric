@@ -30,7 +30,11 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
     case Material
     case Image
     case Array(portType:PortType)
+
+    // A Virtual type that boxes all typed values into PortValue
     case Virtual
+    // A Virtual type that only allows numeric parameter type connections
+    case NumericVirtual
     
     // Leaf and commonly-used nested types for UI menus and serialization dispatch.
     // Does NOT enumerate all possible recursive combinations — use PortType(rawValue:) for dynamic reconstruction.
@@ -58,10 +62,14 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         .Array(portType:.Vector3),
         .Array(portType:.Vector4),
         .Array(portType:.Color),
+        .Array(portType:.Quaternion),
+        .Array(portType:.Transform),
         .Array(portType:.Geometry),
         .Array(portType:.Material),
         .Array(portType:.Image),
 
+        // We intentionally skip 'NumericVirtual' as its a bit of an internal implementation detail
+        // Since this is used for UI.
         .Virtual
 
     ]
@@ -86,6 +94,7 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         case "Geometry":      self = .Geometry;  return
         case "Material":      self = .Material;  return
         case "Image":         self = .Image;     return
+        case "Numeric Virtual": self = .NumericVirtual; return
         case "Virtual":       self = .Virtual;    return
             
         default: break
@@ -155,6 +164,8 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
             return FabricImage.self
         case .Array(portType: let portType):
             return contiguousArrayMetatype(of: portType.type)
+        case .NumericVirtual:
+            return PortValue.self
         case .Virtual:
             return PortValue.self
         }
@@ -190,6 +201,8 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
             return "Image"
         case .Array(portType: let type):
             return "Array of \(type.rawValue)"
+        case .NumericVirtual:
+            return "Numeric Virtual"
         case .Virtual:
             return "Virtual"
         }
@@ -221,7 +234,10 @@ extension PortType {
         case .Image:        return PassThroughNode<FabricImage>.self
         case .Array(portType: let elementType):
             return Self.arrayParameterNodeClass(for: elementType)
-        default:            return nil
+        case .NumericVirtual:
+            return nil
+        default:
+            return nil
         }
     }
 

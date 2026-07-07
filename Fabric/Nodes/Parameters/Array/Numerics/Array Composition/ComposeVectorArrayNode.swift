@@ -11,7 +11,7 @@ import Metal
 public class ComposeVectorArrayNode: StrategyNode
 {
     public override class var name: String { "Vector Array Compose" }
-    public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
+    public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Vector) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Zips component arrays into a vector array. Output length matches the longest input; shorter inputs pad with their last element. Choose the vector type in Settings." }

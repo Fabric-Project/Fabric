@@ -32,7 +32,7 @@ struct ArrayMathExpressionView: View
 public class ArrayMathExpressionNode: MathExpressionBaseNode
 {
     override public static var name: String { "Array Math Expression" }
-    override public static var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
+    override public static var nodeType: Node.NodeType { .Parameter(parameterType: .Number) }
     override public class var nodeDescription: String { "Evaluates a math expression once per output element. Output length matches the longest variable-input array (pad with last element); defaults to 1 when no arrays are connected. Special bindings: i (index), n (count), t (progress 0..1). Other identifiers become Float array input ports." }
 
     override public class var defaultExpression: String { "dist * sin(t * 2 * pi)" }

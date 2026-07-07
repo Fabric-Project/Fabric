@@ -48,6 +48,7 @@ open class AnyPort: Codable {
             case .Geometry: self.base = try ProxyPort<Geometry>(from: portDecoder)
             case .Material: self.base = try ProxyPort<Material>(from: portDecoder)
             case .Image: self.base = try ProxyPort<FabricImage>(from: portDecoder)
+            case .NumericVirtual: self.base = try NumericVirtualPort(from: portDecoder)
             case .Virtual: self.base = try ProxyPort<PortValue>(from: portDecoder)
             case .Array(portType: let elementType):
                 switch elementType {

@@ -11,6 +11,11 @@ extension PortType
 {
     func canConnect(to other: PortType) -> Bool
     {
+        if self == .NumericVirtual || other == .NumericVirtual
+        {
+            return self.isNumericVirtualCompatible || other.isNumericVirtualCompatible
+        }
+
         // Any connection involving a Virtual port is permitted.
         // The send path boxes typed→Virtual; Virtual→typed produces no value but is not blocked at connect time.
         if self == .Virtual || other == .Virtual { return true }
@@ -32,6 +37,21 @@ extension PortType
 
         default:
             return self == other
+        }
+    }
+
+    var isNumericVirtualCompatible: Bool
+    {
+        switch self
+        {
+        case .Int, .Float, .Vector2, .Vector3, .Vector4, .Color, .Quaternion, .Transform:
+            return true
+        case .Array(portType: let elementType):
+            return elementType.isNumericVirtualCompatible
+        case .NumericVirtual:
+            return true
+        default:
+            return false
         }
     }
 }
