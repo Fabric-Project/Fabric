@@ -171,6 +171,8 @@ public class GraphRenderer : ViewRenderer
     // MARK: - Graph Analysis (update phase)
 
     private func updateExecutionPlan() {
+        self.resetTextureCaches(for: currentExecutionInfo)
+
         let feedbackCache = self.feedbackCache(for: graph.id)
         feedbackCache.resetCacheFor(executionInfo: currentExecutionInfo)
 
@@ -258,6 +260,8 @@ public class GraphRenderer : ViewRenderer
                         clearFlags: Bool = true,
                         forceEvaluationForTheseNodes: [Node] = [])
     {
+        self.resetTextureCaches(for: executionInfo)
+
         let feedbackCache = self.feedbackCache(for: graph.id)
         feedbackCache.resetCacheFor(executionInfo: executionInfo)
 
@@ -350,6 +354,12 @@ public class GraphRenderer : ViewRenderer
                 graphFeedbackCache.setProcessingState(.processed, forNode: node, executionInfo: executionInfo)
             }
         }
+    }
+
+    private func resetTextureCaches(for executionInfo: GraphExecutionInfo)
+    {
+        self.privateTextureCache.resetCacheFor(executionContext: executionInfo)
+        self.sharedTextureCache.resetCacheFor(executionContext: executionInfo)
     }
 
     // MARK: - Graph Execution Lifecycle
