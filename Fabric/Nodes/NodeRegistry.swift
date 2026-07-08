@@ -193,6 +193,7 @@ public class NodeRegistry {
             LiveImageNode.self,
             DepthOfFieldNode.self,
             GaussianBlurNode.self,
+            GaussianBlurChannelsNode.self,
             MotionBlurNode.self,
             PostProcessMotionBlurNode.self,
             ZoomBlurNode.self,
