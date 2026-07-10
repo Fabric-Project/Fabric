@@ -16,12 +16,27 @@ import Metal
 import SwiftUI
 import simd
 import MathExpressionEngine
+import CodeEditorView
+import LanguageSupport
 
 // MARK: - Settings View
 
 struct MathExpressionView: View
 {
     @Bindable var model: MathExpressionNode.SettingsModel
+
+    // Editor disclosure lives on the (observable) model so the node's
+    // `settingsSize` reacts to it too. The single-line field is the resting
+    // state; the code editor appears when the expression spans multiple
+    // statements (a `;` or newline) or when explicitly expanded — so a one-liner
+    // always opens simple and compact, and the mode needs no persistence.
+    @State private var editorPosition = CodeEditor.Position()
+    @State private var editorMessages: Set<TextLocated<Message>> = []
+
+    private var isMultiStatement: Bool
+    {
+        model.stringExpression.contains(";") || model.stringExpression.contains("\n")
+    }
 
     var body: some View
     {
@@ -35,18 +50,60 @@ struct MathExpressionView: View
             Text("[Language guide ↗](https://github.com/tobyspark/Fabric/blob/eba8bdbfe96ac4bc3f3443fb10021408050901f0/MathExpressionEngine/GUIDE.md)")
                 .font(.caption)
 
-            TextEditor(text: $model.stringExpression)
+            if model.showsCode { codeEditor } else { simpleField }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .onAppear { rebuildMessages() }
+        .onChange(of: model.diagnostics) { rebuildMessages() }
+        .onChange(of: model.stringExpression) { rebuildMessages() }
+    }
+
+    // Simple: single-line field, an "edit as code" affordance, and the compact
+    // diagnostics list (the field can't place errors inline).
+    @ViewBuilder
+    private var simpleField: some View
+    {
+        HStack(spacing: 6)
+        {
+            TextField("Expression", text: $model.stringExpression)
                 .font(.system(size: 11, design: .monospaced))
-                .frame(minHeight: 54)
-                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.secondary.opacity(0.4)))
+                .textFieldStyle(.roundedBorder)
                 .autocorrectionDisabled(true)
                 #if os(iOS)
                 .textInputAutocapitalization(.never)
                 #endif
 
-            diagnostics
+            Button { model.expandedToCode = true } label: {
+                Image(systemName: "chevron.left.forwardslash.chevron.right")
+            }
+            .buttonStyle(.borderless)
+            .help("Edit as code")
         }
-        .padding(10)
+
+        diagnostics
+    }
+
+    // Code: multi-line editor with diagnostics rendered inline at their span.
+    // Collapse is offered only while the expression is still a single line — a
+    // multi-statement one can't fold back into the single-line field.
+    @ViewBuilder
+    private var codeEditor: some View
+    {
+        CodeEditor(text: $model.stringExpression,
+                   position: $editorPosition,
+                   messages: $editorMessages,
+                   layout: CodeEditor.LayoutConfiguration(showMinimap: false, wrapText: true))
+            .frame(maxWidth: .infinity, minHeight: 300)
+            .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.secondary.opacity(0.4)))
+
+        if !isMultiStatement
+        {
+            Button { model.expandedToCode = false } label: {
+                Label("Collapse", systemImage: "chevron.up").font(.caption)
+            }
+            .buttonStyle(.borderless)
+        }
     }
 
     @ViewBuilder
@@ -75,6 +132,44 @@ struct MathExpressionView: View
                 }
             }
         }
+    }
+
+    /// Rebuild the code editor's inline messages from the current diagnostics.
+    private func rebuildMessages()
+    {
+        let source = model.stringExpression
+        editorMessages = Set(model.diagnostics.map { located($0, in: source) })
+    }
+
+    /// Map an engine diagnostic (a character span) to a CodeEditor inline
+    /// message at the corresponding line/column.
+    private func located(_ diagnostic: Diagnostic, in source: String) -> TextLocated<Message>
+    {
+        let chars = Array(source)
+        let start = max(0, min(diagnostic.span.start, chars.count))
+        var line = 0
+        var lineStart = 0
+        var i = 0
+        while i < start
+        {
+            if chars[i] == "\n" { line += 1; lineStart = i + 1 }
+            i += 1
+        }
+        let column = start - lineStart
+
+        let category: Message.Category
+        switch diagnostic.severity
+        {
+        case .error:   category = .error
+        case .warning: category = .warning
+        default:       category = .informational
+        }
+
+        let message = Message(category: category,
+                              length: max(1, diagnostic.span.length),
+                              summary: diagnostic.message,
+                              description: nil)
+        return TextLocated(location: TextLocation(zeroBasedLine: line, column: column), entity: message)
     }
 }
 
@@ -171,6 +266,17 @@ public class MathExpressionNode: Node
         /// Compiler diagnostics for the current expression, surfaced in the UI.
         var diagnostics: [Diagnostic] = []
 
+        /// Whether the user explicitly expanded the code editor. Observable so
+        /// both the settings view and the node's `settingsSize` react to it.
+        var expandedToCode = false
+
+        /// Show the code editor when explicitly expanded, or when the expression
+        /// spans multiple statements (a `;` or newline). A one-liner opens simple.
+        var showsCode: Bool
+        {
+            expandedToCode || stringExpression.contains(";") || stringExpression.contains("\n")
+        }
+
         private weak var node: MathExpressionNode?
 
         init(node: MathExpressionNode)
@@ -185,7 +291,13 @@ public class MathExpressionNode: Node
 
     override public func providesSettingsView() -> Bool { true }
     override public func settingsView() -> AnyView { AnyView(MathExpressionView(model: _settingsModel)) }
-    override public var settingsSize: SettingsViewSize { .Medium }
+    override public var settingsSize: SettingsViewSize
+    {
+        // Compact for the single-line field; wide + tall for the code editor.
+        _settingsModel.showsCode
+            ? .Custom(size: CGSize(width: 760, height: 540))
+            : .Custom(size: CGSize(width: 480, height: 210))
+    }
 
     // MARK: - Compilation & port sync
 
