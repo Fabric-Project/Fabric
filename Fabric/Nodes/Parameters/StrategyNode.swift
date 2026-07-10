@@ -8,7 +8,7 @@
 //  that reshapes a node's ports must only be reachable via explicit user
 //  interaction in the inspector, never via graph wiring/automation, since a
 //  runtime-driven strategy switch would churn ports and silently disconnect
-//  wires on every change. This is the same lifecycle MathExpressionBaseNode
+//  wires on every change. This is the same lifecycle MathExpressionNode
 //  already uses for its (also non-port) stringExpression property.
 //
 
@@ -174,7 +174,7 @@ public class StrategyNode: Node
     /// Subclasses: diff current dynamic ports against the wanted set for
     /// `strategy` (removePort for anything dynamic no longer wanted,
     /// addDynamicPort for anything wanted not already present) — the same
-    /// name-set-diff pattern MathExpressionBaseNode.registerPorts(forEvaluator:)
+    /// name-set-diff pattern MathExpressionNode.syncPorts(to:)
     /// already uses. Called on creation, on every Settings-view strategy
     /// change, and once after decode.
     public func rebuildPorts(forStrategy strategy: String) { }
