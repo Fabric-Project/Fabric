@@ -27,10 +27,13 @@ struct MathExpressionView: View
     {
         VStack(alignment: .leading, spacing: 8)
         {
-            Text("Write an expression and the node derives its ports: free names become typed inputs, `out name = …` becomes outputs. Supports numbers, vectors, transforms, quaternions and arrays (comprehensions).")
+            Text("Write an expression — free names become input ports, results become output ports. Beyond numbers, values can be vectors, transforms or arrays, and a single expression can drive several named inputs and outputs at once.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            Text("[Language guide ↗](https://github.com/tobyspark/Fabric/blob/eba8bdbfe96ac4bc3f3443fb10021408050901f0/MathExpressionEngine/GUIDE.md)")
+                .font(.caption)
 
             TextEditor(text: $model.stringExpression)
                 .font(.system(size: 11, design: .monospaced))
