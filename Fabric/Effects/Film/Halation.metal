@@ -8,10 +8,12 @@
 #define SAMPLER_TYPE texture2d<half>
 
 #include "../../lygia/sampler.msl"
+#include "../../lygia/color/blend.msl"
 
 typedef struct {
     float4 tint; // color, 1.0, 0.35, 0.12, 1.0, Tint
     float amount; // slider, 0.0, 2.0, 0.4, Amount
+    float blend; // slider, 0.0, 1.0, 0.0, Blend
 } PostUniforms;
 
 fragment half4 postFragment(VertexData in [[stage_in]],
@@ -21,7 +23,13 @@ fragment half4 postFragment(VertexData in [[stage_in]],
 {
     half4 source = SAMPLER_FNC(sourceTex, in.texcoord);
     half4 halation = SAMPLER_FNC(halationTex, in.texcoord);
-    float3 result = float3(source.rgb) + float3(halation.rgb) * uniforms.tint.rgb * uniforms.tint.a * uniforms.amount;
+    
+    half3 bias = half3(uniforms.tint.rgb * uniforms.tint.a * uniforms.amount);
+    
+    half3 resultA = source.rgb + halation.rgb * bias;
+    half3 resultS = blendScreen(source.rgb , halation.rgb * bias);
+    half3 result = mix(resultS, resultA, uniforms.blend);
+    result = max(result, half3(0.0));
 
-    return half4(half3(max(result, float3(0.0f))), source.a);
+    return half4( result , source.a);
 }

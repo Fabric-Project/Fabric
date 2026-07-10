@@ -63,11 +63,7 @@ static inline float valueNoise(float2 pixelPosition, float grainSize, float seed
 
 static inline float fineGrain(float2 pixelPosition, float grainSize, float seed, float blur)
 {
-    float clampedBlur = clamp(blur, 0.0f, 1.0f);
     float valueNoiseSample = valueNoise(pixelPosition, grainSize, seed);
-    if (clampedBlur <= 0.001f) {
-        return valueNoiseSample;
-    }
 
     float center = pixelHash(pixelPosition, seed) * 2.0f;
     float right = pixelHash(pixelPosition + float2(1.0f, 0.0f), seed);
@@ -75,19 +71,13 @@ static inline float fineGrain(float2 pixelPosition, float grainSize, float seed,
     float top = pixelHash(pixelPosition + float2(0.0f, 1.0f), seed);
     float bottom = pixelHash(pixelPosition + float2(0.0f, -1.0f), seed);
     float pixelNoise = (center + right + left + top + bottom) / 6.0f;
-    if (clampedBlur >= 0.999f) {
-        return pixelNoise;
-    }
 
-    return mix(valueNoiseSample, pixelNoise, clampedBlur);
+    return mix(valueNoiseSample, pixelNoise, clamp(blur, 0.0f, 1.0f));
 }
 
 static inline float blurredNoise(float2 pixelPosition, float grainSize, float seed, float blur)
 {
     float radius = blur * grainSize * 0.6f;
-    if (abs(radius) <= 0.001f) {
-        return valueNoise(pixelPosition, grainSize, seed);
-    }
 
     float center = valueNoise(pixelPosition, grainSize, seed) * 2.0f;
     float right = valueNoise(pixelPosition + float2(radius, 0.0f), grainSize, seed);
@@ -111,58 +101,10 @@ static inline float lumaWeight(float luma, constant PostUniforms &uniforms)
 static inline float grainSample(float2 pixelPosition, float seed, constant PostUniforms &uniforms)
 {
     float grainSize = max(uniforms.grainSize, 0.001f);
-    float coarseMix = clamp(uniforms.coarseMix, 0.0f, 1.0f);
-    if (coarseMix <= 0.001f) {
-        return fineGrain(pixelPosition, grainSize, seed, uniforms.blur);
-    }
-    if (coarseMix >= 0.999f) {
-        return blurredNoise(pixelPosition, grainSize * 1.5f, seed + 17.3f, uniforms.blur);
-    }
-
     float fine = fineGrain(pixelPosition, grainSize, seed, uniforms.blur);
     float coarse = blurredNoise(pixelPosition, grainSize * 1.5f, seed + 17.3f, uniforms.blur);
 
-    return mix(fine, coarse, coarseMix);
-}
-
-static inline float softenedFineGrain(float2 pixelPosition, float seed, float grainSize, constant PostUniforms &uniforms)
-{
-    float radius = uniforms.softness * grainSize;
-
-    float grain = fineGrain(pixelPosition, grainSize, seed, uniforms.blur) * 0.238f;
-    grain += fineGrain(pixelPosition + float2(radius, 0.0f), grainSize, seed, uniforms.blur) * 0.190f;
-    grain += fineGrain(pixelPosition + float2(-radius, 0.0f), grainSize, seed, uniforms.blur) * 0.190f;
-    grain += fineGrain(pixelPosition + float2(0.0f, radius), grainSize, seed, uniforms.blur) * 0.190f;
-    grain += fineGrain(pixelPosition + float2(0.0f, -radius), grainSize, seed, uniforms.blur) * 0.190f;
-
-    return grain;
-}
-
-static inline float softenedCoarseGrain(float2 pixelPosition, float seed, float grainSize, constant PostUniforms &uniforms)
-{
-    float coarseGrainSize = grainSize * 1.5f;
-    float baseRadius = uniforms.blur * coarseGrainSize * 0.6f;
-    float softnessRadius = uniforms.softness * grainSize;
-    float effectiveBlur = sqrt(baseRadius * baseRadius + softnessRadius * softnessRadius) / max(coarseGrainSize * 0.6f, 0.001f);
-
-    return blurredNoise(pixelPosition, coarseGrainSize, seed + 17.3f, effectiveBlur);
-}
-
-static inline float softenedGrainSample(float2 pixelPosition, float seed, constant PostUniforms &uniforms)
-{
-    float grainSize = max(uniforms.grainSize, 0.001f);
-    float coarseMix = clamp(uniforms.coarseMix, 0.0f, 1.0f);
-    if (coarseMix <= 0.001f) {
-        return softenedFineGrain(pixelPosition, seed, grainSize, uniforms);
-    }
-    if (coarseMix >= 0.999f) {
-        return softenedCoarseGrain(pixelPosition, seed, grainSize, uniforms);
-    }
-
-    float fine = softenedFineGrain(pixelPosition, seed, grainSize, uniforms);
-    float coarse = softenedCoarseGrain(pixelPosition, seed, grainSize, uniforms);
-
-    return mix(fine, coarse, coarseMix);
+    return mix(fine, coarse, clamp(uniforms.coarseMix, 0.0f, 1.0f));
 }
 
 fragment half4 postFragment(VertexData in [[stage_in]],
@@ -178,7 +120,12 @@ fragment half4 postFragment(VertexData in [[stage_in]],
     if (uniforms.softness < 0.001f) {
         grain = grainSample(pixelPosition, seed, uniforms);
     } else {
-        grain = softenedGrainSample(pixelPosition, seed, uniforms);
+        float radius = uniforms.softness * grainSize;
+        grain  = grainSample(pixelPosition, seed, uniforms) * 0.238f;
+        grain += grainSample(pixelPosition + float2(radius, 0.0f), seed, uniforms) * 0.190f;
+        grain += grainSample(pixelPosition + float2(-radius, 0.0f), seed, uniforms) * 0.190f;
+        grain += grainSample(pixelPosition + float2(0.0f, radius), seed, uniforms) * 0.190f;
+        grain += grainSample(pixelPosition + float2(0.0f, -radius), seed, uniforms) * 0.190f;
     }
 
     half4 sampledColor = SAMPLER_FNC(renderTex, in.texcoord);
