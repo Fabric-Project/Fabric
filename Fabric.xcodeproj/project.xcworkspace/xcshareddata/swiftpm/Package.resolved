@@ -1,5 +1,5 @@
 {
-  "originHash" : "13c3a14b60009301035fa1d0a29e687dd06de2fef62eb4db43b674e8e9a56811",
+  "originHash" : "afdf0e7d52f0e9337df975284101684b442f13557094cdd783399ce66d08292c",
   "pins" : [
     {
       "identity" : "anycodable",
@@ -35,6 +35,15 @@
       "state" : {
         "revision" : "a3a85a85214caf642abaa96ae664e4c772a59f6e",
         "version" : "1.4.1"
+      }
+    },
+    {
+      "identity" : "mathexpressionengine",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tobyspark/MathExpressionEngine",
+      "state" : {
+        "revision" : "ca9a509259433618d30c87beaee24ce33a04dea0",
+        "version" : "1.0.0"
       }
     },
     {

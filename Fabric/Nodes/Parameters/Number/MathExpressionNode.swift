@@ -47,7 +47,7 @@ struct MathExpressionView: View
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Text("[Language guide ↗](https://github.com/tobyspark/Fabric/blob/eba8bdbfe96ac4bc3f3443fb10021408050901f0/MathExpressionEngine/GUIDE.md)")
+            Text("[Language guide ↗](https://github.com/tobyspark/MathExpressionEngine/blob/main/GUIDE.md)")
                 .font(.caption)
 
             if model.showsCode { codeEditor } else { simpleField }

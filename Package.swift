@@ -16,8 +16,8 @@ let package = Package(
         // Local Satin package
         .package(path: "Satin"),
 
-        // Local standalone expression engine (backs the Math Expression node)
-        .package(path: "MathExpressionEngine"),
+        // Standalone expression engine (backs the Math Expression node)
+        .package(url: "https://github.com/tobyspark/MathExpressionEngine", from: "1.0.0"),
 
         // External dependencies
         .package(url: "https://github.com/Flight-School/AnyCodable", from: "0.6.7"),
