@@ -78,6 +78,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         [
             ("inputFilePathParam", ParameterPort(parameter: StringParameter("File Path", "", .filepicker, "Path to the movie file to play"))),
             ("inputPlayingParam", ParameterPort(parameter: BoolParameter("Playing", true, .toggle, "Play / pause the video"))),
+            ("inputRateParam", ParameterPort(parameter: FloatParameter("Rate", 1.0, 0.0, 1.0, .slider, "Playback rate where 0 is paused and 1 is normal speed"))),
             ("inputSeekTimeParam", ParameterPort(parameter: FloatParameter("Seek Time", -1.0, .inputfield, "Write a value to seek the player to that time (seconds). Setting to a different value seeks; setting to the same value is a no-op. Negative values are ignored on first load."))),
             ("inputVolumeParam", ParameterPort(parameter: FloatParameter("Volume", 0.0, 0.0, 1.0, .slider, "Audio playback volume where 0 is silent and 1 is full volume"))),
             ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Current video frame")),
@@ -90,6 +91,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
 
     public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
     public var inputPlayingParam:ParameterPort<Bool>     { port(named: "inputPlayingParam") }
+    public var inputRateParam:ParameterPort<Float>       { port(named: "inputRateParam") }
     public var inputSeekTimeParam:ParameterPort<Float>   { port(named: "inputSeekTimeParam") }
     public var inputVolumeParam:ParameterPort<Float>     { port(named: "inputVolumeParam") }
     public var outputTexturePort:NodePort<FabricImage>   { port(named: "outputTexturePort") }
@@ -169,6 +171,29 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         max(0, min(self.inputVolumeParam.value ?? 0, 1))
     }
 
+    private func rateInputValue() -> Float {
+        max(0, min(self.inputRateParam.value ?? 1, 1))
+    }
+
+    private func applyPlaybackState()
+    {
+        guard self.inputPlayingParam.value ?? true else
+        {
+            self.player.pause()
+            return
+        }
+
+        let playbackRate = self.rateInputValue()
+        if playbackRate <= 0
+        {
+            self.player.pause()
+        }
+        else
+        {
+            self.player.rate = playbackRate
+        }
+    }
+
     private func sendPlaybackInfo()
     {
         self.outputCurrentTimePort.send(Float(self.currentTime))
@@ -226,7 +251,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
 
     /// Internal seek implementation driven by `inputSeekTimeParam`
     /// changes in `execute`. Tolerance comes from `seekTolerance`
-    /// (set at init). Re-primes playback (`player.play()`) when the
+    /// (set at init). Re-primes playback when the
     /// user wants the player playing — some seeks (notably zero-
     /// tolerance ones) leave `rate` at 0 momentarily, which would
     /// otherwise stall the player at the seek target.
@@ -268,10 +293,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
                 self.needsEmitAfterSeek = true
             }
         }
-        if (self.inputPlayingParam.value ?? true)
-        {
-            self.player.play()
-        }
+        self.applyPlaybackState()
     }
 
     required public init(context:Context)
@@ -339,16 +361,9 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
             loadAssetFromInputValue()
         }
 
-        if self.inputPlayingParam.valueDidChange
+        if self.inputPlayingParam.valueDidChange || self.inputRateParam.valueDidChange
         {
-            if (self.inputPlayingParam.value ?? true)
-            {
-                self.player.play()
-            }
-            else
-            {
-                self.player.pause()
-            }
+            self.applyPlaybackState()
         }
 
         if self.inputVolumeParam.valueDidChange
@@ -535,21 +550,14 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
                     guard let self else { return }
                     self.didPlayToEndPendingPulse = true
                     self.player.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero)
-                    self.player.play()
+                    self.applyPlaybackState()
                 }
 
                 self.player.replaceCurrentItem(with: playerItem)
 
                 self.player.volume = self.volumeInputValue()
                 self.player.actionAtItemEnd = .none
-                if (self.inputPlayingParam.value ?? true)
-                {
-                    self.player.play()
-                }
-                else
-                {
-                    self.player.pause()
-                }
+                self.applyPlaybackState()
             }
             else
             {
