@@ -353,7 +353,6 @@ public class NodeRegistry {
         MathExpressionNode.self,
         GradientNoiseNode.self,
         AudioSpectrumNode.self,
-        ArrayMathExpressionNode.self,
 
         // Vector: scalar/vector operations first, vector-array operations last.
         PassThroughNode<simd_float2>.self,
