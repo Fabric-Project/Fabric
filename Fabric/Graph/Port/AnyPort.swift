@@ -68,7 +68,18 @@ open class AnyPort: Codable {
                 }
             }
         } else {
-            self.base = try PortType.portForType(portType, isParameterPort: isParameterPort, decoder: container.superDecoder(forKey: .base))!
+            let portDecoder = try container.superDecoder(forKey: .base)
+
+            do {
+                self.base = try PortType.portForType(portType, isParameterPort: isParameterPort, decoder: portDecoder)!
+            }
+            catch {
+                guard isParameterPort else {
+                    throw error
+                }
+
+                self.base = try PortType.portForType(portType, isParameterPort: false, decoder: portDecoder)!
+            }
         }
     }
 

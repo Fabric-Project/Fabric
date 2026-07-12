@@ -501,8 +501,11 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
         let labelsToRemove = self.materialSyncedLabels.subtracting(newLabels)
         let portsToRemove = self.ports.filter { port in
-            guard let label = port.parameter?.label else { return false }
-            return labelsToRemove.contains(label)
+            if let label = port.parameter?.label {
+                return labelsToRemove.contains(label)
+            }
+
+            return labelsToRemove.contains(port.name)
         }
 
         for port in portsToRemove {
@@ -514,8 +517,20 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
                 continue
             }
 
+            if self.syncDynamicValuePortFromMaterialParameter(param) {
+                continue
+            }
+
             if let port = self.ports.first(where: { $0.name == param.label }) {
-                self.replaceParameterOfPort(port, withParam: param)
+                if port.parameter == nil, self.materialSyncedLabels.contains(port.name) {
+                    self.removePort(port)
+                    if let dynamicPort = PortType.portForType(from: param) {
+                        self.addDynamicPort(dynamicPort)
+                    }
+                }
+                else {
+                    self.replaceParameterOfPort(port, withParam: param)
+                }
             }
             else if let dynamicPort = PortType.portForType(from: param) {
                 self.addDynamicPort(dynamicPort)
@@ -523,6 +538,55 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         }
 
         self.materialSyncedLabels = newLabels.subtracting(offLimits)
+    }
+
+    private func syncDynamicValuePortFromMaterialParameter(_ parameter: any Parameter) -> Bool {
+        switch parameter.type {
+        case .float4x4:
+            guard let float4x4Parameter = parameter as? Float4x4Parameter else {
+                return false
+            }
+
+            if let existingPort = self.ports.first(where: { $0.name == parameter.label }) {
+                if existingPort.parameter != nil {
+                    self.removePort(existingPort)
+                }
+                else {
+                    return true
+                }
+            }
+
+            let port = NodePort<simd_float4x4>(
+                name: parameter.label,
+                kind: .Inlet,
+                description: parameter.description
+            )
+            port.value = float4x4Parameter.value
+            self.addDynamicPort(port)
+            return true
+
+        default:
+            return false
+        }
+    }
+
+    private func synchronizeDynamicValuePortsToMaterial() {
+        for parameter in self.postMaterial.parameters.params {
+            switch parameter.type {
+            case .float4x4:
+                guard let port = self.ports.first(where: {
+                    $0.name == parameter.label &&
+                    $0.parameter == nil
+                }) as? NodePort<simd_float4x4> else {
+                    continue
+                }
+
+                self.postMaterial.set(parameter.label, port.value ?? matrix_identity_float4x4)
+
+            default:
+                continue
+            }
+        }
     }
 
     private func normalizePortOrderForDisplay()
@@ -573,6 +637,8 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         defer { commandBuffer.popDebugGroup() }
         
         if self.currentImageInputCount == 0 {
+            self.synchronizeDynamicValuePortsToMaterial()
+
             guard let widthPort = self.resolutionPort(label: "Width"),
                   let heightPort = self.resolutionPort(label: "Height") else {
                 self.outputTexturePort.send(nil)
@@ -602,6 +668,8 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         guard anyPortChanged else {
             return
         }
+
+        self.synchronizeDynamicValuePortsToMaterial()
 
         guard let inputTexture0 = self.inputImageTexture(at: 0) else {
             self.outputTexturePort.send(nil)
