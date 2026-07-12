@@ -138,10 +138,8 @@ extension PortType
         case .String:      return NodePort<ContiguousArray<String>>(name: name, kind: kind, description: description)
         case .Vector2:     return NodePort<ContiguousArray<simd_float2>>(name: name, kind: kind, description: description)
         case .Vector3:     return NodePort<ContiguousArray<simd_float3>>(name: name, kind: kind, description: description)
-        case .Vector4:
-                           return NodePort<ContiguousArray<simd_float4>>(name: name, kind: kind, description: description)
-        case .Color:
-                           return ColorArrayNodePort(name: name, kind: kind, description: description)
+        case .Vector4:     return NodePort<ContiguousArray<simd_float4>>(name: name, kind: kind, description: description)
+        case .Color:       return ColorArrayNodePort(name: name, kind: kind, description: description)
         case .Quaternion:  return NodePort<ContiguousArray<simd_quatf>>(name: name, kind: kind, description: description)
         case .Transform:   return NodePort<ContiguousArray<simd_float4x4>>(name: name, kind: kind, description: description)
         case .Geometry:    return NodePort<ContiguousArray<Satin.Geometry>>(name: name, kind: kind, description: description)
@@ -161,10 +159,8 @@ extension PortType
         case .String:      return NodePort<ContiguousArray<String>>(name: name, kind: kind, description: description, id: id)
         case .Vector2:     return NodePort<ContiguousArray<simd_float2>>(name: name, kind: kind, description: description, id: id)
         case .Vector3:     return NodePort<ContiguousArray<simd_float3>>(name: name, kind: kind, description: description, id: id)
-        case .Vector4:
-                           return NodePort<ContiguousArray<simd_float4>>(name: name, kind: kind, description: description, id: id)
-        case .Color:
-                           return ColorArrayNodePort(name: name, kind: kind, description: description, id: id)
+        case .Vector4:     return NodePort<ContiguousArray<simd_float4>>(name: name, kind: kind, description: description, id: id)
+        case .Color: return ColorArrayNodePort(name: name, kind: kind, description: description, id: id)
         case .Quaternion:  return NodePort<ContiguousArray<simd_quatf>>(name: name, kind: kind, description: description, id: id)
         case .Transform:   return NodePort<ContiguousArray<simd_float4x4>>(name: name, kind: kind, description: description, id: id)
         case .Geometry:    return NodePort<ContiguousArray<Satin.Geometry>>(name: name, kind: kind, description: description, id: id)
@@ -209,8 +205,17 @@ extension PortType
             if let genericParam = parameter as? Float4Parameter              { return ParameterPort(parameter: genericParam) }
             if let genericParam = parameter as? GenericParameter<simd_float4> { return ParameterPort(parameter: genericParam) }
 
+        // While Fabric supports Transforms we dont have a parameter UI for it (yet)...
         case .float4x4:
-            if let genericParam = parameter as? Float4x4Parameter { return ParameterPort(parameter: genericParam) }
+            if let genericParam = parameter as? Float4x4Parameter {
+                let port = NodePort<simd_float4x4>(
+                    name: genericParam.label,
+                    kind: .Inlet,
+                    description: genericParam.description
+                )
+                port.value = genericParam.value
+                return port
+            }
 
         default:
             return nil
