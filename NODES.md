@@ -131,6 +131,7 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] YUV <-> RGB
 - [x] XYZ <-> RGB
 - [x] XYZ <-> LAB
+- [x] Channel Subsample
 
 ### Color Tone Mapping
 
@@ -255,6 +256,11 @@ HDR -> SDR conversion
 
 ### Analysis
 
+- [x] DCT
+- [x] DCT Quantize
+- [x] DCT JPEG Quantize
+- [x] DCT Corruption
+- [x] Inverse DCT
 - [x] Marching Squares Contour (needs better stability at edges)
 - [ ] Blob Detection (requires nested array support)
 - [ ] Segmentation
