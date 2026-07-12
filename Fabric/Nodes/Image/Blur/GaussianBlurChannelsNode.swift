@@ -3,7 +3,7 @@ import Metal
 import Satin
 import simd
 
-public final class GaussianBlurChannelsNode: BaseMultiPassBlurEffectNode {
+public final class GaussianBlurChannelsNode: BaseMultiPassBlurEffectTwoChannelNode {
     override public class var name: String { "Gaussian Blur Channels" }
     override public class var nodeType: Node.NodeType { .Image(imageType: .Blur) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
@@ -42,14 +42,27 @@ public final class GaussianBlurChannelsNode: BaseMultiPassBlurEffectNode {
         return self.passUniformsBuffers[index]
     }
 
+    override public func scaledPassSize(baseWidth: Int, baseHeight: Int, amount: Float, passRatio: Float) -> (width: Int, height: Int) {
+        let normalizedAmount = max(amount / BaseMultiPassBlurEffectNode.maxBlur, 0.0001)
+        let passAmount = min(1.0, passRatio / normalizedAmount)
+
+        let width = max(1, Int(Float(baseWidth) * passAmount))
+        let height = max(1, Int(Float(baseHeight) * passAmount))
+
+        return (width, height)
+    }
+
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer) {
-        guard let inputTexture = self.validatedSingleInputTexture() else {
+        let inputs = self.imageInputPorts()
+        guard inputs.count >= 1,
+              let inputTexture = inputs[0].value?.texture else {
             self.outputTexturePort.send(nil)
             return
         }
+        let originalTexture = inputs.indices.contains(1) ? (inputs[1].value?.texture ?? inputTexture) : inputTexture
 
         let redAmount = self.floatParameterValue(named: "Red Amount")
         let greenAmount = self.floatParameterValue(named: "Green Amount")
@@ -89,27 +102,66 @@ public final class GaussianBlurChannelsNode: BaseMultiPassBlurEffectNode {
             steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 0.333, vector: simd_float2(0.0, 1.0)))
         }
 
-        let outputImage = self.runPassChain(renderer: renderer,
-                                            executionInfo: executionInfo,
-                                            commandBuffer: commandBuffer,
-                                            inputTexture: inputTexture,
-                                            steps: steps,
-                                            prepareStep: { [weak self] stepIndex, step in
-            guard let self else { return }
-
-            let passUniforms = GaussianPassUniforms(direction: step.vector,
-                                                    amountScale: step.amountScale,
-                                                    padding: 0.0)
-
-            let passBuffer = self.passUniformsBuffer(forStepIndex: stepIndex)
-            passBuffer.update(data: [passUniforms])
-            self.postMaterial.set(passBuffer, index: FragmentBufferIndex.Custom0)
-        })
+        let outputImage = self.runChannelPassChain(renderer: renderer,
+                                                   commandBuffer: commandBuffer,
+                                                   inputTexture: inputTexture,
+                                                   originalTexture: originalTexture,
+                                                   steps: steps)
 
         if let outputImage {
             self.outputTexturePort.send(outputImage)
         } else {
             self.outputTexturePort.send(nil)
         }
+    }
+
+    private func runChannelPassChain(renderer: GraphRenderer,
+                                     commandBuffer: MTLCommandBuffer,
+                                     inputTexture: MTLTexture,
+                                     originalTexture: MTLTexture,
+                                     steps: [MultiPassStep]) -> FabricImage? {
+        guard !steps.isEmpty else {
+            return nil
+        }
+
+        var currentTexture: MTLTexture = inputTexture
+        var currentImage: FabricImage? = nil
+
+        for (index, step) in steps.enumerated() {
+            guard let nextImage = renderer.newImage(withWidth: step.width, height: step.height) else {
+                currentImage?.release()
+                return nil
+            }
+
+            commandBuffer.pushDebugGroup("\(self.name) - pass \(index)")
+
+            let passUniforms = GaussianPassUniforms(direction: step.vector,
+                                                    amountScale: step.amountScale,
+                                                    padding: 0.0)
+            let passBuffer = self.passUniformsBuffer(forStepIndex: index)
+            passBuffer.update(data: [passUniforms])
+            self.postMaterial.set(passBuffer, index: FragmentBufferIndex.Custom0)
+
+            self.postProcessor.mesh.preDraw = { renderEncoder in
+                renderEncoder.setFragmentTexture(currentTexture, index: FragmentTextureIndex.Custom0.rawValue)
+                renderEncoder.setFragmentTexture(originalTexture, index: FragmentTextureIndex.Custom1.rawValue)
+            }
+
+            self.postProcessor.renderer.size.width = Float(step.width)
+            self.postProcessor.renderer.size.height = Float(step.height)
+
+            let renderPassDescriptor = MTLRenderPassDescriptor()
+            renderPassDescriptor.colorAttachments[0].texture = nextImage.texture
+
+            self.postProcessor.draw(renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+
+            currentImage?.release()
+            currentImage = nextImage
+            currentTexture = nextImage.texture
+
+            commandBuffer.popDebugGroup()
+        }
+
+        return currentImage
     }
 }

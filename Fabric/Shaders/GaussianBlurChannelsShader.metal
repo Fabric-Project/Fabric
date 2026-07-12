@@ -35,6 +35,7 @@ static inline half4 weightedSamples(texture2d<half, access::sample> renderTex,
 fragment half4 postFragment(VertexData in [[stage_in]],
                             constant PostUniforms &uniforms [[buffer(FragmentBufferMaterialUniforms)]],
                             texture2d<half, access::sample> renderTex [[texture(FragmentTextureCustom0)]],
+                            texture2d<half, access::sample> originalTex [[texture(FragmentTextureCustom1)]],
                             constant GaussianPassUniforms &passUniforms [[buffer(FragmentBufferCustom0)]])
 {
     constexpr sampler linearSampler(coord::normalized,
@@ -45,11 +46,17 @@ fragment half4 postFragment(VertexData in [[stage_in]],
     const float2 texelSize = 1.0f / float2(renderTex.get_width(), renderTex.get_height());
     const float2 scaledDirection = texelSize * passUniforms.direction * passUniforms.amountScale;
     const float2 uv = in.texcoord;
+    half4 original = originalTex.sample(linearSampler, uv);
 
-    half red = weightedSamples(renderTex, linearSampler, uv, scaledDirection * uniforms.redAmount).r;
-    half green = weightedSamples(renderTex, linearSampler, uv, scaledDirection * uniforms.greenAmount).g;
-    half blue = weightedSamples(renderTex, linearSampler, uv, scaledDirection * uniforms.blueAmount).b;
-    half alpha = renderTex.sample(linearSampler, uv).a;
+    half red = uniforms.redAmount <= 0.0001f
+        ? original.r
+        : weightedSamples(renderTex, linearSampler, uv, scaledDirection * uniforms.redAmount).r;
+    half green = uniforms.greenAmount <= 0.0001f
+        ? original.g
+        : weightedSamples(renderTex, linearSampler, uv, scaledDirection * uniforms.greenAmount).g;
+    half blue = uniforms.blueAmount <= 0.0001f
+        ? original.b
+        : weightedSamples(renderTex, linearSampler, uv, scaledDirection * uniforms.blueAmount).b;
 
-    return half4(red, green, blue, alpha);
+    return half4(red, green, blue, original.a);
 }
