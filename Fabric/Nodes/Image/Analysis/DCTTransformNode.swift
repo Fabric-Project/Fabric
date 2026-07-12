@@ -6,6 +6,7 @@
 import Foundation
 import Metal
 import Satin
+import simd
 
 public class BaseDCTTransformNode: Node
 {
@@ -48,6 +49,110 @@ public class BaseDCTTransformNode: Node
                 )
             ),
             (
+                "inputChannel1HorizontalSubsample",
+                ParameterPort(
+                    parameter: IntParameter(
+                        "Channel 1 Horizontal Subsample",
+                        1,
+                        1,
+                        maximumBlockSize,
+                        .slider,
+                        "Horizontal subsampling factor for channel 1"
+                    )
+                )
+            ),
+            (
+                "inputChannel1VerticalSubsample",
+                ParameterPort(
+                    parameter: IntParameter(
+                        "Channel 1 Vertical Subsample",
+                        1,
+                        1,
+                        maximumBlockSize,
+                        .slider,
+                        "Vertical subsampling factor for channel 1"
+                    )
+                )
+            ),
+            (
+                "inputChannel2HorizontalSubsample",
+                ParameterPort(
+                    parameter: IntParameter(
+                        "Channel 2 Horizontal Subsample",
+                        1,
+                        1,
+                        maximumBlockSize,
+                        .slider,
+                        "Horizontal subsampling factor for channel 2"
+                    )
+                )
+            ),
+            (
+                "inputChannel2VerticalSubsample",
+                ParameterPort(
+                    parameter: IntParameter(
+                        "Channel 2 Vertical Subsample",
+                        1,
+                        1,
+                        maximumBlockSize,
+                        .slider,
+                        "Vertical subsampling factor for channel 2"
+                    )
+                )
+            ),
+            (
+                "inputChannel3HorizontalSubsample",
+                ParameterPort(
+                    parameter: IntParameter(
+                        "Channel 3 Horizontal Subsample",
+                        1,
+                        1,
+                        maximumBlockSize,
+                        .slider,
+                        "Horizontal subsampling factor for channel 3"
+                    )
+                )
+            ),
+            (
+                "inputChannel3VerticalSubsample",
+                ParameterPort(
+                    parameter: IntParameter(
+                        "Channel 3 Vertical Subsample",
+                        1,
+                        1,
+                        maximumBlockSize,
+                        .slider,
+                        "Vertical subsampling factor for channel 3"
+                    )
+                )
+            ),
+            (
+                "inputChannel4HorizontalSubsample",
+                ParameterPort(
+                    parameter: IntParameter(
+                        "Channel 4 Horizontal Subsample",
+                        1,
+                        1,
+                        maximumBlockSize,
+                        .slider,
+                        "Horizontal subsampling factor for channel 4"
+                    )
+                )
+            ),
+            (
+                "inputChannel4VerticalSubsample",
+                ParameterPort(
+                    parameter: IntParameter(
+                        "Channel 4 Vertical Subsample",
+                        1,
+                        1,
+                        maximumBlockSize,
+                        .slider,
+                        "Vertical subsampling factor for channel 4"
+                    )
+                )
+            ),
+            (
                 "outputImage",
                 NodePort<FabricImage>(
                     name: "Image",
@@ -60,6 +165,14 @@ public class BaseDCTTransformNode: Node
 
     public var inputImage: NodePort<FabricImage> { port(named: "inputImage") }
     public var inputBlockSize: ParameterPort<Int> { port(named: "inputBlockSize") }
+    public var inputChannel1HorizontalSubsample: ParameterPort<Int> { port(named: "inputChannel1HorizontalSubsample") }
+    public var inputChannel1VerticalSubsample: ParameterPort<Int> { port(named: "inputChannel1VerticalSubsample") }
+    public var inputChannel2HorizontalSubsample: ParameterPort<Int> { port(named: "inputChannel2HorizontalSubsample") }
+    public var inputChannel2VerticalSubsample: ParameterPort<Int> { port(named: "inputChannel2VerticalSubsample") }
+    public var inputChannel3HorizontalSubsample: ParameterPort<Int> { port(named: "inputChannel3HorizontalSubsample") }
+    public var inputChannel3VerticalSubsample: ParameterPort<Int> { port(named: "inputChannel3VerticalSubsample") }
+    public var inputChannel4HorizontalSubsample: ParameterPort<Int> { port(named: "inputChannel4HorizontalSubsample") }
+    public var inputChannel4VerticalSubsample: ParameterPort<Int> { port(named: "inputChannel4VerticalSubsample") }
     public var outputImage: NodePort<FabricImage> { port(named: "outputImage") }
 
     private var computePipeline: MTLComputePipelineState?
@@ -138,6 +251,8 @@ public class BaseDCTTransformNode: Node
     private struct DCTUniforms
     {
         var blockSize: UInt32
+        var channelSubsampleX: SIMD4<UInt32>
+        var channelSubsampleY: SIMD4<UInt32>
     }
 
     override public func execute(renderer: GraphRenderer,
@@ -145,7 +260,17 @@ public class BaseDCTTransformNode: Node
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        guard inputImage.valueDidChange || inputBlockSize.valueDidChange else { return }
+        let subsamplePortsChanged =
+            inputChannel1HorizontalSubsample.valueDidChange ||
+            inputChannel1VerticalSubsample.valueDidChange ||
+            inputChannel2HorizontalSubsample.valueDidChange ||
+            inputChannel2VerticalSubsample.valueDidChange ||
+            inputChannel3HorizontalSubsample.valueDidChange ||
+            inputChannel3VerticalSubsample.valueDidChange ||
+            inputChannel4HorizontalSubsample.valueDidChange ||
+            inputChannel4VerticalSubsample.valueDidChange
+
+        guard inputImage.valueDidChange || inputBlockSize.valueDidChange || subsamplePortsChanged else { return }
 
         guard
             let sourceTexture = inputImage.value?.texture,
@@ -163,6 +288,18 @@ public class BaseDCTTransformNode: Node
         let blockSize = min(
             max(inputBlockSize.value ?? 8, 2),
             maximumSupportedBlockSize
+        )
+        let channelSubsampleX = SIMD4<UInt32>(
+            UInt32(Self.clampedSubsample(inputChannel1HorizontalSubsample.value, blockSize: blockSize)),
+            UInt32(Self.clampedSubsample(inputChannel2HorizontalSubsample.value, blockSize: blockSize)),
+            UInt32(Self.clampedSubsample(inputChannel3HorizontalSubsample.value, blockSize: blockSize)),
+            UInt32(Self.clampedSubsample(inputChannel4HorizontalSubsample.value, blockSize: blockSize))
+        )
+        let channelSubsampleY = SIMD4<UInt32>(
+            UInt32(Self.clampedSubsample(inputChannel1VerticalSubsample.value, blockSize: blockSize)),
+            UInt32(Self.clampedSubsample(inputChannel2VerticalSubsample.value, blockSize: blockSize)),
+            UInt32(Self.clampedSubsample(inputChannel3VerticalSubsample.value, blockSize: blockSize)),
+            UInt32(Self.clampedSubsample(inputChannel4VerticalSubsample.value, blockSize: blockSize))
         )
 
         guard
@@ -184,7 +321,11 @@ public class BaseDCTTransformNode: Node
         computeEncoder.setTexture(transformedImage.texture, index: 1)
         computeEncoder.setBuffer(basisBuffer, offset: 0, index: 0)
 
-        var uniforms = DCTUniforms(blockSize: UInt32(blockSize))
+        var uniforms = DCTUniforms(
+            blockSize: UInt32(blockSize),
+            channelSubsampleX: channelSubsampleX,
+            channelSubsampleY: channelSubsampleY
+        )
         computeEncoder.setBytes(
             &uniforms,
             length: MemoryLayout<DCTUniforms>.stride,
@@ -206,6 +347,11 @@ public class BaseDCTTransformNode: Node
         computeEncoder.endEncoding()
 
         outputImage.send(transformedImage)
+    }
+
+    private static func clampedSubsample(_ value: Int?, blockSize: Int) -> Int
+    {
+        min(max(value ?? 1, 1), blockSize)
     }
 }
 
