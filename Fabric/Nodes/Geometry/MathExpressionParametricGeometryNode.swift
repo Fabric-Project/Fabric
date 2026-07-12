@@ -10,7 +10,7 @@ import Satin
 import Metal
 import SwiftUI
 import simd
-internal import MathParser
+import MathExpressionEngine
 
 // MARK: - Settings View
 
@@ -207,10 +207,24 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
         }
     }
 
-    private let mathParser = MathParser()
-    private var evalX: Evaluator? = nil
-    private var evalY: Evaluator? = nil
-    private var evalZ: Evaluator? = nil
+    private struct AxisExpression
+    {
+        let compileResult: CompileResult
+
+        var variableNames: Set<String>
+        {
+            Set(compileResult.interface.inputs.map(\.name))
+        }
+
+        func evaluate(inputs: [String: Float]) -> Float
+        {
+            (try? compileResult.evaluate(inputs)) ?? 0
+        }
+    }
+
+    private var evalX: AxisExpression? = nil
+    private var evalY: AxisExpression? = nil
+    private var evalZ: AxisExpression? = nil
     private var _expressionsDirty: Bool = true
 
     // Names of dynamically-added variable ports (excludes static ports).
@@ -218,22 +232,33 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
 
     private func parseExpressions()
     {
-        switch mathParser.parseResult(expressionX) {
-        case .success(let ev): evalX = ev; _settingsModel.statusX = true
-        case .failure:         evalX = nil; _settingsModel.statusX = false
-        }
-        switch mathParser.parseResult(expressionY) {
-        case .success(let ev): evalY = ev; _settingsModel.statusY = true
-        case .failure:         evalY = nil; _settingsModel.statusY = false
-        }
-        switch mathParser.parseResult(expressionZ) {
-        case .success(let ev): evalZ = ev; _settingsModel.statusZ = true
-        case .failure:         evalZ = nil; _settingsModel.statusZ = false
-        }
+        evalX = axisExpression(from: expressionX)
+        _settingsModel.statusX = evalX != nil
+
+        evalY = axisExpression(from: expressionY)
+        _settingsModel.statusY = evalY != nil
+
+        evalZ = axisExpression(from: expressionZ)
+        _settingsModel.statusZ = evalZ != nil
 
         syncVariablePorts()
         _expressionsDirty = true
         nameSubject.send()
+    }
+
+    private func axisExpression(from source: String) -> AxisExpression?
+    {
+        let compileResult = compile(source)
+        guard compileResult.isValid,
+              compileResult.interface.outputs.count == 1,
+              compileResult.interface.outputs.first?.type == .float,
+              compileResult.interface.inputs.allSatisfy({ $0.type == .float })
+        else
+        {
+            return nil
+        }
+
+        return AxisExpression(compileResult: compileResult)
     }
 
     /// Keeps dynamic input ports in sync with the union of free variables across all
@@ -241,9 +266,9 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
     private func syncVariablePorts()
     {
         var allVars = Set<String>()
-        if let ev = evalX { allVars.formUnion(ev.unresolved.variables.map { String($0) }) }
-        if let ev = evalY { allVars.formUnion(ev.unresolved.variables.map { String($0) }) }
-        if let ev = evalZ { allVars.formUnion(ev.unresolved.variables.map { String($0) }) }
+        if let ev = evalX { allVars.formUnion(ev.variableNames) }
+        if let ev = evalY { allVars.formUnion(ev.variableNames) }
+        if let ev = evalZ { allVars.formUnion(ev.variableNames) }
 
         let variableNames = allVars.subtracting(Self.parametricBindings)
 
@@ -256,7 +281,7 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
             _dynamicVariablePortNames.remove(name)
         }
 
-        for name in variableNames.subtracting(_dynamicVariablePortNames)
+        for name in variableNames.subtracting(_dynamicVariablePortNames).sorted()
         {
             self.addDynamicPort(
                 ParameterPort(parameter: FloatParameter(name, 0.0, .inputfield)),
@@ -306,25 +331,22 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
             geo.rangeV = min(vMin, vMax) ... max(vMin, vMax)
 
             // Snapshot variable port values so the generator closure is pure.
-            var varSnapshot: [String: Double] = [:]
+            var varSnapshot: [String: Float] = [:]
             for name in _dynamicVariablePortNames
             {
                 let value = (self.findPort(named: name) as? ParameterPort<Float>)?.value ?? 0
-                varSnapshot[name] = Double(value)
+                varSnapshot[name] = value
             }
 
             let eX = evalX, eY = evalY, eZ = evalZ
             geo.generator = { u, v in
-                let vars = { (name: String) -> Double? in
-                    switch name {
-                    case "u": return Double(u)
-                    case "v": return Double(v)
-                    default:  return varSnapshot[name]
-                    }
-                }
-                let x = Float(eX?.eval(variables: vars) ?? 0)
-                let y = Float(eY?.eval(variables: vars) ?? 0)
-                let z = Float(eZ?.eval(variables: vars) ?? 0)
+                var inputs = varSnapshot
+                inputs["u"] = u
+                inputs["v"] = v
+
+                let x = eX?.evaluate(inputs: inputs) ?? 0
+                let y = eY?.evaluate(inputs: inputs) ?? 0
+                let z = eZ?.evaluate(inputs: inputs) ?? 0
                 let result = simd_make_float3(x, y, z)
                 return result.x.isFinite && result.y.isFinite && result.z.isFinite ? result : .zero
             }

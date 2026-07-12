@@ -419,7 +419,7 @@ extension Graph {
             for connection in existingConnections { connection.connect(to: paramInlet) }
 
             self.addNode(paramNode)
-            paramInlet.setBoxedValue( port.boxedValue() )
+            paramInlet.restoreValue(from: port.snapshotValue())
             paramOutlet.connect(to: port)
 
         case .Outlet:
@@ -447,7 +447,7 @@ extension Graph {
             for connection in existingConnections { paramOutlet.connect(to: connection) }
 
             self.addNode(paramNode)
-            paramInlet.setBoxedValue( port.boxedValue() )
+            paramInlet.restoreValue(from: port.snapshotValue())
             port.connect(to: paramInlet)
 
         }

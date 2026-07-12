@@ -116,9 +116,17 @@ extension UTType
     
     @ObservationIgnored public var valueDidChange:Bool = true
 
-    // BARF?
-    internal func boxedValue() -> PortValue? { nil }
-    internal func setBoxedValue(_ boxed: PortValue?) { }
+    // Used only by FeedbackCache and layout copying — never in the hot execution path.
+    internal func snapshotValue() -> PortValue? { nil }
+    internal func restoreValue(from boxed: PortValue?) { }
+
+    /// Unboxes `boxed` into the port's native type and propagates to connected inlets via `send`.
+    /// Use this to deliver a PortValue through a port whose concrete type is only known at runtime.
+    internal func sendBoxed(_ boxed: PortValue?) { }
+
+    /// Forced variant for stateful nodes that need to publish a new event even when the boxed value
+    /// compares equal to the previous value.
+    internal func sendBoxed(_ boxed: PortValue?, force: Bool) { sendBoxed(boxed) }
     
     @ObservationIgnored public weak var node: Node?
     public var connections: [Port] = []

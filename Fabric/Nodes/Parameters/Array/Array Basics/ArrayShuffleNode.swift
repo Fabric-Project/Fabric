@@ -7,47 +7,70 @@ import Foundation
 import Satin
 import Metal
 
-public class ArrayShuffleNode<Value : PortValueRepresentable & Equatable> : Node
+public class ArrayShuffleNode: TypeAgnosticNode
 {
-    public override class var name: String { "\(Value.portType.rawValue) Array Shuffle" }
+    public override class var name: String { "Array Shuffle" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Randomizes the element order of a \(Value.portType.rawValue) array when Shuffle is true; passes the array through unchanged when false." }
+    override public class var nodeDescription: String { "Randomizes element order when Shuffle is true; passes through unchanged when false. Choose element type in Settings." }
+    override public class var includesArrayTypesInStrategy: Bool { false }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    private static let dynamicPortNames: Set<String> = ["inputPort", "outputPort"]
 
-        return ports +
-        [
-            ("inputPort",    NodePort<ContiguousArray<Value>>(name: "Array",   kind: .Inlet,  description: "Input \(Value.portType.rawValue) array")),
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    {
+        super.registerPorts(context: context) + [
             ("inputShuffle", NodePort<Bool>(name: "Shuffle", kind: .Inlet, description: "When true, randomizes element order; when false, passes through unchanged")),
-            ("outputPort",   NodePort<ContiguousArray<Value>>(name: "Array",   kind: .Outlet, description: "Shuffled or original \(Value.portType.rawValue) array")),
         ]
     }
 
-    public var inputPort:    NodePort<ContiguousArray<Value>> { port(named: "inputPort") }
-    public var inputShuffle: NodePort<Bool>                   { port(named: "inputShuffle") }
-    public var outputPort:   NodePort<ContiguousArray<Value>> { port(named: "outputPort") }
+    public var inputShuffle: NodePort<Bool> { port(named: "inputShuffle") }
+
+    public override func rebuildPorts(forStrategy strategy: String)
+    {
+        super.rebuildPorts(forStrategy: strategy)
+        guard let elementType = PortType(rawValue: strategy) else { return }
+
+        let arrayType: PortType = elementType == .Virtual ? .Virtual : .Array(portType: elementType)
+
+        for name in ["inputPort", "outputPort"] {
+            if let p: Port = findPort(named: name), p.portType != arrayType { removePort(p) }
+        }
+        if findPort(named: "inputPort") == nil {
+            addDynamicPort(arrayType.makeFreshPort(name: "Array", kind: .Inlet,  description: "Input array"), name: "inputPort")
+        }
+        if findPort(named: "outputPort") == nil {
+            addDynamicPort(arrayType.makeFreshPort(name: "Array", kind: .Outlet, description: "Shuffled or original array"), name: "outputPort")
+        }
+
+        let portOrder = ["inputPort", "inputShuffle", "outputPort"]
+        let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }
+        if reordered.count == self.ports.count { reorderPorts(reordered) }
+    }
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        guard self.inputPort.valueDidChange || self.inputShuffle.valueDidChange else { return }
+        guard let inputPort:  Port = findPort(named: "inputPort"),
+              let outputPort: Port = findPort(named: "outputPort") else { return }
 
-        guard let array = self.inputPort.value else { return }
+        guard inputPort.valueDidChange || inputShuffle.valueDidChange else { return }
 
-        if self.inputShuffle.value == true
+        guard let boxed = inputPort.snapshotValue(),
+              case .Array(let elements) = boxed else { return }
+
+        if inputShuffle.value == true
         {
-            var shuffled = array
+            var shuffled = elements
             shuffled.shuffle()
-            self.outputPort.send(shuffled)
+            outputPort.sendBoxed(.Array(shuffled))
         }
         else
         {
-            self.outputPort.send(array)
+            outputPort.sendBoxed(.Array(elements))
         }
     }
 }

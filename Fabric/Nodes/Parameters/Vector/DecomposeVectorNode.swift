@@ -8,39 +8,88 @@ import Satin
 import simd
 import Metal
 
-public class DecomposeVectorNode<Value: PortValueRepresentable & ComponentRepresentable & DefaultParameterProviding>: Node
+public class DecomposeVectorNode: StrategyNode
 {
-    public override class var name: String { "\(Value.portType.rawValue) Decompose" }
+    public override class var name: String { "Vector Decompose" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Vector) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Splits a \(Value.portType.rawValue) into its \(Value.componentLabels.joined(separator: ", ")) components" }
+    override public class var nodeDescription: String { "Splits a vector into its X/Y/Z/W components. Choose the vector type in Settings." }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    public override class var strategyOptions: [any NodeStrategyOption] { VectorType.allCases }
 
-        let outputPorts: [(name: String, port: Port)] = Value.componentLabels.enumerated().map { (i, label) in
-            ("outputComponent\(i)", NodePort<Value.Component>(name: label, kind: .Outlet, description: "\(label) component"))
-        }
+    private static let allDynamicNames: Set<String> = [
+        "inputVector",
+        "outputComponent0", "outputComponent1", "outputComponent2", "outputComponent3",
+    ]
 
-        return ports +
-        [
-            ("inputVector", Value.makeDefaultParameterPort(name: Value.portType.rawValue, description: "Vector to decompose into components")),
-        ] + outputPorts
+    public convenience init(context: Context, vectorType: VectorType)
+    {
+        self.init(context: context, strategy: vectorType)
     }
 
-    public var inputVector: NodePort<Value> { port(named: "inputVector") }
-    private func outputComponentPort(_ i: Int) -> NodePort<Value.Component> { port(named: "outputComponent\(i)") }
+    public override func rebuildPorts(forStrategy strategy: String)
+    {
+        guard let vt = VectorType.allCases.first(where: { $0.rawValue == strategy }) else { return }
+
+        // Replace input port only when the vector type changes
+        if let existing: Port = findPort(named: "inputVector"), existing.portType != vt.portType {
+            removePort(existing)
+        }
+        if findPort(named: "inputVector") == nil {
+            let inputPort: Port
+            switch vt {
+            case .float2: inputPort = NodePort<simd_float2>(name: vt.portType.rawValue, kind: .Inlet, description: "Vector to decompose")
+            case .float3: inputPort = NodePort<simd_float3>(name: vt.portType.rawValue, kind: .Inlet, description: "Vector to decompose")
+            case .float4: inputPort = NodePort<simd_float4>(name: vt.portType.rawValue, kind: .Inlet, description: "Vector to decompose")
+            }
+            addDynamicPort(inputPort, name: "inputVector")
+        }
+
+        // Remove component output ports beyond the needed count
+        for i in vt.componentLabels.count..<4 {
+            if let p: Port = findPort(named: "outputComponent\(i)") { removePort(p) }
+        }
+        // Add missing component output ports
+        for (i, label) in vt.componentLabels.enumerated() {
+            if findPort(named: "outputComponent\(i)") == nil {
+                let p = NodePort<Float>(name: label, kind: .Outlet, description: "\(label) component")
+                addDynamicPort(p, name: "outputComponent\(i)")
+            }
+        }
+
+        displayName = "\(vt.portType.rawValue) Decompose"
+    }
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        guard self.inputVector.valueDidChange, let vector = self.inputVector.value else { return }
+        guard let vt = VectorType.allCases.first(where: { $0.rawValue == strategy }) else { return }
 
-        for (i, value) in vector.componentValues.enumerated() {
-            outputComponentPort(i).send(value)
+        func sendComponents(_ values: [Float])
+        {
+            for (i, value) in values.enumerated() {
+                if let out: NodePort<Float> = findPort(named: "outputComponent\(i)") {
+                    out.send(value)
+                }
+            }
+        }
+
+        switch vt {
+        case .float2:
+            guard let inp: NodePort<simd_float2> = findPort(named: "inputVector"),
+                  inp.valueDidChange, let v = inp.value else { return }
+            sendComponents([v.x, v.y])
+        case .float3:
+            guard let inp: NodePort<simd_float3> = findPort(named: "inputVector"),
+                  inp.valueDidChange, let v = inp.value else { return }
+            sendComponents([v.x, v.y, v.z])
+        case .float4:
+            guard let inp: NodePort<simd_float4> = findPort(named: "inputVector"),
+                  inp.valueDidChange, let v = inp.value else { return }
+            sendComponents([v.x, v.y, v.z, v.w])
         }
     }
 }

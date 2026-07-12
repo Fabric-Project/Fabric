@@ -15,12 +15,12 @@ import MetalKit
 public class GeometryToTransformArrayNode : StrategyNode
 {
     public override class var name:String { "Geometry Decompose" }
-    public override class var nodeType:Node.NodeType { .Parameter(parameterType: .Array) }
+    public override class var nodeType:Node.NodeType { .Geometery }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Extracts a point per geometry vertex, orienting each to the vertex normal (local +Z aligned to the normal, matching the Up Orientation convention). The Transform is applied to every point. Output format selects either a single array of Transforms, or per-element Positions / Orientations / UVs." }
 
-    public override class var strategies: [String] { ["Transform", "Components"] }
+    public override class var strategyOptions: [any NodeStrategyOption] { GeometryToTransformMode.allCases }
 
     /// Reference up used when turning each vertex normal into an orientation.
     /// The roll about the normal is otherwise undetermined; a fixed world up

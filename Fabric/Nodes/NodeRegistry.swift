@@ -52,6 +52,31 @@ public class NodeRegistry {
         // Both module-qualified and bare forms are covered since Swift's output can vary.
         result["PassThroughNode<SatinGeometry>"] = PassThroughNode<Geometry>.self
         result["PassThroughNode<Satin.SatinGeometry>"] = PassThroughNode<Geometry>.self
+
+        // Structural array nodes were previously generic; old docs decode to type-agnostic versions.
+        let agnosticSuffixes = ["Bool", "Int", "Float", "String",
+                                "simd_float2", "simd_float3", "simd_float4", "simd_float4x4",
+                                "FabricImage"]
+        for suffix in agnosticSuffixes {
+            result["ArrayQueueNode<\(suffix)>"]               = ArrayQueueNode.self
+            result["ArrayFirstValueNode<\(suffix)>"]          = ArrayFirstValueNode.self
+            result["ArrayLastValueNode<\(suffix)>"]           = ArrayLastValueNode.self
+            result["ArrayIndexValueNode<\(suffix)>"]          = ArrayIndexValueNode.self
+            result["ArrayCountNode<\(suffix)>"]               = ArrayCountNode.self
+            result["ArrayAppendNode<\(suffix)>"]              = ArrayAppendNode.self
+            result["ArrayReplaceValueAtIndexNode<\(suffix)>"] = ArrayReplaceValueAtIndexNode.self
+            result["ArraySplitAtIndexNode<\(suffix)>"]        = ArraySplitAtIndexNode.self
+        }
+
+        // Vector compose/decompose nodes were previously generic; old docs map to consolidated versions.
+        let vectorSuffixes = ["simd_float2", "simd_float3", "simd_float4"]
+        for suffix in vectorSuffixes {
+            result["ComposeVectorNode<\(suffix)>"]       = ComposeVectorNode.self
+            result["DecomposeVectorNode<\(suffix)>"]     = DecomposeVectorNode.self
+            result["ComposeVectorArrayNode<\(suffix)>"]  = ComposeVectorArrayNode.self
+            result["DecomposeVectorArrayNode<\(suffix)>"] = DecomposeVectorArrayNode.self
+        }
+
         return result
     }()
     
@@ -168,6 +193,7 @@ public class NodeRegistry {
             LiveImageNode.self,
             DepthOfFieldNode.self,
             GaussianBlurNode.self,
+            GaussianBlurChannelsNode.self,
             MotionBlurNode.self,
             PostProcessMotionBlurNode.self,
             ZoomBlurNode.self,
@@ -175,6 +201,9 @@ public class NodeRegistry {
             PersonSegmentationMaskNode.self,
             FacePoseAnalysisNode.self,
             HandPoseAnalysisNode.self,
+            LucasKanadeOpticalFlowNode.self,
+            DCTNode.self,
+            InverseDCTNode.self,
             LocalVLMNode.self,
             ContourPathNode.self,
             MetalFXSpatialUpsample2xNode.self,
@@ -182,18 +211,7 @@ public class NodeRegistry {
             LUTProcessorNode.self,
             BlendNode.self,
             TextureCropNode.self,
-
-            ArrayFirstValueNode<FabricImage>.self,
-            ArrayLastValueNode<FabricImage>.self,
-            ArrayIndexValueNode<FabricImage>.self,
-            ArrayCountNode<FabricImage>.self,
-            ArrayQueueNode<FabricImage>.self,
-            ArrayReplaceValueAtIndexNode<FabricImage>.self,
-            ArrayAppendNode<FabricImage>.self,
-            ArraySplitAtIndexNode<FabricImage>.self,
-            ArraySubarrayNode<FabricImage>.self,
-            ArrayShuffleNode<FabricImage>.self,
-            ArrayReverseNode<FabricImage>.self,
+            ImageResampleNode.self,
         ])
         return classes
     }
@@ -303,39 +321,23 @@ public class NodeRegistry {
     }
     
     private var parameterNodeClasses: [Node.Type] = [
-        // Boolean
+        // Numeric, type-agnostic value operations.
+        DistanceNode.self,
+        EasingNode.self,
+        TweenNode.self,
+        RepeatNode.self,
+        RippleRepeatNode.self,
+        PairwiseDistanceArrayNode.self,
+        ArrayRangeInterpolateNode.self,
+        ArrayResampleTypeAgnosticNode.self,
+
+        // Boolean.
         PassThroughNode<Bool>.self,
         BooleanLogicNode.self,
-        ArrayFirstValueNode<Bool>.self,
-        ArrayLastValueNode<Bool>.self,
-        ArrayIndexValueNode<Bool>.self,
-        ArrayCountNode<Bool>.self,
-        ArrayQueueNode<Bool>.self,
-        ArrayReplaceValueAtIndexNode<Bool>.self,
-        ArrayAppendNode<Bool>.self,
-        ArraySplitAtIndexNode<Bool>.self,
-        ArraySubarrayNode<Bool>.self,
-        ArrayShuffleNode<Bool>.self,
-        ArrayReverseNode<Bool>.self,
-        RepeatValueNode<Bool>.self,
 
-        // Index
-        PassThroughNode<Int>.self,
-        ArrayFirstValueNode<Int>.self,
-        ArrayLastValueNode<Int>.self,
-        ArrayIndexValueNode<Int>.self,
-        ArrayCountNode<Int>.self,
-        ArrayQueueNode<Int>.self,
-        ArrayReplaceValueAtIndexNode<Int>.self,
-        ArrayAppendNode<Int>.self,
-        ArraySplitAtIndexNode<Int>.self,
-        ArraySubarrayNode<Int>.self,
-        ArrayShuffleNode<Int>.self,
-        ArrayReverseNode<Int>.self,
-        RepeatValueNode<Int>.self,
-        
-        // Number
+        // Number and index.
         PassThroughNode<Float>.self,
+        PassThroughNode<Int>.self,
         CurrentTimeNode.self,
         SystemTimeNode.self,
         TimestampNode.self,
@@ -345,174 +347,83 @@ public class NodeRegistry {
         NumberLogicOperator.self,
         NumberRoundNode.self,
         NumberClampNode.self,
-        NumberEaseNode.self,
-        NumberTweenNode.self,
         NumberRemapNode.self,
         NumberIntegralNode.self,
         NumberSmoothNode.self,
         MathExpressionNode.self,
         GradientNoiseNode.self,
         AudioSpectrumNode.self,
+
+        // Vector: scalar/vector operations first, vector-array operations last.
+        PassThroughNode<simd_float2>.self,
+        PassThroughNode<simd_float3>.self,
+        PassThroughNode<simd_float4>.self,
+        ComposeVectorNode.self,
+        DecomposeVectorNode.self,
+        ComposeVectorArrayNode.self,
+        DecomposeVectorArrayNode.self,
+
+        // Orientation: single orientation operations first, orientation-array operations last.
+        PassThroughNode<simd_quatf>.self,
+        ComposeOrientationNode.self,
+        DecomposeOrientationNode.self,
+        ComposeOrientationArrayNode.self,
+        DecomposeOrientationArrayNode.self,
+
+        // Transform: single transform operations first, transform-array operations last.
+        PassThroughNode<simd_float4x4>.self,
+        ComposeTransformNode.self,
+        DecomposeTransformNode.self,
+        TranslateTransformNode.self,
+        RotateTransformNode.self,
+        ScaleTransformNode.self,
+        TransposeTransformNode.self,
+        InvertTransformNode.self,
+        ComposeTransformArrayNode.self,
+        DecomposeTransformArrayNode.self,
+        GeometryToTransformArrayNode.self,
+
+        // Color.
         ColorPassThroughNode.self,
         MakeColorNode.self,
-        ColorTweenNode.self,
-        OrientationTweenNode.self,
-        ArrayFirstValueNode<Float>.self,
-        ArrayLastValueNode<Float>.self,
-        ArrayIndexValueNode<Float>.self,
-        ArrayCountNode<Float>.self,
-        ArrayQueueNode<Float>.self,
-        ArrayReplaceValueAtIndexNode<Float>.self,
-        ArrayAppendNode<Float>.self,
-        ArraySplitAtIndexNode<Float>.self,
-        ArraySubarrayNode<Float>.self,
-        ArrayShuffleNode<Float>.self,
-        ArrayReverseNode<Float>.self,
-        ArrayMathExpressionNode.self,
-        RepeatValueNode<Float>.self,
-        ArrayFromRippledValueNode<Float>.self,
-        ArrayResampleNode<Float>.self,
-        ArrayRangeInterpolationNode<Float>.self,
 
-        // String
+        // String.
         PassThroughNode<String>.self,
         StringTrimNode.self,
         StringLengthNode.self,
         StringRangeNode.self,
         StringWrapNode.self,
         StringCaseNode.self,
+        StringComparisonNode.self,
         StringFormatterNode.self,
         StringScannerNode.self,
-        StringComparisonNode.self,
         StringJoinNode.self,
-        StringDifferenceNode.self,
         StringSplitNode.self,
+        StringDifferenceNode.self,
         TimestampFormatterNode.self,
         TimecodeFormatterNode.self,
 //        ConvertToStringNode.self,
         LocalLLMNode.self,
         DirectoryScannerNode.self,
         TextFileLoaderNode.self,
-        ArrayFirstValueNode<String>.self,
-        ArrayLastValueNode<String>.self,
-        ArrayIndexValueNode<String>.self,
-        ArrayCountNode<String>.self,
-        ArrayQueueNode<String>.self,
-        ArrayReplaceValueAtIndexNode<String>.self,
-        ArrayAppendNode<String>.self,
-        ArraySplitAtIndexNode<String>.self,
-        ArraySubarrayNode<String>.self,
-        ArrayShuffleNode<String>.self,
-        ArrayReverseNode<String>.self,
-        RepeatValueNode<String>.self,
-        
-        // Vectors
-        PassThroughNode<simd_float2>.self,
-        ComposeVectorNode<simd_float2>.self,
-        DecomposeVectorNode<simd_float2>.self,
-        VectorTweenNode<simd_float2>.self,
-        Vector2Distance.self,
-        ArrayFirstValueNode<simd_float2>.self,
-        ArrayLastValueNode<simd_float2>.self,
-        ArrayIndexValueNode<simd_float2>.self,
-        ArrayCountNode<simd_float2>.self,
-        ArrayQueueNode<simd_float2>.self,
-        ArrayReplaceValueAtIndexNode<simd_float2>.self,
-        ArrayAppendNode<simd_float2>.self,
-        ArraySplitAtIndexNode<simd_float2>.self,
-        ArraySubarrayNode<simd_float2>.self,
-        ArrayShuffleNode<simd_float2>.self,
-        ArrayReverseNode<simd_float2>.self,
-        RepeatValueNode<simd_float2>.self,
-        ArrayFromRippledValueNode<simd_float2>.self,
-        ArrayResampleNode<simd_float2>.self,
-        ArrayRangeInterpolationNode<simd_float2>.self,
-        ComposeVectorArrayNode<simd_float2>.self,
-        DecomposeVectorArrayNode<simd_float2>.self,
-        VectorArrayTweenNode<simd_float2>.self,
+
+        // Array: generic structure nodes, then more specialized array generators/processors.
+        ArrayCountNode.self,
+        ArrayFirstValueNode.self,
+        ArrayLastValueNode.self,
+        ArrayIndexValueNode.self,
+        ArrayAppendNode.self,
+        ArrayReplaceValueAtIndexNode.self,
+        ArraySplitAtIndexNode.self,
+        ArraySubarrayNode.self,
+        ArrayQueueNode.self,
+        ArrayReverseNode.self,
+        ArrayShuffleNode.self,
+        LinePointsNode.self,
+        RingPointsNode.self,
+        GridPointsNode.self,
         PolyLineSimplifyNode.self,
-        
-        PassThroughNode<simd_float3>.self,
-        ComposeVectorNode<simd_float3>.self,
-        DecomposeVectorNode<simd_float3>.self,
-        VectorTweenNode<simd_float3>.self,
-        Vector3Distance.self,
-        ArrayFirstValueNode<simd_float3>.self,
-        ArrayLastValueNode<simd_float3>.self,
-        ArrayIndexValueNode<simd_float3>.self,
-        ArrayCountNode<simd_float3>.self,
-        ArrayQueueNode<simd_float3>.self,
-        ArrayReplaceValueAtIndexNode<simd_float3>.self,
-        ArrayAppendNode<simd_float3>.self,
-        ArraySplitAtIndexNode<simd_float3>.self,
-        ArraySubarrayNode<simd_float3>.self,
-        ArrayShuffleNode<simd_float3>.self,
-        ArrayReverseNode<simd_float3>.self,
-        OrientationArrayTweenNode.self,
-        ComposeTransformArrayNode.self,
-        RepeatValueNode<simd_float3>.self,
-        ArrayFromRippledValueNode<simd_float3>.self,
-        ArrayResampleNode<simd_float3>.self,
-        ArrayRangeInterpolationNode<simd_float3>.self,
-        ComposeVectorArrayNode<simd_float3>.self,
-        DecomposeVectorArrayNode<simd_float3>.self,
-        ComposeOrientationArrayNode.self,
-        DecomposeOrientationArrayNode.self,
-        VectorArrayTweenNode<simd_float3>.self,
-
-        PassThroughNode<simd_float4>.self,
-        ComposeVectorNode<simd_float4>.self,
-        DecomposeVectorNode<simd_float4>.self,
-        VectorTweenNode<simd_float4>.self,
-        Vector4Distance.self,
-        ArrayFirstValueNode<simd_float4>.self,
-        ArrayLastValueNode<simd_float4>.self,
-        ArrayIndexValueNode<simd_float4>.self,
-        ArrayCountNode<simd_float4>.self,
-        ArrayQueueNode<simd_float4>.self,
-        ArrayReplaceValueAtIndexNode<simd_float4>.self,
-        ArrayAppendNode<simd_float4>.self,
-        ArraySplitAtIndexNode<simd_float4>.self,
-        ArraySubarrayNode<simd_float4>.self,
-        ArrayShuffleNode<simd_float4>.self,
-        ArrayReverseNode<simd_float4>.self,
-        RepeatValueNode<simd_float4>.self,
-        ArrayFromRippledValueNode<simd_float4>.self,
-        ArrayResampleNode<simd_float4>.self,
-        ArrayRangeInterpolationNode<simd_float4>.self,
-        ComposeVectorArrayNode<simd_float4>.self,
-        DecomposeVectorArrayNode<simd_float4>.self,
-        VectorArrayTweenNode<simd_float4>.self,
-
-        PassThroughNode<simd_quatf>.self,
-        ComposeOrientationNode.self,
-        DecomposeOrientationNode.self,
-
-        // Transform (Float Matrix 4x4)
-        PassThroughNode<simd_float4x4>.self,
-        RotateTransformNode.self,
-        ScaleTransformNode.self,
-        TranslateTransformNode.self,
-        TransposeTransformNode.self,
-        InvertTransformNode.self,
-        ComposeTransformNode.self,
-        DecomposeTransformNode.self,
-        GeometryToTransformArrayNode.self,
-        ArrayFirstValueNode<simd_float4x4>.self,
-        ArrayLastValueNode<simd_float4x4>.self,
-        ArrayIndexValueNode<simd_float4x4>.self,
-        ArrayCountNode<simd_float4x4>.self,
-        ArrayQueueNode<simd_float4x4>.self,
-        ArrayReplaceValueAtIndexNode<simd_float4x4>.self,
-        ArrayAppendNode<simd_float4x4>.self,
-        ArraySplitAtIndexNode<simd_float4x4>.self,
-        ArraySubarrayNode<simd_float4x4>.self,
-        ArrayShuffleNode<simd_float4x4>.self,
-        ArrayReverseNode<simd_float4x4>.self,
-        RepeatValueNode<simd_float4x4>.self,
-        DecomposeTransformArrayNode.self,
-
-        ]
+    ]
     
     private var ioNodeClasses: [Node.Type] {
         var classes: [Node.Type] = [
@@ -544,22 +455,7 @@ public class NodeRegistry {
 
             SignalNode.self,
 
-            SampleAndHoldNode<Bool>.self,
-            SampleAndHoldNode<Float>.self,
-            SampleAndHoldNode<simd_float2>.self,
-            SampleAndHoldNode<simd_float3>.self,
-            SampleAndHoldNode<simd_float4>.self,
-            SampleAndHoldNode<String>.self,
-            SampleAndHoldNode<simd_quatf>.self,
-            SampleAndHoldNode<simd_float4x4>.self,
-            SampleAndHoldNode<FabricImage>.self,
-
-            SampleAndHoldNode<ContiguousArray<Bool>>.self,
-            SampleAndHoldNode<ContiguousArray<Float>>.self,
-            SampleAndHoldNode<ContiguousArray<simd_float2>>.self,
-            SampleAndHoldNode<ContiguousArray<simd_float3>>.self,
-            SampleAndHoldNode<ContiguousArray<simd_float4>>.self,
-            SampleAndHoldNode<ContiguousArray<String>>.self,
+            SampleAndHoldNode.self,
         ])
         return classes
     }

@@ -32,50 +32,41 @@ public class IteratorNode: SubgraphNode
     // Ensure we always render!
     override public var isDirty:Bool { get {  true  } set { } }
 
-    var renderProxy:SubgraphIteratorRenderable
-
     override public var object:Object? {
-        return self.renderProxy
+        nil
     }
+
+    private var preparedForCount: Int = 0
+    private var preparedRenderableIdentifiers = Set<ObjectIdentifier>()
 
     public required init(context: Context)
     {
-        self.renderProxy = SubgraphIteratorRenderable(context:context, iterationCount: 1)
-
         super.init(context: context)
-        
-        self.renderProxy.subGraph = self.subGraph
     }
     
     public required init(from decoder: any Decoder) throws
     {
-        guard let context = decoder.context?.documentContext as? Context else { fatalError("Unable to get document context") }
-        
-        self.renderProxy = SubgraphIteratorRenderable(context:context, iterationCount: 1)
-
         try super.init(from: decoder)
-        
-        self.renderProxy.subGraph = self.subGraph
     }
     
     override public func startExecution(renderer:GraphRenderer)
     {
-        self.renderProxy.startExecution(renderer:renderer)
+        renderer.startExecution(graph: self.subGraph)
     }
     
     override public func stopExecution(renderer:GraphRenderer)
     {
-        self.renderProxy.stopExecution(renderer: renderer)
+        renderer.stopExecution(graph: self.subGraph)
     }
 
     override public func enableExecution(renderer:GraphRenderer)
     {
-        self.renderProxy.enableExecution(renderer: renderer)
+        renderer.enableExecution(graph: self.subGraph)
     }
     
     override public func disableExecution(renderer:GraphRenderer)
     {
-        self.renderProxy.disableExecution(renderer: renderer)
+        renderer.disableExecution(graph: self.subGraph)
     }
     
     override public func execute(renderer:GraphRenderer,
@@ -83,25 +74,135 @@ public class IteratorNode: SubgraphNode
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        self.renderProxy.graphRenderer = renderer
-        self.renderProxy.graphExecutionInfo = executionInfo
-        self.renderProxy.currentRenderPass = renderPassDescriptor
-        self.renderProxy.currentCommandBuffer = commandBuffer
-//        self.renderProxy.renderables = self.subGraph.renderables
-
-        if self.inputIteratonCount.valueDidChange,
-            let count = self.inputIteratonCount.value
-        {
-            self.renderProxy.iterationCount = count
+        let iterationCount = resolvedIterationCount()
+        guard iterationCount > 0 else {
+            executionInfo.iterationInfo = nil
+            self.forwardPortValues(force:true)
+            return
         }
+
+        var subgraphObjects = objectsInSubgraph()
+        var renderableChildren = renderables(in: subgraphObjects)
         
-        // execute the graph once, to just ensure meshes / materials have latest values popogated to nodes
-        // this does technically introduce one additional draw call
-        // Not sure the best way to avoid this - since we need to have the graph 'configured'
-        self.renderProxy.execute(renderer: renderer, executionInfo: executionInfo, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
-        
+        prepareRepeatedEncodingIfNeeded( renderables: renderableChildren,
+                                         count: iterationCount)
+
+        for iteration in 0..<iterationCount
+        {
+            let iterationInfo = GraphIterationInfo(totalIterationCount: iterationCount,
+                                                   currentIteration: iteration)
+            executionInfo.iterationInfo = iterationInfo
+
+            
+            let needsSceneSync = subGraph.shouldUpdateConnections
+            subGraph.shouldUpdateConnections = false
+            if needsSceneSync {
+                renderer.invalidateFeedbackTopologyCaches(for: subGraph)
+            }
+
+            renderer.execute(graph: subGraph,
+                             executionInfo: executionInfo,
+                             renderPassDescriptor: renderPassDescriptor,
+                             commandBuffer: commandBuffer,
+                             clearFlags: false,
+                             forceEvaluationForTheseNodes: subGraph.nodes)
+
+            if needsSceneSync
+            {
+                subGraph.syncNodesToScene()
+            }
+            
+            subgraphObjects = objectsInSubgraph()
+            renderableChildren = renderables(in: subgraphObjects)
+            
+            prepareRepeatedEncodingIfNeeded(
+                renderables: renderableChildren,
+                count: iterationCount
+            )
+
+            for object in subgraphObjects {
+                object.update()
+                object.encode(commandBuffer)
+            }
+
+            for renderable in renderableChildren {
+                renderable.captureRepeatedEncodingState(
+                    iteration: iteration,
+                    count: iterationCount
+                )
+            }
+        }
+
+        executionInfo.iterationInfo = nil
+
+        let renderablesByLayer = Dictionary(grouping: renderableChildren) {
+            $0.renderLayer.rawValue
+        }
+
+        for renderLayer in renderablesByLayer.keys.sorted() {
+            guard let layerRenderables = renderablesByLayer[renderLayer] else { continue }
+            renderer.renderEncoder.scheduleCurrentPassEncoding(
+                renderables: layerRenderables
+            ) { [weak renderer] renderEncoderState in
+                guard let renderEncoder = renderer?.renderEncoder else { return }
+
+                for iteration in 0..<iterationCount {
+                    renderEncoderState.renderEncoder.pushDebugGroup("Iterator \(iteration)")
+                    renderEncoder.encodeCurrentPass(
+                        renderables: layerRenderables,
+                        renderEncoderState: renderEncoderState,
+                        repeatedIteration: iteration,
+                        repeatedCount: iterationCount
+                    )
+                    renderEncoderState.renderEncoder.popDebugGroup()
+                }
+            }
+        }
+
         // We need to call this to ensure any published port values also get forwarded.
         self.forwardPortValues(force:true)
+    }
 
+    private func objectsInSubgraph() -> [Object] {
+        [subGraph.scene] + subGraph.scene.getChildren()
+    }
+
+    private func resolvedIterationCount() -> Int {
+        for connection in inputIteratonCount.connections where connection.kind == .Outlet {
+            if let port = connection as? NodePort<Int>,
+               let count = port.value
+            {
+                return count
+            }
+
+            if let boxed = connection.snapshotValue(),
+               let count = Int.fromPortValue(boxed)
+            {
+                return count
+            }
+        }
+
+        return inputIteratonCount.value ?? 1
+    }
+
+    private func renderables(in objects: [Object]) -> [Renderable] {
+        objects.compactMap { $0 as? Renderable }
+    }
+
+    private func prepareRepeatedEncodingIfNeeded(
+        renderables: [Renderable],
+        count: Int
+    ) {
+        let renderableIdentifiers = Set(renderables.map { ObjectIdentifier($0) })
+        guard count != preparedForCount ||
+            renderableIdentifiers != preparedRenderableIdentifiers
+        else { return }
+
+        for renderable in renderables {
+            renderable.prepareForRepeatedEncoding(count: count)
+        }
+
+        preparedForCount = count
+        preparedRenderableIdentifiers = renderableIdentifiers
     }
 }

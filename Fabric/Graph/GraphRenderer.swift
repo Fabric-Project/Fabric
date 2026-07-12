@@ -131,6 +131,8 @@ public class GraphRenderer : ViewRenderer
         renderPassDescriptor.colorAttachments[0].storeAction = .store
         renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0)
 
+        let feedbackCache = self.feedbackCache(for: graph.id)
+
         for node in scheduledNodes {
             if graphRequiresResize {
                 node.resize(size: renderEncoder.size, scaleFactor: resizeScaleFactor)
@@ -147,6 +149,7 @@ public class GraphRenderer : ViewRenderer
             commandBuffer.popDebugGroup()
 #endif
             node.markClean()
+            feedbackCache.cacheProcessedNode(node, executionInfo: currentExecutionInfo)
         }
 
         graphRequiresResize = false
@@ -168,11 +171,16 @@ public class GraphRenderer : ViewRenderer
     // MARK: - Graph Analysis (update phase)
 
     private func updateExecutionPlan() {
+        self.resetTextureCaches(for: currentExecutionInfo)
+
         let feedbackCache = self.feedbackCache(for: graph.id)
         feedbackCache.resetCacheFor(executionInfo: currentExecutionInfo)
 
         pendingSceneSync = graph.shouldUpdateConnections
         graph.shouldUpdateConnections = false
+        if pendingSceneSync {
+            feedbackCache.invalidateTopologyCaches()
+        }
 
         let nodesWithOutputPorts = graph.nodesWithPublishedOutputs()
         let pullNodes = graph.consumerNodes + nodesWithOutputPorts
@@ -204,7 +212,12 @@ public class GraphRenderer : ViewRenderer
 
         if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider {
             orderedNodes.append(node)
-            feedbackCache.setProcessingState(.processed, forNode: node, executionInfo: currentExecutionInfo)
+            feedbackCache.setProcessingState(
+                .processed,
+                forNode: node,
+                executionInfo: currentExecutionInfo,
+                cacheProcessedOutputs: false
+            )
         }
     }
 
@@ -219,6 +232,9 @@ public class GraphRenderer : ViewRenderer
     {
         let needsSceneSync = graph.shouldUpdateConnections
         graph.shouldUpdateConnections = false
+        if needsSceneSync {
+            invalidateFeedbackTopologyCaches(for: graph)
+        }
 
         self.execute(graph: graph,
                      executionInfo: executionInfo,
@@ -244,6 +260,8 @@ public class GraphRenderer : ViewRenderer
                         clearFlags: Bool = true,
                         forceEvaluationForTheseNodes: [Node] = [])
     {
+        self.resetTextureCaches(for: executionInfo)
+
         let feedbackCache = self.feedbackCache(for: graph.id)
         feedbackCache.resetCacheFor(executionInfo: executionInfo)
 
@@ -258,8 +276,8 @@ public class GraphRenderer : ViewRenderer
         let firstCamera = graph.firstCamera ?? self.currentCamera ?? self.defaultCamera
 
         if !nodesToPullFrom.isEmpty {
-            var nodesWeHaveProcessedThisPass: [Node] = []
             var nodesWeHaveExecutedThisPass: [Node] = []
+            var nodeIDsWeHaveExecutedThisPass = Set<UUID>()
 
             for pullNode in nodesToPullFrom {
                 processGraph(graph: graph,
@@ -268,8 +286,8 @@ public class GraphRenderer : ViewRenderer
                              executionInfo: executionInfo,
                              renderPassDescriptor: renderPassDescriptor,
                              commandBuffer: commandBuffer,
-                             nodesWeHaveProcessedThisPass: &nodesWeHaveProcessedThisPass,
                              nodesWeHaveExecutedThisPass: &nodesWeHaveExecutedThisPass,
+                             nodeIDsWeHaveExecutedThisPass: &nodeIDsWeHaveExecutedThisPass,
                              clearFlags: clearFlags)
             }
 
@@ -283,8 +301,8 @@ public class GraphRenderer : ViewRenderer
                               executionInfo: GraphExecutionInfo,
                               renderPassDescriptor: MTLRenderPassDescriptor,
                               commandBuffer: MTLCommandBuffer,
-                              nodesWeHaveProcessedThisPass: inout [Node],
                               nodesWeHaveExecutedThisPass: inout [Node],
+                              nodeIDsWeHaveExecutedThisPass: inout Set<UUID>,
                               clearFlags: Bool = true)
     {
         switch graphFeedbackCache.processingState(forNode: node) {
@@ -305,8 +323,8 @@ public class GraphRenderer : ViewRenderer
                          executionInfo: executionInfo,
                          renderPassDescriptor: renderPassDescriptor,
                          commandBuffer: commandBuffer,
-                         nodesWeHaveProcessedThisPass: &nodesWeHaveProcessedThisPass,
                          nodesWeHaveExecutedThisPass: &nodesWeHaveExecutedThisPass,
+                         nodeIDsWeHaveExecutedThisPass: &nodeIDsWeHaveExecutedThisPass,
                          clearFlags: clearFlags)
         }
 
@@ -315,7 +333,7 @@ public class GraphRenderer : ViewRenderer
         }
 
         if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider {
-            if !nodesWeHaveExecutedThisPass.contains(node) {
+            if !nodeIDsWeHaveExecutedThisPass.contains(node.id) {
 #if DEBUG
                 commandBuffer.pushDebugGroup(node.name)
 #endif
@@ -327,6 +345,7 @@ public class GraphRenderer : ViewRenderer
                 commandBuffer.popDebugGroup()
 #endif
                 nodesWeHaveExecutedThisPass.append(node)
+                nodeIDsWeHaveExecutedThisPass.insert(node.id)
 
                 if clearFlags {
                     node.markClean()
@@ -335,6 +354,12 @@ public class GraphRenderer : ViewRenderer
                 graphFeedbackCache.setProcessingState(.processed, forNode: node, executionInfo: executionInfo)
             }
         }
+    }
+
+    private func resetTextureCaches(for executionInfo: GraphExecutionInfo)
+    {
+        self.privateTextureCache.resetCacheFor(executionContext: executionInfo)
+        self.sharedTextureCache.resetCacheFor(executionContext: executionInfo)
     }
 
     // MARK: - Graph Execution Lifecycle
@@ -385,6 +410,11 @@ public class GraphRenderer : ViewRenderer
         return newCache
     }
 
+    func invalidateFeedbackTopologyCaches(for graph: Graph)
+    {
+        feedbackCache(for: graph.id).invalidateTopologyCaches()
+    }
+
     // MARK: - Execution Helpers
 
     public func newImage(withWidth width: Int, height: Int) -> FabricImage?
@@ -398,12 +428,38 @@ public class GraphRenderer : ViewRenderer
             ?? self.newImageDirect(withWidth: width, height: height, format: format)
     }
 
+    public func newImage(withWidth width: Int,
+                         height: Int,
+                         format: MTLPixelFormat,
+                         mipmapped: Bool) -> FabricImage?
+    {
+        guard mipmapped else {
+            return newImage(withWidth: width, height: height, format: format)
+        }
+
+        return privateTextureCache.newManagedImage(width: width,
+                                                   height: height,
+                                                   pixelFormat: format,
+                                                   mipmapped: true)
+            ?? newImageDirect(withWidth: width, height: height, format: format, mipmapped: true)
+    }
+
     public func newImage(fromPixelBuffer pixelBuffer: CVPixelBuffer) -> FabricImage?
     {
-        if let surface = CVPixelBufferGetIOSurface(pixelBuffer)?.takeUnretainedValue() {
-            return self.newImage(fromSurface: surface)
+        var image:FabricImage?
+        
+        if let surface = CVPixelBufferGetIOSurface(pixelBuffer)?.takeUnretainedValue()
+        {
+             image = self.newImage(fromSurface: surface)
         }
-        return newSharedImage(fromPixelBuffer: pixelBuffer)
+        else
+        {
+            image = newSharedImage(fromPixelBuffer: pixelBuffer)
+        }
+        
+        image?.isFlipped = CVImageBufferIsFlipped(pixelBuffer)
+        
+        return image
     }
 
     // MARK: - Private Image Helpers
@@ -428,6 +484,8 @@ public class GraphRenderer : ViewRenderer
 
         let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
         image.texture.replace(region: region, mipmapLevel: 0, withBytes: baseAddr, bytesPerRow: bpr)
+        
+        
         return image
     }
 
@@ -458,8 +516,29 @@ public class GraphRenderer : ViewRenderer
     private func metalPixelFormatForOSType(format: OSType) -> MTLPixelFormat?
     {
         switch format {
-        case kCVPixelFormatType_32BGRA:
-            return .bgra8Unorm
+        // 8-bit packed RGBA
+        case kCVPixelFormatType_32BGRA:         return .bgra8Unorm
+        case kCVPixelFormatType_32RGBA:         return .rgba8Unorm
+
+        // 10-bit HDR
+        case kCVPixelFormatType_ARGB2101010LEPacked: return .bgr10a2Unorm
+
+        // 16-bit half-float
+        case kCVPixelFormatType_64RGBAHalf:     return .rgba16Float
+
+        // 32-bit float
+        case kCVPixelFormatType_128RGBAFloat:   return .rgba32Float
+
+        // Single-component
+        case kCVPixelFormatType_OneComponent8:       return .r8Unorm
+        case kCVPixelFormatType_OneComponent16Half:  return .r16Float
+        case kCVPixelFormatType_OneComponent32Float: return .r32Float
+
+        // Two-component (e.g. optical flow: X in R, Y in G)
+        case kCVPixelFormatType_TwoComponent8:       return .rg8Unorm
+        case kCVPixelFormatType_TwoComponent16Half:  return .rg16Float
+        case kCVPixelFormatType_TwoComponent32Float: return .rg32Float
+
         default:
             return nil
         }
@@ -485,5 +564,20 @@ public class GraphRenderer : ViewRenderer
             return FabricImage.unmanaged(texture: texture)
         }
         return nil
+    }
+
+    private func newImageDirect(withWidth width: Int,
+                                height: Int,
+                                format: MTLPixelFormat,
+                                mipmapped: Bool) -> FabricImage?
+    {
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format,
+                                                                  width: width,
+                                                                  height: height,
+                                                                  mipmapped: mipmapped)
+        descriptor.usage = [.shaderRead, .shaderWrite, .renderTarget]
+
+        guard let texture = device.makeTexture(descriptor: descriptor) else { return nil }
+        return FabricImage.unmanaged(texture: texture)
     }
 }

@@ -106,6 +106,10 @@ public struct GraphCanvas : View
             .onDrop(of: [.nodeRegistryItem, .fileURL], isTargeted: nil) { providers, location in
                 self.handleDrop(providers: providers, location: location, canvasSize: geom.size)
             }
+            .onChange(of: editingContext.currentGraph.nodes.count) { _, _ in
+                let nodeIDs = Set(editingContext.currentGraph.nodes.map(\.id))
+                settingsEntries.removeAll { !nodeIDs.contains($0.id) }
+            }
         }
     }
 
@@ -167,6 +171,8 @@ public struct GraphCanvas : View
     {
         let currentGraph = self.editingContext.currentGraph
 
+        var handled = false
+
         for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.nodeRegistryItem.identifier)
         {
             provider.loadDataRepresentation(forTypeIdentifier: UTType.nodeRegistryItem.identifier) { data, error in
@@ -175,23 +181,29 @@ public struct GraphCanvas : View
                       let wrapper = NodeRegistry.shared.availableNodes.first(where: { $0.id == dragData.wrapperID })
                 else {
                     print("GraphCanvas: registry drag decode failed: \(error?.localizedDescription ?? "unknown")")
+                    handled = false
                     return
                 }
 
                 do {
                     let node = try wrapper.initializeNode(context: currentGraph.context)
-                    node.offset = CGSize(width: location.x - canvasSize.width / 2.0 - node.nodeSize.width / 2.0,
-                                         height: location.y - canvasSize.height / 2.0 - node.nodeSize.height / 2.0)
+                    try self.editingContext.layoutNode(node)
+
+                    node.offset.width += location.x - canvasSize.width / 2.0 - self.editingContext.currentScrollOffset.x
+                    node.offset.height += location.y - canvasSize.height / 2.0 - self.editingContext.currentScrollOffset.y - node.nodeSize.height / 4.0
+
                     currentGraph.addNode(node)
+                    handled = true
                 }
                 catch {
                     print("GraphCanvas: failed to create node from registry drag: \(error)")
+                    handled = false
                 }
             }
-            return true
+
         }
 
-        return self.handleFileDrop(providers: providers, location: location, canvasSize: canvasSize)
+        return handled ? true :  self.handleFileDrop(providers: providers, location: location, canvasSize: canvasSize)
     }
 
     private func handleFileDrop(providers: [NSItemProvider], location: CGPoint, canvasSize: CGSize) -> Bool

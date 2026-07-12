@@ -11,12 +11,12 @@ import Metal
 public class DecomposeOrientationArrayNode: StrategyNode
 {
     public override class var name: String { "Orientation Array Decompose" }
-    public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
+    public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Quaternion) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Splits an array of Orientation quaternions into per-element Euler angles or Axis + Angle, depending on strategy." }
 
-    public override class var strategies: [String] { ["To Euler", "To Axis Angle"] }
+    public override class var strategyOptions: [any NodeStrategyOption] { OrientationDecompositionMode.allCases }
 
     private static let allDynamicNames: Set<String> = [
         "inputOrientations",

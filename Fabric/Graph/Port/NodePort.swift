@@ -14,17 +14,10 @@ import Satin
 
 public class NodePort<Value : PortValueRepresentable>: Port
 {
-    // BARF
-    override internal func boxedValue() -> PortValue? { self.value?.toPortValue() }
-    
-    override  internal func setBoxedValue(_ boxed: PortValue?)
-    {
-//        guard let boxed else { self.send(nil, force: true); return }
-//        
-//        self.send(Value.fromPortValue(boxed), force: true)
+    override internal func snapshotValue() -> PortValue? { self.value?.toPortValue() }
 
-        
-        // Assign w/o propogating via send
+    override internal func restoreValue(from boxed: PortValue?)
+    {
         if let boxed
         {
             self.value = Value.fromPortValue(boxed)
@@ -34,9 +27,26 @@ public class NodePort<Value : PortValueRepresentable>: Port
             self.value = nil
         }
 
-        // Force execution to see this value even if Equatable says “same”
         self.valueDidChange = true
         self.node?.markDirty()
+    }
+
+    override internal func sendBoxed(_ boxed: PortValue?)
+    {
+        sendBoxed(boxed, force: false)
+    }
+
+    override internal func sendBoxed(_ boxed: PortValue?, force: Bool)
+    {
+        if let boxed
+        {
+            if let value = Value.fromPortValue(boxed) { self.send(value, force: force) }
+            // Type mismatch — don't send anything.
+        }
+        else
+        {
+            self.send(nil, force: force)
+        }
     }
     
     public var value: Value?
@@ -161,7 +171,7 @@ public class NodePort<Value : PortValueRepresentable>: Port
             port.connect(to: other)
         }
         self.node?.graph?.undoManager?.setActionName("Disconnect Ports")
-        self.node?.graph?.shouldUpdateConnections.toggle()
+        self.node?.graph?.shouldUpdateConnections = true
     }
 
     override public func connect(to other: Port)
@@ -264,7 +274,7 @@ public class NodePort<Value : PortValueRepresentable>: Port
             port.disconnect(from: other)
         }
         self.node?.graph?.undoManager?.setActionName("Connect Ports")
-        self.node?.graph?.shouldUpdateConnections.toggle()
+        self.node?.graph?.shouldUpdateConnections = true
     }
 
     public func send(_ v: Value?, force:Bool = false)
@@ -313,6 +323,13 @@ public class NodePort<Value : PortValueRepresentable>: Port
                 else if let p = p as? NodePort<PortValue>
                 {
                     self.send(v?.toPortValue(), to:p, force: force)
+                }
+
+                // Virtual → typed fallback: let the target port unbox via fromPortValue.
+                // Handles e.g. NodePort<PortValue> outlet → NodePort<ContiguousArray<T>> inlet.
+                else
+                {
+                    p.sendBoxed(v?.toPortValue())
                 }
             }
         }

@@ -48,14 +48,38 @@ open class AnyPort: Codable {
             case .Geometry: self.base = try ProxyPort<Geometry>(from: portDecoder)
             case .Material: self.base = try ProxyPort<Material>(from: portDecoder)
             case .Image: self.base = try ProxyPort<FabricImage>(from: portDecoder)
+            case .NumericVirtual: self.base = try NumericVirtualPort(from: portDecoder)
             case .Virtual: self.base = try ProxyPort<PortValue>(from: portDecoder)
-            case .Array:
-                throw DecodingError.dataCorruptedError(forKey: .type,
-                                                       in: container,
-                                                       debugDescription: "Proxy ports do not yet support array-valued ports")
+            case .Array(portType: let elementType):
+                switch elementType {
+                case .Bool:             self.base = try ProxyPort<ContiguousArray<Bool>>(from: portDecoder)
+                case .Int:              self.base = try ProxyPort<ContiguousArray<Int>>(from: portDecoder)
+                case .Float:            self.base = try ProxyPort<ContiguousArray<Float>>(from: portDecoder)
+                case .String:           self.base = try ProxyPort<ContiguousArray<String>>(from: portDecoder)
+                case .Vector2:          self.base = try ProxyPort<ContiguousArray<simd_float2>>(from: portDecoder)
+                case .Vector3:          self.base = try ProxyPort<ContiguousArray<simd_float3>>(from: portDecoder)
+                case .Vector4, .Color:  self.base = try ProxyPort<ContiguousArray<simd_float4>>(from: portDecoder)
+                case .Quaternion:       self.base = try ProxyPort<ContiguousArray<simd_quatf>>(from: portDecoder)
+                case .Transform:        self.base = try ProxyPort<ContiguousArray<simd_float4x4>>(from: portDecoder)
+                case .Geometry:         self.base = try ProxyPort<ContiguousArray<Geometry>>(from: portDecoder)
+                case .Material:         self.base = try ProxyPort<ContiguousArray<Material>>(from: portDecoder)
+                case .Image:            self.base = try ProxyPort<ContiguousArray<FabricImage>>(from: portDecoder)
+                default:                self.base = try ProxyPort<ContiguousArray<PortValue>>(from: portDecoder)
+                }
             }
         } else {
-            self.base = try PortType.portForType(portType, isParameterPort: isParameterPort, decoder: container.superDecoder(forKey: .base))!
+            let portDecoder = try container.superDecoder(forKey: .base)
+
+            do {
+                self.base = try PortType.portForType(portType, isParameterPort: isParameterPort, decoder: portDecoder)!
+            }
+            catch {
+                guard isParameterPort else {
+                    throw error
+                }
+
+                self.base = try PortType.portForType(portType, isParameterPort: false, decoder: portDecoder)!
+            }
         }
     }
 

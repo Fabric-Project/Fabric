@@ -11,12 +11,12 @@ import Metal
 public class DecomposeTransformArrayNode: StrategyNode
 {
     public override class var name: String { "Transform Array Decompose" }
-    public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
+    public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Transform) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Splits an array of Transforms via one of several strategies: into per-element Translation/Rotation/Scale (TRS), or into four per-element column arrays." }
 
-    public override class var strategies: [String] { ["TRS", "Columns"] }
+    public override class var strategyOptions: [any NodeStrategyOption] { TransformCompositionMode.allCases }
 
     private static let allDynamicNames: Set<String> = [
         "inputTransforms",

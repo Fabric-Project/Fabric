@@ -16,7 +16,7 @@ public class ComposeOrientationNode: StrategyNode
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Builds an Orientation quaternion via one of several strategies: Euler angles, Axis + Angle, or aiming at a Target." }
 
-    public override class var strategies: [String] { ["Euler", "Axis Angle", "Target"] }
+    public override class var strategyOptions: [any NodeStrategyOption] { OrientationCompositionMode.allCases }
 
     private static let allDynamicNames: Set<String> = [
         "inputX", "inputY", "inputZ",

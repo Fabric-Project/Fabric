@@ -26,7 +26,7 @@ public class AudioSpectrumNode : Node
         var dbFloor: Float = -80.0
 
         // Optional perceptual weighting
-        var useAWeighting: Bool = true
+        var useAWeighting: Bool = false
 
         // ---- Envelope ----
         private var env = [Float]()
@@ -268,7 +268,7 @@ public class AudioSpectrumNode : Node
     }
 
     override public class var name:String { "Audio Spectrum" }
-    override public class var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
+    override public class var nodeType:Node.NodeType { .Parameter(parameterType: .IO) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
     override public class var nodeTimeMode: Node.TimeMode { .Idle }
     override public class var nodeDescription: String { "Captures audio from the selected input device and emits a normalized per-band spectrum. Sensitivity controls how responsive the analyzer is to quiet sounds — 0 analyses only louder audio, 1 is full sensitivity. Gain multiplies the bar values after normalization, clamped to [0, 1] — a visual 'overdrive' that pushes bars toward full-scale without touching the underlying signal." }
@@ -478,8 +478,11 @@ public class AudioSpectrumNode : Node
                 self.pendingRebuild = false
             }
             guard let fb = self.filterBank else { return }
-            let framesPerTick = Int(round(fb.sampleRate / 200))
-            let batchCount = min(framesPerTick, count)
+//            let framesPerTick = Int(round(fb.sampleRate / 200))
+//            let batchCount = min(framesPerTick, count)
+            let analysisWindowMS: Float = 50.0
+            let framesPerWindow = Int(round(fb.sampleRate * analysisWindowMS / 1000.0))
+            let batchCount = min(framesPerWindow, count)
             let sensitivity = max(0, min(1, self.inputSensitivity.value ?? 0.5))
             fb.dbFloor = -30 - sensitivity * 90
             processedOutput = fb.processAudioData(UnsafeBufferPointer(start: ptr.baseAddress!, count: batchCount))

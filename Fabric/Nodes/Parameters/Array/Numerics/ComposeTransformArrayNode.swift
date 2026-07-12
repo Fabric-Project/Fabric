@@ -11,12 +11,12 @@ import Metal
 public class ComposeTransformArrayNode: StrategyNode
 {
     public override class var name: String { "Transform Array Compose" }
-    public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
+    public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Transform) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Builds an array of Transforms via one of several strategies: per-element Positions/Orientations/Scales (TRS), or directly from four per-element column arrays. Inputs are zipped per element; output length matches the longest, shorter inputs pad with their last element." }
 
-    public override class var strategies: [String] { ["TRS", "Columns"] }
+    public override class var strategyOptions: [any NodeStrategyOption] { TransformCompositionMode.allCases }
 
     private static let allDynamicNames: Set<String> = [
         "inputPositions", "inputOrientations", "inputScales",

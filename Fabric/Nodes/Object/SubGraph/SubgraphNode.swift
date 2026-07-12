@@ -32,6 +32,8 @@ public class SubgraphNode: BaseObjectNode
     /// Called via callback when the sub graph's published ports change.
     public func rebuildProxyPorts()
     {
+        self.invalidatePortCaches()
+
         let innerPorts = self.subGraph.getPublishedPorts()
         let publishedIDs = Set(innerPorts.map(\.id))
 
@@ -54,7 +56,7 @@ public class SubgraphNode: BaseObjectNode
         
         // Ensure parameter group is updated
         self.parameterGroup.clear()
-        
+
         for port in self.ports
         {
             if let param = port.parameter
@@ -62,8 +64,12 @@ public class SubgraphNode: BaseObjectNode
                 self.parameterGroup.append(param)
             }
         }
-        
+
         self.synchronizeParameters()
+
+        self.invalidatePortCaches()
+        self.graph?.shouldUpdateConnections = true
+        self.portsChangedSubject.send()
     }
 
     /// Type-erase proxy creation — matches the inner port's generic type.
@@ -92,6 +98,11 @@ public class SubgraphNode: BaseObjectNode
         case let p as NodePort<ContiguousArray<simd_float3>>:       return ProxyPort(wrapping: p)
         case let p as NodePort<ContiguousArray<simd_float4>>:       return ProxyPort(wrapping: p)
         case let p as NodePort<ContiguousArray<simd_float4x4>>:     return ProxyPort(wrapping: p)
+        case let p as NodePort<ContiguousArray<simd_quatf>>:        return ProxyPort(wrapping: p)
+        case let p as NodePort<ContiguousArray<Geometry>>:          return ProxyPort(wrapping: p)
+        case let p as NodePort<ContiguousArray<Material>>:          return ProxyPort(wrapping: p)
+        case let p as NodePort<ContiguousArray<FabricImage>>:       return ProxyPort(wrapping: p)
+        case let p as NodePort<ContiguousArray<PortValue>>:         return ProxyPort(wrapping: p)
         default:
             print("ProxyPort: unsupported port type for \(port.name): \(type(of: port))")
             return nil

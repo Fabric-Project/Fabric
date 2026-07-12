@@ -29,7 +29,7 @@ public class ColorPassThroughNode: Node
         return ports +
         [
             ("input", ParameterPort(parameter: Float4Parameter("Color", simd_float4(0, 0, 0, 1), .colorpicker, "Input color (RGBA)"))),
-            ("output", NodePort<simd_float4>(name: "Color", kind: .Outlet, description: "Output color")),
+            ("output", ColorNodePort(name: "Color", kind: .Outlet, description: "Output color")),
         ]
     }
 

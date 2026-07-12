@@ -111,10 +111,13 @@ class FabricDocument: FileDocument
         directionalLightNode.startExecution(renderer: self.renderer)
         directionalLightNode.inputPosition.value = SIMD3<Float>(1, 2, 5)
 
-        // Connections — animation chain
+        // Connections — animation chain. The Math Expression node derives its
+        // output ports from the expression; a bare expression like "secs * speed"
+        // produces a single float output named "result".
+        let mathOutput = mathNode.findPort(named: "result", as: NodePort<Float>.self)!
         currentTimeNode.outputNumber.connect(to: mathNode.findPort(named: "secs", as: ParameterPort<Float>.self)!)
-        mathNode.outputNumber.connect(to: eulerNode.findPort(named: "inputX", as: ParameterPort<Float>.self)!)
-        mathNode.outputNumber.connect(to: eulerNode.findPort(named: "inputY", as: ParameterPort<Float>.self)!)
+        mathOutput.connect(to: eulerNode.findPort(named: "inputX", as: ParameterPort<Float>.self)!)
+        mathOutput.connect(to: eulerNode.findPort(named: "inputY", as: ParameterPort<Float>.self)!)
         eulerNode.findPort(named: "outputOrientation", as: NodePort<simd_float4>.self)!.connect(to: meshNode.inputOrientation)
 
         // Connections — geometry

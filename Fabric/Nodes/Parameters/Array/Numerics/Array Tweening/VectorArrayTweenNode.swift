@@ -14,7 +14,7 @@ import Metal
 public class VectorArrayTweenNode<Value> : Node where Value: PortValueRepresentable & SIMD, Value.Scalar == Float
 {
     override public class var name: String { "\(Value.portType.rawValue) Array Tween" }
-    override public class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
+    override public class var nodeType: Node.NodeType { .Parameter(parameterType: .Vector) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
     override public class var nodeTimeMode: Node.TimeMode { .TimeBase }
     override public class var nodeDescription: String { "Tweens each element of a \(Value.portType.rawValue) array toward the matching Target over a duration using linear interpolation and an easing curve. All elements share one tween clock. When the Targets array changes, each element tweens from its current value; elements beyond the previous count start at their target." }

@@ -54,8 +54,6 @@ public indirect enum PortValue : PortValueRepresentable
     case Geometry(Satin.Geometry)
     case Material(Satin.Material)
     case Image(FabricImage)
-    case Virtual(PortValue)
-
     case Array(ContiguousArray<PortValue>)
     
     public static var defaultValue: PortValue? { nil }
@@ -96,20 +94,11 @@ public indirect enum PortValue : PortValueRepresentable
     {
         switch self
         {
-        case .Bool(let v):
-            return v.convertTo(other: portType)
-        
-        case .Int(let v):
-            return v.convertTo(other: portType)
-
-            case .Float(let v):
-            return v.convertTo(other: portType)
-            
-        case .String(let v):
-            return v.convertTo(other: portType)
-            
-        default:
-            return nil
+        case .Bool(let v):   return v.convertTo(other: other)
+        case .Int(let v):    return v.convertTo(other: other)
+        case .Float(let v):  return v.convertTo(other: other)
+        case .String(let v): return v.convertTo(other: other)
+        default:             return nil
         }
     }
 }

@@ -101,7 +101,7 @@ public class ModelMeshNode : MeshNode
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-                
+        
         if self.inputFilePathParam.valueDidChange
         {
             self.loadModelFromInputValue()
@@ -127,12 +127,11 @@ public class ModelMeshNode : MeshNode
                 if let unflattenedModelObject
                 {
                     self.model = Object.flatten(unflattenedModelObject)
+
+                    self.markDirty()
+
+                    let _ = self.evaluate(object: model, atTime: 0)
                 }
-                
-                
-                self.updateLightingOnSubmeshes()
-                self.updateCullingOnSubmeshes()
-                self.updateDoubleSidedOnSubmeshes()
             }
             else
             {

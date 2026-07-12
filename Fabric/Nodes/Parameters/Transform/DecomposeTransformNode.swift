@@ -16,7 +16,7 @@ public class DecomposeTransformNode: StrategyNode
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Splits a Transform via one of several strategies: into its Translation/Rotation/Scale (TRS), or into its four column vectors." }
 
-    public override class var strategies: [String] { ["TRS", "Columns"] }
+    public override class var strategyOptions: [any NodeStrategyOption] { TransformCompositionMode.allCases }
 
     private static let allDynamicNames: Set<String> = [
         "inputTransform",

@@ -76,6 +76,8 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     public let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
 
     public var ports:[Port] { self.registry.all()   }
+    private var cachedInputPorts: [Port]?
+    private var cachedOutputPorts: [Port]?
     public private(set) var inputNodes:[Node] = []
     public private(set) var outputNodes:[Node]  = []
 
@@ -259,24 +261,26 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     public func addDynamicPort(_ p: Port, name:String? = nil)
     {
         self.registry.addDynamic(p, owner: self, name:name)
+        self.invalidatePortCaches()
         if let param = p.parameter
         {
             self.parameterGroup.append(param)
         }
 
-        self.graph?.shouldUpdateConnections.toggle()
+        self.graph?.shouldUpdateConnections = true
         self.portsChangedSubject.send()
     }
 
     public func removePort(_ p: Port)
     {
         self.registry.remove(p)
+        self.invalidatePortCaches()
         if let param = p.parameter
         {
             self.parameterGroup.remove(param)
         }
 
-        self.graph?.shouldUpdateConnections.toggle()
+        self.graph?.shouldUpdateConnections = true
         self.portsChangedSubject.send()
     }
 
@@ -297,16 +301,35 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     public func reorderPorts(_ reordered: [Port])
     {
         self.registry.reorder(reordered)
+        self.invalidatePortCaches()
     }
 
     internal func inputPorts() -> [Port]
     {
-        return self.ports.filter( { $0.kind == .Inlet } )
+        if let cachedInputPorts {
+            return cachedInputPorts
+        }
+
+        let inputPorts = self.ports.filter { $0.kind == .Inlet }
+        self.cachedInputPorts = inputPorts
+        return inputPorts
     }
 
     internal func outputPorts() -> [Port]
     {
-        return self.ports.filter( { $0.kind == .Outlet } )
+        if let cachedOutputPorts {
+            return cachedOutputPorts
+        }
+
+        let outputPorts = self.ports.filter { $0.kind == .Outlet }
+        self.cachedOutputPorts = outputPorts
+        return outputPorts
+    }
+
+    internal func invalidatePortCaches()
+    {
+        self.cachedInputPorts = nil
+        self.cachedOutputPorts = nil
     }
 
     public func publishedPorts() -> [Port]

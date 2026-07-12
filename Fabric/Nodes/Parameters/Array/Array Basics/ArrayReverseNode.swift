@@ -7,36 +7,52 @@ import Foundation
 import Satin
 import Metal
 
-public class ArrayReverseNode<Value : PortValueRepresentable & Equatable> : Node
+public class ArrayReverseNode: TypeAgnosticNode
 {
-    public override class var name: String { "\(Value.portType.rawValue) Array Reverse" }
+    public override class var name: String { "Array Reverse" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Reverses the element order of a \(Value.portType.rawValue) array." }
+    override public class var nodeDescription: String { "Reverses the element order of an array. Choose element type in Settings." }
+    override public class var includesArrayTypesInStrategy: Bool { false }
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    private static let dynamicPortNames: Set<String> = ["inputPort", "outputPort"]
 
-        return ports +
-        [
-            ("inputPort",  NodePort<ContiguousArray<Value>>(name: "Array", kind: .Inlet,  description: "Input \(Value.portType.rawValue) array")),
-            ("outputPort", NodePort<ContiguousArray<Value>>(name: "Array", kind: .Outlet, description: "Reversed \(Value.portType.rawValue) array")),
-        ]
+    public override func rebuildPorts(forStrategy strategy: String)
+    {
+        super.rebuildPorts(forStrategy: strategy)
+        guard let elementType = PortType(rawValue: strategy) else { return }
+
+        let arrayType: PortType = elementType == .Virtual ? .Virtual : .Array(portType: elementType)
+
+        for name in ["inputPort", "outputPort"] {
+            if let p: Port = findPort(named: name), p.portType != arrayType { removePort(p) }
+        }
+        if findPort(named: "inputPort") == nil {
+            addDynamicPort(arrayType.makeFreshPort(name: "Array", kind: .Inlet,  description: "Input array"), name: "inputPort")
+        }
+        if findPort(named: "outputPort") == nil {
+            addDynamicPort(arrayType.makeFreshPort(name: "Array", kind: .Outlet, description: "Reversed array"), name: "outputPort")
+        }
+
+        let portOrder = ["inputPort", "outputPort"]
+        let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }
+        if reordered.count == self.ports.count { reorderPorts(reordered) }
     }
-
-    public var inputPort:  NodePort<ContiguousArray<Value>> { port(named: "inputPort") }
-    public var outputPort: NodePort<ContiguousArray<Value>> { port(named: "outputPort") }
 
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        guard self.inputPort.valueDidChange else { return }
+        guard let inputPort:  Port = findPort(named: "inputPort"),
+              let outputPort: Port = findPort(named: "outputPort") else { return }
 
-        guard let array = self.inputPort.value else { return }
+        guard inputPort.valueDidChange else { return }
 
-        self.outputPort.send(ContiguousArray(array.reversed()))
+        guard let boxed = inputPort.snapshotValue(),
+              case .Array(let elements) = boxed else { return }
+
+        outputPort.sendBoxed(.Array(ContiguousArray(elements.reversed())))
     }
 }
