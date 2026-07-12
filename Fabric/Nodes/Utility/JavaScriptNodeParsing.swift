@@ -55,7 +55,6 @@ enum JavaScriptNodeParseError: LocalizedError
     case invalidAnnotation(String)
     case duplicatePortName(String)
     case unsupportedType(String)
-    case shaderUnsupported
 
     var errorDescription: String?
     {
@@ -71,8 +70,6 @@ enum JavaScriptNodeParseError: LocalizedError
             return "Port name `\(name)` is declared more than once."
         case .unsupportedType(let type):
             return "Unsupported Fabric JavaScript type `\(type)`."
-        case .shaderUnsupported:
-            return "Shader ports are not supported in the JavaScript node."
         }
     }
 }
@@ -180,10 +177,6 @@ enum JavaScriptNodeSourceParser
             let normalizedType = String(typeToken.dropFirst(2)).lowercased()
             guard let portType = typeLookup[normalizedType] else {
                 throw JavaScriptNodeParseError.unsupportedType(typeToken)
-            }
-
-            if portType == .Shader || portType == .Array(portType: .Shader) {
-                throw JavaScriptNodeParseError.shaderUnsupported
             }
 
             if seenNames.contains(nameToken) {

@@ -89,15 +89,15 @@ private protocol JavaScriptOpaqueValueBoxing
     let iterationIndex: Int
     let iterationCount: Int
 
-    init(executionContext: GraphExecutionContext)
+    init(executionInfo: GraphExecutionInfo)
     {
-        self.time = executionContext.timing.time
-        self.deltaTime = executionContext.timing.deltaTime
-        self.displayTime = executionContext.timing.displayTime ?? executionContext.timing.time
-        self.systemTime = executionContext.timing.systemTime
-        self.frameNumber = executionContext.timing.frameNumber
-        self.iterationIndex = executionContext.iterationInfo?.currentIteration ?? 0
-        self.iterationCount = executionContext.iterationInfo?.totalIterationCount ?? 1
+        self.time = executionInfo.timing.time
+        self.deltaTime = executionInfo.timing.deltaTime
+        self.displayTime = executionInfo.timing.displayTime ?? executionInfo.timing.time
+        self.systemTime = executionInfo.timing.systemTime
+        self.frameNumber = executionInfo.timing.frameNumber
+        self.iterationIndex = executionInfo.iterationInfo?.currentIteration ?? 0
+        self.iterationCount = executionInfo.iterationInfo?.totalIterationCount ?? 1
     }
 }
 
@@ -141,9 +141,9 @@ private protocol JavaScriptOpaqueValueBoxing
 
 @objcMembers private final class JavaScriptGeometryValue: NSObject, JavaScriptGeometryExports, JavaScriptOpaqueValueBoxing
 {
-    private let geometry: SatinGeometry
+    private let geometry: Satin.Geometry
 
-    init(geometry: SatinGeometry)
+    init(geometry: Satin.Geometry)
     {
         self.geometry = geometry
     }
@@ -236,12 +236,8 @@ private final class JavaScriptValueBridge
             return JavaScriptGeometryValue(geometry: value)
         case .Material(let value):
             return JavaScriptMaterialValue(material: value)
-        case .Shader:
-            return NSNull()
         case .Image(let value):
             return JavaScriptImageValue(image: value)
-        case .Virtual(let value):
-            return javaScriptArgument(for: value)
         case .Array(let values):
             return values.map { javaScriptArgument(for: $0) }
         }
@@ -274,7 +270,8 @@ private final class JavaScriptValueBridge
             return .Vector4(simd_float4(Float(array[0]), Float(array[1]), Float(array[2]), Float(array[3])))
         case .Quaternion:
             guard let array = value.toArray() as? [Double], array.count == 4 else { return nil }
-            return .Vector4(simd_float4(Float(array[0]), Float(array[1]), Float(array[2]), Float(array[3])))
+            let vector = simd_float4(Float(array[0]), Float(array[1]), Float(array[2]), Float(array[3]))
+            return .Quaternion(simd_quatf(vector: vector))
         case .Transform:
             guard let array = value.toArray() as? [Double], array.count == 16 else { return nil }
             return .Transform(simd_float4x4(columns: (
@@ -285,7 +282,7 @@ private final class JavaScriptValueBridge
             )))
         case .Geometry, .Material, .Image:
             return (value.toObject() as? JavaScriptOpaqueValueBoxing)?.boxedPortValue
-        case .Shader:
+        case .NumericVirtual:
             return nil
         case .Virtual:
             return nil
@@ -340,14 +337,14 @@ private final class JavaScriptNodeRuntime
 
     func execute(signature: JavaScriptNodeSignature,
                  node: JavaScriptNode,
-                 executionContext: GraphExecutionContext) throws -> [String: PortValue?]
+                 executionInfo: GraphExecutionInfo) throws -> [String: PortValue?]
     {
         self.latestDiagnostic = nil
         self.context.exception = nil
-        self.context.setObject(JavaScriptExecutionContextValue(executionContext: executionContext), forKeyedSubscript: "context" as NSString)
+        self.context.setObject(JavaScriptExecutionContextValue(executionInfo: executionInfo), forKeyedSubscript: "context" as NSString)
 
         let arguments = signature.inputs.map { definition in
-            bridge.javaScriptArgument(for: node.findPort(named: definition.name, as: Port.self)?.boxedValue())
+            bridge.javaScriptArgument(for: node.findPort(named: definition.name, as: Port.self)?.snapshotValue())
         }
 
         guard let result = self.mainFunction.call(withArguments: arguments) else {
@@ -498,7 +495,8 @@ public final class JavaScriptNode: Node
         }
     }
 
-    override public func execute(context: GraphExecutionContext,
+    override public func execute(renderer: GraphRenderer,
+                                 executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
@@ -508,12 +506,12 @@ public final class JavaScriptNode: Node
         }
 
         do {
-            let outputValues = try runtime.execute(signature: compiledSignature, node: self, executionContext: context)
+            let outputValues = try runtime.execute(signature: compiledSignature, node: self, executionInfo: executionInfo)
             self.diagnostics = []
 
             for definition in compiledSignature.outputs {
                 guard let port = self.findPort(named: definition.name) else { continue }
-                definition.portType.send(boxedValue: outputValues[definition.name] ?? nil, on: port, force: true)
+                port.sendBoxed(outputValues[definition.name] ?? nil, force: true)
             }
         }
         catch {
@@ -544,32 +542,35 @@ public final class JavaScriptNode: Node
     private func synchronizeDynamicPorts(with signature: JavaScriptNodeSignature)
     {
         let desiredPorts = signature.inputs + signature.outputs
+        let desiredNames = Set(desiredPorts.map(\.name))
 
-        for port in self.ports {
-            guard let definition = desiredPorts.first(where: { $0.name == port.name }) else {
-                self.removePort(port)
-                continue
-            }
-
-            let expectedKind: PortKind = definition.direction == .input ? .Inlet : .Outlet
-            if port.kind != expectedKind || port.portType != definition.portType {
-                self.removePort(port)
-            }
+        for port in self.ports where !desiredNames.contains(port.name) {
+            self.removePort(port)
         }
 
         var reorderedPorts: [Port] = []
         for definition in desiredPorts {
             let expectedKind: PortKind = definition.direction == .input ? .Inlet : .Outlet
-            if let existingPort = self.ports.first(where: { $0.name == definition.name && $0.kind == expectedKind && $0.portType == definition.portType }) {
+
+            if let existingPort = self.findPort(named: definition.name, as: Port.self),
+               existingPort.kind == expectedKind,
+               existingPort.portType == definition.portType
+            {
                 reorderedPorts.append(existingPort)
                 continue
             }
 
-            let port = PortType.dynamicPort(for: definition.portType,
-                                            name: definition.name,
-                                            kind: expectedKind)
-            self.addDynamicPort(port, name: definition.name)
-            reorderedPorts.append(port)
+            let oldConnections = self.findPort(named: definition.name, as: Port.self)?.connections ?? []
+            if let existingPort = self.findPort(named: definition.name, as: Port.self) {
+                self.removePort(existingPort)
+            }
+
+            let replacement = definition.portType.makeFreshPort(name: definition.name, kind: expectedKind)
+            self.addDynamicPort(replacement, name: definition.name)
+            for connectedPort in oldConnections where replacement.canConnect(to: connectedPort) {
+                replacement.connect(to: connectedPort)
+            }
+            reorderedPorts.append(replacement)
         }
 
         self.reorderPorts(reorderedPorts)
