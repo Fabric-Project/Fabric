@@ -17,7 +17,7 @@ let package = Package(
         .package(path: "Satin"),
 
         // Standalone expression engine (backs the Math Expression node)
-        .package(url: "https://github.com/tobyspark/MathExpressionEngine", from: "1.0.0"),
+        .package(url: "https://github.com/Fabric-Project/MathExpressionEngine", from: "1.1.0"),
 
         // External dependencies
         .package(url: "https://github.com/Flight-School/AnyCodable", from: "0.6.7"),
@@ -27,7 +27,6 @@ let package = Package(
         .package(url: "https://github.com/tayloraswift/swift-noise", from: "1.0.0"),
         .package(url: "https://github.com/vade/SwiftSimplify", branch: "master"),
         .package(url: "https://github.com/gonzalezreal/textual", from: "0.1.1"),
-        .package(url: "https://github.com/bradhowes/swift-math-parser", from: "3.5.0"),
         .package(url: "https://github.com/orchetect/OSCKit", from: "2.1.1"),
         .package(url: "https://github.com/orchetect/MIDIKit", from: "0.10.7"),
         .package(url: "https://github.com/mchakravarty/CodeEditorView.git", from: "0.7.0"),
@@ -73,7 +72,6 @@ let package = Package(
                 .product(name: "Noise", package: "swift-noise"),
                 .product(name: "SwiftSimplify", package: "SwiftSimplify"),
                 .product(name: "Textual", package: "textual"),
-                .product(name: "MathParser", package: "swift-math-parser"),
                 .product(name: "MathExpressionEngine", package: "MathExpressionEngine"),
                 .product(name: "OSCKit", package: "OSCKit"),
                 .product(name: "MIDIKit", package: "MIDIKit"),
