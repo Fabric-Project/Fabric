@@ -78,14 +78,17 @@ struct AboutCommands: Commands {
 struct DocumentCommands:Commands
 {
     @FocusedBinding(\.document) var document: FabricDocument?
-    @FocusedBinding(\.editorInputFocus) var editorInputFocus: FabricEditorInputFocus?
+    @FocusedValue(\.editorFocusTarget) var editorFocusTarget: Binding<FabricEditorFocusTarget?>?
 
     private var activeDocument: FabricDocument? {
         self.document ?? ActiveFabricDocumentStore.shared.activeDocument
     }
 
+    /// Derived from real keyboard focus: false whenever any text field
+    /// (node settings, rename, registry search) is being edited, so the
+    /// pasteboard commands below route to the field editor instead.
     private var isCanvasFocused: Bool {
-        self.editorInputFocus == .canvas
+        self.editorFocusTarget?.wrappedValue == .canvas
     }
 
     var body: some Commands {
@@ -150,7 +153,7 @@ struct DocumentCommands:Commands
 
             Button("Find Nodes")
             {
-                self.editorInputFocus = .registry
+                self.editorFocusTarget?.wrappedValue = .registrySearch
             }
             .keyboardShortcut(.return, modifiers: .command)
             .disabled(self.isCanvasFocused ? (self.document?.editingContext.currentGraph.nodes.isEmpty ?? true) : false)
@@ -202,8 +205,8 @@ struct DocumentFocusedValueKey: FocusedValueKey {
   typealias Value = Binding<FabricDocument>
 }
 
-struct EditorInputFocusValueKey: FocusedValueKey {
-    typealias Value = Binding<FabricEditorInputFocus>
+struct EditorFocusTargetValueKey: FocusedValueKey {
+    typealias Value = Binding<FabricEditorFocusTarget?>
 }
 
 extension FocusedValues
@@ -218,13 +221,15 @@ extension FocusedValues
         }
     }
 
-    var editorInputFocus: EditorInputFocusValueKey.Value?
+    /// A read/write window onto ContentView's `@FocusState` — the editor's
+    /// single keyboard-focus authority.
+    var editorFocusTarget: EditorFocusTargetValueKey.Value?
     {
         get {
-            self[EditorInputFocusValueKey.self]
+            self[EditorFocusTargetValueKey.self]
         }
         set {
-            self[EditorInputFocusValueKey.self] = newValue
+            self[EditorFocusTargetValueKey.self] = newValue
         }
     }
 }

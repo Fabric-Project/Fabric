@@ -13,12 +13,12 @@ typealias GraphSettingsEntry = (id: UUID, nodeViewModel: NodeViewModel, anchorSi
 public struct GraphCanvas : View
 {
     let editingContext: GraphCanvasContext
-    @Binding var inputFocus: FabricEditorInputFocus
+    let focus: FocusState<FabricEditorFocusTarget?>.Binding
 
-    public init(editingContext: GraphCanvasContext, inputFocus: Binding<FabricEditorInputFocus>)
+    public init(editingContext: GraphCanvasContext, focus: FocusState<FabricEditorFocusTarget?>.Binding)
     {
         self.editingContext = editingContext
-        self._inputFocus = inputFocus
+        self.focus = focus
     }
 
     // Marquee (rubber-band) selection
@@ -43,7 +43,7 @@ public struct GraphCanvas : View
 
                 GraphNodesView(editingContext: editingContext,
                                geom: geom,
-                               inputFocus: $inputFocus,
+                               focus: focus,
                                settingsEntries: $settingsEntries,
                                renamingNodeID: $renamingNodeID)
 
@@ -75,13 +75,14 @@ public struct GraphCanvas : View
                     .opacity(opacity)
             }
             .focusable(true, interactions: .edit)
+            .focused(focus, equals: .canvas)
             .focusEffectDisabled()
             .onKeyPress(keys: self.keys()) { keyPress in
                 return self.handleKeyPress(keyPress: keyPress)
             }
 #if os(macOS)
             .onDeleteCommand {
-                guard self.inputFocus == .canvas else { return }
+                guard self.focus.wrappedValue == .canvas else { return }
 
                 let currentGraph = self.editingContext.currentGraph
                 currentGraph.selectedNodes.forEach { currentGraph.delete(node: $0) }
@@ -99,8 +100,10 @@ public struct GraphCanvas : View
                         self.preMarqueeSelection = []
                     }
             )
+            // No focus write here: the canvas is .focusable(interactions: .edit),
+            // so a click already gives it focus. Writing the FocusState again from
+            // a tap handler triggers a redundant update that can revoke focus.
             .onTapGesture {
-                self.inputFocus = .canvas
                 self.editingContext.currentGraph.deselectAllNodes()
             }
             .onDrop(of: [.nodeRegistryItem, .fileURL], isTargeted: nil) { providers, location in
@@ -117,8 +120,6 @@ public struct GraphCanvas : View
 
     private func calcMarqueeDragChanged(forValue value: DragGesture.Value, currentGraph graph: Graph, canvasSize: CGSize)
     {
-        self.inputFocus = .canvas
-
         if self.marqueeRect == .zero
         {
             if NSEvent.modifierFlags.contains(.shift)
@@ -245,7 +246,10 @@ public struct GraphCanvas : View
 
     private func handleKeyPress(keyPress: KeyPress) -> KeyPress.Result
     {
-        guard self.inputFocus == .canvas else { return .ignored }
+        // Real focus, not a shadow flag: when a text field (settings popover,
+        // rename, search) is being edited this is not .canvas, so arrows and
+        // delete pass through to the field editor.
+        guard self.focus.wrappedValue == .canvas else { return .ignored }
         if renamingNodeID != nil { return .ignored }
 
         switch keyPress.key

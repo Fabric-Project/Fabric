@@ -12,12 +12,10 @@ import UniformTypeIdentifiers
 public struct NodeSelectionInspector: View
 {
     let editingContext: GraphCanvasContext
-    @Binding private var inputFocus: FabricEditorInputFocus
 
-    public init(editingContext: GraphCanvasContext, inputFocus: Binding<FabricEditorInputFocus>)
+    public init(editingContext: GraphCanvasContext)
     {
         self.editingContext = editingContext
-        self._inputFocus = inputFocus
     }
 
     public var body: some View {
