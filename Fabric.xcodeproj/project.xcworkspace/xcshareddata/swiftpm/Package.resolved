@@ -1,5 +1,5 @@
 {
-  "originHash" : "afdf0e7d52f0e9337df975284101684b442f13557094cdd783399ce66d08292c",
+  "originHash" : "13c3a14b60009301035fa1d0a29e687dd06de2fef62eb4db43b674e8e9a56811",
   "pins" : [
     {
       "identity" : "anycodable",
@@ -40,10 +40,10 @@
     {
       "identity" : "mathexpressionengine",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/tobyspark/MathExpressionEngine",
+      "location" : "https://github.com/Fabric-Project/MathExpressionEngine",
       "state" : {
-        "revision" : "ca9a509259433618d30c87beaee24ce33a04dea0",
-        "version" : "1.0.0"
+        "revision" : "dcf76b0319e09852df70cd79939fc35f3bfbc237",
+        "version" : "1.1.0"
       }
     },
     {
@@ -197,15 +197,6 @@
       "state" : {
         "revision" : "0b67ecb79139f6addef8699eff3622808aa6c7dc",
         "version" : "2.3.6"
-      }
-    },
-    {
-      "identity" : "swift-math-parser",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/bradhowes/swift-math-parser",
-      "state" : {
-        "revision" : "5729cd0d70f0c1a2f9e1551fd0914e22a0c6fa7c",
-        "version" : "3.7.3"
       }
     },
     {
