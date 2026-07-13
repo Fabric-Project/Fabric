@@ -15,14 +15,17 @@ public struct GraphCanvas : View
     let editingContext: GraphCanvasContext
     let focus: FocusState<FabricEditorFocusTarget?>.Binding
     let canvasSize: CGSize
+    let connectionsHitTestingEnabled: Bool
 
     public init(editingContext: GraphCanvasContext,
                 focus: FocusState<FabricEditorFocusTarget?>.Binding,
-                canvasSize: CGSize)
+                canvasSize: CGSize,
+                connectionsHitTestingEnabled: Bool = true)
     {
         self.editingContext = editingContext
         self.focus = focus
         self.canvasSize = canvasSize
+        self.connectionsHitTestingEnabled = connectionsHitTestingEnabled
         self.editingContext.canvasSize = canvasSize
     }
 
@@ -60,21 +63,11 @@ public struct GraphCanvas : View
         .contentShape(Rectangle())
         .coordinateSpace(name: "graph")
         .overlay {
-            GraphConnectionsView(editingContext: editingContext)
-                .id(editingContext.currentGraph.connectionRevision)
+            GraphConnectionsView(editingContext: editingContext,
+                                 allowsConnectionHitTesting: connectionsHitTestingEnabled,
+                                 marqueeRect: marqueeRect)
+            .id(editingContext.currentGraph.connectionRevision)
         }
-//        .overlay
-//        {
-//            let opacity = self.marqueeRect == .zero ? 0.0 : 1.0
-//            
-//            Rectangle()
-//                .position(x: self.marqueeRect.midX, y: self.marqueeRect.midY)
-//                .frame(width: self.marqueeRect.width, height: self.marqueeRect.height)
-//                .opacity(opacity)
-//                .fill(Color.accentColor.opacity(0.1))
-//                .overlay(Rectangle().strokeBorder(Color.accentColor, lineWidth: 1))
-//                .allowsHitTesting(false)
-//        }
         .focusable(true, interactions: .edit)
         .focused(focus, equals: .canvas)
         .focusEffectDisabled()
@@ -279,5 +272,4 @@ public struct GraphCanvas : View
 
         return .handled
     }
-
 }

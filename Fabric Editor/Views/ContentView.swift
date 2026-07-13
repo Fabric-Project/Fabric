@@ -92,7 +92,8 @@ struct ContentView: View {
                         {
                             GraphCanvas(editingContext: self.document.editingContext,
                                         focus: self.$focusTarget,
-                                        canvasSize: CGSize(width: self.canvasSize, height: self.canvasSize))
+                                        canvasSize: CGSize(width: self.canvasSize, height: self.canvasSize),
+                                        connectionsHitTestingEnabled: self.canvasHitTestingEnabled)
                                 .id("canvas")
                                 .frame(width: self.canvasSize, height: self.canvasSize)
                                 .scaleEffect(finalMagnification * magnifyBy, anchor: magnifyAnchor)

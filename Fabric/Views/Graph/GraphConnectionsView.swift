@@ -8,6 +8,8 @@ import SwiftUI
 struct GraphConnectionsView: View
 {
     let editingContext: GraphCanvasContext
+    let allowsConnectionHitTesting: Bool
+    let marqueeRect: CGRect
 
     var body: some View
     {
@@ -23,13 +25,20 @@ struct GraphConnectionsView: View
             {
                 let path = calcPathUsing(port: outlet, start: start, end: end)
 
-                path.stroke(outlet.backgroundColor, lineWidth: 2)
-                    .contentShape(
-                        path.stroke(style: StrokeStyle(lineWidth: 5))
-                    )
-                    .onTapGesture(count: 2) {
-                        outlet.disconnect(from: inlet)
-                    }
+                if allowsConnectionHitTesting
+                {
+                    path.stroke(outlet.backgroundColor, lineWidth: 2)
+                        .contentShape(
+                            path.stroke(style: StrokeStyle(lineWidth: 5))
+                        )
+                        .onTapGesture(count: 2) {
+                            outlet.disconnect(from: inlet)
+                        }
+                }
+                else
+                {
+                    path.stroke(outlet.backgroundColor, lineWidth: 2)
+                }
             }
         }
 
@@ -42,6 +51,17 @@ struct GraphConnectionsView: View
 
             path.stroke(sourcePort.backgroundColor.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [5, 3]))
                 .animation(.spring(response: 0.3, dampingFraction: 0.7), value: targetPosition)
+        }
+
+        if marqueeRect != .zero
+        {
+            Path(marqueeRect)
+                .fill(Color.accentColor.opacity(0.1))
+                .allowsHitTesting(false)
+
+            Path(marqueeRect)
+                .stroke(Color.accentColor, lineWidth: 1)
+                .allowsHitTesting(false)
         }
     }
 
