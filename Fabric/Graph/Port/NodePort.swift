@@ -146,7 +146,7 @@ public class NodePort<Value : PortValueRepresentable>: Port
         }
         else
         {
-            while let index = other.connections.firstIndex(where: { $0.id == other.id } )
+            while let index = other.connections.firstIndex(where: { $0.id == self.id } )
             {
                 other.connections.remove(at: index)
             }
