@@ -9,9 +9,17 @@ struct GraphNodesView: View
 {
     let editingContext: GraphCanvasContext
     let geom: GeometryProxy
-    @Binding var inputFocus: FabricEditorInputFocus
+    let focus: FocusState<FabricEditorFocusTarget?>.Binding
     @Binding var settingsEntries: [GraphSettingsEntry]
     @Binding var renamingNodeID: UUID?
+
+    /// Move keyboard focus to the canvas so arrow-key node navigation works
+    /// after interacting with a node. Guarded so an already-focused canvas
+    /// doesn't get a redundant FocusState write (which can revoke focus).
+    private func focusCanvas()
+    {
+        if focus.wrappedValue != .canvas { focus.wrappedValue = .canvas }
+    }
 
     @State private var initialOffsets: [UUID: CGSize] = [:]
     @State private var activeDragAnchor: UUID? = nil
@@ -31,7 +39,7 @@ struct GraphNodesView: View
                     TapGesture(count: 1)
                         .modifiers(.shift)
                         .onEnded {
-                            self.inputFocus = .canvas
+                            self.focusCanvas()
                             nodeViewModel.isSelected.toggle()
                         }
                 )
@@ -51,13 +59,13 @@ struct GraphNodesView: View
                         SimultaneousGesture(
                             TapGesture(count: 1)
                                 .onEnded {
-                                    self.inputFocus = .canvas
+                                    self.focusCanvas()
                                     currentGraph.deselectAllNodes()
                                     nodeViewModel.isSelected.toggle()
                                 },
                             TapGesture(count: 2)
                                 .onEnded {
-                                    self.inputFocus = .canvas
+                                    self.focusCanvas()
                                     if let subgraph = currentNode as? SubgraphNode
                                     {
                                         self.editingContext.enter(subgraph)
@@ -83,7 +91,7 @@ struct GraphNodesView: View
                                   currentGraph: Graph,
                                   currentNodeViewModel: NodeViewModel)
     {
-        self.inputFocus = .canvas
+        self.focusCanvas()
 
         if self.activeDragAnchor == nil
         {
@@ -206,12 +214,13 @@ struct GraphNodesView: View
 
     // MARK: - Node Settings
 
+    // No focus bookkeeping here: the canvas key handlers guard on real focus,
+    // so an open settings panel needs no shadow "nodeSettings" state — clicking
+    // into a panel's field moves focus there, clicking the canvas moves it back.
     private func sychronizeSettingsFor(nodeViewModel: NodeViewModel, show: Bool)
     {
         if show && nodeViewModel.providesSettingsView()
         {
-            self.inputFocus = .nodeSettings
-
             if !settingsEntries.contains(where: { $0.id == nodeViewModel.id })
             {
                 settingsEntries.append((id: nodeViewModel.id, nodeViewModel: nodeViewModel, anchorSize: nodeViewModel.nodeSize))
@@ -220,10 +229,6 @@ struct GraphNodesView: View
         else if !show
         {
             settingsEntries.removeAll { $0.id == nodeViewModel.id }
-            if settingsEntries.isEmpty
-            {
-                self.inputFocus = .canvas
-            }
         }
     }
 }

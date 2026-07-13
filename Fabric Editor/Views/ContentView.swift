@@ -31,7 +31,12 @@ struct ContentView: View {
 
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
     @State private var inspectorVisibility:Bool = true
-    @State private var inputFocus: FabricEditorInputFocus = .canvas
+
+    // The editor's single keyboard-focus authority. SwiftUI writes it on every
+    // real focus change (canvas, registry search/list — or nil when e.g. a node
+    // settings text field has focus), and views/menu commands read or set it to
+    // route and move focus. Never shadow it with plain @State.
+    @FocusState private var focusTarget: FabricEditorFocusTarget?
 
     init(document: Binding<FabricDocument>) {
         self._document = document
@@ -49,7 +54,7 @@ struct ContentView: View {
         {
             NodeRegisitryView(graphRenderer:self.document.renderer,
                               editingContext: self.document.editingContext,
-                              inputFocus: self.$inputFocus)
+                              focus: self.$focusTarget)
                 .navigationSplitViewColumnWidth(min: 150, ideal: 200, max:250)
 
         } detail: {
@@ -86,9 +91,8 @@ struct ContentView: View {
                     ScrollViewReader { proxy in
                         ScrollView([.horizontal, .vertical])
                         {
-                            GraphCanvas(editingContext: self.document.editingContext, inputFocus: self.$inputFocus)
+                            GraphCanvas(editingContext: self.document.editingContext, focus: self.$focusTarget)
                                 .id("canvas")
-                                .focusedSceneValue(\.editorInputFocus, self.$inputFocus)
                                 .frame(width: self.canvasSize, height: self.canvasSize)
                                 .scaleEffect(finalMagnification * magnifyBy, anchor: magnifyAnchor)
                                 .contextMenu(menuItems: {
@@ -170,9 +174,16 @@ struct ContentView: View {
             }
             .inspector(isPresented: self.$inspectorVisibility)
             {
-                NodeSelectionInspector(editingContext: self.document.editingContext, inputFocus: self.$inputFocus)
+                NodeSelectionInspector(editingContext: self.document.editingContext)
                     .inspectorColumnWidth(min:250, ideal:250, max:300)
             }
+            // Menu commands read and steer real focus through this binding —
+            // e.g. "is the canvas focused?" for Copy/Paste routing, and
+            // Find Nodes writing .registrySearch to focus the search field.
+            .focusedSceneValue(\.editorFocusTarget, Binding(
+                get: { self.focusTarget },
+                set: { self.focusTarget = $0 }
+            ))
             .sheet(
                 isPresented: Binding(
                     get: {
