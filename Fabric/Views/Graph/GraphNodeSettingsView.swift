@@ -43,13 +43,16 @@ struct GraphNodeSettingsView: View
                     NodeSettingView(nodeViewModel: nodeViewModel)
                         .interactiveDismissDisabled(true)
                         .focusable(true, interactions: .edit)
-                        .focused(focus, equals: .nodeSettings)
+                        .focused(focus, equals: .nodeSettings(nodeViewModel.id))
                         .focusEffectDisabled()
                         .onAppear {
-                            focus.wrappedValue = .nodeSettings
+                            focus.wrappedValue = .nodeSettings(nodeViewModel.id)
                         }
                         .onDisappear {
-                            focus.wrappedValue = .canvas
+                            if focus.wrappedValue == .nodeSettings(nodeViewModel.id)
+                            {
+                                focus.wrappedValue = .canvas
+                            }
                         }
                 }
                 .onChange(of: isPresented) { _, newValue in
