@@ -8,12 +8,14 @@ import SwiftUI
 struct GraphNodeSettingsView: View
 {
     @Binding var settingsEntries: [GraphSettingsEntry]
+    let focus: FocusState<FabricEditorFocusTarget?>.Binding
 
     var body: some View
     {
         ForEach(settingsEntries, id: \.id) { entry in
             NodeSettingsPopoverAnchor(nodeViewModel: entry.nodeViewModel,
                                       anchorSize: entry.anchorSize,
+                                      focus: focus,
                                       onClose: {
                 entry.nodeViewModel.showSettings = false
             })
@@ -28,6 +30,7 @@ struct GraphNodeSettingsView: View
     {
         let nodeViewModel: NodeViewModel
         let anchorSize: CGSize
+        let focus: FocusState<FabricEditorFocusTarget?>.Binding
         let onClose: () -> Void
         @State private var isPresented: Bool = true
 
@@ -39,6 +42,15 @@ struct GraphNodeSettingsView: View
                 .popover(isPresented: $isPresented) {
                     NodeSettingView(nodeViewModel: nodeViewModel)
                         .interactiveDismissDisabled(true)
+                        .focusable(true, interactions: .edit)
+                        .focused(focus, equals: .nodeSettings)
+                        .focusEffectDisabled()
+                        .onAppear {
+                            focus.wrappedValue = .nodeSettings
+                        }
+                        .onDisappear {
+                            focus.wrappedValue = .canvas
+                        }
                 }
                 .onChange(of: isPresented) { _, newValue in
                     if !newValue { onClose() }

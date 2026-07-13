@@ -55,7 +55,8 @@ public struct GraphCanvas : View
                            renamingNodeID: $renamingNodeID)
                 .offset(-canvasSize / 2)
 
-            GraphNodeSettingsView(settingsEntries: $settingsEntries)
+            GraphNodeSettingsView(settingsEntries: $settingsEntries,
+                                  focus: focus)
                 .offset(-canvasSize / 2)
         }
         .offset(canvasSize / 2)

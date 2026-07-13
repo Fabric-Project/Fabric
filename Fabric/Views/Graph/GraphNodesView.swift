@@ -212,9 +212,8 @@ struct GraphNodesView: View
 
     // MARK: - Node Settings
 
-    // No focus bookkeeping here: the canvas key handlers guard on real focus,
-    // so an open settings panel needs no shadow "nodeSettings" state — clicking
-    // into a panel's field moves focus there, clicking the canvas moves it back.
+    // Settings popover focus is handled by GraphNodeSettingsView so canvas and
+    // registry key handlers do not steal keys while settings controls are active.
     private func sychronizeSettingsFor(nodeViewModel: NodeViewModel, show: Bool)
     {
         if show && nodeViewModel.providesSettingsView()

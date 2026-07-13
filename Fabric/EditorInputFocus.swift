@@ -13,6 +13,7 @@ import Foundation
 public enum FabricEditorFocusTarget: Hashable
 {
     case canvas
+    case nodeSettings
     case registrySearch
     case registryList
 }
