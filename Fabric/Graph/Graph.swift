@@ -357,6 +357,13 @@ internal import AnyCodable
     {
         nodeViewModels[node.id]!
     }
+
+    /// Returns the NodeViewModel when SwiftUI is evaluating transient stale
+    /// references, such as connection rows from the same transaction as delete.
+    public func viewModelIfPresent(for node: Node) -> NodeViewModel?
+    {
+        nodeViewModels[node.id]
+    }
     
     public func delete(node:Node, disconnect:Bool = true)
     {
@@ -389,6 +396,12 @@ internal import AnyCodable
             for (port, connectedPort) in savedConnections {
                 port.connect(to: connectedPort)
             }
+
+            node.markDirty()
+            graph.updateRenderingNodes()
+            graph.rebuildPublishedParameterGroup()
+            graph.syncNodesToScene()
+            graph.markConnectionsChanged()
         }
 
         self.undoManager?.setActionName("Delete Node")

@@ -68,8 +68,8 @@ struct GraphConnectionsView: View
     private func canvasPosition(for port: Port, in graph: Graph) -> CGPoint?
     {
         guard let node = port.node else { return nil }
+        guard let nodeViewModel = graph.viewModelIfPresent(for: node) else { return nil }
 
-        let nodeViewModel = graph.viewModel(for: node)
         return editingContext.canvasPosition(for: port,
                                              nodeOffset: nodeViewModel.offset,
                                              nodeSize: nodeViewModel.nodeSize)
