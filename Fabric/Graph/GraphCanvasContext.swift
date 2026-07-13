@@ -115,7 +115,7 @@ public class GraphCanvasContext
         {
         case .Inlet:
             xOffset = -nodeSize.width / 2
-            yFromTop = titleHeight + portVStackSpacing + CGFloat(portIndex) * (portRowHeight + portVStackSpacing) + portRowHeight / 2
+            yFromTop = outletTopSpacerHeight + portVStackSpacing + CGFloat(portIndex) * (portRowHeight + portVStackSpacing) +  portRowHeight / 2
 
         case .Outlet:
             xOffset = nodeSize.width / 2
