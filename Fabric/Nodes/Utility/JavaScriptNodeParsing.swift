@@ -114,6 +114,21 @@ enum JavaScriptNodeSourceParser
         "array_geometry": .Array(portType: .Geometry),
         "array_material": .Array(portType: .Material),
         "array_image": .Array(portType: .Image),
+        "dictionary": .Dictionary(valueType: .Virtual),
+        "dictionary_bool": .Dictionary(valueType: .Bool),
+        "dictionary_int": .Dictionary(valueType: .Int),
+        "dictionary_number": .Dictionary(valueType: .Float),
+        "dictionary_float": .Dictionary(valueType: .Float),
+        "dictionary_string": .Dictionary(valueType: .String),
+        "dictionary_vector2": .Dictionary(valueType: .Vector2),
+        "dictionary_vector3": .Dictionary(valueType: .Vector3),
+        "dictionary_vector4": .Dictionary(valueType: .Vector4),
+        "dictionary_color": .Dictionary(valueType: .Color),
+        "dictionary_quaternion": .Dictionary(valueType: .Quaternion),
+        "dictionary_transform": .Dictionary(valueType: .Transform),
+        "dictionary_geometry": .Dictionary(valueType: .Geometry),
+        "dictionary_material": .Dictionary(valueType: .Material),
+        "dictionary_image": .Dictionary(valueType: .Image),
     ]
 
     static func parse(source: String) throws -> JavaScriptNodeSignature

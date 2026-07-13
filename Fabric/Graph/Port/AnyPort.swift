@@ -66,6 +66,8 @@ open class AnyPort: Codable {
                 case .Image:            self.base = try ProxyPort<ContiguousArray<FabricImage>>(from: portDecoder)
                 default:                self.base = try ProxyPort<ContiguousArray<PortValue>>(from: portDecoder)
                 }
+            case .Dictionary(valueType: let valueType):
+                self.base = try Self.decodeDictionaryProxy(valueType: valueType, from: portDecoder)
             }
         } else {
             let portDecoder = try container.superDecoder(forKey: .base)
@@ -89,5 +91,50 @@ open class AnyPort: Codable {
         try container.encode((base.parameter == nil) ? false : true, forKey: .isParameterPort)
         try container.encode(base is any ProxyPortProtocol, forKey: .isProxyPort)
         try self.base.encode(to: container.superEncoder(forKey: .base))
+    }
+
+    private static func decodeDictionaryProxy(valueType: PortType, from decoder: Decoder) throws -> Port
+    {
+        switch valueType
+        {
+        case .Bool:       return try ProxyPort<Dictionary<String, Bool>>(from: decoder)
+        case .Int:        return try ProxyPort<Dictionary<String, Int>>(from: decoder)
+        case .Float:      return try ProxyPort<Dictionary<String, Float>>(from: decoder)
+        case .String:     return try ProxyPort<Dictionary<String, String>>(from: decoder)
+        case .Vector2:    return try ProxyPort<Dictionary<String, simd_float2>>(from: decoder)
+        case .Vector3:    return try ProxyPort<Dictionary<String, simd_float3>>(from: decoder)
+        case .Vector4, .Color:
+                          return try ProxyPort<Dictionary<String, simd_float4>>(from: decoder)
+        case .Quaternion: return try ProxyPort<Dictionary<String, simd_quatf>>(from: decoder)
+        case .Transform:  return try ProxyPort<Dictionary<String, simd_float4x4>>(from: decoder)
+        case .Geometry:   return try ProxyPort<Dictionary<String, Geometry>>(from: decoder)
+        case .Material:   return try ProxyPort<Dictionary<String, Material>>(from: decoder)
+        case .Image:      return try ProxyPort<Dictionary<String, FabricImage>>(from: decoder)
+        case .Array(portType: let elementType):
+            return try Self.decodeDictionaryOfArrayProxy(elementType: elementType, from: decoder)
+        default:
+            return try ProxyPort<Dictionary<String, PortValue>>(from: decoder)
+        }
+    }
+
+    private static func decodeDictionaryOfArrayProxy(elementType: PortType, from decoder: Decoder) throws -> Port
+    {
+        switch elementType
+        {
+        case .Bool:       return try ProxyPort<Dictionary<String, ContiguousArray<Bool>>>(from: decoder)
+        case .Int:        return try ProxyPort<Dictionary<String, ContiguousArray<Int>>>(from: decoder)
+        case .Float:      return try ProxyPort<Dictionary<String, ContiguousArray<Float>>>(from: decoder)
+        case .String:     return try ProxyPort<Dictionary<String, ContiguousArray<String>>>(from: decoder)
+        case .Vector2:    return try ProxyPort<Dictionary<String, ContiguousArray<simd_float2>>>(from: decoder)
+        case .Vector3:    return try ProxyPort<Dictionary<String, ContiguousArray<simd_float3>>>(from: decoder)
+        case .Vector4, .Color:
+                          return try ProxyPort<Dictionary<String, ContiguousArray<simd_float4>>>(from: decoder)
+        case .Quaternion: return try ProxyPort<Dictionary<String, ContiguousArray<simd_quatf>>>(from: decoder)
+        case .Transform:  return try ProxyPort<Dictionary<String, ContiguousArray<simd_float4x4>>>(from: decoder)
+        case .Geometry:   return try ProxyPort<Dictionary<String, ContiguousArray<Geometry>>>(from: decoder)
+        case .Material:   return try ProxyPort<Dictionary<String, ContiguousArray<Material>>>(from: decoder)
+        case .Image:      return try ProxyPort<Dictionary<String, ContiguousArray<FabricImage>>>(from: decoder)
+        default:          return try ProxyPort<Dictionary<String, PortValue>>(from: decoder)
+        }
     }
 }

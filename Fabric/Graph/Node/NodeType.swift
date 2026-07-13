@@ -68,6 +68,7 @@ extension Node
             // Non Numeric
             case String
             case Array
+            case Dictionary
             case IO
 
             static func nodeTypes() -> [Node.NodeType] {
