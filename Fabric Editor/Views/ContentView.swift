@@ -10,24 +10,23 @@ import Fabric
 
 struct ContentView: View {
 
-    struct ScrollGeomHelper : Equatable
+    private struct ScrollMetrics : Equatable
     {
-        let offset:CGPoint
-        let geometry:ScrollGeometry
-        
-        static func == (lhs: ScrollGeomHelper, rhs: ScrollGeomHelper) -> Bool
-        {
-            lhs.offset == rhs.offset && lhs.geometry == rhs.geometry
-        }
+        let graphOffset: CGPoint
+        let contentOffset: CGPoint
+        let containerSize: CGSize
+        let radialGradientEndRadius: CGFloat
     }
     
     @Binding var document: FabricDocument
     @Environment(\.undoManager) private var undoManager
 
+    @State private var canvasHitTestingEnabled = true
+    
     @GestureState private var magnifyBy = 1.0
     @State private var finalMagnification = 1.0
     @State private var magnifyAnchor: UnitPoint = .center
-    @State private var scrollGeometry: ScrollGeometry = ScrollGeometry(contentOffset: .zero, contentSize: .zero, contentInsets: .init(top: 0, leading: 0, bottom: 0, trailing: 0), containerSize: .zero)
+    @State private var radialGradientEndRadius: CGFloat = .zero
 
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
     @State private var inspectorVisibility:Bool = true
@@ -86,12 +85,14 @@ struct ContentView: View {
 
                 ZStack
                 {
-                    RadialGradient(colors: [.clear, .black.opacity(0.75)], center: .center, startRadius: 0, endRadius: self.scrollGeometry.containerSize.width * 1.5)
+                    RadialGradient(colors: [.clear, .black.opacity(0.75)], center: .center, startRadius: 0, endRadius: self.radialGradientEndRadius)
 
                     ScrollViewReader { proxy in
                         ScrollView([.horizontal, .vertical])
                         {
-                            GraphCanvas(editingContext: self.document.editingContext, focus: self.$focusTarget)
+                            GraphCanvas(editingContext: self.document.editingContext,
+                                        focus: self.$focusTarget,
+                                        canvasSize: CGSize(width: self.canvasSize, height: self.canvasSize))
                                 .id("canvas")
                                 .frame(width: self.canvasSize, height: self.canvasSize)
                                 .scaleEffect(finalMagnification * magnifyBy, anchor: magnifyAnchor)
@@ -106,6 +107,8 @@ struct ContentView: View {
                                     MagnifyGesture()
                                         .updating($magnifyBy, body: { value, state, _ in
 
+                                            self.canvasHitTestingEnabled = false
+                                            
                                             let proposedScale = finalMagnification * value.magnification
 
                                             guard (self.zoomMin ..< self.zoomMax).contains(proposedScale)
@@ -121,8 +124,8 @@ struct ContentView: View {
                                             let u = value.startAnchor.x
                                             let v = value.startAnchor.y
 
-                                            let containerSize = self.scrollGeometry.containerSize
-                                            let contentOffset = self.scrollGeometry.contentOffset
+                                            let containerSize = self.document.editingContext.currentScrollContainerSize
+                                            let contentOffset = self.document.editingContext.currentScrollContentOffset
 
                                             let visibleWidthInCanvas  = containerSize.width  / scale
                                             let visibleHeightInCanvas = containerSize.height / scale
@@ -139,9 +142,11 @@ struct ContentView: View {
                                             magnifyAnchor = UnitPoint(x: newX, y: newY)
                                         })
                                         .onEnded { value in
+                                            self.canvasHitTestingEnabled = true
                                             finalMagnification = min(max(finalMagnification * value.magnification, self.zoomMin), self.zoomMax)
                                         }
                                 )
+                                .allowsHitTesting(self.canvasHitTestingEnabled)
                                 .onAppear {
                                     self.document.editingContext.rootGraph.undoManager = undoManager
 
@@ -157,18 +162,29 @@ struct ContentView: View {
 
                         }
                         .defaultScrollAnchor(.center)
+                        .onScrollPhaseChange { _, newPhase in
+                            self.canvasHitTestingEnabled = !newPhase.isScrolling
+                        }
                     }
-                    .onScrollGeometryChange(for: ScrollGeomHelper.self) { geometry in
-
+                    .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
                         let center = CGPoint(x: geometry.contentSize.width / 2,
                                              y: geometry.contentSize.height / 2)
                         let offset = (geometry.contentOffset - center) + (geometry.containerSize / 2)
 
-                        return ScrollGeomHelper(offset: offset, geometry: geometry)
+                        return ScrollMetrics(graphOffset: offset,
+                                             contentOffset: geometry.contentOffset,
+                                             containerSize: geometry.containerSize,
+                                             radialGradientEndRadius: geometry.containerSize.width * 1.5)
 
-                    } action: { _, newScrollOffset in
-                        scrollGeometry = newScrollOffset.geometry
-                        self.document.editingContext.currentScrollOffset = newScrollOffset.offset
+                    } action: { _, newScrollMetrics in
+                        self.document.editingContext.currentScrollOffset = newScrollMetrics.graphOffset
+                        self.document.editingContext.currentScrollContentOffset = newScrollMetrics.contentOffset
+                        self.document.editingContext.currentScrollContainerSize = newScrollMetrics.containerSize
+
+                        if self.radialGradientEndRadius != newScrollMetrics.radialGradientEndRadius
+                        {
+                            self.radialGradientEndRadius = newScrollMetrics.radialGradientEndRadius
+                        }
                     }
                 }
             }

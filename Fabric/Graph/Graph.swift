@@ -66,9 +66,16 @@ internal import AnyCodable
     
     // Fix for #103 - this now triggers syncNodesToScene() inside of `GraphRenderer`
     public var shouldUpdateConnections = false
+    public private(set) var connectionRevision = 0
   
 
     @ObservationIgnored weak var lastNode:(Node)? = nil
+
+    public func markConnectionsChanged()
+    {
+        connectionRevision += 1
+        shouldUpdateConnections = true
+    }
 
     public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
 

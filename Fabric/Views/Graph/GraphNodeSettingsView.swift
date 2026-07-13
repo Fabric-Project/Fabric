@@ -8,7 +8,6 @@ import SwiftUI
 struct GraphNodeSettingsView: View
 {
     @Binding var settingsEntries: [GraphSettingsEntry]
-    let geom: GeometryProxy
 
     var body: some View
     {
@@ -18,7 +17,6 @@ struct GraphNodeSettingsView: View
                                       onClose: {
                 entry.nodeViewModel.showSettings = false
             })
-            .offset(-geom.size / 2)
             .offset(entry.nodeViewModel.offset)
         }
     }

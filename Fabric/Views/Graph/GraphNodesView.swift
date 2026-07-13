@@ -8,7 +8,6 @@ import SwiftUI
 struct GraphNodesView: View
 {
     let editingContext: GraphCanvasContext
-    let geom: GeometryProxy
     let focus: FocusState<FabricEditorFocusTarget?>.Binding
     @Binding var settingsEntries: [GraphSettingsEntry]
     @Binding var renamingNodeID: UUID?
@@ -32,7 +31,6 @@ struct GraphNodesView: View
             let nodeViewModel = currentGraph.viewModel(for: currentNode)
 
             NodeView(nodeViewModel: nodeViewModel, editingContext: editingContext)
-                .offset(-geom.size / 2)
                 .offset(nodeViewModel.offset)
 #if os(macOS)
                 .highPriorityGesture(

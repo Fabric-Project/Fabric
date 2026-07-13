@@ -14,11 +14,16 @@ public struct GraphCanvas : View
 {
     let editingContext: GraphCanvasContext
     let focus: FocusState<FabricEditorFocusTarget?>.Binding
+    let canvasSize: CGSize
 
-    public init(editingContext: GraphCanvasContext, focus: FocusState<FabricEditorFocusTarget?>.Binding)
+    public init(editingContext: GraphCanvasContext,
+                focus: FocusState<FabricEditorFocusTarget?>.Binding,
+                canvasSize: CGSize)
     {
         self.editingContext = editingContext
         self.focus = focus
+        self.canvasSize = canvasSize
+        self.editingContext.canvasSize = canvasSize
     }
 
     // Marquee (rubber-band) selection
@@ -33,86 +38,81 @@ public struct GraphCanvas : View
 
     public var body: some View
     {
-        GeometryReader { geom in
+        ZStack
+        {
+            GraphBackground()
+                .offset(-canvasSize / 2)
 
-            ZStack
-            {
-                GraphBackground(geom: geom)
+            GraphNotesView(editingContext: editingContext)
+                .offset(-canvasSize / 2)
 
-                GraphNotesView(editingContext: editingContext, geom: geom)
+            GraphNodesView(editingContext: editingContext,
+                           focus: focus,
+                           settingsEntries: $settingsEntries,
+                           renamingNodeID: $renamingNodeID)
+                .offset(-canvasSize / 2)
 
-                GraphNodesView(editingContext: editingContext,
-                               geom: geom,
-                               focus: focus,
-                               settingsEntries: $settingsEntries,
-                               renamingNodeID: $renamingNodeID)
-
-                GraphNodeSettingsView(settingsEntries: $settingsEntries, geom: geom)
-            }
-            .offset(geom.size / 2)
-            .clipShape(Rectangle())
-            .contentShape(Rectangle())
-            .coordinateSpace(name: "graph")
-            .onPreferenceChange(PortAnchorKey.self) { portAnchors in
-                self.calcPortAnchors(portAnchors, geometryProxy: geom)
-            }
-            .overlayPreferenceValue(PortAnchorKey.self) { portAnchors in
-                GraphConnectionsView(editingContext: editingContext,
-                                     portAnchors: portAnchors,
-                                     geom: geom)
-                .id(editingContext.currentGraph.shouldUpdateConnections)
-            }
-            .overlay
-            {
-                let opacity = self.marqueeRect == .zero ? 0.0 : 1.0
-
-                Rectangle()
-                    .fill(Color.accentColor.opacity(0.1))
-                    .overlay(Rectangle().strokeBorder(Color.accentColor, lineWidth: 1))
-                    .frame(width: self.marqueeRect.width, height: self.marqueeRect.height)
-                    .position(x: self.marqueeRect.midX, y: self.marqueeRect.midY)
-                    .allowsHitTesting(false)
-                    .opacity(opacity)
-            }
-            .focusable(true, interactions: .edit)
-            .focused(focus, equals: .canvas)
-            .focusEffectDisabled()
-            .onKeyPress(keys: self.keys()) { keyPress in
-                return self.handleKeyPress(keyPress: keyPress)
-            }
+            GraphNodeSettingsView(settingsEntries: $settingsEntries)
+                .offset(-canvasSize / 2)
+        }
+        .offset(canvasSize / 2)
+        .clipShape(Rectangle())
+        .contentShape(Rectangle())
+        .coordinateSpace(name: "graph")
+        .overlay {
+            GraphConnectionsView(editingContext: editingContext)
+                .id(editingContext.currentGraph.connectionRevision)
+        }
+//        .overlay
+//        {
+//            let opacity = self.marqueeRect == .zero ? 0.0 : 1.0
+//            
+//            Rectangle()
+//                .position(x: self.marqueeRect.midX, y: self.marqueeRect.midY)
+//                .frame(width: self.marqueeRect.width, height: self.marqueeRect.height)
+//                .opacity(opacity)
+//                .fill(Color.accentColor.opacity(0.1))
+//                .overlay(Rectangle().strokeBorder(Color.accentColor, lineWidth: 1))
+//                .allowsHitTesting(false)
+//        }
+        .focusable(true, interactions: .edit)
+        .focused(focus, equals: .canvas)
+        .focusEffectDisabled()
+        .onKeyPress(keys: self.keys()) { keyPress in
+            return self.handleKeyPress(keyPress: keyPress)
+        }
 #if os(macOS)
-            .onDeleteCommand {
-                guard self.focus.wrappedValue == .canvas else { return }
-
-                let currentGraph = self.editingContext.currentGraph
-                currentGraph.selectedNodes.forEach { currentGraph.delete(node: $0) }
-            }
+        .onDeleteCommand {
+            guard self.focus.wrappedValue == .canvas else { return }
+            
+            let currentGraph = self.editingContext.currentGraph
+            currentGraph.selectedNodes.forEach { currentGraph.delete(node: $0) }
+        }
 #endif
-            .gesture(
-                DragGesture(minimumDistance: 3)
-                    .onChanged { value in
-                        self.calcMarqueeDragChanged(forValue: value,
-                                                    currentGraph: self.editingContext.currentGraph,
-                                                    canvasSize: geom.size)
-                    }
-                    .onEnded { _ in
-                        self.marqueeRect = .zero
-                        self.preMarqueeSelection = []
-                    }
-            )
-            // No focus write here: the canvas is .focusable(interactions: .edit),
-            // so a click already gives it focus. Writing the FocusState again from
-            // a tap handler triggers a redundant update that can revoke focus.
-            .onTapGesture {
-                self.editingContext.currentGraph.deselectAllNodes()
-            }
-            .onDrop(of: [.nodeRegistryItem, .fileURL], isTargeted: nil) { providers, location in
-                self.handleDrop(providers: providers, location: location, canvasSize: geom.size)
-            }
-            .onChange(of: editingContext.currentGraph.nodes.count) { _, _ in
-                let nodeIDs = Set(editingContext.currentGraph.nodes.map(\.id))
-                settingsEntries.removeAll { !nodeIDs.contains($0.id) }
-            }
+        .gesture(
+            DragGesture(minimumDistance: 3)
+                .onChanged { value in
+                    self.calcMarqueeDragChanged(forValue: value,
+                                                currentGraph: self.editingContext.currentGraph,
+                                                canvasSize: canvasSize)
+                }
+                .onEnded { _ in
+                    self.marqueeRect = .zero
+                    self.preMarqueeSelection = []
+                }
+        )
+        // No focus write here: the canvas is .focusable(interactions: .edit),
+        // so a click already gives it focus. Writing the FocusState again from
+        // a tap handler triggers a redundant update that can revoke focus.
+        .onTapGesture {
+            self.editingContext.currentGraph.deselectAllNodes()
+        }
+        .onDrop(of: [.nodeRegistryItem, .fileURL], isTargeted: nil) { providers, location in
+            self.handleDrop(providers: providers, location: location, canvasSize: canvasSize)
+        }
+        .onChange(of: editingContext.currentGraph.nodes.count) { _, _ in
+            let nodeIDs = Set(editingContext.currentGraph.nodes.map(\.id))
+            settingsEntries.removeAll { !nodeIDs.contains($0.id) }
         }
     }
 
@@ -280,14 +280,4 @@ public struct GraphCanvas : View
         return .handled
     }
 
-    // MARK: - Port / Connection Helpers
-
-    private func calcPortAnchors(_ portAnchors: PortAnchorKey.Value, geometryProxy geom: GeometryProxy)
-    {
-        var positions: [UUID: CGPoint] = [:]
-        for (portID, anchor) in portAnchors {
-            positions[portID] = geom[anchor]
-        }
-        self.editingContext.portPositions = positions
-    }
 }
