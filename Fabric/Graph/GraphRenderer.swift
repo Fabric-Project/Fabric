@@ -176,8 +176,7 @@ public class GraphRenderer : ViewRenderer
         let feedbackCache = self.feedbackCache(for: graph.id)
         feedbackCache.resetCacheFor(executionInfo: currentExecutionInfo)
 
-        pendingSceneSync = graph.shouldUpdateConnections
-        graph.shouldUpdateConnections = false
+        pendingSceneSync = graph.consumePendingConnectionSceneSync()
         if pendingSceneSync {
             feedbackCache.invalidateTopologyCaches()
         }
@@ -230,8 +229,7 @@ public class GraphRenderer : ViewRenderer
 
     public func executeAndDraw(graph: Graph, executionInfo: GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
     {
-        let needsSceneSync = graph.shouldUpdateConnections
-        graph.shouldUpdateConnections = false
+        let needsSceneSync = graph.consumePendingConnectionSceneSync()
         if needsSceneSync {
             invalidateFeedbackTopologyCaches(for: graph)
         }

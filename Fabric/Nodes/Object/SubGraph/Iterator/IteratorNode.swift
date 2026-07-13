@@ -94,8 +94,7 @@ public class IteratorNode: SubgraphNode
             executionInfo.iterationInfo = iterationInfo
 
             
-            let needsSceneSync = subGraph.shouldUpdateConnections
-            subGraph.shouldUpdateConnections = false
+            let needsSceneSync = subGraph.consumePendingConnectionSceneSync()
             if needsSceneSync {
                 renderer.invalidateFeedbackTopologyCaches(for: subGraph)
             }
