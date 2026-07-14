@@ -11,6 +11,11 @@ extension PortType
 {
     func canConnect(to other: PortType) -> Bool
     {
+        if self.isGenericArrayVirtual || other.isGenericArrayVirtual
+        {
+            return self.isArrayType && other.isArrayType
+        }
+
         if self == .NumericVirtual || other == .NumericVirtual
         {
             return self.isNumericVirtualCompatible || other.isNumericVirtualCompatible
@@ -38,6 +43,18 @@ extension PortType
         default:
             return self == other
         }
+    }
+
+    var isGenericArrayVirtual: Bool
+    {
+        if case .Array(portType: .Virtual) = self { return true }
+        return false
+    }
+
+    var isArrayType: Bool
+    {
+        if case .Array = self { return true }
+        return false
     }
 
     var isNumericVirtualCompatible: Bool

@@ -23,7 +23,7 @@ public class ArrayFirstValueNode: TypeAgnosticNode
         super.rebuildPorts(forStrategy: strategy)
         guard let elementType = PortType(rawValue: strategy) else { return }
 
-        let arrayType: PortType = elementType == .Virtual ? .Virtual : .Array(portType: elementType)
+        let arrayType: PortType = .Array(portType: elementType)
 
         if let existing: Port = findPort(named: "inputPort"),  existing.portType != arrayType   { removePort(existing) }
         if let existing: Port = findPort(named: "outputPort"), existing.portType != elementType { removePort(existing) }

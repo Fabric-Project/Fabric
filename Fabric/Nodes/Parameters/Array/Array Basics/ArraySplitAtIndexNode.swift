@@ -32,7 +32,7 @@ public class ArraySplitAtIndexNode: TypeAgnosticNode
         super.rebuildPorts(forStrategy: strategy)
         guard let elementType = PortType(rawValue: strategy) else { return }
 
-        let arrayType: PortType = elementType == .Virtual ? .Virtual : .Array(portType: elementType)
+        let arrayType: PortType = .Array(portType: elementType)
 
         for name in ["inputPort", "outputBefore", "outputFrom"] {
             if let p: Port = findPort(named: name), p.portType != arrayType { removePort(p) }

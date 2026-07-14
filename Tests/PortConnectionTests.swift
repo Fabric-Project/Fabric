@@ -75,4 +75,60 @@ struct PortConnectionTests {
         )
         #expect(decodedSource.outputNumber.connections.count == 1)
     }
+
+    @Test("Generic array virtual type compatibility is array scoped")
+    func genericArrayVirtualTypeCompatibilityIsArrayScoped() {
+        let genericArray = PortType.Array(portType: .Virtual)
+
+        #expect(genericArray.canConnect(to: .Array(portType: .Float)))
+        #expect(genericArray.canConnect(to: .Array(portType: .String)))
+        #expect(genericArray.canConnect(to: genericArray))
+
+        #expect(!genericArray.canConnect(to: .Float))
+        #expect(!genericArray.canConnect(to: .String))
+        #expect(!genericArray.canConnect(to: .Virtual))
+    }
+
+    @Test("Generic array virtual inlets reject scalar outlets")
+    func genericArrayVirtualInletsRejectScalarOutlets() {
+        let arrayInlet = PortType.Array(portType: .Virtual).makeFreshPort(name: "Array", kind: .Inlet)
+        let scalarOutlet = PortType.Float.makeFreshPort(name: "Float", kind: .Outlet)
+        let virtualOutlet = PortType.Virtual.makeFreshPort(name: "Value", kind: .Outlet)
+        let concreteArrayOutlet = PortType.Array(portType: .Float).makeFreshPort(name: "Array", kind: .Outlet)
+
+        #expect(!arrayInlet.canConnect(to: scalarOutlet))
+        #expect(!arrayInlet.canConnect(to: virtualOutlet))
+        #expect(arrayInlet.canConnect(to: concreteArrayOutlet))
+    }
+
+    @Test("Pure virtual inlets remain universal")
+    func pureVirtualInletsRemainUniversal() {
+        let virtualInlet = PortType.Virtual.makeFreshPort(name: "Value", kind: .Inlet)
+        let concreteArrayOutlet = PortType.Array(portType: .Float).makeFreshPort(name: "Array", kind: .Outlet)
+        let genericArrayOutlet = PortType.Array(portType: .Virtual).makeFreshPort(name: "Array", kind: .Outlet)
+
+        #expect(virtualInlet.canConnect(to: concreteArrayOutlet))
+        #expect(virtualInlet.canConnect(to: genericArrayOutlet))
+    }
+
+    @Test("Virtual strategy array nodes expose generic array ports")
+    func virtualStrategyArrayNodesExposeGenericArrayPorts() throws {
+        guard let context = makeContext() else { return }
+
+        let arrayCount = ArrayCountNode(context: context, portType: .Virtual)
+        let countInput: Fabric.Port = arrayCount.port(named: "inputPort")
+        #expect(countInput.portType == .Array(portType: .Virtual))
+
+        let firstValue = ArrayFirstValueNode(context: context, portType: .Virtual)
+        let firstInput: Fabric.Port = firstValue.port(named: "inputPort")
+        let firstOutput: Fabric.Port = firstValue.port(named: "outputPort")
+        #expect(firstInput.portType == .Array(portType: .Virtual))
+        #expect(firstOutput.portType == .Virtual)
+
+        let queue = ArrayQueueNode(context: context, portType: .Virtual)
+        let queueInput: Fabric.Port = queue.port(named: "inputPort")
+        let queueOutput: Fabric.Port = queue.port(named: "outputPort")
+        #expect(queueInput.portType == .Virtual)
+        #expect(queueOutput.portType == .Array(portType: .Virtual))
+    }
 }
