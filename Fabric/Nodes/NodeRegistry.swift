@@ -10,9 +10,24 @@ import Satin
 import UniformTypeIdentifiers
 
 public class NodeRegistry {
-    
+
     public static let shared = NodeRegistry()
-    
+
+    init() {
+        // Swift `lazy var` initialization is not thread-safe. Force-build
+        // the render-path lookup tables here so `shared`'s one-time init
+        // (which has dispatch_once semantics) is the only writer;
+        // concurrent readers — e.g. two graphs building nodes on their
+        // own render queues — then only ever see initialized storage.
+        // `availableNodes`/`allSupportedDropTypes` stay lazy: they scan
+        // bundle shaders and every node class's static metadata, and are
+        // only read from the main-thread UI. Forcing them here deadlocks
+        // when the first registry access is on a render queue the main
+        // thread is blocked waiting on.
+        _ = self.nodesClassLookup
+        _ = self.nodeFileLoadingClasses
+    }
+
     public func nodeClass(for nodeName: String) -> (Node.Type)? {
         return self.nodesClassLookup[nodeName]
     }

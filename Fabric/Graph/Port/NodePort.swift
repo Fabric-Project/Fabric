@@ -146,7 +146,7 @@ public class NodePort<Value : PortValueRepresentable>: Port
         }
         else
         {
-            while let index = other.connections.firstIndex(where: { $0.id == other.id } )
+            while let index = other.connections.firstIndex(where: { $0.id == self.id } )
             {
                 other.connections.remove(at: index)
             }
@@ -212,7 +212,19 @@ public class NodePort<Value : PortValueRepresentable>: Port
         {
             return
         }
-        
+
+        // Connecting an already-connected pair is a no-op. Graph decoding
+        // restores connections from a map keyed by both endpoints, so each
+        // connection gets connected twice; without this guard the second call
+        // would disconnect the pair first, force-sending nil into the inlet
+        // and destroying the freshly decoded parameter value.
+        if self.connections.contains(where: { $0.id == other.id }),
+           other.connections.contains(where: { $0.id == self.id })
+        {
+            return
+        }
+
+
         if self.kind == .Inlet && other.kind == .Outlet
         {
             self.connections.forEach { [weak self] in
