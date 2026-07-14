@@ -272,7 +272,7 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
             self.parameterGroup.append(param)
         }
 
-        self.graph?.shouldUpdateConnections = true
+        self.graph?.markConnectionsChanged()
         self.portsChangedSubject.send()
     }
 
@@ -285,7 +285,7 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
             self.parameterGroup.remove(param)
         }
 
-        self.graph?.shouldUpdateConnections = true
+        self.graph?.markConnectionsChanged()
         self.portsChangedSubject.send()
     }
 

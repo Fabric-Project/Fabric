@@ -8,48 +8,71 @@ import SwiftUI
 struct GraphConnectionsView: View
 {
     let editingContext: GraphCanvasContext
-    let portAnchors: PortAnchorKey.Value
-    let geom: GeometryProxy
+    let allowsConnectionHitTesting: Bool
+    let marqueeRect: CGRect
 
     var body: some View
     {
         let currentGraph = editingContext.currentGraph
-        let outlets = currentGraph.nodes.flatMap(\.ports).filter({ $0.kind == .Outlet })
+        let connectionPairs = editingContext.connectionPairs(for: currentGraph)
 
-        ForEach(outlets) { port in
-            let connectedPorts: [Port] = port.connections.filter({ $0.kind == .Inlet })
+        ForEach(connectionPairs) { connectionPair in
+            let outlet = connectionPair.outlet
+            let inlet = connectionPair.inlet
 
-            ForEach(connectedPorts) { connectedPort in
-                if let sourceAnchor = portAnchors[port.id],
-                   let destAnchor = portAnchors[connectedPort.id]
+            if let start = self.canvasPosition(for: outlet, in: currentGraph),
+               let end = self.canvasPosition(for: inlet, in: currentGraph)
+            {
+                let path = calcPathUsing(port: outlet, start: start, end: end)
+
+                if allowsConnectionHitTesting
                 {
-                    let start = geom[sourceAnchor]
-                    let end = geom[destAnchor]
-                    let path = calcPathUsing(port: port, start: start, end: end)
-
-                    path.stroke(port.backgroundColor, lineWidth: 2)
+                    path.stroke(outlet.backgroundColor, lineWidth: 2)
                         .contentShape(
                             path.stroke(style: StrokeStyle(lineWidth: 5))
                         )
                         .onTapGesture(count: 2) {
-                            port.disconnect(from: connectedPort)
-                            currentGraph.shouldUpdateConnections.toggle()
+                            outlet.disconnect(from: inlet)
                         }
+                }
+                else
+                {
+                    path.stroke(outlet.backgroundColor, lineWidth: 2)
                 }
             }
         }
 
         if let sourcePortID = editingContext.dragPreviewSourcePortID,
            let targetPosition = editingContext.dragPreviewTargetPosition,
-           let sourceAnchor = portAnchors[sourcePortID],
-           let sourcePort = currentGraph.nodePort(forID: sourcePortID)
+           let sourcePort = currentGraph.nodePort(forID: sourcePortID),
+           let start = self.canvasPosition(for: sourcePort, in: currentGraph)
         {
-            let start = geom[sourceAnchor]
             let path = calcPathUsing(port: sourcePort, start: start, end: targetPosition)
 
             path.stroke(sourcePort.backgroundColor.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [5, 3]))
                 .animation(.spring(response: 0.3, dampingFraction: 0.7), value: targetPosition)
         }
+
+        if marqueeRect != .zero
+        {
+            Path(marqueeRect)
+                .fill(Color.accentColor.opacity(0.1))
+                .allowsHitTesting(false)
+
+            Path(marqueeRect)
+                .stroke(Color.accentColor, lineWidth: 1)
+                .allowsHitTesting(false)
+        }
+    }
+
+    private func canvasPosition(for port: Port, in graph: Graph) -> CGPoint?
+    {
+        guard let node = port.node else { return nil }
+        guard let nodeViewModel = graph.viewModelIfPresent(for: node) else { return nil }
+
+        return editingContext.canvasPosition(for: port,
+                                             nodeOffset: nodeViewModel.offset,
+                                             nodeSize: nodeViewModel.nodeSize)
     }
 
     private func calcPathUsing(port: Port, start: CGPoint, end: CGPoint) -> Path

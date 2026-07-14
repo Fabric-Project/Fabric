@@ -64,11 +64,25 @@ internal import AnyCodable
         return renderableNodes.compactMap { $0.getObject() as? Satin.Renderable }
     }
     
-    // Fix for #103 - this now triggers syncNodesToScene() inside of `GraphRenderer`
-    public var shouldUpdateConnections = false
+    // Fix for #103 - connection/topology changes trigger syncNodesToScene() inside of `GraphRenderer`.
+    @ObservationIgnored private var pendingConnectionSceneSync = false
+    public private(set) var connectionRevision = 0
   
 
     @ObservationIgnored weak var lastNode:(Node)? = nil
+
+    public func markConnectionsChanged()
+    {
+        connectionRevision += 1
+        pendingConnectionSceneSync = true
+    }
+
+    func consumePendingConnectionSceneSync() -> Bool
+    {
+        let shouldSyncScene = pendingConnectionSceneSync
+        pendingConnectionSceneSync = false
+        return shouldSyncScene
+    }
 
     public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
 
@@ -331,7 +345,7 @@ internal import AnyCodable
         }
 
         self.undoManager?.setActionName("Add Node")
-        self.shouldUpdateConnections = true
+        self.markConnectionsChanged()
 
         self.updateRenderingNodes()
         self.rebuildPublishedParameterGroup()
@@ -342,6 +356,13 @@ internal import AnyCodable
     public func viewModel(for node: Node) -> NodeViewModel
     {
         nodeViewModels[node.id]!
+    }
+
+    /// Returns the NodeViewModel when SwiftUI is evaluating transient stale
+    /// references, such as connection rows from the same transaction as delete.
+    public func viewModelIfPresent(for node: Node) -> NodeViewModel?
+    {
+        nodeViewModels[node.id]
     }
     
     public func delete(node:Node, disconnect:Bool = true)
@@ -370,15 +391,21 @@ internal import AnyCodable
             graph.nodes.append(node)
             node.graph = graph
             graph.maybeAddNodeToScene(node)
-            graph.shouldUpdateConnections = true
+            graph.markConnectionsChanged()
 
             for (port, connectedPort) in savedConnections {
                 port.connect(to: connectedPort)
             }
+
+            node.markDirty()
+            graph.updateRenderingNodes()
+            graph.rebuildPublishedParameterGroup()
+            graph.syncNodesToScene()
+            graph.markConnectionsChanged()
         }
 
         self.undoManager?.setActionName("Delete Node")
-        self.shouldUpdateConnections = true
+        self.markConnectionsChanged()
 
         self.updateRenderingNodes()
         self.rebuildPublishedParameterGroup()
@@ -414,7 +441,7 @@ internal import AnyCodable
         }
 
         self.publishedParameterGroup.append( publishedParams )
-        self.shouldUpdateConnections = true
+        self.markConnectionsChanged()
         self.onPublishedPortsChanged?()
     }
 
@@ -961,7 +988,7 @@ internal import AnyCodable
         self.deselectAllNodes()
         for newNode in newNodes { nodeViewModels[newNode.id]?.isSelected = true }
 
-        self.shouldUpdateConnections = true
+        self.markConnectionsChanged()
 
         return newNodes
     }
@@ -1111,7 +1138,7 @@ extension Graph
             self.deselectAllNodes()
             for newNode in newNodes { nodeViewModels[newNode.id]?.isSelected = true }
 
-            self.shouldUpdateConnections = true
+            self.markConnectionsChanged()
 
             return newNodes
         }

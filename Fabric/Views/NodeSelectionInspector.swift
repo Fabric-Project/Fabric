@@ -44,7 +44,7 @@ public struct NodeSelectionInspector: View
             }
         }
         .listStyle(.sidebar)
-        .id(currentGraph.shouldUpdateConnections)
+        .id(currentGraph.connectionRevision)
 
     }
 
