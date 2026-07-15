@@ -34,10 +34,7 @@ public class ArrayCountNode: TypeAgnosticNode
 
         let arrayType: PortType = .Array(portType: elementType)
 
-        if let existing: Port = findPort(named: "inputPort"), existing.portType != arrayType { removePort(existing) }
-        if findPort(named: "inputPort") == nil {
-            addDynamicPort(arrayType.makeFreshPort(name: "Array", kind: .Inlet, description: "Input array to count elements"), name: "inputPort")
-        }
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputPort", displayName: "Array", portType: arrayType, kind: .Inlet, description: "Input array to count elements")
 
         let portOrder = ["inputPort", "outputPort"]
         let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }

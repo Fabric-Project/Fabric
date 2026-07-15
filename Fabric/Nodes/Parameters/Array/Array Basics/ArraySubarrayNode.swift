@@ -36,15 +36,8 @@ public class ArraySubarrayNode: TypeAgnosticNode
 
         let arrayType: PortType = .Array(portType: elementType)
 
-        for name in ["inputPort", "outputPort"] {
-            if let p: Port = findPort(named: name), p.portType != arrayType { removePort(p) }
-        }
-        if findPort(named: "inputPort") == nil {
-            addDynamicPort(arrayType.makeFreshPort(name: "Array", kind: .Inlet,  description: "Input array to subsample"), name: "inputPort")
-        }
-        if findPort(named: "outputPort") == nil {
-            addDynamicPort(arrayType.makeFreshPort(name: "Array", kind: .Outlet, description: "Subarray extracted from the input"), name: "outputPort")
-        }
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputPort", displayName: "Array", portType: arrayType, kind: .Inlet, description: "Input array to subsample")
+        addOrReplaceDynamicPortPreservingIdentity(name: "outputPort", displayName: "Array", portType: arrayType, kind: .Outlet, description: "Subarray extracted from the input")
 
         let portOrder = ["inputPort", "inputOffset", "inputCount", "outputPort"]
         let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }

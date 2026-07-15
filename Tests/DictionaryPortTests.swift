@@ -104,6 +104,36 @@ struct DictionaryPortTests
         #expect(!PortType.Float.canConnect(to: arrayVirtual))
     }
 
+    @Test("Legacy virtual array dynamic ports preserve identity when migrated")
+    func legacyVirtualArrayDynamicPortsPreserveIdentityWhenMigrated() throws
+    {
+        guard let harness = DictionaryTestHarness() else { return }
+
+        let node = ArrayIndexValueNode(context: harness.context, portType: .Virtual)
+        let currentInput: Fabric.Port = node.port(named: "inputPort")
+        let legacyID = currentInput.id
+
+        node.removePort(currentInput)
+
+        let legacyInput = PortType.Virtual.makeFreshPort(
+            name: "Array",
+            kind: .Inlet,
+            description: "Input array to index into",
+            id: legacyID
+        )
+        legacyInput.published = true
+        legacyInput.publishedName = "Legacy Array"
+        node.addDynamicPort(legacyInput, name: "inputPort")
+
+        node.rebuildPorts(forStrategy: PortType.Virtual.rawValue)
+
+        let migratedInput: Fabric.Port = node.port(named: "inputPort")
+        #expect(migratedInput.id == legacyID)
+        #expect(migratedInput.portType == .Array(portType: .Virtual))
+        #expect(migratedInput.published)
+        #expect(migratedInput.publishedName == "Legacy Array")
+    }
+
     @Test("Typed dictionaries box and unbox through PortValue")
     func typedDictionariesBoxAndUnboxThroughPortValue() throws
     {

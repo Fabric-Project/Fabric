@@ -34,18 +34,9 @@ public class ArraySplitAtIndexNode: TypeAgnosticNode
 
         let arrayType: PortType = .Array(portType: elementType)
 
-        for name in ["inputPort", "outputBefore", "outputFrom"] {
-            if let p: Port = findPort(named: name), p.portType != arrayType { removePort(p) }
-        }
-        if findPort(named: "inputPort") == nil {
-            addDynamicPort(arrayType.makeFreshPort(name: "Array",  kind: .Inlet,  description: "Input array to split"), name: "inputPort")
-        }
-        if findPort(named: "outputBefore") == nil {
-            addDynamicPort(arrayType.makeFreshPort(name: "Before", kind: .Outlet, description: "Elements at indices 0 ..< Index"), name: "outputBefore")
-        }
-        if findPort(named: "outputFrom") == nil {
-            addDynamicPort(arrayType.makeFreshPort(name: "From",   kind: .Outlet, description: "Elements at indices Index ..< count"), name: "outputFrom")
-        }
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputPort", displayName: "Array", portType: arrayType, kind: .Inlet, description: "Input array to split")
+        addOrReplaceDynamicPortPreservingIdentity(name: "outputBefore", displayName: "Before", portType: arrayType, kind: .Outlet, description: "Elements at indices 0 ..< Index")
+        addOrReplaceDynamicPortPreservingIdentity(name: "outputFrom", displayName: "From", portType: arrayType, kind: .Outlet, description: "Elements at indices Index ..< count")
 
         let portOrder = ["inputPort", "inputIndex", "outputBefore", "outputFrom"]
         let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }

@@ -25,14 +25,8 @@ public class ArrayLastValueNode: TypeAgnosticNode
 
         let arrayType: PortType = .Array(portType: elementType)
 
-        if let existing: Port = findPort(named: "inputPort"),  existing.portType != arrayType   { removePort(existing) }
-        if let existing: Port = findPort(named: "outputPort"), existing.portType != elementType { removePort(existing) }
-        if findPort(named: "inputPort") == nil {
-            addDynamicPort(arrayType.makeFreshPort(name: "Array", kind: .Inlet,  description: "Input array to get the last value from"), name: "inputPort")
-        }
-        if findPort(named: "outputPort") == nil {
-            addDynamicPort(elementType.makeFreshPort(name: "Value", kind: .Outlet, description: "Last element of the array"), name: "outputPort")
-        }
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputPort", displayName: "Array", portType: arrayType, kind: .Inlet, description: "Input array to get the last value from")
+        addOrReplaceDynamicPortPreservingIdentity(name: "outputPort", displayName: "Value", portType: elementType, kind: .Outlet, description: "Last element of the array")
 
         let portOrder = ["inputPort", "outputPort"]
         let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }

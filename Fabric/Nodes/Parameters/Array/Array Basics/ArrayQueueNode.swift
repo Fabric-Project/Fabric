@@ -43,23 +43,8 @@ public class ArrayQueueNode: TypeAgnosticNode
 
         let arrayType: PortType = .Array(portType: elementType)
 
-        // Replace inputPort only when the element type changes
-        if let existing: Port = findPort(named: "inputPort"), existing.portType != elementType {
-            removePort(existing)
-        }
-        if findPort(named: "inputPort") == nil {
-            let inputPort = elementType.makeFreshPort(name: "Value", kind: .Inlet, description: "Value to insert at the front of the queue")
-            addDynamicPort(inputPort, name: "inputPort")
-        }
-
-        // Replace outputPort only when the array type changes
-        if let existing: Port = findPort(named: "outputPort"), existing.portType != arrayType {
-            removePort(existing)
-        }
-        if findPort(named: "outputPort") == nil {
-            let outputPort = arrayType.makeFreshPort(name: "Array", kind: .Outlet, description: "Array containing the queued values")
-            addDynamicPort(outputPort, name: "outputPort")
-        }
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputPort", displayName: "Value", portType: elementType, kind: .Inlet, description: "Value to insert at the front of the queue")
+        addOrReplaceDynamicPortPreservingIdentity(name: "outputPort", displayName: "Array", portType: arrayType, kind: .Outlet, description: "Array containing the queued values")
 
         queue.removeAll()
 

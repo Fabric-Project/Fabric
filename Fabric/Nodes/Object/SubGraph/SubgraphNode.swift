@@ -215,17 +215,31 @@ public class SubgraphNode: BaseObjectNode
                 decodeContext.currentGraph = previousGraph
             }
 
-            self.proxyPorts = try container.decodeIfPresent([AnyPort].self, forKey: .proxyPorts)?.map(\.base) ?? []
+            self.proxyPorts = Self.decodeProxyPortsIfPossible(from: container, forKey: .proxyPorts)
         }
         else
         {
-            self.proxyPorts = try container.decodeIfPresent([AnyPort].self, forKey: .proxyPorts)?.map(\.base) ?? []
+            self.proxyPorts = Self.decodeProxyPortsIfPossible(from: container, forKey: .proxyPorts)
         }
 
         try super.init(from: decoder)
         self.wireSubGraphCallback()
         self.proxyPorts.forEach { $0.node = self }
         self.rebuildProxyPorts()
+    }
+
+    private static func decodeProxyPortsIfPossible(from container: KeyedDecodingContainer<CodingKeys>,
+                                                   forKey key: CodingKeys) -> [Port]
+    {
+        do
+        {
+            return try container.decodeIfPresent([AnyPort].self, forKey: key)?.map(\.base) ?? []
+        }
+        catch
+        {
+            print("Failed to decode saved subgraph proxy ports: \(error)")
+            return []
+        }
     }
 
     private func wireSubGraphCallback()
