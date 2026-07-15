@@ -40,10 +40,10 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
     // Leaf and commonly-used nested types for UI menus and serialization dispatch.
     // Does NOT enumerate all possible recursive combinations — use PortType(rawValue:) for dynamic reconstruction.
     public static let allCases : [PortType] = [
+        // Numerical
         .Bool,
         .Float,
         .Int,
-        .String,
         .Vector2,
         .Vector3,
         .Vector4,
@@ -51,9 +51,16 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         .Quaternion,
         .Transform,
         
+        // 
+        .String,
+
+        // Reference
         .Geometry,
         .Material,
         .Image,
+        
+        // Collections
+        .Array(portType:.Virtual),
         
         .Array(portType:.Bool),
         .Array(portType:.Float),
@@ -68,8 +75,12 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         .Array(portType:.Geometry),
         .Array(portType:.Material),
         .Array(portType:.Image),
+        
+        .Array(portType:.Dictionary(valueType: .Virtual)),
 
+        
         .Dictionary(valueType:.Virtual),
+        
         .Dictionary(valueType:.Bool),
         .Dictionary(valueType:.Float),
         .Dictionary(valueType:.Int),
@@ -83,25 +94,30 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         .Dictionary(valueType:.Geometry),
         .Dictionary(valueType:.Material),
         .Dictionary(valueType:.Image),
-
-        .Dictionary(valueType:.Array(portType:.Bool)),
-        .Dictionary(valueType:.Array(portType:.Float)),
-        .Dictionary(valueType:.Array(portType:.Int)),
-        .Dictionary(valueType:.Array(portType:.String)),
-        .Dictionary(valueType:.Array(portType:.Vector2)),
-        .Dictionary(valueType:.Array(portType:.Vector3)),
-        .Dictionary(valueType:.Array(portType:.Vector4)),
-        .Dictionary(valueType:.Array(portType:.Color)),
-        .Dictionary(valueType:.Array(portType:.Quaternion)),
-        .Dictionary(valueType:.Array(portType:.Transform)),
-        .Dictionary(valueType:.Array(portType:.Geometry)),
-        .Dictionary(valueType:.Array(portType:.Material)),
-        .Dictionary(valueType:.Array(portType:.Image)),
+       
+        .Dictionary(valueType:.Array(portType:.Virtual)),
 
         // We intentionally skip 'NumericVirtual' as its a bit of an internal implementation detail
         // Since this is used for UI.
         .Virtual
+    ]
 
+    /// User-facing leaf value types. Collection nodes use these when the
+    /// strategy represents an element type rather than a full port shape.
+    public static let scalarCases: [PortType] = [
+        .Bool,
+        .Float,
+        .Int,
+        .Vector2,
+        .Vector3,
+        .Vector4,
+        .Color,
+        .Quaternion,
+        .Transform,
+        .String,
+        .Geometry,
+        .Material,
+        .Image,
     ]
     
     public init?(rawValue: String)
@@ -205,10 +221,12 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
             return Satin.Material.self
         case .Image:
             return FabricImage.self
+            
         case .Array(portType: let portType):
             return contiguousArrayMetatype(of: portType.type)
         case .Dictionary(valueType: let valueType):
             return dictionaryMetatype(valueType: valueType.type)
+            
         case .NumericVirtual:
             return PortValue.self
         case .Virtual:

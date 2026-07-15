@@ -80,6 +80,30 @@ struct DictionaryPortTests
         }
     }
 
+    @Test("Array basics expose scalar element strategies")
+    func arrayBasicsExposeScalarElementStrategies() throws
+    {
+        let options = ArrayCountNode.strategyOptions.compactMap { PortType(rawValue: $0.rawValue) }
+
+        #expect(options.first == .Virtual)
+        #expect(options.contains(.Float))
+        #expect(options.contains(.String))
+        #expect(!options.contains(.Array(portType: .Float)))
+        #expect(!options.contains(.Dictionary(valueType: .Float)))
+        #expect(!options.contains(.Array(portType: .Dictionary(valueType: .Virtual))))
+    }
+
+    @Test("Array virtual ports accept only array connections")
+    func arrayVirtualPortsAcceptOnlyArrayConnections() throws
+    {
+        let arrayVirtual = PortType.Array(portType: .Virtual)
+
+        #expect(arrayVirtual.canConnect(to: .Array(portType: .Float)))
+        #expect(arrayVirtual.canConnect(to: .Array(portType: .Dictionary(valueType: .Array(portType: .Float)))))
+        #expect(!arrayVirtual.canConnect(to: .Float))
+        #expect(!PortType.Float.canConnect(to: arrayVirtual))
+    }
+
     @Test("Typed dictionaries box and unbox through PortValue")
     func typedDictionariesBoxAndUnboxThroughPortValue() throws
     {
@@ -140,12 +164,12 @@ struct DictionaryPortTests
         #expect(node.outputError.value == "")
     }
 
-    @Test("Dictionary from keys and values creates typed dictionary")
-    func dictionaryFromKeysAndValuesCreatesTypedDictionary() throws
+    @Test("Compose Dictionary creates typed dictionary")
+    func composeDictionaryCreatesTypedDictionary() throws
     {
         guard let harness = DictionaryTestHarness() else { return }
 
-        let node = DictionaryFromKeysAndValuesNode(context: harness.context, portType: .Float)
+        let node = ComposeDictionaryNode(context: harness.context, portType: .Float)
         let inputKeys: Fabric.Port = node.port(named: "inputKeys")
         let inputValues: Fabric.Port = node.port(named: "inputValues")
         let outputDictionary: Fabric.Port = node.port(named: "outputDictionary")
@@ -162,5 +186,35 @@ struct DictionaryPortTests
         #expect(outputDictionary.portType == PortType.Dictionary(valueType: .Float))
         #expect(dictionary["x"] == PortValue.Float(10))
         #expect(dictionary["y"] == PortValue.Float(20))
+    }
+
+    @Test("Decompose Dictionary outputs sorted keys and values")
+    func decomposeDictionaryOutputsSortedKeysAndValues() throws
+    {
+        guard let harness = DictionaryTestHarness() else { return }
+
+        let node = DecomposeDictionaryNode(context: harness.context, portType: .Float)
+        let inputDictionary: Fabric.Port = node.port(named: "inputDictionary")
+        let outputKeys: Fabric.Port = node.port(named: "outputKeys")
+        let outputValues: Fabric.Port = node.port(named: "outputValues")
+
+        inputDictionary.restoreValue(from: PortValue.Dictionary([
+            "y": .Float(20),
+            "x": .Float(10),
+        ]))
+
+        try harness.execute(node)
+
+        guard case .Array(let keys) = outputKeys.snapshotValue() else {
+            throw DictionaryTestFailure("Expected output keys")
+        }
+        guard case .Array(let values) = outputValues.snapshotValue() else {
+            throw DictionaryTestFailure("Expected output values")
+        }
+
+        #expect(outputKeys.portType == PortType.Array(portType: .String))
+        #expect(outputValues.portType == PortType.Array(portType: .Float))
+        #expect(keys == [.String("x"), .String("y")])
+        #expect(values == [.Float(10), .Float(20)])
     }
 }

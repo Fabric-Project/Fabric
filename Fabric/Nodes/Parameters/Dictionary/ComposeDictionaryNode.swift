@@ -1,5 +1,5 @@
 //
-//  DictionaryFromKeysAndValuesNode.swift
+//  ComposeDictionaryNode.swift
 //  Fabric
 //
 
@@ -7,9 +7,9 @@ import Foundation
 import Satin
 import Metal
 
-public final class DictionaryFromKeysAndValuesNode: DictionaryTypeAgnosticNode
+public final class ComposeDictionaryNode: DictionaryTypeAgnosticNode
 {
-    public override class var name: String { "Dictionary From Keys and Values" }
+    public override class var name: String { "Compose Dictionary" }
     override public class var nodeDescription: String { "Builds a dictionary from string keys and values. Choose value type in Settings." }
 
     public override func rebuildPorts(forStrategy strategy: String)

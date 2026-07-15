@@ -23,11 +23,7 @@ public class TypeAgnosticNode: StrategyNode
     {
         let includesArrayTypes = Self.includesArrayTypesInStrategy
         var types: [PortType] = [.Virtual]
-        types += PortType.allCases.filter { portType in
-            if portType == .Virtual { return false }
-            if !includesArrayTypes, case .Array = portType { return false }
-            return true
-        }
+        types += includesArrayTypes ? PortType.allCases.filter { $0 != .Virtual } : PortType.scalarCases
         return types
     }
 
