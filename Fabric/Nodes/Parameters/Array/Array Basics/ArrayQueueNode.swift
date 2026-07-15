@@ -41,7 +41,7 @@ public class ArrayQueueNode: TypeAgnosticNode
         super.rebuildPorts(forStrategy: strategy)
         guard let elementType = PortType(rawValue: strategy) else { return }
 
-        let arrayType: PortType = elementType == .Virtual ? .Virtual : .Array(portType: elementType)
+        let arrayType: PortType = .Array(portType: elementType)
 
         // Replace inputPort only when the element type changes
         if let existing: Port = findPort(named: "inputPort"), existing.portType != elementType {

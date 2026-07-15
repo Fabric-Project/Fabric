@@ -210,7 +210,9 @@ extension UTType
 
     public func canConnect(to other:Port) -> Bool
     {
-        self.portType.canConnect(to: other.portType)
+        if self.kind == .Inlet, self.portType == .Virtual { return true }
+        if other.kind == .Inlet, other.portType == .Virtual { return true }
+        return self.portType.canConnect(to: other.portType)
     }
     
     public func connect(to other: Port) { fatalError("override") }
