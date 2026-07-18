@@ -21,12 +21,15 @@ extension PortType
             return self.isNumericVirtualCompatible || other.isNumericVirtualCompatible
         }
 
-        // Any connection involving a Virtual port is permitted.
-        // The send path boxes typed→Virtual; Virtual→typed produces no value but is not blocked at connect time.
-        if self == .Virtual || other == .Virtual { return true }
-
         switch self
         {
+        case .Virtual:
+            return true
+
+        case .Array(portType: .Virtual):
+            guard case .Array = other else { return false }
+            return true
+
         case .Bool, .Int, .Float, .String:
             switch other
             {
@@ -41,7 +44,16 @@ extension PortType
             return other == .Color || other == .Vector4
 
         default:
-            return self == other
+            switch other
+            {
+            case .Virtual:
+                return true
+            case .Array(portType: .Virtual):
+                guard case .Array = self else { return false }
+                return true
+            default:
+                return self == other
+            }
         }
     }
 

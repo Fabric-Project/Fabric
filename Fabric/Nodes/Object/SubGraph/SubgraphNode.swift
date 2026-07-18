@@ -103,6 +103,31 @@ public class SubgraphNode: BaseObjectNode
         case let p as NodePort<ContiguousArray<Material>>:          return ProxyPort(wrapping: p)
         case let p as NodePort<ContiguousArray<FabricImage>>:       return ProxyPort(wrapping: p)
         case let p as NodePort<ContiguousArray<PortValue>>:         return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, Float>>:          return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, Int>>:            return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, Bool>>:           return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, String>>:         return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, simd_float2>>:    return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, simd_float3>>:    return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, simd_float4>>:    return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, simd_float4x4>>:  return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, simd_quatf>>:     return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, Geometry>>:       return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, Material>>:       return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, FabricImage>>:    return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, ContiguousArray<Float>>>:         return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, ContiguousArray<Int>>>:           return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, ContiguousArray<Bool>>>:          return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, ContiguousArray<String>>>:        return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, ContiguousArray<simd_float2>>>:   return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, ContiguousArray<simd_float3>>>:   return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, ContiguousArray<simd_float4>>>:   return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, ContiguousArray<simd_float4x4>>>: return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, ContiguousArray<simd_quatf>>>:    return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, ContiguousArray<Geometry>>>:      return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, ContiguousArray<Material>>>:      return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, ContiguousArray<FabricImage>>>:   return ProxyPort(wrapping: p)
+        case let p as NodePort<Dictionary<String, PortValue>>:       return ProxyPort(wrapping: p)
         default:
             print("ProxyPort: unsupported port type for \(port.name): \(type(of: port))")
             return nil
@@ -190,17 +215,31 @@ public class SubgraphNode: BaseObjectNode
                 decodeContext.currentGraph = previousGraph
             }
 
-            self.proxyPorts = try container.decodeIfPresent([AnyPort].self, forKey: .proxyPorts)?.map(\.base) ?? []
+            self.proxyPorts = Self.decodeProxyPortsIfPossible(from: container, forKey: .proxyPorts)
         }
         else
         {
-            self.proxyPorts = try container.decodeIfPresent([AnyPort].self, forKey: .proxyPorts)?.map(\.base) ?? []
+            self.proxyPorts = Self.decodeProxyPortsIfPossible(from: container, forKey: .proxyPorts)
         }
 
         try super.init(from: decoder)
         self.wireSubGraphCallback()
         self.proxyPorts.forEach { $0.node = self }
         self.rebuildProxyPorts()
+    }
+
+    private static func decodeProxyPortsIfPossible(from container: KeyedDecodingContainer<CodingKeys>,
+                                                   forKey key: CodingKeys) -> [Port]
+    {
+        do
+        {
+            return try container.decodeIfPresent([AnyPort].self, forKey: key)?.map(\.base) ?? []
+        }
+        catch
+        {
+            print("Failed to decode saved subgraph proxy ports: \(error)")
+            return []
+        }
     }
 
     private func wireSubGraphCallback()

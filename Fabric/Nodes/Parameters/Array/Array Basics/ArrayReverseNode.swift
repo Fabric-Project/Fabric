@@ -25,15 +25,8 @@ public class ArrayReverseNode: TypeAgnosticNode
 
         let arrayType: PortType = .Array(portType: elementType)
 
-        for name in ["inputPort", "outputPort"] {
-            if let p: Port = findPort(named: name), p.portType != arrayType { removePort(p) }
-        }
-        if findPort(named: "inputPort") == nil {
-            addDynamicPort(arrayType.makeFreshPort(name: "Array", kind: .Inlet,  description: "Input array"), name: "inputPort")
-        }
-        if findPort(named: "outputPort") == nil {
-            addDynamicPort(arrayType.makeFreshPort(name: "Array", kind: .Outlet, description: "Reversed array"), name: "outputPort")
-        }
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputPort", displayName: "Array", portType: arrayType, kind: .Inlet, description: "Input array")
+        addOrReplaceDynamicPortPreservingIdentity(name: "outputPort", displayName: "Array", portType: arrayType, kind: .Outlet, description: "Reversed array")
 
         let portOrder = ["inputPort", "outputPort"]
         let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }

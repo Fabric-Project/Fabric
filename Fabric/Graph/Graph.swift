@@ -712,12 +712,12 @@ internal import AnyCodable
         if let objectNode = node as? BaseObjectNode,
            let object = objectNode.getObject()
         {
-            print("Graph: \(self.id) Scene: Added Child", objectNode.name)
+//            print("Graph: \(self.id) Scene: Added Child", objectNode.name)
             self.scene.add( object )
         }
         else
         {
-            print("Graph: \(self.id) Scene: Skipped Child", node.name)
+//            print("Graph: \(self.id) Scene: Skipped Child", node.name)
         }
     }
     
@@ -734,7 +734,7 @@ internal import AnyCodable
     {
         self.scene.removeAll()
 
-        print("Graph: \(self.id) Scene: Syncing Nodes")
+//        print("Graph: \(self.id) Scene: Syncing Nodes")
 
         self.nodes.forEach({ self.maybeAddNodeToScene( $0) } )
     }

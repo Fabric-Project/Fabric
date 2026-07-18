@@ -30,6 +30,7 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
     case Material
     case Image
     case Array(portType:PortType)
+    case Dictionary(valueType:PortType)
 
     // A Virtual type that boxes all typed values into PortValue
     case Virtual
@@ -39,10 +40,10 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
     // Leaf and commonly-used nested types for UI menus and serialization dispatch.
     // Does NOT enumerate all possible recursive combinations — use PortType(rawValue:) for dynamic reconstruction.
     public static let allCases : [PortType] = [
+        // Numerical
         .Bool,
         .Float,
         .Int,
-        .String,
         .Vector2,
         .Vector3,
         .Vector4,
@@ -50,9 +51,16 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         .Quaternion,
         .Transform,
         
+        // 
+        .String,
+
+        // Reference
         .Geometry,
         .Material,
         .Image,
+        
+        // Collections
+        .Array(portType:.Virtual),
         
         .Array(portType:.Bool),
         .Array(portType:.Float),
@@ -67,11 +75,49 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         .Array(portType:.Geometry),
         .Array(portType:.Material),
         .Array(portType:.Image),
+        
+        .Array(portType:.Dictionary(valueType: .Virtual)),
+
+        
+        .Dictionary(valueType:.Virtual),
+        
+        .Dictionary(valueType:.Bool),
+        .Dictionary(valueType:.Float),
+        .Dictionary(valueType:.Int),
+        .Dictionary(valueType:.String),
+        .Dictionary(valueType:.Vector2),
+        .Dictionary(valueType:.Vector3),
+        .Dictionary(valueType:.Vector4),
+        .Dictionary(valueType:.Color),
+        .Dictionary(valueType:.Quaternion),
+        .Dictionary(valueType:.Transform),
+        .Dictionary(valueType:.Geometry),
+        .Dictionary(valueType:.Material),
+        .Dictionary(valueType:.Image),
+       
+        .Dictionary(valueType:.Array(portType:.Virtual)),
 
         // We intentionally skip 'NumericVirtual' as its a bit of an internal implementation detail
         // Since this is used for UI.
         .Virtual
+    ]
 
+    /// User-facing leaf value types. Collection nodes use these when the
+    /// strategy represents an element type rather than a full port shape.
+    public static let scalarCases: [PortType] = [
+        .Bool,
+        .Float,
+        .Int,
+        .Vector2,
+        .Vector3,
+        .Vector4,
+        .Color,
+        .Quaternion,
+        .Transform,
+        .String,
+        .Geometry,
+        .Material,
+        .Image,
     ]
     
     public init?(rawValue: String)
@@ -115,7 +161,7 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
                     {
                         let startIdx = s.index(s.startIndex, offsetBy: prefix.count)
                         let endIdx   = s.endIndex
-                        inner = Swift.String(s[startIdx..<endIdx]).trimmingCharacters(in: .newlines)
+                        inner = Swift.String(s[startIdx..<endIdx]).trimmingCharacters(in: .whitespacesAndNewlines)
                         break
                     }
                 }
@@ -127,6 +173,19 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
                     return
                 }
             }
+
+        if s.hasPrefix("Dictionary of")
+        {
+            let prefix = "Dictionary of"
+            let startIdx = s.index(s.startIndex, offsetBy: prefix.count)
+            let inner = Swift.String(s[startIdx..<s.endIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if let valueType = PortType(rawValue: inner)
+            {
+                self = .Dictionary(valueType: valueType)
+                return
+            }
+        }
 
         return nil
             // 3) Unknown
@@ -162,8 +221,12 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
             return Satin.Material.self
         case .Image:
             return FabricImage.self
+            
         case .Array(portType: let portType):
             return contiguousArrayMetatype(of: portType.type)
+        case .Dictionary(valueType: let valueType):
+            return dictionaryMetatype(valueType: valueType.type)
+            
         case .NumericVirtual:
             return PortValue.self
         case .Virtual:
@@ -201,6 +264,8 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
             return "Image"
         case .Array(portType: let type):
             return "Array of \(type.rawValue)"
+        case .Dictionary(valueType: let type):
+            return "Dictionary of \(type.rawValue)"
         case .NumericVirtual:
             return "Numeric Virtual"
         case .Virtual:
@@ -234,6 +299,8 @@ extension PortType {
         case .Image:        return PassThroughNode<FabricImage>.self
         case .Array(portType: let elementType):
             return Self.arrayParameterNodeClass(for: elementType)
+        case .Dictionary(valueType: let valueType):
+            return Self.dictionaryParameterNodeClass(for: valueType)
         case .NumericVirtual:
             return nil
         default:
@@ -262,6 +329,27 @@ extension PortType {
         case .Material:  return PassThroughNode<ContiguousArray<Material>>.self
         case .Image:     return PassThroughNode<ContiguousArray<FabricImage>>.self
         default:         return PassThroughNode<ContiguousArray<PortValue>>.self
+        }
+    }
+
+    private static func dictionaryParameterNodeClass(for valueType: PortType) -> Node.Type?
+    {
+        switch valueType
+        {
+        case .Bool:      return PassThroughNode<Dictionary<String, Bool>>.self
+        case .Int:       return PassThroughNode<Dictionary<String, Int>>.self
+        case .Float:     return PassThroughNode<Dictionary<String, Float>>.self
+        case .String:    return PassThroughNode<Dictionary<String, String>>.self
+        case .Vector2:   return PassThroughNode<Dictionary<String, simd_float2>>.self
+        case .Vector3:   return PassThroughNode<Dictionary<String, simd_float3>>.self
+        case .Vector4, .Color:
+                         return PassThroughNode<Dictionary<String, simd_float4>>.self
+        case .Quaternion: return PassThroughNode<Dictionary<String, simd_quatf>>.self
+        case .Transform: return PassThroughNode<Dictionary<String, simd_float4x4>>.self
+        case .Geometry:  return PassThroughNode<Dictionary<String, Geometry>>.self
+        case .Material:  return PassThroughNode<Dictionary<String, Material>>.self
+        case .Image:     return PassThroughNode<Dictionary<String, FabricImage>>.self
+        default:         return PassThroughNode<Dictionary<String, PortValue>>.self
         }
     }
 }
@@ -304,4 +392,19 @@ func contiguousArrayElementType(of type: Any.Type) -> Any.Type? {
 @inline(__always)
 func contiguousArrayElementType(of value: Any) -> Any.Type? {
     contiguousArrayElementType(of: Swift.type(of: value))
+}
+
+@inline(__always)
+fileprivate func dictionaryMetatype<Value>(valueType _: Value.Type) -> Dictionary<String, Value>.Type {
+    Dictionary<String, Value>.self
+}
+
+@inline(__always)
+fileprivate func _dictionaryMetatype_impl<Value>(_ value: Value.Type) -> Any.Type {
+    Dictionary<String, Value>.self
+}
+
+@inline(__always)
+fileprivate func dictionaryMetatype(valueType: Any.Type) -> Any.Type {
+    _openExistential(valueType, do: _dictionaryMetatype_impl)
 }

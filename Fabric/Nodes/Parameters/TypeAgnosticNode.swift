@@ -23,11 +23,7 @@ public class TypeAgnosticNode: StrategyNode
     {
         let includesArrayTypes = Self.includesArrayTypesInStrategy
         var types: [PortType] = [.Virtual]
-        types += PortType.allCases.filter { portType in
-            if portType == .Virtual { return false }
-            if !includesArrayTypes, case .Array = portType { return false }
-            return true
-        }
+        types += includesArrayTypes ? PortType.allCases.filter { $0 != .Virtual } : PortType.scalarCases
         return types
     }
 
@@ -47,5 +43,54 @@ public class TypeAgnosticNode: StrategyNode
     {
         let portType = PortType(rawValue: strategy) ?? .Virtual
         displayName = portType == .Virtual ? nil : "\(type(of: self).name) \(portType.rawValue)"
+    }
+
+    public func addOrReplaceDynamicPortPreservingIdentity(name registryName: String,
+                                                          displayName: String,
+                                                          portType: PortType,
+                                                          kind: PortKind,
+                                                          description: String)
+    {
+        if let existing: Port = findPort(named: registryName), existing.portType != portType
+        {
+            let oldConnections = existing.connections
+            let oldPublished = existing.published
+            let oldPublishedName = existing.publishedName
+            let oldValue = existing.snapshotValue()
+
+            removePort(existing)
+
+            let replacement = portType.makeFreshPort(
+                name: displayName,
+                kind: kind,
+                description: description,
+                id: existing.id
+            )
+            replacement.published = oldPublished
+            replacement.publishedName = oldPublishedName
+            if let oldValue
+            {
+                replacement.restoreValue(from: oldValue)
+            }
+
+            addDynamicPort(replacement, name: registryName)
+
+            for connected in oldConnections where replacement.canConnect(to: connected)
+            {
+                replacement.connect(to: connected)
+            }
+        }
+
+        if findPort(named: registryName) == nil
+        {
+            addDynamicPort(
+                portType.makeFreshPort(
+                    name: displayName,
+                    kind: kind,
+                    description: description
+                ),
+                name: registryName
+            )
+        }
     }
 }

@@ -25,18 +25,9 @@ public class ArrayAppendNode: TypeAgnosticNode
 
         let arrayType: PortType = .Array(portType: elementType)
 
-        for name in ["inputArrayA", "inputArrayB", "outputPort"] {
-            if let p: Port = findPort(named: name), p.portType != arrayType { removePort(p) }
-        }
-        if findPort(named: "inputArrayA") == nil {
-            addDynamicPort(arrayType.makeFreshPort(name: "Array A", kind: .Inlet,  description: "First array"), name: "inputArrayA")
-        }
-        if findPort(named: "inputArrayB") == nil {
-            addDynamicPort(arrayType.makeFreshPort(name: "Array B", kind: .Inlet,  description: "Second array, appended after Array A"), name: "inputArrayB")
-        }
-        if findPort(named: "outputPort") == nil {
-            addDynamicPort(arrayType.makeFreshPort(name: "Array",   kind: .Outlet, description: "Concatenated array"), name: "outputPort")
-        }
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputArrayA", displayName: "Array A", portType: arrayType, kind: .Inlet, description: "First array")
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputArrayB", displayName: "Array B", portType: arrayType, kind: .Inlet, description: "Second array, appended after Array A")
+        addOrReplaceDynamicPortPreservingIdentity(name: "outputPort", displayName: "Array", portType: arrayType, kind: .Outlet, description: "Concatenated array")
 
         let portOrder = ["inputArrayA", "inputArrayB", "outputPort"]
         let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }

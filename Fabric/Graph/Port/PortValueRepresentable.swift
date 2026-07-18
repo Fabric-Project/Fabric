@@ -55,6 +55,7 @@ public indirect enum PortValue : PortValueRepresentable
     case Material(Satin.Material)
     case Image(FabricImage)
     case Array(ContiguousArray<PortValue>)
+    case Dictionary(Swift.Dictionary<Swift.String, PortValue>)
     
     public static var defaultValue: PortValue? { nil }
         
@@ -678,5 +679,57 @@ extension ContiguousArray: PortValueRepresentable where Element: PortValueRepres
     public func convertTo(other:PortType) -> (any PortValueRepresentable)?
     {
         return nil
+    }
+}
+
+extension Dictionary: PortValueRepresentable where Key == Swift.String, Value: PortValueRepresentable {
+
+    public static var defaultValue: Dictionary<Key, Value>? { Dictionary<Key, Value>() }
+
+    public static var portType: PortType {
+        .Dictionary(valueType: Value.portType)
+    }
+
+    public var portType: PortType {
+        .Dictionary(valueType: Value.portType)
+    }
+
+    public func toPortValue() -> PortValue {
+        var boxed: Swift.Dictionary<Swift.String, PortValue> = [:]
+        boxed.reserveCapacity(self.count)
+
+        for (key, value) in self {
+            boxed[key] = value.toPortValue()
+        }
+
+        return .Dictionary(boxed)
+    }
+
+    public static func fromPortValue(_ value: PortValue) -> Dictionary<Key, Value>? {
+        switch value {
+        case let .Dictionary(boxedValues):
+            var result = Dictionary<Key, Value>()
+            result.reserveCapacity(boxedValues.count)
+
+            for (key, boxedValue) in boxedValues {
+                guard let value = Value.fromPortValue(boxedValue) else { return nil }
+                result[key] = value
+            }
+
+            return result
+
+        default:
+            return nil
+        }
+    }
+
+    public func canConvertTo(other: PortType) -> Bool
+    {
+        false
+    }
+
+    public func convertTo(other: PortType) -> (any PortValueRepresentable)?
+    {
+        nil
     }
 }

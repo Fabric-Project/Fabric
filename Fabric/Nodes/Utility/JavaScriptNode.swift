@@ -240,6 +240,8 @@ private final class JavaScriptValueBridge
             return JavaScriptImageValue(image: value)
         case .Array(let values):
             return values.map { javaScriptArgument(for: $0) }
+        case .Dictionary(let values):
+            return values.mapValues { javaScriptArgument(for: $0) }
         }
     }
 
@@ -294,6 +296,19 @@ private final class JavaScriptValueBridge
             }
             guard boxedElements.count == array.count else { return nil }
             return .Array(ContiguousArray(boxedElements))
+        case .Dictionary(valueType: let valueType):
+            guard let object = value.toDictionary() as? [String: Any] else { return nil }
+            var boxedValues: [String: PortValue] = [:]
+            boxedValues.reserveCapacity(object.count)
+
+            for (key, element) in object
+            {
+                let wrappedValue = JSValue(object: element, in: value.context)
+                guard let boxedValue = boxedValue(from: wrappedValue, as: valueType) else { return nil }
+                boxedValues[key] = boxedValue
+            }
+
+            return .Dictionary(boxedValues)
         }
     }
 }

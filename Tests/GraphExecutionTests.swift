@@ -162,6 +162,30 @@ private func imagePort(named name: String, kind: PortKind, on node: Node) throws
     return port
 }
 
+private final class RecursiveArrayDictionaryPortNode: Node {
+    override class var name: String { "Recursive Array Dictionary Port" }
+    override class var nodeType: Node.NodeType { .Utility }
+    override class var nodeExecutionMode: Node.ExecutionMode { .Provider }
+    override class var nodeTimeMode: Node.TimeMode { .None }
+    override class var nodeDescription: String { "Test node for recursive collection port publishing." }
+
+    static let recursivePortType: PortType = .Array(portType: .Dictionary(valueType: .Array(portType: .Float)))
+
+    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)] {
+        super.registerPorts(context: context) + [
+            ("output", recursivePortType.makeFreshPort(name: "Recursive", kind: .Outlet)),
+        ]
+    }
+
+    required init(context: Context) {
+        super.init(context: context)
+    }
+
+    required init(from decoder: any Decoder) throws {
+        try super.init(from: decoder)
+    }
+}
+
 private func requireValue<T>(_ value: T?, _ message: String) throws -> T {
     guard let value else {
         throw TestFailure(message)
@@ -526,6 +550,24 @@ struct GraphExecutionTests {
 
         try expectEqual(innerAdd.inputNumber1.value, 4)
         try expectEqual(proxyOutput.value, 7)
+    }
+
+    @Test("Subgraph proxy preserves recursive array dictionary port type")
+    func subgraphProxyPreservesRecursiveArrayDictionaryPortType() throws {
+        guard let harness = GraphExecutionTestHarness() else { return }
+
+        let subgraphNode = SubgraphNode(context: harness.context)
+        let innerNode = RecursiveArrayDictionaryPortNode(context: harness.context)
+
+        subgraphNode.subGraph.addNode(innerNode)
+        innerNode.port(named: "output").published = true
+        subgraphNode.subGraph.rebuildPublishedParameterGroup()
+
+        guard let proxyPort = subgraphNode.ports.first(where: { $0.name == "Recursive" && $0.kind == .Outlet }) else {
+            throw TestFailure("Missing recursive collection proxy port")
+        }
+
+        #expect(proxyPort.portType == RecursiveArrayDictionaryPortNode.recursivePortType)
     }
 
     @Test("Iterator node forwards the final iteration info state")
