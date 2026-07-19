@@ -37,6 +37,12 @@ internal final class GraphRendererFeedbackCache
         let upstreamNodeID: UUID
     }
 
+    private struct FeedbackCandidateCacheKey: Hashable
+    {
+        let nodeID: UUID
+        let requestedOutputPortID: UUID?
+    }
+
     private let graphID:UUID
 
     private var lastCachePruneFrameNumber: Int = -1
@@ -44,7 +50,7 @@ internal final class GraphRendererFeedbackCache
 
     // Resolved inlet -> upstream outlet pairs for feedback checks.
     // Rebuilt when the graph reports a topology change.
-    private var feedbackCandidateCache: [UUID: [FeedbackCandidate]] = [:]
+    private var feedbackCandidateCache: [FeedbackCandidateCacheKey: [FeedbackCandidate]] = [:]
     private var connectedOutputPortCache: [UUID: [Port]] = [:]
     
     internal init(graphID:UUID)
@@ -86,6 +92,7 @@ internal final class GraphRendererFeedbackCache
     func setProcessingState(
         _ state: NodeProcessingState,
         forNode node:Node,
+        requestedOutputPort: Port? = nil,
         executionInfo:GraphExecutionInfo,
         cacheProcessedOutputs: Bool = true
     )
@@ -98,7 +105,9 @@ internal final class GraphRendererFeedbackCache
             return
             
         case .processing:
-            self.setFeedbackState(forNode: node, executionInfo: executionInfo)
+            self.setFeedbackState(forNode: node,
+                                  requestedOutputPort: requestedOutputPort,
+                                  executionInfo: executionInfo)
             
         case .processed where cacheProcessedOutputs:
             self.cacheProcessedNode(node, executionInfo: executionInfo)
@@ -108,14 +117,16 @@ internal final class GraphRendererFeedbackCache
         }
     }
         
-    private func setFeedbackState(forNode node:Node, executionInfo:GraphExecutionInfo)
+    private func setFeedbackState(forNode node:Node,
+                                  requestedOutputPort: Port?,
+                                  executionInfo:GraphExecutionInfo)
     {
         guard !previousFrameCache.isEmpty else { return }
 
         let previousFrame = executionInfo.timing.frameNumber - 1
 
         // Inject cached previous-frame values for back-edges (upstream node is currently .processing)
-        for candidate in feedbackCandidates(forNode: node)
+        for candidate in feedbackCandidates(forNode: node, requestedOutputPort: requestedOutputPort)
         {
             if nodeProcessingStateCache[candidate.upstreamNodeID, default: .unprocessed] == .processing
             {
@@ -130,14 +141,19 @@ internal final class GraphRendererFeedbackCache
         }
     }
 
-    private func feedbackCandidates(forNode node: Node) -> [FeedbackCandidate]
+    private func feedbackCandidates(forNode node: Node, requestedOutputPort: Port?) -> [FeedbackCandidate]
     {
-        if let cached = feedbackCandidateCache[node.id]
+        let cacheKey = FeedbackCandidateCacheKey(
+            nodeID: node.id,
+            requestedOutputPortID: requestedOutputPort?.id
+        )
+
+        if let cached = feedbackCandidateCache[cacheKey]
         {
             return cached
         }
 
-        let candidates = node.inputPorts().compactMap { inlet -> FeedbackCandidate? in
+        let candidates = node.activeInputPorts(requestedOutputPort: requestedOutputPort).compactMap { inlet -> FeedbackCandidate? in
             // In Fabric, inlets typically have at most 1 connection; if more, preserve current first-outlet policy.
             guard let upstreamOutlet = inlet.connections.first(where: { $0.kind == .Outlet }),
                   let upstreamNode = upstreamOutlet.node
@@ -150,7 +166,7 @@ internal final class GraphRendererFeedbackCache
             )
         }
 
-        feedbackCandidateCache[node.id] = candidates
+        feedbackCandidateCache[cacheKey] = candidates
 
         return candidates
     }

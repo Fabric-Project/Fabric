@@ -86,6 +86,16 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     public private(set) var inputNodes:[Node] = []
     public private(set) var outputNodes:[Node]  = []
 
+    /// Whether this node can satisfy a pull from the requested output port.
+    /// Nodes with conditional outputs can return false to keep inactive branches
+    /// out of the execution plan.
+    public func shouldEvaluate(requestedOutputPort: Port?) -> Bool { true }
+
+    /// Input ports the renderer should pull for the requested output port.
+    /// Default graph execution depends on every connected inlet; routing nodes
+    /// override this to expose only their active data/control dependencies.
+    public func activeInputPorts(requestedOutputPort: Port?) -> [Port] { inputPorts() }
+
     public var nodeSize:CGSize { self.computeNodeSize() }
 
     public var offset: CGSize = .zero
