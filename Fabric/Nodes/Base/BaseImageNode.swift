@@ -20,11 +20,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             return displayName
         }
 
-        guard let fileURL = self.url else {
-            return Self.name
-        }
-
-        return self.fileURLToName(fileURL: fileURL)
+        return self.cachedFileURLName ?? Self.name
     }
 
     open class var sourceShaderName: String { "" }
@@ -37,6 +33,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
     let postProcessor: PostProcessEncoder
 
     private var url: URL? = nil
+    private var cachedFileURLName: String?
     private var lastKnownInputCount: Int = 1
     private var cachedImageInputPorts: [NodePort<FabricImage>] = []
 
@@ -86,6 +83,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
     public required init(context: Context, fileURL: URL) throws {
         self.url = fileURL
+        self.cachedFileURLName = Self.fileURLToName(fileURL: fileURL)
 
         let material = PostMaterial(context:context, pipelineURL: fileURL)
 
@@ -121,8 +119,15 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
     }
     
     public func setFileURL(_ url: URL) {
-        guard self.url != url else { return }
+        let cachedName = Self.fileURLToName(fileURL: url)
+        let shouldUpdatePipeline = self.url != url
+        guard shouldUpdatePipeline || self.cachedFileURLName != cachedName else { return }
+
         self.url = url
+        self.cachedFileURLName = cachedName
+        self.nameSubject.send()
+
+        guard shouldUpdatePipeline else { return }
 
         if let sourceShader = self.postMaterial.shader as? SourceShader {
             sourceShader.pipelineURL = url
@@ -146,6 +151,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             let bundle = Bundle.module
             if let shaderURL = bundle.resourceURL?.appendingPathComponent(path) {
                 self.url = shaderURL
+                self.cachedFileURLName = Self.fileURLToName(fileURL: shaderURL)
 
                 let material = PostMaterial(context:context, pipelineURL: shaderURL)
 
@@ -155,6 +161,8 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
                                                    frameBufferOnly: false)
             }
             else {
+                self.cachedFileURLName = nil
+
                 let bundle = Bundle.module
                 let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
 
@@ -167,6 +175,8 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             }
         }
         else {
+            self.cachedFileURLName = nil
+
             let bundle = Bundle.module
             let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
 
@@ -700,7 +710,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         self.outputTexturePort.send(outImage)
     }
 
-    private func fileURLToName(fileURL: URL) -> String {
+    private static func fileURLToName(fileURL: URL) -> String {
         let nodeName = fileURL.deletingPathExtension().lastPathComponent.replacing("ImageNode", with: "")
         return nodeName.titleCase
     }
