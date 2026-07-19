@@ -45,6 +45,7 @@ public class CameraProviderNode : Node
     class CaptureDelegate : NSObject, AVCaptureVideoDataOutputSampleBufferDelegate
     {
         var pixelBuffer:CVPixelBuffer? = nil
+        var gotNewPixelBuffer:Bool = false
 
         var captureQueue = DispatchQueue(label: "fabric.CameraTextureNode.capture_queue")
 
@@ -61,7 +62,7 @@ public class CameraProviderNode : Node
             DispatchQueue.main.async {
 
                 self.pixelBuffer = pixelBuffer
-
+                self.gotNewPixelBuffer = true
             }
        }
     }
@@ -168,11 +169,12 @@ public class CameraProviderNode : Node
             updateCameraSession()
         }
         
-       
-        if let pixelBuffer = self.captureDelegate.pixelBuffer,
+        if self.captureDelegate.gotNewPixelBuffer,
+           let pixelBuffer = self.captureDelegate.pixelBuffer,
            let image = renderer.newImage(fromPixelBuffer: pixelBuffer)
         {
-            self.outputTexturePort.send( image )                
+            self.outputTexturePort.send( image )
+            self.captureDelegate.gotNewPixelBuffer = false
         }
         
      }
