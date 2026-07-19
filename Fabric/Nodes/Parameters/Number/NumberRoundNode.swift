@@ -28,7 +28,7 @@ public class NumberRoundNode : Node
         
         return ports +
         [
-            ("inputNumber", NodePort<Float>(name: "Number" , kind: .Inlet, description: "Number to round")),
+            ("inputNumber", ParameterPort(parameter: FloatParameter("Number", 0, Float.leastNormalMagnitude, Float.greatestFiniteMagnitude, .inputfield, "Number to round"))),
             ("inputRoundMethod", ParameterPort(parameter: StringParameter("Round Method", "Round", ["Round", "Floor", "Ceil"], .dropdown, "Rounding method (Round, Floor, or Ceiling)"))),
             ("outputNumber", NodePort<Int>(name: "Number" , kind: .Outlet, description: "The rounded integer value")),
         ]
