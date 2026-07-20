@@ -356,7 +356,7 @@ extension PortType {
                                    indent: Swift.String,
                                    remainingCharacterCount: inout Int) -> Swift.String
     {
-        let header = Self.capped("Array Count: \(values.count) ",
+        let header = Self.capped("Count: \(values.count) ",
                                  remainingCharacterCount: &remainingCharacterCount)
 
         if values.isEmpty { return header + "[]" }
@@ -386,7 +386,7 @@ extension PortType {
                                          indent: Swift.String,
                                          remainingCharacterCount: inout Int) -> Swift.String
     {
-        let header = Self.capped("Dictionary Count: \(values.count) ",
+        let header = Self.capped("Count: \(values.count) ",
                                  remainingCharacterCount: &remainingCharacterCount)
 
         if values.isEmpty { return header + "[:]" }
