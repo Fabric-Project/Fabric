@@ -208,6 +208,15 @@ extension UTType
     /// The display name: publishedName if set, otherwise the port's own name.
     public var displayName: String { publishedName ?? name }
 
+    /// Hover-tooltip string for this port: `displayName: type` plus the
+    /// current value when available.
+    public var inspectionTooltip: String {
+        let head = "\(displayName): \(portType.rawValue)"
+        guard let value = snapshotValue() else { return head }
+
+        return "\(head) - \(portType.previewString(for: value))"
+    }
+
     public func canConnect(to other:Port) -> Bool
     {
         if self.kind == .Inlet, self.portType == .Virtual { return true }

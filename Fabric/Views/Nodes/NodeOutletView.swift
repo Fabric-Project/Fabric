@@ -57,7 +57,14 @@ struct NodeOutletView: View
                             self.port.connect(to: targetPort)
                         }
                 )
-                .help("\(port.name): \(port.portType.rawValue) - \(port.parameter?.description ?? "" )")
+                .anchorPreference(
+                    key: PortAnchorKey.self,
+                    value: .center,
+                    transform: {  anchor in
+
+                        [  port.id : anchor ]
+                    })
+                .modifier(PortInspectionTooltip(port: port))
 
         }
         .frame(height: 15)

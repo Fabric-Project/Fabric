@@ -278,6 +278,162 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
 
 extension PortType {
 
+    public func previewString(for value: PortValue, indent: Swift.String = "") -> Swift.String
+    {
+        var remainingCharacterCount = Self.maxPreviewCharacterCount
+
+        return Self.previewString(for: value,
+                                  indent: indent,
+                                  remainingCharacterCount: &remainingCharacterCount)
+    }
+
+    private static let maxPreviewCharacterCount = 2_000
+
+    private static func previewString(for value: PortValue,
+                                      indent: Swift.String,
+                                      remainingCharacterCount: inout Int) -> Swift.String
+    {
+        switch value
+        {
+        case .Bool(let value):
+            return Self.capped(Swift.String(value), remainingCharacterCount: &remainingCharacterCount)
+
+        case .Int(let value):
+            return Self.capped(Swift.String(value), remainingCharacterCount: &remainingCharacterCount)
+
+        case .Float(let value):
+            return Self.capped(Swift.String(value), remainingCharacterCount: &remainingCharacterCount)
+
+        case .String(let value):
+            return Self.capped(value, remainingCharacterCount: &remainingCharacterCount)
+
+        case .Vector2(let value):
+            return Self.capped(Swift.String(describing: value), remainingCharacterCount: &remainingCharacterCount)
+
+        case .Vector3(let value):
+            return Self.capped(Swift.String(describing: value), remainingCharacterCount: &remainingCharacterCount)
+
+        case .Vector4(let value):
+            return Self.capped(Swift.String(describing: value), remainingCharacterCount: &remainingCharacterCount)
+
+        case .Quaternion(let value):
+            return Self.capped(Swift.String(describing: value), remainingCharacterCount: &remainingCharacterCount)
+
+        case .Transform(let value):
+            return Self.listString(
+                for: [
+                    .Vector4(value.columns.0),
+                    .Vector4(value.columns.1),
+                    .Vector4(value.columns.2),
+                    .Vector4(value.columns.3),
+                ],
+                indent: indent,
+                remainingCharacterCount: &remainingCharacterCount
+            )
+
+        case .Geometry(let value):
+            return Self.capped(Swift.String(describing: value), remainingCharacterCount: &remainingCharacterCount)
+
+        case .Material(let value):
+            return Self.capped(Swift.String(describing: value), remainingCharacterCount: &remainingCharacterCount)
+
+        case .Image(let value):
+            return Self.capped(Swift.String(describing: value), remainingCharacterCount: &remainingCharacterCount)
+
+        case .Array(let values):
+            return Self.listString(for: values,
+                                   indent: indent,
+                                   remainingCharacterCount: &remainingCharacterCount)
+
+        case .Dictionary(let values):
+            return Self.dictionaryString(for: values,
+                                         indent: indent,
+                                         remainingCharacterCount: &remainingCharacterCount)
+        }
+    }
+
+    private static func listString(for values: ContiguousArray<PortValue>,
+                                   indent: Swift.String,
+                                   remainingCharacterCount: inout Int) -> Swift.String
+    {
+        if values.isEmpty { return "[]" }
+
+        let nextIndent = indent + "    "
+        var lines: [Swift.String] = []
+        var index = values.startIndex
+
+        while index < values.endIndex, remainingCharacterCount > 0
+        {
+            let renderedValue = Self.previewString(for: values[index],
+                                                   indent: nextIndent,
+                                                   remainingCharacterCount: &remainingCharacterCount)
+            lines.append("\(nextIndent)\(renderedValue),")
+            index = values.index(after: index)
+        }
+
+        if index < values.endIndex || remainingCharacterCount <= 0
+        {
+            lines.append("\(nextIndent)...")
+        }
+
+        return "[\n" + lines.joined(separator: "\n") + "\n\(indent)]"
+    }
+
+    private static func dictionaryString(for values: Swift.Dictionary<Swift.String, PortValue>,
+                                         indent: Swift.String,
+                                         remainingCharacterCount: inout Int) -> Swift.String
+    {
+        if values.isEmpty { return "[:]" }
+
+        let nextIndent = indent + "    "
+        var lines: [Swift.String] = []
+        let sortedKeys = values.keys.sorted()
+        var index = sortedKeys.startIndex
+
+        while index < sortedKeys.endIndex, remainingCharacterCount > 0
+        {
+            let key = sortedKeys[index]
+            guard let value = values[key] else
+            {
+                index = sortedKeys.index(after: index)
+                continue
+            }
+
+            let renderedKey = Self.capped(key, remainingCharacterCount: &remainingCharacterCount)
+            let renderedValue = Self.previewString(for: value,
+                                                   indent: nextIndent,
+                                                   remainingCharacterCount: &remainingCharacterCount)
+            lines.append("\(nextIndent)\(renderedKey): \(renderedValue),")
+            index = sortedKeys.index(after: index)
+        }
+
+        if index < sortedKeys.endIndex || remainingCharacterCount <= 0
+        {
+            lines.append("\(nextIndent)...")
+        }
+
+        return "[\n" + lines.joined(separator: "\n") + "\n\(indent)]"
+    }
+
+    private static func capped(_ value: Swift.String,
+                               remainingCharacterCount: inout Int) -> Swift.String
+    {
+        let truncationMarker = "..."
+
+        guard remainingCharacterCount > 0 else { return truncationMarker }
+
+        if value.count <= remainingCharacterCount
+        {
+            remainingCharacterCount -= value.count
+            return value
+        }
+
+        let prefixCount = max(0, remainingCharacterCount - truncationMarker.count)
+        remainingCharacterCount = 0
+
+        return Swift.String(value.prefix(prefixCount)) + truncationMarker
+    }
+
     /// Returns the parameter node class for this port type,
     /// or nil if no matching parameter node exists.
     public var parameterNodeClass: Node.Type?

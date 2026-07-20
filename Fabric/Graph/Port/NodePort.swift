@@ -8,9 +8,9 @@
 import CoreFoundation
 import SwiftUI
 import Satin
+import simd
 
 // Specialized port which facilitates sending a concrete type supported by Fabric .
-
 
 public class NodePort<Value : PortValueRepresentable>: Port
 {
@@ -64,7 +64,7 @@ public class NodePort<Value : PortValueRepresentable>: Port
     }
         
     public var valueType: Any.Type { Value.self }
-    
+
     @ObservationIgnored override public var portType: PortType {
         Value.portType
     }
@@ -442,7 +442,6 @@ public class NodePort<Value : PortValueRepresentable>: Port
         return .Horizontal
     }
 }
-
 
 extension NodePort
 {
