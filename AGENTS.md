@@ -81,23 +81,29 @@ For all development:
 - Execution is **pull-based**; one execute per node per pass.
 - `GraphRenderer` (executor and scheduler) today does not use `nodeExecutionMode` or `nodeTimeMode` but will in the future.
 - **Iterator (QC-style)** remains the multi-evaluation macro; refinements allowed, paradigm fixed.
+- One file per Node Class
 
 - Node Settings:
   - Nodes may opt into a QC like ’Settings View’
   - Any Node whose execution logic would change the  type, or number of ports should have only have that logic fire via changing a Setting, NOT at runtime
   - Settings should have a custom Init override, and be exposed as a enum or struct that can be set via the procedural Node / Graph API. This avoids UI only configuration.
 
+- Important Node subclasses
+  - StrategyNode / TypeAgnosticNode - useful for Nodes that can change their port type on demand
+    
+
 ### 2.2  Ports & Registration
 - **Registry = source of truth.**  
 - Subclasses implement `class func registerPorts(context:)`, call `super`, preserve order.
-- **Dynamic ports are supported through the Registry.**  
+- **Dynamic ports are supported through the Registry.** See TypeAgnosticNode
 - UI and serialization order derive from registration.
-- Dynamic ports aren’t implemented yet, but will be in the future.
 - `NodeRegistry` should support this as it’s the single source of truth for nodes.
 - **Typed ports only** (for now).  
   Any “virtual” or generic ports must remain type-safe and backward-compatible.
 
 ### 2.3  Parameters & ParameterPort
+- Input Ports should be backed by Parameters as a Parameter Port if the type is a Parameter
+     - ie avoid raw Ports unless type demands it. 
 - Always seed `value` from the backing parameter on init/decode (hydration).
 - Maintain bi-directional sync: parameter ↔ port.
 - Parameter changes mark dirty only; heavy work deferred to `execute`.
@@ -105,7 +111,7 @@ For all development:
 
 ### 2.4  Graph, Subgraphs & Rendering
 - Graph owns nodes, connections (by port UUID), and published params.
-- **Subgraphs** inherit `BaseObjectNode`, expose an object.
+- **Subgraphs** inherit `BaseObjectNode`, expose an Satin object.
 - `GraphRenderer` handles traversal, caching, single-execute per frame, resize propagation. 
 - `GraphRenderer` handles discovery of cameras (only one supported now), and if none are found, leverages its own cached camera.
 - `GraphRenderer`’s default camera is set up for the default QC coordinate system.
