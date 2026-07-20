@@ -356,7 +356,10 @@ extension PortType {
                                    indent: Swift.String,
                                    remainingCharacterCount: inout Int) -> Swift.String
     {
-        if values.isEmpty { return "[]" }
+        let header = Self.capped("Array Count: \(values.count) ",
+                                 remainingCharacterCount: &remainingCharacterCount)
+
+        if values.isEmpty { return header + "[]" }
 
         let nextIndent = indent + "    "
         var lines: [Swift.String] = []
@@ -376,14 +379,17 @@ extension PortType {
             lines.append("\(nextIndent)...")
         }
 
-        return "[\n" + lines.joined(separator: "\n") + "\n\(indent)]"
+        return header + "[\n" + lines.joined(separator: "\n") + "\n\(indent)]"
     }
 
     private static func dictionaryString(for values: Swift.Dictionary<Swift.String, PortValue>,
                                          indent: Swift.String,
                                          remainingCharacterCount: inout Int) -> Swift.String
     {
-        if values.isEmpty { return "[:]" }
+        let header = Self.capped("Dictionary Count: \(values.count) ",
+                                 remainingCharacterCount: &remainingCharacterCount)
+
+        if values.isEmpty { return header + "[:]" }
 
         let nextIndent = indent + "    "
         var lines: [Swift.String] = []
@@ -412,7 +418,7 @@ extension PortType {
             lines.append("\(nextIndent)...")
         }
 
-        return "[\n" + lines.joined(separator: "\n") + "\n\(indent)]"
+        return header + "[\n" + lines.joined(separator: "\n") + "\n\(indent)]"
     }
 
     private static func capped(_ value: Swift.String,
