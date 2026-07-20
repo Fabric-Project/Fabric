@@ -287,7 +287,7 @@ extension PortType {
                                   remainingCharacterCount: &remainingCharacterCount)
     }
 
-    private static let maxPreviewCharacterCount = 2_000
+    private static let maxPreviewCharacterCount = 100
 
     private static func previewString(for value: PortValue,
                                       indent: Swift.String,

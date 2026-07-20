@@ -25,21 +25,6 @@ public enum PortDirection : String, Codable
 }
 
 
-public struct PortAnchorKey: PreferenceKey
-{
-    public typealias Value = [UUID : Anchor<CGPoint>]
-    
-    public static var defaultValue: [UUID : Anchor<CGPoint>] = [:]
-    
-    public static func reduce(value: inout [UUID : Anchor<CGPoint>],
-                       nextValue: () -> [UUID : Anchor<CGPoint>])
-    {
-        // later writers win
-        value.merge(nextValue(), uniquingKeysWith: { $1 })
-    }
-}
-
-
 struct OutletData : Codable
 {
     let portID: UUID
