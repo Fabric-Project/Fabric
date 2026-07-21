@@ -26,26 +26,45 @@ public struct NodeSelectionInspector: View
 
             Section(header: Text("Published"))
             {
-                ParameterGroupView(parameterGroup:currentGraph.publishedParameterGroup)
-            }
-
-            ForEach(currentGraph.selectedNodes) { node in
-
-                @Bindable var nodeViewModel: NodeViewModel = currentGraph.viewModel(for: node)
-
-                Section(header: Text( nodeViewModel.name ) )
+                GroupBox
                 {
-                    Toggle("Node Settings", isOn: $nodeViewModel.showSettings)
-                        .opacity(nodeViewModel.providesSettingsView() ? 1.0 : 0.0)
-
-                    ParameterGroupView(parameterGroup: nodeViewModel.parameterGroup,
-                                       fileContentTypes: Self.fileContentTypes(for: node))
+                    ParameterGroupView(parameterGroup:currentGraph.publishedParameterGroup)
+                }
+            }
+            
+            Section(header: Text("Selected"))
+            {
+                ForEach(currentGraph.selectedNodes) { node in
+                    
+                    @Bindable var nodeViewModel: NodeViewModel = currentGraph.viewModel(for: node)
+                    
+                    GroupBox{
+                        
+                        VStack(alignment: .leading) {
+                            
+                            self.labelForNodeModelView(nodeViewModel)
+                                .padding(.horizontal, 5)
+                            
+                            Divider()
+                            
+                            let providesSettings = nodeViewModel.providesSettingsView()
+                            
+                            Toggle("Node Settings", isOn: $nodeViewModel.showSettings)
+                                .controlSize(.small)
+                                .opacity( providesSettings ? 1.0 : 0.0)
+                                .frame(height:providesSettings ? nil : 0)
+                                .padding(.horizontal, 5)
+                            
+                            ParameterGroupView(parameterGroup: nodeViewModel.parameterGroup,
+                                               fileContentTypes: Self.fileContentTypes(for: node))
+                            .padding(.horizontal, 5)
+                        }
+                    }
                 }
             }
         }
         .listStyle(.sidebar)
         .id(currentGraph.connectionRevision)
-
     }
 
     private static func fileContentTypes(for node: Node) -> [UTType]
@@ -54,5 +73,30 @@ public struct NodeSelectionInspector: View
             return dropTarget.supportedContentTypes
         }
         return [.data]
+    }
+
+    // TODO: This should be standardized somewhere...
+    @ViewBuilder
+    private func labelForNodeModelView(_ nodeViewModel:NodeViewModel) -> AnyView
+    {
+        let typeName: String = type(of: nodeViewModel.node).name
+        let hasPrimaryLabel: Bool = nodeViewModel.name != typeName
+        
+        let primaryLabel = nodeViewModel.displayName ?? nodeViewModel.name
+        
+        
+        if hasPrimaryLabel
+        {
+            return AnyView( VStack(alignment: .leading) {
+                Text(typeName).foregroundStyle(nodeViewModel.nodeType.color())
+                Text(primaryLabel).foregroundStyle(.white.opacity(0.6))
+                }
+            )
+        }
+        else
+        {
+            return AnyView(Text(typeName)
+                .foregroundStyle(nodeViewModel.nodeType.color()))
+        }
     }
 }
