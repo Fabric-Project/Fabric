@@ -49,15 +49,18 @@ public struct NodeSelectionInspector: View
                             
                             let providesSettings = nodeViewModel.providesSettingsView()
                             
-                            Toggle("Node Settings", isOn: $nodeViewModel.showSettings)
-                                .controlSize(.small)
-                                .opacity( providesSettings ? 1.0 : 0.0)
-                                .frame(height:providesSettings ? nil : 0)
-                                .padding(.horizontal, 5)
+                            let title = nodeViewModel.showSettings ? "Hide Node Settings" : "Open Node Settings"
+                            HStack {
+                                Toggle(title, isOn: $nodeViewModel.showSettings)
+                                    .toggleStyle(.switch)
+                                    .controlSize(.mini)
+                                    .opacity( providesSettings ? 1.0 : 0.0)
+                                    .frame(height:providesSettings ? nil : 0)
+                                    .padding(.horizontal, 5)
+                            }
                             
                             ParameterGroupView(parameterGroup: nodeViewModel.parameterGroup,
                                                fileContentTypes: Self.fileContentTypes(for: node))
-                            .padding(.horizontal, 5)
                         }
                     }
                 }
