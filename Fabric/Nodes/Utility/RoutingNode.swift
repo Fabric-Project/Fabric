@@ -179,8 +179,13 @@ private struct RoutingNodeSettingsView: View
 
     var body: some View
     {
-        VStack(alignment: .leading)
+        VStack(alignment: .leading, spacing: 12)
         {
+            Text(type(of: node).nodeDescription)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
             Stepper(value: Binding(
                 get: { routeCount },
                 set: { newRouteCount in
