@@ -11,7 +11,7 @@ public final class GateNode: RoutingNode
     override public class var nodeType: Node.NodeType { .Utility }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Routes one input to one selected output. Only the selected output branch is evaluated; consumers of unselected branches will see the value freeze." }
+    override public class var nodeDescription: String { "Routes one input to one selected output. Inverse of Switch. Only the selected output branch is evaluated; consumers of unselected branches will see the value freeze." }
 
     private static let inputPortName = "input"
 

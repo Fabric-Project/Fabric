@@ -11,7 +11,7 @@ public final class SwitchNode: RoutingNode
     override public class var nodeType: Node.NodeType { .Utility }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Selects one input to pass through. Only the selected input branch is evaluated." }
+    override public class var nodeDescription: String { "Selects one input to route through. Inverse of Gate. Only the selected input branch is evaluated." }
 
     private static let outputPortName = "output"
 
