@@ -301,11 +301,116 @@ struct RoutingNodeExecutionTests
         #expect(activeConsumer.lastValue == 30)
     }
 
+    @Test("Matrix Switch cross-routes each input to its mapped output")
+    func matrixSwitchCrossRoutesInputsToOutputs() throws
+    {
+        guard let harness = RoutingExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let input0 = CountingFloatProviderNode(context: harness.context, value: 10)
+        let input1 = CountingFloatProviderNode(context: harness.context, value: 20)
+        let input2 = CountingFloatProviderNode(context: harness.context, value: 30)
+        let matrix = MatrixSwitchNode(context: harness.context, routeCount: 3, portType: .Float)
+        let consumer0 = CountingFloatConsumerNode(context: harness.context)
+        let consumer1 = CountingFloatConsumerNode(context: harness.context)
+        let consumer2 = CountingFloatConsumerNode(context: harness.context)
+
+        // input 0 -> output 2, input 1 -> output 0, input 2 -> output 1
+        matrix.inputMap.value = ["0": 2, "1": 0, "2": 1]
+
+        for node in [input0, input1, input2, matrix, consumer0, consumer1, consumer2] as [Node]
+        {
+            graph.addNode(node)
+        }
+
+        input0.output.connect(to: matrix.port(named: "input0", as: NodePort<Float>.self))
+        input1.output.connect(to: matrix.port(named: "input1", as: NodePort<Float>.self))
+        input2.output.connect(to: matrix.port(named: "input2", as: NodePort<Float>.self))
+        matrix.port(named: "output0", as: NodePort<Float>.self).connect(to: consumer0.input)
+        matrix.port(named: "output1", as: NodePort<Float>.self).connect(to: consumer1.input)
+        matrix.port(named: "output2", as: NodePort<Float>.self).connect(to: consumer2.input)
+
+        try harness.execute(graph)
+
+        #expect(consumer0.lastValue == 20)
+        #expect(consumer1.lastValue == 30)
+        #expect(consumer2.lastValue == 10)
+        #expect(input0.executionCount == 1)
+        #expect(input1.executionCount == 1)
+        #expect(input2.executionCount == 1)
+    }
+
+    @Test("Matrix Switch leaves unrouted outputs and inputs unevaluated")
+    func matrixSwitchLeavesUnroutedBranchesUnevaluated() throws
+    {
+        guard let harness = RoutingExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let routed = CountingFloatProviderNode(context: harness.context, value: 10)
+        let unrouted = CountingFloatProviderNode(context: harness.context, value: 99)
+        let matrix = MatrixSwitchNode(context: harness.context, routeCount: 2, portType: .Float)
+        let activeConsumer = CountingFloatConsumerNode(context: harness.context)
+        let frozenConsumer = CountingFloatConsumerNode(context: harness.context)
+
+        // Only input 0 is mapped (-> output 0). Input 1 is absent = off; output 1 has no source.
+        matrix.inputMap.value = ["0": 0]
+
+        for node in [routed, unrouted, matrix, activeConsumer, frozenConsumer] as [Node]
+        {
+            graph.addNode(node)
+        }
+
+        routed.output.connect(to: matrix.port(named: "input0", as: NodePort<Float>.self))
+        unrouted.output.connect(to: matrix.port(named: "input1", as: NodePort<Float>.self))
+        matrix.port(named: "output0", as: NodePort<Float>.self).connect(to: activeConsumer.input)
+        matrix.port(named: "output1", as: NodePort<Float>.self).connect(to: frozenConsumer.input)
+
+        try harness.execute(graph)
+
+        #expect(activeConsumer.executionCount == 1)
+        #expect(activeConsumer.lastValue == 10)
+        #expect(frozenConsumer.executionCount == 0)
+        #expect(routed.executionCount == 1)
+        #expect(unrouted.executionCount == 0)
+    }
+
+    @Test("Matrix Switch resolves output collisions by lowest input index")
+    func matrixSwitchResolvesCollisionByLowestInputIndex() throws
+    {
+        guard let harness = RoutingExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let winner = CountingFloatProviderNode(context: harness.context, value: 10)
+        let loser = CountingFloatProviderNode(context: harness.context, value: 20)
+        let matrix = MatrixSwitchNode(context: harness.context, routeCount: 2, portType: .Float)
+        let consumer = CountingFloatConsumerNode(context: harness.context)
+
+        // Both inputs target output 0 — the lower input index wins.
+        matrix.inputMap.value = ["0": 0, "1": 0]
+
+        for node in [winner, loser, matrix, consumer] as [Node]
+        {
+            graph.addNode(node)
+        }
+
+        winner.output.connect(to: matrix.port(named: "input0", as: NodePort<Float>.self))
+        loser.output.connect(to: matrix.port(named: "input1", as: NodePort<Float>.self))
+        matrix.port(named: "output0", as: NodePort<Float>.self).connect(to: consumer.input)
+
+        try harness.execute(graph)
+
+        #expect(consumer.lastValue == 10)
+        #expect(winner.executionCount == 1)
+        // The collision loser feeds no output, so it is never evaluated.
+        #expect(loser.executionCount == 0)
+    }
+
     @Test("Routing nodes are registered")
     func routingNodesAreRegistered()
     {
         let availableNames = Set(NodeRegistry.shared.availableNodes.map(\.nodeName))
         #expect(availableNames.contains(SwitchNode.name))
         #expect(availableNames.contains(GateNode.name))
+        #expect(availableNames.contains(MatrixSwitchNode.name))
     }
 }

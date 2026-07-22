@@ -10,7 +10,12 @@ import SwiftUI
 let routingNodeMinimumRouteCount = 2
 let routingNodeMaximumRouteCount = 16
 
-public class RoutingNode: TypeAgnosticNode
+/// Shared base for the routing / switching node family (Switch, Gate, Matrix
+/// Switch). Owns the route count, the value-type strategy (the Type picker), the
+/// settings pane, and the dynamic-port helpers. It deliberately holds no notion of
+/// *how* a route is selected — subclasses supply that: a single `Index` for
+/// Switch/Gate ([[RoutingNode]]), an index map for Matrix Switch.
+public class RoutingNodeBase: TypeAgnosticNode
 {
     public var routeCount: Int = routingNodeMinimumRouteCount
     {
@@ -27,8 +32,6 @@ public class RoutingNode: TypeAgnosticNode
         }
     }
 
-    public var inputIndex: ParameterPort<Int> { port(named: "inputIndex") }
-
     private enum RoutingCodingKeys: String, CodingKey
     {
         case routeCount
@@ -37,14 +40,12 @@ public class RoutingNode: TypeAgnosticNode
     public required init(context: Context)
     {
         super.init(context: context)
-        updateIndexRange()
     }
 
     public init(context: Context, routeCount: Int, portType: PortType)
     {
         self.routeCount = Self.clampedRouteCount(routeCount)
         super.init(context: context, initialStrategy: portType.rawValue)
-        updateIndexRange()
     }
 
     public required init(from decoder: any Decoder) throws
@@ -56,7 +57,6 @@ public class RoutingNode: TypeAgnosticNode
             try container.decodeIfPresent(Int.self, forKey: .routeCount) ?? routingNodeMinimumRouteCount
         )
         rebuildPorts(forStrategy: strategy)
-        updateIndexRange()
     }
 
     public override func encode(to encoder: Encoder) throws
@@ -65,18 +65,6 @@ public class RoutingNode: TypeAgnosticNode
 
         var container = encoder.container(keyedBy: RoutingCodingKeys.self)
         try container.encode(routeCount, forKey: .routeCount)
-    }
-
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
-    {
-        super.registerPorts(context: context) + [
-            ("inputIndex", ParameterPort(parameter: IntParameter("Index",
-                                                                 0,
-                                                                 0,
-                                                                 routingNodeMinimumRouteCount - 1,
-                                                                 .inputfield,
-                                                                 "Selected route index"))),
-        ]
     }
 
     public func setRouteCount(_ count: Int)
@@ -100,16 +88,7 @@ public class RoutingNode: TypeAgnosticNode
         AnyView(RoutingNodeSettingsView(node: self))
     }
 
-    public override func rebuildPorts(forStrategy strategy: String)
-    {
-        super.rebuildPorts(forStrategy: strategy)
-        updateIndexRange()
-    }
-
-    func selectedRouteIndex() -> Int
-    {
-        max(0, min(inputIndex.value ?? 0, routeCount - 1))
-    }
+    // MARK: - Dynamic routing-port helpers
 
     func addOrReplaceRoutingPort(name registryName: String,
                                  displayName: String,
@@ -145,9 +124,58 @@ public class RoutingNode: TypeAgnosticNode
         }
     }
 
-    private static func clampedRouteCount(_ count: Int) -> Int
+    static func clampedRouteCount(_ count: Int) -> Int
     {
         max(routingNodeMinimumRouteCount, min(count, routingNodeMaximumRouteCount))
+    }
+}
+
+/// Single-selection routing: a scalar `Index` parameter picks one of `routeCount`
+/// routes. Superclass of Switch (N inputs → 1 output) and Gate (1 input → N
+/// outputs). For per-input routing to independent outputs see [[MatrixSwitchNode]].
+public class RoutingNode: RoutingNodeBase
+{
+    public var inputIndex: ParameterPort<Int> { port(named: "inputIndex") }
+
+    public required init(context: Context)
+    {
+        super.init(context: context)
+        updateIndexRange()
+    }
+
+    public override init(context: Context, routeCount: Int, portType: PortType)
+    {
+        super.init(context: context, routeCount: routeCount, portType: portType)
+        updateIndexRange()
+    }
+
+    public required init(from decoder: any Decoder) throws
+    {
+        try super.init(from: decoder)
+        updateIndexRange()
+    }
+
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
+    {
+        super.registerPorts(context: context) + [
+            ("inputIndex", ParameterPort(parameter: IntParameter("Index",
+                                                                 0,
+                                                                 0,
+                                                                 routingNodeMinimumRouteCount - 1,
+                                                                 .inputfield,
+                                                                 "Selected route index"))),
+        ]
+    }
+
+    public override func rebuildPorts(forStrategy strategy: String)
+    {
+        super.rebuildPorts(forStrategy: strategy)
+        updateIndexRange()
+    }
+
+    func selectedRouteIndex() -> Int
+    {
+        max(0, min(inputIndex.value ?? 0, routeCount - 1))
     }
 
     private func updateIndexRange()
@@ -166,11 +194,11 @@ public class RoutingNode: TypeAgnosticNode
 
 private struct RoutingNodeSettingsView: View
 {
-    let node: RoutingNode
+    let node: RoutingNodeBase
     @State private var routeCount: Int
     @State private var portTypeRawValue: String
 
-    init(node: RoutingNode)
+    init(node: RoutingNodeBase)
     {
         self.node = node
         self._routeCount = State(initialValue: node.routeCount)
