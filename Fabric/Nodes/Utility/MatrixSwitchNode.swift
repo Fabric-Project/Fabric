@@ -18,15 +18,22 @@ import Satin
 ///
 /// Because a node executes once per pass but each output may draw from a different
 /// input, every routed source input is evaluated whenever any output is consumed;
-/// unrouted inputs are never evaluated. Outputs with no source are not evaluated,
-/// so their consumers freeze — the same behaviour as [[GateNode]].
+/// unrouted inputs are never evaluated. An output with no source emits nothing —
+/// it holds its previous value, so its consumers read a frozen value.
+///
+/// Unlike [[GateNode]], this node never gates itself off: it always evaluates so
+/// its (typically connected) map input is always pulled. Gating the node off on an
+/// all-unrouted map would starve the map input — it would never populate — and the
+/// node could never recover. The cost is that an unrouted output's consumer still
+/// runs (reading the frozen value) rather than being skipped as Gate skips its
+/// unselected branches.
 public final class MatrixSwitchNode: RoutingNodeBase
 {
     override public class var name: String { "Matrix Switch" }
     override public class var nodeType: Node.NodeType { .Utility }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Cross-routes N inputs to N outputs via an index map (Dictionary of Int) keyed by input index: map[\"i\"] = j sends Input i to Output j. Omit a key to leave that input unrouted. If two inputs target one output the lower index wins. Unrouted outputs are not evaluated, so their consumers freeze." }
+    override public class var nodeDescription: String { "Cross-routes N inputs to N outputs via an index map (Dictionary of Int) keyed by input index: map[\"i\"] = j sends Input i to Output j. Omit a key to leave that input unrouted. If two inputs target one output the lower index wins. An unrouted output emits nothing and holds its previous value, so its consumers see it frozen." }
 
     private static let indexMapPortName = "inputMap"
 
@@ -84,15 +91,6 @@ public final class MatrixSwitchNode: RoutingNodeBase
             + (0..<routeCount).map(Self.inputPortName)
             + (0..<routeCount).map(Self.outputPortName)
         applyPortOrder(orderedPortNames)
-    }
-
-    public override func shouldEvaluate(requestedOutputPort: Port?) -> Bool
-    {
-        guard let requestedOutputPort,
-              let outputIndex = outputIndex(of: requestedOutputPort)
-        else { return true }
-
-        return sourceInputIndex(forOutput: outputIndex) != nil
     }
 
     public override func activeInputPorts(requestedOutputPort: Port?) -> [Port]
@@ -159,18 +157,5 @@ public final class MatrixSwitchNode: RoutingNodeBase
             result.append(port)
         }
         return result
-    }
-
-    private func outputIndex(of port: Port) -> Int?
-    {
-        for index in 0..<routeCount
-        {
-            if let candidate: Port = findPort(named: Self.outputPortName(index)),
-               candidate.id == port.id
-            {
-                return index
-            }
-        }
-        return nil
     }
 }

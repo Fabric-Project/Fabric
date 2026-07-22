@@ -209,6 +209,54 @@ private final class CountingFloatConsumerNode: Node
     }
 }
 
+private final class CountingMapProviderNode: Node
+{
+    override class var name: String { "Counting Map Provider" }
+    override class var nodeType: Node.NodeType { .Utility }
+    override class var nodeExecutionMode: Node.ExecutionMode { .Provider }
+    override class var nodeTimeMode: Node.TimeMode { .None }
+    override class var nodeDescription: String { "Test index-map provider that counts executions." }
+
+    var value: [String: Int]
+    var executionCount = 0
+
+    var output: NodePort<[String: Int]> { port(named: "output") }
+
+    init(context: Context, value: [String: Int])
+    {
+        self.value = value
+        super.init(context: context)
+    }
+
+    required init(context: Context)
+    {
+        self.value = [:]
+        super.init(context: context)
+    }
+
+    required init(from decoder: any Decoder) throws
+    {
+        self.value = [:]
+        try super.init(from: decoder)
+    }
+
+    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
+    {
+        super.registerPorts(context: context) + [
+            ("output", NodePort<[String: Int]>(name: "Output", kind: .Outlet)),
+        ]
+    }
+
+    override func execute(renderer: GraphRenderer,
+                          executionInfo: GraphExecutionInfo,
+                          renderPassDescriptor: MTLRenderPassDescriptor,
+                          commandBuffer: MTLCommandBuffer)
+    {
+        executionCount += 1
+        output.send(value, force: true)
+    }
+}
+
 private func publish(_ port: Fabric.Port, in graph: Graph)
 {
     port.published = true
@@ -340,7 +388,7 @@ struct RoutingNodeExecutionTests
         #expect(input2.executionCount == 1)
     }
 
-    @Test("Matrix Switch leaves unrouted outputs and inputs unevaluated")
+    @Test("Matrix Switch does not evaluate unrouted inputs and emits nothing for unrouted outputs")
     func matrixSwitchLeavesUnroutedBranchesUnevaluated() throws
     {
         guard let harness = RoutingExecutionTestHarness() else { return }
@@ -367,10 +415,12 @@ struct RoutingNodeExecutionTests
 
         try harness.execute(graph)
 
-        #expect(activeConsumer.executionCount == 1)
         #expect(activeConsumer.lastValue == 10)
-        #expect(frozenConsumer.executionCount == 0)
+        // Output 1 has no source, so the node emits nothing for it — its consumer
+        // reads the port's frozen value (nil, as it was never routed).
+        #expect(frozenConsumer.lastValue == nil)
         #expect(routed.executionCount == 1)
+        // Input 1 is off (absent from the map), so it is never evaluated.
         #expect(unrouted.executionCount == 0)
     }
 
@@ -403,6 +453,41 @@ struct RoutingNodeExecutionTests
         #expect(winner.executionCount == 1)
         // The collision loser feeds no output, so it is never evaluated.
         #expect(loser.executionCount == 0)
+    }
+
+    @Test("Matrix Switch recovers routing with a connected map (no map-starvation deadlock)")
+    func matrixSwitchRecoversWithConnectedMap() throws
+    {
+        guard let harness = RoutingExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let mapProvider = CountingMapProviderNode(context: harness.context, value: ["0": 1, "1": 0])
+        let input0 = CountingFloatProviderNode(context: harness.context, value: 10)
+        let input1 = CountingFloatProviderNode(context: harness.context, value: 20)
+        let matrix = MatrixSwitchNode(context: harness.context, routeCount: 2, portType: .Float)
+        let consumer0 = CountingFloatConsumerNode(context: harness.context)
+        let consumer1 = CountingFloatConsumerNode(context: harness.context)
+
+        for node in [mapProvider, input0, input1, matrix, consumer0, consumer1] as [Node]
+        {
+            graph.addNode(node)
+        }
+
+        // Map arrives via a *connection*, not a directly set value: input 0 -> output 1, input 1 -> output 0.
+        mapProvider.output.connect(to: matrix.inputMap)
+        input0.output.connect(to: matrix.port(named: "input0", as: NodePort<Float>.self))
+        input1.output.connect(to: matrix.port(named: "input1", as: NodePort<Float>.self))
+        matrix.port(named: "output0", as: NodePort<Float>.self).connect(to: consumer0.input)
+        matrix.port(named: "output1", as: NodePort<Float>.self).connect(to: consumer1.input)
+
+        // The map is empty during the first pass (its provider has not run yet), so routing
+        // lags by one frame — the same cold-start latency as Switch/Gate. The node must not
+        // gate itself off, or the map would never populate and routing would never recover.
+        try harness.execute(graph, frameNumber: 0)
+        try harness.execute(graph, frameNumber: 1)
+
+        #expect(consumer0.lastValue == 20)
+        #expect(consumer1.lastValue == 10)
     }
 
     @Test("Routing nodes are registered")
