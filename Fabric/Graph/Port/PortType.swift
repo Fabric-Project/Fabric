@@ -278,6 +278,228 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
 
 extension PortType {
 
+    /// A compact, bounded rendering of a value for hover previews.
+    ///
+    /// Truncation is two-dimensional: every emitted line is capped to
+    /// `maxPreviewLineLength` characters, and at most `maxPreviewLineCount`
+    /// lines are emitted across the whole (possibly nested) value. When either
+    /// bound clips the content, a trailing `...` line signals that more exists.
+    public func previewString(for value: PortValue, indent: Swift.String = "") -> Swift.String
+    {
+        var remainingLineCount = Self.maxPreviewLineCount
+        var truncated = false
+        var lines: [Swift.String] = []
+
+        Self.appendPreviewLines(for: value,
+                                firstLinePrefix: indent,
+                                childIndent: indent,
+                                into: &lines,
+                                remainingLineCount: &remainingLineCount,
+                                truncated: &truncated,
+                                capLineLength: true)
+
+        if truncated
+        {
+            // Keep the marker within the line budget by replacing the last line.
+            if lines.count >= Self.maxPreviewLineCount, !lines.isEmpty
+            {
+                lines.removeLast()
+            }
+            lines.append(Self.truncationMarker)
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+    /// The full, uncapped rendering of a value, using the same formatting as
+    /// `previewString(for:)` but without the line or character bounds. Intended
+    /// for contexts such as the Log node where the complete value must be shown.
+    public func fullString(for value: PortValue, indent: Swift.String = "") -> Swift.String
+    {
+        var remainingLineCount = Swift.Int.max
+        var truncated = false
+        var lines: [Swift.String] = []
+
+        Self.appendPreviewLines(for: value,
+                                firstLinePrefix: indent,
+                                childIndent: indent,
+                                into: &lines,
+                                remainingLineCount: &remainingLineCount,
+                                truncated: &truncated,
+                                capLineLength: false)
+
+        return lines.joined(separator: "\n")
+    }
+
+    private static let maxPreviewLineLength = 50
+    private static let maxPreviewLineCount = 6
+    private static let truncationMarker = "..."
+
+    /// Appends the physical lines rendering `value`.
+    ///
+    /// - The first emitted line begins with `firstLinePrefix` (used to place a
+    ///   dictionary key or an array element's indentation ahead of the value);
+    ///   nested lines are indented from `childIndent`.
+    /// - At most `remainingLineCount` lines are emitted across the whole tree.
+    ///   Because every element (even one rendering to an empty string) costs a
+    ///   line, rendering always terminates and cannot bloat on large values.
+    /// - When `capLineLength` is true each emitted line is capped to
+    ///   `maxPreviewLineLength` characters.
+    /// - `truncated` is set whenever content had to be dropped.
+    private static func appendPreviewLines(for value: PortValue,
+                                           firstLinePrefix: Swift.String,
+                                           childIndent: Swift.String,
+                                           into lines: inout [Swift.String],
+                                           remainingLineCount: inout Int,
+                                           truncated: inout Bool,
+                                           capLineLength: Bool)
+    {
+        guard remainingLineCount > 0 else { truncated = true; return }
+
+        switch value
+        {
+        case .Bool(let value):
+            Self.appendLine(firstLinePrefix + Swift.String(value), into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
+        case .Int(let value):
+            Self.appendLine(firstLinePrefix + Swift.String(value), into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
+        case .Float(let value):
+            Self.appendLine(firstLinePrefix + Swift.String(value), into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
+        case .String(let value):
+            Self.appendLine(firstLinePrefix + value, into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
+        case .Vector2(let value):
+            Self.appendLine(firstLinePrefix + Swift.String(describing: value), into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
+        case .Vector3(let value):
+            Self.appendLine(firstLinePrefix + Swift.String(describing: value), into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
+        case .Vector4(let value):
+            Self.appendLine(firstLinePrefix + Swift.String(describing: value), into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
+        case .Quaternion(let value):
+            Self.appendLine(firstLinePrefix + Swift.String(describing: value), into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
+        case .Geometry(let value):
+            Self.appendLine(firstLinePrefix + Swift.String(describing: value), into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
+        case .Material(let value):
+            Self.appendLine(firstLinePrefix + Swift.String(describing: value), into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
+        case .Image(let value):
+            Self.appendLine(firstLinePrefix + Swift.String(describing: value), into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
+        case .Transform(let value):
+            let columns: [PortValue] = [
+                .Vector4(value.columns.0),
+                .Vector4(value.columns.1),
+                .Vector4(value.columns.2),
+                .Vector4(value.columns.3),
+            ]
+            Self.appendCollection(count: columns.count, emptyMarker: "[]", elements: columns,
+                                  firstLinePrefix: firstLinePrefix, childIndent: childIndent,
+                                  into: &lines, remainingLineCount: &remainingLineCount,
+                                  truncated: &truncated, capLineLength: capLineLength) { element, elementIndent, lines, remaining, truncated in
+                Self.appendPreviewLines(for: element, firstLinePrefix: elementIndent, childIndent: elementIndent,
+                                        into: &lines, remainingLineCount: &remaining, truncated: &truncated, capLineLength: capLineLength)
+            }
+
+        case .Array(let values):
+            Self.appendCollection(count: values.count, emptyMarker: "[]", elements: values,
+                                  firstLinePrefix: firstLinePrefix, childIndent: childIndent,
+                                  into: &lines, remainingLineCount: &remainingLineCount,
+                                  truncated: &truncated, capLineLength: capLineLength) { element, elementIndent, lines, remaining, truncated in
+                Self.appendPreviewLines(for: element, firstLinePrefix: elementIndent, childIndent: elementIndent,
+                                        into: &lines, remainingLineCount: &remaining, truncated: &truncated, capLineLength: capLineLength)
+            }
+
+        case .Dictionary(let values):
+            Self.appendCollection(count: values.count, emptyMarker: "[:]", elements: values.sorted { $0.key < $1.key },
+                                  firstLinePrefix: firstLinePrefix, childIndent: childIndent,
+                                  into: &lines, remainingLineCount: &remainingLineCount,
+                                  truncated: &truncated, capLineLength: capLineLength) { entry, elementIndent, lines, remaining, truncated in
+                Self.appendPreviewLines(for: entry.value, firstLinePrefix: elementIndent + entry.key + ": ", childIndent: elementIndent,
+                                        into: &lines, remainingLineCount: &remaining, truncated: &truncated, capLineLength: capLineLength)
+            }
+        }
+    }
+
+    /// Shared renderer for ordered collections (arrays, transforms, sorted
+    /// dictionaries). Emits a `Count: N [` header, one line-group per element
+    /// (each closed with a trailing comma), and a closing `]`, all sharing the
+    /// caller's line budget. `elements` is iterated lazily so a large collection
+    /// only touches as many elements as the budget allows.
+    private static func appendCollection<C: Sequence>(count: Int,
+                                                      emptyMarker: Swift.String,
+                                                      elements: C,
+                                                      firstLinePrefix: Swift.String,
+                                                      childIndent: Swift.String,
+                                                      into lines: inout [Swift.String],
+                                                      remainingLineCount: inout Int,
+                                                      truncated: inout Bool,
+                                                      capLineLength: Bool,
+                                                      appendElement: (C.Element, Swift.String, inout [Swift.String], inout Int, inout Bool) -> Void)
+    {
+        if count == 0
+        {
+            Self.appendLine(firstLinePrefix + "Count: \(count) " + emptyMarker,
+                            into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+            return
+        }
+
+        Self.appendLine(firstLinePrefix + "Count: \(count) [",
+                        into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
+        let elementIndent = childIndent + "    "
+
+        for element in elements
+        {
+            guard remainingLineCount > 0 else { truncated = true; break }
+
+            let lineCountBefore = lines.count
+            appendElement(element, elementIndent, &lines, &remainingLineCount, &truncated)
+
+            // Only append the separating comma when the element rendered fully
+            // (budget still remaining); a comma on a line the budget cut off
+            // mid-element would read as a stray "[,".
+            if lines.count > lineCountBefore, remainingLineCount > 0
+            {
+                lines[lines.count - 1] += ","
+            }
+        }
+
+        if remainingLineCount > 0
+        {
+            Self.appendLine(childIndent + "]",
+                            into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+        }
+        else
+        {
+            truncated = true
+        }
+    }
+
+    private static func appendLine(_ line: Swift.String,
+                                   into lines: inout [Swift.String],
+                                   remainingLineCount: inout Int,
+                                   capLineLength: Bool)
+    {
+        guard remainingLineCount > 0 else { return }
+
+        lines.append(capLineLength ? Self.cappedLine(line) : line)
+        remainingLineCount -= 1
+    }
+
+    private static func cappedLine(_ line: Swift.String) -> Swift.String
+    {
+        guard line.count > Self.maxPreviewLineLength else { return line }
+
+        let prefixCount = max(0, Self.maxPreviewLineLength - Self.truncationMarker.count)
+        return Swift.String(line.prefix(prefixCount)) + Self.truncationMarker
+    }
+
     /// Returns the parameter node class for this port type,
     /// or nil if no matching parameter node exists.
     public var parameterNodeClass: Node.Type?

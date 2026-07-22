@@ -57,7 +57,7 @@ struct NodeOutletView: View
                             self.port.connect(to: targetPort)
                         }
                 )
-                .help("\(port.name): \(port.portType.rawValue) - \(port.parameter?.description ?? "" )")
+                .modifier(PortInspectionTooltip(port: port))
 
         }
         .frame(height: 15)

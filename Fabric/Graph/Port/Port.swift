@@ -25,21 +25,6 @@ public enum PortDirection : String, Codable
 }
 
 
-public struct PortAnchorKey: PreferenceKey
-{
-    public typealias Value = [UUID : Anchor<CGPoint>]
-    
-    public static var defaultValue: [UUID : Anchor<CGPoint>] = [:]
-    
-    public static func reduce(value: inout [UUID : Anchor<CGPoint>],
-                       nextValue: () -> [UUID : Anchor<CGPoint>])
-    {
-        // later writers win
-        value.merge(nextValue(), uniquingKeysWith: { $1 })
-    }
-}
-
-
 struct OutletData : Codable
 {
     let portID: UUID
@@ -207,6 +192,15 @@ extension UTType
     
     /// The display name: publishedName if set, otherwise the port's own name.
     public var displayName: String { publishedName ?? name }
+
+    /// Hover-tooltip string for this port: `displayName: type` plus the
+    /// current value when available.
+    public var inspectionTooltip: String {
+        let head = "\(displayName): \(portType.rawValue)"
+        guard let value = snapshotValue() else { return head }
+
+        return "\(head) - \(portType.previewString(for: value))"
+    }
 
     public func canConnect(to other:Port) -> Bool
     {

@@ -64,7 +64,7 @@ public class LogNode : Node
         if self.inputAny.valueDidChange,
            let value = self.inputAny.value
         {
-            print("Frame: \(executionInfo.timing.frameNumber): \(value)" )
+            print("Frame: \(executionInfo.timing.frameNumber): \(self.inputAny.portType.fullString(for: value))" )
         }
     }
 }
