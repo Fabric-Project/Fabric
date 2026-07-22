@@ -287,6 +287,18 @@ extension PortType {
                                   remainingCharacterCount: &remainingCharacterCount)
     }
 
+    /// The full, uncapped rendering of a value, using the same formatting as
+    /// `previewString(for:)` but without the character budget. Intended for
+    /// contexts such as the Log node where the complete value must be shown.
+    public func fullString(for value: PortValue, indent: Swift.String = "") -> Swift.String
+    {
+        var remainingCharacterCount = Swift.Int.max
+
+        return Self.previewString(for: value,
+                                  indent: indent,
+                                  remainingCharacterCount: &remainingCharacterCount)
+    }
+
     private static let maxPreviewCharacterCount = 100
 
     private static func previewString(for value: PortValue,
@@ -356,67 +368,73 @@ extension PortType {
                                    indent: Swift.String,
                                    remainingCharacterCount: inout Int) -> Swift.String
     {
-        let header = Self.capped("Count: \(values.count) ",
-                                 remainingCharacterCount: &remainingCharacterCount)
-
-        if values.isEmpty { return header + "[]" }
-
-        let nextIndent = indent + "    "
-        var lines: [Swift.String] = []
-        var index = values.startIndex
-
-        while index < values.endIndex, remainingCharacterCount > 0
-        {
-            let renderedValue = Self.previewString(for: values[index],
-                                                   indent: nextIndent,
-                                                   remainingCharacterCount: &remainingCharacterCount)
-            lines.append("\(nextIndent)\(renderedValue),")
-            index = values.index(after: index)
+        Self.collectionString(count: values.count,
+                              emptyMarker: "[]",
+                              elements: values,
+                              indent: indent,
+                              remainingCharacterCount: &remainingCharacterCount) { value, nextIndent, remaining in
+            Self.previewString(for: value,
+                               indent: nextIndent,
+                               remainingCharacterCount: &remaining)
         }
-
-        if index < values.endIndex || remainingCharacterCount <= 0
-        {
-            lines.append("\(nextIndent)...")
-        }
-
-        return header + "[\n" + lines.joined(separator: "\n") + "\n\(indent)]"
     }
 
     private static func dictionaryString(for values: Swift.Dictionary<Swift.String, PortValue>,
                                          indent: Swift.String,
                                          remainingCharacterCount: inout Int) -> Swift.String
     {
-        let header = Self.capped("Count: \(values.count) ",
+        Self.collectionString(count: values.count,
+                              emptyMarker: "[:]",
+                              elements: values.sorted { $0.key < $1.key },
+                              indent: indent,
+                              remainingCharacterCount: &remainingCharacterCount) { entry, nextIndent, remaining in
+            let renderedKey = Self.capped(entry.key, remainingCharacterCount: &remaining)
+            let renderedValue = Self.previewString(for: entry.value,
+                                                   indent: nextIndent,
+                                                   remainingCharacterCount: &remaining)
+            return "\(renderedKey): \(renderedValue)"
+        }
+    }
+
+    /// Shared renderer for ordered collections (arrays and sorted dictionaries).
+    ///
+    /// Each rendered line is charged its fixed structural overhead (indent plus
+    /// trailing comma) against the budget, so even elements that render to zero
+    /// characters make progress and the loop always terminates. The truncation
+    /// marker is appended only when an element was actually pulled but could not
+    /// be afforded — a collection that renders completely never shows a trailing
+    /// `...`, even when the final element consumes the budget exactly.
+    private static func collectionString<C: Collection>(count: Int,
+                                                        emptyMarker: Swift.String,
+                                                        elements: C,
+                                                        indent: Swift.String,
+                                                        remainingCharacterCount: inout Int,
+                                                        render: (C.Element, Swift.String, inout Int) -> Swift.String) -> Swift.String
+    {
+        let header = Self.capped("Count: \(count) ",
                                  remainingCharacterCount: &remainingCharacterCount)
 
-        if values.isEmpty { return header + "[:]" }
+        if count == 0 { return header + emptyMarker }
 
         let nextIndent = indent + "    "
+        let lineOverhead = nextIndent.count + 1  // indent + trailing comma
         var lines: [Swift.String] = []
-        let sortedKeys = values.keys.sorted()
-        var index = sortedKeys.startIndex
+        var iterator = elements.makeIterator()
+        var truncated = false
 
-        while index < sortedKeys.endIndex, remainingCharacterCount > 0
+        while let element = iterator.next()
         {
-            let key = sortedKeys[index]
-            guard let value = values[key] else
+            if remainingCharacterCount <= lineOverhead
             {
-                index = sortedKeys.index(after: index)
-                continue
+                truncated = true
+                break
             }
-
-            let renderedKey = Self.capped(key, remainingCharacterCount: &remainingCharacterCount)
-            let renderedValue = Self.previewString(for: value,
-                                                   indent: nextIndent,
-                                                   remainingCharacterCount: &remainingCharacterCount)
-            lines.append("\(nextIndent)\(renderedKey): \(renderedValue),")
-            index = sortedKeys.index(after: index)
+            remainingCharacterCount -= lineOverhead
+            let content = render(element, nextIndent, &remainingCharacterCount)
+            lines.append("\(nextIndent)\(content),")
         }
 
-        if index < sortedKeys.endIndex || remainingCharacterCount <= 0
-        {
-            lines.append("\(nextIndent)...")
-        }
+        if truncated { lines.append("\(nextIndent)...") }
 
         return header + "[\n" + lines.joined(separator: "\n") + "\n\(indent)]"
     }
@@ -424,9 +442,7 @@ extension PortType {
     private static func capped(_ value: Swift.String,
                                remainingCharacterCount: inout Int) -> Swift.String
     {
-        let truncationMarker = "..."
-
-        guard remainingCharacterCount > 0 else { return truncationMarker }
+        guard remainingCharacterCount > 0 else { return "" }
 
         if value.count <= remainingCharacterCount
         {
@@ -434,9 +450,17 @@ extension PortType {
             return value
         }
 
-        let prefixCount = max(0, remainingCharacterCount - truncationMarker.count)
-        remainingCharacterCount = 0
+        // Never emit more characters than the remaining budget: when there is no
+        // room for the "..." marker, fall back to a bare prefix of the value.
+        let truncationMarker = "..."
+        defer { remainingCharacterCount = 0 }
 
+        if remainingCharacterCount <= truncationMarker.count
+        {
+            return Swift.String(value.prefix(remainingCharacterCount))
+        }
+
+        let prefixCount = remainingCharacterCount - truncationMarker.count
         return Swift.String(value.prefix(prefixCount)) + truncationMarker
     }
 
