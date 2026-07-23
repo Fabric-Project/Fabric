@@ -85,7 +85,7 @@ public struct NodeSelectionInspector: View
         let typeName: String = type(of: nodeViewModel.node).name
         let hasPrimaryLabel: Bool = nodeViewModel.name != typeName
         
-        let primaryLabel = nodeViewModel.displayName ?? nodeViewModel.name
+        let primaryLabel = nodeViewModel.name
         
         
         if hasPrimaryLabel

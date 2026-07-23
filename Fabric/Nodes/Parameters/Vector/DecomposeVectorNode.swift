@@ -28,6 +28,11 @@ public class DecomposeVectorNode: StrategyNode
         self.init(context: context, strategy: vectorType)
     }
 
+    override public var displayName: String? {
+        guard let vt = VectorType.allCases.first(where: { $0.rawValue == strategy }) else { return nil }
+        return "\(vt.portType.rawValue) Decompose"
+    }
+
     public override func rebuildPorts(forStrategy strategy: String)
     {
         guard let vt = VectorType.allCases.first(where: { $0.rawValue == strategy }) else { return }
@@ -57,8 +62,6 @@ public class DecomposeVectorNode: StrategyNode
                 addDynamicPort(p, name: "outputComponent\(i)")
             }
         }
-
-        displayName = "\(vt.portType.rawValue) Decompose"
     }
 
     override public func execute(renderer: GraphRenderer,

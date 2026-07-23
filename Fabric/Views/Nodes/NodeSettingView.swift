@@ -6,7 +6,7 @@
 import SwiftUI
 
 /// The standard chrome wrapper shown around a node's custom settings view.
-/// Displays the node's name as a header, a close button, and delegates the
+/// Displays the node's type name as a header, a close button, and delegates the
 /// content to NodeViewModel.settingsView().
 struct NodeSettingView: View
 {
@@ -20,7 +20,7 @@ struct NodeSettingView: View
         {
             HStack()
             {
-                Text("\(nodeViewModel.name) Settings")
+                Text("\(type(of: nodeViewModel.node).name) Settings")
                     .lineLimit(1)
                     .font(.system(size: 10))
                     .bold()

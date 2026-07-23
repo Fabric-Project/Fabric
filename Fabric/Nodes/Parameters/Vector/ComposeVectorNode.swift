@@ -28,6 +28,11 @@ public class ComposeVectorNode: StrategyNode
         self.init(context: context, strategy: vectorType)
     }
 
+    override public var displayName: String? {
+        guard let vt = VectorType.allCases.first(where: { $0.rawValue == strategy }) else { return nil }
+        return "\(vt.portType.rawValue) Compose"
+    }
+
     public override func rebuildPorts(forStrategy strategy: String)
     {
         guard let vt = VectorType.allCases.first(where: { $0.rawValue == strategy }) else { return }
@@ -57,8 +62,6 @@ public class ComposeVectorNode: StrategyNode
             }
             addDynamicPort(outputPort, name: "outputVector")
         }
-
-        displayName = "\(vt.portType.rawValue) Compose"
     }
 
     override public func execute(renderer: GraphRenderer,

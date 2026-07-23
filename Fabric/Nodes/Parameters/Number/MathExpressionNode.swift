@@ -189,7 +189,8 @@ public class MathExpressionNode: Node
     public class var defaultExpression: String { "sin(x) + y^2" }
 
     /// Shown as the node's title: the expression, or a ⚠-prefixed form on error.
-    override public var name: String { evaluatedDisplayName }
+    /// nil (empty) falls back to the type name; a user `userName` overrides this.
+    override public var displayName: String? { evaluatedDisplayName.isEmpty ? nil : evaluatedDisplayName }
     private var evaluatedDisplayName: String = ""
 
     // MARK: - State
@@ -316,7 +317,10 @@ public class MathExpressionNode: Node
         }
 
         let hasError = result.diagnostics.contains { $0.severity == .error }
-        self.evaluatedDisplayName = hasError ? "⚠ \(self.stringExpression)" : self.stringExpression
+        // Multi-statement expressions span several lines; collapse newlines to
+        // spaces so the single-line node title reads cleanly.
+        let title = self.stringExpression.replacingOccurrences(of: "\n", with: " ")
+        self.evaluatedDisplayName = hasError ? "⚠ \(title)" : title
 
         self._settingsModel.diagnostics = result.diagnostics
         self.nameSubject.send()

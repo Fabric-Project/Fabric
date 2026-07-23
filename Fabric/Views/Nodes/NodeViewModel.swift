@@ -45,18 +45,18 @@ import Satin
     }
     private var _offset: CGSize
 
-    // MARK: - Display name (Observable here, authoritative on Node for Codable)
+    // MARK: - User name (Observable here, authoritative on Node for Codable)
 
-    public var displayName: String?
+    public var userName: String?
     {
-        get { _displayName }
-        set { _displayName = newValue; node.displayName = newValue }
+        get { _userName }
+        set { _userName = newValue; node.userName = newValue }
     }
-    private var _displayName: String?
+    private var _userName: String?
 
     public var name: String
     {
-        if let d = _displayName, !d.isEmpty { return d }
+        if let u = _userName, !u.isEmpty { return u }
         return _nodeName
     }
 
@@ -90,7 +90,7 @@ import Satin
         self.id           = node.id
         self.node         = node
         self._offset      = node.offset
-        self._displayName = node.displayName
+        self._userName    = node.userName
         self._nodeName    = node.name
         self.ports        = node.ports
         self.nodeSize     = node.nodeSize

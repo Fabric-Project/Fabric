@@ -65,6 +65,18 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
     // u and v are always resolved by the generator; they never become ports.
     private static let parametricBindings: Set<String> = ["u", "v"]
 
+    /// Shown as the node's title: the three axis expressions, ⚠-prefixed when any
+    /// fails to compile. Falls back to the type name when all axes are blank; a
+    /// user `userName` overrides it. Refreshed via nameSubject in parseExpressions().
+    override public var displayName: String? {
+        let axes = [expressionX, expressionY, expressionZ]
+        guard axes.contains(where: { !$0.isEmpty }) else { return nil }
+        // Collapse newlines to spaces so the single-line node title reads cleanly.
+        let combined = axes.joined(separator: ", ").replacingOccurrences(of: "\n", with: " ")
+        let hasError = evalX == nil || evalY == nil || evalZ == nil
+        return hasError ? "⚠ \(combined)" : combined
+    }
+
     // MARK: - Settings Model
 
     @Observable final class SettingsModel

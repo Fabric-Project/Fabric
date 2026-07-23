@@ -86,7 +86,7 @@ public class StringFormatterNode: Node {
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Format values into a string using named placeholders. Inverse of String Scanner." }
 
-    override public var name: String { formatString }
+    override public var displayName: String? { formatString.isEmpty ? nil : formatString }
 
     // MARK: - Codable
 

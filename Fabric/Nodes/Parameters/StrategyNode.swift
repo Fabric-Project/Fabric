@@ -108,7 +108,12 @@ public class StrategyNode: Node
 
     var strategy: String
     {
-        didSet { self.rebuildPorts(forStrategy: strategy) }
+        didSet
+        {
+            self.rebuildPorts(forStrategy: strategy)
+            // `displayName` is derived from `strategy`; notify so the title refreshes.
+            self.nameSubject.send()
+        }
     }
 
     private enum StrategyCodingKeys: String, CodingKey

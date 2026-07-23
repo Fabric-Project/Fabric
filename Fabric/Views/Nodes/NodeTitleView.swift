@@ -19,12 +19,8 @@ struct NodeTitleView: View
 
     private var hasPrimaryLabel: Bool { nodeViewModel.name != typeName }
 
-    private var primaryLabel: String
-    {
-        if let displayName = nodeViewModel.displayName, !displayName.isEmpty { return displayName }
-
-        return nodeViewModel.name
-    }
+    // `name` already resolves userName ?? node-generated displayName ?? typeName.
+    private var primaryLabel: String { nodeViewModel.name }
 
     private var secondaryColor: Color
     {
@@ -46,7 +42,7 @@ struct NodeTitleView: View
             {
                 HStack(spacing: 0)
                 {
-                    TextField("", text: $renamingText)
+                    TextField(nodeViewModel.name, text: $renamingText)
                         .textFieldStyle(.plain)
                         .focused($renameFieldFocused)
                         .font(.system(size: 9))
@@ -93,7 +89,7 @@ struct NodeTitleView: View
         .accessibilityHint("Double-tap to rename node")
         .onChange(of: renaming)
         { _, new in
-            if new { renamingText = nodeViewModel.name }
+            if new { renamingText = nodeViewModel.userName ?? "" }
             renameFieldFocused = new
         }
     }
@@ -101,15 +97,15 @@ struct NodeTitleView: View
     private func commitRename()
     {
         let trimmed = renamingText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let oldDisplayName = nodeViewModel.displayName
+        let oldUserName = nodeViewModel.userName
 
         nodeViewModel.node.graph?.undoManager?.registerUndo(withTarget: nodeViewModel)
         { nodeViewModel in
-            nodeViewModel.displayName = oldDisplayName
+            nodeViewModel.userName = oldUserName
         }
         nodeViewModel.node.graph?.undoManager?.setActionName("Rename Node")
 
-        nodeViewModel.displayName = trimmed.isEmpty ? nil : trimmed
+        nodeViewModel.userName = trimmed.isEmpty ? nil : trimmed
         renaming = false
     }
 }

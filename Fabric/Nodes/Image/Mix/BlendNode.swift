@@ -18,8 +18,9 @@ public class BlendNode: BaseImageNode
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Blend two images using a selectable blend mode" }
 
-    /// BaseImageNode derives its name from self.url. This node is "Blend".
-    override public var name: String { self.displayName ?? Self.name }
+    /// BaseImageNode derives a name from its shader file; Blend is always "Blend"
+    /// (unless the user renames it, which `userName` handles in the base class).
+    override public var displayName: String? { nil }
 
     override public class var defaultImageInputCountHint: Int? { 2 }
 
