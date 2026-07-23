@@ -22,6 +22,24 @@ struct NodeTitleView: View
     // `name` already resolves userName ?? node-generated displayName ?? typeName.
     private var primaryLabel: String { nodeViewModel.name }
 
+    /// Opaque across the title, fading to clear over the last ~1 character so an
+    /// over-long title dissolves at the node's right edge rather than hard-clipping.
+    private var titleEdgeFade: LinearGradient
+    {
+        let width = max(nodeViewModel.nodeSize.width, 1)
+        let fade = min(8, width)
+        let solid = max(0, (width - fade) / width)
+        return LinearGradient(
+            stops: [
+                .init(color: .white, location: 0),
+                .init(color: .white, location: solid),
+                .init(color: .clear, location: 1),
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
+
     private var secondaryColor: Color
     {
         let typeColor = nodeViewModel.nodeType.color()
@@ -77,9 +95,18 @@ struct NodeTitleView: View
                     .foregroundStyle(nodeViewModel.nodeType.color())
             }
         }
+        // Lay the title out at its full intrinsic width (single line, no
+        // ellipsis), then constrain to the node width and soft-fade the trailing
+        // edge so an over-long title dissolves at the node boundary instead of
+        // hard-clipping with a "…".
+        .lineLimit(1)
+        .fixedSize(horizontal: true, vertical: false)
         .frame(maxHeight: 20)
         .padding(.top, 5)
-        .padding(.horizontal, 20)
+        .padding(.leading, 20)
+        .frame(width: nodeViewModel.nodeSize.width, alignment: .leading)
+        .clipped()
+        .mask(titleEdgeFade)
         .contentShape(Rectangle())
         .onTapGesture(count: 2)
         {
