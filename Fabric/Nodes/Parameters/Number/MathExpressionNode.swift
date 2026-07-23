@@ -193,6 +193,90 @@ public class MathExpressionNode: Node
     override public var displayName: String? { evaluatedDisplayName.isEmpty ? nil : evaluatedDisplayName }
     private var evaluatedDisplayName: String = ""
 
+    /// Extracts the salient part of a (possibly multi-statement) expression for
+    /// use as the node title. A leading `//` comment is taken verbatim as an
+    /// author-supplied title. Otherwise `in` input declarations and `let` locals
+    /// are dropped, `//` comments stripped, and the right-hand side of the first
+    /// output (`out …`) — or, failing that, the first assignment — is used, so
+    /// `in spectrum:float[]; out scales = <expr>` titles as `<expr>`. A bare
+    /// expression (no assignment) is kept as-is. Per the language, only `;`
+    /// separates statements; newlines are whitespace, so they are normalised out.
+    static func salientTitle(from expression: String) -> String
+    {
+        // A leading comment is the author's own title — use it verbatim (sans `//`).
+        let leading = expression.drop(while: \.isWhitespace)
+        if leading.hasPrefix("//")
+        {
+            let firstLine = leading.prefix { $0 != "\n" }
+            let commentText = firstLine.dropFirst(2).trimmingCharacters(in: .whitespaces)
+            if !commentText.isEmpty { return commentText }
+        }
+
+        // Comments run to end of line, so strip them line-by-line first. What
+        // remains is joined with spaces (newlines are just whitespace) and then
+        // split into statements on `;`, with interior whitespace normalised.
+        let statements = expression
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map { line -> Substring in
+                if let comment = line.firstRange(of: "//") { return line[..<comment.lowerBound] }
+                return line
+            }
+            .joined(separator: " ")
+            .split(separator: ";")
+            .map { $0.split(whereSeparator: \.isWhitespace).joined(separator: " ") }
+            .filter { !$0.isEmpty }
+
+        // First whitespace/`:`-delimited token — identifies `in`/`let`/`out`.
+        func head(_ statement: String) -> String
+        {
+            String(statement.prefix { $0 != " " && $0 != ":" })
+        }
+
+        // Drop input declarations and locals; they carry no result.
+        let meaningful = statements.filter { statement in
+            switch head(statement)
+            {
+            case "let": return false
+            case "in":  return assignmentIndex(in: statement) != nil
+            default:    return true
+            }
+        }
+
+        // Prefer the RHS of the first output, else of the first assignment.
+        let outputs = meaningful.filter { head($0) == "out" }
+        for statement in outputs + meaningful
+        {
+            if let eq = assignmentIndex(in: statement)
+            {
+                let rhs = statement[statement.index(after: eq)...]
+                    .trimmingCharacters(in: .whitespaces)
+                if !rhs.isEmpty { return rhs }
+            }
+        }
+
+        // A bare expression (no assignment). Empty when only declarations/locals
+        // remain, so the call site falls back to the type name.
+        return meaningful.joined(separator: "; ")
+    }
+
+    /// Index of the first standalone `=` (assignment), skipping `==`/`<=`/`>=`/`!=`.
+    private static func assignmentIndex(in statement: String) -> String.Index?
+    {
+        var idx = statement.startIndex
+        while idx < statement.endIndex
+        {
+            if statement[idx] == "="
+            {
+                let prev = idx > statement.startIndex ? statement[statement.index(before: idx)] : " "
+                let afterIdx = statement.index(after: idx)
+                let next = afterIdx < statement.endIndex ? statement[afterIdx] : " "
+                if !"!<>=".contains(prev) && next != "=" { return idx }
+            }
+            idx = statement.index(after: idx)
+        }
+        return nil
+    }
+
     // MARK: - State
 
     var stringExpression: String
@@ -317,9 +401,7 @@ public class MathExpressionNode: Node
         }
 
         let hasError = result.diagnostics.contains { $0.severity == .error }
-        // Multi-statement expressions span several lines; collapse newlines to
-        // spaces so the single-line node title reads cleanly.
-        let title = self.stringExpression.replacingOccurrences(of: "\n", with: " ")
+        let title = Self.salientTitle(from: self.stringExpression)
         self.evaluatedDisplayName = hasError ? "⚠ \(title)" : title
 
         self._settingsModel.diagnostics = result.diagnostics
