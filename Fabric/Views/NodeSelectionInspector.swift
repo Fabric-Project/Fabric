@@ -45,22 +45,20 @@ public struct NodeSelectionInspector: View
                             self.labelForNodeModelView(nodeViewModel)
                                 .padding(.horizontal, 5)
                             
-                            Divider()
+                            if nodeViewModel.providesSettingsView() {
+                                Toggle("Settings", isOn: $nodeViewModel.showSettings)
+                                    .toggleStyle(.switch)
+                                    .controlSize(.mini)
+                                    .padding(.horizontal, 5)
+                            }
                             
-                            ParameterGroupView(parameterGroup: nodeViewModel.parameterGroup,
-                                               fileContentTypes: Self.fileContentTypes(for: node))
-                            
-                            let providesSettings = nodeViewModel.providesSettingsView()
-
-                            // we use frame height and opacity to
-                            // not use an inline conditional
-                            // which swiftui does not like and can cause redraws
-                            Toggle("Settings", isOn: $nodeViewModel.showSettings)
-                                .toggleStyle(.switch)
-                                .controlSize(.mini)
-                                .opacity( providesSettings ? 1.0 : 0.0)
-                                .frame(height:providesSettings ? nil : 0)
-                                .padding(.horizontal, 5)
+                            if !nodeViewModel.parameterGroup.params.isEmpty {
+                                
+                                Divider()
+                                
+                                ParameterGroupView(parameterGroup: nodeViewModel.parameterGroup,
+                                                   fileContentTypes: Self.fileContentTypes(for: node))
+                            }
 
                         }
                     }
@@ -87,19 +85,18 @@ public struct NodeSelectionInspector: View
         let hasPrimaryLabel: Bool = nodeViewModel.name != typeName
         
         let primaryLabel = nodeViewModel.name
-               
         
         if hasPrimaryLabel
         {
             return AnyView( VStack(alignment: .leading) {
-                Text(primaryLabel).foregroundStyle(.white).bold()
-                Text(typeName).foregroundStyle( nodeViewModel.nodeType.secondaryColor() ).bold()
+                Text(primaryLabel).foregroundStyle(.primary).bold()
+                Text(typeName).foregroundStyle( .secondary ).bold()
                 }
             )
         }
         else
         {
-            return AnyView(Text(typeName).foregroundStyle(nodeViewModel.nodeType.color()).bold())
+            return AnyView(Text(typeName).foregroundStyle(.primary).bold())
         }
     }
 }
