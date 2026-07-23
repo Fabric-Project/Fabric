@@ -40,22 +40,14 @@ struct NodeTitleView: View
         )
     }
 
-    private var secondaryColor: Color
-    {
-        let typeColor = nodeViewModel.nodeType.color()
-
-        if case .Parameter = nodeViewModel.nodeType
-        {
-            return typeColor.opacity(0.6)
-        }
-
-        return typeColor
-    }
+   
 
     var body: some View
     {
         Group
         {
+            let secondaryColor = nodeViewModel.nodeType.secondaryColor()
+            
             if renaming
             {
                 HStack(spacing: 0)

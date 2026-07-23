@@ -204,6 +204,18 @@ extension Node
             
         }
         
+        public func secondaryColor() -> Color
+        {
+            switch self
+            {
+            case .Parameter:
+                return self.color( ).opacity(0.6)
+                
+            default:
+                return self.color()
+            }
+        }
+        
         public func backgroundColor() -> Color
         {
             return self.color().opacity(0.6)
