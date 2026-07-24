@@ -75,11 +75,11 @@ public class LocalVLMNode : Node
         try super.init(from: decoder)
     }
     
-    override public func stopExecution(renderer:GraphRenderer) {
+    override public func stopExecution(renderer:GraphRenderer) throws {
         
         self.vlmEvaluator.cancelGeneration()
 
-        super.stopExecution(renderer:renderer)
+        try super.stopExecution(renderer:renderer)
     }
     
     override public func execute(renderer:GraphRenderer,

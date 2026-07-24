@@ -631,7 +631,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         return (3, originalIndex)
     }
 
-    public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
+    public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
         let anyPortChanged = self.ports.reduce(false) { partialResult, next in
             partialResult || next.valueDidChange

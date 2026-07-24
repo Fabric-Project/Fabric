@@ -41,6 +41,7 @@ public class GraphRenderer : ViewRenderer
     // Pre-sorted node list built in update(), consumed in draw()
     private var scheduledNodes: [Node] = []
     private var pendingSceneSync = false
+    public private(set) var lastRuntimeError: (any FabricErrorProtocol)?
 
     // One feedback cache per graph/subgraph UUID to handle different execution cadences
     private var feedbackCaches: [UUID: GraphRendererFeedbackCache] = [:]
@@ -83,8 +84,15 @@ public class GraphRenderer : ViewRenderer
 
     override public func setup() {
         super.setup()
-        enableExecution(graph: graph)
-        startExecution(graph: graph)
+        do
+        {
+            try enableExecution(graph: graph)
+            try startExecution(graph: graph)
+        }
+        catch
+        {
+            handleRuntimeError(error)
+        }
     }
 
     override public func update() {
@@ -108,8 +116,15 @@ public class GraphRenderer : ViewRenderer
     }
 
     override public func cleanup() {
-        stopExecution(graph: graph)
-        disableExecution(graph: graph)
+        do
+        {
+            try stopExecution(graph: graph)
+            try disableExecution(graph: graph)
+        }
+        catch
+        {
+            handleRuntimeError(error)
+        }
         teardown(graph: graph)
         super.cleanup()
     }
@@ -141,10 +156,17 @@ public class GraphRenderer : ViewRenderer
 #if DEBUG
             commandBuffer.pushDebugGroup(node.name)
 #endif
-            node.execute(renderer: self,
-                         executionInfo: currentExecutionInfo,
-                         renderPassDescriptor: renderPassDescriptor,
-                         commandBuffer: commandBuffer)
+            do
+            {
+                try node.execute(renderer: self,
+                                 executionInfo: currentExecutionInfo,
+                                 renderPassDescriptor: renderPassDescriptor,
+                                 commandBuffer: commandBuffer)
+            }
+            catch
+            {
+                handleRuntimeError(error)
+            }
 #if DEBUG
             commandBuffer.popDebugGroup()
 #endif
@@ -346,22 +368,22 @@ public class GraphRenderer : ViewRenderer
 
     // MARK: - On-demand graph evaluation (for exporters and subgraph callers)
 
-    public func executeAndDraw(graph: Graph, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
+    public func executeAndDraw(graph: Graph, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
-        executeAndDraw(graph: graph, executionInfo: currentExecutionInfo, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+        try executeAndDraw(graph: graph, executionInfo: currentExecutionInfo, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
     }
 
-    public func executeAndDraw(graph: Graph, executionInfo: GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
+    public func executeAndDraw(graph: Graph, executionInfo: GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
         let needsSceneSync = graph.consumePendingConnectionSceneSync()
         if needsSceneSync {
             invalidateFeedbackTopologyCaches(for: graph)
         }
 
-        self.execute(graph: graph,
-                     executionInfo: executionInfo,
-                     renderPassDescriptor: renderPassDescriptor,
-                     commandBuffer: commandBuffer)
+        try self.execute(graph: graph,
+                         executionInfo: executionInfo,
+                         renderPassDescriptor: renderPassDescriptor,
+                         commandBuffer: commandBuffer)
 
         if needsSceneSync {
             graph.syncNodesToScene()
@@ -380,7 +402,7 @@ public class GraphRenderer : ViewRenderer
                         renderPassDescriptor: MTLRenderPassDescriptor,
                         commandBuffer: MTLCommandBuffer,
                         clearFlags: Bool = true,
-                        forceEvaluationForTheseNodes: [Node] = [])
+                        forceEvaluationForTheseNodes: [Node] = []) throws
     {
         self.resetTextureCaches(for: executionInfo)
 
@@ -401,14 +423,24 @@ public class GraphRenderer : ViewRenderer
             }
         }
 
+        var capturedError: (any Error)?
+
         let executeNode: (Node) -> Void = { node in
+            guard capturedError == nil else { return }
 #if DEBUG
             commandBuffer.pushDebugGroup(node.name)
 #endif
-            node.execute(renderer: self,
-                         executionInfo: executionInfo,
-                         renderPassDescriptor: renderPassDescriptor,
-                         commandBuffer: commandBuffer)
+            do
+            {
+                try node.execute(renderer: self,
+                                 executionInfo: executionInfo,
+                                 renderPassDescriptor: renderPassDescriptor,
+                                 commandBuffer: commandBuffer)
+            }
+            catch
+            {
+                capturedError = error
+            }
 #if DEBUG
             commandBuffer.popDebugGroup()
 #endif
@@ -433,6 +465,11 @@ public class GraphRenderer : ViewRenderer
         if !roots.isEmpty {
             self.currentCamera = firstCamera
         }
+
+        if let capturedError
+        {
+            throw capturedError
+        }
     }
 
     private func resetTextureCaches(for executionInfo: GraphExecutionInfo)
@@ -443,31 +480,31 @@ public class GraphRenderer : ViewRenderer
 
     // MARK: - Graph Execution Lifecycle
 
-    public func enableExecution(graph: Graph)
+    public func enableExecution(graph: Graph) throws
     {
         for node in graph.nodes {
-            node.enableExecution(renderer: self)
+            try node.enableExecution(renderer: self)
         }
     }
 
-    public func startExecution(graph: Graph)
+    public func startExecution(graph: Graph) throws
     {
         for node in graph.nodes {
-            node.startExecution(renderer: self)
+            try node.startExecution(renderer: self)
         }
     }
 
-    public func stopExecution(graph: Graph)
+    public func stopExecution(graph: Graph) throws
     {
         for node in graph.nodes {
-            node.stopExecution(renderer: self)
+            try node.stopExecution(renderer: self)
         }
     }
 
-    public func disableExecution(graph: Graph)
+    public func disableExecution(graph: Graph) throws
     {
         for node in graph.nodes {
-            node.disableExecution(renderer: self)
+            try node.disableExecution(renderer: self)
         }
         self.currentCamera = nil
     }
@@ -476,6 +513,21 @@ public class GraphRenderer : ViewRenderer
     {
         for node in graph.nodes {
             node.teardown()
+        }
+    }
+
+    private func handleRuntimeError(_ error: any Error)
+    {
+        if let fabricError = error as? any FabricErrorProtocol
+        {
+            self.lastRuntimeError = fabricError
+        }
+        else
+        {
+            self.lastRuntimeError = FabricError(.execution(.failed),
+                                                severity: .recoverable,
+                                                message: error.localizedDescription,
+                                                underlyingError: error)
         }
     }
 

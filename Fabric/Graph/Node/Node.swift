@@ -250,6 +250,11 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         }
     }
 
+    public class func initWithContext(context: Context) throws -> Node
+    {
+        self.init(context: context)
+    }
+
     deinit
     {
 //        print("Deleted node \(id)")
@@ -448,16 +453,16 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
 
     // MARK: - Execution
 
-    public func startExecution(renderer:GraphRenderer) { }
-    public func stopExecution(renderer:GraphRenderer) { }
+    public func startExecution(renderer:GraphRenderer) throws { }
+    public func stopExecution(renderer:GraphRenderer) throws { }
 
-    public func enableExecution(renderer:GraphRenderer) { }
-    public func disableExecution(renderer:GraphRenderer) { }
+    public func enableExecution(renderer:GraphRenderer) throws { }
+    public func disableExecution(renderer:GraphRenderer) throws { }
 
     public func execute(renderer:GraphRenderer,
                         executionInfo:GraphExecutionInfo,
                         renderPassDescriptor: MTLRenderPassDescriptor,
-                        commandBuffer: MTLCommandBuffer) { }
+                        commandBuffer: MTLCommandBuffer) throws { }
 
     public func resize(size: (width: Float, height: Float), scaleFactor: Float) { }
 

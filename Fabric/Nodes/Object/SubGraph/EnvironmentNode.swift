@@ -55,7 +55,7 @@ public class EnvironmentNode: SubgraphNode
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
+                                 commandBuffer: MTLCommandBuffer) throws
     {
         if self.inputEnvironmentTexture.valueDidChange,
            let environmentTexture = self.inputEnvironmentTexture.value,
@@ -79,6 +79,6 @@ public class EnvironmentNode: SubgraphNode
 //        }
         
         // This calls forward for us...
-        super.execute(renderer: renderer, executionInfo: executionInfo, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+        try super.execute(renderer: renderer, executionInfo: executionInfo, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
     }
 }

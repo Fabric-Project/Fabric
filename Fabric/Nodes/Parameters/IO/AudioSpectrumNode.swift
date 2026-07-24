@@ -408,8 +408,8 @@ public class AudioSpectrumNode : Node
         return AVCaptureDevice.default(for: .audio)
     }
 
-    override public func startExecution(renderer:GraphRenderer) {
-        super.startExecution(renderer:renderer)
+    override public func startExecution(renderer:GraphRenderer) throws {
+        try super.startExecution(renderer:renderer)
 
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
             case .authorized:
@@ -434,18 +434,18 @@ public class AudioSpectrumNode : Node
         }
     }
     
-    override public func stopExecution(renderer:GraphRenderer)
+    override public func stopExecution(renderer:GraphRenderer) throws
     {
-        super.stopExecution(renderer:renderer)
+        try super.stopExecution(renderer:renderer)
         if self.captureSession.isRunning
         {
             self.captureSession.stopRunning()
         }
     }
 
-    override public func disableExecution(renderer:GraphRenderer)
+    override public func disableExecution(renderer:GraphRenderer) throws
     {
-        super.disableExecution(renderer:renderer)
+        try super.disableExecution(renderer:renderer)
         if self.captureSession.isRunning{
             self.captureSession.stopRunning()
         }

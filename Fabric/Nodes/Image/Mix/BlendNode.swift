@@ -87,7 +87,7 @@ public class BlendNode: BaseImageNode
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
+                                 commandBuffer: MTLCommandBuffer) throws
     {
         if self.inputMode.valueDidChange,
            let modeName = self.inputMode.value,
@@ -96,6 +96,6 @@ public class BlendNode: BaseImageNode
             self.setFileURL(url)
         }
 
-        super.execute(renderer: renderer, executionInfo: executionInfo, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
+        try super.execute(renderer: renderer, executionInfo: executionInfo, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
     }
 }

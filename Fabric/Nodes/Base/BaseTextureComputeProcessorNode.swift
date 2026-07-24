@@ -86,7 +86,7 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
     }
 
     // MARK: - Execution
-    public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
+    public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
         guard self.inputImage.valueDidChange,
               let inTex = self.inputImage.value?.texture,
