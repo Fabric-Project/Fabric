@@ -15,13 +15,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Image processing effect" }
 
-    override public var name: String {
-        if let displayName {
-            return displayName
-        }
-
-        return self.cachedFileURLName ?? Self.name
-    }
+    override public var displayName: String? { self.cachedFileURLName }
 
     open class var sourceShaderName: String { "" }
     open class var defaultImageInputCountHint: Int? { nil }

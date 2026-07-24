@@ -104,14 +104,14 @@ public class GameControllerNode: Node
     override public class var nodeDescription: String { "Read input from game controllers with semantic button names" }
 
     // Dynamic node name based on selected controller
-    override public var name: String
+    override public var displayName: String?
     {
         if let controllerID = selectedControllerID,
            let controller = availableControllers.first(where: { $0.id == controllerID })
         {
             return controller.displayName
         }
-        return Self.name
+        return nil
     }
 
     // MARK: - Codable
@@ -163,6 +163,8 @@ public class GameControllerNode: Node
             setupController()
             _settingsModelStorage?.selectedControllerID = selectedControllerID
             _settingsModelStorage?.outputPortCount = outputPorts().count
+            // `displayName` is derived from the selected controller; notify so the title refreshes.
+            self.nameSubject.send()
         }
     }
 

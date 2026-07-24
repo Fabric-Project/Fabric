@@ -45,18 +45,18 @@ import Satin
     }
     private var _offset: CGSize
 
-    // MARK: - Display name (Observable here, authoritative on Node for Codable)
+    // MARK: - User name (Observable here, authoritative on Node for Codable)
 
-    public var displayName: String?
+    public var userName: String?
     {
-        get { _displayName }
-        set { _displayName = newValue; node.displayName = newValue }
+        get { _userName }
+        set { _userName = newValue; node.userName = newValue }
     }
-    private var _displayName: String?
+    private var _userName: String?
 
     public var name: String
     {
-        if let d = _displayName, !d.isEmpty { return d }
+        if let u = _userName, !u.isEmpty { return u }
         return _nodeName
     }
 
@@ -65,6 +65,13 @@ import Satin
     // MARK: - Forwarded node metadata
 
     public var nodeType: Node.NodeType { node.nodeType }
+
+    public var typeName: String { type(of: node).name }
+
+    /// True when the resolved label (user rename or node-generated title)
+    /// differs from the type name, i.e. there is a primary label to show
+    /// alongside it.
+    public var hasCustomLabel: Bool { name != typeName }
 
     // MARK: - Ports + nodeSize (stored; updated when ports change)
 
@@ -90,8 +97,8 @@ import Satin
         self.id           = node.id
         self.node         = node
         self._offset      = node.offset
-        self._displayName = node.displayName
-        self._nodeName    = node.name
+        self._userName    = node.userName
+        self._nodeName    = node.displayName ?? type(of: node).name
         self.ports        = node.ports
         self.nodeSize     = node.nodeSize
 
@@ -117,10 +124,12 @@ import Satin
 
         // Sync cached name when nodes with dynamic names (e.g. MathExpressionNode,
         // StringFormatterNode) change their computed name after user edits.
+        // Cache displayName (not node.name) so a user rename never becomes the
+        // fallback shown after the rename is cleared.
         node.nameSubject
             .receive(on: DispatchQueue.main)
             .sink { [weak self] in
-                self?._nodeName = node.name
+                self?._nodeName = node.displayName ?? type(of: node).name
             }
             .store(in: &cancellables)
     }

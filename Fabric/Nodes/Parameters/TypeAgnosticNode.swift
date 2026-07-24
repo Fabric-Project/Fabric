@@ -38,11 +38,11 @@ public class TypeAgnosticNode: StrategyNode
         self.init(context: context, initialStrategy: portType.rawValue)
     }
 
-    /// Sets displayName from the current strategy. Subclasses must call super first.
-    public override func rebuildPorts(forStrategy strategy: String)
-    {
-        let portType = PortType(rawValue: strategy) ?? .Virtual
-        displayName = portType == .Virtual ? nil : "\(type(of: self).name) \(portType.rawValue)"
+    /// Node-generated name reflecting the selected port type (the base class's
+    /// `name` falls back to the type name for .Virtual and honours any userName).
+    override public var displayName: String? {
+        let portType = selectedPortType
+        return portType == .Virtual ? nil : "\(type(of: self).name) \(portType.rawValue)"
     }
 
     public func addOrReplaceDynamicPortPreservingIdentity(name registryName: String,

@@ -189,8 +189,109 @@ public class MathExpressionNode: Node
     public class var defaultExpression: String { "sin(x) + y^2" }
 
     /// Shown as the node's title: the expression, or a ⚠-prefixed form on error.
-    override public var name: String { evaluatedDisplayName }
+    /// nil (empty) falls back to the type name; a user `userName` overrides this.
+    override public var displayName: String? { evaluatedDisplayName.isEmpty ? nil : evaluatedDisplayName }
     private var evaluatedDisplayName: String = ""
+
+    /// Extracts the salient part of a (possibly multi-statement) expression for
+    /// use as the node title. A leading `//` comment is taken verbatim as an
+    /// author-supplied title. Otherwise `in` input declarations and `let` locals
+    /// are dropped, `//` comments stripped, and the right-hand side of the first
+    /// output (`out …`) — or, failing that, the first assignment — is used, so
+    /// `in spectrum:float[]; out scales = <expr>` titles as `<expr>`. A bare
+    /// expression (no assignment) is kept as-is. Per the language, only `;`
+    /// separates statements; newlines are whitespace, so they are normalised out.
+    static func salientTitle(from expression: String) -> String
+    {
+        // A leading comment is the author's own title — use it verbatim (sans `//`).
+        let leading = expression.drop(while: \.isWhitespace)
+        if leading.hasPrefix("//")
+        {
+            let firstLine = leading.prefix { $0 != "\n" }
+            let commentText = firstLine.dropFirst(2).trimmingCharacters(in: .whitespaces)
+            if !commentText.isEmpty { return commentText }
+        }
+
+        // Comments run to end of line, so strip them line-by-line first. What
+        // remains is joined with spaces (newlines are just whitespace) and then
+        // split into statements on `;`, with interior whitespace normalised.
+        let statements = expression
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map { line -> Substring in
+                if let comment = line.firstRange(of: "//") { return line[..<comment.lowerBound] }
+                return line
+            }
+            .joined(separator: " ")
+            .split(separator: ";")
+            .map { $0.split(whereSeparator: \.isWhitespace).joined(separator: " ") }
+            .filter { !$0.isEmpty }
+
+        // First whitespace/`:`-delimited token — identifies `in`/`let`/`out`.
+        func head(_ statement: String) -> String
+        {
+            String(statement.prefix { $0 != " " && $0 != ":" })
+        }
+
+        // Drop input declarations and locals; they carry no result. Input
+        // declarations with a default value are held back as a last resort only
+        // — they must never outrank an actual output or bare expression.
+        let meaningful = statements.filter { statement in
+            switch head(statement)
+            {
+            case "let", "in": return false
+            default:          return true
+            }
+        }
+        let inputDefaults = statements.filter {
+            head($0) == "in" && assignmentIndex(in: $0) != nil
+        }
+
+        // RHS of the first standalone `=`, or nil if the statement has none.
+        func assignmentRHS(_ statement: String) -> String?
+        {
+            guard let eq = assignmentIndex(in: statement) else { return nil }
+            let rhs = statement[statement.index(after: eq)...]
+                .trimmingCharacters(in: .whitespaces)
+            return rhs.isEmpty ? nil : rhs
+        }
+
+        // Prefer the RHS of the first output, else of the first assignment.
+        let outputs = meaningful.filter { head($0) == "out" }
+        for statement in outputs + meaningful
+        {
+            if let rhs = assignmentRHS(statement) { return rhs }
+        }
+
+        // A bare expression (no assignment).
+        let bare = meaningful.joined(separator: "; ")
+        if !bare.isEmpty { return bare }
+
+        // Only declarations remain: fall back to an input default's value.
+        // Empty when there is none, so the call site falls back to the type name.
+        for statement in inputDefaults
+        {
+            if let rhs = assignmentRHS(statement) { return rhs }
+        }
+        return ""
+    }
+
+    /// Index of the first standalone `=` (assignment), skipping `==`/`<=`/`>=`/`!=`.
+    private static func assignmentIndex(in statement: String) -> String.Index?
+    {
+        var idx = statement.startIndex
+        while idx < statement.endIndex
+        {
+            if statement[idx] == "="
+            {
+                let prev = idx > statement.startIndex ? statement[statement.index(before: idx)] : " "
+                let afterIdx = statement.index(after: idx)
+                let next = afterIdx < statement.endIndex ? statement[afterIdx] : " "
+                if !"!<>=".contains(prev) && next != "=" { return idx }
+            }
+            idx = statement.index(after: idx)
+        }
+        return nil
+    }
 
     // MARK: - State
 
@@ -316,7 +417,15 @@ public class MathExpressionNode: Node
         }
 
         let hasError = result.diagnostics.contains { $0.severity == .error }
-        self.evaluatedDisplayName = hasError ? "⚠ \(self.stringExpression)" : self.stringExpression
+        let title = Self.salientTitle(from: self.stringExpression)
+        // An empty title with an error would otherwise render as a bare "⚠ "
+        // — non-empty, so displayName's type-name fallback never kicks in.
+        self.evaluatedDisplayName = switch (hasError, title.isEmpty)
+        {
+            case (true, true):  "⚠ \(Self.name)"
+            case (true, false): "⚠ \(title)"
+            case (false, _):    title
+        }
 
         self._settingsModel.diagnostics = result.diagnostics
         self.nameSubject.send()

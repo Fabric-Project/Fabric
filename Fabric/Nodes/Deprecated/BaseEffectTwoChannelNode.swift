@@ -19,11 +19,8 @@ public class BaseEffectTwoChannelNode: Node, NodeFileLoadingProtocol
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Deprecated two-channel image effect" }
 
-    override public var name: String {
-        guard let fileURL = self.url else {
-            return BaseEffectNode.name
-        }
-        
+    override public var displayName: String? {
+        guard let fileURL = self.url else { return nil }
         return self.fileURLToName(fileURL: fileURL)
     }
     

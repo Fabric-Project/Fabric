@@ -14,11 +14,16 @@ import UniformTypeIdentifiers
 
 public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
 {
-    // User interface name
+    // User interface name — the node's TYPE name (each subclass overrides).
     public class var name: String {  fatalError("\(String(describing:self)) Must implement name") }
 
-    // Custom name (rename)
-    public var displayName: String?
+    // Node-provided dynamic name, e.g. Math Expression shows its expression.
+    // Override THIS (not the instance `name`) to give a node a self-generated
+    // title; return nil for none. A user-supplied `userName` always wins over it.
+    public var displayName: String? { nil }
+
+    // User-supplied custom name (rename). Overrides any `displayName`.
+    public var userName: String?
 
     // User interface organizing principle
     public class var nodeType:Node.NodeType { fatalError("\(String(describing:self)) Must implement nodeType") }
@@ -50,7 +55,7 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     public var name : String
     {
         let myType = type(of: self)
-        return displayName ?? myType.name
+        return userName ?? displayName ?? myType.name
     }
 
     public var nodeType:NodeType
@@ -123,9 +128,7 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         case nodeOffset
         case ports
 
-        // TODO:
-        case name // Override node UI name (not implemented)
-        case displayName
+        case userName
 
         // Depreciated...
         case inputParameters
@@ -144,7 +147,7 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
 
         self.id = try container.decode(UUID.self, forKey: .id)
         self.offset = try container.decode(CGSize.self, forKey: .nodeOffset)
-        self.displayName = try container.decodeIfPresent(String.self, forKey: .displayName)
+        self.userName = try container.decodeIfPresent(String.self, forKey: .userName)
 
         let snaps = try container.decodeIfPresent([PortRegistry.Snapshot].self, forKey: .ports) ?? []
 
@@ -195,7 +198,7 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         try container.encode(self.id, forKey: .id)
         try container.encode(self.offset, forKey: .nodeOffset)
         try container.encode(self.registry.encode(), forKey: .ports)
-        try container.encodeIfPresent(self.displayName, forKey: .displayName)
+        try container.encodeIfPresent(self.userName, forKey: .userName)
     }
 
     public required init(context:Context)

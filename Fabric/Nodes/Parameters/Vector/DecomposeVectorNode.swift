@@ -28,9 +28,11 @@ public class DecomposeVectorNode: StrategyNode
         self.init(context: context, strategy: vectorType)
     }
 
+    override public class var strategyTitleSuffix: String? { "Decompose" }
+
     public override func rebuildPorts(forStrategy strategy: String)
     {
-        guard let vt = VectorType.allCases.first(where: { $0.rawValue == strategy }) else { return }
+        guard let vt: VectorType = Self.strategyOption(matching: strategy) else { return }
 
         // Replace input port only when the vector type changes
         if let existing: Port = findPort(named: "inputVector"), existing.portType != vt.portType {
@@ -57,8 +59,6 @@ public class DecomposeVectorNode: StrategyNode
                 addDynamicPort(p, name: "outputComponent\(i)")
             }
         }
-
-        displayName = "\(vt.portType.rawValue) Decompose"
     }
 
     override public func execute(renderer: GraphRenderer,
@@ -66,7 +66,7 @@ public class DecomposeVectorNode: StrategyNode
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        guard let vt = VectorType.allCases.first(where: { $0.rawValue == strategy }) else { return }
+        guard let vt: VectorType = strategyOption() else { return }
 
         func sendComponents(_ values: [Float])
         {

@@ -52,10 +52,10 @@ public class NumericTypeAgnosticNode: StrategyNode
         self.init(context: context, initialStrategy: portType.rawValue)
     }
 
-    public override func rebuildPorts(forStrategy strategy: String)
-    {
-        let portType = Self.portType(forStrategy: strategy)
-        displayName = portType == .NumericVirtual ? nil : "\(type(of: self).name) \(portType.rawValue)"
+    /// Node-generated name reflecting the selected numeric port type.
+    override public var displayName: String? {
+        let portType = selectedNumericPortType
+        return portType == .NumericVirtual ? nil : "\(type(of: self).name) \(portType.rawValue)"
     }
 
     public class func portType(forStrategy strategy: String) -> PortType

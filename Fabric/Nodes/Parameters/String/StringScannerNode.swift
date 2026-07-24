@@ -36,7 +36,7 @@ public class StringScannerNode: Node {
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Extract values from a string using named placeholders. Inverse of String Formatter." }
 
-    override public var name: String { formatString }
+    override public var displayName: String? { formatString.isEmpty ? nil : formatString }
 
     // MARK: - Codable
 

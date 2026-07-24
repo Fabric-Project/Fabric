@@ -28,9 +28,11 @@ public class ComposeVectorNode: StrategyNode
         self.init(context: context, strategy: vectorType)
     }
 
+    override public class var strategyTitleSuffix: String? { "Compose" }
+
     public override func rebuildPorts(forStrategy strategy: String)
     {
-        guard let vt = VectorType.allCases.first(where: { $0.rawValue == strategy }) else { return }
+        guard let vt: VectorType = Self.strategyOption(matching: strategy) else { return }
 
         // Remove component ports beyond the needed count
         for i in vt.componentLabels.count..<4 {
@@ -57,8 +59,6 @@ public class ComposeVectorNode: StrategyNode
             }
             addDynamicPort(outputPort, name: "outputVector")
         }
-
-        displayName = "\(vt.portType.rawValue) Compose"
     }
 
     override public func execute(renderer: GraphRenderer,
@@ -66,7 +66,7 @@ public class ComposeVectorNode: StrategyNode
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        guard let vt = VectorType.allCases.first(where: { $0.rawValue == strategy }) else { return }
+        guard let vt: VectorType = strategyOption() else { return }
 
         let compCount = vt.componentLabels.count
         let anyChanged = (0..<compCount).contains { i in
