@@ -373,6 +373,32 @@ struct RoutingNodeExecutionTests
         #expect(consumer.executionCount == 0)
     }
 
+    @Test("A node pulled via connections without graph membership still deduplicates per pass")
+    func graphlessNodeExecutesOncePerPass() throws
+    {
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
+
+        let graph = Graph(context: harness.context)
+        let orphanSource = CountingFloatProviderNode(context: harness.context, value: 30)
+        let firstConsumer = CountingFloatConsumerNode(context: harness.context)
+        let secondConsumer = CountingFloatConsumerNode(context: harness.context)
+
+        // The provider is deliberately never added to the graph, so it has no
+        // execution slot; per-pass state must still stick (the slotless
+        // fallback) or it would run once per consumer pull.
+        graph.addNode(firstConsumer)
+        graph.addNode(secondConsumer)
+
+        orphanSource.output.connect(to: firstConsumer.input)
+        orphanSource.output.connect(to: secondConsumer.input)
+
+        try harness.execute(graph, frameNumber: 0)
+
+        #expect(orphanSource.executionCount == 1)
+        #expect(firstConsumer.lastValue == 30)
+        #expect(secondConsumer.lastValue == 30)
+    }
+
     @Test("A gated inlet does not stall a consumer's live inlets")
     func gatedInletDoesNotStallSiblingInlets() throws
     {

@@ -39,6 +39,13 @@ internal final class GraphRendererFeedbackCache
     private var slotStates: [SlotState] = []
     private var generation: UInt64 = 1
 
+    // Per-pass state for nodes with no execution slot — nodes pulled via
+    // connections without ever being adopted by a graph. Empty in practice
+    // (every added/decoded node claims a slot), but without it such a node
+    // could never be marked .processing, so it would re-execute per consumer
+    // and a cycle through it would recurse without terminating.
+    private var slotlessNodeStates: [UUID: SlotState] = [:]
+
     private struct FeedbackCandidate
     {
         let upstreamOutlet: Port
@@ -89,7 +96,14 @@ internal final class GraphRendererFeedbackCache
     {
         let slot = node.executionSlot
 
-        guard slot >= 0, slot < slotStates.count, slotStates[slot].generation == generation
+        guard slot >= 0 else
+        {
+            guard let slotless = slotlessNodeStates[node.id], slotless.generation == generation
+            else { return .unprocessed }
+            return slotless.state
+        }
+
+        guard slot < slotStates.count, slotStates[slot].generation == generation
         else { return .unprocessed }
 
         return slotStates[slot].state
@@ -102,14 +116,20 @@ internal final class GraphRendererFeedbackCache
     )
     {
         let slot = node.executionSlot
-        guard slot >= 0 else { return }
 
-        if slot >= slotStates.count
+        if slot >= 0
         {
-            slotStates.append(contentsOf: repeatElement(SlotState(), count: slot - slotStates.count + 1))
-        }
+            if slot >= slotStates.count
+            {
+                slotStates.append(contentsOf: repeatElement(SlotState(), count: slot - slotStates.count + 1))
+            }
 
-        slotStates[slot] = SlotState(generation: generation, state: state)
+            slotStates[slot] = SlotState(generation: generation, state: state)
+        }
+        else
+        {
+            slotlessNodeStates[node.id] = SlotState(generation: generation, state: state)
+        }
 
         if state == .processed
         {
