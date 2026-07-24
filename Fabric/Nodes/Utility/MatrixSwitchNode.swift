@@ -97,9 +97,11 @@ public final class MatrixSwitchNode: RoutingNodeBase
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
+        let sources = sourceInputsByOutput()
+
         for outputIndex in 0..<routeCount
         {
-            guard let sourceIndex = sourceInputIndex(forOutput: outputIndex),
+            guard let sourceIndex = sources[outputIndex],
                   let sourceInput: Port = findPort(named: Self.inputPortName(sourceIndex)),
                   let outputPort: Port = findPort(named: Self.outputPortName(outputIndex))
             else { continue }
@@ -115,37 +117,46 @@ public final class MatrixSwitchNode: RoutingNodeBase
         inputMap.value ?? [:]
     }
 
-    /// The lowest input index routed to `outputIndex`, or nil when no input targets
-    /// it (the output is unrouted). Map entries whose target is out of range are
-    /// ignored, so an out-of-range value reads the same as an absent key.
-    private func sourceInputIndex(forOutput outputIndex: Int) -> Int?
+    /// Output index → the lowest input index routed to it, built in one pass
+    /// over the map (an output absent from the result is unrouted). Entries with
+    /// a non-integer key or an out-of-range input/output are ignored, so an
+    /// out-of-range value reads the same as an absent key.
+    private func sourceInputsByOutput() -> [Int: Int]
     {
-        let map = currentMap()
-        for inputIndex in 0..<routeCount
+        var sources: [Int: Int] = [:]
+
+        for (key, outputIndex) in currentMap()
         {
-            if map[String(inputIndex)] == outputIndex
-            {
-                return inputIndex
-            }
+            guard let inputIndex = Int(key),
+                  (0..<routeCount).contains(inputIndex),
+                  (0..<routeCount).contains(outputIndex)
+            else { continue }
+
+            if let existing = sources[outputIndex], existing <= inputIndex { continue }
+            sources[outputIndex] = inputIndex
         }
-        return nil
+
+        return sources
     }
 
     /// Every input that actually feeds an output — collision losers and unrouted
-    /// inputs excluded — in ascending order, deduplicated.
+    /// inputs excluded — ordered by the output they feed, deduplicated.
     private func routedSourceInputPorts() -> [Port]
     {
+        let sources = sourceInputsByOutput()
         var seen = Set<Int>()
         var result: [Port] = []
+
         for outputIndex in 0..<routeCount
         {
-            guard let sourceIndex = sourceInputIndex(forOutput: outputIndex),
+            guard let sourceIndex = sources[outputIndex],
                   seen.insert(sourceIndex).inserted,
                   let port: Port = findPort(named: Self.inputPortName(sourceIndex))
             else { continue }
 
             result.append(port)
         }
+
         return result
     }
 }
