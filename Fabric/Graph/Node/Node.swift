@@ -76,6 +76,24 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     var context:Context
 
     weak var graph:Graph?
+    {
+        didSet
+        {
+            // Claim a per-graph execution slot on first adoption (or adoption
+            // by a different graph). Slots index the renderer's per-pass node
+            // state arrays, replacing UUID-keyed dictionary lookups on the
+            // render path. ARC nil-ing a weak reference does not fire didSet,
+            // and re-adding to the same graph (undo) keeps the claimed slot.
+            if let graph, graph !== oldValue
+            {
+                executionSlot = graph.claimExecutionSlot()
+            }
+        }
+    }
+
+    /// Index into per-pass execution state storage, unique within this node's
+    /// graph. -1 until the node is added to a graph.
+    internal private(set) var executionSlot: Int = -1
 
     // Method to register ports
     public class func registerPorts(context: Context) -> [(name: String, port: Port)] { [] }

@@ -101,7 +101,18 @@ internal import AnyCodable
         case portConnectionMap
         case notes
     }
-    
+
+    /// Next per-graph execution slot handed to an adopted node (see
+    /// Node.executionSlot). Slots are never reused; a node claims one via the
+    /// didSet on its graph reference.
+    @ObservationIgnored private var nextExecutionSlot: Int = 0
+
+    internal func claimExecutionSlot() -> Int
+    {
+        defer { nextExecutionSlot += 1 }
+        return nextExecutionSlot
+    }
+
     public init(context:Context)
     {
         self.scene = Object(context: context)
