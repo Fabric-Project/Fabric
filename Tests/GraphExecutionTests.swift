@@ -122,6 +122,32 @@ struct GraphExecutionTests {
         try expectEqual(numberNode.output.value, 3.5)
     }
 
+    @Test("Publishing an output port alone makes it an evaluation root on the next pass")
+    func barePublishToggleInvalidatesEvaluationRoots() throws {
+        guard let harness = GraphExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let numberNode = PassThroughNode<Float>(context: harness.context)
+        numberNode.input.value = 3.5
+        graph.addNode(numberNode)
+
+        harness.renderer.startExecution(graph: graph)
+        defer { harness.renderer.stopExecution(graph: graph) }
+
+        // Nothing is published or consumed: the first pass has no evaluation
+        // roots, and the renderer caches that answer against the graph's
+        // connection revision.
+        try harness.execute(graph, frameNumber: 0)
+        #expect(numberNode.output.value == nil)
+
+        // A bare toggle — no publish helper, no rebuildPublishedParameterGroup,
+        // no other topology change — must invalidate the cached roots by itself.
+        numberNode.output.published = true
+
+        try harness.execute(graph, frameNumber: 1)
+        try expectEqual(numberNode.output.value, 3.5)
+    }
+
     @Test("Connected number nodes feed Number Binary Operator add")
     func connectedNumberNodesComputeSum() throws {
         guard let harness = GraphExecutionTestHarness() else { return }

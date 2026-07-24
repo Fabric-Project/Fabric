@@ -88,6 +88,22 @@ extension UTType
     public var portDescription: String = ""
 
     public var published: Bool = false
+    {
+        didSet
+        {
+            // Published output ports are evaluation roots: the renderer pulls
+            // them each pass via graph.publishedOutputPorts(), which caches on
+            // connectionRevision. Invalidate here so a bare toggle is enough —
+            // no mutation site has to remember to bump the revision itself.
+            // (Decode assigns in init, before didSet fires; a port not yet
+            // owned by a node in a graph no-ops here and is covered by the
+            // revision bump when its node or port is added.)
+            if published != oldValue
+            {
+                node?.graph?.markConnectionsChanged()
+            }
+        }
+    }
 
     public var publishedName: String? = nil
 
