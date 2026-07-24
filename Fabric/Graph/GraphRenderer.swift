@@ -38,10 +38,6 @@ public class GraphRenderer : ViewRenderer
     private var graphRequiresResize: Bool = false
     public private(set) var resizeScaleFactor: Float = 1.0
 
-    // Pre-sorted node list built in update(), consumed in draw()
-    private var scheduledNodes: [Node] = []
-    private var pendingSceneSync = false
-
     // One feedback cache per graph/subgraph UUID to handle different execution cadences
     private var feedbackCaches: [UUID: GraphRendererFeedbackCache] = [:]
 
@@ -103,8 +99,6 @@ public class GraphRenderer : ViewRenderer
         )
         currentExecutionInfo = GraphExecutionInfo(timing: timing, eventInfo: pendingEventInfo)
         pendingEventInfo = nil
-
-        updateExecutionPlan()
     }
 
     override public func cleanup() {
@@ -131,72 +125,15 @@ public class GraphRenderer : ViewRenderer
         renderPassDescriptor.colorAttachments[0].storeAction = .store
         renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0)
 
-        let feedbackCache = self.feedbackCache(for: graph.id)
-
-        for node in scheduledNodes {
-            if graphRequiresResize {
-                node.resize(size: renderEncoder.size, scaleFactor: resizeScaleFactor)
-            }
-
-#if DEBUG
-            commandBuffer.pushDebugGroup(node.name)
-#endif
-            node.execute(renderer: self,
-                         executionInfo: currentExecutionInfo,
-                         renderPassDescriptor: renderPassDescriptor,
-                         commandBuffer: commandBuffer)
-#if DEBUG
-            commandBuffer.popDebugGroup()
-#endif
-            node.markClean()
-            feedbackCache.cacheProcessedNode(node, executionInfo: currentExecutionInfo)
-        }
-
-        graphRequiresResize = false
-
-        if pendingSceneSync {
-            graph.syncNodesToScene()
-            pendingSceneSync = false
-        }
-
-        renderEncoder.draw(renderPassDescriptor: renderPassDescriptor,
-                           commandBuffer: commandBuffer,
-                           scene: graph.scene,
-                           camera: currentCamera ?? defaultCamera)
+        executeAndDraw(graph: graph,
+                       executionInfo: currentExecutionInfo,
+                       renderPassDescriptor: renderPassDescriptor,
+                       commandBuffer: commandBuffer)
 
         currentCamera = graph.firstCamera ?? defaultCamera
-        executionCount += 1
     }
 
-    // MARK: - Graph Analysis (update phase)
-
-    private func updateExecutionPlan() {
-        self.resetTextureCaches(for: currentExecutionInfo)
-
-        let feedbackCache = self.feedbackCache(for: graph.id)
-        feedbackCache.resetCacheFor(executionInfo: currentExecutionInfo)
-
-        pendingSceneSync = graph.consumePendingConnectionSceneSync()
-        if pendingSceneSync {
-            feedbackCache.invalidateTopologyCaches()
-        }
-
-        var ordered: [Node] = []
-        ordered.reserveCapacity(graph.nodes.count)
-
-        for root in evaluationRoots(for: graph) {
-            pullNode(feedbackCache: feedbackCache,
-                     node: root.node,
-                     requestedOutputPort: root.requestedOutputPort,
-                     executionInfo: currentExecutionInfo,
-                     cacheProcessedOutputs: false,
-                     onTraverse: nil) { ordered.append($0) }
-        }
-
-        scheduledNodes = ordered
-    }
-
-    // MARK: - Pull traversal (shared by planning and on-demand execution)
+    // MARK: - Pull traversal
 
     /// Where evaluation pulls start: every consumer node, every published output
     /// port's node (pulled for that specific port), and any explicitly forced
@@ -216,24 +153,22 @@ public class GraphRenderer : ViewRenderer
         return roots
     }
 
-    /// Single recursive pull behind both execution paths: the per-frame planning
-    /// pass visits by appending to the schedule (executed later in draw()), the
-    /// on-demand path visits by executing the node immediately. `onTraverse`
-    /// fires for every node the pull reaches whether or not it runs this pass
-    /// (the on-demand path applies pending resizes there); `visit` fires when
-    /// the node should run. Returns false when this pull contributes nothing
-    /// fresh downstream — the node declined the requested output port (its
-    /// keep-alive control inputs are still pulled, at most once per pass, so it
-    /// can select a different route later), or sat out the pass because every
-    /// one of its own upstream pulls declined.
+    /// Single recursive pull behind every execution path: upstream nodes are
+    /// pulled depth-first and executed inline as soon as their own dependencies
+    /// are satisfied, so downstream nodes always read values produced this
+    /// pass. Returns false when this pull contributes nothing fresh downstream
+    /// — the node declined the requested output port (its keep-alive control
+    /// inputs are still pulled, at most once per pass, so it can select a
+    /// different route later), or sat out the pass because every one of its
+    /// own upstream pulls declined.
     @discardableResult
     private func pullNode(feedbackCache: GraphRendererFeedbackCache,
                           node: Node,
                           requestedOutputPort: Port?,
                           executionInfo: GraphExecutionInfo,
-                          cacheProcessedOutputs: Bool,
-                          onTraverse: ((Node) -> Void)?,
-                          visit: (Node) -> Void) -> Bool
+                          renderPassDescriptor: MTLRenderPassDescriptor,
+                          commandBuffer: MTLCommandBuffer,
+                          clearFlags: Bool) -> Bool
     {
         switch node.respondToPull(requestedOutputPort: requestedOutputPort) {
         case .declined(let keepAlivePorts):
@@ -253,9 +188,9 @@ public class GraphRenderer : ViewRenderer
                     pullUpstreamNodes(of: inputPort,
                                       feedbackCache: feedbackCache,
                                       executionInfo: executionInfo,
-                                      cacheProcessedOutputs: cacheProcessedOutputs,
-                                      onTraverse: onTraverse,
-                                      visit: visit)
+                                      renderPassDescriptor: renderPassDescriptor,
+                                      commandBuffer: commandBuffer,
+                                      clearFlags: clearFlags)
                 }
             }
             return false
@@ -282,9 +217,9 @@ public class GraphRenderer : ViewRenderer
                 let pulled = pullUpstreamNodes(of: inputPort,
                                                feedbackCache: feedbackCache,
                                                executionInfo: executionInfo,
-                                               cacheProcessedOutputs: cacheProcessedOutputs,
-                                               onTraverse: onTraverse,
-                                               visit: visit)
+                                               renderPassDescriptor: renderPassDescriptor,
+                                               commandBuffer: commandBuffer,
+                                               clearFlags: clearFlags)
                 attemptedPullCount += pulled.attempted
                 activePullCount += pulled.active
             }
@@ -299,14 +234,29 @@ public class GraphRenderer : ViewRenderer
                 return false
             }
 
-            onTraverse?(node)
+            if graphRequiresResize {
+                node.resize(size: renderEncoder.size, scaleFactor: resizeScaleFactor)
+            }
 
             if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider {
-                visit(node)
+#if DEBUG
+                commandBuffer.pushDebugGroup(node.name)
+#endif
+                node.execute(renderer: self,
+                             executionInfo: executionInfo,
+                             renderPassDescriptor: renderPassDescriptor,
+                             commandBuffer: commandBuffer)
+#if DEBUG
+                commandBuffer.popDebugGroup()
+#endif
+
+                if clearFlags {
+                    node.markClean()
+                }
+
                 feedbackCache.setProcessingState(.processed,
                                                  forNode: node,
-                                                 executionInfo: executionInfo,
-                                                 cacheProcessedOutputs: cacheProcessedOutputs)
+                                                 executionInfo: executionInfo)
             }
 
             return true
@@ -318,9 +268,9 @@ public class GraphRenderer : ViewRenderer
     private func pullUpstreamNodes(of inputPort: Port,
                                    feedbackCache: GraphRendererFeedbackCache,
                                    executionInfo: GraphExecutionInfo,
-                                   cacheProcessedOutputs: Bool,
-                                   onTraverse: ((Node) -> Void)?,
-                                   visit: (Node) -> Void) -> (attempted: Int, active: Int)
+                                   renderPassDescriptor: MTLRenderPassDescriptor,
+                                   commandBuffer: MTLCommandBuffer,
+                                   clearFlags: Bool) -> (attempted: Int, active: Int)
     {
         var attempted = 0
         var active = 0
@@ -334,9 +284,9 @@ public class GraphRenderer : ViewRenderer
                         node: upstreamNode,
                         requestedOutputPort: upstreamOutputPort,
                         executionInfo: executionInfo,
-                        cacheProcessedOutputs: cacheProcessedOutputs,
-                        onTraverse: onTraverse,
-                        visit: visit) {
+                        renderPassDescriptor: renderPassDescriptor,
+                        commandBuffer: commandBuffer,
+                        clearFlags: clearFlags) {
                 active += 1
             }
         }
@@ -395,29 +345,6 @@ public class GraphRenderer : ViewRenderer
 
         let firstCamera = graph.firstCamera ?? self.currentCamera ?? self.defaultCamera
 
-        let applyPendingResize: (Node) -> Void = { node in
-            if self.graphRequiresResize {
-                node.resize(size: self.renderEncoder.size, scaleFactor: self.resizeScaleFactor)
-            }
-        }
-
-        let executeNode: (Node) -> Void = { node in
-#if DEBUG
-            commandBuffer.pushDebugGroup(node.name)
-#endif
-            node.execute(renderer: self,
-                         executionInfo: executionInfo,
-                         renderPassDescriptor: renderPassDescriptor,
-                         commandBuffer: commandBuffer)
-#if DEBUG
-            commandBuffer.popDebugGroup()
-#endif
-
-            if clearFlags {
-                node.markClean()
-            }
-        }
-
         let roots = evaluationRoots(for: graph, forcing: forceEvaluationForTheseNodes)
 
         for root in roots {
@@ -425,9 +352,9 @@ public class GraphRenderer : ViewRenderer
                      node: root.node,
                      requestedOutputPort: root.requestedOutputPort,
                      executionInfo: executionInfo,
-                     cacheProcessedOutputs: true,
-                     onTraverse: applyPendingResize,
-                     visit: executeNode)
+                     renderPassDescriptor: renderPassDescriptor,
+                     commandBuffer: commandBuffer,
+                     clearFlags: clearFlags)
         }
 
         if !roots.isEmpty {

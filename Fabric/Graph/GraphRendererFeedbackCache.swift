@@ -98,8 +98,7 @@ internal final class GraphRendererFeedbackCache
         _ state: NodeProcessingState,
         forNode node:Node,
         activeInputPorts: [Port] = [],
-        executionInfo:GraphExecutionInfo,
-        cacheProcessedOutputs: Bool = true
+        executionInfo:GraphExecutionInfo
     )
     {
         nodeProcessingStateCache[node.id] = state
@@ -113,11 +112,8 @@ internal final class GraphRendererFeedbackCache
             self.setFeedbackState(activeInputPorts: activeInputPorts,
                                   executionInfo: executionInfo)
 
-        case .processed where cacheProcessedOutputs:
-            self.cacheProcessedNode(node, executionInfo: executionInfo)
-
         case .processed:
-            return
+            self.cacheProcessedNode(node, executionInfo: executionInfo)
         }
     }
 
