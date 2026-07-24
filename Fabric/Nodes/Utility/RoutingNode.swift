@@ -190,13 +190,11 @@ private struct RoutingNodeSettingsView: View
 {
     let node: RoutingNodeBase
     @State private var routeCount: Int
-    @State private var portTypeRawValue: String
 
     init(node: RoutingNodeBase)
     {
         self.node = node
         self._routeCount = State(initialValue: node.routeCount)
-        self._portTypeRawValue = State(initialValue: node.selectedPortType.rawValue)
     }
 
     var body: some View
@@ -219,26 +217,7 @@ private struct RoutingNodeSettingsView: View
                 Text("Routes \(routeCount)")
             }
 
-            Picker("Type", selection: Binding(
-                get: { portTypeRawValue },
-                set: { rawValue in
-                    guard let portType = PortType(rawValue: rawValue) else { return }
-                    node.setPortType(portType)
-                    portTypeRawValue = node.selectedPortType.rawValue
-                }
-            ))
-            {
-                if let first = type(of: node).strategies.first
-                {
-                    Text(first).tag(first)
-                    Divider()
-                    ForEach(type(of: node).strategies.dropFirst(), id: \.self) { strategy in
-                        Text(strategy).tag(strategy)
-                    }
-                }
-            }
-            .pickerStyle(.menu)
-            .controlSize(.small)
+            StrategyPickerView(model: node.strategySettingsModel)
         }
         .padding()
     }

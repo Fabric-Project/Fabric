@@ -168,8 +168,12 @@ public class StrategyNode: Node
 
     override public func settingsView() -> AnyView
     {
-        AnyView(StrategyPickerView(model: _settingsModel))
+        AnyView(StrategyPickerView(model: strategySettingsModel))
     }
+
+    /// Shared settings model behind the strategy picker; composite settings
+    /// views (e.g. the routing nodes') reuse it to embed StrategyPickerView.
+    var strategySettingsModel: SettingsModel { _settingsModel }
 
     /// Subclasses: diff current dynamic ports against the wanted set for
     /// `strategy` (removePort for anything dynamic no longer wanted,
@@ -207,7 +211,7 @@ public class StrategyNode: Node
     private lazy var _settingsModel = SettingsModel(node: self)
 }
 
-private struct StrategyPickerView: View
+struct StrategyPickerView: View
 {
     @Bindable var model: StrategyNode.SettingsModel
 
