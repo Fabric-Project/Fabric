@@ -91,7 +91,7 @@ import Satin
         self.node         = node
         self._offset      = node.offset
         self._userName    = node.userName
-        self._nodeName    = node.name
+        self._nodeName    = node.displayName ?? type(of: node).name
         self.ports        = node.ports
         self.nodeSize     = node.nodeSize
 
@@ -117,10 +117,12 @@ import Satin
 
         // Sync cached name when nodes with dynamic names (e.g. MathExpressionNode,
         // StringFormatterNode) change their computed name after user edits.
+        // Cache displayName (not node.name) so a user rename never becomes the
+        // fallback shown after the rename is cleared.
         node.nameSubject
             .receive(on: DispatchQueue.main)
             .sink { [weak self] in
-                self?._nodeName = node.name
+                self?._nodeName = node.displayName ?? type(of: node).name
             }
             .store(in: &cancellables)
     }

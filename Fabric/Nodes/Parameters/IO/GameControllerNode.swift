@@ -163,6 +163,8 @@ public class GameControllerNode: Node
             setupController()
             _settingsModelStorage?.selectedControllerID = selectedControllerID
             _settingsModelStorage?.outputPortCount = outputPorts().count
+            // `displayName` is derived from the selected controller; notify so the title refreshes.
+            self.nameSubject.send()
         }
     }
 

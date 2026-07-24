@@ -111,12 +111,30 @@ struct NodeTitleView: View
             if new { renamingText = nodeViewModel.userName ?? "" }
             renameFieldFocused = new
         }
+        // Return commits via onSubmit; clicking elsewhere must also commit,
+        // otherwise the edit is silently lost and the field stays stuck in
+        // rename mode (the double-tap gesture is guarded by !renaming).
+        .onChange(of: renameFieldFocused)
+        { _, focused in
+            if !focused && renaming { commitRename() }
+        }
+        .onExitCommand
+        {
+            if renaming { renaming = false }
+        }
     }
 
     private func commitRename()
     {
         let trimmed = renamingText.trimmingCharacters(in: .whitespacesAndNewlines)
         let oldUserName = nodeViewModel.userName
+        let newUserName = trimmed.isEmpty ? nil : trimmed
+
+        guard newUserName != oldUserName else
+        {
+            renaming = false
+            return
+        }
 
         nodeViewModel.node.graph?.undoManager?.registerUndo(withTarget: nodeViewModel)
         { nodeViewModel in
@@ -124,7 +142,7 @@ struct NodeTitleView: View
         }
         nodeViewModel.node.graph?.undoManager?.setActionName("Rename Node")
 
-        nodeViewModel.userName = trimmed.isEmpty ? nil : trimmed
+        nodeViewModel.userName = newUserName
         renaming = false
     }
 }

@@ -381,6 +381,8 @@ public class MIDIInputNode: Node
         {
             setupMIDIConnection()
             _settingsModelStorage?.selectedInputID = selectedInputID
+            // `displayName` is derived from the selected input; notify so the title refreshes.
+            self.nameSubject.send()
         }
     }
 
