@@ -185,29 +185,45 @@ public class GraphRenderer : ViewRenderer
         ordered.reserveCapacity(graph.nodes.count)
 
         for consumerNode in graph.consumerNodes {
-            _ = collectExecutionOrder(feedbackCache: feedbackCache,
-                                      node: consumerNode,
-                                      requestedOutputPort: nil,
-                                      orderedNodes: &ordered)
+            pullNode(feedbackCache: feedbackCache,
+                     node: consumerNode,
+                     requestedOutputPort: nil,
+                     executionInfo: currentExecutionInfo,
+                     cacheProcessedOutputs: false,
+                     onTraverse: nil) { ordered.append($0) }
         }
 
         for outputPort in graph.publishedOutputPorts() {
             guard let node = outputPort.node else { continue }
 
-            _ = collectExecutionOrder(feedbackCache: feedbackCache,
-                                      node: node,
-                                      requestedOutputPort: outputPort,
-                                      orderedNodes: &ordered)
+            pullNode(feedbackCache: feedbackCache,
+                     node: node,
+                     requestedOutputPort: outputPort,
+                     executionInfo: currentExecutionInfo,
+                     cacheProcessedOutputs: false,
+                     onTraverse: nil) { ordered.append($0) }
         }
 
         scheduledNodes = ordered
     }
 
+    // MARK: - Pull traversal (shared by planning and on-demand execution)
+
+    /// Single recursive pull behind both execution paths: the per-frame planning
+    /// pass visits by appending to the schedule (executed later in draw()), the
+    /// on-demand path visits by executing the node immediately. `onTraverse`
+    /// fires for every node the pull reaches whether or not it runs this pass
+    /// (the on-demand path applies pending resizes there); `visit` fires when
+    /// the node should run. Returns false when the node declines the requested
+    /// output port.
     @discardableResult
-    private func collectExecutionOrder(feedbackCache: GraphRendererFeedbackCache,
-                                       node: Node,
-                                       requestedOutputPort: Port?,
-                                       orderedNodes: inout [Node]) -> Bool
+    private func pullNode(feedbackCache: GraphRendererFeedbackCache,
+                          node: Node,
+                          requestedOutputPort: Port?,
+                          executionInfo: GraphExecutionInfo,
+                          cacheProcessedOutputs: Bool,
+                          onTraverse: ((Node) -> Void)?,
+                          visit: (Node) -> Void) -> Bool
     {
         guard node.shouldEvaluate(requestedOutputPort: requestedOutputPort) else {
             return false
@@ -223,31 +239,32 @@ public class GraphRenderer : ViewRenderer
         feedbackCache.setProcessingState(.processing,
                                          forNode: node,
                                          requestedOutputPort: requestedOutputPort,
-                                         executionInfo: currentExecutionInfo)
+                                         executionInfo: executionInfo)
 
         for inputPort in node.activeInputPorts(requestedOutputPort: requestedOutputPort) {
             for upstreamOutputPort in inputPort.connections where upstreamOutputPort.kind == .Outlet {
                 guard let inputNode = upstreamOutputPort.node else { continue }
 
-                if !collectExecutionOrder(
-                    feedbackCache: feedbackCache,
-                    node: inputNode,
-                    requestedOutputPort: upstreamOutputPort,
-                    orderedNodes: &orderedNodes
-                ) {
+                if !pullNode(feedbackCache: feedbackCache,
+                             node: inputNode,
+                             requestedOutputPort: upstreamOutputPort,
+                             executionInfo: executionInfo,
+                             cacheProcessedOutputs: cacheProcessedOutputs,
+                             onTraverse: onTraverse,
+                             visit: visit) {
                     return false
                 }
             }
         }
 
+        onTraverse?(node)
+
         if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider {
-            orderedNodes.append(node)
-            feedbackCache.setProcessingState(
-                .processed,
-                forNode: node,
-                executionInfo: currentExecutionInfo,
-                cacheProcessedOutputs: false
-            )
+            visit(node)
+            feedbackCache.setProcessingState(.processed,
+                                             forNode: node,
+                                             executionInfo: executionInfo,
+                                             cacheProcessedOutputs: cacheProcessedOutputs)
         }
 
         return true
@@ -305,101 +322,13 @@ public class GraphRenderer : ViewRenderer
         let firstCamera = graph.firstCamera ?? self.currentCamera ?? self.defaultCamera
         var didRequestEvaluation = false
 
-        for consumerNode in graph.consumerNodes {
-            didRequestEvaluation = true
-            processGraph(graph: graph,
-                         graphFeedbackCache: feedbackCache,
-                         node: consumerNode,
-                         requestedOutputPort: nil,
-                         executionInfo: executionInfo,
-                         renderPassDescriptor: renderPassDescriptor,
-                         commandBuffer: commandBuffer,
-                         clearFlags: clearFlags)
-        }
-
-        for outputPort in graph.publishedOutputPorts() {
-            guard let node = outputPort.node else { continue }
-
-            didRequestEvaluation = true
-            processGraph(graph: graph,
-                         graphFeedbackCache: feedbackCache,
-                         node: node,
-                         requestedOutputPort: outputPort,
-                         executionInfo: executionInfo,
-                         renderPassDescriptor: renderPassDescriptor,
-                         commandBuffer: commandBuffer,
-                         clearFlags: clearFlags)
-        }
-
-        for node in forceEvaluationForTheseNodes {
-            didRequestEvaluation = true
-            processGraph(graph: graph,
-                         graphFeedbackCache: feedbackCache,
-                         node: node,
-                         requestedOutputPort: nil,
-                         executionInfo: executionInfo,
-                         renderPassDescriptor: renderPassDescriptor,
-                         commandBuffer: commandBuffer,
-                         clearFlags: clearFlags)
-        }
-
-        if didRequestEvaluation {
-            self.currentCamera = firstCamera
-        }
-    }
-
-    @discardableResult
-    private func processGraph(graph: Graph,
-                              graphFeedbackCache: GraphRendererFeedbackCache,
-                              node: Node,
-                              requestedOutputPort: Port?,
-                              executionInfo: GraphExecutionInfo,
-                              renderPassDescriptor: MTLRenderPassDescriptor,
-                              commandBuffer: MTLCommandBuffer,
-                              clearFlags: Bool = true) -> Bool
-    {
-        guard node.shouldEvaluate(requestedOutputPort: requestedOutputPort) else {
-            return false
-        }
-
-        switch graphFeedbackCache.processingState(forNode: node) {
-        case .processed:
-            return true
-        case .processing:
-            return true
-        case .unprocessed:
-            break
-        }
-
-        graphFeedbackCache.setProcessingState(.processing,
-                                              forNode: node,
-                                              requestedOutputPort: requestedOutputPort,
-                                              executionInfo: executionInfo)
-
-        for inputPort in node.activeInputPorts(requestedOutputPort: requestedOutputPort) {
-            for upstreamOutputPort in inputPort.connections where upstreamOutputPort.kind == .Outlet {
-                guard let inputNode = upstreamOutputPort.node else { continue }
-
-                if !processGraph(
-                    graph: graph,
-                    graphFeedbackCache: graphFeedbackCache,
-                    node: inputNode,
-                    requestedOutputPort: upstreamOutputPort,
-                    executionInfo: executionInfo,
-                    renderPassDescriptor: renderPassDescriptor,
-                    commandBuffer: commandBuffer,
-                    clearFlags: clearFlags
-                ) {
-                    return false
-                }
+        let applyPendingResize: (Node) -> Void = { node in
+            if self.graphRequiresResize {
+                node.resize(size: self.renderEncoder.size, scaleFactor: self.resizeScaleFactor)
             }
         }
 
-        if self.graphRequiresResize {
-            node.resize(size: self.renderEncoder.size, scaleFactor: resizeScaleFactor)
-        }
-
-        if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider {
+        let executeNode: (Node) -> Void = { node in
 #if DEBUG
             commandBuffer.pushDebugGroup(node.name)
 #endif
@@ -414,11 +343,46 @@ public class GraphRenderer : ViewRenderer
             if clearFlags {
                 node.markClean()
             }
-
-            graphFeedbackCache.setProcessingState(.processed, forNode: node, executionInfo: executionInfo)
         }
 
-        return true
+        for consumerNode in graph.consumerNodes {
+            didRequestEvaluation = true
+            pullNode(feedbackCache: feedbackCache,
+                     node: consumerNode,
+                     requestedOutputPort: nil,
+                     executionInfo: executionInfo,
+                     cacheProcessedOutputs: true,
+                     onTraverse: applyPendingResize,
+                     visit: executeNode)
+        }
+
+        for outputPort in graph.publishedOutputPorts() {
+            guard let node = outputPort.node else { continue }
+
+            didRequestEvaluation = true
+            pullNode(feedbackCache: feedbackCache,
+                     node: node,
+                     requestedOutputPort: outputPort,
+                     executionInfo: executionInfo,
+                     cacheProcessedOutputs: true,
+                     onTraverse: applyPendingResize,
+                     visit: executeNode)
+        }
+
+        for node in forceEvaluationForTheseNodes {
+            didRequestEvaluation = true
+            pullNode(feedbackCache: feedbackCache,
+                     node: node,
+                     requestedOutputPort: nil,
+                     executionInfo: executionInfo,
+                     cacheProcessedOutputs: true,
+                     onTraverse: applyPendingResize,
+                     visit: executeNode)
+        }
+
+        if didRequestEvaluation {
+            self.currentCamera = firstCamera
+        }
     }
 
     private func resetTextureCaches(for executionInfo: GraphExecutionInfo)
