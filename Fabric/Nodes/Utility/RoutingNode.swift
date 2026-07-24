@@ -77,10 +77,6 @@ public class RoutingNodeBase: TypeAgnosticNode
         strategy = rawValue
     }
 
-    /// Route selection reads runtime values (Index / map), so the active-input
-    /// set can change without a topology change and must not be cached.
-    override public var activeInputPortsDependOnValues: Bool { true }
-
     override public var settingsSize: SettingsViewSize { .Small }
 
     override public func settingsView() -> AnyView

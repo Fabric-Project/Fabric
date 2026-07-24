@@ -42,20 +42,15 @@ internal final class GraphRendererFeedbackCache
         let upstreamNodeID: UUID
     }
 
-    private struct FeedbackCandidateCacheKey: Hashable
-    {
-        let nodeID: UUID
-        let requestedOutputPortID: UUID?
-    }
-
     private let graphID:UUID
 
     private var lastCachePruneFrameNumber: Int = -1
     private var previousFrameCache: [PortCacheKey: PortValue] = [:]
 
-    // Resolved inlet -> upstream outlet pairs for feedback checks.
-    // Rebuilt when the graph reports a topology change.
-    private var feedbackCandidateCache: [FeedbackCandidateCacheKey: [FeedbackCandidate]] = [:]
+    // Resolved inlet -> upstream outlet pairing (nil = unconnected inlet), keyed
+    // by inlet ID. Pure topology, so it stays valid however the *set* of active
+    // inlets varies with runtime routing values; rebuilt on topology change.
+    private var feedbackCandidateCache: [UUID: FeedbackCandidate?] = [:]
     private var connectedOutputPortCache: [UUID: [Port]] = [:]
     
     internal init(graphID:UUID)
@@ -148,41 +143,37 @@ internal final class GraphRendererFeedbackCache
 
     private func feedbackCandidates(forNode node: Node, requestedOutputPort: Port?) -> [FeedbackCandidate]
     {
-        // Routing nodes derive their active inputs from runtime values (Index /
-        // map), which change without the topology-change invalidation ever
-        // firing — caching their candidates would keep injecting into a
-        // previously selected inlet after the route moves on.
-        let cacheable = !node.activeInputPortsDependOnValues
+        // The active-inlet *set* can depend on runtime routing values (Index /
+        // map), so it is queried fresh every time; only the per-inlet upstream
+        // pairing below is cached.
+        node.activeInputPorts(requestedOutputPort: requestedOutputPort).compactMap { feedbackCandidate(forInlet: $0) }
+    }
 
-        let cacheKey = FeedbackCandidateCacheKey(
-            nodeID: node.id,
-            requestedOutputPortID: requestedOutputPort?.id
-        )
-
-        if cacheable, let cached = feedbackCandidateCache[cacheKey]
+    private func feedbackCandidate(forInlet inlet: Port) -> FeedbackCandidate?
+    {
+        if let cached = feedbackCandidateCache[inlet.id]
         {
             return cached
         }
 
-        let candidates = node.activeInputPorts(requestedOutputPort: requestedOutputPort).compactMap { inlet -> FeedbackCandidate? in
-            // In Fabric, inlets typically have at most 1 connection; if more, preserve current first-outlet policy.
-            guard let upstreamOutlet = inlet.connections.first(where: { $0.kind == .Outlet }),
-                  let upstreamNode = upstreamOutlet.node
-            else { return nil }
-
-            return FeedbackCandidate(
+        // In Fabric, inlets typically have at most 1 connection; if more, preserve current first-outlet policy.
+        let candidate: FeedbackCandidate?
+        if let upstreamOutlet = inlet.connections.first(where: { $0.kind == .Outlet }),
+           let upstreamNode = upstreamOutlet.node
+        {
+            candidate = FeedbackCandidate(
                 inlet: inlet,
                 upstreamOutlet: upstreamOutlet,
                 upstreamNodeID: upstreamNode.id
             )
         }
-
-        if cacheable
+        else
         {
-            feedbackCandidateCache[cacheKey] = candidates
+            candidate = nil
         }
 
-        return candidates
+        feedbackCandidateCache[inlet.id] = candidate
+        return candidate
     }
 
     func cacheProcessedNode(_ node: Node, executionInfo:GraphExecutionInfo)
