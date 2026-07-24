@@ -83,20 +83,33 @@ private struct RoutingTestFailure: Error, CustomStringConvertible
     }
 }
 
-private final class CountingFloatProviderNode: Node
+// Common scaffolding for the counting provider test nodes below. Providers of Float, Int and
+// [String: Int] payloads differ only in their payload type, so a single generic class covers all
+// three (aliased below to keep call sites unchanged). `CountingProviderDefaultValue` supplies the
+// zero/empty value needed by the two required initializers, which never receive a real payload.
+private protocol CountingProviderDefaultValue
 {
-    override class var name: String { "Counting Float Provider" }
+    init()
+}
+
+extension Float: CountingProviderDefaultValue {}
+extension Int: CountingProviderDefaultValue {}
+extension Dictionary: CountingProviderDefaultValue where Key == String, Value == Int {}
+
+private final class CountingProviderNode<PayloadValue: PortValueRepresentable & CountingProviderDefaultValue>: Node
+{
+    override class var name: String { "Counting Provider" }
     override class var nodeType: Node.NodeType { .Utility }
     override class var nodeExecutionMode: Node.ExecutionMode { .Provider }
     override class var nodeTimeMode: Node.TimeMode { .None }
     override class var nodeDescription: String { "Test provider that counts executions." }
 
-    var value: Float
+    var value: PayloadValue
     var executionCount = 0
 
-    var output: NodePort<Float> { port(named: "output") }
+    var output: NodePort<PayloadValue> { port(named: "output") }
 
-    init(context: Context, value: Float)
+    init(context: Context, value: PayloadValue)
     {
         self.value = value
         super.init(context: context)
@@ -104,20 +117,20 @@ private final class CountingFloatProviderNode: Node
 
     required init(context: Context)
     {
-        self.value = 0
+        self.value = PayloadValue()
         super.init(context: context)
     }
 
     required init(from decoder: any Decoder) throws
     {
-        self.value = 0
+        self.value = PayloadValue()
         try super.init(from: decoder)
     }
 
     override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
     {
         super.registerPorts(context: context) + [
-            ("output", NodePort<Float>(name: "Output", kind: .Outlet)),
+            ("output", NodePort<PayloadValue>(name: "Output", kind: .Outlet)),
         ]
     }
 
@@ -131,53 +144,9 @@ private final class CountingFloatProviderNode: Node
     }
 }
 
-private final class CountingIntProviderNode: Node
-{
-    override class var name: String { "Counting Int Provider" }
-    override class var nodeType: Node.NodeType { .Utility }
-    override class var nodeExecutionMode: Node.ExecutionMode { .Provider }
-    override class var nodeTimeMode: Node.TimeMode { .None }
-    override class var nodeDescription: String { "Test index provider that counts executions." }
-
-    var value: Int
-    var executionCount = 0
-
-    var output: NodePort<Int> { port(named: "output") }
-
-    init(context: Context, value: Int)
-    {
-        self.value = value
-        super.init(context: context)
-    }
-
-    required init(context: Context)
-    {
-        self.value = 0
-        super.init(context: context)
-    }
-
-    required init(from decoder: any Decoder) throws
-    {
-        self.value = 0
-        try super.init(from: decoder)
-    }
-
-    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
-    {
-        super.registerPorts(context: context) + [
-            ("output", NodePort<Int>(name: "Output", kind: .Outlet)),
-        ]
-    }
-
-    override func execute(renderer: GraphRenderer,
-                          executionInfo: GraphExecutionInfo,
-                          renderPassDescriptor: MTLRenderPassDescriptor,
-                          commandBuffer: MTLCommandBuffer)
-    {
-        executionCount += 1
-        output.send(value, force: true)
-    }
-}
+private typealias CountingFloatProviderNode = CountingProviderNode<Float>
+private typealias CountingIntProviderNode = CountingProviderNode<Int>
+private typealias CountingMapProviderNode = CountingProviderNode<[String: Int]>
 
 private final class CountingFloatConsumerNode: Node
 {
@@ -240,54 +209,6 @@ private final class CountingTwoInputConsumerNode: Node
         executionCount += 1
         lastA = inputA.value
         lastB = inputB.value
-    }
-}
-
-private final class CountingMapProviderNode: Node
-{
-    override class var name: String { "Counting Map Provider" }
-    override class var nodeType: Node.NodeType { .Utility }
-    override class var nodeExecutionMode: Node.ExecutionMode { .Provider }
-    override class var nodeTimeMode: Node.TimeMode { .None }
-    override class var nodeDescription: String { "Test index-map provider that counts executions." }
-
-    var value: [String: Int]
-    var executionCount = 0
-
-    var output: NodePort<[String: Int]> { port(named: "output") }
-
-    init(context: Context, value: [String: Int])
-    {
-        self.value = value
-        super.init(context: context)
-    }
-
-    required init(context: Context)
-    {
-        self.value = [:]
-        super.init(context: context)
-    }
-
-    required init(from decoder: any Decoder) throws
-    {
-        self.value = [:]
-        try super.init(from: decoder)
-    }
-
-    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
-    {
-        super.registerPorts(context: context) + [
-            ("output", NodePort<[String: Int]>(name: "Output", kind: .Outlet)),
-        ]
-    }
-
-    override func execute(renderer: GraphRenderer,
-                          executionInfo: GraphExecutionInfo,
-                          renderPassDescriptor: MTLRenderPassDescriptor,
-                          commandBuffer: MTLCommandBuffer)
-    {
-        executionCount += 1
-        output.send(value, force: true)
     }
 }
 
