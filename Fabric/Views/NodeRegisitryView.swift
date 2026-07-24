@@ -234,8 +234,8 @@ public struct NodeRegisitryView: View {
                      
                      try self.editingContext.layoutNode(node)
                      
-                     node.enableExecution(renderer: self.graphRenderer)
-                     node.startExecution(renderer: self.graphRenderer)
+                     try node.enableExecution(renderer: self.graphRenderer)
+                     try node.startExecution(renderer: self.graphRenderer)
                      
                      self.editingContext.currentGraph.addNode(node)
                  }
