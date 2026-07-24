@@ -48,13 +48,7 @@ public final class GateNode: RoutingNode
                                                       description: "Value when route \(index) is selected")
         }
 
-        removeRoutingPorts { portName in
-            guard portName.hasPrefix("Output "),
-                  let index = Int(portName.dropFirst("Output ".count))
-            else { return false }
-
-            return index >= routeCount
-        }
+        removeRoutingPortsAboveRouteCount(named: Self.outputPortName)
 
         let orderedPortNames = ["inputIndex", Self.inputPortName] + (0..<routeCount).map(Self.outputPortName)
         applyPortOrder(orderedPortNames)

@@ -36,13 +36,7 @@ public final class SwitchNode: RoutingNode
                                                       description: "Value for route \(index)")
         }
 
-        removeRoutingPorts { portName in
-            guard portName.hasPrefix("Input "),
-                  let index = Int(portName.dropFirst("Input ".count))
-            else { return false }
-
-            return index >= routeCount
-        }
+        removeRoutingPortsAboveRouteCount(named: Self.inputPortName)
 
         addOrReplaceDynamicPortPreservingIdentity(name: Self.outputPortName,
                                                   displayName: "Output",

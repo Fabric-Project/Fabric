@@ -90,11 +90,18 @@ public class RoutingNodeBase: TypeAgnosticNode
 
     // MARK: - Dynamic routing-port helpers
 
-    func removeRoutingPorts(matching shouldRemove: (String) -> Bool)
+    /// Removes stale dynamic route ports at index `routeCount` and above,
+    /// looked up by their index-derived registry names so removal never depends
+    /// on the human-facing display-name format (which serialization keeps and a
+    /// rename or localization would silently break).
+    func removeRoutingPortsAboveRouteCount(named registryName: (Int) -> String)
     {
-        for port in ports where shouldRemove(port.name)
+        for index in routeCount..<routingNodeMaximumRouteCount
         {
-            removePort(port)
+            if let port: Port = findPort(named: registryName(index))
+            {
+                removePort(port)
+            }
         }
     }
 

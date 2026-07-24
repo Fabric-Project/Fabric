@@ -74,17 +74,8 @@ public final class MatrixSwitchNode: RoutingNodeBase
                                                       description: "Value routed to output \(index)")
         }
 
-        removeRoutingPorts { portName in
-            for prefix in ["Input ", "Output "]
-            {
-                if portName.hasPrefix(prefix),
-                   let index = Int(portName.dropFirst(prefix.count))
-                {
-                    return index >= routeCount
-                }
-            }
-            return false
-        }
+        removeRoutingPortsAboveRouteCount(named: Self.inputPortName)
+        removeRoutingPortsAboveRouteCount(named: Self.outputPortName)
 
         let orderedPortNames = [Self.indexMapPortName]
             + (0..<routeCount).map(Self.inputPortName)

@@ -810,6 +810,26 @@ struct RoutingNodeExecutionTests
         #expect(decodedInput3.connections.count == 1)
     }
 
+    @Test("Reducing route count removes the stale high-index ports")
+    func reducingRouteCountRemovesStalePorts() throws
+    {
+        guard let harness = RoutingExecutionTestHarness() else { return }
+
+        let switchNode = SwitchNode(context: harness.context, routeCount: 4, portType: .Float)
+        switchNode.setRouteCount(2)
+
+        #expect(switchNode.findPort(named: "input0", as: NodePort<Float>.self) != nil)
+        #expect(switchNode.findPort(named: "input1", as: NodePort<Float>.self) != nil)
+        #expect(switchNode.findPort(named: "input2", as: NodePort<Float>.self) == nil)
+        #expect(switchNode.findPort(named: "input3", as: NodePort<Float>.self) == nil)
+
+        let matrix = MatrixSwitchNode(context: harness.context, routeCount: 3, portType: .Float)
+        matrix.setRouteCount(2)
+
+        #expect(matrix.findPort(named: "input2", as: NodePort<Float>.self) == nil)
+        #expect(matrix.findPort(named: "output2", as: NodePort<Float>.self) == nil)
+    }
+
     @Test("Routing nodes are registered")
     func routingNodesAreRegistered()
     {
