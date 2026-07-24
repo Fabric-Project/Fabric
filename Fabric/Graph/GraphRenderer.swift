@@ -181,43 +181,167 @@ public class GraphRenderer : ViewRenderer
             feedbackCache.invalidateTopologyCaches()
         }
 
-        let nodesWithOutputPorts = graph.nodesWithPublishedOutputs()
-        let pullNodes = graph.consumerNodes + nodesWithOutputPorts
-
         var ordered: [Node] = []
-        for pullNode in pullNodes {
-            collectExecutionOrder(feedbackCache: feedbackCache, node: pullNode, orderedNodes: &ordered)
+        ordered.reserveCapacity(graph.nodes.count)
+
+        for root in evaluationRoots(for: graph) {
+            pullNode(feedbackCache: feedbackCache,
+                     node: root.node,
+                     requestedOutputPort: root.requestedOutputPort,
+                     executionInfo: currentExecutionInfo,
+                     cacheProcessedOutputs: false,
+                     onTraverse: nil) { ordered.append($0) }
         }
 
         scheduledNodes = ordered
     }
 
-    private func collectExecutionOrder(feedbackCache: GraphRendererFeedbackCache,
-                                       node: Node,
-                                       orderedNodes: inout [Node])
+    // MARK: - Pull traversal (shared by planning and on-demand execution)
+
+    /// Where evaluation pulls start: every consumer node, every published output
+    /// port's node (pulled for that specific port), and any explicitly forced
+    /// nodes.
+    private func evaluationRoots(for graph: Graph,
+                                 forcing forcedNodes: [Node] = []) -> [(node: Node, requestedOutputPort: Port?)]
     {
-        switch feedbackCache.processingState(forNode: node) {
-        case .processed, .processing:
-            return
-        case .unprocessed:
-            break
+        var roots: [(node: Node, requestedOutputPort: Port?)] = graph.consumerNodes.map { ($0, nil) }
+
+        for outputPort in graph.publishedOutputPorts() {
+            guard let node = outputPort.node else { continue }
+            roots.append((node, outputPort))
         }
 
-        feedbackCache.setProcessingState(.processing, forNode: node, executionInfo: currentExecutionInfo)
+        roots += forcedNodes.map { ($0, nil) }
 
-        for inputNode in node.inputNodes {
-            collectExecutionOrder(feedbackCache: feedbackCache, node: inputNode, orderedNodes: &orderedNodes)
+        return roots
+    }
+
+    /// Single recursive pull behind both execution paths: the per-frame planning
+    /// pass visits by appending to the schedule (executed later in draw()), the
+    /// on-demand path visits by executing the node immediately. `onTraverse`
+    /// fires for every node the pull reaches whether or not it runs this pass
+    /// (the on-demand path applies pending resizes there); `visit` fires when
+    /// the node should run. Returns false when this pull contributes nothing
+    /// fresh downstream — the node declined the requested output port (its
+    /// keep-alive control inputs are still pulled, at most once per pass, so it
+    /// can select a different route later), or sat out the pass because every
+    /// one of its own upstream pulls declined.
+    @discardableResult
+    private func pullNode(feedbackCache: GraphRendererFeedbackCache,
+                          node: Node,
+                          requestedOutputPort: Port?,
+                          executionInfo: GraphExecutionInfo,
+                          cacheProcessedOutputs: Bool,
+                          onTraverse: ((Node) -> Void)?,
+                          visit: (Node) -> Void) -> Bool
+    {
+        switch node.respondToPull(requestedOutputPort: requestedOutputPort) {
+        case .declined(let keepAlivePorts):
+            // Unselected route: nothing flows downstream from this pull, but
+            // the node's control inputs (Index, map) must keep updating or it
+            // could never select a different route — a Gate whose selected
+            // output has no consumer would starve its own Index chain, the
+            // class fixed for Matrix Switch in e776d909. The node names those
+            // inputs as keepAlive; walk them once per pass, marked by
+            // .keepAliveWalked, which also terminates control chains that
+            // cycle back into another unselected output of this node.
+            if feedbackCache.processingState(forNode: node) == .unprocessed {
+                feedbackCache.setProcessingState(.keepAliveWalked,
+                                                 forNode: node,
+                                                 executionInfo: executionInfo)
+                for inputPort in keepAlivePorts {
+                    pullUpstreamNodes(of: inputPort,
+                                      feedbackCache: feedbackCache,
+                                      executionInfo: executionInfo,
+                                      cacheProcessedOutputs: cacheProcessedOutputs,
+                                      onTraverse: onTraverse,
+                                      visit: visit)
+                }
+            }
+            return false
+
+        case .evaluate(let pullingPorts):
+            switch feedbackCache.processingState(forNode: node) {
+            case .processed, .processing:
+                return true
+            case .declined:
+                return false
+            case .unprocessed, .keepAliveWalked:
+                break
+            }
+
+            feedbackCache.setProcessingState(.processing,
+                                             forNode: node,
+                                             activeInputPorts: pullingPorts,
+                                             executionInfo: executionInfo)
+
+            var attemptedPullCount = 0
+            var activePullCount = 0
+
+            for inputPort in pullingPorts {
+                let pulled = pullUpstreamNodes(of: inputPort,
+                                               feedbackCache: feedbackCache,
+                                               executionInfo: executionInfo,
+                                               cacheProcessedOutputs: cacheProcessedOutputs,
+                                               onTraverse: onTraverse,
+                                               visit: visit)
+                attemptedPullCount += pulled.attempted
+                activePullCount += pulled.active
+            }
+
+            // A connected node sits out the pass only when every upstream pull
+            // declined; that freeze propagates to its own consumers. One live inlet
+            // keeps the node running — declined inlets simply hold their last value.
+            if attemptedPullCount > 0 && activePullCount == 0 {
+                feedbackCache.setProcessingState(.declined,
+                                                 forNode: node,
+                                                 executionInfo: executionInfo)
+                return false
+            }
+
+            onTraverse?(node)
+
+            if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider {
+                visit(node)
+                feedbackCache.setProcessingState(.processed,
+                                                 forNode: node,
+                                                 executionInfo: executionInfo,
+                                                 cacheProcessedOutputs: cacheProcessedOutputs)
+            }
+
+            return true
+        }
+    }
+
+    /// Pulls the node behind every upstream outlet connected to `inputPort`.
+    @discardableResult
+    private func pullUpstreamNodes(of inputPort: Port,
+                                   feedbackCache: GraphRendererFeedbackCache,
+                                   executionInfo: GraphExecutionInfo,
+                                   cacheProcessedOutputs: Bool,
+                                   onTraverse: ((Node) -> Void)?,
+                                   visit: (Node) -> Void) -> (attempted: Int, active: Int)
+    {
+        var attempted = 0
+        var active = 0
+
+        for upstreamOutputPort in inputPort.connections where upstreamOutputPort.kind == .Outlet {
+            guard let upstreamNode = upstreamOutputPort.node else { continue }
+
+            attempted += 1
+
+            if pullNode(feedbackCache: feedbackCache,
+                        node: upstreamNode,
+                        requestedOutputPort: upstreamOutputPort,
+                        executionInfo: executionInfo,
+                        cacheProcessedOutputs: cacheProcessedOutputs,
+                        onTraverse: onTraverse,
+                        visit: visit) {
+                active += 1
+            }
         }
 
-        if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider {
-            orderedNodes.append(node)
-            feedbackCache.setProcessingState(
-                .processed,
-                forNode: node,
-                executionInfo: currentExecutionInfo,
-                cacheProcessedOutputs: false
-            )
-        }
+        return (attempted, active)
     }
 
     // MARK: - On-demand graph evaluation (for exporters and subgraph callers)
@@ -269,88 +393,45 @@ public class GraphRenderer : ViewRenderer
             }
         }
 
-        let nodesWithOutputPorts = graph.nodesWithPublishedOutputs()
-        let nodesToPullFrom = graph.consumerNodes + nodesWithOutputPorts + forceEvaluationForTheseNodes
         let firstCamera = graph.firstCamera ?? self.currentCamera ?? self.defaultCamera
 
-        if !nodesToPullFrom.isEmpty {
-            var nodesWeHaveExecutedThisPass: [Node] = []
-            var nodeIDsWeHaveExecutedThisPass = Set<UUID>()
-
-            for pullNode in nodesToPullFrom {
-                processGraph(graph: graph,
-                             graphFeedbackCache: feedbackCache,
-                             node: pullNode,
-                             executionInfo: executionInfo,
-                             renderPassDescriptor: renderPassDescriptor,
-                             commandBuffer: commandBuffer,
-                             nodesWeHaveExecutedThisPass: &nodesWeHaveExecutedThisPass,
-                             nodeIDsWeHaveExecutedThisPass: &nodeIDsWeHaveExecutedThisPass,
-                             clearFlags: clearFlags)
+        let applyPendingResize: (Node) -> Void = { node in
+            if self.graphRequiresResize {
+                node.resize(size: self.renderEncoder.size, scaleFactor: self.resizeScaleFactor)
             }
-
-            self.currentCamera = firstCamera
-        }
-    }
-
-    private func processGraph(graph: Graph,
-                              graphFeedbackCache: GraphRendererFeedbackCache,
-                              node: Node,
-                              executionInfo: GraphExecutionInfo,
-                              renderPassDescriptor: MTLRenderPassDescriptor,
-                              commandBuffer: MTLCommandBuffer,
-                              nodesWeHaveExecutedThisPass: inout [Node],
-                              nodeIDsWeHaveExecutedThisPass: inout Set<UUID>,
-                              clearFlags: Bool = true)
-    {
-        switch graphFeedbackCache.processingState(forNode: node) {
-        case .processed:
-            return
-        case .processing:
-            return
-        case .unprocessed:
-            break
         }
 
-        graphFeedbackCache.setProcessingState(.processing, forNode: node, executionInfo: executionInfo)
-
-        for inputNode in node.inputNodes {
-            processGraph(graph: graph,
-                         graphFeedbackCache: graphFeedbackCache,
-                         node: inputNode,
+        let executeNode: (Node) -> Void = { node in
+#if DEBUG
+            commandBuffer.pushDebugGroup(node.name)
+#endif
+            node.execute(renderer: self,
                          executionInfo: executionInfo,
                          renderPassDescriptor: renderPassDescriptor,
-                         commandBuffer: commandBuffer,
-                         nodesWeHaveExecutedThisPass: &nodesWeHaveExecutedThisPass,
-                         nodeIDsWeHaveExecutedThisPass: &nodeIDsWeHaveExecutedThisPass,
-                         clearFlags: clearFlags)
-        }
-
-        if self.graphRequiresResize {
-            node.resize(size: self.renderEncoder.size, scaleFactor: resizeScaleFactor)
-        }
-
-        if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider {
-            if !nodeIDsWeHaveExecutedThisPass.contains(node.id) {
+                         commandBuffer: commandBuffer)
 #if DEBUG
-                commandBuffer.pushDebugGroup(node.name)
+            commandBuffer.popDebugGroup()
 #endif
-                node.execute(renderer: self,
-                             executionInfo: executionInfo,
-                             renderPassDescriptor: renderPassDescriptor,
-                             commandBuffer: commandBuffer)
-#if DEBUG
-                commandBuffer.popDebugGroup()
-#endif
-                nodesWeHaveExecutedThisPass.append(node)
-                nodeIDsWeHaveExecutedThisPass.insert(node.id)
 
-                if clearFlags {
-                    node.markClean()
-                }
-
-                graphFeedbackCache.setProcessingState(.processed, forNode: node, executionInfo: executionInfo)
+            if clearFlags {
+                node.markClean()
             }
+        }
+
+        let roots = evaluationRoots(for: graph, forcing: forceEvaluationForTheseNodes)
+
+        for root in roots {
+            pullNode(feedbackCache: feedbackCache,
+                     node: root.node,
+                     requestedOutputPort: root.requestedOutputPort,
+                     executionInfo: executionInfo,
+                     cacheProcessedOutputs: true,
+                     onTraverse: applyPendingResize,
+                     visit: executeNode)
+        }
+
+        if !roots.isEmpty {
+            self.currentCamera = firstCamera
         }
     }
 

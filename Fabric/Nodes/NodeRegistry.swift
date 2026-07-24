@@ -494,6 +494,9 @@ public class NodeRegistry {
             UnitsoPixelsNode.self,
 
             SignalNode.self,
+            SwitchNode.self,
+            GateNode.self,
+            MatrixSwitchNode.self,
 
             SampleAndHoldNode.self,
         ])

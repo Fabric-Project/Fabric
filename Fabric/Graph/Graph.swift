@@ -67,6 +67,9 @@ internal import AnyCodable
     // Fix for #103 - connection/topology changes trigger syncNodesToScene() inside of `GraphRenderer`.
     @ObservationIgnored private var pendingConnectionSceneSync = false
     public private(set) var connectionRevision = 0
+
+    @ObservationIgnored private var cachedPublishedOutputPortsRevision: Int?
+    @ObservationIgnored private var cachedPublishedOutputPorts: [Port] = []
   
 
     @ObservationIgnored weak var lastNode:(Node)? = nil
@@ -448,37 +451,44 @@ internal import AnyCodable
     /// All ports in this graph that have been published.
     public func getPublishedPorts() -> [Port]
     {
-        return self.nodes.flatMap(\.ports).filter(\.published)
+        return self.nodes.flatMap { $0.publishedPorts() }
     }
 
     public func publishedInputPorts() -> [Port]
     {
-        return self.getPublishedPorts().filter { $0.kind == .Inlet }
+        return self.nodesWithPublishedInputs().flatMap { $0.publishedInputPorts() }
     }
 
     public func publishedOutputPorts() -> [Port]
     {
-        return self.getPublishedPorts().filter { $0.kind == .Outlet }
+        if cachedPublishedOutputPortsRevision == connectionRevision {
+            return cachedPublishedOutputPorts
+        }
+
+        cachedPublishedOutputPorts = self.nodesWithPublishedOutputs().flatMap { $0.publishedOutputPorts() }
+        cachedPublishedOutputPortsRevision = connectionRevision
+
+        return cachedPublishedOutputPorts
     }
 
     internal func nodesWithPublishedPorts() -> [Node]
     {
         return self.nodes.filter { node in
-            node.ports.contains { $0.published }
+            !node.publishedPorts().isEmpty
         }
     }
     
     internal func nodesWithPublishedInputs() -> [Node]
     {
-        return self.nodesWithPublishedPorts().filter { node in
-            node.ports.contains { $0.kind == .Inlet }
+        return self.nodes.filter { node in
+            !node.publishedInputPorts().isEmpty
         }
     }
     
     internal func nodesWithPublishedOutputs() -> [Node]
     {
-        return self.nodesWithPublishedPorts().filter { node in
-            node.ports.contains { $0.kind == .Outlet }
+        return self.nodes.filter { node in
+            !node.publishedOutputPorts().isEmpty
         }
     }
      
