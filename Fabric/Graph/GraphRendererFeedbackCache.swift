@@ -148,12 +148,18 @@ internal final class GraphRendererFeedbackCache
 
     private func feedbackCandidates(forNode node: Node, requestedOutputPort: Port?) -> [FeedbackCandidate]
     {
+        // Routing nodes derive their active inputs from runtime values (Index /
+        // map), which change without the topology-change invalidation ever
+        // firing — caching their candidates would keep injecting into a
+        // previously selected inlet after the route moves on.
+        let cacheable = !node.activeInputPortsDependOnValues
+
         let cacheKey = FeedbackCandidateCacheKey(
             nodeID: node.id,
             requestedOutputPortID: requestedOutputPort?.id
         )
 
-        if let cached = feedbackCandidateCache[cacheKey]
+        if cacheable, let cached = feedbackCandidateCache[cacheKey]
         {
             return cached
         }
@@ -171,7 +177,10 @@ internal final class GraphRendererFeedbackCache
             )
         }
 
-        feedbackCandidateCache[cacheKey] = candidates
+        if cacheable
+        {
+            feedbackCandidateCache[cacheKey] = candidates
+        }
 
         return candidates
     }

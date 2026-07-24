@@ -96,6 +96,12 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     /// override this to expose only their active data/control dependencies.
     public func activeInputPorts(requestedOutputPort: Port?) -> [Port] { inputPorts() }
 
+    /// Whether activeInputPorts(requestedOutputPort:) depends on runtime port
+    /// values (a routing selection) rather than topology alone. The renderer
+    /// must not cache derived results across frames for such nodes: the
+    /// selection can change without any connection change.
+    public var activeInputPortsDependOnValues: Bool { false }
+
     public var nodeSize:CGSize { self.computeNodeSize() }
 
     public var offset: CGSize = .zero

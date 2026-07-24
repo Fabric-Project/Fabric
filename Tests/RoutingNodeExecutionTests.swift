@@ -730,6 +730,54 @@ struct RoutingNodeExecutionTests
         #expect(consumer1.lastValue == 10)
     }
 
+    @Test("Feedback injection follows a Switch route change without a topology change")
+    func feedbackInjectionFollowsRouteChange() throws
+    {
+        guard let harness = RoutingExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let plain = CountingFloatProviderNode(context: harness.context, value: 5)
+        let loopback = CountingFloatProviderNode(context: harness.context, value: 9)
+        let switchNode = SwitchNode(context: harness.context, routeCount: 2, portType: .Float)
+
+        graph.addNode(plain)
+        graph.addNode(loopback)
+        graph.addNode(switchNode)
+
+        plain.output.connect(to: switchNode.port(named: "input0", as: NodePort<Float>.self))
+        loopback.output.connect(to: switchNode.port(named: "input1", as: NodePort<Float>.self))
+
+        // Drive the feedback cache the way pullNode does across three frames:
+        // frame 0 caches the loopback's outputs, frame 1 visits the switch while
+        // it selects input 0 (populating any candidate cache for that selection),
+        // frame 2 switches to input 1 while the loopback is mid-traversal — a
+        // feedback back-edge, so the previous frame's value must be injected
+        // into the *newly* selected inlet.
+        let cache = GraphRendererFeedbackCache(graphID: graph.id)
+
+        loopback.output.send(9, force: true)
+        cache.cacheProcessedNode(loopback, executionInfo: harness.makeExecutionInfo(frameNumber: 0))
+
+        let frame1 = harness.makeExecutionInfo(frameNumber: 1)
+        cache.resetCacheFor(executionInfo: frame1)
+        switchNode.inputIndex.value = 0
+        cache.setProcessingState(.processing, forNode: switchNode, requestedOutputPort: switchNode.output, executionInfo: frame1)
+        loopback.output.send(9, force: true)
+        cache.cacheProcessedNode(loopback, executionInfo: frame1)
+
+        let frame2 = harness.makeExecutionInfo(frameNumber: 2)
+        cache.resetCacheFor(executionInfo: frame2)
+        switchNode.inputIndex.value = 1
+        let selectedInlet = switchNode.port(named: "input1", as: NodePort<Float>.self)
+        selectedInlet.value = 123
+        cache.setProcessingState(.processing, forNode: loopback, executionInfo: frame2)
+        cache.setProcessingState(.processing, forNode: switchNode, requestedOutputPort: switchNode.output, executionInfo: frame2)
+
+        // With candidates cached from the input-0 selection, the injection missed
+        // the newly selected inlet and it kept its sentinel value.
+        #expect(selectedInlet.value == 9)
+    }
+
     @Test("Routing nodes are registered")
     func routingNodesAreRegistered()
     {
