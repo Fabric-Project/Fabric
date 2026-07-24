@@ -184,21 +184,10 @@ public class GraphRenderer : ViewRenderer
         var ordered: [Node] = []
         ordered.reserveCapacity(graph.nodes.count)
 
-        for consumerNode in graph.consumerNodes {
+        for root in evaluationRoots(for: graph) {
             pullNode(feedbackCache: feedbackCache,
-                     node: consumerNode,
-                     requestedOutputPort: nil,
-                     executionInfo: currentExecutionInfo,
-                     cacheProcessedOutputs: false,
-                     onTraverse: nil) { ordered.append($0) }
-        }
-
-        for outputPort in graph.publishedOutputPorts() {
-            guard let node = outputPort.node else { continue }
-
-            pullNode(feedbackCache: feedbackCache,
-                     node: node,
-                     requestedOutputPort: outputPort,
+                     node: root.node,
+                     requestedOutputPort: root.requestedOutputPort,
                      executionInfo: currentExecutionInfo,
                      cacheProcessedOutputs: false,
                      onTraverse: nil) { ordered.append($0) }
@@ -208,6 +197,24 @@ public class GraphRenderer : ViewRenderer
     }
 
     // MARK: - Pull traversal (shared by planning and on-demand execution)
+
+    /// Where evaluation pulls start: every consumer node, every published output
+    /// port's node (pulled for that specific port), and any explicitly forced
+    /// nodes.
+    private func evaluationRoots(for graph: Graph,
+                                 forcing forcedNodes: [Node] = []) -> [(node: Node, requestedOutputPort: Port?)]
+    {
+        var roots: [(node: Node, requestedOutputPort: Port?)] = graph.consumerNodes.map { ($0, nil) }
+
+        for outputPort in graph.publishedOutputPorts() {
+            guard let node = outputPort.node else { continue }
+            roots.append((node, outputPort))
+        }
+
+        roots += forcedNodes.map { ($0, nil) }
+
+        return roots
+    }
 
     /// Single recursive pull behind both execution paths: the per-frame planning
     /// pass visits by appending to the schedule (executed later in draw()), the
@@ -320,7 +327,6 @@ public class GraphRenderer : ViewRenderer
         }
 
         let firstCamera = graph.firstCamera ?? self.currentCamera ?? self.defaultCamera
-        var didRequestEvaluation = false
 
         let applyPendingResize: (Node) -> Void = { node in
             if self.graphRequiresResize {
@@ -345,42 +351,19 @@ public class GraphRenderer : ViewRenderer
             }
         }
 
-        for consumerNode in graph.consumerNodes {
-            didRequestEvaluation = true
+        let roots = evaluationRoots(for: graph, forcing: forceEvaluationForTheseNodes)
+
+        for root in roots {
             pullNode(feedbackCache: feedbackCache,
-                     node: consumerNode,
-                     requestedOutputPort: nil,
+                     node: root.node,
+                     requestedOutputPort: root.requestedOutputPort,
                      executionInfo: executionInfo,
                      cacheProcessedOutputs: true,
                      onTraverse: applyPendingResize,
                      visit: executeNode)
         }
 
-        for outputPort in graph.publishedOutputPorts() {
-            guard let node = outputPort.node else { continue }
-
-            didRequestEvaluation = true
-            pullNode(feedbackCache: feedbackCache,
-                     node: node,
-                     requestedOutputPort: outputPort,
-                     executionInfo: executionInfo,
-                     cacheProcessedOutputs: true,
-                     onTraverse: applyPendingResize,
-                     visit: executeNode)
-        }
-
-        for node in forceEvaluationForTheseNodes {
-            didRequestEvaluation = true
-            pullNode(feedbackCache: feedbackCache,
-                     node: node,
-                     requestedOutputPort: nil,
-                     executionInfo: executionInfo,
-                     cacheProcessedOutputs: true,
-                     onTraverse: applyPendingResize,
-                     visit: executeNode)
-        }
-
-        if didRequestEvaluation {
+        if !roots.isEmpty {
             self.currentCamera = firstCamera
         }
     }
