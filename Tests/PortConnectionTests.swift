@@ -111,6 +111,60 @@ struct PortConnectionTests {
         #expect(virtualInlet.canConnect(to: genericArrayOutlet))
     }
 
+    @Test("Pure virtual outlets connect to typed inlets from either compatibility direction")
+    func pureVirtualOutletsRemainUniversal() {
+        let virtualOutlet = PortType.Virtual.makeFreshPort(name: "Value", kind: .Outlet)
+        let stringInlet = PortType.String.makeFreshPort(name: "String", kind: .Inlet)
+
+        #expect(virtualOutlet.canConnect(to: stringInlet))
+        #expect(stringInlet.canConnect(to: virtualOutlet))
+    }
+
+    @Test("Retired dynamic ports cannot reconnect from stale view references")
+    func retiredDynamicPortsCannotReconnect() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let arrayValue = ArrayIndexValueNode(context: context, portType: .String)
+        let stringSink = PassThroughNode<String>(context: context)
+        graph.addNode(arrayValue)
+        graph.addNode(stringSink)
+
+        let retiredOutput = try #require(
+            arrayValue.findPort(named: "outputPort", as: NodePort<String>.self)
+        )
+
+        arrayValue.rebuildPorts(forStrategy: PortType.Float.rawValue)
+
+        #expect(retiredOutput.node == nil)
+        retiredOutput.connect(to: stringSink.input)
+        #expect(retiredOutput.connections.isEmpty)
+        #expect(stringSink.input.connections.isEmpty)
+    }
+
+    @Test("String array value output connects to 3D Text Geometry")
+    func stringArrayValueConnectsToExtrudedTextGeometry() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let arrayValue = ArrayIndexValueNode(context: context, portType: .String)
+        let textGeometry = ExtrudedTextGeometryNode(context: context)
+        graph.addNode(arrayValue)
+        graph.addNode(textGeometry)
+
+        let stringOutput = try #require(
+            arrayValue.findPort(named: "outputPort", as: NodePort<String>.self)
+        )
+
+        #expect(stringOutput.canConnect(to: textGeometry.inputText))
+        #expect(textGeometry.inputText.canConnect(to: stringOutput))
+
+        stringOutput.connect(to: textGeometry.inputText)
+
+        #expect(stringOutput.connections == [textGeometry.inputText])
+        #expect(textGeometry.inputText.connections == [stringOutput])
+    }
+
     @Test("Virtual strategy array nodes expose generic array ports")
     func virtualStrategyArrayNodesExposeGenericArrayPorts() throws {
         guard let context = makeContext() else { return }

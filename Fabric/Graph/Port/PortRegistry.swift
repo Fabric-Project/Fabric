@@ -55,6 +55,10 @@ final class PortRegistry
         {
             self.byName[name] = nil
         }
+        // Dynamic type changes replace a Port instance while preserving its
+        // UUID. Detach the retired instance so a transient SwiftUI view cannot
+        // reconnect that stale object after the replacement is registered.
+        p.node = nil
     }
 
     func reorder(_ reordered: [Port])
