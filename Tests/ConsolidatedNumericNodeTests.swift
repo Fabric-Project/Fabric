@@ -5,73 +5,6 @@ import simd
 @testable import Fabric
 import Satin
 
-private struct ConsolidatedNumericHarness
-{
-    let context: Context
-    let renderer: GraphRenderer
-
-    init?()
-    {
-        guard let device = MTLCreateSystemDefaultDevice() else { return nil }
-        self.context = Context(
-            device: device,
-            sampleCount: 1,
-            colorPixelFormat: .bgra8Unorm,
-            depthPixelFormat: .depth32Float,
-            stencilPixelFormat: .invalid
-        )
-        self.renderer = GraphRenderer(context: context)
-        self.renderer.resize(size: (width: 64, height: 64), scaleFactor: 1)
-    }
-
-    func executionInfo(time: TimeInterval = 0, frameNumber: Int = 0) -> GraphExecutionInfo
-    {
-        GraphExecutionInfo(
-            timing: GraphExecutionTiming(
-                time: time,
-                deltaTime: 0,
-                displayTime: time,
-                systemTime: time,
-                frameNumber: frameNumber
-            )
-        )
-    }
-
-    func execute(_ graph: Graph, executionInfo: GraphExecutionInfo? = nil) throws
-    {
-        let descriptor = MTLRenderPassDescriptor()
-        let textureDescriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: context.colorPixelFormat,
-            width: 64,
-            height: 64,
-            mipmapped: false
-        )
-        textureDescriptor.usage = [.renderTarget, .shaderRead]
-        descriptor.colorAttachments[0].texture = context.device.makeTexture(descriptor: textureDescriptor)
-        descriptor.colorAttachments[0].loadAction = .clear
-        descriptor.colorAttachments[0].storeAction = .store
-
-        guard let commandBuffer = renderer.commandQueue.makeCommandBuffer() else {
-            throw ConsolidatedNumericTestFailure("Failed to create command buffer")
-        }
-
-        renderer.execute(
-            graph: graph,
-            executionInfo: executionInfo ?? self.executionInfo(),
-            renderPassDescriptor: descriptor,
-            commandBuffer: commandBuffer
-        )
-        commandBuffer.commit()
-        commandBuffer.waitUntilCompleted()
-    }
-}
-
-private struct ConsolidatedNumericTestFailure: Error, CustomStringConvertible
-{
-    let description: String
-    init(_ description: String) { self.description = description }
-}
-
 private func publish(_ port: Fabric.Port, in graph: Graph)
 {
     port.published = true
@@ -84,7 +17,7 @@ struct ConsolidatedNumericNodeTests
     @Test("Distance computes corrected Euclidean vector distance")
     func distanceComputesVectorDistance() throws
     {
-        guard let harness = ConsolidatedNumericHarness() else { return }
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
 
         let graph = Graph(context: harness.context)
         let distance = DistanceNode(context: harness.context, portType: .Vector3)
@@ -97,7 +30,7 @@ struct ConsolidatedNumericNodeTests
         publish(distance.outputDistance, in: graph)
 
         harness.renderer.startExecution(graph: graph)
-        try harness.execute(graph)
+        try harness.execute(graph, checkCommandBufferError: false)
         harness.renderer.stopExecution(graph: graph)
 
         #expect(distance.outputDistance.value == 5)
@@ -106,7 +39,7 @@ struct ConsolidatedNumericNodeTests
     @Test("Pairwise Distance Array uses zip-shortest")
     func pairwiseDistanceArrayUsesZipShortest() throws
     {
-        guard let harness = ConsolidatedNumericHarness() else { return }
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
 
         let graph = Graph(context: harness.context)
         let distance = PairwiseDistanceArrayNode(context: harness.context, portType: .Array(portType: .Float))
@@ -119,7 +52,7 @@ struct ConsolidatedNumericNodeTests
         publish(distance.outputDistances, in: graph)
 
         harness.renderer.startExecution(graph: graph)
-        try harness.execute(graph)
+        try harness.execute(graph, checkCommandBufferError: false)
         harness.renderer.stopExecution(graph: graph)
 
         #expect(distance.outputDistances.value == [3, 4])
@@ -128,7 +61,7 @@ struct ConsolidatedNumericNodeTests
     @Test("Array Resample interpolates arrays")
     func arrayResampleInterpolates() throws
     {
-        guard let harness = ConsolidatedNumericHarness() else { return }
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
 
         let graph = Graph(context: harness.context)
         let resample = ArrayResampleTypeAgnosticNode(context: harness.context, portType: .Array(portType: .Float))
@@ -141,7 +74,7 @@ struct ConsolidatedNumericNodeTests
         publish(outputArray, in: graph)
 
         harness.renderer.startExecution(graph: graph)
-        try harness.execute(graph)
+        try harness.execute(graph, checkCommandBufferError: false)
         harness.renderer.stopExecution(graph: graph)
 
         #expect(outputArray.value == [0, 5, 10])
@@ -150,7 +83,7 @@ struct ConsolidatedNumericNodeTests
     @Test("Concrete numeric strategy nodes expose editable value inputs")
     func concreteStrategyNodesExposeEditableInputs() throws
     {
-        guard let harness = ConsolidatedNumericHarness() else { return }
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
 
         let easing = EasingNode(context: harness.context, portType: .Color)
         #expect((easing.port(named: "inputFrom") as NodePort<simd_float4>) is ParameterPort<simd_float4>)
@@ -167,7 +100,7 @@ struct ConsolidatedNumericNodeTests
     @Test("Ripple Repeat and Array Range Interpolate expose editable concrete inputs")
     func rippleAndRangeExposeEditableConcreteInputs() throws
     {
-        guard let harness = ConsolidatedNumericHarness() else { return }
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
 
         let ripple = RippleRepeatNode(context: harness.context, portType: .Vector2)
         #expect((ripple.port(named: "inputValue") as NodePort<simd_float2>) is ParameterPort<simd_float2>)

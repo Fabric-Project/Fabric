@@ -19,6 +19,17 @@ internal final class GraphRendererFeedbackCache
     {
         case unprocessed
         case processing
+        /// Declined a pull for an unselected output and had its keep-alive
+        /// control inputs pulled. Guards that walk to once per pass and
+        /// terminates control chains that cycle back into another unselected
+        /// output. Unlike .declined it is not final: a later pull for a live
+        /// output upgrades the node to full evaluation.
+        case keepAliveWalked
+        /// Visited this pass but sitting it out: every upstream pull declined
+        /// (e.g. all inlets hang off unselected Gate branches). Distinct from
+        /// .processing so an abandoned pull is never mistaken for a satisfied
+        /// node or a feedback back-edge.
+        case declined
         case processed
     }
 
@@ -32,7 +43,6 @@ internal final class GraphRendererFeedbackCache
 
     private struct FeedbackCandidate
     {
-        let inlet: Port
         let upstreamOutlet: Port
         let upstreamNodeID: UUID
     }
@@ -42,9 +52,10 @@ internal final class GraphRendererFeedbackCache
     private var lastCachePruneFrameNumber: Int = -1
     private var previousFrameCache: [PortCacheKey: PortValue] = [:]
 
-    // Resolved inlet -> upstream outlet pairs for feedback checks.
-    // Rebuilt when the graph reports a topology change.
-    private var feedbackCandidateCache: [UUID: [FeedbackCandidate]] = [:]
+    // Resolved inlet -> upstream outlet pairing (nil = unconnected inlet), keyed
+    // by inlet ID. Pure topology, so it stays valid however the *set* of active
+    // inlets varies with runtime routing values; rebuilt on topology change.
+    private var feedbackCandidateCache: [UUID: FeedbackCandidate?] = [:]
     private var connectedOutputPortCache: [UUID: [Port]] = [:]
     
     internal init(graphID:UUID)
@@ -86,20 +97,22 @@ internal final class GraphRendererFeedbackCache
     func setProcessingState(
         _ state: NodeProcessingState,
         forNode node:Node,
+        activeInputPorts: [Port] = [],
         executionInfo:GraphExecutionInfo,
         cacheProcessedOutputs: Bool = true
     )
     {
         nodeProcessingStateCache[node.id] = state
-        
+
         switch state
         {
-        case .unprocessed:
+        case .unprocessed, .keepAliveWalked, .declined:
             return
-            
+
         case .processing:
-            self.setFeedbackState(forNode: node, executionInfo: executionInfo)
-            
+            self.setFeedbackState(activeInputPorts: activeInputPorts,
+                                  executionInfo: executionInfo)
+
         case .processed where cacheProcessedOutputs:
             self.cacheProcessedNode(node, executionInfo: executionInfo)
 
@@ -107,52 +120,58 @@ internal final class GraphRendererFeedbackCache
             return
         }
     }
-        
-    private func setFeedbackState(forNode node:Node, executionInfo:GraphExecutionInfo)
+
+    private func setFeedbackState(activeInputPorts: [Port],
+                                  executionInfo:GraphExecutionInfo)
     {
         guard !previousFrameCache.isEmpty else { return }
 
         let previousFrame = executionInfo.timing.frameNumber - 1
 
-        // Inject cached previous-frame values for back-edges (upstream node is currently .processing)
-        for candidate in feedbackCandidates(forNode: node)
+        // Inject cached previous-frame values for back-edges (upstream node is
+        // currently .processing). The active-inlet set can follow runtime
+        // routing values, so the renderer passes each pull's inlets afresh;
+        // only the per-inlet upstream pairing is cached.
+        for inlet in activeInputPorts
         {
+            guard let candidate = feedbackCandidate(forInlet: inlet) else { continue }
+
             if nodeProcessingStateCache[candidate.upstreamNodeID, default: .unprocessed] == .processing
             {
                 let key = PortCacheKey(portID: candidate.upstreamOutlet.id, frameNumber: previousFrame)
                 if let cached = previousFrameCache[key] // PortValue?
                 {
                     // This is the critical part: make the inlet read last frame instead of recursing
-                    candidate.inlet.restoreValue(from: cached)
+                    inlet.restoreValue(from: cached)
                 }
-//                print("GraphRendererFeedbackCache: setFeedbackState: \(graphID) node: \(node.name) inlet port: \(candidate.inlet.name)")
             }
         }
     }
 
-    private func feedbackCandidates(forNode node: Node) -> [FeedbackCandidate]
+    private func feedbackCandidate(forInlet inlet: Port) -> FeedbackCandidate?
     {
-        if let cached = feedbackCandidateCache[node.id]
+        if let cached = feedbackCandidateCache[inlet.id]
         {
             return cached
         }
 
-        let candidates = node.inputPorts().compactMap { inlet -> FeedbackCandidate? in
-            // In Fabric, inlets typically have at most 1 connection; if more, preserve current first-outlet policy.
-            guard let upstreamOutlet = inlet.connections.first(where: { $0.kind == .Outlet }),
-                  let upstreamNode = upstreamOutlet.node
-            else { return nil }
-
-            return FeedbackCandidate(
-                inlet: inlet,
+        // In Fabric, inlets typically have at most 1 connection; if more, preserve current first-outlet policy.
+        let candidate: FeedbackCandidate?
+        if let upstreamOutlet = inlet.connections.first(where: { $0.kind == .Outlet }),
+           let upstreamNode = upstreamOutlet.node
+        {
+            candidate = FeedbackCandidate(
                 upstreamOutlet: upstreamOutlet,
                 upstreamNodeID: upstreamNode.id
             )
         }
+        else
+        {
+            candidate = nil
+        }
 
-        feedbackCandidateCache[node.id] = candidates
-
-        return candidates
+        feedbackCandidateCache[inlet.id] = candidate
+        return candidate
     }
 
     func cacheProcessedNode(_ node: Node, executionInfo:GraphExecutionInfo)

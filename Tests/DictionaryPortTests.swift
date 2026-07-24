@@ -4,63 +4,6 @@ import Metal
 @testable import Fabric
 import Satin
 
-private struct DictionaryTestHarness
-{
-    let context: Context
-    let renderer: GraphRenderer
-
-    init?()
-    {
-        guard let device = MTLCreateSystemDefaultDevice() else {
-            return nil
-        }
-
-        self.context = Context(
-            device: device,
-            sampleCount: 1,
-            colorPixelFormat: .bgra8Unorm,
-            depthPixelFormat: .depth32Float,
-            stencilPixelFormat: .invalid
-        )
-        self.renderer = GraphRenderer(context: self.context)
-    }
-
-    func execute(_ node: Node) throws
-    {
-        let descriptor = MTLRenderPassDescriptor()
-        guard let commandBuffer = renderer.commandQueue.makeCommandBuffer() else {
-            throw DictionaryTestFailure("Failed to create command buffer")
-        }
-
-        node.execute(
-            renderer: renderer,
-            executionInfo: GraphExecutionInfo(
-                timing: GraphExecutionTiming(
-                    time: 0,
-                    deltaTime: 0,
-                    displayTime: 0,
-                    systemTime: 0,
-                    frameNumber: 0
-                ),
-                iterationInfo: nil,
-                eventInfo: nil
-            ),
-            renderPassDescriptor: descriptor,
-            commandBuffer: commandBuffer
-        )
-    }
-}
-
-private struct DictionaryTestFailure: Error, CustomStringConvertible
-{
-    let description: String
-
-    init(_ description: String)
-    {
-        self.description = description
-    }
-}
-
 @Suite("Dictionary Ports")
 struct DictionaryPortTests
 {
@@ -107,7 +50,7 @@ struct DictionaryPortTests
     @Test("Legacy virtual array dynamic ports preserve identity when migrated")
     func legacyVirtualArrayDynamicPortsPreserveIdentityWhenMigrated() throws
     {
-        guard let harness = DictionaryTestHarness() else { return }
+        guard let harness = GraphExecutionTestHarness() else { return }
 
         let node = ArrayIndexValueNode(context: harness.context, portType: .Virtual)
         let currentInput: Fabric.Port = node.port(named: "inputPort")
@@ -141,7 +84,7 @@ struct DictionaryPortTests
         let boxed = dictionary.toPortValue()
 
         guard case .Dictionary(let boxedValues) = boxed else {
-            throw DictionaryTestFailure("Expected boxed dictionary")
+            throw GraphExecutionTestFailure("Expected boxed dictionary")
         }
 
         #expect(boxedValues["width"] == .Float(1920))
@@ -166,7 +109,7 @@ struct DictionaryPortTests
     @Test("JSON parser outputs boxed virtual dictionary")
     func jsonParserOutputsBoxedVirtualDictionary() throws
     {
-        guard let harness = DictionaryTestHarness() else { return }
+        guard let harness = GraphExecutionTestHarness() else { return }
 
         let node = DictionaryFromJSONStringNode(context: harness.context)
         node.inputJSONString.value = #"{"name":"Fabric","enabled":true,"size":3,"nested":{"value":1},"items":[1,"two",null]}"#
@@ -174,7 +117,7 @@ struct DictionaryPortTests
         try harness.execute(node)
 
         guard case .Dictionary(let dictionary) = node.outputDictionary.snapshotValue() else {
-            throw DictionaryTestFailure("Expected parsed dictionary")
+            throw GraphExecutionTestFailure("Expected parsed dictionary")
         }
 
         #expect(dictionary["name"] == .String("Fabric"))
@@ -182,12 +125,12 @@ struct DictionaryPortTests
         #expect(dictionary["size"] == .Float(3))
 
         guard case .Dictionary(let nested)? = dictionary["nested"] else {
-            throw DictionaryTestFailure("Expected nested dictionary")
+            throw GraphExecutionTestFailure("Expected nested dictionary")
         }
         #expect(nested["value"] == .Float(1))
 
         guard case .Array(let items)? = dictionary["items"] else {
-            throw DictionaryTestFailure("Expected array")
+            throw GraphExecutionTestFailure("Expected array")
         }
         #expect(items.count == 2)
         #expect(node.outputValid.value == true)
@@ -197,7 +140,7 @@ struct DictionaryPortTests
     @Test("Compose Dictionary creates typed dictionary")
     func composeDictionaryCreatesTypedDictionary() throws
     {
-        guard let harness = DictionaryTestHarness() else { return }
+        guard let harness = GraphExecutionTestHarness() else { return }
 
         let node = ComposeDictionaryNode(context: harness.context, portType: .Float)
         let inputKeys: Fabric.Port = node.port(named: "inputKeys")
@@ -210,7 +153,7 @@ struct DictionaryPortTests
         try harness.execute(node)
 
         guard case .Dictionary(let dictionary) = outputDictionary.snapshotValue() else {
-            throw DictionaryTestFailure("Expected output dictionary")
+            throw GraphExecutionTestFailure("Expected output dictionary")
         }
 
         #expect(outputDictionary.portType == PortType.Dictionary(valueType: .Float))
@@ -221,7 +164,7 @@ struct DictionaryPortTests
     @Test("Decompose Dictionary outputs sorted keys and values")
     func decomposeDictionaryOutputsSortedKeysAndValues() throws
     {
-        guard let harness = DictionaryTestHarness() else { return }
+        guard let harness = GraphExecutionTestHarness() else { return }
 
         let node = DecomposeDictionaryNode(context: harness.context, portType: .Float)
         let inputDictionary: Fabric.Port = node.port(named: "inputDictionary")
@@ -236,10 +179,10 @@ struct DictionaryPortTests
         try harness.execute(node)
 
         guard case .Array(let keys) = outputKeys.snapshotValue() else {
-            throw DictionaryTestFailure("Expected output keys")
+            throw GraphExecutionTestFailure("Expected output keys")
         }
         guard case .Array(let values) = outputValues.snapshotValue() else {
-            throw DictionaryTestFailure("Expected output values")
+            throw GraphExecutionTestFailure("Expected output values")
         }
 
         #expect(outputKeys.portType == PortType.Array(portType: .String))
