@@ -28,14 +28,11 @@ public class DecomposeVectorArrayNode: StrategyNode
         self.init(context: context, strategy: vectorType)
     }
 
-    override public var displayName: String? {
-        guard let vt = VectorType.allCases.first(where: { $0.rawValue == strategy }) else { return nil }
-        return "\(vt.portType.rawValue) Array Decompose"
-    }
+    override public class var strategyTitleSuffix: String? { "Array Decompose" }
 
     public override func rebuildPorts(forStrategy strategy: String)
     {
-        guard let vt = VectorType.allCases.first(where: { $0.rawValue == strategy }) else { return }
+        guard let vt: VectorType = Self.strategyOption(matching: strategy) else { return }
 
         // Replace input port only when the vector type changes
         let arrayPortType = PortType.Array(portType: vt.portType)
@@ -70,7 +67,7 @@ public class DecomposeVectorArrayNode: StrategyNode
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     {
-        guard let vt = VectorType.allCases.first(where: { $0.rawValue == strategy }) else { return }
+        guard let vt: VectorType = strategyOption() else { return }
 
         func sendEmpty()
         {

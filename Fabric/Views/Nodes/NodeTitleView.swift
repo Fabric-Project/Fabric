@@ -15,9 +15,9 @@ struct NodeTitleView: View
     @State private var renamingText: String = ""
     @FocusState private var renameFieldFocused: Bool
 
-    private var typeName: String { type(of: nodeViewModel.node).name }
+    private var typeName: String { nodeViewModel.typeName }
 
-    private var hasPrimaryLabel: Bool { nodeViewModel.name != typeName }
+    private var hasPrimaryLabel: Bool { nodeViewModel.hasCustomLabel }
 
     // `name` already resolves userName ?? node-generated displayName ?? typeName.
     private var primaryLabel: String { nodeViewModel.name }

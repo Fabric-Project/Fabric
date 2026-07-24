@@ -106,6 +106,30 @@ public class StrategyNode: Node
     /// When true, the picker inserts a visual separator after the first strategy in the list.
     public class var separatorAfterFirstStrategy: Bool { false }
 
+    /// Subclasses whose title derives from the strategy (e.g. "vec3 Compose")
+    /// return the suffix here; nil keeps the plain type-name title.
+    public class var strategyTitleSuffix: String? { nil }
+
+    override public var displayName: String?
+    {
+        guard let suffix = Self.strategyTitleSuffix,
+              Self.strategies.contains(strategy) else { return nil }
+        return "\(strategy) \(suffix)"
+    }
+
+    /// A strategy string resolved to its typed option, or nil when it matches
+    /// none (e.g. a removed or renamed case).
+    public class func strategyOption<T: NodeStrategyOption>(matching rawValue: String, as _: T.Type = T.self) -> T?
+    {
+        strategyOptions.first { $0.rawValue == rawValue } as? T
+    }
+
+    /// The currently selected strategy resolved to its typed option.
+    public func strategyOption<T: NodeStrategyOption>(as _: T.Type = T.self) -> T?
+    {
+        Self.strategyOption(matching: strategy)
+    }
+
     var strategy: String
     {
         didSet

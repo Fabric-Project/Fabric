@@ -66,6 +66,13 @@ import Satin
 
     public var nodeType: Node.NodeType { node.nodeType }
 
+    public var typeName: String { type(of: node).name }
+
+    /// True when the resolved label (user rename or node-generated title)
+    /// differs from the type name, i.e. there is a primary label to show
+    /// alongside it.
+    public var hasCustomLabel: Bool { name != typeName }
+
     // MARK: - Ports + nodeSize (stored; updated when ports change)
 
     public private(set) var ports: [Port]

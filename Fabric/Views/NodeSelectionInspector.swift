@@ -77,26 +77,19 @@ public struct NodeSelectionInspector: View
         return [.data]
     }
 
-    // TODO: This should be standardized somewhere...
     @ViewBuilder
-    private func labelForNodeModelView(_ nodeViewModel:NodeViewModel) -> AnyView
+    private func labelForNodeModelView(_ nodeViewModel: NodeViewModel) -> some View
     {
-        let typeName: String = type(of: nodeViewModel.node).name
-        let hasPrimaryLabel: Bool = nodeViewModel.name != typeName
-        
-        let primaryLabel = nodeViewModel.name
-        
-        if hasPrimaryLabel
+        if nodeViewModel.hasCustomLabel
         {
-            return AnyView( VStack(alignment: .leading) {
-                Text(primaryLabel).foregroundStyle(.primary).bold()
-                Text(typeName).foregroundStyle( .secondary ).bold()
-                }
-            )
+            VStack(alignment: .leading) {
+                Text(nodeViewModel.name).foregroundStyle(.primary).bold()
+                Text(nodeViewModel.typeName).foregroundStyle(.secondary).bold()
+            }
         }
         else
         {
-            return AnyView(Text(typeName).foregroundStyle(.primary).bold())
+            Text(nodeViewModel.typeName).foregroundStyle(.primary).bold()
         }
     }
 }
