@@ -202,6 +202,12 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 - [ ] If we have a Settings View and a custom initializer, use a custom struct or enum for the settings
 - [ ] If the Node overrides `displayName`, every mutation of the state it derives from fires `nameSubject.send()` (StrategyNode's `strategy` already does)
 - [ ] New Nodes should live in an appropriate spot in the NodeRegistry
+
+---
+
+## 7. Commit messages
+Do not hard-wrap. Do not include a co-authorship signature, instead append a final `Via <model>` line.
+
 ---
 
 ## Historical Context
