@@ -90,19 +90,6 @@ public class RoutingNodeBase: TypeAgnosticNode
 
     // MARK: - Dynamic routing-port helpers
 
-    func addOrReplaceRoutingPort(name registryName: String,
-                                 displayName: String,
-                                 portType: PortType,
-                                 kind: PortKind,
-                                 description: String)
-    {
-        addOrReplaceDynamicPortPreservingIdentity(name: registryName,
-                                                  displayName: displayName,
-                                                  portType: portType,
-                                                  kind: kind,
-                                                  description: description)
-    }
-
     func removeRoutingPorts(matching shouldRemove: (String) -> Bool)
     {
         for port in ports where shouldRemove(port.name)

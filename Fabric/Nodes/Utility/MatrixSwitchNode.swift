@@ -58,20 +58,20 @@ public final class MatrixSwitchNode: RoutingNodeBase
 
         for index in 0..<routeCount
         {
-            addOrReplaceRoutingPort(name: Self.inputPortName(index),
-                                    displayName: "Input \(index)",
-                                    portType: portType,
-                                    kind: .Inlet,
-                                    description: "Value for input \(index)")
+            addOrReplaceDynamicPortPreservingIdentity(name: Self.inputPortName(index),
+                                                      displayName: "Input \(index)",
+                                                      portType: portType,
+                                                      kind: .Inlet,
+                                                      description: "Value for input \(index)")
         }
 
         for index in 0..<routeCount
         {
-            addOrReplaceRoutingPort(name: Self.outputPortName(index),
-                                    displayName: "Output \(index)",
-                                    portType: portType,
-                                    kind: .Outlet,
-                                    description: "Value routed to output \(index)")
+            addOrReplaceDynamicPortPreservingIdentity(name: Self.outputPortName(index),
+                                                      displayName: "Output \(index)",
+                                                      portType: portType,
+                                                      kind: .Outlet,
+                                                      description: "Value routed to output \(index)")
         }
 
         removeRoutingPorts { portName in

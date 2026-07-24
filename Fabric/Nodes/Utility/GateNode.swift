@@ -33,19 +33,19 @@ public final class GateNode: RoutingNode
         super.rebuildPorts(forStrategy: strategy)
         let portType = PortType(rawValue: strategy) ?? .Virtual
 
-        addOrReplaceRoutingPort(name: Self.inputPortName,
-                                displayName: "Input",
-                                portType: portType,
-                                kind: .Inlet,
-                                description: "Value to route")
+        addOrReplaceDynamicPortPreservingIdentity(name: Self.inputPortName,
+                                                  displayName: "Input",
+                                                  portType: portType,
+                                                  kind: .Inlet,
+                                                  description: "Value to route")
 
         for index in 0..<routeCount
         {
-            addOrReplaceRoutingPort(name: Self.outputPortName(index),
-                                    displayName: "Output \(index)",
-                                    portType: portType,
-                                    kind: .Outlet,
-                                    description: "Value when route \(index) is selected")
+            addOrReplaceDynamicPortPreservingIdentity(name: Self.outputPortName(index),
+                                                      displayName: "Output \(index)",
+                                                      portType: portType,
+                                                      kind: .Outlet,
+                                                      description: "Value when route \(index) is selected")
         }
 
         removeRoutingPorts { portName in

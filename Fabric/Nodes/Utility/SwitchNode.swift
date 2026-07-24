@@ -29,11 +29,11 @@ public final class SwitchNode: RoutingNode
 
         for index in 0..<routeCount
         {
-            addOrReplaceRoutingPort(name: Self.inputPortName(index),
-                                    displayName: "Input \(index)",
-                                    portType: portType,
-                                    kind: .Inlet,
-                                    description: "Value for route \(index)")
+            addOrReplaceDynamicPortPreservingIdentity(name: Self.inputPortName(index),
+                                                      displayName: "Input \(index)",
+                                                      portType: portType,
+                                                      kind: .Inlet,
+                                                      description: "Value for route \(index)")
         }
 
         removeRoutingPorts { portName in
@@ -44,11 +44,11 @@ public final class SwitchNode: RoutingNode
             return index >= routeCount
         }
 
-        addOrReplaceRoutingPort(name: Self.outputPortName,
-                                displayName: "Output",
-                                portType: portType,
-                                kind: .Outlet,
-                                description: "Selected input value")
+        addOrReplaceDynamicPortPreservingIdentity(name: Self.outputPortName,
+                                                  displayName: "Output",
+                                                  portType: portType,
+                                                  kind: .Outlet,
+                                                  description: "Selected input value")
 
         let orderedPortNames = ["inputIndex"] + (0..<routeCount).map(Self.inputPortName) + [Self.outputPortName]
         applyPortOrder(orderedPortNames)
