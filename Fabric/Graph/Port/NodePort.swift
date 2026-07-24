@@ -208,6 +208,14 @@ public class NodePort<Value : PortValueRepresentable>: Port
     {
 //        print("Port \(self) Connect to \(other)")
 
+        // A dynamic port can remain alive briefly in a transient SwiftUI view
+        // after the registry has replaced it. Removed ports are detached from
+        // their node, so reject gestures involving those stale instances.
+        guard self.node != nil, other.node != nil else
+        {
+            return
+        }
+
         if self.kind == other.kind
         {
             return

@@ -21,11 +21,16 @@ extension PortType
             return self.isNumericVirtualCompatible || other.isNumericVirtualCompatible
         }
 
+        // Pure Virtual ports box arbitrary scalar and object values. Keep this
+        // symmetric because canvas hit-testing may ask compatibility from
+        // either the inlet or outlet side.
+        if self == .Virtual || other == .Virtual
+        {
+            return true
+        }
+
         switch self
         {
-        case .Virtual:
-            return true
-
         case .Array(portType: .Virtual):
             guard case .Array = other else { return false }
             return true
@@ -46,8 +51,6 @@ extension PortType
         default:
             switch other
             {
-            case .Virtual:
-                return true
             case .Array(portType: .Virtual):
                 guard case .Array = self else { return false }
                 return true

@@ -20,7 +20,7 @@ public class StringSplitNode: Node {
         
         return ports + [
             ("inputPort", ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to split"))),
-            ("inputSeparator", ParameterPort(parameter: StringParameter("Separator", ", ", .inputfield, "Separator string to split on"))),
+            ("inputSeparator", ParameterPort(parameter: StringParameter("Separator", ", ", .inputfield, #"Separator string to split on. Supports \n, \r, \t, and \\ escape sequences"#))),
             ("outputPort", NodePort<ContiguousArray<String>>(name: "Strings", kind: .Outlet, description: "Array of string components")),
         ]
     }
@@ -38,7 +38,55 @@ public class StringSplitNode: Node {
         if inputPort.valueDidChange || inputSeparator.valueDidChange,
            let string = inputPort.value,
            let separator = inputSeparator.value {
-            outputPort.send(ContiguousArray<String>(string.components(separatedBy: separator)))
+            outputPort.send(Self.split(string, separator: separator))
         }
+    }
+
+    static func split(_ string: String, separator: String) -> ContiguousArray<String>
+    {
+        ContiguousArray(string.components(separatedBy: decodedSeparator(separator)))
+    }
+
+    static func decodedSeparator(_ separator: String) -> String
+    {
+        var decodedSeparator = ""
+        var currentIndex = separator.startIndex
+
+        while currentIndex < separator.endIndex
+        {
+            let character = separator[currentIndex]
+            guard character == "\\" else
+            {
+                decodedSeparator.append(character)
+                currentIndex = separator.index(after: currentIndex)
+                continue
+            }
+
+            let escapedCharacterIndex = separator.index(after: currentIndex)
+            guard escapedCharacterIndex < separator.endIndex else
+            {
+                decodedSeparator.append(character)
+                break
+            }
+
+            switch separator[escapedCharacterIndex]
+            {
+            case "n":
+                decodedSeparator.append("\n")
+            case "r":
+                decodedSeparator.append("\r")
+            case "t":
+                decodedSeparator.append("\t")
+            case "\\":
+                decodedSeparator.append("\\")
+            default:
+                decodedSeparator.append(character)
+                decodedSeparator.append(separator[escapedCharacterIndex])
+            }
+
+            currentIndex = separator.index(after: escapedCharacterIndex)
+        }
+
+        return decodedSeparator
     }
 }
