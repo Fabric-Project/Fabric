@@ -17,20 +17,11 @@ let routingNodeMaximumRouteCount = 16
 /// Switch/Gate ([[RoutingNode]]), an index map for Matrix Switch.
 public class RoutingNodeBase: TypeAgnosticNode
 {
-    public var routeCount: Int = routingNodeMinimumRouteCount
-    {
-        didSet
-        {
-            let clamped = Self.clampedRouteCount(routeCount)
-            if routeCount != clamped
-            {
-                routeCount = clamped
-                return
-            }
-
-            rebuildPorts(forStrategy: strategy)
-        }
-    }
+    /// Mutable only through setRouteCount(_:), which clamps, guards against
+    /// no-op assignments, and rebuilds the dynamic ports. Init/decode paths
+    /// assign the stored value directly because their port rebuild happens in
+    /// StrategyNode's initializer.
+    public private(set) var routeCount: Int = routingNodeMinimumRouteCount
 
     private enum RoutingCodingKeys: String, CodingKey
     {
@@ -76,6 +67,7 @@ public class RoutingNodeBase: TypeAgnosticNode
         let clamped = Self.clampedRouteCount(count)
         guard clamped != routeCount else { return }
         routeCount = clamped
+        rebuildPorts(forStrategy: strategy)
     }
 
     public func setPortType(_ portType: PortType)
