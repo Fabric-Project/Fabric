@@ -153,9 +153,29 @@ import MathExpressionEngine
         // A comment-only expression is a leading comment → used as the title.
         #expect(title("// just a note") == "just a note")
 
+        // An `in` declaration's default value must not outrank the actual
+        // expression that follows it.
+        #expect(title("in speed: float = 2; sin(t * speed)") == "sin(t * speed)")
+        #expect(title("in amp = 0.5;\nout y = amp * sin(t)") == "amp * sin(t)")
+
+        // Only `in` declarations with defaults → the first default is the last
+        // resort.
+        #expect(title("in x: float = 2") == "2")
+
         // Declarations only (no comment, no output) → nothing salient → empty
         // (falls back to the type name at the call site).
         #expect(title("in x: float").isEmpty)
+    }
+
+    /// An erroring expression whose salient title is empty must not leave the
+    /// node titled a bare "⚠" — the warning is joined to the type name instead.
+    @Test func errorWithEmptySalientTitleFallsBackToTypeName() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = MathExpressionNode(context: context)
+
+        node.stringExpression = "in x: floot"
+        #expect(node.name == "⚠ \(MathExpressionNode.name)")
     }
 
     @Test func retypeReplacesPortWithNewType() throws

@@ -232,31 +232,47 @@ public class MathExpressionNode: Node
             String(statement.prefix { $0 != " " && $0 != ":" })
         }
 
-        // Drop input declarations and locals; they carry no result.
+        // Drop input declarations and locals; they carry no result. Input
+        // declarations with a default value are held back as a last resort only
+        // — they must never outrank an actual output or bare expression.
         let meaningful = statements.filter { statement in
             switch head(statement)
             {
-            case "let": return false
-            case "in":  return assignmentIndex(in: statement) != nil
-            default:    return true
+            case "let", "in": return false
+            default:          return true
             }
+        }
+        let inputDefaults = statements.filter {
+            head($0) == "in" && assignmentIndex(in: $0) != nil
+        }
+
+        // RHS of the first standalone `=`, or nil if the statement has none.
+        func assignmentRHS(_ statement: String) -> String?
+        {
+            guard let eq = assignmentIndex(in: statement) else { return nil }
+            let rhs = statement[statement.index(after: eq)...]
+                .trimmingCharacters(in: .whitespaces)
+            return rhs.isEmpty ? nil : rhs
         }
 
         // Prefer the RHS of the first output, else of the first assignment.
         let outputs = meaningful.filter { head($0) == "out" }
         for statement in outputs + meaningful
         {
-            if let eq = assignmentIndex(in: statement)
-            {
-                let rhs = statement[statement.index(after: eq)...]
-                    .trimmingCharacters(in: .whitespaces)
-                if !rhs.isEmpty { return rhs }
-            }
+            if let rhs = assignmentRHS(statement) { return rhs }
         }
 
-        // A bare expression (no assignment). Empty when only declarations/locals
-        // remain, so the call site falls back to the type name.
-        return meaningful.joined(separator: "; ")
+        // A bare expression (no assignment).
+        let bare = meaningful.joined(separator: "; ")
+        if !bare.isEmpty { return bare }
+
+        // Only declarations remain: fall back to an input default's value.
+        // Empty when there is none, so the call site falls back to the type name.
+        for statement in inputDefaults
+        {
+            if let rhs = assignmentRHS(statement) { return rhs }
+        }
+        return ""
     }
 
     /// Index of the first standalone `=` (assignment), skipping `==`/`<=`/`>=`/`!=`.
@@ -402,7 +418,14 @@ public class MathExpressionNode: Node
 
         let hasError = result.diagnostics.contains { $0.severity == .error }
         let title = Self.salientTitle(from: self.stringExpression)
-        self.evaluatedDisplayName = hasError ? "⚠ \(title)" : title
+        // An empty title with an error would otherwise render as a bare "⚠ "
+        // — non-empty, so displayName's type-name fallback never kicks in.
+        self.evaluatedDisplayName = switch (hasError, title.isEmpty)
+        {
+            case (true, true):  "⚠ \(Self.name)"
+            case (true, false): "⚠ \(title)"
+            case (false, _):    title
+        }
 
         self._settingsModel.diagnostics = result.diagnostics
         self.nameSubject.send()
