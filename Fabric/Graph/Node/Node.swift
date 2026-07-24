@@ -95,23 +95,30 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     public enum PullResponse
     {
         /// Run this node this pass, after pulling the upstream nodes feeding
-        /// these input ports.
+        /// these input ports (control inputs need not be listed — the renderer
+        /// has already resolved them).
         case evaluate(pulling: [Port])
 
         /// The requested output port is inactive (an unselected route): the
         /// node does not run for this pull and the port's consumers see a
-        /// frozen value. The renderer still pulls the upstream nodes feeding
-        /// `keepAlive` — the control inputs (Index, map) whose values let the
-        /// node select a different route later. A node must never decline a
-        /// nil requested port.
-        case declined(keepAlive: [Port])
+        /// frozen value. Control inputs stay live regardless — the renderer
+        /// resolves them before asking. A node must never decline a nil
+        /// requested port.
+        case declined
     }
 
+    /// Input ports whose values select this node's routing (Index, map). The
+    /// renderer resolves these first — pulling and executing their upstream
+    /// chains — before asking respondToPull, so a route selection always reads
+    /// values produced this pass, and control chains stay alive even when
+    /// every consumed output declines.
+    public var controlInputPorts: [Port] { [] }
+
     /// Answer a pull for `requestedOutputPort` (nil when the pull is not for a
-    /// specific port, e.g. a consumer root). The default evaluates
-    /// unconditionally, depending on every inlet; routing nodes override this
-    /// to expose only their active branch's data/control dependencies, or to
-    /// decline pulls for unselected outputs.
+    /// specific port, e.g. a consumer root). Called with controlInputPorts
+    /// already resolved. The default evaluates unconditionally, depending on
+    /// every inlet; routing nodes override this to expose only their active
+    /// branch's data dependencies, or to decline pulls for unselected outputs.
     public func respondToPull(requestedOutputPort: Port?) -> PullResponse { .evaluate(pulling: inputPorts()) }
 
     public var nodeSize:CGSize { self.computeNodeSize() }

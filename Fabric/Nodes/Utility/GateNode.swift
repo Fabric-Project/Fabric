@@ -26,12 +26,10 @@ public final class GateNode: RoutingNode
     {
         if let requestedOutputPort, requestedOutputPort.id != selectedOutputPort()?.id
         {
-            // Unselected branch: nothing to contribute, but a connected Index
-            // must keep updating so the gate can switch routes.
-            return .declined(keepAlive: [inputIndex])
+            return .declined
         }
 
-        return .evaluate(pulling: [inputIndex, input])
+        return .evaluate(pulling: [input])
     }
 
     public override func rebuildPorts(forStrategy strategy: String)

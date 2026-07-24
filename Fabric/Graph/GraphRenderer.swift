@@ -156,11 +156,13 @@ public class GraphRenderer : ViewRenderer
     /// Single recursive pull behind every execution path: upstream nodes are
     /// pulled depth-first and executed inline as soon as their own dependencies
     /// are satisfied, so downstream nodes always read values produced this
-    /// pass. Returns false when this pull contributes nothing fresh downstream
-    /// — the node declined the requested output port (its keep-alive control
-    /// inputs are still pulled, at most once per pass, so it can select a
-    /// different route later), or sat out the pass because every one of its
-    /// own upstream pulls declined.
+    /// pass. A node's control inputs (Index, map) are resolved before its
+    /// route selection is queried, so routing never lags a frame behind its
+    /// control values and control chains can never starve — even when every
+    /// consumed output declines. Returns false when this pull contributes
+    /// nothing fresh downstream: the node declined the requested output port,
+    /// or sat out the pass because every one of its own upstream pulls
+    /// declined.
     @discardableResult
     private func pullNode(feedbackCache: GraphRendererFeedbackCache,
                           node: Node,
@@ -170,48 +172,62 @@ public class GraphRenderer : ViewRenderer
                           commandBuffer: MTLCommandBuffer,
                           clearFlags: Bool) -> Bool
     {
-        switch node.respondToPull(requestedOutputPort: requestedOutputPort) {
-        case .declined(let keepAlivePorts):
-            // Unselected route: nothing flows downstream from this pull, but
-            // the node's control inputs (Index, map) must keep updating or it
-            // could never select a different route — a Gate whose selected
-            // output has no consumer would starve its own Index chain, the
-            // class fixed for Matrix Switch in e776d909. The node names those
-            // inputs as keepAlive; walk them once per pass, marked by
-            // .keepAliveWalked, which also terminates control chains that
-            // cycle back into another unselected output of this node.
-            if feedbackCache.processingState(forNode: node) == .unprocessed {
-                feedbackCache.setProcessingState(.keepAliveWalked,
-                                                 forNode: node,
-                                                 executionInfo: executionInfo)
-                for inputPort in keepAlivePorts {
-                    pullUpstreamNodes(of: inputPort,
-                                      feedbackCache: feedbackCache,
-                                      executionInfo: executionInfo,
-                                      renderPassDescriptor: renderPassDescriptor,
-                                      commandBuffer: commandBuffer,
-                                      clearFlags: clearFlags)
-                }
+        switch feedbackCache.processingState(forNode: node) {
+        case .processing:
+            // Mid-evaluation upstream in this very pull: a feedback back-edge.
+            // The inlet reads the injected previous-frame value.
+            return true
+        case .declined:
+            return false
+        case .processed:
+            // Already ran this pass; only the per-port routing question
+            // remains, answered against controls resolved during evaluation.
+            if case .declined = node.respondToPull(requestedOutputPort: requestedOutputPort) {
+                return false
             }
+            return true
+        case .unprocessed:
+            break
+        }
+
+        feedbackCache.setProcessingState(.processing, forNode: node, executionInfo: executionInfo)
+
+        var attemptedPullCount = 0
+        var activePullCount = 0
+
+        // Resolve control inputs first: their chains execute inline here, so
+        // the values routing depends on land on the ports before the node
+        // selects its route below. This is also what keeps control chains
+        // alive when every consumed output declines — the starvation class
+        // fixed for Matrix Switch in e776d909.
+        let controlPorts = node.controlInputPorts
+
+        if !controlPorts.isEmpty {
+            feedbackCache.injectFeedback(forInlets: controlPorts, executionInfo: executionInfo)
+
+            for controlPort in controlPorts {
+                let pulled = pullUpstreamNodes(of: controlPort,
+                                               feedbackCache: feedbackCache,
+                                               executionInfo: executionInfo,
+                                               renderPassDescriptor: renderPassDescriptor,
+                                               commandBuffer: commandBuffer,
+                                               clearFlags: clearFlags)
+                attemptedPullCount += pulled.attempted
+                activePullCount += pulled.active
+            }
+        }
+
+        switch node.respondToPull(requestedOutputPort: requestedOutputPort) {
+        case .declined:
+            // Unselected route: nothing flows downstream from this pull. The
+            // controls above stay resolved; the node itself did not run, so it
+            // returns to .unprocessed and a later pull for a live output still
+            // evaluates it fully.
+            feedbackCache.setProcessingState(.unprocessed, forNode: node, executionInfo: executionInfo)
             return false
 
         case .evaluate(let pullingPorts):
-            switch feedbackCache.processingState(forNode: node) {
-            case .processed, .processing:
-                return true
-            case .declined:
-                return false
-            case .unprocessed, .keepAliveWalked:
-                break
-            }
-
-            feedbackCache.setProcessingState(.processing,
-                                             forNode: node,
-                                             activeInputPorts: pullingPorts,
-                                             executionInfo: executionInfo)
-
-            var attemptedPullCount = 0
-            var activePullCount = 0
+            feedbackCache.injectFeedback(forInlets: pullingPorts, executionInfo: executionInfo)
 
             for inputPort in pullingPorts {
                 let pulled = pullUpstreamNodes(of: inputPort,

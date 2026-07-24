@@ -24,8 +24,8 @@ import Satin
 /// Unlike [[GateNode]], this node never declines a pull: an unrouted output's
 /// consumer still runs (reading the frozen value) rather than being skipped as
 /// Gate skips consumers of unselected branches. Neither node can starve its
-/// control input — a declining node names its control inputs as keepAlive in
-/// its PullResponse, so the renderer keeps a connected map/Index updating.
+/// control input — the renderer resolves controlInputPorts (map / Index)
+/// before asking respondToPull, whether or not the pull is then declined.
 public final class MatrixSwitchNode: RoutingNodeBase
 {
     override public class var name: String { "Matrix Switch" }
@@ -83,13 +83,16 @@ public final class MatrixSwitchNode: RoutingNodeBase
         applyPortOrder(orderedPortNames)
     }
 
+    /// The renderer resolves the map chain before routing is read.
+    override public var controlInputPorts: [Port] { [inputMap] }
+
     public override func respondToPull(requestedOutputPort: Port?) -> Node.PullResponse
     {
         // A node executes once per pass, but each output may draw from a different
-        // input and planning asks each node only once (the node is deduplicated
+        // input and the renderer asks each node only once (the node is deduplicated
         // after its first visit). So any pull must schedule *every* routed source
         // input, not merely the one feeding the requested output.
-        .evaluate(pulling: [inputMap] + routedSourceInputPorts())
+        .evaluate(pulling: routedSourceInputPorts())
     }
 
     override public func execute(renderer: GraphRenderer,

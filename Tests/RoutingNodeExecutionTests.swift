@@ -142,29 +142,14 @@ private func publish(_ port: Fabric.Port, in graph: Graph)
 @Suite("Routing Nodes")
 struct RoutingNodeExecutionTests
 {
-    // Routing selection has a one-frame cold-start latency. A routing node picks its
-    // active branch in respondToPull(requestedOutputPort:) from its index/map input,
-    // but that control input is itself pulled lazily within the same pass — so on the
-    // very first frame after creation the control port is still empty (index nil -> 0,
-    // map empty) and the wrong branch is chosen. It self-corrects on the next frame,
-    // once the control value has been produced and persists on the port. This is a
-    // property of the pull-based GraphRenderer (unchanged since the port-level
-    // dependency rework in 3ee85258) and is shared by Switch, Gate and Matrix Switch.
-    //
-    // Each connected-control node therefore has two tests: a `.disabled` cold-start test
-    // that asserts the *desired* first-frame routing (it fails today, and documents the
-    // limitation — re-enable it if the pull model is changed to evaluate control inputs
-    // before data-input selection), and a steady-state test that warms up one frame then
-    // asserts routing on the following frame. Tests that set the control value directly
-    // before executing need no warm-up, since the value is present when the first pass
-    // reads it.
+    // A routing node picks its active branch in respondToPull(requestedOutputPort:)
+    // from its index/map input. The renderer resolves controlInputPorts — pulling and
+    // executing their upstream chains — before asking, so routing is correct from the
+    // very first frame; the historical one-frame cold-start latency (control values
+    // pulled lazily within the same pass, so the first pass read an empty port) is
+    // gone, and the cold-start tests below assert first-frame routing directly.
 
-    // Cold-start: on the very first frame the connected index has not yet been produced,
-    // so the wrong input branch is selected (see the note above). This asserts the desired
-    // first-frame routing and therefore FAILS today; it is disabled so the suite stays
-    // green while documenting the limitation.
-    @Test("Switch routes correctly on the first frame — cold-start latency (known limitation)",
-          .disabled("One-frame routing cold-start latency inherent to the pull-based GraphRenderer; see the note at the top of the suite."))
+    @Test("Switch routes correctly on the first frame")
     func switchColdStartRoutesCorrectlyOnFirstFrame() throws
     {
         guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
@@ -187,8 +172,8 @@ struct RoutingNodeExecutionTests
 
         try harness.execute(graph, frameNumber: 0)
 
-        // Desired first-frame routing (index 1 -> only the active branch). Fails today
-        // because the index port is still empty when the branch is chosen.
+        // The connected index resolves before the branch is chosen, so frame 0
+        // already routes index 1 -> only the active branch.
         #expect(inactive.executionCount == 0)
         #expect(active.executionCount == 1)
         #expect((switchNode.output as? NodePort<Float>)?.value == 20)
@@ -252,12 +237,7 @@ struct RoutingNodeExecutionTests
         #expect((switchNode.output as? NodePort<PortValue>)?.value == .Float(12))
     }
 
-    // Cold-start: on the very first frame the connected index has not yet been produced,
-    // so the wrong output branch is selected (see the note above). This asserts the desired
-    // first-frame routing and therefore FAILS today; it is disabled so the suite stays
-    // green while documenting the limitation.
-    @Test("Gate routes correctly on the first frame — cold-start latency (known limitation)",
-          .disabled("One-frame routing cold-start latency inherent to the pull-based GraphRenderer; see the note at the top of the suite."))
+    @Test("Gate routes correctly on the first frame")
     func gateColdStartRoutesCorrectlyOnFirstFrame() throws
     {
         guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
@@ -282,8 +262,8 @@ struct RoutingNodeExecutionTests
 
         try harness.execute(graph, frameNumber: 0)
 
-        // Desired first-frame routing (index 1 -> only the active output branch). Fails
-        // today because the index port is still empty when the branch is chosen.
+        // The connected index resolves before the branch is chosen, so frame 0
+        // already routes index 1 -> only the active output branch.
         #expect(inactiveConsumer.executionCount == 0)
         #expect(activeConsumer.executionCount == 1)
         #expect(activeConsumer.lastValue == 30)
@@ -345,19 +325,18 @@ struct RoutingNodeExecutionTests
 
         index.output.connect(to: gate.inputIndex)
         source.output.connect(to: gate.port(named: "input", as: NodePort<Float>.self))
-        // Only output 1 has a consumer. On cold start the index port is empty, so
-        // route 0 — which nothing consumes — is selected, and every pull arrives
-        // via the unselected output 1.
+        // Only output 1 has a consumer; whether it is selected depends entirely
+        // on the connected index chain staying alive.
         gate.port(named: "output1", as: NodePort<Float>.self).connect(to: consumer.input)
 
         try harness.execute(graph, frameNumber: 0)
         try harness.execute(graph, frameNumber: 1)
 
-        // A declined pull must still keep the gate's index chain alive, or the
-        // index provider never runs, route 0 stays selected forever, and the gate
-        // deadlocks — the starvation class fixed for Matrix Switch in e776d909.
+        // The index chain resolves before route selection every frame — it can
+        // never starve (the class fixed for Matrix Switch in e776d909), and with
+        // control-first resolution route 1 is selected from frame 0.
         #expect(index.executionCount == 2)
-        #expect(consumer.executionCount == 1)
+        #expect(consumer.executionCount == 2)
         #expect(consumer.lastValue == 30)
     }
 
@@ -386,9 +365,9 @@ struct RoutingNodeExecutionTests
         try harness.execute(graph, frameNumber: 0)
         try harness.execute(graph, frameNumber: 1)
 
-        // A declined pull walks only the keepAlive ports the gate names (its
-        // Index chain); the data input feeds no consumed route, so its provider
-        // must stay lazy rather than being evaluated for a value nobody reads.
+        // A declined pull resolves only the gate's control inputs (its Index
+        // chain); the data input feeds no consumed route, so its provider must
+        // stay lazy rather than being evaluated for a value nobody reads.
         #expect(index.executionCount == 2)
         #expect(source.executionCount == 0)
         #expect(consumer.executionCount == 0)
@@ -595,9 +574,9 @@ struct RoutingNodeExecutionTests
         matrix.port(named: "output0", as: NodePort<Float>.self).connect(to: consumer0.input)
         matrix.port(named: "output1", as: NodePort<Float>.self).connect(to: consumer1.input)
 
-        // The map is empty during the first pass (its provider has not run yet), so routing
-        // lags by one frame — the same cold-start latency as Switch/Gate. The node must not
-        // gate itself off, or the map would never populate and routing would never recover.
+        // The map chain resolves before routing is read, so the connected map
+        // routes correctly from the first frame. The node must never gate itself
+        // off, or the map could never influence later frames.
         try harness.execute(graph, frameNumber: 0)
         try harness.execute(graph, frameNumber: 1)
 
@@ -633,7 +612,7 @@ struct RoutingNodeExecutionTests
         loopback.output.send(9, force: true)
         cache.cacheProcessedNode(loopback, executionInfo: harness.makeExecutionInfo(frameNumber: 0))
 
-        // The renderer passes each pull's active inlets into the cache, taken
+        // The renderer injects feedback for each pull's active inlets, taken
         // from the node's PullResponse at that moment; do the same here.
         func pulledInlets() throws -> [Fabric.Port]
         {
@@ -645,7 +624,8 @@ struct RoutingNodeExecutionTests
         let frame1 = harness.makeExecutionInfo(frameNumber: 1)
         cache.resetCacheFor(executionInfo: frame1)
         switchNode.inputIndex.value = 0
-        cache.setProcessingState(.processing, forNode: switchNode, activeInputPorts: try pulledInlets(), executionInfo: frame1)
+        cache.setProcessingState(.processing, forNode: switchNode, executionInfo: frame1)
+        cache.injectFeedback(forInlets: try pulledInlets(), executionInfo: frame1)
         loopback.output.send(9, force: true)
         cache.cacheProcessedNode(loopback, executionInfo: frame1)
 
@@ -655,7 +635,8 @@ struct RoutingNodeExecutionTests
         let selectedInlet = switchNode.port(named: "input1", as: NodePort<Float>.self)
         selectedInlet.value = 123
         cache.setProcessingState(.processing, forNode: loopback, executionInfo: frame2)
-        cache.setProcessingState(.processing, forNode: switchNode, activeInputPorts: try pulledInlets(), executionInfo: frame2)
+        cache.setProcessingState(.processing, forNode: switchNode, executionInfo: frame2)
+        cache.injectFeedback(forInlets: try pulledInlets(), executionInfo: frame2)
 
         // With candidates cached from the input-0 selection, the injection missed
         // the newly selected inlet and it kept its sentinel value.

@@ -51,9 +51,9 @@ public final class SwitchNode: RoutingNode
     public override func respondToPull(requestedOutputPort: Port?) -> Node.PullResponse
     {
         guard let selectedInput: Port = findPort(named: Self.inputPortName(selectedRouteIndex()))
-        else { return .evaluate(pulling: [inputIndex]) }
+        else { return .evaluate(pulling: []) }
 
-        return .evaluate(pulling: [inputIndex, selectedInput])
+        return .evaluate(pulling: [selectedInput])
     }
 
     override public func execute(renderer: GraphRenderer,

@@ -19,12 +19,6 @@ internal final class GraphRendererFeedbackCache
     {
         case unprocessed
         case processing
-        /// Declined a pull for an unselected output and had its keep-alive
-        /// control inputs pulled. Guards that walk to once per pass and
-        /// terminates control chains that cycle back into another unselected
-        /// output. Unlike .declined it is not final: a later pull for a live
-        /// output upgrades the node to full evaluation.
-        case keepAliveWalked
         /// Visited this pass but sitting it out: every upstream pull declined
         /// (e.g. all inlets hang off unselected Gate branches). Distinct from
         /// .processing so an abandoned pull is never mistaken for a satisfied
@@ -97,38 +91,29 @@ internal final class GraphRendererFeedbackCache
     func setProcessingState(
         _ state: NodeProcessingState,
         forNode node:Node,
-        activeInputPorts: [Port] = [],
         executionInfo:GraphExecutionInfo
     )
     {
         nodeProcessingStateCache[node.id] = state
 
-        switch state
+        if state == .processed
         {
-        case .unprocessed, .keepAliveWalked, .declined:
-            return
-
-        case .processing:
-            self.setFeedbackState(activeInputPorts: activeInputPorts,
-                                  executionInfo: executionInfo)
-
-        case .processed:
             self.cacheProcessedNode(node, executionInfo: executionInfo)
         }
     }
 
-    private func setFeedbackState(activeInputPorts: [Port],
-                                  executionInfo:GraphExecutionInfo)
+    /// Injects cached previous-frame values into inlets whose upstream node is
+    /// currently .processing (a feedback back-edge). The renderer calls this
+    /// with each pull's inlets afresh — the active-inlet set can follow
+    /// runtime routing values — and only the per-inlet upstream pairing is
+    /// cached.
+    func injectFeedback(forInlets inlets: [Port], executionInfo: GraphExecutionInfo)
     {
         guard !previousFrameCache.isEmpty else { return }
 
         let previousFrame = executionInfo.timing.frameNumber - 1
 
-        // Inject cached previous-frame values for back-edges (upstream node is
-        // currently .processing). The active-inlet set can follow runtime
-        // routing values, so the renderer passes each pull's inlets afresh;
-        // only the per-inlet upstream pairing is cached.
-        for inlet in activeInputPorts
+        for inlet in inlets
         {
             guard let candidate = feedbackCandidate(forInlet: inlet) else { continue }
 

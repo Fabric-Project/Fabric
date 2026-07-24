@@ -127,6 +127,9 @@ public class RoutingNode: RoutingNodeBase
 {
     public var inputIndex: ParameterPort<Int> { port(named: "inputIndex") }
 
+    /// The renderer resolves the Index chain before route selection.
+    override public var controlInputPorts: [Port] { [inputIndex] }
+
     public required init(context: Context)
     {
         super.init(context: context)
