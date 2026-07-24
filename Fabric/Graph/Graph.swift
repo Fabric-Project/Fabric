@@ -48,6 +48,14 @@ internal import AnyCodable
         nodes.filter { nodeViewModels[$0.id]?.isSelected == true }
     }
 
+    // NOTE (2026-07-24): the `true` seed makes this constant-true, so
+    // Processor-mode SubgraphNodes (which gate their execution on this via
+    // their isDirty override) always execute. Seeding with `false` would be
+    // the literal fix but a behaviour change: a subgraph whose inner graph
+    // self-animates (e.g. a time provider) while its outer inlets are static
+    // would freeze, since inner Providers execute without marking dirty. The
+    // commented-out hardcoded `true` at the isDirty override suggests this
+    // was parked deliberately — decide with vade before changing.
     var needsExecution:Bool {
         self.nodes.reduce(true) { (result, node) -> Bool in
             result || node.isDirty

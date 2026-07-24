@@ -254,7 +254,18 @@ public class GraphRenderer : ViewRenderer
                 node.resize(size: renderEncoder.size, scaleFactor: resizeScaleFactor)
             }
 
-            if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider {
+            // Consumers and Providers always run; Processors run only when
+            // dirty — isDirty is the cross-frame change signal (inlet writes,
+            // parameter edits, async events like MIDI, subgraph inner state),
+            // which the traversal cannot derive: send-side value dedup is what
+            // stops always-executing Providers cascading re-execution through
+            // clean downstream chains. Mode is read once — it can be computed
+            // (SubgraphNode derives it from its proxy ports) — and the
+            // potentially costly isDirty (SubgraphNode walks its inner graph)
+            // is consulted last.
+            let executionMode = node.nodeExecutionMode
+
+            if executionMode == .Consumer || executionMode == .Provider || node.isDirty {
 #if DEBUG
                 commandBuffer.pushDebugGroup(node.name)
 #endif

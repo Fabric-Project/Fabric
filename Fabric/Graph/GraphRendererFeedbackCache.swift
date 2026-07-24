@@ -14,7 +14,15 @@ import Foundation
 internal final class GraphRendererFeedbackCache
 {
 
-    // TODO: in theory we can remove the dirty semantics from node?
+    // Resolved (2026-07-24): node dirty semantics cannot fold into this
+    // state tracking — they are orthogonal axes. NodeProcessingState is
+    // per-pass traversal dedup; isDirty is the cross-frame change signal
+    // (inlet writes, parameter edits, async events, subgraph inner state).
+    // Deriving "should execute" from "an upstream executed this pass" would
+    // break zero-work steady state: Providers execute every frame, and it is
+    // send-side value dedup + dirty marking that stops them cascading
+    // re-execution through clean chains. Port-level alternatives collide with
+    // the valueDidChange edge-detection contract nodes consume internally.
     public enum NodeProcessingState
     {
         case unprocessed
