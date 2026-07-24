@@ -305,9 +305,6 @@ public class GraphRenderer : ViewRenderer
         let firstCamera = graph.firstCamera ?? self.currentCamera ?? self.defaultCamera
         var didRequestEvaluation = false
 
-        var nodeIDsWeHaveExecutedThisPass = Set<UUID>()
-        nodeIDsWeHaveExecutedThisPass.reserveCapacity(graph.nodes.count)
-
         for consumerNode in graph.consumerNodes {
             didRequestEvaluation = true
             processGraph(graph: graph,
@@ -317,7 +314,6 @@ public class GraphRenderer : ViewRenderer
                          executionInfo: executionInfo,
                          renderPassDescriptor: renderPassDescriptor,
                          commandBuffer: commandBuffer,
-                         nodeIDsWeHaveExecutedThisPass: &nodeIDsWeHaveExecutedThisPass,
                          clearFlags: clearFlags)
         }
 
@@ -332,7 +328,6 @@ public class GraphRenderer : ViewRenderer
                          executionInfo: executionInfo,
                          renderPassDescriptor: renderPassDescriptor,
                          commandBuffer: commandBuffer,
-                         nodeIDsWeHaveExecutedThisPass: &nodeIDsWeHaveExecutedThisPass,
                          clearFlags: clearFlags)
         }
 
@@ -345,7 +340,6 @@ public class GraphRenderer : ViewRenderer
                          executionInfo: executionInfo,
                          renderPassDescriptor: renderPassDescriptor,
                          commandBuffer: commandBuffer,
-                         nodeIDsWeHaveExecutedThisPass: &nodeIDsWeHaveExecutedThisPass,
                          clearFlags: clearFlags)
         }
 
@@ -362,7 +356,6 @@ public class GraphRenderer : ViewRenderer
                               executionInfo: GraphExecutionInfo,
                               renderPassDescriptor: MTLRenderPassDescriptor,
                               commandBuffer: MTLCommandBuffer,
-                              nodeIDsWeHaveExecutedThisPass: inout Set<UUID>,
                               clearFlags: Bool = true) -> Bool
     {
         guard node.shouldEvaluate(requestedOutputPort: requestedOutputPort) else {
@@ -395,7 +388,6 @@ public class GraphRenderer : ViewRenderer
                     executionInfo: executionInfo,
                     renderPassDescriptor: renderPassDescriptor,
                     commandBuffer: commandBuffer,
-                    nodeIDsWeHaveExecutedThisPass: &nodeIDsWeHaveExecutedThisPass,
                     clearFlags: clearFlags
                 ) {
                     return false
@@ -408,25 +400,22 @@ public class GraphRenderer : ViewRenderer
         }
 
         if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider {
-            if !nodeIDsWeHaveExecutedThisPass.contains(node.id) {
 #if DEBUG
-                commandBuffer.pushDebugGroup(node.name)
+            commandBuffer.pushDebugGroup(node.name)
 #endif
-                node.execute(renderer: self,
-                             executionInfo: executionInfo,
-                             renderPassDescriptor: renderPassDescriptor,
-                             commandBuffer: commandBuffer)
+            node.execute(renderer: self,
+                         executionInfo: executionInfo,
+                         renderPassDescriptor: renderPassDescriptor,
+                         commandBuffer: commandBuffer)
 #if DEBUG
-                commandBuffer.popDebugGroup()
+            commandBuffer.popDebugGroup()
 #endif
-                nodeIDsWeHaveExecutedThisPass.insert(node.id)
 
-                if clearFlags {
-                    node.markClean()
-                }
-
-                graphFeedbackCache.setProcessingState(.processed, forNode: node, executionInfo: executionInfo)
+            if clearFlags {
+                node.markClean()
             }
+
+            graphFeedbackCache.setProcessingState(.processed, forNode: node, executionInfo: executionInfo)
         }
 
         return true
