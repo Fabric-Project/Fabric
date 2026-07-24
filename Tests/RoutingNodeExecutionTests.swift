@@ -209,6 +209,40 @@ private final class CountingFloatConsumerNode: Node
     }
 }
 
+private final class CountingTwoInputConsumerNode: Node
+{
+    override class var name: String { "Counting Two Input Consumer" }
+    override class var nodeType: Node.NodeType { .Utility }
+    override class var nodeExecutionMode: Node.ExecutionMode { .Consumer }
+    override class var nodeTimeMode: Node.TimeMode { .None }
+    override class var nodeDescription: String { "Test consumer with two inlets that counts executions." }
+
+    var executionCount = 0
+    var lastA: Float?
+    var lastB: Float?
+
+    var inputA: NodePort<Float> { port(named: "inputA") }
+    var inputB: NodePort<Float> { port(named: "inputB") }
+
+    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
+    {
+        super.registerPorts(context: context) + [
+            ("inputA", NodePort<Float>(name: "Input A", kind: .Inlet)),
+            ("inputB", NodePort<Float>(name: "Input B", kind: .Inlet)),
+        ]
+    }
+
+    override func execute(renderer: GraphRenderer,
+                          executionInfo: GraphExecutionInfo,
+                          renderPassDescriptor: MTLRenderPassDescriptor,
+                          commandBuffer: MTLCommandBuffer)
+    {
+        executionCount += 1
+        lastA = inputA.value
+        lastB = inputB.value
+    }
+}
+
 private final class CountingMapProviderNode: Node
 {
     override class var name: String { "Counting Map Provider" }
@@ -449,6 +483,76 @@ struct RoutingNodeExecutionTests
         #expect(inactiveConsumer.executionCount - inactiveBefore == 0)
         #expect(activeConsumer.executionCount - activeBefore == 1)
         #expect(activeConsumer.lastValue == 30)
+    }
+
+    @Test("A gated inlet does not stall a consumer's live inlets")
+    func gatedInletDoesNotStallSiblingInlets() throws
+    {
+        guard let harness = RoutingExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let source = CountingFloatProviderNode(context: harness.context, value: 30)
+        let live = CountingFloatProviderNode(context: harness.context, value: 42)
+        let gate = GateNode(context: harness.context, routeCount: 2, portType: .Float)
+        let consumer = CountingTwoInputConsumerNode(context: harness.context)
+
+        // Output 0 is unselected, so inlet A hangs off a frozen branch.
+        gate.inputIndex.value = 1
+
+        for node in [source, live, gate, consumer] as [Node]
+        {
+            graph.addNode(node)
+        }
+
+        source.output.connect(to: gate.port(named: "input", as: NodePort<Float>.self))
+        gate.port(named: "output0", as: NodePort<Float>.self).connect(to: consumer.inputA)
+        live.output.connect(to: consumer.inputB)
+
+        try harness.execute(graph, frameNumber: 0)
+        try harness.execute(graph, frameNumber: 1)
+
+        // The unselected gate branch freezes inlet A only; the live inlet keeps
+        // updating and the consumer keeps running every frame.
+        #expect(consumer.executionCount == 2)
+        #expect(consumer.lastA == nil)
+        #expect(consumer.lastB == 42)
+        #expect(live.executionCount == 2)
+    }
+
+    @Test("Consumers of a fully gated branch freeze regardless of pull order")
+    func fullyGatedBranchFreezesAllConsumers() throws
+    {
+        guard let harness = RoutingExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let source = CountingFloatProviderNode(context: harness.context, value: 30)
+        let gate = GateNode(context: harness.context, routeCount: 2, portType: .Float)
+        let passthrough = SwitchNode(context: harness.context, routeCount: 2, portType: .Float)
+        let firstConsumer = CountingFloatConsumerNode(context: harness.context)
+        let secondConsumer = CountingFloatConsumerNode(context: harness.context)
+
+        gate.inputIndex.value = 1        // output 0 is unselected
+        passthrough.inputIndex.value = 0 // routes input 0, fed by the unselected branch
+
+        for node in [source, gate, passthrough, firstConsumer, secondConsumer] as [Node]
+        {
+            graph.addNode(node)
+        }
+
+        source.output.connect(to: gate.port(named: "input", as: NodePort<Float>.self))
+        gate.port(named: "output0", as: NodePort<Float>.self).connect(to: passthrough.port(named: "input0", as: NodePort<Float>.self))
+        passthrough.output.connect(to: firstConsumer.input)
+        passthrough.output.connect(to: secondConsumer.input)
+
+        try harness.execute(graph, frameNumber: 0)
+        try harness.execute(graph, frameNumber: 1)
+
+        // Before declined-pull tracking, the first consumer's abandoned pull left
+        // the intermediate switch stranded in .processing, so whichever consumer
+        // pulled second executed against the never-run switch — behavior depended
+        // purely on pull order. Both must freeze.
+        #expect(firstConsumer.executionCount == 0)
+        #expect(secondConsumer.executionCount == 0)
     }
 
     @Test("Matrix Switch cross-routes each input to its mapped output")

@@ -221,8 +221,9 @@ public class GraphRenderer : ViewRenderer
     /// on-demand path visits by executing the node immediately. `onTraverse`
     /// fires for every node the pull reaches whether or not it runs this pass
     /// (the on-demand path applies pending resizes there); `visit` fires when
-    /// the node should run. Returns false when the node declines the requested
-    /// output port.
+    /// the node should run. Returns false when this pull contributes nothing
+    /// fresh downstream — the node declined the requested output port, or sat
+    /// out the pass because every one of its own upstream pulls declined.
     @discardableResult
     private func pullNode(feedbackCache: GraphRendererFeedbackCache,
                           node: Node,
@@ -239,6 +240,8 @@ public class GraphRenderer : ViewRenderer
         switch feedbackCache.processingState(forNode: node) {
         case .processed, .processing:
             return true
+        case .declined:
+            return false
         case .unprocessed:
             break
         }
@@ -248,20 +251,35 @@ public class GraphRenderer : ViewRenderer
                                          requestedOutputPort: requestedOutputPort,
                                          executionInfo: executionInfo)
 
+        var attemptedPullCount = 0
+        var activePullCount = 0
+
         for inputPort in node.activeInputPorts(requestedOutputPort: requestedOutputPort) {
             for upstreamOutputPort in inputPort.connections where upstreamOutputPort.kind == .Outlet {
                 guard let inputNode = upstreamOutputPort.node else { continue }
 
-                if !pullNode(feedbackCache: feedbackCache,
-                             node: inputNode,
-                             requestedOutputPort: upstreamOutputPort,
-                             executionInfo: executionInfo,
-                             cacheProcessedOutputs: cacheProcessedOutputs,
-                             onTraverse: onTraverse,
-                             visit: visit) {
-                    return false
+                attemptedPullCount += 1
+
+                if pullNode(feedbackCache: feedbackCache,
+                            node: inputNode,
+                            requestedOutputPort: upstreamOutputPort,
+                            executionInfo: executionInfo,
+                            cacheProcessedOutputs: cacheProcessedOutputs,
+                            onTraverse: onTraverse,
+                            visit: visit) {
+                    activePullCount += 1
                 }
             }
+        }
+
+        // A connected node sits out the pass only when every upstream pull
+        // declined; that freeze propagates to its own consumers. One live inlet
+        // keeps the node running — declined inlets simply hold their last value.
+        if attemptedPullCount > 0 && activePullCount == 0 {
+            feedbackCache.setProcessingState(.declined,
+                                             forNode: node,
+                                             executionInfo: executionInfo)
+            return false
         }
 
         onTraverse?(node)

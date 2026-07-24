@@ -19,6 +19,11 @@ internal final class GraphRendererFeedbackCache
     {
         case unprocessed
         case processing
+        /// Visited this pass but sitting it out: every upstream pull declined
+        /// (e.g. all inlets hang off unselected Gate branches). Distinct from
+        /// .processing so an abandoned pull is never mistaken for a satisfied
+        /// node or a feedback back-edge.
+        case declined
         case processed
     }
 
@@ -101,9 +106,9 @@ internal final class GraphRendererFeedbackCache
         
         switch state
         {
-        case .unprocessed:
+        case .unprocessed, .declined:
             return
-            
+
         case .processing:
             self.setFeedbackState(forNode: node,
                                   requestedOutputPort: requestedOutputPort,
