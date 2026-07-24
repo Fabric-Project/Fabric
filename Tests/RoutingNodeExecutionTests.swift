@@ -4,85 +4,6 @@ import Metal
 @testable import Fabric
 import Satin
 
-private struct RoutingExecutionTestHarness
-{
-    let context: Context
-    let renderer: GraphRenderer
-
-    init?()
-    {
-        guard let device = MTLCreateSystemDefaultDevice() else { return nil }
-
-        self.context = Context(
-            device: device,
-            sampleCount: 1,
-            colorPixelFormat: .bgra8Unorm,
-            depthPixelFormat: .depth32Float,
-            stencilPixelFormat: .invalid
-        )
-        self.renderer = GraphRenderer(context: context)
-        self.renderer.resize(size: (width: 64, height: 64), scaleFactor: 1.0)
-    }
-
-    func makeExecutionInfo(frameNumber: Int) -> GraphExecutionInfo
-    {
-        GraphExecutionInfo(
-            timing: GraphExecutionTiming(
-                time: TimeInterval(frameNumber),
-                deltaTime: 0,
-                displayTime: TimeInterval(frameNumber),
-                systemTime: TimeInterval(frameNumber),
-                frameNumber: frameNumber
-            )
-        )
-    }
-
-    func execute(_ graph: Graph, frameNumber: Int = 0) throws
-    {
-        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: context.colorPixelFormat,
-            width: 64,
-            height: 64,
-            mipmapped: false
-        )
-        descriptor.usage = [.renderTarget, .shaderRead]
-
-        guard let texture = context.device.makeTexture(descriptor: descriptor),
-              let commandBuffer = renderer.commandQueue.makeCommandBuffer()
-        else {
-            throw RoutingTestFailure("Unable to create render resources")
-        }
-
-        let renderPassDescriptor = MTLRenderPassDescriptor()
-        renderPassDescriptor.colorAttachments[0].texture = texture
-        renderPassDescriptor.colorAttachments[0].loadAction = .clear
-        renderPassDescriptor.colorAttachments[0].storeAction = .store
-
-        renderer.execute(graph: graph,
-                         executionInfo: makeExecutionInfo(frameNumber: frameNumber),
-                         renderPassDescriptor: renderPassDescriptor,
-                         commandBuffer: commandBuffer)
-
-        commandBuffer.commit()
-        commandBuffer.waitUntilCompleted()
-
-        if let error = commandBuffer.error
-        {
-            throw error
-        }
-    }
-}
-
-private struct RoutingTestFailure: Error, CustomStringConvertible
-{
-    let description: String
-
-    init(_ description: String)
-    {
-        self.description = description
-    }
-}
-
 // Common scaffolding for the counting provider test nodes below. Providers of Float, Int and
 // [String: Int] payloads differ only in their payload type, so a single generic class covers all
 // three (aliased below to keep call sites unchanged). `CountingProviderDefaultValue` supplies the
@@ -246,7 +167,7 @@ struct RoutingNodeExecutionTests
           .disabled("One-frame routing cold-start latency inherent to the pull-based GraphRenderer; see the note at the top of the suite."))
     func switchColdStartRoutesCorrectlyOnFirstFrame() throws
     {
-        guard let harness = RoutingExecutionTestHarness() else { return }
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
 
         let graph = Graph(context: harness.context)
         let index = CountingIntProviderNode(context: harness.context, value: 1)
@@ -276,7 +197,7 @@ struct RoutingNodeExecutionTests
     @Test("Switch only evaluates selected input branch (steady state)")
     func switchOnlyEvaluatesSelectedInputBranch() throws
     {
-        guard let harness = RoutingExecutionTestHarness() else { return }
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
 
         let graph = Graph(context: harness.context)
         let index = CountingIntProviderNode(context: harness.context, value: 1)
@@ -312,7 +233,7 @@ struct RoutingNodeExecutionTests
     @Test("Switch virtual strategy forwards boxed values")
     func switchVirtualStrategyForwardsBoxedValues() throws
     {
-        guard let harness = RoutingExecutionTestHarness() else { return }
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
 
         let graph = Graph(context: harness.context)
         let source = CountingFloatProviderNode(context: harness.context, value: 12)
@@ -339,7 +260,7 @@ struct RoutingNodeExecutionTests
           .disabled("One-frame routing cold-start latency inherent to the pull-based GraphRenderer; see the note at the top of the suite."))
     func gateColdStartRoutesCorrectlyOnFirstFrame() throws
     {
-        guard let harness = RoutingExecutionTestHarness() else { return }
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
 
         let graph = Graph(context: harness.context)
         let index = CountingIntProviderNode(context: harness.context, value: 1)
@@ -371,7 +292,7 @@ struct RoutingNodeExecutionTests
     @Test("Gate only evaluates selected output branch (steady state)")
     func gateOnlyEvaluatesSelectedOutputBranch() throws
     {
-        guard let harness = RoutingExecutionTestHarness() else { return }
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
 
         let graph = Graph(context: harness.context)
         let index = CountingIntProviderNode(context: harness.context, value: 1)
@@ -409,7 +330,7 @@ struct RoutingNodeExecutionTests
     @Test("Gate recovers routing with a connected index (no index-starvation deadlock)")
     func gateRecoversWithConnectedIndex() throws
     {
-        guard let harness = RoutingExecutionTestHarness() else { return }
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
 
         let graph = Graph(context: harness.context)
         let index = CountingIntProviderNode(context: harness.context, value: 1)
@@ -443,7 +364,7 @@ struct RoutingNodeExecutionTests
     @Test("A gated inlet does not stall a consumer's live inlets")
     func gatedInletDoesNotStallSiblingInlets() throws
     {
-        guard let harness = RoutingExecutionTestHarness() else { return }
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
 
         let graph = Graph(context: harness.context)
         let source = CountingFloatProviderNode(context: harness.context, value: 30)
@@ -477,7 +398,7 @@ struct RoutingNodeExecutionTests
     @Test("Consumers of a fully gated branch freeze regardless of pull order")
     func fullyGatedBranchFreezesAllConsumers() throws
     {
-        guard let harness = RoutingExecutionTestHarness() else { return }
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
 
         let graph = Graph(context: harness.context)
         let source = CountingFloatProviderNode(context: harness.context, value: 30)
@@ -513,7 +434,7 @@ struct RoutingNodeExecutionTests
     @Test("Matrix Switch cross-routes each input to its mapped output")
     func matrixSwitchCrossRoutesInputsToOutputs() throws
     {
-        guard let harness = RoutingExecutionTestHarness() else { return }
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
 
         let graph = Graph(context: harness.context)
         let input0 = CountingFloatProviderNode(context: harness.context, value: 10)
@@ -552,7 +473,7 @@ struct RoutingNodeExecutionTests
     @Test("Matrix Switch does not evaluate unrouted inputs and emits nothing for unrouted outputs")
     func matrixSwitchLeavesUnroutedBranchesUnevaluated() throws
     {
-        guard let harness = RoutingExecutionTestHarness() else { return }
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
 
         let graph = Graph(context: harness.context)
         let routed = CountingFloatProviderNode(context: harness.context, value: 10)
@@ -588,7 +509,7 @@ struct RoutingNodeExecutionTests
     @Test("Matrix Switch resolves output collisions by lowest input index")
     func matrixSwitchResolvesCollisionByLowestInputIndex() throws
     {
-        guard let harness = RoutingExecutionTestHarness() else { return }
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
 
         let graph = Graph(context: harness.context)
         let winner = CountingFloatProviderNode(context: harness.context, value: 10)
@@ -619,7 +540,7 @@ struct RoutingNodeExecutionTests
     @Test("Matrix Switch recovers routing with a connected map (no map-starvation deadlock)")
     func matrixSwitchRecoversWithConnectedMap() throws
     {
-        guard let harness = RoutingExecutionTestHarness() else { return }
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
 
         let graph = Graph(context: harness.context)
         let mapProvider = CountingMapProviderNode(context: harness.context, value: ["0": 1, "1": 0])
@@ -654,7 +575,7 @@ struct RoutingNodeExecutionTests
     @Test("Feedback injection follows a Switch route change without a topology change")
     func feedbackInjectionFollowsRouteChange() throws
     {
-        guard let harness = RoutingExecutionTestHarness() else { return }
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
 
         let graph = Graph(context: harness.context)
         let plain = CountingFloatProviderNode(context: harness.context, value: 5)
@@ -702,7 +623,7 @@ struct RoutingNodeExecutionTests
     @Test("Round-tripping a Switch with more than two routes preserves ports and connections")
     func routeCountRoundTripPreservesPortsAndConnections() throws
     {
-        guard let harness = RoutingExecutionTestHarness() else { return }
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
 
         let graph = Graph(context: harness.context)
         let upstream = SwitchNode(context: harness.context, routeCount: 2, portType: .Float)
@@ -734,7 +655,7 @@ struct RoutingNodeExecutionTests
     @Test("Reducing route count removes the stale high-index ports")
     func reducingRouteCountRemovesStalePorts() throws
     {
-        guard let harness = RoutingExecutionTestHarness() else { return }
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
 
         let switchNode = SwitchNode(context: harness.context, routeCount: 4, portType: .Float)
         switchNode.setRouteCount(2)

@@ -4,135 +4,6 @@ import Metal
 @testable import Fabric
 import Satin
 
-private struct GraphExecutionTestHarness {
-    let context: Context
-    let renderer: GraphRenderer
-    let renderWidth: Int
-    let renderHeight: Int
-
-    init?(renderWidth: Int = 320, renderHeight: Int = 180) {
-        guard let device = MTLCreateSystemDefaultDevice() else {
-            return nil
-        }
-
-        self.context = Context(
-            device: device,
-            sampleCount: 1,
-            colorPixelFormat: .bgra8Unorm,
-            depthPixelFormat: .depth32Float,
-            stencilPixelFormat: .invalid
-        )
-        self.renderer = GraphRenderer(context: self.context)
-        self.renderWidth = renderWidth
-        self.renderHeight = renderHeight
-        self.renderer.resize(
-            size: (width: Float(renderWidth), height: Float(renderHeight)),
-            scaleFactor: 1.0
-        )
-    }
-
-    func makeExecutionContext(
-        time: TimeInterval,
-        deltaTime: TimeInterval,
-        systemTime: TimeInterval? = nil,
-        frameNumber: Int
-    ) -> GraphExecutionInfo {
-        GraphExecutionInfo(
-            timing: GraphExecutionTiming(
-                time: time,
-                deltaTime: deltaTime,
-                displayTime: time,
-                systemTime: systemTime ?? time,
-                frameNumber: frameNumber
-            ),
-            iterationInfo: nil,
-            eventInfo: nil
-        )
-    }
-
-    func makeTexture(
-        width: Int = 32,
-        height: Int = 32,
-        pixelFormat: MTLPixelFormat = .bgra8Unorm
-    ) throws -> MTLTexture {
-        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: pixelFormat,
-            width: width,
-            height: height,
-            mipmapped: false
-        )
-        descriptor.usage = [.shaderRead, .renderTarget]
-
-        guard let texture = self.context.device.makeTexture(descriptor: descriptor) else {
-            throw TestFailure("Failed to create test texture")
-        }
-
-        return texture
-    }
-
-    func makeImage(
-        width: Int = 32,
-        height: Int = 32,
-        pixelFormat: MTLPixelFormat = .bgra8Unorm
-    ) throws -> FabricImage {
-        FabricImage.unmanaged(texture: try self.makeTexture(width: width, height: height, pixelFormat: pixelFormat))
-    }
-
-    func render(graph: Graph, executionInfo: GraphExecutionInfo, drawScene: Bool = true) throws {
-        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: self.context.colorPixelFormat,
-            width: self.renderWidth,
-            height: self.renderHeight,
-            mipmapped: false
-        )
-        descriptor.usage = [.renderTarget, .shaderRead]
-
-        guard let colorTexture = self.context.device.makeTexture(descriptor: descriptor) else {
-            throw TestFailure("Failed to create color render target")
-        }
-
-        let renderPassDescriptor = MTLRenderPassDescriptor()
-        renderPassDescriptor.colorAttachments[0].texture = colorTexture
-        renderPassDescriptor.colorAttachments[0].loadAction = .clear
-        renderPassDescriptor.colorAttachments[0].storeAction = .store
-
-        guard let commandBuffer = self.renderer.commandQueue.makeCommandBuffer() else {
-            throw TestFailure("Failed to create command buffer")
-        }
-
-        if drawScene {
-            self.renderer.executeAndDraw(
-                graph: graph,
-                executionInfo: executionInfo,
-                renderPassDescriptor: renderPassDescriptor,
-                commandBuffer: commandBuffer
-            )
-        } else {
-            self.renderer.execute(
-                graph: graph,
-                executionInfo: executionInfo,
-                renderPassDescriptor: renderPassDescriptor,
-                commandBuffer: commandBuffer
-            )
-        }
-
-        commandBuffer.commit()
-        commandBuffer.waitUntilCompleted()
-
-        if let error = commandBuffer.error {
-            throw error
-        }
-    }
-}
-
-private struct TestFailure: Error, CustomStringConvertible {
-    let description: String
-
-    init(_ description: String) {
-        self.description = description
-    }
-}
-
 private func publish(_ port: Fabric.Port, in graph: Graph) {
     port.published = true
     graph.rebuildPublishedParameterGroup()
@@ -140,7 +11,7 @@ private func publish(_ port: Fabric.Port, in graph: Graph) {
 
 private func floatPort(named name: String, kind: PortKind, on node: Node) throws -> NodePort<Float> {
     guard let port = node.ports.first(where: { $0.name == name && $0.kind == kind }) as? NodePort<Float> else {
-        throw TestFailure("Missing Float port named \(name)")
+        throw GraphExecutionTestFailure("Missing Float port named \(name)")
     }
 
     return port
@@ -148,7 +19,7 @@ private func floatPort(named name: String, kind: PortKind, on node: Node) throws
 
 private func intPort(named name: String, kind: PortKind, on node: Node) throws -> NodePort<Int> {
     guard let port = node.ports.first(where: { $0.name == name && $0.kind == kind }) as? NodePort<Int> else {
-        throw TestFailure("Missing Int port named \(name)")
+        throw GraphExecutionTestFailure("Missing Int port named \(name)")
     }
 
     return port
@@ -156,7 +27,7 @@ private func intPort(named name: String, kind: PortKind, on node: Node) throws -
 
 private func imagePort(named name: String, kind: PortKind, on node: Node) throws -> NodePort<FabricImage> {
     guard let port = node.ports.first(where: { $0.name == name && $0.kind == kind }) as? NodePort<FabricImage> else {
-        throw TestFailure("Missing FabricImage port named \(name)")
+        throw GraphExecutionTestFailure("Missing FabricImage port named \(name)")
     }
 
     return port
@@ -188,7 +59,7 @@ private final class RecursiveArrayDictionaryPortNode: Node {
 
 private func requireValue<T>(_ value: T?, _ message: String) throws -> T {
     guard let value else {
-        throw TestFailure(message)
+        throw GraphExecutionTestFailure(message)
     }
 
     return value
@@ -384,7 +255,7 @@ struct GraphExecutionTests {
         harness.renderer.stopExecution(graph: graph)
 
         guard let light = node.getObject() as? SpotLight else {
-            throw TestFailure("Spot light node did not vend a SpotLight object")
+            throw GraphExecutionTestFailure("Spot light node did not vend a SpotLight object")
         }
 
         expectEqual(light.color, simd_float3(0.25, 0.5, 0.75))
@@ -419,7 +290,7 @@ struct GraphExecutionTests {
         harness.renderer.stopExecution(graph: graph)
 
         guard let light = node.getObject() as? SpotLight else {
-            throw TestFailure("Spot light node did not vend a SpotLight object")
+            throw GraphExecutionTestFailure("Spot light node did not vend a SpotLight object")
         }
 
         #expect(light.projectionTexture === texture)
@@ -564,7 +435,7 @@ struct GraphExecutionTests {
         subgraphNode.subGraph.rebuildPublishedParameterGroup()
 
         guard let proxyPort = subgraphNode.ports.first(where: { $0.name == "Recursive" && $0.kind == .Outlet }) else {
-            throw TestFailure("Missing recursive collection proxy port")
+            throw GraphExecutionTestFailure("Missing recursive collection proxy port")
         }
 
         #expect(proxyPort.portType == RecursiveArrayDictionaryPortNode.recursivePortType)
@@ -739,7 +610,7 @@ struct GraphExecutionTests {
         #expect(decodedGraph.nodes.count == 3)
 
         guard let decodedAddNode = decodedGraph.nodes.compactMap({ $0 as? NumberBinaryOperator }).first else {
-            throw TestFailure("Expected decoded NumberBinaryOperator")
+            throw GraphExecutionTestFailure("Expected decoded NumberBinaryOperator")
         }
 
         #expect(decodedAddNode.inputNumber1.connections.count == 1)
@@ -785,7 +656,7 @@ struct GraphExecutionTests {
         let decodedGraph = try roundTripGraphToTemporaryFile(graph, context: harness.context)
 
         guard let decodedSubgraph = decodedGraph.nodes.compactMap({ $0 as? SubgraphNode }).first else {
-            throw TestFailure("Expected decoded SubgraphNode")
+            throw GraphExecutionTestFailure("Expected decoded SubgraphNode")
         }
 
         let decodedProxyInput = try floatPort(named: "Number A", kind: .Inlet, on: decodedSubgraph)
@@ -843,7 +714,7 @@ struct GraphExecutionTests {
         let decodedGraph = try roundTripGraphToTemporaryFile(graph, context: harness.context)
 
         guard let decodedOuterSubgraph = decodedGraph.nodes.compactMap({ $0 as? SubgraphNode }).first else {
-            throw TestFailure("Expected decoded outer SubgraphNode")
+            throw GraphExecutionTestFailure("Expected decoded outer SubgraphNode")
         }
 
         let decodedOuterProxyInput = try floatPort(named: "Number A", kind: .Inlet, on: decodedOuterSubgraph)
@@ -897,7 +768,7 @@ struct GraphExecutionTests {
         let decodedGraph = try roundTripGraphToTemporaryFile(graph, context: harness.context)
 
         guard let decodedDeferred = decodedGraph.nodes.compactMap({ $0 as? DeferredSubgraphNode }).first else {
-            throw TestFailure("Expected decoded DeferredSubgraphNode")
+            throw GraphExecutionTestFailure("Expected decoded DeferredSubgraphNode")
         }
 
         #expect(decodedDeferred.inputWidth.value == 48)
@@ -945,7 +816,7 @@ struct GraphExecutionTests {
         let decodedGraph = try roundTripGraphToTemporaryFile(graph, context: harness.context)
 
         guard let decodedDeferred = decodedGraph.nodes.compactMap({ $0 as? DeferredSubgraphNode }).first else {
-            throw TestFailure("Expected decoded DeferredSubgraphNode")
+            throw GraphExecutionTestFailure("Expected decoded DeferredSubgraphNode")
         }
 
         #expect(decodedDeferred.deferredMRTEnabled)
