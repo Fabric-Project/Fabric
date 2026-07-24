@@ -9,7 +9,7 @@ import SwiftUI
 
 struct NodeTitleView: View
 {
-    @Bindable var nodeViewModel: NodeViewModel
+    var nodeViewModel: NodeViewModel
 
     @State private var renaming: Bool = false
     @State private var renamingText: String = ""
@@ -65,7 +65,7 @@ struct NodeTitleView: View
                             renaming = false
                         }
 
-                    Text(" \(typeName)")
+                    Text(verbatim: " \(typeName)")
                         .font(.system(size: 9))
                         .bold()
                         .foregroundStyle(secondaryColor)
@@ -73,9 +73,12 @@ struct NodeTitleView: View
             }
             else if hasPrimaryLabel
             {
+                // Text(verbatim:) + concatenation: these are data strings, not UI
+                // copy — the literal-interpolation initializer would do a doomed
+                // localization lookup on every render.
                 let primary = Text(primaryLabel).foregroundStyle(.white)
-                let secondary = Text(" \(typeName)").foregroundStyle(secondaryColor)
-                Text("\(primary)\(secondary)")
+                let secondary = Text(verbatim: " \(typeName)").foregroundStyle(secondaryColor)
+                (primary + secondary)
                     .font(.system(size: 9))
                     .bold()
             }
