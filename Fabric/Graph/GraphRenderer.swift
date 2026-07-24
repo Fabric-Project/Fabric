@@ -234,6 +234,22 @@ public class GraphRenderer : ViewRenderer
                           visit: (Node) -> Void) -> Bool
     {
         guard node.shouldEvaluate(requestedOutputPort: requestedOutputPort) else {
+            // The requested output is inactive (an unselected Gate branch), so
+            // this pull contributes nothing downstream — but the node itself
+            // must stay alive so its control inputs (Index, map) keep updating
+            // and it can select a different route later. Without this, a Gate
+            // whose selected output has no consumer starves its own Index chain
+            // and can never switch away — the starvation class fixed for Matrix
+            // Switch in e776d909, closed here for any node that declines a port.
+            if requestedOutputPort != nil {
+                pullNode(feedbackCache: feedbackCache,
+                         node: node,
+                         requestedOutputPort: nil,
+                         executionInfo: executionInfo,
+                         cacheProcessedOutputs: cacheProcessedOutputs,
+                         onTraverse: onTraverse,
+                         visit: visit)
+            }
             return false
         }
 

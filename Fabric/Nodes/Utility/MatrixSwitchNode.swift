@@ -21,12 +21,11 @@ import Satin
 /// unrouted inputs are never evaluated. An output with no source emits nothing —
 /// it holds its previous value, so its consumers read a frozen value.
 ///
-/// Unlike [[GateNode]], this node never gates itself off: it always evaluates so
-/// its (typically connected) map input is always pulled. Gating the node off on an
-/// all-unrouted map would starve the map input — it would never populate — and the
-/// node could never recover. The cost is that an unrouted output's consumer still
-/// runs (reading the frozen value) rather than being skipped as Gate skips its
-/// unselected branches.
+/// Unlike [[GateNode]], this node never declines a pull: an unrouted output's
+/// consumer still runs (reading the frozen value) rather than being skipped as
+/// Gate skips consumers of unselected branches. Neither node can starve its
+/// control input — when a requested output declines, the renderer still pulls
+/// the node itself so a connected map/Index keeps updating.
 public final class MatrixSwitchNode: RoutingNodeBase
 {
     override public class var name: String { "Matrix Switch" }

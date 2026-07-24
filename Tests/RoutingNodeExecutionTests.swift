@@ -485,6 +485,40 @@ struct RoutingNodeExecutionTests
         #expect(activeConsumer.lastValue == 30)
     }
 
+    @Test("Gate recovers routing with a connected index (no index-starvation deadlock)")
+    func gateRecoversWithConnectedIndex() throws
+    {
+        guard let harness = RoutingExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let index = CountingIntProviderNode(context: harness.context, value: 1)
+        let source = CountingFloatProviderNode(context: harness.context, value: 30)
+        let gate = GateNode(context: harness.context, routeCount: 2, portType: .Float)
+        let consumer = CountingFloatConsumerNode(context: harness.context)
+
+        for node in [index, source, gate, consumer] as [Node]
+        {
+            graph.addNode(node)
+        }
+
+        index.output.connect(to: gate.inputIndex)
+        source.output.connect(to: gate.port(named: "input", as: NodePort<Float>.self))
+        // Only output 1 has a consumer. On cold start the index port is empty, so
+        // route 0 — which nothing consumes — is selected, and every pull arrives
+        // via the unselected output 1.
+        gate.port(named: "output1", as: NodePort<Float>.self).connect(to: consumer.input)
+
+        try harness.execute(graph, frameNumber: 0)
+        try harness.execute(graph, frameNumber: 1)
+
+        // A declined pull must still keep the gate's index chain alive, or the
+        // index provider never runs, route 0 stays selected forever, and the gate
+        // deadlocks — the starvation class fixed for Matrix Switch in e776d909.
+        #expect(index.executionCount == 2)
+        #expect(consumer.executionCount == 1)
+        #expect(consumer.lastValue == 30)
+    }
+
     @Test("A gated inlet does not stall a consumer's live inlets")
     func gatedInletDoesNotStallSiblingInlets() throws
     {
