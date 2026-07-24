@@ -48,13 +48,12 @@ public final class SwitchNode: RoutingNode
         applyPortOrder(orderedPortNames)
     }
 
-    public override func activeInputPorts(requestedOutputPort: Port?) -> [Port]
+    public override func respondToPull(requestedOutputPort: Port?) -> Node.PullResponse
     {
-        guard requestedOutputPort == nil || requestedOutputPort?.id == output.id,
-              let selectedInput: Port = findPort(named: Self.inputPortName(selectedRouteIndex()))
-        else { return [] }
+        guard let selectedInput: Port = findPort(named: Self.inputPortName(selectedRouteIndex()))
+        else { return .evaluate(pulling: [inputIndex]) }
 
-        return [inputIndex, selectedInput]
+        return .evaluate(pulling: [inputIndex, selectedInput])
     }
 
     override public func execute(renderer: GraphRenderer,

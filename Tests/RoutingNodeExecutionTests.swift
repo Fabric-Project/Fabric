@@ -143,7 +143,7 @@ private func publish(_ port: Fabric.Port, in graph: Graph)
 struct RoutingNodeExecutionTests
 {
     // Routing selection has a one-frame cold-start latency. A routing node picks its
-    // active branch in activeInputPorts()/shouldEvaluate() from its index/map input,
+    // active branch in respondToPull(requestedOutputPort:) from its index/map input,
     // but that control input is itself pulled lazily within the same pass — so on the
     // very first frame after creation the control port is still empty (index nil -> 0,
     // map empty) and the wrong branch is chosen. It self-corrects on the next frame,
@@ -359,6 +359,39 @@ struct RoutingNodeExecutionTests
         #expect(index.executionCount == 2)
         #expect(consumer.executionCount == 1)
         #expect(consumer.lastValue == 30)
+    }
+
+    @Test("A declined pull keeps the control chain alive without evaluating the data input")
+    func declinedPullLeavesDataInputLazy() throws
+    {
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
+
+        let graph = Graph(context: harness.context)
+        let index = CountingIntProviderNode(context: harness.context, value: 0)
+        let source = CountingFloatProviderNode(context: harness.context, value: 30)
+        let gate = GateNode(context: harness.context, routeCount: 2, portType: .Float)
+        let consumer = CountingFloatConsumerNode(context: harness.context)
+
+        for node in [index, source, gate, consumer] as [Node]
+        {
+            graph.addNode(node)
+        }
+
+        index.output.connect(to: gate.inputIndex)
+        source.output.connect(to: gate.port(named: "input", as: NodePort<Float>.self))
+        // The index selects route 0 every frame, so the sole consumer — on
+        // output 1 — declines every pull.
+        gate.port(named: "output1", as: NodePort<Float>.self).connect(to: consumer.input)
+
+        try harness.execute(graph, frameNumber: 0)
+        try harness.execute(graph, frameNumber: 1)
+
+        // A declined pull walks only the keepAlive ports the gate names (its
+        // Index chain); the data input feeds no consumed route, so its provider
+        // must stay lazy rather than being evaluated for a value nobody reads.
+        #expect(index.executionCount == 2)
+        #expect(source.executionCount == 0)
+        #expect(consumer.executionCount == 0)
     }
 
     @Test("A gated inlet does not stall a consumer's live inlets")
@@ -600,10 +633,19 @@ struct RoutingNodeExecutionTests
         loopback.output.send(9, force: true)
         cache.cacheProcessedNode(loopback, executionInfo: harness.makeExecutionInfo(frameNumber: 0))
 
+        // The renderer passes each pull's active inlets into the cache, taken
+        // from the node's PullResponse at that moment; do the same here.
+        func pulledInlets() throws -> [Fabric.Port]
+        {
+            guard case .evaluate(let pulling) = switchNode.respondToPull(requestedOutputPort: switchNode.output)
+            else { throw GraphExecutionTestFailure("Switch declined its own output pull") }
+            return pulling
+        }
+
         let frame1 = harness.makeExecutionInfo(frameNumber: 1)
         cache.resetCacheFor(executionInfo: frame1)
         switchNode.inputIndex.value = 0
-        cache.setProcessingState(.processing, forNode: switchNode, requestedOutputPort: switchNode.output, executionInfo: frame1)
+        cache.setProcessingState(.processing, forNode: switchNode, activeInputPorts: try pulledInlets(), executionInfo: frame1)
         loopback.output.send(9, force: true)
         cache.cacheProcessedNode(loopback, executionInfo: frame1)
 
@@ -613,7 +655,7 @@ struct RoutingNodeExecutionTests
         let selectedInlet = switchNode.port(named: "input1", as: NodePort<Float>.self)
         selectedInlet.value = 123
         cache.setProcessingState(.processing, forNode: loopback, executionInfo: frame2)
-        cache.setProcessingState(.processing, forNode: switchNode, requestedOutputPort: switchNode.output, executionInfo: frame2)
+        cache.setProcessingState(.processing, forNode: switchNode, activeInputPorts: try pulledInlets(), executionInfo: frame2)
 
         // With candidates cached from the input-0 selection, the injection missed
         // the newly selected inlet and it kept its sentinel value.

@@ -86,15 +86,28 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     public private(set) var inputNodes:[Node] = []
     public private(set) var outputNodes:[Node]  = []
 
-    /// Whether this node can satisfy a pull from the requested output port.
-    /// Nodes with conditional outputs can return false to keep inactive branches
-    /// out of the execution plan.
-    public func shouldEvaluate(requestedOutputPort: Port?) -> Bool { true }
+    /// How a node answers the renderer's pull for one of its output ports.
+    public enum PullResponse
+    {
+        /// Run this node this pass, after pulling the upstream nodes feeding
+        /// these input ports.
+        case evaluate(pulling: [Port])
 
-    /// Input ports the renderer should pull for the requested output port.
-    /// Default graph execution depends on every connected inlet; routing nodes
-    /// override this to expose only their active data/control dependencies.
-    public func activeInputPorts(requestedOutputPort: Port?) -> [Port] { inputPorts() }
+        /// The requested output port is inactive (an unselected route): the
+        /// node does not run for this pull and the port's consumers see a
+        /// frozen value. The renderer still pulls the upstream nodes feeding
+        /// `keepAlive` — the control inputs (Index, map) whose values let the
+        /// node select a different route later. A node must never decline a
+        /// nil requested port.
+        case declined(keepAlive: [Port])
+    }
+
+    /// Answer a pull for `requestedOutputPort` (nil when the pull is not for a
+    /// specific port, e.g. a consumer root). The default evaluates
+    /// unconditionally, depending on every inlet; routing nodes override this
+    /// to expose only their active branch's data/control dependencies, or to
+    /// decline pulls for unselected outputs.
+    public func respondToPull(requestedOutputPort: Port?) -> PullResponse { .evaluate(pulling: inputPorts()) }
 
     public var nodeSize:CGSize { self.computeNodeSize() }
 

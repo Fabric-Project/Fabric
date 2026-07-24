@@ -19,6 +19,12 @@ internal final class GraphRendererFeedbackCache
     {
         case unprocessed
         case processing
+        /// Declined a pull for an unselected output and had its keep-alive
+        /// control inputs pulled. Guards that walk to once per pass and
+        /// terminates control chains that cycle back into another unselected
+        /// output. Unlike .declined it is not final: a later pull for a live
+        /// output upgrades the node to full evaluation.
+        case keepAliveWalked
         /// Visited this pass but sitting it out: every upstream pull declined
         /// (e.g. all inlets hang off unselected Gate branches). Distinct from
         /// .processing so an abandoned pull is never mistaken for a satisfied
@@ -37,7 +43,6 @@ internal final class GraphRendererFeedbackCache
 
     private struct FeedbackCandidate
     {
-        let inlet: Port
         let upstreamOutlet: Port
         let upstreamNodeID: UUID
     }
@@ -92,23 +97,22 @@ internal final class GraphRendererFeedbackCache
     func setProcessingState(
         _ state: NodeProcessingState,
         forNode node:Node,
-        requestedOutputPort: Port? = nil,
+        activeInputPorts: [Port] = [],
         executionInfo:GraphExecutionInfo,
         cacheProcessedOutputs: Bool = true
     )
     {
         nodeProcessingStateCache[node.id] = state
-        
+
         switch state
         {
-        case .unprocessed, .declined:
+        case .unprocessed, .keepAliveWalked, .declined:
             return
 
         case .processing:
-            self.setFeedbackState(forNode: node,
-                                  requestedOutputPort: requestedOutputPort,
+            self.setFeedbackState(activeInputPorts: activeInputPorts,
                                   executionInfo: executionInfo)
-            
+
         case .processed where cacheProcessedOutputs:
             self.cacheProcessedNode(node, executionInfo: executionInfo)
 
@@ -116,37 +120,32 @@ internal final class GraphRendererFeedbackCache
             return
         }
     }
-        
-    private func setFeedbackState(forNode node:Node,
-                                  requestedOutputPort: Port?,
+
+    private func setFeedbackState(activeInputPorts: [Port],
                                   executionInfo:GraphExecutionInfo)
     {
         guard !previousFrameCache.isEmpty else { return }
 
         let previousFrame = executionInfo.timing.frameNumber - 1
 
-        // Inject cached previous-frame values for back-edges (upstream node is currently .processing)
-        for candidate in feedbackCandidates(forNode: node, requestedOutputPort: requestedOutputPort)
+        // Inject cached previous-frame values for back-edges (upstream node is
+        // currently .processing). The active-inlet set can follow runtime
+        // routing values, so the renderer passes each pull's inlets afresh;
+        // only the per-inlet upstream pairing is cached.
+        for inlet in activeInputPorts
         {
+            guard let candidate = feedbackCandidate(forInlet: inlet) else { continue }
+
             if nodeProcessingStateCache[candidate.upstreamNodeID, default: .unprocessed] == .processing
             {
                 let key = PortCacheKey(portID: candidate.upstreamOutlet.id, frameNumber: previousFrame)
                 if let cached = previousFrameCache[key] // PortValue?
                 {
                     // This is the critical part: make the inlet read last frame instead of recursing
-                    candidate.inlet.restoreValue(from: cached)
+                    inlet.restoreValue(from: cached)
                 }
-//                print("GraphRendererFeedbackCache: setFeedbackState: \(graphID) node: \(node.name) inlet port: \(candidate.inlet.name)")
             }
         }
-    }
-
-    private func feedbackCandidates(forNode node: Node, requestedOutputPort: Port?) -> [FeedbackCandidate]
-    {
-        // The active-inlet *set* can depend on runtime routing values (Index /
-        // map), so it is queried fresh every time; only the per-inlet upstream
-        // pairing below is cached.
-        node.activeInputPorts(requestedOutputPort: requestedOutputPort).compactMap { feedbackCandidate(forInlet: $0) }
     }
 
     private func feedbackCandidate(forInlet inlet: Port) -> FeedbackCandidate?
@@ -162,7 +161,6 @@ internal final class GraphRendererFeedbackCache
            let upstreamNode = upstreamOutlet.node
         {
             candidate = FeedbackCandidate(
-                inlet: inlet,
                 upstreamOutlet: upstreamOutlet,
                 upstreamNodeID: upstreamNode.id
             )

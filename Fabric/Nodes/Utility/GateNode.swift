@@ -22,10 +22,16 @@ public final class GateNode: RoutingNode
 
     public var input: Port { port(named: Self.inputPortName) }
 
-    public override func shouldEvaluate(requestedOutputPort: Port?) -> Bool
+    public override func respondToPull(requestedOutputPort: Port?) -> Node.PullResponse
     {
-        guard let requestedOutputPort else { return true }
-        return requestedOutputPort.id == selectedOutputPort()?.id
+        if let requestedOutputPort, requestedOutputPort.id != selectedOutputPort()?.id
+        {
+            // Unselected branch: nothing to contribute, but a connected Index
+            // must keep updating so the gate can switch routes.
+            return .declined(keepAlive: [inputIndex])
+        }
+
+        return .evaluate(pulling: [inputIndex, input])
     }
 
     public override func rebuildPorts(forStrategy strategy: String)
@@ -52,12 +58,6 @@ public final class GateNode: RoutingNode
 
         let orderedPortNames = ["inputIndex", Self.inputPortName] + (0..<routeCount).map(Self.outputPortName)
         applyPortOrder(orderedPortNames)
-    }
-
-    public override func activeInputPorts(requestedOutputPort: Port?) -> [Port]
-    {
-        guard shouldEvaluate(requestedOutputPort: requestedOutputPort) else { return [] }
-        return [inputIndex, input]
     }
 
     override public func execute(renderer: GraphRenderer,

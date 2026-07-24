@@ -222,8 +222,10 @@ public class GraphRenderer : ViewRenderer
     /// fires for every node the pull reaches whether or not it runs this pass
     /// (the on-demand path applies pending resizes there); `visit` fires when
     /// the node should run. Returns false when this pull contributes nothing
-    /// fresh downstream — the node declined the requested output port, or sat
-    /// out the pass because every one of its own upstream pulls declined.
+    /// fresh downstream — the node declined the requested output port (its
+    /// keep-alive control inputs are still pulled, at most once per pass, so it
+    /// can select a different route later), or sat out the pass because every
+    /// one of its own upstream pulls declined.
     @discardableResult
     private func pullNode(feedbackCache: GraphRendererFeedbackCache,
                           node: Node,
@@ -233,82 +235,113 @@ public class GraphRenderer : ViewRenderer
                           onTraverse: ((Node) -> Void)?,
                           visit: (Node) -> Void) -> Bool
     {
-        guard node.shouldEvaluate(requestedOutputPort: requestedOutputPort) else {
-            // The requested output is inactive (an unselected Gate branch), so
-            // this pull contributes nothing downstream — but the node itself
-            // must stay alive so its control inputs (Index, map) keep updating
-            // and it can select a different route later. Without this, a Gate
-            // whose selected output has no consumer starves its own Index chain
-            // and can never switch away — the starvation class fixed for Matrix
-            // Switch in e776d909, closed here for any node that declines a port.
-            if requestedOutputPort != nil {
-                pullNode(feedbackCache: feedbackCache,
-                         node: node,
-                         requestedOutputPort: nil,
-                         executionInfo: executionInfo,
-                         cacheProcessedOutputs: cacheProcessedOutputs,
-                         onTraverse: onTraverse,
-                         visit: visit)
-            }
-            return false
-        }
-
-        switch feedbackCache.processingState(forNode: node) {
-        case .processed, .processing:
-            return true
-        case .declined:
-            return false
-        case .unprocessed:
-            break
-        }
-
-        feedbackCache.setProcessingState(.processing,
-                                         forNode: node,
-                                         requestedOutputPort: requestedOutputPort,
-                                         executionInfo: executionInfo)
-
-        var attemptedPullCount = 0
-        var activePullCount = 0
-
-        for inputPort in node.activeInputPorts(requestedOutputPort: requestedOutputPort) {
-            for upstreamOutputPort in inputPort.connections where upstreamOutputPort.kind == .Outlet {
-                guard let inputNode = upstreamOutputPort.node else { continue }
-
-                attemptedPullCount += 1
-
-                if pullNode(feedbackCache: feedbackCache,
-                            node: inputNode,
-                            requestedOutputPort: upstreamOutputPort,
-                            executionInfo: executionInfo,
-                            cacheProcessedOutputs: cacheProcessedOutputs,
-                            onTraverse: onTraverse,
-                            visit: visit) {
-                    activePullCount += 1
+        switch node.respondToPull(requestedOutputPort: requestedOutputPort) {
+        case .declined(let keepAlivePorts):
+            // Unselected route: nothing flows downstream from this pull, but
+            // the node's control inputs (Index, map) must keep updating or it
+            // could never select a different route — a Gate whose selected
+            // output has no consumer would starve its own Index chain, the
+            // class fixed for Matrix Switch in e776d909. The node names those
+            // inputs as keepAlive; walk them once per pass, marked by
+            // .keepAliveWalked, which also terminates control chains that
+            // cycle back into another unselected output of this node.
+            if feedbackCache.processingState(forNode: node) == .unprocessed {
+                feedbackCache.setProcessingState(.keepAliveWalked,
+                                                 forNode: node,
+                                                 executionInfo: executionInfo)
+                for inputPort in keepAlivePorts {
+                    pullUpstreamNodes(of: inputPort,
+                                      feedbackCache: feedbackCache,
+                                      executionInfo: executionInfo,
+                                      cacheProcessedOutputs: cacheProcessedOutputs,
+                                      onTraverse: onTraverse,
+                                      visit: visit)
                 }
             }
-        }
-
-        // A connected node sits out the pass only when every upstream pull
-        // declined; that freeze propagates to its own consumers. One live inlet
-        // keeps the node running — declined inlets simply hold their last value.
-        if attemptedPullCount > 0 && activePullCount == 0 {
-            feedbackCache.setProcessingState(.declined,
-                                             forNode: node,
-                                             executionInfo: executionInfo)
             return false
-        }
 
-        onTraverse?(node)
+        case .evaluate(let pullingPorts):
+            switch feedbackCache.processingState(forNode: node) {
+            case .processed, .processing:
+                return true
+            case .declined:
+                return false
+            case .unprocessed, .keepAliveWalked:
+                break
+            }
 
-        if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider {
-            visit(node)
-            feedbackCache.setProcessingState(.processed,
+            feedbackCache.setProcessingState(.processing,
                                              forNode: node,
-                                             executionInfo: executionInfo,
-                                             cacheProcessedOutputs: cacheProcessedOutputs)
+                                             activeInputPorts: pullingPorts,
+                                             executionInfo: executionInfo)
+
+            var attemptedPullCount = 0
+            var activePullCount = 0
+
+            for inputPort in pullingPorts {
+                let pulled = pullUpstreamNodes(of: inputPort,
+                                               feedbackCache: feedbackCache,
+                                               executionInfo: executionInfo,
+                                               cacheProcessedOutputs: cacheProcessedOutputs,
+                                               onTraverse: onTraverse,
+                                               visit: visit)
+                attemptedPullCount += pulled.attempted
+                activePullCount += pulled.active
+            }
+
+            // A connected node sits out the pass only when every upstream pull
+            // declined; that freeze propagates to its own consumers. One live inlet
+            // keeps the node running — declined inlets simply hold their last value.
+            if attemptedPullCount > 0 && activePullCount == 0 {
+                feedbackCache.setProcessingState(.declined,
+                                                 forNode: node,
+                                                 executionInfo: executionInfo)
+                return false
+            }
+
+            onTraverse?(node)
+
+            if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider {
+                visit(node)
+                feedbackCache.setProcessingState(.processed,
+                                                 forNode: node,
+                                                 executionInfo: executionInfo,
+                                                 cacheProcessedOutputs: cacheProcessedOutputs)
+            }
+
+            return true
+        }
+    }
+
+    /// Pulls the node behind every upstream outlet connected to `inputPort`.
+    @discardableResult
+    private func pullUpstreamNodes(of inputPort: Port,
+                                   feedbackCache: GraphRendererFeedbackCache,
+                                   executionInfo: GraphExecutionInfo,
+                                   cacheProcessedOutputs: Bool,
+                                   onTraverse: ((Node) -> Void)?,
+                                   visit: (Node) -> Void) -> (attempted: Int, active: Int)
+    {
+        var attempted = 0
+        var active = 0
+
+        for upstreamOutputPort in inputPort.connections where upstreamOutputPort.kind == .Outlet {
+            guard let upstreamNode = upstreamOutputPort.node else { continue }
+
+            attempted += 1
+
+            if pullNode(feedbackCache: feedbackCache,
+                        node: upstreamNode,
+                        requestedOutputPort: upstreamOutputPort,
+                        executionInfo: executionInfo,
+                        cacheProcessedOutputs: cacheProcessedOutputs,
+                        onTraverse: onTraverse,
+                        visit: visit) {
+                active += 1
+            }
         }
 
-        return true
+        return (attempted, active)
     }
 
     // MARK: - On-demand graph evaluation (for exporters and subgraph callers)
