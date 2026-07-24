@@ -778,6 +778,38 @@ struct RoutingNodeExecutionTests
         #expect(selectedInlet.value == 9)
     }
 
+    @Test("Round-tripping a Switch with more than two routes preserves ports and connections")
+    func routeCountRoundTripPreservesPortsAndConnections() throws
+    {
+        guard let harness = RoutingExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let upstream = SwitchNode(context: harness.context, routeCount: 2, portType: .Float)
+        let switchNode = SwitchNode(context: harness.context, routeCount: 4, portType: .Float)
+
+        graph.addNode(upstream)
+        graph.addNode(switchNode)
+
+        upstream.output.connect(to: switchNode.port(named: "input3", as: NodePort<Float>.self))
+        let savedInput3ID = switchNode.port(named: "input3", as: NodePort<Float>.self).id
+
+        let data = try JSONEncoder().encode(graph)
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: harness.context)
+        let decodedGraph = try decoder.decode(Graph.self, from: data)
+
+        let decodedSwitch = try #require(decodedGraph.nodes.first(where: { $0.id == switchNode.id }) as? SwitchNode)
+        #expect(decodedSwitch.routeCount == 4)
+
+        // The decode must rebuild ports with the saved route count in place —
+        // otherwise the high-index ports are torn down and recreated with fresh
+        // UUIDs, and the graph's UUID-keyed connection restore silently drops
+        // everything wired to routes >= 2.
+        let decodedInput3 = try #require(decodedSwitch.findPort(named: "input3", as: NodePort<Float>.self))
+        #expect(decodedInput3.id == savedInput3ID)
+        #expect(decodedInput3.connections.count == 1)
+    }
+
     @Test("Routing nodes are registered")
     func routingNodesAreRegistered()
     {

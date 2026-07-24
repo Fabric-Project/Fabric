@@ -50,13 +50,17 @@ public class RoutingNodeBase: TypeAgnosticNode
 
     public required init(from decoder: any Decoder) throws
     {
-        try super.init(from: decoder)
-
+        // Decode before super.init — StrategyNode.init(from:) dispatches
+        // rebuildPorts to this class, which must see the saved route count or it
+        // removes the decoded high-index ports and recreates them with fresh
+        // UUIDs, breaking the graph's UUID-keyed connection restore. Same
+        // pattern as StrategyNode's own strategy decode.
         let container = try decoder.container(keyedBy: RoutingCodingKeys.self)
         routeCount = Self.clampedRouteCount(
             try container.decodeIfPresent(Int.self, forKey: .routeCount) ?? routingNodeMinimumRouteCount
         )
-        rebuildPorts(forStrategy: strategy)
+
+        try super.init(from: decoder)
     }
 
     public override func encode(to encoder: Encoder) throws
