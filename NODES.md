@@ -382,6 +382,7 @@ Array nodes are implemented as Swift Generics, and can work with any of the abov
 - [x] First Item
 - [x] Last Item
 - [x] Item at Index
+- [x] Array Sequencer
 - [x] Replace Item At Index
 - [x] Poly Line Simplification ( Simplification of Array of Vector 2 Points via Ramer–Douglas–Peucker algo)
 - [ ] Multiplexer

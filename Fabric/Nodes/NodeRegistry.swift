@@ -451,6 +451,7 @@ public class NodeRegistry {
         ArrayFirstValueNode.self,
         ArrayLastValueNode.self,
         ArrayIndexValueNode.self,
+        ArraySequencerNode.self,
         ArrayAppendNode.self,
         ArrayReplaceValueAtIndexNode.self,
         ArraySplitAtIndexNode.self,
