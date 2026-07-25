@@ -58,10 +58,11 @@ public final class TextFileLoaderNode : Node, NodeFileLoadingProtocol
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputFilePathParam.valueDidChange
         {
-            self.loadStringFromURL()
+            try self.loadStringFromURL()
             
             if let string = self.string
             {
@@ -75,18 +76,40 @@ public final class TextFileLoaderNode : Node, NodeFileLoadingProtocol
         }
     }
     
-    private func loadStringFromURL()
+    private func loadStringFromURL() throws
     {
         if let path = self.inputFilePathParam.value,
            path.isEmpty == false && self.url != URL(string: path)
         {
-            self.url = URL(string: path)
-            
-            if FileManager.default.fileExists(atPath: self.url!.standardizedFileURL.path(percentEncoded: false) )
+            guard let url = URL(string: path) else
             {
-                self.string = try? String(contentsOfFile: self.url!.path, encoding: .utf8)
+                throw FabricError(.execution(.fileNotFound),
+                                  severity: .recoverable,
+                                  message: "Text file path is invalid: \(path)")
+            }
+
+            self.url = url
+
+            guard FileManager.default.fileExists(atPath: url.standardizedFileURL.path(percentEncoded: false)) else
+            {
+                self.string = nil
+                throw FabricError(.execution(.fileNotFound),
+                                  severity: .recoverable,
+                                  message: "Text file not found: \(url.path)")
+            }
+
+            do
+            {
+                self.string = try String(contentsOfFile: url.path, encoding: .utf8)
+            }
+            catch
+            {
+                self.string = nil
+                throw FabricError(.execution(.failed),
+                                  severity: .recoverable,
+                                  message: "Could not load text file: \(url.path)",
+                                  underlyingError: error)
             }
         }
-        
     }
 }

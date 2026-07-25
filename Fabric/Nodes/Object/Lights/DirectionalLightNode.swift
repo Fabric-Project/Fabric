@@ -48,6 +48,7 @@ public class DirectionalLightNode : ObjectNode<DirectionalLight>
     private lazy var light: DirectionalLight = DirectionalLight(context:self.context, color: [1.0, 1.0, 1.0], intensity: 1.0)
   
     override public func startExecution(renderer:GraphRenderer)
+    throws
     {
         self.setupDefaultLight( )
     }
@@ -119,6 +120,7 @@ public class DirectionalLightNode : ObjectNode<DirectionalLight>
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         let _ = self.evaluate(object: self.light, atTime: executionInfo.timing.time)
     }

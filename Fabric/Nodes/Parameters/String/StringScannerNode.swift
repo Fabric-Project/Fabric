@@ -123,6 +123,7 @@ public class StringScannerNode: Node {
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard inputString.valueDidChange,
               let input = inputString.value,

@@ -39,6 +39,7 @@ public class RotateTransformNode : Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputRotation.valueDidChange || self.inputTransform.valueDidChange,
            let inputTransform = self.inputTransform.value,

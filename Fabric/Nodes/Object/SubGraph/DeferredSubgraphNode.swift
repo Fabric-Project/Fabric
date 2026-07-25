@@ -301,22 +301,15 @@ public class DeferredSubgraphNode: SubgraphNode
         else { return }
 
             
-        if let outputImage = self.graphRenderer.newImage(withWidth: width, height: height)
-        {
-            rpd1.colorAttachments[0].texture = outputImage.texture
-            
-            
-            try self.graphRenderer.executeAndDraw(graph: self.subGraph,
-                                                  executionInfo: executionInfo,
-                                                  renderPassDescriptor: rpd1,
-                                                  commandBuffer: commandBuffer)
-            
-            self.outputColorTexture.send( outputImage )
-        }
-        else
-        {
-            self.outputColorTexture.send( nil )
-        }
+        let outputImage = try self.graphRenderer.newImage(withWidth: width, height: height)
+        rpd1.colorAttachments[0].texture = outputImage.texture
+
+        try self.graphRenderer.executeAndDraw(graph: self.subGraph,
+                                              executionInfo: executionInfo,
+                                              renderPassDescriptor: rpd1,
+                                              commandBuffer: commandBuffer)
+
+        self.outputColorTexture.send(outputImage)
         
         if let texture = self.graphRenderer.renderEncoder.depthTexture
         {

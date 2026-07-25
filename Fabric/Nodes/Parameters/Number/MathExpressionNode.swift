@@ -494,8 +494,15 @@ public class MathExpressionNode: Node
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
-        guard let compiled = self.compiled, compiled.isValid else { return }
+        guard let compiled = self.compiled, compiled.isValid else
+        {
+            let message = self.compiled?.diagnostics.first(where: { $0.severity == .error })?.message ?? "Math expression is invalid."
+            throw FabricError(.execution(.syntax),
+                              severity: .recoverable,
+                              message: message)
+        }
 
         let inlets = self.inputPorts()
         let inputsChanged = inlets.contains { $0.valueDidChange }
@@ -525,7 +532,16 @@ public class MathExpressionNode: Node
         {
             // .missingInput (input not propagated yet), .indexOutOfBounds,
             // .limitExceeded, .notCompiled — skip this frame's emit.
-            return
+            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            if message.localizedStandardContains("missing")
+            {
+                return
+            }
+
+            throw FabricError(.execution(.syntax),
+                              severity: .recoverable,
+                              message: message,
+                              underlyingError: error)
         }
 
         for (index, output) in self.portInterface.outputs.enumerated()

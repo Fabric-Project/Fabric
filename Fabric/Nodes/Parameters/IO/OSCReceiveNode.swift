@@ -244,7 +244,7 @@ public class OSCReceiveNode: Node
             if isListening
             {
                 stopListening()
-                startListening()
+                try? startListening()
             }
             _settingsModelStorage?.listenPort = listenPort
         }
@@ -309,7 +309,7 @@ public class OSCReceiveNode: Node
             self.isListening = node.isListening
         }
 
-        func startListening() { node?.startListening(); isListening = node?.isListening ?? false }
+        func startListening() { try? node?.startListening(); isListening = node?.isListening ?? false }
         func stopListening() { node?.stopListening(); isListening = false }
         func addAddressBinding() { node?.addAddressBinding() }
         func removeAddressBinding(id: UUID) { node?.removeAddressBinding(id: id) }
@@ -320,11 +320,13 @@ public class OSCReceiveNode: Node
     // MARK: - Lifecycle
 
     public override func enableExecution(renderer: GraphRenderer)
+    throws
     {
-        startListening()
+        try startListening()
     }
 
     public override func disableExecution(renderer: GraphRenderer)
+    throws
     {
         stopListening()
     }
@@ -335,6 +337,7 @@ public class OSCReceiveNode: Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         // Send latest values to ports
         for binding in addressBindings
@@ -378,7 +381,7 @@ public class OSCReceiveNode: Node
 
     // MARK: - OSC Server Management
 
-    fileprivate func startListening()
+    fileprivate func startListening() throws
     {
         guard !isListening else { return }
 
@@ -394,9 +397,12 @@ public class OSCReceiveNode: Node
         }
         catch
         {
-            print("Failed to start OSC server: \(error)")
             isListening = false
             _settingsModelStorage?.isListening = false
+            throw FabricError(.execution(.failed),
+                              severity: .recoverable,
+                              message: "Failed to start OSC server on port \(listenPort)",
+                              underlyingError: error)
         }
     }
 

@@ -655,10 +655,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             self.postProcessor.renderer.size.width = Float(width)
             self.postProcessor.renderer.size.height = Float(height)
 
-            guard let outImage = renderer.newImage(withWidth: width, height: height) else {
-                self.outputTexturePort.send(nil)
-                return
-            }
+            let outImage = try renderer.newImage(withWidth: width, height: height)
 
             let renderPassDesc = MTLRenderPassDescriptor()
             renderPassDesc.colorAttachments[0].texture = outImage.texture
@@ -680,10 +677,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             return
         }
 
-        guard let outImage = renderer.newImage(withWidth: inputTexture0.width, height: inputTexture0.height) else {
-            self.outputTexturePort.send(nil)
-            return
-        }
+        let outImage = try renderer.newImage(withWidth: inputTexture0.width, height: inputTexture0.height)
 
         let textures = self.imageInputPorts().map { $0.value?.texture }
 

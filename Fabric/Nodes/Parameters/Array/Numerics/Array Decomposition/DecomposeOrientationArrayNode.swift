@@ -65,6 +65,7 @@ public class DecomposeOrientationArrayNode: StrategyNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let inputOrientations: NodePort<ContiguousArray<simd_float4>> = findPort(named: "inputOrientations"),
               inputOrientations.valueDidChange

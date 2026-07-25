@@ -113,6 +113,7 @@ public class PassThroughNode<T: PortValueRepresentable>: Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         switch self.nodeExecutionMode
         {

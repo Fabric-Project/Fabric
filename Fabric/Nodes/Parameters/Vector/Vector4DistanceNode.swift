@@ -70,6 +70,7 @@ public class Vector4Distance : Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputMetricParam.valueDidChange,
            let inputMetric = self.inputMetricParam.value

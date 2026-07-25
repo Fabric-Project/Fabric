@@ -61,6 +61,7 @@ public class SyphonServerNode : Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputServerName.valueDidChange,
            let name = self.inputServerName.value

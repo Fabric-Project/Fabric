@@ -93,6 +93,7 @@ public final class ImageDimensions: Node
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard self.inputImage.valueDidChange else { return }
 

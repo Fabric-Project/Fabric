@@ -89,11 +89,24 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
     public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
         guard self.inputImage.valueDidChange,
-              let inTex = self.inputImage.value?.texture,
-              let outImage = renderer.newImage(withWidth: inTex.width, height: inTex.height),
-              let computeEncoder = commandBuffer.makeComputeCommandEncoder()
-                
+              let inTex = self.inputImage.value?.texture
         else { return }
+
+        guard self.compute != nil else
+        {
+            throw FabricError(.execution(.gpu),
+                              severity: .recoverable,
+                              message: "\(name) compute processor is unavailable")
+        }
+
+        let outImage = try renderer.newImage(withWidth: inTex.width, height: inTex.height)
+
+        guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else
+        {
+            throw FabricError(.execution(.gpu),
+                              severity: .recoverable,
+                              message: "Could not create \(name) compute encoder")
+        }
         
         // Input Texture to Compute
         self.compute.set(inTex, index: .Custom0)

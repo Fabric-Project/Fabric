@@ -67,6 +67,7 @@ public class IteratorInfoNode : Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
 //        print("Iterator Info executing")
         if let iterationInfo = executionInfo.iterationInfo

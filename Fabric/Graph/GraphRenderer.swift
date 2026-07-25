@@ -548,70 +548,96 @@ public class GraphRenderer : ViewRenderer
 
     // MARK: - Execution Helpers
 
-    public func newImage(withWidth width: Int, height: Int) -> FabricImage?
+    public func newImage(withWidth width: Int, height: Int) throws -> FabricImage
     {
-        return self.newImage(withWidth: width, height: height, format: self.colorPixelFormat)
+        return try self.newImage(withWidth: width, height: height, format: self.colorPixelFormat)
     }
 
-    public func newImage(withWidth width: Int, height: Int, format: MTLPixelFormat) -> FabricImage?
+    public func newImage(withWidth width: Int, height: Int, format: MTLPixelFormat) throws -> FabricImage
     {
-        return self.privateTextureCache.newManagedImage(width: width, height: height, pixelFormat: format)
+        if let image = self.privateTextureCache.newManagedImage(width: width, height: height, pixelFormat: format)
             ?? self.newImageDirect(withWidth: width, height: height, format: format)
+        {
+            return image
+        }
+
+        throw FabricError(.execution(.outOfMemory),
+                          severity: .recoverable,
+                          message: "Could not allocate image: \(width)x\(height), \(format)")
     }
 
     public func newImage(withWidth width: Int,
                          height: Int,
                          format: MTLPixelFormat,
-                         mipmapped: Bool) -> FabricImage?
+                         mipmapped: Bool) throws -> FabricImage
     {
         guard mipmapped else {
-            return newImage(withWidth: width, height: height, format: format)
+            return try newImage(withWidth: width, height: height, format: format)
         }
 
-        return privateTextureCache.newManagedImage(width: width,
-                                                   height: height,
-                                                   pixelFormat: format,
-                                                   mipmapped: true)
+        if let image = privateTextureCache.newManagedImage(width: width,
+                                                           height: height,
+                                                           pixelFormat: format,
+                                                           mipmapped: true)
             ?? newImageDirect(withWidth: width, height: height, format: format, mipmapped: true)
+        {
+            return image
+        }
+
+        throw FabricError(.execution(.outOfMemory),
+                          severity: .recoverable,
+                          message: "Could not allocate mipmapped image: \(width)x\(height), \(format)")
     }
 
-    public func newImage(fromPixelBuffer pixelBuffer: CVPixelBuffer) -> FabricImage?
+    public func newImage(fromPixelBuffer pixelBuffer: CVPixelBuffer) throws -> FabricImage
     {
-        var image:FabricImage?
+        let image: FabricImage
         
         if let surface = CVPixelBufferGetIOSurface(pixelBuffer)?.takeUnretainedValue()
         {
-             image = self.newImage(fromSurface: surface)
+             image = try self.newImage(fromSurface: surface)
         }
         else
         {
-            image = newSharedImage(fromPixelBuffer: pixelBuffer)
+            image = try newSharedImage(fromPixelBuffer: pixelBuffer)
         }
         
-        image?.isFlipped = CVImageBufferIsFlipped(pixelBuffer)
+        image.isFlipped = CVImageBufferIsFlipped(pixelBuffer)
         
         return image
     }
 
     // MARK: - Private Image Helpers
 
-    private func newSharedImage(fromPixelBuffer pixelBuffer: CVPixelBuffer) -> FabricImage?
+    private func newSharedImage(fromPixelBuffer pixelBuffer: CVPixelBuffer) throws -> FabricImage
     {
         guard let format = self.metalPixelFormatForOSType(format: CVPixelBufferGetPixelFormatType(pixelBuffer))
-        else { return nil }
+        else {
+            throw FabricError(.general(.unsupported),
+                              severity: .recoverable,
+                              message: "Unsupported pixel buffer format: \(CVPixelBufferGetPixelFormatType(pixelBuffer))")
+        }
 
         let width = CVPixelBufferGetWidth(pixelBuffer)
         let height = CVPixelBufferGetHeight(pixelBuffer)
 
         guard let image = self.sharedTextureCache.newManagedImage(width: width, height: height, pixelFormat: format)
-        else { return nil }
+        else {
+            throw FabricError(.execution(.outOfMemory),
+                              severity: .recoverable,
+                              message: "Could not allocate shared image from pixel buffer: \(width)x\(height), \(format)")
+        }
 
         let bpr = CVPixelBufferGetBytesPerRow(pixelBuffer)
 
         CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
         defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
 
-        guard let baseAddr = CVPixelBufferGetBaseAddress(pixelBuffer) else { return nil }
+        guard let baseAddr = CVPixelBufferGetBaseAddress(pixelBuffer) else {
+            throw FabricError(.execution(.failed),
+                              severity: .recoverable,
+                              message: "Could not read pixel buffer base address")
+        }
 
         let region = MTLRegionMake3D(0, 0, 0, width, height, 1)
         image.texture.replace(region: region, mipmapLevel: 0, withBytes: baseAddr, bytesPerRow: bpr)
@@ -620,7 +646,7 @@ public class GraphRenderer : ViewRenderer
         return image
     }
 
-    private func newImage(fromSurface surface: IOSurface) -> FabricImage?
+    private func newImage(fromSurface surface: IOSurface) throws -> FabricImage
     {
         let descriptor = self.metalTextureDescriptorForIOSurface(surface: surface)
 
@@ -632,7 +658,10 @@ public class GraphRenderer : ViewRenderer
                 IOSurfaceDecrementUseCount(surface)
             }
         }
-        return nil
+
+        throw FabricError(.execution(.outOfMemory),
+                          severity: .recoverable,
+                          message: "Could not allocate image from IOSurface")
     }
 
     private func metalTextureDescriptorForIOSurface(surface: IOSurfaceRef) -> MTLTextureDescriptor?

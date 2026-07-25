@@ -65,6 +65,7 @@ public class OrthographicCameraNode : ObjectNode<OrthographicCamera>
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         let _ = self.evaluate(object: self.object, atTime: executionInfo.timing.time)
     }

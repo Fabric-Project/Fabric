@@ -44,6 +44,7 @@ public class MakeColorNode: Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputR.valueDidChange || self.inputG.valueDidChange || self.inputB.valueDidChange || self.inputA.valueDidChange,
            let r = self.inputR.value,

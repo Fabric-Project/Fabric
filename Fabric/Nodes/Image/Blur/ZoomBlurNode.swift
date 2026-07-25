@@ -43,6 +43,7 @@ public final class ZoomBlurNode: BaseMultiPassBlurEffectNode {
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
 
         guard let inputTexture = self.validatedSingleInputTexture() else {

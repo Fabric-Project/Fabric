@@ -33,6 +33,7 @@ public final class DictionaryCountNode: DictionaryTypeAgnosticNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let inputDictionary: Port = findPort(named: "inputDictionary"),
               let outputCount: Port = findPort(named: "outputCount"),

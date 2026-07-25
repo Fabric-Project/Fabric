@@ -40,6 +40,7 @@ public class DirectoryScannerNode: Node {
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         let rescanTriggered: Bool
         if let rescan = inputRescan.value, inputRescan.valueDidChange {
@@ -52,23 +53,40 @@ public class DirectoryScannerNode: Node {
         if inputPath.valueDidChange || inputExtension.valueDidChange || rescanTriggered,
            let path = inputPath.value,
            !path.isEmpty {
-            scanDirectory(path: path)
+            try scanDirectory(path: path)
         }
     }
 
-    private func scanDirectory(path: String) {
-        guard let url = URL(string: path) else { return }
+    private func scanDirectory(path: String) throws {
+        guard let url = URL(string: path) else
+        {
+            throw FabricError(.execution(.fileNotFound),
+                              severity: .recoverable,
+                              message: "Directory path is invalid: \(path)")
+        }
+
         let dirPath = url.standardizedFileURL.path(percentEncoded: false)
         let fileManager = FileManager.default
 
         var isDirectory: ObjCBool = false
         guard fileManager.fileExists(atPath: dirPath, isDirectory: &isDirectory),
               isDirectory.boolValue else {
-            return
+            throw FabricError(.execution(.fileNotFound),
+                              severity: .recoverable,
+                              message: "Directory not found: \(dirPath)")
         }
 
-        guard let contents = try? fileManager.contentsOfDirectory(atPath: dirPath) else {
-            return
+        let contents: [String]
+        do
+        {
+            contents = try fileManager.contentsOfDirectory(atPath: dirPath)
+        }
+        catch
+        {
+            throw FabricError(.execution(.failed),
+                              severity: .recoverable,
+                              message: "Could not scan directory: \(dirPath)",
+                              underlyingError: error)
         }
 
         let ext = inputExtension.value ?? ""

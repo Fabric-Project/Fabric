@@ -50,6 +50,7 @@ public final class TweenNode: NumericTypeAgnosticNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if specializeFromConnectedPort(named: "inputTarget") { return }
         guard let inputTarget: Port = findPort(named: "inputTarget"),

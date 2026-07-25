@@ -36,6 +36,7 @@ public class TimestampFormatterNode: Node {
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if inputFormat.valueDidChange,
            let format = inputFormat.value {

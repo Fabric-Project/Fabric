@@ -460,16 +460,18 @@ public class MIDIInputNode: Node
     // MARK: - Lifecycle
 
     public override func enableExecution(renderer: GraphRenderer)
+    throws
     {
-        setupMIDIManager()
+        try setupMIDIManager()
     }
 
     public override func disableExecution(renderer: GraphRenderer)
+    throws
     {
         midiManager = nil
     }
 
-    private func setupMIDIManager()
+    private func setupMIDIManager() throws
     {
         do
         {
@@ -493,7 +495,10 @@ public class MIDIInputNode: Node
         }
         catch
         {
-            print("[MIDI] Failed to start manager: \(error)")
+            throw FabricError(.execution(.failed),
+                              severity: .recoverable,
+                              message: "Failed to start MIDI manager",
+                              underlyingError: error)
         }
     }
 
@@ -863,6 +868,7 @@ public class MIDIInputNode: Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         for input in configuredInputs
         {

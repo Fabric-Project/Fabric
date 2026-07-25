@@ -199,6 +199,7 @@ public class KeyboardNode : Node
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if let eventInfo = executionInfo.eventInfo,
            let event = eventInfo.event,

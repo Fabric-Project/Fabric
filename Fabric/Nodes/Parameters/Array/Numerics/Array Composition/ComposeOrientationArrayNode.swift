@@ -74,6 +74,7 @@ public class ComposeOrientationArrayNode: StrategyNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let outputOrientations: NodePort<ContiguousArray<simd_float4>> = findPort(named: "outputOrientations") else { return }
 

@@ -67,6 +67,7 @@ public class DecomposeTransformNode: StrategyNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let inputTransform: NodePort<simd_float4x4> = findPort(named: "inputTransform"),
               inputTransform.valueDidChange,

@@ -36,6 +36,7 @@ public class StringCaseNode: Node {
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if inputCase.valueDidChange,
            let param = inputCase.value,

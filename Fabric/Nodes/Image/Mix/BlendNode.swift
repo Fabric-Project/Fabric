@@ -25,8 +25,30 @@ public class BlendNode: BaseImageNode
     override public class var defaultImageInputCountHint: Int? { 2 }
 
     required init(context: Context) {
-        let url = Bundle.module.url(forResource: "Additive", withExtension: "metal", subdirectory: "EffectsTwoChannel/Mix")!
-        try! super.init(context: context, fileURL: url)
+        guard let url = Bundle.module.url(forResource: "Additive", withExtension: "metal", subdirectory: "EffectsTwoChannel/Mix") else
+        {
+            fatalError("Missing bundled Additive blend shader.")
+        }
+
+        do
+        {
+            try super.init(context: context, fileURL: url)
+        }
+        catch
+        {
+            fatalError("Could not initialize Blend node: \(error.localizedDescription)")
+        }
+    }
+
+    public override class func initWithContext(context: Context) throws -> Node {
+        guard let url = Bundle.module.url(forResource: "Additive", withExtension: "metal", subdirectory: "EffectsTwoChannel/Mix") else
+        {
+            throw FabricError(.loading(.resourceNotFound),
+                              severity: .fatal,
+                              message: "Missing bundled Additive blend shader.")
+        }
+
+        return try Self(context: context, fileURL: url)
     }
 
     required init(context: Context, fileURL: URL) throws {

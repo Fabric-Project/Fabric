@@ -60,6 +60,7 @@ public final class SwitchNode: RoutingNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let selectedInput: Port = findPort(named: Self.inputPortName(selectedRouteIndex()))
         else { return }

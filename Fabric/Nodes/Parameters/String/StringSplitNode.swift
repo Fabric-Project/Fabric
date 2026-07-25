@@ -34,6 +34,7 @@ public class StringSplitNode: Node {
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if inputPort.valueDidChange || inputSeparator.valueDidChange,
            let string = inputPort.value,

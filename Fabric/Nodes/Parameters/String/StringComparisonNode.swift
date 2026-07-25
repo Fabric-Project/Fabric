@@ -38,6 +38,7 @@ public class StringComparisonNode: Node {
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if inputOperator.valueDidChange,
            let param = inputOperator.value,

@@ -44,6 +44,7 @@ public final class DictionaryRemoveKeyNode: DictionaryTypeAgnosticNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let inputDictionary: Port = findPort(named: "inputDictionary"),
               let outputDictionary: Port = findPort(named: "outputDictionary"),

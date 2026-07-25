@@ -47,6 +47,7 @@ public final class ComposeDictionaryNode: DictionaryTypeAgnosticNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let inputKeys: Port = findPort(named: "inputKeys"),
               let inputValues: Port = findPort(named: "inputValues"),

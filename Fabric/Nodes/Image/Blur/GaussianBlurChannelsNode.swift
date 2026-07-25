@@ -55,7 +55,8 @@ public final class GaussianBlurChannelsNode: BaseMultiPassBlurEffectTwoChannelNo
     override public func execute(renderer: GraphRenderer,
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer) {
+                                 commandBuffer: MTLCommandBuffer) throws
+    {
         let inputs = self.imageInputPorts()
         guard inputs.count >= 1,
               let inputTexture = inputs[0].value?.texture else {
@@ -128,7 +129,7 @@ public final class GaussianBlurChannelsNode: BaseMultiPassBlurEffectTwoChannelNo
         var currentImage: FabricImage? = nil
 
         for (index, step) in steps.enumerated() {
-            guard let nextImage = renderer.newImage(withWidth: step.width, height: step.height) else {
+            guard let nextImage = try? renderer.newImage(withWidth: step.width, height: step.height) else {
                 currentImage?.release()
                 return nil
             }

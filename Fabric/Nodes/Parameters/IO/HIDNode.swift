@@ -666,11 +666,13 @@ public class HIDNode: Node
     // MARK: - Lifecycle
 
     public override func enableExecution(renderer:GraphRenderer)
+    throws
     {
         setupHIDManager()
     }
 
     public override func disableExecution(renderer:GraphRenderer)
+    throws
     {
         if let deviceID = selectedDeviceID
         {
@@ -729,6 +731,7 @@ public class HIDNode: Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         for element in deviceElements
         {

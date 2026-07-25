@@ -42,6 +42,7 @@ public class NumberIntegralNode : Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         self.state += (self.inputNumber.value ?? 0.0) * Float(executionInfo.timing.deltaTime)
         

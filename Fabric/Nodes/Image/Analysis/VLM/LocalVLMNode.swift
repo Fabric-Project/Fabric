@@ -86,6 +86,7 @@ public class LocalVLMNode : Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputModel.valueDidChange,
            let name = self.inputModel.value,

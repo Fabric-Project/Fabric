@@ -107,6 +107,7 @@ public class ScreenCaptureProviderNode: Node
     }
 
     override public func stopExecution(renderer: GraphRenderer)
+    throws
     {
         self.stopStreamAndClear()
     }
@@ -122,15 +123,17 @@ public class ScreenCaptureProviderNode: Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputCaptureType.valueDidChange || self.inputCaptureSource.valueDidChange
         {
             self.scheduleRefreshAndReconfigure()
         }
 
-        if let pixelBuffer = streamOutputHandler.consumeLatestPixelBuffer(),
-           let image = renderer.newImage(fromPixelBuffer: pixelBuffer)
+        if let pixelBuffer = streamOutputHandler.consumeLatestPixelBuffer()
         {
+            let image = try renderer.newImage(fromPixelBuffer: pixelBuffer)
+
             self.outputTexturePort.send(image)
         }
     }

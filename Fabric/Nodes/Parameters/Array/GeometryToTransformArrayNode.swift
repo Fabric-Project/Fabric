@@ -88,6 +88,7 @@ public class GeometryToTransformArrayNode : StrategyNode
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         // This is subtle: the geometry POINTER can stay identical while its
         // backing buffer changes, so we re-extract every frame rather than

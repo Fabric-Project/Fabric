@@ -64,6 +64,7 @@ public final class GateNode: RoutingNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         selectedOutputPort()?.sendBoxed(input.snapshotValue(), force: true)
     }

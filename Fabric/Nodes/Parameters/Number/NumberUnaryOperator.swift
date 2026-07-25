@@ -44,6 +44,7 @@ public class NumberUnaryOperator : Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if  self.inputParam.valueDidChange,
             let param = self.inputParam.value,

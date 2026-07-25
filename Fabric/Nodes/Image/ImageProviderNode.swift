@@ -53,7 +53,7 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
 
         super.init(context: context)
   
-        self.loadTextureFromInputValue()
+        try? self.loadTextureFromInputValue()
     }
     
     public required init(context: Satin.Context, fileURL: URL) throws
@@ -61,7 +61,7 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
         self.textureLoader = MTKTextureLoader(device: context.device)
         super.init(context: context)
         self.setFileURL(fileURL)
-        self.loadTextureFromInputValue()
+        try self.loadTextureFromInputValue()
     }
     
     
@@ -76,17 +76,18 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
 
         try super.init(from:decoder)
 
-        self.loadTextureFromInputValue()
+        try self.loadTextureFromInputValue()
     }
 
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputFilePathParam.valueDidChange
         {
-            self.loadTextureFromInputValue()
+            try self.loadTextureFromInputValue()
             
             if let texture = self.texture
             {
@@ -100,32 +101,49 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
         }
      }
     
-    private func loadTextureFromInputValue()
+    private func loadTextureFromInputValue() throws
     {
         if let path = self.inputFilePathParam.value,
            path.isEmpty == false && self.url != URL(string: path)
         {
-            self.url = URL(string: path)
-
-            if FileManager.default.fileExists(atPath: self.url!.standardizedFileURL.path(percentEncoded: false) )
+            guard let url = URL(string: path) else
             {
-                
-                self.texture = try! self.textureLoader.newTexture(URL: self.url!, options: [
+                throw FabricError(.execution(.fileNotFound),
+                                  severity: .recoverable,
+                                  message: "Image file path is invalid: \(path)")
+            }
+
+            self.url = url
+
+            guard FileManager.default.fileExists(atPath: url.standardizedFileURL.path(percentEncoded: false)) else
+            {
+                self.texture = nil
+                throw FabricError(.execution(.fileNotFound),
+                                  severity: .recoverable,
+                                  message: "Image file not found: \(url.path)")
+            }
+
+            do
+            {
+                self.texture = try self.textureLoader.newTexture(URL: url, options: [
                     .generateMipmaps : true,
                     .allocateMipmaps : true,
                     .textureStorageMode : NSNumber( value: MTLStorageMode.shared.rawValue),
                     .SRGB : true,
                     .origin: MTKTextureLoader.Origin.topLeft,
                 ])
-                    
-                    //.newTexture(url: self.url!, options: [:])
-//                self.texture = loadHDR(device: self.context.device, url: self.url! )
             }
-            else
+            catch
             {
                 self.texture = nil
-                print("wtf")
+                throw FabricError(.execution(.failed),
+                                  severity: .recoverable,
+                                  message: "Could not load image file: \(url.path)",
+                                  underlyingError: error)
             }
+
+            //.newTexture(url: self.url!, options: [:])
+//                self.texture = loadHDR(device: self.context.device, url: self.url! )
         }
     }
 }

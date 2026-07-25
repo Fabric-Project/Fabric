@@ -38,6 +38,7 @@ public final class RepeatNode: NumericTypeAgnosticNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if specializeFromConnectedPort(named: "inputValue") { return }
         guard let inputValue: Port = findPort(named: "inputValue"),

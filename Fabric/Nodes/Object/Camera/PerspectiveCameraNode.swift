@@ -63,6 +63,7 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         let _ = self.evaluate(object: self.camera, atTime: executionInfo.timing.time)
     }

@@ -32,6 +32,7 @@ public class TimestampNode: Node {
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         let timestamp = Date().timeIntervalSince1970
         outputSeconds.send(Int(timestamp))
