@@ -41,7 +41,6 @@ public class GraphRenderer : ViewRenderer
     // Pre-sorted node list built in update(), consumed in draw()
     private var scheduledNodes: [Node] = []
     private var pendingSceneSync = false
-    public private(set) var lastRuntimeError: (any FabricErrorProtocol)?
 
     // One feedback cache per graph/subgraph UUID to handle different execution cadences
     private var feedbackCaches: [UUID: GraphRendererFeedbackCache] = [:]
@@ -82,21 +81,14 @@ public class GraphRenderer : ViewRenderer
 
     // MARK: - Satin ViewRenderer Lifecycle
 
-    override public func setup() {
-        super.setup()
-        do
-        {
-            try enableExecution(graph: graph)
-            try startExecution(graph: graph)
-        }
-        catch
-        {
-            handleRuntimeError(error)
-        }
+    override public func setup() throws {
+        try super.setup()
+        try enableExecution(graph: graph)
+        try startExecution(graph: graph)
     }
 
-    override public func update() {
-        super.update()
+    override public func update() throws {
+        try super.update()
 
         let now = CACurrentMediaTime()
         let delta = now - lastGraphExecutionTime
@@ -115,18 +107,11 @@ public class GraphRenderer : ViewRenderer
         updateExecutionPlan()
     }
 
-    override public func cleanup() {
-        do
-        {
-            try stopExecution(graph: graph)
-            try disableExecution(graph: graph)
-        }
-        catch
-        {
-            handleRuntimeError(error)
-        }
+    override public func cleanup() throws {
+        try stopExecution(graph: graph)
+        try disableExecution(graph: graph)
         teardown(graph: graph)
-        super.cleanup()
+        try super.cleanup()
     }
 
     override public func resize(size: (width: Float, height: Float), scaleFactor: Float)
@@ -140,7 +125,7 @@ public class GraphRenderer : ViewRenderer
 
     // MARK: - Draw
 
-    override public func draw(renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
+    override public func draw(renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
         renderPassDescriptor.colorAttachments[0].loadAction = .clear
         renderPassDescriptor.colorAttachments[0].storeAction = .store
@@ -155,21 +140,12 @@ public class GraphRenderer : ViewRenderer
 
 #if DEBUG
             commandBuffer.pushDebugGroup(node.name)
+            defer { commandBuffer.popDebugGroup() }
 #endif
-            do
-            {
-                try node.execute(renderer: self,
-                                 executionInfo: currentExecutionInfo,
-                                 renderPassDescriptor: renderPassDescriptor,
-                                 commandBuffer: commandBuffer)
-            }
-            catch
-            {
-                handleRuntimeError(error)
-            }
-#if DEBUG
-            commandBuffer.popDebugGroup()
-#endif
+            try node.execute(renderer: self,
+                             executionInfo: currentExecutionInfo,
+                             renderPassDescriptor: renderPassDescriptor,
+                             commandBuffer: commandBuffer)
             node.markClean()
             feedbackCache.cacheProcessedNode(node, executionInfo: currentExecutionInfo)
         }
@@ -513,21 +489,6 @@ public class GraphRenderer : ViewRenderer
     {
         for node in graph.nodes {
             node.teardown()
-        }
-    }
-
-    private func handleRuntimeError(_ error: any Error)
-    {
-        if let fabricError = error as? any FabricErrorProtocol
-        {
-            self.lastRuntimeError = fabricError
-        }
-        else
-        {
-            self.lastRuntimeError = FabricError(.execution(.failed),
-                                                severity: .recoverable,
-                                                message: error.localizedDescription,
-                                                underlyingError: error)
         }
     }
 
