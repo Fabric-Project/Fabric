@@ -12,6 +12,8 @@ public enum PluginLoadError: FabricErrorProtocol
 {
     case bundleNotFound(bundleURL: URL)
     case bundleLoadFailed(bundleURL: URL, underlyingError: Error?)
+    case pluginDiscoveryFailed(underlyingError: Error)
+    case pluginDirectoryScanFailed(directoryURL: URL, underlyingError: Error)
     case missingBundleIdentifier(bundleURL: URL)
     case noNodeClassesDeclared(pluginID: String)
     case unsupportedAPIVersion(pluginID: String, foundVersion: Int?, supportedVersion: Int)
@@ -41,6 +43,10 @@ public enum PluginLoadError: FabricErrorProtocol
             {
                 "Failed to load plugin bundle at \(bundleURL.path)"
             }
+        case .pluginDiscoveryFailed(let underlyingError):
+            "Failed to discover plugins: \(underlyingError.localizedDescription)"
+        case .pluginDirectoryScanFailed(let directoryURL, let underlyingError):
+            "Failed to scan plugin directory at \(directoryURL.path): \(underlyingError.localizedDescription)"
         case .missingBundleIdentifier(let bundleURL):
             "Plugin bundle at \(bundleURL.path) is missing CFBundleIdentifier"
         case .noNodeClassesDeclared(let pluginID):

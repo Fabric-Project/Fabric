@@ -11,16 +11,25 @@ import UniformTypeIdentifiers
 
 public class NodeRegistry
 {
-    public static let shared = NodeRegistry()
+    private static let sharedResult = Result { try NodeRegistry() }
 
     private let pluginLoadLock = NSRecursiveLock()
 
-    init() {}
+    public static var shared: NodeRegistry
+    {
+        get throws
+        {
+            try sharedResult.get()
+        }
+    }
+
+    init() throws
+    {
+        try loadPluginsIfNeeded()
+    }
 
     public func nodeClass(for nodeName: String) -> (Node.Type)?
     {
-        self.loadPluginsIfNeeded()
-
         if let legacyClass = self.legacyNodeClassLookup[nodeName]
         {
             return legacyClass
@@ -35,8 +44,6 @@ public class NodeRegistry
     /// `ImageProviderNode` whose list includes `.image`.
     public func dropTargetNodeClass(for contentType: UTType) -> (any NodeFileLoadingProtocol.Type)?
     {
-        self.loadPluginsIfNeeded()
-
         for dropNodeClass in self.nodeFileLoadingClasses
         {
             if dropNodeClass.supportedContentTypes.contains(where: { contentType.conforms(to: $0) })
@@ -50,18 +57,15 @@ public class NodeRegistry
 
     /// All UTTypes accepted by drop-target nodes, for use with drop destination handlers.
     public lazy private(set) var allSupportedDropTypes: [UTType] = {
-        self.loadPluginsIfNeeded()
         return self.nodeFileLoadingClasses.flatMap { $0.supportedContentTypes }
     }()
 
     public lazy private(set) var availableNodes: [NodeClassWrapper] = {
-        self.loadPluginsIfNeeded()
         return PluginLoader.shared.pluginNodeWrappers
     }()
 
     public var pluginLoadErrors: [PluginLoadError]
     {
-        self.loadPluginsIfNeeded()
         return PluginLoader.shared.loadErrors
     }
 
@@ -119,11 +123,11 @@ public class NodeRegistry
         return result
     }()
 
-    private func loadPluginsIfNeeded()
+    private func loadPluginsIfNeeded() throws
     {
         pluginLoadLock.lock()
         defer { pluginLoadLock.unlock() }
 
-        PluginLoader.shared.loadAllPlugins()
+        try PluginLoader.shared.loadAllPlugins()
     }
 }

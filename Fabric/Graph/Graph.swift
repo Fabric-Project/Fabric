@@ -166,7 +166,7 @@ internal import AnyCodable
 //                print(anyCodableMap.type)
 //                print(anyCodableMap.value)
                 
-                if let nodeClass = NodeRegistry.shared.nodeClass(for: anyCodableMap.type)
+                if let nodeClass = try NodeRegistry.shared.nodeClass(for: anyCodableMap.type)
                 {
                     let jsonData = try encoder.encode(anyCodableMap.value)
                     decoder.context = decodeContext
@@ -760,7 +760,7 @@ internal import AnyCodable
 
             let jsonData = try encoder.encode(map.value)
 
-            if let nodeClass = NodeRegistry.shared.nodeClass(for: map.type)
+            if let nodeClass = try NodeRegistry.shared.nodeClass(for: map.type)
             {
                 return try decoder.decode(nodeClass, from: jsonData)
             }

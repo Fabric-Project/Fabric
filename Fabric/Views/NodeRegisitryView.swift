@@ -226,7 +226,7 @@ public struct NodeRegisitryView: View {
     {
         for nodeID in self.selection
         {
-            if let nodeWrapper = NodeRegistry.shared.availableNodes.first(where: { $0.id == nodeID })
+            if let nodeWrapper = try? NodeRegistry.shared.availableNodes.first(where: { $0.id == nodeID })
             {
                  do
                  {
@@ -285,7 +285,7 @@ public struct NodeRegisitryView: View {
 
     func filteredNodes(forType nodeType:Node.NodeType) -> [NodeClassWrapper]
     {
-        let availableNodes:[NodeClassWrapper] = NodeRegistry.shared.availableNodes
+        let availableNodes:[NodeClassWrapper] = (try? NodeRegistry.shared.availableNodes) ?? []
         let nodesForType:[NodeClassWrapper] = availableNodes.filter( { $0.nodeType == nodeType })
         return  self.searchString.isEmpty ? nodesForType : nodesForType.filter {  $0.nodeName.localizedCaseInsensitiveContains(self.searchString) }
     }

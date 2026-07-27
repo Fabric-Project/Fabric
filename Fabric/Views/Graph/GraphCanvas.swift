@@ -173,7 +173,7 @@ public struct GraphCanvas : View
             provider.loadDataRepresentation(forTypeIdentifier: UTType.nodeRegistryItem.identifier) { data, error in
                 guard let data = data,
                       let dragData = try? JSONDecoder().decode(NodeRegistryDragData.self, from: data),
-                      let wrapper = NodeRegistry.shared.availableNodes.first(where: { $0.id == dragData.wrapperID })
+                      let wrapper = try? NodeRegistry.shared.availableNodes.first(where: { $0.id == dragData.wrapperID })
                 else {
                     print("GraphCanvas: registry drag decode failed: \(error?.localizedDescription ?? "unknown")")
                     handled = false
@@ -215,7 +215,7 @@ public struct GraphCanvas : View
 
                 guard let resourceValues = try? url.resourceValues(forKeys: [.contentTypeKey]),
                       let contentType = resourceValues.contentType,
-                      let nodeClass = NodeRegistry.shared.dropTargetNodeClass(for: contentType)
+                      let nodeClass = try? NodeRegistry.shared.dropTargetNodeClass(for: contentType)
                 else { return }
 
                 let node = nodeClass.init(context: currentGraph.context)

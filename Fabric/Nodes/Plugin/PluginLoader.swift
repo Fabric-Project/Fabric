@@ -45,13 +45,13 @@ public final class PluginLoader
         }
 
         #if os(macOS)
-        directories.append(URL(filePath: "/Library/Application Support/Fabric/Plugins", directoryHint: .isDirectory))
+        directories.append(URL(filePath: "  ", directoryHint: .isDirectory))
         #endif
 
         return directories
     }
 
-    public func discoverPlugins() -> [URL]
+    public func discoverPlugins() throws -> [URL]
     {
         var pluginURLs: [URL] = []
         let fileManager = FileManager.default
@@ -69,14 +69,15 @@ public final class PluginLoader
             }
             catch
             {
-                logger.warning("Failed to scan plugin directory '\(directory.path)': \(error.localizedDescription)")
+                throw PluginLoadError.pluginDirectoryScanFailed(directoryURL: directory,
+                                                               underlyingError: error)
             }
         }
 
         return pluginURLs
     }
 
-    public func loadAllPlugins()
+    public func loadAllPlugins() throws
     {
         pluginLoadLock.lock()
         defer { pluginLoadLock.unlock() }
@@ -85,15 +86,25 @@ public final class PluginLoader
         pluginsLoaded = true
 
         loadErrors.removeAll()
-        loadEmbeddedCorePlugin()
-        loadDiscoveredPlugins()
+        do
+        {
+            try loadEmbeddedCorePlugin()
+            try loadDiscoveredPlugins()
+        }
+        catch
+        {
+            pluginsLoaded = false
+            throw error
+        }
     }
 
-    public func loadDiscoveredPlugins()
+    public func loadDiscoveredPlugins() throws
     {
         let existingNodeNames = currentRegisteredNodeNames()
 
-        let pluginURLs = discoverPlugins()
+        let pluginURLs: [URL]
+        pluginURLs = try discoverPlugins()
+
         logger.info("Found \(pluginURLs.count) Fabric plugin bundle(s)")
 
         for pluginURL in pluginURLs
@@ -106,17 +117,19 @@ public final class PluginLoader
             {
                 loadErrors.append(error)
                 logger.error("\(error.localizedDescription)")
+                throw error
             }
             catch
             {
                 let wrappedError = PluginLoadError.bundleLoadFailed(bundleURL: pluginURL, underlyingError: error)
                 loadErrors.append(wrappedError)
                 logger.error("\(wrappedError.localizedDescription)")
+                throw wrappedError
             }
         }
     }
 
-    private func loadEmbeddedCorePlugin()
+    private func loadEmbeddedCorePlugin() throws
     {
         guard loadedPlugins[Self.coreNodesPluginID] == nil else { return }
 
@@ -155,12 +168,14 @@ public final class PluginLoader
         {
             loadErrors.append(error)
             logger.error("\(error.localizedDescription)")
+            throw error
         }
         catch
         {
             let wrappedError = PluginLoadError.bundleLoadFailed(bundleURL: bundle.bundleURL, underlyingError: error)
             loadErrors.append(wrappedError)
             logger.error("\(wrappedError.localizedDescription)")
+            throw wrappedError
         }
     }
 
