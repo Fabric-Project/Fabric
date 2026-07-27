@@ -58,12 +58,12 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         return userName ?? displayName ?? myType.name
     }
 
-    public var nodeType:NodeType
+    open var nodeType:NodeType
     {
         return Self.nodeType
     }
 
-    public var nodeExecutionMode:ExecutionMode
+    open var nodeExecutionMode:ExecutionMode
     {
         return Self.nodeExecutionMode
     }
@@ -73,7 +73,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         return Self.nodeTimeMode
     }
 
-    var context:Context
+    public private(set) var context:Context
 
     weak var graph:Graph?
 
@@ -128,14 +128,14 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     // MARK: - Combine subjects for NodeViewModel sync
 
     /// Fires whenever offset changes so NodeViewModel can update its cached copy.
-    public let offsetSubject = CurrentValueSubject<CGSize, Never>(.zero)
+    internal let offsetSubject = CurrentValueSubject<CGSize, Never>(.zero)
 
     /// Fires whenever the port list changes (addDynamicPort / removePort).
-    public let portsChangedSubject = PassthroughSubject<Void, Never>()
+    internal let portsChangedSubject = PassthroughSubject<Void, Never>()
 
     /// Fires whenever the node's computed `name` changes (e.g. after a math
     /// expression re-parses). NodeViewModel subscribes and caches the result.
-    public let nameSubject = PassthroughSubject<Void, Never>()
+    internal let nameSubject = PassthroughSubject<Void, Never>()
 
     // Dirty Handling
     private(set) public var isDirty: Bool = true
@@ -264,7 +264,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     // This function clears references to other nodes and node ports
     // removing any circular references allowing proper cleanup
     // This must is called by GraphRenderer.
-    open func teardown()
+    internal func teardown()
     {
         self.inputNodes.removeAll()
         self.outputNodes.removeAll()
@@ -320,7 +320,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         self.portsChangedSubject.send()
     }
 
-    public func replaceParameterOfPort(_ port:Port, withParam param:(any Parameter))
+    internal func replaceParameterOfPort(_ port:Port, withParam param:(any Parameter))
     {
         // Remove existing param from group
         if let existingParam = port.parameter
@@ -334,7 +334,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         port.parameter = param
     }
 
-    public func reorderPorts(_ reordered: [Port])
+    internal func reorderPorts(_ reordered: [Port])
     {
         self.registry.reorder(reordered)
         self.invalidatePortCaches()
@@ -368,30 +368,30 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         self.cachedOutputPorts = nil
     }
 
-    public func publishedPorts() -> [Port]
+    internal func publishedPorts() -> [Port]
     {
         return self.ports.filter(\.published)
     }
 
-    public func publishedInputPorts() -> [Port]
+    internal func publishedInputPorts() -> [Port]
     {
         return self.inputPorts().filter(\.published)
     }
 
-    public func publishedOutputPorts() -> [Port]
+    internal func publishedOutputPorts() -> [Port]
     {
         return self.outputPorts().filter(\.published)
     }
 
     // MARK: - Connections
 
-    open func didConnectToNode(_ node: Node)
+    internal func didConnectToNode(_ node: Node)
     {
         self.inputNodes = calcInputNodes()
         self.outputNodes = calcOutputNodes()
     }
 
-    open func didDisconnectFromNode(_ node: Node)
+    internal func didDisconnectFromNode(_ node: Node)
     {
         self.inputNodes = calcInputNodes()
         self.outputNodes = calcOutputNodes()
