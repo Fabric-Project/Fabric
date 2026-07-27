@@ -45,7 +45,7 @@ public final class PluginLoader
         }
 
         #if os(macOS)
-        directories.append(URL(filePath: "  ", directoryHint: .isDirectory))
+        directories.append(URL(filePath: "/Library/Application Support/Fabric/Plugins", directoryHint: .isDirectory))
         #endif
 
         return directories
