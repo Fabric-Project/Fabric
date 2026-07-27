@@ -12,30 +12,30 @@ import Combine
 import UniformTypeIdentifiers
 
 
-public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
+open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
 {
     // User interface name — the node's TYPE name (each subclass overrides).
-    public class var name: String {  fatalError("\(String(describing:self)) Must implement name") }
+    open class var name: String {  fatalError("\(String(describing:self)) Must implement name") }
 
     // Node-provided dynamic name, e.g. Math Expression shows its expression.
     // Override THIS (not the instance `name`) to give a node a self-generated
     // title; return nil for none. A user-supplied `userName` always wins over it.
-    public var displayName: String? { nil }
+    open var displayName: String? { nil }
 
     // User-supplied custom name (rename). Overrides any `displayName`.
     public var userName: String?
 
     // User interface organizing principle
-    public class var nodeType:Node.NodeType { fatalError("\(String(describing:self)) Must implement nodeType") }
+    open class var nodeType:Node.NodeType { fatalError("\(String(describing:self)) Must implement nodeType") }
 
     // Execution mode value is used to determine when this node is evaluated
-    public class var nodeExecutionMode: Node.ExecutionMode { fatalError("\(String(describing:self)) Must implement nodeExecutionMode") }
+    open class var nodeExecutionMode: Node.ExecutionMode { fatalError("\(String(describing:self)) Must implement nodeExecutionMode") }
 
     // Execution mode value is used to determine when this node is evaluated
-    public class var nodeTimeMode: Node.TimeMode {  fatalError("\(String(describing:self)) Must implement nodeTimeMode") }
+    open class var nodeTimeMode: Node.TimeMode {  fatalError("\(String(describing:self)) Must implement nodeTimeMode") }
 
     // User interface description
-    public class var nodeDescription: String { fatalError("\(String(describing:self)) Must implement nodeDescription") }
+    open class var nodeDescription: String { fatalError("\(String(describing:self)) Must implement nodeDescription") }
 
     // Identifiable
     public let id:UUID
@@ -78,14 +78,14 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     weak var graph:Graph?
 
     // Method to register ports
-    public class func registerPorts(context: Context) -> [(name: String, port: Port)] { [] }
+    open class func registerPorts(context: Context) -> [(name: String, port: Port)] { [] }
     // All port serilization, adding, removing and key value access goes through the port registry
     private let registry = PortRegistry()
 
     // Sadly this needs to be observed
     public let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
 
-    public var ports:[Port] { self.registry.all()   }
+    open var ports:[Port] { self.registry.all()   }
     private var cachedInputPorts: [Port]?
     private var cachedOutputPorts: [Port]?
     public private(set) var inputNodes:[Node] = []
@@ -112,7 +112,7 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     /// unconditionally, depending on every inlet; routing nodes override this
     /// to expose only their active branch's data/control dependencies, or to
     /// decline pulls for unselected outputs.
-    public func respondToPull(requestedOutputPort: Port?) -> PullResponse { .evaluate(pulling: inputPorts()) }
+    open func respondToPull(requestedOutputPort: Port?) -> PullResponse { .evaluate(pulling: inputPorts()) }
 
     public var nodeSize:CGSize { self.computeNodeSize() }
 
@@ -214,7 +214,7 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         }
     }
 
-    public func encode(to encoder:Encoder) throws
+    open func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
 
@@ -250,7 +250,7 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         }
     }
 
-    public class func initWithContext(context: Context) throws -> Node
+    open class func initWithContext(context: Context) throws -> Node
     {
         self.init(context: context)
     }
@@ -264,7 +264,7 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     // This function clears references to other nodes and node ports
     // removing any circular references allowing proper cleanup
     // This must is called by GraphRenderer.
-    public func teardown()
+    open func teardown()
     {
         self.inputNodes.removeAll()
         self.outputNodes.removeAll()
@@ -385,13 +385,13 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
 
     // MARK: - Connections
 
-    public func didConnectToNode(_ node: Node)
+    open func didConnectToNode(_ node: Node)
     {
         self.inputNodes = calcInputNodes()
         self.outputNodes = calcOutputNodes()
     }
 
-    public func didDisconnectFromNode(_ node: Node)
+    open func didDisconnectFromNode(_ node: Node)
     {
         self.inputNodes = calcInputNodes()
         self.outputNodes = calcOutputNodes()
@@ -453,18 +453,18 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
 
     // MARK: - Execution
 
-    public func startExecution(renderer:GraphRenderer) throws { }
-    public func stopExecution(renderer:GraphRenderer) throws { }
+    open func startExecution(renderer:GraphRenderer) throws { }
+    open func stopExecution(renderer:GraphRenderer) throws { }
 
-    public func enableExecution(renderer:GraphRenderer) throws { }
-    public func disableExecution(renderer:GraphRenderer) throws { }
+    open func enableExecution(renderer:GraphRenderer) throws { }
+    open func disableExecution(renderer:GraphRenderer) throws { }
 
-    public func execute(renderer:GraphRenderer,
-                        executionInfo:GraphExecutionInfo,
-                        renderPassDescriptor: MTLRenderPassDescriptor,
-                        commandBuffer: MTLCommandBuffer) throws { }
+    open func execute(renderer:GraphRenderer,
+                      executionInfo:GraphExecutionInfo,
+                      renderPassDescriptor: MTLRenderPassDescriptor,
+                      commandBuffer: MTLCommandBuffer) throws { }
 
-    public func resize(size: (width: Float, height: Float), scaleFactor: Float) { }
+    open func resize(size: (width: Float, height: Float), scaleFactor: Float) { }
 
     // MARK: - Node Settings
 
@@ -495,17 +495,17 @@ public class Node : Codable, Equatable, Identifiable, Hashable, Copyable
 
     }
 
-    public func providesSettingsView() -> Bool
+    open func providesSettingsView() -> Bool
     {
         return false
     }
 
-    public func settingsView() -> AnyView
+    open func settingsView() -> AnyView
     {
         AnyView(EmptyView())
     }
 
-    public var settingsSize:SettingsViewSize { .Small }
+    open var settingsSize:SettingsViewSize { .Small }
 
     // MARK: - Helpers
 
