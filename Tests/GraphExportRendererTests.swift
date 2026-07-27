@@ -42,10 +42,10 @@ struct GraphExportRendererTests {
             colorPixelFormat: .bgra8Unorm
         )
 
-        renderer.start()
+        try renderer.start()
         try renderer.renderFrame(into: texture, time: 5.0)
         try expectExportEqual(timeNode.outputNumber.value, 5.0)
-        renderer.finish()
+        try renderer.finish()
     }
 
     @Test("Sequential export frames derive delta time internally")
@@ -66,7 +66,7 @@ struct GraphExportRendererTests {
             colorPixelFormat: .bgra8Unorm
         )
 
-        renderer.start()
+        try renderer.start()
         try renderer.renderFrame(into: texture, time: 10.0)
         try expectExportEqual(integralNode.outputNumber.value, 0.0)
 
@@ -75,7 +75,7 @@ struct GraphExportRendererTests {
 
         try renderer.renderFrame(into: texture, time: 12.0)
         try expectExportEqual(integralNode.outputNumber.value, 4.0)
-        renderer.finish()
+        try renderer.finish()
     }
 
     @Test("Sequential export frames advance internal frame number")
@@ -95,12 +95,12 @@ struct GraphExportRendererTests {
             colorPixelFormat: .bgra8Unorm
         )
 
-        renderer.start()
+        try renderer.start()
         try renderer.renderFrame(into: texture, time: 1.0)
         #expect(renderInfoNode.outputFrameNumber.value == 0)
 
         try renderer.renderFrame(into: texture, time: 2.0)
         #expect(renderInfoNode.outputFrameNumber.value == 1)
-        renderer.finish()
+        try renderer.finish()
     }
 }

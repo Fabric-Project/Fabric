@@ -6,8 +6,8 @@ import Foundation
 struct NodeRegistryTests {
 
     @Test("Core nodes are loaded through the plugin loader")
-    func coreNodesLoadThroughPluginLoader() {
-        let registry = NodeRegistry()
+    func coreNodesLoadThroughPluginLoader() throws {
+        let registry = try NodeRegistry()
 
         let nodeClassFound = registry.nodeClass(for: "PerspectiveCameraNode") != nil
         #expect(nodeClassFound)
@@ -20,8 +20,8 @@ struct NodeRegistryTests {
     }
 
     @Test("Shader-backed dynamic nodes are owned by the core plugin")
-    func dynamicShaderNodesLoadThroughCorePlugin() {
-        let registry = NodeRegistry()
+    func dynamicShaderNodesLoadThroughCorePlugin() throws {
+        let registry = try NodeRegistry()
 
         let dynamicNodes = registry.availableNodes.filter { wrapper in
             wrapper.fileURL?.pathExtension == "metal"
@@ -35,10 +35,10 @@ struct NodeRegistryTests {
     // access from render queues must only allow one loader pass to initialize
     // the registry.
     @Test("Concurrent first access to a cold registry is safe")
-    func nodeRegistryConcurrentFirstAccess() async {
+    func nodeRegistryConcurrentFirstAccess() async throws {
         for _ in 0..<100 {
             // Fresh registry wrapper so each iteration hits the loader path.
-            let registry = NodeRegistry()
+            let registry = try NodeRegistry()
             await withTaskGroup(of: Void.self) { group in
                 for _ in 0..<16 {
                     group.addTask {

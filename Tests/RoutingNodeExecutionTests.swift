@@ -715,9 +715,9 @@ struct RoutingNodeExecutionTests
     }
 
     @Test("Routing nodes are registered")
-    func routingNodesAreRegistered()
+    func routingNodesAreRegistered() throws
     {
-        let availableNames = Set(NodeRegistry.shared.availableNodes.map(\.nodeName))
+        let availableNames = try Set(NodeRegistry.shared.availableNodes.map(\.nodeName))
         #expect(availableNames.contains(SwitchNode.name))
         #expect(availableNames.contains(GateNode.name))
         #expect(availableNames.contains(MatrixSwitchNode.name))
