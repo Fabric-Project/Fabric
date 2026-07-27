@@ -28,14 +28,14 @@ public class NodeRegistry
         try loadPluginsIfNeeded()
     }
 
-    public func nodeClass(for nodeName: String) -> (Node.Type)?
+    public func nodeClass(pluginID: String, nodeID: String) -> (Node.Type)?
     {
-        if let legacyClass = self.legacyNodeClassLookup[nodeName]
+        if let legacyClass = self.legacyNodeClassLookup[PluginQualifiedNodeID(pluginID: pluginID, nodeID: nodeID)]
         {
             return legacyClass
         }
 
-        return PluginLoader.shared.nodeClass(for: nodeName)
+        return PluginLoader.shared.nodeClass(pluginID: pluginID, nodeID: nodeID)
     }
 
     /// Returns the first drop-target node class whose `supportedContentTypes`
@@ -71,18 +71,48 @@ public class NodeRegistry
 
     private var nodeFileLoadingClasses: [(any NodeFileLoadingProtocol.Type)]
     {
-        PluginLoader.shared.pluginNodeClasses.values.compactMap { entry in
-            entry.nodeClass as? any NodeFileLoadingProtocol.Type
+        PluginLoader.shared.pluginNodeClasses.values.compactMap { nodeClass in
+            nodeClass as? any NodeFileLoadingProtocol.Type
         }
     }
 
-    private lazy var legacyNodeClassLookup: [String: Node.Type] = {
-        var result: [String: Node.Type] = [:]
+    public func qualifiedNodeID(for nodeClass: Node.Type) -> PluginQualifiedNodeID?
+    {
+        PluginLoader.shared.qualifiedNodeID(for: nodeClass)
+    }
+
+    public func validatePluginRequirements(_ requirements: [PluginRequirement]) throws
+    {
+        for requirement in requirements
+        {
+            guard let pluginInfo = PluginLoader.shared.loadedPlugins[requirement.id] else
+            {
+                throw FabricError(.loading(.pluginNotFound),
+                                  severity: .fatal,
+                                  message: "Required plugin '\(requirement.id)' is not loaded")
+            }
+
+            guard Self.version(pluginInfo.version, isAtLeast: requirement.version) else
+            {
+                throw FabricError(.loading(.pluginLoadFailed),
+                                  severity: .fatal,
+                                  message: "Required plugin '\(requirement.id)' needs version \(requirement.version ?? ""), but loaded version is \(pluginInfo.version ?? "unknown")")
+            }
+        }
+    }
+
+    private lazy var legacyNodeClassLookup: [PluginQualifiedNodeID: Node.Type] = {
+        var result: [PluginQualifiedNodeID: Node.Type] = [:]
+
+        func registerCoreAlias(_ nodeID: String, _ nodeClass: Node.Type)
+        {
+            result[PluginQualifiedNodeID(pluginID: PluginLoader.coreNodesPluginID, nodeID: nodeID)] = nodeClass
+        }
 
         // Legacy class-name aliases: old saved graphs used SatinGeometry in generic type params.
         // Both module-qualified and bare forms are covered since Swift's output can vary.
-        result["PassThroughNode<SatinGeometry>"] = PassThroughNode<Geometry>.self
-        result["PassThroughNode<Satin.SatinGeometry>"] = PassThroughNode<Geometry>.self
+        registerCoreAlias("PassThroughNode<SatinGeometry>", PassThroughNode<Geometry>.self)
+        registerCoreAlias("PassThroughNode<Satin.SatinGeometry>", PassThroughNode<Geometry>.self)
 
         // Structural array nodes were previously generic; old docs decode to type-agnostic versions.
         let agnosticSuffixes = [
@@ -99,14 +129,14 @@ public class NodeRegistry
 
         for suffix in agnosticSuffixes
         {
-            result["ArrayQueueNode<\(suffix)>"] = ArrayQueueNode.self
-            result["ArrayFirstValueNode<\(suffix)>"] = ArrayFirstValueNode.self
-            result["ArrayLastValueNode<\(suffix)>"] = ArrayLastValueNode.self
-            result["ArrayIndexValueNode<\(suffix)>"] = ArrayIndexValueNode.self
-            result["ArrayCountNode<\(suffix)>"] = ArrayCountNode.self
-            result["ArrayAppendNode<\(suffix)>"] = ArrayAppendNode.self
-            result["ArrayReplaceValueAtIndexNode<\(suffix)>"] = ArrayReplaceValueAtIndexNode.self
-            result["ArraySplitAtIndexNode<\(suffix)>"] = ArraySplitAtIndexNode.self
+            registerCoreAlias("ArrayQueueNode<\(suffix)>", ArrayQueueNode.self)
+            registerCoreAlias("ArrayFirstValueNode<\(suffix)>", ArrayFirstValueNode.self)
+            registerCoreAlias("ArrayLastValueNode<\(suffix)>", ArrayLastValueNode.self)
+            registerCoreAlias("ArrayIndexValueNode<\(suffix)>", ArrayIndexValueNode.self)
+            registerCoreAlias("ArrayCountNode<\(suffix)>", ArrayCountNode.self)
+            registerCoreAlias("ArrayAppendNode<\(suffix)>", ArrayAppendNode.self)
+            registerCoreAlias("ArrayReplaceValueAtIndexNode<\(suffix)>", ArrayReplaceValueAtIndexNode.self)
+            registerCoreAlias("ArraySplitAtIndexNode<\(suffix)>", ArraySplitAtIndexNode.self)
         }
 
         // Vector compose/decompose nodes were previously generic; old docs map to consolidated versions.
@@ -114,14 +144,35 @@ public class NodeRegistry
 
         for suffix in vectorSuffixes
         {
-            result["ComposeVectorNode<\(suffix)>"] = ComposeVectorNode.self
-            result["DecomposeVectorNode<\(suffix)>"] = DecomposeVectorNode.self
-            result["ComposeVectorArrayNode<\(suffix)>"] = ComposeVectorArrayNode.self
-            result["DecomposeVectorArrayNode<\(suffix)>"] = DecomposeVectorArrayNode.self
+            registerCoreAlias("ComposeVectorNode<\(suffix)>", ComposeVectorNode.self)
+            registerCoreAlias("DecomposeVectorNode<\(suffix)>", DecomposeVectorNode.self)
+            registerCoreAlias("ComposeVectorArrayNode<\(suffix)>", ComposeVectorArrayNode.self)
+            registerCoreAlias("DecomposeVectorArrayNode<\(suffix)>", DecomposeVectorArrayNode.self)
         }
 
         return result
     }()
+
+    private static func version(_ loadedVersion: String?, isAtLeast requiredVersion: String?) -> Bool
+    {
+        guard let requiredVersion else { return true }
+        guard let loadedVersion else { return false }
+
+        let loadedComponents = loadedVersion.split(separator: ".").map { Int(String($0)) ?? 0 }
+        let requiredComponents = requiredVersion.split(separator: ".").map { Int(String($0)) ?? 0 }
+        let count = max(loadedComponents.count, requiredComponents.count)
+
+        for index in 0..<count
+        {
+            let loaded = index < loadedComponents.count ? loadedComponents[index] : 0
+            let required = index < requiredComponents.count ? requiredComponents[index] : 0
+
+            if loaded > required { return true }
+            if loaded < required { return false }
+        }
+
+        return true
+    }
 
     private func loadPluginsIfNeeded() throws
     {

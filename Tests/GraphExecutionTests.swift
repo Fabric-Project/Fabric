@@ -306,7 +306,9 @@ struct GraphExecutionTests {
 
     @Test("Spot light node is registered in the node registry")
     func spotLightNodeIsRegistered() throws {
-        let nodeClass = try NodeRegistry.shared.nodeClass(for: String(describing: SpotLightNode.self))
+        let registry = try NodeRegistry.shared
+        let nodeClass = registry.nodeClass(pluginID: PluginLoader.coreNodesPluginID,
+                                           nodeID: String(describing: SpotLightNode.self))
         #expect(nodeClass == SpotLightNode.self)
     }
 

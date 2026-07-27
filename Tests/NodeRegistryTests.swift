@@ -9,7 +9,8 @@ struct NodeRegistryTests {
     func coreNodesLoadThroughPluginLoader() throws {
         let registry = try NodeRegistry()
 
-        let nodeClassFound = registry.nodeClass(for: "PerspectiveCameraNode") != nil
+        let nodeClassFound = registry.nodeClass(pluginID: PluginLoader.coreNodesPluginID,
+                                                nodeID: "PerspectiveCameraNode") != nil
         #expect(nodeClassFound)
         #expect(PluginLoader.shared.loadedPlugins[FabricCoreNodesPlugin.pluginID] != nil)
 
@@ -42,7 +43,8 @@ struct NodeRegistryTests {
             await withTaskGroup(of: Void.self) { group in
                 for _ in 0..<16 {
                     group.addTask {
-                        _ = registry.nodeClass(for: "PerspectiveCameraNode")
+                        _ = registry.nodeClass(pluginID: PluginLoader.coreNodesPluginID,
+                                               nodeID: "PerspectiveCameraNode")
                     }
                 }
             }
@@ -50,7 +52,8 @@ struct NodeRegistryTests {
             // generic __checkBinaryOperation crashes the runtime's metadata
             // instantiation (metatype generic argument), independent of the
             // registry race this test guards against.
-            let found = registry.nodeClass(for: "PerspectiveCameraNode") != nil
+            let found = registry.nodeClass(pluginID: PluginLoader.coreNodesPluginID,
+                                           nodeID: "PerspectiveCameraNode") != nil
             #expect(found)
         }
     }

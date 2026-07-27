@@ -17,11 +17,11 @@ public final class PluginLoader
     public static let coreNodesPluginID = FabricCoreNodesPlugin.pluginID
 
     public private(set) var loadedPlugins: [String: PluginInfo] = [:]
-    public private(set) var pluginNodeClasses: [String: (nodeClass: Node.Type, pluginID: String)] = [:]
+    public private(set) var pluginNodeClasses: [PluginQualifiedNodeID: Node.Type] = [:]
     public private(set) var pluginNodeWrappers: [NodeClassWrapper] = []
     public private(set) var loadErrors: [PluginLoadError] = []
 
-    private var classNameAliases: [String: String] = [:]
+    private var nodeIDAliases: [PluginQualifiedNodeID: PluginQualifiedNodeID] = [:]
     private let logger = Logger(subsystem: "graphics.fabric", category: "PluginLoader")
     private var pluginsLoaded = false
     private let pluginLoadLock = NSRecursiveLock()
@@ -160,6 +160,15 @@ public final class PluginLoader
                                       existingNodeNames: [])
             }
 
+            try registerNodeClass(BaseImageNode.self,
+                                  pluginID: Self.coreNodesPluginID,
+                                  existingNodeNames: [],
+                                  includeWrapper: false)
+            try registerNodeClass(BaseTextureComputeProcessorNode.self,
+                                  pluginID: Self.coreNodesPluginID,
+                                  existingNodeNames: [],
+                                  includeWrapper: false)
+
             pluginNodeWrappers.append(contentsOf: FabricCoreNodesPlugin.dynamicNodeWrappers())
             loadedPlugins[Self.coreNodesPluginID] = pluginInfo
             logger.info("Loaded embedded Fabric core nodes plugin")
@@ -237,15 +246,21 @@ public final class PluginLoader
         logger.info("Loaded Fabric plugin '\(pluginInfo.displayName)' with \(nodeClasses.count) node class(es)")
     }
 
-    public func nodeClass(for nodeName: String) -> Node.Type?
+    public func nodeClass(pluginID: String, nodeID: String) -> Node.Type?
     {
-        let resolvedName = classNameAliases[nodeName] ?? nodeName
-        return pluginNodeClasses[resolvedName]?.nodeClass
+        let requestedID = PluginQualifiedNodeID(pluginID: pluginID, nodeID: nodeID)
+        let resolvedID = nodeIDAliases[requestedID] ?? requestedID
+        return pluginNodeClasses[resolvedID]
     }
 
-    public func resolveClassName(_ className: String) -> String
+    public func pluginID(for nodeClass: Node.Type) -> String?
     {
-        classNameAliases[className] ?? className
+        pluginNodeClasses.first { ObjectIdentifier($0.value) == ObjectIdentifier(nodeClass) }?.key.pluginID
+    }
+
+    public func qualifiedNodeID(for nodeClass: Node.Type) -> PluginQualifiedNodeID?
+    {
+        pluginNodeClasses.first { ObjectIdentifier($0.value) == ObjectIdentifier(nodeClass) }?.key
     }
 
     private func loadPrincipalClass(from pluginInfo: PluginInfo) throws -> FabricPlugin.Type?
@@ -277,50 +292,59 @@ public final class PluginLoader
 
     private func registerNodeClass(_ nodeClass: Node.Type,
                                    pluginID: String,
-                                   existingNodeNames: Set<String>) throws
+                                   existingNodeNames: Set<String>,
+                                   includeWrapper: Bool = true) throws
     {
         let lookupName = String(describing: nodeClass)
-        let displayName = nodeClass.name
+        let nodeID = Self.rootNodeID(from: lookupName)
+        let qualifiedNodeID = PluginQualifiedNodeID(pluginID: pluginID, nodeID: nodeID)
 
-        if let existingPlugin = pluginNodeClasses[lookupName]?.pluginID
+        if pluginNodeClasses[qualifiedNodeID] != nil
         {
             throw PluginLoadError.duplicateNodeName(pluginID: pluginID,
-                                                    nodeName: lookupName,
-                                                    existingSource: "plugin '\(existingPlugin)'")
+                                                    nodeName: nodeID,
+                                                    existingSource: "plugin '\(pluginID)'")
         }
 
-        if let existingWrapper = pluginNodeWrappers.first(where: { $0.nodeName == displayName })
+        if existingNodeNames.contains(qualifiedNodeID.description)
         {
             throw PluginLoadError.duplicateNodeName(pluginID: pluginID,
-                                                    nodeName: displayName,
-                                                    existingSource: "plugin '\(existingWrapper.pluginBundleID ?? "unknown")'")
-        }
-
-        if existingNodeNames.contains(lookupName) || existingNodeNames.contains(displayName)
-        {
-            throw PluginLoadError.duplicateNodeName(pluginID: pluginID,
-                                                    nodeName: displayName,
+                                                    nodeName: nodeID,
                                                     existingSource: "previously registered nodes")
         }
 
-        pluginNodeClasses[lookupName] = (nodeClass: nodeClass, pluginID: pluginID)
-        pluginNodeWrappers.append(NodeClassWrapper(nodeClass: nodeClass,
-                                                   nodeType: nodeClass.nodeType,
-                                                   pluginBundleID: pluginID))
+        pluginNodeClasses[qualifiedNodeID] = nodeClass
 
-        let unqualifiedName = String(lookupName.split(separator: ".").last ?? Substring(lookupName))
-        if unqualifiedName != lookupName
+        if includeWrapper
         {
-            classNameAliases[unqualifiedName] = lookupName
+            pluginNodeWrappers.append(NodeClassWrapper(nodeClass: nodeClass,
+                                                       nodeType: nodeClass.nodeType,
+                                                       pluginBundleID: pluginID))
         }
 
-        logger.debug("Registered node class '\(lookupName)' from plugin '\(pluginID)'")
+        if lookupName != nodeID
+        {
+            nodeIDAliases[PluginQualifiedNodeID(pluginID: pluginID, nodeID: lookupName)] = qualifiedNodeID
+        }
+
+        logger.debug("Registered node class '\(qualifiedNodeID.description)'")
     }
 
     private func currentRegisteredNodeNames() -> Set<String>
     {
-        Set(pluginNodeClasses.flatMap { nodeName, entry in
-            [nodeName, entry.nodeClass.name]
-        } + pluginNodeWrappers.map(\.nodeName))
+        Set(pluginNodeClasses.keys.map(\.description))
+    }
+
+    private static func rootNodeID(from className: String) -> String
+    {
+        if let genericStart = className.firstIndex(of: "<")
+        {
+            let baseName = className[..<genericStart]
+            let genericSuffix = className[genericStart...]
+            let rootBaseName = baseName.split(separator: ".").last ?? baseName[...]
+            return "\(rootBaseName)\(genericSuffix)"
+        }
+
+        return String(className.split(separator: ".").last ?? Substring(className))
     }
 }
