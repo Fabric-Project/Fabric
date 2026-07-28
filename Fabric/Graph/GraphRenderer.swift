@@ -38,10 +38,6 @@ public class GraphRenderer : ViewRenderer
     private var graphRequiresResize: Bool = false
     public private(set) var resizeScaleFactor: Float = 1.0
 
-    // Pre-sorted node list built in update(), consumed in draw()
-    private var scheduledNodes: [Node] = []
-    private var pendingSceneSync = false
-
     // One feedback cache per graph/subgraph UUID to handle different execution cadences
     private var feedbackCaches: [UUID: GraphRendererFeedbackCache] = [:]
 
@@ -89,11 +85,11 @@ public class GraphRenderer : ViewRenderer
 
     override public func update() throws {
         try super.update()
-
+        
         let now = CACurrentMediaTime()
         let delta = now - lastGraphExecutionTime
         lastGraphExecutionTime = now
-
+        
         let timing = GraphExecutionTiming(
             time: now,
             deltaTime: delta,
@@ -103,8 +99,13 @@ public class GraphRenderer : ViewRenderer
         )
         currentExecutionInfo = GraphExecutionInfo(timing: timing, eventInfo: pendingEventInfo)
         pendingEventInfo = nil
+        
+    }
 
-        updateExecutionPlan()
+    /// Set the execution info without reading the wall clock. Tests call this
+    /// directly to drive the update/draw path with deterministic timing.
+    func planFrame(executionInfo: GraphExecutionInfo) {
+        currentExecutionInfo = executionInfo
     }
 
     override public func cleanup() throws {
@@ -131,67 +132,10 @@ public class GraphRenderer : ViewRenderer
         renderPassDescriptor.colorAttachments[0].storeAction = .store
         renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0)
 
-        let feedbackCache = self.feedbackCache(for: graph.id)
-
-        for node in scheduledNodes {
-            if graphRequiresResize {
-                node.resize(size: renderEncoder.size, scaleFactor: resizeScaleFactor)
-            }
-
-#if DEBUG
-            commandBuffer.pushDebugGroup(node.name)
-            defer { commandBuffer.popDebugGroup() }
-#endif
-            try node.execute(renderer: self,
-                             executionInfo: currentExecutionInfo,
-                             renderPassDescriptor: renderPassDescriptor,
-                             commandBuffer: commandBuffer)
-            node.markClean()
-            feedbackCache.cacheProcessedNode(node, executionInfo: currentExecutionInfo)
-        }
-
-        graphRequiresResize = false
-
-        if pendingSceneSync {
-            graph.syncNodesToScene()
-            pendingSceneSync = false
-        }
-
-        renderEncoder.draw(renderPassDescriptor: renderPassDescriptor,
-                           commandBuffer: commandBuffer,
-                           scene: graph.scene,
-                           camera: currentCamera ?? defaultCamera)
-
-        currentCamera = graph.firstCamera ?? defaultCamera
-        executionCount += 1
-    }
-
-    // MARK: - Graph Analysis (update phase)
-
-    private func updateExecutionPlan() {
-        self.resetTextureCaches(for: currentExecutionInfo)
-
-        let feedbackCache = self.feedbackCache(for: graph.id)
-        feedbackCache.resetCacheFor(executionInfo: currentExecutionInfo)
-
-        pendingSceneSync = graph.consumePendingConnectionSceneSync()
-        if pendingSceneSync {
-            feedbackCache.invalidateTopologyCaches()
-        }
-
-        var ordered: [Node] = []
-        ordered.reserveCapacity(graph.nodes.count)
-
-        for root in evaluationRoots(for: graph) {
-            pullNode(feedbackCache: feedbackCache,
-                     node: root.node,
-                     requestedOutputPort: root.requestedOutputPort,
-                     executionInfo: currentExecutionInfo,
-                     cacheProcessedOutputs: false,
-                     onTraverse: nil) { ordered.append($0) }
-        }
-
-        scheduledNodes = ordered
+        try executeAndDraw(graph: graph,
+                           executionInfo: currentExecutionInfo,
+                           renderPassDescriptor: renderPassDescriptor,
+                           commandBuffer: commandBuffer)
     }
 
     // MARK: - Pull traversal (shared by planning and on-demand execution)
