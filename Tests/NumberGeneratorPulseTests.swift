@@ -199,4 +199,149 @@ struct NumberGeneratorPulseTests
         let changes = countChanges(values)
         #expect(changes == 3, "expected 3 new numbers over 3 pulse periods on the update/draw path, got \(changes); values = \(values)")
     }
+
+    // Drives a Pulse → Number Generator (mode) graph through the renderer and
+    // returns the value emitted each frame. Period 1.0 at dt 0.1 puts the first
+    // rising edge at frame 9, so `values[0]` is the pre-trigger seed and a change
+    // appears once the first pulse lands.
+    private func driveNumberGenerator(_ harness: GraphExecutionTestHarness,
+                                      mode: NumberGeneratorMode,
+                                      frames: Int = 12,
+                                      deltaTime: Double = 0.1) throws -> [Float]
+    {
+        let graph = Graph(context: harness.context)
+        let pulse = NumberPulseNode(context: harness.context)
+        pulse.inputPeriod.value = 1.0
+        let generator = NumberGeneratorNode(context: harness.context, strategy: mode)
+        graph.addNode(pulse)
+        graph.addNode(generator)
+
+        guard let signal = generator.findPort(named: "inputSignal", as: ParameterPort<Bool>.self),
+              let output = generator.findPort(named: "outputValue", as: NodePort<Float>.self)
+        else { throw GraphExecutionTestFailure("Number Generator missing ports") }
+
+        pulse.outputSignal.connect(to: signal)
+        graph.markConnectionsChanged()
+        publish(output, in: graph)
+
+        try harness.renderer.startExecution(graph: graph)
+        var values: [Float] = []
+        for frame in 0 ..< frames {
+            let info = harness.makeExecutionContext(time: Double(frame) * deltaTime, deltaTime: deltaTime, frameNumber: frame)
+            try harness.execute(graph: graph, executionInfo: info, drawScene: false, checkCommandBufferError: false)
+            if let value = output.value { values.append(value) }
+        }
+        try harness.renderer.stopExecution(graph: graph)
+        return values
+    }
+
+    // Verifies the seed/advance contract shared by findings 4 and 9: every mode
+    // emits a well-formed first value (no mode is the degenerate 0 outlier), and
+    // the first pulse produces a change rather than a dead repeat of the seed.
+    @Test("Every generator mode seeds an in-range first value and advances on the first pulse")
+    func generatorsSeedInRangeAndAdvanceOnFirstPulse() throws
+    {
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
+
+        // Number Generator — all three modes: valid seed, then a change on the first pulse.
+        for mode in NumberGeneratorMode.allCases {
+            let values = try driveNumberGenerator(harness, mode: mode)
+            let seed = try #require(values.first, "\(mode.rawValue) emitted no value")
+            #expect(seed >= 0 && seed <= 1, "\(mode.rawValue) seed \(seed) is outside [0, 1]")
+            #expect(values.contains { $0 != seed }, "\(mode.rawValue) never changed after the first pulse; values = \(values)")
+        }
+
+        // Sharper guard for the Random seed (finding 9): it must be a real draw,
+        // not the fixed 0 it used to be — independent instances should differ.
+        let randomSeeds = try (0 ..< 6).map { _ -> Float in
+            try #require(driveNumberGenerator(harness, mode: .random, frames: 1).first)
+        }
+        #expect(Set(randomSeeds).count > 1, "Random seed looks fixed rather than drawn: \(randomSeeds)")
+
+        // Index Generator, Sequential (finding 4): the seed shows index 0 and the
+        // first pulse must advance to 1, not re-emit 0.
+        let indices = try driveSequentialIndexGenerator(harness)
+        let indexSeed = try #require(indices.first, "Index Generator emitted no value")
+        #expect(indexSeed == 0, "Sequential seed should be index 0; got \(indexSeed)")
+        let firstChange = indices.first { $0 != indexSeed }
+        #expect(firstChange == 1, "Sequential first pulse should advance 0 → 1; values = \(indices)")
+    }
+
+    // Pulse → Index Generator in Sequential mode; returns the index emitted each
+    // frame (seed at frame 0, first advance at the frame-9 pulse).
+    private func driveSequentialIndexGenerator(_ harness: GraphExecutionTestHarness,
+                                               frames: Int = 12,
+                                               deltaTime: Double = 0.1) throws -> [Int]
+    {
+        let graph = Graph(context: harness.context)
+        let pulse = NumberPulseNode(context: harness.context)
+        pulse.inputPeriod.value = 1.0
+        let generator = NumberIndexGeneratorNode(context: harness.context)
+        generator.inputMode.value = IndexGeneratorMode.sequential.rawValue
+        generator.inputSize.value = 8
+        generator.inputLoop.value = true
+        graph.addNode(pulse)
+        graph.addNode(generator)
+
+        pulse.outputSignal.connect(to: generator.inputSignal)
+        graph.markConnectionsChanged()
+        publish(generator.outputIndex, in: graph)
+
+        try harness.renderer.startExecution(graph: graph)
+        var values: [Int] = []
+        for frame in 0 ..< frames {
+            let info = harness.makeExecutionContext(time: Double(frame) * deltaTime, deltaTime: deltaTime, frameNumber: frame)
+            try harness.execute(graph: graph, executionInfo: info, drawScene: false, checkCommandBufferError: false)
+            if let value = generator.outputIndex.value { values.append(value) }
+        }
+        try harness.renderer.stopExecution(graph: graph)
+        return values
+    }
+
+    // Finding 1: shrinking Size below the held index must re-emit the clamped
+    // index, or downstream keeps reading an index that is now out of range.
+    @Test("Index Generator re-emits a clamped index when Size shrinks between pulses")
+    func indexGeneratorReEmitsClampedIndexOnSizeShrink() throws
+    {
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
+
+        let graph = Graph(context: harness.context)
+        let generator = NumberIndexGeneratorNode(context: harness.context)
+        generator.inputMode.value = IndexGeneratorMode.sequential.rawValue // deterministic advance
+        generator.inputSize.value = 10
+        generator.inputLoop.value = true
+        graph.addNode(generator)
+
+        // Published so the generator is an evaluation root, pulled every frame.
+        publish(generator.outputIndex, in: graph)
+
+        try harness.renderer.startExecution(graph: graph)
+
+        var frame = 0
+        func step() throws {
+            let info = harness.makeExecutionContext(time: Double(frame) * 0.1, deltaTime: 0.1, frameNumber: frame)
+            try harness.execute(graph: graph, executionInfo: info, drawScene: false, checkCommandBufferError: false)
+            frame += 1
+        }
+
+        try step() // seed: index 0
+
+        // Drive five rising edges (false → true) by hand to advance Sequential to 5.
+        for _ in 0 ..< 5 {
+            generator.inputSignal.value = true
+            try step()
+            generator.inputSignal.value = false
+            try step()
+        }
+        #expect(generator.outputIndex.value == 5, "expected index 5 after five pulses; got \(String(describing: generator.outputIndex.value))")
+
+        // Shrink Size below the held index, with NO pulse this frame.
+        generator.inputSize.value = 4
+        try step()
+
+        try harness.renderer.stopExecution(graph: graph)
+
+        // 5 is now out of range for Size 4; the node must re-emit the clamped 3.
+        #expect(generator.outputIndex.value == 3, "Size shrink should re-emit clamped index 3; got \(String(describing: generator.outputIndex.value))")
+    }
 }

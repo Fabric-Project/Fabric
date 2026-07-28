@@ -44,9 +44,8 @@ public class NumberIndexGeneratorNode : Node
     private var hasEmitted: Bool = false
 
     // Sequence state, reset whenever Size, Mode, or Loop changes.
-    private var bag: [Int] = []            // remaining draws for Shuffle
-    private var sequentialCursor: Int = 0  // next value for Sequential
-    private var finished: Bool = false     // finite sequence done, Loop off → hold
+    private var bag: [Int] = []        // remaining draws for Shuffle
+    private var finished: Bool = false // finite sequence done, Loop off → hold
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
@@ -76,7 +75,6 @@ public class NumberIndexGeneratorNode : Node
 
     private func resetSequence() {
         self.bag = []
-        self.sequentialCursor = 0
         self.finished = false
     }
 
@@ -98,10 +96,12 @@ public class NumberIndexGeneratorNode : Node
 
         // Changing Size, Mode, or Loop restarts the sequence and re-clamps the
         // held index into the new range.
+        let indexBeforeClamp = self.index
         if self.inputSize.valueDidChange || self.inputMode.valueDidChange || self.inputLoop.valueDidChange {
             self.resetSequence()
             self.index = min(self.index, size - 1)
         }
+        let indexReclamped = self.index != indexBeforeClamp
 
         let signal = self.inputSignal.value ?? false
 
@@ -119,7 +119,11 @@ public class NumberIndexGeneratorNode : Node
             self.advance(size: size, mode: mode, loop: loop)
         }
 
-        if !self.hasEmitted || triggered {
+        // Re-emit when a Size change re-clamped the held index: otherwise the
+        // output keeps publishing an index that is now out of range for the
+        // shrunk Size, driving downstream lookups out of bounds until the next
+        // trigger.
+        if !self.hasEmitted || triggered || indexReclamped {
             self.hasEmitted = true
             self.outputIndex.send(self.index)
         }
@@ -142,10 +146,15 @@ public class NumberIndexGeneratorNode : Node
             }
 
         case .sequential:
-            self.index = self.sequentialCursor
-            self.sequentialCursor += 1
-            if self.sequentialCursor >= size {
-                if loop { self.sequentialCursor = 0 } else { self.finished = true }
+            // Step to the next index. The resting/seed value already shows the
+            // current index, so a trigger advances past it rather than repeating
+            // it (matching Shuffle / no-immediate-repeat, which never re-emit the
+            // seed). The loop seam back to 0 is a genuine change and is allowed.
+            let next = self.index + 1
+            if next >= size {
+                if loop { self.index = 0 } else { self.finished = true }
+            } else {
+                self.index = next
             }
 
         case .shuffle:

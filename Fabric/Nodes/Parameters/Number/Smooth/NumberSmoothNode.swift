@@ -243,8 +243,17 @@ public class NumberSmoothNode : StrategyNode
         let damping = min(1, max(0, self.dampingValue()))
         let zeta = Self.springMinDamping + Double(damping) * (Self.springMaxDamping - Self.springMinDamping)
 
-        let substeps = max(1, min(Self.springMaxSubsteps, Int((omega * deltaTime / Self.springMaxStepAngle).rounded(.up))))
-        let h = deltaTime / Double(substeps)
+        // The substep budget bounds how much real time can be integrated while
+        // keeping the step angle at its stable target. A deltaTime larger than that
+        // budget only arises from a frame hitch or resume-from-pause; integrating
+        // the whole gap is physically meaningless (a spring settles in a handful of
+        // time constants) and would force the step angle past target, so clamp it.
+        // Within a normal frame this is a no-op.
+        let maxIntegrationWindow = Double(Self.springMaxSubsteps) * Self.springMaxStepAngle / omega
+        let integrationTime = min(deltaTime, maxIntegrationWindow)
+
+        let substeps = max(1, min(Self.springMaxSubsteps, Int((omega * integrationTime / Self.springMaxStepAngle).rounded(.up))))
+        let h = integrationTime / Double(substeps)
 
         var position = Double(self.heldValue)
         var velocity = Double(self.velocity)

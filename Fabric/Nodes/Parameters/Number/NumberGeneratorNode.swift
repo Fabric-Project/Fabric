@@ -120,7 +120,7 @@ public class NumberGeneratorNode : StrategyNode
         switch self.strategyOption(as: NumberGeneratorMode.self) ?? .random
         {
         case .random:
-            self.value = 0
+            self.value = Float.random(in: 0 ..< 1) // seed a representative value, like Walk / Even Spread
         case .walk:
             self.value = 0.5
         case .evenSpread:
@@ -189,6 +189,17 @@ public class NumberGeneratorNode : StrategyNode
             candidate = Self.quantile(Float.random(in: 0 ..< 1), distribution)
             attempts += 1
         }
+
+        // A peaked distribution can put almost all its mass inside the window when
+        // the current value sits near the peak and Minimum Change is wide, so
+        // rejection sampling may never land a valid draw. Minimum Change is a hard
+        // contract, so when the shaped draw can't honour it, fall back to the exact
+        // windowed uniform draw — trading distribution shape (only on these frames)
+        // for the guaranteed separation the user asked for.
+        if abs(candidate - self.value) < minChange
+        {
+            return Self.uniformBeyond(value: self.value, delta: minChange)
+        }
         return candidate
     }
 
@@ -226,13 +237,23 @@ public class NumberGeneratorNode : StrategyNode
         }
     }
 
+    // Acklam coefficients, hoisted to type scope so they are not heap-allocated
+    // on every call (inverseStandardNormal runs on the per-trigger draw path).
+    // a / b shape the central region's rational approximation, c / d the tails.
+    private static let acklamCentralNumerator = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00]
+    private static let acklamCentralDenominator = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01]
+    private static let acklamTailNumerator = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00]
+    private static let acklamTailDenominator = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00]
+
     /// Acklam's rational approximation of the standard-normal inverse CDF.
     private static func inverseStandardNormal(_ p: Double) -> Double
     {
-        let a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00]
-        let b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01]
-        let c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00]
-        let d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00]
+        // Local aliases keep Horner's-method evaluation legible; binding to the
+        // shared static arrays copies only the reference (no allocation).
+        let a = Self.acklamCentralNumerator
+        let b = Self.acklamCentralDenominator
+        let c = Self.acklamTailNumerator
+        let d = Self.acklamTailDenominator
         let pLow = 0.02425
         let pHigh = 1 - pLow
 
