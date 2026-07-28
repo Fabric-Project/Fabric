@@ -22,9 +22,9 @@ open class BaseObjectNode : Node
 }
 
 
-public class ObjectNode<ObjectType : Satin.Object> : BaseObjectNode
+open class ObjectNode<ObjectType : Satin.Object> : BaseObjectNode
 {
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+    override open class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
         
         return [
@@ -50,15 +50,15 @@ public class ObjectNode<ObjectType : Satin.Object> : BaseObjectNode
     public var inputScale:ParameterPort<simd_float3>          { port(named: "inputScale") }
     public var inputOrientation:ParameterPort<simd_float4>          { port(named: "inputOrientation") }
     
-    override public func getObject() -> Object? {
+    override open func getObject() -> Object? {
         return self.object
     }
 
-    var object: ObjectType? {
+    open var object: ObjectType? {
         return nil
     }
 
-    public func evaluate(object:Object?, atTime:TimeInterval) -> Bool
+    open func evaluate(object:Object?, atTime:TimeInterval) -> Bool
     {
         var shouldOutput = false
         
