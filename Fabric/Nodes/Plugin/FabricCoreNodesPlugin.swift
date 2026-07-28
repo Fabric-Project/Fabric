@@ -256,6 +256,8 @@ public final class FabricCoreNodesPlugin: NSObject, FabricPlugin
         NumberSmoothNode.self,
         NumberLFONode.self,
         NumberPulseNode.self,
+        NumberGeneratorNode.self,
+        NumberIndexGeneratorNode.self,
         NumberTriggerNode.self,
         MathExpressionNode.self,
         GradientNoiseNode.self,
