@@ -110,11 +110,19 @@ public class DeferredSubgraphNode: SubgraphNode
     public required init(context: Context)
     {
         self.graphRenderer = GraphRenderer(context: context)
-        
+
         super.init(context: context)
         self.synchronizeDeferredConfiguration()
     }
-    
+
+    public override init(context: Context, subGraph: Graph)
+    {
+        self.graphRenderer = GraphRenderer(context: context)
+
+        super.init(context: context, subGraph: subGraph)
+        self.synchronizeDeferredConfiguration()
+    }
+
     public required init(from decoder: any Decoder) throws
     {
         guard let decodeContext = decoder.context else

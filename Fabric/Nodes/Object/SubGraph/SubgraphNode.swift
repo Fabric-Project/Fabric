@@ -10,15 +10,15 @@ import Satin
 import simd
 import Metal
 
-public class SubgraphNode: BaseObjectNode
+open class SubgraphNode: BaseObjectNode
 {
-    override public class var name:String { "Sub Graph" }
-    override public class var nodeType:Node.NodeType { Node.NodeType.Subgraph }
-    override public class var nodeExecutionMode: Node.ExecutionMode { .Consumer } // TODO: ??
-    override public class var nodeTimeMode: Node.TimeMode { .TimeBase }
-    override public class var nodeDescription: String { "A Sub Graph of Nodes, useful for organizing or encapsulation"}
+    override open class var name:String { "Sub Graph" }
+    override open class var nodeType:Node.NodeType { Node.NodeType.Subgraph }
+    override open class var nodeExecutionMode: Node.ExecutionMode { .Consumer } // TODO: ??
+    override open class var nodeTimeMode: Node.TimeMode { .TimeBase }
+    override open class var nodeDescription: String { "A Sub Graph of Nodes, useful for organizing or encapsulation"}
 
-    let subGraph:Graph
+    public private(set) var subGraph:Graph
 
     /// ProxyPorts wrapping the sub graph's published ports.
     /// Each proxy has node = self (the SubgraphNode) and published = false.
@@ -26,11 +26,11 @@ public class SubgraphNode: BaseObjectNode
     /// Lazily rebuilt when the sub graph's published ports change.
     private var proxyPorts: [Port] = []
 
-    override public var ports:[Port] { self.proxyPorts + super.ports }
+    override open var ports:[Port] { self.proxyPorts + super.ports }
 
     /// Rebuild proxy ports from the sub graph's current published ports.
     /// Called via callback when the sub graph's published ports change.
-    public func rebuildProxyPorts()
+    open func rebuildProxyPorts()
     {
         self.invalidatePortCaches()
 
@@ -134,7 +134,7 @@ public class SubgraphNode: BaseObjectNode
         }
     }
 
-    override public var nodeExecutionMode:ExecutionMode
+    override open var nodeExecutionMode:ExecutionMode
     {
         let publishedInputPorts = self.proxyPorts.filter { $0.kind == .Inlet }
         let publishedOutputPorts = self.proxyPorts.filter { $0.kind == .Outlet }
@@ -161,12 +161,12 @@ public class SubgraphNode: BaseObjectNode
         return Self.nodeExecutionMode
     }
 
-    override public func getObject() -> Object?
+    override open func getObject() -> Object?
     {
         return self.object
     }
-    
-    public var object:Object? {
+
+    open var object:Object? {
         self.subGraph.scene
     }
     
@@ -178,14 +178,25 @@ public class SubgraphNode: BaseObjectNode
         self.wireSubGraphCallback()
         self.rebuildProxyPorts()
     }
-    
+
+    /// Wrap an existing graph as this node's sub graph, for embedders that
+    /// decode a graph separately and then nest it.
+    public init(context: Context, subGraph: Graph)
+    {
+        self.subGraph = subGraph
+
+        super.init(context: context)
+        self.wireSubGraphCallback()
+        self.rebuildProxyPorts()
+    }
+
     enum CodingKeys : String, CodingKey
     {
         case subGraph
         case proxyPorts
     }
     
-    public override func encode(to encoder:Encoder) throws
+    open override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -251,10 +262,10 @@ public class SubgraphNode: BaseObjectNode
      
     // Ensure we always render!
 //    override public var isDirty:Bool { get {  true /*self.subGraph.needsExecution*/  } set { } }
-    override public var isDirty:Bool { get {  self.subGraph.needsExecution  } set { } }
+    override open var isDirty:Bool { get {  self.subGraph.needsExecution  } set { } }
 
 
-    override public func markClean()
+    override open func markClean()
     {
         for node in self.subGraph.nodes
         {
@@ -264,7 +275,7 @@ public class SubgraphNode: BaseObjectNode
         super.markClean()
     }
          
-    override public func markDirty()
+    override open func markDirty()
     {
         for node in self.subGraph.nodes
         {
@@ -274,27 +285,27 @@ public class SubgraphNode: BaseObjectNode
         super.markDirty()
     }
     
-    override public func startExecution(renderer:GraphRenderer) throws
+    override open func startExecution(renderer:GraphRenderer) throws
     {
         try renderer.startExecution(graph: self.subGraph)
     }
-    
-    override public func stopExecution(renderer:GraphRenderer) throws
+
+    override open func stopExecution(renderer:GraphRenderer) throws
     {
         try renderer.stopExecution(graph: self.subGraph)
     }
 
-    override public func enableExecution(renderer:GraphRenderer) throws
+    override open func enableExecution(renderer:GraphRenderer) throws
     {
         try renderer.enableExecution(graph: self.subGraph)
     }
-    
-    override public func disableExecution(renderer:GraphRenderer) throws
+
+    override open func disableExecution(renderer:GraphRenderer) throws
     {
         try renderer.disableExecution(graph: self.subGraph)
     }
-    
-    public func forwardPortValues(force:Bool = false)
+
+    open func forwardPortValues(force:Bool = false)
     {
         // Forward outlet values from inner ports to proxy ports so the
         // parent graph receives sub graph outputs.
@@ -304,7 +315,7 @@ public class SubgraphNode: BaseObjectNode
         }
     }
     
-    override  public func execute(renderer:GraphRenderer,
+    override open func execute(renderer:GraphRenderer,
                                   executionInfo:GraphExecutionInfo,
                                   renderPassDescriptor: MTLRenderPassDescriptor,
                                   commandBuffer: MTLCommandBuffer) throws    {

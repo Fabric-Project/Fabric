@@ -12,10 +12,10 @@ import simd
 import Metal
 
 
-public class BaseRenderableNode<ObjectType : Renderable> : ObjectNode<ObjectType>
+open class BaseRenderableNode<ObjectType : Renderable> : ObjectNode<ObjectType>
 {
-    
-    override public func evaluate(object:Object?, atTime:TimeInterval) -> Bool
+
+    override open func evaluate(object:Object?, atTime:TimeInterval) -> Bool
     {
         var shouldOutput = super.evaluate(object: object, atTime: atTime)
 

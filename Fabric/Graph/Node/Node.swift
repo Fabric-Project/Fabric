@@ -75,7 +75,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
 
     public private(set) var context:Context
 
-    weak var graph:Graph?
+    public internal(set) weak var graph:Graph?
 
     // Method to register ports
     open class func registerPorts(context: Context) -> [(name: String, port: Port)] { [] }
