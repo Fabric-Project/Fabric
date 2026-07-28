@@ -54,6 +54,8 @@ public class NumberGeneratorNode : StrategyNode
 
     override public class var strategyOptions: [any NodeStrategyOption] { NumberGeneratorMode.allCases }
 
+    // Title leads with the active mode (StrategyNode default), e.g. "Walk Number Generator".
+
     // Settings pane: the strategy picker plus usage guidance for the selected mode.
     override public var settingsSize: SettingsViewSize { .Small }
 

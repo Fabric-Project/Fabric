@@ -60,6 +60,8 @@ public class NumberIndexGeneratorNode : StrategyNode
 
     override public class var strategyOptions: [any NodeStrategyOption] { IndexGeneratorMode.allCases }
 
+    // Title leads with the active mode (StrategyNode default), e.g. "Shuffle Index Generator".
+
     // Preserve the original default of Shuffle (strategyOptions leads with Random).
     override public class var defaultStrategy: String { IndexGeneratorMode.shuffle.rawValue }
 
