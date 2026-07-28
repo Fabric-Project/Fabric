@@ -263,3 +263,25 @@ struct StrategyPickerView: View
         .controlSize(.small)
     }
 }
+
+/// A strategy picker followed by usage guidance for the currently-selected
+/// strategy. Reusable by any StrategyNode whose modes benefit from an
+/// explanatory blurb; `guidance` maps a strategy raw value to its description.
+struct StrategyGuidanceView: View
+{
+    @Bindable var model: StrategyNode.SettingsModel
+    let guidance: (String) -> String
+
+    var body: some View
+    {
+        VStack(alignment: .leading)
+        {
+            StrategyPickerView(model: model)
+
+            Text(guidance(model.strategy))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
