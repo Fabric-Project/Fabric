@@ -7,9 +7,12 @@ import Foundation
 import Satin
 import simd
 import Metal
+import SwiftUI
 
-/// How the Index Generator chooses the next index on each trigger.
-public enum IndexGeneratorMode: String, CaseIterable
+/// How the Index Generator chooses the next index on each trigger. Modes are a
+/// semantic choice that does not reshape ports, so — like the Number Generator —
+/// this lives on the Settings picker (a StrategyNode strategy) rather than a wired port.
+public enum IndexGeneratorMode: String, NodeStrategyOption, CaseIterable
 {
     /// Uniform random over [0, Size); immediate repeats allowed.
     case random = "Random"
@@ -29,15 +32,47 @@ public enum IndexGeneratorMode: String, CaseIterable
         case .random, .randomNoImmediateRepeat: return false
         }
     }
+
+    /// One or two sentences shown in the Settings pane to explain the mode.
+    public var usageGuidance: String
+    {
+        switch self
+        {
+        case .random:
+            return "Each trigger draws a fresh index uniformly at random over [0, Size). Draws are independent, so the same index can come up twice in a row."
+        case .randomNoImmediateRepeat:
+            return "Uniform random like Random, but the new index is never the same as the last one — so it always visibly changes, without settling into a fixed order."
+        case .shuffle:
+            return "Deals out a shuffled run of every index once before any repeats, reshuffling with no repeat across the seam. Loop restarts each pass; off holds the final index."
+        case .sequential:
+            return "Steps 0, 1, 2, … in order. Loop wraps back to 0 at the end; off holds the last index."
+        }
+    }
 }
 
-public class NumberIndexGeneratorNode : Node
+public class NumberIndexGeneratorNode : StrategyNode
 {
     override public class var name: String { "Index Generator" }
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .Number) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Emits an integer index in [0, Size) on each rising edge of Signal. Mode picks how the next index is drawn (Random, no immediate repeat, Shuffle, or Sequential); Loop restarts finite sequences or holds the last index." }
+    override public class var nodeDescription: String { "Emits an integer index in [0, Size) on each rising edge of Signal. Mode (in Settings) picks how the next index is drawn (Random, no immediate repeat, Shuffle, or Sequential); for the finite modes, Loop restarts the sequence or holds the last index." }
+
+    override public class var strategyOptions: [any NodeStrategyOption] { IndexGeneratorMode.allCases }
+
+    // Preserve the original default of Shuffle (strategyOptions leads with Random).
+    override public class var defaultStrategy: String { IndexGeneratorMode.shuffle.rawValue }
+
+    // Settings pane: the strategy picker plus usage guidance for the selected mode.
+    override public var settingsSize: SettingsViewSize { .Small }
+
+    override public func settingsView() -> AnyView
+    {
+        AnyView(StrategyGuidanceView(model: strategySettingsModel) { IndexGeneratorMode(rawValue: $0)?.usageGuidance ?? "" })
+    }
+
+    // Every mode carries Signal, Size, and Index; only the finite modes add Loop.
+    private static let allDynamicNames: Set<String> = ["inputSignal", "inputSize", "inputLoop", "outputIndex"]
 
     private var index: Int = 0
     private var previousSignal: Bool? = nil
@@ -47,23 +82,41 @@ public class NumberIndexGeneratorNode : Node
     private var bag: [Int] = []        // remaining draws for Shuffle
     private var finished: Bool = false // finite sequence done, Loop off → hold
 
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
+    override public func rebuildPorts(forStrategy strategy: String)
+    {
+        let mode = IndexGeneratorMode(rawValue: strategy) ?? .shuffle
 
-        return ports +
+        var wanted: [(name: String, port: Port)] =
         [
             ("inputSignal", ParameterPort(parameter: BoolParameter("Signal", false, .button, "Rising edge (false → true) advances to the next index"))),
             ("inputSize", ParameterPort(parameter: IntParameter("Size", 4, 1, 1_000_000, .inputfield, "Number of indices; output is in [0, Size)"))),
-            ("inputMode", ParameterPort(parameter: StringParameter("Mode", IndexGeneratorMode.shuffle.rawValue, IndexGeneratorMode.allCases.map(\.rawValue), .dropdown, "How the next index is chosen"))),
-            ("inputLoop", ParameterPort(parameter: BoolParameter("Loop", true, .toggle, "When a finite sequence (Shuffle / Sequential) completes, restart it; otherwise hold the last index"))),
-            ("outputIndex", NodePort<Int>(name: "Index", kind: .Outlet, description: "Current index in [0, Size)")),
         ]
+
+        // Loop only bites on the finite sequences (Shuffle / Sequential), where it
+        // chooses restart-vs-hold once every index has appeared. Random modes never
+        // finish, so the toggle would be inert — omit it entirely.
+        if mode.isFinite {
+            wanted.append(("inputLoop", ParameterPort(parameter: BoolParameter("Loop", true, .toggle, "When a finite sequence (Shuffle / Sequential) completes, restart it; otherwise hold the last index"))))
+        }
+
+        wanted.append(("outputIndex", NodePort<Int>(name: "Index", kind: .Outlet, description: "Current index in [0, Size)")))
+
+        let wantedNames = Set(wanted.map(\.name))
+        for name in Self.allDynamicNames.subtracting(wantedNames)
+        {
+            if let p = findPort(named: name) { removePort(p) }
+        }
+        for (name, p) in wanted where findPort(named: name) == nil
+        {
+            addDynamicPort(p, name: name)
+        }
+
+        self.resetSequence()
     }
 
     public var inputSignal: ParameterPort<Bool> { port(named: "inputSignal") }
     public var inputSize: ParameterPort<Int> { port(named: "inputSize") }
-    public var inputMode: ParameterPort<String> { port(named: "inputMode") }
-    public var inputLoop: ParameterPort<Bool> { port(named: "inputLoop") }
+    public var inputLoop: ParameterPort<Bool>? { findPort(named: "inputLoop") }
     public var outputIndex: NodePort<Int> { port(named: "outputIndex") }
 
     override public func startExecution(renderer: GraphRenderer) throws {
@@ -84,20 +137,22 @@ public class NumberIndexGeneratorNode : Node
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
+        // Mode lives on the Settings strategy now, not a port; switching it rebuilds
+        // ports and resets the sequence via rebuildPorts, so it needs no change-check here.
+        let loopPort: ParameterPort<Bool>? = self.inputLoop
         let anyChanged = self.inputSignal.valueDidChange
             || self.inputSize.valueDidChange
-            || self.inputMode.valueDidChange
-            || self.inputLoop.valueDidChange
+            || (loopPort?.valueDidChange ?? false)
         guard anyChanged || !self.hasEmitted else { return }
 
         let size = max(1, self.inputSize.value ?? 1)
-        let mode = IndexGeneratorMode(rawValue: self.inputMode.value ?? "") ?? .shuffle
-        let loop = self.inputLoop.value ?? true
+        let mode = self.strategyOption(as: IndexGeneratorMode.self) ?? .shuffle
+        let loop = loopPort?.value ?? true
 
-        // Changing Size, Mode, or Loop restarts the sequence and re-clamps the
-        // held index into the new range.
+        // Changing Size or Loop restarts the sequence and re-clamps the held index
+        // into the new range.
         let indexBeforeClamp = self.index
-        if self.inputSize.valueDidChange || self.inputMode.valueDidChange || self.inputLoop.valueDidChange {
+        if self.inputSize.valueDidChange || (loopPort?.valueDidChange ?? false) {
             self.resetSequence()
             self.index = min(self.index, size - 1)
         }

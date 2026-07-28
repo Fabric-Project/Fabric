@@ -276,10 +276,9 @@ struct NumberGeneratorPulseTests
         let graph = Graph(context: harness.context)
         let pulse = NumberPulseNode(context: harness.context)
         pulse.inputPeriod.value = 1.0
-        let generator = NumberIndexGeneratorNode(context: harness.context)
-        generator.inputMode.value = IndexGeneratorMode.sequential.rawValue
+        let generator = NumberIndexGeneratorNode(context: harness.context, strategy: IndexGeneratorMode.sequential)
         generator.inputSize.value = 8
-        generator.inputLoop.value = true
+        generator.inputLoop?.value = true
         graph.addNode(pulse)
         graph.addNode(generator)
 
@@ -306,10 +305,9 @@ struct NumberGeneratorPulseTests
         guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
 
         let graph = Graph(context: harness.context)
-        let generator = NumberIndexGeneratorNode(context: harness.context)
-        generator.inputMode.value = IndexGeneratorMode.sequential.rawValue // deterministic advance
+        let generator = NumberIndexGeneratorNode(context: harness.context, strategy: IndexGeneratorMode.sequential) // deterministic advance
         generator.inputSize.value = 10
-        generator.inputLoop.value = true
+        generator.inputLoop?.value = true
         graph.addNode(generator)
 
         // Published so the generator is an evaluation root, pulled every frame.
