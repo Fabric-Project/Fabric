@@ -11,12 +11,12 @@ import Satin
 import simd
 import Metal
 
-public class BaseObjectNode : Node
+open class BaseObjectNode : Node
 {
-    override public class var nodeExecutionMode: Node.ExecutionMode { .Consumer }
-    override public class var nodeTimeMode: Node.TimeMode { .None }
+    override open class var nodeExecutionMode: Node.ExecutionMode { .Consumer }
+    override open class var nodeTimeMode: Node.TimeMode { .None }
 
-    public func getObject() -> Object? {
+    open func getObject() -> Object? {
         return nil
     }
 }
@@ -53,7 +53,7 @@ public class ObjectNode<ObjectType : Satin.Object> : BaseObjectNode
     override public func getObject() -> Object? {
         return self.object
     }
-    
+
     var object: ObjectType? {
         return nil
     }
