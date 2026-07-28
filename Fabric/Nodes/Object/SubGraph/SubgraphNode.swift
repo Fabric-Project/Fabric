@@ -18,7 +18,7 @@ open class SubgraphNode: BaseObjectNode
     override open class var nodeTimeMode: Node.TimeMode { .TimeBase }
     override open class var nodeDescription: String { "A Sub Graph of Nodes, useful for organizing or encapsulation"}
 
-    let subGraph:Graph
+    public private(set) var subGraph:Graph
 
     /// ProxyPorts wrapping the sub graph's published ports.
     /// Each proxy has node = self (the SubgraphNode) and published = false.
@@ -178,7 +178,18 @@ open class SubgraphNode: BaseObjectNode
         self.wireSubGraphCallback()
         self.rebuildProxyPorts()
     }
-    
+
+    /// Wrap an existing graph as this node's sub graph, for embedders that
+    /// decode a graph separately and then nest it.
+    public init(context: Context, subGraph: Graph)
+    {
+        self.subGraph = subGraph
+
+        super.init(context: context)
+        self.wireSubGraphCallback()
+        self.rebuildProxyPorts()
+    }
+
     enum CodingKeys : String, CodingKey
     {
         case subGraph
