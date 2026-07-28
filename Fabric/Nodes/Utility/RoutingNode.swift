@@ -126,6 +126,7 @@ public class RoutingNodeBase: TypeAgnosticNode
 public class RoutingNode: RoutingNodeBase
 {
     public var inputIndex: ParameterPort<Int> { port(named: "inputIndex") }
+    private var plannedRouteIndex: Int?
 
     public required init(context: Context)
     {
@@ -166,6 +167,27 @@ public class RoutingNode: RoutingNodeBase
     func selectedRouteIndex() -> Int
     {
         max(0, min(inputIndex.value ?? 0, routeCount - 1))
+    }
+
+    func recordPlannedRouteIndex(_ routeIndex: Int)
+    {
+        plannedRouteIndex = routeIndex
+    }
+
+    func markExecutionTopologyChangedIfRouteIndexChanged()
+    {
+        let routeIndex = selectedRouteIndex()
+        guard plannedRouteIndex != routeIndex else { return }
+        plannedRouteIndex = routeIndex
+        graph?.markExecutionTopologyChanged()
+    }
+
+    public override func portValueDidChange(_ port: Port)
+    {
+        super.portValueDidChange(port)
+
+        guard port.id == inputIndex.id else { return }
+        markExecutionTopologyChangedIfRouteIndexChanged()
     }
 
     private func updateIndexRange()

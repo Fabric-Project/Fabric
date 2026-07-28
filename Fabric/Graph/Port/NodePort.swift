@@ -29,6 +29,7 @@ public class NodePort<Value : PortValueRepresentable>: Port
 
         self.valueDidChange = true
         self.node?.markDirty()
+        self.node?.portValueDidChange(self)
     }
 
     override internal func sendBoxed(_ boxed: PortValue?)
@@ -60,6 +61,7 @@ public class NodePort<Value : PortValueRepresentable>: Port
             //   - it wont if we do an additional equality check here!
             self.valueDidChange = true
             self.node?.markDirty()
+            self.node?.portValueDidChange(self)
         }
     }
         
@@ -133,6 +135,9 @@ public class NodePort<Value : PortValueRepresentable>: Port
     {
 //        print("Port \(self) Disconnect from \(other)")
 
+        let graph = self.node?.graph ?? other.node?.graph
+        let removedGraphConnection = graph?.unregisterConnection(between: self, and: other) ?? false
+
         if let node = self.node,
            let otherNode = other.node
         {
@@ -171,7 +176,9 @@ public class NodePort<Value : PortValueRepresentable>: Port
             port.connect(to: other)
         }
         self.node?.graph?.undoManager?.setActionName("Disconnect Ports")
-        self.node?.graph?.markConnectionsChanged()
+        if !removedGraphConnection {
+            graph?.markConnectionsChanged()
+        }
     }
 
     override public func connect(to other: Port)
@@ -294,7 +301,7 @@ public class NodePort<Value : PortValueRepresentable>: Port
             port.disconnect(from: other)
         }
         self.node?.graph?.undoManager?.setActionName("Connect Ports")
-        self.node?.graph?.markConnectionsChanged()
+        (self.node?.graph ?? other.node?.graph)?.registerConnection(between: self, and: other)
     }
 
     public func send(_ v: Value?, force:Bool = false)

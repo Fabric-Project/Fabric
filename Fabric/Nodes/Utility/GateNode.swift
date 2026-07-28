@@ -24,6 +24,8 @@ public final class GateNode: RoutingNode
 
     public override func respondToPull(requestedOutputPort: Port?) -> Node.PullResponse
     {
+        recordPlannedRouteIndex(selectedRouteIndex())
+
         if let requestedOutputPort, requestedOutputPort.id != selectedOutputPort()?.id
         {
             // Unselected branch: nothing to contribute, but a connected Index
@@ -67,6 +69,7 @@ public final class GateNode: RoutingNode
     throws
     {
         selectedOutputPort()?.sendBoxed(input.snapshotValue(), force: true)
+        markExecutionTopologyChangedIfRouteIndexChanged()
     }
 
     private func selectedOutputPort() -> Port?

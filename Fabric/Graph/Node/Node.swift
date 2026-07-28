@@ -429,6 +429,10 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         isDirty = true
     }
 
+    open func portValueDidChange(_ port: Port)
+    {
+    }
+
     public func synchronizeParameters()
     {
         self.inputParamCancellables.forEach( { $0.cancel() } )

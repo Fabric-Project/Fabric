@@ -41,6 +41,7 @@ public final class MatrixSwitchNode: RoutingNodeBase
     private static func outputPortName(_ index: Int) -> String { "output\(index)" }
 
     public var inputMap: NodePort<[String: Int]> { port(named: Self.indexMapPortName) }
+    private var plannedMap: [String: Int]?
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
     {
@@ -89,7 +90,8 @@ public final class MatrixSwitchNode: RoutingNodeBase
         // input and planning asks each node only once (the node is deduplicated
         // after its first visit). So any pull must schedule *every* routed source
         // input, not merely the one feeding the requested output.
-        .evaluate(pulling: [inputMap] + routedSourceInputPorts())
+        plannedMap = currentMap()
+        return .evaluate(pulling: [inputMap] + routedSourceInputPorts())
     }
 
     override public func execute(renderer: GraphRenderer,
@@ -109,6 +111,8 @@ public final class MatrixSwitchNode: RoutingNodeBase
 
             outputPort.sendBoxed(sourceInput.snapshotValue(), force: true)
         }
+
+        markExecutionTopologyChangedIfMapChanged()
     }
 
     // MARK: - Routing
@@ -116,6 +120,22 @@ public final class MatrixSwitchNode: RoutingNodeBase
     private func currentMap() -> [String: Int]
     {
         inputMap.value ?? [:]
+    }
+
+    private func markExecutionTopologyChangedIfMapChanged()
+    {
+        let map = currentMap()
+        guard plannedMap != map else { return }
+        plannedMap = map
+        graph?.markExecutionTopologyChanged()
+    }
+
+    public override func portValueDidChange(_ port: Port)
+    {
+        super.portValueDidChange(port)
+
+        guard port.id == inputMap.id else { return }
+        markExecutionTopologyChangedIfMapChanged()
     }
 
     /// Output index → the lowest input index routed to it, built in one pass

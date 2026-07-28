@@ -8,6 +8,22 @@ import SwiftUI
 import Satin
 internal import AnyCodable
 
+public struct Connection: Codable, Identifiable, Hashable
+{
+    public let id: UUID
+    public let outletPortID: UUID
+    public let inletPortID: UUID
+    public var active: Bool
+
+    public init(id: UUID = UUID(), outletPortID: UUID, inletPortID: UUID, active: Bool = true)
+    {
+        self.id = id
+        self.outletPortID = outletPortID
+        self.inletPortID = inletPortID
+        self.active = active
+    }
+}
+
 @Observable public class Graph : Codable, Identifiable, Hashable, Equatable
 {
     public enum Version : Codable
@@ -32,6 +48,8 @@ internal import AnyCodable
 
     public private(set) var nodes: [Node]
     public private(set) var notes: [Note]
+    internal var connections: [Connection] = []
+    internal var nodesInExecutionOrder: [Node] = []
 
     /// NodeViewModels shadow the nodes array 1-to-1. Always created/destroyed
     /// in lockstep with addNode / delete so the array is safe to force-index.
@@ -49,7 +67,7 @@ internal import AnyCodable
     }
 
     var needsExecution:Bool {
-        self.nodes.reduce(true) { (result, node) -> Bool in
+        self.nodes.reduce(false) { (result, node) -> Bool in
             result || node.isDirty
         }
     }
@@ -67,6 +85,12 @@ internal import AnyCodable
     // Fix for #103 - connection/topology changes trigger syncNodesToScene() inside of `GraphRenderer`.
     @ObservationIgnored private var pendingConnectionSceneSync = false
     public private(set) var connectionRevision = 0
+    private var connectionTopologyGeneration = 0 {
+        didSet { rebuildNodesInExecutionOrder() }
+    }
+    private var executionTopologyGeneration = 0 {
+        didSet { rebuildNodesInExecutionOrder() }
+    }
 
     @ObservationIgnored private var cachedPublishedOutputPortsRevision: Int?
     @ObservationIgnored private var cachedPublishedOutputPorts: [Port] = []
@@ -74,10 +98,21 @@ internal import AnyCodable
 
     @ObservationIgnored weak var lastNode:(Node)? = nil
 
-    public func markConnectionsChanged()
+    public func markConnectionTopologyChanged()
     {
         connectionRevision += 1
         pendingConnectionSceneSync = true
+        connectionTopologyGeneration += 1
+    }
+
+    public func markExecutionTopologyChanged()
+    {
+        executionTopologyGeneration += 1
+    }
+
+    public func markConnectionsChanged()
+    {
+        markConnectionTopologyChanged()
     }
 
     func consumePendingConnectionSceneSync() -> Bool
@@ -100,6 +135,7 @@ internal import AnyCodable
         case requiredPlugins
         case nodeMap
         case portConnectionMap
+        case connections
         case notes
     }
     
@@ -260,6 +296,7 @@ internal import AnyCodable
             }
         }
         
+        let decodedConnections = try container.decodeIfPresent([Connection].self, forKey: .connections)
         let portMap = try container.decode([UUID:[UUID]].self, forKey: .portConnectionMap)
         
         for portID in portMap.keys
@@ -277,8 +314,16 @@ internal import AnyCodable
                 }
             }
         }
+
+        if let decodedConnections {
+            self.connections = decodedConnections.filter {
+                self.nodePort(forID: $0.outletPortID) != nil &&
+                self.nodePort(forID: $0.inletPortID) != nil
+            }
+        }
         
         self.rebuildPublishedParameterGroup()
+        self.rebuildNodesInExecutionOrder()
     }
 
     deinit
@@ -305,6 +350,10 @@ internal import AnyCodable
         try container.encode(self.notes, forKey: .notes)
         
         try container.encode( nodeMap, forKey: .nodeMap)
+        try container.encode(self.connections.filter { connection in
+            self.nodePort(forID: connection.outletPortID) != nil &&
+            self.nodePort(forID: connection.inletPortID) != nil
+        }, forKey: .connections)
         
         // encode a connection map for each port
         
@@ -434,6 +483,202 @@ internal import AnyCodable
     {
         let allPorts = self.nodes.flatMap(\.ports)
         return allPorts.first(where: { $0.id == forID })
+    }
+
+    private func normalizedConnectionPorts(_ portA: Port, _ portB: Port) -> (outlet: Port, inlet: Port)?
+    {
+        if portA.kind == .Outlet, portB.kind == .Inlet {
+            return (portA, portB)
+        }
+
+        if portA.kind == .Inlet, portB.kind == .Outlet {
+            return (portB, portA)
+        }
+
+        return nil
+    }
+
+    func registerConnection(between portA: Port, and portB: Port)
+    {
+        guard let normalized = normalizedConnectionPorts(portA, portB) else { return }
+        guard !connections.contains(where: {
+            $0.outletPortID == normalized.outlet.id && $0.inletPortID == normalized.inlet.id
+        }) else { return }
+
+        connections.append(Connection(outletPortID: normalized.outlet.id,
+                                      inletPortID: normalized.inlet.id))
+        markConnectionTopologyChanged()
+    }
+
+    @discardableResult
+    func unregisterConnection(between portA: Port, and portB: Port) -> Bool
+    {
+        guard let normalized = normalizedConnectionPorts(portA, portB) else { return false }
+        let oldCount = connections.count
+        connections.removeAll {
+            $0.outletPortID == normalized.outlet.id && $0.inletPortID == normalized.inlet.id
+        }
+
+        if connections.count != oldCount {
+            markConnectionTopologyChanged()
+            return true
+        }
+
+        return false
+    }
+
+    public func setConnectionActive(_ active: Bool, connectionID: UUID)
+    {
+        guard let index = connections.firstIndex(where: { $0.id == connectionID }),
+              connections[index].active != active
+        else { return }
+
+        connections[index].active = active
+        markExecutionTopologyChanged()
+    }
+
+    public func setActiveInletPorts(forNodeID nodeID: UUID, inletPortIDs: Set<UUID>)
+    {
+        guard let node = node(forID: nodeID) else { return }
+        let nodeInletIDs = Set(node.inputPorts().map(\.id))
+        var changed = false
+
+        for index in connections.indices where nodeInletIDs.contains(connections[index].inletPortID) {
+            let active = inletPortIDs.contains(connections[index].inletPortID)
+            if connections[index].active != active {
+                connections[index].active = active
+                changed = true
+            }
+        }
+
+        if changed {
+            markExecutionTopologyChanged()
+        }
+    }
+
+    func outletPortsConnectedToActiveConnection(for inlet: Port) -> [Port]
+    {
+        connections.compactMap { connection in
+            guard connection.active,
+                  connection.inletPortID == inlet.id
+            else { return nil }
+
+            return nodePort(forID: connection.outletPortID)
+        }
+    }
+
+    func rebuildNodesInExecutionOrder()
+    {
+        var ordered: [Node] = []
+        ordered.reserveCapacity(nodes.count)
+
+        var processingStates: [UUID: GraphExecutionPlanningState] = [:]
+
+        for root in executionRoots() {
+            pullNodeForExecutionPlan(node: root.node,
+                                     requestedOutputPort: root.requestedOutputPort,
+                                     processingStates: &processingStates,
+                                     orderedNodes: &ordered)
+        }
+
+        nodesInExecutionOrder = ordered
+    }
+
+    private enum GraphExecutionPlanningState
+    {
+        case processing
+        case processed
+        case keepAliveWalked
+        case declined
+    }
+
+    private func executionRoots() -> [(node: Node, requestedOutputPort: Port?)]
+    {
+        var roots: [(node: Node, requestedOutputPort: Port?)] = nodes
+            .filter { $0.nodeExecutionMode == .Consumer }
+            .map { ($0, nil) }
+
+        for outputPort in publishedOutputPorts() {
+            guard let node = outputPort.node else { continue }
+            roots.append((node, outputPort))
+        }
+
+        return roots
+    }
+
+    @discardableResult
+    private func pullNodeForExecutionPlan(node: Node,
+                                          requestedOutputPort: Port?,
+                                          processingStates: inout [UUID: GraphExecutionPlanningState],
+                                          orderedNodes: inout [Node]) -> Bool
+    {
+        switch node.respondToPull(requestedOutputPort: requestedOutputPort) {
+        case .declined(let keepAlivePorts):
+            if processingStates[node.id] == nil {
+                processingStates[node.id] = .keepAliveWalked
+                for inputPort in keepAlivePorts {
+                    pullInletConnectionsForExecutionPlan(inputPort,
+                                                         processingStates: &processingStates,
+                                                         orderedNodes: &orderedNodes)
+                }
+            }
+            return false
+
+        case .evaluate(let pullingPorts):
+            switch processingStates[node.id] {
+            case .processed, .processing:
+                return true
+            case .declined:
+                return false
+            case .keepAliveWalked, nil:
+                break
+            }
+
+            processingStates[node.id] = .processing
+
+            var attemptedPullCount = 0
+            var activePullCount = 0
+
+            for inputPort in pullingPorts {
+                let pulled = pullInletConnectionsForExecutionPlan(inputPort,
+                                                                  processingStates: &processingStates,
+                                                                  orderedNodes: &orderedNodes)
+                attemptedPullCount += pulled.attempted
+                activePullCount += pulled.active
+            }
+
+            if attemptedPullCount > 0 && activePullCount == 0 {
+                processingStates[node.id] = .declined
+                return false
+            }
+
+            orderedNodes.append(node)
+            processingStates[node.id] = .processed
+            return true
+        }
+    }
+
+    @discardableResult
+    private func pullInletConnectionsForExecutionPlan(_ inputPort: Port,
+                                                      processingStates: inout [UUID: GraphExecutionPlanningState],
+                                                      orderedNodes: inout [Node]) -> (attempted: Int, active: Int)
+    {
+        var attempted = 0
+        var active = 0
+
+        for outletPort in outletPortsConnectedToActiveConnection(for: inputPort) {
+            guard let node = outletPort.node else { continue }
+
+            attempted += 1
+            if pullNodeForExecutionPlan(node: node,
+                                        requestedOutputPort: outletPort,
+                                        processingStates: &processingStates,
+                                        orderedNodes: &orderedNodes) {
+                active += 1
+            }
+        }
+
+        return (attempted, active)
     }
     
     public func rebuildPublishedParameterGroup()
