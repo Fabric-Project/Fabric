@@ -81,6 +81,13 @@ public class StringScannerNode: Node {
         }
     }
 
+    /// Sets the format string from outside the Settings view — the procedural
+    /// equivalent of typing in the inspector.
+    public func setFormatString(_ formatString: String) {
+        guard formatString != self.formatString else { return }
+        self.formatString = formatString
+    }
+
     private var parsedFormatString = ParsedFormatString(tokens: [])
     private var scanRegex: Regex<AnyRegexOutput>? = nil
 
@@ -222,7 +229,11 @@ public class StringScannerNode: Node {
 
         self.parsedFormatString = newParse
         self.buildRegex()
+
+        // The input is unchanged but the regex reading it is not, and the
+        // renderer skips a node that is not dirty — so re-scan what is there.
         self.inputString.valueDidChange = true
+        self.markDirty()
     }
 
     private func buildRegex() {

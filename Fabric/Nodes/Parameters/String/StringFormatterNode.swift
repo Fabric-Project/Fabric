@@ -246,7 +246,19 @@ public class StringFormatterNode: Node {
         }
     }
 
+    /// Sets the format string from outside the Settings view — the procedural
+    /// equivalent of typing in the inspector.
+    public func setFormatString(_ formatString: String) {
+        guard formatString != self.formatString else { return }
+        self.formatString = formatString
+    }
+
     private var parsedFormatString = ParsedFormatString(tokens: [])
+
+    /// Forces one evaluation after a format-string edit, even when no input
+    /// changed: a new format produces a different string from the same values,
+    /// and a format with no placeholders at all has no input to change.
+    private var needsEvaluation = true
 
     // MARK: - Ports
 
@@ -296,10 +308,10 @@ public class StringFormatterNode: Node {
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        let inputs = self.inputPorts()
-        let anyChanged = inputs.compactMap(\.valueDidChange).contains(true)
+        let inputsChanged = self.inputPorts().contains { $0.valueDidChange }
 
-        guard anyChanged else { return }
+        guard inputsChanged || self.needsEvaluation else { return }
+        self.needsEvaluation = false
 
         // Assembled by walking the parse, so a value that happens to look like a
         // placeholder is never substituted into a second time.
@@ -381,6 +393,11 @@ public class StringFormatterNode: Node {
         }
 
         self.parsedFormatString = newParse
+
+        // A format edit reshapes the output even when it reshapes no port, and
+        // the renderer skips a node that is not dirty.
+        self.needsEvaluation = true
+        self.markDirty()
     }
 
     private func makeInputPort(for placeholder: FormatPlaceholder) -> Port {

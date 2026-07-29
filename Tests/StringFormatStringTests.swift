@@ -126,6 +126,41 @@ struct StringFormatStringTests
         #expect(formatter.outputString.value == "{b} second")
     }
 
+    @Test("A format string of pure literal text still emits")
+    func formatterEmitsWithoutPlaceholders() throws
+    {
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
+
+        let formatter = StringFormatterNode(context: harness.context, formatString: #"Line one\nLine two"#)
+
+        try harness.execute(formatter)
+
+        #expect(formatter.outputString.value == "Line one\nLine two")
+    }
+
+    @Test("Editing the format string re-emits from unchanged inputs")
+    func formatterReEmitsAfterFormatEdit() throws
+    {
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
+
+        let formatter = StringFormatterNode(context: harness.context, formatString: "Hello {name}")
+
+        let name = try #require(formatter.findPort(named: "name", as: ParameterPort<String>.self))
+        name.value = "Bob"
+
+        try harness.execute(formatter)
+        #expect(formatter.outputString.value == "Hello Bob")
+
+        // What a pass through the renderer would leave behind.
+        formatter.markClean()
+
+        formatter.setFormatString("Goodbye {name}")
+        #expect(formatter.isDirty)
+
+        try harness.execute(formatter)
+        #expect(formatter.outputString.value == "Goodbye Bob")
+    }
+
     // MARK: - String Scanner
 
     @Test("Scanner matches across an escaped newline")
@@ -176,6 +211,33 @@ struct StringFormatStringTests
 
         #expect(scanner.outputMatched.value == true)
         #expect(number.value == 7)
+    }
+
+    @Test("Editing the format string re-scans the unchanged input")
+    func scannerReScansAfterFormatEdit() throws
+    {
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
+
+        let scanner = StringScannerNode(context: harness.context, formatString: "Frame {n:d}")
+        scanner.inputString.value = "Frame 12 at 1.5s"
+
+        try harness.execute(scanner)
+        #expect(scanner.outputMatched.value == false)
+
+        // What a pass through the renderer would leave behind.
+        scanner.markClean()
+
+        scanner.setFormatString("Frame {n:d} at {t:f}s")
+        #expect(scanner.isDirty)
+
+        try harness.execute(scanner)
+
+        let frameNumber = try #require(scanner.findPort(named: "n", as: NodePort<Int>.self))
+        let time = try #require(scanner.findPort(named: "t", as: NodePort<Float>.self))
+
+        #expect(scanner.outputMatched.value == true)
+        #expect(frameNumber.value == 12)
+        #expect(time.value == 1.5)
     }
 
     @Test("A repeated name does not shift the captures that follow it")
