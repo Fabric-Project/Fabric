@@ -43,6 +43,21 @@ struct StringSplitNodeTests
         #expect(node.inputSeparator != nil)
     }
 
+    @Test("A typed separator survives a trip through another mode")
+    func customSeparatorIsParkedAcrossModes() throws
+    {
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
+
+        let node = StringSplitNode(context: harness.context, strategy: StringSplitMode.custom)
+        try #require(node.inputSeparator).value = #"\t"#
+
+        node.strategy = StringSplitMode.comma.rawValue
+        #expect(node.customSeparator == #"\t"#)
+
+        node.strategy = StringSplitMode.custom.rawValue
+        #expect(node.inputSeparator?.value == #"\t"#)
+    }
+
     @Test("Escaped newline separates file contents into lines")
     func escapedNewlineSeparator()
     {

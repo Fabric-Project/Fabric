@@ -54,6 +54,50 @@ public class StringSplitNode: StrategyNode
     /// The active mode, or nil if the serialized strategy names no known mode.
     public var splitMode: StringSplitMode? { strategyOption() }
 
+    /// The separator Custom mode uses, kept while another mode is selected.
+    /// Switching mode tears the inlet down — the wire goes with it, as it does
+    /// for every strategy node — but what the user typed is theirs, so it is
+    /// parked here and seeds the inlet when Custom comes back.
+    public private(set) var customSeparator: String = ", "
+
+    private enum CodingKeys: String, CodingKey
+    {
+        case customSeparator
+    }
+
+    public required init(context: Context)
+    {
+        super.init(context: context)
+    }
+
+    // Declaring the two above stops the strategy initializers being inherited;
+    // overriding this one brings them, and StrategyNode's typed convenience
+    // initializer, back.
+    public override init(context: Context, initialStrategy: String)
+    {
+        super.init(context: context, initialStrategy: initialStrategy)
+    }
+
+    public required init(from decoder: any Decoder) throws
+    {
+        // Decoded before super.init, which rebuilds the ports: in Custom mode the
+        // inlet is restored from the document, in any other mode this is all that
+        // is left of the separator.
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        customSeparator = try container.decodeIfPresent(String.self, forKey: .customSeparator) ?? ", "
+
+        try super.init(from: decoder)
+    }
+
+    public override func encode(to encoder: any Encoder) throws
+    {
+        try super.encode(to: encoder)
+
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        // The live inlet is the truth while Custom is selected.
+        try container.encode(inputSeparator?.value ?? customSeparator, forKey: .customSeparator)
+    }
+
     // Settings pane: the strategy picker plus usage guidance for the selected mode.
     override public var settingsSize: SettingsViewSize { .Small }
 
@@ -89,10 +133,11 @@ public class StringSplitNode: StrategyNode
         {
         case (true, nil):
             addDynamicPort(
-                ParameterPort(parameter: StringParameter("Separator", ", ", .inputfield, #"Separator string to split on. Supports \n, \r, \t, and \\ escape sequences"#)),
+                ParameterPort(parameter: StringParameter("Separator", customSeparator, .inputfield, #"Separator string to split on. Supports \n, \r, \t, and \\ escape sequences"#)),
                 name: "inputSeparator"
             )
         case (false, let separatorPort?):
+            customSeparator = separatorPort.value ?? customSeparator
             removePort(separatorPort)
         default:
             break
