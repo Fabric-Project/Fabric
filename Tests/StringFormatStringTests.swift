@@ -178,6 +178,25 @@ struct StringFormatStringTests
         #expect(number.value == 7)
     }
 
+    @Test("A repeated name does not shift the captures that follow it")
+    func scannerRepeatedNameKeepsLaterCapturesAligned() throws
+    {
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
+
+        let scanner = StringScannerNode(context: harness.context, formatString: "{a:d} {a:d} {b:d}")
+        scanner.inputString.value = "1 2 3"
+
+        try harness.execute(scanner)
+
+        let a = try #require(scanner.findPort(named: "a", as: NodePort<Int>.self))
+        let b = try #require(scanner.findPort(named: "b", as: NodePort<Int>.self))
+
+        #expect(scanner.outputMatched.value == true)
+        // Each occurrence captures independently; the port keeps the last.
+        #expect(a.value == 2)
+        #expect(b.value == 3)
+    }
+
     @Test("Regex metacharacters in literal text match themselves")
     func scannerEscapesRegexMetacharacters() throws
     {

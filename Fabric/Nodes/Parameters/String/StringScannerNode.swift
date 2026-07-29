@@ -147,31 +147,41 @@ public class StringScannerNode: Node {
 
         outputMatched.send(true)
 
-        // Extract captured values and send to output ports
-        for (index, placeholder) in parsedFormatString.placeholders.enumerated() {
-            let captureIndex = index + 1  // Index 0 is the whole match
+        // Extract captured values and send to output ports. buildRegex emits one
+        // capture group per placeholder *occurrence*, so the groups are walked in
+        // that same order — a name written twice captures twice, independently,
+        // and its port takes the last of them.
+        var captureIndex = 0  // Index 0 is the whole match
+
+        for token in parsedFormatString.tokens {
+            guard case .placeholder(let occurrence) = token else { continue }
+
+            captureIndex += 1
             guard captureIndex < match.output.count else { continue }
 
-            let captured = String(match.output[captureIndex].substring ?? "")
+            send(String(match.output[captureIndex].substring ?? ""), toPortNamed: occurrence.name)
+        }
+    }
 
-            switch placeholder.portType {
-            case .Float:
-                if let port = self.findPort(named: placeholder.name) as? NodePort<Float> {
-                    port.send(Float(captured) ?? 0.0)
-                }
-            case .Int:
-                if let port = self.findPort(named: placeholder.name) as? NodePort<Int> {
-                    port.send(Int(captured) ?? 0)
-                }
-            case .Bool:
-                if let port = self.findPort(named: placeholder.name) as? NodePort<Bool> {
-                    let value = captured == "true" || captured == "1" || captured == "yes"
-                    port.send(value)
-                }
-            default: // .String
-                if let port = self.findPort(named: placeholder.name) as? NodePort<String> {
-                    port.send(captured)
-                }
+    /// Sends captured text to the port `name` owns, converted to that port's type.
+    private func send(_ captured: String, toPortNamed name: String) {
+        switch parsedFormatString.placeholder(named: name)?.portType ?? .String {
+        case .Float:
+            if let port = self.findPort(named: name) as? NodePort<Float> {
+                port.send(Float(captured) ?? 0.0)
+            }
+        case .Int:
+            if let port = self.findPort(named: name) as? NodePort<Int> {
+                port.send(Int(captured) ?? 0)
+            }
+        case .Bool:
+            if let port = self.findPort(named: name) as? NodePort<Bool> {
+                let value = captured == "true" || captured == "1" || captured == "yes"
+                port.send(value)
+            }
+        default: // .String
+            if let port = self.findPort(named: name) as? NodePort<String> {
+                port.send(captured)
             }
         }
     }
