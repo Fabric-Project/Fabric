@@ -8,160 +8,120 @@ import Satin
 import Metal
 import SwiftUI
 
-public enum StringSplitMode: String, Codable, CaseIterable, Sendable
+/// How a String Split node divides its input. Custom is the only mode that takes
+/// a Separator inlet, so the mode lives on the Settings picker (a StrategyNode
+/// strategy) rather than a wired port.
+public enum StringSplitMode: String, NodeStrategyOption, CaseIterable
 {
-    case exactSeparator = "Exact Separator"
-    case words = "Words"
-    case commas = "Commas"
-    case lines = "Lines"
+    /// Splits on the exact text supplied by the Separator inlet.
+    case custom = "Custom"
+    /// Splits on commas.
+    case comma = "Comma"
+    /// Splits on any whitespace.
+    case space = "Space"
+    /// Splits on any recognized newline character.
+    case newline = "Newline"
 
-    var description: String
+    /// One or two sentences shown in the Settings pane to explain the mode.
+    public var usageGuidance: String
     {
         switch self
         {
-        case .exactSeparator:
-            "Splits on the exact value supplied by the Separator inlet."
-        case .words:
-            "Splits on any whitespace."
-        case .commas:
-            "Splits on commas, trims whitespace, and removes empty values."
-        case .lines:
-            "Splits on recognized newline characters, trims whitespace, and removes empty values."
+        case .custom:
+            return #"Splits on the exact value supplied by the Separator inlet, which understands the \n, \r, \t and \\ escape sequences. Empty and untrimmed components are kept, so joining the result back together reproduces the input."#
+        case .comma:
+            return "Splits on commas, trims whitespace, and removes empty values. For comma-separated lists written for people to read."
+        case .space:
+            return "Splits on any whitespace — spaces, tabs and newlines alike — and removes empty values. For splitting prose into words."
+        case .newline:
+            return "Splits on recognized newline characters, trims whitespace, and removes empty values. For loaded text files, whichever line endings they use."
         }
     }
 }
 
-private struct StringSplitSettingsView: View
+public class StringSplitNode: StrategyNode
 {
-    let node: StringSplitNode
-    @State private var splitMode: StringSplitMode
-
-    init(node: StringSplitNode)
-    {
-        self.node = node
-        _splitMode = State(initialValue: node.splitMode)
-    }
-
-    var body: some View
-    {
-        VStack(alignment: .leading)
-        {
-            Picker("Split Mode", selection: $splitMode)
-            {
-                ForEach(StringSplitMode.allCases, id: \.self)
-                {
-                    splitMode in
-                    Text(splitMode.rawValue).tag(splitMode)
-                }
-            }
-            .pickerStyle(.menu)
-            .controlSize(.small)
-            .onChange(of: splitMode)
-            {
-                _, newSplitMode in
-                node.splitMode = newSplitMode
-            }
-
-            Text(splitMode.description)
-                .foregroundStyle(.secondary)
-        }
-    }
-}
-
-public class StringSplitNode: Node {
     override public class var name: String { "String Split" }
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .String) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Split a String into an Array of Strings using an exact separator, whitespace, commas, or lines. Inverse of String Join." }
+    override public class var nodeDescription: String { "Split a String into an Array of Strings. Mode (in Settings): a Custom separator, or commas, whitespace, or lines. Inverse of String Join." }
 
-    // MARK: - Settings
+    override public class var strategyOptions: [any NodeStrategyOption] { StringSplitMode.allCases }
 
-    public fileprivate(set) var splitMode: StringSplitMode
+    // Title leads with the active mode (StrategyNode default), e.g. "Newline String Split".
+
+    /// The active mode, or nil if the serialized strategy names no known mode.
+    public var splitMode: StringSplitMode? { strategyOption() }
+
+    // Settings pane: the strategy picker plus usage guidance for the selected mode.
+    override public var settingsSize: SettingsViewSize { .Small }
+
+    override public func settingsView() -> AnyView
     {
-        didSet
+        AnyView(StrategyGuidanceView(model: strategySettingsModel) { StringSplitMode(rawValue: $0)?.usageGuidance ?? "" })
+    }
+
+    // Ports
+    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
+        let ports = super.registerPorts(context: context)
+
+        return ports + [
+            ("inputPort", ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to split"))),
+            ("outputPort", NodePort<ContiguousArray<String>>(name: "Strings", kind: .Outlet, description: "Array of string components")),
+        ]
+    }
+
+    // Port proxies
+    public var inputPort: ParameterPort<String> { port(named: "inputPort") }
+    public var outputPort: NodePort<ContiguousArray<String>> { port(named: "outputPort") }
+    /// Present only in Custom mode.
+    public var inputSeparator: ParameterPort<String>? { findPort(named: "inputSeparator") }
+
+    /// The Separator inlet belongs to Custom alone; the other modes carry their
+    /// separator in the mode itself.
+    override public func rebuildPorts(forStrategy strategy: String)
+    {
+        let wantsSeparator = strategy == StringSplitMode.custom.rawValue
+        let existingSeparator: ParameterPort<String>? = findPort(named: "inputSeparator")
+
+        switch (wantsSeparator, existingSeparator)
         {
-            guard splitMode != oldValue else { return }
+        case (true, nil):
+            addDynamicPort(
+                ParameterPort(parameter: StringParameter("Separator", ", ", .inputfield, #"Separator string to split on. Supports \n, \r, \t, and \\ escape sequences"#)),
+                name: "inputSeparator"
+            )
+        case (false, let separatorPort?):
+            removePort(separatorPort)
+        default:
+            break
+        }
+
+        // The String inlet survives a mode change, so nothing else would mark
+        // this node dirty — re-split what's already there the new way.
+        if let inputPort: ParameterPort<String> = findPort(named: "inputPort")
+        {
             inputPort.valueDidChange = true
             markDirty()
         }
     }
 
-    private enum CodingKeys: String, CodingKey
-    {
-        case splitMode
-    }
-
-    public required init(context: Context)
-    {
-        splitMode = .exactSeparator
-        super.init(context: context)
-    }
-
-    public init(context: Context, splitMode: StringSplitMode)
-    {
-        self.splitMode = splitMode
-        super.init(context: context)
-    }
-
-    public required init(from decoder: any Decoder) throws
-    {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        splitMode = try container.decodeIfPresent(StringSplitMode.self, forKey: .splitMode)
-            ?? .exactSeparator
-        try super.init(from: decoder)
-    }
-
-    public override func encode(to encoder: any Encoder) throws
-    {
-        try super.encode(to: encoder)
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(splitMode, forKey: .splitMode)
-    }
-
-    override public func providesSettingsView() -> Bool { true }
-
-    override public var settingsSize: SettingsViewSize { .Small }
-
-    override public func settingsView() -> AnyView
-    {
-        AnyView(StringSplitSettingsView(node: self))
-    }
-    
-    // Ports
-    override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
-        return ports + [
-            ("inputPort", ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to split"))),
-            ("inputSeparator", ParameterPort(parameter: StringParameter("Separator", ", ", .inputfield, #"Separator string to split on. Supports \n, \r, \t, and \\ escape sequences"#))),
-            ("outputPort", NodePort<ContiguousArray<String>>(name: "Strings", kind: .Outlet, description: "Array of string components")),
-        ]
-    }
-    
-    // Port proxies
-    public var inputPort: ParameterPort<String> { port(named: "inputPort") }
-    public var inputSeparator: ParameterPort<String> { port(named: "inputSeparator") }
-    public var outputPort: NodePort<ContiguousArray<String>> { port(named: "outputPort") }
-
     override public func respondToPull(requestedOutputPort: Port?) -> PullResponse
     {
-        switch splitMode
-        {
-        case .exactSeparator:
-            return .evaluate(pulling: [inputPort, inputSeparator])
-        case .words, .commas, .lines:
-            return .evaluate(pulling: [inputPort])
-        }
+        guard let inputSeparator else { return .evaluate(pulling: [inputPort]) }
+        return .evaluate(pulling: [inputPort, inputSeparator])
     }
-    
+
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        let separatorDidChange = splitMode == .exactSeparator && inputSeparator.valueDidChange
+        guard let splitMode else { return }
+
+        let separatorDidChange = inputSeparator?.valueDidChange ?? false
         guard inputPort.valueDidChange || separatorDidChange,
               let string = inputPort.value else
         {
@@ -169,9 +129,9 @@ public class StringSplitNode: Node {
         }
 
         let separator: String
-        if splitMode == .exactSeparator
+        if splitMode == .custom
         {
-            guard let inputSeparatorValue = inputSeparator.value else { return }
+            guard let inputSeparatorValue = inputSeparator?.value else { return }
             separator = inputSeparatorValue
         }
         else
@@ -185,20 +145,20 @@ public class StringSplitNode: Node {
     static func split(
         _ string: String,
         separator: String,
-        mode: StringSplitMode = .exactSeparator
+        mode: StringSplitMode = .custom
     ) -> ContiguousArray<String>
     {
         switch mode
         {
-        case .exactSeparator:
+        case .custom:
             return ContiguousArray(
                 string.components(separatedBy: decodedSeparator(separator))
             )
-        case .words:
-            return ContiguousArray(string.split(whereSeparator: \.isWhitespace).map(String.init))
-        case .commas:
+        case .comma:
             return splitAndTrim(string.components(separatedBy: ","))
-        case .lines:
+        case .space:
+            return ContiguousArray(string.split(whereSeparator: \.isWhitespace).map(String.init))
+        case .newline:
             return splitAndTrim(string.components(separatedBy: .newlines))
         }
     }

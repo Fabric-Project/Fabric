@@ -10,13 +10,37 @@ struct StringSplitNodeTests
     {
         #expect(
             StringSplitMode.allCases.map(\.rawValue)
-                == ["Exact Separator", "Words", "Commas", "Lines"]
+                == ["Custom", "Comma", "Space", "Newline"]
         )
 
-        let encodedMode = try JSONEncoder().encode(StringSplitMode.lines)
-        let decodedMode = try JSONDecoder().decode(StringSplitMode.self, from: encodedMode)
+        #expect(StringSplitNode.strategies == StringSplitMode.allCases.map(\.rawValue))
+        #expect(StringSplitNode.defaultStrategy == StringSplitMode.custom.rawValue)
+    }
 
-        #expect(decodedMode == .lines)
+    @Test("Every split mode explains itself in the Settings pane")
+    func splitModeGuidance()
+    {
+        for mode in StringSplitMode.allCases
+        {
+            #expect(mode.usageGuidance.isEmpty == false)
+        }
+    }
+
+    @Test("Separator inlet exists only in Custom mode")
+    func separatorPortFollowsMode() throws
+    {
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
+
+        let node = StringSplitNode(context: harness.context, strategy: StringSplitMode.custom)
+        #expect(node.splitMode == .custom)
+        #expect(node.inputSeparator != nil)
+
+        node.strategy = StringSplitMode.newline.rawValue
+        #expect(node.splitMode == .newline)
+        #expect(node.inputSeparator == nil)
+
+        node.strategy = StringSplitMode.custom.rawValue
+        #expect(node.inputSeparator != nil)
     }
 
     @Test("Escaped newline separates file contents into lines")
@@ -35,49 +59,49 @@ struct StringSplitNodeTests
         #expect(result == ["first", "second"])
     }
 
-    @Test("Words split on any whitespace and remove empty values")
-    func wordsMode()
+    @Test("Space splits on any whitespace and removes empty values")
+    func spaceMode()
     {
         let result = StringSplitNode.split(
             "  first\tsecond\nthird\u{00A0}fourth  ",
             separator: ", ",
-            mode: .words
+            mode: .space
         )
 
         #expect(result == ["first", "second", "third", "fourth"])
     }
 
-    @Test("Commas trim whitespace and remove empty values")
-    func commasMode()
+    @Test("Comma trims whitespace and removes empty values")
+    func commaMode()
     {
         let result = StringSplitNode.split(
             " first, second ,, \nthird, ",
             separator: ", ",
-            mode: .commas
+            mode: .comma
         )
 
         #expect(result == ["first", "second", "third"])
     }
 
-    @Test("Lines recognize Unicode newlines, trim whitespace, and remove empty values")
-    func linesMode()
+    @Test("Newline recognizes Unicode newlines, trims whitespace, and removes empty values")
+    func newlineMode()
     {
         let result = StringSplitNode.split(
             " first\r\nsecond\u{2028} \nthird ",
             separator: ", ",
-            mode: .lines
+            mode: .newline
         )
 
         #expect(result == ["first", "second", "third"])
     }
 
-    @Test("Exact separator retains empty and untrimmed values")
-    func exactSeparatorModePreservesExistingBehavior()
+    @Test("Custom separator retains empty and untrimmed values")
+    func customModePreservesExistingBehavior()
     {
         let result = StringSplitNode.split(
             " first, second,,",
             separator: ",",
-            mode: .exactSeparator
+            mode: .custom
         )
 
         #expect(result == [" first", " second", "", ""])
