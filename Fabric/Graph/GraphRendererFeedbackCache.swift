@@ -141,8 +141,9 @@ internal final class GraphRendererFeedbackCache
                 let key = PortCacheKey(portID: candidate.upstreamOutlet.id, frameNumber: previousFrame)
                 if let cached = previousFrameCache[key] // PortValue?
                 {
-                    // This is the critical part: make the inlet read last frame instead of recursing
-                    inlet.restoreValue(from: cached)
+                    // Make the inlet read last frame instead of recursing,
+                    // using normal send semantics so unchanged feedback does not dirty the node.
+                    inlet.sendBoxed(cached, force: false)
                 }
             }
         }
