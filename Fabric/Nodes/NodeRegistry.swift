@@ -4,32 +4,38 @@
 //
 //  Created by Anton Marini on 4/26/25.
 //
-import simd
+
 import Foundation
 import Satin
 import UniformTypeIdentifiers
 
-public class NodeRegistry {
+public class NodeRegistry
+{
+    private static let sharedResult = Result { try NodeRegistry() }
 
-    public static let shared = NodeRegistry()
+    private let pluginLoadLock = NSRecursiveLock()
 
-    init() {
-        // Swift `lazy var` initialization is not thread-safe. Force-build
-        // the render-path lookup tables here so `shared`'s one-time init
-        // (which has dispatch_once semantics) is the only writer;
-        // concurrent readers — e.g. two graphs building nodes on their
-        // own render queues — then only ever see initialized storage.
-        // `availableNodes`/`allSupportedDropTypes` stay lazy: they scan
-        // bundle shaders and every node class's static metadata, and are
-        // only read from the main-thread UI. Forcing them here deadlocks
-        // when the first registry access is on a render queue the main
-        // thread is blocked waiting on.
-        _ = self.nodesClassLookup
-        _ = self.nodeFileLoadingClasses
+    public static var shared: NodeRegistry
+    {
+        get throws
+        {
+            try sharedResult.get()
+        }
     }
 
-    public func nodeClass(for nodeName: String) -> (Node.Type)? {
-        return self.nodesClassLookup[nodeName]
+    init() throws
+    {
+        try loadPluginsIfNeeded()
+    }
+
+    public func nodeClass(pluginID: String, nodeID: String) -> (Node.Type)?
+    {
+        if let legacyClass = self.legacyNodeClassLookup[PluginQualifiedNodeID(pluginID: pluginID, nodeID: nodeID)]
+        {
+            return legacyClass
+        }
+
+        return PluginLoader.shared.nodeClass(pluginID: pluginID, nodeID: nodeID)
     }
 
     /// Returns the first drop-target node class whose `supportedContentTypes`
@@ -40,466 +46,139 @@ public class NodeRegistry {
     {
         for dropNodeClass in self.nodeFileLoadingClasses
         {
-            if dropNodeClass.supportedContentTypes.contains(where: { contentType.conforms(to: $0) } )
+            if dropNodeClass.supportedContentTypes.contains(where: { contentType.conforms(to: $0) })
             {
                 return dropNodeClass
             }
         }
+
         return nil
     }
-    
+
     /// All UTTypes accepted by drop-target nodes, for use with drop destination handlers.
     public lazy private(set) var allSupportedDropTypes: [UTType] = {
-        let dropClasses = self.nodeFileLoadingClasses
-        return dropClasses.flatMap ( { $0.supportedContentTypes } )
-    }()
-    
-    
-    public lazy private(set) var availableNodes:[NodeClassWrapper] = {
-        self.nodesClasses.map( { NodeClassWrapper(nodeClass: $0) } ) + self.dynamicEffectNodes
+        return self.nodeFileLoadingClasses.flatMap { $0.supportedContentTypes }
     }()
 
-    private lazy var nodesClassLookup: [String: Node.Type] =  {
-        var result = self.nodesClasses.reduce(into: [String: Node.Type]()) { result, nodeClass in
-            result[String(describing: nodeClass)] = nodeClass
+    public lazy private(set) var availableNodes: [NodeClassWrapper] = {
+        return PluginLoader.shared.pluginNodeWrappers
+    }()
+
+    public var pluginLoadErrors: [PluginLoadError]
+    {
+        return PluginLoader.shared.loadErrors
+    }
+
+    private var nodeFileLoadingClasses: [(any NodeFileLoadingProtocol.Type)]
+    {
+        PluginLoader.shared.pluginNodeClasses.values.compactMap { nodeClass in
+            nodeClass as? any NodeFileLoadingProtocol.Type
         }
+    }
+
+    public func qualifiedNodeID(for nodeClass: Node.Type) -> PluginQualifiedNodeID?
+    {
+        PluginLoader.shared.qualifiedNodeID(for: nodeClass)
+    }
+
+    public func validatePluginRequirements(_ requirements: [PluginRequirement]) throws
+    {
+        for requirement in requirements
+        {
+            guard let pluginInfo = PluginLoader.shared.loadedPlugins[requirement.id] else
+            {
+                throw FabricError(.loading(.pluginNotFound),
+                                  severity: .fatal,
+                                  message: "Required plugin '\(requirement.id)' is not loaded")
+            }
+
+            guard Self.version(pluginInfo.version, isAtLeast: requirement.version) else
+            {
+                throw FabricError(.loading(.pluginLoadFailed),
+                                  severity: .fatal,
+                                  message: "Required plugin '\(requirement.id)' needs version \(requirement.version ?? ""), but loaded version is \(pluginInfo.version ?? "unknown")")
+            }
+        }
+    }
+
+    private lazy var legacyNodeClassLookup: [PluginQualifiedNodeID: Node.Type] = {
+        var result: [PluginQualifiedNodeID: Node.Type] = [:]
+
+        func registerCoreAlias(_ nodeID: String, _ nodeClass: Node.Type)
+        {
+            result[PluginQualifiedNodeID(pluginID: PluginLoader.coreNodesPluginID, nodeID: nodeID)] = nodeClass
+        }
+
         // Legacy class-name aliases: old saved graphs used SatinGeometry in generic type params.
         // Both module-qualified and bare forms are covered since Swift's output can vary.
-        result["PassThroughNode<SatinGeometry>"] = PassThroughNode<Geometry>.self
-        result["PassThroughNode<Satin.SatinGeometry>"] = PassThroughNode<Geometry>.self
+        registerCoreAlias("PassThroughNode<SatinGeometry>", PassThroughNode<Geometry>.self)
+        registerCoreAlias("PassThroughNode<Satin.SatinGeometry>", PassThroughNode<Geometry>.self)
 
         // Structural array nodes were previously generic; old docs decode to type-agnostic versions.
-        let agnosticSuffixes = ["Bool", "Int", "Float", "String",
-                                "simd_float2", "simd_float3", "simd_float4", "simd_float4x4",
-                                "FabricImage"]
-        for suffix in agnosticSuffixes {
-            result["ArrayQueueNode<\(suffix)>"]               = ArrayQueueNode.self
-            result["ArrayFirstValueNode<\(suffix)>"]          = ArrayFirstValueNode.self
-            result["ArrayLastValueNode<\(suffix)>"]           = ArrayLastValueNode.self
-            result["ArrayIndexValueNode<\(suffix)>"]          = ArrayIndexValueNode.self
-            result["ArrayCountNode<\(suffix)>"]               = ArrayCountNode.self
-            result["ArrayAppendNode<\(suffix)>"]              = ArrayAppendNode.self
-            result["ArrayReplaceValueAtIndexNode<\(suffix)>"] = ArrayReplaceValueAtIndexNode.self
-            result["ArraySplitAtIndexNode<\(suffix)>"]        = ArraySplitAtIndexNode.self
+        let agnosticSuffixes = [
+            "Bool",
+            "Int",
+            "Float",
+            "String",
+            "simd_float2",
+            "simd_float3",
+            "simd_float4",
+            "simd_float4x4",
+            "FabricImage",
+        ]
+
+        for suffix in agnosticSuffixes
+        {
+            registerCoreAlias("ArrayQueueNode<\(suffix)>", ArrayQueueNode.self)
+            registerCoreAlias("ArrayFirstValueNode<\(suffix)>", ArrayFirstValueNode.self)
+            registerCoreAlias("ArrayLastValueNode<\(suffix)>", ArrayLastValueNode.self)
+            registerCoreAlias("ArrayIndexValueNode<\(suffix)>", ArrayIndexValueNode.self)
+            registerCoreAlias("ArrayCountNode<\(suffix)>", ArrayCountNode.self)
+            registerCoreAlias("ArrayAppendNode<\(suffix)>", ArrayAppendNode.self)
+            registerCoreAlias("ArrayReplaceValueAtIndexNode<\(suffix)>", ArrayReplaceValueAtIndexNode.self)
+            registerCoreAlias("ArraySplitAtIndexNode<\(suffix)>", ArraySplitAtIndexNode.self)
         }
 
         // Vector compose/decompose nodes were previously generic; old docs map to consolidated versions.
         let vectorSuffixes = ["simd_float2", "simd_float3", "simd_float4"]
-        for suffix in vectorSuffixes {
-            result["ComposeVectorNode<\(suffix)>"]       = ComposeVectorNode.self
-            result["DecomposeVectorNode<\(suffix)>"]     = DecomposeVectorNode.self
-            result["ComposeVectorArrayNode<\(suffix)>"]  = ComposeVectorArrayNode.self
-            result["DecomposeVectorArrayNode<\(suffix)>"] = DecomposeVectorArrayNode.self
+
+        for suffix in vectorSuffixes
+        {
+            registerCoreAlias("ComposeVectorNode<\(suffix)>", ComposeVectorNode.self)
+            registerCoreAlias("DecomposeVectorNode<\(suffix)>", DecomposeVectorNode.self)
+            registerCoreAlias("ComposeVectorArrayNode<\(suffix)>", ComposeVectorArrayNode.self)
+            registerCoreAlias("DecomposeVectorArrayNode<\(suffix)>", DecomposeVectorArrayNode.self)
         }
 
         return result
     }()
-    
-    private lazy var nodeFileLoadingClasses: [(any NodeFileLoadingProtocol.Type)] =  {
-        self.nodesClasses.compactMap( { $0 as? any NodeFileLoadingProtocol.Type } )
-    }()
-    
-    private var nodesClasses: [Node.Type] {
-        self.cameraNodeClasses
-        + self.lightNodeClasses
-        + self.objectNodeClasses
-        + self.geometryNodeClasses
-        + self.materialNodeClasses
-        + self.textureNodeClasses
-        + self.parameterNodeClasses
-        + self.ioNodeClasses
-        + self.macroNodeClasses
-        + self.utilityClasses
-    }
-    
-    private var cameraNodeClasses: [Node.Type] = [
-         PerspectiveCameraNode.self,
-         OrthographicCameraNode.self,
-    ]
-    
-    private var lightNodeClasses: [Node.Type] = [
-        DirectionalLightNode.self,
-        PointLightNode.self,
-        SpotLightNode.self,
-    ]
-    
-    private var objectNodeClasses: [Node.Type] = [
-        // Objects / Rendering
-        MeshNode.self,
-        ModelMeshNode.self,
-        InstancedMeshNode.self,
-        InstancedModelMeshNode.self,
-        EnvironmentSkyboxNode.self,
-        ImageMeshNode.self,
-    ]
-    
-    private var geometryNodeClasses: [Node.Type] = [ // Geometry
-        PassThroughNode<Geometry>.self,
-        PlaneGeometryNode.self,
-        PerspectiveQuadGeometryNode.self,
-        RoundRectGeometryNode.self,
-        TriangleGeometryNode.self,
-        CircleGeometryNode.self,
-        ArcGeometryNode.self,
-        ConeGeometryNode.self,
-        BoxGeometryNode.self,
-        RoundBoxGeometryNode.self,
-        SphereGeometryNode.self,
-        IcoSphereGeometryNode.self,
-        CapsuleGeometryNode.self,
-        TubeGeometryNode.self,
-        TorusGeometryNode.self,
-        CycloramaGeometryNode.self,
-//        SkyboxGeometryNode.self,
-        TesselatedTextGeometryNode.self,
-        ExtrudedTextGeometryNode.self,
-        PixelArrayToGeometryNode.self,
-        SuperShapeGeometryNode.self,
-        MobiusStripGeometryNode.self,
-        HelicoidGeometryNode.self,
-        SuperellipsoidGeometryNode.self,
-        KleinBottleGeometryNode.self,
-        CatenoidGeometryNode.self,
-        ParaboloidGeometryNode.self,
-        EnneperSurfaceGeometryNode.self,
-        PseudosphereGeometryNode.self,
-        DupinCyclideGeometryNode.self,
-        RomanSurfaceGeometryNode.self,
-        CrossCapGeometryNode.self,
-        BourSurfaceGeometryNode.self,
-        BreatherSurfaceGeometryNode.self,
-        DiniSurfaceGeometryNode.self,
-        MathExpressionParametricGeometryNode.self,
-    ]
-        
-    private var materialNodeClasses:[Node.Type] = [
-        // Materials
-        PassThroughNode<Material>.self,
-        BasicColorMaterialNode.self,
-        UVMaterialNode.self,
-        BasicTextureMaterialNode.self,
-        BasicDiffuseMaterialNode.self,
-//        SkyboxMaterialNode.self,
-        DepthMaterialNode.self,
-        //ShadowMaterialNode.self,
-        StandardMaterialNode.self,
-        PBRMaterialNode.self,
-        DisplacementMaterialNode.self,
-    ]
-    
-    private var textureNodeClasses:[Node.Type] {
-        var classes: [Node.Type] = [
-            PassThroughNode<FabricImage>.self,
-            MovieProviderNode.self,
-            CameraProviderNode.self,
-            ImageProviderNode.self,
-            TestCardProviderNode.self,
-        ]
-        #if os(macOS)
-        classes.append(ScreenCaptureProviderNode.self)
-        #endif
-        #if FABRIC_SYPHON_ENABLED
-        classes.append(contentsOf: [
-            SyphonClientNode.self,
-            SyphonServerNode.self,
-        ])
-        #endif
-        classes.append(contentsOf: [
-            LiveImageNode.self,
-            DepthOfFieldNode.self,
-            GaussianBlurNode.self,
-            GaussianBlurChannelsNode.self,
-            MotionBlurNode.self,
-            PostProcessMotionBlurNode.self,
-            ZoomBlurNode.self,
-            ForegroundMaskNode.self,
-            PersonSegmentationMaskNode.self,
-            FacePoseAnalysisNode.self,
-            HandPoseAnalysisNode.self,
-            LucasKanadeOpticalFlowNode.self,
-            DCTNode.self,
-            InverseDCTNode.self,
-            LocalVLMNode.self,
-            ContourPathNode.self,
-            MetalFXSpatialUpsample2xNode.self,
-            KeypointDistortNode.self,
-            LUTProcessorNode.self,
-            BlendNode.self,
-            TextureCropNode.self,
-            ImageResampleNode.self,
-        ])
-        return classes
-    }
 
-    // Sub Patch Iterator, Replicate etc
-    private var macroNodeClasses:[Node.Type] = [
-        SubgraphNode.self,
-        DeferredSubgraphNode.self,
-        IteratorNode.self,
-        IteratorInfoNode.self,
-        EnvironmentNode.self,
-    ]
-    
-    private var dynamicEffectNodes:[NodeClassWrapper]
+    private static func version(_ loadedVersion: String?, isAtLeast requiredVersion: String?) -> Bool
     {
-        let bundle = Bundle.module
+        guard let requiredVersion else { return true }
+        guard let loadedVersion else { return false }
 
-        var nodes:[NodeClassWrapper] = []
+        let loadedComponents = loadedVersion.split(separator: ".").map { Int(String($0)) ?? 0 }
+        let requiredComponents = requiredVersion.split(separator: ".").map { Int(String($0)) ?? 0 }
+        let count = max(loadedComponents.count, requiredComponents.count)
 
-        for imageEffectType in Node.NodeType.ImageType.allCases
+        for index in 0..<count
         {
-            let singleChannelEffects = "Effects/\(imageEffectType.rawValue)"
-            let twoChannelEffects = "EffectsTwoChannel/\(imageEffectType.rawValue)"
-            let threeChannelEffects = "EffectsThreeChannel/\(imageEffectType.rawValue)"
-            
-            let computeSubdir = "Compute/\(imageEffectType.rawValue)"
-            
-            if
-               let singleChannelEffects = bundle.urls(forResourcesWithExtension: "metal", subdirectory:singleChannelEffects),
-               let twoChannelEffects = bundle.urls(forResourcesWithExtension: "metal", subdirectory:twoChannelEffects),
-               let threeChannelEffects = bundle.urls(forResourcesWithExtension: "metal", subdirectory:threeChannelEffects),
-               let singleChannelComputeEffects = bundle.urls(forResourcesWithExtension: "metal", subdirectory:computeSubdir)
-            {
-                for fileURL in singleChannelEffects
-                {
-                    let desc = self.shaderDescription(from: fileURL) ?? BaseImageNode.nodeDescription
-                    let node = NodeClassWrapper(nodeClass: BaseImageNode.self,
-                                                nodeType: .Image(imageType: imageEffectType),
-                                                fileURL: fileURL,
-                                                nodeName:self.fileURLToName(fileURL: fileURL),
-                                                nodeDescription: desc)
-                    nodes.append( node )
-                }
+            let loaded = index < loadedComponents.count ? loadedComponents[index] : 0
+            let required = index < requiredComponents.count ? requiredComponents[index] : 0
 
-                for fileURL in twoChannelEffects
-                {
-                    let desc = self.shaderDescription(from: fileURL) ?? BaseImageNode.nodeDescription
-                    let node = NodeClassWrapper(nodeClass: BaseImageNode.self,
-                                                nodeType: .Image(imageType: imageEffectType),
-                                                fileURL: fileURL,
-                                                nodeName:self.fileURLToName(fileURL: fileURL),
-                                                nodeDescription: desc)
-                    nodes.append( node )
-                }
-
-                for fileURL in threeChannelEffects
-                {
-                    let desc = self.shaderDescription(from: fileURL) ?? BaseImageNode.nodeDescription
-                    let node = NodeClassWrapper(nodeClass: BaseImageNode.self,
-                                                nodeType: .Image(imageType: imageEffectType),
-                                                fileURL: fileURL,
-                                                nodeName:self.fileURLToName(fileURL: fileURL),
-                                                nodeDescription: desc)
-                    nodes.append( node )
-                }
-
-                for fileURL in singleChannelComputeEffects
-                {
-                    let desc = self.shaderDescription(from: fileURL) ?? BaseTextureComputeProcessorNode.nodeDescription
-                    let node = NodeClassWrapper(nodeClass: BaseTextureComputeProcessorNode.self,
-                                                nodeType: .Image(imageType: imageEffectType),
-                                                fileURL: fileURL,
-                                                nodeName:self.fileURLToName(fileURL: fileURL),
-                                                nodeDescription: desc)
-                    nodes.append( node )
-                }
-            }
+            if loaded > required { return true }
+            if loaded < required { return false }
         }
-        
-        // Not quite a localizedStandardCompare but whatever
-        nodes.sort { a, b in
-            
-            return a.nodeName < b.nodeName
-        }
-        return nodes
-    }
-    
-    private func fileURLToName(fileURL:URL) -> String {
-        let nodeName =  fileURL.deletingPathExtension().lastPathComponent.replacing("ImageNode", with: "")
 
-        return nodeName.titleCase
+        return true
     }
 
-    /// Parse a `// description: ...` comment from a shader file's first few lines.
-    private func shaderDescription(from fileURL: URL) -> String? {
-        guard let data = try? Data(contentsOf: fileURL, options: .mappedIfSafe),
-              let source = String(data: data, encoding: .utf8) else { return nil }
-        // Scan only the first 20 lines for efficiency
-        for line in source.split(separator: "\n", maxSplits: 20, omittingEmptySubsequences: false) {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed.hasPrefix("// description:") {
-                let desc = trimmed.dropFirst("// description:".count).trimmingCharacters(in: .whitespaces)
-                return desc.isEmpty ? nil : desc
-            }
-        }
-        return nil
-    }
-    
-    private var parameterNodeClasses: [Node.Type] = [
-        // Numeric, type-agnostic value operations.
-        DistanceNode.self,
-        EasingNode.self,
-        TweenNode.self,
-        RepeatNode.self,
-        RippleRepeatNode.self,
-        PairwiseDistanceArrayNode.self,
-        ArrayRangeInterpolateNode.self,
-        ArrayResampleTypeAgnosticNode.self,
+    private func loadPluginsIfNeeded() throws
+    {
+        pluginLoadLock.lock()
+        defer { pluginLoadLock.unlock() }
 
-        // Boolean.
-        PassThroughNode<Bool>.self,
-        BooleanLogicNode.self,
-
-        // Number and index.
-        PassThroughNode<Float>.self,
-        PassThroughNode<Int>.self,
-        CurrentTimeNode.self,
-        SystemTimeNode.self,
-        TimestampNode.self,
-        TimelineNode.self,
-        NumberUnaryOperator.self,
-        NumberBinaryOperator.self,
-        NumberLogicOperator.self,
-        NumberRoundNode.self,
-        NumberClampNode.self,
-        NumberRemapNode.self,
-        NumberIntegralNode.self,
-        NumberSmoothNode.self,
-        MathExpressionNode.self,
-        GradientNoiseNode.self,
-        AudioSpectrumNode.self,
-
-        // Vector: scalar/vector operations first, vector-array operations last.
-        PassThroughNode<simd_float2>.self,
-        PassThroughNode<simd_float3>.self,
-        PassThroughNode<simd_float4>.self,
-        ComposeVectorNode.self,
-        DecomposeVectorNode.self,
-        ComposeVectorArrayNode.self,
-        DecomposeVectorArrayNode.self,
-
-        // Orientation: single orientation operations first, orientation-array operations last.
-        PassThroughNode<simd_quatf>.self,
-        ComposeOrientationNode.self,
-        DecomposeOrientationNode.self,
-        ComposeOrientationArrayNode.self,
-        DecomposeOrientationArrayNode.self,
-
-        // Transform: single transform operations first, transform-array operations last.
-        PassThroughNode<simd_float4x4>.self,
-        ComposeTransformNode.self,
-        DecomposeTransformNode.self,
-        TranslateTransformNode.self,
-        RotateTransformNode.self,
-        ScaleTransformNode.self,
-        TransposeTransformNode.self,
-        InvertTransformNode.self,
-        ComposeTransformArrayNode.self,
-        DecomposeTransformArrayNode.self,
-        GeometryToTransformArrayNode.self,
-
-        // Color.
-        ColorPassThroughNode.self,
-        MakeColorNode.self,
-
-        // String.
-        PassThroughNode<String>.self,
-        StringTrimNode.self,
-        StringLengthNode.self,
-        StringRangeNode.self,
-        StringWrapNode.self,
-        StringCaseNode.self,
-        StringComparisonNode.self,
-        StringFormatterNode.self,
-        StringScannerNode.self,
-        StringJoinNode.self,
-        StringSplitNode.self,
-        StringDifferenceNode.self,
-        TimestampFormatterNode.self,
-        TimecodeFormatterNode.self,
-//        ConvertToStringNode.self,
-        LocalLLMNode.self,
-        DirectoryScannerNode.self,
-        TextFileLoaderNode.self,
-
-        // Dictionary.
-        PassThroughNode<Dictionary<String, PortValue>>.self,
-        PassThroughNode<Dictionary<String, Bool>>.self,
-        PassThroughNode<Dictionary<String, Int>>.self,
-        PassThroughNode<Dictionary<String, Float>>.self,
-        PassThroughNode<Dictionary<String, String>>.self,
-        PassThroughNode<Dictionary<String, simd_float2>>.self,
-        PassThroughNode<Dictionary<String, simd_float3>>.self,
-        PassThroughNode<Dictionary<String, simd_float4>>.self,
-        PassThroughNode<Dictionary<String, simd_quatf>>.self,
-        PassThroughNode<Dictionary<String, simd_float4x4>>.self,
-        PassThroughNode<Dictionary<String, Geometry>>.self,
-        PassThroughNode<Dictionary<String, Material>>.self,
-        PassThroughNode<Dictionary<String, FabricImage>>.self,
-        ComposeDictionaryNode.self,
-        DecomposeDictionaryNode.self,
-        DictionarySetValueForKeyNode.self,
-        DictionaryValueForKeyNode.self,
-        DictionaryCountNode.self,
-        DictionaryHasKeyNode.self,
-        DictionaryRemoveKeyNode.self,
-        DictionaryMergeNode.self,
-        DictionaryFromJSONStringNode.self,
-
-        // Array: generic structure nodes, then more specialized array generators/processors.
-        ArrayCountNode.self,
-        ArrayFirstValueNode.self,
-        ArrayLastValueNode.self,
-        ArrayIndexValueNode.self,
-        ArrayAppendNode.self,
-        ArrayReplaceValueAtIndexNode.self,
-        ArraySplitAtIndexNode.self,
-        ArraySubarrayNode.self,
-        ArrayQueueNode.self,
-        ArrayReverseNode.self,
-        ArrayShuffleNode.self,
-        LinePointsNode.self,
-        RingPointsNode.self,
-        GridPointsNode.self,
-        PolyLineSimplifyNode.self,
-    ]
-    
-    private var ioNodeClasses: [Node.Type] {
-        var classes: [Node.Type] = [
-            OSCReceiveNode.self,
-        ]
-        #if os(macOS)
-        classes.append(HIDNode.self)
-        #endif
-        classes.append(contentsOf: [
-            GameControllerNode.self,
-            MIDIInputNode.self,
-        ])
-        return classes
-    }
-
-    private var utilityClasses: [Node.Type] {
-        var classes: [Node.Type] = [
-            LogNode.self,
-            JavaScriptNode.self,
-            CursorNode.self,
-        ]
-        #if os(macOS)
-        classes.append(KeyboardNode.self)
-        #endif
-        classes.append(contentsOf: [
-            RenderInfoNode.self,
-            ImageDimensions.self,
-            PixelsToUnitsNode.self,
-            UnitsoPixelsNode.self,
-
-            SignalNode.self,
-            SwitchNode.self,
-            GateNode.self,
-            MatrixSwitchNode.self,
-
-            SampleAndHoldNode.self,
-        ])
-        return classes
+        try PluginLoader.shared.loadAllPlugins()
     }
 }

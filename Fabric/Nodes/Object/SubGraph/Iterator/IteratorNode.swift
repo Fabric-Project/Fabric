@@ -49,30 +49,30 @@ public class IteratorNode: SubgraphNode
         try super.init(from: decoder)
     }
     
-    override public func startExecution(renderer:GraphRenderer)
+    override public func startExecution(renderer:GraphRenderer) throws
     {
-        renderer.startExecution(graph: self.subGraph)
+        try renderer.startExecution(graph: self.subGraph)
     }
     
-    override public func stopExecution(renderer:GraphRenderer)
+    override public func stopExecution(renderer:GraphRenderer) throws
     {
-        renderer.stopExecution(graph: self.subGraph)
+        try renderer.stopExecution(graph: self.subGraph)
     }
 
-    override public func enableExecution(renderer:GraphRenderer)
+    override public func enableExecution(renderer:GraphRenderer) throws
     {
-        renderer.enableExecution(graph: self.subGraph)
+        try renderer.enableExecution(graph: self.subGraph)
     }
     
-    override public func disableExecution(renderer:GraphRenderer)
+    override public func disableExecution(renderer:GraphRenderer) throws
     {
-        renderer.disableExecution(graph: self.subGraph)
+        try renderer.disableExecution(graph: self.subGraph)
     }
     
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
+                                 commandBuffer: MTLCommandBuffer) throws
     {
         let iterationCount = resolvedIterationCount()
         guard iterationCount > 0 else {
@@ -99,12 +99,12 @@ public class IteratorNode: SubgraphNode
                 renderer.invalidateFeedbackTopologyCaches(for: subGraph)
             }
 
-            renderer.execute(graph: subGraph,
-                             executionInfo: executionInfo,
-                             renderPassDescriptor: renderPassDescriptor,
-                             commandBuffer: commandBuffer,
-                             clearFlags: false,
-                             forceEvaluationForTheseNodes: subGraph.nodes)
+            try renderer.execute(graph: subGraph,
+                                 executionInfo: executionInfo,
+                                 renderPassDescriptor: renderPassDescriptor,
+                                 commandBuffer: commandBuffer,
+                                 clearFlags: false,
+                                 forceEvaluationForTheseNodes: subGraph.nodes)
 
             if needsSceneSync
             {

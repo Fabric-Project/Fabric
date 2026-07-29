@@ -65,6 +65,7 @@ public class DecomposeOrientationNode: StrategyNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let inputOrientation: NodePort<simd_float4> = findPort(named: "inputOrientation"),
               inputOrientation.valueDidChange,

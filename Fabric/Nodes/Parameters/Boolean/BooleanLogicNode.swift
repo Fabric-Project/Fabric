@@ -38,9 +38,9 @@ public class BooleanLogicNode : Node
     
     private var op = LogicOperator.Equals
     
-    override public func startExecution(renderer:GraphRenderer)
+    override public func startExecution(renderer:GraphRenderer) throws
     {
-        super.startExecution(renderer: renderer)
+        try super.startExecution(renderer: renderer)
         
         if let stringParam = self.inputParam.parameter as? StringParameter
         {
@@ -52,6 +52,7 @@ public class BooleanLogicNode : Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputParam.valueDidChange,
            let param = self.inputParam.value,

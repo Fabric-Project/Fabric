@@ -219,6 +219,7 @@ public class GameControllerNode: Node
     // MARK: - Lifecycle
 
     public override func enableExecution(renderer:GraphRenderer)
+    throws
     {
         setupNotifications()
         refreshControllers()
@@ -236,6 +237,7 @@ public class GameControllerNode: Node
     }
 
     public override func disableExecution(renderer:GraphRenderer)
+    throws
     {
         NotificationCenter.default.removeObserver(self)
         currentController = nil
@@ -464,6 +466,7 @@ public class GameControllerNode: Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         // Send axis values
         for (name, value) in axisValues

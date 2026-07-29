@@ -316,6 +316,25 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
 
     // MARK: - Evaluate
 
+    public override func execute(renderer: GraphRenderer,
+                                 executionInfo: GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
+    throws
+    {
+        guard evalX != nil, evalY != nil, evalZ != nil else
+        {
+            throw FabricError(.execution(.syntax),
+                              severity: .recoverable,
+                              message: "Parametric geometry expressions must compile to one float output per axis.")
+        }
+
+        try super.execute(renderer: renderer,
+                          executionInfo: executionInfo,
+                          renderPassDescriptor: renderPassDescriptor,
+                          commandBuffer: commandBuffer)
+    }
+
     override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
     {
         var shouldOutput = super.evaluate(geometry: geometry, atTime: atTime)

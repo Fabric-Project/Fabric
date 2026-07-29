@@ -45,6 +45,7 @@ public class GradientNoiseNode : Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         //self.fbm.frequency_scaled(by: Double(self.inputFrequency.value) )
         if self.inputFrequency.valueDidChange,

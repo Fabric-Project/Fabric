@@ -58,6 +58,7 @@ public class SampleAndHoldNode: TypeAgnosticNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let inputValue:  Port = findPort(named: "inputValue"),
               let outputValue: Port = findPort(named: "outputValue") else { return }

@@ -40,6 +40,7 @@ public class NumberEaseNode : Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputNumber.valueDidChange,
            let param = self.inputParam.value,

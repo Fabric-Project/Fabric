@@ -47,6 +47,7 @@ public final class DecomposeDictionaryNode: DictionaryTypeAgnosticNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let inputDictionary: Port = findPort(named: "inputDictionary"),
               let outputKeys: Port = findPort(named: "outputKeys"),

@@ -65,6 +65,7 @@ public class ComposeVectorNode: StrategyNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let vt: VectorType = strategyOption() else { return }
 

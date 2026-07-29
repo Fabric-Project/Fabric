@@ -40,6 +40,7 @@ public final class PairwiseDistanceArrayNode: NumericTypeAgnosticNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if specializeFromConnectedPort(named: "inputA") || specializeFromConnectedPort(named: "inputB") { return }
         guard let inputA: Port = findPort(named: "inputA"),

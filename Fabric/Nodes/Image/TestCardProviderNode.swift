@@ -159,14 +159,26 @@ public class TestCardProviderNode: Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         let width = max(1, self.inputWidth.value ?? 1920)
         let height = max(1, self.inputHeight.value ?? 1080)
 
-        guard let pipeline = self.computePipeline,
-              let outImage = renderer.newImage(withWidth: width, height: height),
-              let computeEncoder = commandBuffer.makeComputeCommandEncoder()
-        else { return }
+        guard let pipeline = self.computePipeline else
+        {
+            throw FabricError(.execution(.gpu),
+                              severity: .recoverable,
+                              message: "Test Card compute pipeline is unavailable")
+        }
+
+        let outImage = try renderer.newImage(withWidth: width, height: height)
+
+        guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else
+        {
+            throw FabricError(.execution(.gpu),
+                              severity: .recoverable,
+                              message: "Could not create Test Card compute encoder")
+        }
 
         let showText = self.inputText.value ?? true
         let textString = self.inputTextString.value ?? "Fabric"

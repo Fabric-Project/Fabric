@@ -176,7 +176,7 @@ final class GraphMovieExporter {
         let colorTexture = try self.makeIntermediateColorTexture()
         let depthTexture = try self.makeIntermediateDepthTexture()
 
-        renderer.start()
+        try renderer.start()
 
         let frameDuration = self.frameDuration()
         let sourceColorSpace = CGColorSpace(name: CGColorSpace.linearSRGB) ?? CGColorSpaceCreateDeviceRGB()
@@ -254,13 +254,13 @@ final class GraphMovieExporter {
                 await progressHandler?(frameIndex + 1, frameCount)
             }
         } catch {
-            renderer.finish()
+            try? renderer.finish()
             writerInput.markAsFinished()
             writer.cancelWriting()
             throw error
         }
 
-        renderer.finish()
+        try renderer.finish()
         writerInput.markAsFinished()
 
         if let completionError = try await self.finishWriting(writer) {

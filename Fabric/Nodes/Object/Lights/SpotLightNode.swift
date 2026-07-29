@@ -69,6 +69,7 @@ public class SpotLightNode : ObjectNode<SpotLight>
     )
 
     override public func startExecution(renderer:GraphRenderer)
+    throws
     {
         self.setupDefaultLight()
     }
@@ -187,6 +188,7 @@ public class SpotLightNode : ObjectNode<SpotLight>
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         let _ = self.evaluate(object: self.light, atTime: executionInfo.timing.time)
     }

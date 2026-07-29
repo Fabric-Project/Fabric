@@ -37,6 +37,7 @@ public class SignalNode : Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         let signal = self.inputValue.valueDidChange
         print("Signal \(signal)")

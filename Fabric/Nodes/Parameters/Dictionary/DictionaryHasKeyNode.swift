@@ -42,6 +42,7 @@ public final class DictionaryHasKeyNode: DictionaryTypeAgnosticNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let inputDictionary: Port = findPort(named: "inputDictionary"),
               let outputContainsKey: Port = findPort(named: "outputContainsKey"),

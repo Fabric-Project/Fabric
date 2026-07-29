@@ -340,7 +340,9 @@ private final class JavaScriptNodeRuntime
         context.evaluateScript(signature.transpiledSource)
         if let diagnostic = capturedDiagnostic {
             self.latestDiagnostic = diagnostic
-            throw NSError(domain: "JavaScriptNodeRuntime", code: 1, userInfo: [NSLocalizedDescriptionKey: diagnostic.summary])
+            throw FabricError(.execution(.syntax),
+                              severity: .recoverable,
+                              message: diagnostic.summary)
         }
 
         guard let mainFunction = context.objectForKeyedSubscript("main"), mainFunction.isObject else {
@@ -367,7 +369,9 @@ private final class JavaScriptNodeRuntime
         }
 
         if let diagnostic = self.latestDiagnostic {
-            throw NSError(domain: "JavaScriptNodeRuntime", code: 2, userInfo: [NSLocalizedDescriptionKey: diagnostic.summary])
+            throw FabricError(.execution(.syntax),
+                              severity: .recoverable,
+                              message: diagnostic.summary)
         }
 
         guard result.isObject else {
@@ -514,9 +518,18 @@ public final class JavaScriptNode: Node
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let compiledSignature,
-              let runtime else {
+              let runtime else
+        {
+            if let diagnostic = self.diagnostics.first
+            {
+                throw FabricError(.execution(.syntax),
+                                  severity: .recoverable,
+                                  message: diagnostic.summary)
+            }
+
             return
         }
 
@@ -532,6 +545,10 @@ public final class JavaScriptNode: Node
         catch {
             let summary = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             self.diagnostics = [JavaScriptNodeDiagnostic(summary: summary, detail: summary)]
+            throw FabricError(.execution(.syntax),
+                              severity: .recoverable,
+                              message: summary,
+                              underlyingError: error)
         }
     }
 

@@ -42,14 +42,14 @@ public class LUTProcessorNode : BaseImageNode
     {
         super.init(context: context)
           
-        self.loadLUTFromInputValue()
+        try? self.loadLUTFromInputValue()
     }
     
     public required init(context:Context)
     {
         super.init(context: context)
           
-        self.loadLUTFromInputValue()
+        try? self.loadLUTFromInputValue()
     }
     
     public required init(from decoder: any Decoder) throws
@@ -61,25 +61,27 @@ public class LUTProcessorNode : BaseImageNode
         
         try super.init(from:decoder)
         
-        self.loadLUTFromInputValue()
+        try self.loadLUTFromInputValue()
     }
     
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputFilePathParam.valueDidChange
         {
-            self.loadLUTFromInputValue()
+            try self.loadLUTFromInputValue()
         }
 
         if self.imageInputPorts().first?.valueDidChange == true
         {
             if let inTex = self.inputImageTexture(at: 0),
-               let inTex2 = self.texture,
-               let outImage = renderer.newImage(withWidth: inTex.width, height: inTex.height)
+               let inTex2 = self.texture
             {
+                let outImage = try renderer.newImage(withWidth: inTex.width, height: inTex.height)
+
                 self.postMaterial.set(inTex, index: FragmentTextureIndex.Custom0)
                 self.postMaterial.set(inTex2, index: FragmentTextureIndex.Custom1)
                 
@@ -96,17 +98,29 @@ public class LUTProcessorNode : BaseImageNode
         }        
      }
     
-    private func loadLUTFromInputValue()
+    private func loadLUTFromInputValue() throws
     {
         if let path = self.inputFilePathParam.value,
            path.isEmpty == false && self.url != URL(string: path)
         {
-            self.url = URL(string: path)
-            
-            if FileManager.default.fileExists(atPath: self.url!.standardizedFileURL.path(percentEncoded: false) )
+            guard let url = URL(string: path) else
             {
-                self.texture = Self.loadLUT(url: self.url!, device: self.context.device)
+                throw FabricError(.execution(.fileNotFound),
+                                  severity: .recoverable,
+                                  message: "LUT file path is invalid: \(path)")
             }
+
+            self.url = url
+
+            guard FileManager.default.fileExists(atPath: url.standardizedFileURL.path(percentEncoded: false)) else
+            {
+                self.texture = nil
+                throw FabricError(.execution(.fileNotFound),
+                                  severity: .recoverable,
+                                  message: "LUT file not found: \(url.path)")
+            }
+
+            self.texture = try Self.loadLUT(url: url, device: self.context.device)
         }
         else
         {
@@ -162,15 +176,15 @@ public class LUTProcessorNode : BaseImageNode
         let expectedEntries = lutSize * lutSize * lutSize
         if lutData.count != expectedEntries * 4
         { // 4 floats per entry (RGBA)
-            throw NSError(domain: "CubeLUTLoader", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "Invalid LUT data size: expected \(expectedEntries), got \(lutData.count / 4)"
-            ])
+            throw FabricError(.execution(.syntax),
+                              severity: .recoverable,
+                              message: "Invalid LUT data size: expected \(expectedEntries), got \(lutData.count / 4)")
         }
         
         return (lutData, lutSize)
     }
 
-    static func create3DLUTTexture(device: MTLDevice, lutData: [Float], lutSize: Int) -> MTLTexture?
+    static func create3DLUTTexture(device: MTLDevice, lutData: [Float], lutSize: Int) throws -> MTLTexture
     {
         let descriptor = MTLTextureDescriptor()
         descriptor.textureType = .type3D
@@ -181,7 +195,9 @@ public class LUTProcessorNode : BaseImageNode
         descriptor.usage = .shaderRead
 
         guard let texture = device.makeTexture(descriptor: descriptor) else {
-            return nil
+            throw FabricError(.execution(.outOfMemory),
+                              severity: .recoverable,
+                              message: "Could not allocate \(lutSize)x\(lutSize)x\(lutSize) LUT texture")
         }
 
         // Assume lutData contains the 3D LUT in flattened RGBA format
@@ -200,18 +216,24 @@ public class LUTProcessorNode : BaseImageNode
     }
 
    
-    static func loadLUT(url:URL, device:MTLDevice) -> MTLTexture?
+    static func loadLUT(url:URL, device:MTLDevice) throws -> MTLTexture
     {
         do
         {
             let (lutData, lutSize) = try Self.loadCubeLUT(fileURL: url)
-            return Self.create3DLUTTexture(device: device, lutData: lutData, lutSize: lutSize)
+            return try Self.create3DLUTTexture(device: device, lutData: lutData, lutSize: lutSize)
         }
         catch
         {
-            print("Unable to load LUT:\(url.lastPathComponent) \(error.localizedDescription)")
+            if let fabricError = error as? any FabricErrorProtocol
+            {
+                throw fabricError
+            }
+
+            throw FabricError(.execution(.failed),
+                              severity: .recoverable,
+                              message: "Unable to load LUT: \(url.lastPathComponent)",
+                              underlyingError: error)
         }
-        
-        return nil
     }
 }

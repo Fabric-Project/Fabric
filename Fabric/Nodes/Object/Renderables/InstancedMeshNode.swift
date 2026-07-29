@@ -99,6 +99,7 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if (self.inputGeometry.valueDidChange
             || self.inputMaterial.valueDidChange)

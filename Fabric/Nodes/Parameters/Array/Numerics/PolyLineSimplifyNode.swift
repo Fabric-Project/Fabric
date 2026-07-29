@@ -40,6 +40,7 @@ public class PolyLineSimplifyNode: Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputPort.valueDidChange || self.inputTolerance.valueDidChange,
            let tolerance = self.inputTolerance.value

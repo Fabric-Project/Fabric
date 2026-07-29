@@ -38,6 +38,7 @@ public class ArrayAppendNode: TypeAgnosticNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let inputPortA: Port = findPort(named: "inputArrayA"),
               let inputPortB: Port = findPort(named: "inputArrayB"),

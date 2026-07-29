@@ -39,9 +39,9 @@ public class NumberBinaryOperator : Node
     
     private var mathOperator = BinaryMathOperator.Add
     
-    override public func startExecution(renderer:GraphRenderer)
+    override public func startExecution(renderer:GraphRenderer) throws
     {
-        super.startExecution(renderer: renderer)
+        try super.startExecution(renderer: renderer)
         
         if let stringParam = self.inputParam.parameter as? StringParameter
         {
@@ -53,6 +53,7 @@ public class NumberBinaryOperator : Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputParam.valueDidChange,
            let param = self.inputParam.value,

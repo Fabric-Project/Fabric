@@ -44,6 +44,7 @@ public class NumberSmoothNode : Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputFrequency.valueDidChange,
            let inputFrequency = self.inputFrequency.value

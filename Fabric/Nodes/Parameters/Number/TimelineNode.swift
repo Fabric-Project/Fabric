@@ -951,6 +951,7 @@ public class TimelineNode: Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         let time = self.inputTime.value ?? Float(executionInfo.timing.time)
 

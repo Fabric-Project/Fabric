@@ -41,6 +41,7 @@ public class RingPointsNode : Node
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard self.inputCount.valueDidChange
             || self.inputRadius.valueDidChange

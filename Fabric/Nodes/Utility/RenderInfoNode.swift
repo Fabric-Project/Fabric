@@ -41,6 +41,7 @@ public class RenderInfoNode : Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         let size = renderer.renderEncoder.size
         self.outputWidth.send( size.width )

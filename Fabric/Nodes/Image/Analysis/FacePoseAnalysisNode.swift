@@ -74,7 +74,8 @@ public class FacePoseAnalysisNode: Node
     
     private var ciContext:CIContext!
     
-    override public func startExecution(renderer:GraphRenderer) {
+    override public func startExecution(renderer:GraphRenderer) throws
+    {
 
         let options = [
             CIContextOption.cacheIntermediates : false,
@@ -91,6 +92,7 @@ public class FacePoseAnalysisNode: Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputImage.valueDidChange
         {

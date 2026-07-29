@@ -44,7 +44,8 @@ public class ArrayFromRippledValueNode<Value : PortValueRepresentable & DefaultP
     public var inputDelaySecs: ParameterPort<Float> { port(named: "inputDelaySecs") }
     public var outputArray: NodePort<ContiguousArray<Value>> { port(named: "outputArray") }
 
-    override public func startExecution(renderer: GraphRenderer) {
+    override public func startExecution(renderer: GraphRenderer) throws
+    {
         self.history.removeAll()
         self.oldest = nil
         self.lastTime = nil
@@ -54,6 +55,7 @@ public class ArrayFromRippledValueNode<Value : PortValueRepresentable & DefaultP
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         let now = executionInfo.timing.time
 

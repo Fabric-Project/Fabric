@@ -37,6 +37,7 @@ public class ArrayLastValueNode: TypeAgnosticNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let inputPort:  Port = findPort(named: "inputPort"),
               let outputPort: Port = findPort(named: "outputPort") else { return }

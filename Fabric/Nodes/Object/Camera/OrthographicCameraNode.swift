@@ -37,9 +37,9 @@ public class OrthographicCameraNode : ObjectNode<OrthographicCamera>
     
     private lazy var camera = OrthographicCamera(context:self.context, left: -1, right: 1, bottom: -1, top: 1, near: 0.01, far: 500.0)
 
-    override public func startExecution(renderer:GraphRenderer)
+    override public func startExecution(renderer:GraphRenderer) throws
     {
-        super.startExecution(renderer: renderer)
+        try super.startExecution(renderer: renderer)
         
         self.inputPosition.value = .init(repeating: 5.0)
         
@@ -65,6 +65,7 @@ public class OrthographicCameraNode : ObjectNode<OrthographicCamera>
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         let _ = self.evaluate(object: self.object, atTime: executionInfo.timing.time)
     }
@@ -77,4 +78,3 @@ public class OrthographicCameraNode : ObjectNode<OrthographicCamera>
         self.camera.right = aspect / 2.0
     }
 }
-

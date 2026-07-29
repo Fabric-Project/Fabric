@@ -41,6 +41,7 @@ public class GridPointsNode : Node
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard self.inputColumns.valueDidChange
             || self.inputRows.valueDidChange

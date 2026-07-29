@@ -39,6 +39,7 @@ public class ArrayRangeInterpolationNode<Value: PortValueRepresentable & Lerpabl
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard self.inputFrom.valueDidChange
            || self.inputTo.valueDidChange

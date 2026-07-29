@@ -355,10 +355,11 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputFilePathParam.valueDidChange
         {
-            loadAssetFromInputValue()
+            try loadAssetFromInputValue()
         }
 
         if self.inputPlayingParam.valueDidChange || self.inputRateParam.valueDidChange
@@ -397,16 +398,17 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         self.sendPlaybackInfo()
 
 #if FABRIC_HAP_ENABLED
-        if self.executeHapPath(renderer: renderer, hostTime: time) { return }
+        if try self.executeHapPath(renderer: renderer, hostTime: time) { return }
 #endif
 
         let itemTime = self.playerItemVideoOutput.itemTime(forHostTime: time)
 
         if self.playerItemVideoOutput.hasNewPixelBuffer(forItemTime: itemTime)
         {
-            if let pixelBuffer = self.playerItemVideoOutput.copyPixelBuffer(forItemTime: itemTime, itemTimeForDisplay: nil),
-               let image = renderer.newImage(fromPixelBuffer: pixelBuffer)
+            if let pixelBuffer = self.playerItemVideoOutput.copyPixelBuffer(forItemTime: itemTime, itemTimeForDisplay: nil)
             {
+                let image = try renderer.newImage(fromPixelBuffer: pixelBuffer)
+
                 self.outputTexturePort.send( image )
             }
         }
@@ -418,9 +420,10 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
             // until playback resumes or another seek lands.
             self.needsEmitAfterSeek = false
             let pausedTime = item.currentTime()
-            if let pixelBuffer = self.playerItemVideoOutput.copyPixelBuffer(forItemTime: pausedTime, itemTimeForDisplay: nil),
-               let image = renderer.newImage(fromPixelBuffer: pixelBuffer)
+            if let pixelBuffer = self.playerItemVideoOutput.copyPixelBuffer(forItemTime: pausedTime, itemTimeForDisplay: nil)
             {
+                let image = try renderer.newImage(fromPixelBuffer: pixelBuffer)
+
                 self.outputTexturePort.send( image )
             }
         }
@@ -494,7 +497,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
 #endif
     }
 
-    private func loadAssetFromInputValue()
+    private func loadAssetFromInputValue() throws
     {
         guard let path = self.inputFilePathParam.value,
               path.isEmpty == false
@@ -504,15 +507,22 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
             return
         }
 
-        if self.url != URL(string: path)
+        guard let inputURL = URL(string: path) else
         {
-            self.url = URL(string: path)
+            self.unloadCurrentAsset()
+            throw FabricError(.execution(.fileNotFound),
+                              severity: .recoverable,
+                              message: "Movie file path is invalid: \(path)")
+        }
 
-            if let url,
-                FileManager.default.fileExists(atPath: url.standardizedFileURL.path(percentEncoded: false) )
+        if self.url != inputURL
+        {
+            self.url = inputURL
+
+            if FileManager.default.fileExists(atPath: inputURL.standardizedFileURL.path(percentEncoded: false))
             {
                 self.unloadCurrentAsset()
-                self.url = url
+                self.url = inputURL
 
 #if FABRIC_HAP_ENABLED
                 // New asset's clock is independent of the previous
@@ -526,21 +536,21 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
                 self.didLogDXTSubBlockPadding = false
 #endif
 
-                self.asset = AVURLAsset(url: url, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
+                self.asset = AVURLAsset(url: inputURL, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
 
 
                 let playerItem = AVPlayerItem(asset: self.asset!, automaticallyLoadedAssetKeys: ["tracks", "metadata", "duration"])
 
                 playerItem.preferredForwardBufferDuration = 0.5
 #if FABRIC_HAP_ENABLED
-                if !self.attachHapOutput(to: playerItem, url: url)
+                if !self.attachHapOutput(to: playerItem, url: inputURL)
                 {
                     playerItem.add(self.playerItemVideoOutput)
-                    print("MovieProviderNode: AVPlayerItemVideoOutput path engaged for \"\(url.lastPathComponent)\"")
+                    print("MovieProviderNode: AVPlayerItemVideoOutput path engaged for \"\(inputURL.lastPathComponent)\"")
                 }
 #else
                 playerItem.add(self.playerItemVideoOutput)
-                print("MovieProviderNode: AVPlayerItemVideoOutput path engaged for \"\(url.lastPathComponent)\"")
+                print("MovieProviderNode: AVPlayerItemVideoOutput path engaged for \"\(inputURL.lastPathComponent)\"")
 #endif
 
                 self.observer = NotificationCenter.default.addObserver(forName: AVPlayerItem.didPlayToEndTimeNotification,
@@ -561,9 +571,10 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
             }
             else
             {
-                let invalidURL = self.url
                 self.unloadCurrentAsset()
-                Self.log.error("Movie file not found at \(invalidURL?.path() ?? "<nil>", privacy: .public)")
+                throw FabricError(.execution(.fileNotFound),
+                                  severity: .recoverable,
+                                  message: "Movie file not found: \(inputURL.path)")
             }
         }
     }
@@ -585,7 +596,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     ///   - RGB fallback (HapY / HapM / HapH / HapA): decoder emits
     ///     RGBA bytes; copy into a CVPixelBuffer like the standard
     ///     AVPlayerItemVideoOutput path.
-    private func executeHapPath(renderer: GraphRenderer, hostTime: CFTimeInterval) -> Bool
+    private func executeHapPath(renderer: GraphRenderer, hostTime: CFTimeInterval) throws -> Bool
     {
         guard let hapOutput = self.hapOutput
         else { return false }
@@ -629,9 +640,10 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
             self.outputTexturePort.send( image )
             emitted = true
         }
-        else if let pixelBuffer = Self.makePixelBuffer(fromHapFrame: frame),
-                let image = renderer.newImage(fromPixelBuffer: pixelBuffer)
+        else if let pixelBuffer = Self.makePixelBuffer(fromHapFrame: frame)
         {
+            let image = try renderer.newImage(fromPixelBuffer: pixelBuffer)
+
             self.outputTexturePort.send( image )
             emitted = true
         }

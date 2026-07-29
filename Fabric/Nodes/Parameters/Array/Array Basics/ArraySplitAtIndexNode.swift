@@ -47,6 +47,7 @@ public class ArraySplitAtIndexNode: TypeAgnosticNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let inputPort:    Port = findPort(named: "inputPort"),
               let outputBefore: Port = findPort(named: "outputBefore"),

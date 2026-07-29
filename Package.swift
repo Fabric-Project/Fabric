@@ -9,6 +9,7 @@ let package = Package(
     products: [
         .library(
             name: "Fabric",
+            type: .dynamic,
             targets: ["Fabric"]
         ),
     ],
@@ -28,7 +29,7 @@ let package = Package(
         .package(url: "https://github.com/vade/SwiftSimplify", branch: "master"),
         .package(url: "https://github.com/gonzalezreal/textual", from: "0.1.1"),
         .package(url: "https://github.com/orchetect/OSCKit", from: "2.1.1"),
-        .package(url: "https://github.com/orchetect/MIDIKit", from: "0.10.7"),
+        .package(url: "https://github.com/orchetect/MIDIKit", from: "0.12.0"),
         .package(url: "https://github.com/mchakravarty/CodeEditorView.git", from: "0.7.0"),
     ],
     targets: [

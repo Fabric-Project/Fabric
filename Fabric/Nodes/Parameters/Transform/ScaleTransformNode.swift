@@ -39,6 +39,7 @@ public class ScaleTransformNode : Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputScale.valueDidChange || self.inputTransform.valueDidChange,
            let inputTransform = self.inputTransform.value,

@@ -76,6 +76,44 @@ struct PortConnectionTests {
         #expect(decodedSource.outputNumber.connections.count == 1)
     }
 
+    @Test("Graph encoding records required plugins and qualified node IDs")
+    func graphEncodingRecordsRequiredPluginsAndQualifiedNodeIDs() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        graph.addNode(PerspectiveCameraNode(context: context))
+
+        let data = try JSONEncoder().encode(graph)
+        let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let requiredPlugins = try #require(object?["requiredPlugins"] as? [[String: Any]])
+        let nodeMap = try #require(object?["nodeMap"] as? [[String: Any]])
+
+        #expect(requiredPlugins.contains { $0["id"] as? String == PluginLoader.coreNodesPluginID })
+        #expect(nodeMap.first?["type"] as? String == "\(PluginLoader.coreNodesPluginID)/PerspectiveCameraNode")
+    }
+
+    @Test("Legacy unqualified node IDs decode as core plugin nodes")
+    func legacyUnqualifiedNodeIDsDecodeAsCorePluginNodes() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        graph.addNode(PerspectiveCameraNode(context: context))
+
+        let encodedData = try JSONEncoder().encode(graph)
+        var object = try #require(JSONSerialization.jsonObject(with: encodedData) as? [String: Any])
+        var nodeMap = try #require(object["nodeMap"] as? [[String: Any]])
+        nodeMap[0]["type"] = "PerspectiveCameraNode"
+        object["nodeMap"] = nodeMap
+        object.removeValue(forKey: "requiredPlugins")
+
+        let legacyData = try JSONSerialization.data(withJSONObject: object)
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decodedGraph = try decoder.decode(Graph.self, from: legacyData)
+
+        #expect(decodedGraph.nodes.first is PerspectiveCameraNode)
+    }
+
     @Test("Generic array virtual type compatibility is array scoped")
     func genericArrayVirtualTypeCompatibilityIsArrayScoped() {
         let genericArray = PortType.Array(portType: .Virtual)

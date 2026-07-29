@@ -60,6 +60,7 @@ public class LogNode : Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputAny.valueDidChange,
            let value = self.inputAny.value

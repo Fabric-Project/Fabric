@@ -37,6 +37,7 @@ public final class ArrayResampleTypeAgnosticNode: NumericTypeAgnosticNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if specializeFromConnectedPort(named: "inputArray") { return }
         guard let inputArray: Port = findPort(named: "inputArray"),

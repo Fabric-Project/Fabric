@@ -73,6 +73,7 @@ public class KeypointDistortNode: BaseImageNode {
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         
         // If counts are diff, update backing
@@ -105,9 +106,10 @@ public class KeypointDistortNode: BaseImageNode {
         
         if self.imageInputPorts().first?.valueDidChange == true
         {
-            if let inTex = self.inputImageTexture(at: 0),
-               let outImage = renderer.newImage(withWidth: inTex.width, height: inTex.height)
+            if let inTex = self.inputImageTexture(at: 0)
             {
+                let outImage = try renderer.newImage(withWidth: inTex.width, height: inTex.height)
+
                 let minCount = min (self.refKeyPointStructBuffer.count, self.disKeyPointStructBuffer.count)
                 self.countBuffer.update(data: [UInt32(minCount)] )
                 

@@ -168,6 +168,7 @@ public final class ImageResampleNode: Node
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard
             inputImage.valueDidChange
@@ -193,24 +194,24 @@ public final class ImageResampleNode: Node
             return
         }
 
-        guard
-            let destinationImage = renderer.newImage(
-                withWidth: outputWidth,
-                height: outputHeight,
-                format: sourceTexture.pixelFormat
-            ),
-            let computeEncoder = commandBuffer.makeComputeCommandEncoder()
-        else {
-            outputImage.send(nil)
-            return
+        let destinationImage = try renderer.newImage(
+            withWidth: outputWidth,
+            height: outputHeight,
+            format: sourceTexture.pixelFormat
+        )
+
+        guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else
+        {
+            throw FabricError(.execution(.gpu),
+                              severity: .recoverable,
+                              message: "Could not create Image Resample compute encoder")
         }
 
         destinationImage.texture.label = "Image Resample \(outputWidth)×\(outputHeight)"
         computeEncoder.label = "Image Resample – \(method.rawValue)"
 
-        let didEncode: Bool
         if method.usesSeparableFiltering {
-            didEncode = encodeSeparableResampling(
+            try encodeSeparableResampling(
                 method: method,
                 sourceTexture: sourceTexture,
                 destinationTexture: destinationImage.texture,
@@ -219,7 +220,7 @@ public final class ImageResampleNode: Node
             )
         }
         else {
-            didEncode = encodeDirectResampling(
+            try encodeDirectResampling(
                 method: method,
                 sourceTexture: sourceTexture,
                 destinationTexture: destinationImage.texture,
@@ -228,10 +229,6 @@ public final class ImageResampleNode: Node
         }
 
         computeEncoder.endEncoding()
-        guard didEncode else {
-            outputImage.send(nil)
-            return
-        }
 
         destinationImage.isFlipped = sourceImage.isFlipped
         outputImage.send(destinationImage)
@@ -246,10 +243,15 @@ public final class ImageResampleNode: Node
     private func encodeDirectResampling(method: ResamplingMethod,
                                         sourceTexture: MTLTexture,
                                         destinationTexture: MTLTexture,
-                                        computeEncoder: MTLComputeCommandEncoder) -> Bool
+                                        computeEncoder: MTLComputeCommandEncoder) throws
     {
         let pipeline = method == .nearest ? nearestPipeline : bilinearPipeline
-        guard let pipeline else { return false }
+        guard let pipeline else
+        {
+            throw FabricError(.execution(.gpu),
+                              severity: .recoverable,
+                              message: "Image Resample \(method.rawValue) compute pipeline is unavailable")
+        }
 
         computeEncoder.setComputePipelineState(pipeline)
         computeEncoder.setTexture(sourceTexture, index: 0)
@@ -260,16 +262,20 @@ public final class ImageResampleNode: Node
             width: destinationTexture.width,
             height: destinationTexture.height
         )
-        return true
     }
 
     private func encodeSeparableResampling(method: ResamplingMethod,
                                            sourceTexture: MTLTexture,
                                            destinationTexture: MTLTexture,
                                            renderer: GraphRenderer,
-                                           computeEncoder: MTLComputeCommandEncoder) -> Bool
+                                           computeEncoder: MTLComputeCommandEncoder) throws
     {
-        guard let horizontalPipeline, let verticalPipeline else { return false }
+        guard let horizontalPipeline, let verticalPipeline else
+        {
+            throw FabricError(.execution(.gpu),
+                              severity: .recoverable,
+                              message: "Image Resample separable compute pipelines are unavailable")
+        }
 
         var uniforms = ResamplingUniforms(method: method.shaderValue)
         computeEncoder.setBytes(
@@ -285,7 +291,7 @@ public final class ImageResampleNode: Node
                 pipeline: verticalPipeline,
                 computeEncoder: computeEncoder
             )
-            return true
+            return
         }
 
         if sourceTexture.height == destinationTexture.height {
@@ -295,16 +301,14 @@ public final class ImageResampleNode: Node
                 pipeline: horizontalPipeline,
                 computeEncoder: computeEncoder
             )
-            return true
+            return
         }
 
-        guard let intermediateImage = renderer.newImage(
+        let intermediateImage = try renderer.newImage(
             withWidth: destinationTexture.width,
             height: sourceTexture.height,
             format: sourceTexture.pixelFormat
-        ) else {
-            return false
-        }
+        )
         intermediateImage.texture.label = "Image Resample Horizontal Intermediate"
 
         encodeHorizontalPass(
@@ -320,7 +324,6 @@ public final class ImageResampleNode: Node
             pipeline: verticalPipeline,
             computeEncoder: computeEncoder
         )
-        return true
     }
 
     private func encodeHorizontalPass(sourceTexture: MTLTexture,

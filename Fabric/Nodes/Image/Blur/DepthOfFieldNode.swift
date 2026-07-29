@@ -63,6 +63,7 @@ public final class DepthOfFieldNode: Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard
               let colorTexture = self.inputImage.value?.texture,
@@ -89,23 +90,29 @@ public final class DepthOfFieldNode: Node
         self.postProcessor.resize(size: (Float(colorTexture.width), Float(colorTexture.height)), scaleFactor: 1.0)
         self.postProcessor.draw(renderPassDescriptor: MTLRenderPassDescriptor(), commandBuffer: commandBuffer)
 
-        guard let processedTexture = self.postProcessor.outputTexture,
-              let outputImage = renderer.newImage(withWidth: processedTexture.width,
-                                                       height: processedTexture.height,
-                                                       format: processedTexture.pixelFormat)
-        else
+        guard let processedTexture = self.postProcessor.outputTexture else
         {
             self.outputImage.send(nil)
             return
         }
 
-        self.copyTexture(processedTexture, to: outputImage.texture, using: commandBuffer)
+        let outputImage = try renderer.newImage(withWidth: processedTexture.width,
+                                                height: processedTexture.height,
+                                                format: processedTexture.pixelFormat)
+
+        try self.copyTexture(processedTexture, to: outputImage.texture, using: commandBuffer)
         self.outputImage.send(outputImage)
     }
 
     private func copyTexture(_ source: MTLTexture, to destination: MTLTexture, using commandBuffer: MTLCommandBuffer)
+    throws
     {
-        guard let blitEncoder = commandBuffer.makeBlitCommandEncoder() else { return }
+        guard let blitEncoder = commandBuffer.makeBlitCommandEncoder() else
+        {
+            throw FabricError(.execution(.gpu),
+                              severity: .recoverable,
+                              message: "Could not create \(name) copy blit encoder")
+        }
         blitEncoder.label = "\(self.name) Copy"
         blitEncoder.copy(from: source,
                          sourceSlice: 0,

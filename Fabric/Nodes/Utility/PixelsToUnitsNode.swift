@@ -61,6 +61,7 @@ public class PixelsToUnitsNode : Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         
         if self.inputCursorPosition.valueDidChange,

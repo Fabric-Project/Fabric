@@ -43,6 +43,7 @@ public class StringRangeNode : Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputPort.valueDidChange || self.inputRangeFrom.valueDidChange || self.inputRangeTo.valueDidChange
         {

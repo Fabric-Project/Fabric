@@ -76,6 +76,7 @@ public class ComposeOrientationNode: StrategyNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let outputOrientation: NodePort<simd_float4> = findPort(named: "outputOrientation") else { return }
 

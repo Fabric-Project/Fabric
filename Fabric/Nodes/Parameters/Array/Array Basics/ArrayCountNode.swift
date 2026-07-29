@@ -45,6 +45,7 @@ public class ArrayCountNode: TypeAgnosticNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let inputPort: Port = findPort(named: "inputPort") else { return }
         guard inputPort.valueDidChange else { return }

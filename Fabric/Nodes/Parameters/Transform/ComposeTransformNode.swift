@@ -67,6 +67,7 @@ public class ComposeTransformNode: StrategyNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let outputTransform: NodePort<simd_float4x4> = findPort(named: "outputTransform") else { return }
 

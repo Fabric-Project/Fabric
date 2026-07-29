@@ -96,6 +96,7 @@ public final class MatrixSwitchNode: RoutingNodeBase
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         let sources = sourceInputsByOutput()
 

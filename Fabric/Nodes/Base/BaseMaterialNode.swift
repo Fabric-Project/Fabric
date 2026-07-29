@@ -84,7 +84,7 @@ public class BaseMaterialNode : Node
         return shouldOutput
     }
     
-    public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
+    public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
         let shouldOutput = self.evaluate(material: self.material, atTime: executionInfo.timing.time)
 

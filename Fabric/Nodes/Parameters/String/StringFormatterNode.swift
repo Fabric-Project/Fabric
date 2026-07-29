@@ -170,6 +170,7 @@ public class StringFormatterNode: Node {
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         let inputs = self.inputPorts()
         let anyChanged = inputs.compactMap(\.valueDidChange).contains(true)

@@ -60,7 +60,7 @@ public final class GraphExportRenderer {
         self.renderPassDescriptor.depthAttachment.clearDepth = 1.0
     }
 
-    public func start() {
+    public func start() throws {
         guard !self.started else { return }
 
         self.graphRenderer.resize(
@@ -68,8 +68,8 @@ public final class GraphExportRenderer {
             scaleFactor: 1.0
         )
 
-        self.graphRenderer.enableExecution(graph: self.graph)
-        self.graphRenderer.startExecution(graph: self.graph)
+        try self.graphRenderer.enableExecution(graph: self.graph)
+        try self.graphRenderer.startExecution(graph: self.graph)
 
         self.frameNumber = 0
         self.lastRenderedTime = nil
@@ -106,10 +106,10 @@ public final class GraphExportRenderer {
             throw GraphExportRendererError.commandBufferCreationFailed
         }
         
-        self.graphRenderer.executeAndDraw(graph: self.graph,
-                                          executionInfo: executionInfo,
-                                          renderPassDescriptor: self.renderPassDescriptor,
-                                          commandBuffer: commandBuffer)
+        try self.graphRenderer.executeAndDraw(graph: self.graph,
+                                              executionInfo: executionInfo,
+                                              renderPassDescriptor: self.renderPassDescriptor,
+                                              commandBuffer: commandBuffer)
 
         commandBuffer.commit()
         commandBuffer.waitUntilCompleted()
@@ -127,16 +127,16 @@ public final class GraphExportRenderer {
         depthTexture: MTLTexture? = nil,
         time: TimeInterval
     ) throws {
-        self.start()
-        defer { self.finish() }
+        try self.start()
+        defer { try? self.finish() }
         try self.renderFrame(into: colorTexture, depthTexture: depthTexture, time: time)
     }
 
-    public func finish() {
+    public func finish() throws {
         guard self.started else { return }
 
-        self.graphRenderer.disableExecution(graph: self.graph)
-        self.graphRenderer.stopExecution(graph: self.graph)
+        try self.graphRenderer.disableExecution(graph: self.graph)
+        try self.graphRenderer.stopExecution(graph: self.graph)
         self.graphRenderer.teardown(graph: self.graph)
 
         self.renderPassDescriptor.colorAttachments[0].texture = nil

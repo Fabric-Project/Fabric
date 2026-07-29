@@ -34,6 +34,7 @@ public class LiveImageNode: BaseImageNode
     private(set) var shaderSource: String = LiveImageNode.defaultShaderSource()
     private var workspaceURL: URL?
     private var shaderFileURL: URL?
+    private var workspaceError: (any Error)?
 
     required init(context: Context, fileURL: URL) throws {
         try super.init(context: context, fileURL: fileURL)
@@ -90,7 +91,7 @@ public class LiveImageNode: BaseImageNode
             self.recompileAndResyncPorts()
         }
         catch {
-            print("LiveEffect failed to write shader source: \(error.localizedDescription)")
+            self.workspaceError = error
         }
     }
 
@@ -115,9 +116,10 @@ public class LiveImageNode: BaseImageNode
             try self.shaderSource.write(to: self.shaderFileURL!, atomically: true, encoding: .utf8)
             self.retargetMaterial(to: self.shaderFileURL!)
             self.recompileAndResyncPorts(shouldSynchronizePorts: shouldSynchronizePorts)
+            self.workspaceError = nil
         }
         catch {
-            print("LiveEffect workspace setup failed: \(error.localizedDescription)")
+            self.workspaceError = error
         }
     }
 
@@ -175,6 +177,33 @@ public class LiveImageNode: BaseImageNode
                 self.postSetupSynchronizePorts(allowReplace: false)
             }
         }
+    }
+
+    public override func execute(renderer: GraphRenderer,
+                                 executionInfo: GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
+    throws
+    {
+        if let workspaceError
+        {
+            throw FabricError(.execution(.failed),
+                              severity: .recoverable,
+                              message: "Live Image workspace is unavailable",
+                              underlyingError: workspaceError)
+        }
+
+        if let shaderError = self.currentShaderErrorDescription()
+        {
+            throw FabricError(.execution(.syntax),
+                              severity: .recoverable,
+                              message: shaderError)
+        }
+
+        try super.execute(renderer: renderer,
+                          executionInfo: executionInfo,
+                          renderPassDescriptor: renderPassDescriptor,
+                          commandBuffer: commandBuffer)
     }
 
     private func syncDynamicParameterPortsFromMaterial() {

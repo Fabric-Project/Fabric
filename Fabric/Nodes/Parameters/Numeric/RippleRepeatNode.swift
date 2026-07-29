@@ -47,6 +47,7 @@ public final class RippleRepeatNode: NumericTypeAgnosticNode
     }
 
     override public func startExecution(renderer: GraphRenderer)
+    throws
     {
         history.removeAll()
         oldest = nil
@@ -57,6 +58,7 @@ public final class RippleRepeatNode: NumericTypeAgnosticNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if specializeFromConnectedPort(named: "inputValue") { return }
         guard let inputValue: Port = findPort(named: "inputValue"),
