@@ -15,7 +15,7 @@ struct StringScannerSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading) {
-            Text("Use `{name}` for String, `{name:s}` String, `{name:d}` or `{name:i}` Int, `{name:b}` Bool, `{name:f}` Float.\n\nExample: `Frame {n:d} at {t:f}s`\n\nThe format string is converted to a regex that captures values from the input string.")
+            Text("Use `{name}` for String, `{name:s}` String, `{name:d}` or `{name:i}` Int, `{name:b}` Bool, `{name:f}` Float.\n\nExample: `Frame {n:d} at {t:f}s`\n\nEscapes: `\\n`, `\\r`, `\\t`, `\\\\`, and `\\{` `\\}` for literal braces.\n\nThe format string is converted to a regex that captures values from the input string.")
 
             Spacer()
 
@@ -63,16 +63,25 @@ public class StringScannerNode: Node {
         self.updatePorts()
     }
 
+    /// Procedural construction with a specific format string — the Settings-view
+    /// state that shapes this node's ports, so graph building never has to go
+    /// through the inspector to reach it.
+    public init(context: Context, formatString: String) {
+        self.formatString = formatString
+        super.init(context: context)
+        self.updatePorts()
+    }
+
     // MARK: - Properties
 
-    fileprivate var formatString: String = "Frame {n:d} at {t:f}s" {
+    public fileprivate(set) var formatString: String = "Frame {n:d} at {t:f}s" {
         didSet {
             self.updatePorts()
             self.nameSubject.send()
         }
     }
 
-    private var placeholders: [FormatPlaceholder] = []
+    private var parsedFormatString = ParsedFormatString(tokens: [])
     private var scanRegex: Regex<AnyRegexOutput>? = nil
 
     // MARK: - Ports
@@ -139,7 +148,7 @@ public class StringScannerNode: Node {
         outputMatched.send(true)
 
         // Extract captured values and send to output ports
-        for (index, placeholder) in placeholders.enumerated() {
+        for (index, placeholder) in parsedFormatString.placeholders.enumerated() {
             let captureIndex = index + 1  // Index 0 is the whole match
             guard captureIndex < match.output.count else { continue }
 
@@ -170,7 +179,8 @@ public class StringScannerNode: Node {
     // MARK: - Dynamic Port Management
 
     private func updatePorts() {
-        let newPlaceholders = parseFormatPlaceholders(formatString)
+        let newParse = parseFormatString(formatString)
+        let newPlaceholders = newParse.placeholders
 
         let staticPortNames: Set<String> = ["Matched"]
         let existingNames = Set(self.outputPorts().filter { !staticPortNames.contains($0.name) }.map { $0.name })
@@ -200,27 +210,24 @@ public class StringScannerNode: Node {
             }
         }
 
-        self.placeholders = newPlaceholders
+        self.parsedFormatString = newParse
         self.buildRegex()
         self.inputString.valueDidChange = true
     }
 
     private func buildRegex() {
-        let placeholderPattern = #/\{(\w+)(?::([^}]+))?\}/#
-
         var regexString = "^"
-        var lastEnd = formatString.startIndex
 
-        for match in formatString.matches(of: placeholderPattern) {
-            // Escape the literal text between placeholders
-            let literalRange = lastEnd..<match.range.lowerBound
-            let literal = String(formatString[literalRange])
-            regexString += NSRegularExpression.escapedPattern(for: literal)
+        for token in parsedFormatString.tokens {
+            switch token {
+            case .literal(let text):
+                // Decoded literal text, taken as-is: whatever the user typed
+                // matches itself, regex metacharacters included.
+                regexString += NSRegularExpression.escapedPattern(for: text)
 
-            // Add a capture group appropriate to the type
-            let name = String(match.1)
-            if let placeholder = placeholders.first(where: { $0.name == name }) {
-                switch placeholder.portType {
+            case .placeholder(let placeholder):
+                // A capture group appropriate to the type owning the port.
+                switch parsedFormatString.placeholder(named: placeholder.name)?.portType ?? .String {
                 case .Float:
                     regexString += "([+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?)"
                 case .Int:
@@ -230,19 +237,14 @@ public class StringScannerNode: Node {
                 default:
                     regexString += "(.+?)"
                 }
-            } else {
-                regexString += "(.+?)"
             }
-
-            lastEnd = match.range.upperBound
         }
 
-        // Append any trailing literal text
-        let trailing = String(formatString[lastEnd...])
-        regexString += NSRegularExpression.escapedPattern(for: trailing)
         regexString += "$"
 
-        self.scanRegex = try? Regex(regexString)
+        // Newlines are ordinary characters here: a `\n` in the format string is
+        // now matchable, so a String capture must be able to span one too.
+        self.scanRegex = try? Regex(regexString).dotMatchesNewlines()
     }
 
     private func makeOutputPort(for placeholder: FormatPlaceholder) -> Port {

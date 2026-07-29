@@ -42,20 +42,140 @@ struct FormatPlaceholder: Equatable {
     }
 }
 
-/// Parse placeholders from a format string. Matches `{name}` and `{name:spec}`.
-func parseFormatPlaceholders(_ formatString: String) -> [FormatPlaceholder] {
-    let pattern = #/\{(\w+)(?::([^}]+))?\}/#
-    var placeholders: [FormatPlaceholder] = []
-    var seen = Set<String>()
-
-    for match in formatString.matches(of: pattern) {
-        let name = String(match.1)
-        if seen.contains(name) { continue }
-        seen.insert(name)
-        let spec = match.2.map { String($0) }
-        placeholders.append(FormatPlaceholder(name: name, formatSpecifier: spec))
+/// A format string broken into the literal text and the `{name}` / `{name:spec}`
+/// occurrences it is made of, in source order. Both String Formatter and String
+/// Scanner walk this: one substitutes values into the placeholders, the other
+/// builds a regex that captures them back out.
+struct ParsedFormatString: Equatable {
+    enum Token: Equatable {
+        /// Literal text, escape sequences already decoded.
+        case literal(String)
+        /// One placeholder occurrence — a name may occur more than once.
+        case placeholder(FormatPlaceholder)
     }
-    return placeholders
+
+    let tokens: [Token]
+
+    /// Placeholders in first-appearance order, one entry per name — the set of
+    /// ports the node exposes. A repeated name keeps its first specifier, so the
+    /// port type stays put no matter how a later occurrence is written.
+    var placeholders: [FormatPlaceholder] {
+        var seen = Set<String>()
+        return tokens.compactMap { token in
+            guard case .placeholder(let placeholder) = token,
+                  seen.insert(placeholder.name).inserted else { return nil }
+            return placeholder
+        }
+    }
+
+    /// The placeholder a name resolves to, i.e. the one that owns the port.
+    func placeholder(named name: String) -> FormatPlaceholder? {
+        placeholders.first { $0.name == name }
+    }
+}
+
+/// Parse a format string into literal text and placeholder occurrences.
+///
+/// Literals accept the same escape sequences as the String Split and String Join
+/// separators (`\n`, `\r`, `\t`, `\\`) — the only way to put an invisible
+/// character in a format string, since the Settings field is single-line. Braces
+/// are this format's own syntax, so `\{` and `\}` are resolved here too, giving a
+/// literal brace that neither opens nor closes a placeholder.
+func parseFormatString(_ formatString: String) -> ParsedFormatString {
+    var tokens: [ParsedFormatString.Token] = []
+    var literal = ""
+    var currentIndex = formatString.startIndex
+
+    func flushLiteral() {
+        guard !literal.isEmpty else { return }
+        tokens.append(.literal(decodeEscapeSequences(literal)))
+        literal = ""
+    }
+
+    while currentIndex < formatString.endIndex {
+        let character = formatString[currentIndex]
+
+        if character == "\\" {
+            let escapedCharacterIndex = formatString.index(after: currentIndex)
+
+            guard escapedCharacterIndex < formatString.endIndex else {
+                literal.append(character)
+                break
+            }
+
+            let escapedCharacter = formatString[escapedCharacterIndex]
+
+            if escapedCharacter == "{" || escapedCharacter == "}" {
+                // Resolved here rather than by the shared decoder: an escaped
+                // brace must not reach the placeholder scan below.
+                literal.append(escapedCharacter)
+            } else {
+                // Left intact for the shared decoder, so `\\{` still reads as a
+                // literal backslash followed by a placeholder.
+                literal.append(character)
+                literal.append(escapedCharacter)
+            }
+
+            currentIndex = formatString.index(after: escapedCharacterIndex)
+            continue
+        }
+
+        if character == "{",
+           let (placeholder, endIndex) = parsePlaceholder(in: formatString, from: currentIndex) {
+            flushLiteral()
+            tokens.append(.placeholder(placeholder))
+            currentIndex = endIndex
+            continue
+        }
+
+        literal.append(character)
+        currentIndex = formatString.index(after: currentIndex)
+    }
+
+    flushLiteral()
+
+    return ParsedFormatString(tokens: tokens)
+}
+
+/// Reads one `{name}` / `{name:spec}` starting at `startIndex`, returning it with
+/// the index just past its closing brace. Nil for anything else — an unmatched or
+/// empty brace is literal text, as it was before placeholders were escapable.
+private func parsePlaceholder(
+    in formatString: String,
+    from startIndex: String.Index
+) -> (placeholder: FormatPlaceholder, endIndex: String.Index)? {
+    var currentIndex = formatString.index(after: startIndex)
+
+    var name = ""
+    while currentIndex < formatString.endIndex {
+        let character = formatString[currentIndex]
+        guard character.isLetter || character.isNumber || character == "_" else { break }
+        name.append(character)
+        currentIndex = formatString.index(after: currentIndex)
+    }
+
+    guard !name.isEmpty, currentIndex < formatString.endIndex else { return nil }
+
+    var formatSpecifier: String? = nil
+    if formatString[currentIndex] == ":" {
+        currentIndex = formatString.index(after: currentIndex)
+
+        var specifier = ""
+        while currentIndex < formatString.endIndex, formatString[currentIndex] != "}" {
+            specifier.append(formatString[currentIndex])
+            currentIndex = formatString.index(after: currentIndex)
+        }
+
+        guard !specifier.isEmpty else { return nil }
+        formatSpecifier = specifier
+    }
+
+    guard currentIndex < formatString.endIndex, formatString[currentIndex] == "}" else { return nil }
+
+    return (
+        FormatPlaceholder(name: name, formatSpecifier: formatSpecifier),
+        formatString.index(after: currentIndex)
+    )
 }
 
 // MARK: - Settings View
@@ -65,7 +185,7 @@ struct StringFormatSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading) {
-            Text("Use `{name}` for String, `{name:s}` String, `{name:d}` or `{name:i}` Int, `{name:b}` Bool, `{name:f}` or `{name:.2f}` Float.\n\nExample: `Position: {x:.2f}, {y:.2f}`")
+            Text("Use `{name}` for String, `{name:s}` String, `{name:d}` or `{name:i}` Int, `{name:b}` Bool, `{name:f}` or `{name:.2f}` Float.\n\nExample: `Position: {x:.2f}, {y:.2f}`\n\nEscapes: `\\n`, `\\r`, `\\t`, `\\\\`, and `\\{` `\\}` for literal braces.")
 
             Spacer()
 
@@ -113,16 +233,25 @@ public class StringFormatterNode: Node {
         self.updatePorts()
     }
 
+    /// Procedural construction with a specific format string — the Settings-view
+    /// state that shapes this node's ports, so graph building never has to go
+    /// through the inspector to reach it.
+    public init(context: Context, formatString: String) {
+        self.formatString = formatString
+        super.init(context: context)
+        self.updatePorts()
+    }
+
     // MARK: - Properties
 
-    fileprivate var formatString: String = "Hello {name}" {
+    public fileprivate(set) var formatString: String = "Hello {name}" {
         didSet {
             self.updatePorts()
             self.nameSubject.send()
         }
     }
 
-    private var placeholders: [FormatPlaceholder] = []
+    private var parsedFormatString = ParsedFormatString(tokens: [])
 
     // MARK: - Ports
 
@@ -177,63 +306,57 @@ public class StringFormatterNode: Node {
 
         guard anyChanged else { return }
 
-        var result = formatString
-        let pattern = #/\{(\w+)(?::([^}]+))?\}/#
+        // Assembled by walking the parse, so a value that happens to look like a
+        // placeholder is never substituted into a second time.
+        var result = ""
 
-        for match in formatString.matches(of: pattern) {
-            let name = String(match.1)
-            let placeholder = placeholders.first(where: { $0.name == name })
-
-            let replacement: String
-            switch placeholder?.portType ?? .String {
-            case .Float:
-                if let port = self.findPort(named: name) as? NodePort<Float>,
-                   let value = port.value {
-                    if let fmt = placeholder?.printfFormat {
-                        replacement = String(format: fmt, value)
-                    } else {
-                        replacement = String(value)
-                    }
-                } else {
-                    replacement = ""
-                }
-            case .Int:
-                if let port = self.findPort(named: name) as? NodePort<Int>,
-                   let value = port.value {
-                    if let fmt = placeholder?.printfFormat {
-                        replacement = String(format: fmt, value)
-                    } else {
-                        replacement = String(value)
-                    }
-                } else {
-                    replacement = ""
-                }
-            case .Bool:
-                if let port = self.findPort(named: name) as? NodePort<Bool>,
-                   let value = port.value {
-                    replacement = String(value)
-                } else {
-                    replacement = ""
-                }
-            default: // .String
-                if let port = self.findPort(named: name) as? NodePort<String>,
-                   let value = port.value {
-                    replacement = value
-                } else {
-                    replacement = ""
-                }
+        for token in parsedFormatString.tokens {
+            switch token {
+            case .literal(let text):
+                result += text
+            case .placeholder(let placeholder):
+                result += formattedValue(named: placeholder.name)
             }
-
-            result = result.replacingOccurrences(of: String(match.0), with: replacement)
         }
 
         outputString.send(result)
     }
 
+    /// The value on the port `name` owns, rendered with the specifier that built
+    /// that port. Empty when the port is missing or holds no value.
+    private func formattedValue(named name: String) -> String {
+        guard let placeholder = parsedFormatString.placeholder(named: name) else { return "" }
+
+        switch placeholder.portType {
+        case .Float:
+            guard let port = self.findPort(named: name) as? NodePort<Float>,
+                  let value = port.value else { return "" }
+            guard let printfFormat = placeholder.printfFormat else { return String(value) }
+            return String(format: printfFormat, value)
+
+        case .Int:
+            guard let port = self.findPort(named: name) as? NodePort<Int>,
+                  let value = port.value else { return "" }
+            guard let printfFormat = placeholder.printfFormat else { return String(value) }
+            return String(format: printfFormat, value)
+
+        case .Bool:
+            guard let port = self.findPort(named: name) as? NodePort<Bool>,
+                  let value = port.value else { return "" }
+            return String(value)
+
+        default: // .String
+            guard let port = self.findPort(named: name) as? NodePort<String>,
+                  let value = port.value else { return "" }
+            return value
+        }
+    }
+
     // MARK: - Dynamic Port Management
 
     private func updatePorts() {
-        let newPlaceholders = parseFormatPlaceholders(formatString)
+        let newParse = parseFormatString(formatString)
+        let newPlaceholders = newParse.placeholders
 
         let existingNames = Set(self.inputPorts().map { $0.name })
         let newNames = Set(newPlaceholders.map { $0.name })
@@ -262,7 +385,7 @@ public class StringFormatterNode: Node {
             }
         }
 
-        self.placeholders = newPlaceholders
+        self.parsedFormatString = newParse
     }
 
     private func makeInputPort(for placeholder: FormatPlaceholder) -> Port {
