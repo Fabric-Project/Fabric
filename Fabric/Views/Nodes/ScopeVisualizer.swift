@@ -158,6 +158,23 @@ struct ScopeVisualizer: View
                     let (yMin, yMax) = ScopePlot.yRange(history: history)
                     ScopePlot.drawTrace(ctx: ctx, size: size, history: history, yMin: yMin, yMax: yMax)
 
+                    // Y-axis scale: the window's max at top-left, min at
+                    // bottom-left. White rather than cyan so the axis reads
+                    // apart from the data.
+                    let maxLabel = Text(yMax, format: .number.precision(.fractionLength(3)))
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.7))
+                    ctx.draw(maxLabel,
+                             at: CGPoint(x: 4, y: 4),
+                             anchor: .topLeading)
+
+                    let minLabel = Text(yMin, format: .number.precision(.fractionLength(3)))
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.7))
+                    ctx.draw(minLabel,
+                             at: CGPoint(x: 4, y: size.height - 4),
+                             anchor: .bottomLeading)
+
                     if let latest = history.last
                     {
                         let readout = Text(latest, format: .number.precision(.fractionLength(3)))
