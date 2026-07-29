@@ -72,6 +72,7 @@ struct StringFormatStringTests
         let parsed = parseFormatString("{n:d} {n:s}")
 
         #expect(parsed.placeholders == [FormatPlaceholder(name: "n", formatSpecifier: "d")])
+        #expect(parsed.placeholder(named: "n") == FormatPlaceholder(name: "n", formatSpecifier: "d"))
         #expect(parsed.tokens.count == 3)
     }
 

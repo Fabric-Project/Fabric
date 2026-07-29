@@ -112,18 +112,30 @@ struct ParsedFormatString: Equatable {
     /// Placeholders in first-appearance order, one entry per name — the set of
     /// ports the node exposes. A repeated name keeps its first specifier, so the
     /// port type stays put no matter how a later occurrence is written.
-    var placeholders: [FormatPlaceholder] {
-        var seen = Set<String>()
-        return tokens.compactMap { token in
-            guard case .placeholder(let placeholder) = token,
-                  seen.insert(placeholder.name).inserted else { return nil }
-            return placeholder
+    let placeholders: [FormatPlaceholder]
+
+    /// Resolved once here rather than per lookup: both nodes ask for a
+    /// placeholder by name for every occurrence they walk, on every execute.
+    private let placeholdersByName: [String: FormatPlaceholder]
+
+    init(tokens: [Token]) {
+        var placeholders: [FormatPlaceholder] = []
+        var placeholdersByName: [String: FormatPlaceholder] = [:]
+
+        for case .placeholder(let placeholder) in tokens
+        where placeholdersByName[placeholder.name] == nil {
+            placeholders.append(placeholder)
+            placeholdersByName[placeholder.name] = placeholder
         }
+
+        self.tokens = tokens
+        self.placeholders = placeholders
+        self.placeholdersByName = placeholdersByName
     }
 
     /// The placeholder a name resolves to, i.e. the one that owns the port.
     func placeholder(named name: String) -> FormatPlaceholder? {
-        placeholders.first { $0.name == name }
+        placeholdersByName[name]
     }
 }
 
