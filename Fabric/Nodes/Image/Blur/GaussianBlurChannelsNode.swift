@@ -148,8 +148,7 @@ public final class GaussianBlurChannelsNode: BaseMultiPassBlurEffectTwoChannelNo
                 renderEncoder.setFragmentTexture(originalTexture, index: FragmentTextureIndex.Custom1.rawValue)
             }
 
-            self.postProcessor.renderer.size.width = Float(step.width)
-            self.postProcessor.renderer.size.height = Float(step.height)
+            self.postProcessor.resize(size: (width: Float(step.width), height: Float(step.height)), scaleFactor: 1)
 
             let renderPassDescriptor = MTLRenderPassDescriptor()
             renderPassDescriptor.colorAttachments[0].texture = nextImage.texture

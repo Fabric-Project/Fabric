@@ -85,8 +85,7 @@ public class LUTProcessorNode : BaseImageNode
                 self.postMaterial.set(inTex, index: FragmentTextureIndex.Custom0)
                 self.postMaterial.set(inTex2, index: FragmentTextureIndex.Custom1)
                 
-                self.postProcessor.renderer.size.width = Float(inTex.width)
-                self.postProcessor.renderer.size.height = Float(inTex.height)
+                self.postProcessor.resize(size: (width: Float(inTex.width), height: Float(inTex.height)), scaleFactor: 1)
                 
                 let renderPassDesc = MTLRenderPassDescriptor()
                 renderPassDesc.colorAttachments[0].texture = outImage.texture

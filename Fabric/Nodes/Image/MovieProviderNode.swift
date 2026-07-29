@@ -108,6 +108,8 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     private var pixelBuffer:CVPixelBuffer? = nil
     private var observer: Any? = nil
     private var didPlayToEndPendingPulse: Bool = false
+    public private(set) var duration: TimeInterval = 0
+    public private(set) var currentTime: TimeInterval = 0
 
 #if FABRIC_HAP_ENABLED
     /// Hap decoder output, present only while the loaded asset is a
@@ -145,26 +147,9 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     private var didLogDXTSubBlockPadding: Bool = false
 #endif
 
-    /// Asset duration in seconds. Returns 0 until the asset's duration has
-    /// loaded.
-    public var duration: TimeInterval {
-        guard let asset else { return 0 }
-        let cmDuration = asset.duration
-        let seconds = CMTimeGetSeconds(cmDuration)
-        return seconds.isFinite ? seconds : 0
-    }
-
-    /// Player's current playback time in seconds.
-    public var currentTime: TimeInterval {
-        let cmTime = self.player.currentTime()
-        let seconds = CMTimeGetSeconds(cmTime)
-        return seconds.isFinite ? seconds : 0
-    }
-
     private var normalizedTime: TimeInterval {
-        let duration = self.duration
         guard duration > 0 else { return 0 }
-        return max(0, min(self.currentTime / duration, 1))
+        return max(0, min(currentTime / duration, 1))
     }
 
     private func volumeInputValue() -> Float {
@@ -214,10 +199,34 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     private func resetPlaybackInfo()
     {
         self.didPlayToEndPendingPulse = false
+        self.duration = 0
+        self.currentTime = 0
         self.outputCurrentTimePort.send(0, force: true)
         self.outputDurationPort.send(0, force: true)
         self.outputNormalizedTimePort.send(0, force: true)
         self.outputDidPlayToEndPort.send(false, force: true)
+    }
+
+    private func updateCurrentTime(from time: CMTime, fallback: CMTime? = nil)
+    {
+        let preferredTime = time.isValid ? time : fallback
+        guard let preferredTime else { return }
+
+        let seconds = CMTimeGetSeconds(preferredTime)
+        if seconds.isFinite {
+            self.currentTime = seconds
+        }
+    }
+
+    private func cacheDuration(from asset: AVAsset?)
+    {
+        guard let asset else {
+            self.duration = 0
+            return
+        }
+
+        let seconds = CMTimeGetSeconds(asset.duration)
+        self.duration = seconds.isFinite ? seconds : 0
     }
 
     /// Whether a seek is in flight. Used internally by `performSeek`
@@ -271,6 +280,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         }
         guard self.player.currentItem != nil else { return }
         let clamped = max(0, min(seconds, self.duration))
+        self.currentTime = clamped
         // Build the seek time on the video track's natural timescale
         // so frame-accurate seeks land on actual sample boundaries.
         // Falls back to 600 (a common timebase) when no video track
@@ -395,18 +405,23 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         }
 
         let time = executionInfo.timing.time
-        self.sendPlaybackInfo()
 
 #if FABRIC_HAP_ENABLED
-        if try self.executeHapPath(renderer: renderer, hostTime: time) { return }
+        if try self.executeHapPath(renderer: renderer, hostTime: time) {
+            self.sendPlaybackInfo()
+            return
+        }
 #endif
 
         let itemTime = self.playerItemVideoOutput.itemTime(forHostTime: time)
 
         if self.playerItemVideoOutput.hasNewPixelBuffer(forItemTime: itemTime)
         {
-            if let pixelBuffer = self.playerItemVideoOutput.copyPixelBuffer(forItemTime: itemTime, itemTimeForDisplay: nil)
+            var displayTime = CMTime.invalid
+            if let pixelBuffer = self.playerItemVideoOutput.copyPixelBuffer(forItemTime: itemTime,
+                                                                            itemTimeForDisplay: &displayTime)
             {
+                self.updateCurrentTime(from: displayTime, fallback: itemTime)
                 let image = try renderer.newImage(fromPixelBuffer: pixelBuffer)
 
                 self.outputTexturePort.send( image )
@@ -420,13 +435,18 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
             // until playback resumes or another seek lands.
             self.needsEmitAfterSeek = false
             let pausedTime = item.currentTime()
-            if let pixelBuffer = self.playerItemVideoOutput.copyPixelBuffer(forItemTime: pausedTime, itemTimeForDisplay: nil)
+            var displayTime = CMTime.invalid
+            if let pixelBuffer = self.playerItemVideoOutput.copyPixelBuffer(forItemTime: pausedTime,
+                                                                            itemTimeForDisplay: &displayTime)
             {
+                self.updateCurrentTime(from: displayTime, fallback: pausedTime)
                 let image = try renderer.newImage(fromPixelBuffer: pixelBuffer)
 
                 self.outputTexturePort.send( image )
             }
         }
+
+        self.sendPlaybackInfo()
      }
 
 
@@ -537,6 +557,8 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
 #endif
 
                 self.asset = AVURLAsset(url: inputURL, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
+                self.cacheDuration(from: self.asset)
+                self.currentTime = 0
 
 
                 let playerItem = AVPlayerItem(asset: self.asset!, automaticallyLoadedAssetKeys: ["tracks", "metadata", "duration"])
@@ -650,6 +672,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         if emitted
         {
             self.lastEmittedHapTime = frame.presentationTime
+            self.updateCurrentTime(from: frame.presentationTime)
         }
         return true
     }

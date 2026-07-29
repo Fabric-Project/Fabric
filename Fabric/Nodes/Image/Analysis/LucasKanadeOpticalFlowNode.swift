@@ -127,9 +127,9 @@ public class LucasKanadeOpticalFlowNode: Node
     {
         guard
             self.inputImage.valueDidChange
-                || self.inputPrevImage.valueDidChange
+//                || self.inputPrevImage.valueDidChange
                 || self.inputQuality.valueDidChange
-                || self.inputPreviousFlow.valueDidChange
+//                || self.inputPreviousFlow.valueDidChange
                 || self.inputTemporalSmoothing.valueDidChange
         else { return }
 

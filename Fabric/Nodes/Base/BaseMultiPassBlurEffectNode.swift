@@ -86,8 +86,7 @@ public class BaseMultiPassBlurEffectNode: BaseImageNode
                 renderEncoder.setFragmentTexture(currentTexture, index: FragmentTextureIndex.Custom0.rawValue)
             }
 
-            self.postProcessor.renderer.size.width = Float(step.width)
-            self.postProcessor.renderer.size.height = Float(step.height)
+            self.postProcessor.resize(size: (width: Float(step.width), height: Float(step.height)), scaleFactor: 1)
 
             let renderPassDescriptor = MTLRenderPassDescriptor()
             renderPassDescriptor.colorAttachments[0].texture = nextImage.texture

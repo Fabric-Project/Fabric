@@ -83,8 +83,12 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
         self.postMaterial = material
         self.postProcessor = PostProcessEncoder(context: context,
-                                           material: material,
-                                           frameBufferOnly: false)
+                                                material: material,
+                                                depthPixelFormat: .invalid,
+                                                stencilPixelFormat: .invalid,
+                                                depthStoreAction: .dontCare,
+                                                stencilStoreAction: .dontCare,
+                                                frameBufferOnly: false)
 
         super.init(context: context)
 
@@ -101,8 +105,12 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
         self.postMaterial = material
         self.postProcessor = PostProcessEncoder(context: context,
-                                           material: material,
-                                           frameBufferOnly: false)
+                                                material: material,
+                                                depthPixelFormat: .invalid,
+                                                stencilPixelFormat: .invalid,
+                                                depthStoreAction: .dontCare,
+                                                stencilStoreAction: .dontCare,
+                                                frameBufferOnly: false)
 
         super.init(context: context)
 
@@ -151,8 +159,12 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
                 self.postMaterial = material
                 self.postProcessor = PostProcessEncoder(context:context,
-                                                   material: material,
-                                                   frameBufferOnly: false)
+                                                        material: material,
+                                                        depthPixelFormat: .invalid,
+                                                        stencilPixelFormat: .invalid,
+                                                        depthStoreAction: .dontCare,
+                                                        stencilStoreAction: .dontCare,
+                                                        frameBufferOnly: false)
             }
             else {
                 self.cachedFileURLName = nil
@@ -164,8 +176,12 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
                 self.postMaterial = material
                 self.postProcessor = PostProcessEncoder(context:context,
-                                                   material: material,
-                                                   frameBufferOnly: false)
+                                                        material: material,
+                                                        depthPixelFormat: .invalid,
+                                                        stencilPixelFormat: .invalid,
+                                                        depthStoreAction: .dontCare,
+                                                        stencilStoreAction: .dontCare,
+                                                        frameBufferOnly: false)
             }
         }
         else {
@@ -178,8 +194,12 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
             self.postMaterial = material
             self.postProcessor = PostProcessEncoder(context:context,
-                                               material: material,
-                                               frameBufferOnly: false)
+                                                    material: material,
+                                                    depthPixelFormat: .invalid,
+                                                    stencilPixelFormat: .invalid,
+                                                    depthStoreAction: .dontCare,
+                                                    stencilStoreAction: .dontCare,
+                                                    frameBufferOnly: false)
         }
 
         self.lastKnownInputCount = try container.decodeIfPresent(Int.self, forKey: .lastKnownInputCount)
@@ -213,14 +233,6 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
     private func postInit()
     {
         self.postProcessor.label = self.name + " Post Processor"
-        
-        self.postProcessor.renderer.depthTextureStorageMode = .memoryless
-        self.postProcessor.renderer.depthLoadAction = .dontCare
-        self.postProcessor.renderer.depthStoreAction = .dontCare
-
-        self.postProcessor.renderer.stencilTextureStorageMode = .memoryless
-        self.postProcessor.renderer.stencilLoadAction = .dontCare
-        self.postProcessor.renderer.stencilStoreAction = .dontCare
     }
     
     open func postSetupSynchronizePorts(allowReplace: Bool, preserveExistingImageInputPorts: Bool = false) {
@@ -633,9 +645,12 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
     public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
-        let anyPortChanged = self.ports.reduce(false) { partialResult, next in
-            partialResult || next.valueDidChange
+        let imageInputPorts = self.imageInputPorts()
+        let primaryImageChanged = imageInputPorts.first?.valueDidChange ?? false
+        let nonImageInputChanged = self.ports.reduce(false) { partialResult, next in
+            partialResult || (next.portType != .Image && next.valueDidChange)
         }
+        let shouldExecute = primaryImageChanged || nonImageInputChanged
 
         commandBuffer.pushDebugGroup(self.name + " Execute")
         defer { commandBuffer.popDebugGroup() }
@@ -652,8 +667,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             let width = max(1, widthPort.value ?? 512)
             let height = max(1, heightPort.value ?? 512)
 
-            self.postProcessor.renderer.size.width = Float(width)
-            self.postProcessor.renderer.size.height = Float(height)
+            self.postProcessor.resize(size: (width: Float(width), height: Float(height)), scaleFactor: 1)
 
             let outImage = try renderer.newImage(withWidth: width, height: height)
 
@@ -666,7 +680,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             return
         }
 
-        guard anyPortChanged else {
+        guard shouldExecute else {
             return
         }
 
@@ -679,7 +693,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
         let outImage = try renderer.newImage(withWidth: inputTexture0.width, height: inputTexture0.height)
 
-        let textures = self.imageInputPorts().map { $0.value?.texture }
+        let textures = imageInputPorts.map { $0.value?.texture }
 
         self.postProcessor.mesh.preDraw = { renderEncoder in
             for (index, texture) in textures.enumerated() {
@@ -688,8 +702,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             }
         }
 
-        self.postProcessor.renderer.size.width = Float(inputTexture0.width)
-        self.postProcessor.renderer.size.height = Float(inputTexture0.height)
+        self.postProcessor.resize(size: (width: Float(inputTexture0.width), height: Float(inputTexture0.height)), scaleFactor: 1)
 
         let renderPassDesc = MTLRenderPassDescriptor()
         renderPassDesc.colorAttachments[0].texture = outImage.texture
