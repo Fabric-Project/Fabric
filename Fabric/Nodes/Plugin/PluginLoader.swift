@@ -28,6 +28,19 @@ public final class PluginLoader
 
     private init() {}
 
+    /// The plugin folder inside a domain's Application Support directory, or nil if
+    /// the domain has none.
+    public static func pluginDirectory(in domain: FileManager.SearchPathDomainMask) -> URL?
+    {
+        FileManager.default
+            .urls(for: .applicationSupportDirectory, in: domain)
+            .first?
+            .appending(path: "Fabric", directoryHint: .isDirectory)
+            .appending(path: "Plugins", directoryHint: .isDirectory)
+    }
+
+    /// Where plugins are looked for, in precedence order: the host application's
+    /// own bundle first, then the user's plugin folder, then the machine's.
     public func pluginSearchDirectories() -> [URL]
     {
         var directories: [URL] = []
@@ -37,15 +50,16 @@ public final class PluginLoader
             directories.append(builtInPlugInsURL)
         }
 
-        if let appSupportURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+        if let userPluginDirectory = Self.pluginDirectory(in: .userDomainMask)
         {
-            directories.append(appSupportURL
-                .appending(path: "Fabric", directoryHint: .isDirectory)
-                .appending(path: "Plugins", directoryHint: .isDirectory))
+            directories.append(userPluginDirectory)
         }
 
         #if os(macOS)
-        directories.append(URL(filePath: "/Library/Application Support/Fabric/Plugins", directoryHint: .isDirectory))
+        if let localPluginDirectory = Self.pluginDirectory(in: .localDomainMask)
+        {
+            directories.append(localPluginDirectory)
+        }
         #endif
 
         return directories
