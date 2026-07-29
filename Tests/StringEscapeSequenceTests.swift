@@ -28,6 +28,28 @@ struct StringEscapeSequenceTests
         #expect(decodeEscapeSequences(#"ends\"#) == #"ends\"#)
     }
 
+    @Test("Braces decode only where they are syntax")
+    func bracesAreOptedInto()
+    {
+        #expect(decodeEscapeSequences(#"\{n\}"#) == #"\{n\}"#)
+        #expect(decodeEscapeSequences(#"\{n\}"#, including: [.invisibleCharacters, .braces]) == "{n}")
+    }
+
+    @Test("An unwanted sequence is left as typed")
+    func unwantedSequencesRemainLiteral()
+    {
+        #expect(decodeEscapeSequences(#"\n"#, including: []) == #"\n"#)
+        #expect(decodeEscapeSequences(#"\{"#, including: .braces) == "{")
+        #expect(decodeEscapeSequences(#"\t"#, including: .braces) == #"\t"#)
+    }
+
+    @Test("The backslash escape holds regardless of the sequences wanted")
+    func backslashIsAlwaysDecoded()
+    {
+        #expect(decodeEscapeSequences(#"\\"#, including: []) == "\\")
+        #expect(decodeEscapeSequences(#"\\n"#, including: []) == #"\n"#)
+    }
+
     @Test("Text without escapes passes through untouched")
     func plainTextIsUntouched()
     {

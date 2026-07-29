@@ -74,13 +74,15 @@ struct ParsedFormatString: Equatable {
     }
 }
 
+/// What a format string's literal text may escape: the shared invisible
+/// characters — the only way to write one into the single-line Settings field —
+/// plus the braces this format claims as syntax.
+private let formatStringEscapeSequences: EscapeSequences = [.invisibleCharacters, .braces]
+
 /// Parse a format string into literal text and placeholder occurrences.
 ///
-/// Literals accept the same escape sequences as the String Split and String Join
-/// separators (`\n`, `\r`, `\t`, `\\`) — the only way to put an invisible
-/// character in a format string, since the Settings field is single-line. Braces
-/// are this format's own syntax, so `\{` and `\}` are resolved here too, giving a
-/// literal brace that neither opens nor closes a placeholder.
+/// Literals accept `formatStringEscapeSequences`, so an escaped brace is literal
+/// text that neither opens nor closes a placeholder.
 func parseFormatString(_ formatString: String) -> ParsedFormatString {
     var tokens: [ParsedFormatString.Token] = []
     var literal = ""
@@ -88,7 +90,7 @@ func parseFormatString(_ formatString: String) -> ParsedFormatString {
 
     func flushLiteral() {
         guard !literal.isEmpty else { return }
-        tokens.append(.literal(decodeEscapeSequences(literal)))
+        tokens.append(.literal(decodeEscapeSequences(literal, including: formatStringEscapeSequences)))
         literal = ""
     }
 
@@ -103,19 +105,12 @@ func parseFormatString(_ formatString: String) -> ParsedFormatString {
                 break
             }
 
-            let escapedCharacter = formatString[escapedCharacterIndex]
-
-            if escapedCharacter == "{" || escapedCharacter == "}" {
-                // Resolved here rather than by the shared decoder: an escaped
-                // brace must not reach the placeholder scan below.
-                literal.append(escapedCharacter)
-            } else {
-                // Left intact for the shared decoder, so `\\{` still reads as a
-                // literal backslash followed by a placeholder.
-                literal.append(character)
-                literal.append(escapedCharacter)
-            }
-
+            // A backslash shields the character after it from being read as
+            // syntax; what the pair stands for is the decoder's business at
+            // flush time. So `\{` never opens a placeholder, while `\\{` — a
+            // shielded backslash, then a brace — still does.
+            literal.append(character)
+            literal.append(formatString[escapedCharacterIndex])
             currentIndex = formatString.index(after: escapedCharacterIndex)
             continue
         }
