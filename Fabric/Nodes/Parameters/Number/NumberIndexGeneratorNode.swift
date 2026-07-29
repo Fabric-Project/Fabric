@@ -39,7 +39,7 @@ public enum IndexGeneratorMode: String, NodeStrategyOption, CaseIterable
         switch self
         {
         case .random:
-            return "Each trigger draws a fresh index uniformly at random over [0, Size). Draws are independent, so the same index can come up twice in a row."
+            return "Each signal draws a fresh index uniformly at random over [0, Size). Draws are independent, so the same index can come up twice in a row."
         case .randomNoImmediateRepeat:
             return "Uniform random like Random, but the new index is never the same as the last one — so it always visibly changes, without settling into a fixed order."
         case .shuffle:
@@ -56,7 +56,7 @@ public class NumberIndexGeneratorNode : StrategyNode
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .Number) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Emits an integer index in [0, Size) on each rising edge of Signal. Mode (in Settings) picks how the next index is drawn (Random, no immediate repeat, Shuffle, or Sequential); for the finite modes, Loop restarts the sequence or holds the last index." }
+    override public class var nodeDescription: String { "Emits an index in [0, Size) on each signal. Mode (in Settings): Random, no immediate repeat, Shuffle, or Sequential. For the finite modes, Loop restarts the sequence or holds the last index." }
 
     override public class var strategyOptions: [any NodeStrategyOption] { IndexGeneratorMode.allCases }
 
@@ -90,15 +90,15 @@ public class NumberIndexGeneratorNode : StrategyNode
 
         var wanted: [(name: String, port: Port)] =
         [
-            ("inputSignal", ParameterPort(parameter: BoolParameter("Signal", false, .button, "Rising edge (false → true) advances to the next index"))),
-            ("inputSize", ParameterPort(parameter: IntParameter("Size", 4, 1, 1_000_000, .inputfield, "Number of indices; output is in [0, Size)"))),
+            ("inputSignal", ParameterPort(parameter: BoolParameter("Signal", false, .button, "A signal advances to the next index"))),
+            ("inputSize", ParameterPort(parameter: IntParameter("Size", 4, 1, 1_000_000, .inputfield, "Index count; output in [0, Size)"))),
         ]
 
         // Loop only bites on the finite sequences (Shuffle / Sequential), where it
         // chooses restart-vs-hold once every index has appeared. Random modes never
         // finish, so the toggle would be inert — omit it entirely.
         if mode.isFinite {
-            wanted.append(("inputLoop", ParameterPort(parameter: BoolParameter("Loop", true, .toggle, "When a finite sequence (Shuffle / Sequential) completes, restart it; otherwise hold the last index"))))
+            wanted.append(("inputLoop", ParameterPort(parameter: BoolParameter("Loop", true, .toggle, "At the end of a finite sequence, restart it or hold the last index"))))
         }
 
         wanted.append(("outputIndex", NodePort<Int>(name: "Index", kind: .Outlet, description: "Current index in [0, Size)")))

@@ -27,11 +27,11 @@ public enum NumberGeneratorMode: String, NodeStrategyOption, CaseIterable
         switch self
         {
         case .random:
-            return "Independent draws each trigger. Distribution shapes them — Uniform is flat, Gaussian clusters around the middle, Triangular peaks there — and Minimum Change forces consecutive values apart."
+            return "Independent draws each signal. Distribution shapes them — Uniform is flat, Gaussian clusters around the middle, Triangular peaks there — and Minimum Change forces consecutive values apart."
         case .evenSpread:
             return "A low-discrepancy (golden-ratio) sequence: values look random but never clump, covering the range evenly over time. Distribution reshapes that even coverage into the chosen curve."
         case .walk:
-            return "A random walk: each trigger takes a bounded step from the current value, reflecting off 0 and 1. Organic wandering rather than jumps. Step Size sets how far a step can move."
+            return "A random walk: each signal takes a bounded step from the current value, reflecting off 0 and 1. Organic wandering rather than jumps. Step Size sets how far a step can move."
         }
     }
 }
@@ -50,7 +50,7 @@ public class NumberGeneratorNode : StrategyNode
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .Number) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Emits a new value in [0, 1] on each rising edge of Signal. Mode (in Settings) picks how the next value is generated: Random draws, a bounded Walk, or an even-spread low-discrepancy sequence." }
+    override public class var nodeDescription: String { "Emits a new value in [0, 1] on each signal. Mode (in Settings): Random draws, a bounded Walk, or an even-spread low-discrepancy sequence." }
 
     override public class var strategyOptions: [any NodeStrategyOption] { NumberGeneratorMode.allCases }
 
@@ -81,21 +81,21 @@ public class NumberGeneratorNode : StrategyNode
 
         var wanted: [(name: String, port: Port)] =
         [
-            ("inputSignal", ParameterPort(parameter: BoolParameter("Signal", false, .button, "Rising edge (false → true) generates a new value"))),
+            ("inputSignal", ParameterPort(parameter: BoolParameter("Signal", false, .button, "A signal generates a new value"))),
         ]
 
         switch mode
         {
         case .random:
-            wanted.append(("inputMinChange", ParameterPort(parameter: FloatParameter("Minimum Change", 0.3, 0.0, 1.0, .inputfield, "Smallest allowed difference between the previous output and the new value"))))
+            wanted.append(("inputMinChange", ParameterPort(parameter: FloatParameter("Minimum Change", 0.3, 0.0, 1.0, .inputfield, "Smallest change between consecutive values"))))
             wanted.append(("inputDistribution", ParameterPort(parameter: StringParameter("Distribution", ValueDistribution.uniform.rawValue, ValueDistribution.allCases.map(\.rawValue), .dropdown, "Shape of the random draw"))))
         case .walk:
-            wanted.append(("inputStepSize", ParameterPort(parameter: FloatParameter("Step Size", 0.1, 0.0, 1.0, .inputfield, "Largest step taken from the current value on each trigger"))))
+            wanted.append(("inputStepSize", ParameterPort(parameter: FloatParameter("Step Size", 0.1, 0.0, 1.0, .inputfield, "Largest step per signal"))))
         case .evenSpread:
             wanted.append(("inputDistribution", ParameterPort(parameter: StringParameter("Distribution", ValueDistribution.uniform.rawValue, ValueDistribution.allCases.map(\.rawValue), .dropdown, "Shape the evenly-spread values follow"))))
         }
 
-        wanted.append(("outputValue", NodePort<Float>(name: "Number", kind: .Outlet, description: "The current value in [0, 1]")))
+        wanted.append(("outputValue", NodePort<Float>(name: "Number", kind: .Outlet, description: "Current value in [0, 1]")))
 
         let wantedNames = Set(wanted.map(\.name))
         for name in Self.allDynamicNames.subtracting(wantedNames)

@@ -14,7 +14,7 @@ public class NumberPulseNode : Node
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .Number) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
     override public class var nodeTimeMode: Node.TimeMode { .TimeBase }
-    override public class var nodeDescription: String { "Emits a single-frame true pulse once every Period seconds, false on all other frames — a periodic trigger source for edge-driven nodes such as Random Value and Random Index. Phase shifts when in the cycle the pulse fires, so several Pulses can share a Period but fire at staggered times." }
+    override public class var nodeDescription: String { "Emits a signal once every Period seconds. Phase staggers where in the cycle it fires, so Pulses sharing a Period fire out of step." }
 
     // Accumulated phase in [0, 1). Advanced each frame by deltaTime / period so
     // live Period changes stay continuous (unlike time / period, which jumps).
@@ -27,9 +27,9 @@ public class NumberPulseNode : Node
 
         return ports +
         [
-            ("inputPeriod", ParameterPort(parameter: FloatParameter("Period (secs)", 1.0, 0.0, 60.0, .inputfield, "Seconds between pulses. Zero or below holds the pulse off."))),
-            ("inputPhase", ParameterPort(parameter: FloatParameter("Phase", 0.0, 0.0, 1.0, .inputfield, "Phase offset (0–1) shifting when in the cycle the pulse fires"))),
-            ("outputSignal", NodePort<Bool>(name: "Signal", kind: .Outlet, description: "True for one frame at each pulse; false otherwise")),
+            ("inputPeriod", ParameterPort(parameter: FloatParameter("Period (secs)", 1.0, 0.0, 60.0, .inputfield, "Seconds between signals; zero or below holds off."))),
+            ("inputPhase", ParameterPort(parameter: FloatParameter("Phase", 0.0, 0.0, 1.0, .inputfield, "Offset (0–1) staggering where in the cycle it fires"))),
+            ("outputSignal", NodePort<Bool>(name: "Signal", kind: .Outlet, description: "Signal, once per Period")),
         ]
     }
 
