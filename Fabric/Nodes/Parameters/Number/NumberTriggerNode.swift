@@ -33,7 +33,7 @@ public class NumberTriggerNode : Node
             ("inputTriggerThreshold", ParameterPort(parameter: FloatParameter("Trigger Threshold", 0.8, .inputfield, "Rising-edge threshold: Target at or above this value turns the output to 1"))),
             ("inputReleaseThreshold", ParameterPort(parameter: FloatParameter("Release Threshold", 0.5, .inputfield, "Falling-edge threshold: Target below this value (once Minimum Duration has elapsed) returns the output to 0"))),
             ("inputMinDurationSecs", ParameterPort(parameter: FloatParameter("Minimum Duration (secs)", 0.0, 0.0, 60.0, .inputfield, "Minimum seconds the output must remain 1 before it can fall back to 0"))),
-            ("outputValue", NodePort<Float>(name: "Value", kind: .Outlet, description: "1 while latched high, 0 while latched low")),
+            ("outputValue", NodePort<Float>(name: "Trigger", kind: .Outlet, description: "1 while latched high, 0 while latched low")),
         ]
     }
 

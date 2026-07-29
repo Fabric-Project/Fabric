@@ -50,7 +50,7 @@ public class NumberLFONode : Node
             ("inputWaveform", ParameterPort(parameter: StringParameter("Waveform", LFOWaveform.sine.rawValue, LFOWaveform.allCases.map(\.rawValue), .dropdown, "Oscillator waveform"))),
             ("inputPeriod", ParameterPort(parameter: FloatParameter("Period (secs)", 1.0, 0.0, 60.0, .inputfield, "Seconds per cycle. Zero or below freezes the oscillator."))),
             ("inputPhase", ParameterPort(parameter: FloatParameter("Phase", 0.0, 0.0, 1.0, .inputfield, "Phase offset (0–1) added to the cycle position"))),
-            ("outputValue", NodePort<Float>(name: "Value", kind: .Outlet, description: "Current oscillator value in [0, 1]")),
+            ("outputValue", NodePort<Float>(name: "Number", kind: .Outlet, description: "Current oscillator value in [0, 1]")),
         ]
     }
 
