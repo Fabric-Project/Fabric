@@ -10,35 +10,88 @@ import SwiftUI
 
 // MARK: - Shared format string parsing
 
+/// What a placeholder's specifier asks for: the type of the port it builds and,
+/// for the numeric kinds, how to render the value.
+///
+/// The specifier is user-typed and reaches `String(format:)`, whose conversions
+/// are read positionally against a single argument — so a specifier is only
+/// honoured once it has been parsed whole and found to hold exactly one
+/// conversion. Anything else falls back to `.string`, printing the value as
+/// written rather than reading a vararg that was never supplied.
+enum FormatSpecifier: Equatable {
+    case string
+    case bool
+    /// printf format for a Swift Int, with the `l` length modifier its 64 bits need.
+    case integer(printfFormat: String)
+    case floatingPoint(printfFormat: String)
+
+    /// printf flags this accepts before the width; all are argument-free.
+    private static let flagCharacters: Set<Character> = ["-", "+", " ", "0", "#"]
+
+    init(_ specifier: String?) {
+        guard let specifier else { self = .string; return }
+
+        let trimmed = specifier.trimmingCharacters(in: .whitespaces)
+        guard trimmed != "s" else { self = .string; return }
+        guard trimmed != "b" else { self = .bool; return }
+
+        // <flags><width>.<precision><conversion>, and nothing else.
+        var remainder = Substring(trimmed)
+
+        let flags = remainder.prefix { Self.flagCharacters.contains($0) }
+        remainder = remainder.dropFirst(flags.count)
+
+        let width = remainder.prefix(while: \.isNumber)
+        remainder = remainder.dropFirst(width.count)
+
+        var precision = Substring()
+        if remainder.first == "." {
+            let digits = remainder.dropFirst().prefix(while: \.isNumber)
+            precision = remainder.prefix(1 + digits.count)
+            remainder = remainder.dropFirst(precision.count)
+        }
+
+        guard let conversion = remainder.first, remainder.count == 1 else { self = .string; return }
+
+        switch conversion {
+        case "d", "i":
+            self = .integer(printfFormat: "%\(flags)\(width)\(precision)ld")
+        case "f", "e", "g", "E", "G":
+            self = .floatingPoint(printfFormat: "%\(flags)\(width)\(precision)\(conversion)")
+        default:
+            self = .string
+        }
+    }
+
+    var portType: PortType {
+        switch self {
+        case .string: return .String
+        case .bool: return .Bool
+        case .integer: return .Int
+        case .floatingPoint: return .Float
+        }
+    }
+}
+
 /// A parsed placeholder from a format string like "Hello {name:.2f}"
 struct FormatPlaceholder: Equatable {
     let name: String
     let formatSpecifier: String?  // e.g. ".2f", "d", "s", "b" — nil means default (String)
 
+    /// What the specifier asks for, or `.string` if it asks for nothing legible.
+    var specifier: FormatSpecifier { FormatSpecifier(formatSpecifier) }
+
     /// The port type implied by the format specifier
-    var portType: PortType {
-        guard let spec = formatSpecifier else { return .String }
-        let trimmed = spec.trimmingCharacters(in: .whitespaces)
-        if trimmed == "b" { return .Bool }
-        if trimmed == "d" || trimmed == "i" { return .Int }
-        if trimmed == "s" { return .String }
-        // Anything containing 'f', 'e', 'g' (printf float specifiers) → Float
-        let lastChar = trimmed.last
-        if lastChar == "f" || lastChar == "e" || lastChar == "g" { return .Float }
-        return .String
-    }
+    var portType: PortType { specifier.portType }
 
     /// The printf format string to use with String(format:), or nil for plain string conversion
     var printfFormat: String? {
-        guard let spec = formatSpecifier else { return nil }
-        let trimmed = spec.trimmingCharacters(in: .whitespaces)
-        if trimmed == "s" || trimmed == "b" { return nil }
-        if trimmed == "d" || trimmed == "i" { return "%d" }
-        let lastChar = trimmed.last
-        if lastChar == "f" || lastChar == "e" || lastChar == "g" {
-            return "%\(trimmed)"
+        switch specifier {
+        case .integer(let printfFormat), .floatingPoint(let printfFormat):
+            return printfFormat
+        case .string, .bool:
+            return nil
         }
-        return nil
     }
 }
 

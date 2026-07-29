@@ -75,6 +75,40 @@ struct StringFormatStringTests
         #expect(parsed.tokens.count == 3)
     }
 
+    // MARK: - Specifiers
+
+    @Test("Well-formed specifiers keep their flags, width and precision")
+    func wellFormedSpecifiers()
+    {
+        #expect(FormatSpecifier("d") == .integer(printfFormat: "%ld"))
+        #expect(FormatSpecifier("i") == .integer(printfFormat: "%ld"))
+        #expect(FormatSpecifier("5d") == .integer(printfFormat: "%5ld"))
+        #expect(FormatSpecifier("f") == .floatingPoint(printfFormat: "%f"))
+        #expect(FormatSpecifier(".2f") == .floatingPoint(printfFormat: "%.2f"))
+        #expect(FormatSpecifier("-8.3e") == .floatingPoint(printfFormat: "%-8.3e"))
+    }
+
+    @Test("A specifier holding more than one conversion is not honoured")
+    func multipleConversionsAreRefused()
+    {
+        // Each of these would otherwise reach String(format:) with one argument
+        // and read a vararg that was never supplied.
+        #expect(FormatSpecifier("f%f") == .string)
+        #expect(FormatSpecifier("f%s") == .string)
+        #expect(FormatSpecifier(".2f%@") == .string)
+        #expect(FormatSpecifier("%s") == .string)
+    }
+
+    @Test("Unreadable specifiers fall back to plain string conversion")
+    func unreadableSpecifiers()
+    {
+        #expect(FormatSpecifier(nil) == .string)
+        #expect(FormatSpecifier("s") == .string)
+        #expect(FormatSpecifier("b") == .bool)
+        #expect(FormatSpecifier("zz") == .string)
+        #expect(FormatSpecifier("2") == .string)
+    }
+
     // MARK: - String Formatter
 
     @Test("Formatter writes escape sequences into its output")
@@ -124,6 +158,36 @@ struct StringFormatStringTests
         try harness.execute(formatter)
 
         #expect(formatter.outputString.value == "{b} second")
+    }
+
+    @Test("Int placeholders render their full 64-bit range")
+    func formatterRendersLargeIntegers() throws
+    {
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
+
+        let formatter = StringFormatterNode(context: harness.context, formatString: "{ms:d}")
+
+        let milliseconds = try #require(formatter.findPort(named: "ms", as: ParameterPort<Int>.self))
+        milliseconds.value = 5_000_000_000
+
+        try harness.execute(formatter)
+
+        #expect(formatter.outputString.value == "5000000000")
+    }
+
+    @Test("Float placeholders keep their width and precision")
+    func formatterRendersFloatPrecision() throws
+    {
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
+
+        let formatter = StringFormatterNode(context: harness.context, formatString: "[{x:8.2f}]")
+
+        let x = try #require(formatter.findPort(named: "x", as: ParameterPort<Float>.self))
+        x.value = 3.14159
+
+        try harness.execute(formatter)
+
+        #expect(formatter.outputString.value == "[    3.14]")
     }
 
     @Test("A format string of pure literal text still emits")
