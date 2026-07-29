@@ -107,18 +107,12 @@ struct StringSplitNodeTests
         #expect(result == [" first", " second", "", ""])
     }
 
-    @Test("Escaped tab and backslash separators remain expressible")
-    func escapedTabAndBackslashSeparators()
+    @Test("Custom separator decodes the shared escape sequences")
+    func customSeparatorDecodesEscapes()
     {
-        #expect(StringSplitNode.decodedSeparator(#"\t"#) == "\t")
-        #expect(StringSplitNode.decodedSeparator(#"\\"#) == "\\")
-        #expect(StringSplitNode.decodedSeparator(#"\\n"#) == #"\n"#)
-    }
-
-    @Test("Unknown and trailing escapes are preserved literally")
-    func unknownEscapesRemainLiteral()
-    {
-        #expect(StringSplitNode.decodedSeparator(#"\q"#) == #"\q"#)
-        #expect(StringSplitNode.decodedSeparator(#"ends\"#) == #"ends\"#)
+        // The vocabulary itself is covered by StringEscapeSequenceTests; this
+        // pins that Custom mode runs the separator through it.
+        #expect(StringSplitNode.split("a\tb", separator: #"\t"#) == ["a", "b"])
+        #expect(StringSplitNode.split(#"a\nb"#, separator: #"\\n"#) == ["a", "b"])
     }
 }

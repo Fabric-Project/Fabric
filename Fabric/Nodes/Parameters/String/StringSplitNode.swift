@@ -152,7 +152,7 @@ public class StringSplitNode: StrategyNode
         {
         case .custom:
             return ContiguousArray(
-                string.components(separatedBy: decodedSeparator(separator))
+                string.components(separatedBy: decodeEscapeSequences(separator))
             )
         case .comma:
             return splitAndTrim(string.components(separatedBy: ","))
@@ -173,48 +173,5 @@ public class StringSplitNode: StrategyNode
                 return trimmedValue.isEmpty ? nil : trimmedValue
             }
         )
-    }
-
-    static func decodedSeparator(_ separator: String) -> String
-    {
-        var decodedSeparator = ""
-        var currentIndex = separator.startIndex
-
-        while currentIndex < separator.endIndex
-        {
-            let character = separator[currentIndex]
-            guard character == "\\" else
-            {
-                decodedSeparator.append(character)
-                currentIndex = separator.index(after: currentIndex)
-                continue
-            }
-
-            let escapedCharacterIndex = separator.index(after: currentIndex)
-            guard escapedCharacterIndex < separator.endIndex else
-            {
-                decodedSeparator.append(character)
-                break
-            }
-
-            switch separator[escapedCharacterIndex]
-            {
-            case "n":
-                decodedSeparator.append("\n")
-            case "r":
-                decodedSeparator.append("\r")
-            case "t":
-                decodedSeparator.append("\t")
-            case "\\":
-                decodedSeparator.append("\\")
-            default:
-                decodedSeparator.append(character)
-                decodedSeparator.append(separator[escapedCharacterIndex])
-            }
-
-            currentIndex = separator.index(after: escapedCharacterIndex)
-        }
-
-        return decodedSeparator
     }
 }
