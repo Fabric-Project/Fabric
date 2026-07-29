@@ -96,6 +96,16 @@ public class OneEuroFilter {
         dx.setAlpha(alpha: alpha(dcutoff))
     }
     
+    /// Reset internal state so the next Filter() call smooths from `value`,
+    /// avoiding a jump when smoothing re-engages after a passthrough.
+    public func reset(to value: Double) {
+        x.reset(to: value)
+        dx.reset()
+        lasttime = -1.0
+        currValue = value
+        prevValue = value
+    }
+
     public func Filter(_ value:Double, timestamp:Double = -1.0) -> Double {
         prevValue = currValue
     

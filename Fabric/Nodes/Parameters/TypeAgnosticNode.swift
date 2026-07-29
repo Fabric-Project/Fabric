@@ -38,11 +38,13 @@ public class TypeAgnosticNode: StrategyNode
         self.init(context: context, initialStrategy: portType.rawValue)
     }
 
-    /// Node-generated name reflecting the selected port type (the base class's
-    /// `name` falls back to the type name for .Virtual and honours any userName).
+    /// Node-generated name: the selected port type leads the title, e.g. "Float
+    /// Sample and Hold" (NodeTitleView appends the type name after it). Virtual —
+    /// the no-configuration default — suppresses the token so the node reads as its
+    /// plain type name.
     override public var displayName: String? {
         let portType = selectedPortType
-        return portType == .Virtual ? nil : "\(type(of: self).name) \(portType.rawValue)"
+        return portType == .Virtual ? nil : portType.rawValue
     }
 
     public func addOrReplaceDynamicPortPreservingIdentity(name registryName: String,

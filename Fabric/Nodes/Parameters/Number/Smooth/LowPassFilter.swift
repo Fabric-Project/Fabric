@@ -45,6 +45,21 @@ public class LowPassFilter {
         return filter(value: value)
     }
     
+    /// Reset so the next `filter(value:)` smooths from `value`, as if `value`
+    /// were the last emitted result.
+    public func reset(to value: Double) {
+        y = value
+        s = value
+        initialized = true
+    }
+
+    /// Clear to an uninitialized state; the next value passes straight through.
+    public func reset() {
+        y = 0.0
+        s = 0.0
+        initialized = false
+    }
+
     public func hasLastRawValue() -> Bool {
         return initialized
     }

@@ -18,6 +18,10 @@ public class DecomposeVectorNode: StrategyNode
 
     public override class var strategyOptions: [any NodeStrategyOption] { VectorType.allCases }
 
+    // The vector type is already evident from the component ports, so keep the
+    // plain type-name title rather than leading it with the strategy.
+    override public var displayName: String? { nil }
+
     private static let allDynamicNames: Set<String> = [
         "inputVector",
         "outputComponent0", "outputComponent1", "outputComponent2", "outputComponent3",
@@ -27,8 +31,6 @@ public class DecomposeVectorNode: StrategyNode
     {
         self.init(context: context, strategy: vectorType)
     }
-
-    override public class var strategyTitleSuffix: String? { "Decompose" }
 
     public override func rebuildPorts(forStrategy strategy: String)
     {

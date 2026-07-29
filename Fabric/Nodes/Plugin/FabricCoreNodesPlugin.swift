@@ -254,6 +254,11 @@ public final class FabricCoreNodesPlugin: NSObject, FabricPlugin
         NumberRemapNode.self,
         NumberIntegralNode.self,
         NumberSmoothNode.self,
+        NumberLFONode.self,
+        NumberPulseNode.self,
+        NumberGeneratorNode.self,
+        NumberIndexGeneratorNode.self,
+        NumberTriggerNode.self,
         MathExpressionNode.self,
         GradientNoiseNode.self,
         AudioSpectrumNode.self,
@@ -357,6 +362,7 @@ public final class FabricCoreNodesPlugin: NSObject, FabricPlugin
     {
         var classes: [Node.Type] = [
             LogNode.self,
+            VisualizeNode.self,
             JavaScriptNode.self,
             CursorNode.self,
         ]

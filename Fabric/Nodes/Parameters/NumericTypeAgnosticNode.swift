@@ -52,10 +52,13 @@ public class NumericTypeAgnosticNode: StrategyNode
         self.init(context: context, initialStrategy: portType.rawValue)
     }
 
-    /// Node-generated name reflecting the selected numeric port type.
+    /// Node-generated name: the selected numeric port type leads the title, e.g.
+    /// "Float Tween" (NodeTitleView appends the type name after it). NumericVirtual
+    /// — the no-configuration default — suppresses the token so the node reads as
+    /// its plain type name.
     override public var displayName: String? {
         let portType = selectedNumericPortType
-        return portType == .NumericVirtual ? nil : "\(type(of: self).name) \(portType.rawValue)"
+        return portType == .NumericVirtual ? nil : portType.rawValue
     }
 
     public class func portType(forStrategy strategy: String) -> PortType
