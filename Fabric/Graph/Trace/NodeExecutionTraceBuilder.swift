@@ -7,7 +7,7 @@
 
 import Foundation
 
-private final class NodeExecutionTraceBuilder
+internal final class NodeExecutionTraceBuilder
 {
     let nodeID: UUID
     let nodeName: String

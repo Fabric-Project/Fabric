@@ -4,6 +4,9 @@
 //
 //  Created by Anton Marini on 2/1/25.
 //
+import SwiftUI
+import Satin
+internal import AnyCodable
 
 @Observable public class Graph : Codable, Identifiable, Hashable, Equatable
 {

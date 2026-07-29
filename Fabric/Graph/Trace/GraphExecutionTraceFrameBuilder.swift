@@ -6,7 +6,7 @@
 //
 import Foundation
 
-private final class GraphExecutionTraceFrameBuilder
+internal final class GraphExecutionTraceFrameBuilder
 {
     let executionIndex: Int
     let startedAt: TimeInterval
