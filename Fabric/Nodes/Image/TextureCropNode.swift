@@ -36,6 +36,7 @@ public class TextureCropNode: Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let sourceImage = inputTexture.value else { return }
 
@@ -45,7 +46,7 @@ public class TextureCropNode: Node
         let w = max(1, min(inputCropWidth.value ?? 1920, srcTex.width - x))
         let h = max(1, min(inputCropHeight.value ?? 1080, srcTex.height - y))
 
-        guard let outImage = renderer.newImage(withWidth: w, height: h, format: sourceImage.texture.pixelFormat) else { return }
+        let outImage = try renderer.newImage(withWidth: w, height: h, format: sourceImage.texture.pixelFormat)
         // For flipped sources (e.g. Syphon/OpenGL with bottom-left origin),
         // the visual top of the image is stored at the bottom of texture
         // memory. Invert the Y coordinate so crop regions specified in
@@ -54,7 +55,12 @@ public class TextureCropNode: Node
             y = max(0, srcTex.height - y - h)
         }
 
-        guard let encoder = commandBuffer.makeBlitCommandEncoder() else { return }
+        guard let encoder = commandBuffer.makeBlitCommandEncoder() else
+        {
+            throw FabricError(.execution(.gpu),
+                              severity: .recoverable,
+                              message: "Could not create Texture Crop blit encoder")
+        }
         encoder.copy(
             from: srcTex,
             sourceSlice: 0, sourceLevel: 0,

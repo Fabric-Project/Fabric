@@ -82,6 +82,7 @@ public class ForegroundMaskNode: Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         
         if self.inputTexturePort.valueDidChange

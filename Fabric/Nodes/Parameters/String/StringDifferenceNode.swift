@@ -40,6 +40,7 @@ public class StringDifferenceNode : Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputPort.valueDidChange || self.input2Port.valueDidChange
         {

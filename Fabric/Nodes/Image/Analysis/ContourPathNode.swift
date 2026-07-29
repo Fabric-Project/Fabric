@@ -83,6 +83,7 @@ public final class ContourPathNode: Node {
 
     // MARK: - Execute
     public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard
             inputMask.valueDidChange,
@@ -114,7 +115,7 @@ public final class ContourPathNode: Node {
         proc.set("MaxSegments", UInt32(maxSegs))
 
         // Clear the counter to zero before compute (tiny inline reset)
-        zeroCounter(commandBuffer: commandBuffer)
+        try zeroCounter(commandBuffer: commandBuffer)
         
         if let computeEncoder = commandBuffer.makeComputeCommandEncoder()
         {
@@ -163,7 +164,8 @@ public final class ContourPathNode: Node {
         lastAllocatedFor = (width, height, maxSegments)
     }
 
-    private func zeroCounter(commandBuffer: MTLCommandBuffer) {
+    private func zeroCounter(commandBuffer: MTLCommandBuffer) throws
+    {
         
         if let blit = commandBuffer.makeBlitCommandEncoder(),
            let counterBuffer,

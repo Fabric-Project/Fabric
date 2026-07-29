@@ -35,7 +35,8 @@ public class CurrentTimeNode : Node
     public var inputNumber:ParameterPort<Float> { port(named: "inputNumber") }
     public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
     
-    override public func startExecution(renderer: GraphRenderer) {
+    override public func startExecution(renderer: GraphRenderer) throws
+    {
         self.startTime = CACurrentMediaTime()
     }
 
@@ -43,6 +44,7 @@ public class CurrentTimeNode : Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         self.outputNumber.send( Float(executionInfo.timing.time - startTime) )
     }

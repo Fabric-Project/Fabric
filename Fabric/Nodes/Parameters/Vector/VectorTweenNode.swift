@@ -46,6 +46,7 @@ public class VectorTweenNode<Value> : Node where Value: PortValueRepresentable &
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         let time = executionInfo.timing.time
 

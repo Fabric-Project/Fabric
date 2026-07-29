@@ -37,9 +37,9 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
     
     private lazy var camera = PerspectiveCamera(context:self.context, position: .init(repeating: 5.0), near: 0.01, far: 500.0, fov: 30)
 
-    override public func startExecution(renderer:GraphRenderer)
+    override public func startExecution(renderer:GraphRenderer) throws
     {
-        super.startExecution(renderer: renderer)
+        try super.startExecution(renderer: renderer)
                 
         self.camera.lookAt(target: self.inputLookAt.value ?? .zero)
         self.camera.position = self.inputPosition.value ?? .zero
@@ -63,6 +63,7 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         let _ = self.evaluate(object: self.camera, atTime: executionInfo.timing.time)
     }
@@ -73,4 +74,3 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
     }
   
 }
-

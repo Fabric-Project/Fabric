@@ -40,6 +40,7 @@ public class StringJoinNode : Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputPort.valueDidChange || self.separatorPort.valueDidChange
         {

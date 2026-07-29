@@ -103,6 +103,7 @@ public class MeshNode : BaseRenderableNode<Mesh>
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if
             (self.inputGeometry.valueDidChange

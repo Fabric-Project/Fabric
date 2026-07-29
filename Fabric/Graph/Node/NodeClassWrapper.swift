@@ -18,6 +18,7 @@ public struct NodeClassWrapper: Identifiable
     public var fileURL:URL? = nil
     public var nodeName:String
     public var nodeDescription:String
+    public var pluginBundleID:String?
 
 
     // Specify a overridden node type for say, nodeType image with specific image types (effects)
@@ -28,16 +29,28 @@ public struct NodeClassWrapper: Identifiable
         self.fileURL = fileURL
         self.nodeName = nodeName ?? nodeClass.name
         self.nodeDescription = nodeClass.nodeDescription
+        self.pluginBundleID = nil
     }
 
     /// Initialise with an explicit description (e.g. parsed from a shader file).
-    public init(nodeClass: Node.Type, nodeType:Node.NodeType? = nil, fileURL:URL? = nil, nodeName:String? = nil, nodeDescription:String)
+    public init(nodeClass: Node.Type, nodeType:Node.NodeType? = nil, fileURL:URL? = nil, nodeName:String? = nil, nodeDescription:String, pluginBundleID:String? = nil)
     {
         self.nodeClass = nodeClass
         self.nodeType = nodeType ?? nodeClass.nodeType
         self.fileURL = fileURL
         self.nodeName = nodeName ?? nodeClass.name
         self.nodeDescription = nodeDescription
+        self.pluginBundleID = pluginBundleID
+    }
+
+    public init(nodeClass: Node.Type, nodeType:Node.NodeType? = nil, fileURL:URL? = nil, nodeName:String? = nil, pluginBundleID:String?)
+    {
+        self.nodeClass = nodeClass
+        self.nodeType = nodeType ?? nodeClass.nodeType
+        self.fileURL = fileURL
+        self.nodeName = nodeName ?? nodeClass.name
+        self.nodeDescription = nodeClass.nodeDescription
+        self.pluginBundleID = pluginBundleID
     }
     
     public func initializeNode(context:Context) throws -> Node
@@ -48,7 +61,7 @@ public struct NodeClassWrapper: Identifiable
             return try nodeClassFile.init(context:context, fileURL: fileURL)
         }
         
-        return  self.nodeClass.init(context:context)
+        return try self.nodeClass.initWithContext(context: context)
     }
 }
 

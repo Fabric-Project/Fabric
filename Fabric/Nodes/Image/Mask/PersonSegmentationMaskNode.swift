@@ -82,6 +82,7 @@ public class PersonSegmentationMaskNode: Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         
         if self.inputTexturePort.valueDidChange

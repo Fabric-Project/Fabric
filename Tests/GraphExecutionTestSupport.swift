@@ -148,14 +148,14 @@ struct GraphExecutionTestHarness
         }
 
         if drawScene {
-            renderer.executeAndDraw(
+            try renderer.executeAndDraw(
                 graph: graph,
                 executionInfo: executionInfo,
                 renderPassDescriptor: renderPassDescriptor,
                 commandBuffer: commandBuffer
             )
         } else {
-            renderer.execute(
+            try renderer.execute(
                 graph: graph,
                 executionInfo: executionInfo,
                 renderPassDescriptor: renderPassDescriptor,
@@ -202,7 +202,7 @@ struct GraphExecutionTestHarness
             throw GraphExecutionTestFailure("Failed to create command buffer")
         }
 
-        node.execute(
+        try node.execute(
             renderer: renderer,
             executionInfo: makeExecutionContext(time: 0, deltaTime: 0, frameNumber: 0),
             renderPassDescriptor: descriptor,

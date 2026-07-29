@@ -159,6 +159,7 @@ public class StringSplitNode: Node {
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         let separatorDidChange = splitMode == .exactSeparator && inputSeparator.valueDidChange
         guard inputPort.valueDidChange || separatorDidChange,

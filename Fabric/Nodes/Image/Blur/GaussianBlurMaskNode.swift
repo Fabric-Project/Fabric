@@ -46,6 +46,7 @@ public final class GaussianBlurMaskNode: BaseMultiPassBlurEffectTwoChannelNode {
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let (inputTexture, inputMask) = self.validatedTwoInputTextures() else {
             self.outputTexturePort.send(nil)

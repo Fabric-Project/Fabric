@@ -35,6 +35,7 @@ public class ArrayResampleNode<Value: PortValueRepresentable & Lerpable>: Node
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard self.inputArray.valueDidChange || self.inputCount.valueDidChange else { return }
         guard let source = self.inputArray.value, !source.isEmpty,

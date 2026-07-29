@@ -37,6 +37,7 @@ public class RepeatValueNode<Value : PortValueRepresentable & DefaultParameterPr
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard self.inputValue.valueDidChange || self.inputCount.valueDidChange else { return }
         guard let value = self.inputValue.value, let rawCount = self.inputCount.value else { return }

@@ -76,6 +76,44 @@ struct PortConnectionTests {
         #expect(decodedSource.outputNumber.connections.count == 1)
     }
 
+    @Test("Graph encoding records required plugins and qualified node IDs")
+    func graphEncodingRecordsRequiredPluginsAndQualifiedNodeIDs() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        graph.addNode(PerspectiveCameraNode(context: context))
+
+        let data = try JSONEncoder().encode(graph)
+        let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let requiredPlugins = try #require(object?["requiredPlugins"] as? [[String: Any]])
+        let nodeMap = try #require(object?["nodeMap"] as? [[String: Any]])
+
+        #expect(requiredPlugins.contains { $0["id"] as? String == PluginLoader.coreNodesPluginID })
+        #expect(nodeMap.first?["type"] as? String == "\(PluginLoader.coreNodesPluginID)/PerspectiveCameraNode")
+    }
+
+    @Test("Legacy unqualified node IDs decode as core plugin nodes")
+    func legacyUnqualifiedNodeIDsDecodeAsCorePluginNodes() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        graph.addNode(PerspectiveCameraNode(context: context))
+
+        let encodedData = try JSONEncoder().encode(graph)
+        var object = try #require(JSONSerialization.jsonObject(with: encodedData) as? [String: Any])
+        var nodeMap = try #require(object["nodeMap"] as? [[String: Any]])
+        nodeMap[0]["type"] = "PerspectiveCameraNode"
+        object["nodeMap"] = nodeMap
+        object.removeValue(forKey: "requiredPlugins")
+
+        let legacyData = try JSONSerialization.data(withJSONObject: object)
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decodedGraph = try decoder.decode(Graph.self, from: legacyData)
+
+        #expect(decodedGraph.nodes.first is PerspectiveCameraNode)
+    }
+
     @Test("Generic array virtual type compatibility is array scoped")
     func genericArrayVirtualTypeCompatibilityIsArrayScoped() {
         let genericArray = PortType.Array(portType: .Virtual)
@@ -118,6 +156,119 @@ struct PortConnectionTests {
 
         #expect(virtualOutlet.canConnect(to: stringInlet))
         #expect(stringInlet.canConnect(to: virtualOutlet))
+    }
+
+    /// Every port type the canvas can present, including the two virtual types
+    /// and a representative concrete and generic array.
+    private static let allConnectablePortTypes: [PortType] = [
+        .Virtual, .NumericVirtual,
+        .Bool, .Int, .Float, .String,
+        .Vector2, .Vector3, .Vector4, .Color, .Quaternion, .Transform,
+        .Geometry, .Material, .Image,
+        .Array(portType: .Virtual), .Array(portType: .Float),
+    ]
+
+    @Test("Compatibility is direction independent for every port type pair")
+    func compatibilityIsDirectionIndependent() {
+        // The canvas asks compatibility as targetPort.canConnect(to: draggedPort),
+        // so whichever end the user drags from decides which type is the receiver.
+        // Any asymmetry here makes a wire connect one way and silently fail the other.
+        for outlet in Self.allConnectablePortTypes {
+            for inlet in Self.allConnectablePortTypes {
+                #expect(outlet.canConnect(to: inlet) == inlet.canConnect(to: outlet),
+                        "\(outlet.rawValue) -> \(inlet.rawValue) disagrees with the reverse direction")
+            }
+        }
+    }
+
+    @Test("Every scalar type connects to a virtual port from either drag direction")
+    func scalarTypesConnectToVirtualFromEitherDragDirection() {
+        // Regression: the .Bool/.Int/.Float/.String and .Color/.Vector4 cases used
+        // to omit .Virtual from their accepted set, so a virtual outlet could not
+        // be dragged into a typed inlet even though the reverse drag worked.
+        for portType in [PortType.Bool, .Int, .Float, .String, .Vector4, .Color] {
+            let typedInlet = portType.makeFreshPort(name: "Typed", kind: .Inlet)
+            let typedOutlet = portType.makeFreshPort(name: "Typed", kind: .Outlet)
+            let virtualInlet = PortType.Virtual.makeFreshPort(name: "Value", kind: .Inlet)
+            let virtualOutlet = PortType.Virtual.makeFreshPort(name: "Value", kind: .Outlet)
+
+            #expect(typedInlet.canConnect(to: virtualOutlet),
+                    "dragging a virtual outlet onto a \(portType.rawValue) inlet must be allowed")
+            #expect(virtualOutlet.canConnect(to: typedInlet),
+                    "dragging a \(portType.rawValue) inlet onto a virtual outlet must be allowed")
+            #expect(virtualInlet.canConnect(to: typedOutlet),
+                    "dragging a \(portType.rawValue) outlet onto a virtual inlet must be allowed")
+            #expect(typedOutlet.canConnect(to: virtualInlet),
+                    "dragging a virtual inlet onto a \(portType.rawValue) outlet must be allowed")
+        }
+    }
+
+    @Test("A typed Switch wires up everywhere its virtual form does")
+    func typedSwitchConnectsWhereVirtualSwitchDoes() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let virtualSwitch = SwitchNode(context: context, routeCount: 2, portType: .Virtual)
+        let floatSwitch = SwitchNode(context: context, routeCount: 2, portType: .Float)
+        let log = LogNode(context: context)
+        let number = NumberBinaryOperator(context: context)
+        graph.addNode(virtualSwitch)
+        graph.addNode(floatSwitch)
+        graph.addNode(log)
+        graph.addNode(number)
+
+        let floatInput = try #require(floatSwitch.findPort(named: "input0", as: Port.self))
+
+        // Switch output into the virtual Log inlet, dragged from either end.
+        #expect(log.inputAny.canConnect(to: floatSwitch.output))
+        #expect(floatSwitch.output.canConnect(to: log.inputAny))
+
+        // Switch output into a typed number inlet, and a number outlet back into
+        // the typed Switch input.
+        #expect(number.inputNumber1.canConnect(to: floatSwitch.output))
+        #expect(floatInput.canConnect(to: number.outputNumber))
+
+        // A virtual outlet into the typed Switch input — the case the canvas
+        // refused while the reverse drag succeeded.
+        #expect(floatInput.canConnect(to: virtualSwitch.output))
+        #expect(virtualSwitch.output.canConnect(to: floatInput))
+
+        floatSwitch.output.connect(to: log.inputAny)
+        number.outputNumber.connect(to: floatInput)
+
+        #expect(floatSwitch.output.connections.count == 1)
+        #expect(log.inputAny.connections.count == 1)
+        #expect(number.outputNumber.connections.count == 1)
+        #expect(floatInput.connections.count == 1)
+    }
+
+    @Test("Switching a Switch from virtual to typed keeps its wires")
+    func switchTypeChangeKeepsWires() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let source = SwitchNode(context: context, routeCount: 2, portType: .Virtual)
+        let sink = SwitchNode(context: context, routeCount: 2, portType: .Virtual)
+        let log = LogNode(context: context)
+        graph.addNode(source)
+        graph.addNode(sink)
+        graph.addNode(log)
+
+        let inputBefore = try #require(sink.findPort(named: "input0", as: Port.self))
+        source.output.connect(to: inputBefore)
+        sink.output.connect(to: log.inputAny)
+
+        sink.setPortType(.Float)
+
+        // Ports are replaced in place on a type change; the surviving wires are
+        // re-attached only for pairs canConnect still accepts.
+        let inputAfter = try #require(sink.findPort(named: "input0", as: Port.self))
+        let outputAfter = try #require(sink.findPort(named: "output", as: Port.self))
+
+        #expect(inputAfter.connections.count == 1)
+        #expect(outputAfter.connections.count == 1)
+        #expect(source.output.connections.count == 1)
+        #expect(log.inputAny.connections.count == 1)
     }
 
     @Test("Retired dynamic ports cannot reconnect from stale view references")

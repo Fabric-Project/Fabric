@@ -41,6 +41,7 @@ public final class DictionaryMergeNode: DictionaryTypeAgnosticNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let inputDictionaryA: Port = findPort(named: "inputDictionaryA"),
               let inputDictionaryB: Port = findPort(named: "inputDictionaryB"),

@@ -48,6 +48,7 @@ public class OrientationArrayTweenNode : Node
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         let time = executionInfo.timing.time
 

@@ -97,6 +97,7 @@ internal import AnyCodable
     {
         case id
         case version
+        case requiredPlugins
         case nodeMap
         case portConnectionMap
         case notes
@@ -131,6 +132,9 @@ internal import AnyCodable
         self.scene = Object(context: context)
 
         self.notes = try container.decodeIfPresent([Note].self, forKey: .notes) ?? []
+        let requiredPlugins = try container.decodeIfPresent([PluginRequirement].self, forKey: .requiredPlugins) ?? []
+        let nodeRegistry = try NodeRegistry.shared
+        try nodeRegistry.validatePluginRequirements(requiredPlugins)
 
         // For Subgraphs - we capture and reset state
         // this is needed for ProxyPorts which expose inner graph ports
@@ -166,7 +170,9 @@ internal import AnyCodable
 //                print(anyCodableMap.type)
 //                print(anyCodableMap.value)
                 
-                if let nodeClass = NodeRegistry.shared.nodeClass(for: anyCodableMap.type)
+                let nodeID = Self.qualifiedNodeID(fromSerializedType: anyCodableMap.type)
+
+                if let nodeClass = nodeRegistry.nodeClass(pluginID: nodeID.pluginID, nodeID: nodeID.nodeID)
                 {
                     let jsonData = try encoder.encode(anyCodableMap.value)
                     decoder.context = decodeContext
@@ -243,12 +249,14 @@ internal import AnyCodable
                
                 else
                 {
-                    print("Failed to find nodeClass for \(anyCodableMap.type)")
+                    throw FabricError(.deserialization(.nodeNotFound),
+                                      severity: .fatal,
+                                      message: "Could not find node '\(nodeID.nodeID)' in plugin '\(nodeID.pluginID)'")
                 }
             }
             catch
             {
-                print("Failed to decode node: \(error)")
+                throw error
             }
         }
         
@@ -285,10 +293,13 @@ internal import AnyCodable
 
         try container.encode(self.id, forKey: .id)
         try container.encode(self.version, forKey: .version)
+        let requiredPlugins = try self.requiredPlugins(for: self.nodes)
+        try container.encode(requiredPlugins, forKey: .requiredPlugins)
 
-        let nodeMap:[ AnyCodableMap ] = self.nodes.compactMap {
-            return AnyCodableMap(type: String(describing: type(of: $0)),
-                                   value: AnyCodable($0))
+        let nodeMap:[ AnyCodableMap ] = try self.nodes.map {
+            let qualifiedNodeID = try self.qualifiedNodeID(for: type(of: $0))
+            return AnyCodableMap(type: qualifiedNodeID.description,
+                                 value: AnyCodable($0))
         }
         
         try container.encode(self.notes, forKey: .notes)
@@ -760,7 +771,10 @@ internal import AnyCodable
 
             let jsonData = try encoder.encode(map.value)
 
-            if let nodeClass = NodeRegistry.shared.nodeClass(for: map.type)
+            let nodeID = Self.qualifiedNodeID(fromSerializedType: map.type)
+            let nodeRegistry = try NodeRegistry.shared
+
+            if let nodeClass = nodeRegistry.nodeClass(pluginID: nodeID.pluginID, nodeID: nodeID.nodeID)
             {
                 return try decoder.decode(nodeClass, from: jsonData)
             }
@@ -833,6 +847,60 @@ internal import AnyCodable
         default:
             break
         }
+    }
+
+    private func qualifiedNodeID(for nodeClass: Node.Type) throws -> PluginQualifiedNodeID
+    {
+        let registry = try NodeRegistry.shared
+
+        if let qualifiedNodeID = registry.qualifiedNodeID(for: nodeClass)
+        {
+            return qualifiedNodeID
+        }
+
+        throw FabricError(.deserialization(.nodeNotFound),
+                          severity: .fatal,
+                          message: "Could not find plugin registration for node class '\(String(describing: nodeClass))'")
+    }
+
+    private func requiredPlugins(for nodes: [Node]) throws -> [PluginRequirement]
+    {
+        let registry = try NodeRegistry.shared
+        var requirementsByID: [String: PluginRequirement] = [:]
+
+        for node in nodes
+        {
+            guard let qualifiedNodeID = registry.qualifiedNodeID(for: type(of: node)) else
+            {
+                throw FabricError(.deserialization(.nodeNotFound),
+                                  severity: .fatal,
+                                  message: "Could not find plugin registration for node class '\(String(describing: type(of: node)))'")
+            }
+
+            guard let pluginInfo = PluginLoader.shared.loadedPlugins[qualifiedNodeID.pluginID] else
+            {
+                throw FabricError(.loading(.pluginNotFound),
+                                  severity: .fatal,
+                                  message: "Required plugin '\(qualifiedNodeID.pluginID)' is not loaded")
+            }
+
+            requirementsByID[qualifiedNodeID.pluginID] = PluginRequirement(id: pluginInfo.id,
+                                                                          version: pluginInfo.version)
+        }
+
+        return requirementsByID.values.sorted { $0.id < $1.id }
+    }
+
+    private static func qualifiedNodeID(fromSerializedType serializedType: String) -> PluginQualifiedNodeID
+    {
+        guard let separatorRange = serializedType.range(of: PluginQualifiedNodeID.separator) else
+        {
+            return PluginQualifiedNodeID(pluginID: PluginLoader.coreNodesPluginID,
+                                         nodeID: serializedType)
+        }
+
+        return PluginQualifiedNodeID(pluginID: String(serializedType[..<separatorRange.lowerBound]),
+                                     nodeID: String(serializedType[separatorRange.upperBound...]))
     }
 
     /// Finds all UUID-formatted strings in JSON data by traversing the parsed structure
@@ -916,13 +984,13 @@ internal import AnyCodable
 
         for node in nodesToDuplicate
         {
-            let map = AnyCodableMap(
-                type: String(describing: type(of: node)),
-                value: AnyCodable(node)
-            )
-
             do
             {
+                let qualifiedNodeID = try self.qualifiedNodeID(for: type(of: node))
+                let map = AnyCodableMap(
+                    type: qualifiedNodeID.description,
+                    value: AnyCodable(node)
+                )
                 let data = try encoder.encode(map)
                 encodedEntries.append(data)
 
@@ -1026,11 +1094,22 @@ extension Graph
 
         let internalConnections = buildInternalConnectionMap(for: nodes)
 
-        let nodeEntries: [AnyCodableMap] = nodes.map {
-            AnyCodableMap(
-                type: String(describing: type(of: $0)),
-                value: AnyCodable($0)
-            )
+        let nodeEntries: [AnyCodableMap]
+
+        do
+        {
+            nodeEntries = try nodes.map {
+                let qualifiedNodeID = try self.qualifiedNodeID(for: type(of: $0))
+                return AnyCodableMap(
+                    type: qualifiedNodeID.description,
+                    value: AnyCodable($0)
+                )
+            }
+        }
+        catch
+        {
+            print("copyNodesToPasteboard: Failed to resolve plugin node IDs: \(error)")
+            return
         }
 
         // Store connection map with string keys for Codable compatibility

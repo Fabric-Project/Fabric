@@ -46,6 +46,7 @@ public final class GaussianBlurNode: BaseMultiPassBlurEffectNode {
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let inputTexture = self.validatedSingleInputTexture() else {
             self.outputTexturePort.send(nil)

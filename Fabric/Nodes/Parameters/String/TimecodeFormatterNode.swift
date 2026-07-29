@@ -34,6 +34,7 @@ public class TimecodeFormatterNode: Node {
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if inputTime.valueDidChange || inputFPS.valueDidChange,
            let time = inputTime.value,

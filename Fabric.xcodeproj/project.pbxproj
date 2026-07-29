@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		1BB453442F42919100F641AE /* Fabric in Frameworks */ = {isa = PBXBuildFile; productRef = 1BB453432F42919100F641AE /* Fabric */; };
+		1BBC136C3017D66F0039260E /* Fabric in Embed Frameworks */ = {isa = PBXBuildFile; productRef = 1BFD79222F367C6E00F84067 /* Fabric */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		1BE00A5D2DC936A50061EAFD /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5B2DC936A50061EAFD /* CoreFoundation.framework */; };
 		1BE00A5E2DC936A50061EAFD /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5C2DC936A50061EAFD /* Foundation.framework */; };
 		1BE00A612DC936AC0061EAFD /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE00A5F2DC936AC0061EAFD /* MetalKit.framework */; };
@@ -23,6 +24,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
+				1BBC136C3017D66F0039260E /* Fabric in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;

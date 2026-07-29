@@ -45,6 +45,7 @@ public class NumberClampNode : Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputNumber.valueDidChange || self.inputMinNumber.valueDidChange || self.inputMaxNumber.valueDidChange
         {

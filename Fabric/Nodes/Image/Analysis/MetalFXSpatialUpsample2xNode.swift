@@ -35,6 +35,7 @@ final class MetalFXSpatialUpsample2xNode: BaseImageNode
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard self.imageInputPorts().first?.valueDidChange == true || isDirty else {
             return
@@ -57,17 +58,17 @@ final class MetalFXSpatialUpsample2xNode: BaseImageNode
             self.rebuildScalerAndTargets(for: inTex)
         }
 
-        guard let scaler = self.spatialScaler,
-              let outImage = renderer.newImage(
-                withWidth: inputWidth * 2,
-                height: inputHeight * 2,
-                format: inputFormat
-              )
-        else
+        guard let scaler = self.spatialScaler else
         {
             self.outputTexturePort.send(nil)
             return
         }
+
+        let outImage = try renderer.newImage(
+            withWidth: inputWidth * 2,
+            height: inputHeight * 2,
+            format: inputFormat
+        )
 
         // Validate usage (best-effort). MetalFX requires the texture usage be a superset of these.
         // (Some upstream nodes may create textures with too-restrictive usage flags.)

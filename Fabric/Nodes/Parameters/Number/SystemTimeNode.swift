@@ -38,7 +38,8 @@ public class SystemTimeNode : Node
     public var inputNumber:ParameterPort<Float> { port(named: "inputNumber") }
     public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
     
-    override public func startExecution(renderer: GraphRenderer) {
+    override public func startExecution(renderer: GraphRenderer) throws
+    {
         self.startTime = Date.timeIntervalSinceReferenceDate// context.timing.systemTime
     }
     
@@ -46,6 +47,7 @@ public class SystemTimeNode : Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         self.outputNumber.send( Float(executionInfo.timing.systemTime - startTime) )
     }

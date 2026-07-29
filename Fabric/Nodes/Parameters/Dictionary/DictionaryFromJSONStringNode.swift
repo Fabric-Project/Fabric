@@ -34,6 +34,7 @@ public final class DictionaryFromJSONStringNode: Node
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard inputJSONString.valueDidChange else { return }
         let source = inputJSONString.value ?? ""

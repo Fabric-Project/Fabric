@@ -18,6 +18,10 @@ public class ComposeVectorArrayNode: StrategyNode
 
     public override class var strategyOptions: [any NodeStrategyOption] { VectorType.allCases }
 
+    // The vector type is already evident from the component ports, so keep the
+    // plain type-name title rather than leading it with the strategy.
+    override public var displayName: String? { nil }
+
     private static let allDynamicNames: Set<String> = [
         "inputComponent0", "inputComponent1", "inputComponent2", "inputComponent3",
         "outputArray",
@@ -27,8 +31,6 @@ public class ComposeVectorArrayNode: StrategyNode
     {
         self.init(context: context, strategy: vectorType)
     }
-
-    override public class var strategyTitleSuffix: String? { "Array Compose" }
 
     public override func rebuildPorts(forStrategy strategy: String)
     {
@@ -66,6 +68,7 @@ public class ComposeVectorArrayNode: StrategyNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let vt: VectorType = strategyOption() else { return }
 

@@ -34,9 +34,9 @@ public class ExtrudedTextGeometryNode : BaseGeometryNode
 
     private lazy var _geometry = ExtrudedTextGeometry(context:self.context, text: "Testing", fontSize: 1.0)
 
-    override public func startExecution(renderer: GraphRenderer)
+    override public func startExecution(renderer: GraphRenderer) throws
     {
-        super.startExecution(renderer:renderer)
+        try super.startExecution(renderer:renderer)
 
         if let fontParam = self.inputFont.parameter as? StringParameter
         {

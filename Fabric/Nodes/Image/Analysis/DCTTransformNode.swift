@@ -259,6 +259,7 @@ public class BaseDCTTransformNode: Node
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         let subsamplePortsChanged =
             inputChannel1HorizontalSubsample.valueDidChange ||
@@ -272,13 +273,16 @@ public class BaseDCTTransformNode: Node
 
         guard inputImage.valueDidChange || inputBlockSize.valueDidChange || subsamplePortsChanged else { return }
 
-        guard
-            let sourceTexture = inputImage.value?.texture,
-            let computePipeline,
-            let basisBuffer
-        else {
+        guard let sourceTexture = inputImage.value?.texture else {
             outputImage.send(nil)
             return
+        }
+
+        guard let computePipeline, let basisBuffer else
+        {
+            throw FabricError(.execution(.gpu),
+                              severity: .recoverable,
+                              message: "DCT Transform compute resources are unavailable")
         }
 
         let maximumSupportedBlockSize = min(
@@ -302,16 +306,17 @@ public class BaseDCTTransformNode: Node
             UInt32(Self.clampedSubsample(inputChannel4VerticalSubsample.value, blockSize: blockSize))
         )
 
-        guard
-            let transformedImage = renderer.newImage(
-                withWidth: sourceTexture.width,
-                height: sourceTexture.height,
-                format: .rgba16Float
-            ),
-            let computeEncoder = commandBuffer.makeComputeCommandEncoder()
-        else {
-            outputImage.send(nil)
-            return
+        let transformedImage = try renderer.newImage(
+            withWidth: sourceTexture.width,
+            height: sourceTexture.height,
+            format: .rgba16Float
+        )
+
+        guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else
+        {
+            throw FabricError(.execution(.gpu),
+                              severity: .recoverable,
+                              message: "Could not create DCT Transform compute encoder")
         }
 
         transformedImage.texture.label = "\(name) Output"

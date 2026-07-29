@@ -47,6 +47,7 @@ public class ArrayReplaceValueAtIndexNode: TypeAgnosticNode
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard let inputPort:  Port = findPort(named: "inputPort"),
               let inputValue: Port = findPort(named: "inputValue"),

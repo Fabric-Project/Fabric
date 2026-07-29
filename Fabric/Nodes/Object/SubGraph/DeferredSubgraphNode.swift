@@ -110,11 +110,19 @@ public class DeferredSubgraphNode: SubgraphNode
     public required init(context: Context)
     {
         self.graphRenderer = GraphRenderer(context: context)
-        
+
         super.init(context: context)
         self.synchronizeDeferredConfiguration()
     }
-    
+
+    public override init(context: Context, subGraph: Graph)
+    {
+        self.graphRenderer = GraphRenderer(context: context)
+
+        super.init(context: context, subGraph: subGraph)
+        self.synchronizeDeferredConfiguration()
+    }
+
     public required init(from decoder: any Decoder) throws
     {
         guard let decodeContext = decoder.context else
@@ -242,35 +250,35 @@ public class DeferredSubgraphNode: SubgraphNode
         }
     }
     
-    override public func startExecution(renderer:GraphRenderer)
+    override public func startExecution(renderer:GraphRenderer) throws
     {
         if self.rendererNeedsSetup
         {
             self.setupRenderer()
         }
 
-        self.graphRenderer.startExecution(graph: self.subGraph)
+        try self.graphRenderer.startExecution(graph: self.subGraph)
     }
     
-    override public func stopExecution(renderer:GraphRenderer)
+    override public func stopExecution(renderer:GraphRenderer) throws
     {
-        self.graphRenderer.stopExecution(graph: self.subGraph)
+        try self.graphRenderer.stopExecution(graph: self.subGraph)
     }
 
-    override public func enableExecution(renderer:GraphRenderer)
+    override public func enableExecution(renderer:GraphRenderer) throws
     {
-        self.graphRenderer.enableExecution(graph: self.subGraph)
+        try self.graphRenderer.enableExecution(graph: self.subGraph)
     }
     
-    override public func disableExecution(renderer:GraphRenderer)
+    override public func disableExecution(renderer:GraphRenderer) throws
     {
-        self.graphRenderer.disableExecution(graph: self.subGraph)
+        try self.graphRenderer.disableExecution(graph: self.subGraph)
     }
     
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
+                                 commandBuffer: MTLCommandBuffer) throws
     {
         if self.rendererNeedsSetup
         {
@@ -301,22 +309,15 @@ public class DeferredSubgraphNode: SubgraphNode
         else { return }
 
             
-        if let outputImage = self.graphRenderer.newImage(withWidth: width, height: height)
-        {
-            rpd1.colorAttachments[0].texture = outputImage.texture
-            
-            
-            self.graphRenderer.executeAndDraw(graph: self.subGraph,
+        let outputImage = try self.graphRenderer.newImage(withWidth: width, height: height)
+        rpd1.colorAttachments[0].texture = outputImage.texture
+
+        try self.graphRenderer.executeAndDraw(graph: self.subGraph,
                                               executionInfo: executionInfo,
                                               renderPassDescriptor: rpd1,
                                               commandBuffer: commandBuffer)
-            
-            self.outputColorTexture.send( outputImage )
-        }
-        else
-        {
-            self.outputColorTexture.send( nil )
-        }
+
+        self.outputColorTexture.send(outputImage)
         
         if let texture = self.graphRenderer.renderEncoder.depthTexture
         {

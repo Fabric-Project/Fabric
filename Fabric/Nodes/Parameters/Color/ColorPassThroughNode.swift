@@ -41,6 +41,7 @@ public class ColorPassThroughNode: Node
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.input.valueDidChange
         {

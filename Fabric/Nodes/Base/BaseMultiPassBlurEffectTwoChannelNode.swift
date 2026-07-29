@@ -77,7 +77,7 @@ public class BaseMultiPassBlurEffectTwoChannelNode: BaseImageNode
         var currentImage: FabricImage? = nil
 
         for (index, step) in steps.enumerated() {
-            guard let nextImage = renderer.newImage(withWidth: step.width, height: step.height) else {
+            guard let nextImage = try? renderer.newImage(withWidth: step.width, height: step.height) else {
                 currentImage?.release()
                 return nil
             }

@@ -123,20 +123,33 @@ public class LucasKanadeOpticalFlowNode: Node
                                  executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard
             self.inputImage.valueDidChange
                 || self.inputPrevImage.valueDidChange
                 || self.inputQuality.valueDidChange
                 || self.inputPreviousFlow.valueDidChange
-                || self.inputTemporalSmoothing.valueDidChange,
-            let inTex      = self.inputImage.value?.texture,
-            let preProc    = preprocessPipeline,
-            let flowLvl    = flowLevelPipeline,
-            let median     = medianFilterPipeline,
-            let bilat      = bilateralUpsamplePipeline,
-            let temporalSmooth = temporalSmoothingPipeline
+                || self.inputTemporalSmoothing.valueDidChange
         else { return }
+
+        guard let inTex = self.inputImage.value?.texture else
+        {
+            outputFlow.send(nil)
+            return
+        }
+
+        guard
+            let preProc = preprocessPipeline,
+            let flowLvl = flowLevelPipeline,
+            let median = medianFilterPipeline,
+            let bilat = bilateralUpsamplePipeline,
+            let temporalSmooth = temporalSmoothingPipeline
+        else {
+            throw FabricError(.execution(.gpu),
+                              severity: .recoverable,
+                              message: "Lucas-Kanade Optical Flow compute pipelines are unavailable")
+        }
 
         // Fall back to the current frame as "previous" when inputPrevImage is not
         // connected — produces zero flow, which is the correct identity output.
@@ -148,17 +161,16 @@ public class LucasKanadeOpticalFlowNode: Node
         let cfg     = levelConfig(for: quality)
 
         commandBuffer.pushDebugGroup("Lucas-Kanade Optical Flow (\(W)×\(H) \(quality))")
+        defer { commandBuffer.popDebugGroup() }
 
-        guard
-            let currentPyramid = renderer.newImage(withWidth: W,
+        let currentPyramid = try renderer.newImage(withWidth: W,
                                                    height: H,
                                                    format: .rgba16Float,
-                                                   mipmapped: true),
-            let previousPyramid = renderer.newImage(withWidth: W,
+                                                   mipmapped: true)
+        let previousPyramid = try renderer.newImage(withWidth: W,
                                                     height: H,
                                                     format: .rgba16Float,
                                                     mipmapped: true)
-        else { return }
         currentPyramid.texture.label = "LK Current Feature Pyramid"
         previousPyramid.texture.label = "LK Previous Feature Pyramid"
 
@@ -168,8 +180,7 @@ public class LucasKanadeOpticalFlowNode: Node
             let shift = cfg.coarsestShift - lvl
             let lw    = max(1, W >> shift)
             let lh    = max(1, H >> shift)
-            guard let img = renderer.newImage(withWidth: lw, height: lh, format: .rg16Float)
-            else { return }
+            let img = try renderer.newImage(withWidth: lw, height: lh, format: .rg16Float)
             img.texture.label = "LK Flow Level \(lvl) (\(lw)×\(lh))"
             flowImages.append(img)
         }
@@ -181,24 +192,29 @@ public class LucasKanadeOpticalFlowNode: Node
         for _ in 0 ..< cfg.bilatPassCount {
             bW = min(W, bW * 2)
             bH = min(H, bH * 2)
-            guard let img = renderer.newImage(withWidth: bW, height: bH, format: .rg16Float)
-            else { return }
+            let img = try renderer.newImage(withWidth: bW, height: bH, format: .rg16Float)
             img.texture.label = "LK Edge-Aware Upsample \(upsampledFlowImages.count) (\(bW)×\(bH))"
             upsampledFlowImages.append(img)
         }
 
-        guard let unusedCoarseFlow = renderer.newImage(
+        let unusedCoarseFlow = try renderer.newImage(
             withWidth: flowImages[0].texture.width,
             height: flowImages[0].texture.height,
             format: .rg16Float
-        ), let medianFlow = renderer.newImage(
+        )
+        let medianFlow = try renderer.newImage(
             withWidth: flowImages.last!.texture.width,
             height: flowImages.last!.texture.height,
             format: .rg16Float
-        ) else { return }
+        )
 
         // Preprocessing must finish before the blit encoder generates mips.
-        guard let enc = commandBuffer.makeComputeCommandEncoder() else { return }
+        guard let enc = commandBuffer.makeComputeCommandEncoder() else
+        {
+            throw FabricError(.execution(.gpu),
+                              severity: .recoverable,
+                              message: "Could not create Lucas-Kanade preprocess compute encoder")
+        }
         enc.label = "LK Preprocess"
         enc.pushDebugGroup("LK Preprocess")
         enc.setComputePipelineState(preProc)
@@ -211,13 +227,23 @@ public class LucasKanadeOpticalFlowNode: Node
         enc.popDebugGroup()
         enc.endEncoding()
 
-        guard let blitEncoder = commandBuffer.makeBlitCommandEncoder() else { return }
+        guard let blitEncoder = commandBuffer.makeBlitCommandEncoder() else
+        {
+            throw FabricError(.execution(.gpu),
+                              severity: .recoverable,
+                              message: "Could not create Lucas-Kanade mipmap blit encoder")
+        }
         blitEncoder.label = "LK Generate Feature Mipmaps"
         blitEncoder.generateMipmaps(for: currentPyramid.texture)
         blitEncoder.generateMipmaps(for: previousPyramid.texture)
         blitEncoder.endEncoding()
 
-        guard let flowEncoder = commandBuffer.makeComputeCommandEncoder() else { return }
+        guard let flowEncoder = commandBuffer.makeComputeCommandEncoder() else
+        {
+            throw FabricError(.execution(.gpu),
+                              severity: .recoverable,
+                              message: "Could not create Lucas-Kanade flow compute encoder")
+        }
         flowEncoder.label = "LK Flow"
         let barrier: () -> Void = { flowEncoder.memoryBarrier(scope: .textures) }
 
@@ -283,11 +309,12 @@ public class LucasKanadeOpticalFlowNode: Node
         var outputImage = reconstructedFlow
 
         if let previousFlowTexture,
-           shouldApplyTemporalSmoothing,
-           let temporallySmoothedFlow = renderer.newImage(withWidth: W,
-                                                          height: H,
-                                                          format: .rg16Float)
+           shouldApplyTemporalSmoothing
         {
+            let temporallySmoothedFlow = try renderer.newImage(withWidth: W,
+                                                               height: H,
+                                                               format: .rg16Float)
+
             var previousFlowWeight = temporalSmoothing
             flowEncoder.pushDebugGroup("LK Temporal Smoothing")
             flowEncoder.setComputePipelineState(temporalSmooth)
@@ -303,7 +330,6 @@ public class LucasKanadeOpticalFlowNode: Node
         }
 
         flowEncoder.endEncoding()
-        commandBuffer.popDebugGroup()
 
         outputFlow.send(outputImage)
     }

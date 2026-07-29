@@ -120,7 +120,8 @@ public class HandPoseAnalysisNode: Node
     
     private var ciContext:CIContext!
     
-    override public func startExecution(renderer:GraphRenderer) {
+    override public func startExecution(renderer:GraphRenderer) throws
+    {
         
         let options = [
             CIContextOption.cacheIntermediates : false,
@@ -134,6 +135,7 @@ public class HandPoseAnalysisNode: Node
     }
     
     public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputImage.valueDidChange
         {

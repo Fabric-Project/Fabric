@@ -78,6 +78,7 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputImage.valueDidChange
         {

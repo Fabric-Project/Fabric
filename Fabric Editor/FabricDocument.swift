@@ -65,13 +65,13 @@ class FabricDocument: FileDocument
         // Time source
         let currentTimeNode = CurrentTimeNode(context: self.context)
 
-        currentTimeNode.enableExecution(renderer: self.renderer)
-        currentTimeNode.startExecution(renderer: self.renderer)
+        try? currentTimeNode.enableExecution(renderer: self.renderer)
+        try? currentTimeNode.startExecution(renderer: self.renderer)
         
         // Math expression: secs * speed
         let mathNode = MathExpressionNode(context: self.context, expression: "secs * speed")
-        mathNode.enableExecution(renderer: self.renderer)
-        mathNode.startExecution(renderer: self.renderer)
+        try? mathNode.enableExecution(renderer: self.renderer)
+        try? mathNode.startExecution(renderer: self.renderer)
 
         // Publish the 'speed' port with a default of 10
         let speedPort = mathNode.findPort(named: "speed", as: ParameterPort<Float>.self)!
@@ -84,31 +84,31 @@ class FabricDocument: FileDocument
         // ports are dynamic (added by StrategyNode), hence findPort below
         // instead of typed accessor properties.
         let eulerNode = ComposeOrientationNode(context: self.context)
-        eulerNode.enableExecution(renderer: self.renderer)
-        eulerNode.startExecution(renderer: self.renderer)
+        try? eulerNode.enableExecution(renderer: self.renderer)
+        try? eulerNode.startExecution(renderer: self.renderer)
 
         // Geometry, material, mesh
         let boxNode = BoxGeometryNode(context: self.context)
-        boxNode.enableExecution(renderer: self.renderer)
-        boxNode.startExecution(renderer: self.renderer)
+        try? boxNode.enableExecution(renderer: self.renderer)
+        try? boxNode.startExecution(renderer: self.renderer)
 
         let materialNode = StandardMaterialNode(context: self.context)
-        materialNode.enableExecution(renderer: self.renderer)
-        materialNode.startExecution(renderer: self.renderer)
+        try? materialNode.enableExecution(renderer: self.renderer)
+        try? materialNode.startExecution(renderer: self.renderer)
 
         let meshNode = MeshNode(context: self.context)
-        meshNode.enableExecution(renderer: self.renderer)
-        meshNode.startExecution(renderer: self.renderer)
+        try? meshNode.enableExecution(renderer: self.renderer)
+        try? meshNode.startExecution(renderer: self.renderer)
 
         // Camera and light
         let cameraNode = PerspectiveCameraNode(context: self.context)
-        cameraNode.enableExecution(renderer: self.renderer)
-        cameraNode.startExecution(renderer: self.renderer)
+        try? cameraNode.enableExecution(renderer: self.renderer)
+        try? cameraNode.startExecution(renderer: self.renderer)
         cameraNode.inputPosition.value = simd_float3(0, 0, 3)
 
         let directionalLightNode = DirectionalLightNode(context: self.context)
-        directionalLightNode.enableExecution(renderer: self.renderer)
-        directionalLightNode.startExecution(renderer: self.renderer)
+        try? directionalLightNode.enableExecution(renderer: self.renderer)
+        try? directionalLightNode.startExecution(renderer: self.renderer)
         directionalLightNode.inputPosition.value = SIMD3<Float>(1, 2, 5)
 
         // Connections — animation chain. The Math Expression node derives its

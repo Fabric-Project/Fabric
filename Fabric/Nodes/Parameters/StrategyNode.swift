@@ -106,15 +106,18 @@ public class StrategyNode: Node
     /// When true, the picker inserts a visual separator after the first strategy in the list.
     public class var separatorAfterFirstStrategy: Bool { false }
 
-    /// Subclasses whose title derives from the strategy (e.g. "vec3 Compose")
-    /// return the suffix here; nil keeps the plain type-name title.
-    public class var strategyTitleSuffix: String? { nil }
-
+    /// Standard behaviour: the node-generated `displayName` is the active strategy,
+    /// e.g. "vec3" for "Vector Compose", or "Random" for "Number Generator".
+    /// `NodeTitleView` renders the type name after it (yielding "vec3 Vector
+    /// Compose"), so the strategy must not repeat it. An unrecognised strategy
+    /// (e.g. a legacy or renamed case) falls back to the plain type name.
+    ///
+    /// Subclasses wanting a different title override `displayName` directly: return
+    /// nil for the plain type-name title, or a bespoke string — as the type-agnostic
+    /// nodes do, suppressing the token for their Virtual default.
     override public var displayName: String?
     {
-        guard let suffix = Self.strategyTitleSuffix,
-              Self.strategies.contains(strategy) else { return nil }
-        return "\(strategy) \(suffix)"
+        Self.strategies.contains(strategy) ? strategy : nil
     }
 
     /// A strategy string resolved to its typed option, or nil when it matches
@@ -261,5 +264,27 @@ struct StrategyPickerView: View
         }
         .pickerStyle(.menu)
         .controlSize(.small)
+    }
+}
+
+/// A strategy picker followed by usage guidance for the currently-selected
+/// strategy. Reusable by any StrategyNode whose modes benefit from an
+/// explanatory blurb; `guidance` maps a strategy raw value to its description.
+struct StrategyGuidanceView: View
+{
+    @Bindable var model: StrategyNode.SettingsModel
+    let guidance: (String) -> String
+
+    var body: some View
+    {
+        VStack(alignment: .leading)
+        {
+            StrategyPickerView(model: model)
+
+            Text(guidance(model.strategy))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
