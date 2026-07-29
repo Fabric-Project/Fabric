@@ -238,87 +238,23 @@ private func parsePlaceholder(
     )
 }
 
-// MARK: - Settings View
-
-struct StringFormatSettingsView: View {
-    @Bindable var model: StringFormatterNode.SettingsModel
-
-    var body: some View {
-        VStack(alignment: .leading) {
-            Text("Use `{name}` for String, `{name:s}` String, `{name:d}` or `{name:i}` Int, `{name:b}` Bool, `{name:f}` or `{name:.2f}` Float.\n\nExample: `Position: {x:.2f}, {y:.2f}`\n\nEscapes: `\\n`, `\\r`, `\\t`, `\\\\`, and `\\{` `\\}` for literal braces.")
-
-            Spacer()
-
-            TextField("Format String", text: $model.formatString)
-                .lineLimit(1)
-                .font(.system(size: 10))
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-        }
-    }
-}
-
 // MARK: - String Formatter Node
 
-public class StringFormatterNode: Node {
+public class StringFormatterNode: BaseFormatStringNode {
     override public class var name: String { "String Formatter" }
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .String) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Format values into a string using named placeholders. Inverse of String Scanner." }
 
-    override public var displayName: String? { formatString.isEmpty ? nil : formatString }
+    override public class var defaultFormatString: String { "Hello {name}" }
 
-    // MARK: - Codable
+    /// Placeholders are the values to substitute, so each builds an inlet.
+    override public class var placeholderPortKind: PortKind { .Inlet }
 
-    private enum CodingKeys: String, CodingKey {
-        case formatString
+    override public class var settingsGuidance: String {
+        "Use `{name}` for String, `{name:s}` String, `{name:d}` or `{name:i}` Int, `{name:b}` Bool, `{name:f}` or `{name:.2f}` Float.\n\nExample: `Position: {x:.2f}, {y:.2f}`\n\nEscapes: `\\n`, `\\r`, `\\t`, `\\\\`, and `\\{` `\\}` for literal braces."
     }
-
-    public required init(from decoder: any Decoder) throws {
-        try super.init(from: decoder)
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let decoded = try container.decodeIfPresent(String.self, forKey: .formatString)
-        self.formatString = decoded ?? "Hello {name}"
-        self.updatePorts()
-    }
-
-    public override func encode(to encoder: Encoder) throws {
-        try super.encode(to: encoder)
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.formatString, forKey: .formatString)
-    }
-
-    public required init(context: Context) {
-        super.init(context: context)
-        self.updatePorts()
-    }
-
-    /// Procedural construction with a specific format string — the Settings-view
-    /// state that shapes this node's ports, so graph building never has to go
-    /// through the inspector to reach it.
-    public init(context: Context, formatString: String) {
-        self.formatString = formatString
-        super.init(context: context)
-        self.updatePorts()
-    }
-
-    // MARK: - Properties
-
-    public fileprivate(set) var formatString: String = "Hello {name}" {
-        didSet {
-            self.updatePorts()
-            self.nameSubject.send()
-        }
-    }
-
-    /// Sets the format string from outside the Settings view — the procedural
-    /// equivalent of typing in the inspector.
-    public func setFormatString(_ formatString: String) {
-        guard formatString != self.formatString else { return }
-        self.formatString = formatString
-    }
-
-    private var parsedFormatString = ParsedFormatString(tokens: [])
 
     /// Forces one evaluation after a format-string edit, even when no input
     /// changed: a new format produces a different string from the same values,
@@ -335,35 +271,6 @@ public class StringFormatterNode: Node {
     }
 
     public var outputString: NodePort<String> { port(named: "outputString") }
-
-    override public func providesSettingsView() -> Bool { true }
-
-    override public func settingsView() -> AnyView {
-        AnyView(StringFormatSettingsView(model: _settingsModel))
-    }
-
-    // MARK: - Settings Model
-
-    @Observable final class SettingsModel
-    {
-        var formatString: String
-        {
-            didSet
-            {
-                guard formatString != node?.formatString else { return }
-                node?.formatString = formatString
-            }
-        }
-        private weak var node: StringFormatterNode?
-
-        init(node: StringFormatterNode)
-        {
-            self.node = node
-            self.formatString = node.formatString
-        }
-    }
-
-    private lazy var _settingsModel = SettingsModel(node: self)
 
     // MARK: - Execution
 
@@ -426,46 +333,8 @@ public class StringFormatterNode: Node {
 
     // MARK: - Dynamic Port Management
 
-    private func updatePorts() {
-        let newParse = parseFormatString(formatString)
-        let newPlaceholders = newParse.placeholders
-
-        let existingNames = Set(self.inputPorts().map { $0.name })
-        let newNames = Set(newPlaceholders.map { $0.name })
-
-        // Remove ports no longer in the format string
-        let toRemove = existingNames.subtracting(newNames)
-        for portName in toRemove {
-            if let port: Port = self.findPort(named: portName) {
-                self.removePort(port)
-            }
-        }
-
-        // Remove ports whose type has changed
-        for placeholder in newPlaceholders {
-            if let existingPort: Port = self.findPort(named: placeholder.name),
-               existingPort.portType != placeholder.portType {
-                self.removePort(existingPort)
-            }
-        }
-
-        // Add ports for new placeholders
-        for placeholder in newPlaceholders {
-            if (self.findPort(named: placeholder.name) as Port?) == nil {
-                let port = makeInputPort(for: placeholder)
-                self.addDynamicPort(port, name: placeholder.name)
-            }
-        }
-
-        self.parsedFormatString = newParse
-
-        // A format edit reshapes the output even when it reshapes no port, and
-        // the renderer skips a node that is not dirty.
-        self.needsEvaluation = true
-        self.markDirty()
-    }
-
-    private func makeInputPort(for placeholder: FormatPlaceholder) -> Port {
+    /// A placeholder's value arrives on an editable inlet of its type.
+    override func makePlaceholderPort(for placeholder: FormatPlaceholder) -> Port {
         switch placeholder.portType {
         case .Float:
             return ParameterPort(parameter: FloatParameter(placeholder.name, 0.0, .inputfield))
@@ -476,5 +345,11 @@ public class StringFormatterNode: Node {
         default:
             return ParameterPort(parameter: StringParameter(placeholder.name, "", .inputfield))
         }
+    }
+
+    override func formatStringDidChange() {
+        // A new format produces a different string from the same values — and a
+        // format with no placeholders has no input whose change could say so.
+        self.needsEvaluation = true
     }
 }

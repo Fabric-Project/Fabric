@@ -226,6 +226,27 @@ struct StringFormatStringTests
         #expect(formatter.outputString.value == "Goodbye Bob")
     }
 
+    @Test("A saved format string and its ports survive a round trip")
+    func formatStringSurvivesSerialization() throws
+    {
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
+
+        let graph = Graph(context: harness.context)
+        let formatter = StringFormatterNode(context: harness.context, formatString: "Frame {n:d} of {total:d}")
+        graph.addNode(formatter)
+
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: harness.context)
+
+        let decodedGraph = try decoder.decode(Graph.self, from: try encoder.encode(graph))
+        let decodedFormatter = try #require(decodedGraph.nodes.compactMap { $0 as? StringFormatterNode }.first)
+
+        #expect(decodedFormatter.formatString == "Frame {n:d} of {total:d}")
+        #expect(decodedFormatter.findPort(named: "n", as: ParameterPort<Int>.self) != nil)
+        #expect(decodedFormatter.findPort(named: "total", as: ParameterPort<Int>.self) != nil)
+    }
+
     // MARK: - String Scanner
 
     @Test("Scanner matches across an escaped newline")
