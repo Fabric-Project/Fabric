@@ -248,6 +248,8 @@ public class GraphRenderer : ViewRenderer
 
         self.currentCamera = graph.firstCamera ?? self.currentCamera ?? self.defaultCamera
 
+        graph.rebuildNodesInExecutionOrderIfNeeded()
+
         var capturedError: (any Error)?
         var scheduledNodes = graph.nodesInExecutionOrder
         var scheduledNodeIDs = Set(scheduledNodes.map(\.id))

@@ -6,6 +6,7 @@
 //
 import SwiftUI
 import Satin
+import os
 internal import AnyCodable
 
 public struct Connection: Codable, Identifiable, Hashable
@@ -49,7 +50,12 @@ public struct Connection: Codable, Identifiable, Hashable
     public private(set) var nodes: [Node]
     public private(set) var notes: [Note]
     internal var connections: [Connection] = []
-    internal var nodesInExecutionOrder: [Node] = []
+
+    /// The cached execution plan. Written only from rebuildNodesInExecutionOrderIfNeeded,
+    /// which GraphRenderer calls at the top of each execute pass — on the execute thread,
+    /// never mid-frame. @ObservationIgnored: SwiftUI must not track state that mutates on
+    /// the execute thread.
+    @ObservationIgnored internal private(set) var nodesInExecutionOrder: [Node] = []
 
     /// NodeViewModels shadow the nodes array 1-to-1. Always created/destroyed
     /// in lockstep with addNode / delete so the array is safe to force-index.
@@ -85,16 +91,17 @@ public struct Connection: Codable, Identifiable, Hashable
     // Fix for #103 - connection/topology changes trigger syncNodesToScene() inside of `GraphRenderer`.
     @ObservationIgnored private var pendingConnectionSceneSync = false
     public private(set) var connectionRevision = 0
-    private var connectionTopologyGeneration = 0 {
-        didSet { rebuildNodesInExecutionOrder() }
-    }
-    private var executionTopologyGeneration = 0 {
-        didSet { rebuildNodesInExecutionOrder() }
-    }
+
+    /// Topology marks only set this flag; the plan rebuild is deferred to
+    /// rebuildNodesInExecutionOrderIfNeeded at the top of the next execute pass.
+    /// Routing nodes mark from inside execute() on the execute thread while the UI
+    /// marks from the main thread, so this flag is the one piece of cross-thread
+    /// state and is lock-protected.
+    @ObservationIgnored private let executionPlanIsStale = OSAllocatedUnfairLock(initialState: true)
 
     @ObservationIgnored private var cachedPublishedOutputPortsRevision: Int?
     @ObservationIgnored private var cachedPublishedOutputPorts: [Port] = []
-  
+
 
     @ObservationIgnored weak var lastNode:(Node)? = nil
 
@@ -102,12 +109,12 @@ public struct Connection: Codable, Identifiable, Hashable
     {
         connectionRevision += 1
         pendingConnectionSceneSync = true
-        connectionTopologyGeneration += 1
+        executionPlanIsStale.withLock { $0 = true }
     }
 
     public func markExecutionTopologyChanged()
     {
-        executionTopologyGeneration += 1
+        executionPlanIsStale.withLock { $0 = true }
     }
 
     public func markConnectionsChanged()
@@ -323,7 +330,7 @@ public struct Connection: Codable, Identifiable, Hashable
         }
         
         self.rebuildPublishedParameterGroup()
-        self.rebuildNodesInExecutionOrder()
+        self.rebuildNodesInExecutionOrderIfNeeded()
     }
 
     deinit
@@ -567,7 +574,23 @@ public struct Connection: Codable, Identifiable, Hashable
         }
     }
 
-    func rebuildNodesInExecutionOrder()
+    /// The single point where the cached execution plan is rebuilt. GraphRenderer calls
+    /// this at the top of each execute pass, so the plan never changes mid-frame and
+    /// rebuilds at most once per frame however many topology marks arrived since the
+    /// last pass — an animated route index costs a flag set, not a planning walk.
+    func rebuildNodesInExecutionOrderIfNeeded()
+    {
+        let wasStale = executionPlanIsStale.withLock { isStale in
+            defer { isStale = false }
+            return isStale
+        }
+
+        guard wasStale else { return }
+
+        rebuildNodesInExecutionOrder()
+    }
+
+    private func rebuildNodesInExecutionOrder()
     {
         var ordered: [Node] = []
         ordered.reserveCapacity(nodes.count)
