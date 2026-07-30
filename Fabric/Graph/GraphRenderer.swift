@@ -40,8 +40,6 @@ public class GraphRenderer : ViewRenderer
     private var graphRequiresResize: Bool = false
     public private(set) var resizeScaleFactor: Float = 1.0
 
-    // One feedback cache per graph/subgraph UUID to handle different execution cadences
-    private var feedbackCaches: [UUID: GraphRendererFeedbackCache] = [:]
     private var executionPlanCaches: [ObjectIdentifier: GraphExecutionPlanCache] = [:]
     private var traceExecutionIndex = 0
     private var graphExecutionTraceStack: [GraphExecutionTraceFrameBuilder] = []
@@ -156,9 +154,6 @@ public class GraphRenderer : ViewRenderer
     public func executeAndDraw(graph: Graph, executionInfo: GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
         let needsSceneSync = graph.consumePendingConnectionSceneSync()
-        if needsSceneSync {
-            invalidateFeedbackTopologyCaches(for: graph)
-        }
 
         try self.execute(graph: graph,
                          executionInfo: executionInfo,
@@ -185,9 +180,6 @@ public class GraphRenderer : ViewRenderer
                         forceEvaluationForTheseNodes: [Node] = []) throws
     {
         self.resetTextureCaches(for: executionInfo)
-
-        let feedbackCache = self.feedbackCache(for: graph.id)
-        feedbackCache.resetCacheFor(executionInfo: executionInfo)
 
         defer {
             if clearFlags {
@@ -245,7 +237,6 @@ public class GraphRenderer : ViewRenderer
             if clearFlags {
                 node.markClean()
             }
-            feedbackCache.cacheProcessedNode(node, executionInfo: executionInfo)
         }
 
         endGraphExecutionTrace(graphTraceFrame)
@@ -575,21 +566,6 @@ public class GraphRenderer : ViewRenderer
         for node in graph.nodes {
             node.teardown()
         }
-    }
-
-    // MARK: - Feedback Cache
-
-    private func feedbackCache(for graphID: UUID) -> GraphRendererFeedbackCache
-    {
-        if let cache = feedbackCaches[graphID] { return cache }
-        let newCache = GraphRendererFeedbackCache(graphID: graphID)
-        feedbackCaches[graphID] = newCache
-        return newCache
-    }
-
-    func invalidateFeedbackTopologyCaches(for graph: Graph)
-    {
-        feedbackCache(for: graph.id).invalidateTopologyCaches()
     }
 
     // MARK: - Execution Helpers

@@ -101,7 +101,9 @@ extension UTType
     
     @ObservationIgnored public var valueDidChange:Bool = true
 
-    // Used only by FeedbackCache and layout copying — never in the hot execution path.
+    /// Runtime-polymorphic read for ports whose concrete type is only known at
+    /// runtime — routing nodes' boxed forwarding, Iterator's count resolution,
+    /// and layout copying. Pairs with sendBoxed.
     internal func snapshotValue() -> PortValue? { nil }
     internal func restoreValue(from boxed: PortValue?) { }
 
