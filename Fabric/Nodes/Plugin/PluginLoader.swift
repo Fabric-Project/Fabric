@@ -28,6 +28,19 @@ public final class PluginLoader
 
     private init() {}
 
+    /// The plugin folder inside a domain's Application Support directory, or nil if
+    /// the domain has none.
+    public static func pluginDirectory(in domain: FileManager.SearchPathDomainMask) -> URL?
+    {
+        FileManager.default
+            .urls(for: .applicationSupportDirectory, in: domain)
+            .first?
+            .appending(path: "Fabric", directoryHint: .isDirectory)
+            .appending(path: "Plugins", directoryHint: .isDirectory)
+    }
+
+    /// Where plugins are looked for, in precedence order: the host application's
+    /// own bundle first, then the user's plugin folder, then the machine's.
     public func pluginSearchDirectories() -> [URL]
     {
         var directories: [URL] = []
@@ -37,15 +50,16 @@ public final class PluginLoader
             directories.append(builtInPlugInsURL)
         }
 
-        if let appSupportURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+        if let userPluginDirectory = Self.pluginDirectory(in: .userDomainMask)
         {
-            directories.append(appSupportURL
-                .appending(path: "Fabric", directoryHint: .isDirectory)
-                .appending(path: "Plugins", directoryHint: .isDirectory))
+            directories.append(userPluginDirectory)
         }
 
         #if os(macOS)
-        directories.append(URL(filePath: "/Library/Application Support/Fabric/Plugins", directoryHint: .isDirectory))
+        if let localPluginDirectory = Self.pluginDirectory(in: .localDomainMask)
+        {
+            directories.append(localPluginDirectory)
+        }
         #endif
 
         return directories
@@ -98,33 +112,51 @@ public final class PluginLoader
         }
     }
 
+    /// Loads every discovered plugin bundle.
+    ///
+    /// One bundle's failure costs that bundle only: the pass records the error in
+    /// `loadErrors` for a host to surface, and carries on with the rest. Without
+    /// that, a single stale or malformed bundle in a shared plugin folder would
+    /// take down every plugin behind it in the search order — including the host's
+    /// own — which is a lot of collateral for someone else's bad plugin.
+    ///
+    /// A bundle re-declaring an already-loaded plugin identifier is not a failure
+    /// and is not recorded as one. Search order is precedence
+    /// (`pluginSearchDirectories()`: the app bundle first, then the user's plugin
+    /// folder, then the system's), so the first one found wins and the rest are
+    /// redundant copies. That is what lets an app embed a plugin *and* install it
+    /// for other Fabric hosts to share without breaking its own load.
     public func loadDiscoveredPlugins() throws
     {
-        let existingNodeNames = currentRegisteredNodeNames()
-
-        let pluginURLs: [URL]
-        pluginURLs = try discoverPlugins()
+        let pluginURLs = try discoverPlugins()
 
         logger.info("Found \(pluginURLs.count) Fabric plugin bundle(s)")
 
         for pluginURL in pluginURLs
         {
+            // Re-read per bundle: a plugin loaded earlier in this same pass must
+            // count as already-registered for the ones that follow it.
+            let existingNodeNames = currentRegisteredNodeNames()
+
             do
             {
                 try loadPlugin(at: pluginURL, existingNodeNames: existingNodeNames)
+            }
+            catch PluginLoadError.duplicatePluginIdentifier(let pluginID)
+            {
+                let winning = loadedPlugins[pluginID]?.bundleURL.path ?? "an earlier bundle"
+                logger.notice("Ignoring \(pluginURL.path, privacy: .public) — plugin '\(pluginID, privacy: .public)' is already provided by \(winning, privacy: .public)")
             }
             catch let error as PluginLoadError
             {
                 loadErrors.append(error)
                 logger.error("\(error.localizedDescription)")
-                throw error
             }
             catch
             {
                 let wrappedError = PluginLoadError.bundleLoadFailed(bundleURL: pluginURL, underlyingError: error)
                 loadErrors.append(wrappedError)
                 logger.error("\(wrappedError.localizedDescription)")
-                throw wrappedError
             }
         }
     }

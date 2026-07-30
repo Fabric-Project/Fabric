@@ -115,14 +115,21 @@ public class NodeRegistry
         registerCoreAlias("PassThroughNode<Satin.SatinGeometry>", PassThroughNode<Geometry>.self)
 
         // Structural array nodes were previously generic; old docs decode to type-agnostic versions.
+        //
+        // These suffixes must be spelled the way a *document* spells them, which is
+        // `String(describing:)` of the generic parameter — and that prints the
+        // underlying type, not the source alias. `simd_float2/3/4` are typealiases
+        // for `SIMD2/3/4<Float>`, so a saved graph reads `ArrayCountNode<SIMD3<Float>>`
+        // and never `ArrayCountNode<simd_float3>`. `simd_float4x4` is a struct in its
+        // own right, so it is spelled as written.
         let agnosticSuffixes = [
             "Bool",
             "Int",
             "Float",
             "String",
-            "simd_float2",
-            "simd_float3",
-            "simd_float4",
+            "SIMD2<Float>",
+            "SIMD3<Float>",
+            "SIMD4<Float>",
             "simd_float4x4",
             "FabricImage",
         ]
@@ -140,7 +147,7 @@ public class NodeRegistry
         }
 
         // Vector compose/decompose nodes were previously generic; old docs map to consolidated versions.
-        let vectorSuffixes = ["simd_float2", "simd_float3", "simd_float4"]
+        let vectorSuffixes = ["SIMD2<Float>", "SIMD3<Float>", "SIMD4<Float>"]
 
         for suffix in vectorSuffixes
         {
