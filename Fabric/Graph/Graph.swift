@@ -49,9 +49,16 @@ internal import AnyCodable
         nodes.filter { nodeViewModels[$0.id]?.isSelected == true }
     }
 
+    /// Mirrors GraphRenderer's per-node execute guard (isDirty || Consumer || Provider):
+    /// a graph containing time-based Provider or Consumer nodes always needs another
+    /// pass even when every node is clean, otherwise a Processor-mode SubgraphNode
+    /// (whose isDirty is this property) is skipped by its parent after the first frame
+    /// and e.g. a movie inside it freezes.
     var needsExecution:Bool {
-        self.nodes.reduce(false) { (result, node) -> Bool in
-            result || node.isDirty
+        self.nodes.contains { node in
+            node.isDirty
+                || node.nodeExecutionMode == .Provider
+                || node.nodeExecutionMode == .Consumer
         }
     }
     
