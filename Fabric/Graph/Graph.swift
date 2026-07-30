@@ -14,6 +14,17 @@ internal import AnyCodable
     {
         case alpha1
     }
+
+    /// Port state a document carried for registry keys the node's code no
+    /// longer declares or rebuilds. That state (and any wires into those
+    /// ports) is dropped on load — deliberately, the code owns the port set —
+    /// and surfaced here so hosts can warn instead of losing data silently.
+    public struct DroppedPortStateDiagnostic
+    {
+        public let nodeID: UUID
+        public let nodeName: String
+        public let droppedRegistryKeys: [String]
+    }
     
     public static func == (lhs: Graph, rhs: Graph) -> Bool
     {
@@ -67,6 +78,9 @@ internal import AnyCodable
     // Fix for #103 - connection/topology changes trigger syncNodesToScene() inside of `GraphRenderer`.
     @ObservationIgnored private var pendingConnectionSceneSync = false
     public private(set) var connectionRevision = 0
+
+    /// Populated once at decode; empty for graphs built programmatically.
+    @ObservationIgnored public private(set) var droppedPortStateDiagnostics: [DroppedPortStateDiagnostic] = []
 
     @ObservationIgnored private var cachedPublishedOutputPortsRevision: Int?
     @ObservationIgnored private var cachedPublishedOutputPorts: [Port] = []
@@ -260,6 +274,17 @@ internal import AnyCodable
             }
         }
         
+        // Node inits (including their dynamic-port rebuilds) are done; whatever
+        // port state remains unconsumed matched nothing the code declares.
+        self.droppedPortStateDiagnostics = self.nodes.compactMap { node in
+            let droppedKeys = node.droppedPortStateKeys
+            guard !droppedKeys.isEmpty else { return nil }
+            print("Graph decode: '\(node.name)' dropped port state for retired keys \(droppedKeys)")
+            return DroppedPortStateDiagnostic(nodeID: node.id,
+                                              nodeName: node.name,
+                                              droppedRegistryKeys: droppedKeys)
+        }
+
         let portMap = try container.decode([UUID:[UUID]].self, forKey: .portConnectionMap)
         
         for portID in portMap.keys

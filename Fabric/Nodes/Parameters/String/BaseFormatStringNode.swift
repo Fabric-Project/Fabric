@@ -120,11 +120,14 @@ public class BaseFormatStringNode: Node {
         try super.init(from: decoder)
 
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        // Assigning runs didSet, which rebuilds the ports against the restored
-        // format string; the decoded ports it matches by name and type are kept,
-        // UUIDs and all, so the graph's connection restore still finds them.
         self.formatString = try container.decodeIfPresent(String.self, forKey: .formatString)
             ?? Self.defaultFormatString
+
+        // Property observers do not fire inside an initializer, so rebuild
+        // explicitly: the restored format string recreates its placeholder
+        // ports, which adopt their persisted identity and state by registry
+        // key as they register.
+        self.updatePorts()
     }
 
     public override func encode(to encoder: Encoder) throws {
