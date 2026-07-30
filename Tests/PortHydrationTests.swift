@@ -125,6 +125,32 @@ struct PortHydrationTests
         #expect(decoded.inputNumber1.value == 5)
     }
 
+    @Test("Slider values clamp into the declared range on hydration")
+    func sliderValuesClampIntoDeclaredRange() throws
+    {
+        guard let context = makeContext() else { return }
+
+        // Model a document saved when the slider's range was wider: widen the
+        // live range, store an out-of-range value, then decode against the
+        // declared (narrower) range.
+        let node = SliderRangeNode(context: context)
+        let parameter = try #require(node.inputAmount.parameter as? FloatParameter)
+        parameter.max = 100
+        node.inputAmount.value = 50
+
+        let decoded = try roundTrip(node, context: context)
+
+        #expect(decoded.inputAmount.value == 2)
+
+        // Input fields carry placeholder ranges; their values must not clamp.
+        let fieldNode = NumberBinaryOperator(context: context)
+        fieldNode.inputNumber1.value = 72
+
+        let decodedFieldNode = try roundTrip(fieldNode, context: context)
+
+        #expect(decodedFieldNode.inputNumber1.value == 72)
+    }
+
     @Test("Legacy registry keys hydrate through declared aliases")
     func legacyKeysHydrateThroughAliases() throws
     {
@@ -148,6 +174,24 @@ struct PortHydrationTests
         // Plain NodePort values are not persisted; identity is the contract here.
         #expect(decoded.input.id == savedID)
         #expect(decoded.droppedPortStateKeys.isEmpty)
+    }
+}
+
+private final class SliderRangeNode: Node
+{
+    override class var name: String { "Slider Range" }
+    override class var nodeType: Node.NodeType { .Utility }
+    override class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override class var nodeTimeMode: Node.TimeMode { .None }
+    override class var nodeDescription: String { "Test node with a range-enforcing slider parameter." }
+
+    var inputAmount: ParameterPort<Float> { port(named: "inputAmount") }
+
+    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
+    {
+        super.registerPorts(context: context) + [
+            ("inputAmount", ParameterPort(parameter: FloatParameter("Amount", 1, 0, 2, .slider, "Amount"))),
+        ]
     }
 }
 
