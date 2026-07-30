@@ -81,7 +81,9 @@ extension UTType
         hasher.combine(name)
     }
     
-    public let id:UUID
+    /// Mutable only via hydrate(from:) during decode, which adopts the
+    /// document's saved identity so UUID-keyed connections can rebind.
+    public private(set) var id:UUID
 
     public let name: String
 
@@ -251,6 +253,25 @@ extension UTType
         guard let value = snapshotValue() else { return head }
 
         return "\(head) - \(portType.previewString(for: value))"
+    }
+
+    /// Applies document-owned state from a decoded snapshot onto this
+    /// code-declared port: identity (connections are keyed by port UUID),
+    /// published state, and — when the types still agree — the persisted value.
+    /// Code-owned metadata (name, description, parameter range and control
+    /// type) deliberately stays as declared; the document does not own it.
+    /// Must run before the port is registered — the registry indexes by id.
+    internal func hydrate(from decoded: Port)
+    {
+        self.id = decoded.id
+        self.published = decoded.published
+        self.publishedName = decoded.publishedName
+
+        if decoded.portType == self.portType,
+           let boxedValue = decoded.snapshotValue()
+        {
+            self.restoreValue(from: boxedValue)
+        }
     }
 
     public func canConnect(to other:Port) -> Bool

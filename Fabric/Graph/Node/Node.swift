@@ -172,32 +172,26 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         self.offset = try container.decode(CGSize.self, forKey: .nodeOffset)
         self.userName = try container.decodeIfPresent(String.self, forKey: .userName)
 
+        // Declare, then hydrate: the port set comes from the code — registerPorts
+        // now, subclass rebuilds (strategy, route count, expression, shader) after
+        // this initializer — and the document contributes only the state it owns,
+        // applied per registry key as each port registers. Snapshot keys that
+        // never match a declared or rebuilt port surface via
+        // droppedPortStateKeys instead of resurrecting retired ports.
         let snaps = try container.decodeIfPresent([PortRegistry.Snapshot].self, forKey: .ports) ?? []
 
         for snap in snaps
         {
-            let anyport  = snap.payload
-            let port = anyport.base
-
-            self.registry.register(port, name: snap.name, owner: self)
+            self.pendingPortHydration[snap.name] = snap.payload.base
         }
 
-        // lets try to merge if we have any ports we deserialized
-        // that our node should have registered (ie diff)
         let declared = Self.registerPorts(context: context)
 
         for d in declared
         {
-            if let _ = self.registry.port(named: d.name)
-            {
-                continue
-            }
-            else
-            {
-                self.registry.register(d.port, name: d.name, owner: self)
-            }
+            self.consumePendingPortHydration(for: d.port, registryKey: d.name)
+            self.registry.register(d.port, name: d.name, owner: self)
         }
-
 
         for port in self.registry.all()
         {
@@ -293,9 +287,47 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         self.registry.port(named: name) as? T
     }
 
+    // MARK: - Port state hydration (declare-then-hydrate decode)
+
+    /// Decoded port snapshots not yet applied to a registered port, keyed by
+    /// registry key. Consumed as declared and dynamic ports register during
+    /// decode; whatever remains matched nothing the code declares or rebuilds.
+    private var pendingPortHydration: [String: Port] = [:]
+
+    /// Registry keys from the document whose port state found no declared or
+    /// rebuilt port to land on. Dropping that state is deliberate — the code
+    /// owns the port set — but it is data loss, so Graph reports it after
+    /// decode rather than discarding silently.
+    internal var droppedPortStateKeys: [String] { Array(pendingPortHydration.keys).sorted() }
+
+    /// Legacy registry keys whose document state should hydrate the port now
+    /// registered under `registryKey`. Nodes that renamed dynamic ports
+    /// override this so documents saved under the old names keep port identity
+    /// (and therefore wires) across the rename.
+    open class func legacyPortStateKeys(forRegistryKey registryKey: String) -> [String] { [] }
+
+    private func consumePendingPortHydration(for port: Port, registryKey: String)
+    {
+        let candidateKeys = [registryKey] + Self.legacyPortStateKeys(forRegistryKey: registryKey)
+
+        for key in candidateKeys
+        {
+            guard let decoded = self.pendingPortHydration[key] else { continue }
+            guard decoded.kind == port.kind else { continue }
+
+            self.pendingPortHydration.removeValue(forKey: key)
+            port.hydrate(from: decoded)
+            return
+        }
+    }
+
     // Dynamic add/remove (kept by serialization automatically)
     public func addDynamicPort(_ p: Port, name:String? = nil)
     {
+        // Dynamic ports created after decode (rebuildPorts and friends) adopt
+        // their persisted state here, before the registry indexes their id.
+        self.consumePendingPortHydration(for: p, registryKey: name ?? p.name)
+
         self.registry.addDynamic(p, owner: self, name:name)
         self.invalidatePortCaches()
         if let param = p.parameter

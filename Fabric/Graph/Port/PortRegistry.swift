@@ -87,7 +87,10 @@ final class PortRegistry
     func port(named name: String) -> Port? { self.byName[name] }
     func all() -> [Port] { self.ordered }
 
-    // Snapshot == “data only” payload we can apply onto existing instances
+    /// A port's persisted form: registry key plus the encoded port object.
+    /// Decode treats it as a hydration source only — the port instances that
+    /// end up registered always come from the code's declarations (see
+    /// Node.init(from:)); the snapshot contributes document-owned state.
     struct Snapshot: Codable
     {
         var name: String
@@ -96,43 +99,12 @@ final class PortRegistry
 
     func encode() -> [Snapshot] {
         self.ordered.map { port in
-            
+
             let name = byName.first(where: { (key, value) in
                 port.id == value.id
             })?.key ?? port.name
-            
+
             return Snapshot(name: name, payload: AnyPort(port))
-        }
-    }
-
-    // Rebuild/merge: prefer decoded instances, fallback to freshly declared ones
-    func rebuild(from snapshots: [Snapshot],
-                 declared: [(name: String, port: Port)],
-                 owner: Node)
-    {
-        self.ordered.removeAll(keepingCapacity: true)
-        self.byName.removeAll(keepingCapacity: true)
-        self.byID.removeAll(keepingCapacity: true)
-
-        // First: decode payloads → concrete Port objects (via AnyPort)
-        var decodedByName: [String: Port] = [:]
-        for s in snapshots { decodedByName[s.name] = s.payload.base }
-
-        // Merge with declared set: keep decoded if types match, else use declared
-        for (name, dPort) in declared
-        {
-            let p = decodedByName[name].map { decoded in
-                // optional type sanity check
-                type(of: decoded) == type(of: dPort) ? decoded : dPort
-            } ?? dPort
-            
-            self.register(p, name: name, owner: owner)
-            decodedByName[name] = nil
-        }
-
-        // Any leftover decoded ports = previously dynamic additions → keep them
-        for (name, extra) in decodedByName {
-            self.register(extra, name: name, owner: owner)
         }
     }
 }
