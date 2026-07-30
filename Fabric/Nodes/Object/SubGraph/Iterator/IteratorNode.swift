@@ -167,7 +167,7 @@ public class IteratorNode: SubgraphNode
     }
 
     private func resolvedIterationCount() -> Int {
-        for connection in inputIteratonCount.connections where connection.kind == .Outlet {
+        for connection in inputIteratonCount.connectedOutlets {
             if let port = connection as? NodePort<Int>,
                let count = port.value
             {

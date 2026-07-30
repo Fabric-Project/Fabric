@@ -312,7 +312,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
                 canonicalPort.published = true
             }
 
-            let inboundConnections = legacyPort.connections.filter { $0.kind == .Inlet }
+            let inboundConnections = legacyPort.connectedInlets
             for inlet in inboundConnections {
                 canonicalPort.connect(to: inlet)
             }
@@ -645,12 +645,16 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
     public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
-        let imageInputPorts = self.imageInputPorts()
-        let primaryImageChanged = imageInputPorts.first?.valueDidChange ?? false
-        let nonImageInputChanged = self.ports.reduce(false) { partialResult, next in
-            partialResult || (next.portType != .Image && next.valueDidChange)
+//        let imageInputPorts = self.imageInputPorts()
+//        let primaryImageChanged = imageInputPorts.first?.valueDidChange ?? false
+//        let nonImageInputChanged = self.ports.reduce(false) { partialResult, next in
+//            partialResult || (next.portType != .Image && next.valueDidChange)
+//        }
+//        let shouldExecute = primaryImageChanged || nonImageInputChanged
+
+        let shouldExecute = self.ports.reduce(false) { partialResult, next in
+            partialResult || next.valueDidChange
         }
-        let shouldExecute = primaryImageChanged || nonImageInputChanged
 
         commandBuffer.pushDebugGroup(self.name + " Execute")
         defer { commandBuffer.popDebugGroup() }
@@ -693,7 +697,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
         let outImage = try renderer.newImage(withWidth: inputTexture0.width, height: inputTexture0.height)
 
-        let textures = imageInputPorts.map { $0.value?.texture }
+        let textures = self.imageInputPorts().map { $0.value?.texture }
 
         self.postProcessor.mesh.preDraw = { renderEncoder in
             for (index, texture) in textures.enumerated() {

@@ -158,7 +158,7 @@ internal final class GraphRendererFeedbackCache
 
         // In Fabric, inlets typically have at most 1 connection; if more, preserve current first-outlet policy.
         let candidate: FeedbackCandidate?
-        if let upstreamOutlet = inlet.connections.first(where: { $0.kind == .Outlet }),
+        if let upstreamOutlet = inlet.connectedOutlets.first,
            let upstreamNode = upstreamOutlet.node
         {
             candidate = FeedbackCandidate(

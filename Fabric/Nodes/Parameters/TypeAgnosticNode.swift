@@ -55,7 +55,7 @@ public class TypeAgnosticNode: StrategyNode
     {
         if let existing: Port = findPort(named: registryName), existing.portType != portType
         {
-            let oldConnections = existing.connections
+            let oldConnections = existing.connectedPorts
             let oldPublished = existing.published
             let oldPublishedName = existing.publishedName
             let oldValue = existing.snapshotValue()

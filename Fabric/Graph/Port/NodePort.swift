@@ -29,7 +29,7 @@ public class NodePort<Value : PortValueRepresentable>: Port
 
         self.valueDidChange = true
         self.node?.markDirty()
-        self.node?.portValueDidChange(self)
+        self.onValueChanged?()
     }
 
     override internal func sendBoxed(_ boxed: PortValue?)
@@ -61,7 +61,7 @@ public class NodePort<Value : PortValueRepresentable>: Port
             //   - it wont if we do an additional equality check here!
             self.valueDidChange = true
             self.node?.markDirty()
-            self.node?.portValueDidChange(self)
+            self.onValueChanged?()
         }
     }
         
@@ -101,12 +101,14 @@ public class NodePort<Value : PortValueRepresentable>: Port
     {
         self.teardown()
         self.disconnectAll()
-        self.connections.removeAll()
     }
     
     override public func disconnectAll()
     {
-        self.connections.forEach { [weak self] in  self?.disconnect(from: $0) }
+        for port in connectedPorts
+        {
+            disconnect(from: port)
+        }
     }
     
     override public func disconnect(from other: Port)
@@ -138,37 +140,6 @@ public class NodePort<Value : PortValueRepresentable>: Port
         let graph = self.node?.graph ?? other.node?.graph
         let removedGraphConnection = graph?.unregisterConnection(between: self, and: other) ?? false
 
-        if let node = self.node,
-           let otherNode = other.node
-        {
-            node.didDisconnectFromNode(otherNode)
-            otherNode.didDisconnectFromNode(node)
-        }
-        
-        if other.kind == .Inlet
-        {
-            other.connections.removeAll()
-        }
-        else
-        {
-            while let index = other.connections.firstIndex(where: { $0.id == self.id } )
-            {
-                other.connections.remove(at: index)
-            }
-        }
-        
-        if self.kind == .Inlet
-        {
-            self.connections.removeAll()
-        }
-        else
-        {
-            while let index = self.connections.firstIndex(where: { $0.id == other.id } )
-            {
-                self.connections.remove(at: index)
-            }
-        }
-        
 //        print("Connections: \(self.debugDescription)) - \(self.connections)")
 //        print("Connections: \(other.debugDescription) - \(other.connections)")
         
@@ -233,8 +204,8 @@ public class NodePort<Value : PortValueRepresentable>: Port
         // connection gets connected twice; without this guard the second call
         // would disconnect the pair first, force-sending nil into the inlet
         // and destroying the freshly decoded parameter value.
-        if self.connections.contains(where: { $0.id == other.id }),
-           other.connections.contains(where: { $0.id == self.id })
+        if self.connection(to: other) != nil,
+           other.connection(to: self) != nil
         {
             return
         }
@@ -242,27 +213,23 @@ public class NodePort<Value : PortValueRepresentable>: Port
 
         if self.kind == .Inlet && other.kind == .Outlet
         {
-            self.connections.forEach { [weak self] in
-                
-                guard let self else { return }
-                    
-                $0.disconnect(from: self)
+            for connectedPort in connectedPorts
+            {
+                connectedPort.disconnect(from: self)
             }
-            
-            self.connections.removeAll()
-            self.connections.append(other)
-            other.connections.append(self)
         }
         else if self.kind == .Outlet && other.kind == .Inlet
         {
-            other.connections.forEach {
-                $0.disconnect(from: other)
+            for connectedPort in other.connectedPorts
+            {
+                connectedPort.disconnect(from: other)
             }
-            
-            other.connections.removeAll()
-            other.connections.append(self)
-            self.connections.append(other)
         }
+
+        let graph = self.node?.graph ?? other.node?.graph
+        graph?.registerConnection(between: self, and: other)
+        self.node?.updateConnectionTopology()
+        other.node?.updateConnectionTopology()
         
         // TODO = This isnt QUITE right...
         
@@ -274,15 +241,6 @@ public class NodePort<Value : PortValueRepresentable>: Port
 //        {
 //            self.published = false
 //        }
-        
-        if let node = self.node,
-           let otherNode = other.node
-        {
-//            // This forces a ping to recompute if we need to
-//            node.markDirty()
-            node.didConnectToNode(otherNode)
-            otherNode.didConnectToNode(node)
-        }
         
 //        print("Connections: \(self.debugDescription)) - \(self.connections)")
 //        print("Connections: \(other.debugDescription) - \(other.connections)")
@@ -301,7 +259,6 @@ public class NodePort<Value : PortValueRepresentable>: Port
             port.disconnect(from: other)
         }
         self.node?.graph?.undoManager?.setActionName("Connect Ports")
-        (self.node?.graph ?? other.node?.graph)?.registerConnection(between: self, and: other)
     }
 
     public func send(_ v: Value?, force:Bool = false)
@@ -310,7 +267,7 @@ public class NodePort<Value : PortValueRepresentable>: Port
         {
             self.value = v
             
-            for p in connections.filter( { $0.kind == .Inlet })
+            for p in connectedInlets
             {
                 if let p = p as? NodePort<Value>
                 {

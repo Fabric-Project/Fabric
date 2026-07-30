@@ -51,7 +51,6 @@ public final class SwitchNode: RoutingNode
     public override func respondToPull(requestedOutputPort: Port?) -> Node.PullResponse
     {
         let routeIndex = selectedRouteIndex()
-        recordPlannedRouteIndex(routeIndex)
 
         guard let selectedInput: Port = findPort(named: Self.inputPortName(routeIndex))
         else { return .evaluate(pulling: [inputIndex]) }
@@ -69,6 +68,16 @@ public final class SwitchNode: RoutingNode
         else { return }
 
         output.sendBoxed(selectedInput.snapshotValue(), force: true)
-        markExecutionTopologyChangedIfRouteIndexChanged()
+    }
+
+    public override func updateConnectionTopology()
+    {
+        inputIndex.setConnectionsActive(true)
+
+        for index in 0..<routeCount
+        {
+            let inputPort: Port? = findPort(named: Self.inputPortName(index))
+            inputPort?.setConnectionsActive(index == selectedRouteIndex())
+        }
     }
 }

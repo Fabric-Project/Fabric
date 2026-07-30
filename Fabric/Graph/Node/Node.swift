@@ -400,7 +400,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     private func calcInputNodes() -> [Node]
     {
         let nodeInputs = self.ports.filter( { $0.kind == .Inlet } )
-        let inputNodes = nodeInputs.compactMap { $0.connections.compactMap(\.node) }.flatMap(\.self)
+        let inputNodes = nodeInputs.compactMap { $0.connectedPorts.compactMap(\.node) }.flatMap(\.self)
 
         return inputNodes
     }
@@ -408,7 +408,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     private func calcOutputNodes() -> [Node]
     {
         let nodeOutputs = self.ports.filter( { $0.kind == .Outlet } )
-        let outputNodes = nodeOutputs.compactMap { $0.connections.compactMap(\.node) }.flatMap(\.self)
+        let outputNodes = nodeOutputs.compactMap { $0.connectedPorts.compactMap(\.node) }.flatMap(\.self)
 
         return outputNodes
     }
@@ -427,10 +427,6 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     public func markDirty()
     {
         isDirty = true
-    }
-
-    open func portValueDidChange(_ port: Port)
-    {
     }
 
     public func synchronizeParameters()
@@ -453,6 +449,10 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         }
 
         return cancellable
+    }
+
+    open func updateConnectionTopology()
+    {
     }
 
     // MARK: - Execution

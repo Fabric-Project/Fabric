@@ -199,8 +199,8 @@ struct PortConnectionTests {
 
         stringOutput.connect(to: textGeometry.inputText)
 
-        #expect(stringOutput.connections == [textGeometry.inputText])
-        #expect(textGeometry.inputText.connections == [stringOutput])
+        #expect(stringOutput.connectedPorts == [textGeometry.inputText])
+        #expect(textGeometry.inputText.connectedPorts == [stringOutput])
     }
 
     @Test("Virtual strategy array nodes expose generic array ports")

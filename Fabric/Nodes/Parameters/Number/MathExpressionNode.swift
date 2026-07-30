@@ -468,7 +468,7 @@ public class MathExpressionNode: Node
                 if port.portType == wantType { continue } // unchanged — keep wires
 
                 // Retype: preserve connections the new type can still accept.
-                let survivors = port.connections.filter { wantType.canConnect(to: $0.portType) }
+                let survivors = port.connectedPorts.filter { wantType.canConnect(to: $0.portType) }
                 self.removePort(port) // disconnects everything
                 let replacement = self.makePort(name: portName, type: valueType, kind: kind)
                 self.addDynamicPort(replacement, name: portName)

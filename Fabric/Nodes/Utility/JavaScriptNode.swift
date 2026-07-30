@@ -592,7 +592,7 @@ public final class JavaScriptNode: Node
                 continue
             }
 
-            let oldConnections = self.findPort(named: definition.name, as: Port.self)?.connections ?? []
+            let oldConnections = self.findPort(named: definition.name, as: Port.self)?.connectedPorts ?? []
             if let existingPort = self.findPort(named: definition.name, as: Port.self) {
                 self.removePort(existingPort)
             }

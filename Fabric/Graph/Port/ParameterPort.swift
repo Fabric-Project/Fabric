@@ -130,7 +130,7 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
             // and stay on the previous value.
             self.valueDidChange = true
             self.node?.markDirty()
-            self.node?.portValueDidChange(self)
+            self.onValueChanged?()
 
             if let value,
                self._parameter.value != value
