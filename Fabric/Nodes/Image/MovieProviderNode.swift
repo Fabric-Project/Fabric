@@ -181,6 +181,20 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
 
     private func sendPlaybackInfo()
     {
+        // cacheDuration runs synchronously at load, before AVFoundation may have
+        // the duration available (streamed or slow-indexing assets latch 0), so
+        // keep re-deriving from the player item until a finite value arrives.
+        // "duration" is in automaticallyLoadedAssetKeys, making this a
+        // non-blocking CMTime read.
+        if self.duration <= 0, let item = self.player.currentItem
+        {
+            let seconds = CMTimeGetSeconds(item.duration)
+            if seconds.isFinite, seconds > 0
+            {
+                self.duration = seconds
+            }
+        }
+
         self.outputCurrentTimePort.send(Float(self.currentTime))
         self.outputDurationPort.send(Float(self.duration))
         self.outputNormalizedTimePort.send(Float(self.normalizedTime))
@@ -279,7 +293,10 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
             return
         }
         guard self.player.currentItem != nil else { return }
-        let clamped = max(0, min(seconds, self.duration))
+        // Only clamp to duration once it is known — the cached value stays 0
+        // until AVFoundation delivers it, and clamping against 0 would turn an
+        // early seek into a seek-to-start.
+        let clamped = self.duration > 0 ? max(0, min(seconds, self.duration)) : max(0, seconds)
         self.currentTime = clamped
         // Build the seek time on the video track's natural timescale
         // so frame-accurate seeks land on actual sample boundaries.
@@ -444,6 +461,13 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
 
                 self.outputTexturePort.send( image )
             }
+        }
+        else if self.player.rate != 0
+        {
+            // No new video frame this pass (audio-only asset, or a decode
+            // stall) — keep the reported time moving with the player clock,
+            // as the computed property this cache replaced did.
+            self.updateCurrentTime(from: self.player.currentTime())
         }
 
         self.sendPlaybackInfo()
