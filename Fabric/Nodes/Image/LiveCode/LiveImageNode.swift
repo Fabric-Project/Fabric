@@ -174,7 +174,11 @@ public class LiveImageNode: BaseImageNode
         if let sourceShader = self.postMaterial.shader as? SourceShader {
             sourceShader.reloadFromSource()
             if sourceShader.pipelineError == nil && shouldSynchronizePorts {
-                self.postSetupSynchronizePorts(allowReplace: false)
+                // One lock acquisition for the whole port sync — see
+                // Node.withStructuralMutationLockIfAttached.
+                withStructuralMutationLockIfAttached {
+                    self.postSetupSynchronizePorts(allowReplace: false)
+                }
             }
         }
     }

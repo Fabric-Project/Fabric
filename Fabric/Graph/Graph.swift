@@ -95,9 +95,35 @@ public struct Connection: Codable, Identifiable, Hashable
     /// Topology marks only set this flag; the plan rebuild is deferred to
     /// rebuildNodesInExecutionOrderIfNeeded at the top of the next execute pass.
     /// Routing nodes mark from inside execute() on the execute thread while the UI
-    /// marks from the main thread, so this flag is the one piece of cross-thread
-    /// state and is lock-protected.
+    /// marks from the main thread, so this flag is written cross-thread and is
+    /// lock-protected independently of the structural mutation lock (marking must
+    /// stay cheap and lock-free with respect to execution).
     @ObservationIgnored private let executionPlanIsStale = OSAllocatedUnfairLock(initialState: true)
+
+    /// This graph's synchronization contract: structural mutations — port
+    /// registry changes, connect/disconnect, node add/delete — serialize against
+    /// graph execution on this lock. GraphRenderer holds it for the whole execute
+    /// pass, so a Settings-driven port rebuild or a canvas edit blocks for at
+    /// most one frame instead of racing the pass. Structural mutations are
+    /// main-thread operations (they are user actions); UI reads of ports and
+    /// topology are therefore ordered against mutations by the main thread
+    /// itself and take no lock — the lock exists solely for the execute pass,
+    /// which runs off-main. Compound transitions (rebuildPorts, shader-driven
+    /// port sync) hold the lock across the whole transition so a pass never
+    /// observes a half-rebuilt port set. Recursive, because nodes legitimately
+    /// mutate their own ports from inside execute, which runs with the lock
+    /// already held. Each graph has its own lock; nested subgraph execution
+    /// takes the child's lock while holding the parent's, and mutations only
+    /// ever take the lock of the graph they mutate, so lock ordering is always
+    /// parent-to-child.
+    @ObservationIgnored private let structuralMutationLock = NSRecursiveLock()
+
+    func withStructuralMutationLock<Result>(_ body: () throws -> Result) rethrows -> Result
+    {
+        structuralMutationLock.lock()
+        defer { structuralMutationLock.unlock() }
+        return try body()
+    }
 
     @ObservationIgnored private var cachedPublishedOutputPortsRevision: Int?
     @ObservationIgnored private var cachedPublishedOutputPorts: [Port] = []
@@ -400,6 +426,11 @@ public struct Connection: Codable, Identifiable, Hashable
     /// interactive placement with scroll-offset and rapid-add staggering).
     public func addNode(_ node:Node)
     {
+        withStructuralMutationLock { self.addNodeLocked(node) }
+    }
+
+    private func addNodeLocked(_ node:Node)
+    {
         print("Graph: \(self.id) Add Node", node.name)
         self.maybeAddNodeToScene(node)
 
@@ -436,6 +467,11 @@ public struct Connection: Codable, Identifiable, Hashable
     }
     
     public func delete(node:Node, disconnect:Bool = true)
+    {
+        withStructuralMutationLock { self.deleteLocked(node: node, disconnect: disconnect) }
+    }
+
+    private func deleteLocked(node:Node, disconnect:Bool)
     {
         let savedOffset = node.offset
         let savedConnections = node.ports.flatMap { port in
@@ -507,59 +543,67 @@ public struct Connection: Codable, Identifiable, Hashable
 
     func registerConnection(between portA: Port, and portB: Port)
     {
-        guard let normalized = normalizedConnectionPorts(portA, portB) else { return }
-        guard !connections.contains(where: {
-            $0.outletPortID == normalized.outlet.id && $0.inletPortID == normalized.inlet.id
-        }) else { return }
+        withStructuralMutationLock {
+            guard let normalized = normalizedConnectionPorts(portA, portB) else { return }
+            guard !connections.contains(where: {
+                $0.outletPortID == normalized.outlet.id && $0.inletPortID == normalized.inlet.id
+            }) else { return }
 
-        connections.append(Connection(outletPortID: normalized.outlet.id,
-                                      inletPortID: normalized.inlet.id))
-        markConnectionTopologyChanged()
+            connections.append(Connection(outletPortID: normalized.outlet.id,
+                                          inletPortID: normalized.inlet.id))
+            markConnectionTopologyChanged()
+        }
     }
 
     @discardableResult
     func unregisterConnection(between portA: Port, and portB: Port) -> Bool
     {
-        guard let normalized = normalizedConnectionPorts(portA, portB) else { return false }
-        let oldCount = connections.count
-        connections.removeAll {
-            $0.outletPortID == normalized.outlet.id && $0.inletPortID == normalized.inlet.id
-        }
+        withStructuralMutationLock {
+            guard let normalized = normalizedConnectionPorts(portA, portB) else { return false }
+            let oldCount = connections.count
+            connections.removeAll {
+                $0.outletPortID == normalized.outlet.id && $0.inletPortID == normalized.inlet.id
+            }
 
-        if connections.count != oldCount {
-            markConnectionTopologyChanged()
-            return true
-        }
+            if connections.count != oldCount {
+                markConnectionTopologyChanged()
+                return true
+            }
 
-        return false
+            return false
+        }
     }
 
     public func setConnectionActive(_ active: Bool, connectionID: UUID)
     {
-        guard let index = connections.firstIndex(where: { $0.id == connectionID }),
-              connections[index].active != active
-        else { return }
+        withStructuralMutationLock {
+            guard let index = connections.firstIndex(where: { $0.id == connectionID }),
+                  connections[index].active != active
+            else { return }
 
-        connections[index].active = active
-        markExecutionTopologyChanged()
+            connections[index].active = active
+            markExecutionTopologyChanged()
+        }
     }
 
     public func setActiveInletPorts(forNodeID nodeID: UUID, inletPortIDs: Set<UUID>)
     {
-        guard let node = node(forID: nodeID) else { return }
-        let nodeInletIDs = Set(node.inputPorts().map(\.id))
-        var changed = false
+        withStructuralMutationLock {
+            guard let node = node(forID: nodeID) else { return }
+            let nodeInletIDs = Set(node.inputPorts().map(\.id))
+            var changed = false
 
-        for index in connections.indices where nodeInletIDs.contains(connections[index].inletPortID) {
-            let active = inletPortIDs.contains(connections[index].inletPortID)
-            if connections[index].active != active {
-                connections[index].active = active
-                changed = true
+            for index in connections.indices where nodeInletIDs.contains(connections[index].inletPortID) {
+                let active = inletPortIDs.contains(connections[index].inletPortID)
+                if connections[index].active != active {
+                    connections[index].active = active
+                    changed = true
+                }
             }
-        }
 
-        if changed {
-            markExecutionTopologyChanged()
+            if changed {
+                markExecutionTopologyChanged()
+            }
         }
     }
 
@@ -587,7 +631,9 @@ public struct Connection: Codable, Identifiable, Hashable
 
         guard wasStale else { return }
 
-        rebuildNodesInExecutionOrder()
+        withStructuralMutationLock {
+            rebuildNodesInExecutionOrder()
+        }
     }
 
     private func rebuildNodesInExecutionOrder()

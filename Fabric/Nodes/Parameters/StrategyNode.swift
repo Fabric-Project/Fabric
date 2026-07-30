@@ -137,7 +137,11 @@ public class StrategyNode: Node
     {
         didSet
         {
-            self.rebuildPorts(forStrategy: strategy)
+            // One lock acquisition for the whole rebuild — see
+            // Node.withStructuralMutationLockIfAttached.
+            withStructuralMutationLockIfAttached {
+                self.rebuildPorts(forStrategy: strategy)
+            }
             // `displayName` is derived from `strategy`; notify so the title refreshes.
             self.nameSubject.send()
         }

@@ -246,6 +246,27 @@ public class GraphRenderer : ViewRenderer
             }
         }
 
+        // Hold the graph's structural mutation lock for the whole pass; see
+        // Graph.structuralMutationLock for the contract.
+        try graph.withStructuralMutationLock {
+            try executeLocked(graph: graph,
+                              executionInfo: executionInfo,
+                              renderPassDescriptor: renderPassDescriptor,
+                              commandBuffer: commandBuffer,
+                              clearFlags: clearFlags,
+                              forceEvaluationForTheseNodes: forceEvaluationForTheseNodes)
+        }
+    }
+
+    private func executeLocked(graph: Graph,
+                               executionInfo: GraphExecutionInfo,
+                               renderPassDescriptor: MTLRenderPassDescriptor,
+                               commandBuffer: MTLCommandBuffer,
+                               clearFlags: Bool,
+                               forceEvaluationForTheseNodes: [Node]) throws
+    {
+        let feedbackCache = self.feedbackCache(for: graph.id)
+
         self.currentCamera = graph.firstCamera ?? self.currentCamera ?? self.defaultCamera
 
         graph.rebuildNodesInExecutionOrderIfNeeded()

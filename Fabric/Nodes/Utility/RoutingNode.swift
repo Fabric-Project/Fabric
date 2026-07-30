@@ -67,7 +67,11 @@ public class RoutingNodeBase: TypeAgnosticNode
         let clamped = Self.clampedRouteCount(count)
         guard clamped != routeCount else { return }
         routeCount = clamped
-        rebuildPorts(forStrategy: strategy)
+        // One lock acquisition for the whole rebuild — see
+        // Node.withStructuralMutationLockIfAttached.
+        withStructuralMutationLockIfAttached {
+            rebuildPorts(forStrategy: strategy)
+        }
     }
 
     public func setPortType(_ portType: PortType)

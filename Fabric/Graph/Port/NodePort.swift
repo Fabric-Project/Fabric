@@ -133,9 +133,21 @@ public class NodePort<Value : PortValueRepresentable>: Port
     
     private func validatedDisconnect(from other: Port)
     {
-//        print("Port \(self) Disconnect from \(other)")
-
         let graph = self.node?.graph ?? other.node?.graph
+
+        if let graph
+        {
+            graph.withStructuralMutationLock { validatedDisconnectLocked(from: other, graph: graph) }
+        }
+        else
+        {
+            validatedDisconnectLocked(from: other, graph: nil)
+        }
+    }
+
+    private func validatedDisconnectLocked(from other: Port, graph: Graph?)
+    {
+//        print("Port \(self) Disconnect from \(other)")
         let removedGraphConnection = graph?.unregisterConnection(between: self, and: other) ?? false
 
         if let node = self.node,
@@ -213,8 +225,6 @@ public class NodePort<Value : PortValueRepresentable>: Port
         
     private func validatedConnect(to other:  Port)
     {
-//        print("Port \(self) Connect to \(other)")
-
         // A dynamic port can remain alive briefly in a transient SwiftUI view
         // after the registry has replaced it. Removed ports are detached from
         // their node, so reject gestures involving those stale instances.
@@ -222,6 +232,20 @@ public class NodePort<Value : PortValueRepresentable>: Port
         {
             return
         }
+
+        if let graph = self.node?.graph ?? other.node?.graph
+        {
+            graph.withStructuralMutationLock { validatedConnectLocked(to: other) }
+        }
+        else
+        {
+            validatedConnectLocked(to: other)
+        }
+    }
+
+    private func validatedConnectLocked(to other:  Port)
+    {
+//        print("Port \(self) Connect to \(other)")
 
         if self.kind == other.kind
         {

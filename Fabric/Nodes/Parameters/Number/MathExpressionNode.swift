@@ -412,7 +412,11 @@ public class MathExpressionNode: Node
         if result.isValid
         {
             self.portInterface = result.interface
-            self.syncPorts(to: result.interface)
+            // One lock acquisition for the whole port sync — see
+            // Node.withStructuralMutationLockIfAttached.
+            withStructuralMutationLockIfAttached {
+                self.syncPorts(to: result.interface)
+            }
             self.needsEvaluation = true
         }
 

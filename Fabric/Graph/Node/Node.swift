@@ -293,14 +293,32 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         self.registry.port(named: name) as? T
     }
 
+    /// Runs `body` under the owning graph's structural mutation lock (see
+    /// Graph.structuralMutationLock). Before the node joins a graph nothing can
+    /// be executing it, so the body runs unlocked. Compound port transitions
+    /// (rebuildPorts, shader-driven port sync) must wrap their whole transition
+    /// in this — per-step locking would let an execute pass observe a
+    /// half-rebuilt port set between steps.
+    internal func withStructuralMutationLockIfAttached<Result>(_ body: () throws -> Result) rethrows -> Result
+    {
+        if let graph
+        {
+            return try graph.withStructuralMutationLock(body)
+        }
+
+        return try body()
+    }
+
     // Dynamic add/remove (kept by serialization automatically)
     public func addDynamicPort(_ p: Port, name:String? = nil)
     {
-        self.registry.addDynamic(p, owner: self, name:name)
-        self.invalidatePortCaches()
-        if let param = p.parameter
-        {
-            self.parameterGroup.append(param)
+        withStructuralMutationLockIfAttached {
+            self.registry.addDynamic(p, owner: self, name:name)
+            self.invalidatePortCaches()
+            if let param = p.parameter
+            {
+                self.parameterGroup.append(param)
+            }
         }
 
         self.graph?.markConnectionsChanged()
@@ -309,11 +327,13 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
 
     public func removePort(_ p: Port)
     {
-        self.registry.remove(p)
-        self.invalidatePortCaches()
-        if let param = p.parameter
-        {
-            self.parameterGroup.remove(param)
+        withStructuralMutationLockIfAttached {
+            self.registry.remove(p)
+            self.invalidatePortCaches()
+            if let param = p.parameter
+            {
+                self.parameterGroup.remove(param)
+            }
         }
 
         self.graph?.markConnectionsChanged()
@@ -322,22 +342,26 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
 
     internal func replaceParameterOfPort(_ port:Port, withParam param:(any Parameter))
     {
-        // Remove existing param from group
-        if let existingParam = port.parameter
-        {
-            self.parameterGroup.remove(existingParam)
+        withStructuralMutationLockIfAttached {
+            // Remove existing param from group
+            if let existingParam = port.parameter
+            {
+                self.parameterGroup.remove(existingParam)
+            }
+
+            // Add new param to group
+            self.parameterGroup.append(param)
+
+            port.parameter = param
         }
-
-        // Add new param to group
-        self.parameterGroup.append(param)
-
-        port.parameter = param
     }
 
     internal func reorderPorts(_ reordered: [Port])
     {
-        self.registry.reorder(reordered)
-        self.invalidatePortCaches()
+        withStructuralMutationLockIfAttached {
+            self.registry.reorder(reordered)
+            self.invalidatePortCaches()
+        }
     }
 
     internal func inputPorts() -> [Port]
