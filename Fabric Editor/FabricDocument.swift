@@ -123,6 +123,18 @@ class FabricDocument: FileDocument
         try? directionalLightNode.startExecution(renderer: self.renderer)
         directionalLightNode.inputPosition.value = SIMD3<Float>(1, 2, 5)
 
+        // Ports can only register connections after their nodes belong to the graph.
+        self.editingContext.currentGraph.addNode(spinNode)
+        self.editingContext.currentGraph.addNode(mathNode)
+        self.editingContext.currentGraph.addNode(smoothNode)
+        self.editingContext.currentGraph.addNode(integralNode)
+        self.editingContext.currentGraph.addNode(eulerNode)
+        self.editingContext.currentGraph.addNode(boxNode)
+        self.editingContext.currentGraph.addNode(materialNode)
+        self.editingContext.currentGraph.addNode(meshNode)
+        self.editingContext.currentGraph.addNode(directionalLightNode)
+        self.editingContext.currentGraph.addNode(cameraNode)
+
         // Connections — animation chain
         spinNode.output.connect(to: mathNode.findPort(named: "Amount", as: ParameterPort<Float>.self)!)
         mathNode.findPort(named: "result", as: NodePort<Float>.self)!.connect(to: smoothNode.findPort(named: "inputNumber", as: ParameterPort<Float>.self)!)
@@ -134,19 +146,6 @@ class FabricDocument: FileDocument
         // Connections — geometry
         boxNode.outputGeometry.connect(to: meshNode.inputGeometry)
         materialNode.outputMaterial.connect(to: meshNode.inputMaterial)
-
-        
-        // Add all nodes to graph
-        self.editingContext.currentGraph.addNode(spinNode)
-        self.editingContext.currentGraph.addNode(mathNode)
-        self.editingContext.currentGraph.addNode(smoothNode)
-        self.editingContext.currentGraph.addNode(integralNode)
-        self.editingContext.currentGraph.addNode(eulerNode)
-        self.editingContext.currentGraph.addNode(boxNode)
-        self.editingContext.currentGraph.addNode(materialNode)
-        self.editingContext.currentGraph.addNode(meshNode)
-        self.editingContext.currentGraph.addNode(directionalLightNode)
-        self.editingContext.currentGraph.addNode(cameraNode)
 
         // Auto-layout the graph
         self.editingContext.currentGraph.autoLayout()
