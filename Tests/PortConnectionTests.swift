@@ -74,6 +74,11 @@ struct PortConnectionTests {
             decoded.nodes.first { $0.id == source.id } as? NumberBinaryOperator
         )
         #expect(decodedSource.outputNumber.connections.count == 1)
+        #expect(decodedSource.outputNumber.connectedInlets == [decodedSink.inputNumber1])
+        #expect(decodedSink.inputNumber1.connectedOutlets == [decodedSource.outputNumber])
+
+        decodedSource.outputNumber.send(144)
+        #expect(decodedSink.inputNumber1.value == 144)
     }
 
     @Test("Graph encoding records required plugins and qualified node IDs")

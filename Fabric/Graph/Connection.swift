@@ -24,6 +24,8 @@ public final class Connection: Codable, Identifiable, Hashable
     }
 
     internal weak var graph: Graph?
+    internal weak var outletPortReference: Port?
+    internal weak var inletPortReference: Port?
 
     private enum CodingKeys: String, CodingKey
     {
@@ -55,12 +57,12 @@ public final class Connection: Codable, Identifiable, Hashable
     {
         if port.id == outletPortID
         {
-            return graph?.nodePort(forID: inletPortID)
+            return inletPortReference
         }
 
         if port.id == inletPortID
         {
-            return graph?.nodePort(forID: outletPortID)
+            return outletPortReference
         }
 
         return nil
@@ -68,11 +70,11 @@ public final class Connection: Codable, Identifiable, Hashable
 
     public var outletPort: Port?
     {
-        graph?.nodePort(forID: outletPortID)
+        outletPortReference
     }
 
     public var inletPort: Port?
     {
-        graph?.nodePort(forID: inletPortID)
+        inletPortReference
     }
 }

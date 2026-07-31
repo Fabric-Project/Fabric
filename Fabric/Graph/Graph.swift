@@ -559,6 +559,8 @@ internal import AnyCodable
         else { return }
 
         connection.graph = self
+        connection.outletPortReference = outlet
+        connection.inletPortReference = inlet
         connections.append(connection)
 
         if !outlet.connections.contains(where: { $0.id == connection.id })
