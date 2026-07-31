@@ -1,8 +1,11 @@
 import Foundation
+internal import HuggingFace
 internal import MLX
 internal import MLXLLM
 internal import MLXVLM
 internal import MLXLMCommon
+internal import MLXHuggingFace
+internal import Tokenizers
 
 struct LocalModelCatalogEntry: Identifiable, Hashable, Sendable {
     let id: String
@@ -98,20 +101,7 @@ enum LocalModelRuntimeSupport {
     }
 
     static func isModelDownloaded(modelID: String) -> Bool {
-        let modelDirectory = ModelConfiguration(id: modelID).modelDirectory()
-        var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: modelDirectory.path, isDirectory: &isDirectory), isDirectory.boolValue else {
-            return false
-        }
-
-        guard let contents = try? FileManager.default.contentsOfDirectory(
-            at: modelDirectory,
-            includingPropertiesForKeys: nil
-        ) else {
-            return false
-        }
-
-        return contents.isEmpty == false
+        self.cachedModelDirectory(modelID: modelID) != nil
     }
 
     static func effectiveContextTokenLimit(for modelID: String, desired: Int) -> Int {
@@ -139,7 +129,10 @@ enum LocalModelRuntimeSupport {
     }
 
     static func modelContextTokenLimit(for modelID: String) -> Int? {
-        let modelDirectory = ModelConfiguration(id: modelID).modelDirectory()
+        guard let modelDirectory = self.cachedModelDirectory(modelID: modelID) else {
+            return nil
+        }
+
         let configurationFileURL = modelDirectory.appending(path: "config.json")
         guard
             let data = try? Data(contentsOf: configurationFileURL),
@@ -149,6 +142,19 @@ enum LocalModelRuntimeSupport {
         }
 
         return self.findLargestContextLimit(in: jsonObject)
+    }
+
+    private static func cachedModelDirectory(modelID: String) -> URL? {
+        guard let repositoryID = Repo.ID(rawValue: modelID) else {
+            return nil
+        }
+
+        return HubCache.default.cachedFilePath(
+            repo: repositoryID,
+            kind: .model,
+            revision: "main",
+            filename: "config.json"
+        )?.deletingLastPathComponent()
     }
 
     private static func findLargestContextLimit(in dictionary: [String: Any]) -> Int? {
@@ -210,17 +216,21 @@ actor LocalModelContainerCache {
         }
 
         let task = Task<ModelContainer, Error> {
-            MLX.GPU.set(cacheLimit: 20 * 1024 * 1024)
+            MLX.Memory.cacheLimit = 20 * 1024 * 1024
 
             switch family {
             case .llm:
                 return try await LLMModelFactory.shared.loadContainer(
+                    from: #hubDownloader(),
+                    using: #huggingFaceTokenizerLoader(),
                     configuration: configuration,
                     progressHandler: progressHandler
                 )
 
             case .vlm:
                 return try await VLMModelFactory.shared.loadContainer(
+                    from: #hubDownloader(),
+                    using: #huggingFaceTokenizerLoader(),
                     configuration: configuration,
                     progressHandler: progressHandler
                 )
