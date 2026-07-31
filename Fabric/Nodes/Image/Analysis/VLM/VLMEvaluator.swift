@@ -76,7 +76,7 @@ final class VLMEvaluator {
         let consumerID = self.modelLoadConsumerID
         let modelID = self.modelConfiguration.name
         Task {
-            await LocalModelContainerCache.shared.cancelLoadingContainer(
+            await LocalModelContainerCache.shared.releaseContainer(
                 family: .vlm,
                 modelID: modelID,
                 consumerID: consumerID
@@ -90,12 +90,7 @@ final class VLMEvaluator {
     }
 
     func resetSessionState() {
-        self.cancelGeneration()
-        self.clearConversation()
-        self.loadedModelID = nil
-        self.modelContainer = nil
-        self.activityText = ""
-        self.generationError = nil
+        self.cancelModelOperation()
     }
 
     func load(configuration: ModelConfiguration, requestID: Int) async throws -> ModelContainer {
@@ -189,13 +184,18 @@ final class VLMEvaluator {
     }
 
     func cancelModelOperation() {
-        let modelID = self.modelConfiguration.name
+        let modelID = self.loadedModelID ?? self.modelConfiguration.name
+        let consumerID = self.modelLoadConsumerID
         self.cancelGeneration()
+        self.clearConversation()
+        self.loadedModelID = nil
+        self.modelContainer = nil
+        self.modelInfo = ""
         Task {
-            await LocalModelContainerCache.shared.cancelLoadingContainer(
+            await LocalModelContainerCache.shared.releaseContainer(
                 family: .vlm,
                 modelID: modelID,
-                consumerID: self.modelLoadConsumerID
+                consumerID: consumerID
             )
         }
     }

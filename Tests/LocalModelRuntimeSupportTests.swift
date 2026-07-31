@@ -75,6 +75,31 @@ struct LocalModelRuntimeSupportTests {
         #expect(LocalModelRuntimeSupport.isCompleteModelDirectory(modelDirectory))
     }
 
+    @Test("A sharded model is complete only when every indexed weight file exists")
+    func shardedModelRequiresEveryIndexedWeightFile() throws {
+        let modelDirectory = FileManager.default.temporaryDirectory
+            .appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: modelDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: modelDirectory) }
+
+        try Data("{}".utf8).write(to: modelDirectory.appending(path: "config.json"))
+        let index = """
+            {
+              "weight_map": {
+                "first": "model-00001-of-00002.safetensors",
+                "second": "model-00002-of-00002.safetensors"
+              }
+            }
+            """
+        try Data(index.utf8).write(to: modelDirectory.appending(path: "model.safetensors.index.json"))
+        try Data([0]).write(to: modelDirectory.appending(path: "model-00001-of-00002.safetensors"))
+
+        #expect(LocalModelRuntimeSupport.isCompleteModelDirectory(modelDirectory) == false)
+
+        try Data([0]).write(to: modelDirectory.appending(path: "model-00002-of-00002.safetensors"))
+        #expect(LocalModelRuntimeSupport.isCompleteModelDirectory(modelDirectory))
+    }
+
     @Test("Latest generation request invalidates earlier requests")
     func latestGenerationRequestWins() {
         var tracker = LocalModelGenerationRequestTracker()

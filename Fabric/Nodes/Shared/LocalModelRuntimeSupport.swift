@@ -193,7 +193,29 @@ enum LocalModelRuntimeSupport {
             return false
         }
 
-        return files.compactMap { $0 as? URL }.contains { $0.pathExtension == "safetensors" }
+        let fileURLs = files.compactMap { $0 as? URL }
+        let availableWeightFiles = Set(
+            fileURLs
+                .filter { $0.pathExtension == "safetensors" }
+                .map(\.lastPathComponent)
+        )
+        guard availableWeightFiles.isEmpty == false else { return false }
+
+        guard let weightIndexURL = fileURLs.first(where: { $0.lastPathComponent.hasSuffix(".safetensors.index.json") }) else {
+            return true
+        }
+
+        guard
+            let indexData = try? Data(contentsOf: weightIndexURL),
+            let indexObject = try? JSONSerialization.jsonObject(with: indexData) as? [String: Any],
+            let weightMap = indexObject["weight_map"] as? [String: String]
+        else {
+            return false
+        }
+
+        let requiredWeightFiles = Set(weightMap.values)
+        return requiredWeightFiles.isEmpty == false
+            && requiredWeightFiles.isSubset(of: availableWeightFiles)
     }
 
     static func downloadedModelSize(modelID: String) -> Int64? {
@@ -445,8 +467,19 @@ actor LocalModelContainerCache {
         var consumers: Set<UUID>
     }
 
+    private final class ProgressReference: @unchecked Sendable {
+        let progress: Progress
+
+        init(_ progress: Progress) {
+            self.progress = progress
+        }
+    }
+
     private var containerLoads: [CacheKey: ContainerLoad] = [:]
     private var activeLoadIDs: [CacheKey: UUID] = [:]
+    private var progressReferences: [CacheKey: ProgressReference] = [:]
+    private var progressMonitorTasks: [CacheKey: Task<Void, Never>] = [:]
+    private var downloadCompletedLoadIDs: Set<UUID> = []
     private var acquisitionStates: [CacheKey: LocalModelRuntimeState] = [:]
     private var stateObservers: [CacheKey: [UUID: AsyncStream<LocalModelRuntimeState>.Continuation]] = [:]
 
@@ -502,10 +535,10 @@ actor LocalModelContainerCache {
                     using: #huggingFaceTokenizerLoader(),
                     configuration: configuration,
                     progressHandler: { progress in
-                        let fractionCompleted = progress.fractionCompleted
+                        let progressReference = ProgressReference(progress)
                         Task {
-                            await LocalModelContainerCache.shared.reportProgress(
-                                fractionCompleted,
+                            await LocalModelContainerCache.shared.monitorProgress(
+                                progressReference,
                                 for: cacheKey,
                                 loadID: loadID
                             )
@@ -519,10 +552,10 @@ actor LocalModelContainerCache {
                     using: #huggingFaceTokenizerLoader(),
                     configuration: configuration,
                     progressHandler: { progress in
-                        let fractionCompleted = progress.fractionCompleted
+                        let progressReference = ProgressReference(progress)
                         Task {
-                            await LocalModelContainerCache.shared.reportProgress(
-                                fractionCompleted,
+                            await LocalModelContainerCache.shared.monitorProgress(
+                                progressReference,
                                 for: cacheKey,
                                 loadID: loadID
                             )
@@ -546,11 +579,13 @@ actor LocalModelContainerCache {
             else {
                 throw CancellationError()
             }
+            self.stopMonitoringProgress(for: cacheKey, loadID: loadID)
             self.activeLoadIDs.removeValue(forKey: cacheKey)
             self.updateState(.ready, for: cacheKey)
             return container
         } catch {
             if self.activeLoadIDs[cacheKey] == loadID {
+                self.stopMonitoringProgress(for: cacheKey, loadID: loadID)
                 self.activeLoadIDs.removeValue(forKey: cacheKey)
                 self.containerLoads.removeValue(forKey: cacheKey)
                 if error is CancellationError {
@@ -563,13 +598,13 @@ actor LocalModelContainerCache {
         }
     }
 
-    func cancelLoadingContainer(family: LocalModelFamily, modelID: String, consumerID: UUID) {
+    func releaseContainer(family: LocalModelFamily, modelID: String, consumerID: UUID) {
         let cacheKey = CacheKey(family: family, modelID: modelID)
-        guard self.acquisitionStates[cacheKey] != .ready else { return }
         guard var containerLoad = self.containerLoads[cacheKey] else { return }
         containerLoad.consumers.remove(consumerID)
 
         if containerLoad.consumers.isEmpty {
+            self.stopMonitoringProgress(for: cacheKey, loadID: containerLoad.id)
             self.activeLoadIDs.removeValue(forKey: cacheKey)
             self.containerLoads.removeValue(forKey: cacheKey)?.task.cancel()
             self.updateState(.unloaded, for: cacheKey)
@@ -578,23 +613,57 @@ actor LocalModelContainerCache {
         }
     }
 
+    private func monitorProgress(_ progressReference: ProgressReference, for cacheKey: CacheKey, loadID: UUID) {
+        guard self.activeLoadIDs[cacheKey] == loadID else { return }
+        self.progressReferences[cacheKey] = progressReference
+        self.reportProgress(progressReference.progress.fractionCompleted, for: cacheKey, loadID: loadID)
+
+        guard self.progressMonitorTasks[cacheKey] == nil else { return }
+        self.progressMonitorTasks[cacheKey] = Task {
+            while Task.isCancelled == false {
+                await LocalModelContainerCache.shared.sampleProgress(for: cacheKey, loadID: loadID)
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+        }
+    }
+
+    private func sampleProgress(for cacheKey: CacheKey, loadID: UUID) {
+        guard
+            self.activeLoadIDs[cacheKey] == loadID,
+            let progressReference = self.progressReferences[cacheKey]
+        else {
+            return
+        }
+
+        self.reportProgress(progressReference.progress.fractionCompleted, for: cacheKey, loadID: loadID)
+    }
+
     private func reportProgress(_ fractionCompleted: Double, for cacheKey: CacheKey, loadID: UUID) {
         guard self.activeLoadIDs[cacheKey] == loadID else { return }
         let clampedProgress = min(max(fractionCompleted, 0), 1)
 
-        switch self.currentState(for: cacheKey) {
-        case .loading, .ready:
+        if self.downloadCompletedLoadIDs.contains(loadID) {
             return
-        case .downloading(let currentProgress) where clampedProgress < currentProgress:
-            return
-        default:
-            break
         }
 
-        self.updateState(
-            clampedProgress >= 1 ? .loading : .downloading(progress: clampedProgress),
-            for: cacheKey
-        )
+        if case .downloading(let currentProgress) = self.currentState(for: cacheKey),
+            clampedProgress < currentProgress
+        {
+            return
+        }
+
+        if clampedProgress >= 1 {
+            self.downloadCompletedLoadIDs.insert(loadID)
+            self.updateState(.loading, for: cacheKey)
+        } else {
+            self.updateState(.downloading(progress: clampedProgress), for: cacheKey)
+        }
+    }
+
+    private func stopMonitoringProgress(for cacheKey: CacheKey, loadID: UUID) {
+        self.progressMonitorTasks.removeValue(forKey: cacheKey)?.cancel()
+        self.progressReferences.removeValue(forKey: cacheKey)
+        self.downloadCompletedLoadIDs.remove(loadID)
     }
 
     private func currentState(for cacheKey: CacheKey) -> LocalModelRuntimeState {
