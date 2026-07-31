@@ -26,8 +26,10 @@ struct LocalLLMNodeSettingsView: View {
             chatModeEnabled: self.$node.chatModeEnabled,
             desiredMaxContextTokens: self.$node.desiredMaxContextTokens,
             effectiveMaxContextTokens: self.node.effectiveMaxContextTokens,
-            activityText: self.node.activityText,
+            runtimeState: self.node.modelRuntimeState,
             supportsImageInput: false,
+            loadModel: self.node.loadModel,
+            cancelModelOperation: self.node.cancelModelOperation,
             clearConversation: self.node.clearConversation
         )
     }
@@ -103,12 +105,26 @@ struct LocalLLMNodeSettingsView: View {
 
     public var activityText = ""
     public var isGenerating = false
+    private var modelAcquisitionState: LocalModelRuntimeState = .unloaded
+    private var generationError: String?
+    var availableModels: [LocalModelCatalogEntry] = []
 
     @ObservationIgnored private var suppressSettingSideEffects = false
     @ObservationIgnored private let llmEvaluator = LLMEvaluator()
+    @ObservationIgnored private var catalogMetadataTask: Task<Void, Never>?
+    @ObservationIgnored private var modelStateObservationTask: Task<Void, Never>?
+    @ObservationIgnored private var previousGenerateSignal = false
 
-    var availableModels: [LocalModelCatalogEntry] {
-        LocalModelRuntimeSupport.catalogEntries(for: Array(LLMRegistry.shared.models))
+    var modelRuntimeState: LocalModelRuntimeState {
+        if let generationError {
+            return .failed(message: generationError)
+        }
+
+        if self.isGenerating, self.modelAcquisitionState.isReady {
+            return .generating
+        }
+
+        return self.modelAcquisitionState
     }
 
     public var effectiveMaxContextTokens: Int {
@@ -122,6 +138,8 @@ struct LocalLLMNodeSettingsView: View {
         super.init(context: context)
         self.configureEvaluatorBindings()
         self.applyEvaluatorConfiguration()
+        self.refreshAvailableModels()
+        self.observeSelectedModelState()
     }
 
     public required init(from decoder: any Decoder) throws {
@@ -139,6 +157,13 @@ struct LocalLLMNodeSettingsView: View {
 
         self.configureEvaluatorBindings()
         self.applyEvaluatorConfiguration()
+        self.refreshAvailableModels()
+        self.observeSelectedModelState()
+    }
+
+    deinit {
+        self.catalogMetadataTask?.cancel()
+        self.modelStateObservationTask?.cancel()
     }
 
     public override func encode(to encoder: Encoder) throws {
@@ -171,15 +196,25 @@ struct LocalLLMNodeSettingsView: View {
             self.llmEvaluator.prompt = prompt
         }
 
-        if self.inputGenerate.valueDidChange || self.inputPrompt.valueDidChange {
-            if self.inputGenerate.value == true {
-                if let prompt = self.inputPrompt.value {
-                    self.llmEvaluator.prompt = prompt
-                }
+        let generateSignal = self.inputGenerate.value ?? false
+        let shouldGenerate = self.inputGenerate.valueDidChange
+            && generateSignal
+            && self.previousGenerateSignal == false
 
-                self.llmEvaluator.generate()
-            } else {
-                self.llmEvaluator.cancelGeneration()
+        if self.inputGenerate.valueDidChange {
+            self.previousGenerateSignal = generateSignal
+        }
+
+        if shouldGenerate {
+            if let prompt = self.inputPrompt.value {
+                self.llmEvaluator.prompt = prompt
+            }
+
+            self.llmEvaluator.generate()
+
+            if self.inputGenerate.connections.isEmpty {
+                self.inputGenerate.value = false
+                self.previousGenerateSignal = false
             }
         }
 
@@ -189,12 +224,24 @@ struct LocalLLMNodeSettingsView: View {
     }
 
     override public func stopExecution(renderer: GraphRenderer) throws {
-        self.llmEvaluator.cancelGeneration()
+        self.llmEvaluator.cancelModelOperation()
         try super.stopExecution(renderer: renderer)
     }
 
     func clearConversation() {
         self.llmEvaluator.clearConversation()
+    }
+
+    func loadModel(_ modelID: String) {
+        if self.selectedModelID != modelID {
+            self.llmEvaluator.cancelModelOperation()
+            self.selectedModelID = modelID
+        }
+        self.llmEvaluator.prepareModel()
+    }
+
+    func cancelModelOperation() {
+        self.llmEvaluator.cancelModelOperation()
     }
 
     private func configureEvaluatorBindings() {
@@ -210,14 +257,22 @@ struct LocalLLMNodeSettingsView: View {
             }
         }
 
+        self.llmEvaluator.onGenerationErrorChanged = { [weak self] generationError in
+            Task { @MainActor in
+                self?.generationError = generationError
+            }
+        }
+
         self.activityText = self.llmEvaluator.activityText
         self.isGenerating = self.llmEvaluator.running
+        self.generationError = self.llmEvaluator.generationError
     }
 
     private func didUpdateModelSettings() {
         guard self.suppressSettingSideEffects == false else { return }
         self.llmEvaluator.resetSessionState()
         self.applyEvaluatorConfiguration()
+        self.observeSelectedModelState()
     }
 
     private func didUpdateInferenceSettings() {
@@ -240,6 +295,57 @@ struct LocalLLMNodeSettingsView: View {
         if self.inputPrompt.value == nil || self.inputPrompt.value?.isEmpty == true {
             self.inputPrompt.value = modelConfiguration.defaultPrompt
             self.llmEvaluator.prompt = modelConfiguration.defaultPrompt
+        }
+    }
+
+    private func refreshAvailableModels() {
+        let configurations = Array(LLMRegistry.shared.models)
+        self.availableModels = LocalModelRuntimeSupport.catalogEntries(
+            for: configurations,
+            family: .llm
+        )
+
+        self.catalogMetadataTask?.cancel()
+        self.catalogMetadataTask = Task { @MainActor [weak self, configurations] in
+            let metadata = await LocalModelMetadataCache.shared.metadata(
+                for: configurations.map(\.name),
+                family: .llm
+            )
+            guard Task.isCancelled == false else { return }
+
+            let entries = LocalModelRuntimeSupport.catalogEntries(
+                for: configurations,
+                family: .llm,
+                metadataByModelID: metadata
+            )
+            self?.availableModels = entries
+        }
+    }
+
+    private func observeSelectedModelState() {
+        let selectedModelID = self.selectedModelID
+        self.modelStateObservationTask?.cancel()
+        self.modelAcquisitionState = .unloaded
+        self.modelStateObservationTask = Task { @MainActor [weak self] in
+            let stateUpdates = await LocalModelContainerCache.shared.stateUpdates(
+                family: .llm,
+                modelID: selectedModelID
+            )
+
+            for await acquisitionState in stateUpdates {
+                guard
+                    Task.isCancelled == false,
+                    let self,
+                    self.selectedModelID == selectedModelID
+                else {
+                    return
+                }
+
+                self.modelAcquisitionState = acquisitionState
+                if acquisitionState == .ready {
+                    self.refreshAvailableModels()
+                }
+            }
         }
     }
 }

@@ -27,8 +27,10 @@ struct LocalVLMNodeSettingsView: View {
             chatModeEnabled: self.$node.chatModeEnabled,
             desiredMaxContextTokens: self.$node.desiredMaxContextTokens,
             effectiveMaxContextTokens: self.node.effectiveMaxContextTokens,
-            activityText: self.node.activityText,
+            runtimeState: self.node.modelRuntimeState,
             supportsImageInput: true,
+            loadModel: self.node.loadModel,
+            cancelModelOperation: self.node.cancelModelOperation,
             clearConversation: self.node.clearConversation
         )
     }
@@ -106,12 +108,26 @@ struct LocalVLMNodeSettingsView: View {
 
     public var activityText = ""
     public var isGenerating = false
+    private var modelAcquisitionState: LocalModelRuntimeState = .unloaded
+    private var generationError: String?
+    var availableModels: [LocalModelCatalogEntry] = []
 
     @ObservationIgnored private var suppressSettingSideEffects = false
     @ObservationIgnored private let vlmEvaluator = VLMEvaluator()
+    @ObservationIgnored private var catalogMetadataTask: Task<Void, Never>?
+    @ObservationIgnored private var modelStateObservationTask: Task<Void, Never>?
+    @ObservationIgnored private var previousGenerateSignal = false
 
-    var availableModels: [LocalModelCatalogEntry] {
-        LocalModelRuntimeSupport.catalogEntries(for: Array(VLMRegistry.shared.models))
+    var modelRuntimeState: LocalModelRuntimeState {
+        if let generationError {
+            return .failed(message: generationError)
+        }
+
+        if self.isGenerating, self.modelAcquisitionState.isReady {
+            return .generating
+        }
+
+        return self.modelAcquisitionState
     }
 
     public var effectiveMaxContextTokens: Int {
@@ -125,6 +141,8 @@ struct LocalVLMNodeSettingsView: View {
         super.init(context: context)
         self.configureEvaluatorBindings()
         self.applyEvaluatorConfiguration()
+        self.refreshAvailableModels()
+        self.observeSelectedModelState()
     }
 
     public required init(from decoder: any Decoder) throws {
@@ -142,6 +160,13 @@ struct LocalVLMNodeSettingsView: View {
 
         self.configureEvaluatorBindings()
         self.applyEvaluatorConfiguration()
+        self.refreshAvailableModels()
+        self.observeSelectedModelState()
+    }
+
+    deinit {
+        self.catalogMetadataTask?.cancel()
+        self.modelStateObservationTask?.cancel()
     }
 
     public override func encode(to encoder: Encoder) throws {
@@ -162,10 +187,10 @@ struct LocalVLMNodeSettingsView: View {
         AnyView(LocalVLMNodeSettingsView(node: self))
     }
 
-    override public var settingsSize: SettingsViewSize { .Large }
+    override public var settingsSize: SettingsViewSize { .Custom(size: .init(width: 700, height: 600)) }
 
     override public func stopExecution(renderer: GraphRenderer) throws {
-        self.vlmEvaluator.cancelGeneration()
+        self.vlmEvaluator.cancelModelOperation()
         try super.stopExecution(renderer: renderer)
     }
 
@@ -179,17 +204,27 @@ struct LocalVLMNodeSettingsView: View {
             self.vlmEvaluator.prompt = prompt
         }
 
-        if self.inputGenerate.valueDidChange || self.inputPrompt.valueDidChange || self.inputTexturePort.valueDidChange {
-            guard self.inputGenerate.value == true, self.vlmEvaluator.running == false else {
-                return
-            }
+        let generateSignal = self.inputGenerate.value ?? false
+        let shouldGenerate = self.inputGenerate.valueDidChange
+            && generateSignal
+            && self.previousGenerateSignal == false
 
+        if self.inputGenerate.valueDidChange {
+            self.previousGenerateSignal = generateSignal
+        }
+
+        if shouldGenerate {
             if let prompt = self.inputPrompt.value {
                 self.vlmEvaluator.prompt = prompt
             }
 
             let image = self.inputTexturePort.value.map { CIImage(mtlTexture: $0.texture) }.flatMap { $0 }
             self.vlmEvaluator.generate(image: image)
+
+            if self.inputGenerate.connections.isEmpty {
+                self.inputGenerate.value = false
+                self.previousGenerateSignal = false
+            }
         }
 
         self.outputPort.send(self.vlmEvaluator.output)
@@ -199,6 +234,18 @@ struct LocalVLMNodeSettingsView: View {
 
     func clearConversation() {
         self.vlmEvaluator.clearConversation()
+    }
+
+    func loadModel(_ modelID: String) {
+        if self.selectedModelID != modelID {
+            self.vlmEvaluator.cancelModelOperation()
+            self.selectedModelID = modelID
+        }
+        self.vlmEvaluator.prepareModel()
+    }
+
+    func cancelModelOperation() {
+        self.vlmEvaluator.cancelModelOperation()
     }
 
     private func configureEvaluatorBindings() {
@@ -214,14 +261,22 @@ struct LocalVLMNodeSettingsView: View {
             }
         }
 
+        self.vlmEvaluator.onGenerationErrorChanged = { [weak self] generationError in
+            Task { @MainActor in
+                self?.generationError = generationError
+            }
+        }
+
         self.activityText = self.vlmEvaluator.activityText
         self.isGenerating = self.vlmEvaluator.running
+        self.generationError = self.vlmEvaluator.generationError
     }
 
     private func didUpdateModelSettings() {
         guard self.suppressSettingSideEffects == false else { return }
         self.vlmEvaluator.resetSessionState()
         self.applyEvaluatorConfiguration()
+        self.observeSelectedModelState()
     }
 
     private func didUpdateInferenceSettings() {
@@ -245,6 +300,57 @@ struct LocalVLMNodeSettingsView: View {
         if self.inputPrompt.value == nil || self.inputPrompt.value?.isEmpty == true {
             self.inputPrompt.value = modelConfiguration.defaultPrompt
             self.vlmEvaluator.prompt = modelConfiguration.defaultPrompt
+        }
+    }
+
+    private func refreshAvailableModels() {
+        let configurations = Array(VLMRegistry.shared.models)
+        self.availableModels = LocalModelRuntimeSupport.catalogEntries(
+            for: configurations,
+            family: .vlm
+        )
+
+        self.catalogMetadataTask?.cancel()
+        self.catalogMetadataTask = Task { @MainActor [weak self, configurations] in
+            let metadata = await LocalModelMetadataCache.shared.metadata(
+                for: configurations.map(\.name),
+                family: .vlm
+            )
+            guard Task.isCancelled == false else { return }
+
+            let entries = LocalModelRuntimeSupport.catalogEntries(
+                for: configurations,
+                family: .vlm,
+                metadataByModelID: metadata
+            )
+            self?.availableModels = entries
+        }
+    }
+
+    private func observeSelectedModelState() {
+        let selectedModelID = self.selectedModelID
+        self.modelStateObservationTask?.cancel()
+        self.modelAcquisitionState = .unloaded
+        self.modelStateObservationTask = Task { @MainActor [weak self] in
+            let stateUpdates = await LocalModelContainerCache.shared.stateUpdates(
+                family: .vlm,
+                modelID: selectedModelID
+            )
+
+            for await acquisitionState in stateUpdates {
+                guard
+                    Task.isCancelled == false,
+                    let self,
+                    self.selectedModelID == selectedModelID
+                else {
+                    return
+                }
+
+                self.modelAcquisitionState = acquisitionState
+                if acquisitionState == .ready {
+                    self.refreshAvailableModels()
+                }
+            }
         }
     }
 }

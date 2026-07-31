@@ -9,8 +9,10 @@ struct LocalModelNodeSettingsPanel: View {
     @Binding var chatModeEnabled: Bool
     @Binding var desiredMaxContextTokens: Int
     let effectiveMaxContextTokens: Int
-    let activityText: String
+    let runtimeState: LocalModelRuntimeState
     let supportsImageInput: Bool
+    let loadModel: (String) -> Void
+    let cancelModelOperation: () -> Void
     let clearConversation: () -> Void
 
     @State private var searchText = ""
@@ -20,16 +22,8 @@ struct LocalModelNodeSettingsPanel: View {
         LocalModelRuntimeSupport.groupedCatalogEntries(from: self.curatedModels, searchText: self.searchText)
     }
 
-    private var selectedModelIsCurated: Bool {
-        self.curatedModels.contains(where: { $0.id == self.selectedModelID })
-    }
-
     private var selectedModelIsDownloaded: Bool {
         LocalModelRuntimeSupport.isModelDownloaded(modelID: self.selectedModelID)
-    }
-
-    private var selectedModelOrganization: String {
-        self.selectedModelID.split(separator: "/", maxSplits: 1).first.map(String.init) ?? "Custom"
     }
 
     var body: some View {
@@ -61,15 +55,17 @@ struct LocalModelNodeSettingsPanel: View {
                     searchText: self.$searchText,
                     selectedModelID: self.$selectedModelID,
                     customModelID: self.$customModelID,
-                    selectedModelIsCurated: self.selectedModelIsCurated,
                     selectedModelIsDownloaded: self.selectedModelIsDownloaded,
-                    selectedModelOrganization: self.selectedModelOrganization,
-                    activityText: self.activityText
+                    runtimeState: self.runtimeState,
+                    loadModel: self.loadModel,
+                    cancelModelOperation: self.cancelModelOperation
                 )
                 .padding()
             }
         }
         .tabViewStyle(.grouped)
+        .controlSize(.small)
+        .font(.callout)
         
         .onAppear {
             self.syncCustomModelID(with: self.selectedModelID)
@@ -93,38 +89,41 @@ private struct LocalModelSelectionSection: View {
     @Binding var searchText: String
     @Binding var selectedModelID: String
     @Binding var customModelID: String
-    let selectedModelIsCurated: Bool
     let selectedModelIsDownloaded: Bool
-    let selectedModelOrganization: String
-    let activityText: String
+    let runtimeState: LocalModelRuntimeState
+    let loadModel: (String) -> Void
+    let cancelModelOperation: () -> Void
 
     var body: some View {
-        
         VStack(alignment: .leading) {
+            TextField("Search models", text: self.$searchText)
+                .textFieldStyle(.roundedBorder)
 
-            Menu("Model:") {
-                
-                
-                TextField("Search models", text: self.$searchText)
-//                               .textFieldStyle(.roundedBorder)
-                
-                ForEach(self.filteredModelGroups) { group in
-                    
-                    ForEach(group.models) { model in
-                        
-                        LocalModelSelectionRow(
-                            model: model,
-                            isSelected: model.id == self.selectedModelID
-                        ) {
-                            self.selectedModelID = model.id
+            ScrollView {
+                Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 4) {
+                    LocalModelTableHeader()
+
+                    ForEach(self.filteredModelGroups) { group in
+                        Text(group.organization)
+                            .font(.subheadline)
+                            .bold()
+                            .padding(.top, 6)
+                            .gridCellColumns(3)
+
+                        ForEach(group.models) { model in
+                            LocalModelSelectionRow(
+                                model: model,
+                                isSelected: model.id == self.selectedModelID,
+                                selectedModelRuntimeState: self.runtimeState,
+                                loadModel: self.loadModel,
+                                cancelModelOperation: self.cancelModelOperation
+                            )
                         }
-                        
-                        Divider()
-                        
                     }
                 }
             }
-            
+            .scrollIndicators(.hidden)
+
             VStack(alignment: .leading) {
                 Text("Custom Hugging Face Repo")
                     .font(.subheadline)
@@ -133,83 +132,205 @@ private struct LocalModelSelectionSection: View {
                     TextField("org/model-name", text: self.$customModelID)
                         .textFieldStyle(.roundedBorder)
 
-                    Button("Use Repo") {
+                    Button("Load Repo", systemImage: "arrow.down.circle") {
                         let trimmedModelID = self.customModelID.trimmingCharacters(in: .whitespacesAndNewlines)
                         guard trimmedModelID.isEmpty == false else { return }
-                        self.selectedModelID = trimmedModelID
+                        self.loadModel(trimmedModelID)
                     }
                 }
             }
-            .padding(.top, 8)
 
             VStack(alignment: .leading) {
-                
-                Text("Current Model:")
-                
+                Text("Current Model")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
                 HStack {
                     Text(self.selectedModelID)
+                        .lineLimit(1)
                         .textSelection(.enabled)
 
                     Spacer()
 
-                    if self.selectedModelIsDownloaded {
-                        Label("Downloaded", systemImage: "checkmark.circle.fill")
-                            .labelStyle(.titleAndIcon)
-                            .foregroundStyle(.green)
-                    }
+                    LocalModelRuntimeStatusLabel(
+                        runtimeState: self.runtimeState,
+                        isDownloaded: self.selectedModelIsDownloaded
+                    )
                 }
 
-                Text(self.selectedModelIsCurated ? "Curated model from \(self.selectedModelOrganization)." : "Custom repo ID.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-
-                if self.activityText.isEmpty == false {
-                    Text(self.activityText)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                if let detail = self.runtimeState.detail {
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.red)
                 }
             }
-            .padding(.top, 8)
+            .padding(.top, 4)
         }
+    }
+}
+
+private struct LocalModelTableHeader: View {
+    var body: some View {
+        GridRow {
+            Text("Model")
+            Text("Size")
+                .gridColumnAlignment(.trailing)
+            Text("Action")
+                .gridColumnAlignment(.leading)
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
     }
 }
 
 private struct LocalModelSelectionRow: View {
     let model: LocalModelCatalogEntry
     let isSelected: Bool
-    let action: () -> Void
+    let selectedModelRuntimeState: LocalModelRuntimeState
+    let loadModel: (String) -> Void
+    let cancelModelOperation: () -> Void
 
     var body: some View {
-        Button(action: self.action) {
-            HStack {
-                VStack(alignment: .leading) {
-                    Text(self.model.displayName)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+        GridRow {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(self.model.displayName)
+                    .lineLimit(1)
 
-                    Text(self.model.id)
-                        .font(.caption)
+                Text(self.model.summary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Group {
+                if let sizeInBytes = self.model.sizeInBytes {
+                    Text(sizeInBytes, format: .byteCount(style: .file))
+                } else {
+                    Text("—")
                         .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                if self.model.isDownloaded {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                }
-
-                if self.isSelected {
-                    Image(systemName: "checkmark")
-                        .foregroundStyle(Color.accentColor)
                 }
             }
-//            .contentShape(.rect)
-//            .padding(.vertical, 4)
-//            .padding(.horizontal, 8)
-//            .frame(maxWidth: .infinity, alignment: .leading)
-//            .background(self.isSelected ? Color.accentColor.opacity(0.12) : .clear)
-//            .clipShape(.rect(cornerRadius: 8))
+            .font(.caption)
+            .monospacedDigit()
+
+            LocalModelRowAction(
+                model: self.model,
+                runtimeState: self.isSelected ? self.selectedModelRuntimeState : .unloaded,
+                isCurrentModel: self.isSelected,
+                loadModel: self.loadModel,
+                cancelModelOperation: self.cancelModelOperation
+            )
         }
-//        .buttonStyle(.plain)
+        .padding(.vertical, 3)
+    }
+}
+
+private struct LocalModelRowAction: View {
+    let model: LocalModelCatalogEntry
+    let runtimeState: LocalModelRuntimeState
+    let isCurrentModel: Bool
+    let loadModel: (String) -> Void
+    let cancelModelOperation: () -> Void
+
+    var body: some View {
+        if self.isCurrentModel {
+            switch self.runtimeState {
+            case .downloading(let progress):
+                HStack(spacing: 4) {
+                    ProgressView(value: progress)
+                        .frame(width: 52)
+                    Text(progress, format: .percent.precision(.fractionLength(1)))
+                        .font(.caption)
+                        .monospacedDigit()
+                    Button("Cancel Download", systemImage: "xmark.circle", action: self.cancelModelOperation)
+                        .labelStyle(.iconOnly)
+                        .help("Cancel download")
+                }
+
+            case .loading:
+                HStack(spacing: 4) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Loading")
+                        .font(.caption)
+                    Button("Cancel Loading", systemImage: "xmark.circle", action: self.cancelModelOperation)
+                        .labelStyle(.iconOnly)
+                        .help("Cancel loading")
+                }
+
+            case .ready, .generating:
+                Label(self.runtimeState.title, systemImage: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+
+            case .failed:
+                Button("Retry", systemImage: "arrow.clockwise") {
+                    self.loadModel(self.model.id)
+                }
+
+            case .unloaded:
+                LocalModelLoadButton(model: self.model, loadModel: self.loadModel)
+            }
+        } else {
+            LocalModelLoadButton(model: self.model, loadModel: self.loadModel)
+        }
+    }
+}
+
+private struct LocalModelLoadButton: View {
+    let model: LocalModelCatalogEntry
+    let loadModel: (String) -> Void
+
+    var body: some View {
+        if self.model.isDownloaded {
+            Button("Load", systemImage: "memorychip") {
+                self.loadModel(self.model.id)
+            }
+        } else {
+            Button("Download", systemImage: "arrow.down.circle") {
+                self.loadModel(self.model.id)
+            }
+        }
+    }
+}
+
+private struct LocalModelRuntimeStatusLabel: View {
+    let runtimeState: LocalModelRuntimeState
+    let isDownloaded: Bool
+
+    var body: some View {
+        switch self.runtimeState {
+        case .downloading(let progress):
+            HStack {
+                ProgressView(value: progress)
+                Text(self.runtimeState.title)
+            }
+
+        case .loading:
+            Label(self.runtimeState.title, systemImage: "hourglass")
+                .foregroundStyle(.secondary)
+
+        case .ready:
+            Label(self.runtimeState.title, systemImage: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+
+        case .generating:
+            Label(self.runtimeState.title, systemImage: "waveform")
+                .foregroundStyle(.green)
+
+        case .failed:
+            Label(self.runtimeState.title, systemImage: "exclamationmark.triangle.fill")
+                .foregroundStyle(.red)
+
+        case .unloaded:
+            if self.isDownloaded {
+                Label("Downloaded", systemImage: "internaldrive.fill")
+                    .foregroundStyle(.secondary)
+            } else {
+                Label("Not Downloaded", systemImage: "icloud.and.arrow.down")
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 }
 

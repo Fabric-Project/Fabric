@@ -16,6 +16,7 @@ final class VLMEvaluator {
     var onStatChanged: ((String) -> Void)?
     var onRunningChanged: ((Bool) -> Void)?
     var onActivityTextChanged: ((String) -> Void)?
+    var onGenerationErrorChanged: ((String?) -> Void)?
 
     var running = false {
         didSet {
@@ -44,6 +45,11 @@ final class VLMEvaluator {
             self.onActivityTextChanged?(self.activityText)
         }
     }
+    var generationError: String? {
+        didSet {
+            self.onGenerationErrorChanged?(self.generationError)
+        }
+    }
 
     var modelConfiguration = VLMRegistry.smolvlm
     var generateParameters = GenerateParameters(maxTokens: 100, maxKVSize: 4_096, temperature: 0.6)
@@ -52,6 +58,8 @@ final class VLMEvaluator {
     var chatModeEnabled = true
 
     private var generationTask: Task<Void, Never>?
+    private var generationRequestTracker = LocalModelGenerationRequestTracker()
+    private let modelLoadConsumerID = UUID()
     private var loadedModelID: String?
     private var modelContainer: ModelContainer?
     private var chatSession: ChatSession?
@@ -62,6 +70,18 @@ final class VLMEvaluator {
         let instructions: String
         let temperature: Float
         let maxKVSize: Int?
+    }
+
+    deinit {
+        let consumerID = self.modelLoadConsumerID
+        let modelID = self.modelConfiguration.name
+        Task {
+            await LocalModelContainerCache.shared.cancelLoadingContainer(
+                family: .vlm,
+                modelID: modelID,
+                consumerID: consumerID
+            )
+        }
     }
 
     func clearConversation() {
@@ -75,29 +95,33 @@ final class VLMEvaluator {
         self.loadedModelID = nil
         self.modelContainer = nil
         self.activityText = ""
+        self.generationError = nil
     }
 
-    func load() async throws -> ModelContainer {
-        if let modelContainer, self.loadedModelID == self.modelConfiguration.name {
+    func load(configuration: ModelConfiguration, requestID: Int) async throws -> ModelContainer {
+        if let modelContainer, self.loadedModelID == configuration.name {
             return modelContainer
         }
 
-        self.activityText = "Loading \(self.modelConfiguration.name)…"
+        self.activityText = "Loading \(configuration.name)…"
 
         let modelContainer = try await LocalModelContainerCache.shared.loadContainer(
             family: .vlm,
-            configuration: self.modelConfiguration
-        ) { [modelConfiguration] progress in
-            self.activityText = "Downloading \(modelConfiguration.name): \(Int(progress.fractionCompleted * 100))%"
+            configuration: configuration,
+            consumerID: self.modelLoadConsumerID
+        )
+
+        guard self.generationRequestTracker.isCurrent(requestID), Task.isCancelled == false else {
+            throw CancellationError()
         }
 
         let parameterCount = await modelContainer.perform { context in
             context.model.numParameters()
         }
 
-        self.loadedModelID = self.modelConfiguration.name
+        self.loadedModelID = configuration.name
         self.modelContainer = modelContainer
-        self.modelInfo = "Loaded \(self.modelConfiguration.name). Weights: \(parameterCount / (1024 * 1024))M"
+        self.modelInfo = "Loaded \(configuration.name). Weights: \(parameterCount / (1024 * 1024))M"
         self.activityText = ""
         self.clearConversation()
 
@@ -109,30 +133,98 @@ final class VLMEvaluator {
     }
 
     func generate(image: CIImage?) {
-        guard self.running == false else { return }
-
         let currentPrompt = self.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard currentPrompt.isEmpty == false else { return }
 
-        self.generationTask = Task {
-            self.running = true
-            await self.generateResponse(for: currentPrompt, image: image)
+        let requestID = self.generationRequestTracker.beginRequest()
+        let configuration = self.modelConfiguration
+        let previousTask = self.running ? self.generationTask : nil
+        self.generationError = nil
+
+        if previousTask != nil {
+            previousTask?.cancel()
+            self.clearConversation()
+        }
+
+        self.running = true
+        self.generationTask = Task { [weak self] in
+            guard let self, self.generationRequestTracker.isCurrent(requestID), Task.isCancelled == false else { return }
+            await self.generateResponse(
+                for: currentPrompt,
+                image: image,
+                configuration: configuration,
+                requestID: requestID
+            )
+
+            guard self.generationRequestTracker.isCurrent(requestID) else { return }
+            self.generationTask = nil
             self.running = false
         }
     }
 
+    func prepareModel() {
+        let requestID = self.generationRequestTracker.beginRequest()
+        let configuration = self.modelConfiguration
+        self.generationTask?.cancel()
+        self.clearConversation()
+        self.generationError = nil
+
+        self.generationTask = Task { [weak self] in
+            guard let self else { return }
+
+            do {
+                _ = try await self.load(configuration: configuration, requestID: requestID)
+                guard self.generationRequestTracker.isCurrent(requestID) else { return }
+                self.generationTask = nil
+            } catch is CancellationError {
+                guard self.generationRequestTracker.isCurrent(requestID) else { return }
+                self.generationTask = nil
+            } catch {
+                guard self.generationRequestTracker.isCurrent(requestID) else { return }
+                self.generationTask = nil
+                self.activityText = ""
+                self.generationError = error.localizedDescription
+            }
+        }
+    }
+
+    func cancelModelOperation() {
+        let modelID = self.modelConfiguration.name
+        self.cancelGeneration()
+        Task {
+            await LocalModelContainerCache.shared.cancelLoadingContainer(
+                family: .vlm,
+                modelID: modelID,
+                consumerID: self.modelLoadConsumerID
+            )
+        }
+    }
+
     func cancelGeneration() {
+        let wasRunning = self.running
+        self.generationRequestTracker.cancelCurrentRequest()
         self.generationTask?.cancel()
         self.generationTask = nil
         self.running = false
+        if wasRunning {
+            self.clearConversation()
+        }
+        self.activityText = ""
+        self.generationError = nil
     }
 
-    private func generateResponse(for prompt: String, image: CIImage?) async {
+    private func generateResponse(
+        for prompt: String,
+        image: CIImage?,
+        configuration: ModelConfiguration,
+        requestID: Int
+    ) async {
         self.output = ""
         self.stat = ""
 
         do {
-            let modelContainer = try await self.load()
+            let modelContainer = try await self.load(configuration: configuration, requestID: requestID)
+            guard self.generationRequestTracker.isCurrent(requestID) else { return }
             MLXRandom.seed(UInt64(Date.timeIntervalSinceReferenceDate * 1_000))
 
             let userImage = image.map(UserInput.Image.ciImage)
@@ -147,6 +239,7 @@ final class VLMEvaluator {
             )
             for try await batch in stream._throttle(for: self.updateInterval, reducing: Generation.collect) {
                 try Task.checkCancellation()
+                guard self.generationRequestTracker.isCurrent(requestID) else { return }
 
                 let outputDelta = batch.compactMap { $0.chunk }.joined(separator: "")
                 if outputDelta.isEmpty == false {
@@ -160,8 +253,10 @@ final class VLMEvaluator {
         } catch is CancellationError {
             return
         } catch {
+            guard self.generationRequestTracker.isCurrent(requestID) else { return }
             self.output = "Failed: \(error)"
             self.activityText = ""
+            self.generationError = error.localizedDescription
         }
     }
 
