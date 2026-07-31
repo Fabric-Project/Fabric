@@ -427,6 +427,12 @@ public class MathExpressionNode: Node
             case (false, _):    title
         }
 
+        // Keep the settings model mirroring the node, not just model → node.
+        // Its didSet guards on equality, so this cannot loop.
+        if self._settingsModel.stringExpression != self.stringExpression
+        {
+            self._settingsModel.stringExpression = self.stringExpression
+        }
         self._settingsModel.diagnostics = result.diagnostics
         self.nameSubject.send()
     }
