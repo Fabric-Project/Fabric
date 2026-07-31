@@ -10,15 +10,27 @@ import SwiftUI
 internal import Textual
 
 // https://github.com/gonzalezreal/textual/issues/6#issuecomment-3705645200
-private struct CustomParagraphStyle: StructuredText.ParagraphStyle
+private struct NoteParagraphStyle: StructuredText.ParagraphStyle
 {
     func makeBody(configuration: Configuration) -> some View
     {
         configuration.label
-            .textual.fontScale(0.8)
-            .textual.listItemSpacing(.fontScaled(top: 2.0, bottom: 2.0))
-            .textual.blockSpacing(.fontScaled(top: 1.1, bottom: 1.1))
-//            .textual.lineSpacing(.fontScaled(2.0))
+            .textual.blockSpacing(.fontScaled(top: 1.0, bottom: 1.0))
+    }
+}
+
+private struct NoteHeadingStyle: StructuredText.HeadingStyle
+{
+    private static let fontScales: [CGFloat] = [1.35, 1.25, 1.15, 1.10, 1.05, 1.0]
+
+    func makeBody(configuration: Configuration) -> some View
+    {
+        let headingLevel = min(max(configuration.headingLevel, 1), Self.fontScales.count)
+
+        configuration.label
+            .textual.fontScale(Self.fontScales[headingLevel - 1])
+            .textual.blockSpacing(.fontScaled(top: 0.5, bottom: 0.5))
+            .bold()
     }
 }
 
@@ -34,17 +46,20 @@ private struct EditorView : View
             if self.locked
             {
                 StructuredText(markdown:self.string)
-                    .textual.paragraphStyle(CustomParagraphStyle())
+                    .textual.paragraphStyle(NoteParagraphStyle())
+                    .textual.headingStyle(NoteHeadingStyle())
+                    .textual.listItemSpacing(.fontScaled(top: 1.5, bottom: 1.5))
             }
             else
             {
                 TextEditor( text: self.$string)
                     .textEditorStyle( .plain )
                     .foregroundStyle( .primary )
-                    .font(Font.system(size: 10).monospaced() )
+                    .scrollIndicators(.hidden)
                     .focusable(true, interactions: .edit)
             }
         }
+        .font(.caption)
     }
 }
 
