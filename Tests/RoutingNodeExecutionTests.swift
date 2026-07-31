@@ -133,6 +133,36 @@ private final class CountingTwoInputConsumerNode: Node
     }
 }
 
+private final class AccumulatingFloatNode: Node
+{
+    override class var name: String { "Accumulating Float" }
+    override class var nodeType: Node.NodeType { .Utility }
+    override class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override class var nodeTimeMode: Node.TimeMode { .None }
+    override class var nodeDescription: String { "Test processor that adds its feedback inlet to its increment inlet." }
+
+    var inputIncrement: NodePort<Float> { port(named: "inputIncrement") }
+    var inputFeedback: NodePort<Float> { port(named: "inputFeedback") }
+    var output: NodePort<Float> { port(named: "output") }
+
+    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
+    {
+        super.registerPorts(context: context) + [
+            ("inputIncrement", NodePort<Float>(name: "Increment", kind: .Inlet)),
+            ("inputFeedback", NodePort<Float>(name: "Feedback", kind: .Inlet)),
+            ("output", NodePort<Float>(name: "Output", kind: .Outlet)),
+        ]
+    }
+
+    override func execute(renderer: GraphRenderer,
+                          executionInfo: GraphExecutionInfo,
+                          renderPassDescriptor: MTLRenderPassDescriptor,
+                          commandBuffer: MTLCommandBuffer)
+    {
+        output.send((inputFeedback.value ?? 0) + (inputIncrement.value ?? 0), force: true)
+    }
+}
+
 private func publish(_ port: Fabric.Port, in graph: Graph)
 {
     port.published = true
@@ -605,61 +635,36 @@ struct RoutingNodeExecutionTests
         #expect(consumer1.lastValue == 10)
     }
 
-    @Test("Feedback injection follows a Switch route change without a topology change")
-    func feedbackInjectionFollowsRouteChange() throws
+    @Test("Feedback back-edge reads the previous frame's value on the planned schedule")
+    func feedbackBackEdgeReadsPreviousFrame() throws
     {
         guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
 
         let graph = Graph(context: harness.context)
-        let plain = CountingFloatProviderNode(context: harness.context, value: 5)
-        let loopback = CountingFloatProviderNode(context: harness.context, value: 9)
-        let switchNode = SwitchNode(context: harness.context, routeCount: 2, portType: .Float)
+        let increment = CountingFloatProviderNode(context: harness.context, value: 1)
+        let accumulator = AccumulatingFloatNode(context: harness.context)
+        let consumer = CountingFloatConsumerNode(context: harness.context)
 
-        graph.addNode(plain)
-        graph.addNode(loopback)
-        graph.addNode(switchNode)
+        graph.addNode(increment)
+        graph.addNode(accumulator)
+        graph.addNode(consumer)
 
-        plain.output.connect(to: switchNode.port(named: "input0", as: NodePort<Float>.self))
-        loopback.output.connect(to: switchNode.port(named: "input1", as: NodePort<Float>.self))
+        increment.output.connect(to: accumulator.inputIncrement)
+        accumulator.output.connect(to: consumer.input)
+        // The cycle: the accumulator's output feeds its own feedback inlet.
+        accumulator.output.connect(to: accumulator.inputFeedback)
 
-        // Drive the feedback cache the way pullNode does across three frames:
-        // frame 0 caches the loopback's outputs, frame 1 visits the switch while
-        // it selects input 0 (populating any candidate cache for that selection),
-        // frame 2 switches to input 1 while the loopback is mid-traversal — a
-        // feedback back-edge, so the previous frame's value must be injected
-        // into the *newly* selected inlet.
-        let cache = GraphRendererFeedbackCache(graphID: graph.id)
+        // Ports retain the value their upstream outlet last sent, so on each
+        // pass the feedback inlet holds the previous frame's output — the
+        // one-frame-delay feedback contract, with no injection machinery.
+        try harness.execute(graph, frameNumber: 0)
+        #expect(consumer.lastValue == 1)
 
-        loopback.output.send(9, force: true)
-        cache.cacheProcessedNode(loopback, executionInfo: harness.makeExecutionInfo(frameNumber: 0))
+        try harness.execute(graph, frameNumber: 1)
+        #expect(consumer.lastValue == 2)
 
-        // The renderer passes each pull's active inlets into the cache, taken
-        // from the node's PullResponse at that moment; do the same here.
-        func pulledInlets() throws -> [Fabric.Port]
-        {
-            guard case .evaluate(let pulling) = switchNode.respondToPull(requestedOutputPort: switchNode.output)
-            else { throw GraphExecutionTestFailure("Switch declined its own output pull") }
-            return pulling
-        }
-
-        let frame1 = harness.makeExecutionInfo(frameNumber: 1)
-        cache.resetCacheFor(executionInfo: frame1)
-        switchNode.inputIndex.value = 0
-        cache.setProcessingState(.processing, forNode: switchNode, activeInputPorts: try pulledInlets(), executionInfo: frame1)
-        loopback.output.send(9, force: true)
-        cache.cacheProcessedNode(loopback, executionInfo: frame1)
-
-        let frame2 = harness.makeExecutionInfo(frameNumber: 2)
-        cache.resetCacheFor(executionInfo: frame2)
-        switchNode.inputIndex.value = 1
-        let selectedInlet = switchNode.port(named: "input1", as: NodePort<Float>.self)
-        selectedInlet.value = 123
-        cache.setProcessingState(.processing, forNode: loopback, executionInfo: frame2)
-        cache.setProcessingState(.processing, forNode: switchNode, activeInputPorts: try pulledInlets(), executionInfo: frame2)
-
-        // With candidates cached from the input-0 selection, the injection missed
-        // the newly selected inlet and it kept its sentinel value.
-        #expect(selectedInlet.value == 9)
+        try harness.execute(graph, frameNumber: 2)
+        #expect(consumer.lastValue == 3)
     }
 
     @Test("Round-tripping a Switch with more than two routes preserves ports and connections")

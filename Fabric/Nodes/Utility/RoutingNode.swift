@@ -175,10 +175,16 @@ public class RoutingNode: RoutingNodeBase
             parameter.max = routeCount - 1
         }
 
+        inputIndex.onValueChanged = { [weak self] in
+            self?.updateConnectionTopology()
+        }
+
         if let value = inputIndex.value, value >= routeCount
         {
             inputIndex.value = routeCount - 1
         }
+
+        updateConnectionTopology()
     }
 }
 

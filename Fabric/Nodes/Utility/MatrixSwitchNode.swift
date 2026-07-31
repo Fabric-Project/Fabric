@@ -81,6 +81,12 @@ public final class MatrixSwitchNode: RoutingNodeBase
             + (0..<routeCount).map(Self.inputPortName)
             + (0..<routeCount).map(Self.outputPortName)
         applyPortOrder(orderedPortNames)
+
+        inputMap.onValueChanged = { [weak self] in
+            self?.updateConnectionTopology()
+        }
+
+        updateConnectionTopology()
     }
 
     public override func respondToPull(requestedOutputPort: Port?) -> Node.PullResponse
@@ -89,7 +95,7 @@ public final class MatrixSwitchNode: RoutingNodeBase
         // input and planning asks each node only once (the node is deduplicated
         // after its first visit). So any pull must schedule *every* routed source
         // input, not merely the one feeding the requested output.
-        .evaluate(pulling: [inputMap] + routedSourceInputPorts())
+        return .evaluate(pulling: [inputMap] + routedSourceInputPorts())
     }
 
     override public func execute(renderer: GraphRenderer,
@@ -108,6 +114,20 @@ public final class MatrixSwitchNode: RoutingNodeBase
             else { continue }
 
             outputPort.sendBoxed(sourceInput.snapshotValue(), force: true)
+        }
+
+    }
+
+    public override func updateConnectionTopology()
+    {
+        let routedInputIDs = Set(routedSourceInputPorts().map(\.id))
+
+        inputMap.setConnectionsActive(true)
+
+        for index in 0..<routeCount
+        {
+            let inputPort: Port? = findPort(named: Self.inputPortName(index))
+            inputPort?.setConnectionsActive(inputPort.map { routedInputIDs.contains($0.id) } ?? false)
         }
     }
 

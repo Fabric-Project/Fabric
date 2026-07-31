@@ -101,7 +101,9 @@ extension UTType
     
     @ObservationIgnored public var valueDidChange:Bool = true
 
-    // Used only by FeedbackCache and layout copying — never in the hot execution path.
+    /// Runtime-polymorphic read for ports whose concrete type is only known at
+    /// runtime — routing nodes' boxed forwarding, Iterator's count resolution,
+    /// and layout copying. Pairs with sendBoxed.
     internal func snapshotValue() -> PortValue? { nil }
     internal func restoreValue(from boxed: PortValue?) { }
 
@@ -114,7 +116,9 @@ extension UTType
     internal func sendBoxed(_ boxed: PortValue?, force: Bool) { sendBoxed(boxed) }
     
     @ObservationIgnored public weak var node: Node?
-    public var connections: [Port] = []
+    @ObservationIgnored internal var onValueChanged: (() -> Void)?
+
+    public internal(set) var connections: [Connection] = []
     @ObservationIgnored public let kind: PortKind
     @ObservationIgnored public let direction:PortDirection = .Horizontal
     @ObservationIgnored public var color:Color
@@ -179,7 +183,7 @@ extension UTType
             try container.encode(portDescription, forKey: .portDescription)
         }
 
-        let connectedPortIds = self.connections.map( { $0.id } )
+        let connectedPortIds = self.connectedPorts.map( { $0.id } )
 
         try container.encode(connectedPortIds, forKey: .connections)
     }
@@ -192,6 +196,53 @@ extension UTType
     
     /// The display name: publishedName if set, otherwise the port's own name.
     public var displayName: String { publishedName ?? name }
+
+    public var connectedPorts: [Port]
+    {
+        connections.compactMap { $0.port(opposite: self) }
+    }
+
+    public var connectedInlets: [Port]
+    {
+        connections.compactMap { connection in
+            guard connection.outletPortID == id else { return nil }
+            return connection.inletPort
+        }
+    }
+
+    public var connectedOutlets: [Port]
+    {
+        connections.compactMap { connection in
+            guard connection.inletPortID == id else { return nil }
+            return connection.outletPort
+        }
+    }
+
+    internal var connectedOutletsForActiveConnections: [Port]
+    {
+        connections.compactMap { connection in
+            guard connection.active,
+                  connection.inletPortID == id
+            else { return nil }
+
+            return connection.outletPort
+        }
+    }
+
+    public func connection(to port: Port) -> Connection?
+    {
+        connections.first { connection in
+            connection.port(opposite: self)?.id == port.id
+        }
+    }
+
+    public func setConnectionsActive(_ active: Bool)
+    {
+        for connection in connections
+        {
+            connection.active = active
+        }
+    }
 
     /// Hover-tooltip string for this port: `displayName: type` plus the
     /// current value when available.

@@ -95,9 +95,6 @@ public class IteratorNode: SubgraphNode
 
             
             let needsSceneSync = subGraph.consumePendingConnectionSceneSync()
-            if needsSceneSync {
-                renderer.invalidateFeedbackTopologyCaches(for: subGraph)
-            }
 
             try renderer.execute(graph: subGraph,
                                  executionInfo: executionInfo,
@@ -167,7 +164,7 @@ public class IteratorNode: SubgraphNode
     }
 
     private func resolvedIterationCount() -> Int {
-        for connection in inputIteratonCount.connections where connection.kind == .Outlet {
+        for connection in inputIteratonCount.connectedOutlets {
             if let port = connection as? NodePort<Int>,
                let count = port.value
             {

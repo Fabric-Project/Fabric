@@ -21,7 +21,7 @@ extension Graph {
     /// Consumer nodes (sinks) are placed at the right; their inputs fan
     /// out to the left. Wraps all moves in a single undo group.
     public func autoLayout() {
-        let layout = GraphAutoLayout.compute(nodes: self.nodes)
+        let layout = GraphAutoLayout.compute(graph: self)
 
         undoManager?.beginUndoGrouping()
 
@@ -51,7 +51,11 @@ enum GraphAutoLayout {
 
     /// Compute target offsets for all nodes.
     /// Returns an array of (node, newOffset) pairs.
-    static func compute(nodes: [Node]) -> [(Node, CGSize)] {
+    static func compute(graph: Graph) -> [(Node, CGSize)] {
+        compute(nodes: graph.nodes)
+    }
+
+    private static func compute(nodes: [Node]) -> [(Node, CGSize)] {
         guard !nodes.isEmpty else { return [] }
 
         // Step 1: Assign each node to a column (0 = rightmost)
@@ -183,9 +187,9 @@ enum GraphAutoLayout {
         for node in nodes {
             var minPortIndex: Int? = nil
             for port in node.ports where port.kind == .Outlet {
-                for connection in port.connections where connection.kind == .Inlet {
-                    if let downstreamNode = connection.node,
-                       let index = downstreamNode.ports.firstIndex(where: { $0.id == connection.id }) {
+                for connectedPort in port.connectedInlets {
+                    if let downstreamNode = connectedPort.node,
+                       let index = downstreamNode.ports.firstIndex(where: { $0.id == connectedPort.id }) {
                         minPortIndex = min(minPortIndex ?? Int.max, index)
                     }
                 }
@@ -204,10 +208,10 @@ enum GraphAutoLayout {
         var bestPortIndex = Int.max
 
         for port in node.ports where port.kind == .Outlet {
-            for connection in port.connections where connection.kind == .Inlet {
-                if let downstreamNode = connection.node,
+            for connectedPort in port.connectedInlets {
+                if let downstreamNode = connectedPort.node,
                    let downstreamRow = rowIndexForNode[downstreamNode.id] {
-                    let portIndex = downstreamNode.ports.firstIndex(where: { $0.id == connection.id }) ?? Int.max
+                    let portIndex = downstreamNode.ports.firstIndex(where: { $0.id == connectedPort.id }) ?? Int.max
                     if (downstreamRow, portIndex) < (bestRow, bestPortIndex) {
                         bestRow = downstreamRow
                         bestPortIndex = portIndex
@@ -400,7 +404,7 @@ extension Graph {
             GraphAutoLayout.positionToLeft(of: sourceNode, node: paramNode,
                                            alignPorts: (source: port, placed: paramOutlet))
 
-            let existingConnections = Array(port.connections)
+            let existingConnections = port.connectedPorts
 
             // Transfer published state to the parameter node's input (or outlet if no input)
             if port.published
@@ -428,7 +432,7 @@ extension Graph {
             GraphAutoLayout.positionToRight(of: sourceNode, node: paramNode,
                                             alignPorts: (source: port, placed: paramInlet))
 
-            let existingConnections = Array(port.connections)
+            let existingConnections = port.connectedPorts
 
             // Transfer published state to the parameter node's outlet (or input if no outlet)
             if port.published
