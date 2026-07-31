@@ -38,6 +38,8 @@ private struct EditorView : View
 {
     @Binding var string:String
     @Binding var locked:Bool
+    let noteID: UUID
+    let focus: FocusState<FabricEditorFocusTarget?>.Binding
     
     var body: some View
     {
@@ -49,6 +51,7 @@ private struct EditorView : View
                     .textual.paragraphStyle(NoteParagraphStyle())
                     .textual.headingStyle(NoteHeadingStyle())
                     .textual.listItemSpacing(.fontScaled(top: 1.5, bottom: 1.5))
+                    .focusable(false)
             }
             else
             {
@@ -57,6 +60,10 @@ private struct EditorView : View
                     .foregroundStyle( .primary )
                     .scrollIndicators(.hidden)
                     .focusable(true, interactions: .edit)
+                    .focused(self.focus, equals: .noteEditor(self.noteID))
+                    .onAppear {
+                        self.focus.wrappedValue = .noteEditor(self.noteID)
+                    }
             }
         }
         .font(.caption)
@@ -66,12 +73,16 @@ private struct EditorView : View
 struct NoteView : View
 {
     @Bindable var note:Note
+    let focus: FocusState<FabricEditorFocusTarget?>.Binding
     
     @State var locked:Bool = true
     
     var body: some View
     {
-        EditorView( string: self.$note.note, locked: self.$locked)
+        EditorView(string: self.$note.note,
+                   locked: self.$locked,
+                   noteID: self.note.id,
+                   focus: self.focus)
             .padding()
             .frame(width: self.note.rect.size.width, height: self.note.rect.size.height, alignment: .topLeading)
             .background( Color.black.opacity(0.5) )
@@ -85,6 +96,7 @@ struct NoteView : View
                     
                     Button("", systemImage: self.locked ? "lock.fill" : "lock.open.fill") {
                         self.locked.toggle( )
+                        self.focus.wrappedValue = self.locked ? .canvas : .noteEditor(self.note.id)
                     }
                     .frame(width: 20, height: 20)
                     .buttonStyle(.borderless)
