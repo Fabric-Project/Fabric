@@ -199,11 +199,11 @@ public class GraphRenderer : ViewRenderer
 
         var capturedError: (any Error)?
         var scheduledNodes = nodesInExecutionOrder(for: graph)
-        var scheduledNodeIDs = Set(scheduledNodes.map(\.id))
 
-        for forcedNode in forceEvaluationForTheseNodes where !scheduledNodeIDs.contains(forcedNode.id) {
-            scheduledNodes.append(forcedNode)
-            scheduledNodeIDs.insert(forcedNode.id)
+        if !forceEvaluationForTheseNodes.isEmpty {
+            let alreadyScheduledNodeIDs = Set(scheduledNodes.map(\.id))
+            scheduledNodes.append(contentsOf: executionPlanExtension(forcing: forceEvaluationForTheseNodes,
+                                                                     alreadyScheduledNodeIDs: alreadyScheduledNodeIDs))
         }
 
         let graphTraceFrame = beginGraphExecutionTrace()
@@ -308,6 +308,37 @@ public class GraphRenderer : ViewRenderer
                                      requestedOutputPort: root.requestedOutputPort,
                                      processingStates: &processingStates,
                                      orderedNodes: &ordered)
+        }
+
+        return ordered
+    }
+
+    /// Extends the cached execution plan for callers that force extra nodes to run
+    /// (Iterator forces its whole subgraph). Each forced node is pulled exactly as
+    /// buildNodesInExecutionOrder pulls its roots, so forced nodes and any
+    /// unscheduled upstream dependencies are appended in dependency order rather
+    /// than caller array order. Forced nodes whose pull declines them are still
+    /// appended at the end — the caller asked for them to run.
+    private func executionPlanExtension(forcing forcedNodes: [Node], alreadyScheduledNodeIDs: Set<UUID>) -> [Node]
+    {
+        var processingStates: [UUID: GraphExecutionPlanningState] = [:]
+        processingStates.reserveCapacity(alreadyScheduledNodeIDs.count + forcedNodes.count)
+
+        for scheduledNodeID in alreadyScheduledNodeIDs {
+            processingStates[scheduledNodeID] = .processed
+        }
+
+        var ordered: [Node] = []
+
+        for forcedNode in forcedNodes {
+            pullNodeForExecutionPlan(node: forcedNode,
+                                     requestedOutputPort: nil,
+                                     processingStates: &processingStates,
+                                     orderedNodes: &ordered)
+        }
+
+        for forcedNode in forcedNodes where processingStates[forcedNode.id] != .processed {
+            ordered.append(forcedNode)
         }
 
         return ordered
