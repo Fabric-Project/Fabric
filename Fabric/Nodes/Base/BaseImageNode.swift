@@ -645,13 +645,6 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
     public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
-//        let imageInputPorts = self.imageInputPorts()
-//        let primaryImageChanged = imageInputPorts.first?.valueDidChange ?? false
-//        let nonImageInputChanged = self.ports.reduce(false) { partialResult, next in
-//            partialResult || (next.portType != .Image && next.valueDidChange)
-//        }
-//        let shouldExecute = primaryImageChanged || nonImageInputChanged
-
         let shouldExecute = self.ports.reduce(false) { partialResult, next in
             partialResult || next.valueDidChange
         }
