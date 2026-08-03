@@ -62,7 +62,13 @@ public class GraphRenderer : ViewRenderer
     public init(context: Context, graph: Graph)
     {
         self.graph = graph
-        self.renderEncoder = RenderEncoder(context: context, depthStoreAction: .dontCare, stencilStoreAction: .dontCare, frameBufferOnly: false)
+        self.renderEncoder = RenderEncoder(
+            context: context,
+            clearColor: .zero,
+            depthStoreAction: .store,
+            stencilStoreAction: .dontCare,
+            frameBufferOnly: false
+        )
         self.renderEncoder.sortObjects = true
 
         self.sceneProxy = Object(context: context)
