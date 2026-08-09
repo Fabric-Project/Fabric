@@ -15,7 +15,7 @@ struct NodeTitleView: View
     @State private var renamingText: String = ""
     @FocusState private var renameFieldFocused: Bool
 
-    private var typeName: String { nodeViewModel.typeName }
+    private var registryName: String { nodeViewModel.registryName }
 
     // Nil when the node has neither a rename nor a generated name, so the title
     // is its type name alone.
@@ -64,7 +64,7 @@ struct NodeTitleView: View
                             renaming = false
                         }
 
-                    Text(verbatim: " \(typeName)")
+                    Text(verbatim: " \(registryName)")
                         .font(.system(size: 9))
                         .bold()
                         .foregroundStyle(secondaryColor)
@@ -76,14 +76,14 @@ struct NodeTitleView: View
                 // copy — the literal-interpolation initializer would do a doomed
                 // localization lookup on every render.
                 let primary = Text(primaryLabel).foregroundStyle(.white)
-                let secondary = Text(verbatim: " \(typeName)").foregroundStyle(secondaryColor)
+                let secondary = Text(verbatim: " \(registryName)").foregroundStyle(secondaryColor)
                 (primary + secondary)
                     .font(.system(size: 9))
                     .bold()
             }
             else
             {
-                Text(typeName)
+                Text(registryName)
                     .font(.system(size: 9))
                     .bold()
                     .foregroundStyle(nodeViewModel.nodeType.color())

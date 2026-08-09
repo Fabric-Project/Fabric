@@ -113,7 +113,7 @@ public final class DepthOfFieldNode: Node
                               severity: .recoverable,
                               message: "Could not create \(canonicalName) copy blit encoder")
         }
-        blitEncoder.label = "\(self.typeName) Copy"
+        blitEncoder.label = "\(self.registryName) Copy"
         blitEncoder.copy(from: source,
                          sourceSlice: 0,
                          sourceLevel: 0,

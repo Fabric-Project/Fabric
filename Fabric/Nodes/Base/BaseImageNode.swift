@@ -232,7 +232,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
     private func postInit()
     {
-        self.postProcessor.label = self.typeName + " Post Processor"
+        self.postProcessor.label = self.registryName + " Post Processor"
     }
     
     open func postSetupSynchronizePorts(allowReplace: Bool, preserveExistingImageInputPorts: Bool = false) {
@@ -649,7 +649,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             partialResult || next.valueDidChange
         }
 
-        commandBuffer.pushDebugGroup(self.typeName + " Execute")
+        commandBuffer.pushDebugGroup(self.registryName + " Execute")
         defer { commandBuffer.popDebugGroup() }
         
         if self.currentImageInputCount == 0 {

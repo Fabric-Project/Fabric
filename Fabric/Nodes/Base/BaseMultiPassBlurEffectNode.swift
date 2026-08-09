@@ -78,7 +78,7 @@ public class BaseMultiPassBlurEffectNode: BaseImageNode
                 return nil
             }
 
-            commandBuffer.pushDebugGroup("\(self.typeName) - pass \(index)")
+            commandBuffer.pushDebugGroup("\(self.registryName) - pass \(index)")
 
             prepareStep(index, step)
 

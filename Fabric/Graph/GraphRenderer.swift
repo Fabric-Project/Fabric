@@ -221,7 +221,7 @@ public class GraphRenderer : ViewRenderer
             }
 
 #if DEBUG
-            commandBuffer.pushDebugGroup(node.typeName)
+            commandBuffer.pushDebugGroup(node.registryName)
 #endif
             do
             {

@@ -14,12 +14,13 @@ import UniformTypeIdentifiers
 
 open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDebugStringConvertible
 {
-    // User interface name — the node's TYPE name (each subclass overrides).
+    // The name this node type is registered and listed under (each subclass
+    // overrides). Read it off an instance as `registryName`.
     open class var name: String {  fatalError("\(String(describing:self)) Must implement name") }
 
     // Node-generated name, e.g. Math Expression shows its expression. Override
     // this; nil for none. Not part of `name` — it is a subtitle the node offers
-    // alongside its type name, which title UI composes as it sees fit.
+    // alongside its registry name, which title UI composes as it sees fit.
     open var customName: String? { nil }
 
     // User-supplied name (rename). Wins over the type name.
@@ -55,10 +56,10 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     // What to call this node: the user's rename if they gave one, else its type.
     final public var name : String
     {
-        return userName ?? typeName
+        return userName ?? registryName
     }
 
-    final public var typeName : String
+    final public var registryName : String
     {
         Self.name
     }
@@ -68,10 +69,10 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     {
         switch (self.customName, self.userName)
         {
-        case (nil, nil):               return self.typeName
-        case (let custom?, nil):       return "\(self.typeName) (\(custom))"
-        case (nil, let user?):         return "\(self.typeName) (\(user))"
-        case (let custom?, let user?): return "\(self.typeName) (\(custom) · \(user))"
+        case (nil, nil):               return self.registryName
+        case (let custom?, nil):       return "\(self.registryName) (\(custom))"
+        case (nil, let user?):         return "\(self.registryName) (\(user))"
+        case (let custom?, let user?): return "\(self.registryName) (\(custom) · \(user))"
         }
     }
 

@@ -78,13 +78,13 @@ For all development:
 ### 2.1  Nodes & Execution
 - Nodes define immutable static metadata:  `nodeType`, `nodeExecutionMode`, `nodeTimeMode`,  `name`, `nodeDescription`.
 - A node is named from three sources, two of them overridden by the subclass:
-  - `class var name` — override: the node's TYPE name; `typeName` on an instance.
+  - `class var name` — override: the name the type is registered and listed under; `registryName` on an instance.
   - `var customName: String?` — override where the node names itself, nil otherwise: Math Expression's expression, StrategyNode's strategy.
   - `var userName: String?` — final: the user's rename, serialized.
 - From those it composes two names, both final:
-  - `var name` — what to call the node: `userName ?? typeName`. Note `customName` is deliberately absent: it is a subtitle, not a replacement name.
-  - `var canonicalName` — every name the node answers to, e.g. `Math Expression (sin(x) · My Rename)`. It is also the node's `debugDescription`, so `print(node)` and `"\(node)"` give it: log a node directly rather than reaching for a name. Use `typeName` where brevity or per-frame cost matters.
-- Fire `nameSubject.send()` whenever state feeding `customName` changes; `NodeViewModel` mirrors the node's `name` / `typeName` / `customName` observably, and adds `customLabel` (`userName ?? customName`) — the label all title UI draws ahead of the type name.
+  - `var name` — what to call the node: `userName ?? registryName`. Note `customName` is deliberately absent: it is a subtitle, not a replacement name.
+  - `var canonicalName` — every name the node answers to, e.g. `Math Expression (sin(x) · My Rename)`. It is also the node's `debugDescription`, so `print(node)` and `"\(node)"` give it: log a node directly rather than reaching for a name. Use `registryName` where brevity or per-frame cost matters.
+- Fire `nameSubject.send()` whenever state feeding `customName` changes; `NodeViewModel` mirrors the node's `name` / `registryName` / `customName` observably, and adds `customLabel` (`userName ?? customName`) — the label all title UI draws ahead of the registry name.
 - Execution is **pull-based**; one execute per node per pass.
 - `GraphRenderer` (executor and scheduler) today does not use `nodeExecutionMode` or `nodeTimeMode` but will in the future.
 - **Iterator (QC-style)** remains the multi-evaluation macro; refinements allowed, paradigm fixed.

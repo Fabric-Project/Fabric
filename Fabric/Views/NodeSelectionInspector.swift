@@ -106,12 +106,12 @@ private struct SelectedNodeCard: View
         {
             VStack(alignment: .leading) {
                 Text(customLabel).foregroundStyle(.primary).bold()
-                Text(nodeViewModel.typeName).foregroundStyle(.secondary).bold()
+                Text(nodeViewModel.registryName).foregroundStyle(.secondary).bold()
             }
         }
         else
         {
-            Text(nodeViewModel.typeName).foregroundStyle(.primary).bold()
+            Text(nodeViewModel.registryName).foregroundStyle(.primary).bold()
         }
     }
 }

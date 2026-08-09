@@ -59,7 +59,7 @@ import Satin
     public var name: String
     {
         if let u = _userName, !u.isEmpty { return u }
-        return typeName
+        return registryName
     }
 
     /// `Node.customName`, cached and kept fresh by nameSubject.
@@ -78,7 +78,7 @@ import Satin
 
     public var nodeType: Node.NodeType { node.nodeType }
 
-    public var typeName: String { node.typeName }
+    public var registryName: String { node.registryName }
 
     // MARK: - Ports + nodeSize (stored; updated when ports change)
 
