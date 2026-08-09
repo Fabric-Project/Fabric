@@ -317,7 +317,7 @@ public class MIDIInputNode: Node
     override public class var nodeDescription: String { "Receive MIDI messages from external devices" }
 
     // Dynamic node name based on selected input
-    override public var displayName: String?
+    override public var customName: String?
     {
         if let inputID = selectedInputID,
            let input = availableInputs.first(where: { $0.id == inputID })
@@ -381,7 +381,7 @@ public class MIDIInputNode: Node
         {
             setupMIDIConnection()
             _settingsModelStorage?.selectedInputID = selectedInputID
-            // `displayName` is derived from the selected input; notify so the title refreshes.
+            // `customName` is derived from the selected input; notify so the title refreshes.
             self.nameSubject.send()
         }
     }

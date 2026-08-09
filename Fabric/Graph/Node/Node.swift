@@ -17,11 +17,13 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     // User interface name — the node's TYPE name (each subclass overrides).
     open class var name: String {  fatalError("\(String(describing:self)) Must implement name") }
 
-    // Node-provided dynamic name, e.g. Math Expression shows its expression.
-    open var displayName: String? { nil }
+    // Node-generated name, e.g. Math Expression shows its expression. Override
+    // this; nil for none. Not part of `name` — it is a subtitle the node offers
+    // alongside its type name, which title UI composes as it sees fit.
+    open var customName: String? { nil }
 
-    // User-supplied custom name (rename). Overrides any `displayName`.
-    public var userName: String?
+    // User-supplied name (rename). Wins over the type name.
+    final public var userName: String?
 
     // User interface organizing principle
     open class var nodeType:Node.NodeType { fatalError("\(String(describing:self)) Must implement nodeType") }
@@ -50,9 +52,10 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         return lhs.id == rhs.id
     }
 
+    // What to call this node: the user's rename if they gave one, else its type.
     final public var name : String
     {
-        return userName ?? displayName ?? typeName
+        return userName ?? typeName
     }
 
     final public var typeName : String
@@ -60,14 +63,15 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         Self.name
     }
 
-    final public var debugName : String
+    // Every name this node answers to, for logging and diagnostics.
+    final public var canonicalName : String
     {
-        switch (self.displayName, self.userName)
+        switch (self.customName, self.userName)
         {
-        case (nil, nil):                return self.typeName
-        case (let display?, nil):       return "\(self.typeName) (\(display))"
-        case (nil, let user?):          return "\(self.typeName) (\(user))"
-        case (let display?, let user?): return "\(self.typeName) (\(display) · \(user))"
+        case (nil, nil):               return self.typeName
+        case (let custom?, nil):       return "\(self.typeName) (\(custom))"
+        case (nil, let user?):         return "\(self.typeName) (\(user))"
+        case (let custom?, let user?): return "\(self.typeName) (\(custom) · \(user))"
         }
     }
 

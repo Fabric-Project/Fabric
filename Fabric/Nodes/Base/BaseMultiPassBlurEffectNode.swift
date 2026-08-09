@@ -37,7 +37,7 @@ public class BaseMultiPassBlurEffectNode: BaseImageNode
         let inputs = self.imageInputPorts()
         if inputs.count != 1 {
             if self.hasLoggedInputCountMismatch == false {
-                print("\(self.debugName) expected exactly 1 input image, but got \(inputs.count).")
+                print("\(self.canonicalName) expected exactly 1 input image, but got \(inputs.count).")
                 self.hasLoggedInputCountMismatch = true
             }
             return nil

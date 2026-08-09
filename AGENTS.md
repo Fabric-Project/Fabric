@@ -77,11 +77,14 @@ For all development:
 
 ### 2.1  Nodes & Execution
 - Nodes define immutable static metadata:  `nodeType`, `nodeExecutionMode`, `nodeTimeMode`,  `name`, `nodeDescription`.
-- Node naming is three-tiered; instance `name` resolves `userName ?? displayName ?? Self.name` — never override it directly:
-  - `class var name` — static TYPE name; immutable metadata.
-  - `var displayName: String?` — optional node-generated title (e.g. Math Expression's expression; StrategyNode subclasses just set `strategyTitleSuffix`). Override this; nil for none.
-  - `var userName: String?` — the user's rename; serialized, always wins.
-- Fire `nameSubject.send()` whenever state feeding `displayName` changes; `NodeViewModel` caches the title and exposes `name` / `typeName` / `hasCustomLabel` for all title UI.
+- A node is named from three sources, two of them overridden by the subclass:
+  - `class var name` — override: the node's TYPE name; `typeName` on an instance.
+  - `var customName: String?` — override where the node names itself, nil otherwise: Math Expression's expression, StrategyNode's strategy.
+  - `var userName: String?` — final: the user's rename, serialized.
+- From those it composes two names, both final:
+  - `var name` — what to call the node: `userName ?? typeName`. Note `customName` is deliberately absent: it is a subtitle, not a replacement name.
+  - `var canonicalName` — every name the node answers to, e.g. `Math Expression (sin(x) · My Rename)`. Use it for logging and diagnostics; use `typeName` where brevity or per-frame cost matters.
+- Fire `nameSubject.send()` whenever state feeding `customName` changes; `NodeViewModel` mirrors the node's `name` / `typeName` / `customName` observably, and adds `customLabel` (`userName ?? customName`) — the label all title UI draws ahead of the type name.
 - Execution is **pull-based**; one execute per node per pass.
 - `GraphRenderer` (executor and scheduler) today does not use `nodeExecutionMode` or `nodeTimeMode` but will in the future.
 - **Iterator (QC-style)** remains the multi-evaluation macro; refinements allowed, paradigm fixed.
@@ -175,7 +178,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 | Topology recomputed each frame | No caching | Recompute only on connect/disconnect |
 | Type-erasure confusion | Mixing `any` with Equatable generics | Stay typed; use Utility/Log node for debug |
 | Serialization drift | Ad-hoc encoders | Always through registry + `PortType` |
-| Stale node title on canvas/inspector | `displayName` input changed without notifying | Fire `nameSubject.send()` in the `didSet` of any state `displayName` derives from |
+| Stale node title on canvas/inspector | `customName` input changed without notifying | Fire `nameSubject.send()` in the `didSet` of any state `customName` derives from |
 
 ---
 
@@ -200,7 +203,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 - [ ] If Node dynamically changes port count or type, we should only trigger via Setting in Settings View, not within the graph
 - [ ] If we have a Settings View, we should have a custom initializer so procedural graph creation has an entry to settings.
 - [ ] If we have a Settings View and a custom initializer, use a custom struct or enum for the settings
-- [ ] If the Node overrides `displayName`, every mutation of the state it derives from fires `nameSubject.send()` (StrategyNode's `strategy` already does)
+- [ ] If the Node overrides `customName`, every mutation of the state it derives from fires `nameSubject.send()` (StrategyNode's `strategy` already does)
 - [ ] New Nodes should live in an appropriate spot in the NodeRegistry
 
 ---

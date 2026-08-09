@@ -381,7 +381,7 @@ internal import AnyCodable
     /// interactive placement with scroll-offset and rapid-add staggering).
     public func addNode(_ node:Node)
     {
-        print("Graph: \(self.id) Add Node", node.debugName)
+        print("Graph: \(self.id) Add Node", node.canonicalName)
         self.maybeAddNodeToScene(node)
 
         // Create the ViewModel before appending so it is always present
@@ -753,7 +753,7 @@ internal import AnyCodable
                     break
                 }
                 
-                print(referenceNode.debugName, referenceNode.offset, angle, direction, "to:", $0.debugName, $0.offset)
+                print(referenceNode.canonicalName, referenceNode.offset, angle, direction, "to:", $0.canonicalName, $0.offset)
                 return (distance, direction, $0 )
             }
             
@@ -761,7 +761,7 @@ internal import AnyCodable
             
             if let closestDistanceDirectionNodeTuples = relevantDistanceDirectionNodeTuples.sorted(by: { $0.Distance < $1.Distance }).first
             {
-                print("reference node", referenceNode.debugName)
+                print("reference node", referenceNode.canonicalName)
 
                 self.selectNode(node: closestDistanceDirectionNodeTuples.Node, expandSelection: expandSelection)
             }
@@ -878,12 +878,12 @@ internal import AnyCodable
         if let objectNode = node as? BaseObjectNode,
            let object = objectNode.getObject()
         {
-//            print("Graph: \(self.id) Scene: Added Child", objectNode.debugName)
+//            print("Graph: \(self.id) Scene: Added Child", objectNode.canonicalName)
             self.scene.add( object )
         }
         else
         {
-//            print("Graph: \(self.id) Scene: Skipped Child", node.debugName)
+//            print("Graph: \(self.id) Scene: Skipped Child", node.canonicalName)
         }
     }
     
@@ -1150,7 +1150,7 @@ internal import AnyCodable
             }
             catch
             {
-                print("duplicateNodes: Failed to encode \(node.debugName): \(error)")
+                print("duplicateNodes: Failed to encode \(node.canonicalName): \(error)")
             }
         }
 

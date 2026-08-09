@@ -54,24 +54,31 @@ import Satin
     }
     private var _userName: String?
 
+    /// `Node.name`, resolved from the observable rename above rather than read
+    /// through to the node, so SwiftUI invalidates on a rename.
     public var name: String
     {
         if let u = _userName, !u.isEmpty { return u }
-        return _nodeName
+        return typeName
     }
 
-    private var _nodeName: String
+    /// `Node.customName`, cached and kept fresh by nameSubject.
+    public private(set) var customName: String?
+
+    /// What title UI shows ahead of the type name: the rename, else the node's
+    /// own generated name. Nil when it has neither and the title is the bare
+    /// type name.
+    public var customLabel: String?
+    {
+        if let u = _userName, !u.isEmpty { return u }
+        return customName
+    }
 
     // MARK: - Forwarded node metadata
 
     public var nodeType: Node.NodeType { node.nodeType }
 
-    public var typeName: String { type(of: node).name }
-
-    /// True when the resolved label (user rename or node-generated title)
-    /// differs from the type name, i.e. there is a primary label to show
-    /// alongside it.
-    public var hasCustomLabel: Bool { name != typeName }
+    public var typeName: String { node.typeName }
 
     // MARK: - Ports + nodeSize (stored; updated when ports change)
 
@@ -98,7 +105,7 @@ import Satin
         self.node         = node
         self._offset      = node.offset
         self._userName    = node.userName
-        self._nodeName    = node.displayName ?? type(of: node).name
+        self.customName   = node.customName
         self.ports        = node.ports
         self.nodeSize     = node.nodeSize
 
@@ -124,12 +131,10 @@ import Satin
 
         // Sync cached name when nodes with dynamic names (e.g. MathExpressionNode,
         // StringFormatterNode) change their computed name after user edits.
-        // Cache displayName (not node.name) so a user rename never becomes the
-        // fallback shown after the rename is cleared.
         node.nameSubject
             .receive(on: DispatchQueue.main)
             .sink { [weak self] in
-                self?._nodeName = node.displayName ?? type(of: node).name
+                self?.customName = node.customName
             }
             .store(in: &cancellables)
     }

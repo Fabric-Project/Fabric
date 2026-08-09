@@ -94,7 +94,7 @@ public final class PostProcessMotionBlurNode: Node
         {
             throw FabricError(.execution(.gpu),
                               severity: .recoverable,
-                              message: "Could not create \(debugName) copy blit encoder")
+                              message: "Could not create \(canonicalName) copy blit encoder")
         }
         blitEncoder.label = "\(self.typeName) Copy"
         blitEncoder.copy(from: source,

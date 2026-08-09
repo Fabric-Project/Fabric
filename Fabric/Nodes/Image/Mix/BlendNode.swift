@@ -20,7 +20,7 @@ public class BlendNode: BaseImageNode
 
     /// BaseImageNode derives a name from its shader file; Blend is always "Blend"
     /// (unless the user renames it, which `userName` handles in the base class).
-    override public var displayName: String? { nil }
+    override public var customName: String? { nil }
 
     override public class var defaultImageInputCountHint: Int? { 2 }
 

@@ -190,8 +190,8 @@ public class MathExpressionNode: Node
 
     /// Shown as the node's title: the expression, or a ⚠-prefixed form on error.
     /// nil (empty) falls back to the type name; a user `userName` overrides this.
-    override public var displayName: String? { evaluatedDisplayName.isEmpty ? nil : evaluatedDisplayName }
-    private var evaluatedDisplayName: String = ""
+    override public var customName: String? { evaluatedCustomName.isEmpty ? nil : evaluatedCustomName }
+    private var evaluatedCustomName: String = ""
 
     /// Extracts the salient part of a (possibly multi-statement) expression for
     /// use as the node title. A leading `//` comment is taken verbatim as an
@@ -419,8 +419,8 @@ public class MathExpressionNode: Node
         let hasError = result.diagnostics.contains { $0.severity == .error }
         let title = Self.salientTitle(from: self.stringExpression)
         // An empty title with an error would otherwise render as a bare "⚠ "
-        // — non-empty, so displayName's type-name fallback never kicks in.
-        self.evaluatedDisplayName = switch (hasError, title.isEmpty)
+        // — non-empty, so customName's type-name fallback never kicks in.
+        self.evaluatedCustomName = switch (hasError, title.isEmpty)
         {
             case (true, true):  "⚠ \(Self.name)"
             case (true, false): "⚠ \(title)"

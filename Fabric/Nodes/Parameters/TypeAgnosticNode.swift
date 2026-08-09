@@ -42,7 +42,7 @@ public class TypeAgnosticNode: StrategyNode
     /// Sample and Hold" (NodeTitleView appends the type name after it). Virtual —
     /// the no-configuration default — suppresses the token so the node reads as its
     /// plain type name.
-    override public var displayName: String? {
+    override public var customName: String? {
         let portType = selectedPortType
         return portType == .Virtual ? nil : portType.rawValue
     }

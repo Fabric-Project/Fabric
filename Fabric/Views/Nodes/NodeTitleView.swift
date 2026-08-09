@@ -17,10 +17,9 @@ struct NodeTitleView: View
 
     private var typeName: String { nodeViewModel.typeName }
 
-    private var hasPrimaryLabel: Bool { nodeViewModel.hasCustomLabel }
-
-    // `name` already resolves userName ?? node-generated displayName ?? typeName.
-    private var primaryLabel: String { nodeViewModel.name }
+    // Nil when the node has neither a rename nor a generated name, so the title
+    // is its type name alone.
+    private var primaryLabel: String? { nodeViewModel.customLabel }
 
     /// Opaque across the title, fading to clear over the last ~1 character so an
     /// over-long title dissolves at the node's right edge rather than hard-clipping.
@@ -71,7 +70,7 @@ struct NodeTitleView: View
                         .foregroundStyle(secondaryColor)
                 }
             }
-            else if hasPrimaryLabel
+            else if let primaryLabel
             {
                 // Text(verbatim:) + concatenation: these are data strings, not UI
                 // copy — the literal-interpolation initializer would do a doomed

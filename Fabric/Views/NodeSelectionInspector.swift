@@ -102,10 +102,10 @@ private struct SelectedNodeCard: View
 
     @ViewBuilder private var label: some View
     {
-        if nodeViewModel.hasCustomLabel
+        if let customLabel = nodeViewModel.customLabel
         {
             VStack(alignment: .leading) {
-                Text(nodeViewModel.name).foregroundStyle(.primary).bold()
+                Text(customLabel).foregroundStyle(.primary).bold()
                 Text(nodeViewModel.typeName).foregroundStyle(.secondary).bold()
             }
         }
