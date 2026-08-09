@@ -83,7 +83,7 @@ For all development:
   - `var userName: String?` — final: the user's rename, serialized.
 - From those it composes two names, both final:
   - `var name` — what to call the node: `userName ?? typeName`. Note `customName` is deliberately absent: it is a subtitle, not a replacement name.
-  - `var canonicalName` — every name the node answers to, e.g. `Math Expression (sin(x) · My Rename)`. Use it for logging and diagnostics; use `typeName` where brevity or per-frame cost matters.
+  - `var canonicalName` — every name the node answers to, e.g. `Math Expression (sin(x) · My Rename)`. It is also the node's `debugDescription`, so `print(node)` and `"\(node)"` give it: log a node directly rather than reaching for a name. Use `typeName` where brevity or per-frame cost matters.
 - Fire `nameSubject.send()` whenever state feeding `customName` changes; `NodeViewModel` mirrors the node's `name` / `typeName` / `customName` observably, and adds `customLabel` (`userName ?? customName`) — the label all title UI draws ahead of the type name.
 - Execution is **pull-based**; one execute per node per pass.
 - `GraphRenderer` (executor and scheduler) today does not use `nodeExecutionMode` or `nodeTimeMode` but will in the future.

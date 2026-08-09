@@ -12,7 +12,7 @@ import Combine
 import UniformTypeIdentifiers
 
 
-open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
+open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDebugStringConvertible
 {
     // User interface name — the node's TYPE name (each subclass overrides).
     open class var name: String {  fatalError("\(String(describing:self)) Must implement name") }
@@ -74,6 +74,9 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         case (let custom?, let user?): return "\(self.typeName) (\(custom) · \(user))"
         }
     }
+
+    // CustomDebugStringConvertible
+    final public var debugDescription: String { self.canonicalName }
 
     open var nodeType:NodeType
     {
