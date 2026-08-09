@@ -96,7 +96,7 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
         {
             throw FabricError(.execution(.gpu),
                               severity: .recoverable,
-                              message: "\(name) compute processor is unavailable")
+                              message: "\(debugName) compute processor is unavailable")
         }
 
         let outImage = try renderer.newImage(withWidth: inTex.width, height: inTex.height)
@@ -105,7 +105,7 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
         {
             throw FabricError(.execution(.gpu),
                               severity: .recoverable,
-                              message: "Could not create \(name) compute encoder")
+                              message: "Could not create \(debugName) compute encoder")
         }
         
         // Input Texture to Compute

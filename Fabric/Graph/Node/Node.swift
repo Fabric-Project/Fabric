@@ -18,8 +18,6 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     open class var name: String {  fatalError("\(String(describing:self)) Must implement name") }
 
     // Node-provided dynamic name, e.g. Math Expression shows its expression.
-    // Override THIS (not the instance `name`) to give a node a self-generated
-    // title; return nil for none. A user-supplied `userName` always wins over it.
     open var displayName: String? { nil }
 
     // User-supplied custom name (rename). Overrides any `displayName`.
@@ -52,10 +50,25 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         return lhs.id == rhs.id
     }
 
-    public var name : String
+    final public var name : String
     {
-        let myType = type(of: self)
-        return userName ?? displayName ?? myType.name
+        return userName ?? displayName ?? typeName
+    }
+
+    final public var typeName : String
+    {
+        Self.name
+    }
+
+    final public var debugName : String
+    {
+        switch (self.displayName, self.userName)
+        {
+        case (nil, nil):                return self.typeName
+        case (let display?, nil):       return "\(self.typeName) (\(display))"
+        case (nil, let user?):          return "\(self.typeName) (\(user))"
+        case (let display?, let user?): return "\(self.typeName) (\(display) · \(user))"
+        }
     }
 
     open var nodeType:NodeType

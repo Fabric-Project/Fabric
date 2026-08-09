@@ -35,7 +35,7 @@ public class BaseMultiPassBlurEffectTwoChannelNode: BaseImageNode
         let inputs = self.imageInputPorts()
         if inputs.count != 2 {
             if self.hasLoggedInputCountMismatch == false {
-                print("\\(self.name) expected exactly 2 input images, but got \\(inputs.count).")
+                print("\(self.debugName) expected exactly 2 input images, but got \(inputs.count).")
                 self.hasLoggedInputCountMismatch = true
             }
             return nil
