@@ -24,6 +24,7 @@ public class GraphRenderer : ViewRenderer
     public private(set) var executionTrace: GraphExecutionTrace?
 
     public private(set) var lastGraphExecutionTime = CACurrentMediaTime()
+    private var graphExecutionStartTime = CACurrentMediaTime()
 
     public private(set) var currentExecutionInfo: GraphExecutionInfo = GraphExecutionInfo(
         timing: GraphExecutionTiming(time: 0, deltaTime: 0, displayTime: nil, systemTime: 0, frameNumber: -1)
@@ -89,6 +90,11 @@ public class GraphRenderer : ViewRenderer
 
     override public func setup() throws {
         try super.setup()
+
+        let now = CACurrentMediaTime()
+        self.graphExecutionStartTime = now
+        self.lastGraphExecutionTime = now
+
         try enableExecution(graph: graph)
         try startExecution(graph: graph, trace: traceEditorExecution)
     }
@@ -101,10 +107,10 @@ public class GraphRenderer : ViewRenderer
         lastGraphExecutionTime = now
         
         let timing = GraphExecutionTiming(
-            time: now,
+            time: now - self.graphExecutionStartTime,
             deltaTime: delta,
-            displayTime: now,
-            systemTime: now,
+            displayTime: now - self.graphExecutionStartTime,
+            systemTime: Date.timeIntervalSinceReferenceDate,
             frameNumber: frameIndex
         )
         currentExecutionInfo = GraphExecutionInfo(timing: timing, eventInfo: pendingEventInfo)

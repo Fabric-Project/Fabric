@@ -159,7 +159,7 @@ public final class GraphExportRenderer {
                 time: time,
                 deltaTime: deltaTime,
                 displayTime: time,
-                systemTime: time,
+                systemTime: Date.timeIntervalSinceReferenceDate,
                 frameNumber: frameNumber
             ),
             iterationInfo: nil,

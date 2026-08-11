@@ -196,8 +196,8 @@ struct GraphExecutionTests {
         graph.addNode(timeNode)
         publish(timeNode.outputNumber, in: graph)
 
-        let firstContext = harness.makeExecutionContext(time: 100, deltaTime: 0, systemTime: 200, frameNumber: 0)
-        let secondContext = harness.makeExecutionContext(time: 101.25, deltaTime: 1.25, systemTime: 201, frameNumber: 1)
+        let firstContext = harness.makeExecutionContext(time: 0, deltaTime: 0, systemTime: 200, frameNumber: 0)
+        let secondContext = harness.makeExecutionContext(time: 1.25, deltaTime: 1.25, systemTime: 201, frameNumber: 1)
 
         try harness.renderer.startExecution(graph: graph)
         try harness.render(graph: graph, executionInfo: firstContext)
