@@ -479,13 +479,13 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         self.ports.first(where: { $0.parameter?.label == label }) as? ParameterPort<Int>
     }
 
-    func inputImageTexture(at index: Int) -> MTLTexture? {
+    func inputImage(at index: Int) -> FabricImage? {
         let ports = self.imageInputPorts()
         guard index >= 0, index < ports.count else {
             return nil
         }
 
-        return ports[index].value?.texture
+        return ports[index].value
     }
 
     /// Labels of parameter ports that have been claimed by `syncDynamicParameterPortsFromMaterial`.
@@ -683,13 +683,18 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
         self.synchronizeDynamicValuePortsToMaterial()
 
-        guard let inputTexture0 = self.inputImageTexture(at: 0) else {
+        guard let inputImage = self.inputImage(at: 0)
+        else {
             self.outputTexturePort.send(nil)
             return
         }
+        
+        let inputTexture0 = inputImage.texture
 
         let outImage = try renderer.newImage(withWidth: inputTexture0.width, height: inputTexture0.height)
 
+        outImage.isFlipped = inputImage.isFlipped
+        
         let textures = self.imageInputPorts().map { $0.value?.texture }
 
         self.postProcessor.mesh.preDraw = { renderEncoder in

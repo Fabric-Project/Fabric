@@ -77,9 +77,10 @@ public class LUTProcessorNode : BaseImageNode
 
         if self.imageInputPorts().first?.valueDidChange == true
         {
-            if let inTex = self.inputImageTexture(at: 0),
+            if let inImage = self.inputImage(at: 0),
                let inTex2 = self.texture
             {
+                let inTex = inImage.texture
                 let outImage = try renderer.newImage(withWidth: inTex.width, height: inTex.height)
 
                 self.postMaterial.set(inTex, index: FragmentTextureIndex.Custom0)

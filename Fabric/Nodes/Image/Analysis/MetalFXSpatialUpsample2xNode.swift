@@ -41,10 +41,11 @@ final class MetalFXSpatialUpsample2xNode: BaseImageNode
             return
         }
 
-        guard let inTex = self.inputImageTexture(at: 0) else {
+        guard let inImage = self.inputImage(at: 0) else {
             return
         }
 
+        let inTex = inImage.texture
         let inputWidth = inTex.width
         let inputHeight = inTex.height
         let inputFormat  = inTex.pixelFormat

@@ -106,8 +106,10 @@ public class KeypointDistortNode: BaseImageNode {
         
         if self.imageInputPorts().first?.valueDidChange == true
         {
-            if let inTex = self.inputImageTexture(at: 0)
+            if let inImage = self.inputImage(at: 0)
             {
+                let inTex = inImage.texture
+                
                 let outImage = try renderer.newImage(withWidth: inTex.width, height: inTex.height)
 
                 let minCount = min (self.refKeyPointStructBuffer.count, self.disKeyPointStructBuffer.count)
