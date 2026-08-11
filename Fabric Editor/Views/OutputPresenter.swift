@@ -10,11 +10,36 @@ import SwiftUI
 import Fabric
 import Satin
 
-/// Where a document's rendered output is hosted.
+/// Where rendered output is hosted.
 enum OutputPresentationMode: String
 {
     case separateWindow
     case editorCanvas
+}
+
+/// The app-wide output presentation mode, persisted across launches. Every
+/// document's presenter observes it and re-hosts accordingly.
+@MainActor @Observable
+final class OutputSettings
+{
+    static let shared = OutputSettings()
+
+    private static let modeDefaultsKey = "outputPresentationMode"
+
+    var mode: OutputPresentationMode
+    {
+        didSet
+        {
+            guard self.mode != oldValue else { return }
+            UserDefaults.standard.set(self.mode.rawValue, forKey: Self.modeDefaultsKey)
+        }
+    }
+
+    private init()
+    {
+        let storedMode = UserDefaults.standard.string(forKey: Self.modeDefaultsKey)
+        self.mode = storedMode.flatMap(OutputPresentationMode.init(rawValue:)) ?? .separateWindow
+    }
 }
 
 /// Owns the document's single `MetalViewController` and moves it between the
@@ -25,18 +50,6 @@ enum OutputPresentationMode: String
 @MainActor @Observable
 final class OutputPresenter
 {
-    private static let modeDefaultsKey = "outputPresentationMode"
-
-    var mode: OutputPresentationMode
-    {
-        didSet
-        {
-            guard self.mode != oldValue else { return }
-            UserDefaults.standard.set(self.mode.rawValue, forKey: Self.modeDefaultsKey)
-            self.applyMode()
-        }
-    }
-
     var isPaused: Bool = false
     {
         didSet
@@ -57,12 +70,10 @@ final class OutputPresenter
     @ObservationIgnored private weak var canvasContainer: NSView?
 
     @ObservationIgnored private var didPresentFatalRuntimeError = false
+    @ObservationIgnored private var isActive = true
 
     init(ownerDocument: FabricDocument, renderer: GraphRenderer)
     {
-        let storedMode = UserDefaults.standard.string(forKey: Self.modeDefaultsKey)
-        self.mode = storedMode.flatMap(OutputPresentationMode.init(rawValue:)) ?? .separateWindow
-
         self.renderer = renderer
         self.viewController = MetalViewController(renderer: renderer)
         self.windowManager = DocumentOutputWindowManager()
@@ -72,6 +83,7 @@ final class OutputPresenter
         self.windowManager.presenter = self
 
         self.applyMode()
+        self.startObservingMode()
     }
 
     func setWindowTitle(_ title: String)
@@ -89,6 +101,7 @@ final class OutputPresenter
     /// released along with the document.
     func teardown()
     {
+        self.isActive = false
         self.renderer?.errorDelegate = nil
         self.viewController.view.removeFromSuperview()
         self.canvasContainer = nil
@@ -112,9 +125,28 @@ final class OutputPresenter
         self.canvasContainer = nil
     }
 
+    /// Re-arming observation of the app-wide mode; each presenter applies
+    /// changes to its own hosts. The outer closure must capture weakly: the
+    /// observation registrar holds it until the mode next changes, which may
+    /// be long after this document closes.
+    private func startObservingMode()
+    {
+        withObservationTracking {
+            _ = OutputSettings.shared.mode
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                guard let self, self.isActive else { return }
+                self.applyMode()
+                self.startObservingMode()
+            }
+        }
+    }
+
     private func applyMode()
     {
-        switch self.mode
+        guard self.isActive else { return }
+
+        switch OutputSettings.shared.mode
         {
         case .separateWindow:
             self.viewController.view.removeFromSuperview()

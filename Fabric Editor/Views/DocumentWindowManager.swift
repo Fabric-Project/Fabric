@@ -44,7 +44,11 @@ class DocumentOutputWindowManager : NSObject
 
         viewController.view.frame = window.contentView?.bounds ?? .zero
         window.contentViewController = viewController
-        window.makeKeyAndOrderFront(nil)
+
+        // orderFront, not makeKeyAndOrderFront: the mode is app-wide, so
+        // every open document presents at once and none of their output
+        // windows should steal the keyboard from the editor.
+        window.orderFront(nil)
     }
 
     /// Completion fires once the window has given the view controller back —
@@ -101,7 +105,7 @@ class DocumentOutputWindowManager : NSObject
         }
 
         let window = NSWindow(contentRect: NSRect(x: 100, y: 100, width: 600, height: 600),
-                              styleMask: [.titled, .closable, .miniaturizable, .resizable, .unifiedTitleAndToolbar],
+                              styleMask: [.titled, .miniaturizable, .resizable, .unifiedTitleAndToolbar],
                               backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.level = .normal
@@ -131,15 +135,6 @@ extension DocumentOutputWindowManager: NSWindowDelegate
     func windowDidBecomeMain(_ notification: Notification)
     {
         ActiveFabricDocumentStore.shared.activeDocument = self.ownerDocument
-    }
-
-    func windowShouldClose(_ sender: NSWindow) -> Bool
-    {
-        // The red close button routes here via performClose; move the output
-        // into the editor canvas instead of tearing rendering down. Document
-        // teardown uses close() directly, which skips this delegate method.
-        self.presenter?.mode = .editorCanvas
-        return false
     }
 
     func windowDidExitFullScreen(_ notification: Notification)

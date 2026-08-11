@@ -12,7 +12,7 @@ import Metal
 import Fabric
 import Satin
 
-@MainActor @Observable
+@MainActor
 final class ActiveFabricDocumentStore
 {
     static let shared = ActiveFabricDocumentStore()

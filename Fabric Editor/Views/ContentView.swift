@@ -20,7 +20,6 @@ struct ContentView: View {
     
     @Binding var document: FabricDocument
     @Environment(\.undoManager) private var undoManager
-    @Environment(\.appearsActive) private var appearsActive
 
     @State private var canvasHitTestingEnabled = true
     
@@ -231,7 +230,7 @@ struct ContentView: View {
             }
             .toolbar
             {
-                if let outputPresenter = self.outputPresenter, outputPresenter.mode == .editorCanvas
+                if let outputPresenter = self.outputPresenter, OutputSettings.shared.mode == .editorCanvas
                 {
                     ToolbarItem(placement: .automatic)
                     {
@@ -260,14 +259,6 @@ struct ContentView: View {
                 self.outputPresenter = nil
                 self.document.teardownOutputPresentation()
             }
-            // The output window keeps the store current via windowDidBecomeMain;
-            // editor windows do it here, so menus track whichever document the
-            // user is actually in.
-            .onChange(of: self.appearsActive) { _, isActive in
-                if isActive {
-                    ActiveFabricDocumentStore.shared.activeDocument = self.document
-                }
-            }
         }
     }
 }
@@ -279,7 +270,7 @@ struct CanvasBackdropView: View {
     let radialGradientEndRadius: CGFloat
 
     var body: some View {
-        if let outputPresenter, outputPresenter.mode == .editorCanvas
+        if let outputPresenter, OutputSettings.shared.mode == .editorCanvas
         {
             OutputCanvasHostView(presenter: outputPresenter)
                 .allowsHitTesting(false)
