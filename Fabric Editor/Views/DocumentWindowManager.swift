@@ -31,12 +31,15 @@ class DocumentOutputWindowManager : NSObject
     // never pay for a window they may not show.
     private var outputWindow: NSWindow?
     private var windowTitle = ""
+    private var pendingWithdrawCompletion: (() -> Void)?
 
     // Toolbar shit
     private weak var playPauseItem: NSToolbarItem?
 
     func present(_ viewController: NSViewController)
     {
+        self.pendingWithdrawCompletion = nil
+
         let window = self.makeWindowIfNeeded()
 
         viewController.view.frame = window.contentView?.bounds ?? .zero
@@ -44,10 +47,25 @@ class DocumentOutputWindowManager : NSObject
         window.makeKeyAndOrderFront(nil)
     }
 
-    func withdraw()
+    /// Completion fires once the window has given the view controller back —
+    /// immediately, unless the window must exit full screen first.
+    func withdraw(completion: @escaping () -> Void = {})
     {
-        self.outputWindow?.orderOut(nil)
-        self.outputWindow?.contentViewController = nil
+        guard let window = self.outputWindow else {
+            completion()
+            return
+        }
+
+        if window.styleMask.contains(.fullScreen)
+        {
+            self.pendingWithdrawCompletion = completion
+            window.toggleFullScreen(nil)
+            return
+        }
+
+        window.orderOut(nil)
+        window.contentViewController = nil
+        completion()
     }
 
     func setWindowTitle(_ title: String)
@@ -69,6 +87,7 @@ class DocumentOutputWindowManager : NSObject
 
     func closeWindow()
     {
+        self.pendingWithdrawCompletion = nil
         self.outputWindow?.delegate = nil
         self.outputWindow?.contentViewController = nil
         self.outputWindow?.close()
@@ -121,6 +140,21 @@ extension DocumentOutputWindowManager: NSWindowDelegate
         // teardown uses close() directly, which skips this delegate method.
         self.presenter?.mode = .editorCanvas
         return false
+    }
+
+    func windowDidExitFullScreen(_ notification: Notification)
+    {
+        guard let completion = self.pendingWithdrawCompletion else { return }
+        self.pendingWithdrawCompletion = nil
+        self.withdraw(completion: completion)
+    }
+
+    func window(_ window: NSWindow, willUseFullScreenPresentationOptions proposedOptions: NSApplication.PresentationOptions = []) -> NSApplication.PresentationOptions
+    {
+        // Without this, a window with a toolbar keeps its title bar strip on
+        // screen in full screen; hiding it with the menu bar leaves nothing
+        // but the rendered output.
+        proposedOptions.union(.autoHideToolbar)
     }
 }
 

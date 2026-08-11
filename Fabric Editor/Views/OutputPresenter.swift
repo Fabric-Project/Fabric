@@ -121,8 +121,11 @@ final class OutputPresenter
             self.windowManager.present(self.viewController)
 
         case .editorCanvas:
-            self.windowManager.withdraw()
-            self.installInCanvas()
+            // Withdrawal completes asynchronously when the window has to
+            // exit full screen first.
+            self.windowManager.withdraw { [weak self] in
+                self?.installInCanvas()
+            }
         }
     }
 
