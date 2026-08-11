@@ -157,6 +157,21 @@ public class CameraProviderNode : Node
 
     }
     
+    override public func startExecution(renderer:GraphRenderer) throws
+    {
+        if self.captureSession.isRunning == false
+        {
+            self.captureSession.startRunning()
+        }
+    }
+    
+    override public func stopExecution(renderer:GraphRenderer) throws
+    {
+        if self.captureSession.isRunning
+        {
+            self.captureSession.stopRunning()
+        }
+    }
   
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
