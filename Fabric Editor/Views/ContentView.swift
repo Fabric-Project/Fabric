@@ -20,6 +20,7 @@ struct ContentView: View {
     
     @Binding var document: FabricDocument
     @Environment(\.undoManager) private var undoManager
+    @Environment(\.appearsActive) private var appearsActive
 
     @State private var canvasHitTestingEnabled = true
     
@@ -30,6 +31,10 @@ struct ContentView: View {
 
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
     @State private var inspectorVisibility:Bool = true
+
+    // Seeded in onAppear once the document's AppKit-side output hosting
+    // exists; the document itself is not observable, this is.
+    @State private var outputPresenter: OutputPresenter?
 
     // The editor's single keyboard-focus authority. SwiftUI writes it on every
     // real focus change (canvas, registry search/list — or nil when e.g. a node
@@ -85,7 +90,8 @@ struct ContentView: View {
 
                 ZStack
                 {
-                    RadialGradient(colors: [.clear, .black.opacity(0.75)], center: .center, startRadius: 0, endRadius: self.radialGradientEndRadius)
+                    CanvasBackdropView(outputPresenter: self.outputPresenter,
+                                       radialGradientEndRadius: self.radialGradientEndRadius)
 
                     ScrollViewReader { proxy in
                         ScrollView([.horizontal, .vertical])
@@ -225,6 +231,18 @@ struct ContentView: View {
             }
             .toolbar
             {
+                if let outputPresenter = self.outputPresenter, outputPresenter.mode == .editorCanvas
+                {
+                    ToolbarItem(placement: .automatic)
+                    {
+                        Button(outputPresenter.playbackControlLabel,
+                               systemImage: outputPresenter.playbackControlSymbolName)
+                        {
+                            outputPresenter.togglePlayback()
+                        }
+                    }
+                }
+
                 ToolbarItem(placement: .automatic)
                 {
                     Button("Parameters", systemImage: "sidebar.right") {
@@ -232,6 +250,43 @@ struct ContentView: View {
                     }
                 }
             }
+            .onAppear {
+                // AppKit window creation has to happen on the main thread
+                // once the scene is up; onAppear guarantees both.
+                self.document.setupOutputPresentation()
+                self.outputPresenter = self.document.outputPresenter
+            }
+            .onDisappear {
+                self.outputPresenter = nil
+                self.document.teardownOutputPresentation()
+            }
+            // The output window keeps the store current via windowDidBecomeMain;
+            // editor windows do it here, so menus track whichever document the
+            // user is actually in.
+            .onChange(of: self.appearsActive) { _, isActive in
+                if isActive {
+                    ActiveFabricDocumentStore.shared.activeDocument = self.document
+                }
+            }
+        }
+    }
+}
+
+/// The node canvas background: live rendered output when the presenter is in
+/// editor-canvas mode, otherwise the decorative gradient.
+struct CanvasBackdropView: View {
+    let outputPresenter: OutputPresenter?
+    let radialGradientEndRadius: CGFloat
+
+    var body: some View {
+        if let outputPresenter, outputPresenter.mode == .editorCanvas
+        {
+            OutputCanvasHostView(presenter: outputPresenter)
+                .allowsHitTesting(false)
+        }
+        else
+        {
+            RadialGradient(colors: [.clear, .black.opacity(0.75)], center: .center, startRadius: 0, endRadius: self.radialGradientEndRadius)
         }
     }
 }

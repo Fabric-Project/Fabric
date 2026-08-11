@@ -31,15 +31,6 @@ struct FabricApp: App {
             ContentView(document: file.$document)
                 .focusedSceneValue(\.document, file.$document)
 
-                .onAppear {
-                    // THIS SHIT HAS TO BE ON MAIN THREAD FOR APPKIT
-                    file.document.setupOutputWindow()
-                }
-                .onDisappear {
-                    // THIS SHIT HAS TO BE ON MAIN THREAD FOR APPKIT
-                    file.document.closeOutputWindow()
-                }
-                
         }
         .commands {
             AboutCommands()
@@ -185,6 +176,14 @@ struct DocumentCommands:Commands
 struct ViewCommands: Commands {
     @FocusedBinding(\.document) var document: FabricDocument?
 
+    /// The store tracks whichever window last became active — editor or
+    /// output — and is observable, so menus re-evaluate on window switches.
+    /// The focused-document binding can go stale while an AppKit output
+    /// window is key, so it is only a fallback.
+    private var activeDocument: FabricDocument? {
+        ActiveFabricDocumentStore.shared.activeDocument ?? self.document
+    }
+
     var body: some Commands {
         CommandGroup(after: .toolbar) {
             let graph = document?.editingContext.currentGraph
@@ -211,6 +210,27 @@ struct ViewCommands: Commands {
             }
             .keyboardShortcut("l", modifiers: [.command, .option])
             .disabled(document == nil)
+
+            Divider()
+
+            // Read the mode here in the body, not inside the binding's
+            // getter, so observation registers it and the menu re-evaluates
+            // when the active document or its mode changes.
+            let outputPresenter = self.activeDocument?.outputPresenter
+            let outputMode = outputPresenter?.mode ?? .separateWindow
+
+            Menu("Output") {
+                Picker("Destination", selection: Binding(
+                    get: { outputMode },
+                    set: { outputPresenter?.mode = $0 }
+                )) {
+                    Text("In-Editor").tag(OutputPresentationMode.editorCanvas)
+                    Text("Window").tag(OutputPresentationMode.separateWindow)
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            }
+            .disabled(outputPresenter == nil)
 
             Divider()
         }
