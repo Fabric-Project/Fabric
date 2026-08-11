@@ -341,4 +341,26 @@ struct PortConnectionTests {
         #expect(queueInput.portType == .Virtual)
         #expect(queueOutput.portType == .Array(portType: .Virtual))
     }
+
+    @Test("First and last array values mirror the selected element type")
+    func firstAndLastArrayValuesMirrorSelectedElementType() throws {
+        guard let context = makeContext() else { return }
+
+        for node in [
+            ArrayFirstValueNode(context: context, portType: .Virtual),
+            ArrayLastValueNode(context: context, portType: .Virtual),
+        ] {
+            let originalInput: Fabric.Port = node.port(named: "inputPort")
+            let originalOutput: Fabric.Port = node.port(named: "outputPort")
+
+            node.strategy = PortType.Vector2.rawValue
+
+            let specializedInput: Fabric.Port = node.port(named: "inputPort")
+            let specializedOutput: Fabric.Port = node.port(named: "outputPort")
+            #expect(specializedInput.portType == .Array(portType: .Vector2))
+            #expect(specializedOutput.portType == .Vector2)
+            #expect(specializedInput.id == originalInput.id)
+            #expect(specializedOutput.id == originalOutput.id)
+        }
+    }
 }
