@@ -139,7 +139,11 @@ import Satin
         node.nameSubject
             .receive(on: DispatchQueue.main)
             .sink { [weak self] in
-                self?.customName = node.customName
+                guard let self else { return }
+                // Equality-gated: force-sending upstreams re-assign name-feeding
+                // ports every frame; only a real change may touch the observable.
+                let newName = node.customName
+                if newName != self.customName { self.customName = newName }
             }
             .store(in: &cancellables)
     }
