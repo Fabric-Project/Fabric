@@ -91,7 +91,7 @@ public class BaseFormatStringNode: Node {
     /// The current format string, parsed. Rebuilt only when it changes.
     private(set) var parsedFormatString = ParsedFormatString(tokens: [])
 
-    override public var customName: String? { formatString.isEmpty ? nil : formatString }
+    override public func deriveCustomName() -> String? { formatString }
 
     // MARK: - Init
 

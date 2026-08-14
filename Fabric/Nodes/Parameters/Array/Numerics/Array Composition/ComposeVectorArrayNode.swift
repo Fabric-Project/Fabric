@@ -20,7 +20,7 @@ public class ComposeVectorArrayNode: StrategyNode
 
     // The vector type is already evident from the component ports, so keep the
     // plain type-name title rather than leading it with the strategy.
-    override public var customName: String? { nil }
+    override public func deriveCustomName() -> String? { nil }
 
     private static let allDynamicNames: Set<String> = [
         "inputComponent0", "inputComponent1", "inputComponent2", "inputComponent3",

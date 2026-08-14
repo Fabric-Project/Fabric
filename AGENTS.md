@@ -79,8 +79,9 @@ For all development:
 - Nodes define immutable static metadata:  `nodeType`, `nodeExecutionMode`, `nodeTimeMode`,  `name`, `nodeDescription`.
 - A node is named from three sources, two of them overridden by the subclass:
   - `class var name` — override: the name the type is registered and listed under; `registryName` on an instance.
-  - `var customName: String?` — override where the node names itself, nil otherwise: Math Expression's expression, StrategyNode's strategy.
+  - `func deriveCustomName() -> String?` — override where the node names itself, nil otherwise: Math Expression's expression, StrategyNode's strategy. Read it off an instance as `customName`, final and normalized.
   - `var userName: String?` — final: the user's rename, serialized.
+  - An empty name is no name: `customName` reads a `deriveCustomName()` of "" as nil, and `userName` normalizes "" to nil at set and decode. Overrides and consumers never guard emptiness themselves.
 - From those it composes two names, both final:
   - `var name` — what to call the node: `userName ?? registryName`. Note `customName` is deliberately absent: it is a subtitle, not a replacement name.
   - `var canonicalName` — every name the node answers to, e.g. `Math Expression (sin(x) · My Rename)`. It is also the node's `debugDescription`, so `print(node)` and `"\(node)"` give it: log a node directly rather than reaching for a name. Use `registryName` where brevity or per-frame cost matters.
@@ -203,7 +204,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 - [ ] If Node dynamically changes port count or type, we should only trigger via Setting in Settings View, not within the graph
 - [ ] If we have a Settings View, we should have a custom initializer so procedural graph creation has an entry to settings.
 - [ ] If we have a Settings View and a custom initializer, use a custom struct or enum for the settings
-- [ ] If the Node overrides `customName`, every mutation of the state it derives from fires `nameSubject.send()` (StrategyNode's `strategy` already does)
+- [ ] If the Node overrides `deriveCustomName()`, every mutation of the state it derives from fires `nameSubject.send()` (StrategyNode's `strategy` already does)
 - [ ] New Nodes should live in an appropriate spot in the NodeRegistry
 
 ---

@@ -19,12 +19,25 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     open class var name: String {  fatalError("\(String(describing:self)) Must implement name") }
 
     // Node-generated name, e.g. Math Expression shows its expression. Override
-    // this; nil for none. Not part of `name` — it is a subtitle the node offers
-    // alongside its registry name, which title UI composes as it sees fit.
-    open var customName: String? { nil }
+    // where the node names itself; nil for none. Raw: empty is allowed here
+    // and reads as absence. Read `customName`, never this.
+    open func deriveCustomName() -> String? { nil }
 
-    // User-supplied name (rename). Wins over the type name.
+    // The node-generated name. Not part of `name` — it is a subtitle the node
+    // offers alongside its registry name, which title UI composes as it sees
+    // fit. Never empty: an empty name is no name.
+    final public var customName: String?
+    {
+        guard let derived = self.deriveCustomName(), !derived.isEmpty else { return nil }
+        return derived
+    }
+
+    // User-supplied name (rename). Wins over the type name. Empty is absence:
+    // a cleared rename must not become a name.
     final public var userName: String?
+    {
+        didSet { if userName?.isEmpty == true { userName = nil } }
+    }
 
     // User interface organizing principle
     open class var nodeType:Node.NodeType { fatalError("\(String(describing:self)) Must implement nodeType") }
@@ -191,7 +204,9 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
         self.id = try container.decode(UUID.self, forKey: .id)
         self.offset = try container.decode(CGSize.self, forKey: .nodeOffset)
-        self.userName = try container.decodeIfPresent(String.self, forKey: .userName)
+        // didSet does not fire during init; normalize the decoded rename here.
+        let decodedUserName = try container.decodeIfPresent(String.self, forKey: .userName)
+        self.userName = decodedUserName?.isEmpty == true ? nil : decodedUserName
 
         let snaps = try container.decodeIfPresent([PortRegistry.Snapshot].self, forKey: .ports) ?? []
 

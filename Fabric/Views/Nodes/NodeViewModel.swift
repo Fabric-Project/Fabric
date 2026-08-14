@@ -50,7 +50,14 @@ import Satin
     public var userName: String?
     {
         get { _userName }
-        set { _userName = newValue; node.userName = newValue }
+        // Normalized like Node's own setter, so the mirror can't hold an
+        // empty rename the node discarded.
+        set
+        {
+            let name = newValue?.isEmpty == true ? nil : newValue
+            _userName = name
+            node.userName = name
+        }
     }
     private var _userName: String?
 
@@ -58,8 +65,7 @@ import Satin
     /// through to the node, so SwiftUI invalidates on a rename.
     public var name: String
     {
-        if let u = _userName, !u.isEmpty { return u }
-        return registryName
+        _userName ?? registryName
     }
 
     /// `Node.customName`, cached and kept fresh by nameSubject.
@@ -70,8 +76,7 @@ import Satin
     /// type name.
     public var customLabel: String?
     {
-        if let u = _userName, !u.isEmpty { return u }
-        return customName
+        _userName ?? customName
     }
 
     // MARK: - Forwarded node metadata

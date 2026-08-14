@@ -104,7 +104,7 @@ public class GameControllerNode: Node
     override public class var nodeDescription: String { "Read input from game controllers with semantic button names" }
 
     // Dynamic node name based on selected controller
-    override public var customName: String?
+    override public func deriveCustomName() -> String?
     {
         if let controllerID = selectedControllerID,
            let controller = availableControllers.first(where: { $0.id == controllerID })

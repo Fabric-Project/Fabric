@@ -112,10 +112,10 @@ public class StrategyNode: Node
     /// Compose"), so the strategy must not repeat it. An unrecognised strategy
     /// (e.g. a legacy or renamed case) falls back to the plain type name.
     ///
-    /// Subclasses wanting a different title override `customName` directly: return
-    /// nil for the plain type-name title, or a bespoke string — as the type-agnostic
-    /// nodes do, suppressing the token for their Virtual default.
-    override public var customName: String?
+    /// Subclasses wanting a different title override `deriveCustomName()` directly:
+    /// return nil for the plain type-name title, or a bespoke string — as the
+    /// type-agnostic nodes do, suppressing the token for their Virtual default.
+    override public func deriveCustomName() -> String?
     {
         Self.strategies.contains(strategy) ? strategy : nil
     }

@@ -190,7 +190,7 @@ public class MathExpressionNode: Node
 
     /// Shown as the node's title: the expression, or a ⚠-prefixed form on error.
     /// nil (empty) falls back to the type name; a user `userName` overrides this.
-    override public var customName: String? { evaluatedCustomName.isEmpty ? nil : evaluatedCustomName }
+    override public func deriveCustomName() -> String? { evaluatedCustomName }
     private var evaluatedCustomName: String = ""
 
     /// Extracts the salient part of a (possibly multi-statement) expression for

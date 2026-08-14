@@ -68,7 +68,7 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
     /// Shown as the node's title: the three axis expressions, ⚠-prefixed when any
     /// fails to compile. Falls back to the type name when all axes are blank; a
     /// user `userName` overrides it. Refreshed via nameSubject in parseExpressions().
-    override public var customName: String? {
+    override public func deriveCustomName() -> String? {
         let axes = [expressionX, expressionY, expressionZ]
         guard axes.contains(where: { !$0.isEmpty }) else { return nil }
         // Collapse newlines to spaces so the single-line node title reads cleanly.
