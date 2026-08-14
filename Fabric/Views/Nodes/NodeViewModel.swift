@@ -72,11 +72,13 @@ import Satin
     public private(set) var customName: String?
 
     /// What title UI shows ahead of the type name: the rename, else the node's
-    /// own generated name. Nil when it has neither and the title is the bare
-    /// type name.
+    /// own generated name. Nil when it has neither — or when the label equals
+    /// the registry name, which the title renders anyway — and the title is the
+    /// bare type name.
     public var customLabel: String?
     {
-        _userName ?? customName
+        let label = _userName ?? customName
+        return label == registryName ? nil : label
     }
 
     // MARK: - Forwarded node metadata

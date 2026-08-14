@@ -51,7 +51,10 @@ struct NodeTitleView: View
             {
                 HStack(spacing: 0)
                 {
-                    TextField(nodeViewModel.name, text: $renamingText)
+                    // Placeholder previews the empty-commit outcome: with no
+                    // rename, customLabel (the node-generated name) shows; the
+                    // registry name already follows as the suffix Text.
+                    TextField(nodeViewModel.customLabel ?? "", text: $renamingText)
                         .textFieldStyle(.plain)
                         .focused($renameFieldFocused)
                         .font(.system(size: 9))
