@@ -649,7 +649,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             partialResult || next.valueDidChange
         }
 
-        commandBuffer.pushDebugGroup(self.registryName + " Execute")
+        commandBuffer.pushDebugGroup(self.name + " Execute")
         defer { commandBuffer.popDebugGroup() }
         
         if self.currentImageInputCount == 0 {
