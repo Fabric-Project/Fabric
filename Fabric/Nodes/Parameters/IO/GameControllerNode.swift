@@ -282,6 +282,8 @@ public class GameControllerNode: Node
         }
 
         _settingsModelStorage?.availableControllers = availableControllers
+        // `customName` resolves against the controller list; notify so the title refreshes.
+        self.nameSubject.send()
 
         print("[GameController] Found \(availableControllers.count) controllers:")
         for info in availableControllers

@@ -515,6 +515,8 @@ public class MIDIInputNode: Node
         }
 
         _settingsModelStorage?.availableInputs = availableInputs
+        // `customName` resolves against the input list; notify so the title refreshes.
+        self.nameSubject.send()
 
         print("[MIDI] Found \(availableInputs.count) MIDI sources:")
         for input in availableInputs
