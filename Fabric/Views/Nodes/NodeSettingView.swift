@@ -20,7 +20,7 @@ struct NodeSettingView: View
         {
             HStack()
             {
-                Text("\(type(of: nodeViewModel.node).name) Settings")
+                Text("\(nodeViewModel.registryName) Settings")
                     .lineLimit(1)
                     .font(.system(size: 10))
                     .bold()
