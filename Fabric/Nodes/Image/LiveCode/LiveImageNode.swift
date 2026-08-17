@@ -18,7 +18,6 @@ public class LiveImageNode: BaseImageNode
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Live-editable Metal image effect with serialized shader source." }
     override public class var defaultImageInputCountHint: Int? { 1 }
-    override public class var preserveDecodedImageInputPortsOnDecode: Bool { true }
 
     override public class var sourceShaderName: String { "LiveEffectDefaultShader" }
 
@@ -38,12 +37,12 @@ public class LiveImageNode: BaseImageNode
 
     required init(context: Context, fileURL: URL) throws {
         try super.init(context: context, fileURL: fileURL)
-        self.postInit(shouldSynchronizePorts: true)
+        self.postInit()
     }
 
     required init(context: Context) {
         super.init(context: context)
-        self.postInit(shouldSynchronizePorts: true)
+        self.postInit()
     }
 
     required init(from decoder: any Decoder) throws {
@@ -57,7 +56,7 @@ public class LiveImageNode: BaseImageNode
         // persisted identity and state by registry key; stale template-only
         // ports are removed by the material sync. On compile failure the
         // document's own ports stand in — see recompileAndResyncPorts.
-        self.postInit(shouldSynchronizePorts: true)
+        self.postInit()
     }
 
     deinit {
@@ -109,7 +108,7 @@ public class LiveImageNode: BaseImageNode
         return error.localizedDescription
     }
 
-    private func postInit(shouldSynchronizePorts: Bool) {
+    private func postInit() {
         Self.sweepStaleWorkspacesOnceIfNeeded()
 
         do {
@@ -120,7 +119,7 @@ public class LiveImageNode: BaseImageNode
 
             try self.shaderSource.write(to: self.shaderFileURL!, atomically: true, encoding: .utf8)
             self.retargetMaterial(to: self.shaderFileURL!)
-            self.recompileAndResyncPorts(shouldSynchronizePorts: shouldSynchronizePorts)
+            self.recompileAndResyncPorts()
             self.workspaceError = nil
         }
         catch {
@@ -189,7 +188,7 @@ public class LiveImageNode: BaseImageNode
         }
     }
 
-    private func recompileAndResyncPorts(shouldSynchronizePorts: Bool = true) {
+    private func recompileAndResyncPorts() {
         guard let sourceShader = self.postMaterial.shader as? SourceShader else { return }
 
         sourceShader.reloadFromSource()
@@ -201,8 +200,6 @@ public class LiveImageNode: BaseImageNode
             self.adoptRemainingSnapshotPortsAsFallback()
             return
         }
-
-        guard shouldSynchronizePorts else { return }
 
         self.postSetupSynchronizePorts(allowReplace: false)
     }

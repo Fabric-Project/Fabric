@@ -454,7 +454,7 @@ public final class JavaScriptNode: Node
     public required init(context: Context)
     {
         super.init(context: context)
-        self.compileAndSynchronizePorts(shouldSynchronizePorts: true)
+        self.compileAndSynchronizePorts()
     }
 
     public required init(from decoder: any Decoder) throws
@@ -468,7 +468,7 @@ public final class JavaScriptNode: Node
         // Every port is dynamic, so decode must rebuild them from the restored
         // script; each recreated port adopts its persisted identity and state
         // by registry key as it registers.
-        self.compileAndSynchronizePorts(shouldSynchronizePorts: true)
+        self.compileAndSynchronizePorts()
     }
 
     override public func encode(to encoder: any Encoder) throws
@@ -501,7 +501,7 @@ public final class JavaScriptNode: Node
     public func updateScriptSource(_ source: String)
     {
         self.scriptSource = source
-        self.compileAndSynchronizePorts(shouldSynchronizePorts: true)
+        self.compileAndSynchronizePorts()
     }
 
     @MainActor
@@ -555,7 +555,7 @@ public final class JavaScriptNode: Node
         }
     }
 
-    private func compileAndSynchronizePorts(shouldSynchronizePorts: Bool)
+    private func compileAndSynchronizePorts()
     {
         do {
             let signature = try JavaScriptNodeSourceParser.parse(source: self.scriptSource)
@@ -564,9 +564,7 @@ public final class JavaScriptNode: Node
             self.runtime = runtime
             self.diagnostics = []
 
-            if shouldSynchronizePorts {
-                self.synchronizeDynamicPorts(with: signature)
-            }
+            self.synchronizeDynamicPorts(with: signature)
         }
         catch {
             let summary = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
