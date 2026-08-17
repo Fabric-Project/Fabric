@@ -326,6 +326,43 @@ struct PortHydrationTests
         #expect(latePort.id.uuidString != retiredSnapshotID)
     }
 
+    @Test("A port removed and recreated within one decode keeps its identity")
+    func removeAndRecreateWithinDecodeKeepsIdentity() throws
+    {
+        guard let context = makeContext() else { return }
+
+        let node = RecreatingPortNode(context: context)
+        let savedID = node.value.id
+
+        let decoded = try roundTrip(node, context: context)
+
+        #expect(decoded.value.id == savedID)
+        #expect(decoded.droppedPortStateKeys.isEmpty)
+    }
+
+    @Test("Duplicating a node closes its hydration window")
+    func duplicatingANodeClosesItsHydrationWindow() throws
+    {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let node = NumberBinaryOperator(context: context)
+        graph.addNode(node)
+
+        // A key no registerPorts declares: it survives the duplicate's encode
+        // and has nothing to hydrate on the way back in, so it is exactly the
+        // stale state a later port must not pick up.
+        node.addDynamicPort(NodePort<Float>(name: "Extra", kind: .Inlet), name: "extraKey")
+
+        let duplicated = try #require(graph.duplicateNodes([node]).first)
+
+        let latePort = NodePort<Float>(name: "Extra", kind: .Inlet)
+        let freshID = latePort.id
+        duplicated.addDynamicPort(latePort, name: "extraKey")
+
+        #expect(latePort.id == freshID)
+    }
+
     @Test("Legacy registry keys hydrate through declared aliases")
     func legacyKeysHydrateThroughAliases() throws
     {
@@ -349,6 +386,39 @@ struct PortHydrationTests
         // Plain NodePort values are not persisted; identity is the contract here.
         #expect(decoded.input.id == savedID)
         #expect(decoded.droppedPortStateKeys.isEmpty)
+    }
+}
+
+/// Stands in for the remove-then-recreate a material sync performs when a
+/// uniform's backing type changes underneath an already hydrated port.
+private final class RecreatingPortNode: Node
+{
+    override class var name: String { "Recreating Port" }
+    override class var nodeType: Node.NodeType { .Utility }
+    override class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override class var nodeTimeMode: Node.TimeMode { .None }
+    override class var nodeDescription: String { "Test node that rebuilds a declared port during decode." }
+
+    var value: NodePort<Float> { port(named: "value") }
+
+    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
+    {
+        super.registerPorts(context: context) + [
+            ("value", NodePort<Float>(name: "Value", kind: .Inlet)),
+        ]
+    }
+
+    required init(context: Context)
+    {
+        super.init(context: context)
+    }
+
+    required init(from decoder: any Decoder) throws
+    {
+        try super.init(from: decoder)
+
+        self.removePort(self.value)
+        self.addDynamicPort(NodePort<Float>(name: "Value", kind: .Inlet), name: "value")
     }
 }
 

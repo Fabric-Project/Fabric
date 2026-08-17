@@ -17,6 +17,7 @@ import Foundation
 internal final class PortHydrationSession
 {
     private var pendingByRegistryKey: [String: Port]
+    private var consumedByPortID: [UUID: (registryKey: String, snapshot: Port)] = [:]
     private let legacyKeysForRegistryKey: (String) -> [String]
 
     init(snapshots: [PortRegistry.Snapshot], legacyKeys: @escaping (String) -> [String])
@@ -42,7 +43,19 @@ internal final class PortHydrationSession
 
             pendingByRegistryKey.removeValue(forKey: key)
             port.hydrate(from: decoded)
+            consumedByPortID[port.id] = (registryKey: registryKey, snapshot: decoded)
             return
         }
+    }
+
+    /// Returns `port`'s consumed snapshot to the pending set. A node that
+    /// removes and recreates the same registry key inside one decode — the
+    /// image and matrix port branches of BaseImageNode's material sync do this
+    /// across Live Image's two passes — would otherwise mint a fresh identity
+    /// for the replacement and take the document's wires with it.
+    func relinquish(_ port: Port)
+    {
+        guard let consumed = consumedByPortID.removeValue(forKey: port.id) else { return }
+        pendingByRegistryKey[consumed.registryKey] = consumed.snapshot
     }
 }

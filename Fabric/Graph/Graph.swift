@@ -1013,6 +1013,18 @@ internal import AnyCodable
     /// Decodes a single node from an AnyCodableMap, replicating the type resolution from Graph.init(from:)
     private func decodeNode(from map: AnyCodableMap) -> Node?
     {
+        // Graph.init(from:) closes each node's hydration window once every node
+        // is decoded; duplicate and paste come through here instead, so the
+        // window has to close before the node is handed back or a port added
+        // later would adopt paste-time state.
+        guard let node = decodeNodeLeavingHydrationOpen(from: map) else { return nil }
+
+        _ = node.finalizePortHydration()
+        return node
+    }
+
+    private func decodeNodeLeavingHydrationOpen(from map: AnyCodableMap) -> Node?
+    {
         do
         {
             let encoder = JSONEncoder()

@@ -333,6 +333,8 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
 
     public func removePort(_ p: Port)
     {
+        self.portHydrationSession?.relinquish(p)
+
         self.registry.remove(p)
         self.invalidatePortCaches()
         if let param = p.parameter
