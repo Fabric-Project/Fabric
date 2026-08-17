@@ -74,7 +74,7 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
         // nil, which execute already reports as unavailable.
         let container = try decoder.container(keyedBy: CodingKeys.self)
         if let path = try container.decodeIfPresent(String.self, forKey: .effectPath),
-           let shaderURL = Bundle.module.resourceURL?.appendingPathComponent(path),
+           let shaderURL = Self.resolveBundleResource(path: path),
            FileManager.default.fileExists(atPath: shaderURL.path(percentEncoded: false))
         {
             self.url = shaderURL
@@ -89,8 +89,7 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
 
         if let url = self.url
         {
-            let path = url.pathComponents.suffix(3).joined(separator: "/")
-            try container.encode(path, forKey: .effectPath)
+            try container.encode(Self.bundleRelativeResourcePath(for: url), forKey: .effectPath)
         }
 
         try super.encode(to: encoder)

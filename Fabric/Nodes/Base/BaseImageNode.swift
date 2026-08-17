@@ -148,8 +148,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         let decodedEffectPath = try container.decodeIfPresent(String.self, forKey: .effectPath)
 
         if let path = decodedEffectPath {
-            let bundle = Bundle.module
-            if let shaderURL = bundle.resourceURL?.appendingPathComponent(path) {
+            if let shaderURL = Self.resolveBundleResource(path: path) {
                 self.url = shaderURL
                 self.cachedFileURLName = Self.fileURLToName(fileURL: shaderURL)
 
@@ -216,9 +215,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         var container = encoder.container(keyedBy: CodingKeys.self)
 
         if let url = self.url {
-            let last3 = url.pathComponents.suffix(3)
-            let path = last3.joined(separator: "/")
-            try container.encode(path, forKey: .effectPath)
+            try container.encode(Self.bundleRelativeResourcePath(for: url), forKey: .effectPath)
         }
 
         try container.encode(1, forKey: .baseImageNodeVersion)

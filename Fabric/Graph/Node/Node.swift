@@ -688,3 +688,20 @@ public protocol NodeFileLoadingProtocol : Node
 
     static var supportedContentTypes: [UTType] { get }
 }
+
+public extension NodeFileLoadingProtocol
+{
+    /// A file that ships inside the package bundle is persisted by its trailing
+    /// path components, not its URL: the bundle sits somewhere different on
+    /// every machine and in every build, so an absolute path would bind the
+    /// document to the machine that wrote it.
+    static func bundleRelativeResourcePath(for url: URL) -> String
+    {
+        url.pathComponents.suffix(3).joined(separator: "/")
+    }
+
+    static func resolveBundleResource(path: String) -> URL?
+    {
+        Bundle.module.resourceURL?.appending(path: path)
+    }
+}
