@@ -199,6 +199,17 @@ public class NodePort<Value : PortValueRepresentable>: Port
             return
         }
 
+        // Type legality was previously enforced only by the canvas drop
+        // gesture; the procedural API and the graph's decode-time connection
+        // restore funnel here without passing it, so a port whose type changed
+        // since a document was saved could regain its old, now-incompatible
+        // wires. Enforce at the one choke point every connect goes through.
+        // canConnect mirrors the conversions send can actually service.
+        guard self.canConnect(to: other) else
+        {
+            return
+        }
+
         // Connecting an already-connected pair is a no-op. Graph decoding
         // restores connections from a map keyed by both endpoints, so each
         // connection gets connected twice; without this guard the second call

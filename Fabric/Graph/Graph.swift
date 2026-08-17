@@ -25,6 +25,27 @@ internal import AnyCodable
         public let nodeName: String
         public let droppedRegistryKeys: [String]
     }
+
+    /// A saved wire the decode-time connection restore could not re-establish:
+    /// an endpoint no longer exists (its port was retired, or its node failed
+    /// to decode) or its port's type changed to something incompatible since
+    /// the save. Wires are the destructive loss on load, so hosts should
+    /// surface these.
+    public struct DroppedConnectionDiagnostic
+    {
+        public enum Reason
+        {
+            case missingEndpoint
+            case incompatibleTypes
+        }
+
+        public let portID: UUID
+        public let otherPortID: UUID
+        public let reason: Reason
+
+        /// Endpoints named as "node.port" where they still resolve.
+        public let summary: String
+    }
     
     public static func == (lhs: Graph, rhs: Graph) -> Bool
     {
@@ -91,6 +112,9 @@ internal import AnyCodable
 
     /// Populated once at decode; empty for graphs built programmatically.
     @ObservationIgnored public private(set) var droppedPortStateDiagnostics: [DroppedPortStateDiagnostic] = []
+
+    /// Populated once at decode; empty for graphs built programmatically.
+    @ObservationIgnored public private(set) var droppedConnectionDiagnostics: [DroppedConnectionDiagnostic] = []
 
     @ObservationIgnored private var cachedPublishedOutputPortsRevision: Int?
     @ObservationIgnored private var cachedPublishedOutputPorts: [Port] = []
@@ -310,10 +334,48 @@ internal import AnyCodable
         let decodedConnections = try container.decodeIfPresent([Connection].self, forKey: .connections)
         let portMap = try container.decode([UUID:[UUID]].self, forKey: .portConnectionMap)
 
+        // The legacy map holds every connection under both endpoints; report
+        // each dropped one once, whichever side surfaces it first.
+        var reportedDroppedPairs = Set<Set<UUID>>()
+
+        func reportDroppedConnection(from portID: UUID, to otherPortID: UUID, reason: DroppedConnectionDiagnostic.Reason)
+        {
+            guard reportedDroppedPairs.insert(Set([portID, otherPortID])).inserted else { return }
+
+            func describe(_ id: UUID) -> String
+            {
+                guard let port = self.nodePort(forID: id) else { return "missing port \(id)" }
+                return "\(port.node?.name ?? "?").\(port.displayName)"
+            }
+
+            let diagnostic = DroppedConnectionDiagnostic(portID: portID,
+                                                         otherPortID: otherPortID,
+                                                         reason: reason,
+                                                         summary: "\(describe(portID)) ↔ \(describe(otherPortID))")
+            print("Graph decode: dropped connection (\(reason)): \(diagnostic.summary)")
+            self.droppedConnectionDiagnostics.append(diagnostic)
+        }
+
         if let decodedConnections
         {
+            // Attach bypasses validatedConnect, so the endpoint and type
+            // checks (and their diagnostics) live here.
             for connection in decodedConnections
             {
+                guard let outlet = self.nodePort(forID: connection.outletPortID),
+                      let inlet = self.nodePort(forID: connection.inletPortID)
+                else
+                {
+                    reportDroppedConnection(from: connection.outletPortID, to: connection.inletPortID, reason: .missingEndpoint)
+                    continue
+                }
+
+                guard outlet.canConnect(to: inlet) else
+                {
+                    reportDroppedConnection(from: connection.outletPortID, to: connection.inletPortID, reason: .incompatibleTypes)
+                    continue
+                }
+
                 attachDecodedConnection(connection)
             }
         }
@@ -321,21 +383,36 @@ internal import AnyCodable
         {
             for portID in portMap.keys
             {
-                if let port = self.nodePort(forID: portID)
-                {
-                    let portConnections = portMap[portID] ?? []
+                let portConnections = portMap[portID] ?? []
 
+                guard let port = self.nodePort(forID: portID) else
+                {
                     for connectedPortID in portConnections
                     {
-                        if let connectedPort = self.nodePort(forID: connectedPortID)
-                        {
-                            port.connect(to: connectedPort)
-                        }
+                        reportDroppedConnection(from: portID, to: connectedPortID, reason: .missingEndpoint)
                     }
+                    continue
+                }
+
+                for connectedPortID in portConnections
+                {
+                    guard let connectedPort = self.nodePort(forID: connectedPortID) else
+                    {
+                        reportDroppedConnection(from: portID, to: connectedPortID, reason: .missingEndpoint)
+                        continue
+                    }
+
+                    guard port.canConnect(to: connectedPort) else
+                    {
+                        reportDroppedConnection(from: portID, to: connectedPortID, reason: .incompatibleTypes)
+                        continue
+                    }
+
+                    port.connect(to: connectedPort)
                 }
             }
         }
-        
+
         self.rebuildPublishedParameterGroup()
     }
 

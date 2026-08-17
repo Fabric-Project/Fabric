@@ -119,6 +119,97 @@ struct PortConnectionTests {
         #expect(decodedGraph.nodes.first is PerspectiveCameraNode)
     }
 
+    @Test("Programmatic connect refuses type-incompatible ports")
+    func programmaticConnectRefusesIncompatibleTypes() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let imageSource = PassThroughNode<FabricImage>(context: context)
+        let numberSink = NumberBinaryOperator(context: context)
+        graph.addNode(imageSource)
+        graph.addNode(numberSink)
+
+        // The canvas gates drops on canConnect; the untyped connect entry the
+        // procedural API and decode restore use must refuse the same pairs.
+        (imageSource.output as Fabric.Port).connect(to: numberSink.inputNumber1)
+        #expect(imageSource.output.connections.isEmpty)
+        #expect(numberSink.inputNumber1.connections.isEmpty)
+
+        // Convertible scalars stay connectable — send can service Float→Int.
+        let intSink = PassThroughNode<Int>(context: context)
+        graph.addNode(intSink)
+        (numberSink.outputNumber as Fabric.Port).connect(to: intSink.input)
+        #expect(numberSink.outputNumber.connections.count == 1)
+    }
+
+    @Test("Decode drops a wire whose port type changed, and reports it")
+    func decodeDropsIncompatibleWireAndReportsIt() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let imageSource = PassThroughNode<FabricImage>(context: context)
+        let holdNode = SampleAndHoldNode(context: context, portType: .Image)
+        graph.addNode(imageSource)
+        graph.addNode(holdNode)
+
+        let holdInput = try #require(holdNode.findPort(named: "inputValue") as Fabric.Port?)
+        (imageSource.output as Fabric.Port).connect(to: holdInput)
+        #expect(holdInput.connections.count == 1)
+
+        // Re-type the node in the saved document, as an edit in a newer build
+        // would: the rebuilt Float ports adopt their persisted identity, so
+        // connection restore finds the UUID — and must refuse the Image wire.
+        let data = try JSONEncoder().encode(graph)
+        var object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        var nodeMap = try #require(object["nodeMap"] as? [[String: Any]])
+        for index in nodeMap.indices {
+            guard var value = nodeMap[index]["value"] as? [String: Any],
+                  value["strategy"] as? String == "Image" else { continue }
+            value["strategy"] = "Float"
+            nodeMap[index]["value"] = value
+        }
+        object["nodeMap"] = nodeMap
+
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decoded = try decoder.decode(Graph.self, from: try JSONSerialization.data(withJSONObject: object))
+
+        let decodedHold = try #require(decoded.nodes.first { $0.id == holdNode.id })
+        let decodedInput = try #require(decodedHold.findPort(named: "inputValue") as Fabric.Port?)
+        #expect(decodedInput.id == holdInput.id)
+        #expect(decodedInput.connections.isEmpty)
+        #expect(decoded.droppedConnectionDiagnostics.count == 1)
+        #expect(decoded.droppedConnectionDiagnostics.first?.reason == .incompatibleTypes)
+    }
+
+    @Test("Decode reports a wire whose endpoint no longer resolves")
+    func decodeReportsWireWithMissingEndpoint() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let source = NumberBinaryOperator(context: context)
+        let sink = NumberBinaryOperator(context: context)
+        graph.addNode(source)
+        graph.addNode(sink)
+        source.outputNumber.connect(to: sink.inputNumber1)
+
+        // Remove the source node from the document; the port map still holds
+        // both directions of its wire.
+        let data = try JSONEncoder().encode(graph)
+        var object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let nodeMap = try #require(object["nodeMap"] as? [[String: Any]])
+        object["nodeMap"] = nodeMap.filter { entry in
+            (entry["value"] as? [String: Any])?["id"] as? String != source.id.uuidString
+        }
+
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decoded = try decoder.decode(Graph.self, from: try JSONSerialization.data(withJSONObject: object))
+
+        #expect(decoded.droppedConnectionDiagnostics.count == 1)
+        #expect(decoded.droppedConnectionDiagnostics.first?.reason == .missingEndpoint)
+    }
+
     @Test("Generic array virtual type compatibility is array scoped")
     func genericArrayVirtualTypeCompatibilityIsArrayScoped() {
         let genericArray = PortType.Array(portType: .Virtual)
