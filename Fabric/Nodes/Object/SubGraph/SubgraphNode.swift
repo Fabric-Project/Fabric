@@ -320,12 +320,16 @@ open class SubgraphNode: BaseObjectNode
                                   renderPassDescriptor: MTLRenderPassDescriptor,
                                   commandBuffer: MTLCommandBuffer) throws    {
         
+        // The inner pass runs every node it can and rethrows the first failure
+        // afterwards, so outlets of the nodes that did run must still reach the
+        // parent graph — the parent's markClean cascade clears their flags
+        // whether or not this call threw.
+        defer { self.forwardPortValues(force:true) }
+
         try renderer.execute(graph: self.subGraph,
                              executionInfo: executionInfo,
                              renderPassDescriptor: renderPassDescriptor,
                              commandBuffer: commandBuffer,
                              clearFlags: false)
-        
-        self.forwardPortValues(force:true)
     }
 }
