@@ -768,42 +768,18 @@ public class HIDNode: Node
         // Build unique port names, adding suffix only when needed for duplicates
         currentPortNames = buildUniquePortNames(for: deviceElements)
 
-        let portNamesWeNeed = Set(currentPortNames.values)
-        let existingPortNames = Set(self.outputPorts().map { $0.name })
-
-        let portsNamesToRemove = existingPortNames.subtracting(portNamesWeNeed)
-
-        // Remove ports that are no longer needed
-        for portName in portsNamesToRemove
-        {
-            if let port = self.findPort(named: portName)
-            {
-                self.removePort(port)
-            }
+        let descriptors = deviceElements.compactMap { element -> DeviceOutputPortDescriptor? in
+            guard let portName = currentPortNames[element.id] else { return nil }
+            return DeviceOutputPortDescriptor(name: portName, isButton: element.isButton)
         }
 
-        // Add ports for each element
-        for element in deviceElements
+        let created = synchronizeDeviceOutputPorts(to: descriptors,
+                                                   buttonDescription: "HID button state (true when pressed)",
+                                                   axisDescription: "HID axis value normalized from 0 to 1")
+
+        for descriptor in created
         {
-            guard let portName = currentPortNames[element.id] else { continue }
-
-            if self.findPort(named: portName) != nil
-            {
-                continue // Port already exists
-            }
-
-            let port: Port
-            if element.isButton
-            {
-                port = NodePort<Bool>(name: portName, kind: .Outlet, description: "HID button state (true when pressed)")
-            }
-            else
-            {
-                port = NodePort<Float>(name: portName, kind: .Outlet, description: "HID axis value normalized from 0 to 1")
-            }
-
-            self.addDynamicPort(port)
-            print("Added HID port: \(portName)")
+            print("Added HID port: \(descriptor.name)")
         }
     }
 

@@ -823,42 +823,28 @@ public class MIDIInputNode: Node
 
     private func rebuildPorts()
     {
-        let portNamesWeNeed = Set(configuredInputs.map { $0.portName })
-        let existingPortNames = Set(outputPorts().map { $0.name })
-
-        let portsToRemove = existingPortNames.subtracting(portNamesWeNeed)
-
-        for portName in portsToRemove
-        {
-            if let port = findPort(named: portName)
-            {
-                removePort(port)
-            }
+        let descriptors = configuredInputs.map {
+            DeviceOutputPortDescriptor(name: $0.portName, isButton: $0.type == .noteGate)
         }
 
-        for input in configuredInputs
+        let created = Set(synchronizeDeviceOutputPorts(to: descriptors,
+                                                       buttonDescription: "MIDI note gate (true while note is held)",
+                                                       axisDescription: "MIDI value normalized from 0 to 1").map(\.name))
+
+        // Values are keyed by control identity rather than port name, so the
+        // seeding cannot ride along inside the sync.
+        for input in configuredInputs where created.contains(input.portName)
         {
-            let portName = input.portName
-
-            if findPort(named: portName) != nil
-            {
-                continue
-            }
-
-            let port: Port
             if input.type == .noteGate
             {
-                port = NodePort<Bool>(name: portName, kind: .Outlet, description: "MIDI note gate (true while note is held)")
                 boolValues[input.uniqueKey] = false
             }
             else
             {
-                port = NodePort<Float>(name: portName, kind: .Outlet, description: "MIDI value normalized from 0 to 1")
                 floatValues[input.uniqueKey] = 0.0
             }
 
-            addDynamicPort(port)
-            print("[MIDI] Added port: \(portName)")
+            print("[MIDI] Added port: \(input.portName)")
         }
     }
 

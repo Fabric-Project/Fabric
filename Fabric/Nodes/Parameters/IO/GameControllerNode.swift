@@ -27,15 +27,6 @@ public struct GameControllerInfo: Codable, Equatable, Identifiable, Hashable
     }
 }
 
-/// A controller output port as persisted: the port set derives from a live
-/// controller's profile, so the document carries these descriptors and decode
-/// rebuilds the ports from them before any hardware is discovered.
-public struct GameControllerPortDescriptor: Codable, Equatable
-{
-    public let name: String
-    public let isButton: Bool
-}
-
 // MARK: - Settings View
 
 struct GameControllerNodeView: View
@@ -147,7 +138,7 @@ public class GameControllerNode: Node
         // registry key as it registers, before the graph's connection restore
         // runs. When the saved controller reconnects, setupController syncs
         // against these same ports by name instead of recreating them.
-        let descriptors = try container.decodeIfPresent([GameControllerPortDescriptor].self, forKey: .portDescriptors) ?? []
+        let descriptors = try container.decodeIfPresent([DeviceOutputPortDescriptor].self, forKey: .portDescriptors) ?? []
         self.synchronizePorts(to: descriptors)
     }
 
@@ -342,7 +333,7 @@ public class GameControllerNode: Node
         print("[GameController] Selected: \(controller.vendorName ?? "Unknown")")
 
         // Setup based on profile
-        let descriptors: [GameControllerPortDescriptor]
+        let descriptors: [DeviceOutputPortDescriptor]
         if let gamepad = controller.extendedGamepad
         {
             descriptors = Self.extendedGamepadPortDescriptors(gamepad)
@@ -368,9 +359,9 @@ public class GameControllerNode: Node
 
     // MARK: - Extended Gamepad Setup
 
-    private static func extendedGamepadPortDescriptors(_ gamepad: GCExtendedGamepad) -> [GameControllerPortDescriptor]
+    private static func extendedGamepadPortDescriptors(_ gamepad: GCExtendedGamepad) -> [DeviceOutputPortDescriptor]
     {
-        var descriptors: [GameControllerPortDescriptor] = [
+        var descriptors: [DeviceOutputPortDescriptor] = [
             // Thumbsticks
             .init(name: "Left Stick X", isButton: false),
             .init(name: "Left Stick Y", isButton: false),
@@ -455,7 +446,7 @@ public class GameControllerNode: Node
 
     // MARK: - Micro Gamepad Setup (Siri Remote, etc.)
 
-    private static func microGamepadPortDescriptors() -> [GameControllerPortDescriptor]
+    private static func microGamepadPortDescriptors() -> [DeviceOutputPortDescriptor]
     {
         [
             .init(name: "D-Pad X", isButton: false),
@@ -481,52 +472,28 @@ public class GameControllerNode: Node
 
     /// The persisted projection of the port set: encode derives it from the
     /// live ports rather than storing a parallel list that could drift.
-    private func currentPortDescriptors() -> [GameControllerPortDescriptor]
+    private func currentPortDescriptors() -> [DeviceOutputPortDescriptor]
     {
         outputPorts().map { port in
-            GameControllerPortDescriptor(name: port.name, isButton: port is NodePort<Bool>)
+            DeviceOutputPortDescriptor(name: port.name, isButton: port is NodePort<Bool>)
         }
     }
 
-    /// Syncs the registered output ports to `descriptors` by name and type,
-    /// HIDNode-style: matching ports survive (a reconnecting controller must
-    /// not replace decoded ports, or their restored wires die with them),
-    /// stale ones are removed, missing ones created.
-    private func synchronizePorts(to descriptors: [GameControllerPortDescriptor])
+    private func synchronizePorts(to descriptors: [DeviceOutputPortDescriptor])
     {
-        let descriptorsByName = Dictionary(descriptors.map { ($0.name, $0) },
-                                           uniquingKeysWith: { first, _ in first })
-
-        for port in outputPorts()
-        {
-            if let descriptor = descriptorsByName[port.name],
-               descriptor.isButton == (port is NodePort<Bool>)
-            {
-                continue
-            }
-
-            removePort(port)
-        }
+        synchronizeDeviceOutputPorts(to: descriptors,
+                                     buttonDescription: "Controller button state (true when pressed)",
+                                     axisDescription: "Controller axis value normalized from -1 to 1")
 
         for descriptor in descriptors
         {
             if descriptor.isButton
             {
                 buttonValues[descriptor.name] = buttonValues[descriptor.name] ?? false
-                if (findPort(named: descriptor.name) as Port?) == nil
-                {
-                    addDynamicPort(NodePort<Bool>(name: descriptor.name, kind: .Outlet,
-                                                  description: "Controller button state (true when pressed)"))
-                }
             }
             else
             {
                 axisValues[descriptor.name] = axisValues[descriptor.name] ?? 0.0
-                if (findPort(named: descriptor.name) as Port?) == nil
-                {
-                    addDynamicPort(NodePort<Float>(name: descriptor.name, kind: .Outlet,
-                                                   description: "Controller axis value normalized from -1 to 1"))
-                }
             }
         }
     }
