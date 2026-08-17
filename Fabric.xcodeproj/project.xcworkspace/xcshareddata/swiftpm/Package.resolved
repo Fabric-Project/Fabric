@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Fabric-Project/MathExpressionEngine",
       "state" : {
-        "revision" : "dcf76b0319e09852df70cd79939fc35f3bfbc237",
-        "version" : "1.1.0"
+        "revision" : "57d78b673f4d6a86375692600092c8a02d63fca9",
+        "version" : "1.1.1"
       }
     },
     {
