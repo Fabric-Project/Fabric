@@ -116,6 +116,14 @@ struct PortHydrationTests
 
         #expect(decoded.inputNumber1.id == savedID)
         #expect(decoded.inputNumber1.parameter?.id == savedID)
+
+        // Material syncs swap the backing parameter wholesale
+        // (Node.replaceParameterOfPort); the invariant has to survive that too.
+        let replacement = FloatParameter("Number 1", 3)
+        decoded.replaceParameterOfPort(decoded.inputNumber1, withParam: replacement)
+
+        #expect(decoded.inputNumber1.id == savedID)
+        #expect(decoded.inputNumber1.parameter?.id == savedID)
     }
 
     @Test("Declared parameter metadata wins over the document's copy")

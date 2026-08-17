@@ -49,6 +49,9 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
                 self.subscription?.cancel()
                 self.subscription = nil
                 newParam.value = self._parameter.value
+                // A replacement parameter arrives with an id of its own; re-key
+                // it to keep the invariant hydrate(from:) describes.
+                newParam.id = self.id
                 self._parameter = newParam
                 self.value = self._parameter.value
 
