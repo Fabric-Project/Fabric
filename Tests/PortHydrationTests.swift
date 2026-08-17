@@ -125,6 +125,74 @@ struct PortHydrationTests
         #expect(decoded.inputNumber1.value == 5)
     }
 
+    @Test("JavaScript node rebuilds its script ports on decode and keeps identity")
+    @MainActor
+    func javaScriptNodeRebuildsScriptPortsOnDecode() throws
+    {
+        guard let context = makeContext() else { return }
+
+        let node = JavaScriptNode(context: context)
+        node.updateScriptSource("""
+            function (__number doubled) main(__number x) {
+              return { doubled: x * 2 }
+            }
+            """)
+
+        let inputPort = try #require(node.findPort(named: "x") as Fabric.Port?)
+        let outputPort = try #require(node.findPort(named: "doubled") as Fabric.Port?)
+        inputPort.published = true
+        let savedInputID = inputPort.id
+        let savedOutputID = outputPort.id
+
+        let decoded = try roundTrip(node, context: context)
+
+        #expect((decoded.findPort(named: "x") as Fabric.Port?)?.id == savedInputID)
+        #expect((decoded.findPort(named: "x") as Fabric.Port?)?.published == true)
+        #expect((decoded.findPort(named: "doubled") as Fabric.Port?)?.id == savedOutputID)
+        #expect(decoded.droppedPortStateKeys.isEmpty)
+    }
+
+    @Test("Live Image node rebuilds its saved shader's uniform ports on decode")
+    @MainActor
+    func liveImageNodeRebuildsSavedShaderUniformPortsOnDecode() throws
+    {
+        guard let context = makeContext() else { return }
+
+        let node = LiveImageNode(context: context)
+        node.updateShaderSource("""
+            #include <metal_stdlib>
+            using namespace metal;
+
+            typedef struct {
+                float amount; // slider, 0.0, 1.0, 1.0, Amount
+                float gain; // slider, 0.0, 2.0, 0.5, Gain
+            } PostUniforms;
+
+            fragment half4 postFragment(VertexData in [[stage_in]],
+                                        constant PostUniforms &uniforms [[buffer(FragmentBufferMaterialUniforms)]],
+                                        texture2d<half, access::sample> inputTexture [[texture(FragmentTextureCustom0)]]) {
+                constexpr sampler s(address::clamp_to_edge, filter::linear);
+                half4 color = inputTexture.sample(s, in.texcoord);
+                return mix(half4(0.0), color * half(uniforms.gain), half(uniforms.amount));
+            }
+            """)
+
+        // The declared uniform port must exist before the round trip, or the
+        // test would only prove the template shader's ports survive.
+        let gainPort = try #require(node.findPort(named: "Gain") as? ParameterPort<Float>)
+        gainPort.value = 1.7
+        let savedGainID = gainPort.id
+        let savedImageInputID = try #require((node.findPort(named: "Image") as Fabric.Port?)?.id)
+
+        let decoded = try roundTrip(node, context: context)
+
+        let decodedGain = try #require(decoded.findPort(named: "Gain") as? ParameterPort<Float>)
+        #expect(decodedGain.id == savedGainID)
+        #expect(decodedGain.value == 1.7)
+        #expect((decoded.findPort(named: "Image") as Fabric.Port?)?.id == savedImageInputID)
+        #expect(decoded.droppedPortStateKeys.isEmpty)
+    }
+
     @Test("Legacy registry keys hydrate through declared aliases")
     func legacyKeysHydrateThroughAliases() throws
     {

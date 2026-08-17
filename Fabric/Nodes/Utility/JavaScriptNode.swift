@@ -465,7 +465,10 @@ public final class JavaScriptNode: Node
         self.scriptSource = try container.decodeIfPresent(String.self, forKey: .scriptSource) ?? JavaScriptNode.defaultScriptSource()
         self.selectedExecutionMode = try container.decodeIfPresent(Node.ExecutionMode.self, forKey: .selectedExecutionMode) ?? .Processor
         self.selectedTimeMode = try container.decodeIfPresent(Node.TimeMode.self, forKey: .selectedTimeMode) ?? .None
-        self.compileAndSynchronizePorts(shouldSynchronizePorts: false)
+        // Every port is dynamic, so decode must rebuild them from the restored
+        // script; each recreated port adopts its persisted identity and state
+        // by registry key as it registers.
+        self.compileAndSynchronizePorts(shouldSynchronizePorts: true)
     }
 
     override public func encode(to encoder: any Encoder) throws

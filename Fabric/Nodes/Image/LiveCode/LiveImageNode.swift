@@ -51,8 +51,14 @@ public class LiveImageNode: BaseImageNode
 
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.shaderSource = try container.decodeIfPresent(String.self, forKey: .shaderSource) ?? LiveImageNode.defaultShaderSource()
-        // Keep decoded port UUID topology intact until graph connection remap finishes.
-        self.postInit(shouldSynchronizePorts: false)
+        // super.init synchronized against the bundled template — the saved
+        // source is only decoded afterwards. Resync once it compiles: uniform
+        // ports the saved shader declares are recreated and adopt their
+        // persisted identity and state by registry key; stale template-only
+        // ports are removed by the material sync. On compile failure the port
+        // set stays as the template's and the saved uniform state is reported
+        // dropped.
+        self.postInit(shouldSynchronizePorts: true)
     }
 
     deinit {
@@ -217,29 +223,6 @@ public class LiveImageNode: BaseImageNode
                           executionInfo: executionInfo,
                           renderPassDescriptor: renderPassDescriptor,
                           commandBuffer: commandBuffer)
-    }
-
-    private func syncDynamicParameterPortsFromMaterial() {
-        let materialParams = self.postMaterial.parameters.params
-        let labels = Set(materialParams.map(\.label))
-
-        let portsToRemove = self.ports.filter { port in
-            guard let _ = port.parameter else { return false }
-            return !labels.contains(port.name)
-        }
-
-        for port in portsToRemove {
-            self.removePort(port)
-        }
-
-        for param in materialParams {
-            if let port = self.ports.first(where: { $0.name == param.label }) {
-                self.replaceParameterOfPort(port, withParam: param)
-            }
-            else if let dynamicPort = PortType.portForType(from: param) {
-                self.addDynamicPort(dynamicPort)
-            }
-        }
     }
 
     private func captureShaderSourceFromDiskIfAvailable() throws {
