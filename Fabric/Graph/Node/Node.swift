@@ -179,17 +179,14 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         // never match a declared or rebuilt port surface via
         // droppedPortStateKeys instead of resurrecting retired ports.
         let snaps = try container.decodeIfPresent([PortRegistry.Snapshot].self, forKey: .ports) ?? []
-
-        for snap in snaps
-        {
-            self.pendingPortHydration[snap.name] = snap.payload.base
-        }
+        self.portHydrationSession = PortHydrationSession(snapshots: snaps,
+                                                         legacyKeys: Self.legacyPortStateKeys(forRegistryKey:))
 
         let declared = Self.registerPorts(context: context)
 
         for d in declared
         {
-            self.consumePendingPortHydration(for: d.port, registryKey: d.name)
+            self.portHydrationSession?.hydrate(d.port, registryKey: d.name)
             self.registry.register(d.port, name: d.name, owner: self)
         }
 
@@ -289,16 +286,26 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
 
     // MARK: - Port state hydration (declare-then-hydrate decode)
 
-    /// Decoded port snapshots not yet applied to a registered port, keyed by
-    /// registry key. Consumed as declared and dynamic ports register during
-    /// decode; whatever remains matched nothing the code declares or rebuilds.
-    private var pendingPortHydration: [String: Port] = [:]
+    /// The document's port state for the duration of decode; nil otherwise.
+    /// Graph finalizes and clears it once node inits and their dynamic
+    /// rebuilds are done, so ports added later in the node's life can never
+    /// resurrect stale document state.
+    private var portHydrationSession: PortHydrationSession?
 
     /// Registry keys from the document whose port state found no declared or
     /// rebuilt port to land on. Dropping that state is deliberate — the code
     /// owns the port set — but it is data loss, so Graph reports it after
     /// decode rather than discarding silently.
-    internal var droppedPortStateKeys: [String] { Array(pendingPortHydration.keys).sorted() }
+    internal var droppedPortStateKeys: [String] { self.portHydrationSession?.unconsumedKeys ?? [] }
+
+    /// Ends the decode-time hydration window, returning the registry keys
+    /// whose state never found a port.
+    internal func finalizePortHydration() -> [String]
+    {
+        let droppedKeys = self.droppedPortStateKeys
+        self.portHydrationSession = nil
+        return droppedKeys
+    }
 
     /// Legacy registry keys whose document state should hydrate the port now
     /// registered under `registryKey`. Nodes that renamed dynamic ports
@@ -306,27 +313,12 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     /// (and therefore wires) across the rename.
     open class func legacyPortStateKeys(forRegistryKey registryKey: String) -> [String] { [] }
 
-    private func consumePendingPortHydration(for port: Port, registryKey: String)
-    {
-        let candidateKeys = [registryKey] + Self.legacyPortStateKeys(forRegistryKey: registryKey)
-
-        for key in candidateKeys
-        {
-            guard let decoded = self.pendingPortHydration[key] else { continue }
-            guard decoded.kind == port.kind else { continue }
-
-            self.pendingPortHydration.removeValue(forKey: key)
-            port.hydrate(from: decoded)
-            return
-        }
-    }
-
     // Dynamic add/remove (kept by serialization automatically)
     public func addDynamicPort(_ p: Port, name:String? = nil)
     {
         // Dynamic ports created after decode (rebuildPorts and friends) adopt
         // their persisted state here, before the registry indexes their id.
-        self.consumePendingPortHydration(for: p, registryKey: name ?? p.name)
+        self.portHydrationSession?.hydrate(p, registryKey: name ?? p.name)
 
         self.registry.addDynamic(p, owner: self, name:name)
         self.invalidatePortCaches()

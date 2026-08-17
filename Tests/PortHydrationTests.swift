@@ -252,6 +252,46 @@ struct PortHydrationTests
         #expect(decoded.droppedPortStateKeys.isEmpty)
     }
 
+    @Test("Ports added after graph decode cannot resurrect stale snapshot state")
+    func latePortsDoNotResurrectStaleSnapshotState() throws
+    {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let node = NumberBinaryOperator(context: context)
+        graph.addNode(node)
+
+        // Retire a key in the saved document, then load: the state is
+        // reported dropped and the node's hydration window closes.
+        let data = try JSONEncoder().encode(graph)
+        var object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        var nodeMap = try #require(object["nodeMap"] as? [[String: Any]])
+        var value = try #require(nodeMap[0]["value"] as? [String: Any])
+        var ports = try #require(value["ports"] as? [[String: Any]])
+        ports[0]["name"] = "retiredKey"
+        let retiredSnapshotID = try #require((ports[0]["payload"] as? [String: Any])
+            .flatMap { ($0["base"] as? [String: Any])?["id"] as? String })
+        value["ports"] = ports
+        nodeMap[0]["value"] = value
+        object["nodeMap"] = nodeMap
+
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decoded = try decoder.decode(Graph.self, from: try JSONSerialization.data(withJSONObject: object))
+
+        #expect(decoded.droppedPortStateDiagnostics.first?.droppedRegistryKeys == ["retiredKey"])
+
+        // The pre-session failure mode: state lingered after decode, so a
+        // port registered under the stale key months later — a settings
+        // toggle, a reconnecting device — suddenly adopted the saved identity
+        // without its wires. The window is closed now; late ports are fresh.
+        let decodedNode = try #require(decoded.nodes.first { $0.id == node.id })
+        let latePort = NodePort<Float>(name: "Retired", kind: .Inlet)
+        decodedNode.addDynamicPort(latePort, name: "retiredKey")
+
+        #expect(latePort.id.uuidString != retiredSnapshotID)
+    }
+
     @Test("Legacy registry keys hydrate through declared aliases")
     func legacyKeysHydrateThroughAliases() throws
     {

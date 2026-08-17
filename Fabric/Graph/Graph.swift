@@ -320,10 +320,13 @@ internal import AnyCodable
             }
         }
         
-        // Node inits (including their dynamic-port rebuilds) are done; whatever
-        // port state remains unconsumed matched nothing the code declares.
+        // Node inits (including their dynamic-port rebuilds) are done; end
+        // each node's hydration window. Whatever state remains unconsumed
+        // matched nothing the code declares, and closing the window here means
+        // ports added later in the document's life cannot resurrect stale
+        // snapshot state.
         self.droppedPortStateDiagnostics = self.nodes.compactMap { node in
-            let droppedKeys = node.droppedPortStateKeys
+            let droppedKeys = node.finalizePortHydration()
             guard !droppedKeys.isEmpty else { return nil }
             print("Graph decode: '\(node.name)' dropped port state for retired keys \(droppedKeys)")
             return DroppedPortStateDiagnostic(nodeID: node.id,
