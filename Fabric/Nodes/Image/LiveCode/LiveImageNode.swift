@@ -206,19 +206,19 @@ public class LiveImageNode: BaseImageNode
     }
 
     private func recompileAndResyncPorts() {
-        guard let sourceShader = self.postMaterial.shader as? SourceShader else { return }
+        if let sourceShader = self.postMaterial.shader as? SourceShader {
+            sourceShader.reloadFromSource()
 
-        sourceShader.reloadFromSource()
-
-        guard sourceShader.pipelineError == nil else {
-            // The saved shader declares the uniform ports; without a compile
-            // there is nothing to rebuild them from, so let the document's own
-            // stand in until the user fixes the source.
-            self.adoptRemainingSnapshotPortsAsFallback()
-            return
+            if sourceShader.pipelineError == nil {
+                self.postSetupSynchronizePorts(allowReplace: false)
+                return
+            }
         }
 
-        self.postSetupSynchronizePorts(allowReplace: false)
+        // The saved shader declares the uniform ports; without a compiled one
+        // there is nothing to rebuild them from, so let the document's own
+        // stand in until the user fixes the source.
+        self.adoptRemainingSnapshotPortsAsFallback()
     }
 
     public override func execute(renderer: GraphRenderer,
