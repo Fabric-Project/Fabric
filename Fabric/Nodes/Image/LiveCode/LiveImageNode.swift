@@ -145,10 +145,23 @@ public class LiveImageNode: BaseImageNode
 
     private func ensureSymlink(at linkURL: URL, destination: URL) throws {
         let fileManager = FileManager.default
+        let linkPath = linkURL.path(percentEncoded: false)
 
-        if fileManager.fileExists(atPath: linkURL.path(percentEncoded: false)) {
+        // Check for a symlink first (lstat semantics): fileExists(atPath:)
+        // follows links, so a link whose destination moved — every app update
+        // relocates the bundle — reads as absent, the removal is skipped, and
+        // the create below throws "file exists" for every Live Image node
+        // until /tmp is cleaned by hand.
+        if let existingDestination = try? fileManager.destinationOfSymbolicLink(atPath: linkPath) {
+            if existingDestination == destination.path(percentEncoded: false) {
+                return
+            }
+
+            try fileManager.removeItem(at: linkURL)
+        }
+        else if fileManager.fileExists(atPath: linkPath) {
             var isDirectory = ObjCBool(false)
-            if fileManager.fileExists(atPath: linkURL.path(percentEncoded: false), isDirectory: &isDirectory),
+            if fileManager.fileExists(atPath: linkPath, isDirectory: &isDirectory),
                isDirectory.boolValue {
                 return
             }
