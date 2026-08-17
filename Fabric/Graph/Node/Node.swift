@@ -179,8 +179,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         // never match a declared or rebuilt port surface via
         // droppedPortStateKeys instead of resurrecting retired ports.
         let snaps = try container.decodeIfPresent([PortRegistry.Snapshot].self, forKey: .ports) ?? []
-        self.portHydrationSession = PortHydrationSession(snapshots: snaps,
-                                                         legacyKeys: Self.legacyPortStateKeys(forRegistryKey:))
+        self.portHydrationSession = PortHydrationSession(snapshots: snaps)
 
         let declared = Self.registerPorts(context: context)
 
@@ -328,12 +327,6 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         self.portHydrationSession = nil
         return droppedKeys
     }
-
-    /// Legacy registry keys whose document state should hydrate the port now
-    /// registered under `registryKey`. Nodes that renamed dynamic ports
-    /// override this so documents saved under the old names keep port identity
-    /// (and therefore wires) across the rename.
-    open class func legacyPortStateKeys(forRegistryKey registryKey: String) -> [String] { [] }
 
     // Dynamic add/remove (kept by serialization automatically)
     public func addDynamicPort(_ p: Port, name:String? = nil)

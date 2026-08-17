@@ -503,17 +503,18 @@ struct PortHydrationTests
         #expect(latePort.id == freshID)
     }
 
-    @Test("Legacy registry keys hydrate through declared aliases")
-    func legacyKeysHydrateThroughAliases() throws
+    @Test("State under a key the code no longer declares drops and is reported")
+    func retiredKeyStateDropsAndReports() throws
     {
         guard let context = makeContext() else { return }
 
-        let node = AliasedPortNode(context: context)
+        let node = RenamedKeyPortNode(context: context)
         node.input.value = 7
         let savedID = node.input.id
 
-        // Rewrite the snapshot to the pre-rename key; the alias declared by
-        // the node must route its state onto today's port.
+        // Rewrite the snapshot to a pre-rename key. Hydration matches exactly:
+        // the state must not land on today's port, and the retired key must
+        // surface as dropped rather than disappear.
         let decoded = try roundTrip(node, context: context) { jsonObject in
             var ports = jsonObject["ports"] as? [[String: Any]] ?? []
             for index in ports.indices where ports[index]["name"] as? String == "input"
@@ -523,9 +524,8 @@ struct PortHydrationTests
             jsonObject["ports"] = ports
         }
 
-        // Plain NodePort values are not persisted; identity is the contract here.
-        #expect(decoded.input.id == savedID)
-        #expect(decoded.droppedPortStateKeys.isEmpty)
+        #expect(decoded.input.id != savedID)
+        #expect(decoded.droppedPortStateKeys == ["legacyInput"])
     }
 }
 
@@ -562,9 +562,9 @@ private final class RecreatingPortNode: Node
     }
 }
 
-private final class AliasedPortNode: Node
+private final class RenamedKeyPortNode: Node
 {
-    override class var name: String { "Aliased Port" }
+    override class var name: String { "Renamed Key Port" }
     override class var nodeType: Node.NodeType { .Utility }
     override class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override class var nodeTimeMode: Node.TimeMode { .None }
@@ -577,10 +577,5 @@ private final class AliasedPortNode: Node
         super.registerPorts(context: context) + [
             ("input", NodePort<Float>(name: "Input", kind: .Inlet)),
         ]
-    }
-
-    override class func legacyPortStateKeys(forRegistryKey registryKey: String) -> [String]
-    {
-        registryKey == "input" ? ["legacyInput"] : []
     }
 }

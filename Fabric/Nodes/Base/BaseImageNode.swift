@@ -350,18 +350,6 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         return max(0, maxIndex + 1)
     }
 
-    /// Image inputs were once registered under inputTexturePort-style keys;
-    /// documents from that era hydrate today's "Image N" ports through these
-    /// aliases so their wires keep binding.
-    override open class func legacyPortStateKeys(forRegistryKey registryKey: String) -> [String] {
-        switch registryKey {
-        case "Image":   return ["inputTexturePort"]
-        case "Image 2": return ["inputTexture2Port"]
-        case "Image 3": return ["inputTexture3Port"]
-        default:        return []
-        }
-    }
-
     private func makeInputPort(index: Int) -> NodePort<FabricImage> {
         let label = index == 0 ? "Image" : "Image \(index + 1)"
         return NodePort<FabricImage>(name: label,

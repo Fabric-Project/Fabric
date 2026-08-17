@@ -19,35 +19,30 @@ internal final class PortHydrationSession
     private var pendingByRegistryKey: [String: Port]
     private var consumedByPortID: [UUID: (registryKey: String, snapshot: Port)] = [:]
     private let documentKeyOrder: [String]
-    private let legacyKeysForRegistryKey: (String) -> [String]
 
-    init(snapshots: [PortRegistry.Snapshot], legacyKeys: @escaping (String) -> [String])
+    init(snapshots: [PortRegistry.Snapshot])
     {
         self.pendingByRegistryKey = snapshots.reduce(into: [:]) { $0[$1.name] = $1.payload.base }
         self.documentKeyOrder = snapshots.map(\.name)
-        self.legacyKeysForRegistryKey = legacyKeys
     }
 
     /// Registry keys whose state has not landed on any registered port.
     var unconsumedKeys: [String] { pendingByRegistryKey.keys.sorted() }
 
-    /// Applies the pending snapshot for `registryKey` — or one of its declared
-    /// legacy aliases — onto `port`, provided the directions agree. Must run
-    /// before the port registers: the registry indexes by the id hydration
-    /// adopts.
+    /// Applies the pending snapshot for `registryKey` onto `port`, provided the
+    /// directions agree. The match is exact: state saved under any other key —
+    /// a retired port, a renamed one — stays pending and is reported dropped at
+    /// finalize. Must run before the port registers: the registry indexes by
+    /// the id hydration adopts.
     func hydrate(_ port: Port, registryKey: String)
     {
-        for key in [registryKey] + legacyKeysForRegistryKey(registryKey)
-        {
-            guard let decoded = pendingByRegistryKey[key],
-                  decoded.kind == port.kind
-            else { continue }
+        guard let decoded = pendingByRegistryKey[registryKey],
+              decoded.kind == port.kind
+        else { return }
 
-            pendingByRegistryKey.removeValue(forKey: key)
-            port.hydrate(from: decoded)
-            consumedByPortID[port.id] = (registryKey: registryKey, snapshot: decoded)
-            return
-        }
+        pendingByRegistryKey.removeValue(forKey: registryKey)
+        port.hydrate(from: decoded)
+        consumedByPortID[port.id] = (registryKey: registryKey, snapshot: decoded)
     }
 
     /// Empties the pending set and hands back what was in it, in the order the
@@ -64,8 +59,6 @@ internal final class PortHydrationSession
             }
         }
 
-        // A relinquished snapshot is re-keyed to the registry key that consumed
-        // it, which need not be the key the document listed it under.
         return take(documentKeyOrder) + take(pendingByRegistryKey.keys.sorted())
     }
 
