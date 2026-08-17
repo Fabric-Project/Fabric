@@ -193,6 +193,50 @@ struct PortHydrationTests
         #expect(decoded.droppedPortStateKeys.isEmpty)
     }
 
+    @Test("Compute processor node rebuilds its processor and uniform ports on decode")
+    func computeProcessorNodeRebuildsProcessorOnDecode() throws
+    {
+        guard let context = makeContext() else { return }
+
+        // Resolve the shader through the registry wrapper so the test follows
+        // the same path a document's node class resolution does.
+        let wrapper = try #require(try NodeRegistry.shared.availableNodes.first {
+            $0.nodeClass == BaseTextureComputeProcessorNode.self
+        })
+        let fileURL = try #require(wrapper.fileURL)
+
+        let node = try BaseTextureComputeProcessorNode(context: context, fileURL: fileURL)
+        let savedPortIDs = node.ports.map(\.id)
+        let savedDisplayName = node.displayName
+
+        let decoded = try roundTrip(node, context: context)
+
+        #expect(decoded.compute != nil)
+        #expect(decoded.displayName == savedDisplayName)
+        #expect(decoded.ports.map(\.id) == savedPortIDs)
+        #expect(decoded.droppedPortStateKeys.isEmpty)
+    }
+
+    @Test("Game controller ports persist as descriptors and rebuild on decode")
+    func gameControllerPortsRebuildFromDescriptors() throws
+    {
+        guard let context = makeContext() else { return }
+
+        // No controller is present in tests; adding the ports directly stands
+        // in for what a connected profile does via synchronizePorts.
+        let node = GameControllerNode(context: context)
+        node.addDynamicPort(NodePort<Float>(name: "Left Stick X", kind: .Outlet))
+        node.addDynamicPort(NodePort<Bool>(name: "A", kind: .Outlet))
+        let savedPortIDs = node.ports.map(\.id)
+
+        let decoded = try roundTrip(node, context: context)
+
+        #expect(decoded.ports.map(\.id) == savedPortIDs)
+        #expect(decoded.findPort(named: "Left Stick X") is NodePort<Float>)
+        #expect(decoded.findPort(named: "A") is NodePort<Bool>)
+        #expect(decoded.droppedPortStateKeys.isEmpty)
+    }
+
     @Test("Legacy registry keys hydrate through declared aliases")
     func legacyKeysHydrateThroughAliases() throws
     {
