@@ -207,6 +207,10 @@ public final class ImageResampleNode: Node
                               message: "Could not create Image Resample compute encoder")
         }
 
+        // The encoding calls below can throw; the encoder has to close on that
+        // path too, or the next node on this command buffer cannot make one.
+        defer { computeEncoder.endEncoding() }
+
         destinationImage.texture.label = "Image Resample \(outputWidth)×\(outputHeight)"
         computeEncoder.label = "Image Resample – \(method.rawValue)"
 
@@ -227,8 +231,6 @@ public final class ImageResampleNode: Node
                 computeEncoder: computeEncoder
             )
         }
-
-        computeEncoder.endEncoding()
 
         destinationImage.isFlipped = sourceImage.isFlipped
         outputImage.send(destinationImage)
