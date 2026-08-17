@@ -235,6 +235,27 @@ struct PortConnectionTests {
         #expect(arrayInlet.canConnect(to: concreteArrayOutlet))
     }
 
+    @Test("Numeric virtual type compatibility is numeric scoped")
+    func numericVirtualTypeCompatibilityIsNumericScoped() {
+        let numericVirtual = PortType.NumericVirtual
+
+        #expect(numericVirtual.canConnect(to: .Float))
+        #expect(numericVirtual.canConnect(to: .Int))
+        #expect(numericVirtual.canConnect(to: .Vector3))
+        #expect(numericVirtual.canConnect(to: .Transform))
+        #expect(numericVirtual.canConnect(to: .Array(portType: .Float)))
+        #expect(numericVirtual.canConnect(to: numericVirtual))
+
+        // A pure virtual port boxes anything, numbers included.
+        #expect(numericVirtual.canConnect(to: .Virtual))
+
+        #expect(!numericVirtual.canConnect(to: .Image))
+        #expect(!numericVirtual.canConnect(to: .String))
+        #expect(!numericVirtual.canConnect(to: .Bool))
+        #expect(!numericVirtual.canConnect(to: .Geometry))
+        #expect(!numericVirtual.canConnect(to: .Array(portType: .String)))
+    }
+
     @Test("Pure virtual inlets remain universal")
     func pureVirtualInletsRemainUniversal() {
         let virtualInlet = PortType.Virtual.makeFreshPort(name: "Value", kind: .Inlet)
