@@ -337,6 +337,14 @@ internal import AnyCodable
         let decodedConnections = try container.decodeIfPresent([Connection].self, forKey: .connections)
         let portMap = try container.decode([UUID:[UUID]].self, forKey: .portConnectionMap)
 
+        // Restoring a wire resolves both its endpoints, and reporting a dropped
+        // one resolves them again; nodePort(forID:) is a linear scan of every
+        // port in the document, so index once and read from that. Mirror what
+        // it scans, subgraph proxy ports included.
+        let portsByID: [UUID: Port] = self.nodes.reduce(into: [:]) { index, node in
+            for port in node.ports { index[port.id] = port }
+        }
+
         // The legacy map holds every connection under both endpoints; report
         // each dropped one once, whichever side surfaces it first.
         var reportedDroppedPairs = Set<Set<UUID>>()
@@ -347,7 +355,7 @@ internal import AnyCodable
 
             func describe(_ id: UUID) -> String
             {
-                guard let port = self.nodePort(forID: id) else { return "missing port \(id)" }
+                guard let port = portsByID[id] else { return "missing port \(id)" }
                 return "\(port.node?.name ?? "?").\(port.displayName)"
             }
 
@@ -365,8 +373,8 @@ internal import AnyCodable
             // checks (and their diagnostics) live here.
             for connection in decodedConnections
             {
-                guard let outlet = self.nodePort(forID: connection.outletPortID),
-                      let inlet = self.nodePort(forID: connection.inletPortID)
+                guard let outlet = portsByID[connection.outletPortID],
+                      let inlet = portsByID[connection.inletPortID]
                 else
                 {
                     reportDroppedConnection(from: connection.outletPortID, to: connection.inletPortID, reason: .missingEndpoint)
@@ -379,7 +387,7 @@ internal import AnyCodable
                     continue
                 }
 
-                attachDecodedConnection(connection)
+                attachConnection(connection, outlet: outlet, inlet: inlet)
             }
         }
         else
@@ -388,7 +396,7 @@ internal import AnyCodable
             {
                 let portConnections = portMap[portID] ?? []
 
-                guard let port = self.nodePort(forID: portID) else
+                guard let port = portsByID[portID] else
                 {
                     for connectedPortID in portConnections
                     {
@@ -399,7 +407,7 @@ internal import AnyCodable
 
                 for connectedPortID in portConnections
                 {
-                    guard let connectedPort = self.nodePort(forID: connectedPortID) else
+                    guard let connectedPort = portsByID[connectedPortID] else
                     {
                         reportDroppedConnection(from: portID, to: connectedPortID, reason: .missingEndpoint)
                         continue
@@ -648,21 +656,17 @@ internal import AnyCodable
         connections[index].active = active
     }
 
-    private func attachDecodedConnection(_ connection: Connection)
-    {
-        guard nodePort(forID: connection.outletPortID) != nil,
-              nodePort(forID: connection.inletPortID) != nil
-        else { return }
-
-        attachConnection(connection)
-    }
-
     private func attachConnection(_ connection: Connection)
     {
         guard let outlet = nodePort(forID: connection.outletPortID),
               let inlet = nodePort(forID: connection.inletPortID)
         else { return }
 
+        attachConnection(connection, outlet: outlet, inlet: inlet)
+    }
+
+    private func attachConnection(_ connection: Connection, outlet: Port, inlet: Port)
+    {
         connection.graph = self
         connection.outletPortReference = outlet
         connection.inletPortReference = inlet
