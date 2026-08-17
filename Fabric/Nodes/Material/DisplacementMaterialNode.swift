@@ -58,23 +58,22 @@ public class DisplacementMaterialNode: BaseMaterialNode
    
     required public init(context: Context)
     {
-        let bundle = Bundle(for: Self.self)
-        let shaderURL = bundle.url(forResource: "DisplacementMaterial", withExtension: "metal", subdirectory: "Materials")
-        
+        // Bundle(for:) cannot see SPM package resources; Bundle.module owns them.
+        let shaderURL = Bundle.module.url(forResource: "DisplacementMaterial", withExtension: "metal", subdirectory: "Materials")
+
         self._material = DisplacementMaterial(context:context, pipelineURL: shaderURL!)
-        
+
         super.init(context: context)
     }
-    
+
     public required init(from decoder: any Decoder) throws
     {
         guard let context = decoder.context?.documentContext as? Context else { fatalError("Invalid Context") }
-        
-        let bundle = Bundle(for: Self.self)
-        let shaderURL = bundle.url(forResource: "DisplacementMaterial", withExtension: "metal", subdirectory: "Materials")
-        
+
+        let shaderURL = Bundle.module.url(forResource: "DisplacementMaterial", withExtension: "metal", subdirectory: "Materials")
+
         self._material = DisplacementMaterial(context:context, pipelineURL: shaderURL!)
-        
+
         try super.init(from: decoder)
     }
         
