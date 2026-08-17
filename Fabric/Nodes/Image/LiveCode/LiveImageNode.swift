@@ -35,6 +35,9 @@ public class LiveImageNode: BaseImageNode
     private var shaderFileURL: URL?
     private var workspaceError: (any Error)?
 
+    /// Set for the duration of super.init(from:) — see init(from:).
+    private var suppressesTemplateShaderPortSync = false
+
     required init(context: Context, fileURL: URL) throws {
         try super.init(context: context, fileURL: fileURL)
         self.postInit()
@@ -46,17 +49,31 @@ public class LiveImageNode: BaseImageNode
     }
 
     required init(from decoder: any Decoder) throws {
-        try super.init(from: decoder)
-
+        // The saved source is read before super.init so the port set can be
+        // built once, against the shader this node will actually run. Left to
+        // itself super.init synchronizes against the bundled template, and
+        // postInit then retargets and synchronizes again — every uniform port
+        // the template declares and the saved shader does not is created and
+        // destroyed on the way through, on every document open.
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.shaderSource = try container.decodeIfPresent(String.self, forKey: .shaderSource) ?? LiveImageNode.defaultShaderSource()
-        // super.init synchronized against the bundled template — the saved
-        // source is only decoded afterwards. Resync once it compiles: uniform
-        // ports the saved shader declares are recreated and adopt their
-        // persisted identity and state by registry key; stale template-only
-        // ports are removed by the material sync. On compile failure the
-        // document's own ports stand in — see recompileAndResyncPorts.
+        self.suppressesTemplateShaderPortSync = true
+
+        try super.init(from: decoder)
+
+        self.suppressesTemplateShaderPortSync = false
+
+        // The single sync: uniform ports the saved shader declares are created
+        // and adopt their persisted identity and state by registry key. On
+        // compile failure the document's own ports stand in — see
+        // recompileAndResyncPorts.
         self.postInit()
+    }
+
+    override public func postSetupSynchronizePorts(allowReplace: Bool) {
+        guard self.suppressesTemplateShaderPortSync == false else { return }
+
+        super.postSetupSynchronizePorts(allowReplace: allowReplace)
     }
 
     deinit {
