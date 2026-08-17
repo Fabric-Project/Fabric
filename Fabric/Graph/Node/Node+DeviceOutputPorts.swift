@@ -24,12 +24,12 @@ public struct DeviceOutputPortDescriptor: Codable, Equatable
 extension Node
 {
     /// Reconciles this node's output ports against what its device currently
-    /// offers. Matching ports survive, because their wires — restored from the
-    /// document, or drawn by the user before the device was unplugged — die
-    /// with them. A port whose descriptor is gone, or whose type no longer
-    /// matches it, is removed instead: an element that turned from an axis into
-    /// a button cannot keep carrying its value through a Float port. Returns
-    /// the descriptors that had to be created.
+    /// offers. A port whose descriptor still matches is kept: replacing it
+    /// would take its wires, restored from the document or drawn before the
+    /// device unplugged. A port whose descriptor is gone, or whose type no
+    /// longer matches it, is removed: an element that turned from an axis
+    /// into a button cannot keep carrying its value through a Float port.
+    /// Returns the descriptors that had to be created.
     ///
     /// Every outlet a device node has comes from its device, so this owns the
     /// node's whole outlet set.

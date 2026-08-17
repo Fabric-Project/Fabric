@@ -169,11 +169,10 @@ public class LiveImageNode: BaseImageNode
         let fileManager = FileManager.default
         let linkPath = linkURL.path(percentEncoded: false)
 
-        // Check for a symlink first (lstat semantics): fileExists(atPath:)
-        // follows links, so a link whose destination moved — every app update
-        // relocates the bundle — reads as absent, the removal is skipped, and
-        // the create below throws "file exists" for every Live Image node
-        // until /tmp is cleaned by hand.
+        // Check the link itself first (lstat semantics): fileExists(atPath:)
+        // follows links, so a dangling link — every app update relocates the
+        // bundle it points into — reads as absent, the removal is skipped,
+        // and the create below throws "file exists".
         if let existingDestination = try? fileManager.destinationOfSymbolicLink(atPath: linkPath) {
             if existingDestination == destination.path(percentEncoded: false) {
                 return

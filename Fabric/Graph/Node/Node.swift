@@ -298,14 +298,13 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     internal var droppedPortStateKeys: [String] { self.portHydrationSession?.unconsumedKeys ?? [] }
 
     /// Registers the document's remaining port state as ports in their own
-    /// right — the one thing a document-owns-ports decode got right, kept for
-    /// the case that needs it. A node whose source cannot rebuild its port set
-    /// at decode time (an unparseable script, a shader that no longer compiles)
-    /// would otherwise decode with none of the ports the document saved, taking
-    /// every wire with them and making the loss permanent at the next save. The
-    /// decoded instances already carry their saved identity, value and
-    /// published state, so a later successful rebuild reconciles against them
-    /// by name and keeps the wires whose names and types still agree.
+    /// right. A node whose source cannot rebuild its port set at decode time
+    /// (an unparseable script, a shader that no longer compiles) would
+    /// otherwise decode with none of the ports the document saved, taking
+    /// every wire with them and making the loss permanent at the next save.
+    /// The decoded instances carry their saved identity, value and published
+    /// state, so a later successful rebuild reconciles against them by name
+    /// and keeps the wires whose names and types still agree.
     ///
     /// Only ever does anything mid-decode, and must run inside the node's init
     /// path so Graph still sees the keys as adopted rather than dropped.
