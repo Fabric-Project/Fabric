@@ -18,11 +18,13 @@ internal final class PortHydrationSession
 {
     private var pendingByRegistryKey: [String: Port]
     private var consumedByPortID: [UUID: (registryKey: String, snapshot: Port)] = [:]
+    private let documentKeyOrder: [String]
     private let legacyKeysForRegistryKey: (String) -> [String]
 
     init(snapshots: [PortRegistry.Snapshot], legacyKeys: @escaping (String) -> [String])
     {
         self.pendingByRegistryKey = snapshots.reduce(into: [:]) { $0[$1.name] = $1.payload.base }
+        self.documentKeyOrder = snapshots.map(\.name)
         self.legacyKeysForRegistryKey = legacyKeys
     }
 
@@ -46,6 +48,25 @@ internal final class PortHydrationSession
             consumedByPortID[port.id] = (registryKey: registryKey, snapshot: decoded)
             return
         }
+    }
+
+    /// Empties the pending set and hands back what was in it, in the order the
+    /// document listed it. For a node whose source cannot rebuild the port set
+    /// at decode time — a script that no longer parses, a shader that no longer
+    /// compiles — these decoded instances are all that stands between the
+    /// document and the loss of every port and wire the node had.
+    func drainPendingSnapshots() -> [(registryKey: String, port: Port)]
+    {
+        func take(_ keys: [String]) -> [(registryKey: String, port: Port)]
+        {
+            keys.compactMap { key in
+                pendingByRegistryKey.removeValue(forKey: key).map { (registryKey: key, port: $0) }
+            }
+        }
+
+        // A relinquished snapshot is re-keyed to the registry key that consumed
+        // it, which need not be the key the document listed it under.
+        return take(documentKeyOrder) + take(pendingByRegistryKey.keys.sorted())
     }
 
     /// Returns `port`'s consumed snapshot to the pending set. A node that

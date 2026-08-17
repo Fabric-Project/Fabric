@@ -571,6 +571,10 @@ public final class JavaScriptNode: Node
         catch {
             let summary = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             self.diagnostics = [JavaScriptNodeDiagnostic(summary: summary, detail: summary)]
+
+            // Every port here is minted from the script's signature, so a saved
+            // script that no longer parses leaves the node with none at all.
+            self.adoptRemainingSnapshotPortsAsFallback()
         }
     }
 

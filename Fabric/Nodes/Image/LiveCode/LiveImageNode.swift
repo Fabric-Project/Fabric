@@ -55,9 +55,8 @@ public class LiveImageNode: BaseImageNode
         // source is only decoded afterwards. Resync once it compiles: uniform
         // ports the saved shader declares are recreated and adopt their
         // persisted identity and state by registry key; stale template-only
-        // ports are removed by the material sync. On compile failure the port
-        // set stays as the template's and the saved uniform state is reported
-        // dropped.
+        // ports are removed by the material sync. On compile failure the
+        // document's own ports stand in — see recompileAndResyncPorts.
         self.postInit(shouldSynchronizePorts: true)
     }
 
@@ -126,6 +125,7 @@ public class LiveImageNode: BaseImageNode
         }
         catch {
             self.workspaceError = error
+            self.adoptRemainingSnapshotPortsAsFallback()
         }
     }
 
@@ -190,12 +190,21 @@ public class LiveImageNode: BaseImageNode
     }
 
     private func recompileAndResyncPorts(shouldSynchronizePorts: Bool = true) {
-        if let sourceShader = self.postMaterial.shader as? SourceShader {
-            sourceShader.reloadFromSource()
-            if sourceShader.pipelineError == nil && shouldSynchronizePorts {
-                self.postSetupSynchronizePorts(allowReplace: false)
-            }
+        guard let sourceShader = self.postMaterial.shader as? SourceShader else { return }
+
+        sourceShader.reloadFromSource()
+
+        guard sourceShader.pipelineError == nil else {
+            // The saved shader declares the uniform ports; without a compile
+            // there is nothing to rebuild them from, so let the document's own
+            // stand in until the user fixes the source.
+            self.adoptRemainingSnapshotPortsAsFallback()
+            return
         }
+
+        guard shouldSynchronizePorts else { return }
+
+        self.postSetupSynchronizePorts(allowReplace: false)
     }
 
     public override func execute(renderer: GraphRenderer,

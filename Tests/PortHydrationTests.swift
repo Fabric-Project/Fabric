@@ -39,6 +39,31 @@ struct PortHydrationTests
         return try decoder.decode(N.self, from: encodedData)
     }
 
+    /// Saves `graph`, rewrites one node's encoded form, and loads the result —
+    /// the way a document written by a working build is opened after the source
+    /// a node rebuilds itself from has gone bad.
+    private func roundTripGraph(_ graph: Graph,
+                                context: Context,
+                                editingNode nodeID: UUID,
+                                editJSON: (inout [String: Any]) -> Void) throws -> Graph
+    {
+        let data = try JSONEncoder().encode(graph)
+        var object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        var nodeMap = try #require(object["nodeMap"] as? [[String: Any]])
+
+        let index = try #require(nodeMap.firstIndex {
+            ($0["value"] as? [String: Any])?["id"] as? String == nodeID.uuidString
+        })
+        var value = try #require(nodeMap[index]["value"] as? [String: Any])
+        editJSON(&value)
+        nodeMap[index]["value"] = value
+        object["nodeMap"] = nodeMap
+
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        return try decoder.decode(Graph.self, from: try JSONSerialization.data(withJSONObject: object))
+    }
+
     @Test("Round trip preserves port identity, published state and values")
     func roundTripPreservesDocumentOwnedState() throws
     {
@@ -173,6 +198,101 @@ struct PortHydrationTests
         #expect((decoded.findPort(named: "x") as Fabric.Port?)?.published == true)
         #expect((decoded.findPort(named: "doubled") as Fabric.Port?)?.id == savedOutputID)
         #expect(decoded.droppedPortStateKeys.isEmpty)
+    }
+
+    @Test("A JavaScript node whose saved script no longer parses keeps its ports and wires")
+    @MainActor
+    func javaScriptNodeKeepsPortsWhenSavedScriptFailsToParse() throws
+    {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let node = JavaScriptNode(context: context)
+        let consumer = NumberBinaryOperator(context: context)
+        graph.addNode(node)
+        graph.addNode(consumer)
+
+        node.updateScriptSource("""
+            function (__number doubled) main(__number x) {
+              return { doubled: x * 2 }
+            }
+            """)
+
+        let outputPort = try #require(node.findPort(named: "doubled") as Fabric.Port?)
+        outputPort.connect(to: consumer.inputNumber1)
+
+        let savedPortIDs = node.ports.map(\.id)
+        #expect(savedPortIDs.count == 2)
+
+        let decodedGraph = try roundTripGraph(graph, context: context, editingNode: node.id) { value in
+            value["scriptSource"] = "function (this is not javascript"
+        }
+
+        let decodedNode = try #require(decodedGraph.nodes.first { $0.id == node.id } as? JavaScriptNode)
+
+        #expect(decodedNode.ports.map(\.id) == savedPortIDs)
+        #expect(decodedGraph.droppedPortStateDiagnostics.isEmpty)
+        #expect(decodedGraph.droppedConnectionDiagnostics.isEmpty)
+        #expect(try #require(decodedNode.findPort(named: "doubled") as Fabric.Port?).connections.count == 1)
+    }
+
+    @Test("A Live Image node whose saved shader no longer compiles keeps its ports and wires")
+    @MainActor
+    func liveImageNodeKeepsPortsWhenSavedShaderFailsToCompile() throws
+    {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let node = LiveImageNode(context: context)
+        let source = NumberBinaryOperator(context: context)
+        graph.addNode(node)
+        graph.addNode(source)
+
+        node.updateShaderSource("""
+            #include <metal_stdlib>
+            using namespace metal;
+
+            typedef struct {
+                float amount; // slider, 0.0, 1.0, 1.0, Amount
+                float gain; // slider, 0.0, 2.0, 0.5, Gain
+            } PostUniforms;
+
+            fragment half4 postFragment(VertexData in [[stage_in]],
+                                        constant PostUniforms &uniforms [[buffer(FragmentBufferMaterialUniforms)]],
+                                        texture2d<half, access::sample> inputTexture [[texture(FragmentTextureCustom0)]]) {
+                constexpr sampler s(address::clamp_to_edge, filter::linear);
+                half4 color = inputTexture.sample(s, in.texcoord);
+                return mix(half4(0.0), color * half(uniforms.gain), half(uniforms.amount));
+            }
+            """)
+
+        let gainPort = try #require(node.findPort(named: "Gain") as? ParameterPort<Float>)
+        gainPort.value = 1.7
+        source.outputNumber.connect(to: gainPort)
+
+        let savedPortIDs = node.ports.map(\.id)
+
+        // updateShaderSource writes and recompiles, so the broken source has to
+        // reach the node through the document. The node id has to change with
+        // it: the shader workspace is keyed on that id, and reusing it would
+        // have the decoded node recompile a directory this test already
+        // compiled a working shader in.
+        let decodedNodeID = UUID()
+        let decodedGraph = try roundTripGraph(graph, context: context, editingNode: node.id) { value in
+            value["shaderSource"] = "this is not a metal shader"
+            value["id"] = decodedNodeID.uuidString
+        }
+
+        let decodedNode = try #require(decodedGraph.nodes.first { $0.id == decodedNodeID } as? LiveImageNode)
+
+        #expect(decodedNode.currentShaderErrorDescription() != nil)
+        #expect(Set(decodedNode.ports.map(\.id)) == Set(savedPortIDs))
+        #expect(decodedGraph.droppedPortStateDiagnostics.isEmpty)
+        #expect(decodedGraph.droppedConnectionDiagnostics.isEmpty)
+
+        let decodedGain = try #require(decodedNode.findPort(named: "Gain") as? ParameterPort<Float>)
+        #expect(decodedGain.value == 1.7)
+        #expect(decodedGain.connections.count == 1)
     }
 
     @Test("Live Image node rebuilds its saved shader's uniform ports on decode")
