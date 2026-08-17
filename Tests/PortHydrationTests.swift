@@ -260,6 +260,32 @@ struct PortHydrationTests
         #expect(decoded.droppedPortStateKeys.isEmpty)
     }
 
+    @Test("Game controller reconnect record survives a save with no controller attached")
+    func gameControllerSavedInfoSurvivesSaveWithoutHardware() throws
+    {
+        guard let context = makeContext() else { return }
+
+        let node = GameControllerNode(context: context)
+
+        // Stand in for a document saved while the controller was plugged in;
+        // no hardware is present in tests, so the record can only be injected.
+        let savedInfo: [String: Any] = ["id": "Vendor_Extended Gamepad_0",
+                                        "displayName": "Vendor",
+                                        "vendorName": "Vendor",
+                                        "productCategory": "Extended Gamepad"]
+
+        let decoded = try roundTrip(node, context: context) { jsonObject in
+            jsonObject["selectedControllerID"] = savedInfo["id"]
+            jsonObject["savedControllerInfo"] = savedInfo
+        }
+
+        let reencoded = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(decoded)) as? [String: Any])
+        let reencodedInfo = try #require(reencoded["savedControllerInfo"] as? [String: Any])
+
+        #expect(reencodedInfo["id"] as? String == savedInfo["id"] as? String)
+        #expect(reencodedInfo["productCategory"] as? String == savedInfo["productCategory"] as? String)
+    }
+
     @Test("Ports added after graph decode cannot resurrect stale snapshot state")
     func latePortsDoNotResurrectStaleSnapshotState() throws
     {

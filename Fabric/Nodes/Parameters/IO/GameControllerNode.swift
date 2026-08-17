@@ -159,11 +159,11 @@ public class GameControllerNode: Node
         try container.encodeIfPresent(self.selectedControllerID, forKey: .selectedControllerID)
         try container.encode(self.currentPortDescriptors(), forKey: .portDescriptors)
 
-        if let controllerID = selectedControllerID,
-           let info = availableControllers.first(where: { $0.id == controllerID })
-        {
-            try container.encode(info, forKey: .savedControllerInfo)
-        }
+        // The reconnect record has to outlive the hardware: saving with the
+        // controller unplugged — or before enableExecution has ever discovered
+        // one — must not erase what the document already knew.
+        try container.encodeIfPresent(self.liveControllerInfo() ?? self.savedControllerInfo,
+                                      forKey: .savedControllerInfo)
     }
 
     public required init(context: Context)
@@ -189,6 +189,14 @@ public class GameControllerNode: Node
     }
 
     fileprivate var availableControllers: [GameControllerInfo] = []
+
+    /// The selected controller as the last discovery pass saw it, or nil when
+    /// nothing is plugged in.
+    private func liveControllerInfo() -> GameControllerInfo?
+    {
+        guard let controllerID = selectedControllerID else { return nil }
+        return availableControllers.first { $0.id == controllerID }
+    }
 
     // Latest input values
     private var axisValues: [String: Float] = [:]
@@ -330,6 +338,7 @@ public class GameControllerNode: Node
         }
 
         currentController = controller
+        self.savedControllerInfo = self.liveControllerInfo() ?? self.savedControllerInfo
         print("[GameController] Selected: \(controller.vendorName ?? "Unknown")")
 
         // Setup based on profile
