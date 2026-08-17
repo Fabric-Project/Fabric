@@ -96,7 +96,7 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
 
         if let url = self.url
         {
-            try container.encode(Self.bundleRelativeResourcePath(for: url), forKey: .effectPath)
+            try container.encodeIfPresent(Self.bundleRelativeResourcePath(for: url), forKey: .effectPath)
         }
 
         try super.encode(to: encoder)

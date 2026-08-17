@@ -215,7 +215,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         var container = encoder.container(keyedBy: CodingKeys.self)
 
         if let url = self.url {
-            try container.encode(Self.bundleRelativeResourcePath(for: url), forKey: .effectPath)
+            try container.encodeIfPresent(Self.bundleRelativeResourcePath(for: url), forKey: .effectPath)
         }
 
         try container.encode(1, forKey: .baseImageNodeVersion)

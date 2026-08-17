@@ -684,13 +684,22 @@ public protocol NodeFileLoadingProtocol : Node
 
 public extension NodeFileLoadingProtocol
 {
-    /// A file that ships inside the package bundle is persisted by its trailing
-    /// path components, not its URL: the bundle sits somewhere different on
-    /// every machine and in every build, so an absolute path would bind the
-    /// document to the machine that wrote it.
-    static func bundleRelativeResourcePath(for url: URL) -> String
+    /// A file that ships inside the package bundle is persisted by its path
+    /// below the bundle's resource root, not its URL: the bundle sits somewhere
+    /// different on every machine and in every build, so an absolute path would
+    /// bind the document to the machine that wrote it. Nil for a URL outside
+    /// the bundle, which has no bundle-relative spelling — the encode site
+    /// decides what such a file persists as.
+    static func bundleRelativeResourcePath(for url: URL) -> String?
     {
-        url.pathComponents.suffix(3).joined(separator: "/")
+        guard let resourceRoot = Bundle.module.resourceURL else { return nil }
+
+        let base = resourceRoot.standardizedFileURL.resolvingSymlinksInPath().pathComponents
+        let full = url.standardizedFileURL.resolvingSymlinksInPath().pathComponents
+
+        guard full.count > base.count, full.starts(with: base) else { return nil }
+
+        return full.dropFirst(base.count).joined(separator: "/")
     }
 
     static func resolveBundleResource(path: String) -> URL?
