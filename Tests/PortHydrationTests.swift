@@ -360,6 +360,26 @@ struct PortHydrationTests
         #expect(decoded.droppedPortStateKeys.isEmpty)
     }
 
+    @Test("A compute node keeps its shader binding when the bundle no longer provides the file")
+    func computeProcessorNodeKeepsUnresolvableEffectPath() throws
+    {
+        guard let context = makeContext() else { return }
+
+        let wrapper = try #require(try NodeRegistry.shared.availableNodes.first {
+            $0.nodeClass == BaseTextureComputeProcessorNode.self
+        })
+        let node = try BaseTextureComputeProcessorNode(context: context, fileURL: try #require(wrapper.fileURL))
+
+        let retiredPath = "Effects/Compute/RetiredEffect.metal"
+        let decoded = try roundTrip(node, context: context) { jsonObject in
+            jsonObject["effectPath"] = retiredPath
+        }
+
+        let reencoded = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(decoded)) as? [String: Any])
+        #expect(reencoded["effectPath"] as? String == retiredPath)
+        #expect(decoded.compute == nil)
+    }
+
     @Test("Game controller ports persist as descriptors and rebuild on decode")
     func gameControllerPortsRebuildFromDescriptors() throws
     {

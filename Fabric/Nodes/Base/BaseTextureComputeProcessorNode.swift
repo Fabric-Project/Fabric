@@ -70,16 +70,23 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
         // The processor and any uniform ports it declares can only come from
         // the shader file, so rebuild from the restored bundle-relative path;
         // rebuilt ports adopt persisted identity and state by registry key as
-        // they register. A path the bundle no longer provides leaves compute
-        // nil, which execute already reports as unavailable.
+        // they register.
         let container = try decoder.container(keyedBy: CodingKeys.self)
         if let path = try container.decodeIfPresent(String.self, forKey: .effectPath),
-           let shaderURL = Self.resolveBundleResource(path: path),
-           FileManager.default.fileExists(atPath: shaderURL.path(percentEncoded: false))
+           let shaderURL = Self.resolveBundleResource(path: path)
         {
+            // Hold the binding even when the bundle no longer provides the
+            // file: encode derives effectPath from it, so leaving it nil would
+            // quietly erase the document's shader choice at the next save.
             self.url = shaderURL
             self.pipelineURL = shaderURL
-            self.setupProcessor(context: self.context)
+
+            // A file that is not there leaves compute nil, which execute
+            // already reports as unavailable.
+            if FileManager.default.fileExists(atPath: shaderURL.path(percentEncoded: false))
+            {
+                self.setupProcessor(context: self.context)
+            }
         }
     }
 
