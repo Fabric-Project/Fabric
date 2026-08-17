@@ -113,8 +113,15 @@ struct NodePortRoundTripContractTests
                 let decodedNode = try #require(decodedGraph.nodes.first { $0.id == node.id },
                                                "\(label): node missing after decode")
 
-                #expect(decodedNode.droppedPortStateKeys.isEmpty,
-                        "\(label): decode dropped port state for keys \(decodedNode.droppedPortStateKeys)")
+                // Read the diagnostics the graph collected, not the node's own
+                // dropped keys: Graph.init has already closed every hydration
+                // window by now, so asking the node would always answer none.
+                let droppedKeys = decodedGraph.droppedPortStateDiagnostics
+                    .filter { $0.nodeID == node.id }
+                    .flatMap(\.droppedRegistryKeys)
+
+                #expect(droppedKeys.isEmpty,
+                        "\(label): decode dropped port state for keys \(droppedKeys)")
 
                 let reencodedData = try JSONEncoder().encode(decodedGraph)
                 let reencoded = try #require(try encodedNodes(from: reencodedData)[node.id.uuidString],
