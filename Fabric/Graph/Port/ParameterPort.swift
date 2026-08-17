@@ -108,11 +108,21 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
     }
     
     override public func encode(to encoder: any Encoder) throws {
-        
+
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(AnyParameter(self._parameter), forKey: .parameter)
 
         try super.encode(to: encoder)
+    }
+
+    /// The initializer establishes port.id == parameter.id; adopting the
+    /// document's port identity must carry the declared backing parameter
+    /// along, or every load-save cycle re-keys the parameter with the fresh
+    /// UUID it was declared with and the invariant silently breaks.
+    override internal func hydrate(from decoded: Port)
+    {
+        super.hydrate(from: decoded)
+        self._parameter.id = self.id
     }
     
     override public var value: ParamValue?

@@ -103,6 +103,21 @@ struct PortHydrationTests
         #expect(decoded.droppedPortStateKeys == ["retiredKey"])
     }
 
+    @Test("Hydration keeps the backing parameter on the port's identity")
+    func hydrationKeepsParameterOnPortIdentity() throws
+    {
+        guard let context = makeContext() else { return }
+
+        let node = NumberBinaryOperator(context: context)
+        let savedID = node.inputNumber1.id
+        #expect(node.inputNumber1.parameter?.id == savedID)
+
+        let decoded = try roundTrip(node, context: context)
+
+        #expect(decoded.inputNumber1.id == savedID)
+        #expect(decoded.inputNumber1.parameter?.id == savedID)
+    }
+
     @Test("Declared parameter metadata wins over the document's copy")
     func declaredParameterMetadataWins() throws
     {
