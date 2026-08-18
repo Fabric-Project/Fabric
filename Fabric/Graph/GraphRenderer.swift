@@ -211,9 +211,6 @@ public class GraphRenderer : ViewRenderer
             }
         }
 
-        // The graph's camera, or the free one — never the last camera seen. A
-        // graph whose only camera node is deleted has no camera again, and
-        // holding the deleted one is how it kept rendering through it.
         self.currentCamera = graph.latestCamera ?? self.defaultCamera
 
         var capturedError: (any Error)?
