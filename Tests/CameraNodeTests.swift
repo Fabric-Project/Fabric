@@ -182,4 +182,49 @@ struct CameraNodeTests
         #expect(after.width < before.width,
                 "Subject drew \(before) under the sitting camera and \(after) under the added one")
     }
+
+    @Test("Deleting the active camera hands the graph back to the one behind it")
+    func deletingActiveCameraFallsBack() throws
+    {
+        guard let harness = GraphExecutionTestHarness(renderWidth: Self.width, renderHeight: Self.height) else { return }
+
+        let graph = makeGraph(context: harness.context)
+        let sitting = PerspectiveCameraNode(context: harness.context)
+        sitting.inputPosition.value = simd_float3(0, 0, 3)
+        graph.addNode(sitting)
+        try harness.renderer.startExecution(graph: graph)
+        let underSitting = try #require(try draw(graph, with: harness, from: 0), "The graph drew nothing")
+
+        let added = PerspectiveCameraNode(context: harness.context)
+        added.inputPosition.value = simd_float3(0, 0, 12)
+        graph.addNode(added)
+        let underAdded = try #require(try draw(graph, with: harness, from: 10), "The graph drew nothing")
+        #expect(underAdded.width < underSitting.width, "The added camera never took control")
+
+        graph.delete(node: added)
+        let afterDelete = try #require(try draw(graph, with: harness, from: 20), "The graph drew nothing")
+        #expect(afterDelete == underSitting,
+                "Subject drew \(afterDelete) after the active camera was deleted, \(underSitting) under the camera left behind")
+    }
+
+    @Test("Deleting the only camera hands the graph back to the free one")
+    func deletingOnlyCameraFallsBack() throws
+    {
+        guard let harness = GraphExecutionTestHarness(renderWidth: Self.width, renderHeight: Self.height) else { return }
+
+        let graph = makeGraph(context: harness.context)
+        try harness.renderer.startExecution(graph: graph)
+        let free = try #require(try draw(graph, with: harness, from: 0), "The graph drew nothing")
+
+        let camera = PerspectiveCameraNode(context: harness.context)
+        camera.inputPosition.value = simd_float3(0, 0, 12)
+        graph.addNode(camera)
+        let underCamera = try #require(try draw(graph, with: harness, from: 10), "The graph drew nothing")
+        #expect(underCamera.width < free.width, "The camera never took control")
+
+        graph.delete(node: camera)
+        let afterDelete = try #require(try draw(graph, with: harness, from: 20), "The graph drew nothing")
+        #expect(afterDelete == free,
+                "Subject drew \(afterDelete) after the camera was deleted, \(free) with no camera node at all")
+    }
 }
