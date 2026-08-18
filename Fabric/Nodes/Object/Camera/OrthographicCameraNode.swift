@@ -16,7 +16,7 @@ public class OrthographicCameraNode : ObjectNode<OrthographicCamera>
     public override class var nodeType:Node.NodeType { Node.NodeType.Object(objectType: .Camera) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Consumer }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Provides an Orthographic Camera for the Scene."}
+    override public class var nodeDescription: String { "Provides an Orthographic Camera for the Scene. Its view is two world units tall and as many wide as the render target's aspect, before Scale. Aim it with Orientation — Orientation Compose builds one from a target."}
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
@@ -72,9 +72,13 @@ public class OrthographicCameraNode : ObjectNode<OrthographicCamera>
     
     public override func resize(size: (width: Float, height: Float), scaleFactor: Float)
     {
+        // Two world units tall, and as many wide as the aspect allows, so a
+        // world unit measures the same across as it does down. Half of the
+        // aspect would not: the vertical extent is the ±1 the camera is
+        // constructed with, which no resize changes.
         let aspect = size.width / size.height
 
-        self.camera.left = -aspect / 2.0
-        self.camera.right = aspect / 2.0
+        self.camera.left = -aspect
+        self.camera.right = aspect
     }
 }
