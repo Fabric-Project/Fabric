@@ -32,6 +32,16 @@ public class LiveImageNode: BaseImageNode
     private static let staleWorkspaceTTL: TimeInterval = 24 * 60 * 60
 
     private(set) var shaderSource: String = LiveImageNode.defaultShaderSource()
+
+    // A decoded copy of a node carries the document and node UUIDs of the
+    // original, so keying the workspace on those alone puts two live instances
+    // on one Shaders.metal whenever a document is decoded while the previous
+    // graph is alive (revert, reopen, round-trip test): each recompiles
+    // whatever the other last wrote, and whichever deinits first deletes the
+    // file from under the survivor. The document/node path stays for the stale
+    // workspace sweep to group by; this segment is what makes it exclusive.
+    private let workspaceInstanceID = UUID()
+
     private var workspaceURL: URL?
     private var shaderFileURL: URL?
     private var workspaceError: (any Error)?
@@ -126,7 +136,10 @@ public class LiveImageNode: BaseImageNode
     private func makeWorkspaceURL() throws -> URL {
         let documentID = self.graph?.id.uuidString ?? "unsaved-document"
         let nodeID = self.id.uuidString
-        return Self.rootWorkspaceURL.appending(path: documentID).appending(path: nodeID, directoryHint: .isDirectory)
+        return Self.rootWorkspaceURL
+            .appending(path: documentID)
+            .appending(path: nodeID, directoryHint: .isDirectory)
+            .appending(path: self.workspaceInstanceID.uuidString, directoryHint: .isDirectory)
     }
 
     private func ensureWorkspaceReady(at workspaceURL: URL) throws {
