@@ -18,12 +18,21 @@ public class OrthographicCameraNode : ObjectNode<OrthographicCamera>
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Provides an Orthographic Camera for the Scene. Its view is two world units tall and as many wide as the render target's aspect, before Scale. Aim it with Orientation — Orientation Compose builds one from a target."}
 
+    /// Where the camera sits with nothing authored. In front of the origin
+    /// looking at it, so the default view is the XY plane face on. Distance
+    /// is free of the framing here — an orthographic view volume does not
+    /// narrow with it — and only has to clear the near plane.
+    public static let defaultPosition = simd_float3(0, 0, 2)
+
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        let ports = super.registerPorts(context: context)
-        
+        // Position carries the camera's own default rather than an object's
+        // origin, which would put the camera on its subject.
+        let ports = super.registerPorts(context: context).filter { $0.name != "inputPosition" }
+
         return  [
                     ("inputLookAt", ParameterPort(parameter:Float3Parameter("Look At", simd_float3(repeating:0), .inputfield, "Target position the camera points toward")) ),
+                    ("inputPosition", ParameterPort(parameter:Float3Parameter("Position", defaultPosition, .inputfield, "Position in 3D space (X, Y, Z) in world units")) ),
                 ] + ports
     }
     
@@ -40,11 +49,9 @@ public class OrthographicCameraNode : ObjectNode<OrthographicCamera>
     override public func startExecution(renderer:GraphRenderer) throws
     {
         try super.startExecution(renderer: renderer)
-        
-        self.inputPosition.value = .init(repeating: 5.0)
-        
+
+        self.camera.position = self.inputPosition.value ?? Self.defaultPosition
         self.camera.lookAt(target: self.inputLookAt.value ?? .zero)
-        self.camera.position = self.inputPosition.value ?? .zero
         self.camera.scale = self.inputScale.value ?? .one
         
         let orientation = self.inputOrientation.value ?? .zero
