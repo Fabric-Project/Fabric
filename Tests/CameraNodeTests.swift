@@ -159,4 +159,27 @@ struct CameraNodeTests
         #expect(abs(atTwo.width * 2 - atOne.width) <= 2,
                 "Subject drew \(atOne.width) wide at scale 1 and \(atTwo.width) at scale 2")
     }
+
+    @Test("A camera added to a graph that has one takes control")
+    func lastCameraWins() throws
+    {
+        guard let harness = GraphExecutionTestHarness(renderWidth: Self.width, renderHeight: Self.height) else { return }
+
+        let graph = makeGraph(context: harness.context)
+        let sitting = PerspectiveCameraNode(context: harness.context)
+        sitting.inputPosition.value = simd_float3(0, 0, 3)
+        graph.addNode(sitting)
+        try harness.renderer.startExecution(graph: graph)
+        let before = try #require(try draw(graph, with: harness, from: 0), "The graph drew nothing")
+
+        let added = PerspectiveCameraNode(context: harness.context)
+        added.inputPosition.value = simd_float3(0, 0, 12)
+        graph.addNode(added)
+        let after = try #require(try draw(graph, with: harness, from: 10), "The graph drew nothing")
+
+        // Twelve units back against three: a smaller subject, and only if the
+        // camera that arrived last is the one the graph renders with.
+        #expect(after.width < before.width,
+                "Subject drew \(before) under the sitting camera and \(after) under the added one")
+    }
 }

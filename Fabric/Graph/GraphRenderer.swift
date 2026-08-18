@@ -211,7 +211,7 @@ public class GraphRenderer : ViewRenderer
             }
         }
 
-        self.currentCamera = graph.firstCamera ?? self.currentCamera ?? self.defaultCamera
+        self.currentCamera = graph.latestCamera ?? self.currentCamera ?? self.defaultCamera
 
         var capturedError: (any Error)?
         var scheduledNodes = nodesInExecutionOrder(for: graph)

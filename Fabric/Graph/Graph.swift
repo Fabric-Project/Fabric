@@ -651,22 +651,26 @@ internal import AnyCodable
     // MARK: -Rendering Helpers
     internal var consumerNodes: [Node] = []
     internal var sceneObjectNodes:[BaseObjectNode] = []
-    internal var firstCamera:Camera? = nil
+    internal var latestCamera:Camera? = nil
     
     func updateRenderingNodes()
     {
         self.consumerNodes = self.nodes.filter( { $0.nodeExecutionMode == .Consumer } )
         
-        self.firstCamera = Self.getFirstCamera(graph:self)
+        self.latestCamera = Self.latestCamera(in:self)
     }
     
-    static func getFirstCamera(graph:Graph) -> Camera?
+    /// The camera a graph renders with: the last one added to it, so a camera
+    /// added to a graph that has one takes control rather than joining a queue
+    /// behind it. One camera is active at a time; the rest are in the scene and
+    /// inert.
+    static func latestCamera(in graph:Graph) -> Camera?
     {
         let sceneObjectNodes:[BaseObjectNode] = graph.consumerNodes.compactMap({ $0 as? BaseObjectNode})
 
-        let firstCameraNode = sceneObjectNodes.first(where: { $0.nodeType == .Object(objectType: .Camera)})
+        let latestCameraNode = sceneObjectNodes.last(where: { $0.nodeType == .Object(objectType: .Camera)})
 
-        let camera = firstCameraNode?.getObject() as? Camera
+        let camera = latestCameraNode?.getObject() as? Camera
         
         // Only recurse if we need to
         guard let camera else
@@ -684,8 +688,8 @@ internal import AnyCodable
                 
             let subGraphs = subGraphNodes.map({ $0.subGraph } )
             
-            for subGraph in subGraphs {
-                if let camera = getFirstCamera(graph: subGraph) {
+            for subGraph in subGraphs.reversed() {
+                if let camera = latestCamera(in: subGraph) {
                     return camera
                 }
             }
