@@ -117,16 +117,6 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
 
         try super.encode(to: encoder)
     }
-
-    /// The initializer establishes port.id == parameter.id; adopting the
-    /// document's port identity must carry the declared backing parameter
-    /// along, or every load-save cycle re-keys the parameter with the fresh
-    /// UUID it was declared with and the invariant silently breaks.
-    override internal func hydrate(from decoded: Port)
-    {
-        super.hydrate(from: decoded)
-        self._parameter.id = self.id
-    }
     
     /// After adopting the document's value, re-impose the declared range — but
     /// only for controls that enforce their range in the UI (a slider can only
@@ -138,6 +128,8 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
     override internal func hydrate(from decoded: Port)
     {
         super.hydrate(from: decoded)
+
+        self._parameter.id = self.id
 
         guard self._parameter.controlType == .slider,
               let value = self.value,
