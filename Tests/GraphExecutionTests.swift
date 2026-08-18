@@ -196,8 +196,8 @@ struct GraphExecutionTests {
         graph.addNode(timeNode)
         publish(timeNode.outputNumber, in: graph)
 
-        let firstContext = harness.makeExecutionContext(time: 100, deltaTime: 0, systemTime: 200, frameNumber: 0)
-        let secondContext = harness.makeExecutionContext(time: 101.25, deltaTime: 1.25, systemTime: 201, frameNumber: 1)
+        let firstContext = harness.makeExecutionContext(time: 0, deltaTime: 0, systemTime: 200, frameNumber: 0)
+        let secondContext = harness.makeExecutionContext(time: 1.25, deltaTime: 1.25, systemTime: 201, frameNumber: 1)
 
         try harness.renderer.startExecution(graph: graph)
         try harness.render(graph: graph, executionInfo: firstContext)
@@ -626,6 +626,36 @@ struct GraphExecutionTests {
         try harness.renderer.stopExecution(graph: decodedGraph)
 
         try expectEqual(decodedAddNode.outputNumber.value, 21)
+    }
+
+    @Test("Serialized Transform pass-through preserves its identity parameter")
+    func serializedTransformPassThroughPreservesIdentity() throws {
+        guard let harness = GraphExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let transformNode = PassThroughNode<simd_float4x4>(context: harness.context)
+
+        graph.addNode(transformNode)
+        publish(transformNode.output, in: graph)
+
+        let decodedGraph = try roundTripGraphToTemporaryFile(graph, context: harness.context)
+
+        guard let decodedTransformNode = decodedGraph.nodes.compactMap({
+            $0 as? PassThroughNode<simd_float4x4>
+        }).first else {
+            throw GraphExecutionTestFailure("Expected decoded Transform pass-through node")
+        }
+
+        #expect(decodedTransformNode.input is ParameterPort<simd_float4x4>)
+        #expect(decodedTransformNode.input.value == matrix_identity_float4x4)
+
+        let context = harness.makeExecutionContext(time: 650, deltaTime: 0, frameNumber: 0)
+
+        try harness.renderer.startExecution(graph: decodedGraph)
+        try harness.render(graph: decodedGraph, executionInfo: context)
+        try harness.renderer.stopExecution(graph: decodedGraph)
+
+        #expect(decodedTransformNode.output.value == matrix_identity_float4x4)
     }
 
     @Test("Serialized subgraph preserves published proxies and decoded execution")

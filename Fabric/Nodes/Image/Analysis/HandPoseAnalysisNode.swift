@@ -1,5 +1,5 @@
 //
-//  ForegroundMaskNode.swift
+//  HandPoseAnalysisNode.swift
 //  Fabric
 //
 //  Created by Anton Marini on 6/28/25.
@@ -18,7 +18,7 @@ public class HandPoseAnalysisNode: Node
     override public class var nodeType:Node.NodeType { .Image(imageType: .Analysis) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Detect Hand Poses in an Image and outputs in Units" }
+    override public class var nodeDescription: String { "Detects a hand pose in an image and outputs ordered finger-point arrays in unit coordinates" }
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
@@ -29,30 +29,11 @@ public class HandPoseAnalysisNode: Node
             ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to analyze for hand poses")),
             ("inputHandCount", ParameterPort(parameter: IntParameter("Hand Count", 1, 1, 16, .inputfield, "Maximum number of hands to detect"))),
 
-            ("outputThumb1", NodePort<simd_float2>(name: "Thumb Tip", kind: .Outlet, description: "Position of thumb tip in unit coordinates")),
-            ("outputThumb2", NodePort<simd_float2>(name: "Thumb Joint 1", kind: .Outlet, description: "Position of thumb IP joint in unit coordinates")),
-            ("outputThumb3", NodePort<simd_float2>(name: "Thumb Joint 2", kind: .Outlet, description: "Position of thumb MP joint in unit coordinates")),
-            ("outputThumb4", NodePort<simd_float2>(name: "Thumb Knuckle", kind: .Outlet, description: "Position of thumb CMC joint in unit coordinates")),
-
-            ("outputIndex1", NodePort<simd_float2>(name: "Index Tip", kind: .Outlet, description: "Position of index finger tip in unit coordinates")),
-            ("outputIndex2", NodePort<simd_float2>(name: "Index Joint 1", kind: .Outlet, description: "Position of index DIP joint in unit coordinates")),
-            ("outputIndex3", NodePort<simd_float2>(name: "Index Joint 2", kind: .Outlet, description: "Position of index PIP joint in unit coordinates")),
-            ("outputIndex4", NodePort<simd_float2>(name: "Index Knuckle", kind: .Outlet, description: "Position of index MCP joint in unit coordinates")),
-
-            ("outputMiddle1", NodePort<simd_float2>(name: "Middle Tip", kind: .Outlet, description: "Position of middle finger tip in unit coordinates")),
-            ("outputMiddle2", NodePort<simd_float2>(name: "Middle Joint 1", kind: .Outlet, description: "Position of middle DIP joint in unit coordinates")),
-            ("outputMiddle3", NodePort<simd_float2>(name: "Middle Joint 2", kind: .Outlet, description: "Position of middle PIP joint in unit coordinates")),
-            ("outputMiddle4", NodePort<simd_float2>(name: "Middle Knuckle", kind: .Outlet, description: "Position of middle MCP joint in unit coordinates")),
-
-            ("outputRing1", NodePort<simd_float2>(name: "Ring Tip", kind: .Outlet, description: "Position of ring finger tip in unit coordinates")),
-            ("outputRing2", NodePort<simd_float2>(name: "Ring Joint 1", kind: .Outlet, description: "Position of ring DIP joint in unit coordinates")),
-            ("outputRing3", NodePort<simd_float2>(name: "Ring Joint 2", kind: .Outlet, description: "Position of ring PIP joint in unit coordinates")),
-            ("outputRing4", NodePort<simd_float2>(name: "Ring Knuckle", kind: .Outlet, description: "Position of ring MCP joint in unit coordinates")),
-
-            ("outputLittle1", NodePort<simd_float2>(name: "Little Tip", kind: .Outlet, description: "Position of pinky finger tip in unit coordinates")),
-            ("outputLittle2", NodePort<simd_float2>(name: "Little Joint 1", kind: .Outlet, description: "Position of pinky DIP joint in unit coordinates")),
-            ("outputLittle3", NodePort<simd_float2>(name: "Little Joint 2", kind: .Outlet, description: "Position of pinky PIP joint in unit coordinates")),
-            ("outputLittle4", NodePort<simd_float2>(name: "Little Knuckle", kind: .Outlet, description: "Position of pinky MCP joint in unit coordinates")),
+            ("outputThumb", NodePort<ContiguousArray<simd_float2>>(name: "Thumb", kind: .Outlet, description: "Thumb points ordered CMC, MP, IP, Tip in unit coordinates")),
+            ("outputIndex", NodePort<ContiguousArray<simd_float2>>(name: "Index", kind: .Outlet, description: "Index finger points ordered MCP, PIP, DIP, Tip in unit coordinates")),
+            ("outputMiddle", NodePort<ContiguousArray<simd_float2>>(name: "Middle", kind: .Outlet, description: "Middle finger points ordered MCP, PIP, DIP, Tip in unit coordinates")),
+            ("outputRing", NodePort<ContiguousArray<simd_float2>>(name: "Ring", kind: .Outlet, description: "Ring finger points ordered MCP, PIP, DIP, Tip in unit coordinates")),
+            ("outputLittle", NodePort<ContiguousArray<simd_float2>>(name: "Little", kind: .Outlet, description: "Little finger points ordered MCP, PIP, DIP, Tip in unit coordinates")),
 
             ("outputWrist", NodePort<simd_float2>(name: "Wrist", kind: .Outlet, description: "Position of wrist in unit coordinates")),
         ]
@@ -60,63 +41,19 @@ public class HandPoseAnalysisNode: Node
 
     public var inputImage:NodePort<FabricImage>  { port(named: "inputImage") }
 
-    public var outputThumb1:NodePort<simd_float2> { port(named: "outputThumb1") }
-    public var outputThumb2:NodePort<simd_float2> { port(named: "outputThumb2") }
-    public var outputThumb3:NodePort<simd_float2> { port(named: "outputThumb3") }
-    public var outputThumb4:NodePort<simd_float2> { port(named: "outputThumb4") }
-
-    public var outputIndex1:NodePort<simd_float2> { port(named: "outputIndex1") }
-    public var outputIndex2:NodePort<simd_float2> { port(named: "outputIndex2") }
-    public var outputIndex3:NodePort<simd_float2> { port(named: "outputIndex3") }
-    public var outputIndex4:NodePort<simd_float2> { port(named: "outputIndex4") }
-
-    public var outputMiddle1:NodePort<simd_float2> { port(named: "outputMiddle1") }
-    public var outputMiddle2:NodePort<simd_float2> { port(named: "outputMiddle2") }
-    public var outputMiddle3:NodePort<simd_float2> { port(named: "outputMiddle3") }
-    public var outputMiddle4:NodePort<simd_float2> { port(named: "outputMiddle4") }
-
-    public var outputRing1:NodePort<simd_float2> { port(named: "outputRing1") }
-    public var outputRing2:NodePort<simd_float2> { port(named: "outputRing2") }
-    public var outputRing3:NodePort<simd_float2> { port(named: "outputRing3") }
-    public var outputRing4:NodePort<simd_float2> { port(named: "outputRing4") }
-    
-    public var outputLittle1:NodePort<simd_float2> { port(named: "outputLittle1") }
-    public var outputLittle2:NodePort<simd_float2> { port(named: "outputLittle2") }
-    public var outputLittle3:NodePort<simd_float2> { port(named: "outputLittle3") }
-    public var outputLittle4:NodePort<simd_float2> { port(named: "outputLittle4") }
+    public var outputThumb:NodePort<ContiguousArray<simd_float2>> { port(named: "outputThumb") }
+    public var outputIndex:NodePort<ContiguousArray<simd_float2>> { port(named: "outputIndex") }
+    public var outputMiddle:NodePort<ContiguousArray<simd_float2>> { port(named: "outputMiddle") }
+    public var outputRing:NodePort<ContiguousArray<simd_float2>> { port(named: "outputRing") }
+    public var outputLittle:NodePort<ContiguousArray<simd_float2>> { port(named: "outputLittle") }
 
     public var outputWrist:NodePort<simd_float2> { port(named: "outputWrist") }
 
-    private let portNameForPoseKey: [VNHumanHandPoseObservation.JointName: String] = [
-        
-        .thumbTip : "outputThumb1",
-        .thumbIP : "outputThumb2",
-        .thumbMP : "outputThumb3",
-        .thumbCMC : "outputThumb4",
-       
-        .indexTip : "outputIndex1",
-        .indexDIP : "outputIndex2",
-        .indexPIP : "outputIndex3",
-        .indexMCP : "outputIndex4",
-        
-        .middleTip : "outputMiddle1",
-        .middleDIP : "outputMiddle2",
-        .middlePIP : "outputMiddle3",
-        .middleMCP : "outputMiddle4",
-        
-        .ringTip : "outputRing1",
-        .ringDIP : "outputRing2",
-        .ringPIP : "outputRing3",
-        .ringMCP : "outputRing4",
-        
-        .littleTip : "outputLittle1",
-        .littleDIP : "outputLittle2",
-        .littlePIP : "outputLittle3",
-        .littleMCP : "outputLittle4",
-        
-        .wrist : "outputWrist",
-        
-        ]
+    private static let thumbJoints: [VNHumanHandPoseObservation.JointName] = [.thumbCMC, .thumbMP, .thumbIP, .thumbTip]
+    private static let indexJoints: [VNHumanHandPoseObservation.JointName] = [.indexMCP, .indexPIP, .indexDIP, .indexTip]
+    private static let middleJoints: [VNHumanHandPoseObservation.JointName] = [.middleMCP, .middlePIP, .middleDIP, .middleTip]
+    private static let ringJoints: [VNHumanHandPoseObservation.JointName] = [.ringMCP, .ringPIP, .ringDIP, .ringTip]
+    private static let littleJoints: [VNHumanHandPoseObservation.JointName] = [.littleMCP, .littlePIP, .littleDIP, .littleTip]
     
     private var ciContext:CIContext!
     
@@ -143,52 +80,79 @@ public class HandPoseAnalysisNode: Node
             request.preferBackgroundProcessing = false
             request.maximumHandCount = 1
             
-            if let inTex = self.inputImage.value?.texture,
-               let allPoints =  self.handPointsForRequest(request, from: inTex)
-//               let graphRenderer = context.graphRenderer
+            if let inImage = self.inputImage.value,
+               let allPoints =  self.handPointsForRequest(request, from: inImage.texture)
             {
-                
+                let inTex = inImage.texture
                 let aspect = Float(inTex.height)/Float(inTex.width)
-//                let size = simd_float2(x: graphRenderer.renderer.size.width,
-//                                       y: graphRenderer.renderer.size.height)
-                
-                for poseKey in allPoints.keys
-                {
-                    let jointName = VNHumanHandPoseObservation.JointName(rawValue: poseKey)
 
-                    if let portForKey = self.portNameForPoseKey[jointName],
-                       let position = allPoints[poseKey]
-                    {
-                        let port:NodePort<simd_float2> = self.port(named: portForKey)
-                        let ux = remap(Float(position.x), 0.0, 1.0, -1.0, 1.0)
-                        let uy = remap(Float(position.y), 0.0, 1.0, -aspect, aspect)
-                        
-                        port.send( simd_float2(ux, uy) )
-                       //
-                    }
+                if let thumbPoints = self.unitPoints(for: Self.thumbJoints, from: allPoints, aspect: aspect, flipped:inImage.isFlipped )
+                {
+                    self.outputThumb.send(thumbPoints)
                 }
-//                for position in handPoints
-//                {
-//                    let px = remap(position.x, 0.0, 1.0, 0, size.x)
-//                    let py = remap(position.y, 0.0, 1.0, 0, size.y)
-//                    
-//                    let ux = remap(position.x, 0.0, 1.0, -1.0, 1.0)
-//                    let uy = remap(position.y, 0.0, 1.0, -aspect, aspect)
-//                    
-//                    normalizedArray.append(simd_float2( position.x, position.y) )
-//                    pixelsArray.append(simd_float2(x: px, y: py))
-//                    unitsArray.append(simd_float3(x: ux, y: uy, z: 0))
-//                }
-//                
-//                self.outputHandPointsNormalized.send( normalizedArray )
-//                self.outputHandPointsUnits.send( unitsArray )
-//                self.outputHandPointsPixels.send( handPoints )
+
+                if let indexPoints = self.unitPoints(for: Self.indexJoints, from: allPoints, aspect: aspect, flipped:inImage.isFlipped)
+                {
+                    self.outputIndex.send(indexPoints)
+                }
+
+                if let middlePoints = self.unitPoints(for: Self.middleJoints, from: allPoints, aspect: aspect, flipped:inImage.isFlipped)
+                {
+                    self.outputMiddle.send(middlePoints)
+                }
+
+                if let ringPoints = self.unitPoints(for: Self.ringJoints, from: allPoints, aspect: aspect, flipped:inImage.isFlipped)
+                {
+                    self.outputRing.send(ringPoints)
+                }
+
+                if let littlePoints = self.unitPoints(for: Self.littleJoints, from: allPoints, aspect: aspect, flipped:inImage.isFlipped)
+                {
+                    self.outputLittle.send(littlePoints)
+                }
+
+                if let wrist = allPoints[VNHumanHandPoseObservation.JointName.wrist.rawValue]
+                {
+                    self.outputWrist.send(self.unitPoint(from: wrist, aspect: aspect))
+                }
             }
-//            else
-//            {
-//                self.outputHandPointsPixels.send( nil )
-//            }
         }
+    }
+
+    private func unitPoints(for joints: [VNHumanHandPoseObservation.JointName],
+                            from recognizedPoints: [VNRecognizedPointKey: VNRecognizedPoint],
+                            aspect: Float,
+                            flipped:Bool
+    ) -> ContiguousArray<simd_float2>?
+    {
+        var points = ContiguousArray<simd_float2>()
+        points.reserveCapacity(joints.count)
+
+        for joint in joints
+        {
+            guard let recognizedPoint = recognizedPoints[joint.rawValue] else { return nil }
+            points.append(self.unitPoint(from: recognizedPoint, aspect: aspect, flipped: flipped))
+        }
+
+        return points
+    }
+    
+    
+
+    private func unitPoint(from recognizedPoint: VNRecognizedPoint, aspect: Float, flipped:Bool = false) -> simd_float2
+    {
+        let x = remap(Float(recognizedPoint.x), 0.0, 1.0, -1.0, 1.0)
+        let y:Float
+        if flipped
+        {
+            y = remap(Float(recognizedPoint.y), 1.0, 0.0, -aspect, aspect)
+
+        }
+        else
+        {
+            y = remap(Float(recognizedPoint.y), 0.0, 1.0, -aspect, aspect)
+        }
+        return simd_float2(x, y)
     }
         
     private func handPointsForRequest(_ request: VNDetectHumanHandPoseRequest, from texture:MTLTexture) ->  [VNRecognizedPointKey : VNRecognizedPoint]?

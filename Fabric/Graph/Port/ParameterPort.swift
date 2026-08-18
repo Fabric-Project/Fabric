@@ -49,6 +49,9 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
                 self.subscription?.cancel()
                 self.subscription = nil
                 newParam.value = self._parameter.value
+                // A replacement parameter arrives with an id of its own; re-key
+                // it to keep the invariant hydrate(from:) describes.
+                newParam.id = self.id
                 self._parameter = newParam
                 self.value = self._parameter.value
 
@@ -108,11 +111,21 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
     }
     
     override public func encode(to encoder: any Encoder) throws {
-        
+
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(AnyParameter(self._parameter), forKey: .parameter)
 
         try super.encode(to: encoder)
+    }
+
+    /// The initializer establishes port.id == parameter.id; adopting the
+    /// document's port identity must carry the declared backing parameter
+    /// along, or every load-save cycle re-keys the parameter with the fresh
+    /// UUID it was declared with and the invariant silently breaks.
+    override internal func hydrate(from decoded: Port)
+    {
+        super.hydrate(from: decoded)
+        self._parameter.id = self.id
     }
     
     /// After adopting the document's value, re-impose the declared range — but
@@ -174,6 +187,7 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
             // and stay on the previous value.
             self.valueDidChange = true
             self.node?.markDirty()
+            self.onValueChanged?()
 
             if let value,
                self._parameter.value != value

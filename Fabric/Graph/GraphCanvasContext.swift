@@ -82,11 +82,12 @@ public class GraphCanvasContext
             return cachedConnectionPairs
         }
 
-        let outlets = graph.nodes.flatMap(\.ports).filter { $0.kind == .Outlet }
-        cachedConnectionPairs = outlets.flatMap { outlet in
-            outlet.connections
-                .filter { $0.kind == .Inlet }
-                .map { GraphConnectionPair(outlet: outlet, inlet: $0) }
+        cachedConnectionPairs = graph.connections.compactMap { connection in
+            guard let outlet = graph.nodePort(forID: connection.outletPortID),
+                  let inlet = graph.nodePort(forID: connection.inletPortID)
+            else { return nil }
+
+            return GraphConnectionPair(outlet: outlet, inlet: inlet)
         }
         cachedConnectionGraphID = graph.id
         cachedConnectionRevision = graph.connectionRevision

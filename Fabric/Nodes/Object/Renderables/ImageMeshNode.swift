@@ -83,7 +83,7 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
         if self.inputImage.valueDidChange
         {
             self.material.texture = self.inputImage.value?.texture
-            self.material.flipped = !(self.inputImage.value?.isFlipped ?? false)
+            self.material.flipped = (self.inputImage.value?.isFlipped ?? false)
         }
 
         if self.inputColor.valueDidChange,
@@ -96,6 +96,7 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
             || self.inputSize.valueDidChange
             || self.inputSizingDimension.valueDidChange
         {
+            
             let size = self.inputSize.value ?? 1.0
             let aspect: Float
 

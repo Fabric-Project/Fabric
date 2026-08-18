@@ -19,7 +19,6 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
     open class var sourceShaderName: String { "" }
     open class var defaultImageInputCountHint: Int? { nil }
-    open class var preserveDecodedImageInputPortsOnDecode: Bool { false }
 
     open class PostMaterial: SourceMaterial {}
 
@@ -83,8 +82,12 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
         self.postMaterial = material
         self.postProcessor = PostProcessEncoder(context: context,
-                                           material: material,
-                                           frameBufferOnly: false)
+                                                material: material,
+                                                depthPixelFormat: .invalid,
+                                                stencilPixelFormat: .invalid,
+                                                depthStoreAction: .dontCare,
+                                                stencilStoreAction: .dontCare,
+                                                frameBufferOnly: false)
 
         super.init(context: context)
 
@@ -101,15 +104,18 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
         self.postMaterial = material
         self.postProcessor = PostProcessEncoder(context: context,
-                                           material: material,
-                                           frameBufferOnly: false)
+                                                material: material,
+                                                depthPixelFormat: .invalid,
+                                                stencilPixelFormat: .invalid,
+                                                depthStoreAction: .dontCare,
+                                                stencilStoreAction: .dontCare,
+                                                frameBufferOnly: false)
 
         super.init(context: context)
 
         self.postInit()
 
-        self.postSetupSynchronizePorts(allowReplace: false,
-                                       preserveExistingImageInputPorts: Self.preserveDecodedImageInputPortsOnDecode)
+        self.postSetupSynchronizePorts(allowReplace: false)
     }
     
     public func setFileURL(_ url: URL) {
@@ -142,8 +148,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         let decodedEffectPath = try container.decodeIfPresent(String.self, forKey: .effectPath)
 
         if let path = decodedEffectPath {
-            let bundle = Bundle.module
-            if let shaderURL = bundle.resourceURL?.appendingPathComponent(path) {
+            if let shaderURL = Self.resolveBundleResource(path: path) {
                 self.url = shaderURL
                 self.cachedFileURLName = Self.fileURLToName(fileURL: shaderURL)
 
@@ -151,8 +156,12 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
                 self.postMaterial = material
                 self.postProcessor = PostProcessEncoder(context:context,
-                                                   material: material,
-                                                   frameBufferOnly: false)
+                                                        material: material,
+                                                        depthPixelFormat: .invalid,
+                                                        stencilPixelFormat: .invalid,
+                                                        depthStoreAction: .dontCare,
+                                                        stencilStoreAction: .dontCare,
+                                                        frameBufferOnly: false)
             }
             else {
                 self.cachedFileURLName = nil
@@ -164,8 +173,12 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
                 self.postMaterial = material
                 self.postProcessor = PostProcessEncoder(context:context,
-                                                   material: material,
-                                                   frameBufferOnly: false)
+                                                        material: material,
+                                                        depthPixelFormat: .invalid,
+                                                        stencilPixelFormat: .invalid,
+                                                        depthStoreAction: .dontCare,
+                                                        stencilStoreAction: .dontCare,
+                                                        frameBufferOnly: false)
             }
         }
         else {
@@ -178,8 +191,12 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
             self.postMaterial = material
             self.postProcessor = PostProcessEncoder(context:context,
-                                               material: material,
-                                               frameBufferOnly: false)
+                                                    material: material,
+                                                    depthPixelFormat: .invalid,
+                                                    stencilPixelFormat: .invalid,
+                                                    depthStoreAction: .dontCare,
+                                                    stencilStoreAction: .dontCare,
+                                                    frameBufferOnly: false)
         }
 
         self.lastKnownInputCount = try container.decodeIfPresent(Int.self, forKey: .lastKnownInputCount)
@@ -191,17 +208,14 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
         self.postInit()
         
-        self.postSetupSynchronizePorts(allowReplace: false,
-                                       preserveExistingImageInputPorts: Self.preserveDecodedImageInputPortsOnDecode)
+        self.postSetupSynchronizePorts(allowReplace: false)
     }
 
     override public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
 
         if let url = self.url {
-            let last3 = url.pathComponents.suffix(3)
-            let path = last3.joined(separator: "/")
-            try container.encode(path, forKey: .effectPath)
+            try container.encodeIfPresent(Self.bundleRelativeResourcePath(for: url), forKey: .effectPath)
         }
 
         try container.encode(1, forKey: .baseImageNodeVersion)
@@ -213,30 +227,11 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
     private func postInit()
     {
         self.postProcessor.label = self.name + " Post Processor"
-        
-        self.postProcessor.renderer.depthTextureStorageMode = .memoryless
-        self.postProcessor.renderer.depthLoadAction = .dontCare
-        self.postProcessor.renderer.depthStoreAction = .dontCare
-
-        self.postProcessor.renderer.stencilTextureStorageMode = .memoryless
-        self.postProcessor.renderer.stencilLoadAction = .dontCare
-        self.postProcessor.renderer.stencilStoreAction = .dontCare
     }
     
-    open func postSetupSynchronizePorts(allowReplace: Bool, preserveExistingImageInputPorts: Bool = false) {
-        self.refreshImageInputPortCache()
-        let existingImageInputCount = self.cachedImageInputPorts.count
-
+    open func postSetupSynchronizePorts(allowReplace: Bool) {
         let inferredInputCount = self.inferInputCountFromShader() ?? self.lastKnownInputCount
-        let resolvedInputCount: Int
-        if preserveExistingImageInputPorts && existingImageInputCount > 0 {
-            resolvedInputCount = max(existingImageInputCount, inferredInputCount)
-        }
-        else {
-            resolvedInputCount = inferredInputCount
-        }
-
-        self.lastKnownInputCount = max(0, resolvedInputCount)
+        self.lastKnownInputCount = max(0, inferredInputCount)
 
         self.syncImageInputPorts(targetCount: self.lastKnownInputCount, allowReplace: allowReplace)
         self.synchronizeOutputImagePorts()
@@ -300,7 +295,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
                 canonicalPort.published = true
             }
 
-            let inboundConnections = legacyPort.connections.filter { $0.kind == .Inlet }
+            let inboundConnections = legacyPort.connectedInlets
             for inlet in inboundConnections {
                 canonicalPort.connect(to: inlet)
             }
@@ -479,13 +474,13 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         self.ports.first(where: { $0.parameter?.label == label }) as? ParameterPort<Int>
     }
 
-    func inputImageTexture(at index: Int) -> MTLTexture? {
+    func inputImage(at index: Int) -> FabricImage? {
         let ports = self.imageInputPorts()
         guard index >= 0, index < ports.count else {
             return nil
         }
 
-        return ports[index].value?.texture
+        return ports[index].value
     }
 
     /// Labels of parameter ports that have been claimed by `syncDynamicParameterPortsFromMaterial`.
@@ -645,7 +640,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
     public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
-        let anyPortChanged = self.ports.reduce(false) { partialResult, next in
+        let shouldExecute = self.ports.reduce(false) { partialResult, next in
             partialResult || next.valueDidChange
         }
 
@@ -664,8 +659,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             let width = max(1, widthPort.value ?? 512)
             let height = max(1, heightPort.value ?? 512)
 
-            self.postProcessor.renderer.size.width = Float(width)
-            self.postProcessor.renderer.size.height = Float(height)
+            self.postProcessor.resize(size: (width: Float(width), height: Float(height)), scaleFactor: 1)
 
             let outImage = try renderer.newImage(withWidth: width, height: height)
 
@@ -678,19 +672,24 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             return
         }
 
-        guard anyPortChanged else {
+        guard shouldExecute else {
             return
         }
 
         self.synchronizeDynamicValuePortsToMaterial()
 
-        guard let inputTexture0 = self.inputImageTexture(at: 0) else {
+        guard let inputImage = self.inputImage(at: 0)
+        else {
             self.outputTexturePort.send(nil)
             return
         }
+        
+        let inputTexture0 = inputImage.texture
 
         let outImage = try renderer.newImage(withWidth: inputTexture0.width, height: inputTexture0.height)
 
+        outImage.isFlipped = inputImage.isFlipped
+        
         let textures = self.imageInputPorts().map { $0.value?.texture }
 
         self.postProcessor.mesh.preDraw = { renderEncoder in
@@ -700,8 +699,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             }
         }
 
-        self.postProcessor.renderer.size.width = Float(inputTexture0.width)
-        self.postProcessor.renderer.size.height = Float(inputTexture0.height)
+        self.postProcessor.resize(size: (width: Float(inputTexture0.width), height: Float(inputTexture0.height)), scaleFactor: 1)
 
         let renderPassDesc = MTLRenderPassDescriptor()
         renderPassDesc.colorAttachments[0].texture = outImage.texture

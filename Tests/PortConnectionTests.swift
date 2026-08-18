@@ -74,6 +74,11 @@ struct PortConnectionTests {
             decoded.nodes.first { $0.id == source.id } as? NumberBinaryOperator
         )
         #expect(decodedSource.outputNumber.connections.count == 1)
+        #expect(decodedSource.outputNumber.connectedInlets == [decodedSink.inputNumber1])
+        #expect(decodedSink.inputNumber1.connectedOutlets == [decodedSource.outputNumber])
+
+        decodedSource.outputNumber.send(144)
+        #expect(decodedSink.inputNumber1.value == 144)
     }
 
     @Test("Graph encoding records required plugins and qualified node IDs")
@@ -114,6 +119,97 @@ struct PortConnectionTests {
         #expect(decodedGraph.nodes.first is PerspectiveCameraNode)
     }
 
+    @Test("Programmatic connect refuses type-incompatible ports")
+    func programmaticConnectRefusesIncompatibleTypes() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let imageSource = PassThroughNode<FabricImage>(context: context)
+        let numberSink = NumberBinaryOperator(context: context)
+        graph.addNode(imageSource)
+        graph.addNode(numberSink)
+
+        // The canvas gates drops on canConnect; the untyped connect entry the
+        // procedural API and decode restore use must refuse the same pairs.
+        (imageSource.output as Fabric.Port).connect(to: numberSink.inputNumber1)
+        #expect(imageSource.output.connections.isEmpty)
+        #expect(numberSink.inputNumber1.connections.isEmpty)
+
+        // Convertible scalars stay connectable — send can service Float→Int.
+        let intSink = PassThroughNode<Int>(context: context)
+        graph.addNode(intSink)
+        (numberSink.outputNumber as Fabric.Port).connect(to: intSink.input)
+        #expect(numberSink.outputNumber.connections.count == 1)
+    }
+
+    @Test("Decode drops a wire whose port type changed, and reports it")
+    func decodeDropsIncompatibleWireAndReportsIt() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let imageSource = PassThroughNode<FabricImage>(context: context)
+        let holdNode = SampleAndHoldNode(context: context, portType: .Image)
+        graph.addNode(imageSource)
+        graph.addNode(holdNode)
+
+        let holdInput = try #require(holdNode.findPort(named: "inputValue") as Fabric.Port?)
+        (imageSource.output as Fabric.Port).connect(to: holdInput)
+        #expect(holdInput.connections.count == 1)
+
+        // Re-type the node in the saved document, as an edit in a newer build
+        // would: the rebuilt Float ports adopt their persisted identity, so
+        // connection restore finds the UUID — and must refuse the Image wire.
+        let data = try JSONEncoder().encode(graph)
+        var object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        var nodeMap = try #require(object["nodeMap"] as? [[String: Any]])
+        for index in nodeMap.indices {
+            guard var value = nodeMap[index]["value"] as? [String: Any],
+                  value["strategy"] as? String == "Image" else { continue }
+            value["strategy"] = "Float"
+            nodeMap[index]["value"] = value
+        }
+        object["nodeMap"] = nodeMap
+
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decoded = try decoder.decode(Graph.self, from: try JSONSerialization.data(withJSONObject: object))
+
+        let decodedHold = try #require(decoded.nodes.first { $0.id == holdNode.id })
+        let decodedInput = try #require(decodedHold.findPort(named: "inputValue") as Fabric.Port?)
+        #expect(decodedInput.id == holdInput.id)
+        #expect(decodedInput.connections.isEmpty)
+        #expect(decoded.droppedConnectionDiagnostics.count == 1)
+        #expect(decoded.droppedConnectionDiagnostics.first?.reason == .incompatibleTypes)
+    }
+
+    @Test("Decode reports a wire whose endpoint no longer resolves")
+    func decodeReportsWireWithMissingEndpoint() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let source = NumberBinaryOperator(context: context)
+        let sink = NumberBinaryOperator(context: context)
+        graph.addNode(source)
+        graph.addNode(sink)
+        source.outputNumber.connect(to: sink.inputNumber1)
+
+        // Remove the source node from the document; the port map still holds
+        // both directions of its wire.
+        let data = try JSONEncoder().encode(graph)
+        var object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let nodeMap = try #require(object["nodeMap"] as? [[String: Any]])
+        object["nodeMap"] = nodeMap.filter { entry in
+            (entry["value"] as? [String: Any])?["id"] as? String != source.id.uuidString
+        }
+
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decoded = try decoder.decode(Graph.self, from: try JSONSerialization.data(withJSONObject: object))
+
+        #expect(decoded.droppedConnectionDiagnostics.count == 1)
+        #expect(decoded.droppedConnectionDiagnostics.first?.reason == .missingEndpoint)
+    }
+
     @Test("Generic array virtual type compatibility is array scoped")
     func genericArrayVirtualTypeCompatibilityIsArrayScoped() {
         let genericArray = PortType.Array(portType: .Virtual)
@@ -137,6 +233,27 @@ struct PortConnectionTests {
         #expect(!arrayInlet.canConnect(to: scalarOutlet))
         #expect(!arrayInlet.canConnect(to: virtualOutlet))
         #expect(arrayInlet.canConnect(to: concreteArrayOutlet))
+    }
+
+    @Test("Numeric virtual type compatibility is numeric scoped")
+    func numericVirtualTypeCompatibilityIsNumericScoped() {
+        let numericVirtual = PortType.NumericVirtual
+
+        #expect(numericVirtual.canConnect(to: .Float))
+        #expect(numericVirtual.canConnect(to: .Int))
+        #expect(numericVirtual.canConnect(to: .Vector3))
+        #expect(numericVirtual.canConnect(to: .Transform))
+        #expect(numericVirtual.canConnect(to: .Array(portType: .Float)))
+        #expect(numericVirtual.canConnect(to: numericVirtual))
+
+        // A pure virtual port boxes anything, numbers included.
+        #expect(numericVirtual.canConnect(to: .Virtual))
+
+        #expect(!numericVirtual.canConnect(to: .Image))
+        #expect(!numericVirtual.canConnect(to: .String))
+        #expect(!numericVirtual.canConnect(to: .Bool))
+        #expect(!numericVirtual.canConnect(to: .Geometry))
+        #expect(!numericVirtual.canConnect(to: .Array(portType: .String)))
     }
 
     @Test("Pure virtual inlets remain universal")
@@ -312,8 +429,8 @@ struct PortConnectionTests {
 
         stringOutput.connect(to: textGeometry.inputText)
 
-        #expect(stringOutput.connections == [textGeometry.inputText])
-        #expect(textGeometry.inputText.connections == [stringOutput])
+        #expect(stringOutput.connectedPorts == [textGeometry.inputText])
+        #expect(textGeometry.inputText.connectedPorts == [stringOutput])
     }
 
     @Test("Virtual strategy array nodes expose generic array ports")
@@ -335,5 +452,27 @@ struct PortConnectionTests {
         let queueOutput: Fabric.Port = queue.port(named: "outputPort")
         #expect(queueInput.portType == .Virtual)
         #expect(queueOutput.portType == .Array(portType: .Virtual))
+    }
+
+    @Test("First and last array values mirror the selected element type")
+    func firstAndLastArrayValuesMirrorSelectedElementType() throws {
+        guard let context = makeContext() else { return }
+
+        for node in [
+            ArrayFirstValueNode(context: context, portType: .Virtual),
+            ArrayLastValueNode(context: context, portType: .Virtual),
+        ] {
+            let originalInput: Fabric.Port = node.port(named: "inputPort")
+            let originalOutput: Fabric.Port = node.port(named: "outputPort")
+
+            node.strategy = PortType.Vector2.rawValue
+
+            let specializedInput: Fabric.Port = node.port(named: "inputPort")
+            let specializedOutput: Fabric.Port = node.port(named: "outputPort")
+            #expect(specializedInput.portType == .Array(portType: .Vector2))
+            #expect(specializedOutput.portType == .Vector2)
+            #expect(specializedInput.id == originalInput.id)
+            #expect(specializedOutput.id == originalOutput.id)
+        }
     }
 }

@@ -46,7 +46,8 @@ public struct GraphCanvas : View
             GraphBackground()
                 .offset(-canvasSize / 2)
 
-            GraphNotesView(editingContext: editingContext)
+            GraphNotesView(editingContext: editingContext,
+                           focus: focus)
                 .offset(-canvasSize / 2)
 
             GraphNodesView(editingContext: editingContext,

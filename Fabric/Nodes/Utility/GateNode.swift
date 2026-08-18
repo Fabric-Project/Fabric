@@ -14,6 +14,7 @@ public final class GateNode: RoutingNode
     override public class var nodeDescription: String { "Routes one input to one selected output. Inverse of Switch. Only the selected output branch is evaluated; consumers of unselected branches will see the value freeze." }
 
     private static let inputPortName = "input"
+    private var activeRouteIndex: Int?
 
     private static func outputPortName(_ index: Int) -> String
     {
@@ -72,5 +73,18 @@ public final class GateNode: RoutingNode
     private func selectedOutputPort() -> Port?
     {
         findPort(named: Self.outputPortName(selectedRouteIndex()))
+    }
+
+    public override func updateConnectionTopology()
+    {
+        inputIndex.setConnectionsActive(true)
+        let input: Port? = findPort(named: Self.inputPortName)
+        input?.setConnectionsActive(true)
+
+        let routeIndex = selectedRouteIndex()
+        guard activeRouteIndex != routeIndex else { return }
+
+        activeRouteIndex = routeIndex
+        graph?.markExecutionTopologyChanged()
     }
 }

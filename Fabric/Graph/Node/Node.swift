@@ -179,17 +179,13 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         // never match a declared or rebuilt port surface via
         // droppedPortStateKeys instead of resurrecting retired ports.
         let snaps = try container.decodeIfPresent([PortRegistry.Snapshot].self, forKey: .ports) ?? []
-
-        for snap in snaps
-        {
-            self.pendingPortHydration[snap.name] = snap.payload.base
-        }
+        self.portHydrationSession = PortHydrationSession(snapshots: snaps)
 
         let declared = Self.registerPorts(context: context)
 
         for d in declared
         {
-            self.consumePendingPortHydration(for: d.port, registryKey: d.name)
+            self.portHydrationSession?.hydrate(d.port, registryKey: d.name)
             self.registry.register(d.port, name: d.name, owner: self)
         }
 
@@ -289,36 +285,46 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
 
     // MARK: - Port state hydration (declare-then-hydrate decode)
 
-    /// Decoded port snapshots not yet applied to a registered port, keyed by
-    /// registry key. Consumed as declared and dynamic ports register during
-    /// decode; whatever remains matched nothing the code declares or rebuilds.
-    private var pendingPortHydration: [String: Port] = [:]
+    /// The document's port state for the duration of decode; nil otherwise.
+    /// Graph finalizes and clears it once node inits and their dynamic
+    /// rebuilds are done, so ports added later in the node's life can never
+    /// resurrect stale document state.
+    private var portHydrationSession: PortHydrationSession?
 
     /// Registry keys from the document whose port state found no declared or
     /// rebuilt port to land on. Dropping that state is deliberate — the code
     /// owns the port set — but it is data loss, so Graph reports it after
     /// decode rather than discarding silently.
-    internal var droppedPortStateKeys: [String] { Array(pendingPortHydration.keys).sorted() }
+    internal var droppedPortStateKeys: [String] { self.portHydrationSession?.unconsumedKeys ?? [] }
 
-    /// Legacy registry keys whose document state should hydrate the port now
-    /// registered under `registryKey`. Nodes that renamed dynamic ports
-    /// override this so documents saved under the old names keep port identity
-    /// (and therefore wires) across the rename.
-    open class func legacyPortStateKeys(forRegistryKey registryKey: String) -> [String] { [] }
-
-    private func consumePendingPortHydration(for port: Port, registryKey: String)
+    /// Registers the document's remaining port state as ports in their own
+    /// right. A node whose source cannot rebuild its port set at decode time
+    /// (an unparseable script, a shader that no longer compiles) would
+    /// otherwise decode with none of the ports the document saved, taking
+    /// every wire with them and making the loss permanent at the next save.
+    /// The decoded instances carry their saved identity, value and published
+    /// state, so a later successful rebuild reconciles against them by name
+    /// and keeps the wires whose names and types still agree.
+    ///
+    /// Only ever does anything mid-decode, and must run inside the node's init
+    /// path so Graph still sees the keys as adopted rather than dropped.
+    internal func adoptRemainingSnapshotPortsAsFallback()
     {
-        let candidateKeys = [registryKey] + Self.legacyPortStateKeys(forRegistryKey: registryKey)
+        guard let session = self.portHydrationSession else { return }
 
-        for key in candidateKeys
+        for (registryKey, port) in session.drainPendingSnapshots()
         {
-            guard let decoded = self.pendingPortHydration[key] else { continue }
-            guard decoded.kind == port.kind else { continue }
-
-            self.pendingPortHydration.removeValue(forKey: key)
-            port.hydrate(from: decoded)
-            return
+            self.addDynamicPort(port, name: registryKey)
         }
+    }
+
+    /// Ends the decode-time hydration window, returning the registry keys
+    /// whose state never found a port.
+    internal func finalizePortHydration() -> [String]
+    {
+        let droppedKeys = self.droppedPortStateKeys
+        self.portHydrationSession = nil
+        return droppedKeys
     }
 
     // Dynamic add/remove (kept by serialization automatically)
@@ -326,7 +332,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     {
         // Dynamic ports created after decode (rebuildPorts and friends) adopt
         // their persisted state here, before the registry indexes their id.
-        self.consumePendingPortHydration(for: p, registryKey: name ?? p.name)
+        self.portHydrationSession?.hydrate(p, registryKey: name ?? p.name)
 
         self.registry.addDynamic(p, owner: self, name:name)
         self.invalidatePortCaches()
@@ -341,6 +347,8 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
 
     public func removePort(_ p: Port)
     {
+        self.portHydrationSession?.relinquish(p)
+
         self.registry.remove(p)
         self.invalidatePortCaches()
         if let param = p.parameter
@@ -432,7 +440,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     private func calcInputNodes() -> [Node]
     {
         let nodeInputs = self.ports.filter( { $0.kind == .Inlet } )
-        let inputNodes = nodeInputs.compactMap { $0.connections.compactMap(\.node) }.flatMap(\.self)
+        let inputNodes = nodeInputs.compactMap { $0.connectedPorts.compactMap(\.node) }.flatMap(\.self)
 
         return inputNodes
     }
@@ -440,7 +448,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     private func calcOutputNodes() -> [Node]
     {
         let nodeOutputs = self.ports.filter( { $0.kind == .Outlet } )
-        let outputNodes = nodeOutputs.compactMap { $0.connections.compactMap(\.node) }.flatMap(\.self)
+        let outputNodes = nodeOutputs.compactMap { $0.connectedPorts.compactMap(\.node) }.flatMap(\.self)
 
         return outputNodes
     }
@@ -481,6 +489,10 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         }
 
         return cancellable
+    }
+
+    open func updateConnectionTopology()
+    {
     }
 
     // MARK: - Execution
@@ -667,4 +679,30 @@ public protocol NodeFileLoadingProtocol : Node
     func setFileURL(_ url: URL)
 
     static var supportedContentTypes: [UTType] { get }
+}
+
+public extension NodeFileLoadingProtocol
+{
+    /// A file that ships inside the package bundle is persisted by its path
+    /// below the bundle's resource root, not its URL: the bundle sits somewhere
+    /// different on every machine and in every build, so an absolute path would
+    /// bind the document to the machine that wrote it. Nil for a URL outside
+    /// the bundle, which has no bundle-relative spelling — the encode site
+    /// decides what such a file persists as.
+    static func bundleRelativeResourcePath(for url: URL) -> String?
+    {
+        guard let resourceRoot = Bundle.module.resourceURL else { return nil }
+
+        let base = resourceRoot.standardizedFileURL.resolvingSymlinksInPath().pathComponents
+        let full = url.standardizedFileURL.resolvingSymlinksInPath().pathComponents
+
+        guard full.count > base.count, full.starts(with: base) else { return nil }
+
+        return full.dropFirst(base.count).joined(separator: "/")
+    }
+
+    static func resolveBundleResource(path: String) -> URL?
+    {
+        Bundle.module.resourceURL?.appending(path: path)
+    }
 }

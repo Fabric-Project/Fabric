@@ -427,6 +427,12 @@ public class MathExpressionNode: Node
             case (false, _):    title
         }
 
+        // Keep the settings model mirroring the node, not just model → node.
+        // Its didSet guards on equality, so this cannot loop.
+        if self._settingsModel.stringExpression != self.stringExpression
+        {
+            self._settingsModel.stringExpression = self.stringExpression
+        }
         self._settingsModel.diagnostics = result.diagnostics
         self.nameSubject.send()
     }
@@ -468,7 +474,7 @@ public class MathExpressionNode: Node
                 if port.portType == wantType { continue } // unchanged — keep wires
 
                 // Retype: preserve connections the new type can still accept.
-                let survivors = port.connections.filter { wantType.canConnect(to: $0.portType) }
+                let survivors = port.connectedPorts.filter { wantType.canConnect(to: $0.portType) }
                 self.removePort(port) // disconnects everything
                 let replacement = self.makePort(name: portName, type: valueType, kind: kind)
                 self.addDynamicPort(replacement, name: portName)

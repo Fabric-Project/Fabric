@@ -95,7 +95,7 @@ public class NumericTypeAgnosticNode: StrategyNode
     {
         guard selectedNumericPortType == .NumericVirtual,
               let port: Port = findPort(named: portName),
-              let connectedType = port.connections.first?.portType,
+              let connectedType = port.connectedPorts.first?.portType,
               Self.supportedPortTypes.contains(connectedType)
         else { return false }
 
@@ -112,7 +112,7 @@ public class NumericTypeAgnosticNode: StrategyNode
     {
         if let existing: Port = findPort(named: registryName), existing.portType != portType
         {
-            let oldConnections = existing.connections
+            let oldConnections = existing.connectedPorts
             removePort(existing)
             let replacement = Self.makeFreshPort(
                 portType: portType,

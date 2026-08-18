@@ -62,23 +62,35 @@ class FabricDocument: FileDocument
         self.editingContext = GraphCanvasContext(rootGraph: graph)
         self.renderer = GraphRenderer(context: self.context, graph: graph)
 
-        // Time source
-        let currentTimeNode = CurrentTimeNode(context: self.context)
+        // Spin toggle, published as 'Spin?'
+        let spinNode = PassThroughNode<Bool>(context: self.context)
+        try? spinNode.enableExecution(renderer: self.renderer)
+        try? spinNode.startExecution(renderer: self.renderer)
+        spinNode.input.published = true
+        spinNode.input.publishedName = "Spin?"
+        spinNode.input.value = true
 
-        try? currentTimeNode.enableExecution(renderer: self.renderer)
-        try? currentTimeNode.startExecution(renderer: self.renderer)
-        
-        // Math expression: secs * speed
-        let mathNode = MathExpressionNode(context: self.context, expression: "secs * speed")
+        // Math expression: Amount * Speed, with 'Speed' published
+        let mathNode = MathExpressionNode(context: self.context, expression: "Amount * Speed")
         try? mathNode.enableExecution(renderer: self.renderer)
         try? mathNode.startExecution(renderer: self.renderer)
 
-        // Publish the 'speed' port with a default of 10
-        let speedPort = mathNode.findPort(named: "speed", as: ParameterPort<Float>.self)!
+        let speedPort = mathNode.findPort(named: "Speed", as: ParameterPort<Float>.self)!
         speedPort.published = true
         speedPort.value = 10
 
-        
+        // Smooth the stepped speed into a ramp (springy, slightly bouncy)
+        let smoothNode = NumberSmoothNode(context: self.context, strategy: SmoothFilterMode.spring)
+        try? smoothNode.enableExecution(renderer: self.renderer)
+        try? smoothNode.startExecution(renderer: self.renderer)
+        smoothNode.findPort(named: "inputDamping", as: ParameterPort<Float>.self)!.value = 0.2
+
+        // Rotation driver: integrates its input every frame
+        let integralNode = NumberIntegralNode(context: self.context)
+        try? integralNode.enableExecution(renderer: self.renderer)
+        try? integralNode.startExecution(renderer: self.renderer)
+
+
         // Euler orientation (drives mesh rotation on X and Y). Defaults to
         // the "Euler" strategy, whose inputX/inputY/inputZ/outputOrientation
         // ports are dynamic (added by StrategyNode), hence findPort below
@@ -111,29 +123,29 @@ class FabricDocument: FileDocument
         try? directionalLightNode.startExecution(renderer: self.renderer)
         directionalLightNode.inputPosition.value = SIMD3<Float>(1, 2, 5)
 
-        // Connections — animation chain. The Math Expression node derives its
-        // output ports from the expression; a bare expression like "secs * speed"
-        // produces a single float output named "result".
-        let mathOutput = mathNode.findPort(named: "result", as: NodePort<Float>.self)!
-        currentTimeNode.outputNumber.connect(to: mathNode.findPort(named: "secs", as: ParameterPort<Float>.self)!)
-        mathOutput.connect(to: eulerNode.findPort(named: "inputX", as: ParameterPort<Float>.self)!)
-        mathOutput.connect(to: eulerNode.findPort(named: "inputY", as: ParameterPort<Float>.self)!)
-        eulerNode.findPort(named: "outputOrientation", as: NodePort<simd_float4>.self)!.connect(to: meshNode.inputOrientation)
-
-        // Connections — geometry
-        boxNode.outputGeometry.connect(to: meshNode.inputGeometry)
-        materialNode.outputMaterial.connect(to: meshNode.inputMaterial)
-
-        
-        // Add all nodes to graph
-        self.editingContext.currentGraph.addNode(currentTimeNode)
+        // Ports can only register connections after their nodes belong to the graph.
+        self.editingContext.currentGraph.addNode(spinNode)
         self.editingContext.currentGraph.addNode(mathNode)
+        self.editingContext.currentGraph.addNode(smoothNode)
+        self.editingContext.currentGraph.addNode(integralNode)
         self.editingContext.currentGraph.addNode(eulerNode)
         self.editingContext.currentGraph.addNode(boxNode)
         self.editingContext.currentGraph.addNode(materialNode)
         self.editingContext.currentGraph.addNode(meshNode)
         self.editingContext.currentGraph.addNode(directionalLightNode)
         self.editingContext.currentGraph.addNode(cameraNode)
+
+        // Connections — animation chain
+        spinNode.output.connect(to: mathNode.findPort(named: "Amount", as: ParameterPort<Float>.self)!)
+        mathNode.findPort(named: "result", as: NodePort<Float>.self)!.connect(to: smoothNode.findPort(named: "inputNumber", as: ParameterPort<Float>.self)!)
+        smoothNode.findPort(named: "outputNumber", as: NodePort<Float>.self)!.connect(to: integralNode.inputNumber)
+        integralNode.outputNumber.connect(to: eulerNode.findPort(named: "inputX", as: ParameterPort<Float>.self)!)
+        integralNode.outputNumber.connect(to: eulerNode.findPort(named: "inputY", as: ParameterPort<Float>.self)!)
+        eulerNode.findPort(named: "outputOrientation", as: NodePort<simd_float4>.self)!.connect(to: meshNode.inputOrientation)
+
+        // Connections — geometry
+        boxNode.outputGeometry.connect(to: meshNode.inputGeometry)
+        materialNode.outputMaterial.connect(to: meshNode.inputMaterial)
 
         // Auto-layout the graph
         self.editingContext.currentGraph.autoLayout()

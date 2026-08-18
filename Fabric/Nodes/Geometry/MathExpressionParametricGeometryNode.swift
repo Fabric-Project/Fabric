@@ -244,6 +244,12 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
 
     private func parseExpressions()
     {
+        // Keep the settings model mirroring the node, not just model → node.
+        // Its didSets guard on equality, so this cannot loop.
+        if _settingsModel.expressionX != expressionX { _settingsModel.expressionX = expressionX }
+        if _settingsModel.expressionY != expressionY { _settingsModel.expressionY = expressionY }
+        if _settingsModel.expressionZ != expressionZ { _settingsModel.expressionZ = expressionZ }
+
         evalX = axisExpression(from: expressionX)
         _settingsModel.statusX = evalX != nil
 

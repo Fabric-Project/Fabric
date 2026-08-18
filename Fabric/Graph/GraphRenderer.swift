@@ -13,6 +13,7 @@ import Satin
 public class GraphRenderer : ViewRenderer
 {
     public let renderEncoder:RenderEncoder
+    private let traceEditorExecution = false
 
     override public var sampleCount: Int { self.context.sampleCount }
     override public var colorPixelFormat: MTLPixelFormat { self.context.colorPixelFormat }
@@ -20,8 +21,10 @@ public class GraphRenderer : ViewRenderer
     override public var stencilPixelFormat: MTLPixelFormat { self.context.stencilPixelFormat }
 
     public var executionCount = 0
+    public private(set) var executionTrace: GraphExecutionTrace?
 
     public private(set) var lastGraphExecutionTime = CACurrentMediaTime()
+    private var graphExecutionStartTime = CACurrentMediaTime()
 
     public private(set) var currentExecutionInfo: GraphExecutionInfo = GraphExecutionInfo(
         timing: GraphExecutionTiming(time: 0, deltaTime: 0, displayTime: nil, systemTime: 0, frameNumber: -1)
@@ -38,8 +41,10 @@ public class GraphRenderer : ViewRenderer
     private var graphRequiresResize: Bool = false
     public private(set) var resizeScaleFactor: Float = 1.0
 
-    // One feedback cache per graph/subgraph UUID to handle different execution cadences
-    private var feedbackCaches: [UUID: GraphRendererFeedbackCache] = [:]
+    private var executionPlanCaches: [ObjectIdentifier: GraphExecutionPlanCache] = [:]
+    private var traceExecutionIndex = 0
+    private var graphExecutionTraceStack: [GraphExecutionTraceFrameBuilder] = []
+    private var nodeExecutionTraceStack: [NodeExecutionTraceBuilder] = []
 
     public let graph: Graph
 
@@ -58,7 +63,13 @@ public class GraphRenderer : ViewRenderer
     public init(context: Context, graph: Graph)
     {
         self.graph = graph
-        self.renderEncoder = RenderEncoder(context: context, stencilStoreAction: .store, frameBufferOnly: false)
+        self.renderEncoder = RenderEncoder(
+            context: context,
+            clearColor: .zero,
+            depthStoreAction: .store,
+            stencilStoreAction: .dontCare,
+            frameBufferOnly: false
+        )
         self.renderEncoder.sortObjects = true
 
         self.sceneProxy = Object(context: context)
@@ -79,8 +90,13 @@ public class GraphRenderer : ViewRenderer
 
     override public func setup() throws {
         try super.setup()
+
+        let now = CACurrentMediaTime()
+        self.graphExecutionStartTime = now
+        self.lastGraphExecutionTime = now
+
         try enableExecution(graph: graph)
-        try startExecution(graph: graph)
+        try startExecution(graph: graph, trace: traceEditorExecution)
     }
 
     override public func update() throws {
@@ -91,10 +107,10 @@ public class GraphRenderer : ViewRenderer
         lastGraphExecutionTime = now
         
         let timing = GraphExecutionTiming(
-            time: now,
+            time: now - self.graphExecutionStartTime,
             deltaTime: delta,
-            displayTime: now,
-            systemTime: now,
+            displayTime: now - self.graphExecutionStartTime,
+            systemTime: Date.timeIntervalSinceReferenceDate,
             frameNumber: frameIndex
         )
         currentExecutionInfo = GraphExecutionInfo(timing: timing, eventInfo: pendingEventInfo)
@@ -109,7 +125,9 @@ public class GraphRenderer : ViewRenderer
     }
 
     override public func cleanup() throws {
-        try stopExecution(graph: graph)
+        let traceURL = URL(fileURLWithPath: "/private/tmp")
+            .appending(path: "fabric-graph-execution-trace-\(graph.id).json")
+        try stopExecution(graph: graph, saveTraceTo: traceEditorExecution ? traceURL : nil)
         try disableExecution(graph: graph)
         teardown(graph: graph)
         try super.cleanup()
@@ -138,154 +156,6 @@ public class GraphRenderer : ViewRenderer
                            commandBuffer: commandBuffer)
     }
 
-    // MARK: - Pull traversal (shared by planning and on-demand execution)
-
-    /// Where evaluation pulls start: every consumer node, every published output
-    /// port's node (pulled for that specific port), and any explicitly forced
-    /// nodes.
-    private func evaluationRoots(for graph: Graph,
-                                 forcing forcedNodes: [Node] = []) -> [(node: Node, requestedOutputPort: Port?)]
-    {
-        var roots: [(node: Node, requestedOutputPort: Port?)] = graph.consumerNodes.map { ($0, nil) }
-
-        for outputPort in graph.publishedOutputPorts() {
-            guard let node = outputPort.node else { continue }
-            roots.append((node, outputPort))
-        }
-
-        roots += forcedNodes.map { ($0, nil) }
-
-        return roots
-    }
-
-    /// Single recursive pull behind both execution paths: the per-frame planning
-    /// pass visits by appending to the schedule (executed later in draw()), the
-    /// on-demand path visits by executing the node immediately. `onTraverse`
-    /// fires for every node the pull reaches whether or not it runs this pass
-    /// (the on-demand path applies pending resizes there); `visit` fires when
-    /// the node should run. Returns false when this pull contributes nothing
-    /// fresh downstream — the node declined the requested output port (its
-    /// keep-alive control inputs are still pulled, at most once per pass, so it
-    /// can select a different route later), or sat out the pass because every
-    /// one of its own upstream pulls declined.
-    @discardableResult
-    private func pullNode(feedbackCache: GraphRendererFeedbackCache,
-                          node: Node,
-                          requestedOutputPort: Port?,
-                          executionInfo: GraphExecutionInfo,
-                          cacheProcessedOutputs: Bool,
-                          onTraverse: ((Node) -> Void)?,
-                          visit: (Node) -> Void) -> Bool
-    {
-        switch node.respondToPull(requestedOutputPort: requestedOutputPort) {
-        case .declined(let keepAlivePorts):
-            // Unselected route: nothing flows downstream from this pull, but
-            // the node's control inputs (Index, map) must keep updating or it
-            // could never select a different route — a Gate whose selected
-            // output has no consumer would starve its own Index chain, the
-            // class fixed for Matrix Switch in e776d909. The node names those
-            // inputs as keepAlive; walk them once per pass, marked by
-            // .keepAliveWalked, which also terminates control chains that
-            // cycle back into another unselected output of this node.
-            if feedbackCache.processingState(forNode: node) == .unprocessed {
-                feedbackCache.setProcessingState(.keepAliveWalked,
-                                                 forNode: node,
-                                                 executionInfo: executionInfo)
-                for inputPort in keepAlivePorts {
-                    pullUpstreamNodes(of: inputPort,
-                                      feedbackCache: feedbackCache,
-                                      executionInfo: executionInfo,
-                                      cacheProcessedOutputs: cacheProcessedOutputs,
-                                      onTraverse: onTraverse,
-                                      visit: visit)
-                }
-            }
-            return false
-
-        case .evaluate(let pullingPorts):
-            switch feedbackCache.processingState(forNode: node) {
-            case .processed, .processing:
-                return true
-            case .declined:
-                return false
-            case .unprocessed, .keepAliveWalked:
-                break
-            }
-
-            feedbackCache.setProcessingState(.processing,
-                                             forNode: node,
-                                             activeInputPorts: pullingPorts,
-                                             executionInfo: executionInfo)
-
-            var attemptedPullCount = 0
-            var activePullCount = 0
-
-            for inputPort in pullingPorts {
-                let pulled = pullUpstreamNodes(of: inputPort,
-                                               feedbackCache: feedbackCache,
-                                               executionInfo: executionInfo,
-                                               cacheProcessedOutputs: cacheProcessedOutputs,
-                                               onTraverse: onTraverse,
-                                               visit: visit)
-                attemptedPullCount += pulled.attempted
-                activePullCount += pulled.active
-            }
-
-            // A connected node sits out the pass only when every upstream pull
-            // declined; that freeze propagates to its own consumers. One live inlet
-            // keeps the node running — declined inlets simply hold their last value.
-            if attemptedPullCount > 0 && activePullCount == 0 {
-                feedbackCache.setProcessingState(.declined,
-                                                 forNode: node,
-                                                 executionInfo: executionInfo)
-                return false
-            }
-
-            onTraverse?(node)
-
-            if node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider {
-                visit(node)
-                feedbackCache.setProcessingState(.processed,
-                                                 forNode: node,
-                                                 executionInfo: executionInfo,
-                                                 cacheProcessedOutputs: cacheProcessedOutputs)
-            }
-
-            return true
-        }
-    }
-
-    /// Pulls the node behind every upstream outlet connected to `inputPort`.
-    @discardableResult
-    private func pullUpstreamNodes(of inputPort: Port,
-                                   feedbackCache: GraphRendererFeedbackCache,
-                                   executionInfo: GraphExecutionInfo,
-                                   cacheProcessedOutputs: Bool,
-                                   onTraverse: ((Node) -> Void)?,
-                                   visit: (Node) -> Void) -> (attempted: Int, active: Int)
-    {
-        var attempted = 0
-        var active = 0
-
-        for upstreamOutputPort in inputPort.connections where upstreamOutputPort.kind == .Outlet {
-            guard let upstreamNode = upstreamOutputPort.node else { continue }
-
-            attempted += 1
-
-            if pullNode(feedbackCache: feedbackCache,
-                        node: upstreamNode,
-                        requestedOutputPort: upstreamOutputPort,
-                        executionInfo: executionInfo,
-                        cacheProcessedOutputs: cacheProcessedOutputs,
-                        onTraverse: onTraverse,
-                        visit: visit) {
-                active += 1
-            }
-        }
-
-        return (attempted, active)
-    }
-
     // MARK: - On-demand graph evaluation (for exporters and subgraph callers)
 
     public func executeAndDraw(graph: Graph, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
@@ -296,9 +166,6 @@ public class GraphRenderer : ViewRenderer
     public func executeAndDraw(graph: Graph, executionInfo: GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
         let needsSceneSync = graph.consumePendingConnectionSceneSync()
-        if needsSceneSync {
-            invalidateFeedbackTopologyCaches(for: graph)
-        }
 
         try self.execute(graph: graph,
                          executionInfo: executionInfo,
@@ -326,27 +193,39 @@ public class GraphRenderer : ViewRenderer
     {
         self.resetTextureCaches(for: executionInfo)
 
-        let feedbackCache = self.feedbackCache(for: graph.id)
-        feedbackCache.resetCacheFor(executionInfo: executionInfo)
-
         defer {
             if clearFlags {
                 self.graphRequiresResize = false
             }
         }
 
-        let firstCamera = graph.firstCamera ?? self.currentCamera ?? self.defaultCamera
+        self.currentCamera = graph.firstCamera ?? self.currentCamera ?? self.defaultCamera
 
-        let applyPendingResize: (Node) -> Void = { node in
+        var capturedError: (any Error)?
+        var scheduledNodes = nodesInExecutionOrder(for: graph)
+
+        if !forceEvaluationForTheseNodes.isEmpty {
+            let alreadyScheduledNodeIDs = Set(scheduledNodes.map(\.id))
+            scheduledNodes.append(contentsOf: executionPlanExtension(forcing: forceEvaluationForTheseNodes,
+                                                                     alreadyScheduledNodeIDs: alreadyScheduledNodeIDs))
+        }
+
+        let graphTraceFrame = beginGraphExecutionTrace()
+
+        for (orderIndex, node) in scheduledNodes.enumerated() {
+            guard capturedError == nil else { break }
+
             if self.graphRequiresResize {
                 node.resize(size: self.renderEncoder.size, scaleFactor: self.resizeScaleFactor)
             }
-        }
 
-        var capturedError: (any Error)?
+            let nodeTrace = beginNodeExecutionTrace(node: node, orderIndex: orderIndex)
 
-        let executeNode: (Node) -> Void = { node in
-            guard capturedError == nil else { return }
+            guard node.isDirty || node.nodeExecutionMode == .Consumer || node.nodeExecutionMode == .Provider else {
+                endNodeExecutionTrace(nodeTrace, result: .skippedClean)
+                continue
+            }
+
 #if DEBUG
             commandBuffer.pushDebugGroup(node.name)
 #endif
@@ -365,26 +244,14 @@ public class GraphRenderer : ViewRenderer
             commandBuffer.popDebugGroup()
 #endif
 
+            endNodeExecutionTrace(nodeTrace, result: capturedError == nil ? .executed : .error)
+
             if clearFlags {
                 node.markClean()
             }
         }
 
-        let roots = evaluationRoots(for: graph, forcing: forceEvaluationForTheseNodes)
-
-        for root in roots {
-            pullNode(feedbackCache: feedbackCache,
-                     node: root.node,
-                     requestedOutputPort: root.requestedOutputPort,
-                     executionInfo: executionInfo,
-                     cacheProcessedOutputs: true,
-                     onTraverse: applyPendingResize,
-                     visit: executeNode)
-        }
-
-        if !roots.isEmpty {
-            self.currentCamera = firstCamera
-        }
+        endGraphExecutionTrace(graphTraceFrame)
 
         if let capturedError
         {
@@ -392,10 +259,259 @@ public class GraphRenderer : ViewRenderer
         }
     }
 
+    private struct GraphExecutionPlanCache
+    {
+        var graphID: UUID
+        var connectionTopologyGeneration: Int
+        var executionTopologyGeneration: Int
+        var nodesInExecutionOrder: [Node]
+    }
+
+    private enum GraphExecutionPlanningState
+    {
+        case processing
+        case processed
+        case keepAliveWalked
+        case declined
+    }
+
+    private func nodesInExecutionOrder(for graph: Graph) -> [Node]
+    {
+        let graphIdentifier = ObjectIdentifier(graph)
+
+        if let cached = executionPlanCaches[graphIdentifier],
+           cached.graphID == graph.id,
+           cached.connectionTopologyGeneration == graph.connectionTopologyGeneration,
+           cached.executionTopologyGeneration == graph.executionTopologyGeneration
+        {
+            return cached.nodesInExecutionOrder
+        }
+
+        let nodesInExecutionOrder = buildNodesInExecutionOrder(for: graph)
+        executionPlanCaches[graphIdentifier] = GraphExecutionPlanCache(
+            graphID: graph.id,
+            connectionTopologyGeneration: graph.connectionTopologyGeneration,
+            executionTopologyGeneration: graph.executionTopologyGeneration,
+            nodesInExecutionOrder: nodesInExecutionOrder
+        )
+
+        return nodesInExecutionOrder
+    }
+
+    private func buildNodesInExecutionOrder(for graph: Graph) -> [Node]
+    {
+        var ordered: [Node] = []
+        ordered.reserveCapacity(graph.nodes.count)
+
+        var processingStates: [UUID: GraphExecutionPlanningState] = [:]
+
+        for root in executionRoots(for: graph)
+        {
+            pullNodeForExecutionPlan(node: root.node,
+                                     requestedOutputPort: root.requestedOutputPort,
+                                     processingStates: &processingStates,
+                                     orderedNodes: &ordered)
+        }
+
+        return ordered
+    }
+
+    /// Extends the cached execution plan for callers that force extra nodes to run
+    /// (Iterator forces its whole subgraph). Each forced node is pulled exactly as
+    /// buildNodesInExecutionOrder pulls its roots, so forced nodes and any
+    /// unscheduled upstream dependencies are appended in dependency order rather
+    /// than caller array order. Forced nodes whose pull declines them are still
+    /// appended at the end — the caller asked for them to run.
+    private func executionPlanExtension(forcing forcedNodes: [Node], alreadyScheduledNodeIDs: Set<UUID>) -> [Node]
+    {
+        var processingStates: [UUID: GraphExecutionPlanningState] = [:]
+        processingStates.reserveCapacity(alreadyScheduledNodeIDs.count + forcedNodes.count)
+
+        for scheduledNodeID in alreadyScheduledNodeIDs {
+            processingStates[scheduledNodeID] = .processed
+        }
+
+        var ordered: [Node] = []
+
+        for forcedNode in forcedNodes {
+            pullNodeForExecutionPlan(node: forcedNode,
+                                     requestedOutputPort: nil,
+                                     processingStates: &processingStates,
+                                     orderedNodes: &ordered)
+        }
+
+        for forcedNode in forcedNodes where processingStates[forcedNode.id] != .processed {
+            ordered.append(forcedNode)
+        }
+
+        return ordered
+    }
+
+    private func executionRoots(for graph: Graph) -> [(node: Node, requestedOutputPort: Port?)]
+    {
+        var roots: [(node: Node, requestedOutputPort: Port?)] = graph.nodes
+            .filter { $0.nodeExecutionMode == .Consumer }
+            .map { ($0, nil) }
+
+        for outputPort in graph.publishedOutputPorts()
+        {
+            guard let node = outputPort.node else { continue }
+            roots.append((node, outputPort))
+        }
+
+        return roots
+    }
+
+    @discardableResult
+    private func pullNodeForExecutionPlan(node: Node,
+                                          requestedOutputPort: Port?,
+                                          processingStates: inout [UUID: GraphExecutionPlanningState],
+                                          orderedNodes: inout [Node]) -> Bool
+    {
+        switch node.respondToPull(requestedOutputPort: requestedOutputPort)
+        {
+        case .declined(let keepAlivePorts):
+            if processingStates[node.id] == nil
+            {
+                processingStates[node.id] = .keepAliveWalked
+                for inputPort in keepAlivePorts
+                {
+                    pullInletConnectionsForExecutionPlan(inputPort,
+                                                         processingStates: &processingStates,
+                                                         orderedNodes: &orderedNodes)
+                }
+            }
+            return false
+
+        case .evaluate(let pullingPorts):
+            switch processingStates[node.id]
+            {
+            case .processed, .processing:
+                return true
+            case .declined:
+                return false
+            case .keepAliveWalked, nil:
+                break
+            }
+
+            processingStates[node.id] = .processing
+
+            var attemptedPullCount = 0
+            var activePullCount = 0
+
+            for inputPort in pullingPorts
+            {
+                let pulled = pullInletConnectionsForExecutionPlan(inputPort,
+                                                                  processingStates: &processingStates,
+                                                                  orderedNodes: &orderedNodes)
+                attemptedPullCount += pulled.attempted
+                activePullCount += pulled.active
+            }
+
+            if attemptedPullCount > 0 && activePullCount == 0
+            {
+                processingStates[node.id] = .declined
+                return false
+            }
+
+            orderedNodes.append(node)
+            processingStates[node.id] = .processed
+            return true
+        }
+    }
+
+    @discardableResult
+    private func pullInletConnectionsForExecutionPlan(_ inputPort: Port,
+                                                      processingStates: inout [UUID: GraphExecutionPlanningState],
+                                                      orderedNodes: inout [Node]) -> (attempted: Int, active: Int)
+    {
+        var attempted = 0
+        var active = 0
+
+        for outletPort in inputPort.connectedOutletsForActiveConnections
+        {
+            guard let node = outletPort.node else { continue }
+
+            attempted += 1
+            if pullNodeForExecutionPlan(node: node,
+                                        requestedOutputPort: outletPort,
+                                        processingStates: &processingStates,
+                                        orderedNodes: &orderedNodes)
+            {
+                active += 1
+            }
+        }
+
+        return (attempted, active)
+    }
+
     private func resetTextureCaches(for executionInfo: GraphExecutionInfo)
     {
         self.privateTextureCache.resetCacheFor(executionContext: executionInfo)
         self.sharedTextureCache.resetCacheFor(executionContext: executionInfo)
+    }
+
+    // MARK: - Execution Trace
+
+    private func beginGraphExecutionTrace() -> GraphExecutionTraceFrameBuilder?
+    {
+        guard executionTrace != nil else { return nil }
+
+        let builder = GraphExecutionTraceFrameBuilder(executionIndex: traceExecutionIndex,
+                                                      startedAt: CACurrentMediaTime())
+        traceExecutionIndex += 1
+        graphExecutionTraceStack.append(builder)
+        return builder
+    }
+
+    private func endGraphExecutionTrace(_ builder: GraphExecutionTraceFrameBuilder?)
+    {
+        guard let builder else { return }
+
+        if graphExecutionTraceStack.last === builder {
+            graphExecutionTraceStack.removeLast()
+        }
+        else {
+            graphExecutionTraceStack.removeAll { $0 === builder }
+        }
+
+        let execution = builder.makeExecution(endedAt: CACurrentMediaTime())
+
+        if let nodeBuilder = nodeExecutionTraceStack.last {
+            nodeBuilder.childExecutions.append(execution)
+        }
+        else {
+            executionTrace?.executions.append(execution)
+        }
+    }
+
+    private func beginNodeExecutionTrace(node: Node, orderIndex: Int) -> NodeExecutionTraceBuilder?
+    {
+        guard executionTrace != nil,
+              graphExecutionTraceStack.isEmpty == false
+        else { return nil }
+
+        let builder = NodeExecutionTraceBuilder(node: node,
+                                                orderIndex: orderIndex,
+                                                startedAt: CACurrentMediaTime())
+        nodeExecutionTraceStack.append(builder)
+        return builder
+    }
+
+    private func endNodeExecutionTrace(_ builder: NodeExecutionTraceBuilder?, result: NodeExecutionResult)
+    {
+        guard let builder else { return }
+
+        if nodeExecutionTraceStack.last === builder {
+            nodeExecutionTraceStack.removeLast()
+        }
+        else {
+            nodeExecutionTraceStack.removeAll { $0 === builder }
+        }
+
+        let nodeExecution = builder.makeNodeExecution(endedAt: CACurrentMediaTime(),
+                                                      result: result)
+        graphExecutionTraceStack.last?.nodeExecutions.append(nodeExecution)
     }
 
     // MARK: - Graph Execution Lifecycle
@@ -407,18 +523,46 @@ public class GraphRenderer : ViewRenderer
         }
     }
 
-    public func startExecution(graph: Graph) throws
+    public func startExecution(graph: Graph, trace: Bool = false) throws
     {
+        if trace {
+            self.executionTrace = GraphExecutionTrace(graphID: graph.id)
+            self.traceExecutionIndex = 0
+            self.graphExecutionTraceStack.removeAll(keepingCapacity: true)
+            self.nodeExecutionTraceStack.removeAll(keepingCapacity: true)
+        }
+        else if graph.id == self.graph.id {
+            self.executionTrace = nil
+            self.traceExecutionIndex = 0
+            self.graphExecutionTraceStack.removeAll(keepingCapacity: true)
+            self.nodeExecutionTraceStack.removeAll(keepingCapacity: true)
+        }
+
         for node in graph.nodes {
             try node.startExecution(renderer: self)
         }
     }
 
-    public func stopExecution(graph: Graph) throws
+    public func stopExecution(graph: Graph, saveTraceTo url: URL? = nil) throws
     {
         for node in graph.nodes {
             try node.stopExecution(renderer: self)
         }
+
+        if let url {
+            try saveExecutionTrace(to: url)
+        }
+    }
+
+    public func saveExecutionTrace(to url: URL) throws
+    {
+        guard let executionTrace else { return }
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(executionTrace)
+        try data.write(to: url)
+        print("Saved graph execution trace: \(url.path)")
     }
 
     public func disableExecution(graph: Graph) throws
@@ -434,21 +578,6 @@ public class GraphRenderer : ViewRenderer
         for node in graph.nodes {
             node.teardown()
         }
-    }
-
-    // MARK: - Feedback Cache
-
-    private func feedbackCache(for graphID: UUID) -> GraphRendererFeedbackCache
-    {
-        if let cache = feedbackCaches[graphID] { return cache }
-        let newCache = GraphRendererFeedbackCache(graphID: graphID)
-        feedbackCaches[graphID] = newCache
-        return newCache
-    }
-
-    func invalidateFeedbackTopologyCaches(for graph: Graph)
-    {
-        feedbackCache(for: graph.id).invalidateTopologyCaches()
     }
 
     // MARK: - Execution Helpers

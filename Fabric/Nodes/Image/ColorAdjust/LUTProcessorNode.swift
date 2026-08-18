@@ -77,16 +77,16 @@ public class LUTProcessorNode : BaseImageNode
 
         if self.imageInputPorts().first?.valueDidChange == true
         {
-            if let inTex = self.inputImageTexture(at: 0),
+            if let inImage = self.inputImage(at: 0),
                let inTex2 = self.texture
             {
+                let inTex = inImage.texture
                 let outImage = try renderer.newImage(withWidth: inTex.width, height: inTex.height)
 
                 self.postMaterial.set(inTex, index: FragmentTextureIndex.Custom0)
                 self.postMaterial.set(inTex2, index: FragmentTextureIndex.Custom1)
                 
-                self.postProcessor.renderer.size.width = Float(inTex.width)
-                self.postProcessor.renderer.size.height = Float(inTex.height)
+                self.postProcessor.resize(size: (width: Float(inTex.width), height: Float(inTex.height)), scaleFactor: 1)
                 
                 let renderPassDesc = MTLRenderPassDescriptor()
                 renderPassDesc.colorAttachments[0].texture = outImage.texture

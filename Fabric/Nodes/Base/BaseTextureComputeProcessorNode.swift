@@ -44,6 +44,11 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
     public var outputImage:NodePort<FabricImage> { port(named: "outputImage") }
     private var url:URL? = nil
 
+    private enum CodingKeys: String, CodingKey
+    {
+        case effectPath
+    }
+
     // MARK: - Init
     required public init(context: Context, fileURL: URL) throws
     {
@@ -52,17 +57,51 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
         super.init(context: context)
         setupProcessor(context: context)
     }
-    
+
     public required init(context: Context)
     {
         fatalError("init(from:) has not been implemented")
     }
-    
+
     public required init(from decoder: any Decoder) throws
     {
         try super.init(from: decoder)
+
+        // The processor and any uniform ports it declares can only come from
+        // the shader file, so rebuild from the restored bundle-relative path;
+        // rebuilt ports adopt persisted identity and state by registry key as
+        // they register.
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if let path = try container.decodeIfPresent(String.self, forKey: .effectPath),
+           let shaderURL = Self.resolveBundleResource(path: path)
+        {
+            // Hold the binding even when the bundle no longer provides the
+            // file: encode derives effectPath from it, so leaving it nil would
+            // quietly erase the document's shader choice at the next save.
+            self.url = shaderURL
+            self.pipelineURL = shaderURL
+
+            // A file that is not there leaves compute nil, which execute
+            // already reports as unavailable.
+            if FileManager.default.fileExists(atPath: shaderURL.path(percentEncoded: false))
+            {
+                self.setupProcessor(context: self.context)
+            }
+        }
     }
-    
+
+    override public func encode(to encoder: Encoder) throws
+    {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+
+        if let url = self.url
+        {
+            try container.encodeIfPresent(Self.bundleRelativeResourcePath(for: url), forKey: .effectPath)
+        }
+
+        try super.encode(to: encoder)
+    }
+
     public func setFileURL(_ url: URL) {
         // no op
     }

@@ -106,8 +106,10 @@ public class KeypointDistortNode: BaseImageNode {
         
         if self.imageInputPorts().first?.valueDidChange == true
         {
-            if let inTex = self.inputImageTexture(at: 0)
+            if let inImage = self.inputImage(at: 0)
             {
+                let inTex = inImage.texture
+                
                 let outImage = try renderer.newImage(withWidth: inTex.width, height: inTex.height)
 
                 let minCount = min (self.refKeyPointStructBuffer.count, self.disKeyPointStructBuffer.count)
@@ -120,8 +122,7 @@ public class KeypointDistortNode: BaseImageNode {
                 self.postMaterial.set(inTex, index: FragmentTextureIndex.Custom0)
 
                     
-                self.postProcessor.renderer.size.width = Float(inTex.width)
-                self.postProcessor.renderer.size.height = Float(inTex.height)
+                self.postProcessor.resize(size: (width: Float(inTex.width), height: Float(inTex.height)), scaleFactor: 1)
                 
                 let renderPassDesc = MTLRenderPassDescriptor()
                 renderPassDesc.colorAttachments[0].texture = outImage.texture
