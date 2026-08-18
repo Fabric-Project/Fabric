@@ -73,9 +73,9 @@ public class GraphRenderer : ViewRenderer
         self.renderEncoder.sortObjects = true
 
         self.sceneProxy = Object(context: context)
-        self.defaultCamera = PerspectiveCamera(context: context)
-        self.defaultCamera.position = simd_float3(0, 0, 2)
-        self.defaultCamera.lookAt(target: .zero)
+        // The camera a graph gets for free is the camera node's, at its
+        // defaults, so adding that node to a graph reframes nothing.
+        self.defaultCamera = PerspectiveCameraNode.makeDefaultCamera(context: context)
 
         self.privateTextureCache = GraphRendererTextureCache(device: context.device)
 
@@ -138,8 +138,10 @@ public class GraphRenderer : ViewRenderer
         self.renderEncoder.resize(size)
         self.graphRequiresResize = true
         self.resizeScaleFactor = scaleFactor
+        // Field of view is the camera's, not the drawable's: a resize changes
+        // the resolution rendered and how much is visible to the sides, and
+        // must not change the framing of what a graph was authored against.
         self.defaultCamera.aspect = size.width / size.height
-        self.defaultCamera.fov = radToDeg( 2.0 * atan( (size.height / size.width) / 2.0 ) )
     }
 
     // MARK: - Draw

@@ -16,7 +16,7 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
     override public class var nodeType:Node.NodeType { Node.NodeType.Object(objectType: .Camera) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Consumer }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Provides a Perspective Camera for the Scene. This is the camera used if none are in the graph. Add to control position, field of view etc."}
+    override public class var nodeDescription: String { "Provides a Perspective Camera for the Scene, and is the camera a Scene renders with when it has none of its own. At its defaults the view is two world units tall at the origin. Aim it with Orientation — Orientation Compose builds one from a target."}
 
     /// The vertical field of view every perspective camera starts with,
     /// including the one a graph gets for free.
