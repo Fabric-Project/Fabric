@@ -15,20 +15,20 @@ import UniformTypeIdentifiers
 open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDebugStringConvertible
 {
     // The name this node type is registered and listed under (each subclass
-    // overrides). Read it off an instance as `registryName`.
+    // overrides). Read it off an instance as `canonicalName`.
     open class var name: String {  fatalError("\(String(describing:self)) Must implement name") }
 
-    // Node-generated name, e.g. Math Expression shows its expression. Override
-    // where the node names itself; nil for none. Raw: empty is allowed here
-    // and reads as absence. Read `customName`, never this.
-    open func deriveCustomName() -> String? { nil }
+    // Node-generated subtitle, e.g. Math Expression shows its expression.
+    // Override where the node describes itself; nil for none. Raw: empty is
+    // allowed here and reads as absence. Read `subtitle`, never this.
+    open func deriveSubtitle() -> String? { nil }
 
-    // The node-generated name. Not part of `name` — it is a subtitle the node
-    // offers alongside its registry name, which title UI composes as it sees
-    // fit. Never empty: an empty name is no name.
-    final public var customName: String?
+    // The node-generated subtitle. Not part of `title` — it is offered
+    // alongside the canonical name, which title UI composes as it sees fit.
+    // Never empty: an empty name is no name.
+    final public var subtitle: String?
     {
-        guard let derived = self.deriveCustomName(), !derived.isEmpty else { return nil }
+        guard let derived = self.deriveSubtitle(), !derived.isEmpty else { return nil }
         return derived
     }
 
@@ -67,30 +67,27 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     }
 
     // What to call this node: the user's rename if they gave one, else its type.
-    final public var name : String
+    final public var title : String
     {
-        return userName ?? registryName
+        return userName ?? canonicalName
     }
 
-    final public var registryName : String
+    final public var canonicalName : String
     {
         Self.name
     }
 
-    // Every name this node answers to, for logging and diagnostics.
-    final public var canonicalName : String
+    // CustomDebugStringConvertible: every name this node answers to.
+    final public var debugDescription: String
     {
-        switch (self.customName, self.userName)
+        switch (self.subtitle, self.userName)
         {
-        case (nil, nil):               return self.registryName
-        case (let custom?, nil):       return "\(self.registryName) (\(custom))"
-        case (nil, let user?):         return "\(self.registryName) (\(user))"
-        case (let custom?, let user?): return "\(self.registryName) (\(custom) · \(user))"
+        case (nil, nil):                 return self.canonicalName
+        case (let subtitle?, nil):       return "\(self.canonicalName) (\(subtitle))"
+        case (nil, let user?):           return "\(self.canonicalName) (\(user))"
+        case (let subtitle?, let user?): return "\(self.canonicalName) (\(subtitle) · \(user))"
         }
     }
-
-    // CustomDebugStringConvertible
-    final public var debugDescription: String { self.canonicalName }
 
     open var nodeType:NodeType
     {
@@ -167,9 +164,10 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     /// Fires whenever the port list changes (addDynamicPort / removePort).
     internal let portsChangedSubject = PassthroughSubject<Void, Never>()
 
-    /// Fires whenever the node's computed `name` changes (e.g. after a math
-    /// expression re-parses). NodeViewModel subscribes and caches the result.
-    internal let nameSubject = PassthroughSubject<Void, Never>()
+    /// Fires whenever the state the node's `subtitle` derives from changes (e.g.
+    /// after a math expression re-parses). NodeViewModel subscribes and caches
+    /// the result.
+    internal let subtitleSubject = PassthroughSubject<Void, Never>()
 
     // Dirty Handling
     private(set) public var isDirty: Bool = true

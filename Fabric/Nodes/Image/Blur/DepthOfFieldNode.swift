@@ -111,9 +111,9 @@ public final class DepthOfFieldNode: Node
         {
             throw FabricError(.execution(.gpu),
                               severity: .recoverable,
-                              message: "Could not create \(canonicalName) copy blit encoder")
+                              message: "Could not create \(self) copy blit encoder")
         }
-        blitEncoder.label = "\(self.registryName) Copy"
+        blitEncoder.label = "\(self.canonicalName) Copy"
         blitEncoder.copy(from: source,
                          sourceSlice: 0,
                          sourceLevel: 0,

@@ -20,7 +20,7 @@ public class DecomposeVectorNode: StrategyNode
 
     // The vector type is already evident from the component ports, so keep the
     // plain type-name title rather than leading it with the strategy.
-    override public func deriveCustomName() -> String? { nil }
+    override public func deriveSubtitle() -> String? { nil }
 
     private static let allDynamicNames: Set<String> = [
         "inputVector",

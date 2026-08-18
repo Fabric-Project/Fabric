@@ -78,14 +78,14 @@ For all development:
 ### 2.1  Nodes & Execution
 - Nodes define immutable static metadata:  `nodeType`, `nodeExecutionMode`, `nodeTimeMode`,  `name`, `nodeDescription`.
 - A node is named from three sources, two of them overridden by the subclass:
-  - `class var name` — override: the name the type is registered and listed under; `registryName` on an instance.
-  - `func deriveCustomName() -> String?` — override where the node names itself, nil otherwise: Math Expression's expression, StrategyNode's strategy. Read it off an instance as `customName`, final and normalized.
+  - `class var name` — override: the name the type is registered and listed under; `canonicalName` on an instance.
+  - `func deriveSubtitle() -> String?` — override where the node describes itself, nil otherwise: Math Expression's expression, StrategyNode's strategy. Read it off an instance as `subtitle`, final and normalized.
   - `var userName: String?` — final: the user's rename, serialized.
-  - An empty name is no name: `customName` reads a `deriveCustomName()` of "" as nil, and `userName` normalizes "" to nil at set and decode. Overrides and consumers never guard emptiness themselves.
-- From those it composes two names, both final:
-  - `var name` — what to call the node: `userName ?? registryName`. Note `customName` is deliberately absent: it is a subtitle, not a replacement name.
-  - `var canonicalName` — every name the node answers to, e.g. `Math Expression (sin(x) · My Rename)`. It is also the node's `debugDescription`, so `print(node)` and `"\(node)"` give it: log a node directly rather than reaching for a name. Use `registryName` where brevity or per-frame cost matters.
-- Fire `nameSubject.send()` whenever state feeding `customName` changes; `NodeViewModel` mirrors the node's `name` / `registryName` / `customName` observably, and adds `customLabel` (`userName ?? customName`) — the label all title UI draws ahead of the registry name.
+  - An empty name is no name: `subtitle` reads a `deriveSubtitle()` of "" as nil, and `userName` normalizes "" to nil at set and decode. Overrides and consumers never guard emptiness themselves.
+- From those it composes, both final:
+  - `var title` — what to call the node: `userName ?? canonicalName`. Note `subtitle` is deliberately absent: it accompanies the title, it does not replace it.
+  - `var debugDescription` — every name the node answers to, e.g. `Math Expression (sin(x) · My Rename)`. `print(node)` and `"\(node)"` give it: log a node directly rather than reaching for a name. Use `canonicalName` where brevity or per-frame cost matters.
+- Fire `subtitleSubject.send()` whenever state feeding `subtitle` changes; `NodeViewModel` mirrors the node's `title` / `canonicalName` / `subtitle` observably, and adds `titleLabel` (`userName ?? subtitle`) — the label all title UI draws ahead of the canonical name.
 - Execution is **pull-based**; one execute per node per pass.
 - `GraphRenderer` (executor and scheduler) today does not use `nodeExecutionMode` or `nodeTimeMode` but will in the future.
 - **Iterator (QC-style)** remains the multi-evaluation macro; refinements allowed, paradigm fixed.
@@ -179,7 +179,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 | Topology recomputed each frame | No caching | Recompute only on connect/disconnect |
 | Type-erasure confusion | Mixing `any` with Equatable generics | Stay typed; use Utility/Log node for debug |
 | Serialization drift | Ad-hoc encoders | Always through registry + `PortType` |
-| Stale node title on canvas/inspector | `customName` input changed without notifying | Fire `nameSubject.send()` in the `didSet` of any state `customName` derives from |
+| Stale node title on canvas/inspector | `subtitle` input changed without notifying | Fire `subtitleSubject.send()` in the `didSet` of any state `subtitle` derives from |
 
 ---
 
@@ -204,7 +204,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 - [ ] If Node dynamically changes port count or type, we should only trigger via Setting in Settings View, not within the graph
 - [ ] If we have a Settings View, we should have a custom initializer so procedural graph creation has an entry to settings.
 - [ ] If we have a Settings View and a custom initializer, use a custom struct or enum for the settings
-- [ ] If the Node overrides `deriveCustomName()`, every mutation of the state it derives from fires `nameSubject.send()` (StrategyNode's `strategy` already does)
+- [ ] If the Node overrides `deriveSubtitle()`, every mutation of the state it derives from fires `subtitleSubject.send()` (StrategyNode’s `strategy` already does)
 - [ ] New Nodes should live in an appropriate spot in the NodeRegistry
 
 ---

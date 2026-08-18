@@ -319,8 +319,8 @@ public class BaseDCTTransformNode: Node
                               message: "Could not create DCT Transform compute encoder")
         }
 
-        transformedImage.texture.label = "\(name) Output"
-        computeEncoder.label = name
+        transformedImage.texture.label = "\(self.title) Output"
+        computeEncoder.label = self.title
         computeEncoder.setComputePipelineState(computePipeline)
         computeEncoder.setTexture(sourceTexture, index: 0)
         computeEncoder.setTexture(transformedImage.texture, index: 1)

@@ -106,16 +106,16 @@ public class StrategyNode: Node
     /// When true, the picker inserts a visual separator after the first strategy in the list.
     public class var separatorAfterFirstStrategy: Bool { false }
 
-    /// Standard behaviour: the node-generated `customName` is the active strategy,
+    /// Standard behaviour: the node-generated `subtitle` is the active strategy,
     /// e.g. "vec3" for "Vector Compose", or "Random" for "Number Generator".
     /// `NodeTitleView` renders the type name after it (yielding "vec3 Vector
     /// Compose"), so the strategy must not repeat it. An unrecognised strategy
     /// (e.g. a legacy or renamed case) falls back to the plain type name.
     ///
-    /// Subclasses wanting a different title override `deriveCustomName()` directly:
+    /// Subclasses wanting a different title override `deriveSubtitle()` directly:
     /// return nil for the plain type-name title, or a bespoke string — as the
     /// type-agnostic nodes do, suppressing the token for their Virtual default.
-    override public func deriveCustomName() -> String?
+    override public func deriveSubtitle() -> String?
     {
         Self.strategies.contains(strategy) ? strategy : nil
     }
@@ -138,8 +138,8 @@ public class StrategyNode: Node
         didSet
         {
             self.rebuildPorts(forStrategy: strategy)
-            // `customName` is derived from `strategy`; notify so the title refreshes.
-            self.nameSubject.send()
+            // `subtitle` is derived from `strategy`; notify so the title refreshes.
+            self.subtitleSubject.send()
         }
     }
 

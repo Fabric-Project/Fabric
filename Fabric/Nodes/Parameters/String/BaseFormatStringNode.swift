@@ -77,7 +77,7 @@ public class BaseFormatStringNode: Node {
     public fileprivate(set) var formatString: String {
         didSet {
             self.updatePorts()
-            self.nameSubject.send()
+            self.subtitleSubject.send()
         }
     }
 
@@ -91,7 +91,7 @@ public class BaseFormatStringNode: Node {
     /// The current format string, parsed. Rebuilt only when it changes.
     private(set) var parsedFormatString = ParsedFormatString(tokens: [])
 
-    override public func deriveCustomName() -> String? { formatString }
+    override public func deriveSubtitle() -> String? { formatString }
 
     // MARK: - Init
 

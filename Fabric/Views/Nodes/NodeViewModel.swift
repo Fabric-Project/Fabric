@@ -61,31 +61,31 @@ import Satin
     }
     private var _userName: String?
 
-    /// `Node.name`, resolved from the observable rename above rather than read
+    /// `Node.title`, resolved from the observable rename above rather than read
     /// through to the node, so SwiftUI invalidates on a rename.
-    public var name: String
+    public var title: String
     {
-        _userName ?? registryName
+        _userName ?? canonicalName
     }
 
-    /// `Node.customName`, cached and kept fresh by nameSubject.
-    public private(set) var customName: String?
+    /// `Node.subtitle`, cached and kept fresh by subtitleSubject.
+    public private(set) var subtitle: String?
 
-    /// What title UI shows ahead of the type name: the rename, else the node's
-    /// own generated name. Nil when it has neither — or when the label equals
-    /// the registry name, which the title renders anyway — and the title is the
+    /// What title UI shows ahead of the canonical name: the rename, else the
+    /// node's own subtitle. Nil when it has neither — or when the label equals
+    /// the canonical name, which the title renders anyway — and the title is the
     /// bare type name.
-    public var customLabel: String?
+    public var titleLabel: String?
     {
-        let label = _userName ?? customName
-        return label == registryName ? nil : label
+        let label = _userName ?? subtitle
+        return label == canonicalName ? nil : label
     }
 
     // MARK: - Forwarded node metadata
 
     public var nodeType: Node.NodeType { node.nodeType }
 
-    public var registryName: String { node.registryName }
+    public var canonicalName: String { node.canonicalName }
 
     // MARK: - Ports + nodeSize (stored; updated when ports change)
 
@@ -112,7 +112,7 @@ import Satin
         self.node         = node
         self._offset      = node.offset
         self._userName    = node.userName
-        self.customName   = node.customName
+        self.subtitle     = node.subtitle
         self.ports        = node.ports
         self.nodeSize     = node.nodeSize
 
@@ -136,16 +136,16 @@ import Satin
             }
             .store(in: &cancellables)
 
-        // Sync cached name when nodes with dynamic names (e.g. MathExpressionNode,
-        // StringFormatterNode) change their computed name after user edits.
-        node.nameSubject
+        // Sync the cached subtitle when nodes that describe themselves (e.g.
+        // MathExpressionNode, StringFormatterNode) change it after user edits.
+        node.subtitleSubject
             .receive(on: DispatchQueue.main)
             .sink { [weak self] in
                 guard let self else { return }
-                // Equality-gated: force-sending upstreams re-assign name-feeding
+                // Equality-gated: force-sending upstreams re-assign subtitle-feeding
                 // ports every frame; only a real change may touch the observable.
-                let newName = node.customName
-                if newName != self.customName { self.customName = newName }
+                let newSubtitle = node.subtitle
+                if newSubtitle != self.subtitle { self.subtitle = newSubtitle }
             }
             .store(in: &cancellables)
     }

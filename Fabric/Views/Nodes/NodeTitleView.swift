@@ -15,11 +15,11 @@ struct NodeTitleView: View
     @State private var renamingText: String = ""
     @FocusState private var renameFieldFocused: Bool
 
-    private var registryName: String { nodeViewModel.registryName }
+    private var canonicalName: String { nodeViewModel.canonicalName }
 
     // Nil when the node has neither a rename nor a generated name, so the title
     // is its type name alone.
-    private var primaryLabel: String? { nodeViewModel.customLabel }
+    private var primaryLabel: String? { nodeViewModel.titleLabel }
 
     /// Opaque across the title, fading to clear over the last ~1 character so an
     /// over-long title dissolves at the node's right edge rather than hard-clipping.
@@ -52,9 +52,9 @@ struct NodeTitleView: View
                 HStack(spacing: 0)
                 {
                     // Placeholder previews the empty-commit outcome: with no
-                    // rename, customLabel (the node-generated name) shows; the
-                    // registry name already follows as the suffix Text.
-                    TextField(nodeViewModel.customLabel ?? "", text: $renamingText)
+                    // rename, titleLabel (the node's own subtitle) shows; the
+                    // canonical name already follows as the suffix Text.
+                    TextField(nodeViewModel.titleLabel ?? "", text: $renamingText)
                         .textFieldStyle(.plain)
                         .focused($renameFieldFocused)
                         .font(.system(size: 9))
@@ -67,7 +67,7 @@ struct NodeTitleView: View
                             renaming = false
                         }
 
-                    Text(verbatim: " \(registryName)")
+                    Text(verbatim: " \(canonicalName)")
                         .font(.system(size: 9))
                         .bold()
                         .foregroundStyle(secondaryColor)
@@ -79,14 +79,14 @@ struct NodeTitleView: View
                 // copy — the literal-interpolation initializer would do a doomed
                 // localization lookup on every render.
                 let primary = Text(primaryLabel).foregroundStyle(.white)
-                let secondary = Text(verbatim: " \(registryName)").foregroundStyle(secondaryColor)
+                let secondary = Text(verbatim: " \(canonicalName)").foregroundStyle(secondaryColor)
                 (primary + secondary)
                     .font(.system(size: 9))
                     .bold()
             }
             else
             {
-                Text(registryName)
+                Text(canonicalName)
                     .font(.system(size: 9))
                     .bold()
                     .foregroundStyle(nodeViewModel.nodeType.color())
