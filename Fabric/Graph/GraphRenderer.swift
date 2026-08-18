@@ -213,8 +213,6 @@ public class GraphRenderer : ViewRenderer
         let graphTraceFrame = beginGraphExecutionTrace()
 
         for (orderIndex, node) in scheduledNodes.enumerated() {
-            guard capturedError == nil else { break }
-
             if self.graphRequiresResize {
                 node.resize(size: self.renderEncoder.size, scaleFactor: self.resizeScaleFactor)
             }
@@ -229,6 +227,8 @@ public class GraphRenderer : ViewRenderer
 #if DEBUG
             commandBuffer.pushDebugGroup(node.name)
 #endif
+            var executionError: (any Error)?
+
             do
             {
                 try node.execute(renderer: self,
@@ -238,16 +238,31 @@ public class GraphRenderer : ViewRenderer
             }
             catch
             {
-                capturedError = error
+                executionError = error
             }
 #if DEBUG
             commandBuffer.popDebugGroup()
 #endif
 
-            endNodeExecutionTrace(nodeTrace, result: capturedError == nil ? .executed : .error)
+            endNodeExecutionTrace(nodeTrace, result: executionError == nil ? .executed : .error)
 
             if clearFlags {
                 node.markClean()
+            }
+
+            // Failures are isolated to the node that threw: the pass keeps
+            // going and the first error is rethrown once it completes. Stopping
+            // here instead would skip every node scheduled later, and their
+            // flags would then be cleared anyway by an ancestor's markClean
+            // cascade — silently destroying whatever single-frame signal was
+            // pending on them (a value edge, a one-shot). Only a non-recoverable
+            // error is worth abandoning the rest of the pass for.
+            if let executionError
+            {
+                if capturedError == nil { capturedError = executionError }
+
+                let severity = (executionError as? any FabricErrorProtocol)?.severity
+                if severity != .recoverable { break }
             }
         }
 

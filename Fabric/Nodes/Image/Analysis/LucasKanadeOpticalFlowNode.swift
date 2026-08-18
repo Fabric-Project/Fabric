@@ -244,6 +244,10 @@ public class LucasKanadeOpticalFlowNode: Node
                               severity: .recoverable,
                               message: "Could not create Lucas-Kanade flow compute encoder")
         }
+        // Image allocation below can throw; the encoder has to close on that
+        // path too, or the next node on this command buffer cannot make one.
+        defer { flowEncoder.endEncoding() }
+
         flowEncoder.label = "LK Flow"
         let barrier: () -> Void = { flowEncoder.memoryBarrier(scope: .textures) }
 
@@ -328,8 +332,6 @@ public class LucasKanadeOpticalFlowNode: Node
             flowEncoder.popDebugGroup()
             outputImage = temporallySmoothedFlow
         }
-
-        flowEncoder.endEncoding()
 
         outputFlow.send(outputImage)
     }
