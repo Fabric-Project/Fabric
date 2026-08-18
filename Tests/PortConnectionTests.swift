@@ -81,6 +81,104 @@ struct PortConnectionTests {
         #expect(decodedSink.inputNumber1.value == 144)
     }
 
+    @Test("An unwired ParameterPort falls back to its parameter")
+    func unwiredParameterPortFallsBackToParameter() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let source = NumberBinaryOperator(context: context)
+        let sink = NumberBinaryOperator(context: context)
+        graph.addNode(source)
+        graph.addNode(sink)
+
+        source.outputNumber.connect(to: sink.inputNumber1)
+        source.outputNumber.send(9)
+        #expect(sink.inputNumber1.value == 9)
+
+        // Disconnect force-sends nil into the inlet so it doesn't sit on stale
+        // data. A parameter-backed inlet has no valueless state, so rather than
+        // being left with a missing input it re-seats on its parameter.
+        source.outputNumber.disconnect(from: sink.inputNumber1)
+        #expect(sink.inputNumber1.connections.isEmpty)
+        #expect(sink.inputNumber1.value != nil)
+        #expect(sink.inputNumber1.value == (sink.inputNumber1.parameter as? FloatParameter)?.value)
+    }
+
+    @Test("Falling back to the parameter runs the change bookkeeping")
+    func parameterFallbackRunsChangeBookkeeping() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let source = NumberBinaryOperator(context: context)
+        let sink = NumberBinaryOperator(context: context)
+        graph.addNode(source)
+        graph.addNode(sink)
+
+        source.outputNumber.connect(to: sink.inputNumber1)
+        source.outputNumber.send(9)
+
+        sink.markClean()
+        #expect(!sink.isDirty)
+        #expect(!sink.inputNumber1.valueDidChange)
+
+        let inlet = sink.inputNumber1
+        var observedValues: [Float?] = []
+        inlet.onValueChanged = { observedValues.append(inlet.value) }
+
+        source.outputNumber.disconnect(from: sink.inputNumber1)
+
+        // The observer retains the port it reads, so clear it before asserting.
+        inlet.onValueChanged = nil
+
+        // Executors gate on valueDidChange, so the fallback has to look like the
+        // change it is — otherwise the port holds the parameter but nothing
+        // downstream re-reads it.
+        #expect(inlet.value == 9)
+        #expect(inlet.valueDidChange)
+        #expect(sink.isDirty)
+
+        // Observers do see the transient nil, so what matters is that they are
+        // notified again once the port has re-seated and none is left on nil.
+        let lastObserved = try #require(observedValues.last)
+        #expect(lastObserved == 9)
+    }
+
+    @Test("Deleting an upstream node leaves a math expression evaluating")
+    func deletingUpstreamNodeLeavesMathExpressionEvaluating() throws {
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
+
+        let graph = Graph(context: harness.context)
+        let source = NumberBinaryOperator(context: harness.context)
+        let expression = MathExpressionNode(context: harness.context, expression: "x + y")
+        graph.addNode(source)
+        graph.addNode(expression)
+
+        let x = try #require(expression.findPort(named: "x", as: ParameterPort<Float>.self))
+        let y = try #require(expression.findPort(named: "y", as: ParameterPort<Float>.self))
+        let result = try #require(expression.findPort(named: "result", as: NodePort<Float>.self))
+        result.published = true
+        graph.rebuildPublishedParameterGroup()
+
+        source.inputNumber1.value = 4
+        source.inputNumber2.value = 0
+        source.outputNumber.connect(to: x)
+        y.value = 1
+
+        try harness.renderer.startExecution(graph: graph)
+        try harness.execute(graph, frameNumber: 0, checkCommandBufferError: false)
+        #expect(result.value == 5)
+
+        // The Spark Stage failure: rebuilding a chain deletes the node feeding a
+        // parameter-backed inlet, and the expression then evaluates against a
+        // missing input — emitting nothing — until the rebuilt chain first sends.
+        graph.delete(node: source)
+        y.value = 10
+
+        try harness.execute(graph, frameNumber: 1, checkCommandBufferError: false)
+        #expect(result.value == 14)
+        try harness.renderer.stopExecution(graph: graph)
+    }
+
     @Test("Graph encoding records required plugins and qualified node IDs")
     func graphEncodingRecordsRequiredPluginsAndQualifiedNodeIDs() throws {
         guard let context = makeContext() else { return }
