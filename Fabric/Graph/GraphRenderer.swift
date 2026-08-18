@@ -169,6 +169,16 @@ public class GraphRenderer : ViewRenderer
     {
         let needsSceneSync = graph.consumePendingConnectionSceneSync()
 
+        // A node added since the last drawable resize has never been given the
+        // size, and a camera added that way would project through Satin's
+        // square default aspect — the scene stretched to the target's shape.
+        // A change in the graph's topology is the signal that someone in it
+        // has yet to be told.
+        if needsSceneSync
+        {
+            self.graphRequiresResize = true
+        }
+
         try self.execute(graph: graph,
                          executionInfo: executionInfo,
                          renderPassDescriptor: renderPassDescriptor,
