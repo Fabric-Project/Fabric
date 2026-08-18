@@ -28,6 +28,11 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
     /// the two cameras frame a scene at the origin alike.
     public static let defaultPosition = simd_float3(0, 0, 1.0 / tan(degToRad(defaultFieldOfView) / 2.0))
 
+    /// Identity: looking along -Z, which is where a camera at the default
+    /// position finds the origin. An object's orientation default is a
+    /// quaternion of no length, which is not a rotation at all.
+    public static let defaultOrientation = simd_float4(0, 0, 0, 1)
+
     /// A camera at this node's defaults, for a graph with no camera node of
     /// its own — see `GraphRenderer`. One definition, so what a graph
     /// renders does not change the moment a camera node is added to it.
@@ -37,24 +42,24 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
                                        near: 0.01,
                                        far: 500.0,
                                        fov: defaultFieldOfView)
-        camera.lookAt(target: .zero)
         return camera
     }
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
-        // Position carries the camera's own default rather than an object's
-        // origin, which would put the camera on its subject.
-        let ports = super.registerPorts(context: context).filter { $0.name != "inputPosition" }
+        // Position, scale and orientation carry the camera's own defaults and
+        // wording: an object's position default would put the camera on its
+        // subject, and its scale and orientation describe an object in a
+        // scene rather than the view of one.
+        let ports = super.registerPorts(context: context).filter { !["inputPosition", "inputScale", "inputOrientation"].contains($0.name) }
 
         return  [
-                    ("inputLookAt", ParameterPort(parameter:Float3Parameter("Look At", simd_float3(repeating:0), .inputfield, "Target position the camera points toward")) ),
+                    ("inputOrientation", ParameterPort(parameter:Float4Parameter("Orientation", defaultOrientation, .inputfield, "Which way the camera faces, as a quaternion (X, Y, Z, W). Identity looks along -Z")) ),
+                    ("inputScale", ParameterPort(parameter:Float3Parameter("Scale", simd_float3(repeating:1), .inputfield, "Scales the camera, so the scene draws smaller as this grows")) ),
                     ("inputPosition", ParameterPort(parameter:Float3Parameter("Position", defaultPosition, .inputfield, "Position in 3D space (X, Y, Z) in world units")) ),
                 ] + ports
     }
     
-    // Proxy Port
-    public var inputLookAt:ParameterPort<simd_float3> { port(named: "inputLookAt") }
     
     override public var object: PerspectiveCamera?
     {
@@ -68,19 +73,21 @@ public class PerspectiveCameraNode : ObjectNode<PerspectiveCamera>
         try super.startExecution(renderer: renderer)
 
         self.camera.position = self.inputPosition.value ?? Self.defaultPosition
-        self.camera.lookAt(target: self.inputLookAt.value ?? .zero)
         self.camera.scale = self.inputScale.value ?? .one
-        
-        let orientation = self.inputOrientation.value ?? .zero
-        self.camera.orientation = simd_quatf(vector:orientation)
+        self.camera.orientation = simd_quatf(safeVector: self.inputOrientation.value ?? Self.defaultOrientation)
     }
     
     override public func evaluate(object: Object?, atTime: TimeInterval) -> Bool
     {
         let shouldUpdate = super.evaluate(object: object, atTime: atTime)
 
-        // This needs to fire every frame
-        self.camera.lookAt(target: self.inputLookAt.value ?? .zero)
+        // Re-applied over the object's own, which turns a quaternion of no
+        // length into NaN rather than the identity it stands for. That is
+        // what a document saved against the object's zero default holds.
+        if self.inputOrientation.valueDidChange
+        {
+            self.camera.orientation = simd_quatf(safeVector: self.inputOrientation.value ?? Self.defaultOrientation)
+        }
         
         return shouldUpdate
     }
