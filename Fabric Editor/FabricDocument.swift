@@ -45,6 +45,7 @@ class FabricDocument: FileDocument
     let editingContext: GraphCanvasContext
 
     @ObservationIgnored var outputPresenter: OutputPresenter? = nil
+    private var outputPresentationHostCount = 0
     @MainActor lazy var movieExportCoordinator = MovieExportCoordinator()
     
     init()
@@ -198,6 +199,7 @@ class FabricDocument: FileDocument
     @MainActor
     func setupOutputPresentation()
     {
+        self.outputPresentationHostCount += 1
         guard self.outputPresenter == nil else { return }
 
         self.outputPresenter = OutputPresenter(ownerDocument: self, renderer: self.renderer)
@@ -208,6 +210,12 @@ class FabricDocument: FileDocument
     @MainActor
     func teardownOutputPresentation()
     {
+        // Editor re-parenting (window tab merge, scene restore) runs the new
+        // host view's onAppear before the old one's onDisappear; only the
+        // last host leaving may tear the shared presenter down.
+        self.outputPresentationHostCount = max(0, self.outputPresentationHostCount - 1)
+        guard self.outputPresentationHostCount == 0 else { return }
+
         self.outputPresenter?.teardown()
         self.outputPresenter = nil
         if ActiveFabricDocumentStore.shared.activeDocument === self {

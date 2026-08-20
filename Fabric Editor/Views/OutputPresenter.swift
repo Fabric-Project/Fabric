@@ -57,6 +57,10 @@ final class OutputPresenter
             guard self.isPaused != oldValue else { return }
             self.viewController.metalView.isPaused = self.isPaused
             self.windowManager.reflectPlaybackState()
+
+            // Resuming re-arms the fatal-error alert; without this a second
+            // fatal error after a user resume would be silently swallowed.
+            if !self.isPaused { self.didPresentFatalRuntimeError = false }
         }
     }
 
@@ -71,6 +75,10 @@ final class OutputPresenter
 
     @ObservationIgnored private var didPresentFatalRuntimeError = false
     @ObservationIgnored private var isActive = true
+
+    // Observation fires on willSet, so same-value writes to the app-wide
+    // mode still wake every presenter; re-hosting is gated on this instead.
+    @ObservationIgnored private var appliedMode: OutputPresentationMode?
 
     init(ownerDocument: FabricDocument, renderer: GraphRenderer)
     {
@@ -96,27 +104,33 @@ final class OutputPresenter
         self.isPaused.toggle()
     }
 
-    /// Full teardown when the document's editor window goes away. The
-    /// `MetalViewController` cleans its renderer up when the presenter is
-    /// released along with the document.
+    /// Full teardown when the document's editor window goes away. Renderer
+    /// cleanup is explicit rather than left to the view controller's deinit:
+    /// SwiftUI value copies can keep the presenter alive past the document,
+    /// and a renderer still marked set-up makes any re-created controller
+    /// skip its own setup.
     func teardown()
     {
         self.isActive = false
         self.renderer?.errorDelegate = nil
-        self.viewController.view.removeFromSuperview()
+        self.viewController.viewIfLoaded?.removeFromSuperview()
         self.canvasContainer = nil
         self.windowManager.closeWindow()
+        self.viewController.cleanup()
     }
 
     // MARK: - Canvas hosting
 
     /// `OutputCanvasHostView` hands its container over once it exists; the
-    /// container appears after the mode flips, never before.
+    /// container appears after the mode flips, never before, so the install
+    /// that `applyMode` started is completed here.
     func attachCanvasContainer(_ container: NSView)
     {
         guard self.canvasContainer !== container else { return }
         self.canvasContainer = container
-        self.applyMode()
+
+        guard self.isActive, self.appliedMode == .editorCanvas else { return }
+        self.withdrawWindowThenInstallInCanvas()
     }
 
     func detachCanvasContainer(_ container: NSView)
@@ -128,7 +142,10 @@ final class OutputPresenter
     /// Re-arming observation of the app-wide mode; each presenter applies
     /// changes to its own hosts. The outer closure must capture weakly: the
     /// observation registrar holds it until the mode next changes, which may
-    /// be long after this document closes.
+    /// be long after this document closes. The hop through `Task` is
+    /// required, not a runloop dodge: `onChange` fires on willSet, so
+    /// synchronous work here would read the outgoing mode and re-arm
+    /// against it.
     private func startObservingMode()
     {
         withObservationTracking {
@@ -146,18 +163,28 @@ final class OutputPresenter
     {
         guard self.isActive else { return }
 
-        switch OutputSettings.shared.mode
+        let mode = OutputSettings.shared.mode
+        guard mode != self.appliedMode else { return }
+        self.appliedMode = mode
+
+        switch mode
         {
         case .separateWindow:
-            self.viewController.view.removeFromSuperview()
+            self.viewController.viewIfLoaded?.removeFromSuperview()
             self.windowManager.present(self.viewController)
 
         case .editorCanvas:
-            // Withdrawal completes asynchronously when the window has to
-            // exit full screen first.
-            self.windowManager.withdraw { [weak self] in
-                self?.installInCanvas()
-            }
+            self.withdrawWindowThenInstallInCanvas()
+        }
+    }
+
+    /// Withdrawal completes asynchronously when the window has to exit full
+    /// screen first; repeating it while that exit is in flight just replaces
+    /// the parked install.
+    private func withdrawWindowThenInstallInCanvas()
+    {
+        self.windowManager.withdraw { [weak self] in
+            self?.installInCanvas()
         }
     }
 

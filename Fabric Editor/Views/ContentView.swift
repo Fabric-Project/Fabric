@@ -234,11 +234,7 @@ struct ContentView: View {
                 {
                     ToolbarItem(placement: .automatic)
                     {
-                        Button(outputPresenter.playbackControlLabel,
-                               systemImage: outputPresenter.playbackControlSymbolName)
-                        {
-                            outputPresenter.togglePlayback()
-                        }
+                        OutputPlaybackToolbarButton(presenter: outputPresenter)
                     }
                 }
 
@@ -259,6 +255,38 @@ struct ContentView: View {
                 self.outputPresenter = nil
                 self.document.teardownOutputPresentation()
             }
+            .background(ActiveDocumentTracker(document: self.document))
+        }
+    }
+}
+
+/// Keeps `ActiveFabricDocumentStore` pointed at the document whose editor
+/// window is key. The output window's `windowDidBecomeMain` also does this,
+/// but in editor-canvas mode no output window exists. A separate struct so
+/// window-focus changes invalidate this view, not the whole editor.
+struct ActiveDocumentTracker: View {
+    let document: FabricDocument
+    @Environment(\.controlActiveState) private var controlActiveState
+
+    var body: some View {
+        Color.clear
+            .onChange(of: self.controlActiveState) { _, newState in
+                guard newState == .key else { return }
+                ActiveFabricDocumentStore.shared.activeDocument = self.document
+            }
+    }
+}
+
+/// Reading playback state here rather than in `ContentView.body` keeps a
+/// play/pause toggle from re-evaluating the whole editor.
+struct OutputPlaybackToolbarButton: View {
+    let presenter: OutputPresenter
+
+    var body: some View {
+        Button(self.presenter.playbackControlLabel,
+               systemImage: self.presenter.playbackControlSymbolName)
+        {
+            self.presenter.togglePlayback()
         }
     }
 }

@@ -32,6 +32,7 @@ class DocumentOutputWindowManager : NSObject
     private var outputWindow: NSWindow?
     private var windowTitle = ""
     private var pendingWithdrawCompletion: (() -> Void)?
+    private var isExitingFullScreen = false
 
     // Toolbar shit
     private weak var playPauseItem: NSToolbarItem?
@@ -60,10 +61,17 @@ class DocumentOutputWindowManager : NSObject
             return
         }
 
-        if window.styleMask.contains(.fullScreen)
+        if window.styleMask.contains(.fullScreen) || self.isExitingFullScreen
         {
+            // A second withdraw can arrive while the exit animation runs;
+            // toggling again would bounce the window back into full screen,
+            // so only the parked completion is replaced.
             self.pendingWithdrawCompletion = completion
-            window.toggleFullScreen(nil)
+            if !self.isExitingFullScreen
+            {
+                self.isExitingFullScreen = true
+                window.toggleFullScreen(nil)
+            }
             return
         }
 
@@ -91,10 +99,29 @@ class DocumentOutputWindowManager : NSObject
 
     func closeWindow()
     {
+        guard let window = self.outputWindow else {
+            self.pendingWithdrawCompletion = nil
+            self.isExitingFullScreen = false
+            return
+        }
+
+        if window.styleMask.contains(.fullScreen) || self.isExitingFullScreen
+        {
+            // Closing a full-screen window in place strands its Space; exit
+            // first and finish from windowDidExitFullScreen.
+            self.pendingWithdrawCompletion = { [weak self] in self?.closeWindow() }
+            if !self.isExitingFullScreen
+            {
+                self.isExitingFullScreen = true
+                window.toggleFullScreen(nil)
+            }
+            return
+        }
+
         self.pendingWithdrawCompletion = nil
-        self.outputWindow?.delegate = nil
-        self.outputWindow?.contentViewController = nil
-        self.outputWindow?.close()
+        window.delegate = nil
+        window.contentViewController = nil
+        window.close()
         self.outputWindow = nil
     }
 
@@ -139,6 +166,7 @@ extension DocumentOutputWindowManager: NSWindowDelegate
 
     func windowDidExitFullScreen(_ notification: Notification)
     {
+        self.isExitingFullScreen = false
         guard let completion = self.pendingWithdrawCompletion else { return }
         self.pendingWithdrawCompletion = nil
         self.withdraw(completion: completion)
