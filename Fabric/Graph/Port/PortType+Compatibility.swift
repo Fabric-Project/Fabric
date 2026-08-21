@@ -16,17 +16,21 @@ extension PortType
             return self.isArrayType && other.isArrayType
         }
 
-        if self == .NumericVirtual || other == .NumericVirtual
-        {
-            return self.isNumericVirtualCompatible || other.isNumericVirtualCompatible
-        }
-
-        // Pure Virtual ports box arbitrary scalar and object values. Keep this
-        // symmetric because canvas hit-testing may ask compatibility from
-        // either the inlet or outlet side.
+        // Pure Virtual ports box arbitrary scalar and object values, Numeric
+        // Virtual included. Keep this symmetric because canvas hit-testing may
+        // ask compatibility from either the inlet or outlet side, and keep it
+        // ahead of the Numeric Virtual rule below, which would otherwise refuse
+        // a pure virtual wire.
         if self == .Virtual || other == .Virtual
         {
             return true
+        }
+
+        // Both sides have to be numeric: the Numeric Virtual side satisfies
+        // this by definition, so the test is really about the other one.
+        if self == .NumericVirtual || other == .NumericVirtual
+        {
+            return self.isNumericVirtualCompatible && other.isNumericVirtualCompatible
         }
 
         switch self

@@ -172,32 +172,22 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         self.offset = try container.decode(CGSize.self, forKey: .nodeOffset)
         self.userName = try container.decodeIfPresent(String.self, forKey: .userName)
 
+        // Declare, then hydrate: the port set comes from the code — registerPorts
+        // now, subclass rebuilds (strategy, route count, expression, shader) after
+        // this initializer — and the document contributes only the state it owns,
+        // applied per registry key as each port registers. Snapshot keys that
+        // never match a declared or rebuilt port surface via
+        // droppedPortStateKeys instead of resurrecting retired ports.
         let snaps = try container.decodeIfPresent([PortRegistry.Snapshot].self, forKey: .ports) ?? []
+        self.portHydrationSession = PortHydrationSession(snapshots: snaps)
 
-        for snap in snaps
-        {
-            let anyport  = snap.payload
-            let port = anyport.base
-
-            self.registry.register(port, name: snap.name, owner: self)
-        }
-
-        // lets try to merge if we have any ports we deserialized
-        // that our node should have registered (ie diff)
         let declared = Self.registerPorts(context: context)
 
         for d in declared
         {
-            if let _ = self.registry.port(named: d.name)
-            {
-                continue
-            }
-            else
-            {
-                self.registry.register(d.port, name: d.name, owner: self)
-            }
+            self.portHydrationSession?.hydrate(d.port, registryKey: d.name)
+            self.registry.register(d.port, name: d.name, owner: self)
         }
-
 
         for port in self.registry.all()
         {
@@ -293,9 +283,57 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         self.registry.port(named: name) as? T
     }
 
+    // MARK: - Port state hydration (declare-then-hydrate decode)
+
+    /// The document's port state for the duration of decode; nil otherwise.
+    /// Graph finalizes and clears it once node inits and their dynamic
+    /// rebuilds are done, so ports added later in the node's life can never
+    /// resurrect stale document state.
+    private var portHydrationSession: PortHydrationSession?
+
+    /// Registry keys from the document whose port state found no declared or
+    /// rebuilt port to land on. Dropping that state is deliberate — the code
+    /// owns the port set — but it is data loss, so Graph reports it after
+    /// decode rather than discarding silently.
+    internal var droppedPortStateKeys: [String] { self.portHydrationSession?.unconsumedKeys ?? [] }
+
+    /// Registers the document's remaining port state as ports in their own
+    /// right. A node whose source cannot rebuild its port set at decode time
+    /// (an unparseable script, a shader that no longer compiles) would
+    /// otherwise decode with none of the ports the document saved, taking
+    /// every wire with them and making the loss permanent at the next save.
+    /// The decoded instances carry their saved identity, value and published
+    /// state, so a later successful rebuild reconciles against them by name
+    /// and keeps the wires whose names and types still agree.
+    ///
+    /// Only ever does anything mid-decode, and must run inside the node's init
+    /// path so Graph still sees the keys as adopted rather than dropped.
+    internal func adoptRemainingSnapshotPortsAsFallback()
+    {
+        guard let session = self.portHydrationSession else { return }
+
+        for (registryKey, port) in session.drainPendingSnapshots()
+        {
+            self.addDynamicPort(port, name: registryKey)
+        }
+    }
+
+    /// Ends the decode-time hydration window, returning the registry keys
+    /// whose state never found a port.
+    internal func finalizePortHydration() -> [String]
+    {
+        let droppedKeys = self.droppedPortStateKeys
+        self.portHydrationSession = nil
+        return droppedKeys
+    }
+
     // Dynamic add/remove (kept by serialization automatically)
     public func addDynamicPort(_ p: Port, name:String? = nil)
     {
+        // Dynamic ports created after decode (rebuildPorts and friends) adopt
+        // their persisted state here, before the registry indexes their id.
+        self.portHydrationSession?.hydrate(p, registryKey: name ?? p.name)
+
         self.registry.addDynamic(p, owner: self, name:name)
         self.invalidatePortCaches()
         if let param = p.parameter
@@ -309,6 +347,8 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
 
     public func removePort(_ p: Port)
     {
+        self.portHydrationSession?.relinquish(p)
+
         self.registry.remove(p)
         self.invalidatePortCaches()
         if let param = p.parameter
@@ -639,4 +679,30 @@ public protocol NodeFileLoadingProtocol : Node
     func setFileURL(_ url: URL)
 
     static var supportedContentTypes: [UTType] { get }
+}
+
+public extension NodeFileLoadingProtocol
+{
+    /// A file that ships inside the package bundle is persisted by its path
+    /// below the bundle's resource root, not its URL: the bundle sits somewhere
+    /// different on every machine and in every build, so an absolute path would
+    /// bind the document to the machine that wrote it. Nil for a URL outside
+    /// the bundle, which has no bundle-relative spelling — the encode site
+    /// decides what such a file persists as.
+    static func bundleRelativeResourcePath(for url: URL) -> String?
+    {
+        guard let resourceRoot = Bundle.module.resourceURL else { return nil }
+
+        let base = resourceRoot.standardizedFileURL.resolvingSymlinksInPath().pathComponents
+        let full = url.standardizedFileURL.resolvingSymlinksInPath().pathComponents
+
+        guard full.count > base.count, full.starts(with: base) else { return nil }
+
+        return full.dropFirst(base.count).joined(separator: "/")
+    }
+
+    static func resolveBundleResource(path: String) -> URL?
+    {
+        Bundle.module.resourceURL?.appending(path: path)
+    }
 }

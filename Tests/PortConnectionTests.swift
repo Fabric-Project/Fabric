@@ -81,6 +81,104 @@ struct PortConnectionTests {
         #expect(decodedSink.inputNumber1.value == 144)
     }
 
+    @Test("An unwired ParameterPort falls back to its parameter")
+    func unwiredParameterPortFallsBackToParameter() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let source = NumberBinaryOperator(context: context)
+        let sink = NumberBinaryOperator(context: context)
+        graph.addNode(source)
+        graph.addNode(sink)
+
+        source.outputNumber.connect(to: sink.inputNumber1)
+        source.outputNumber.send(9)
+        #expect(sink.inputNumber1.value == 9)
+
+        // Disconnect force-sends nil into the inlet so it doesn't sit on stale
+        // data. A parameter-backed inlet has no valueless state, so rather than
+        // being left with a missing input it re-seats on its parameter.
+        source.outputNumber.disconnect(from: sink.inputNumber1)
+        #expect(sink.inputNumber1.connections.isEmpty)
+        #expect(sink.inputNumber1.value != nil)
+        #expect(sink.inputNumber1.value == (sink.inputNumber1.parameter as? FloatParameter)?.value)
+    }
+
+    @Test("Falling back to the parameter runs the change bookkeeping")
+    func parameterFallbackRunsChangeBookkeeping() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let source = NumberBinaryOperator(context: context)
+        let sink = NumberBinaryOperator(context: context)
+        graph.addNode(source)
+        graph.addNode(sink)
+
+        source.outputNumber.connect(to: sink.inputNumber1)
+        source.outputNumber.send(9)
+
+        sink.markClean()
+        #expect(!sink.isDirty)
+        #expect(!sink.inputNumber1.valueDidChange)
+
+        let inlet = sink.inputNumber1
+        var observedValues: [Float?] = []
+        inlet.onValueChanged = { observedValues.append(inlet.value) }
+
+        source.outputNumber.disconnect(from: sink.inputNumber1)
+
+        // The observer retains the port it reads, so clear it before asserting.
+        inlet.onValueChanged = nil
+
+        // Executors gate on valueDidChange, so the fallback has to look like the
+        // change it is — otherwise the port holds the parameter but nothing
+        // downstream re-reads it.
+        #expect(inlet.value == 9)
+        #expect(inlet.valueDidChange)
+        #expect(sink.isDirty)
+
+        // Observers do see the transient nil, so what matters is that they are
+        // notified again once the port has re-seated and none is left on nil.
+        let lastObserved = try #require(observedValues.last)
+        #expect(lastObserved == 9)
+    }
+
+    @Test("Deleting an upstream node leaves a math expression evaluating")
+    func deletingUpstreamNodeLeavesMathExpressionEvaluating() throws {
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
+
+        let graph = Graph(context: harness.context)
+        let source = NumberBinaryOperator(context: harness.context)
+        let expression = MathExpressionNode(context: harness.context, expression: "x + y")
+        graph.addNode(source)
+        graph.addNode(expression)
+
+        let x = try #require(expression.findPort(named: "x", as: ParameterPort<Float>.self))
+        let y = try #require(expression.findPort(named: "y", as: ParameterPort<Float>.self))
+        let result = try #require(expression.findPort(named: "result", as: NodePort<Float>.self))
+        result.published = true
+        graph.rebuildPublishedParameterGroup()
+
+        source.inputNumber1.value = 4
+        source.inputNumber2.value = 0
+        source.outputNumber.connect(to: x)
+        y.value = 1
+
+        try harness.renderer.startExecution(graph: graph)
+        try harness.execute(graph, frameNumber: 0, checkCommandBufferError: false)
+        #expect(result.value == 5)
+
+        // The Spark Stage failure: rebuilding a chain deletes the node feeding a
+        // parameter-backed inlet, and the expression then evaluates against a
+        // missing input — emitting nothing — until the rebuilt chain first sends.
+        graph.delete(node: source)
+        y.value = 10
+
+        try harness.execute(graph, frameNumber: 1, checkCommandBufferError: false)
+        #expect(result.value == 14)
+        try harness.renderer.stopExecution(graph: graph)
+    }
+
     @Test("Graph encoding records required plugins and qualified node IDs")
     func graphEncodingRecordsRequiredPluginsAndQualifiedNodeIDs() throws {
         guard let context = makeContext() else { return }
@@ -119,6 +217,97 @@ struct PortConnectionTests {
         #expect(decodedGraph.nodes.first is PerspectiveCameraNode)
     }
 
+    @Test("Programmatic connect refuses type-incompatible ports")
+    func programmaticConnectRefusesIncompatibleTypes() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let imageSource = PassThroughNode<FabricImage>(context: context)
+        let numberSink = NumberBinaryOperator(context: context)
+        graph.addNode(imageSource)
+        graph.addNode(numberSink)
+
+        // The canvas gates drops on canConnect; the untyped connect entry the
+        // procedural API and decode restore use must refuse the same pairs.
+        (imageSource.output as Fabric.Port).connect(to: numberSink.inputNumber1)
+        #expect(imageSource.output.connections.isEmpty)
+        #expect(numberSink.inputNumber1.connections.isEmpty)
+
+        // Convertible scalars stay connectable — send can service Float→Int.
+        let intSink = PassThroughNode<Int>(context: context)
+        graph.addNode(intSink)
+        (numberSink.outputNumber as Fabric.Port).connect(to: intSink.input)
+        #expect(numberSink.outputNumber.connections.count == 1)
+    }
+
+    @Test("Decode drops a wire whose port type changed, and reports it")
+    func decodeDropsIncompatibleWireAndReportsIt() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let imageSource = PassThroughNode<FabricImage>(context: context)
+        let holdNode = SampleAndHoldNode(context: context, portType: .Image)
+        graph.addNode(imageSource)
+        graph.addNode(holdNode)
+
+        let holdInput = try #require(holdNode.findPort(named: "inputValue") as Fabric.Port?)
+        (imageSource.output as Fabric.Port).connect(to: holdInput)
+        #expect(holdInput.connections.count == 1)
+
+        // Re-type the node in the saved document, as an edit in a newer build
+        // would: the rebuilt Float ports adopt their persisted identity, so
+        // connection restore finds the UUID — and must refuse the Image wire.
+        let data = try JSONEncoder().encode(graph)
+        var object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        var nodeMap = try #require(object["nodeMap"] as? [[String: Any]])
+        for index in nodeMap.indices {
+            guard var value = nodeMap[index]["value"] as? [String: Any],
+                  value["strategy"] as? String == "Image" else { continue }
+            value["strategy"] = "Float"
+            nodeMap[index]["value"] = value
+        }
+        object["nodeMap"] = nodeMap
+
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decoded = try decoder.decode(Graph.self, from: try JSONSerialization.data(withJSONObject: object))
+
+        let decodedHold = try #require(decoded.nodes.first { $0.id == holdNode.id })
+        let decodedInput = try #require(decodedHold.findPort(named: "inputValue") as Fabric.Port?)
+        #expect(decodedInput.id == holdInput.id)
+        #expect(decodedInput.connections.isEmpty)
+        #expect(decoded.droppedConnectionDiagnostics.count == 1)
+        #expect(decoded.droppedConnectionDiagnostics.first?.reason == .incompatibleTypes)
+    }
+
+    @Test("Decode reports a wire whose endpoint no longer resolves")
+    func decodeReportsWireWithMissingEndpoint() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let source = NumberBinaryOperator(context: context)
+        let sink = NumberBinaryOperator(context: context)
+        graph.addNode(source)
+        graph.addNode(sink)
+        source.outputNumber.connect(to: sink.inputNumber1)
+
+        // Remove the source node from the document; the port map still holds
+        // both directions of its wire.
+        let data = try JSONEncoder().encode(graph)
+        var object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let nodeMap = try #require(object["nodeMap"] as? [[String: Any]])
+        object["nodeMap"] = nodeMap.filter { entry in
+            (entry["value"] as? [String: Any])?["id"] as? String != source.id.uuidString
+        }
+
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decoded = try decoder.decode(Graph.self, from: try JSONSerialization.data(withJSONObject: object))
+
+        #expect(decoded.droppedConnectionDiagnostics.count == 1)
+        #expect(decoded.droppedConnectionDiagnostics.first?.reason == .missingEndpoint)
+    }
+
     @Test("Generic array virtual type compatibility is array scoped")
     func genericArrayVirtualTypeCompatibilityIsArrayScoped() {
         let genericArray = PortType.Array(portType: .Virtual)
@@ -142,6 +331,27 @@ struct PortConnectionTests {
         #expect(!arrayInlet.canConnect(to: scalarOutlet))
         #expect(!arrayInlet.canConnect(to: virtualOutlet))
         #expect(arrayInlet.canConnect(to: concreteArrayOutlet))
+    }
+
+    @Test("Numeric virtual type compatibility is numeric scoped")
+    func numericVirtualTypeCompatibilityIsNumericScoped() {
+        let numericVirtual = PortType.NumericVirtual
+
+        #expect(numericVirtual.canConnect(to: .Float))
+        #expect(numericVirtual.canConnect(to: .Int))
+        #expect(numericVirtual.canConnect(to: .Vector3))
+        #expect(numericVirtual.canConnect(to: .Transform))
+        #expect(numericVirtual.canConnect(to: .Array(portType: .Float)))
+        #expect(numericVirtual.canConnect(to: numericVirtual))
+
+        // A pure virtual port boxes anything, numbers included.
+        #expect(numericVirtual.canConnect(to: .Virtual))
+
+        #expect(!numericVirtual.canConnect(to: .Image))
+        #expect(!numericVirtual.canConnect(to: .String))
+        #expect(!numericVirtual.canConnect(to: .Bool))
+        #expect(!numericVirtual.canConnect(to: .Geometry))
+        #expect(!numericVirtual.canConnect(to: .Array(portType: .String)))
     }
 
     @Test("Pure virtual inlets remain universal")

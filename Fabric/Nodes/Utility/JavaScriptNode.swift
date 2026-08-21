@@ -454,7 +454,7 @@ public final class JavaScriptNode: Node
     public required init(context: Context)
     {
         super.init(context: context)
-        self.compileAndSynchronizePorts(shouldSynchronizePorts: true)
+        self.compileAndSynchronizePorts()
     }
 
     public required init(from decoder: any Decoder) throws
@@ -465,7 +465,10 @@ public final class JavaScriptNode: Node
         self.scriptSource = try container.decodeIfPresent(String.self, forKey: .scriptSource) ?? JavaScriptNode.defaultScriptSource()
         self.selectedExecutionMode = try container.decodeIfPresent(Node.ExecutionMode.self, forKey: .selectedExecutionMode) ?? .Processor
         self.selectedTimeMode = try container.decodeIfPresent(Node.TimeMode.self, forKey: .selectedTimeMode) ?? .None
-        self.compileAndSynchronizePorts(shouldSynchronizePorts: false)
+        // Every port is dynamic, so decode must rebuild them from the restored
+        // script; each recreated port adopts its persisted identity and state
+        // by registry key as it registers.
+        self.compileAndSynchronizePorts()
     }
 
     override public func encode(to encoder: any Encoder) throws
@@ -498,7 +501,7 @@ public final class JavaScriptNode: Node
     public func updateScriptSource(_ source: String)
     {
         self.scriptSource = source
-        self.compileAndSynchronizePorts(shouldSynchronizePorts: true)
+        self.compileAndSynchronizePorts()
     }
 
     @MainActor
@@ -552,7 +555,7 @@ public final class JavaScriptNode: Node
         }
     }
 
-    private func compileAndSynchronizePorts(shouldSynchronizePorts: Bool)
+    private func compileAndSynchronizePorts()
     {
         do {
             let signature = try JavaScriptNodeSourceParser.parse(source: self.scriptSource)
@@ -561,13 +564,15 @@ public final class JavaScriptNode: Node
             self.runtime = runtime
             self.diagnostics = []
 
-            if shouldSynchronizePorts {
-                self.synchronizeDynamicPorts(with: signature)
-            }
+            self.synchronizeDynamicPorts(with: signature)
         }
         catch {
             let summary = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             self.diagnostics = [JavaScriptNodeDiagnostic(summary: summary, detail: summary)]
+
+            // Every port here is minted from the script's signature, so a saved
+            // script that no longer parses leaves the node with none at all.
+            self.adoptRemainingSnapshotPortsAsFallback()
         }
     }
 

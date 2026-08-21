@@ -67,8 +67,8 @@ public final class ContourPathNode: Node {
 
     // MARK: - Setup
     private func setupProcessor(context: Context) {
-        let bundle = Bundle(for: Self.self)
-        guard let url = bundle.url(forResource: "MarchingSquares", withExtension: "metal", subdirectory: "Compute")
+        // Bundle(for:) cannot see SPM package resources; Bundle.module owns them.
+        guard let url = Bundle.module.url(forResource: "MarchingSquares", withExtension: "metal", subdirectory: "Compute")
 
         else {
             print("ContourPathNode: Missing Shaders/Compute/MarchingSquares.metal")
