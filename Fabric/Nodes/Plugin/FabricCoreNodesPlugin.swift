@@ -361,6 +361,7 @@ public final class FabricCoreNodesPlugin: NSObject, FabricPlugin
     private static var utilityClasses: [Node.Type]
     {
         var classes: [Node.Type] = [
+            ClearNode.self,
             LogNode.self,
             VisualizeNode.self,
             JavaScriptNode.self,

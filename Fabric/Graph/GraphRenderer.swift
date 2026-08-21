@@ -167,6 +167,17 @@ public class GraphRenderer : ViewRenderer
 
     public func executeAndDraw(graph: Graph, executionInfo: GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
+        let clearColor = self.renderEncoder.clearColor
+        let colorLoadAction = self.renderEncoder.colorLoadAction
+        let depthLoadAction = self.renderEncoder.depthLoadAction
+        let stencilLoadAction = self.renderEncoder.stencilLoadAction
+        defer {
+            self.renderEncoder.clearColor = clearColor
+            self.renderEncoder.colorLoadAction = colorLoadAction
+            self.renderEncoder.depthLoadAction = depthLoadAction
+            self.renderEncoder.stencilLoadAction = stencilLoadAction
+        }
+
         let needsSceneSync = graph.consumePendingConnectionSceneSync()
 
         // A node added since the last drawable resize has never been given the

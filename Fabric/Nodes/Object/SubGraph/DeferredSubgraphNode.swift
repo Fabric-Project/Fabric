@@ -78,7 +78,6 @@ public class DeferredSubgraphNode: SubgraphNode
         return  [
             ("inputWidth", ParameterPort(parameter: IntParameter("Width", 1920, .inputfield, "Output texture width in pixels"))),
             ("inputHeight", ParameterPort(parameter: IntParameter("Height", 1080, .inputfield, "Output texture height in pixels"))),
-            ("inputClearColor", ParameterPort(parameter: Float4Parameter("Clear Color", simd_float4(repeating:0), .colorpicker, "Background color for the render target"))),
             ("outputColorTexture", NodePort<FabricImage>(name: "Color Texture", kind: .Outlet, description: "Rendered color output from the subgraph")),
             ("outputDepthTexture", NodePort<FabricImage>(name: "Depth Texture", kind: .Outlet, description: "Rendered depth buffer from the subgraph")),
         ] + ports
@@ -87,7 +86,6 @@ public class DeferredSubgraphNode: SubgraphNode
     // Proxy Port
     public var inputWidth: ParameterPort<Int> { port(named: "inputWidth") }
     public var inputHeight: ParameterPort<Int> { port(named: "inputHeight") }
-    public var inputClearColor: ParameterPort<simd_float4> { port(named: "inputClearColor") }
     public var outputColorTexture: NodePort<FabricImage> { port(named: "outputColorTexture") }
     public var outputDepthTexture: NodePort<FabricImage> { port(named: "outputDepthTexture") }
     
@@ -172,7 +170,6 @@ public class DeferredSubgraphNode: SubgraphNode
         self.graphRenderer.renderEncoder.emissiveTextureStorageMode = .private
         
         self.graphRenderer.resize(size: (Float(self.inputWidth.value ?? 1920), Float(self.inputHeight.value ?? 1080 )), scaleFactor: 1.0)
-        self.graphRenderer.renderEncoder.clearColor = .init(self.inputClearColor.value ?? simd_float4(repeating: 0))
         self.rendererNeedsSetup = false
     }
 
@@ -298,12 +295,6 @@ public class DeferredSubgraphNode: SubgraphNode
             }
         }
        
-        if self.inputClearColor.valueDidChange,
-           let clearColor = self.inputClearColor.value
-        {
-            self.graphRenderer.renderEncoder.clearColor = .init( clearColor )
-        }
-                    
         guard let width = self.inputWidth.value,
               let height = self.inputHeight.value
         else { return }
