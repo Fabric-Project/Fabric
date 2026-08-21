@@ -57,35 +57,21 @@ import Satin
             let name = newValue?.isEmpty == true ? nil : newValue
             _userName = name
             node.userName = name
+            let resolvedSubtitle = node.subtitle
+            if resolvedSubtitle != self.subtitle { self.subtitle = resolvedSubtitle }
         }
     }
     private var _userName: String?
 
-    /// `Node.title`, resolved from the observable rename above rather than read
-    /// through to the node, so SwiftUI invalidates on a rename.
-    public var title: String
-    {
-        _userName ?? canonicalName
-    }
+    /// `Node.title`, cached and refreshed with the node's other naming state.
+    public private(set) var title: String
 
     /// `Node.subtitle`, cached and kept fresh by subtitleSubject.
     public private(set) var subtitle: String?
 
-    /// What title UI shows ahead of the canonical name: the rename, else the
-    /// node's own subtitle. Nil when it has neither — or when the label equals
-    /// the canonical name, which the title renders anyway — and the title is the
-    /// bare type name.
-    public var titleLabel: String?
-    {
-        let label = _userName ?? subtitle
-        return label == canonicalName ? nil : label
-    }
-
     // MARK: - Forwarded node metadata
 
     public var nodeType: Node.NodeType { node.nodeType }
-
-    public var canonicalName: String { node.canonicalName }
 
     // MARK: - Ports + nodeSize (stored; updated when ports change)
 
@@ -112,6 +98,7 @@ import Satin
         self.node         = node
         self._offset      = node.offset
         self._userName    = node.userName
+        self.title        = node.title
         self.subtitle     = node.subtitle
         self.ports        = node.ports
         self.nodeSize     = node.nodeSize
@@ -136,14 +123,18 @@ import Satin
             }
             .store(in: &cancellables)
 
-        // Sync the cached subtitle when nodes that describe themselves (e.g.
-        // MathExpressionNode, StringFormatterNode) change it after user edits.
+        // Sync the cached title, rename, and resolved subtitle whenever the
+        // node's naming state changes.
         node.subtitleSubject
             .receive(on: DispatchQueue.main)
             .sink { [weak self] in
                 guard let self else { return }
                 // Equality-gated: force-sending upstreams re-assign subtitle-feeding
                 // ports every frame; only a real change may touch the observable.
+                let newUserName = node.userName
+                if newUserName != self._userName { self._userName = newUserName }
+                let newTitle = node.title
+                if newTitle != self.title { self.title = newTitle }
                 let newSubtitle = node.subtitle
                 if newSubtitle != self.subtitle { self.subtitle = newSubtitle }
             }

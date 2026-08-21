@@ -15,7 +15,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Image processing effect" }
 
-    override public func deriveSubtitle() -> String? { self.cachedFileURLName }
+    override public func deriveTitle() -> String { self.cachedFileURLName ?? Self.name }
 
     open class var sourceShaderName: String { "" }
     open class var defaultImageInputCountHint: Int? { nil }
@@ -127,6 +127,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
         self.url = url
         self.cachedFileURLName = cachedName
+        self.updatePostProcessorLabel()
         self.subtitleSubject.send()
 
         guard shouldUpdatePipeline else { return }
@@ -232,7 +233,12 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
     private func postInit()
     {
-        self.postProcessor.label = self.canonicalName + " Post Processor"
+        self.updatePostProcessorLabel()
+    }
+
+    private func updatePostProcessorLabel()
+    {
+        self.postProcessor.label = self.title + " Post Processor"
     }
     
     open func postSetupSynchronizePorts(allowReplace: Bool, preserveExistingImageInputPorts: Bool = false) {
@@ -649,7 +655,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             partialResult || next.valueDidChange
         }
 
-        commandBuffer.pushDebugGroup(self.title + " Execute")
+        commandBuffer.pushDebugGroup(self.debugDescription + " Execute")
         defer { commandBuffer.popDebugGroup() }
         
         if self.currentImageInputCount == 0 {

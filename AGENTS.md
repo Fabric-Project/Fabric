@@ -77,15 +77,17 @@ For all development:
 
 ### 2.1  Nodes & Execution
 - Nodes define immutable static metadata:  `nodeType`, `nodeExecutionMode`, `nodeTimeMode`,  `name`, `nodeDescription`.
-- A node is named from three sources, two of them overridden by the subclass:
-  - `class var name` — override: the name the type is registered and listed under; `canonicalName` on an instance.
-  - `func deriveSubtitle() -> String?` — override where the node describes itself, nil otherwise: Math Expression's expression, StrategyNode's strategy. Read it off an instance as `subtitle`, final and normalized.
-  - `var userName: String?` — final: the user's rename, serialized.
-  - An empty name is no name: `subtitle` reads a `deriveSubtitle()` of "" as nil, and `userName` normalizes "" to nil at set and decode. Overrides and consumers never guard emptiness themselves.
+- A node is named from four sources, three of them overridden by the subclass:
+  - `class var name` — override: the stable name the type is registered and listed under, and the default instance title.
+  - `func deriveTitle() -> String` — override only when an instance has a more specific authoritative title, such as a shader-backed `BaseImageNode`; defaults to `Self.name`.
+  - `func deriveSubtitle() -> String?` — override where the node describes itself, nil otherwise: Math Expression's expression, StrategyNode's strategy.
+  - `var userName: String?` — final: the user's rename, serialized and public for rename-specific callers.
+  - An empty name is no name: `userName` normalizes "" to nil at set and decode.
 - From those it composes, both final:
-  - `var title` — what to call the node: `userName ?? canonicalName`. Note `subtitle` is deliberately absent: it accompanies the title, it does not replace it.
-  - `var debugDescription` — every name the node answers to, e.g. `Math Expression (sin(x) · My Rename)`. `print(node)` and `"\(node)"` give it: log a node directly rather than reaching for a name. Use `canonicalName` where brevity or per-frame cost matters.
-- Fire `subtitleSubject.send()` whenever state feeding `subtitle` changes; `NodeViewModel` mirrors the node's `title` / `canonicalName` / `subtitle` observably, and adds `titleLabel` (`userName ?? subtitle`) — the label all title UI draws ahead of the canonical name.
+  - `var title` — the normalized result of `deriveTitle()`, falling back to `Self.name` when empty.
+  - `var subtitle` — `userName ?? deriveSubtitle()`, normalized so empty values and values equal to `title` read as nil. General consumers read this rather than `userName`.
+  - `var debugDescription` — the title plus resolved subtitle, e.g. `Math Expression (My Rename)`. `print(node)` and `"\(node)"` give it; diagnostic labels and traces use it when they need both values.
+- Fire `subtitleSubject.send()` whenever state feeding `deriveTitle()` or `deriveSubtitle()` changes; `NodeViewModel` mirrors the node's `title` / `subtitle` observably and keeps `userName` only for rename editing, clearing, and undo.
 - Execution is **pull-based**; one execute per node per pass.
 - `GraphRenderer` (executor and scheduler) today does not use `nodeExecutionMode` or `nodeTimeMode` but will in the future.
 - **Iterator (QC-style)** remains the multi-evaluation macro; refinements allowed, paradigm fixed.

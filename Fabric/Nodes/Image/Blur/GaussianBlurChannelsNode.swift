@@ -134,7 +134,7 @@ public final class GaussianBlurChannelsNode: BaseMultiPassBlurEffectTwoChannelNo
                 return nil
             }
 
-            commandBuffer.pushDebugGroup("\(self.title) - pass \(index)")
+            commandBuffer.pushDebugGroup("\(self.debugDescription) - pass \(index)")
 
             let passUniforms = GaussianPassUniforms(direction: step.vector,
                                                     amountScale: step.amountScale,

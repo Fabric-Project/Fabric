@@ -208,7 +208,7 @@ extension Node
         {
             switch self
             {
-            case .Parameter:
+            case .Parameter, .Utility:
                 return self.color( ).opacity(0.6)
                 
             default:
