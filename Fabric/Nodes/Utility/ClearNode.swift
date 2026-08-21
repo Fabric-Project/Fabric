@@ -9,7 +9,7 @@ import simd
 
 public final class ClearNode: Node
 {
-    override public class var name: String { "Clear" }
+    override public class var name: String { "Background Color" }
     override public class var nodeType: Node.NodeType { .Utility }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Consumer }
     override public class var nodeTimeMode: Node.TimeMode { .None }
@@ -20,7 +20,7 @@ public final class ClearNode: Node
         let ports = super.registerPorts(context: context)
 
         return ports + [
-            ("inputClearColor", ParameterPort(parameter: Float4Parameter("Clear Color", .zero, .colorpicker, "Color used to initialize the render target"))),
+            ("inputClearColor", ParameterPort(parameter: Float4Parameter("Background Color Color", .zero, .colorpicker, "Color used for background clearing on the current color render target"))),
             ("inputClearDepth", ParameterPort(parameter: BoolParameter("Clear Depth", true, .button, "Clear the depth attachment before scene rendering"))),
             ("inputClearStencil", ParameterPort(parameter: BoolParameter("Clear Stencil", false, .button, "Clear the stencil attachment before scene rendering"))),
         ]
