@@ -22,7 +22,7 @@ internal import AnyCodable
     public struct DroppedPortStateDiagnostic
     {
         public let nodeID: UUID
-        public let nodeName: String
+        public let nodeTitle: String
         public let droppedRegistryKeys: [String]
     }
 
@@ -328,9 +328,9 @@ internal import AnyCodable
         self.droppedPortStateDiagnostics = self.nodes.compactMap { node in
             let droppedKeys = node.finalizePortHydration()
             guard !droppedKeys.isEmpty else { return nil }
-            print("Graph decode: '\(node.name)' dropped port state for retired keys \(droppedKeys)")
+            print("Graph decode: '\(node.title)' dropped port state for retired keys \(droppedKeys)")
             return DroppedPortStateDiagnostic(nodeID: node.id,
-                                              nodeName: node.name,
+                                              nodeTitle: node.title,
                                               droppedRegistryKeys: droppedKeys)
         }
 
@@ -356,7 +356,7 @@ internal import AnyCodable
             func describe(_ id: UUID) -> String
             {
                 guard let port = portsByID[id] else { return "missing port \(id)" }
-                return "\(port.node?.name ?? "?").\(port.displayName)"
+                return "\(port.node?.title ?? "?").\(port.displayName)"
             }
 
             let diagnostic = DroppedConnectionDiagnostic(portID: portID,
