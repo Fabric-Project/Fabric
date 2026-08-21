@@ -73,9 +73,9 @@ public class GraphRenderer : ViewRenderer
         self.renderEncoder.sortObjects = true
 
         self.sceneProxy = Object(context: context)
-        self.defaultCamera = PerspectiveCamera(context: context)
-        self.defaultCamera.position = simd_float3(0, 0, 2)
-        self.defaultCamera.lookAt(target: .zero)
+        // The camera a graph gets for free is the camera node's, at its
+        // defaults, so adding that node to a graph reframes nothing.
+        self.defaultCamera = PerspectiveCameraNode.makeDefaultCamera(context: context)
 
         self.privateTextureCache = GraphRendererTextureCache(device: context.device)
 
@@ -138,8 +138,10 @@ public class GraphRenderer : ViewRenderer
         self.renderEncoder.resize(size)
         self.graphRequiresResize = true
         self.resizeScaleFactor = scaleFactor
+        // Field of view is the camera's, not the drawable's: a resize changes
+        // the resolution rendered and how much is visible to the sides, and
+        // must not change the framing of what a graph was authored against.
         self.defaultCamera.aspect = size.width / size.height
-        self.defaultCamera.fov = radToDeg( 2.0 * atan( (size.height / size.width) / 2.0 ) )
     }
 
     // MARK: - Draw
@@ -166,6 +168,16 @@ public class GraphRenderer : ViewRenderer
     public func executeAndDraw(graph: Graph, executionInfo: GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
         let needsSceneSync = graph.consumePendingConnectionSceneSync()
+
+        // A node added since the last drawable resize has never been given the
+        // size, and a camera added that way would project through Satin's
+        // square default aspect — the scene stretched to the target's shape.
+        // A change in the graph's topology is the signal that someone in it
+        // has yet to be told.
+        if needsSceneSync
+        {
+            self.graphRequiresResize = true
+        }
 
         try self.execute(graph: graph,
                          executionInfo: executionInfo,
@@ -199,7 +211,7 @@ public class GraphRenderer : ViewRenderer
             }
         }
 
-        self.currentCamera = graph.firstCamera ?? self.currentCamera ?? self.defaultCamera
+        self.currentCamera = graph.latestCamera ?? self.defaultCamera
 
         var capturedError: (any Error)?
         var scheduledNodes = nodesInExecutionOrder(for: graph)

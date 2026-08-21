@@ -112,12 +112,9 @@ class FabricDocument: FileDocument
         try? meshNode.enableExecution(renderer: self.renderer)
         try? meshNode.startExecution(renderer: self.renderer)
 
-        // Camera and light
-        let cameraNode = PerspectiveCameraNode(context: self.context)
-        try? cameraNode.enableExecution(renderer: self.renderer)
-        try? cameraNode.startExecution(renderer: self.renderer)
-        cameraNode.inputPosition.value = simd_float3(0, 0, 3)
-
+        // Light. No camera: a graph renders through the camera node's own
+        // defaults until one is added, so a camera here would only be the
+        // camera any added one has to displace.
         let directionalLightNode = DirectionalLightNode(context: self.context)
         try? directionalLightNode.enableExecution(renderer: self.renderer)
         try? directionalLightNode.startExecution(renderer: self.renderer)
@@ -133,7 +130,6 @@ class FabricDocument: FileDocument
         self.editingContext.currentGraph.addNode(materialNode)
         self.editingContext.currentGraph.addNode(meshNode)
         self.editingContext.currentGraph.addNode(directionalLightNode)
-        self.editingContext.currentGraph.addNode(cameraNode)
 
         // Connections — animation chain
         spinNode.output.connect(to: mathNode.findPort(named: "Amount", as: ParameterPort<Float>.self)!)
