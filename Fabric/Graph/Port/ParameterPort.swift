@@ -168,6 +168,20 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
     {
         didSet
         {
+            // A parameter-backed inlet has no valueless state: the parameter is
+            // its resting value. Disconnecting an upstream port force-sends nil
+            // downstream so the inlet doesn't keep stale data, which would
+            // otherwise leave this port — and everything reading it — with a
+            // missing value for as long as it stays unwired. Re-seat on the
+            // parameter instead; the re-entrant assignment runs the change
+            // bookkeeping below.
+            guard let value = self.value
+            else
+            {
+                self.value = self._parameter.value
+                return
+            }
+
             // Overriding the property's didSet replaces the parent's
             // observer, so the change-tracking bookkeeping the parent
             // does (NodePort.value) has to be repeated here. Without it,
@@ -181,8 +195,7 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
             self.node?.markDirty()
             self.onValueChanged?()
 
-            if let value,
-               self._parameter.value != value
+            if self._parameter.value != value
             {
                 self._parameter.value = value
             }

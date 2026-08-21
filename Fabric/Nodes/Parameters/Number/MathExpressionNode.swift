@@ -536,17 +536,14 @@ public class MathExpressionNode: Node
         }
         catch
         {
-            // .missingInput (input not propagated yet), .indexOutOfBounds,
-            // .limitExceeded, .notCompiled — skip this frame's emit.
-            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            if message.localizedStandardContains("missing")
-            {
-                return
-            }
+            // A missing input is transient — upstream hasn't propagated yet —
+            // so skip this frame's emit. The remaining cases are faults in the
+            // expression and are reported.
+            if case .missingInput = error { return }
 
             throw FabricError(.execution(.syntax),
                               severity: .recoverable,
-                              message: message,
+                              message: error.localizedDescription,
                               underlyingError: error)
         }
 
