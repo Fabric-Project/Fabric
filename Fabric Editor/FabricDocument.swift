@@ -44,7 +44,8 @@ class FabricDocument: FileDocument
     let renderer:GraphRenderer
     let editingContext: GraphCanvasContext
 
-    @ObservationIgnored var outputWindowManager:DocumentOutputWindowManager? = nil
+    @ObservationIgnored var outputPresenter: OutputPresenter? = nil
+    private var outputPresentationHostCount = 0
     @MainActor lazy var movieExportCoordinator = MovieExportCoordinator()
     
     init()
@@ -192,19 +193,27 @@ class FabricDocument: FileDocument
     }
 
     @MainActor
-    func setupOutputWindow()
+    func setupOutputPresentation()
     {
-        self.outputWindowManager = DocumentOutputWindowManager()
-        self.outputWindowManager?.ownerDocument = self
-        self.outputWindowManager?.setGraphRenderer(self.renderer)
-        self.outputWindowManager?.setWindowName(self.graphName)
+        self.outputPresentationHostCount += 1
+        guard self.outputPresenter == nil else { return }
+
+        self.outputPresenter = OutputPresenter(ownerDocument: self, renderer: self.renderer)
+        self.outputPresenter?.setWindowTitle(self.graphName)
         ActiveFabricDocumentStore.shared.activeDocument = self
     }
-    
+
     @MainActor
-    func closeOutputWindow()
+    func teardownOutputPresentation()
     {
-        self.outputWindowManager?.closeOutputWindow()
+        // Editor re-parenting (window tab merge, scene restore) runs the new
+        // host view's onAppear before the old one's onDisappear; only the
+        // last host leaving may tear the shared presenter down.
+        self.outputPresentationHostCount = max(0, self.outputPresentationHostCount - 1)
+        guard self.outputPresentationHostCount == 0 else { return }
+
+        self.outputPresenter?.teardown()
+        self.outputPresenter = nil
         if ActiveFabricDocumentStore.shared.activeDocument === self {
             ActiveFabricDocumentStore.shared.activeDocument = nil
         }
@@ -213,7 +222,7 @@ class FabricDocument: FileDocument
     @MainActor
     func exportSnapshotImage()
     {
-        let snapshotExportTime = self.outputWindowManager?.snapshotExportTime() ?? 0
+        let snapshotExportTime = self.renderer.lastGraphExecutionTime
         let savePanel = NSSavePanel()
         savePanel.allowedContentTypes = [.png]
         savePanel.canCreateDirectories = true

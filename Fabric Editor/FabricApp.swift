@@ -31,15 +31,6 @@ struct FabricApp: App {
             ContentView(document: file.$document)
                 .focusedSceneValue(\.document, file.$document)
 
-                .onAppear {
-                    // THIS SHIT HAS TO BE ON MAIN THREAD FOR APPKIT
-                    file.document.setupOutputWindow()
-                }
-                .onDisappear {
-                    // THIS SHIT HAS TO BE ON MAIN THREAD FOR APPKIT
-                    file.document.closeOutputWindow()
-                }
-                
         }
         .commands {
             AboutCommands()
@@ -213,6 +204,23 @@ struct ViewCommands: Commands {
             .disabled(document == nil)
 
             Divider()
+        }
+
+        CommandGroup(after: .windowArrangement) {
+            Menu("Output") {
+                // The getter reads live rather than a value captured at body
+                // evaluation, so the checkmark is current whenever the menu
+                // opens even if Commands bodies aren't observation-tracked.
+                Picker("Destination", selection: Binding(
+                    get: { OutputSettings.shared.mode },
+                    set: { OutputSettings.shared.mode = $0 }
+                )) {
+                    Text("In-Editor").tag(OutputPresentationMode.editorCanvas)
+                    Text("Window").tag(OutputPresentationMode.separateWindow)
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            }
         }
     }
 }

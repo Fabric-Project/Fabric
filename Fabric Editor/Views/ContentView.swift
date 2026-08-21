@@ -31,6 +31,10 @@ struct ContentView: View {
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
     @State private var inspectorVisibility:Bool = true
 
+    // Seeded in onAppear once the document's AppKit-side output hosting
+    // exists; the document itself is not observable, this is.
+    @State private var outputPresenter: OutputPresenter?
+
     // The editor's single keyboard-focus authority. SwiftUI writes it on every
     // real focus change (canvas, registry search/list — or nil when e.g. a node
     // settings text field has focus), and views/menu commands read or set it to
@@ -85,7 +89,8 @@ struct ContentView: View {
 
                 ZStack
                 {
-                    RadialGradient(colors: [.clear, .black.opacity(0.75)], center: .center, startRadius: 0, endRadius: self.radialGradientEndRadius)
+                    CanvasBackdropView(outputPresenter: self.outputPresenter,
+                                       radialGradientEndRadius: self.radialGradientEndRadius)
 
                     ScrollViewReader { proxy in
                         ScrollView([.horizontal, .vertical])
@@ -225,6 +230,14 @@ struct ContentView: View {
             }
             .toolbar
             {
+                if let outputPresenter = self.outputPresenter, OutputSettings.shared.mode == .editorCanvas
+                {
+                    ToolbarItem(placement: .automatic)
+                    {
+                        OutputPlaybackToolbarButton(presenter: outputPresenter)
+                    }
+                }
+
                 ToolbarItem(placement: .automatic)
                 {
                     Button("Parameters", systemImage: "sidebar.right") {
@@ -232,6 +245,67 @@ struct ContentView: View {
                     }
                 }
             }
+            .onAppear {
+                // AppKit window creation has to happen on the main thread
+                // once the scene is up; onAppear guarantees both.
+                self.document.setupOutputPresentation()
+                self.outputPresenter = self.document.outputPresenter
+            }
+            .onDisappear {
+                self.outputPresenter = nil
+                self.document.teardownOutputPresentation()
+            }
+            .background(ActiveDocumentTracker(document: self.document))
+        }
+    }
+}
+
+/// Keeps `ActiveFabricDocumentStore` pointed at the document whose editor
+/// window is key. The output window's `windowDidBecomeMain` also does this,
+/// but in editor-canvas mode no output window exists. A separate struct so
+/// window-focus changes invalidate this view, not the whole editor.
+struct ActiveDocumentTracker: View {
+    let document: FabricDocument
+    @Environment(\.controlActiveState) private var controlActiveState
+
+    var body: some View {
+        Color.clear
+            .onChange(of: self.controlActiveState) { _, newState in
+                guard newState == .key else { return }
+                ActiveFabricDocumentStore.shared.activeDocument = self.document
+            }
+    }
+}
+
+/// Reading playback state here rather than in `ContentView.body` keeps a
+/// play/pause toggle from re-evaluating the whole editor.
+struct OutputPlaybackToolbarButton: View {
+    let presenter: OutputPresenter
+
+    var body: some View {
+        Button(self.presenter.playbackControlLabel,
+               systemImage: self.presenter.playbackControlSymbolName)
+        {
+            self.presenter.togglePlayback()
+        }
+    }
+}
+
+/// The node canvas background: live rendered output when the presenter is in
+/// editor-canvas mode, otherwise the decorative gradient.
+struct CanvasBackdropView: View {
+    let outputPresenter: OutputPresenter?
+    let radialGradientEndRadius: CGFloat
+
+    var body: some View {
+        if let outputPresenter, OutputSettings.shared.mode == .editorCanvas
+        {
+            OutputCanvasHostView(presenter: outputPresenter)
+                .allowsHitTesting(false)
+        }
+        else
+        {
+            RadialGradient(colors: [.clear, .black.opacity(0.75)], center: .center, startRadius: 0, endRadius: self.radialGradientEndRadius)
         }
     }
 }
