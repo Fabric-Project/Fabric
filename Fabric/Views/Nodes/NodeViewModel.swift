@@ -50,28 +50,28 @@ import Satin
     public var userName: String?
     {
         get { _userName }
-        set { _userName = newValue; node.userName = newValue }
+        // Normalized like Node's own setter, so the mirror can't hold an
+        // empty rename the node discarded.
+        set
+        {
+            let name = newValue?.isEmpty == true ? nil : newValue
+            _userName = name
+            node.userName = name
+            let resolvedSubtitle = node.subtitle
+            if resolvedSubtitle != self.subtitle { self.subtitle = resolvedSubtitle }
+        }
     }
     private var _userName: String?
 
-    public var name: String
-    {
-        if let u = _userName, !u.isEmpty { return u }
-        return _nodeName
-    }
+    /// `Node.title`, cached and refreshed with the node's other naming state.
+    public private(set) var title: String
 
-    private var _nodeName: String
+    /// `Node.subtitle`, cached and kept fresh by subtitleSubject.
+    public private(set) var subtitle: String?
 
     // MARK: - Forwarded node metadata
 
     public var nodeType: Node.NodeType { node.nodeType }
-
-    public var typeName: String { type(of: node).name }
-
-    /// True when the resolved label (user rename or node-generated title)
-    /// differs from the type name, i.e. there is a primary label to show
-    /// alongside it.
-    public var hasCustomLabel: Bool { name != typeName }
 
     // MARK: - Ports + nodeSize (stored; updated when ports change)
 
@@ -98,7 +98,8 @@ import Satin
         self.node         = node
         self._offset      = node.offset
         self._userName    = node.userName
-        self._nodeName    = node.displayName ?? type(of: node).name
+        self.title        = node.title
+        self.subtitle     = node.subtitle
         self.ports        = node.ports
         self.nodeSize     = node.nodeSize
 
@@ -122,14 +123,20 @@ import Satin
             }
             .store(in: &cancellables)
 
-        // Sync cached name when nodes with dynamic names (e.g. MathExpressionNode,
-        // StringFormatterNode) change their computed name after user edits.
-        // Cache displayName (not node.name) so a user rename never becomes the
-        // fallback shown after the rename is cleared.
-        node.nameSubject
+        // Sync the cached title, rename, and resolved subtitle whenever the
+        // node's naming state changes.
+        node.subtitleSubject
             .receive(on: DispatchQueue.main)
             .sink { [weak self] in
-                self?._nodeName = node.displayName ?? type(of: node).name
+                guard let self else { return }
+                // Equality-gated: force-sending upstreams re-assign subtitle-feeding
+                // ports every frame; only a real change may touch the observable.
+                let newUserName = node.userName
+                if newUserName != self._userName { self._userName = newUserName }
+                let newTitle = node.title
+                if newTitle != self.title { self.title = newTitle }
+                let newSubtitle = node.subtitle
+                if newSubtitle != self.subtitle { self.subtitle = newSubtitle }
             }
             .store(in: &cancellables)
     }

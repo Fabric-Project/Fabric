@@ -15,12 +15,11 @@ struct NodeTitleView: View
     @State private var renamingText: String = ""
     @FocusState private var renameFieldFocused: Bool
 
-    private var typeName: String { nodeViewModel.typeName }
+    private var title: String { nodeViewModel.title }
 
-    private var hasPrimaryLabel: Bool { nodeViewModel.hasCustomLabel }
-
-    // `name` already resolves userName ?? node-generated displayName ?? typeName.
-    private var primaryLabel: String { nodeViewModel.name }
+    // Nil when the node has neither a rename nor a generated name, so the title
+    // is its type name alone.
+    private var primaryLabel: String? { nodeViewModel.subtitle }
 
     /// Opaque across the title, fading to clear over the last ~1 character so an
     /// over-long title dissolves at the node's right edge rather than hard-clipping.
@@ -52,7 +51,10 @@ struct NodeTitleView: View
             {
                 HStack(spacing: 0)
                 {
-                    TextField(nodeViewModel.name, text: $renamingText)
+                    // Placeholder previews the empty-commit outcome: with no
+                    // rename, the node-derived subtitle shows; the registered
+                    // title already follows as the suffix Text.
+                    TextField(nodeViewModel.subtitle ?? "", text: $renamingText)
                         .textFieldStyle(.plain)
                         .focused($renameFieldFocused)
                         .font(.system(size: 9))
@@ -65,26 +67,26 @@ struct NodeTitleView: View
                             renaming = false
                         }
 
-                    Text(verbatim: " \(typeName)")
+                    Text(verbatim: " \(title)")
                         .font(.system(size: 9))
                         .bold()
                         .foregroundStyle(secondaryColor)
                 }
             }
-            else if hasPrimaryLabel
+            else if let primaryLabel
             {
                 // Text(verbatim:) + concatenation: these are data strings, not UI
                 // copy — the literal-interpolation initializer would do a doomed
                 // localization lookup on every render.
                 let primary = Text(primaryLabel).foregroundStyle(.white)
-                let secondary = Text(verbatim: " \(typeName)").foregroundStyle(secondaryColor)
+                let secondary = Text(verbatim: " \(title)").foregroundStyle(secondaryColor)
                 (primary + secondary)
                     .font(.system(size: 9))
                     .bold()
             }
             else
             {
-                Text(typeName)
+                Text(title)
                     .font(.system(size: 9))
                     .bold()
                     .foregroundStyle(nodeViewModel.nodeType.color())

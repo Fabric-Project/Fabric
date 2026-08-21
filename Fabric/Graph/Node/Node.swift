@@ -12,18 +12,11 @@ import Combine
 import UniformTypeIdentifiers
 
 
-open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
+open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDebugStringConvertible
 {
-    // User interface name — the node's TYPE name (each subclass overrides).
+    // The name this node type is registered and listed under (each subclass
+    // overrides). Read it off an instance as `title`.
     open class var name: String {  fatalError("\(String(describing:self)) Must implement name") }
-
-    // Node-provided dynamic name, e.g. Math Expression shows its expression.
-    // Override THIS (not the instance `name`) to give a node a self-generated
-    // title; return nil for none. A user-supplied `userName` always wins over it.
-    open var displayName: String? { nil }
-
-    // User-supplied custom name (rename). Overrides any `displayName`.
-    public var userName: String?
 
     // User interface organizing principle
     open class var nodeType:Node.NodeType { fatalError("\(String(describing:self)) Must implement nodeType") }
@@ -52,10 +45,55 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
         return lhs.id == rhs.id
     }
 
-    public var name : String
+    // The instance title. Most nodes use their registered type name; nodes
+    // backed by instance-specific resources can override deriveTitle().
+    final public var title : String
     {
-        let myType = type(of: self)
-        return userName ?? displayName ?? myType.name
+        let derivedTitle = self.deriveTitle()
+        return derivedTitle.isEmpty ? Self.name : derivedTitle
+    }
+
+    // Override when an instance has a more specific authoritative title than
+    // its registered type name, e.g. a shader-backed BaseImageNode.
+    open func deriveTitle() -> String { Self.name }
+
+  
+    // The resolved subtitle: the user's rename when present, otherwise the
+    // node-generated description. Never empty or equal to the registered title.
+    final public var subtitle: String?
+    {
+        let resolvedSubtitle = self.userName ?? self.deriveSubtitle()
+        guard let resolvedSubtitle,
+              !resolvedSubtitle.isEmpty,
+              resolvedSubtitle != self.title
+        else
+        {
+            return nil
+        }
+        return resolvedSubtitle
+    }
+
+    // Node-generated subtitle, e.g. Math Expression shows its expression.
+    // Override where the node describes itself; nil for none. Raw: empty is
+    // allowed here and reads as absence. Read `subtitle`, never this.
+    open func deriveSubtitle() -> String? { nil }
+
+    // User-supplied rename. Wins over the node-derived subtitle. Empty is
+    // absence: a cleared rename must reveal the derived subtitle again.
+    final public var userName: String?
+    {
+        didSet
+        {
+            if userName?.isEmpty == true { userName = nil }
+            subtitleSubject.send()
+        }
+    }
+    
+    // CustomDebugStringConvertible: the registered title and resolved subtitle.
+    final public var debugDescription: String
+    {
+        guard let subtitle = self.subtitle else { return self.title }
+        return "\(self.title) (\(subtitle))"
     }
 
     open var nodeType:NodeType
@@ -133,9 +171,9 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
     /// Fires whenever the port list changes (addDynamicPort / removePort).
     internal let portsChangedSubject = PassthroughSubject<Void, Never>()
 
-    /// Fires whenever the node's computed `name` changes (e.g. after a math
-    /// expression re-parses). NodeViewModel subscribes and caches the result.
-    internal let nameSubject = PassthroughSubject<Void, Never>()
+    /// Fires whenever state feeding `title` or `subtitle` changes. NodeViewModel
+    /// subscribes and refreshes its observable naming mirrors.
+    internal let subtitleSubject = PassthroughSubject<Void, Never>()
 
     // Dirty Handling
     private(set) public var isDirty: Bool = true
@@ -170,7 +208,9 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable
 
         self.id = try container.decode(UUID.self, forKey: .id)
         self.offset = try container.decode(CGSize.self, forKey: .nodeOffset)
-        self.userName = try container.decodeIfPresent(String.self, forKey: .userName)
+        // didSet does not fire during init; normalize the decoded rename here.
+        let decodedUserName = try container.decodeIfPresent(String.self, forKey: .userName)
+        self.userName = decodedUserName?.isEmpty == true ? nil : decodedUserName
 
         // Declare, then hydrate: the port set comes from the code — registerPorts
         // now, subclass rebuilds (strategy, route count, expression, shader) after

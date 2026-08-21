@@ -86,7 +86,7 @@ import MathExpressionEngine
         node.stringExpression = "sin("
         #expect(names(node.inputPorts()) == ["x", "y"]) // unchanged
         #expect(node._settingsModel.diagnostics.contains { $0.severity == .error })
-        #expect(node.name.hasPrefix("⚠"))
+        #expect(node.subtitle?.hasPrefix("⚠") == true)
     }
 
     /// Torture-tests for the node-title heuristic, drawn from the language spec:
@@ -175,7 +175,7 @@ import MathExpressionEngine
         let node = MathExpressionNode(context: context)
 
         node.stringExpression = "in x: floot"
-        #expect(node.name == "⚠ \(MathExpressionNode.name)")
+        #expect(node.subtitle == "⚠ \(MathExpressionNode.name)")
     }
 
     @Test func retypeReplacesPortWithNewType() throws

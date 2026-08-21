@@ -56,7 +56,7 @@ public class NumericTypeAgnosticNode: StrategyNode
     /// "Float Tween" (NodeTitleView appends the type name after it). NumericVirtual
     /// — the no-configuration default — suppresses the token so the node reads as
     /// its plain type name.
-    override public var displayName: String? {
+    override public func deriveSubtitle() -> String? {
         let portType = selectedNumericPortType
         return portType == .NumericVirtual ? nil : portType.rawValue
     }

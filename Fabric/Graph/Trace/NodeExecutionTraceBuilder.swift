@@ -19,7 +19,7 @@ internal final class NodeExecutionTraceBuilder
     init(node: Node, orderIndex: Int, startedAt: TimeInterval)
     {
         self.nodeID = node.id
-        self.nodeName = node.name
+        self.nodeName = node.debugDescription
         self.nodeTypeName = String(describing: type(of: node))
         self.orderIndex = orderIndex
         self.startedAt = startedAt

@@ -317,7 +317,7 @@ public class MIDIInputNode: Node
     override public class var nodeDescription: String { "Receive MIDI messages from external devices" }
 
     // Dynamic node name based on selected input
-    override public var displayName: String?
+    override public func deriveSubtitle() -> String?
     {
         if let inputID = selectedInputID,
            let input = availableInputs.first(where: { $0.id == inputID })
@@ -381,8 +381,8 @@ public class MIDIInputNode: Node
         {
             setupMIDIConnection()
             _settingsModelStorage?.selectedInputID = selectedInputID
-            // `displayName` is derived from the selected input; notify so the title refreshes.
-            self.nameSubject.send()
+            // `subtitle` is derived from the selected input; notify so the title refreshes.
+            self.subtitleSubject.send()
         }
     }
 
@@ -515,6 +515,8 @@ public class MIDIInputNode: Node
         }
 
         _settingsModelStorage?.availableInputs = availableInputs
+        // `subtitle` resolves against the input list; notify so the title refreshes.
+        self.subtitleSubject.send()
 
         print("[MIDI] Found \(availableInputs.count) MIDI sources:")
         for input in availableInputs

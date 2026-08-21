@@ -128,7 +128,7 @@ extension UTType
 
     public var debugDescription: String
     {
-        return "\(self.node?.name ?? "No Node!!") - \(String(describing: type(of: self)))  \(id)"
+        return "\(self.node?.debugDescription ?? "No Node!!") - \(String(describing: type(of: self)))  \(id)"
     }
     
     public init(name: String, kind: PortKind, description: String = "", id:UUID)

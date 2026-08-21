@@ -307,8 +307,8 @@ public class ScreenCaptureProviderNode: Node
             for window in windows
             {
                 let appName = window.owningApplication?.applicationName ?? "Unknown App"
-                let title = (window.title?.isEmpty == false) ? window.title! : "Untitled"
-                let option = "\(appName) - \(title)"
+                let windowTitle = (window.title?.isEmpty == false) ? window.title! : "Untitled"
+                let option = "\(appName) - \(windowTitle)"
                 result[option] = .window(window)
             }
 

@@ -20,7 +20,7 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Compute-based image processing effect" }
     
-    override public var displayName: String? {
+    override public func deriveSubtitle() -> String? {
         guard let fileURL = self.url else { return nil }
         return self.fileURLToName(fileURL: fileURL)
     }
@@ -135,7 +135,7 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
         {
             throw FabricError(.execution(.gpu),
                               severity: .recoverable,
-                              message: "\(name) compute processor is unavailable")
+                              message: "\(self) compute processor is unavailable")
         }
 
         let outImage = try renderer.newImage(withWidth: inTex.width, height: inTex.height)
@@ -144,7 +144,7 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
         {
             throw FabricError(.execution(.gpu),
                               severity: .recoverable,
-                              message: "Could not create \(name) compute encoder")
+                              message: "Could not create \(self) compute encoder")
         }
         
         // Input Texture to Compute

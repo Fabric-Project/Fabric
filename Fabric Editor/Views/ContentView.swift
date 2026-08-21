@@ -72,7 +72,7 @@ struct ContentView: View {
                     ForEach(self.document.editingContext.entries) { node in
                         Text("›")
                             .font(.headline)
-                        Button(node.name) { self.document.editingContext.popTo(node) }
+                        Button(node.title) { self.document.editingContext.popTo(node) }
                             .font(.headline)
                             .buttonStyle(.plain)
                     }

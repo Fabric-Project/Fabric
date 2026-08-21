@@ -77,11 +77,17 @@ For all development:
 
 ### 2.1  Nodes & Execution
 - Nodes define immutable static metadata:  `nodeType`, `nodeExecutionMode`, `nodeTimeMode`,  `name`, `nodeDescription`.
-- Node naming is three-tiered; instance `name` resolves `userName ?? displayName ?? Self.name` — never override it directly:
-  - `class var name` — static TYPE name; immutable metadata.
-  - `var displayName: String?` — optional node-generated title (e.g. Math Expression's expression; StrategyNode subclasses just set `strategyTitleSuffix`). Override this; nil for none.
-  - `var userName: String?` — the user's rename; serialized, always wins.
-- Fire `nameSubject.send()` whenever state feeding `displayName` changes; `NodeViewModel` caches the title and exposes `name` / `typeName` / `hasCustomLabel` for all title UI.
+- A node is named from four sources, three of them overridden by the subclass:
+  - `class var name` — override: the stable name the type is registered and listed under, and the default instance title.
+  - `func deriveTitle() -> String` — override only when an instance has a more specific authoritative title, such as a shader-backed `BaseImageNode`; defaults to `Self.name`.
+  - `func deriveSubtitle() -> String?` — override where the node describes itself, nil otherwise: Math Expression's expression, StrategyNode's strategy.
+  - `var userName: String?` — final: the user's rename, serialized and public for rename-specific callers.
+  - An empty name is no name: `userName` normalizes "" to nil at set and decode.
+- From those it composes, both final:
+  - `var title` — the normalized result of `deriveTitle()`, falling back to `Self.name` when empty.
+  - `var subtitle` — `userName ?? deriveSubtitle()`, normalized so empty values and values equal to `title` read as nil. General consumers read this rather than `userName`.
+  - `var debugDescription` — the title plus resolved subtitle, e.g. `Math Expression (My Rename)`. `print(node)` and `"\(node)"` give it; diagnostic labels and traces use it when they need both values.
+- Fire `subtitleSubject.send()` whenever state feeding `deriveTitle()` or `deriveSubtitle()` changes; `NodeViewModel` mirrors the node's `title` / `subtitle` observably and keeps `userName` only for rename editing, clearing, and undo.
 - Execution is **pull-based**; one execute per node per pass.
 - `GraphRenderer` (executor and scheduler) today does not use `nodeExecutionMode` or `nodeTimeMode` but will in the future.
 - **Iterator (QC-style)** remains the multi-evaluation macro; refinements allowed, paradigm fixed.
@@ -175,7 +181,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 | Topology recomputed each frame | No caching | Recompute only on connect/disconnect |
 | Type-erasure confusion | Mixing `any` with Equatable generics | Stay typed; use Utility/Log node for debug |
 | Serialization drift | Ad-hoc encoders | Always through registry + `PortType` |
-| Stale node title on canvas/inspector | `displayName` input changed without notifying | Fire `nameSubject.send()` in the `didSet` of any state `displayName` derives from |
+| Stale node title on canvas/inspector | `subtitle` input changed without notifying | Fire `subtitleSubject.send()` in the `didSet` of any state `subtitle` derives from |
 
 ---
 
@@ -200,7 +206,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 - [ ] If Node dynamically changes port count or type, we should only trigger via Setting in Settings View, not within the graph
 - [ ] If we have a Settings View, we should have a custom initializer so procedural graph creation has an entry to settings.
 - [ ] If we have a Settings View and a custom initializer, use a custom struct or enum for the settings
-- [ ] If the Node overrides `displayName`, every mutation of the state it derives from fires `nameSubject.send()` (StrategyNode's `strategy` already does)
+- [ ] If the Node overrides `deriveSubtitle()`, every mutation of the state it derives from fires `subtitleSubject.send()` (StrategyNode’s `strategy` already does)
 - [ ] New Nodes should live in an appropriate spot in the NodeRegistry
 
 ---

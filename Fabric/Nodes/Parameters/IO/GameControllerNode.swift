@@ -104,7 +104,7 @@ public class GameControllerNode: Node
     override public class var nodeDescription: String { "Read input from game controllers with semantic button names" }
 
     // Dynamic node name based on selected controller
-    override public var displayName: String?
+    override public func deriveSubtitle() -> String?
     {
         if let controllerID = selectedControllerID,
            let controller = availableControllers.first(where: { $0.id == controllerID })
@@ -174,8 +174,8 @@ public class GameControllerNode: Node
             setupController()
             _settingsModelStorage?.selectedControllerID = selectedControllerID
             _settingsModelStorage?.outputPortCount = outputPorts().count
-            // `displayName` is derived from the selected controller; notify so the title refreshes.
-            self.nameSubject.send()
+            // `subtitle` is derived from the selected controller; notify so the title refreshes.
+            self.subtitleSubject.send()
         }
     }
 
@@ -301,6 +301,8 @@ public class GameControllerNode: Node
         }
 
         _settingsModelStorage?.availableControllers = availableControllers
+        // `subtitle` resolves against the controller list; notify so the title refreshes.
+        self.subtitleSubject.send()
 
         print("[GameController] Found \(availableControllers.count) controllers:")
         for info in availableControllers

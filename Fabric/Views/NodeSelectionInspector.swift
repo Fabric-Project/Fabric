@@ -102,16 +102,16 @@ private struct SelectedNodeCard: View
 
     @ViewBuilder private var label: some View
     {
-        if nodeViewModel.hasCustomLabel
+        if let subtitle = nodeViewModel.subtitle
         {
             VStack(alignment: .leading) {
-                Text(nodeViewModel.name).foregroundStyle(.primary).bold()
-                Text(nodeViewModel.typeName).foregroundStyle(.secondary).bold()
+                Text(subtitle).foregroundStyle(.primary).bold()
+                Text(nodeViewModel.title).foregroundStyle(.secondary).bold()
             }
         }
         else
         {
-            Text(nodeViewModel.typeName).foregroundStyle(.primary).bold()
+            Text(nodeViewModel.title).foregroundStyle(.primary).bold()
         }
     }
 }

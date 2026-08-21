@@ -190,8 +190,8 @@ public class MathExpressionNode: Node
 
     /// Shown as the node's title: the expression, or a ⚠-prefixed form on error.
     /// nil (empty) falls back to the type name; a user `userName` overrides this.
-    override public var displayName: String? { evaluatedDisplayName.isEmpty ? nil : evaluatedDisplayName }
-    private var evaluatedDisplayName: String = ""
+    override public func deriveSubtitle() -> String? { evaluatedSubtitle }
+    private var evaluatedSubtitle: String = ""
 
     /// Extracts the salient part of a (possibly multi-statement) expression for
     /// use as the node title. A leading `//` comment is taken verbatim as an
@@ -417,14 +417,14 @@ public class MathExpressionNode: Node
         }
 
         let hasError = result.diagnostics.contains { $0.severity == .error }
-        let title = Self.salientTitle(from: self.stringExpression)
+        let salientTitle = Self.salientTitle(from: self.stringExpression)
         // An empty title with an error would otherwise render as a bare "⚠ "
-        // — non-empty, so displayName's type-name fallback never kicks in.
-        self.evaluatedDisplayName = switch (hasError, title.isEmpty)
+        // — non-empty, so subtitle's type-name fallback never kicks in.
+        self.evaluatedSubtitle = switch (hasError, salientTitle.isEmpty)
         {
             case (true, true):  "⚠ \(Self.name)"
-            case (true, false): "⚠ \(title)"
-            case (false, _):    title
+            case (true, false): "⚠ \(salientTitle)"
+            case (false, _):    salientTitle
         }
 
         // Keep the settings model mirroring the node, not just model → node.
@@ -434,7 +434,7 @@ public class MathExpressionNode: Node
             self._settingsModel.stringExpression = self.stringExpression
         }
         self._settingsModel.diagnostics = result.diagnostics
-        self.nameSubject.send()
+        self.subtitleSubject.send()
     }
 
     /// Diff the compiled interface against the current dynamic ports, adding,

@@ -494,7 +494,7 @@ internal import AnyCodable
     /// interactive placement with scroll-offset and rapid-add staggering).
     public func addNode(_ node:Node)
     {
-        print("Graph: \(self.id) Add Node", node.name)
+        print("Graph: \(self.id) Add Node", node)
         self.maybeAddNodeToScene(node)
 
         // Create the ViewModel before appending so it is always present
@@ -866,7 +866,7 @@ internal import AnyCodable
                     break
                 }
                 
-                print(referenceNode.name, referenceNode.offset, angle, direction, "to:", $0.name, $0.offset)
+                print(referenceNode, referenceNode.offset, angle, direction, "to:", $0, $0.offset)
                 return (distance, direction, $0 )
             }
             
@@ -874,7 +874,7 @@ internal import AnyCodable
             
             if let closestDistanceDirectionNodeTuples = relevantDistanceDirectionNodeTuples.sorted(by: { $0.Distance < $1.Distance }).first
             {
-                print("reference node", referenceNode.name)
+                print("reference node", referenceNode)
 
                 self.selectNode(node: closestDistanceDirectionNodeTuples.Node, expandSelection: expandSelection)
             }
@@ -991,12 +991,12 @@ internal import AnyCodable
         if let objectNode = node as? BaseObjectNode,
            let object = objectNode.getObject()
         {
-//            print("Graph: \(self.id) Scene: Added Child", objectNode.name)
+//            print("Graph: \(self.id) Scene: Added Child", objectNode)
             self.scene.add( object )
         }
         else
         {
-//            print("Graph: \(self.id) Scene: Skipped Child", node.name)
+//            print("Graph: \(self.id) Scene: Skipped Child", node)
         }
     }
     
@@ -1275,7 +1275,7 @@ internal import AnyCodable
             }
             catch
             {
-                print("duplicateNodes: Failed to encode \(node.name): \(error)")
+                print("duplicateNodes: Failed to encode \(node): \(error)")
             }
         }
 
