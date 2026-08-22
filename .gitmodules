@@ -7,3 +7,6 @@
 [submodule "Syphon"]
 	path = Syphon
 	url = https://github.com/Syphon/Syphon-Framework.git
+[submodule "HapInAVFoundation"]
+	path = HapInAVFoundation
+	url = https://github.com/Vidvox/hap-in-avfoundation

@@ -1,0 +1,18 @@
+#ifndef FABRIC_NOISE_SAMPLE
+#define FABRIC_NOISE_SAMPLE
+
+#ifndef FABRIC_NOISE_FUNC
+#define FABRIC_NOISE_FUNC(position, uniforms) snoise(position)
+#endif
+
+float fabricNoiseSample(float3 position, constant PostUniforms &uniforms)
+{
+    return FABRIC_NOISE_FUNC(position, uniforms);
+}
+
+float fabricNoiseSingle(float3 position, constant PostUniforms &uniforms)
+{
+    return fabricNoiseSample(position, uniforms);
+}
+
+#endif

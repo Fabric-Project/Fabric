@@ -25,19 +25,25 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
     case Vector4
     case Color
     case Quaternion //(simd quatf)
-    case Transform // (mid_matrix4x4
+    case Transform // (simd_float4x4)
     case Geometry
     case Material
     case Image
     case Array(portType:PortType)
+    case Dictionary(valueType:PortType)
+
+    // A Virtual type that boxes all typed values into PortValue
     case Virtual
+    // A Virtual type that only allows numeric parameter type connections
+    case NumericVirtual
     
-    // This is brittle
+    // Leaf and commonly-used nested types for UI menus and serialization dispatch.
+    // Does NOT enumerate all possible recursive combinations — use PortType(rawValue:) for dynamic reconstruction.
     public static let allCases : [PortType] = [
+        // Numerical
         .Bool,
         .Float,
         .Int,
-        .String,
         .Vector2,
         .Vector3,
         .Vector4,
@@ -45,24 +51,73 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         .Quaternion,
         .Transform,
         
+        // 
+        .String,
+
+        // Reference
         .Geometry,
         .Material,
         .Image,
         
-        .Array(portType:.Bool),
-        .Array(portType:.Float),
-        .Array(portType:.Int),
-        .Array(portType:.String),
-        .Array(portType:.Vector2),
-        .Array(portType:.Vector3),
-        .Array(portType:.Vector4),
-        .Array(portType:.Color),
-        .Array(portType:.Geometry),
-        .Array(portType:.Material),
-        .Array(portType:.Image),
+        // Collections
+        .Array(portType:.Virtual),
         
-        .Virtual
+//        .Array(portType:.Bool),
+//        .Array(portType:.Float),
+//        .Array(portType:.Int),
+//        .Array(portType:.String),
+//        .Array(portType:.Vector2),
+//        .Array(portType:.Vector3),
+//        .Array(portType:.Vector4),
+//        .Array(portType:.Color),
+//        .Array(portType:.Quaternion),
+//        .Array(portType:.Transform),
+//        .Array(portType:.Geometry),
+//        .Array(portType:.Material),
+//        .Array(portType:.Image),
+//        
+//        .Array(portType:.Dictionary(valueType: .Virtual)),
 
+        
+        .Dictionary(valueType:.Virtual),
+        
+//        .Dictionary(valueType:.Bool),
+//        .Dictionary(valueType:.Float),
+//        .Dictionary(valueType:.Int),
+//        .Dictionary(valueType:.String),
+//        .Dictionary(valueType:.Vector2),
+//        .Dictionary(valueType:.Vector3),
+//        .Dictionary(valueType:.Vector4),
+//        .Dictionary(valueType:.Color),
+//        .Dictionary(valueType:.Quaternion),
+//        .Dictionary(valueType:.Transform),
+//        .Dictionary(valueType:.Geometry),
+//        .Dictionary(valueType:.Material),
+//        .Dictionary(valueType:.Image),
+//       
+//        .Dictionary(valueType:.Array(portType:.Virtual)),
+
+        // We intentionally skip 'NumericVirtual' as its a bit of an internal implementation detail
+        // Since this is used for UI.
+        .Virtual
+    ]
+
+    /// User-facing leaf value types. Collection nodes use these when the
+    /// strategy represents an element type rather than a full port shape.
+    public static let scalarCases: [PortType] = [
+        .Bool,
+        .Float,
+        .Int,
+        .Vector2,
+        .Vector3,
+        .Vector4,
+        .Color,
+        .Quaternion,
+        .Transform,
+        .String,
+        .Geometry,
+        .Material,
+        .Image,
     ]
     
     public init?(rawValue: String)
@@ -85,6 +140,7 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         case "Geometry":      self = .Geometry;  return
         case "Material":      self = .Material;  return
         case "Image":         self = .Image;     return
+        case "Numeric Virtual": self = .NumericVirtual; return
         case "Virtual":       self = .Virtual;    return
             
         default: break
@@ -105,7 +161,7 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
                     {
                         let startIdx = s.index(s.startIndex, offsetBy: prefix.count)
                         let endIdx   = s.endIndex
-                        inner = Swift.String(s[startIdx..<endIdx]).trimmingCharacters(in: .newlines)
+                        inner = Swift.String(s[startIdx..<endIdx]).trimmingCharacters(in: .whitespacesAndNewlines)
                         break
                     }
                 }
@@ -117,6 +173,19 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
                     return
                 }
             }
+
+        if s.hasPrefix("Dictionary of")
+        {
+            let prefix = "Dictionary of"
+            let startIdx = s.index(s.startIndex, offsetBy: prefix.count)
+            let inner = Swift.String(s[startIdx..<s.endIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if let valueType = PortType(rawValue: inner)
+            {
+                self = .Dictionary(valueType: valueType)
+                return
+            }
+        }
 
         return nil
             // 3) Unknown
@@ -147,15 +216,21 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
         case .Transform:
             return simd.simd_float4x4.self
         case .Geometry:
-            return Satin.SatinGeometry.self
+            return Satin.Geometry.self
         case .Material:
             return Satin.Material.self
         case .Image:
             return FabricImage.self
+            
         case .Array(portType: let portType):
             return contiguousArrayMetatype(of: portType.type)
+        case .Dictionary(valueType: let valueType):
+            return dictionaryMetatype(valueType: valueType.type)
+            
+        case .NumericVirtual:
+            return PortValue.self
         case .Virtual:
-            return PortType.self
+            return PortValue.self
         }
     }
     
@@ -189,6 +264,10 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
             return "Image"
         case .Array(portType: let type):
             return "Array of \(type.rawValue)"
+        case .Dictionary(valueType: let type):
+            return "Dictionary of \(type.rawValue)"
+        case .NumericVirtual:
+            return "Numeric Virtual"
         case .Virtual:
             return "Virtual"
         }
@@ -198,6 +277,228 @@ public indirect enum PortType : RawRepresentable, Codable, Equatable, CaseIterab
 // MARK: - Parameter Node Mapping
 
 extension PortType {
+
+    /// A compact, bounded rendering of a value for hover previews.
+    ///
+    /// Truncation is two-dimensional: every emitted line is capped to
+    /// `maxPreviewLineLength` characters, and at most `maxPreviewLineCount`
+    /// lines are emitted across the whole (possibly nested) value. When either
+    /// bound clips the content, a trailing `...` line signals that more exists.
+    public func previewString(for value: PortValue, indent: Swift.String = "") -> Swift.String
+    {
+        var remainingLineCount = Self.maxPreviewLineCount
+        var truncated = false
+        var lines: [Swift.String] = []
+
+        Self.appendPreviewLines(for: value,
+                                firstLinePrefix: indent,
+                                childIndent: indent,
+                                into: &lines,
+                                remainingLineCount: &remainingLineCount,
+                                truncated: &truncated,
+                                capLineLength: true)
+
+        if truncated
+        {
+            // Keep the marker within the line budget by replacing the last line.
+            if lines.count >= Self.maxPreviewLineCount, !lines.isEmpty
+            {
+                lines.removeLast()
+            }
+            lines.append(Self.truncationMarker)
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+    /// The full, uncapped rendering of a value, using the same formatting as
+    /// `previewString(for:)` but without the line or character bounds. Intended
+    /// for contexts such as the Log node where the complete value must be shown.
+    public func fullString(for value: PortValue, indent: Swift.String = "") -> Swift.String
+    {
+        var remainingLineCount = Swift.Int.max
+        var truncated = false
+        var lines: [Swift.String] = []
+
+        Self.appendPreviewLines(for: value,
+                                firstLinePrefix: indent,
+                                childIndent: indent,
+                                into: &lines,
+                                remainingLineCount: &remainingLineCount,
+                                truncated: &truncated,
+                                capLineLength: false)
+
+        return lines.joined(separator: "\n")
+    }
+
+    private static let maxPreviewLineLength = 50
+    private static let maxPreviewLineCount = 6
+    private static let truncationMarker = "..."
+
+    /// Appends the physical lines rendering `value`.
+    ///
+    /// - The first emitted line begins with `firstLinePrefix` (used to place a
+    ///   dictionary key or an array element's indentation ahead of the value);
+    ///   nested lines are indented from `childIndent`.
+    /// - At most `remainingLineCount` lines are emitted across the whole tree.
+    ///   Because every element (even one rendering to an empty string) costs a
+    ///   line, rendering always terminates and cannot bloat on large values.
+    /// - When `capLineLength` is true each emitted line is capped to
+    ///   `maxPreviewLineLength` characters.
+    /// - `truncated` is set whenever content had to be dropped.
+    private static func appendPreviewLines(for value: PortValue,
+                                           firstLinePrefix: Swift.String,
+                                           childIndent: Swift.String,
+                                           into lines: inout [Swift.String],
+                                           remainingLineCount: inout Int,
+                                           truncated: inout Bool,
+                                           capLineLength: Bool)
+    {
+        guard remainingLineCount > 0 else { truncated = true; return }
+
+        switch value
+        {
+        case .Bool(let value):
+            Self.appendLine(firstLinePrefix + Swift.String(value), into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
+        case .Int(let value):
+            Self.appendLine(firstLinePrefix + Swift.String(value), into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
+        case .Float(let value):
+            Self.appendLine(firstLinePrefix + Swift.String(value), into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
+        case .String(let value):
+            Self.appendLine(firstLinePrefix + value, into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
+        case .Vector2(let value):
+            Self.appendLine(firstLinePrefix + Swift.String(describing: value), into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
+        case .Vector3(let value):
+            Self.appendLine(firstLinePrefix + Swift.String(describing: value), into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
+        case .Vector4(let value):
+            Self.appendLine(firstLinePrefix + Swift.String(describing: value), into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
+        case .Quaternion(let value):
+            Self.appendLine(firstLinePrefix + Swift.String(describing: value), into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
+        case .Geometry(let value):
+            Self.appendLine(firstLinePrefix + Swift.String(describing: value), into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
+        case .Material(let value):
+            Self.appendLine(firstLinePrefix + Swift.String(describing: value), into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
+        case .Image(let value):
+            Self.appendLine(firstLinePrefix + Swift.String(describing: value), into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
+        case .Transform(let value):
+            let columns: [PortValue] = [
+                .Vector4(value.columns.0),
+                .Vector4(value.columns.1),
+                .Vector4(value.columns.2),
+                .Vector4(value.columns.3),
+            ]
+            Self.appendCollection(count: columns.count, emptyMarker: "[]", elements: columns,
+                                  firstLinePrefix: firstLinePrefix, childIndent: childIndent,
+                                  into: &lines, remainingLineCount: &remainingLineCount,
+                                  truncated: &truncated, capLineLength: capLineLength) { element, elementIndent, lines, remaining, truncated in
+                Self.appendPreviewLines(for: element, firstLinePrefix: elementIndent, childIndent: elementIndent,
+                                        into: &lines, remainingLineCount: &remaining, truncated: &truncated, capLineLength: capLineLength)
+            }
+
+        case .Array(let values):
+            Self.appendCollection(count: values.count, emptyMarker: "[]", elements: values,
+                                  firstLinePrefix: firstLinePrefix, childIndent: childIndent,
+                                  into: &lines, remainingLineCount: &remainingLineCount,
+                                  truncated: &truncated, capLineLength: capLineLength) { element, elementIndent, lines, remaining, truncated in
+                Self.appendPreviewLines(for: element, firstLinePrefix: elementIndent, childIndent: elementIndent,
+                                        into: &lines, remainingLineCount: &remaining, truncated: &truncated, capLineLength: capLineLength)
+            }
+
+        case .Dictionary(let values):
+            Self.appendCollection(count: values.count, emptyMarker: "[:]", elements: values.sorted { $0.key < $1.key },
+                                  firstLinePrefix: firstLinePrefix, childIndent: childIndent,
+                                  into: &lines, remainingLineCount: &remainingLineCount,
+                                  truncated: &truncated, capLineLength: capLineLength) { entry, elementIndent, lines, remaining, truncated in
+                Self.appendPreviewLines(for: entry.value, firstLinePrefix: elementIndent + entry.key + ": ", childIndent: elementIndent,
+                                        into: &lines, remainingLineCount: &remaining, truncated: &truncated, capLineLength: capLineLength)
+            }
+        }
+    }
+
+    /// Shared renderer for ordered collections (arrays, transforms, sorted
+    /// dictionaries). Emits a `Count: N [` header, one line-group per element
+    /// (each closed with a trailing comma), and a closing `]`, all sharing the
+    /// caller's line budget. `elements` is iterated lazily so a large collection
+    /// only touches as many elements as the budget allows.
+    private static func appendCollection<C: Sequence>(count: Int,
+                                                      emptyMarker: Swift.String,
+                                                      elements: C,
+                                                      firstLinePrefix: Swift.String,
+                                                      childIndent: Swift.String,
+                                                      into lines: inout [Swift.String],
+                                                      remainingLineCount: inout Int,
+                                                      truncated: inout Bool,
+                                                      capLineLength: Bool,
+                                                      appendElement: (C.Element, Swift.String, inout [Swift.String], inout Int, inout Bool) -> Void)
+    {
+        if count == 0
+        {
+            Self.appendLine(firstLinePrefix + "Count: \(count) " + emptyMarker,
+                            into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+            return
+        }
+
+        Self.appendLine(firstLinePrefix + "Count: \(count) [",
+                        into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+
+        let elementIndent = childIndent + "    "
+
+        for element in elements
+        {
+            guard remainingLineCount > 0 else { truncated = true; break }
+
+            let lineCountBefore = lines.count
+            appendElement(element, elementIndent, &lines, &remainingLineCount, &truncated)
+
+            // Only append the separating comma when the element rendered fully
+            // (budget still remaining); a comma on a line the budget cut off
+            // mid-element would read as a stray "[,".
+            if lines.count > lineCountBefore, remainingLineCount > 0
+            {
+                lines[lines.count - 1] += ","
+            }
+        }
+
+        if remainingLineCount > 0
+        {
+            Self.appendLine(childIndent + "]",
+                            into: &lines, remainingLineCount: &remainingLineCount, capLineLength: capLineLength)
+        }
+        else
+        {
+            truncated = true
+        }
+    }
+
+    private static func appendLine(_ line: Swift.String,
+                                   into lines: inout [Swift.String],
+                                   remainingLineCount: inout Int,
+                                   capLineLength: Bool)
+    {
+        guard remainingLineCount > 0 else { return }
+
+        lines.append(capLineLength ? Self.cappedLine(line) : line)
+        remainingLineCount -= 1
+    }
+
+    private static func cappedLine(_ line: Swift.String) -> Swift.String
+    {
+        guard line.count > Self.maxPreviewLineLength else { return line }
+
+        let prefixCount = max(0, Self.maxPreviewLineLength - Self.truncationMarker.count)
+        return Swift.String(line.prefix(prefixCount)) + Self.truncationMarker
+    }
 
     /// Returns the parameter node class for this port type,
     /// or nil if no matching parameter node exists.
@@ -215,27 +516,62 @@ extension PortType {
         case .Color:        return ColorPassThroughNode.self
         case .Quaternion:   return PassThroughNode<simd_quatf>.self
         case .Transform:    return PassThroughNode<simd_float4x4>.self
-        case .Geometry:     return PassThroughNode<SatinGeometry>.self
+        case .Geometry:     return PassThroughNode<Geometry>.self
         case .Material:     return PassThroughNode<Material>.self
         case .Image:        return PassThroughNode<FabricImage>.self
         case .Array(portType: let elementType):
-            switch elementType {
-            case .Bool:      return PassThroughNode<ContiguousArray<Bool>>.self
-            case .Float:     return PassThroughNode<ContiguousArray<Float>>.self
-            case .Int:       return PassThroughNode<ContiguousArray<Int>>.self
-            case .String:    return PassThroughNode<ContiguousArray<String>>.self
-            case .Vector2:   return PassThroughNode<ContiguousArray<simd_float2>>.self
-            case .Vector3:   return PassThroughNode<ContiguousArray<simd_float3>>.self
-            case .Vector4:   return PassThroughNode<ContiguousArray<simd_float4>>.self
-            case .Color:     return PassThroughNode<ContiguousArray<simd_float4>>.self
-            case .Quaternion: return PassThroughNode<ContiguousArray<simd_quatf>>.self
-            case .Transform: return PassThroughNode<ContiguousArray<simd_float4x4>>.self
-            case .Geometry:  return PassThroughNode<ContiguousArray<SatinGeometry>>.self
-            case .Material:  return PassThroughNode<ContiguousArray<Material>>.self
-            case .Image:     return PassThroughNode<ContiguousArray<FabricImage>>.self
-            default:         return nil
-            }
-        default:            return nil
+            return Self.arrayParameterNodeClass(for: elementType)
+        case .Dictionary(valueType: let valueType):
+            return Self.dictionaryParameterNodeClass(for: valueType)
+        case .NumericVirtual:
+            return nil
+        default:
+            return nil
+        }
+    }
+
+    /// Maps a leaf element type to the PassThroughNode class for ContiguousArray<Element>.
+    /// Any non-leaf element type (i.e. a nested Array or unknown type) falls back to
+    /// ContiguousArray<PortValue> boxing, which handles arbitrary nesting depth.
+    private static func arrayParameterNodeClass(for elementType: PortType) -> Node.Type?
+    {
+        switch elementType
+        {
+        case .Bool:      return PassThroughNode<ContiguousArray<Bool>>.self
+        case .Int:       return PassThroughNode<ContiguousArray<Int>>.self
+        case .Float:     return PassThroughNode<ContiguousArray<Float>>.self
+        case .String:    return PassThroughNode<ContiguousArray<String>>.self
+        case .Vector2:   return PassThroughNode<ContiguousArray<simd_float2>>.self
+        case .Vector3:   return PassThroughNode<ContiguousArray<simd_float3>>.self
+        case .Vector4, .Color:
+                         return PassThroughNode<ContiguousArray<simd_float4>>.self
+        case .Quaternion: return PassThroughNode<ContiguousArray<simd_quatf>>.self
+        case .Transform: return PassThroughNode<ContiguousArray<simd_float4x4>>.self
+        case .Geometry:  return PassThroughNode<ContiguousArray<Geometry>>.self
+        case .Material:  return PassThroughNode<ContiguousArray<Material>>.self
+        case .Image:     return PassThroughNode<ContiguousArray<FabricImage>>.self
+        default:         return PassThroughNode<ContiguousArray<PortValue>>.self
+        }
+    }
+
+    private static func dictionaryParameterNodeClass(for valueType: PortType) -> Node.Type?
+    {
+        switch valueType
+        {
+        case .Bool:      return PassThroughNode<Dictionary<String, Bool>>.self
+        case .Int:       return PassThroughNode<Dictionary<String, Int>>.self
+        case .Float:     return PassThroughNode<Dictionary<String, Float>>.self
+        case .String:    return PassThroughNode<Dictionary<String, String>>.self
+        case .Vector2:   return PassThroughNode<Dictionary<String, simd_float2>>.self
+        case .Vector3:   return PassThroughNode<Dictionary<String, simd_float3>>.self
+        case .Vector4, .Color:
+                         return PassThroughNode<Dictionary<String, simd_float4>>.self
+        case .Quaternion: return PassThroughNode<Dictionary<String, simd_quatf>>.self
+        case .Transform: return PassThroughNode<Dictionary<String, simd_float4x4>>.self
+        case .Geometry:  return PassThroughNode<Dictionary<String, Geometry>>.self
+        case .Material:  return PassThroughNode<Dictionary<String, Material>>.self
+        case .Image:     return PassThroughNode<Dictionary<String, FabricImage>>.self
+        default:         return PassThroughNode<Dictionary<String, PortValue>>.self
         }
     }
 }
@@ -278,4 +614,19 @@ func contiguousArrayElementType(of type: Any.Type) -> Any.Type? {
 @inline(__always)
 func contiguousArrayElementType(of value: Any) -> Any.Type? {
     contiguousArrayElementType(of: Swift.type(of: value))
+}
+
+@inline(__always)
+fileprivate func dictionaryMetatype<Value>(valueType _: Value.Type) -> Dictionary<String, Value>.Type {
+    Dictionary<String, Value>.self
+}
+
+@inline(__always)
+fileprivate func _dictionaryMetatype_impl<Value>(_ value: Value.Type) -> Any.Type {
+    Dictionary<String, Value>.self
+}
+
+@inline(__always)
+fileprivate func dictionaryMetatype(valueType: Any.Type) -> Any.Type {
+    _openExistential(valueType, do: _dictionaryMetatype_impl)
 }

@@ -81,38 +81,36 @@ struct KeyboardKeyConfigView : View
 {
     @FocusState private var focused: Bool
 
-    @Bindable var node:KeyboardNode
-    let keypressIndex:Int
+    @Bindable var model: KeyboardNode.SettingsModel
+    let keypressIndex: Int
 
-     var body: some View {
+    var body: some View
+    {
+        let keyBinding: KeyBinding? = model.keyBindings[keypressIndex]
 
-         let keyBinding:KeyBinding? = self.node.keyBindings[self.keypressIndex]
+        HStack {
+            Button("Bind key \(keypressIndex + 1)") {
+                focused = true
+            }
+            .controlSize(.small)
 
-         HStack {
-
-             Button("Bind key \(self.keypressIndex + 1)") {
-                 self.focused = true
-             }
-             .controlSize(.small)
-
-             Text("\(keyBinding?.modifiersDescription ?? "Bind a key: ")  \(keyBinding?.keyDescription ?? "")")
-                 .focusable()
-                 .focused($focused)
-
-                 .onKeyPress(phases: .down) { press in
-                     self.node.keyBindings[self.keypressIndex] = KeyBinding(from: press)
-                     return .handled
-                 }
-                 .lineLimit(1)
-                 .font(.system(size: 10))
-                 .textFieldStyle(RoundedBorderTextFieldStyle())
-         }
-     }
+            Text("\(keyBinding?.modifiersDescription ?? "Bind a key: ")  \(keyBinding?.keyDescription ?? "")")
+                .focusable()
+                .focused($focused)
+                .onKeyPress(phases: .down) { press in
+                    model.keyBindings[keypressIndex] = KeyBinding(from: press)
+                    return .handled
+                }
+                .lineLimit(1)
+                .font(.system(size: 10))
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+        }
+    }
 }
 
 struct KeyboardNodeView : View
 {
-    @Bindable var node:KeyboardNode
+    @Bindable var model: KeyboardNode.SettingsModel
 
     var body: some View
     {
@@ -122,9 +120,8 @@ struct KeyboardNodeView : View
                 .lineLimit(1)
                 .font(.system(size: 10))
 
-            ForEach( 0 ..< self.node.keyBindings.count, id:\.self ) { keyPressIdx in
-
-                KeyboardKeyConfigView(node:node, keypressIndex: keyPressIdx)
+            ForEach(0 ..< model.keyBindings.count, id: \.self) { keyPressIdx in
+                KeyboardKeyConfigView(model: model, keypressIndex: keyPressIdx)
             }
 
             Spacer()
@@ -134,15 +131,14 @@ struct KeyboardNodeView : View
                 Spacer()
 
                 Button("-") {
-                    if self.node.keyBindings.isEmpty { return }
-
-                    self.node.keyBindings.removeLast()
+                    if model.keyBindings.isEmpty { return }
+                    model.keyBindings.removeLast()
                 }
 
                 Spacer()
 
                 Button("+") {
-                    self.node.keyBindings.append(nil)
+                    model.keyBindings.append(nil)
                 }
 
                 Spacer()
@@ -151,13 +147,13 @@ struct KeyboardNodeView : View
     }
 }
 
-@Observable public class KeyboardNode : Node
+public class KeyboardNode : Node
 {
-    override public class var name:String { "Keyboard" }
-    override public class var nodeType:Node.NodeType { Node.NodeType.Utility }
+    override public class var name: String { "Keyboard" }
+    override public class var nodeType: Node.NodeType { Node.NodeType.Utility }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Configure and detect keypresses"}
+    override public class var nodeDescription: String { "Configure and detect keypresses" }
 
     // MARK: - Codable
 
@@ -173,10 +169,7 @@ struct KeyboardNodeView : View
         let container = try decoder.container(keyedBy: KeyboardCodingKeys.self)
         let decodedBindings = try container.decodeIfPresent([KeyBinding?].self, forKey: .keyBindings)
 
-        // Use decoded bindings or default to [nil]
         self.keyBindings = decodedBindings ?? [nil]
-
-        // Rebuild ports based on restored bindings
         self.rebuildPorts()
     }
 
@@ -202,30 +195,26 @@ struct KeyboardNodeView : View
 
     // MARK: - Execution
 
-    public override func execute(context:GraphExecutionContext,
+    override public func execute(renderer: GraphRenderer,
+                                 executionInfo: GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
-        if let eventInfo = context.eventInfo,
+        if let eventInfo = executionInfo.eventInfo,
            let event = eventInfo.event,
-           ( event.type == .keyDown || event.type == .keyUp ),
-            let characters = event.characters
+           (event.type == .keyDown || event.type == .keyUp),
+           let characters = event.characters
         {
-            for keyBinding in keyBindings {
+            for keyBinding in keyBindings
+            {
                 if let keyBinding,
                    let portName = self.portNameForKeyBinding(keyBinding),
                    let port = self.findPort(named: portName) as? NodePort<Bool>
                 {
                     if characters == keyBinding.characters
                     {
-                        if event.type == .keyDown
-                        {
-                            port.send(true)
-                        }
-                        else
-                        {
-                            port.send(false)
-                        }
+                        port.send(event.type == .keyDown)
                     }
                 }
             }
@@ -234,7 +223,7 @@ struct KeyboardNodeView : View
 
     // MARK: - Properties
 
-    fileprivate var keyBindings:[KeyBinding?] = [nil]
+    fileprivate var keyBindings: [KeyBinding?] = [nil]
     {
         didSet
         {
@@ -244,26 +233,47 @@ struct KeyboardNodeView : View
 
     // MARK: - Settings View
 
-    override public func providesSettingsView() -> Bool {
-        true
-    }
+    override public func providesSettingsView() -> Bool { true }
 
     override public func settingsView() -> AnyView
     {
-        AnyView(KeyboardNodeView(node: self))
+        AnyView(KeyboardNodeView(model: _settingsModel))
     }
 
-    // MARK: - Internal Funcs
+    // MARK: - Settings Model
+
+    @Observable final class SettingsModel
+    {
+        var keyBindings: [KeyBinding?]
+        {
+            didSet
+            {
+                guard keyBindings != node?.keyBindings else { return }
+                node?.keyBindings = keyBindings
+            }
+        }
+        private weak var node: KeyboardNode?
+
+        init(node: KeyboardNode)
+        {
+            self.node = node
+            self.keyBindings = node.keyBindings
+        }
+    }
+
+    private lazy var _settingsModel = SettingsModel(node: self)
+
+    // MARK: - Internal
 
     private func rebuildPorts()
     {
-        let portNamesWeNeed = self.keyBindings.compactMap{ self.portNameForKeyBinding($0) }
+        let portNamesWeNeed = self.keyBindings.compactMap { self.portNameForKeyBinding($0) }
         let existingPortNames = self.outputPorts().map { $0.name }
 
-        let portsNamesToRemove = Set(existingPortNames).subtracting(Set(portNamesWeNeed))
-        let portNamesToAdd = Set(portNamesWeNeed).subtracting(portsNamesToRemove)
+        let portNamesToRemove = Set(existingPortNames).subtracting(Set(portNamesWeNeed))
+        let portNamesToAdd = Set(portNamesWeNeed).subtracting(portNamesToRemove)
 
-        for portName in portsNamesToRemove
+        for portName in portNamesToRemove
         {
             if let port = self.findPort(named: portName) as? NodePort<Bool>
             {
@@ -275,18 +285,16 @@ struct KeyboardNodeView : View
         {
             if self.findPort(named: portName) == nil
             {
-                let port = NodePort<Bool>(name: portName, kind: .Outlet, description: "True when key '\(portName)' is pressed")
-
+                let port = NodePort<Bool>(name: portName, kind: .Outlet,
+                                         description: "True when key '\(portName)' is pressed")
                 self.addDynamicPort(port)
-                print("add port \(portName) ")
             }
         }
     }
 
-    private func portNameForKeyBinding(_ keyBinding:KeyBinding?) -> String?
+    private func portNameForKeyBinding(_ keyBinding: KeyBinding?) -> String?
     {
         guard let keyBinding else { return nil }
-
         return keyBinding.characters
     }
 }

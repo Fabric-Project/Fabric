@@ -26,7 +26,7 @@ public class StringJoinNode : Node
         return ports +
         [
             ("inputPort",       NodePort<ContiguousArray<String>>(name: "Strings", kind: .Inlet, description: "Array of strings to join")),
-            ("separatorPort",   ParameterPort(parameter: StringParameter("Separator", ", ", .inputfield, "Separator to place between each string"))),
+            ("separatorPort",   ParameterPort(parameter: StringParameter("Separator", ", ", .inputfield, #"Separator to place between each string. Supports \n, \r, \t, and \\ escape sequences"#))),
             ("outputPort",      NodePort<String>(name: "String", kind: .Outlet, description: "Joined string result")),
         ]
     }
@@ -36,16 +36,20 @@ public class StringJoinNode : Node
     public var separatorPort:NodePort<String>               { port(named: "separatorPort") }
     public var outputPort:NodePort<String>                  { port(named: "outputPort") }
 
-    override public func execute(context:GraphExecutionContext,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputPort.valueDidChange || self.separatorPort.valueDidChange
         {
             if let strings = self.inputPort.value,
                let separator = self.separatorPort.value
             {
-                self.outputPort.send( strings.joined(separator: separator) )
+                // Same escape vocabulary as String Split's separator, so a
+                // separator that splits a string joins it back together.
+                self.outputPort.send( strings.joined(separator: decodeEscapeSequences(separator)) )
             }
         }
     }

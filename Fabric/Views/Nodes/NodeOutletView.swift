@@ -42,7 +42,7 @@ struct NodeOutletView: View
                                 self.editingContext.dragPreviewTargetPosition = nil
                             }
 
-                            guard let targetPortID = self.findPortAt(position: value.location, in: value.location),
+                            guard let targetPortID = self.editingContext.nearestPortID(to: value.location),
                                   let targetPort = self.editingContext.currentGraph.nodePort(forID: targetPortID),
                                   targetPort.id != self.port.id,
                                   targetPort.kind == .Inlet,
@@ -57,39 +57,11 @@ struct NodeOutletView: View
                             self.port.connect(to: targetPort)
                         }
                 )
-                .anchorPreference(
-                    key: PortAnchorKey.self,
-                    value: .center,
-                    transform: {  anchor in
-
-                        [  port.id : anchor ]
-                    })
-                .help("\(port.name): \(port.portType.rawValue) - \(port.parameter?.description ?? "" )")
+                .modifier(PortInspectionTooltip(port: port))
 
         }
         .frame(height: 15)
         .contentShape(.interaction, Rectangle())
         .modifier(PortRenameAlert(port: port, graph: graph))
-    }
-
-    private func findPortAt(position: CGPoint, in geometryPosition: CGPoint) -> UUID? {
-        let hitRadius: CGFloat = 25
-        var closestPort: (UUID, CGFloat)? = nil
-
-        for (portID, portPosition) in self.editingContext.portPositions {
-            let distance = hypot(position.x - portPosition.x, position.y - portPosition.y)
-
-            if distance < hitRadius {
-                if let (_, currentClosest) = closestPort {
-                    if distance < currentClosest {
-                        closestPort = (portID, distance)
-                    }
-                } else {
-                    closestPort = (portID, distance)
-                }
-            }
-        }
-
-        return closestPort?.0
     }
 }

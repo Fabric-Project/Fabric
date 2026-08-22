@@ -1,0 +1,53 @@
+#ifndef FABRIC_NOISE_COLOR
+#define FABRIC_NOISE_COLOR
+
+#ifndef FABRIC_NOISE_UNSIGNED_OUTPUT
+#define FABRIC_NOISE_UNSIGNED_OUTPUT 0
+#endif
+
+#ifndef FABRIC_NOISE_COMBINER
+#define FABRIC_NOISE_COMBINER(position, uniforms) fabricNoiseFBM(position, uniforms)
+#endif
+
+float fabricNoiseNormalize(float value)
+{
+#if FABRIC_NOISE_UNSIGNED_OUTPUT
+    return value;
+#else
+    return value * 0.5 + 0.5;
+#endif
+}
+
+float fabricNoiseShape(float value, constant PostUniforms &uniforms)
+{
+    float shapedValue = fabricNoiseNormalize(value);
+    shapedValue = shapedValue * uniforms.amplitude + uniforms.bias;
+    shapedValue = (shapedValue - 0.5) * uniforms.contrast + 0.5;
+    return fabricNoiseSaturate(shapedValue);
+}
+
+float3 fabricNoiseRGB(float3 position, constant PostUniforms &uniforms)
+{
+    float channelOffset = max(uniforms.channelOffset, 0.0);
+    float3 redOffset = float3(channelOffset, channelOffset * 2.0, channelOffset * 3.0);
+    float3 greenOffset = float3(channelOffset * 5.0, channelOffset * 7.0, channelOffset * 11.0);
+    float3 blueOffset = float3(channelOffset * 13.0, channelOffset * 17.0, channelOffset * 19.0);
+
+    return float3(
+        fabricNoiseShape(FABRIC_NOISE_COMBINER(position + redOffset, uniforms), uniforms),
+        fabricNoiseShape(FABRIC_NOISE_COMBINER(position + greenOffset, uniforms), uniforms),
+        fabricNoiseShape(FABRIC_NOISE_COMBINER(position + blueOffset, uniforms), uniforms)
+    );
+}
+
+float3 fabricNoiseColor(float3 position, constant PostUniforms &uniforms)
+{
+    if (uniforms.color) {
+        return fabricNoiseRGB(position, uniforms);
+    }
+
+    float value = fabricNoiseShape(FABRIC_NOISE_COMBINER(position, uniforms), uniforms);
+    return float3(value);
+}
+
+#endif

@@ -21,6 +21,21 @@ public protocol PortValueRepresentable : Equatable
     
     func canConvertTo(other:PortType) -> Bool
     func convertTo(other:PortType) -> (any PortValueRepresentable)?
+    
+    // We use this now for Float to remove NaN and Inf values
+    // But we might use this in the future to cull other types of bad values
+    // ie infs in transforms or vectors?
+    static func normalizePortValueForSend(_ value: Self?) -> Self?
+}
+
+// This shuold be optimized out by the compiler as a no - op for all values save ones that opt in.
+public extension PortValueRepresentable
+{
+    @inlinable
+    static func normalizePortValueForSend(_ value: Self?) -> Self?
+    {
+        value
+    }
 }
 
 // This is a "boxed" value we use in our cache, and for our new virtual type
@@ -36,12 +51,11 @@ public indirect enum PortValue : PortValueRepresentable
     case Vector4(simd_float4)
     case Quaternion(simd_quatf)
     case Transform(simd_float4x4)
-    case Geometry(Satin.SatinGeometry)
+    case Geometry(Satin.Geometry)
     case Material(Satin.Material)
     case Image(FabricImage)
-    case Virtual(PortValue)
-
     case Array(ContiguousArray<PortValue>)
+    case Dictionary(Swift.Dictionary<Swift.String, PortValue>)
     
     public static var defaultValue: PortValue? { nil }
         
@@ -81,27 +95,20 @@ public indirect enum PortValue : PortValueRepresentable
     {
         switch self
         {
-        case .Bool(let v):
-            return v.convertTo(other: portType)
-        
-        case .Int(let v):
-            return v.convertTo(other: portType)
-
-            case .Float(let v):
-            return v.convertTo(other: portType)
-            
-        case .String(let v):
-            return v.convertTo(other: portType)
-            
-        default:
-            return nil
+        case .Bool(let v):   return v.convertTo(other: other)
+        case .Int(let v):    return v.convertTo(other: other)
+        case .Float(let v):  return v.convertTo(other: other)
+        case .String(let v): return v.convertTo(other: other)
+        default:             return nil
         }
     }
+
 }
 
 
 extension Swift.Bool : PortValueRepresentable
 {
+    public func safeValueForSend() -> Bool? { self }
     public static var defaultValue: Bool? { false }
     public static var portType: PortType { .Bool }
     public var portType: PortType { .Bool }
@@ -289,6 +296,14 @@ extension Swift.Float : PortValueRepresentable
         default:
             return nil
         }
+    }
+    
+    // Specialize clean up
+    @inlinable
+    public static func normalizePortValueForSend(_ value: Float?) -> Float?
+    {
+        guard let value else { return nil }
+        return value.isFinite ? value : nil
     }
 }
 
@@ -522,7 +537,7 @@ extension simd.simd_float4x4 : PortValueRepresentable
     }
 }
 
-extension Satin.SatinGeometry : PortValueRepresentable
+extension Satin.Geometry : PortValueRepresentable
 {
     public static var defaultValue: Self? { nil }
     public static var portType: PortType { .Geometry }
@@ -532,7 +547,7 @@ extension Satin.SatinGeometry : PortValueRepresentable
     {
         .Geometry(self)
     }
-    
+
     public static func fromPortValue(_ value: PortValue) ->  Self?
     {
         switch value
@@ -543,12 +558,12 @@ extension Satin.SatinGeometry : PortValueRepresentable
             return nil
         }
     }
-    
+
     public func canConvertTo(other:PortType) -> Bool
     {
         return false
     }
-    
+
     public func convertTo(other:PortType) -> (any PortValueRepresentable)?
     {
         return nil
@@ -665,5 +680,57 @@ extension ContiguousArray: PortValueRepresentable where Element: PortValueRepres
     public func convertTo(other:PortType) -> (any PortValueRepresentable)?
     {
         return nil
+    }
+}
+
+extension Dictionary: PortValueRepresentable where Key == Swift.String, Value: PortValueRepresentable {
+
+    public static var defaultValue: Dictionary<Key, Value>? { Dictionary<Key, Value>() }
+
+    public static var portType: PortType {
+        .Dictionary(valueType: Value.portType)
+    }
+
+    public var portType: PortType {
+        .Dictionary(valueType: Value.portType)
+    }
+
+    public func toPortValue() -> PortValue {
+        var boxed: Swift.Dictionary<Swift.String, PortValue> = [:]
+        boxed.reserveCapacity(self.count)
+
+        for (key, value) in self {
+            boxed[key] = value.toPortValue()
+        }
+
+        return .Dictionary(boxed)
+    }
+
+    public static func fromPortValue(_ value: PortValue) -> Dictionary<Key, Value>? {
+        switch value {
+        case let .Dictionary(boxedValues):
+            var result = Dictionary<Key, Value>()
+            result.reserveCapacity(boxedValues.count)
+
+            for (key, boxedValue) in boxedValues {
+                guard let value = Value.fromPortValue(boxedValue) else { return nil }
+                result[key] = value
+            }
+
+            return result
+
+        default:
+            return nil
+        }
+    }
+
+    public func canConvertTo(other: PortType) -> Bool
+    {
+        false
+    }
+
+    public func convertTo(other: PortType) -> (any PortValueRepresentable)?
+    {
+        nil
     }
 }

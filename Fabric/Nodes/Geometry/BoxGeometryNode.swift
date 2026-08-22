@@ -32,10 +32,10 @@ public class BoxGeometryNode : BaseGeometryNode
     
     public override var geometry: BoxGeometry { _geometry }
     
-    private let _geometry = BoxGeometry(width: 1, height: 1, depth: 1)
+    private lazy var _geometry = BoxGeometry(context:self.context, width: 1, height: 1, depth: 1)
 
     
-    override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
+    override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
     {
         var shouldOutputGeometry = super.evaluate(geometry: geometry, atTime: atTime)
         

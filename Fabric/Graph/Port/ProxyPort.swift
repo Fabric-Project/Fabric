@@ -33,8 +33,11 @@ protocol ProxyPortProtocol
 public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPortProtocol
 {
     private let innerPort: NodePort<Value>
+    private let declaredPortType: PortType?
 
     public var innerPortID: UUID { innerPort.id }
+
+    @ObservationIgnored override public var portType: PortType { declaredPortType ?? super.portType }
 
     /// Prefers the proxy's own publishedName (set when renamed in the
     /// parent graph), falling back to the inner port's displayName (which
@@ -48,6 +51,7 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
     )
     {
         self.innerPort = innerPort
+        self.declaredPortType = innerPort.portType
 
         // Own UUID, own connections, same kind/name/type as inner port.
         // Published defaults to false — the parent graph independently
@@ -68,6 +72,7 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let innerPortID = try container.decode(UUID.self, forKey: .innerPortID)
+        self.declaredPortType = try container.decodeIfPresent(PortType.self, forKey: .declaredPortType)
 
         guard let decodeContext = decoder.context else {
             fatalError("Required Decode Context Not set")
@@ -98,12 +103,14 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
     private enum CodingKeys: String, CodingKey
     {
         case innerPortID
+        case declaredPortType
     }
 
     override public func encode(to encoder: any Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.innerPortID, forKey: .innerPortID)
+        try container.encodeIfPresent(self.declaredPortType, forKey: .declaredPortType)
         try super.encode(to: encoder)
     }
 

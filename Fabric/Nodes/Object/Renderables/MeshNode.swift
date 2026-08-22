@@ -22,7 +22,7 @@ public class MeshNode : BaseRenderableNode<Mesh>
         let ports = super.registerPorts(context: context)
         
         return ports + [
-            ("inputGeometry",  NodePort<SatinGeometry>(name: "Geometry", kind: .Inlet, description: "Geometry mesh to render")),
+            ("inputGeometry",  NodePort<Geometry>(name: "Geometry", kind: .Inlet, description: "Geometry mesh to render")),
             ("inputMaterial",  NodePort<Material>(name: "Material", kind: .Inlet, description: "Material to apply to the geometry")),
             ("inputCastsShadow",  ParameterPort(parameter: BoolParameter("Enable Shadows", true, .button, "When enabled, the mesh casts and receives shadows") ) ),
             ("inputDoubleSided",  ParameterPort(parameter: BoolParameter("Double Sided", false, .button, "When enabled, renders both front and back faces") ) ),
@@ -31,7 +31,7 @@ public class MeshNode : BaseRenderableNode<Mesh>
     }
         
     // Ergonomic access (no storage assignment needed)
-    public var inputGeometry: NodePort<SatinGeometry>   { port(named: "inputGeometry") }
+    public var inputGeometry: NodePort<Geometry>   { port(named: "inputGeometry") }
     public var inputMaterial: NodePort<Material>   { port(named: "inputMaterial") }
     public var inputCastsShadow: ParameterPort<Bool>   { port(named: "inputCastsShadow") }
     public var inputDoubleSided: ParameterPort<Bool>   { port(named: "inputDoubleSided") }
@@ -61,10 +61,9 @@ public class MeshNode : BaseRenderableNode<Mesh>
     
     override public func teardown()
     {
-        super.teardown()
         self.mesh = nil
-        self.inputGeometry.value = nil
-        self.inputMaterial.value = nil
+
+        super.teardown()
     }
     
     override public func evaluate(object: Object?, atTime: TimeInterval) -> Bool
@@ -100,9 +99,11 @@ public class MeshNode : BaseRenderableNode<Mesh>
     }
     
     
-    public override func execute(context:GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if
             (self.inputGeometry.valueDidChange
@@ -135,7 +136,7 @@ public class MeshNode : BaseRenderableNode<Mesh>
                 }
                 else
                 {
-                    let mesh = Mesh(geometry: geometry, material: material)
+                    let mesh = Mesh(context:self.context, geometry: geometry, material: material)
                     self.applyCurrentMeshState(mesh,
                                                materialJustAttached: true)
 
@@ -150,7 +151,7 @@ public class MeshNode : BaseRenderableNode<Mesh>
          
         if let mesh = mesh
         {
-            let _ = self.evaluate(object: mesh, atTime: context.timing.time)
+            let _ = self.evaluate(object: mesh, atTime: executionInfo.timing.time)
         }
      }
 
@@ -160,7 +161,8 @@ public class MeshNode : BaseRenderableNode<Mesh>
         mesh.lookAt(target: simd_float3(repeating: 0))
         mesh.visible = self.inputVisible.value ?? true
         mesh.renderOrder = self.inputRenderOrder.value ?? 0
-        mesh.renderPass = self.inputRenderPass.value ?? 0
+        // TODO: mesh.renderLayer
+        ///mesh.renderPass = self.inputRenderPass.value ?? 0
         mesh.position = self.inputPosition.value ?? .zero
         mesh.scale = self.inputScale.value ?? simd_float3(repeating: 1)
 

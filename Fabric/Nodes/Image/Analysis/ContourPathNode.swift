@@ -67,8 +67,8 @@ public final class ContourPathNode: Node {
 
     // MARK: - Setup
     private func setupProcessor(context: Context) {
-        let bundle = Bundle(for: Self.self)
-        guard let url = bundle.url(forResource: "MarchingSquares", withExtension: "metal", subdirectory: "Compute")
+        // Bundle(for:) cannot see SPM package resources; Bundle.module owns them.
+        guard let url = Bundle.module.url(forResource: "MarchingSquares", withExtension: "metal", subdirectory: "Compute")
 
         else {
             print("ContourPathNode: Missing Shaders/Compute/MarchingSquares.metal")
@@ -82,23 +82,21 @@ public final class ContourPathNode: Node {
     }
 
     // MARK: - Execute
-    override public func execute(context: GraphExecutionContext,
-                                 renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
+    public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
+    throws
     {
         guard
             inputMask.valueDidChange,
             let proc = processor,
-            let inTex = inputMask.value?.texture,
-            let graphRenderer = context.graphRenderer,
-            let device = graphRenderer.context?.device
+            let inTex = inputMask.value?.texture
         else {
             outputContour.send(nil)
 //            print("not outputting contour")
             return
         }
         
-        
+        let device = renderer.context.device
+
 //        print("recomputing contour")
 
         // Bind input for sizing/dispatch
@@ -117,7 +115,7 @@ public final class ContourPathNode: Node {
         proc.set("MaxSegments", UInt32(maxSegs))
 
         // Clear the counter to zero before compute (tiny inline reset)
-        zeroCounter(commandBuffer: commandBuffer)
+        try zeroCounter(commandBuffer: commandBuffer)
         
         if let computeEncoder = commandBuffer.makeComputeCommandEncoder()
         {
@@ -166,7 +164,8 @@ public final class ContourPathNode: Node {
         lastAllocatedFor = (width, height, maxSegments)
     }
 
-    private func zeroCounter(commandBuffer: MTLCommandBuffer) {
+    private func zeroCounter(commandBuffer: MTLCommandBuffer) throws
+    {
         
         if let blit = commandBuffer.makeBlitCommandEncoder(),
            let counterBuffer,

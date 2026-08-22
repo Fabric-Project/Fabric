@@ -19,11 +19,8 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override class var nodeDescription: String { "Deprecated three-channel image effect" }
 
-    override var name: String {
-        guard let fileURL = self.url else {
-            return BaseEffectNode.name
-        }
-        
+    override func deriveSubtitle() -> String? {
+        guard let fileURL = self.url else { return nil }
         return self.fileURLToName(fileURL: fileURL)
     }
     

@@ -1,187 +1,280 @@
-// Borrowed from https://github.com/ml-explore/mlx-swift-examples/blob/main/Applications/LLMEval/ContentView.swift
-
 import Foundation
 internal import AsyncAlgorithms
 internal import MLX
 internal import MLXLLM
 internal import MLXLMCommon
 
-class LLMEvaluator {
+final class LLMEvaluator {
+    var onOutputChanged: ((String) -> Void)?
+    var onModelInfoChanged: ((String) -> Void)?
+    var onStatChanged: ((String) -> Void)?
+    var onRunningChanged: ((Bool) -> Void)?
+    var onActivityTextChanged: ((String) -> Void)?
+    var onGenerationErrorChanged: ((String?) -> Void)?
 
-    var running = false
-
-    var includeWeatherTool = false
-    var enableThinking = false
+    var running = false {
+        didSet {
+            self.onRunningChanged?(self.running)
+        }
+    }
 
     var prompt = ""
-    var output = ""
-    var modelInfo = ""
-    var stat = ""
+    var output = "" {
+        didSet {
+            self.onOutputChanged?(self.output)
+        }
+    }
+    var modelInfo = "" {
+        didSet {
+            self.onModelInfoChanged?(self.modelInfo)
+        }
+    }
+    var stat = "" {
+        didSet {
+            self.onStatChanged?(self.stat)
+        }
+    }
+    var activityText = "" {
+        didSet {
+            self.onActivityTextChanged?(self.activityText)
+        }
+    }
+    var generationError: String? {
+        didSet {
+            self.onGenerationErrorChanged?(self.generationError)
+        }
+    }
 
-    /// This controls which model loads. `qwen2_5_1_5b` is one of the smaller ones, so this will fit on
-    /// more devices.
     var modelConfiguration = LLMRegistry.qwen3_1_7b_4bit
-
-    /// parameters controlling the output
-    var generateParameters = GenerateParameters( temperature: 0.6)
+    var generateParameters = GenerateParameters(maxKVSize: 4_096, temperature: 0.6)
     var updateInterval = Duration.seconds(0.25)
+    var systemPromptOverride = ""
+    var chatModeEnabled = true
 
-    /// A task responsible for handling the generation process.
-    var generationTask: Task<Void, Error>?
+    private var generationTask: Task<Void, Never>?
+    private var generationRequestTracker = LocalModelGenerationRequestTracker()
+    private let modelLoadConsumerID = UUID()
+    private var loadedModelID: String?
+    private var modelContainer: ModelContainer?
+    private var chatSession: ChatSession?
+    private var chatSessionSignature: ChatSessionSignature?
 
-    enum LoadState {
-        case idle
-        case loaded(ModelContainer)
+    private struct ChatSessionSignature: Equatable {
+        let modelID: String
+        let instructions: String
+        let temperature: Float
+        let maxKVSize: Int?
     }
 
-    var loadState = LoadState.idle
-
-    /// load and return the model -- can be called multiple times, subsequent calls will
-    /// just return the loaded model
-    func load() async throws -> ModelContainer {
-        switch loadState {
-        case .idle:
-            // limit the buffer cache
-            MLX.GPU.set(cacheLimit: 20 * 1024 * 1024)
-
-            let modelContainer = try await LLMModelFactory.shared.loadContainer(
-                configuration: modelConfiguration
-            ) {
-                [modelConfiguration] progress in
-                Task { @MainActor in
-                    self.modelInfo =
-                        "Downloading \(modelConfiguration.name): \(Int(progress.fractionCompleted * 100))%"
-                }
-            }
-            let numParams = await modelContainer.perform { context in
-                context.model.numParameters()
-            }
-
-            self.prompt = modelConfiguration.defaultPrompt
-            self.modelInfo =
-                "Loaded \(modelConfiguration.id). Weights: \(numParams / (1024*1024))M"
-            loadState = .loaded(modelContainer)
-            return modelContainer
-
-        case .loaded(let modelContainer):
-            return modelContainer
+    deinit {
+        let consumerID = self.modelLoadConsumerID
+        let modelID = self.modelConfiguration.name
+        Task {
+            await LocalModelContainerCache.shared.releaseContainer(
+                family: .llm,
+                modelID: modelID,
+                consumerID: consumerID
+            )
         }
     }
 
-    private func generate(prompt: String, toolResult: String? = nil) async {
+    func clearConversation() {
+        self.chatSession = nil
+        self.chatSessionSignature = nil
+    }
 
-        self.output = ""
-        var chat: [Chat.Message] = [
-            .system("You are a helpful assistant"),
-            .user(prompt),
-        ]
+    func resetSessionState() {
+        self.cancelModelOperation()
+    }
 
-        if let toolResult {
-            chat.append(.tool(toolResult))
+    func load(configuration: ModelConfiguration, requestID: Int) async throws -> ModelContainer {
+        if let modelContainer, self.loadedModelID == configuration.name {
+            return modelContainer
         }
 
-        let userInput = UserInput(
-            chat: chat,
-            tools: nil,
-            additionalContext: ["enable_thinking": enableThinking]
+        self.activityText = "Loading \(configuration.name)…"
+
+        let modelContainer = try await LocalModelContainerCache.shared.loadContainer(
+            family: .llm,
+            configuration: configuration,
+            consumerID: self.modelLoadConsumerID
         )
 
-        do {
-            let modelContainer = try await load()
-
-            // each time you generate you will get something new
-            MLXRandom.seed(UInt64(Date.timeIntervalSinceReferenceDate * 1000))
-
-            try await modelContainer.perform { (context: ModelContext) -> Void in
-//                print("LLM preparing user input")
-                let lmInput = try await context.processor.prepare(input: userInput)
-                                
-//                print("LLM begin streaming output")
-                let stream = try MLXLMCommon.generate(
-                    input: lmInput, parameters: generateParameters, context: context)
-
-                // generate and output in batches
-                for await batch in stream._throttle(
-                    for: updateInterval, reducing: Generation.collect)
-                {
-//                    print("LLM recieved output batch")
-                    
-                    let output = batch.compactMap { $0.chunk }.joined(separator: "")
-                    if !output.isEmpty {
-                        Task { @MainActor [output] in
-//                            print("LLM output append: \(output)")
-                            self.output += output
-                        }
-                    }
-
-                    if let completion = batch.compactMap({ $0.info }).first {
-                        Task { @MainActor in
-//                            print("LLM stats: \(completion.tokensPerSecond) tokens/s")
-                            self.stat = "\(completion.tokensPerSecond) tokens/s"
-                        }
-                    }
-                }
-            }
-
-        } catch {
-            output = "Failed: \(error)"
+        guard self.generationRequestTracker.isCurrent(requestID), Task.isCancelled == false else {
+            throw CancellationError()
         }
+
+        let parameterCount = await modelContainer.perform { context in
+            context.model.numParameters()
+        }
+
+        self.loadedModelID = configuration.name
+        self.modelContainer = modelContainer
+        self.modelInfo = "Loaded \(configuration.name). Weights: \(parameterCount / (1024 * 1024))M"
+        self.activityText = ""
+        self.clearConversation()
+
+        if self.prompt.isEmpty {
+            self.prompt = self.modelConfiguration.defaultPrompt
+        }
+
+        return modelContainer
     }
 
     func generate() {
-        guard !running else { return }
-        let currentPrompt = prompt
-        prompt = ""
-        generationTask = Task {
-            running = true
-            await generate(prompt: currentPrompt)
-            running = false
+        let currentPrompt = self.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard currentPrompt.isEmpty == false else { return }
+
+        let requestID = self.generationRequestTracker.beginRequest()
+        let configuration = self.modelConfiguration
+        let previousTask = self.running ? self.generationTask : nil
+        self.generationError = nil
+
+        if previousTask != nil {
+            previousTask?.cancel()
+            self.clearConversation()
+        }
+
+        self.running = true
+        self.generationTask = Task { [weak self] in
+            guard let self, self.generationRequestTracker.isCurrent(requestID), Task.isCancelled == false else { return }
+            await self.generateResponse(for: currentPrompt, configuration: configuration, requestID: requestID)
+
+            guard self.generationRequestTracker.isCurrent(requestID) else { return }
+            self.generationTask = nil
+            self.running = false
+        }
+    }
+
+    func prepareModel() {
+        let requestID = self.generationRequestTracker.beginRequest()
+        let configuration = self.modelConfiguration
+        self.generationTask?.cancel()
+        self.clearConversation()
+        self.generationError = nil
+
+        self.generationTask = Task { [weak self] in
+            guard let self else { return }
+
+            do {
+                _ = try await self.load(configuration: configuration, requestID: requestID)
+                guard self.generationRequestTracker.isCurrent(requestID) else { return }
+                self.generationTask = nil
+            } catch is CancellationError {
+                guard self.generationRequestTracker.isCurrent(requestID) else { return }
+                self.generationTask = nil
+            } catch {
+                guard self.generationRequestTracker.isCurrent(requestID) else { return }
+                self.generationTask = nil
+                self.activityText = ""
+                self.generationError = error.localizedDescription
+            }
+        }
+    }
+
+    func cancelModelOperation() {
+        let modelID = self.loadedModelID ?? self.modelConfiguration.name
+        let consumerID = self.modelLoadConsumerID
+        self.cancelGeneration()
+        self.clearConversation()
+        self.loadedModelID = nil
+        self.modelContainer = nil
+        self.modelInfo = ""
+        Task {
+            await LocalModelContainerCache.shared.releaseContainer(
+                family: .llm,
+                modelID: modelID,
+                consumerID: consumerID
+            )
         }
     }
 
     func cancelGeneration() {
-        generationTask?.cancel()
-        running = false
+        let wasRunning = self.running
+        self.generationRequestTracker.cancelCurrentRequest()
+        self.generationTask?.cancel()
+        self.generationTask = nil
+        self.running = false
+        if wasRunning {
+            self.clearConversation()
+        }
+        self.activityText = ""
+        self.generationError = nil
     }
 
-//    private func handleToolCall(_ toolCall: ToolCall, prompt: String) async throws {
-//        let result =
-//            switch toolCall.function.name {
-//            case currentWeatherTool.name:
-//                try await toolCall.execute(with: currentWeatherTool).toolResult
-//            case addTool.name:
-//                try await toolCall.execute(with: addTool).toolResult
-//            case timeTool.name:
-//                try await toolCall.execute(with: timeTool).toolResult
-//            default:
-//                "No tool match"
-//            }
-//
-//        await generate(prompt: prompt, toolResult: result)
-//    }
+    private func generateResponse(for prompt: String, configuration: ModelConfiguration, requestID: Int) async {
+        self.output = ""
+        self.stat = ""
+
+        do {
+            let modelContainer = try await self.load(configuration: configuration, requestID: requestID)
+            guard self.generationRequestTracker.isCurrent(requestID) else { return }
+            MLXRandom.seed(UInt64(Date.timeIntervalSinceReferenceDate * 1_000))
+
+            let session = self.chatModeEnabled
+                ? self.chatSession(using: modelContainer)
+                : self.makeStatelessSession(using: modelContainer)
+
+            let stream = session.streamDetails(to: prompt, images: [], videos: [])
+            for try await batch in stream._throttle(for: self.updateInterval, reducing: Generation.collect) {
+                try Task.checkCancellation()
+                guard self.generationRequestTracker.isCurrent(requestID) else { return }
+
+                let outputDelta = batch.compactMap { $0.chunk }.joined(separator: "")
+                if outputDelta.isEmpty == false {
+                    self.output += outputDelta
+                }
+
+                if let completion = batch.compactMap({ $0.info }).first {
+                    self.stat = "\(completion.tokensPerSecond) tokens/s"
+                }
+            }
+        } catch is CancellationError {
+            return
+        } catch {
+            guard self.generationRequestTracker.isCurrent(requestID) else { return }
+            self.output = "Failed: \(error)"
+            self.activityText = ""
+            self.generationError = error.localizedDescription
+        }
+    }
+
+    private func chatSession(using modelContainer: ModelContainer) -> ChatSession {
+        let instructions = self.resolvedInstructions()
+        let signature = ChatSessionSignature(
+            modelID: self.modelConfiguration.name,
+            instructions: instructions,
+            temperature: self.generateParameters.temperature,
+            maxKVSize: self.generateParameters.maxKVSize
+        )
+
+        if let chatSession, self.chatSessionSignature == signature {
+            chatSession.instructions = instructions
+            chatSession.generateParameters = self.generateParameters
+            chatSession.additionalContext = nil
+            return chatSession
+        }
+
+        let session = ChatSession(
+            modelContainer,
+            instructions: instructions,
+            generateParameters: self.generateParameters
+        )
+        self.chatSession = session
+        self.chatSessionSignature = signature
+        return session
+    }
+
+    private func makeStatelessSession(using modelContainer: ModelContainer) -> ChatSession {
+        ChatSession(
+            modelContainer,
+            instructions: self.resolvedInstructions(),
+            generateParameters: self.generateParameters
+        )
+    }
+
+    private func resolvedInstructions() -> String {
+        let trimmedOverride = self.systemPromptOverride.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedOverride.isEmpty ? "You are a helpful assistant." : trimmedOverride
+    }
 }
-//
-//struct WeatherInput: Codable {
-//    let location: String
-//    let unit: String?
-//}
-//
-//struct WeatherOutput: Codable {
-//    let temperature: Double
-//    let conditions: String
-//}
-//
-//struct AddInput: Codable {
-//    let first: Int
-//    let second: Int
-//}
-//
-//struct AddOutput: Codable {
-//    let result: Int
-//}
-//
-//struct EmptyInput: Codable {}
-//
-//struct TimeOutput: Codable {
-//    let time: String
-//}

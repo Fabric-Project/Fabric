@@ -45,20 +45,20 @@ public class DirectionalLightNode : ObjectNode<DirectionalLight>
         return light
     }
     
-    private var light: DirectionalLight =  DirectionalLight(color: [1.0, 1.0, 1.0], intensity: 1.0)
+    private lazy var light: DirectionalLight = DirectionalLight(context:self.context, color: [1.0, 1.0, 1.0], intensity: 1.0)
   
-    override public func startExecution(context:GraphExecutionContext)
+    override public func startExecution(renderer:GraphRenderer)
+    throws
     {
         self.setupDefaultLight( )
     }
     
     private func setupDefaultLight()
     {
-        self.light.context = self.context
         self.light.lookAt(target: .zero, up: Satin.worldUpDirection)
 
         self.light.castShadow = true
-        self.light.shadow.resolution = (2048, 2048)
+        self.light.shadow.resolution = (1024, 1024)
         self.light.shadow.bias = 0.0005
         self.light.shadow.strength = 0.5
         self.light.shadow.radius = 2
@@ -116,10 +116,12 @@ public class DirectionalLightNode : ObjectNode<DirectionalLight>
         return shouldOutput
     }
     
-    public override func execute(context:GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
-        let _ = self.evaluate(object: self.light, atTime: context.timing.time)
+        let _ = self.evaluate(object: self.light, atTime: executionInfo.timing.time)
     }
 }

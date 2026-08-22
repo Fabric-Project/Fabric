@@ -24,23 +24,18 @@ public class BaseGeometryNode : Node
         return ports +
         [
             ("inputPrimitiveType", ParameterPort(parameter:StringParameter("Primitive", "Triangle", ["Point", "Line", "Line Strip", "Triangle", "Triangle Strip"], .dropdown, "Rendering primitive type for the geometry mesh")) ),
-            ("outputGeometry",  NodePort<SatinGeometry>(name: "Geometry", kind: .Outlet, description: "The generated geometry mesh")),
+            ("outputGeometry",  NodePort<Geometry>(name: "Geometry", kind: .Outlet, description: "The generated geometry mesh")),
         ]
     }
     
     public var inputPrimitiveType: NodePort<String>   { port(named: "inputPrimitiveType") }
-    public var outputGeometry: NodePort<SatinGeometry>   { port(named: "outputGeometry") }
+    public var outputGeometry: NodePort<Geometry>   { port(named: "outputGeometry") }
 
-    open var geometry: SatinGeometry {
+    open var geometry: Geometry {
         fatalError("Subclasses must override geometry")
     }
-    
-    override public func startExecution(context:GraphExecutionContext)
-    {
-        self.geometry.context = self.context
-    }
-        
-    public func evaluate(geometry:SatinGeometry, atTime:TimeInterval) -> Bool
+            
+    public func evaluate(geometry:Geometry, atTime:TimeInterval) -> Bool
     {
         var shouldOutput = false
         
@@ -60,9 +55,9 @@ public class BaseGeometryNode : Node
         return shouldOutput
     }
     
-    public override func execute(context: GraphExecutionContext, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: any MTLCommandBuffer)
+    public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
-        let shouldOutput = self.evaluate(geometry: self.geometry, atTime: context.timing.time)
+        let shouldOutput = self.evaluate(geometry: self.geometry, atTime: executionInfo.timing.time)
 
         if shouldOutput
         {

@@ -86,13 +86,13 @@ public class ScreenCaptureProviderNode: Node
     public var inputCaptureSource: ParameterPort<String> { port(named: "inputCaptureSource") }
     public var outputTexturePort: NodePort<FabricImage> { port(named: "outputTexturePort") }
 
-    @ObservationIgnored private let streamOutputHandler = StreamOutputHandler()
-    @ObservationIgnored private let sampleHandlerQueue = DispatchQueue(label: "fabric.ScreenCaptureProviderNode.sample_handler")
-    @ObservationIgnored private var stream: SCStream? = nil
-    @ObservationIgnored private var optionsToTargets: [String: CaptureTarget] = [:]
-    @ObservationIgnored private var latestShareableContent: SCShareableContent? = nil
-    @ObservationIgnored private var refreshTask: Task<Void, Never>? = nil
-    @ObservationIgnored private var streamTask: Task<Void, Never>? = nil
+    private let streamOutputHandler = StreamOutputHandler()
+    private let sampleHandlerQueue = DispatchQueue(label: "fabric.ScreenCaptureProviderNode.sample_handler")
+    private var stream: SCStream? = nil
+    private var optionsToTargets: [String: CaptureTarget] = [:]
+    private var latestShareableContent: SCShareableContent? = nil
+    private var refreshTask: Task<Void, Never>? = nil
+    private var streamTask: Task<Void, Never>? = nil
 
     public required init(context: Context)
     {
@@ -106,10 +106,12 @@ public class ScreenCaptureProviderNode: Node
         self.scheduleRefreshAndReconfigure()
     }
 
-    override public func stopExecution(context: GraphExecutionContext)
+    override public func stopExecution(renderer: GraphRenderer)
+    throws
     {
         self.stopStreamAndClear()
     }
+    
 
     override public func teardown()
     {
@@ -117,19 +119,21 @@ public class ScreenCaptureProviderNode: Node
         self.stopStreamAndClear()
     }
 
-    override public func execute(context: GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputCaptureType.valueDidChange || self.inputCaptureSource.valueDidChange
         {
             self.scheduleRefreshAndReconfigure()
         }
 
-        if let pixelBuffer = streamOutputHandler.consumeLatestPixelBuffer(),
-           let renderer = context.graphRenderer,
-           let image = renderer.newImage(fromPixelBuffer: pixelBuffer)
+        if let pixelBuffer = streamOutputHandler.consumeLatestPixelBuffer()
         {
+            let image = try renderer.newImage(fromPixelBuffer: pixelBuffer)
+
             self.outputTexturePort.send(image)
         }
     }
@@ -303,8 +307,8 @@ public class ScreenCaptureProviderNode: Node
             for window in windows
             {
                 let appName = window.owningApplication?.applicationName ?? "Unknown App"
-                let title = (window.title?.isEmpty == false) ? window.title! : "Untitled"
-                let option = "\(appName) - \(title)"
+                let windowTitle = (window.title?.isEmpty == false) ? window.title! : "Untitled"
+                let option = "\(appName) - \(windowTitle)"
                 result[option] = .window(window)
             }
 

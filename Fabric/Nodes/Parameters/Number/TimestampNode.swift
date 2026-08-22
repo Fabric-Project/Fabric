@@ -28,9 +28,12 @@ public class TimestampNode: Node {
     public var outputSeconds: NodePort<Int> { port(named: "outputSeconds") }
     public var outputFraction: NodePort<Float> { port(named: "outputFraction") }
 
-    public override func execute(context: GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer) {
+                                 commandBuffer: MTLCommandBuffer)
+    throws
+    {
         let timestamp = Date().timeIntervalSince1970
         outputSeconds.send(Int(timestamp))
         outputFraction.send(Float(timestamp - timestamp.rounded(.down)))

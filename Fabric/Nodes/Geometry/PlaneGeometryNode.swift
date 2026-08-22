@@ -22,8 +22,8 @@ public class PlaneGeometryNode : BaseGeometryNode
             ("inputPlane", ParameterPort(parameter:StringParameter("Plane", "XY", ["XY", "YX", "XZ", "ZX", "YZ", "ZY"], .dropdown, "Orientation plane defining which axes the plane spans"))),
             ("inputWidth", ParameterPort(parameter:FloatParameter("Width", 1.0, .inputfield, "Width of the plane in world units"))),
             ("inputHeight", ParameterPort(parameter:FloatParameter("Height", 1.0, .inputfield, "Height of the plane in world units"))),
-            ("inputResolutionWidth", ParameterPort(parameter:IntParameter("Width", 1, .inputfield, "Number of segments along the width"))),
-            ("inputResolutionHeight", ParameterPort(parameter:IntParameter("Height", 1, .inputfield, "Number of segments along the height"))),
+            ("inputResolutionWidth", ParameterPort(parameter:IntParameter("Width Segments", 1, .inputfield, "Number of segments along the width"))),
+            ("inputResolutionHeight", ParameterPort(parameter:IntParameter("Height Segments", 1, .inputfield, "Number of segments along the height"))),
 
         ] + ports
     }
@@ -37,9 +37,9 @@ public class PlaneGeometryNode : BaseGeometryNode
     
     public override var geometry: PlaneGeometry { _geometry }
 
-    private let _geometry = PlaneGeometry(width: 1, height: 1, orientation: .xy)
+    private lazy var _geometry = PlaneGeometry(context:self.context, width: 1, height: 1, orientation: .xy)
     
-    override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
+    override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
     {
         var shouldOutputGeometry = super.evaluate(geometry: geometry, atTime: atTime)
 

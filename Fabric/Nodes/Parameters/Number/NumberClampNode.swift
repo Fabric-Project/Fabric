@@ -30,7 +30,7 @@ public class NumberClampNode : Node
         [
             ("inputNumber", ParameterPort(parameter: FloatParameter("Input Number", 0.0, .inputfield, "The input value to clamp"))),
             ("inputMinNumber", ParameterPort(parameter: FloatParameter("Min Number", 0.0, .inputfield, "Minimum allowed output value"))),
-            ("inputMaxNumber", ParameterPort(parameter: FloatParameter("Max Number", 0.0, .inputfield, "Maximum allowed output value"))),
+            ("inputMaxNumber", ParameterPort(parameter: FloatParameter("Max Number", 1.0,  .inputfield, "Maximum allowed output value"))),
             ("outputNumber", NodePort<Float>(name: "Number" , kind: .Outlet, description: "The clamped output value")),
         ]
     }
@@ -41,9 +41,11 @@ public class NumberClampNode : Node
     public var inputMaxNumber:ParameterPort<Float> { port(named: "inputMaxNumber") }
     public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
     
-    override public func execute(context:GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputNumber.valueDidChange || self.inputMinNumber.valueDidChange || self.inputMaxNumber.valueDidChange
         {

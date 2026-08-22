@@ -35,9 +35,11 @@ public class StringTrimNode : Node
     public var outputPort:NodePort<String> { port(named: "outputPort") }
 
 
-    override public func execute(context:GraphExecutionContext,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputPort.valueDidChange
         {

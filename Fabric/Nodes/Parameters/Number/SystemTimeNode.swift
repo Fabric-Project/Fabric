@@ -12,17 +12,16 @@ import Foundation
 import Satin
 import simd
 import Metal
-import QuartzCore
 
 public class SystemTimeNode : Node
 {
     override public class var name:String { "System Time" }
     override public class var nodeType:Node.NodeType { .Parameter(parameterType: .Number) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
-    override public class var nodeTimeMode: Node.TimeMode { .None }
+    override public class var nodeTimeMode: Node.TimeMode { .TimeBase }
     override public class var nodeDescription: String { "Elapsed system clock time in seconds since execution started" }
 
-    private var startTime:TimeInterval = 0
+    private var startTime: TimeInterval?
     
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
@@ -38,14 +37,20 @@ public class SystemTimeNode : Node
     public var inputNumber:ParameterPort<Float> { port(named: "inputNumber") }
     public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
     
-    override public func startExecution(context: GraphExecutionContext) {
-        self.startTime = context.timing.systemTime
+    override public func startExecution(renderer: GraphRenderer) throws
+    {
+        self.startTime = nil
     }
     
-    override public func execute(context:GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
-        self.outputNumber.send( Float(context.timing.systemTime - startTime) )
+        let currentTime = executionInfo.timing.systemTime
+        let startTime = self.startTime ?? currentTime
+        self.startTime = startTime
+        self.outputNumber.send(Float(currentTime - startTime))
     }
 }

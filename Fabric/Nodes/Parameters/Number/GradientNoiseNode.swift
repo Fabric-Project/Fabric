@@ -41,9 +41,11 @@ public class GradientNoiseNode : Node
     private var fbm = GradientNoise2D(amplitude: 1.0, frequency: 1.0, seed: time(nil) )
     
    
-    public override func execute(context:GraphExecutionContext,
-                                  renderPassDescriptor: MTLRenderPassDescriptor,
-                                  commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
+    throws
     {
         //self.fbm.frequency_scaled(by: Double(self.inputFrequency.value) )
         if self.inputFrequency.valueDidChange,

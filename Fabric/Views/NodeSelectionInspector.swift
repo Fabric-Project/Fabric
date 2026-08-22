@@ -12,44 +12,40 @@ import UniformTypeIdentifiers
 public struct NodeSelectionInspector: View
 {
     let editingContext: GraphCanvasContext
-    @Binding private var inputFocus: FabricEditorInputFocus
 
-    public init(editingContext: GraphCanvasContext, inputFocus: Binding<FabricEditorInputFocus>)
+    public init(editingContext: GraphCanvasContext)
     {
         self.editingContext = editingContext
-        self._inputFocus = inputFocus
     }
 
     public var body: some View {
 
         let currentGraph = self.editingContext.currentGraph
 
-        let selectedNodes = currentGraph.nodes.filter( { $0.isSelected } )
-
         List {
 
             Section(header: Text("Published"))
             {
-                ParameterGroupView(parameterGroup:currentGraph.publishedParameterGroup)
+                GroupBox
+                {
+                    ParameterGroupView(parameterGroup:currentGraph.publishedParameterGroup)
+                        // publishedParameterGroup is a plain class rebuilt in
+                        // place, invisible to observation — but every rebuild
+                        // bumps connectionRevision, so re-identify just this
+                        // view (not the whole List) to pick up the new params.
+                        .id(currentGraph.connectionRevision)
+                }
             }
 
-            ForEach(selectedNodes, id: \.id) { node in
-
-                Section(header: Text( node.name ) )
-                {
-                    @Bindable var bindableNode:Node = node
-
-                    Toggle("Node Settings", isOn: $bindableNode.showSettings)
-                        .opacity(bindableNode.providesSettingsView() ? 1.0 : 0.0)
-
-                    ParameterGroupView(parameterGroup: node.parameterGroup,
-                                       fileContentTypes: Self.fileContentTypes(for: node))
+            Section(header: Text("Selected"))
+            {
+                ForEach(currentGraph.selectedNodes) { node in
+                    SelectedNodeCard(nodeViewModel: currentGraph.viewModel(for: node),
+                                     fileContentTypes: Self.fileContentTypes(for: node))
                 }
             }
         }
         .listStyle(.sidebar)
-        .id(currentGraph.shouldUpdateConnections)
-
     }
 
     private static func fileContentTypes(for node: Node) -> [UTType]
@@ -59,8 +55,63 @@ public struct NodeSelectionInspector: View
         }
         return [.data]
     }
+
 }
 
-//#Preview {
-////    NodeSelectionInspector()
-//}
+/// One inspector card per selected node. A separate view so each card
+/// observes only its own NodeViewModel — renaming one node or toggling its
+/// settings re-evaluates that card alone, not every card in the inspector.
+private struct SelectedNodeCard: View
+{
+    @Bindable var nodeViewModel: NodeViewModel
+    let fileContentTypes: [UTType]
+
+    var body: some View
+    {
+        // Read the port list unconditionally: it is the card's only observable
+        // signal that the node's parameters changed (parameterGroup is a plain
+        // class rebuilt in place), and it must fire even while the params
+        // branch below is absent.
+        let portIDs = nodeViewModel.ports.map(\.id)
+
+        GroupBox
+        {
+            VStack(alignment: .leading) {
+
+                label
+                    .padding(.horizontal, 5)
+
+                if nodeViewModel.providesSettingsView() {
+                    Toggle("Settings", isOn: $nodeViewModel.showSettings)
+                        .toggleStyle(.switch)
+                        .controlSize(.mini)
+                        .padding(.horizontal, 5)
+                }
+
+                if !nodeViewModel.parameterGroup.params.isEmpty {
+
+                    Divider()
+
+                    ParameterGroupView(parameterGroup: nodeViewModel.parameterGroup,
+                                       fileContentTypes: fileContentTypes)
+                        .id(portIDs)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var label: some View
+    {
+        if let subtitle = nodeViewModel.subtitle
+        {
+            VStack(alignment: .leading) {
+                Text(subtitle).foregroundStyle(.primary).bold()
+                Text(nodeViewModel.title).foregroundStyle(.secondary).bold()
+            }
+        }
+        else
+        {
+            Text(nodeViewModel.title).foregroundStyle(.primary).bold()
+        }
+    }
+}

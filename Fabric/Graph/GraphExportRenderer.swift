@@ -50,7 +50,7 @@ public final class GraphExportRenderer {
         self.colorPixelFormat = colorPixelFormat ?? context.colorPixelFormat
         self.depthPixelFormat = depthPixelFormat ?? context.depthPixelFormat
         self.clearColor = clearColor
-        self.graphRenderer = GraphRenderer(context: context)
+        self.graphRenderer = GraphRenderer(context: context, graph: graph)
 
         self.renderPassDescriptor.colorAttachments[0].loadAction = .clear
         self.renderPassDescriptor.colorAttachments[0].storeAction = .store
@@ -60,7 +60,7 @@ public final class GraphExportRenderer {
         self.renderPassDescriptor.depthAttachment.clearDepth = 1.0
     }
 
-    public func start() {
+    public func start() throws {
         guard !self.started else { return }
 
         self.graphRenderer.resize(
@@ -68,14 +68,8 @@ public final class GraphExportRenderer {
             scaleFactor: 1.0
         )
 
-        let executionContext = self.makeExecutionContext(
-            time: 0,
-            deltaTime: 0,
-            frameNumber: 0
-        )
-
-        self.graphRenderer.enableExecution(graph: self.graph, executionContext: executionContext)
-        self.graphRenderer.startExecution(graph: self.graph, executionContext: executionContext)
+        try self.graphRenderer.enableExecution(graph: self.graph)
+        try self.graphRenderer.startExecution(graph: self.graph)
 
         self.frameNumber = 0
         self.lastRenderedTime = nil
@@ -100,12 +94,8 @@ public final class GraphExportRenderer {
         } else {
             deltaTime = 0
         }
-
-        let executionContext = self.makeExecutionContext(
-            time: time,
-            deltaTime: deltaTime,
-            frameNumber: self.frameNumber
-        )
+        
+        let executionInfo = self.makeExecutionInfo(time: time,deltaTime: deltaTime, frameNumber: self.frameNumber)
 
         self.renderPassDescriptor.colorAttachments[0].texture = colorTexture
         self.renderPassDescriptor.depthAttachment.texture = depthTexture
@@ -115,13 +105,11 @@ public final class GraphExportRenderer {
         guard let commandBuffer = self.graphRenderer.commandQueue.makeCommandBuffer() else {
             throw GraphExportRendererError.commandBufferCreationFailed
         }
-
-        self.graphRenderer.executeAndDraw(
-            graph: self.graph,
-            executionContext: executionContext,
-            renderPassDescriptor: self.renderPassDescriptor,
-            commandBuffer: commandBuffer
-        )
+        
+        try self.graphRenderer.executeAndDraw(graph: self.graph,
+                                              executionInfo: executionInfo,
+                                              renderPassDescriptor: self.renderPassDescriptor,
+                                              commandBuffer: commandBuffer)
 
         commandBuffer.commit()
         commandBuffer.waitUntilCompleted()
@@ -139,23 +127,16 @@ public final class GraphExportRenderer {
         depthTexture: MTLTexture? = nil,
         time: TimeInterval
     ) throws {
-        self.start()
-        defer { self.finish() }
+        try self.start()
+        defer { try? self.finish() }
         try self.renderFrame(into: colorTexture, depthTexture: depthTexture, time: time)
     }
 
-    public func finish() {
+    public func finish() throws {
         guard self.started else { return }
 
-        let time = self.lastRenderedTime ?? 0
-        let executionContext = self.makeExecutionContext(
-            time: time,
-            deltaTime: 0,
-            frameNumber: self.frameNumber
-        )
-
-        self.graphRenderer.disableExecution(graph: self.graph, executionContext: executionContext)
-        self.graphRenderer.stopExecution(graph: self.graph, executionContext: executionContext)
+        try self.graphRenderer.disableExecution(graph: self.graph)
+        try self.graphRenderer.stopExecution(graph: self.graph)
         self.graphRenderer.teardown(graph: self.graph)
 
         self.renderPassDescriptor.colorAttachments[0].texture = nil
@@ -168,18 +149,17 @@ public final class GraphExportRenderer {
         self.started = false
     }
 
-    private func makeExecutionContext(
+    private func makeExecutionInfo(
         time: TimeInterval,
         deltaTime: TimeInterval,
         frameNumber: Int
-    ) -> GraphExecutionContext {
-        GraphExecutionContext(
-            graphRenderer: self.graphRenderer,
+    ) -> GraphExecutionInfo {
+        GraphExecutionInfo(
             timing: GraphExecutionTiming(
                 time: time,
                 deltaTime: deltaTime,
                 displayTime: time,
-                systemTime: time,
+                systemTime: Date.timeIntervalSinceReferenceDate,
                 frameNumber: frameNumber
             ),
             iterationInfo: nil,

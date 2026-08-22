@@ -1,0 +1,23 @@
+typedef struct {
+    float time; // input, 0.0, Time
+    float4x4 coordinateTransform;
+    float amplitude; // slider, 0.0, 4.0, 1.0, Amplitude
+    float bias; // input, 0.0, Bias
+    float contrast; // slider, 0.0, 4.0, 1.0, Contrast
+    float seed; // input, 0.0, Seed
+    bool color; // toggle, false, Color
+    float channelOffset; // input, 17.0, Channel Offset
+} PostUniforms;
+
+#include "NoiseCommon.msl"
+#include "NoiseSample.msl"
+#include "NoiseColor.msl"
+
+fragment half4 postFragment(
+    VertexData in [[stage_in]],
+    constant PostUniforms &uniforms [[buffer(FragmentBufferMaterialUniforms)]]
+)
+{
+    float3 position = fabricNoisePosition(in.texcoord, uniforms);
+    return half4(half3(fabricNoiseColor(position, uniforms)), 1.0);
+}

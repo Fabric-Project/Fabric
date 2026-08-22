@@ -22,7 +22,7 @@ public class RoundBoxGeometryNode : BaseGeometryNode
         return  [
         ("inputSize", ParameterPort(parameter:Float3Parameter("Size", .zero, .inputfield, "Dimensions of the box (width, height, depth) in world units"))),
         ("inputRadius", ParameterPort(parameter:FloatParameter("Radius", 1.0, .inputfield, "Corner radius for the rounded edges in world units"))),
-        ("inputResolution", ParameterPort(parameter:IntParameter("Resolution", 1, .inputfield, "Number of segments for the rounded corners"))),
+        ("inputResolution", ParameterPort(parameter:IntParameter("Segments", 1, .inputfield, "Number of segments for the rounded corners"))),
 
         ] + ports
     }
@@ -34,9 +34,9 @@ public class RoundBoxGeometryNode : BaseGeometryNode
        
     public override var geometry: RoundedBoxGeometry { _geometry }
 
-    private let _geometry = RoundedBoxGeometry(size: .init(repeating: 2.0), radius: 0.25, resolution: 3)
+    private lazy var _geometry = RoundedBoxGeometry(context:self.context, size: .init(repeating: 2.0), radius: 0.25, resolution: 3)
     
-    override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
+    override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
     {
         var shouldOutputGeometry = super.evaluate(geometry: geometry, atTime: atTime)
       
