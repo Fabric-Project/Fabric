@@ -10,15 +10,27 @@ import SwiftUI
 internal import Textual
 
 // https://github.com/gonzalezreal/textual/issues/6#issuecomment-3705645200
-private struct CustomParagraphStyle: StructuredText.ParagraphStyle
+private struct NoteParagraphStyle: StructuredText.ParagraphStyle
 {
     func makeBody(configuration: Configuration) -> some View
     {
         configuration.label
-            .textual.fontScale(0.8)
-            .textual.listItemSpacing(.fontScaled(top: 2.0, bottom: 2.0))
-            .textual.blockSpacing(.fontScaled(top: 1.1, bottom: 1.1))
-//            .textual.lineSpacing(.fontScaled(2.0))
+            .textual.blockSpacing(.fontScaled(top: 1.0, bottom: 1.0))
+    }
+}
+
+private struct NoteHeadingStyle: StructuredText.HeadingStyle
+{
+    private static let fontScales: [CGFloat] = [1.35, 1.25, 1.15, 1.10, 1.05, 1.0]
+
+    func makeBody(configuration: Configuration) -> some View
+    {
+        let headingLevel = min(max(configuration.headingLevel, 1), Self.fontScales.count)
+
+        configuration.label
+            .textual.fontScale(Self.fontScales[headingLevel - 1])
+            .textual.blockSpacing(.fontScaled(top: 0.5, bottom: 0.5))
+            .bold()
     }
 }
 
@@ -26,6 +38,8 @@ private struct EditorView : View
 {
     @Binding var string:String
     @Binding var locked:Bool
+    let noteID: UUID
+    let focus: FocusState<FabricEditorFocusTarget?>.Binding
     
     var body: some View
     {
@@ -34,29 +48,41 @@ private struct EditorView : View
             if self.locked
             {
                 StructuredText(markdown:self.string)
-                    .textual.paragraphStyle(CustomParagraphStyle())
+                    .textual.paragraphStyle(NoteParagraphStyle())
+                    .textual.headingStyle(NoteHeadingStyle())
+                    .textual.listItemSpacing(.fontScaled(top: 1.5, bottom: 1.5))
+                    .focusable(false)
             }
             else
             {
                 TextEditor( text: self.$string)
                     .textEditorStyle( .plain )
                     .foregroundStyle( .primary )
-                    .font(Font.system(size: 10).monospaced() )
+                    .scrollIndicators(.hidden)
                     .focusable(true, interactions: .edit)
+                    .focused(self.focus, equals: .noteEditor(self.noteID))
+                    .onAppear {
+                        self.focus.wrappedValue = .noteEditor(self.noteID)
+                    }
             }
         }
+        .font(.caption)
     }
 }
 
 struct NoteView : View
 {
     @Bindable var note:Note
+    let focus: FocusState<FabricEditorFocusTarget?>.Binding
     
     @State var locked:Bool = true
     
     var body: some View
     {
-        EditorView( string: self.$note.note, locked: self.$locked)
+        EditorView(string: self.$note.note,
+                   locked: self.$locked,
+                   noteID: self.note.id,
+                   focus: self.focus)
             .padding()
             .frame(width: self.note.rect.size.width, height: self.note.rect.size.height, alignment: .topLeading)
             .background( Color.black.opacity(0.5) )
@@ -70,6 +96,7 @@ struct NoteView : View
                     
                     Button("", systemImage: self.locked ? "lock.fill" : "lock.open.fill") {
                         self.locked.toggle( )
+                        self.focus.wrappedValue = self.locked ? .canvas : .noteEditor(self.note.id)
                     }
                     .frame(width: 20, height: 20)
                     .buttonStyle(.borderless)

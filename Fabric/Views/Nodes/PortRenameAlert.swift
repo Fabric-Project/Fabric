@@ -43,12 +43,14 @@ struct PortRenameAlert: ViewModifier
     {
         let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
         port.publishedName = trimmed.isEmpty ? nil : trimmed
-        graph.shouldUpdateConnections.toggle()
+        graph.rebuildPublishedParameterGroup()
+        graph.markConnectionsChanged()
     }
 
     private func clearName()
     {
         port.publishedName = nil
-        graph.shouldUpdateConnections.toggle()
+        graph.rebuildPublishedParameterGroup()
+        graph.markConnectionsChanged()
     }
 }

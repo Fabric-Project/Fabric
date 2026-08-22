@@ -43,12 +43,14 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
     }
 
     private let mesh: Mesh
-    private let geometry = PlaneGeometry(width: 1, height: 1, orientation: .xy)
-    private let material = BasicTextureMaterial()
+    private let geometry:PlaneGeometry
+    private let material:BasicTextureMaterial
 
     public required init(context: Context)
     {
-        self.mesh = Mesh(geometry: self.geometry, material: self.material)
+        self.geometry = PlaneGeometry(context:context,width: 1, height: 1, orientation: .xy)
+        self.material = BasicTextureMaterial(context:context)
+        self.mesh = Mesh(context:context, geometry: self.geometry, material: self.material)
 
         super.init(context: context)
 
@@ -58,7 +60,13 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
 
     public required init(from decoder: any Decoder) throws
     {
-        self.mesh = Mesh(geometry: self.geometry, material: self.material)
+        guard let context = decoder.context?.documentContext as? Context else {
+            fatalError("Failed to decode Context from decoder")
+        }
+        
+        self.geometry = PlaneGeometry(context:context,width: 1, height: 1, orientation: .xy)
+        self.material = BasicTextureMaterial(context:context)
+        self.mesh = Mesh(context:context, geometry: self.geometry, material: self.material)
 
         try super.init(from: decoder)
 
@@ -66,14 +74,16 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
         self.mesh.doubleSided = true
     }
 
-    override public func execute(context: GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputImage.valueDidChange
         {
             self.material.texture = self.inputImage.value?.texture
-            self.material.flipped = !(self.inputImage.value?.isFlipped ?? false)
+            self.material.flipped = (self.inputImage.value?.isFlipped ?? false)
         }
 
         if self.inputColor.valueDidChange,
@@ -86,6 +96,7 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
             || self.inputSize.valueDidChange
             || self.inputSizingDimension.valueDidChange
         {
+            
             let size = self.inputSize.value ?? 1.0
             let aspect: Float
 
@@ -110,6 +121,6 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
             }
         }
 
-        let _ = self.evaluate(object: mesh, atTime: context.timing.time)
+        let _ = self.evaluate(object: mesh, atTime: executionInfo.timing.time)
     }
 }

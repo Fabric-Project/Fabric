@@ -17,13 +17,21 @@ private func makeContext() -> Context? {
     )
 }
 
-private func makeNode(context: Context) -> TestCardProviderNode {
-    TestCardProviderNode(context: context)
+private func makeNode(context: Context) -> NumberBinaryOperator {
+    NumberBinaryOperator(context: context)
 }
 
-/// Connect output texture of `from` → inputWidth of `to`.
-private func connect(_ from: TestCardProviderNode, to: TestCardProviderNode) {
-    from.outputTexturePort.connect(to: to.inputWidth)
+private func makeGraph(context: Context, nodes: [Node] = []) -> Graph {
+    let graph = Graph(context: context)
+    for node in nodes {
+        graph.addNode(node)
+    }
+    return graph
+}
+
+/// Connect number output of `from` → first operand of `to`.
+private func connect(_ from: NumberBinaryOperator, to: NumberBinaryOperator) {
+    from.outputNumber.connect(to: to.inputNumber1)
 }
 
 /// Look up a node's computed position from layout results.
@@ -57,7 +65,9 @@ struct GraphAutoLayoutTests {
 
     @Test("Empty graph produces no layout")
     func emptyGraph() {
-        let layout = GraphAutoLayout.compute(nodes: [])
+        guard let ctx = makeContext() else { return }
+        let graph = makeGraph(context: ctx)
+        let layout = GraphAutoLayout.compute(graph: graph)
         #expect(layout.isEmpty)
     }
 
@@ -65,7 +75,8 @@ struct GraphAutoLayoutTests {
     func singleNode() {
         guard let ctx = makeContext() else { return }
         let node = makeNode(context: ctx)
-        let layout = GraphAutoLayout.compute(nodes: [node])
+        let graph = makeGraph(context: ctx, nodes: [node])
+        let layout = GraphAutoLayout.compute(graph: graph)
         #expect(layout.count == 1)
         #expect(xPosition(of: node, in: layout) == 0)
     }
@@ -75,9 +86,10 @@ struct GraphAutoLayoutTests {
         guard let ctx = makeContext() else { return }
         let provider = makeNode(context: ctx)
         let consumer = makeNode(context: ctx)
+        let graph = makeGraph(context: ctx, nodes: [provider, consumer])
         connect(provider, to: consumer)
 
-        let layout = GraphAutoLayout.compute(nodes: [provider, consumer])
+        let layout = GraphAutoLayout.compute(graph: graph)
         #expect(xPosition(of: consumer, in: layout)! > xPosition(of: provider, in: layout)!)
     }
 
@@ -87,10 +99,11 @@ struct GraphAutoLayoutTests {
         let a = makeNode(context: ctx)
         let b = makeNode(context: ctx)
         let c = makeNode(context: ctx)
+        let graph = makeGraph(context: ctx, nodes: [a, b, c])
         connect(a, to: b)
         connect(b, to: c)
 
-        let layout = GraphAutoLayout.compute(nodes: [a, b, c])
+        let layout = GraphAutoLayout.compute(graph: graph)
         let xA = xPosition(of: a, in: layout)!
         let xB = xPosition(of: b, in: layout)!
         let xC = xPosition(of: c, in: layout)!
@@ -104,8 +117,9 @@ struct GraphAutoLayoutTests {
         let a = makeNode(context: ctx)
         let b = makeNode(context: ctx)
         let c = makeNode(context: ctx)
+        let graph = makeGraph(context: ctx, nodes: [a, b, c])
 
-        let layout = GraphAutoLayout.compute(nodes: [a, b, c])
+        let layout = GraphAutoLayout.compute(graph: graph)
         #expect(layout.allSatisfy { $0.1.width == 0 })
     }
 
@@ -114,9 +128,10 @@ struct GraphAutoLayoutTests {
         guard let ctx = makeContext() else { return }
         let a = makeNode(context: ctx)
         let b = makeNode(context: ctx)
+        let graph = makeGraph(context: ctx, nodes: [a, b])
         connect(a, to: b)
 
-        let layout = GraphAutoLayout.compute(nodes: [a, b])
+        let layout = GraphAutoLayout.compute(graph: graph)
         let dx = xPosition(of: b, in: layout)! - xPosition(of: a, in: layout)!
         #expect(dx == GraphAutoLayout.columnSpacing + GraphAutoLayout.nodeWidth)
     }
@@ -127,10 +142,11 @@ struct GraphAutoLayoutTests {
         let p1 = makeNode(context: ctx)
         let p2 = makeNode(context: ctx)
         let consumer = makeNode(context: ctx)
+        let graph = makeGraph(context: ctx, nodes: [p1, p2, consumer])
         connect(p1, to: consumer)
-        p2.outputTexturePort.connect(to: consumer.inputHeight)
+        p2.outputNumber.connect(to: consumer.inputNumber2)
 
-        let layout = GraphAutoLayout.compute(nodes: [p1, p2, consumer])
+        let layout = GraphAutoLayout.compute(graph: graph)
         let xP1 = xPosition(of: p1, in: layout)!
         let xP2 = xPosition(of: p2, in: layout)!
         let xC = xPosition(of: consumer, in: layout)!
@@ -150,14 +166,15 @@ struct GraphAutoLayoutTests {
         let a = makeNode(context: ctx) // col 2, feeds B
         let c = makeNode(context: ctx) // col 2, feeds B (2nd port)
         let e = makeNode(context: ctx) // col 2, feeds F
+        let graph = makeGraph(context: ctx, nodes: [d, b, f, a, c, e])
 
-        b.outputTexturePort.connect(to: d.inputWidth)
-        f.outputTexturePort.connect(to: d.inputHeight)
-        a.outputTexturePort.connect(to: b.inputWidth)
-        c.outputTexturePort.connect(to: b.inputHeight)
-        e.outputTexturePort.connect(to: f.inputWidth)
+        b.outputNumber.connect(to: d.inputNumber1)
+        f.outputNumber.connect(to: d.inputNumber2)
+        a.outputNumber.connect(to: b.inputNumber1)
+        c.outputNumber.connect(to: b.inputNumber2)
+        e.outputNumber.connect(to: f.inputNumber1)
 
-        let layout = GraphAutoLayout.compute(nodes: [d, b, f, a, c, e])
+        let layout = GraphAutoLayout.compute(graph: graph)
 
         let topCol1 = [b, f].compactMap { topEdge(of: $0, in: layout) }.min()!
         let topCol2 = [a, c, e].compactMap { topEdge(of: $0, in: layout) }.min()!
@@ -190,13 +207,14 @@ struct GraphAutoLayoutTests {
         let b = makeNode(context: ctx) // col 1, row 1
         let x = makeNode(context: ctx) // col 2, feeds A
         let y = makeNode(context: ctx) // col 2, feeds B
+        let graph = makeGraph(context: ctx, nodes: [d, a, b, x, y])
 
-        a.outputTexturePort.connect(to: d.inputWidth)
-        b.outputTexturePort.connect(to: d.inputHeight)
-        x.outputTexturePort.connect(to: a.inputWidth)
-        y.outputTexturePort.connect(to: b.inputWidth)
+        a.outputNumber.connect(to: d.inputNumber1)
+        b.outputNumber.connect(to: d.inputNumber2)
+        x.outputNumber.connect(to: a.inputNumber1)
+        y.outputNumber.connect(to: b.inputNumber1)
 
-        let layout = GraphAutoLayout.compute(nodes: [d, a, b, x, y])
+        let layout = GraphAutoLayout.compute(graph: graph)
 
         // Y should top-align with B, not just stack below X
         let topB = topEdge(of: b, in: layout)!
@@ -215,7 +233,7 @@ struct GraphAutoLayoutTests {
     ///   Y ────────→ B          (B has no downstream — disconnected leaf in col 1)
     ///
     /// Actually, B needs to be in column 1 with a downstream to D. But
-    /// TestCardProviderNode has only 3 ports. So: use a different topology.
+    /// NumberBinaryOperator has only 3 input ports. So: use a different topology.
     ///
     ///   Col 1       Col 0
     ///   A ────────→ C.port0
@@ -236,14 +254,15 @@ struct GraphAutoLayoutTests {
         let d = makeNode(context: ctx) // col 1, row 2
         let x = makeNode(context: ctx) // col 2, feeds A
         let y = makeNode(context: ctx) // col 2, feeds D
+        let graph = makeGraph(context: ctx, nodes: [c, a, b, d, x, y])
 
-        a.outputTexturePort.connect(to: c.inputWidth)
-        b.outputTexturePort.connect(to: c.inputHeight)
-        d.outputTexturePort.connect(to: c.inputTextString)
-        x.outputTexturePort.connect(to: a.inputWidth)
-        y.outputTexturePort.connect(to: d.inputWidth)
+        a.outputNumber.connect(to: c.inputNumber1)
+        b.outputNumber.connect(to: c.inputNumber2)
+        d.outputNumber.connect(to: c.inputParam)
+        x.outputNumber.connect(to: a.inputNumber1)
+        y.outputNumber.connect(to: d.inputNumber1)
 
-        let layout = GraphAutoLayout.compute(nodes: [c, a, b, d, x, y])
+        let layout = GraphAutoLayout.compute(graph: graph)
 
         let topA = topEdge(of: a, in: layout)!
         let topD = topEdge(of: d, in: layout)!
@@ -265,26 +284,71 @@ struct GraphAutoLayoutTests {
         let vector3 = makeNode(context: ctx)
         let eulerOrientation = makeNode(context: ctx)
         let physicalMaterial = makeNode(context: ctx)
-        vector3.outputTexturePort.connect(to: mesh.inputWidth)
-        eulerOrientation.outputTexturePort.connect(to: mesh.inputHeight)
-        physicalMaterial.outputTexturePort.connect(to: mesh.inputTextString)
-
         let twoMinusActive = makeNode(context: ctx)
         let secsTimesSpeed = makeNode(context: ctx)
         let colorTween = makeNode(context: ctx)
-        twoMinusActive.outputTexturePort.connect(to: vector3.inputWidth)
-        secsTimesSpeed.outputTexturePort.connect(to: eulerOrientation.inputWidth)
-        colorTween.outputTexturePort.connect(to: physicalMaterial.inputWidth)
-
         let allNodes: [Node] = [mesh, vector3, eulerOrientation, physicalMaterial,
                                 twoMinusActive, secsTimesSpeed, colorTween]
+        let graph = makeGraph(context: ctx, nodes: allNodes)
 
-        let layout = GraphAutoLayout.compute(nodes: allNodes)
+        vector3.outputNumber.connect(to: mesh.inputNumber1)
+        eulerOrientation.outputNumber.connect(to: mesh.inputNumber2)
+        physicalMaterial.outputNumber.connect(to: mesh.inputParam)
+
+        twoMinusActive.outputNumber.connect(to: vector3.inputNumber1)
+        secsTimesSpeed.outputNumber.connect(to: eulerOrientation.inputNumber1)
+        colorTween.outputNumber.connect(to: physicalMaterial.inputNumber1)
+
+        let layout = GraphAutoLayout.compute(graph: graph)
 
         let topEuler = topEdge(of: eulerOrientation, in: layout)!
         let topSecs = topEdge(of: secsTimesSpeed, in: layout)!
         #expect(topSecs == topEuler,
                 "secs*speed (top \(topSecs)) should top-align with Orientation From Euler (top \(topEuler))")
+    }
+
+    // MARK: - Fan-out alignment
+
+    /// When a node's single Outlet connects to multiple downstream
+    /// nodes, that source should top-align with the *topmost*
+    /// downstream — the one at the smallest centre-Y in the layout —
+    /// regardless of the order the connections were made.
+    ///
+    /// The bug: `downstreamTopEdgeY` returns the first entry in
+    /// `outputNodes`, which is connection-order. The matching sort
+    /// (`downstreamSortKey`) already picks the lowest-row downstream;
+    /// positioning has to use the same rule for the result to be
+    /// stable.
+    @Test("Fan-out source top-aligns with topmost downstream, not first-connected")
+    func fanOutTopAlignsWithTopmostDownstream() {
+        guard let ctx = makeContext() else { return }
+
+        let sink = makeNode(context: ctx)         // col 0
+        let topConsumer = makeNode(context: ctx)  // col 1, row 0
+        let midConsumer = makeNode(context: ctx)  // col 1, row 1
+        let botConsumer = makeNode(context: ctx)  // col 1, row 2
+        let source = makeNode(context: ctx)       // col 2 — fan-out
+        let graph = makeGraph(context: ctx, nodes: [sink, topConsumer, midConsumer, botConsumer, source])
+
+        topConsumer.outputNumber.connect(to: sink.inputNumber1)
+        midConsumer.outputNumber.connect(to: sink.inputNumber2)
+        botConsumer.outputNumber.connect(to: sink.inputParam)
+
+        // Connect source to BOTTOM, MIDDLE, TOP in that order.
+        // `outputNodes` ends up [bot, mid, top] — so a positioning
+        // path that picks the first connection ends up aligning with
+        // `bot` rather than the topmost layout neighbour `top`.
+        source.outputNumber.connect(to: botConsumer.inputNumber1)
+        source.outputNumber.connect(to: midConsumer.inputNumber1)
+        source.outputNumber.connect(to: topConsumer.inputNumber1)
+
+        let layout = GraphAutoLayout.compute(graph: graph)
+
+        let topOfTopConsumer = topEdge(of: topConsumer, in: layout)!
+        let topOfSource = topEdge(of: source, in: layout)!
+
+        #expect(topOfSource == topOfTopConsumer,
+                "Source (top \(topOfSource)) should top-align with topmost downstream `topConsumer` (top \(topOfTopConsumer)), regardless of connection order")
     }
 
     // MARK: - Cross-column vertical ordering
@@ -306,13 +370,14 @@ struct GraphAutoLayoutTests {
         let b = makeNode(context: ctx) // col 1, row 1
         let x = makeNode(context: ctx) // col 2, feeds A
         let y = makeNode(context: ctx) // col 2, feeds B
+        let graph = makeGraph(context: ctx, nodes: [c, a, b, x, y])
 
-        a.outputTexturePort.connect(to: c.inputWidth)  // A is row 0 (port 0 on C)
-        b.outputTexturePort.connect(to: c.inputHeight)  // B is row 1 (port 1 on C)
-        x.outputTexturePort.connect(to: a.inputWidth)
-        y.outputTexturePort.connect(to: b.inputWidth)
+        a.outputNumber.connect(to: c.inputNumber1)  // A is row 0 (port 0 on C)
+        b.outputNumber.connect(to: c.inputNumber2)  // B is row 1 (port 1 on C)
+        x.outputNumber.connect(to: a.inputNumber1)
+        y.outputNumber.connect(to: b.inputNumber1)
 
-        let layout = GraphAutoLayout.compute(nodes: [c, a, b, x, y])
+        let layout = GraphAutoLayout.compute(graph: graph)
 
         let yX = position(of: x, in: layout)!.height
         let yY = position(of: y, in: layout)!.height
@@ -329,7 +394,7 @@ struct GraphAutoLayoutTests {
     ///   Number ──↗                 PhysicalMaterial ──────────→ Mesh
     ///   Vector4 ──→ ColorTween ──↗
     ///
-    /// (BoxGeometry omitted — TestCardProviderNode has only 3 input ports.)
+    /// (BoxGeometry omitted — NumberBinaryOperator has only 3 input ports.)
     @Test("Offstage Left Box: column ordering and top-alignment")
     func offstageLeftBox() {
         guard let ctx = makeContext() else { return }
@@ -341,35 +406,39 @@ struct GraphAutoLayoutTests {
         let vector3 = makeNode(context: ctx)
         let eulerOrientation = makeNode(context: ctx)
         let physicalMaterial = makeNode(context: ctx)
-        vector3.outputTexturePort.connect(to: mesh.inputWidth)              // Position (port 0)
-        eulerOrientation.outputTexturePort.connect(to: mesh.inputHeight)    // Orientation (port 1)
-        physicalMaterial.outputTexturePort.connect(to: mesh.inputTextString) // Material (port 2)
 
         // Column 2
         let twoMinusActive = makeNode(context: ctx) // feeds vector3
         let secsTimesSpeed = makeNode(context: ctx)  // feeds eulerOrientation
         let colorTween = makeNode(context: ctx)      // feeds physicalMaterial
-        twoMinusActive.outputTexturePort.connect(to: vector3.inputWidth)          // → X
-        secsTimesSpeed.outputTexturePort.connect(to: eulerOrientation.inputWidth) // → Pitch
-        colorTween.outputTexturePort.connect(to: physicalMaterial.inputWidth)     // → Base Color
 
         // Column 3
         let stateInfo = makeNode(context: ctx)  // feeds twoMinusActive
         let patchTime = makeNode(context: ctx)  // feeds secsTimesSpeed
         let number = makeNode(context: ctx)     // feeds secsTimesSpeed (2nd port)
         let vector4 = makeNode(context: ctx)    // feeds colorTween
-        stateInfo.outputTexturePort.connect(to: twoMinusActive.inputWidth)    // → active
-        patchTime.outputTexturePort.connect(to: secsTimesSpeed.inputWidth)    // → secs
-        number.outputTexturePort.connect(to: secsTimesSpeed.inputHeight)      // → speed
-        vector4.outputTexturePort.connect(to: colorTween.inputWidth)          // → Target
 
         let allNodes: [Node] = [
             mesh, vector3, eulerOrientation, physicalMaterial,
             twoMinusActive, secsTimesSpeed, colorTween,
             stateInfo, patchTime, number, vector4,
         ]
+        let graph = makeGraph(context: ctx, nodes: allNodes)
 
-        let layout = GraphAutoLayout.compute(nodes: allNodes)
+        vector3.outputNumber.connect(to: mesh.inputNumber1)              // Position (port 0)
+        eulerOrientation.outputNumber.connect(to: mesh.inputNumber2)    // Orientation (port 1)
+        physicalMaterial.outputNumber.connect(to: mesh.inputParam) // Material (port 2)
+
+        twoMinusActive.outputNumber.connect(to: vector3.inputNumber1)          // → X
+        secsTimesSpeed.outputNumber.connect(to: eulerOrientation.inputNumber1) // → Pitch
+        colorTween.outputNumber.connect(to: physicalMaterial.inputNumber1)     // → Base Color
+
+        stateInfo.outputNumber.connect(to: twoMinusActive.inputNumber1)    // → active
+        patchTime.outputNumber.connect(to: secsTimesSpeed.inputNumber1)    // → secs
+        number.outputNumber.connect(to: secsTimesSpeed.inputNumber2)      // → speed
+        vector4.outputNumber.connect(to: colorTween.inputNumber1)          // → Target
+
+        let layout = GraphAutoLayout.compute(graph: graph)
         let cols = columns(from: layout)
         #expect(cols.count == 4, "Expected 4 columns, got \(cols.count)")
 

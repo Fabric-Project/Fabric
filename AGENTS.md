@@ -1,32 +1,10 @@
 # Fabric Engineering Specification
 
-**Revision B — 2025-12-22**
-
-> This document supersedes transient chat discussions and supplements
-> the public documentation (`README.md`, `ARCHITECTURE.md`, `NODES.md`, etc.) - which you should consult.
-> It defines the architectural contracts, design patterns, and coding guidelines
-> that all Fabric contributors (human or AI) must follow.
-> 
-> the public code base exists at https://github.com/Fabric-Project/Fabric and should be consulted
-> 
-> **Purpose:** This spec exists to guide consistent, high-performance, ergonomic development
-> of the Fabric node-based runtime. It is intended for internal engineering and AI-assisted development,
-> not public distribution.
-
-## Immediate Next Goals
-
-Major Effort:
-
-We need deterministic, non-recursive evaluation of graphs that contain feedback loops (cycles). The current pull-eval recursion breaks on cycles unless we short-circuit, but short-circuiting without defined semantics breaks outputs. The correct semantics for most Fabric feedback graphs are “temporal feedback” (cycle reads previous-frame values), which requires a stable previous-frame snapshot per output port.
-
-Separate concerns:
-- PortType - schema/editor-time contract (connectability, UI, serialization, declared type).
-- PortValue - runtime value container (optional in Step 1, useful for cache/inspection later).
-- NodePort<T> - remains strongly typed for node authors.
-- Feedback - should be an execution/renderer caching details and not baked into ports/nodes for 3rd party devs to reason about.
-- Update Classes that vend `FabricImages` to always output a new image per frame using our `GraphRenderers` helper method `newImage(withWidth width:Int, height:Int) -> FabricImage?`
+Review README.md, Architecture.md, Glossary.md, Nodes.md, 
 
 ## Engineering Guidelines
+
+For all development:
 
 ### General
 - Do not introduce third-party frameworks without asking first.
@@ -45,7 +23,6 @@ Separate concerns:
 - Prefer modern Foundation API, for example URL.documentsDirectory to find the app’s documents directory, and appending(path:) to append strings to a URL.
 - Never use C-style number formatting such as Text(String(format: "%.2f", abs(myNumber))); always use Text(abs(change), format: .number.precision(.fractionLength(2))) instead.
 - Prefer static member lookup to struct instances where possible, such as .circle rather than Circle(), and .borderedProminent rather than BorderedProminentButtonStyle().
-- Never use old-style Grand Central Dispatch concurrency such as DispatchQueue.main.async(). If behavior like this is needed, always use modern Swift concurrency.
 - Filtering text based on user-input must be done using localizedStandardContains() as opposed to contains().
 - Avoid force unwraps and force try unless it is unrecoverable.
 
@@ -80,13 +57,6 @@ Separate concerns:
     - We mark properties on models which are @Observable with @ObservationIgnored for any public variables that
     - We avoid leaning heavily on @Environment as it can cause views to redraw
 
----
-
-## 0. Revision Summary
-
-**Locked decisions:**
-- **Typed ports only** for now; “virtual” types postponed.
-- **Current publish/unpublish** behavior retained pending UX feedback.
 
 ---
 
@@ -97,28 +67,53 @@ Separate concerns:
 - **Ergonomics:** readable APIs, minimal boilerplate, 3rd-party-friendly.
 - **Surgical change policy:** reversible, minimal churn, backward-compatible until explicit migration.
 
+**Current Pragmatic Conceccions:**
+- **Typed ports only** for now; “virtual” types postponed.
+- **Vec4 proxies pure Vec4, Orientation (Quaternion) and Color. This can be revisited in the future. 
+
 ---
 
 ## 2. Non-Negotiable Design Patterns & Contracts
 
 ### 2.1  Nodes & Execution
 - Nodes define immutable static metadata:  `nodeType`, `nodeExecutionMode`, `nodeTimeMode`,  `name`, `nodeDescription`.
-- Instances of a node's `name` may be user-editable in the future, but for now reflect the static class `name`.
+- A node is named from four sources, three of them overridden by the subclass:
+  - `class var name` — override: the stable name the type is registered and listed under, and the default instance title.
+  - `func deriveTitle() -> String` — override only when an instance has a more specific authoritative title, such as a shader-backed `BaseImageNode`; defaults to `Self.name`.
+  - `func deriveSubtitle() -> String?` — override where the node describes itself, nil otherwise: Math Expression's expression, StrategyNode's strategy.
+  - `var userName: String?` — final: the user's rename, serialized and public for rename-specific callers.
+  - An empty name is no name: `userName` normalizes "" to nil at set and decode.
+- From those it composes, both final:
+  - `var title` — the normalized result of `deriveTitle()`, falling back to `Self.name` when empty.
+  - `var subtitle` — `userName ?? deriveSubtitle()`, normalized so empty values and values equal to `title` read as nil. General consumers read this rather than `userName`.
+  - `var debugDescription` — the title plus resolved subtitle, e.g. `Math Expression (My Rename)`. `print(node)` and `"\(node)"` give it; diagnostic labels and traces use it when they need both values.
+- Fire `subtitleSubject.send()` whenever state feeding `deriveTitle()` or `deriveSubtitle()` changes; `NodeViewModel` mirrors the node's `title` / `subtitle` observably and keeps `userName` only for rename editing, clearing, and undo.
 - Execution is **pull-based**; one execute per node per pass.
 - `GraphRenderer` (executor and scheduler) today does not use `nodeExecutionMode` or `nodeTimeMode` but will in the future.
 - **Iterator (QC-style)** remains the multi-evaluation macro; refinements allowed, paradigm fixed.
+- One file per Node Class
+
+- Node Settings:
+  - Nodes may opt into a QC like ’Settings View’
+  - Any Node whose execution logic would change the  type, or number of ports should have only have that logic fire via changing a Setting, NOT at runtime
+  - Settings should have a custom Init override, and be exposed as a enum or struct that can be set via the procedural Node / Graph API. This avoids UI only configuration.
+
+- Important Node subclasses
+  - StrategyNode / TypeAgnosticNode - useful for Nodes that can change their port type on demand
+    
 
 ### 2.2  Ports & Registration
 - **Registry = source of truth.**  
 - Subclasses implement `class func registerPorts(context:)`, call `super`, preserve order.
-- **Dynamic ports are supported through the Registry.**  
+- **Dynamic ports are supported through the Registry.** See TypeAgnosticNode
 - UI and serialization order derive from registration.
-- Dynamic ports aren’t implemented yet, but will be in the future.
 - `NodeRegistry` should support this as it’s the single source of truth for nodes.
 - **Typed ports only** (for now).  
   Any “virtual” or generic ports must remain type-safe and backward-compatible.
 
 ### 2.3  Parameters & ParameterPort
+- Input Ports should be backed by Parameters as a Parameter Port if the type is a Parameter
+     - ie avoid raw Ports unless type demands it. 
 - Always seed `value` from the backing parameter on init/decode (hydration).
 - Maintain bi-directional sync: parameter ↔ port.
 - Parameter changes mark dirty only; heavy work deferred to `execute`.
@@ -126,7 +121,7 @@ Separate concerns:
 
 ### 2.4  Graph, Subgraphs & Rendering
 - Graph owns nodes, connections (by port UUID), and published params.
-- **Subgraphs** inherit `BaseObjectNode`, expose an object.
+- **Subgraphs** inherit `BaseObjectNode`, expose an Satin object.
 - `GraphRenderer` handles traversal, caching, single-execute per frame, resize propagation. 
 - `GraphRenderer` handles discovery of cameras (only one supported now), and if none are found, leverages its own cached camera.
 - `GraphRenderer`’s default camera is set up for the default QC coordinate system.
@@ -142,6 +137,18 @@ Separate concerns:
 - BaseObjectNode.swift 
 - BaseRenderableNode.swift 
 - BaseTextureComputeProcessorNode.swift
+
+### 2.6 Type-Agnostic Nodes
+
+Some nodes operate identically regardless of what data flows through them (e.g. Sample and Hold, Queue). Because ports are typed, these nodes use a Settings picker to declare which type they carry — but the picker is a practical requirement of the type system, not a semantic choice. The node's behavior does not change.
+
+- Default to `PortType.Virtual`, which accepts any connection and requires no configuration.
+- Virtual appears first in the type picker, separated from concrete types.
+- Switching type rebuilds the dynamic ports; port order must be explicit and stable.
+- When a concrete type is active, the node's display name reflects it (e.g. `"Sample and Hold Float"`).
+- `snapshotValue()` / `sendBoxed()` are the runtime-polymorphic read/write API for ports whose type is only known at runtime.
+
+**Base class:** `TypeAgnosticNode`. **Reference implementation:** `SampleAndHoldNode`.
 
 ---
 
@@ -174,6 +181,7 @@ Separate concerns:
 | Topology recomputed each frame | No caching | Recompute only on connect/disconnect |
 | Type-erasure confusion | Mixing `any` with Equatable generics | Stay typed; use Utility/Log node for debug |
 | Serialization drift | Ad-hoc encoders | Always through registry + `PortType` |
+| Stale node title on canvas/inspector | `subtitle` input changed without notifying | Fire `subtitleSubject.send()` in the `didSet` of any state `subtitle` derives from |
 
 ---
 
@@ -185,52 +193,30 @@ Separate concerns:
 
 ---
 
-## 6. Immediate Next Steps
-
-### A. Port Registration Ergonomics
-- Design a lightweight DSL/macro for registration.  
-  - Preserve type safety and runtime structure.  
-  - Explicit order and super-extension.
-- Implement var-proxy helpers for typed port access.
-
-### B. Migration Pass
-- Pilot migration on one node per family (Geometry, Material, Effect, Object, Utility).
-- Validate registration readability, serialization, UI order, dirty propagation.
-
-### C. Iterator Refinements
-- Optimize per-iteration state apply.  
-- Add max iteration and early exit guards.  
-- Add profiling hooks (time, count).
-
----
-
-## 7. Non-Goals (for now)
-- Virtual port type with type casting.  
-- Push-based global scheduler. 
-- Non-Apple platform targets.
-
----
-
-## 8. Code Review Checklist
+## 6. Code Review Checklist
+- [ ] Node has semantically correct type, execution mode, and time mode. 
 - [ ] Node metadata present and stable  
 - [ ] `registerPorts(context:)` calls `super`, order intentional  
 - [ ] ParameterPorts seed and subscribe once  
 - [ ] `execute` idempotent per frame, no allocations  
 - [ ] Outputs use `send(force:true)` appropriately  
-- [ ] No recursive topology recompute  
-- [ ] Serialization via registry + UUID  
+- [ ] No recursive topology recompute
 - [ ] Subgraph nodes discover cameras and apply state before execute
+- [ ] Serialization via registry + UUID
+- [ ] If Node dynamically changes port count or type, we should only trigger via Setting in Settings View, not within the graph
+- [ ] If we have a Settings View, we should have a custom initializer so procedural graph creation has an entry to settings.
+- [ ] If we have a Settings View and a custom initializer, use a custom struct or enum for the settings
+- [ ] If the Node overrides `deriveSubtitle()`, every mutation of the state it derives from fires `subtitleSubject.send()` (StrategyNode’s `strategy` already does)
+- [ ] New Nodes should live in an appropriate spot in the NodeRegistry
 
 ---
 
-## 9. Open Items / Parking Lot
-- Ensure
-- Extend Utility/Log node for safe “virtual” debugging.  
-- Plan one-time save-migration once registration API stabilizes.
+## 7. Commit messages
+Do not hard-wrap. Do not include a co-authorship signature, instead append a final `Via <model>` line.
 
 ---
 
-## 10. Historical Context
+## Historical Context
 This specification incorporates prior engineering discussions and decisions.
 The chat history should be retained for design rationale and provenance,
 while this file serves as the canonical, version-controlled contract

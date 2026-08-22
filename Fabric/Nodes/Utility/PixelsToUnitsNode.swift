@@ -57,18 +57,19 @@ public class PixelsToUnitsNode : Node
         try super.init(from: decoder)
     }
     
-    public override func execute(context:GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         
         if self.inputCursorPosition.valueDidChange,
-           let pixel = self.inputCursorPosition.value,
-           let graphRenderer = context.graphRenderer
+           let pixel = self.inputCursorPosition.value
         {
 //            let aspect = graphRenderer.renderer.size.height/graphRenderer.renderer.size.width
-            let size = simd_float2(x: graphRenderer.renderer.size.width,
-                                   y: graphRenderer.renderer.size.height)
+            let size = simd_float2(x: renderer.renderEncoder.size.width,
+                                   y: renderer.renderEncoder.size.height)
             
             let x = remap(pixel, 0.0, size.x, -1.0, 1.0)
             

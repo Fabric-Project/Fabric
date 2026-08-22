@@ -30,7 +30,7 @@ public class BasicTextureMaterialNode : BasicColorMaterialNode
         return _material
     }
     
-    private var _material = BasicTextureMaterial()
+    private lazy var _material = BasicTextureMaterial(context: self.context)
 
     public override func evaluate(material:Material, atTime:TimeInterval) -> Bool
     {
@@ -39,7 +39,7 @@ public class BasicTextureMaterialNode : BasicColorMaterialNode
         if self.inputTexture.valueDidChange
         {
             self.material.texture =  self.inputTexture.value?.texture
-            self.material.flipped =  !(self.inputTexture.value?.isFlipped ?? false)
+            self.material.flipped =  (self.inputTexture.value?.isFlipped ?? false)
             shouldOutput = true
         }
         

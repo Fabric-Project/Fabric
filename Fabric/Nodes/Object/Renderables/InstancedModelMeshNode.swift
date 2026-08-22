@@ -68,7 +68,7 @@ public class InstancedModelMeshNode : InstancedMeshNode
 
         try super.init(from: decoder)
         
-        self.loadModelFromInputValue()
+        try self.loadModelFromInputValue()
     }
     
     override public func evaluate(object: Object?, atTime: TimeInterval) -> Bool
@@ -96,19 +96,21 @@ public class InstancedModelMeshNode : InstancedMeshNode
         return shouldOutput
     }
     
-    public override func execute(context:GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
                 
         if self.inputFilePathParam.valueDidChange
         {
-            self.loadModelFromInputValue()
+            try self.loadModelFromInputValue()
         }
 
         if let model = self.model
         {
-            let _ = self.evaluate(object: model, atTime: context.timing.time)
+            let _ = self.evaluate(object: model, atTime: executionInfo.timing.time)
             
             if self.inputTransforms.valueDidChange,
                 let transforms = self.inputTransforms.value
@@ -127,16 +129,24 @@ public class InstancedModelMeshNode : InstancedMeshNode
         }
     }
     
-    private func loadModelFromInputValue()
+    private func loadModelFromInputValue() throws
     {
         if let path = self.inputFilePathParam.value,
            path.isEmpty == false && self.url != URL(string: path)
         {
-            self.url = URL(string: path)
-
-            if FileManager.default.fileExists(atPath: self.url!.standardizedFileURL.path(percentEncoded: false) )
+            guard let url = URL(string: path) else
             {
-                let unflattenedModelObject = loadAsset(url:self.url!, textureLoader: self.textureLoader)
+                self.model = nil
+                throw FabricError(.execution(.fileNotFound),
+                                  severity: .recoverable,
+                                  message: "Model file path is invalid: \(path)")
+            }
+
+            self.url = url
+
+            if FileManager.default.fileExists(atPath: url.standardizedFileURL.path(percentEncoded: false))
+            {
+                let unflattenedModelObject = loadAsset(url: url, context: self.context, textureLoader: self.textureLoader)
                 
                 if let unflattenedModelObject
                 {
@@ -146,12 +156,12 @@ public class InstancedModelMeshNode : InstancedMeshNode
                     
                     object.getChildren(true).forEach { child in
                         
-                        if let subMesh = child as? Mesh
+                        if let subMesh = child as? Mesh,
+                           let geometry = subMesh.geometry
                         {
                             let material = subMesh.material
-                            let geometry = subMesh.geometry
-                            
-                            let instancedMesh = InstancedMesh(geometry: geometry, material: material, count: 1)
+
+                            let instancedMesh = InstancedMesh(context:self.context, geometry: geometry, material: material, count: 1)
                             
                             subMesh.removeFromParent()
                             
@@ -163,6 +173,13 @@ public class InstancedModelMeshNode : InstancedMeshNode
                     
                     self.model = object
                 }
+                else
+                {
+                    self.model = nil
+                    throw FabricError(.execution(.failed),
+                                      severity: .recoverable,
+                                      message: "Could not load instanced model file: \(url.path)")
+                }
                 
                 
                 self.updateLightingOnSubmeshes()
@@ -172,7 +189,9 @@ public class InstancedModelMeshNode : InstancedMeshNode
             else
             {
                 self.model = nil
-                print("wtf")
+                throw FabricError(.execution(.fileNotFound),
+                                  severity: .recoverable,
+                                  message: "Model file not found: \(url.path)")
             }
         }
     }

@@ -10,28 +10,36 @@ import Fabric
 
 struct ContentView: View {
 
-    struct ScrollGeomHelper : Equatable
+    private struct ScrollMetrics : Equatable
     {
-        let offset:CGPoint
-        let geometry:ScrollGeometry
-        
-        static func == (lhs: ScrollGeomHelper, rhs: ScrollGeomHelper) -> Bool
-        {
-            lhs.offset == rhs.offset && lhs.geometry == rhs.geometry
-        }
+        let graphOffset: CGPoint
+        let contentOffset: CGPoint
+        let containerSize: CGSize
+        let radialGradientEndRadius: CGFloat
     }
     
     @Binding var document: FabricDocument
     @Environment(\.undoManager) private var undoManager
 
+    @State private var canvasHitTestingEnabled = true
+    
     @GestureState private var magnifyBy = 1.0
     @State private var finalMagnification = 1.0
     @State private var magnifyAnchor: UnitPoint = .center
-    @State private var scrollGeometry: ScrollGeometry = ScrollGeometry(contentOffset: .zero, contentSize: .zero, contentInsets: .init(top: 0, leading: 0, bottom: 0, trailing: 0), containerSize: .zero)
+    @State private var radialGradientEndRadius: CGFloat = .zero
 
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
     @State private var inspectorVisibility:Bool = true
-    @State private var inputFocus: FabricEditorInputFocus = .canvas
+
+    // Seeded in onAppear once the document's AppKit-side output hosting
+    // exists; the document itself is not observable, this is.
+    @State private var outputPresenter: OutputPresenter?
+
+    // The editor's single keyboard-focus authority. SwiftUI writes it on every
+    // real focus change (canvas, registry search/list — or nil when e.g. a node
+    // settings text field has focus), and views/menu commands read or set it to
+    // route and move focus. Never shadow it with plain @State.
+    @FocusState private var focusTarget: FabricEditorFocusTarget?
 
     init(document: Binding<FabricDocument>) {
         self._document = document
@@ -47,7 +55,9 @@ struct ContentView: View {
 
         NavigationSplitView(columnVisibility: self.$columnVisibility)
         {
-            NodeRegisitryView(editingContext: self.document.editingContext, inputFocus: self.$inputFocus)
+            NodeRegisitryView(graphRenderer:self.document.renderer,
+                              editingContext: self.document.editingContext,
+                              focus: self.$focusTarget)
                 .navigationSplitViewColumnWidth(min: 150, ideal: 200, max:250)
 
         } detail: {
@@ -66,7 +76,7 @@ struct ContentView: View {
                     ForEach(self.document.editingContext.entries) { node in
                         Text("›")
                             .font(.headline)
-                        Button(node.name) { self.document.editingContext.popTo(node) }
+                        Button(node.title) { self.document.editingContext.popTo(node) }
                             .font(.headline)
                             .buttonStyle(.plain)
                     }
@@ -79,14 +89,17 @@ struct ContentView: View {
 
                 ZStack
                 {
-                    RadialGradient(colors: [.clear, .black.opacity(0.75)], center: .center, startRadius: 0, endRadius: self.scrollGeometry.containerSize.width * 1.5)
+                    CanvasBackdropView(outputPresenter: self.outputPresenter,
+                                       radialGradientEndRadius: self.radialGradientEndRadius)
 
                     ScrollViewReader { proxy in
                         ScrollView([.horizontal, .vertical])
                         {
-                            GraphCanvas(editingContext: self.document.editingContext, inputFocus: self.$inputFocus)
+                            GraphCanvas(editingContext: self.document.editingContext,
+                                        focus: self.$focusTarget,
+                                        canvasSize: CGSize(width: self.canvasSize, height: self.canvasSize),
+                                        connectionsHitTestingEnabled: self.canvasHitTestingEnabled)
                                 .id("canvas")
-                                .focusedSceneValue(\.editorInputFocus, self.$inputFocus)
                                 .frame(width: self.canvasSize, height: self.canvasSize)
                                 .scaleEffect(finalMagnification * magnifyBy, anchor: magnifyAnchor)
                                 .contextMenu(menuItems: {
@@ -100,6 +113,8 @@ struct ContentView: View {
                                     MagnifyGesture()
                                         .updating($magnifyBy, body: { value, state, _ in
 
+                                            self.canvasHitTestingEnabled = false
+                                            
                                             let proposedScale = finalMagnification * value.magnification
 
                                             guard (self.zoomMin ..< self.zoomMax).contains(proposedScale)
@@ -115,8 +130,8 @@ struct ContentView: View {
                                             let u = value.startAnchor.x
                                             let v = value.startAnchor.y
 
-                                            let containerSize = self.scrollGeometry.containerSize
-                                            let contentOffset = self.scrollGeometry.contentOffset
+                                            let containerSize = self.document.editingContext.currentScrollContainerSize
+                                            let contentOffset = self.document.editingContext.currentScrollContentOffset
 
                                             let visibleWidthInCanvas  = containerSize.width  / scale
                                             let visibleHeightInCanvas = containerSize.height / scale
@@ -133,9 +148,11 @@ struct ContentView: View {
                                             magnifyAnchor = UnitPoint(x: newX, y: newY)
                                         })
                                         .onEnded { value in
+                                            self.canvasHitTestingEnabled = true
                                             finalMagnification = min(max(finalMagnification * value.magnification, self.zoomMin), self.zoomMax)
                                         }
                                 )
+                                .allowsHitTesting(self.canvasHitTestingEnabled)
                                 .onAppear {
                                     self.document.editingContext.rootGraph.undoManager = undoManager
 
@@ -151,26 +168,44 @@ struct ContentView: View {
 
                         }
                         .defaultScrollAnchor(.center)
+                        .onScrollPhaseChange { _, newPhase in
+                            self.canvasHitTestingEnabled = !newPhase.isScrolling
+                        }
                     }
-                    .onScrollGeometryChange(for: ScrollGeomHelper.self) { geometry in
-
+                    .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
                         let center = CGPoint(x: geometry.contentSize.width / 2,
                                              y: geometry.contentSize.height / 2)
                         let offset = (geometry.contentOffset - center) + (geometry.containerSize / 2)
 
-                        return ScrollGeomHelper(offset: offset, geometry: geometry)
+                        return ScrollMetrics(graphOffset: offset,
+                                             contentOffset: geometry.contentOffset,
+                                             containerSize: geometry.containerSize,
+                                             radialGradientEndRadius: geometry.containerSize.width * 1.5)
 
-                    } action: { _, newScrollOffset in
-                        scrollGeometry = newScrollOffset.geometry
-                        self.document.editingContext.currentScrollOffset = newScrollOffset.offset
+                    } action: { _, newScrollMetrics in
+                        self.document.editingContext.currentScrollOffset = newScrollMetrics.graphOffset
+                        self.document.editingContext.currentScrollContentOffset = newScrollMetrics.contentOffset
+                        self.document.editingContext.currentScrollContainerSize = newScrollMetrics.containerSize
+
+                        if self.radialGradientEndRadius != newScrollMetrics.radialGradientEndRadius
+                        {
+                            self.radialGradientEndRadius = newScrollMetrics.radialGradientEndRadius
+                        }
                     }
                 }
             }
             .inspector(isPresented: self.$inspectorVisibility)
             {
-                NodeSelectionInspector(editingContext: self.document.editingContext, inputFocus: self.$inputFocus)
+                NodeSelectionInspector(editingContext: self.document.editingContext)
                     .inspectorColumnWidth(min:250, ideal:250, max:300)
             }
+            // Menu commands read and steer real focus through this binding —
+            // e.g. "is the canvas focused?" for Copy/Paste routing, and
+            // Find Nodes writing .registrySearch to focus the search field.
+            .focusedSceneValue(\.editorFocusTarget, Binding(
+                get: { self.focusTarget },
+                set: { self.focusTarget = $0 }
+            ))
             .sheet(
                 isPresented: Binding(
                     get: {
@@ -195,6 +230,14 @@ struct ContentView: View {
             }
             .toolbar
             {
+                if let outputPresenter = self.outputPresenter, OutputSettings.shared.mode == .editorCanvas
+                {
+                    ToolbarItem(placement: .automatic)
+                    {
+                        OutputPlaybackToolbarButton(presenter: outputPresenter)
+                    }
+                }
+
                 ToolbarItem(placement: .automatic)
                 {
                     Button("Parameters", systemImage: "sidebar.right") {
@@ -202,6 +245,67 @@ struct ContentView: View {
                     }
                 }
             }
+            .onAppear {
+                // AppKit window creation has to happen on the main thread
+                // once the scene is up; onAppear guarantees both.
+                self.document.setupOutputPresentation()
+                self.outputPresenter = self.document.outputPresenter
+            }
+            .onDisappear {
+                self.outputPresenter = nil
+                self.document.teardownOutputPresentation()
+            }
+            .background(ActiveDocumentTracker(document: self.document))
+        }
+    }
+}
+
+/// Keeps `ActiveFabricDocumentStore` pointed at the document whose editor
+/// window is key. The output window's `windowDidBecomeMain` also does this,
+/// but in editor-canvas mode no output window exists. A separate struct so
+/// window-focus changes invalidate this view, not the whole editor.
+struct ActiveDocumentTracker: View {
+    let document: FabricDocument
+    @Environment(\.controlActiveState) private var controlActiveState
+
+    var body: some View {
+        Color.clear
+            .onChange(of: self.controlActiveState) { _, newState in
+                guard newState == .key else { return }
+                ActiveFabricDocumentStore.shared.activeDocument = self.document
+            }
+    }
+}
+
+/// Reading playback state here rather than in `ContentView.body` keeps a
+/// play/pause toggle from re-evaluating the whole editor.
+struct OutputPlaybackToolbarButton: View {
+    let presenter: OutputPresenter
+
+    var body: some View {
+        Button(self.presenter.playbackControlLabel,
+               systemImage: self.presenter.playbackControlSymbolName)
+        {
+            self.presenter.togglePlayback()
+        }
+    }
+}
+
+/// The node canvas background: live rendered output when the presenter is in
+/// editor-canvas mode, otherwise the decorative gradient.
+struct CanvasBackdropView: View {
+    let outputPresenter: OutputPresenter?
+    let radialGradientEndRadius: CGFloat
+
+    var body: some View {
+        if let outputPresenter, OutputSettings.shared.mode == .editorCanvas
+        {
+            OutputCanvasHostView(presenter: outputPresenter)
+                .allowsHitTesting(false)
+        }
+        else
+        {
+            RadialGradient(colors: [.clear, .black.opacity(0.75)], center: .center, startRadius: 0, endRadius: self.radialGradientEndRadius)
         }
     }
 }

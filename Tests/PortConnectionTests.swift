@@ -1,0 +1,576 @@
+import Testing
+import Foundation
+import Metal
+@testable import Fabric
+import Satin
+
+@Suite("Port Connection")
+struct PortConnectionTests {
+
+    private func makeContext() -> Context? {
+        guard let device = MTLCreateSystemDefaultDevice() else { return nil }
+        return Context(
+            device: device,
+            sampleCount: 1,
+            colorPixelFormat: .bgra8Unorm,
+            depthPixelFormat: .depth32Float,
+            stencilPixelFormat: .invalid
+        )
+    }
+
+    @Test("Connecting an already-connected pair does not clear the inlet value")
+    func duplicateConnectIsNoOp() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let source = NumberBinaryOperator(context: context)
+        let sink = NumberBinaryOperator(context: context)
+        graph.addNode(source)
+        graph.addNode(sink)
+
+        source.outputNumber.connect(to: sink.inputNumber1)
+        sink.inputNumber1.value = 72
+
+        // Duplicate connect from the outlet side, as the decode connection
+        // restore does for the outlet-keyed map entry. The source outlet has
+        // no value yet, so a disconnect/reconnect would leave the inlet nil.
+        source.outputNumber.connect(to: sink.inputNumber1)
+        #expect(sink.inputNumber1.value == 72)
+        #expect(source.outputNumber.connections.count == 1)
+        #expect(sink.inputNumber1.connections.count == 1)
+
+        // ...and from the inlet side, for the inlet-keyed map entry.
+        sink.inputNumber1.connect(to: source.outputNumber)
+        #expect(sink.inputNumber1.value == 72)
+        #expect(source.outputNumber.connections.count == 1)
+        #expect(sink.inputNumber1.connections.count == 1)
+    }
+
+    @Test("Decoded ParameterPort value survives connection restore")
+    func decodedParameterValueSurvivesConnectionRestore() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let source = NumberBinaryOperator(context: context)
+        let sink = NumberBinaryOperator(context: context)
+        graph.addNode(source)
+        graph.addNode(sink)
+
+        source.outputNumber.connect(to: sink.inputNumber1)
+        sink.inputNumber1.value = 72
+
+        let data = try JSONEncoder().encode(graph)
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decoded = try decoder.decode(Graph.self, from: data)
+
+        let decodedSink = try #require(
+            decoded.nodes.first { $0.id == sink.id } as? NumberBinaryOperator
+        )
+        #expect(decodedSink.inputNumber1.value == 72)
+        #expect(decodedSink.inputNumber1.connections.count == 1)
+
+        let decodedSource = try #require(
+            decoded.nodes.first { $0.id == source.id } as? NumberBinaryOperator
+        )
+        #expect(decodedSource.outputNumber.connections.count == 1)
+        #expect(decodedSource.outputNumber.connectedInlets == [decodedSink.inputNumber1])
+        #expect(decodedSink.inputNumber1.connectedOutlets == [decodedSource.outputNumber])
+
+        decodedSource.outputNumber.send(144)
+        #expect(decodedSink.inputNumber1.value == 144)
+    }
+
+    @Test("An unwired ParameterPort falls back to its parameter")
+    func unwiredParameterPortFallsBackToParameter() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let source = NumberBinaryOperator(context: context)
+        let sink = NumberBinaryOperator(context: context)
+        graph.addNode(source)
+        graph.addNode(sink)
+
+        source.outputNumber.connect(to: sink.inputNumber1)
+        source.outputNumber.send(9)
+        #expect(sink.inputNumber1.value == 9)
+
+        // Disconnect force-sends nil into the inlet so it doesn't sit on stale
+        // data. A parameter-backed inlet has no valueless state, so rather than
+        // being left with a missing input it re-seats on its parameter.
+        source.outputNumber.disconnect(from: sink.inputNumber1)
+        #expect(sink.inputNumber1.connections.isEmpty)
+        #expect(sink.inputNumber1.value != nil)
+        #expect(sink.inputNumber1.value == (sink.inputNumber1.parameter as? FloatParameter)?.value)
+    }
+
+    @Test("Falling back to the parameter runs the change bookkeeping")
+    func parameterFallbackRunsChangeBookkeeping() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let source = NumberBinaryOperator(context: context)
+        let sink = NumberBinaryOperator(context: context)
+        graph.addNode(source)
+        graph.addNode(sink)
+
+        source.outputNumber.connect(to: sink.inputNumber1)
+        source.outputNumber.send(9)
+
+        sink.markClean()
+        #expect(!sink.isDirty)
+        #expect(!sink.inputNumber1.valueDidChange)
+
+        let inlet = sink.inputNumber1
+        var observedValues: [Float?] = []
+        inlet.onValueChanged = { observedValues.append(inlet.value) }
+
+        source.outputNumber.disconnect(from: sink.inputNumber1)
+
+        // The observer retains the port it reads, so clear it before asserting.
+        inlet.onValueChanged = nil
+
+        // Executors gate on valueDidChange, so the fallback has to look like the
+        // change it is — otherwise the port holds the parameter but nothing
+        // downstream re-reads it.
+        #expect(inlet.value == 9)
+        #expect(inlet.valueDidChange)
+        #expect(sink.isDirty)
+
+        // Observers do see the transient nil, so what matters is that they are
+        // notified again once the port has re-seated and none is left on nil.
+        let lastObserved = try #require(observedValues.last)
+        #expect(lastObserved == 9)
+    }
+
+    @Test("Deleting an upstream node leaves a math expression evaluating")
+    func deletingUpstreamNodeLeavesMathExpressionEvaluating() throws {
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
+
+        let graph = Graph(context: harness.context)
+        let source = NumberBinaryOperator(context: harness.context)
+        let expression = MathExpressionNode(context: harness.context, expression: "x + y")
+        graph.addNode(source)
+        graph.addNode(expression)
+
+        let x = try #require(expression.findPort(named: "x", as: ParameterPort<Float>.self))
+        let y = try #require(expression.findPort(named: "y", as: ParameterPort<Float>.self))
+        let result = try #require(expression.findPort(named: "result", as: NodePort<Float>.self))
+        result.published = true
+        graph.rebuildPublishedParameterGroup()
+
+        source.inputNumber1.value = 4
+        source.inputNumber2.value = 0
+        source.outputNumber.connect(to: x)
+        y.value = 1
+
+        try harness.renderer.startExecution(graph: graph)
+        try harness.execute(graph, frameNumber: 0, checkCommandBufferError: false)
+        #expect(result.value == 5)
+
+        // The Spark Stage failure: rebuilding a chain deletes the node feeding a
+        // parameter-backed inlet, and the expression then evaluates against a
+        // missing input — emitting nothing — until the rebuilt chain first sends.
+        graph.delete(node: source)
+        y.value = 10
+
+        try harness.execute(graph, frameNumber: 1, checkCommandBufferError: false)
+        #expect(result.value == 14)
+        try harness.renderer.stopExecution(graph: graph)
+    }
+
+    @Test("Graph encoding records required plugins and qualified node IDs")
+    func graphEncodingRecordsRequiredPluginsAndQualifiedNodeIDs() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        graph.addNode(PerspectiveCameraNode(context: context))
+
+        let data = try JSONEncoder().encode(graph)
+        let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let requiredPlugins = try #require(object?["requiredPlugins"] as? [[String: Any]])
+        let nodeMap = try #require(object?["nodeMap"] as? [[String: Any]])
+
+        #expect(requiredPlugins.contains { $0["id"] as? String == PluginLoader.coreNodesPluginID })
+        #expect(nodeMap.first?["type"] as? String == "\(PluginLoader.coreNodesPluginID)/PerspectiveCameraNode")
+    }
+
+    @Test("Legacy unqualified node IDs decode as core plugin nodes")
+    func legacyUnqualifiedNodeIDsDecodeAsCorePluginNodes() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        graph.addNode(PerspectiveCameraNode(context: context))
+
+        let encodedData = try JSONEncoder().encode(graph)
+        var object = try #require(JSONSerialization.jsonObject(with: encodedData) as? [String: Any])
+        var nodeMap = try #require(object["nodeMap"] as? [[String: Any]])
+        nodeMap[0]["type"] = "PerspectiveCameraNode"
+        object["nodeMap"] = nodeMap
+        object.removeValue(forKey: "requiredPlugins")
+
+        let legacyData = try JSONSerialization.data(withJSONObject: object)
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decodedGraph = try decoder.decode(Graph.self, from: legacyData)
+
+        #expect(decodedGraph.nodes.first is PerspectiveCameraNode)
+    }
+
+    @Test("Programmatic connect refuses type-incompatible ports")
+    func programmaticConnectRefusesIncompatibleTypes() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let imageSource = PassThroughNode<FabricImage>(context: context)
+        let numberSink = NumberBinaryOperator(context: context)
+        graph.addNode(imageSource)
+        graph.addNode(numberSink)
+
+        // The canvas gates drops on canConnect; the untyped connect entry the
+        // procedural API and decode restore use must refuse the same pairs.
+        (imageSource.output as Fabric.Port).connect(to: numberSink.inputNumber1)
+        #expect(imageSource.output.connections.isEmpty)
+        #expect(numberSink.inputNumber1.connections.isEmpty)
+
+        // Convertible scalars stay connectable — send can service Float→Int.
+        let intSink = PassThroughNode<Int>(context: context)
+        graph.addNode(intSink)
+        (numberSink.outputNumber as Fabric.Port).connect(to: intSink.input)
+        #expect(numberSink.outputNumber.connections.count == 1)
+    }
+
+    @Test("Decode drops a wire whose port type changed, and reports it")
+    func decodeDropsIncompatibleWireAndReportsIt() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let imageSource = PassThroughNode<FabricImage>(context: context)
+        let holdNode = SampleAndHoldNode(context: context, portType: .Image)
+        graph.addNode(imageSource)
+        graph.addNode(holdNode)
+
+        let holdInput = try #require(holdNode.findPort(named: "inputValue") as Fabric.Port?)
+        (imageSource.output as Fabric.Port).connect(to: holdInput)
+        #expect(holdInput.connections.count == 1)
+
+        // Re-type the node in the saved document, as an edit in a newer build
+        // would: the rebuilt Float ports adopt their persisted identity, so
+        // connection restore finds the UUID — and must refuse the Image wire.
+        let data = try JSONEncoder().encode(graph)
+        var object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        var nodeMap = try #require(object["nodeMap"] as? [[String: Any]])
+        for index in nodeMap.indices {
+            guard var value = nodeMap[index]["value"] as? [String: Any],
+                  value["strategy"] as? String == "Image" else { continue }
+            value["strategy"] = "Float"
+            nodeMap[index]["value"] = value
+        }
+        object["nodeMap"] = nodeMap
+
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decoded = try decoder.decode(Graph.self, from: try JSONSerialization.data(withJSONObject: object))
+
+        let decodedHold = try #require(decoded.nodes.first { $0.id == holdNode.id })
+        let decodedInput = try #require(decodedHold.findPort(named: "inputValue") as Fabric.Port?)
+        #expect(decodedInput.id == holdInput.id)
+        #expect(decodedInput.connections.isEmpty)
+        #expect(decoded.droppedConnectionDiagnostics.count == 1)
+        #expect(decoded.droppedConnectionDiagnostics.first?.reason == .incompatibleTypes)
+    }
+
+    @Test("Decode reports a wire whose endpoint no longer resolves")
+    func decodeReportsWireWithMissingEndpoint() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let source = NumberBinaryOperator(context: context)
+        let sink = NumberBinaryOperator(context: context)
+        graph.addNode(source)
+        graph.addNode(sink)
+        source.outputNumber.connect(to: sink.inputNumber1)
+
+        // Remove the source node from the document; the port map still holds
+        // both directions of its wire.
+        let data = try JSONEncoder().encode(graph)
+        var object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let nodeMap = try #require(object["nodeMap"] as? [[String: Any]])
+        object["nodeMap"] = nodeMap.filter { entry in
+            (entry["value"] as? [String: Any])?["id"] as? String != source.id.uuidString
+        }
+
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decoded = try decoder.decode(Graph.self, from: try JSONSerialization.data(withJSONObject: object))
+
+        #expect(decoded.droppedConnectionDiagnostics.count == 1)
+        #expect(decoded.droppedConnectionDiagnostics.first?.reason == .missingEndpoint)
+    }
+
+    @Test("Generic array virtual type compatibility is array scoped")
+    func genericArrayVirtualTypeCompatibilityIsArrayScoped() {
+        let genericArray = PortType.Array(portType: .Virtual)
+
+        #expect(genericArray.canConnect(to: .Array(portType: .Float)))
+        #expect(genericArray.canConnect(to: .Array(portType: .String)))
+        #expect(genericArray.canConnect(to: genericArray))
+
+        #expect(!genericArray.canConnect(to: .Float))
+        #expect(!genericArray.canConnect(to: .String))
+        #expect(!genericArray.canConnect(to: .Virtual))
+    }
+
+    @Test("Generic array virtual inlets reject scalar outlets")
+    func genericArrayVirtualInletsRejectScalarOutlets() {
+        let arrayInlet = PortType.Array(portType: .Virtual).makeFreshPort(name: "Array", kind: .Inlet)
+        let scalarOutlet = PortType.Float.makeFreshPort(name: "Float", kind: .Outlet)
+        let virtualOutlet = PortType.Virtual.makeFreshPort(name: "Value", kind: .Outlet)
+        let concreteArrayOutlet = PortType.Array(portType: .Float).makeFreshPort(name: "Array", kind: .Outlet)
+
+        #expect(!arrayInlet.canConnect(to: scalarOutlet))
+        #expect(!arrayInlet.canConnect(to: virtualOutlet))
+        #expect(arrayInlet.canConnect(to: concreteArrayOutlet))
+    }
+
+    @Test("Numeric virtual type compatibility is numeric scoped")
+    func numericVirtualTypeCompatibilityIsNumericScoped() {
+        let numericVirtual = PortType.NumericVirtual
+
+        #expect(numericVirtual.canConnect(to: .Float))
+        #expect(numericVirtual.canConnect(to: .Int))
+        #expect(numericVirtual.canConnect(to: .Vector3))
+        #expect(numericVirtual.canConnect(to: .Transform))
+        #expect(numericVirtual.canConnect(to: .Array(portType: .Float)))
+        #expect(numericVirtual.canConnect(to: numericVirtual))
+
+        // A pure virtual port boxes anything, numbers included.
+        #expect(numericVirtual.canConnect(to: .Virtual))
+
+        #expect(!numericVirtual.canConnect(to: .Image))
+        #expect(!numericVirtual.canConnect(to: .String))
+        #expect(!numericVirtual.canConnect(to: .Bool))
+        #expect(!numericVirtual.canConnect(to: .Geometry))
+        #expect(!numericVirtual.canConnect(to: .Array(portType: .String)))
+    }
+
+    @Test("Pure virtual inlets remain universal")
+    func pureVirtualInletsRemainUniversal() {
+        let virtualInlet = PortType.Virtual.makeFreshPort(name: "Value", kind: .Inlet)
+        let concreteArrayOutlet = PortType.Array(portType: .Float).makeFreshPort(name: "Array", kind: .Outlet)
+        let genericArrayOutlet = PortType.Array(portType: .Virtual).makeFreshPort(name: "Array", kind: .Outlet)
+
+        #expect(virtualInlet.canConnect(to: concreteArrayOutlet))
+        #expect(virtualInlet.canConnect(to: genericArrayOutlet))
+    }
+
+    @Test("Pure virtual outlets connect to typed inlets from either compatibility direction")
+    func pureVirtualOutletsRemainUniversal() {
+        let virtualOutlet = PortType.Virtual.makeFreshPort(name: "Value", kind: .Outlet)
+        let stringInlet = PortType.String.makeFreshPort(name: "String", kind: .Inlet)
+
+        #expect(virtualOutlet.canConnect(to: stringInlet))
+        #expect(stringInlet.canConnect(to: virtualOutlet))
+    }
+
+    /// Every port type the canvas can present, including the two virtual types
+    /// and a representative concrete and generic array.
+    private static let allConnectablePortTypes: [PortType] = [
+        .Virtual, .NumericVirtual,
+        .Bool, .Int, .Float, .String,
+        .Vector2, .Vector3, .Vector4, .Color, .Quaternion, .Transform,
+        .Geometry, .Material, .Image,
+        .Array(portType: .Virtual), .Array(portType: .Float),
+    ]
+
+    @Test("Compatibility is direction independent for every port type pair")
+    func compatibilityIsDirectionIndependent() {
+        // The canvas asks compatibility as targetPort.canConnect(to: draggedPort),
+        // so whichever end the user drags from decides which type is the receiver.
+        // Any asymmetry here makes a wire connect one way and silently fail the other.
+        for outlet in Self.allConnectablePortTypes {
+            for inlet in Self.allConnectablePortTypes {
+                #expect(outlet.canConnect(to: inlet) == inlet.canConnect(to: outlet),
+                        "\(outlet.rawValue) -> \(inlet.rawValue) disagrees with the reverse direction")
+            }
+        }
+    }
+
+    @Test("Every scalar type connects to a virtual port from either drag direction")
+    func scalarTypesConnectToVirtualFromEitherDragDirection() {
+        // Regression: the .Bool/.Int/.Float/.String and .Color/.Vector4 cases used
+        // to omit .Virtual from their accepted set, so a virtual outlet could not
+        // be dragged into a typed inlet even though the reverse drag worked.
+        for portType in [PortType.Bool, .Int, .Float, .String, .Vector4, .Color] {
+            let typedInlet = portType.makeFreshPort(name: "Typed", kind: .Inlet)
+            let typedOutlet = portType.makeFreshPort(name: "Typed", kind: .Outlet)
+            let virtualInlet = PortType.Virtual.makeFreshPort(name: "Value", kind: .Inlet)
+            let virtualOutlet = PortType.Virtual.makeFreshPort(name: "Value", kind: .Outlet)
+
+            #expect(typedInlet.canConnect(to: virtualOutlet),
+                    "dragging a virtual outlet onto a \(portType.rawValue) inlet must be allowed")
+            #expect(virtualOutlet.canConnect(to: typedInlet),
+                    "dragging a \(portType.rawValue) inlet onto a virtual outlet must be allowed")
+            #expect(virtualInlet.canConnect(to: typedOutlet),
+                    "dragging a \(portType.rawValue) outlet onto a virtual inlet must be allowed")
+            #expect(typedOutlet.canConnect(to: virtualInlet),
+                    "dragging a virtual inlet onto a \(portType.rawValue) outlet must be allowed")
+        }
+    }
+
+    @Test("A typed Switch wires up everywhere its virtual form does")
+    func typedSwitchConnectsWhereVirtualSwitchDoes() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let virtualSwitch = SwitchNode(context: context, routeCount: 2, portType: .Virtual)
+        let floatSwitch = SwitchNode(context: context, routeCount: 2, portType: .Float)
+        let log = LogNode(context: context)
+        let number = NumberBinaryOperator(context: context)
+        graph.addNode(virtualSwitch)
+        graph.addNode(floatSwitch)
+        graph.addNode(log)
+        graph.addNode(number)
+
+        let floatInput = try #require(floatSwitch.findPort(named: "input0", as: Port.self))
+
+        // Switch output into the virtual Log inlet, dragged from either end.
+        #expect(log.inputAny.canConnect(to: floatSwitch.output))
+        #expect(floatSwitch.output.canConnect(to: log.inputAny))
+
+        // Switch output into a typed number inlet, and a number outlet back into
+        // the typed Switch input.
+        #expect(number.inputNumber1.canConnect(to: floatSwitch.output))
+        #expect(floatInput.canConnect(to: number.outputNumber))
+
+        // A virtual outlet into the typed Switch input — the case the canvas
+        // refused while the reverse drag succeeded.
+        #expect(floatInput.canConnect(to: virtualSwitch.output))
+        #expect(virtualSwitch.output.canConnect(to: floatInput))
+
+        floatSwitch.output.connect(to: log.inputAny)
+        number.outputNumber.connect(to: floatInput)
+
+        #expect(floatSwitch.output.connections.count == 1)
+        #expect(log.inputAny.connections.count == 1)
+        #expect(number.outputNumber.connections.count == 1)
+        #expect(floatInput.connections.count == 1)
+    }
+
+    @Test("Switching a Switch from virtual to typed keeps its wires")
+    func switchTypeChangeKeepsWires() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let source = SwitchNode(context: context, routeCount: 2, portType: .Virtual)
+        let sink = SwitchNode(context: context, routeCount: 2, portType: .Virtual)
+        let log = LogNode(context: context)
+        graph.addNode(source)
+        graph.addNode(sink)
+        graph.addNode(log)
+
+        let inputBefore = try #require(sink.findPort(named: "input0", as: Port.self))
+        source.output.connect(to: inputBefore)
+        sink.output.connect(to: log.inputAny)
+
+        sink.setPortType(.Float)
+
+        // Ports are replaced in place on a type change; the surviving wires are
+        // re-attached only for pairs canConnect still accepts.
+        let inputAfter = try #require(sink.findPort(named: "input0", as: Port.self))
+        let outputAfter = try #require(sink.findPort(named: "output", as: Port.self))
+
+        #expect(inputAfter.connections.count == 1)
+        #expect(outputAfter.connections.count == 1)
+        #expect(source.output.connections.count == 1)
+        #expect(log.inputAny.connections.count == 1)
+    }
+
+    @Test("Retired dynamic ports cannot reconnect from stale view references")
+    func retiredDynamicPortsCannotReconnect() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let arrayValue = ArrayIndexValueNode(context: context, portType: .String)
+        let stringSink = PassThroughNode<String>(context: context)
+        graph.addNode(arrayValue)
+        graph.addNode(stringSink)
+
+        let retiredOutput = try #require(
+            arrayValue.findPort(named: "outputPort", as: NodePort<String>.self)
+        )
+
+        arrayValue.rebuildPorts(forStrategy: PortType.Float.rawValue)
+
+        #expect(retiredOutput.node == nil)
+        retiredOutput.connect(to: stringSink.input)
+        #expect(retiredOutput.connections.isEmpty)
+        #expect(stringSink.input.connections.isEmpty)
+    }
+
+    @Test("String array value output connects to 3D Text Geometry")
+    func stringArrayValueConnectsToExtrudedTextGeometry() throws {
+        guard let context = makeContext() else { return }
+
+        let graph = Graph(context: context)
+        let arrayValue = ArrayIndexValueNode(context: context, portType: .String)
+        let textGeometry = ExtrudedTextGeometryNode(context: context)
+        graph.addNode(arrayValue)
+        graph.addNode(textGeometry)
+
+        let stringOutput = try #require(
+            arrayValue.findPort(named: "outputPort", as: NodePort<String>.self)
+        )
+
+        #expect(stringOutput.canConnect(to: textGeometry.inputText))
+        #expect(textGeometry.inputText.canConnect(to: stringOutput))
+
+        stringOutput.connect(to: textGeometry.inputText)
+
+        #expect(stringOutput.connectedPorts == [textGeometry.inputText])
+        #expect(textGeometry.inputText.connectedPorts == [stringOutput])
+    }
+
+    @Test("Virtual strategy array nodes expose generic array ports")
+    func virtualStrategyArrayNodesExposeGenericArrayPorts() throws {
+        guard let context = makeContext() else { return }
+
+        let arrayCount = ArrayCountNode(context: context, portType: .Virtual)
+        let countInput: Fabric.Port = arrayCount.port(named: "inputPort")
+        #expect(countInput.portType == .Array(portType: .Virtual))
+
+        let firstValue = ArrayFirstValueNode(context: context, portType: .Virtual)
+        let firstInput: Fabric.Port = firstValue.port(named: "inputPort")
+        let firstOutput: Fabric.Port = firstValue.port(named: "outputPort")
+        #expect(firstInput.portType == .Array(portType: .Virtual))
+        #expect(firstOutput.portType == .Virtual)
+
+        let queue = ArrayQueueNode(context: context, portType: .Virtual)
+        let queueInput: Fabric.Port = queue.port(named: "inputPort")
+        let queueOutput: Fabric.Port = queue.port(named: "outputPort")
+        #expect(queueInput.portType == .Virtual)
+        #expect(queueOutput.portType == .Array(portType: .Virtual))
+    }
+
+    @Test("First and last array values mirror the selected element type")
+    func firstAndLastArrayValuesMirrorSelectedElementType() throws {
+        guard let context = makeContext() else { return }
+
+        for node in [
+            ArrayFirstValueNode(context: context, portType: .Virtual),
+            ArrayLastValueNode(context: context, portType: .Virtual),
+        ] {
+            let originalInput: Fabric.Port = node.port(named: "inputPort")
+            let originalOutput: Fabric.Port = node.port(named: "outputPort")
+
+            node.strategy = PortType.Vector2.rawValue
+
+            let specializedInput: Fabric.Port = node.port(named: "inputPort")
+            let specializedOutput: Fabric.Port = node.port(named: "outputPort")
+            #expect(specializedInput.portType == .Array(portType: .Vector2))
+            #expect(specializedOutput.portType == .Vector2)
+            #expect(specializedInput.id == originalInput.id)
+            #expect(specializedOutput.id == originalOutput.id)
+        }
+    }
+}

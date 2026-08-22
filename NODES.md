@@ -14,17 +14,16 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] PBR (Advanced Physical Based Rendering)
 - [x] Depth (Visualize Depth)
 - [x] UV (Visual texture coordinates)
-- [x] Skybox (HDRI Environment Map)
 - [x] Displace (Luminosity / RGB Based Displacement shader)
 
 # Geometry
 
 <img width="1184" height="671" alt="image" src="https://github.com/user-attachments/assets/345dab62-c203-418b-ac5a-24fb6f6f9b6d" />
 
+### Primitives
 - [ ] Line
 - [x] Plane
-- [ ] Image Mesh
-- [x] Point Plane (Temp until #15 is fixed)
+- [x] Perspective Quad
 - [x] Rounded Rect
 - [x] Triangle
 - [x] Circle
@@ -39,12 +38,28 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Sphere
 - [x] Tube
 - [x] Torus
-- [x] Tesselated Text
-- [x] Extruded Text
-- [x] Supershape
-- [x] Skybox
-- [x] Geometry from 2D PolyLine (needs better Triangulation)
-- [ ] Parametric
+- [x] Cyclorama
+- [x] Tesselated Text (2D)
+- [x] Extruded Text (3D)
+- [x] Super Shape (3D Supershape formula)
+- [x] Geometry Compose (Pixel Array → Geometry)
+- [x] Parametric Expression Geometry
+
+### Parametric Surfaces
+- [x] Möbius Strip
+- [x] Helicoid
+- [x] Superellipsoid
+- [x] Klein Bottle
+- [x] Catenoid
+- [x] Paraboloid
+- [x] Enneper Surface
+- [x] Pseudosphere
+- [x] Dupin Cyclide
+- [x] Roman Surface
+- [x] Cross Cap
+- [x] Bour Surface
+- [x] Breather Surface
+- [x] Dini Surface
 
 # Object
 
@@ -52,12 +67,14 @@ A list of Nodes (planned and implemented) for Fabric.
 
 - [x] Mesh
 - [x] Instanced Mesh
-- [x] 3D Model Loader
+- [x] Model Mesh (3D Model Loader)
+- [x] Instanced Model Mesh
+- [x] Image Mesh
 - [x] Orthographic Camera
 - [x] Perspective Camera
 - [x] Directional Light
 - [x] Point Light
-- [ ] Spot Light
+- [x] Spot Light
 
 # Macro Patches
 
@@ -76,13 +93,29 @@ A list of Nodes (planned and implemented) for Fabric.
 
 ### Loading
 - [x] Image Provider
-- [x] Video Provider (AVFoundation)
+- [x] Movie Provider (AVFoundation)
 - [x] Camera Provider (AVFoundation)
+- [x] Screen Capture Provider
+- [x] Syphon Client
+- [x] Syphon Server
+- [x] Test Card
+- [x] Live Image
 
 ### Generator
 
-- [x] FBM Noise
-- [x] Voronoise
+- [x] Classic FBM Noise
+- [x] Constant Color
+- [x] Domain Warp Simplex Noise
+- [x] Gradient FBM Noise
+- [x] Linear Gradient
+- [x] Simplex FBM Noise
+- [x] Simplex Ridge Noise
+- [x] Simplex Turbulence Noise
+- [x] UV
+- [x] Voronoi Cells Noise
+- [x] Voronoise Noise
+- [x] Wavelet FBM Noise
+- [x] Worley Noise
 
 ### Color Adjust
 
@@ -96,7 +129,8 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] RGB Linear to SRGB
 - [x] sRGB to RGB Linear
 - [x] Exposure
-- [ ] Channel Mixer
+- [x] Channel Mixer
+- [x] Posterize
 - [ ] Channel Combine
 
 ### Color Effect
@@ -104,11 +138,13 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] Color LUT
 - [x] Invert
 - [x] Duo Tone
+- [x] Threshold
 - [ ] False Color
 
 ### Color Space
 
 - [x] CMYK <-> RGB
+- [x] Color Clamp
 - [x] HSV <-> RGB
 - [x] LAB <-> RGB
 - [x] YIQ <-> RGB
@@ -116,6 +152,7 @@ A list of Nodes (planned and implemented) for Fabric.
 - [x] YUV <-> RGB
 - [x] XYZ <-> RGB
 - [x] XYZ <-> LAB
+- [x] Channel Subsample
 
 ### Color Tone Mapping
 
@@ -137,10 +174,14 @@ HDR -> SDR conversion
 - [x] Technicolor 3w
 - [x] Vignetting
 - [x] White Diffusion
+- [x] Cine Grain
+- [x] Fast Grain
+- [x] Halation
+- [x] Halation Extract
 
 ### Lens
 
-- [ ] Lens Distortion
+- [x] Barrel Distortion
 - [ ] Chromatic Aberration
 - [ ] Prism / Kaliedoscope
 
@@ -179,6 +220,8 @@ HDR -> SDR conversion
     - Vivid Light
 
 - [ ] Mix modes with Masking
+- [x] Fade Curve
+- [x] SPK MXR
 
 ### Compositing
 
@@ -190,7 +233,7 @@ HDR -> SDR conversion
     - Xor
 
 ### Masking
-- [ ] Image to Mask
+- [x] Apply Mask
 - [x] Foreground Mask (ML)
 - [x] Person Mask (ML)
 
@@ -200,12 +243,30 @@ HDR -> SDR conversion
 - [x] Kaleidoscope
 - [ ] Mirror
 
+### Shape Generation
+
+- [x] Circle
+- [x] Cross
+- [x] Triangle
+
+### Shape Operators
+
+- [x] SDF Blend
+- [x] SDF Intersect
+- [x] SDF Onion
+- [x] SDF Render
+- [x] SDF Subtract
+- [x] SDF Tile
+- [x] SDF Union
+
 ### Decimation
 
-- [ ] Threshold
 - [ ] Dither
 - [x] Pixelate
-- [x] CMYK Half Tone
+- [x] Hexagonal Pixelate
+- [x] Polar Pixelate
+- [x] Triangular Pixelate
+- [x] CMYK Dot Screen
 - [x] Cross Hatch
 
 ### Distortion
@@ -218,12 +279,18 @@ HDR -> SDR conversion
 - [x] Dent
 - [x] Twirl
 - [x] Wobble
+- [x] Key Point Displacement
 
 ### Blur
 
-- [ ] Gaussian (Kawase)
-- [ ] Directional (Motion)
+- [x] Gaussian
+- [x] Gaussian Blur Channels
+- [x] Gaussian Blur with Mask
+- [x] Motion Blur
+- [x] Post Process Motion Blur
+- [x] Zoom Blur
 - [x] Depth of Field 
+- [x] Linearize Depth
 - [ ] Bloom
 - [ ] Gloom
 - [ ] Variable Versions of above
@@ -233,7 +300,7 @@ HDR -> SDR conversion
 - [ ] Sharpen
 - [ ] Unsharpen
 - [x] Sobel
-- [ ] Dilate
+- [x] Dilation
 - [ ] Erode
 - [ ] Open
 - [ ] Close
@@ -241,9 +308,12 @@ HDR -> SDR conversion
 ### Analysis
 
 - [x] Marching Squares Contour (needs better stability at edges)
+- [x] Contour Path
 - [ ] Blob Detection (requires nested array support)
 - [ ] Segmentation
-- [ ] Tracking 
+- [x] Lucas-Kanade Optical Flow
+- [x] Gradient Flow
+- [x] Gradient Flow Offset
 - [ ] Classification
 - [x] Face Pose Analysis / Landmark
 - [x] Hand Pose Detection / Landmark
@@ -251,7 +321,6 @@ HDR -> SDR conversion
 - [ ] Depth Map Prediction
 - [x] Metal FX 2x Upsampler (ML based)  
 - [x] FXAA Antialiasing  
-- [x] Keypoint Distort
 - [ ] Image Embedding Vector( via fast Clip like model or Vision Feature Print? whats most useful - careful do we want to stray into comfy ui bullshit? )
 
 ### ML / AI
@@ -262,14 +331,15 @@ HDR -> SDR conversion
 
 ### Info 
 - [x] Image Dimensions
-- [ ] Image Crop
-- [ ] Image Resize (Linear / Bilinear / Lancos)
+- [x] Texture Crop
+- [x] Image Resample (Linear / Bilinear / Lancos)
 - [ ] Image Pixel to Color (sample at XY -> XYZ)
 
 # Parameters
 
 ### Boolean
 
+- [x] Bool
 - [x] True
 - [x] False
 - [x] Logic Operator
@@ -277,12 +347,13 @@ HDR -> SDR conversion
 
 ### Index
 
-Have yet to work on Index (integer only) numeric nodes 
+- [x] Index
+- [x] Index Generator
 
 ### Number
 
 - [x] Number
-- [x] Current Time (AKA Patch Time)
+- [x] Graph Time
 - [x] System Time
 - [x] Timestamp
 - [x] Integrator (accrues every frame for now)
@@ -295,45 +366,72 @@ Have yet to work on Index (integer only) numeric nodes
 - [x] Clamp
 - [x] Round
 - [ ] Counter
-- [ ] LFO
+- [x] LFO
+- [x] Pulse
+- [x] Trigger
+- [x] Number Generator
 - [x] Smooth (Kalman or 1 Euro Filter?)
 - [x] Math Expression
 - [x] Number Logic (Comparison)
 
+### Numeric
+
+- [x] Distance
+- [x] Easing
+- [x] Tween
+- [x] Repeat
+- [x] Ripple Repeat
+- [x] Pairwise Distance Array
+
 ### Vector
 
-- [x] Make Vec 2
-- [x] Make Vec 3
-- [x] Make Vec 4
-- [x] Vec 2 to Float
-- [x] Vec 3 to Float
-- [x] Vec 4 to Float
+- [x] Vector 2
+- [x] Vector 3
+- [x] Vector 4
+- [x] Vector Compose
+- [x] Vector Decompose
 - [x] Vector 2 Distance
 - [x] Vector 3 Distance
 - [x] Vector 4 Distance
+- [x] Vector Tween
+- [x] Vector Array Compose
+- [x] Vector Array Decompose
+- [x] Vector Array Tween
 - [ ] Vector Ops (Cross / Dot / etc)
 
 ### Color
 
-Have yet to work on Color nodes, ideally all color spaces / images are linear / aces linear internally, we'll see!
+- [x] Color
+- [x] Color From RGBA
+- [x] Color Tween
 
-### Quaternion
+### Orientation
 
-- [x] Make Quaternion
+- [x] Orientation
+- [x] Orientation Compose
+- [x] Orientation Decompose
+- [x] Orientation Tween
+- [x] Orientation Array Compose
+- [x] Orientation Array Decompose
+- [x] Orientation Array Tween
 
 ### Transform (Float4x4 Matrix)
 
 - [x] Identity Transform
+- [x] Transform Compose
 - [x] Rotate Transform
 - [x] Scale Transform
 - [x] Translate Transform
 - [x] Transpose Transform
 - [x] Invert Transform
 - [x] Decompose Transform
+- [x] Transform Array Compose
+- [x] Transform Array Decompose
 - [x] Geometry to Transform Array
 
 ### String
 
+- [x] String
 - [x] String Loader (Text file loader)
 - [x] String Components
 - [x] String Length
@@ -351,28 +449,52 @@ Have yet to work on Color nodes, ideally all color spaces / images are linear / 
 - [x] Timestamp Formatter
 - [x] Directory Scanner
 - [x] String to Timecode Format
+- [x] Local LLM Node
+
+### Dictionary
+
+- [x] Dictionary
+- [x] Typed Dictionary pass-through nodes
+- [x] Compose Dictionary
+- [x] Decompose Dictionary
+- [x] Dictionary Set Value For Key
+- [x] Dictionary Value For Key
+- [x] Dictionary Count
+- [x] Dictionary Has Key
+- [x] Dictionary Remove Key
+- [x] Dictionary Merge
+- [x] Dictionary From JSON String
 
 ### Array
 
-Array nodes are implemented as Swift Generics, and can work with any of the above types
+Array nodes are type-agnostic and can work with any compatible Fabric port type selected in Settings.
 
-- [x] Queue
+- [x] Array Queue Value
 - [x] Array Count
-- [x] First Item
-- [x] Last Item
-- [x] Item at Index
-- [x] Replace Item At Index
-- [x] Poly Line Simplification ( Simplification of Array of Vector 2 Points via Ramer–Douglas–Peucker algo)
+- [x] Array First Value
+- [x] Array Last Value
+- [x] Array Value at Index
+- [x] Array Append
+- [x] Array Replace Value At Index
+- [x] Array Split at Index
+- [x] Array Subarray
+- [x] Array Reverse
+- [x] Array Shuffle
+- [x] Array Range Interpolate
+- [x] Array Resample
+- [x] Line Points
+- [x] Ring Points
+- [x] Grid Points
+- [x] Repeat Value
+- [x] Simplify Polyline (Simplification of Array of Vector 2 Points via Ramer-Douglas-Peucker algo)
 - [ ] Multiplexer
 - [ ] Demultiplexer
 - [ ] Sort (? what does this mean for some types ?)
-- [ ] Reverse
-- [ ] Range / Slice
 
 ### Signaling Nodes
 
 - [x] Sample and Hold
-- [ ] Pulse
+- [x] Pulse
 - [x] Signal
 - [x] Timeline (Multi-track keyframe animation with bezier interpolation)
 
@@ -406,7 +528,11 @@ Array nodes are implemented as Swift Generics, and can work with any of the abov
  - [x] Frame Rate
  - [x] Frame Counter
  - [x] Log
+ - [x] Visualize
+ - [x] JavaScript
+ - [x] Switch
+ - [x] Gate
+ - [x] Matrix Switch
 
  
  
-

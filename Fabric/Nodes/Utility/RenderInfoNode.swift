@@ -37,16 +37,15 @@ public class RenderInfoNode : Node
     public var inputTexturePort:NodePort<FabricImage>  { port(named: "inputTexturePort") }
     public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
     
-    public override func execute(context:GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
-        if let graphRenderer = context.graphRenderer
-        {
-            let size = graphRenderer.renderer.size
-            self.outputWidth.send( size.width )
-            self.outputHeight.send( size.height )
-            self.outputFrameNumber.send( graphRenderer.executionCount )
-        }
+        let size = renderer.renderEncoder.size
+        self.outputWidth.send( size.width )
+        self.outputHeight.send( size.height )
+        self.outputFrameNumber.send( executionInfo.timing.frameNumber )
     }
 }

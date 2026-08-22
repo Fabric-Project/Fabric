@@ -1,0 +1,61 @@
+#ifndef FABRIC_NOISE_CELLULAR
+#define FABRIC_NOISE_CELLULAR
+
+#include "../../../../lygia/math/const.msl"
+#include "../../../../lygia/generative/random.msl"
+
+float2 fabricNoiseCellPoint(float2 cell, constant PostUniforms &uniforms)
+{
+    float2 randomPoint = random2(cell);
+    float2 centeredPoint = float2(0.5);
+    return mix(centeredPoint, randomPoint, uniforms.cellularJitter);
+}
+
+float3 fabricNoiseCellPoint(float3 cell, constant PostUniforms &uniforms)
+{
+    float3 randomPoint = random3(cell);
+    float3 centeredPoint = float3(0.5);
+    return mix(centeredPoint, randomPoint, uniforms.cellularJitter);
+}
+
+float fabricNoiseWorley(float3 position, constant PostUniforms &uniforms)
+{
+    float3 cell = floor(position);
+    float3 cellFraction = fract(position);
+    float closestDistance = 1.0;
+
+    for (int zOffset = -1; zOffset <= 1; zOffset++) {
+        for (int yOffset = -1; yOffset <= 1; yOffset++) {
+            for (int xOffset = -1; xOffset <= 1; xOffset++) {
+                float3 neighbor = float3(xOffset, yOffset, zOffset);
+                float3 point = fabricNoiseCellPoint(cell + neighbor, uniforms);
+                float distanceToPoint = length(neighbor + point - cellFraction);
+                closestDistance = min(closestDistance, distanceToPoint);
+            }
+        }
+    }
+
+    return 1.0 - closestDistance;
+}
+
+float fabricNoiseVoronoiDistance(float3 position, constant PostUniforms &uniforms)
+{
+    float2 cell = floor(position.xy);
+    float2 cellFraction = fract(position.xy);
+    float closestDistance = 10.0;
+
+    for (int yOffset = -1; yOffset <= 1; yOffset++) {
+        for (int xOffset = -1; xOffset <= 1; xOffset++) {
+            float2 neighbor = float2(xOffset, yOffset);
+            float2 randomPoint = random2(cell + neighbor);
+            float2 animatedPoint = 0.5 + 0.5 * sin(position.z + TAU * randomPoint);
+            float2 point = mix(float2(0.5), animatedPoint, uniforms.cellularJitter);
+            float distanceToPoint = length(neighbor + point - cellFraction);
+            closestDistance = min(closestDistance, distanceToPoint);
+        }
+    }
+
+    return 1.0 - closestDistance;
+}
+
+#endif

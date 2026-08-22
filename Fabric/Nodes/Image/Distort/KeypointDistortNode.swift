@@ -69,14 +69,12 @@ public class KeypointDistortNode: BaseImageNode {
         self.countBuffer.update(data: [UInt32(0)])
     }
     
-    override public func execute(context:GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
-        guard let graphRenderer = context.graphRenderer,
-              let device = graphRenderer.device
-        else { return }
-        
         
         // If counts are diff, update backing
         if self.inputReferenceKeyPoints.valueDidChange,
@@ -84,7 +82,7 @@ public class KeypointDistortNode: BaseImageNode {
         {
             if self.refKeyPointStructBuffer.count != inputReferenceKeyPoints.count {
                 
-                self.refKeyPointStructBuffer = StructBuffer<simd_float2>(device: device,
+                self.refKeyPointStructBuffer = StructBuffer<simd_float2>(device: renderer.context.device,
                                                                          count: inputReferenceKeyPoints.count,
                                                                          label: "Reference Keypoint Struct Buffer")
             }
@@ -98,7 +96,7 @@ public class KeypointDistortNode: BaseImageNode {
         {
             if self.disKeyPointStructBuffer.count != inputDisplacedKeyPoints.count
             {
-                self.disKeyPointStructBuffer = StructBuffer<simd_float2>(device: device,
+                self.disKeyPointStructBuffer = StructBuffer<simd_float2>(device: renderer.context.device,
                                                                          count: inputDisplacedKeyPoints.count,
                                                                          label: "Displacement Keypoint Struct Buffer")
             }
@@ -108,9 +106,12 @@ public class KeypointDistortNode: BaseImageNode {
         
         if self.imageInputPorts().first?.valueDidChange == true
         {
-            if let inTex = self.inputImageTexture(at: 0),
-               let outImage = context.graphRenderer?.newImage(withWidth: inTex.width, height: inTex.height)
+            if let inImage = self.inputImage(at: 0)
             {
+                let inTex = inImage.texture
+                
+                let outImage = try renderer.newImage(withWidth: inTex.width, height: inTex.height)
+
                 let minCount = min (self.refKeyPointStructBuffer.count, self.disKeyPointStructBuffer.count)
                 self.countBuffer.update(data: [UInt32(minCount)] )
                 
@@ -121,8 +122,7 @@ public class KeypointDistortNode: BaseImageNode {
                 self.postMaterial.set(inTex, index: FragmentTextureIndex.Custom0)
 
                     
-                self.postProcessor.renderer.size.width = Float(inTex.width)
-                self.postProcessor.renderer.size.height = Float(inTex.height)
+                self.postProcessor.resize(size: (width: Float(inTex.width), height: Float(inTex.height)), scaleFactor: 1)
                 
                 let renderPassDesc = MTLRenderPassDescriptor()
                 renderPassDesc.colorAttachments[0].texture = outImage.texture

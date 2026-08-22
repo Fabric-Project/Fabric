@@ -14,6 +14,38 @@ internal import AnyCodable
     {
         case alpha1
     }
+
+    /// Port state a document carried for registry keys the node's code no
+    /// longer declares or rebuilds. That state (and any wires into those
+    /// ports) is dropped on load — deliberately, the code owns the port set —
+    /// and surfaced here so hosts can warn instead of losing data silently.
+    public struct DroppedPortStateDiagnostic
+    {
+        public let nodeID: UUID
+        public let nodeTitle: String
+        public let droppedRegistryKeys: [String]
+    }
+
+    /// A saved wire the decode-time connection restore could not re-establish:
+    /// an endpoint no longer exists (its port was retired, or its node failed
+    /// to decode) or its port's type changed to something incompatible since
+    /// the save. Wires are the destructive loss on load, so hosts should
+    /// surface these.
+    public struct DroppedConnectionDiagnostic
+    {
+        public enum Reason
+        {
+            case missingEndpoint
+            case incompatibleTypes
+        }
+
+        public let portID: UUID
+        public let otherPortID: UUID
+        public let reason: Reason
+
+        /// Endpoints named as "node.port" where they still resolve.
+        public let summary: String
+    }
     
     public static func == (lhs: Graph, rhs: Graph) -> Bool
     {
@@ -32,14 +64,37 @@ internal import AnyCodable
 
     public private(set) var nodes: [Node]
     public private(set) var notes: [Note]
+    internal var connections: [Connection] = []
 
+    /// NodeViewModels shadow the nodes array 1-to-1. Always created/destroyed
+    /// in lockstep with addNode / delete so the array is safe to force-index.
+    /// @ObservationIgnored: dict key mutations must not trigger SwiftUI re-renders.
+    /// Individual ViewModel properties are @Observable themselves, so changes to
+    /// isSelected / offset / etc. still propagate. The ForEach is driven solely by
+    /// the `nodes` array; since ViewModel insertion precedes nodes.append and
+    /// ViewModel removal follows nodes.removeAll, the invariant is always intact
+    /// by the time SwiftUI evaluates the ForEach body.
+    @ObservationIgnored private var nodeViewModels: [UUID: NodeViewModel] = [:]
+
+    /// Nodes that are currently selected (as tracked by their NodeViewModels).
+    public var selectedNodes: [Node] {
+        nodes.filter { nodeViewModels[$0.id]?.isSelected == true }
+    }
+
+    /// Mirrors GraphRenderer's per-node execute guard (isDirty || Consumer || Provider):
+    /// a graph containing time-based Provider or Consumer nodes always needs another
+    /// pass even when every node is clean, otherwise a Processor-mode SubgraphNode
+    /// (whose isDirty is this property) is skipped by its parent after the first frame
+    /// and e.g. a movie inside it freezes.
     var needsExecution:Bool {
-        self.nodes.reduce(true) { (result, node) -> Bool in
-            result || node.isDirty
+        self.nodes.contains { node in
+            node.isDirty
+                || node.nodeExecutionMode == .Provider
+                || node.nodeExecutionMode == .Consumer
         }
     }
     
-    var scene:Object = Object()
+    var scene:Object
     
     var renderables: [Satin.Renderable] {
         let allNodes = self.nodes
@@ -49,11 +104,47 @@ internal import AnyCodable
         return renderableNodes.compactMap { $0.getObject() as? Satin.Renderable }
     }
     
-    // Fix for #103 - this now triggers syncNodesToScene() inside of `GraphRenderer`
-    public var shouldUpdateConnections = false
+    // Fix for #103 - connection/topology changes trigger syncNodesToScene() inside of `GraphRenderer`.
+    @ObservationIgnored private var pendingConnectionSceneSync = false
+    public private(set) var connectionRevision = 0
+    internal private(set) var connectionTopologyGeneration = 0
+    internal private(set) var executionTopologyGeneration = 0
+
+    /// Populated once at decode; empty for graphs built programmatically.
+    @ObservationIgnored public private(set) var droppedPortStateDiagnostics: [DroppedPortStateDiagnostic] = []
+
+    /// Populated once at decode; empty for graphs built programmatically.
+    @ObservationIgnored public private(set) var droppedConnectionDiagnostics: [DroppedConnectionDiagnostic] = []
+
+    @ObservationIgnored private var cachedPublishedOutputPortsRevision: Int?
+    @ObservationIgnored private var cachedPublishedOutputPorts: [Port] = []
   
 
     @ObservationIgnored weak var lastNode:(Node)? = nil
+
+    public func markConnectionTopologyChanged()
+    {
+        connectionRevision += 1
+        pendingConnectionSceneSync = true
+        connectionTopologyGeneration += 1
+    }
+
+    public func markExecutionTopologyChanged()
+    {
+        executionTopologyGeneration += 1
+    }
+
+    public func markConnectionsChanged()
+    {
+        markConnectionTopologyChanged()
+    }
+
+    func consumePendingConnectionSceneSync() -> Bool
+    {
+        let shouldSyncScene = pendingConnectionSceneSync
+        pendingConnectionSceneSync = false
+        return shouldSyncScene
+    }
 
     public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
 
@@ -65,13 +156,16 @@ internal import AnyCodable
     {
         case id
         case version
+        case requiredPlugins
         case nodeMap
         case portConnectionMap
+        case connections
         case notes
     }
     
     public init(context:Context)
     {
+        self.scene = Object(context: context)
         print("Init Graph")
         self.id = UUID()
         self.version = .alpha1
@@ -95,8 +189,12 @@ internal import AnyCodable
         self.version = try container.decode(Graph.Version.self, forKey: .version)
 
         self.nodes = []
+        self.scene = Object(context: context)
 
         self.notes = try container.decodeIfPresent([Note].self, forKey: .notes) ?? []
+        let requiredPlugins = try container.decodeIfPresent([PluginRequirement].self, forKey: .requiredPlugins) ?? []
+        let nodeRegistry = try NodeRegistry.shared
+        try nodeRegistry.validatePluginRequirements(requiredPlugins)
 
         // For Subgraphs - we capture and reset state
         // this is needed for ProxyPorts which expose inner graph ports
@@ -132,7 +230,9 @@ internal import AnyCodable
 //                print(anyCodableMap.type)
 //                print(anyCodableMap.value)
                 
-                if let nodeClass = NodeRegistry.shared.nodeClass(for: anyCodableMap.type)
+                let nodeID = Self.qualifiedNodeID(fromSerializedType: anyCodableMap.type)
+
+                if let nodeClass = nodeRegistry.nodeClass(pluginID: nodeID.pluginID, nodeID: nodeID.nodeID)
                 {
                     let jsonData = try encoder.encode(anyCodableMap.value)
                     decoder.context = decodeContext
@@ -209,33 +309,121 @@ internal import AnyCodable
                
                 else
                 {
-                    print("Failed to find nodeClass for \(anyCodableMap.type)")
+                    throw FabricError(.deserialization(.nodeNotFound),
+                                      severity: .fatal,
+                                      message: "Could not find node '\(nodeID.nodeID)' in plugin '\(nodeID.pluginID)'")
                 }
             }
             catch
             {
-                print("Failed to decode node: \(error)")
+                throw error
             }
         }
         
+        // Node inits (including their dynamic-port rebuilds) are done; end
+        // each node's hydration window. Whatever state remains unconsumed
+        // matched nothing the code declares, and closing the window here means
+        // ports added later in the document's life cannot resurrect stale
+        // snapshot state.
+        self.droppedPortStateDiagnostics = self.nodes.compactMap { node in
+            let droppedKeys = node.finalizePortHydration()
+            guard !droppedKeys.isEmpty else { return nil }
+            print("Graph decode: '\(node.title)' dropped port state for retired keys \(droppedKeys)")
+            return DroppedPortStateDiagnostic(nodeID: node.id,
+                                              nodeTitle: node.title,
+                                              droppedRegistryKeys: droppedKeys)
+        }
+
+        let decodedConnections = try container.decodeIfPresent([Connection].self, forKey: .connections)
         let portMap = try container.decode([UUID:[UUID]].self, forKey: .portConnectionMap)
-        
-        for portID in portMap.keys
+
+        // Restoring a wire resolves both its endpoints, and reporting a dropped
+        // one resolves them again; nodePort(forID:) is a linear scan of every
+        // port in the document, so index once and read from that. Mirror what
+        // it scans, subgraph proxy ports included.
+        let portsByID: [UUID: Port] = self.nodes.reduce(into: [:]) { index, node in
+            for port in node.ports { index[port.id] = port }
+        }
+
+        // The legacy map holds every connection under both endpoints; report
+        // each dropped one once, whichever side surfaces it first.
+        var reportedDroppedPairs = Set<Set<UUID>>()
+
+        func reportDroppedConnection(from portID: UUID, to otherPortID: UUID, reason: DroppedConnectionDiagnostic.Reason)
         {
-            if let port = self.nodePort(forID: portID)
+            guard reportedDroppedPairs.insert(Set([portID, otherPortID])).inserted else { return }
+
+            func describe(_ id: UUID) -> String
+            {
+                guard let port = portsByID[id] else { return "missing port \(id)" }
+                return "\(port.node?.title ?? "?").\(port.displayName)"
+            }
+
+            let diagnostic = DroppedConnectionDiagnostic(portID: portID,
+                                                         otherPortID: otherPortID,
+                                                         reason: reason,
+                                                         summary: "\(describe(portID)) ↔ \(describe(otherPortID))")
+            print("Graph decode: dropped connection (\(reason)): \(diagnostic.summary)")
+            self.droppedConnectionDiagnostics.append(diagnostic)
+        }
+
+        if let decodedConnections
+        {
+            // Attach bypasses validatedConnect, so the endpoint and type
+            // checks (and their diagnostics) live here.
+            for connection in decodedConnections
+            {
+                guard let outlet = portsByID[connection.outletPortID],
+                      let inlet = portsByID[connection.inletPortID]
+                else
+                {
+                    reportDroppedConnection(from: connection.outletPortID, to: connection.inletPortID, reason: .missingEndpoint)
+                    continue
+                }
+
+                guard outlet.canConnect(to: inlet) else
+                {
+                    reportDroppedConnection(from: connection.outletPortID, to: connection.inletPortID, reason: .incompatibleTypes)
+                    continue
+                }
+
+                attachConnection(connection, outlet: outlet, inlet: inlet)
+            }
+        }
+        else
+        {
+            for portID in portMap.keys
             {
                 let portConnections = portMap[portID] ?? []
-                
+
+                guard let port = portsByID[portID] else
+                {
+                    for connectedPortID in portConnections
+                    {
+                        reportDroppedConnection(from: portID, to: connectedPortID, reason: .missingEndpoint)
+                    }
+                    continue
+                }
+
                 for connectedPortID in portConnections
                 {
-                    if let connectedPort = self.nodePort(forID: connectedPortID)
+                    guard let connectedPort = portsByID[connectedPortID] else
                     {
-                        port.connect(to: connectedPort)
+                        reportDroppedConnection(from: portID, to: connectedPortID, reason: .missingEndpoint)
+                        continue
                     }
+
+                    guard port.canConnect(to: connectedPort) else
+                    {
+                        reportDroppedConnection(from: portID, to: connectedPortID, reason: .incompatibleTypes)
+                        continue
+                    }
+
+                    port.connect(to: connectedPort)
                 }
             }
         }
-        
+
         self.rebuildPublishedParameterGroup()
     }
 
@@ -251,15 +439,22 @@ internal import AnyCodable
 
         try container.encode(self.id, forKey: .id)
         try container.encode(self.version, forKey: .version)
+        let requiredPlugins = try self.requiredPlugins(for: self.nodes)
+        try container.encode(requiredPlugins, forKey: .requiredPlugins)
 
-        let nodeMap:[ AnyCodableMap ] = self.nodes.compactMap {
-            return AnyCodableMap(type: String(describing: type(of: $0)),
-                                   value: AnyCodable($0))
+        let nodeMap:[ AnyCodableMap ] = try self.nodes.map {
+            let qualifiedNodeID = try self.qualifiedNodeID(for: type(of: $0))
+            return AnyCodableMap(type: qualifiedNodeID.description,
+                                 value: AnyCodable($0))
         }
         
         try container.encode(self.notes, forKey: .notes)
         
         try container.encode( nodeMap, forKey: .nodeMap)
+        try container.encode(self.connections.filter { connection in
+            self.nodePort(forID: connection.outletPortID) != nil &&
+            self.nodePort(forID: connection.inletPortID) != nil
+        }, forKey: .connections)
         
         // encode a connection map for each port
         
@@ -269,7 +464,7 @@ internal import AnyCodable
             
             if port.connections.isEmpty { return }
             
-            map[port.id] = port.connections.map( { $0.id } )
+            map[port.id] = port.connectedPorts.map( { $0.id } )
         }
         
         try container.encode(allPortConnections, forKey: .portConnectionMap)
@@ -299,8 +494,12 @@ internal import AnyCodable
     /// interactive placement with scroll-offset and rapid-add staggering).
     public func addNode(_ node:Node)
     {
-        print("Graph: \(self.id) Add Node", node.name)
+        print("Graph: \(self.id) Add Node", node)
         self.maybeAddNodeToScene(node)
+
+        // Create the ViewModel before appending so it is always present
+        // when SwiftUI re-evaluates the ForEach triggered by nodes.append.
+        self.nodeViewModels[node.id] = NodeViewModel(node: node)
 
         self.nodes.append(node)
         node.graph = self
@@ -310,17 +509,31 @@ internal import AnyCodable
         }
 
         self.undoManager?.setActionName("Add Node")
-        self.shouldUpdateConnections = true
+        self.markConnectionsChanged()
 
         self.updateRenderingNodes()
         self.rebuildPublishedParameterGroup()
+    }
+
+    /// Returns the NodeViewModel for the given node.
+    /// Always non-nil while the node is in this graph.
+    public func viewModel(for node: Node) -> NodeViewModel
+    {
+        nodeViewModels[node.id]!
+    }
+
+    /// Returns the NodeViewModel when SwiftUI is evaluating transient stale
+    /// references, such as connection rows from the same transaction as delete.
+    public func viewModelIfPresent(for node: Node) -> NodeViewModel?
+    {
+        nodeViewModels[node.id]
     }
     
     public func delete(node:Node, disconnect:Bool = true)
     {
         let savedOffset = node.offset
         let savedConnections = node.ports.flatMap { port in
-            port.connections.map { (port, $0) }
+            port.connectedPorts.map { (port, $0) }
         }
 
         if disconnect
@@ -330,21 +543,33 @@ internal import AnyCodable
 
         self.maybeDeleteNodeFromScene(node)
         self.nodes.removeAll { $0.id == node.id }
+        // Remove ViewModel after removing from nodes so any in-flight
+        // ForEach evaluation still finds it.
+        self.nodeViewModels[node.id] = nil
 
         self.undoManager?.registerUndo(withTarget: self) { graph in
             node.offset = savedOffset
+            // Recreate the ViewModel before appending to nodes (same ordering
+            // as addNode) so SwiftUI always finds it during re-render.
+            graph.nodeViewModels[node.id] = NodeViewModel(node: node)
             graph.nodes.append(node)
             node.graph = graph
             graph.maybeAddNodeToScene(node)
-            graph.shouldUpdateConnections = true
+            graph.markConnectionsChanged()
 
             for (port, connectedPort) in savedConnections {
                 port.connect(to: connectedPort)
             }
+
+            node.markDirty()
+            graph.updateRenderingNodes()
+            graph.rebuildPublishedParameterGroup()
+            graph.syncNodesToScene()
+            graph.markConnectionsChanged()
         }
 
         self.undoManager?.setActionName("Delete Node")
-        self.shouldUpdateConnections = true
+        self.markConnectionsChanged()
 
         self.updateRenderingNodes()
         self.rebuildPublishedParameterGroup()
@@ -360,75 +585,201 @@ internal import AnyCodable
         let allPorts = self.nodes.flatMap(\.ports)
         return allPorts.first(where: { $0.id == forID })
     }
-    
+
+    private func normalizedConnectionPorts(_ portA: Port, _ portB: Port) -> (outlet: Port, inlet: Port)?
+    {
+        if portA.kind == .Outlet, portB.kind == .Inlet {
+            return (portA, portB)
+        }
+
+        if portA.kind == .Inlet, portB.kind == .Outlet {
+            return (portB, portA)
+        }
+
+        return nil
+    }
+
+    @discardableResult
+    func registerConnection(between portA: Port, and portB: Port) -> Connection?
+    {
+        guard let normalized = normalizedConnectionPorts(portA, portB) else { return nil }
+        guard !connections.contains(where: {
+            $0.outletPortID == normalized.outlet.id && $0.inletPortID == normalized.inlet.id
+        }) else { return normalized.outlet.connection(to: normalized.inlet) }
+
+        let connection = Connection(outletPortID: normalized.outlet.id,
+                                    inletPortID: normalized.inlet.id)
+        attachConnection(connection)
+        markConnectionTopologyChanged()
+        return connection
+    }
+
+    @discardableResult
+    func unregisterConnection(between portA: Port, and portB: Port) -> Bool
+    {
+        guard let normalized = normalizedConnectionPorts(portA, portB) else { return false }
+        let oldCount = connections.count
+        let removedConnections = connections.filter {
+            $0.outletPortID == normalized.outlet.id && $0.inletPortID == normalized.inlet.id
+        }
+        connections.removeAll { connection in
+            removedConnections.contains { $0.id == connection.id }
+        }
+        normalized.outlet.connections.removeAll { connection in
+            removedConnections.contains { $0.id == connection.id }
+        }
+        normalized.inlet.connections.removeAll { connection in
+            removedConnections.contains { $0.id == connection.id }
+        }
+
+        if connections.count != oldCount {
+            if let outletNode = normalized.outlet.node,
+               let inletNode = normalized.inlet.node
+            {
+                outletNode.didDisconnectFromNode(inletNode)
+                inletNode.didDisconnectFromNode(outletNode)
+            }
+
+            markConnectionTopologyChanged()
+            return true
+        }
+
+        return false
+    }
+
+    public func setConnectionActive(_ active: Bool, connectionID: UUID)
+    {
+        guard let index = connections.firstIndex(where: { $0.id == connectionID }),
+              connections[index].active != active
+        else { return }
+
+        connections[index].active = active
+    }
+
+    private func attachConnection(_ connection: Connection)
+    {
+        guard let outlet = nodePort(forID: connection.outletPortID),
+              let inlet = nodePort(forID: connection.inletPortID)
+        else { return }
+
+        attachConnection(connection, outlet: outlet, inlet: inlet)
+    }
+
+    private func attachConnection(_ connection: Connection, outlet: Port, inlet: Port)
+    {
+        connection.graph = self
+        connection.outletPortReference = outlet
+        connection.inletPortReference = inlet
+        connections.append(connection)
+
+        if !outlet.connections.contains(where: { $0.id == connection.id })
+        {
+            outlet.connections.append(connection)
+        }
+
+        if !inlet.connections.contains(where: { $0.id == connection.id })
+        {
+            inlet.connections.append(connection)
+        }
+
+        if let outletNode = outlet.node,
+           let inletNode = inlet.node
+        {
+            outletNode.didConnectToNode(inletNode)
+            inletNode.didConnectToNode(outletNode)
+        }
+    }
+
     public func rebuildPublishedParameterGroup()
     {
         self.publishedParameterGroup.clear()
 
         let publishedPorts = self.getPublishedPorts()
-        let publishedParams = publishedPorts.compactMap( \.parameter )
+
+        // Sync each parameter's label to its port's displayName so the
+        // inspector reflects renames made via PortRenameAlert. The
+        // parameter is the underlying source of truth for label across
+        // all parameter views (sliders, input fields, color pickers
+        // etc.), and the user's rename was a deliberate naming action.
+        let publishedParams: [any Parameter] = publishedPorts.compactMap { port in
+            guard let param = port.parameter else { return nil }
+            let display = port.displayName
+            if param.label != display { param.label = display }
+            return param
+        }
 
         self.publishedParameterGroup.append( publishedParams )
-        self.shouldUpdateConnections = true
+        self.markConnectionsChanged()
         self.onPublishedPortsChanged?()
     }
 
     /// All ports in this graph that have been published.
     public func getPublishedPorts() -> [Port]
     {
-        return self.nodes.flatMap(\.ports).filter(\.published)
+        return self.nodes.flatMap { $0.publishedPorts() }
     }
 
     public func publishedInputPorts() -> [Port]
     {
-        return self.getPublishedPorts().filter { $0.kind == .Inlet }
+        return self.nodesWithPublishedInputs().flatMap { $0.publishedInputPorts() }
     }
 
     public func publishedOutputPorts() -> [Port]
     {
-        return self.getPublishedPorts().filter { $0.kind == .Outlet }
+        if cachedPublishedOutputPortsRevision == connectionRevision {
+            return cachedPublishedOutputPorts
+        }
+
+        cachedPublishedOutputPorts = self.nodesWithPublishedOutputs().flatMap { $0.publishedOutputPorts() }
+        cachedPublishedOutputPortsRevision = connectionRevision
+
+        return cachedPublishedOutputPorts
     }
 
     internal func nodesWithPublishedPorts() -> [Node]
     {
         return self.nodes.filter { node in
-            node.ports.contains { $0.published }
+            !node.publishedPorts().isEmpty
         }
     }
     
     internal func nodesWithPublishedInputs() -> [Node]
     {
-        return self.nodesWithPublishedPorts().filter { node in
-            node.ports.contains { $0.kind == .Inlet }
+        return self.nodes.filter { node in
+            !node.publishedInputPorts().isEmpty
         }
     }
     
     internal func nodesWithPublishedOutputs() -> [Node]
     {
-        return self.nodesWithPublishedPorts().filter { node in
-            node.ports.contains { $0.kind == .Outlet }
+        return self.nodes.filter { node in
+            !node.publishedOutputPorts().isEmpty
         }
     }
      
     // MARK: -Rendering Helpers
     internal var consumerNodes: [Node] = []
     internal var sceneObjectNodes:[BaseObjectNode] = []
-    internal var firstCamera:Camera? = nil
+    internal var latestCamera:Camera? = nil
     
     func updateRenderingNodes()
     {
         self.consumerNodes = self.nodes.filter( { $0.nodeExecutionMode == .Consumer } )
         
-        self.firstCamera = Self.getFirstCamera(graph:self)
+        self.latestCamera = Self.latestCamera(in:self)
     }
     
-    static func getFirstCamera(graph:Graph) -> Camera?
+    /// The camera a graph renders with: the last one added to it, so a camera
+    /// added to a graph that has one takes control rather than joining a queue
+    /// behind it. One camera is active at a time; the rest are in the scene and
+    /// inert.
+    static func latestCamera(in graph:Graph) -> Camera?
     {
         let sceneObjectNodes:[BaseObjectNode] = graph.consumerNodes.compactMap({ $0 as? BaseObjectNode})
 
-        let firstCameraNode = sceneObjectNodes.first(where: { $0.nodeType == .Object(objectType: .Camera)})
+        let latestCameraNode = sceneObjectNodes.last(where: { $0.nodeType == .Object(objectType: .Camera)})
 
-        let camera = firstCameraNode?.getObject() as? Camera
+        let camera = latestCameraNode?.getObject() as? Camera
         
         // Only recurse if we need to
         guard let camera else
@@ -446,8 +797,8 @@ internal import AnyCodable
                 
             let subGraphs = subGraphNodes.map({ $0.subGraph } )
             
-            for subGraph in subGraphs {
-                if let camera = getFirstCamera(graph: subGraph) {
+            for subGraph in subGraphs.reversed() {
+                if let camera = latestCamera(in: subGraph) {
                     return camera
                 }
             }
@@ -515,7 +866,7 @@ internal import AnyCodable
                     break
                 }
                 
-                print(referenceNode.name, referenceNode.offset, angle, direction, "to:", $0.name, $0.offset)
+                print(referenceNode, referenceNode.offset, angle, direction, "to:", $0, $0.offset)
                 return (distance, direction, $0 )
             }
             
@@ -523,7 +874,7 @@ internal import AnyCodable
             
             if let closestDistanceDirectionNodeTuples = relevantDistanceDirectionNodeTuples.sorted(by: { $0.Distance < $1.Distance }).first
             {
-                print("reference node", referenceNode.name)
+                print("reference node", referenceNode)
 
                 self.selectNode(node: closestDistanceDirectionNodeTuples.Node, expandSelection: expandSelection)
             }
@@ -534,77 +885,75 @@ internal import AnyCodable
     {
         if !expandSelection
         {
-            for node in self.nodes
+            for n in self.nodes
             {
-                node.isSelected = false
+                nodeViewModels[n.id]?.isSelected = false
             }
         }
-        
+
         self.lastNode = node
-        self.lastNode?.isSelected = true
-//        print("selected node:", self.lastNode?.name ?? "No Node")
-        
+        nodeViewModels[node.id]?.isSelected = true
     }
-    
+
     public func selectAllNodes()
     {
         for node in self.nodes
         {
-            node.isSelected = true
+            nodeViewModels[node.id]?.isSelected = true
         }
     }
-    
+
     public func deselectAllNodes()
     {
         for node in self.nodes
         {
-            node.isSelected = false
+            nodeViewModels[node.id]?.isSelected = false
         }
     }
-    
+
     public func selectDownstreamNodes(fromNode node:Node)
     {
         var visitedNodes:[Node] = []
 
         self.selectDownstreamNodesRecursive(fromNode: node, visitedNodes:&visitedNodes)
     }
-    
-    private func selectDownstreamNodesRecursive(fromNode node:Node,  visitedNodes: inout [Node])
+
+    private func selectDownstreamNodesRecursive(fromNode node:Node, visitedNodes: inout [Node])
     {
         if !visitedNodes.contains(node)
         {
             visitedNodes.append( node )
-            node.isSelected = true
+            nodeViewModels[node.id]?.isSelected = true
 
             node.outputNodes.forEach( {
                 self.selectDownstreamNodesRecursive(fromNode: $0, visitedNodes: &visitedNodes )
             } )
         }
     }
-    
+
     public func selectUpstreamNodes(fromNode node:Node)
     {
         var visitedNodes:[Node] = []
 
         self.selectUpstreamNodesRecursive(fromNode: node, visitedNodes:&visitedNodes)
     }
-    
-    private func selectUpstreamNodesRecursive(fromNode node:Node,  visitedNodes: inout [Node])
+
+    private func selectUpstreamNodesRecursive(fromNode node:Node, visitedNodes: inout [Node])
     {
         if !visitedNodes.contains(node)
         {
             visitedNodes.append( node )
-            node.isSelected = true
+            nodeViewModels[node.id]?.isSelected = true
 
             node.inputNodes.forEach( {
                 self.selectUpstreamNodesRecursive(fromNode: $0, visitedNodes: &visitedNodes )
             } )
         }
     }
-    
+
     func createSubgraphFromSelection(centeredOnNode node:Node, usingClass subgraphClass:SubgraphNode.Type)
     {
-        let selectedNodes = self.nodes.filter( { $0.isSelected } )
+        let selectedNodes = self.selectedNodes
         
         let subGraphNode = subgraphClass.init(context: self.context)
         subGraphNode.offset = node.offset
@@ -642,12 +991,12 @@ internal import AnyCodable
         if let objectNode = node as? BaseObjectNode,
            let object = objectNode.getObject()
         {
-            print("Graph: \(self.id) Scene: Added Child", objectNode.name)
+//            print("Graph: \(self.id) Scene: Added Child", objectNode)
             self.scene.add( object )
         }
         else
         {
-            print("Graph: \(self.id) Scene: Skipped Child", node.name)
+//            print("Graph: \(self.id) Scene: Skipped Child", node)
         }
     }
     
@@ -664,13 +1013,25 @@ internal import AnyCodable
     {
         self.scene.removeAll()
 
-        print("Graph: \(self.id) Scene: Syncing Nodes")
+//        print("Graph: \(self.id) Scene: Syncing Nodes")
 
         self.nodes.forEach({ self.maybeAddNodeToScene( $0) } )
     }
 
     /// Decodes a single node from an AnyCodableMap, replicating the type resolution from Graph.init(from:)
     private func decodeNode(from map: AnyCodableMap) -> Node?
+    {
+        // Graph.init(from:) closes each node's hydration window once every node
+        // is decoded; duplicate and paste come through here instead, so the
+        // window has to close before the node is handed back or a port added
+        // later would adopt paste-time state.
+        guard let node = decodeNodeLeavingHydrationOpen(from: map) else { return nil }
+
+        _ = node.finalizePortHydration()
+        return node
+    }
+
+    private func decodeNodeLeavingHydrationOpen(from map: AnyCodableMap) -> Node?
     {
         do
         {
@@ -680,7 +1041,10 @@ internal import AnyCodable
 
             let jsonData = try encoder.encode(map.value)
 
-            if let nodeClass = NodeRegistry.shared.nodeClass(for: map.type)
+            let nodeID = Self.qualifiedNodeID(fromSerializedType: map.type)
+            let nodeRegistry = try NodeRegistry.shared
+
+            if let nodeClass = nodeRegistry.nodeClass(pluginID: nodeID.pluginID, nodeID: nodeID.nodeID)
             {
                 return try decoder.decode(nodeClass, from: jsonData)
             }
@@ -755,6 +1119,60 @@ internal import AnyCodable
         }
     }
 
+    private func qualifiedNodeID(for nodeClass: Node.Type) throws -> PluginQualifiedNodeID
+    {
+        let registry = try NodeRegistry.shared
+
+        if let qualifiedNodeID = registry.qualifiedNodeID(for: nodeClass)
+        {
+            return qualifiedNodeID
+        }
+
+        throw FabricError(.deserialization(.nodeNotFound),
+                          severity: .fatal,
+                          message: "Could not find plugin registration for node class '\(String(describing: nodeClass))'")
+    }
+
+    private func requiredPlugins(for nodes: [Node]) throws -> [PluginRequirement]
+    {
+        let registry = try NodeRegistry.shared
+        var requirementsByID: [String: PluginRequirement] = [:]
+
+        for node in nodes
+        {
+            guard let qualifiedNodeID = registry.qualifiedNodeID(for: type(of: node)) else
+            {
+                throw FabricError(.deserialization(.nodeNotFound),
+                                  severity: .fatal,
+                                  message: "Could not find plugin registration for node class '\(String(describing: type(of: node)))'")
+            }
+
+            guard let pluginInfo = PluginLoader.shared.loadedPlugins[qualifiedNodeID.pluginID] else
+            {
+                throw FabricError(.loading(.pluginNotFound),
+                                  severity: .fatal,
+                                  message: "Required plugin '\(qualifiedNodeID.pluginID)' is not loaded")
+            }
+
+            requirementsByID[qualifiedNodeID.pluginID] = PluginRequirement(id: pluginInfo.id,
+                                                                          version: pluginInfo.version)
+        }
+
+        return requirementsByID.values.sorted { $0.id < $1.id }
+    }
+
+    private static func qualifiedNodeID(fromSerializedType serializedType: String) -> PluginQualifiedNodeID
+    {
+        guard let separatorRange = serializedType.range(of: PluginQualifiedNodeID.separator) else
+        {
+            return PluginQualifiedNodeID(pluginID: PluginLoader.coreNodesPluginID,
+                                         nodeID: serializedType)
+        }
+
+        return PluginQualifiedNodeID(pluginID: String(serializedType[..<separatorRange.lowerBound]),
+                                     nodeID: String(serializedType[separatorRange.upperBound...]))
+    }
+
     /// Finds all UUID-formatted strings in JSON data by traversing the parsed structure
     private static func findAllUUIDs(in jsonData: Data) -> Set<String>
     {
@@ -806,7 +1224,7 @@ internal import AnyCodable
         {
             for port in node.ports
             {
-                let internalConnections = port.connections
+                let internalConnections = port.connectedPorts
                     .filter { allPortIDs.contains($0.id) }
                     .map { $0.id }
 
@@ -836,13 +1254,13 @@ internal import AnyCodable
 
         for node in nodesToDuplicate
         {
-            let map = AnyCodableMap(
-                type: String(describing: type(of: node)),
-                value: AnyCodable(node)
-            )
-
             do
             {
+                let qualifiedNodeID = try self.qualifiedNodeID(for: type(of: node))
+                let map = AnyCodableMap(
+                    type: qualifiedNodeID.description,
+                    value: AnyCodable(node)
+                )
                 let data = try encoder.encode(map)
                 encodedEntries.append(data)
 
@@ -857,7 +1275,7 @@ internal import AnyCodable
             }
             catch
             {
-                print("duplicateNodes: Failed to encode \(node.name): \(error)")
+                print("duplicateNodes: Failed to encode \(node): \(error)")
             }
         }
 
@@ -916,9 +1334,9 @@ internal import AnyCodable
 
         // 6. Select only the new nodes
         self.deselectAllNodes()
-        for newNode in newNodes { newNode.isSelected = true }
+        for newNode in newNodes { nodeViewModels[newNode.id]?.isSelected = true }
 
-        self.shouldUpdateConnections = true
+        self.markConnectionsChanged()
 
         return newNodes
     }
@@ -946,11 +1364,22 @@ extension Graph
 
         let internalConnections = buildInternalConnectionMap(for: nodes)
 
-        let nodeEntries: [AnyCodableMap] = nodes.map {
-            AnyCodableMap(
-                type: String(describing: type(of: $0)),
-                value: AnyCodable($0)
-            )
+        let nodeEntries: [AnyCodableMap]
+
+        do
+        {
+            nodeEntries = try nodes.map {
+                let qualifiedNodeID = try self.qualifiedNodeID(for: type(of: $0))
+                return AnyCodableMap(
+                    type: qualifiedNodeID.description,
+                    value: AnyCodable($0)
+                )
+            }
+        }
+        catch
+        {
+            print("copyNodesToPasteboard: Failed to resolve plugin node IDs: \(error)")
+            return
         }
 
         // Store connection map with string keys for Codable compatibility
@@ -1066,9 +1495,9 @@ extension Graph
             self.undoManager?.setActionName("Paste Nodes")
 
             self.deselectAllNodes()
-            for newNode in newNodes { newNode.isSelected = true }
+            for newNode in newNodes { nodeViewModels[newNode.id]?.isSelected = true }
 
-            self.shouldUpdateConnections = true
+            self.markConnectionsChanged()
 
             return newNodes
         }

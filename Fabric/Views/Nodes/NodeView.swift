@@ -10,58 +10,55 @@ import Satin
 
 struct NodeView : View
 {
-    @Bindable var node:Node
+    @Bindable var nodeViewModel: NodeViewModel
     let editingContext: GraphCanvasContext
-
-    // Drag to Offset bullshit
-    @State var offset = CGSize.zero
 
     var body: some View
     {
-        // Param List
+        let inlets = nodeViewModel.ports.filter({$0.kind == .Inlet})
+        let outlets = nodeViewModel.ports.filter({$0.kind == .Outlet})
+
         ZStack(alignment: .topLeading)
         {
-            self.node.isSelected ? Color("NodeBackgroundColorSelected") : Color("NodeBackgroundColor")
+            nodeViewModel.isSelected ? Color("NodeBackgroundColorSelected") : Color("NodeBackgroundColor")
 
             Rectangle()
                 .fill( Color.black.gradient )
-            //                    .fill( (self.node.isSelected) ? self.node.nodeType.color().gradient : self.node.nodeType.backgroundColor().gradient )
                 .frame(height: 30)
 
             VStack(alignment: .leading, spacing: 10) {
-                //
-                NodeTitleView(node: node)
+                NodeTitleView(nodeViewModel: nodeViewModel)
 
-                ForEach(self.node.ports.filter({$0.kind == .Inlet && $0.direction == .Horizontal}), id: \.id) { port in
+                ForEach(inlets) { port in
                     NodeInletView(port: port, editingContext: self.editingContext)
+                        .id(ObjectIdentifier(port))
                 }
                 Spacer(minLength: 0)
             }
-            .frame(width: self.node.nodeSize.width + NodeInletView.radius, alignment: .leading)
+            .frame(width: nodeViewModel.nodeSize.width + NodeInletView.radius, alignment: .leading)
 
             VStack(alignment: .trailing, spacing: 10) {
                 Spacer(minLength: 0)
                     .frame(height: 25)
 
-                ForEach(self.node.ports.filter({$0.kind == .Outlet && $0.direction == .Horizontal}), id: \.id) { port in
+                ForEach(outlets) { port in
                     NodeOutletView(port: port, editingContext: self.editingContext)
+                        .id(ObjectIdentifier(port))
                 }
                 Spacer(minLength: 0)
             }
-            .frame(width: self.node.nodeSize.width + NodeInletView.radius, alignment: .trailing)
-
-
+            .frame(width: nodeViewModel.nodeSize.width + NodeInletView.radius, alignment: .trailing)
         }
-        .frame(width: self.node.nodeSize.width, height: self.node.nodeSize.height)
-        .clipShape(.rect(cornerRadius: self.cornerRadius()))
+        .frame(width: nodeViewModel.nodeSize.width, height: nodeViewModel.nodeSize.height)
+        .clipShape(.rect(cornerRadius: cornerRadius()))
         .overlay {
-            RoundedRectangle(cornerRadius: self.cornerRadius())
-                .stroke(  (self.node.isSelected) ? self.node.nodeType.color() : .gray /*self.node.nodeType.backgroundColor()*/ , lineWidth: (self.node.isSelected) ? 1.5 : 1.0)
+            RoundedRectangle(cornerRadius: cornerRadius())
+                .stroke(nodeViewModel.isSelected ? nodeViewModel.nodeType.color() : .gray, lineWidth: nodeViewModel.isSelected ? 1.5 : 1.0)
         }
     }
-    
+
     func cornerRadius() -> CGFloat {
-        switch self.node.nodeType {
+        switch nodeViewModel.nodeType {
         case .Subgraph:
             return 5.0
         default:
@@ -69,4 +66,3 @@ struct NodeView : View
         }
     }
 }
-    

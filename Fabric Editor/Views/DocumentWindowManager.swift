@@ -7,93 +7,153 @@
 
 import Foundation
 import AppKit
-import Metal
-import simd
 import Fabric
+import Satin
 
 
 private enum ToolbarID
 {
     static let output = NSToolbar.Identifier("OutputToolbar")
-    
-    static let playPause   = NSToolbarItem.Identifier("playPause")
-    
+    static let playPause = NSToolbarItem.Identifier("playPause")
 }
 
+/// Manages the separate output window. The window does not own rendering:
+/// `OutputPresenter` lends it the document's `MetalViewController` while the
+/// presentation mode is `.separateWindow`, and takes it back for the editor
+/// canvas otherwise.
+@MainActor
 class DocumentOutputWindowManager : NSObject
 {
     weak var ownerDocument: FabricDocument?
-    private var outputwindow:NSWindow? = nil
-    private var outputRenderer:CAMetalDisplayLinkRenderer? = nil
-    
+    weak var presenter: OutputPresenter?
+
+    // Created on first present(), so documents opened in editor-canvas mode
+    // never pay for a window they may not show.
+    private var outputWindow: NSWindow?
+    private var windowTitle = ""
+    private var pendingWithdrawCompletion: (() -> Void)?
+    private var isExitingFullScreen = false
+
     // Toolbar shit
     private weak var playPauseItem: NSToolbarItem?
 
-    
-    override init()
+    func present(_ viewController: NSViewController)
     {
-        self.outputwindow = NSWindow(contentRect: NSRect(x: 100, y: 100, width: 600, height: 600),
-                                     styleMask: [.titled, .miniaturizable, .resizable, .unifiedTitleAndToolbar],
-                                     backing: .buffered, defer: false)
-        self.outputwindow?.isReleasedWhenClosed = false
-        self.outputwindow?.makeKeyAndOrderFront(nil)
-        self.outputwindow?.level = .normal // NSWindow.Level(NSWindow.Level.normal.rawValue + 1)
+        self.pendingWithdrawCompletion = nil
 
-        super.init()
+        let window = self.makeWindowIfNeeded()
 
-        self.outputwindow?.delegate = self
-        self.installToolbar()
-    }
-    
-    private func installToolbar()
-    {
-        let tb = NSToolbar(identifier: ToolbarID.output)
-        tb.delegate = self
-        tb.displayMode = .iconOnly      // or .iconAndLabel
-        tb.sizeMode   = .regular
-        tb.allowsUserCustomization = false
+        viewController.view.frame = window.contentView?.bounds ?? .zero
+        window.contentViewController = viewController
 
-        self.outputwindow?.toolbar = tb
-        self.outputwindow?.toolbarStyle = .unified // or .unifiedCompact
-    }
-    
-    func setGraph(graph:Graph)
-    {
-        self.outputRenderer = CAMetalDisplayLinkRenderer(graph:graph)
-        self.outputRenderer?.frame = CGRect(x: 0,
-                                            y: 0,
-                                            width: self.outputwindow?.frame.size.width ?? 600,
-                                            height: self.outputwindow?.frame.size.height ?? 600)
-            
-        self.outputwindow?.contentView = self.outputRenderer
-    }
-    
-    func setWindowName(_ name:String)
-    {
-        self.outputwindow?.title = name
+        // orderFront, not makeKeyAndOrderFront: the mode is app-wide, so
+        // every open document presents at once and none of their output
+        // windows should steal the keyboard from the editor.
+        window.orderFront(nil)
     }
 
-    func snapshotExportTime() -> TimeInterval
+    /// Completion fires once the window has given the view controller back —
+    /// immediately, unless the window must exit full screen first.
+    func withdraw(completion: @escaping () -> Void = {})
     {
-        guard
-            let outputRenderer = self.outputRenderer,
-            let lastRenderedGraphTime = outputRenderer.lastRenderedGraphTime
-        else
-        {
-            return 0
+        guard let window = self.outputWindow else {
+            completion()
+            return
         }
 
-        return lastRenderedGraphTime
+        if window.styleMask.contains(.fullScreen) || self.isExitingFullScreen
+        {
+            // A second withdraw can arrive while the exit animation runs;
+            // toggling again would bounce the window back into full screen,
+            // so only the parked completion is replaced.
+            self.pendingWithdrawCompletion = completion
+            if !self.isExitingFullScreen
+            {
+                self.isExitingFullScreen = true
+                window.toggleFullScreen(nil)
+            }
+            return
+        }
+
+        window.orderOut(nil)
+        window.contentViewController = nil
+        completion()
     }
-    
-    func closeOutputWindow()
+
+    func setWindowTitle(_ title: String)
     {
-        self.outputwindow?.close()
+        self.windowTitle = title
+        self.outputWindow?.title = title
     }
-    
+
+    func reflectPlaybackState()
+    {
+        guard let presenter = self.presenter else { return }
+
+        self.playPauseItem?.image = NSImage(
+            systemSymbolName: presenter.playbackControlSymbolName,
+            accessibilityDescription: presenter.playbackControlLabel
+        )
+        self.playPauseItem?.label = presenter.playbackControlLabel
+    }
+
+    func closeWindow()
+    {
+        guard let window = self.outputWindow else {
+            self.pendingWithdrawCompletion = nil
+            self.isExitingFullScreen = false
+            return
+        }
+
+        if window.styleMask.contains(.fullScreen) || self.isExitingFullScreen
+        {
+            // Closing a full-screen window in place strands its Space; exit
+            // first and finish from windowDidExitFullScreen.
+            self.pendingWithdrawCompletion = { [weak self] in self?.closeWindow() }
+            if !self.isExitingFullScreen
+            {
+                self.isExitingFullScreen = true
+                window.toggleFullScreen(nil)
+            }
+            return
+        }
+
+        self.pendingWithdrawCompletion = nil
+        window.delegate = nil
+        window.contentViewController = nil
+        window.close()
+        self.outputWindow = nil
+    }
+
+    private func makeWindowIfNeeded() -> NSWindow
+    {
+        if let window = self.outputWindow {
+            return window
+        }
+
+        let window = NSWindow(contentRect: NSRect(x: 100, y: 100, width: 600, height: 600),
+                              styleMask: [.titled, .miniaturizable, .resizable, .unifiedTitleAndToolbar],
+                              backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.level = .normal
+        window.title = self.windowTitle
+        window.delegate = self
+
+        let toolbar = NSToolbar(identifier: ToolbarID.output)
+        toolbar.delegate = self
+        toolbar.displayMode = .iconOnly
+        toolbar.sizeMode = .regular
+        toolbar.allowsUserCustomization = false
+        window.toolbar = toolbar
+        window.toolbarStyle = .unified
+
+        self.outputWindow = window
+        return window
+    }
+
     deinit
     {
-        print("Free DocumentOutputWindowManager")        
+        print("Free DocumentOutputWindowManager")
     }
 }
 
@@ -104,14 +164,20 @@ extension DocumentOutputWindowManager: NSWindowDelegate
         ActiveFabricDocumentStore.shared.activeDocument = self.ownerDocument
     }
 
-    func windowWillClose(_ notification: Notification)
+    func windowDidExitFullScreen(_ notification: Notification)
     {
-        // Tell the renderer to stop *all* time/display-linked work
-        self.outputRenderer?.teardown()
+        self.isExitingFullScreen = false
+        guard let completion = self.pendingWithdrawCompletion else { return }
+        self.pendingWithdrawCompletion = nil
+        self.withdraw(completion: completion)
+    }
 
-        // Break strong reference cycles and detach the view from the window
-        self.outputwindow?.contentView = nil
-        self.outputRenderer = nil
+    func window(_ window: NSWindow, willUseFullScreenPresentationOptions proposedOptions: NSApplication.PresentationOptions = []) -> NSApplication.PresentationOptions
+    {
+        // Without this, a window with a toolbar keeps its title bar strip on
+        // screen in full screen; hiding it with the menu bar leaves nothing
+        // but the rendered output.
+        proposedOptions.union(.autoHideToolbar)
     }
 }
 
@@ -122,8 +188,6 @@ extension DocumentOutputWindowManager: NSToolbarDelegate
     {
         [
             ToolbarID.playPause,
-//            ToolbarID.snapshot,
-//            ToolbarID.fit,
             .flexibleSpace,
             .space,
         ]
@@ -133,8 +197,6 @@ extension DocumentOutputWindowManager: NSToolbarDelegate
     {
         [.flexibleSpace,
          ToolbarID.playPause,
-//         ToolbarID.snapshot,
-//         ToolbarID.fit
         ]
     }
 
@@ -144,33 +206,22 @@ extension DocumentOutputWindowManager: NSToolbarDelegate
 
         switch itemIdentifier
         {
-
         case ToolbarID.playPause:
             let item = NSToolbarItem(itemIdentifier: itemIdentifier)
-            item.label = "Pause"
             item.toolTip = "Start or stop the output render loop"
-            item.image = NSImage(systemSymbolName: "pause.fill", accessibilityDescription: nil)
             item.target = self
             item.action = #selector(togglePlayback)
             self.playPauseItem = item
+            self.reflectPlaybackState()
             return item
 
         default:
             return nil
         }
     }
-    
+
     @objc private func togglePlayback()
     {
-        self.outputRenderer?.isPaused.toggle()
-        
-        let isPlaying = self.outputRenderer?.isPaused ?? true
-        
-        self.playPauseItem?.image = NSImage(
-               systemSymbolName: isPlaying ? "play.fill" : "pause.fill",
-               accessibilityDescription: nil
-           )
-        
-        self.playPauseItem?.label = isPlaying ? "Play" : "Pause"
+        self.presenter?.togglePlayback()
     }
 }

@@ -29,9 +29,9 @@ public class TriangleGeometryNode : BaseGeometryNode
 
     public override var geometry: TriangleGeometry { _geometry }
     
-    private let _geometry = TriangleGeometry(size: 1.0)
+    private lazy var _geometry = TriangleGeometry(context:self.context, size: 1.0)
 
-    override public func evaluate(geometry: SatinGeometry, atTime: TimeInterval) -> Bool
+    override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool
     {
         var shouldOutputGeometry = super.evaluate(geometry: geometry, atTime: atTime)
 

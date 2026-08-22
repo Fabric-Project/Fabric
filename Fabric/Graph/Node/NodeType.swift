@@ -57,14 +57,18 @@ extension Node
     {
         public enum ParameterType : String, CaseIterable, Equatable, Hashable
         {
+            case Numeric // This is for Nodes that can handle any numeric type
             case Boolean
             case Number
             case Vector
             case Quaternion
             case Transform
             case Color
+
+            // Non Numeric
             case String
             case Array
+            case Dictionary
             case IO
 
             static func nodeTypes() -> [Node.NodeType] {
@@ -198,6 +202,18 @@ extension Node
                 return Color(hue: 0, saturation: 0, brightness: 0.9)
             }
             
+        }
+        
+        public func secondaryColor() -> Color
+        {
+            switch self
+            {
+            case .Parameter, .Utility:
+                return self.color( ).opacity(0.6)
+                
+            default:
+                return self.color()
+            }
         }
         
         public func backgroundColor() -> Color

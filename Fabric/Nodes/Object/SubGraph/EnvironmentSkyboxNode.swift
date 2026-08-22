@@ -21,22 +21,30 @@ class EnvironmentSkyboxNode: BaseRenderableNode<Mesh>
     }
     
     private let mesh: Mesh
-    private let geometry = SkyboxGeometry(size: 100)
-    private let material = SkyboxMaterial()
+    private let geometry:SkyboxGeometry
+    private let material:SkyboxMaterial
     
     public required init(context:Context)
     {
-        self.mesh = Mesh(geometry: self.geometry, material: self.material)
+        self.geometry = SkyboxGeometry(context:context, size: 100)
+        self.material = SkyboxMaterial(context:context)
+        
+        self.mesh = Mesh(context:context, geometry: self.geometry, material: self.material)
         
         super.init(context: context)
         
         self.material.setup()
     }
-    
+
     public required init(from decoder: any Decoder) throws
     {
-        self.mesh = Mesh(geometry: self.geometry, material: self.material)
+        guard let context = decoder.context?.documentContext as? Context else { fatalError("Unable to decode Context") }
         
+        self.geometry = SkyboxGeometry(context:context, size: 100)
+        self.material = SkyboxMaterial(context:context)
+        
+        self.mesh = Mesh(context:context, geometry: self.geometry, material: self.material)
+
         try super.init(from: decoder)
         
         self.material.setup()

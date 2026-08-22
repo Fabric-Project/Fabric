@@ -38,11 +38,13 @@ public class NumberIntegralNode : Node
     public var inputNumber:ParameterPort<Float> { port(named: "inputNumber") }
     public var outputNumber:NodePort<Float> { port(named: "outputNumber") }
     
-    public override func execute(context:GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
-        self.state += (self.inputNumber.value ?? 0.0) * Float(context.timing.deltaTime)
+        self.state += (self.inputNumber.value ?? 0.0) * Float(executionInfo.timing.deltaTime)
         
         self.outputNumber.send(self.state)
     }

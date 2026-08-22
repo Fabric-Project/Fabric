@@ -45,6 +45,7 @@ public class CameraProviderNode : Node
     class CaptureDelegate : NSObject, AVCaptureVideoDataOutputSampleBufferDelegate
     {
         var pixelBuffer:CVPixelBuffer? = nil
+        var gotNewPixelBuffer:Bool = false
 
         var captureQueue = DispatchQueue(label: "fabric.CameraTextureNode.capture_queue")
 
@@ -61,7 +62,7 @@ public class CameraProviderNode : Node
             DispatchQueue.main.async {
 
                 self.pixelBuffer = pixelBuffer
-
+                self.gotNewPixelBuffer = true
             }
        }
     }
@@ -87,17 +88,17 @@ public class CameraProviderNode : Node
     public var inputCamera:ParameterPort<String>  { port(named: "inputCamera") }
     public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
     
-    @ObservationIgnored private let discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInWideAngleCamera, .continuityCamera, .external,], mediaType: nil, position:.unspecified)
-    @ObservationIgnored private var device: AVCaptureDevice? = nil
-    @ObservationIgnored private var captureSession: AVCaptureSession
-    @ObservationIgnored private let captureDelegate = CaptureDelegate()
+    private let discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInWideAngleCamera, .continuityCamera, .external,], mediaType: nil, position:.unspecified)
+    private var device: AVCaptureDevice? = nil
+    private var captureSession: AVCaptureSession
+    private let captureDelegate = CaptureDelegate()
 
-    @ObservationIgnored private var observer: Any? = nil
+    private var observer: Any? = nil
     
-    @ObservationIgnored private var devices = [AVCaptureDevice]()
+    private var devices = [AVCaptureDevice]()
 
-    @ObservationIgnored private var wasConnectedObserver:Any? = nil
-    @ObservationIgnored private var wasDisconnectedObserver:Any? = nil
+    private var wasConnectedObserver:Any? = nil
+    private var wasDisconnectedObserver:Any? = nil
 
     required public init(context:Context)
     {
@@ -156,23 +157,41 @@ public class CameraProviderNode : Node
 
     }
     
+    override public func startExecution(renderer:GraphRenderer) throws
+    {
+        if self.captureSession.isRunning == false
+        {
+            self.captureSession.startRunning()
+        }
+    }
+    
+    override public func stopExecution(renderer:GraphRenderer) throws
+    {
+        if self.captureSession.isRunning
+        {
+            self.captureSession.stopRunning()
+        }
+    }
   
-    override public func execute(context:GraphExecutionContext,
-                           renderPassDescriptor: MTLRenderPassDescriptor,
-                           commandBuffer: MTLCommandBuffer)
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
+    throws
     {
         
         if self.inputCamera.valueDidChange
         {
-            updateCameraSession()
+            try updateCameraSession()
         }
         
-       
-        if let pixelBuffer = self.captureDelegate.pixelBuffer,
-           let renderer = context.graphRenderer,
-           let image = renderer.newImage(fromPixelBuffer: pixelBuffer)
+        if self.captureDelegate.gotNewPixelBuffer,
+           let pixelBuffer = self.captureDelegate.pixelBuffer
         {
-            self.outputTexturePort.send( image )                
+            let image = try renderer.newImage(fromPixelBuffer: pixelBuffer)
+
+            self.outputTexturePort.send( image )
+            self.captureDelegate.gotNewPixelBuffer = false
         }
         
      }
@@ -210,25 +229,26 @@ public class CameraProviderNode : Node
         ] as [String : Any]
     }
     
-    private func updateCameraSession()
+    private func updateCameraSession() throws
     {
         if let deviceLocalizedName = self.inputCamera.value
         {
             if let uniqueIDForDeviceWithMatchingName = self.devices.first(where: { $0.localizedName == deviceLocalizedName })?.uniqueID,
                let device = AVCaptureDevice.init(uniqueID: uniqueIDForDeviceWithMatchingName)
             {
-                self.setupCaptureSession(videoDevice: device)
+                try self.setupCaptureSession(videoDevice: device)
             }
             else
             {
                 self.outputTexturePort.send( nil )
-                
-                print("wtf")
+                throw FabricError(.execution(.deviceNotFound),
+                                  severity: .recoverable,
+                                  message: "Camera device not found: \(deviceLocalizedName)")
             }
         }
     }
     
-    private func setupCaptureSession(videoDevice:AVCaptureDevice)
+    private func setupCaptureSession(videoDevice:AVCaptureDevice) throws
     {
         if self.captureSession.isRunning
         {
@@ -243,13 +263,24 @@ public class CameraProviderNode : Node
             }
         }
 
-        guard
-            let videoDeviceInput = try? AVCaptureDeviceInput(device: videoDevice),
-            self.captureSession.canAddInput(videoDeviceInput)
-        else
+        let videoDeviceInput: AVCaptureDeviceInput
+        do
         {
-            print("Error: Could not create video device input.")
-            return
+            videoDeviceInput = try AVCaptureDeviceInput(device: videoDevice)
+        }
+        catch
+        {
+            throw FabricError(.execution(.deviceNotFound),
+                              severity: .recoverable,
+                              message: "Could not create camera input for \(videoDevice.localizedName)",
+                              underlyingError: error)
+        }
+
+        guard self.captureSession.canAddInput(videoDeviceInput) else
+        {
+            throw FabricError(.execution(.deviceNotFound),
+                              severity: .recoverable,
+                              message: "Could not add camera input for \(videoDevice.localizedName)")
         }
         
         self.captureSession.beginConfiguration()
@@ -267,8 +298,9 @@ public class CameraProviderNode : Node
             self.captureSession.canAddOutput(videoOutput)
         else
         {
-            print("Error: Could not add video output.")
-            return
+            throw FabricError(.execution(.deviceNotFound),
+                              severity: .recoverable,
+                              message: "Could not add camera output for \(videoDevice.localizedName)")
         }
 
         self.captureSession.addOutput(videoOutput)

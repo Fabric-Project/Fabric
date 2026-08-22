@@ -7,58 +7,147 @@
 
 import SwiftUI
 
-struct NodeTitleView: View {
-    
-    let node: Node
-    
-    // Rename
-    @State public var renaming: Bool = false
+struct NodeTitleView: View
+{
+    var nodeViewModel: NodeViewModel
+
+    @State private var renaming: Bool = false
     @State private var renamingText: String = ""
     @FocusState private var renameFieldFocused: Bool
 
-    var body: some View {
-        // Name
-        Group {
-            if renaming {
-                TextField("", text: $renamingText, onCommit: {
-                    let trimmed = renamingText.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let oldName = node.name
-                    node.graph?.undoManager?.registerUndo(withTarget: node) { node in
-                        node.displayName = oldName
-                    }
-                    node.graph?.undoManager?.setActionName("Rename Node")
-                    node.displayName = trimmed.isEmpty ? nil : trimmed
-                    renaming = false
-                })
-                .textFieldStyle(.plain)
-                .focused($renameFieldFocused)
-                .font(.system(size: 9))
-                .bold()
-                .foregroundStyle( self.node.nodeType.color() )
-                .frame(maxHeight: 20)
-                .padding(.top, 5)
-                .padding(.horizontal, 20)
-                .onDisappear {
-                    renaming = false
+    private var title: String { nodeViewModel.title }
+
+    // Nil when the node has neither a rename nor a generated name, so the title
+    // is its type name alone.
+    private var primaryLabel: String? { nodeViewModel.subtitle }
+
+    /// Opaque across the title, fading to clear over the last ~1 character so an
+    /// over-long title dissolves at the node's right edge rather than hard-clipping.
+    private var titleEdgeFade: LinearGradient
+    {
+        let width = max(nodeViewModel.nodeSize.width, 1)
+        let fade = min(8, width)
+        let solid = max(0, (width - fade) / width)
+        return LinearGradient(
+            stops: [
+                .init(color: .white, location: 0),
+                .init(color: .white, location: solid),
+                .init(color: .clear, location: 1),
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
+
+   
+
+    var body: some View
+    {
+        Group
+        {
+            let secondaryColor = nodeViewModel.nodeType.secondaryColor()
+            
+            if renaming
+            {
+                HStack(spacing: 0)
+                {
+                    // Placeholder previews the empty-commit outcome: with no
+                    // rename, the node-derived subtitle shows; the registered
+                    // title already follows as the suffix Text.
+                    TextField(nodeViewModel.subtitle ?? "", text: $renamingText)
+                        .textFieldStyle(.plain)
+                        .focused($renameFieldFocused)
+                        .font(.system(size: 9))
+                        .bold()
+                        .foregroundStyle(.white)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .onSubmit(commitRename)
+                        .onDisappear
+                        {
+                            renaming = false
+                        }
+
+                    Text(verbatim: " \(title)")
+                        .font(.system(size: 9))
+                        .bold()
+                        .foregroundStyle(secondaryColor)
                 }
-            } else {
-                Text( self.node.name )
+            }
+            else if let primaryLabel
+            {
+                // Text(verbatim:) + concatenation: these are data strings, not UI
+                // copy — the literal-interpolation initializer would do a doomed
+                // localization lookup on every render.
+                let primary = Text(primaryLabel).foregroundStyle(.white)
+                let secondary = Text(verbatim: " \(title)").foregroundStyle(secondaryColor)
+                (primary + secondary)
                     .font(.system(size: 9))
                     .bold()
-                //                        .foregroundStyle(.primary)
-                    .foregroundStyle(  self.node.nodeType.color()  )
-                    .frame(maxHeight: 20)
-                    .contentShape(Rectangle())
-                    .padding(.top, 5)
-                    .padding(.horizontal, 20)
-                    .onTapGesture(count: 2) { // double click to rename
-                        renaming = true
-                    }
+            }
+            else
+            {
+                Text(title)
+                    .font(.system(size: 9))
+                    .bold()
+                    .foregroundStyle(nodeViewModel.nodeType.color())
             }
         }
-        .onChange(of: renaming) { _, new in
-            if new { renamingText = self.node.name }
+        // Lay the title out at its full intrinsic width (single line, no
+        // ellipsis), then constrain to the node width and soft-fade the trailing
+        // edge so an over-long title dissolves at the node boundary instead of
+        // hard-clipping with a "…".
+        .lineLimit(1)
+        .fixedSize(horizontal: true, vertical: false)
+        .frame(maxHeight: 20)
+        .padding(.top, 5)
+        .padding(.leading, 20)
+        .frame(width: nodeViewModel.nodeSize.width, alignment: .leading)
+        .clipped()
+        .mask(titleEdgeFade)
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2)
+        {
+            if !renaming { renaming = true }
+        }
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Double-tap to rename node")
+        .onChange(of: renaming)
+        { _, new in
+            if new { renamingText = nodeViewModel.userName ?? "" }
             renameFieldFocused = new
         }
+        // Return commits via onSubmit; clicking elsewhere must also commit,
+        // otherwise the edit is silently lost and the field stays stuck in
+        // rename mode (the double-tap gesture is guarded by !renaming).
+        .onChange(of: renameFieldFocused)
+        { _, focused in
+            if !focused && renaming { commitRename() }
+        }
+        .onExitCommand
+        {
+            if renaming { renaming = false }
+        }
+    }
+
+    private func commitRename()
+    {
+        let trimmed = renamingText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let oldUserName = nodeViewModel.userName
+        let newUserName = trimmed.isEmpty ? nil : trimmed
+
+        guard newUserName != oldUserName else
+        {
+            renaming = false
+            return
+        }
+
+        nodeViewModel.node.graph?.undoManager?.registerUndo(withTarget: nodeViewModel)
+        { nodeViewModel in
+            nodeViewModel.userName = oldUserName
+        }
+        nodeViewModel.node.graph?.undoManager?.setActionName("Rename Node")
+
+        nodeViewModel.userName = newUserName
+        renaming = false
     }
 }

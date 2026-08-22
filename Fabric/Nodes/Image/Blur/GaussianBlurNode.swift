@@ -18,7 +18,7 @@ public final class GaussianBlurNode: BaseMultiPassBlurEffectNode {
         var padding: Float
     }
 
-    @ObservationIgnored private var passUniformsBuffers: [StructBuffer<GaussianPassUniforms>] = []
+    private var passUniformsBuffers: [StructBuffer<GaussianPassUniforms>] = []
 
     required init(context: Context, fileURL: URL) throws {
         try super.init(context: context, fileURL: fileURL)
@@ -42,14 +42,12 @@ public final class GaussianBlurNode: BaseMultiPassBlurEffectNode {
         return self.passUniformsBuffers[index]
     }
 
-    override public func execute(context: GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
-//        guard self.shouldExecuteThisFrame() else {
-//            return
-//        }
-
         guard let inputTexture = self.validatedSingleInputTexture() else {
             self.outputTexturePort.send(nil)
             return
@@ -99,12 +97,13 @@ public final class GaussianBlurNode: BaseMultiPassBlurEffectNode {
         steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 0.333, vector: simd_float2(1.0, 0.0)))
         steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 0.333, vector: simd_float2(0.0, 1.0)))
 //        }
-
-        let outputImage = self.runPassChain(context: context,
-                                               commandBuffer: commandBuffer,
-                                               inputTexture: inputTexture,
-                                               steps: steps,
-                                               prepareStep: { [weak self] stepIndex, step in
+        
+        let outputImage = self.runPassChain(renderer: renderer,
+                                            executionInfo: executionInfo,
+                                            commandBuffer: commandBuffer,
+                                            inputTexture: inputTexture,
+                                            steps: steps,
+                                            prepareStep: { [weak self] stepIndex, step in
             guard let self else { return }
 
             let passUniforms = GaussianPassUniforms(direction: step.vector,

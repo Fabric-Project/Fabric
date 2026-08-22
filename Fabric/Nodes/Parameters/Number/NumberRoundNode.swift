@@ -28,7 +28,7 @@ public class NumberRoundNode : Node
         
         return ports +
         [
-            ("inputNumber", NodePort<Float>(name: "Number" , kind: .Inlet, description: "Number to round")),
+            ("inputNumber", ParameterPort(parameter: FloatParameter("Number", 0, Float.leastNormalMagnitude, Float.greatestFiniteMagnitude, .inputfield, "Number to round"))),
             ("inputRoundMethod", ParameterPort(parameter: StringParameter("Round Method", "Round", ["Round", "Floor", "Ceil"], .dropdown, "Rounding method (Round, Floor, or Ceiling)"))),
             ("outputNumber", NodePort<Int>(name: "Number" , kind: .Outlet, description: "The rounded integer value")),
         ]
@@ -39,9 +39,11 @@ public class NumberRoundNode : Node
     public var inputRoundMethod:ParameterPort<String> { port(named: "inputRoundMethod") }
     public var outputNumber:NodePort<Int> { port(named: "outputNumber") }
     
-    override public func execute(context:GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if self.inputNumber.valueDidChange || self.inputRoundMethod.valueDidChange
         {

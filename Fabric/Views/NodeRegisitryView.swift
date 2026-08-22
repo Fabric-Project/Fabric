@@ -10,13 +10,19 @@ import Satin
 
 public struct NodeRegisitryView: View {
 
+    public let graphRenderer: GraphRenderer
     public let editingContext: GraphCanvasContext
-    @Binding private var inputFocus: FabricEditorInputFocus
+
+    /// The editor-wide focus state. The search field binds to `.registrySearch`
+    /// and the list to `.registryList`, so "search focused" is read from real
+    /// focus rather than a locally-shadowed Bool.
+    private let focus: FocusState<FabricEditorFocusTarget?>.Binding
 
     @State private var searchString:String = ""
     @State private var selection = Set<UUID>()
     @State private var headerSelection: Node.NodeTypeGroups = .All
-    @FocusState private var isSearchFocused: Bool
+
+    private var isSearchFocused: Bool { self.focus.wrappedValue == .registrySearch }
 
 
     @State private var filteredNodesForTypes: [Node.NodeType:[NodeClassWrapper]] = [:]
@@ -40,13 +46,16 @@ public struct NodeRegisitryView: View {
 
     private var haveNodesToShow: Bool { self.numNodesToShow > 0 }
 
-    public init(editingContext: GraphCanvasContext, inputFocus: Binding<FabricEditorInputFocus>) {
+    public init(graphRenderer:GraphRenderer, editingContext: GraphCanvasContext, focus: FocusState<FabricEditorFocusTarget?>.Binding) {
+        self.graphRenderer = graphRenderer
         self.editingContext = editingContext
-        self._inputFocus = inputFocus
+        self.focus = focus
     }
     
     public var body: some View
     {
+        let nodeTypes = self.headerSelection.nodeTypes()
+        
         VStack(spacing: 0)
         {
             Divider()
@@ -62,13 +71,13 @@ public struct NodeRegisitryView: View {
             ScrollViewReader { listProxy in
                 List(selection:$selection)
                 {
-                    ForEach(self.headerSelection.nodeTypes(), id: \.self) { nodeType in
+                    ForEach(nodeTypes, id: \.self) { nodeType in
 
                         if let filteredNodesForType:[NodeClassWrapper] = self.filteredNodesForTypes[nodeType],
                            filteredNodesForType.isEmpty == false
                         {
                             Section(header: Text("\(nodeType)")) {
-                                ForEach(filteredNodesForType, id: \.id) { node in
+                                ForEach(filteredNodesForType) { node in
                                     VStack(alignment: .leading, spacing: 4)
                                     {
                                         Text(node.nodeName)
@@ -90,7 +99,7 @@ public struct NodeRegisitryView: View {
                         }
                     }
                 }
-                .focused($isSearchFocused, equals:false)
+                .focused(focus, equals: .registryList)
                 .onAppear()
                 {
                     self.updateFilteredNodes()
@@ -113,11 +122,6 @@ public struct NodeRegisitryView: View {
                 } primaryAction: { _ in
                     self.addSelectedNodes()
                 }
-                .simultaneousGesture(
-                    TapGesture().onEnded {
-                        self.inputFocus = .registry
-                    }
-                )
                 .overlay
                 {
                     VStack(spacing:0)
@@ -133,7 +137,6 @@ public struct NodeRegisitryView: View {
                     .opacity( self.haveNodesToShow ? 0.0 : 1.0 )
                 }
                 .onChange(of: self.selection) { _, newSelection in
-                    self.inputFocus = .registry
                     if let id = newSelection.first
                     {
                         withAnimation {
@@ -148,23 +151,15 @@ public struct NodeRegisitryView: View {
 //            Spacer()
         }
         .searchable(text: $searchString, placement: .sidebar)
-        .searchFocused($isSearchFocused)
+        .searchFocused(focus, equals: .registrySearch)
         .searchPresentationToolbarBehavior(.avoidHidingContent)
         .onChange(of: self.searchString) { _, _ in
-            self.inputFocus = .registry
-            
             self.updateFilteredNodes()
             
             let selectionStillValid = self.selection.contains(where: { id in self.filteredNodes.contains(where: { $0.id == id }) })
             if !selectionStillValid
             {
                 self.selectFirstNode()
-            }
-        }
-        .onChange(of: self.inputFocus) { _, newValue in
-            if newValue == .registry
-            {
-                self.isSearchFocused = true
             }
         }
         .onChange(of: self.isSearchFocused) { _, focused in
@@ -205,7 +200,7 @@ public struct NodeRegisitryView: View {
                     .tag(nodeGroup)
                     .help(nodeGroup.rawValue)
                     .onTapGesture {
-                        self.inputFocus = .registry
+                        self.focus.wrappedValue = .registrySearch
                         self.headerSelection = nodeGroup
                     }
             }
@@ -231,20 +226,28 @@ public struct NodeRegisitryView: View {
     {
         for nodeID in self.selection
         {
-            if let node = NodeRegistry.shared.availableNodes.first(where: { $0.id == nodeID })
+            if let nodeWrapper = try? NodeRegistry.shared.availableNodes.first(where: { $0.id == nodeID })
             {
                  do
                  {
-                     try self.editingContext.addNode(node)
-                     self.inputFocus = .canvas
+                     let node = try nodeWrapper.initializeNode(context: self.graphRenderer.context)
+                     
+                     try self.editingContext.layoutNode(node)
+                     
+                     try node.enableExecution(renderer: self.graphRenderer)
+                     try node.startExecution(renderer: self.graphRenderer)
+                     
+                     self.editingContext.currentGraph.addNode(node)
                  }
                  catch
                  {
-                     print("Unable to add node:\(node)")
+                     print("Unable to add node:\(nodeWrapper)")
                  }
             }
         }
-        self.inputFocus = .canvas
+        // Hand keyboard focus to the canvas so the freshly added node can be
+        // arrow-key navigated immediately.
+        self.focus.wrappedValue = .canvas
     }
 
     private func selectFirstNode()
@@ -282,7 +285,7 @@ public struct NodeRegisitryView: View {
 
     func filteredNodes(forType nodeType:Node.NodeType) -> [NodeClassWrapper]
     {
-        let availableNodes:[NodeClassWrapper] = NodeRegistry.shared.availableNodes
+        let availableNodes:[NodeClassWrapper] = (try? NodeRegistry.shared.availableNodes) ?? []
         let nodesForType:[NodeClassWrapper] = availableNodes.filter( { $0.nodeType == nodeType })
         return  self.searchString.isEmpty ? nodesForType : nodesForType.filter {  $0.nodeName.localizedCaseInsensitiveContains(self.searchString) }
     }

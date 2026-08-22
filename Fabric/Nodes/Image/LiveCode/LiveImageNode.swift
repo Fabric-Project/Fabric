@@ -18,7 +18,6 @@ public class LiveImageNode: BaseImageNode
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Live-editable Metal image effect with serialized shader source." }
     override public class var defaultImageInputCountHint: Int? { 1 }
-    override public class var preserveDecodedImageInputPortsOnDecode: Bool { true }
 
     override public class var sourceShaderName: String { "LiveEffectDefaultShader" }
 
@@ -31,27 +30,60 @@ public class LiveImageNode: BaseImageNode
     private static let rootWorkspaceURL = URL(filePath: "/tmp/fabric-live-shaders", directoryHint: .isDirectory)
     private static let staleWorkspaceTTL: TimeInterval = 24 * 60 * 60
 
-    @ObservationIgnored private(set) var shaderSource: String = LiveImageNode.defaultShaderSource()
-    @ObservationIgnored private var workspaceURL: URL?
-    @ObservationIgnored private var shaderFileURL: URL?
+    private(set) var shaderSource: String = LiveImageNode.defaultShaderSource()
+
+    // A decoded copy of a node carries the document and node UUIDs of the
+    // original, so keying the workspace on those alone puts two live instances
+    // on one Shaders.metal whenever a document is decoded while the previous
+    // graph is alive (revert, reopen, round-trip test): each recompiles
+    // whatever the other last wrote, and whichever deinits first deletes the
+    // file from under the survivor. The document/node path stays for the stale
+    // workspace sweep to group by; this segment is what makes it exclusive.
+    private let workspaceInstanceID = UUID()
+
+    private var workspaceURL: URL?
+    private var shaderFileURL: URL?
+    private var workspaceError: (any Error)?
+
+    /// Set for the duration of super.init(from:) — see init(from:).
+    private var suppressesTemplateShaderPortSync = false
 
     required init(context: Context, fileURL: URL) throws {
         try super.init(context: context, fileURL: fileURL)
-        self.postInit(shouldSynchronizePorts: true)
+        self.postInit()
     }
 
     required init(context: Context) {
         super.init(context: context)
-        self.postInit(shouldSynchronizePorts: true)
+        self.postInit()
     }
 
     required init(from decoder: any Decoder) throws {
-        try super.init(from: decoder)
-
+        // The saved source is read before super.init so the port set can be
+        // built once, against the shader this node will actually run. Left to
+        // itself super.init synchronizes against the bundled template, and
+        // postInit then retargets and synchronizes again — every uniform port
+        // the template declares and the saved shader does not is created and
+        // destroyed on the way through, on every document open.
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.shaderSource = try container.decodeIfPresent(String.self, forKey: .shaderSource) ?? LiveImageNode.defaultShaderSource()
-        // Keep decoded port UUID topology intact until graph connection remap finishes.
-        self.postInit(shouldSynchronizePorts: false)
+        self.suppressesTemplateShaderPortSync = true
+
+        try super.init(from: decoder)
+
+        self.suppressesTemplateShaderPortSync = false
+
+        // The single sync: uniform ports the saved shader declares are created
+        // and adopt their persisted identity and state by registry key. On
+        // compile failure the document's own ports stand in — see
+        // recompileAndResyncPorts.
+        self.postInit()
+    }
+
+    override public func postSetupSynchronizePorts(allowReplace: Bool) {
+        guard self.suppressesTemplateShaderPortSync == false else { return }
+
+        super.postSetupSynchronizePorts(allowReplace: allowReplace)
     }
 
     deinit {
@@ -90,7 +122,7 @@ public class LiveImageNode: BaseImageNode
             self.recompileAndResyncPorts()
         }
         catch {
-            print("LiveEffect failed to write shader source: \(error.localizedDescription)")
+            self.workspaceError = error
         }
     }
 
@@ -103,7 +135,7 @@ public class LiveImageNode: BaseImageNode
         return error.localizedDescription
     }
 
-    private func postInit(shouldSynchronizePorts: Bool) {
+    private func postInit() {
         Self.sweepStaleWorkspacesOnceIfNeeded()
 
         do {
@@ -114,17 +146,22 @@ public class LiveImageNode: BaseImageNode
 
             try self.shaderSource.write(to: self.shaderFileURL!, atomically: true, encoding: .utf8)
             self.retargetMaterial(to: self.shaderFileURL!)
-            self.recompileAndResyncPorts(shouldSynchronizePorts: shouldSynchronizePorts)
+            self.recompileAndResyncPorts()
+            self.workspaceError = nil
         }
         catch {
-            print("LiveEffect workspace setup failed: \(error.localizedDescription)")
+            self.workspaceError = error
+            self.adoptRemainingSnapshotPortsAsFallback()
         }
     }
 
     private func makeWorkspaceURL() throws -> URL {
         let documentID = self.graph?.id.uuidString ?? "unsaved-document"
         let nodeID = self.id.uuidString
-        return Self.rootWorkspaceURL.appending(path: documentID).appending(path: nodeID, directoryHint: .isDirectory)
+        return Self.rootWorkspaceURL
+            .appending(path: documentID)
+            .appending(path: nodeID, directoryHint: .isDirectory)
+            .appending(path: self.workspaceInstanceID.uuidString, directoryHint: .isDirectory)
     }
 
     private func ensureWorkspaceReady(at workspaceURL: URL) throws {
@@ -143,10 +180,22 @@ public class LiveImageNode: BaseImageNode
 
     private func ensureSymlink(at linkURL: URL, destination: URL) throws {
         let fileManager = FileManager.default
+        let linkPath = linkURL.path(percentEncoded: false)
 
-        if fileManager.fileExists(atPath: linkURL.path(percentEncoded: false)) {
+        // Check the link itself first (lstat semantics): fileExists(atPath:)
+        // follows links, so a dangling link — every app update relocates the
+        // bundle it points into — reads as absent, the removal is skipped,
+        // and the create below throws "file exists".
+        if let existingDestination = try? fileManager.destinationOfSymbolicLink(atPath: linkPath) {
+            if existingDestination == destination.path(percentEncoded: false) {
+                return
+            }
+
+            try fileManager.removeItem(at: linkURL)
+        }
+        else if fileManager.fileExists(atPath: linkPath) {
             var isDirectory = ObjCBool(false)
-            if fileManager.fileExists(atPath: linkURL.path(percentEncoded: false), isDirectory: &isDirectory),
+            if fileManager.fileExists(atPath: linkPath, isDirectory: &isDirectory),
                isDirectory.boolValue {
                 return
             }
@@ -168,36 +217,47 @@ public class LiveImageNode: BaseImageNode
         }
     }
 
-    private func recompileAndResyncPorts(shouldSynchronizePorts: Bool = true) {
+    private func recompileAndResyncPorts() {
         if let sourceShader = self.postMaterial.shader as? SourceShader {
             sourceShader.reloadFromSource()
-            if sourceShader.pipelineError == nil && shouldSynchronizePorts {
+
+            if sourceShader.pipelineError == nil {
                 self.postSetupSynchronizePorts(allowReplace: false)
+                return
             }
         }
+
+        // The saved shader declares the uniform ports; without a compiled one
+        // there is nothing to rebuild them from, so let the document's own
+        // stand in until the user fixes the source.
+        self.adoptRemainingSnapshotPortsAsFallback()
     }
 
-    private func syncDynamicParameterPortsFromMaterial() {
-        let materialParams = self.postMaterial.parameters.params
-        let labels = Set(materialParams.map(\.label))
-
-        let portsToRemove = self.ports.filter { port in
-            guard let _ = port.parameter else { return false }
-            return !labels.contains(port.name)
+    public override func execute(renderer: GraphRenderer,
+                                 executionInfo: GraphExecutionInfo,
+                                 renderPassDescriptor: MTLRenderPassDescriptor,
+                                 commandBuffer: MTLCommandBuffer)
+    throws
+    {
+        if let workspaceError
+        {
+            throw FabricError(.execution(.failed),
+                              severity: .recoverable,
+                              message: "Live Image workspace is unavailable",
+                              underlyingError: workspaceError)
         }
 
-        for port in portsToRemove {
-            self.removePort(port)
+        if let shaderError = self.currentShaderErrorDescription()
+        {
+            throw FabricError(.execution(.syntax),
+                              severity: .recoverable,
+                              message: shaderError)
         }
 
-        for param in materialParams {
-            if let port = self.ports.first(where: { $0.name == param.label }) {
-                self.replaceParameterOfPort(port, withParam: param)
-            }
-            else if let dynamicPort = PortType.portForType(from: param) {
-                self.addDynamicPort(dynamicPort)
-            }
-        }
+        try super.execute(renderer: renderer,
+                          executionInfo: executionInfo,
+                          renderPassDescriptor: renderPassDescriptor,
+                          commandBuffer: commandBuffer)
     }
 
     private func captureShaderSourceFromDiskIfAvailable() throws {

@@ -1,0 +1,88 @@
+#ifndef FABRIC_NOISE_FRACTAL
+#define FABRIC_NOISE_FRACTAL
+
+#include "NoiseSample.msl"
+
+#ifndef FABRIC_NOISE_DOMAIN_WARP_AMOUNT
+#define FABRIC_NOISE_DOMAIN_WARP_AMOUNT(uniforms) 0.5
+#endif
+
+float fabricNoiseFBM(float3 position, constant PostUniforms &uniforms)
+{
+    float value = 0.0;
+    float amplitude = 1.0;
+    float amplitudeTotal = 0.0;
+    int octaveCount = clamp(uniforms.octaves, 1, fabricNoiseMaximumOctaves);
+
+    for (int octaveIndex = 0; octaveIndex < fabricNoiseMaximumOctaves; octaveIndex++) {
+        if (octaveIndex >= octaveCount) {
+            break;
+        }
+
+        value += fabricNoiseSample(position, uniforms) * amplitude;
+        amplitudeTotal += amplitude;
+        position *= uniforms.lacunarity;
+        amplitude *= uniforms.gain;
+    }
+
+    return amplitudeTotal > 0.0 ? value / amplitudeTotal : 0.0;
+}
+
+float fabricNoiseTurbulence(float3 position, constant PostUniforms &uniforms)
+{
+    float value = 0.0;
+    float amplitude = 1.0;
+    float amplitudeTotal = 0.0;
+    int octaveCount = clamp(uniforms.octaves, 1, fabricNoiseMaximumOctaves);
+
+    for (int octaveIndex = 0; octaveIndex < fabricNoiseMaximumOctaves; octaveIndex++) {
+        if (octaveIndex >= octaveCount) {
+            break;
+        }
+
+        value += abs(fabricNoiseSample(position, uniforms)) * amplitude;
+        amplitudeTotal += amplitude;
+        position *= uniforms.lacunarity;
+        amplitude *= uniforms.gain;
+    }
+
+    return amplitudeTotal > 0.0 ? value / amplitudeTotal : 0.0;
+}
+
+float fabricNoiseRidge(float3 position, constant PostUniforms &uniforms)
+{
+    float value = 0.0;
+    float amplitude = 1.0;
+    float amplitudeTotal = 0.0;
+    int octaveCount = clamp(uniforms.octaves, 1, fabricNoiseMaximumOctaves);
+
+    for (int octaveIndex = 0; octaveIndex < fabricNoiseMaximumOctaves; octaveIndex++) {
+        if (octaveIndex >= octaveCount) {
+            break;
+        }
+
+        float ridge = 1.0 - abs(fabricNoiseSample(position, uniforms));
+        value += ridge * ridge * amplitude;
+        amplitudeTotal += amplitude;
+        position *= uniforms.lacunarity;
+        amplitude *= uniforms.gain;
+    }
+
+    return amplitudeTotal > 0.0 ? value / amplitudeTotal : 0.0;
+}
+
+float fabricNoiseDomainWarpFBM(float3 position, constant PostUniforms &uniforms)
+{
+    float warpAmount = FABRIC_NOISE_DOMAIN_WARP_AMOUNT(uniforms);
+    float3 warpOffsetA = float3(17.0, 31.0, 47.0);
+    float3 warpOffsetB = float3(73.0, 19.0, 11.0);
+
+    float2 warp = float2(
+        fabricNoiseFBM(position + warpOffsetA, uniforms),
+        fabricNoiseFBM(position + warpOffsetB, uniforms)
+    );
+
+    return fabricNoiseFBM(position + float3(warp * warpAmount, 0.0), uniforms);
+}
+
+#endif

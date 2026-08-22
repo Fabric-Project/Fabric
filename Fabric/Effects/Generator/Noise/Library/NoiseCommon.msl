@@ -1,0 +1,40 @@
+#ifndef FABRIC_NOISE_COMMON
+#define FABRIC_NOISE_COMMON
+
+constant int fabricNoiseMaximumOctaves = 12;
+
+bool fabricNoiseTransformIsUnset(float4x4 transform)
+{
+    float4 columnMagnitudes = float4(
+        dot(transform[0], transform[0]),
+        dot(transform[1], transform[1]),
+        dot(transform[2], transform[2]),
+        dot(transform[3], transform[3])
+    );
+
+    return dot(columnMagnitudes, float4(1.0)) == 0.0;
+}
+
+float3 fabricNoisePosition(float2 textureCoordinate, constant PostUniforms &uniforms)
+{
+    float2 centeredCoordinate = textureCoordinate - float2(0.5);
+    float4 transformedCoordinate = float4(centeredCoordinate, 0.0, 1.0);
+
+    if (!fabricNoiseTransformIsUnset(uniforms.coordinateTransform)) {
+        transformedCoordinate = uniforms.coordinateTransform * transformedCoordinate;
+    }
+
+    return float3(transformedCoordinate.xy + uniforms.seed, uniforms.time + uniforms.seed);
+}
+
+float fabricNoiseSaturate(float value)
+{
+    return clamp(value, 0.0, 1.0);
+}
+
+float3 fabricNoiseSaturate(float3 value)
+{
+    return clamp(value, float3(0.0), float3(1.0));
+}
+
+#endif

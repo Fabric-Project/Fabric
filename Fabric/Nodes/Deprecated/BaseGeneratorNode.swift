@@ -19,11 +19,8 @@ class BaseGeneratorNode: Node, NodeFileLoadingProtocol
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override class var nodeDescription: String { "Deprecated image generator" }
 
-    override public var name: String {
-        guard let fileURL = self.url else {
-            return Self.name
-        }
-        
+    override public func deriveSubtitle() -> String? {
+        guard let fileURL = self.url else { return nil }
         return self.fileURLToName(fileURL: fileURL)
     }
     

@@ -40,9 +40,11 @@ public class NumberUnaryOperator : Node
         
     private var mathOperator = UnaryMathOperator.Sine
     
-    public override func execute(context:GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if  self.inputParam.valueDidChange,
             let param = self.inputParam.value,

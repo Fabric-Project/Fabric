@@ -15,30 +15,20 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Image processing effect" }
 
-    override public var name: String {
-        if let displayName {
-            return displayName
-        }
-
-        guard let fileURL = self.url else {
-            return Self.name
-        }
-
-        return self.fileURLToName(fileURL: fileURL)
-    }
+    override public func deriveTitle() -> String { self.cachedFileURLName ?? Self.name }
 
     open class var sourceShaderName: String { "" }
     open class var defaultImageInputCountHint: Int? { nil }
-    open class var preserveDecodedImageInputPortsOnDecode: Bool { false }
 
     open class PostMaterial: SourceMaterial {}
 
     let postMaterial: PostMaterial
-    let postProcessor: PostProcessor
+    let postProcessor: PostProcessEncoder
 
-    @ObservationIgnored private var url: URL? = nil
-    @ObservationIgnored private var lastKnownInputCount: Int = 1
-    @ObservationIgnored private var cachedImageInputPorts: [NodePort<FabricImage>] = []
+    private var url: URL? = nil
+    private var cachedFileURLName: String?
+    private var lastKnownInputCount: Int = 1
+    private var cachedImageInputPorts: [NodePort<FabricImage>] = []
 
     enum CodingKeys: String, CodingKey
     {
@@ -76,7 +66,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         fatalError("BaseImageNode requires at least one image outlet")
     }
 
-    @ObservationIgnored override public var nodeExecutionMode: ExecutionMode {
+    override public var nodeExecutionMode: ExecutionMode {
         self.currentImageInputCount == 0 ? .Provider : .Processor
     }
 
@@ -86,21 +76,22 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
     public required init(context: Context, fileURL: URL) throws {
         self.url = fileURL
+        self.cachedFileURLName = Self.fileURLToName(fileURL: fileURL)
 
-        let material = PostMaterial(pipelineURL: fileURL)
-        material.context = context
+        let material = PostMaterial(context:context, pipelineURL: fileURL)
 
         self.postMaterial = material
-        self.postProcessor = PostProcessor(context: context,
-                                           material: material,
-                                           frameBufferOnly: false)
-
-        self.postProcessor.renderer.depthLoadAction = .dontCare
-        self.postProcessor.renderer.depthStoreAction = .dontCare
-        self.postProcessor.renderer.stencilLoadAction = .dontCare
-        self.postProcessor.renderer.stencilStoreAction = .dontCare
+        self.postProcessor = PostProcessEncoder(context: context,
+                                                material: material,
+                                                depthPixelFormat: .invalid,
+                                                stencilPixelFormat: .invalid,
+                                                depthStoreAction: .dontCare,
+                                                stencilStoreAction: .dontCare,
+                                                frameBufferOnly: false)
 
         super.init(context: context)
+
+        self.postInit()
 
         self.postSetupSynchronizePorts(allowReplace: true)
     }
@@ -109,28 +100,35 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         let bundle = Bundle.module
         let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
 
-        let material = PostMaterial(pipelineURL: shaderURL!)
-        material.context = context
+        let material = PostMaterial(context:context, pipelineURL: shaderURL!)
 
         self.postMaterial = material
-        self.postProcessor = PostProcessor(context: context,
-                                           material: material,
-                                           frameBufferOnly: false)
-
-        self.postProcessor.renderer.depthLoadAction = .dontCare
-        self.postProcessor.renderer.depthStoreAction = .dontCare
-        self.postProcessor.renderer.stencilLoadAction = .dontCare
-        self.postProcessor.renderer.stencilStoreAction = .dontCare
+        self.postProcessor = PostProcessEncoder(context: context,
+                                                material: material,
+                                                depthPixelFormat: .invalid,
+                                                stencilPixelFormat: .invalid,
+                                                depthStoreAction: .dontCare,
+                                                stencilStoreAction: .dontCare,
+                                                frameBufferOnly: false)
 
         super.init(context: context)
 
-        self.postSetupSynchronizePorts(allowReplace: false,
-                                       preserveExistingImageInputPorts: Self.preserveDecodedImageInputPortsOnDecode)
+        self.postInit()
+
+        self.postSetupSynchronizePorts(allowReplace: false)
     }
     
     public func setFileURL(_ url: URL) {
-        guard self.url != url else { return }
+        let cachedName = Self.fileURLToName(fileURL: url)
+        let shouldUpdatePipeline = self.url != url
+        guard shouldUpdatePipeline || self.cachedFileURLName != cachedName else { return }
+
         self.url = url
+        self.cachedFileURLName = cachedName
+        self.updatePostProcessorLabel()
+        self.subtitleSubject.send()
+
+        guard shouldUpdatePipeline else { return }
 
         if let sourceShader = self.postMaterial.shader as? SourceShader {
             sourceShader.pipelineURL = url
@@ -144,73 +142,81 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
     required init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
-        guard let decodeContext = decoder.context else {
+        guard let context = decoder.context?.documentContext as? Context else {
             fatalError("Required Decode Context Not set")
         }
 
         let decodedEffectPath = try container.decodeIfPresent(String.self, forKey: .effectPath)
 
         if let path = decodedEffectPath {
-            let bundle = Bundle.module
-            if let shaderURL = bundle.resourceURL?.appendingPathComponent(path) {
+            if let shaderURL = Self.resolveBundleResource(path: path) {
                 self.url = shaderURL
+                self.cachedFileURLName = Self.fileURLToName(fileURL: shaderURL)
 
-                let material = PostMaterial(pipelineURL: shaderURL)
-                material.context = decodeContext.documentContext
+                let material = PostMaterial(context:context, pipelineURL: shaderURL)
 
                 self.postMaterial = material
-                self.postProcessor = PostProcessor(context: decodeContext.documentContext,
-                                                   material: material,
-                                                   frameBufferOnly: false)
+                self.postProcessor = PostProcessEncoder(context:context,
+                                                        material: material,
+                                                        depthPixelFormat: .invalid,
+                                                        stencilPixelFormat: .invalid,
+                                                        depthStoreAction: .dontCare,
+                                                        stencilStoreAction: .dontCare,
+                                                        frameBufferOnly: false)
             }
             else {
+                self.cachedFileURLName = nil
+
                 let bundle = Bundle.module
                 let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
 
-                let material = PostMaterial(pipelineURL: shaderURL!)
-                material.context = decodeContext.documentContext
+                let material = PostMaterial(context:context,pipelineURL: shaderURL!)
 
                 self.postMaterial = material
-                self.postProcessor = PostProcessor(context: decodeContext.documentContext,
-                                                   material: material,
-                                                   frameBufferOnly: false)
+                self.postProcessor = PostProcessEncoder(context:context,
+                                                        material: material,
+                                                        depthPixelFormat: .invalid,
+                                                        stencilPixelFormat: .invalid,
+                                                        depthStoreAction: .dontCare,
+                                                        stencilStoreAction: .dontCare,
+                                                        frameBufferOnly: false)
             }
         }
         else {
+            self.cachedFileURLName = nil
+
             let bundle = Bundle.module
             let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
 
-            let material = PostMaterial(pipelineURL: shaderURL!)
-            material.context = decodeContext.documentContext
+            let material = PostMaterial(context:context,pipelineURL: shaderURL!)
 
             self.postMaterial = material
-            self.postProcessor = PostProcessor(context: decodeContext.documentContext,
-                                               material: material,
-                                               frameBufferOnly: false)
+            self.postProcessor = PostProcessEncoder(context:context,
+                                                    material: material,
+                                                    depthPixelFormat: .invalid,
+                                                    stencilPixelFormat: .invalid,
+                                                    depthStoreAction: .dontCare,
+                                                    stencilStoreAction: .dontCare,
+                                                    frameBufferOnly: false)
         }
 
         self.lastKnownInputCount = try container.decodeIfPresent(Int.self, forKey: .lastKnownInputCount)
             ?? Self.defaultImageInputCountHint
             ?? Self.defaultInputCountForPath(decodedEffectPath, fallback: 1)
 
-        self.postProcessor.renderer.depthLoadAction = .dontCare
-        self.postProcessor.renderer.depthStoreAction = .dontCare
-        self.postProcessor.renderer.stencilLoadAction = .dontCare
-        self.postProcessor.renderer.stencilStoreAction = .dontCare
 
         try super.init(from: decoder)
 
-        self.postSetupSynchronizePorts(allowReplace: false,
-                                       preserveExistingImageInputPorts: Self.preserveDecodedImageInputPortsOnDecode)
+        self.postInit()
+        
+        self.postSetupSynchronizePorts(allowReplace: false)
     }
 
     override public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
 
         if let url = self.url {
-            let last3 = url.pathComponents.suffix(3)
-            let path = last3.joined(separator: "/")
-            try container.encode(path, forKey: .effectPath)
+            try container.encodeIfPresent(Self.bundleRelativeResourcePath(for: url), forKey: .effectPath)
         }
 
         try container.encode(1, forKey: .baseImageNodeVersion)
@@ -219,20 +225,19 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         try super.encode(to: encoder)
     }
 
-    open func postSetupSynchronizePorts(allowReplace: Bool, preserveExistingImageInputPorts: Bool = false) {
-        self.refreshImageInputPortCache()
-        let existingImageInputCount = self.cachedImageInputPorts.count
+    private func postInit()
+    {
+        self.updatePostProcessorLabel()
+    }
 
+    private func updatePostProcessorLabel()
+    {
+        self.postProcessor.label = self.title + " Post Processor"
+    }
+    
+    open func postSetupSynchronizePorts(allowReplace: Bool) {
         let inferredInputCount = self.inferInputCountFromShader() ?? self.lastKnownInputCount
-        let resolvedInputCount: Int
-        if preserveExistingImageInputPorts && existingImageInputCount > 0 {
-            resolvedInputCount = max(existingImageInputCount, inferredInputCount)
-        }
-        else {
-            resolvedInputCount = inferredInputCount
-        }
-
-        self.lastKnownInputCount = max(0, resolvedInputCount)
+        self.lastKnownInputCount = max(0, inferredInputCount)
 
         self.syncImageInputPorts(targetCount: self.lastKnownInputCount, allowReplace: allowReplace)
         self.synchronizeOutputImagePorts()
@@ -296,7 +301,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
                 canonicalPort.published = true
             }
 
-            let inboundConnections = legacyPort.connections.filter { $0.kind == .Inlet }
+            let inboundConnections = legacyPort.connectedInlets
             for inlet in inboundConnections {
                 canonicalPort.connect(to: inlet)
             }
@@ -463,21 +468,21 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         self.ports.first(where: { $0.parameter?.label == label }) as? ParameterPort<Int>
     }
 
-    func inputImageTexture(at index: Int) -> MTLTexture? {
+    func inputImage(at index: Int) -> FabricImage? {
         let ports = self.imageInputPorts()
         guard index >= 0, index < ports.count else {
             return nil
         }
 
-        return ports[index].value?.texture
+        return ports[index].value
     }
 
     /// Labels of parameter ports that have been claimed by `syncDynamicParameterPortsFromMaterial`.
     /// Material sync only adds to, rebinds, or removes labels in this set — any
     /// port whose label isn't in it (subclass-declared ports, base-managed ports
     /// like Width/Height, or anything else) is implicitly protected.
-    @ObservationIgnored private var materialSyncedLabels: Set<String> = []
-    @ObservationIgnored private var materialSyncedLabelsInitialized: Bool = false
+    private var materialSyncedLabels: Set<String> = []
+    private var materialSyncedLabelsInitialized: Bool = false
 
     private func offLimitsLabels() -> Set<String> {
         let declared = Self.registerPorts(context: self.context).compactMap { $0.port.parameter?.label }
@@ -501,8 +506,11 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
         let labelsToRemove = self.materialSyncedLabels.subtracting(newLabels)
         let portsToRemove = self.ports.filter { port in
-            guard let label = port.parameter?.label else { return false }
-            return labelsToRemove.contains(label)
+            if let label = port.parameter?.label {
+                return labelsToRemove.contains(label)
+            }
+
+            return labelsToRemove.contains(port.name)
         }
 
         for port in portsToRemove {
@@ -514,8 +522,20 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
                 continue
             }
 
+            if self.syncDynamicValuePortFromMaterialParameter(param) {
+                continue
+            }
+
             if let port = self.ports.first(where: { $0.name == param.label }) {
-                self.replaceParameterOfPort(port, withParam: param)
+                if port.parameter == nil, self.materialSyncedLabels.contains(port.name) {
+                    self.removePort(port)
+                    if let dynamicPort = PortType.portForType(from: param) {
+                        self.addDynamicPort(dynamicPort)
+                    }
+                }
+                else {
+                    self.replaceParameterOfPort(port, withParam: param)
+                }
             }
             else if let dynamicPort = PortType.portForType(from: param) {
                 self.addDynamicPort(dynamicPort)
@@ -523,6 +543,55 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         }
 
         self.materialSyncedLabels = newLabels.subtracting(offLimits)
+    }
+
+    private func syncDynamicValuePortFromMaterialParameter(_ parameter: any Parameter) -> Bool {
+        switch parameter.type {
+        case .float4x4:
+            guard let float4x4Parameter = parameter as? Float4x4Parameter else {
+                return false
+            }
+
+            if let existingPort = self.ports.first(where: { $0.name == parameter.label }) {
+                if existingPort.parameter != nil {
+                    self.removePort(existingPort)
+                }
+                else {
+                    return true
+                }
+            }
+
+            let port = NodePort<simd_float4x4>(
+                name: parameter.label,
+                kind: .Inlet,
+                description: parameter.description
+            )
+            port.value = float4x4Parameter.value
+            self.addDynamicPort(port)
+            return true
+
+        default:
+            return false
+        }
+    }
+
+    private func synchronizeDynamicValuePortsToMaterial() {
+        for parameter in self.postMaterial.parameters.params {
+            switch parameter.type {
+            case .float4x4:
+                guard let port = self.ports.first(where: {
+                    $0.name == parameter.label &&
+                    $0.parameter == nil
+                }) as? NodePort<simd_float4x4> else {
+                    continue
+                }
+
+                self.postMaterial.set(parameter.label, port.value ?? matrix_identity_float4x4)
+
+            default:
+                continue
+            }
+        }
     }
 
     private func normalizePortOrderForDisplay()
@@ -563,15 +632,18 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         return (3, originalIndex)
     }
 
-    override public func execute(context: GraphExecutionContext,
-                                 renderPassDescriptor: MTLRenderPassDescriptor,
-                                 commandBuffer: MTLCommandBuffer)
+    public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
-        let anyPortChanged = self.ports.reduce(false) { partialResult, next in
+        let shouldExecute = self.ports.reduce(false) { partialResult, next in
             partialResult || next.valueDidChange
         }
 
+        commandBuffer.pushDebugGroup(self.debugDescription + " Execute")
+        defer { commandBuffer.popDebugGroup() }
+        
         if self.currentImageInputCount == 0 {
+            self.synchronizeDynamicValuePortsToMaterial()
+
             guard let widthPort = self.resolutionPort(label: "Width"),
                   let heightPort = self.resolutionPort(label: "Height") else {
                 self.outputTexturePort.send(nil)
@@ -581,36 +653,37 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             let width = max(1, widthPort.value ?? 512)
             let height = max(1, heightPort.value ?? 512)
 
-            self.postProcessor.renderer.size.width = Float(width)
-            self.postProcessor.renderer.size.height = Float(height)
+            self.postProcessor.resize(size: (width: Float(width), height: Float(height)), scaleFactor: 1)
 
-            guard let outImage = context.graphRenderer?.newImage(withWidth: width, height: height) else {
-                self.outputTexturePort.send(nil)
-                return
-            }
+            let outImage = try renderer.newImage(withWidth: width, height: height)
 
             let renderPassDesc = MTLRenderPassDescriptor()
             renderPassDesc.colorAttachments[0].texture = outImage.texture
+            
             self.postProcessor.mesh.preDraw = nil
             self.postProcessor.draw(renderPassDescriptor: renderPassDesc, commandBuffer: commandBuffer)
             self.outputTexturePort.send(outImage)
             return
         }
 
-        guard anyPortChanged else {
+        guard shouldExecute else {
             return
         }
 
-        guard let inputTexture0 = self.inputImageTexture(at: 0) else {
+        self.synchronizeDynamicValuePortsToMaterial()
+
+        guard let inputImage = self.inputImage(at: 0)
+        else {
             self.outputTexturePort.send(nil)
             return
         }
+        
+        let inputTexture0 = inputImage.texture
 
-        guard let outImage = context.graphRenderer?.newImage(withWidth: inputTexture0.width, height: inputTexture0.height) else {
-            self.outputTexturePort.send(nil)
-            return
-        }
+        let outImage = try renderer.newImage(withWidth: inputTexture0.width, height: inputTexture0.height)
 
+        outImage.isFlipped = inputImage.isFlipped
+        
         let textures = self.imageInputPorts().map { $0.value?.texture }
 
         self.postProcessor.mesh.preDraw = { renderEncoder in
@@ -620,8 +693,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             }
         }
 
-        self.postProcessor.renderer.size.width = Float(inputTexture0.width)
-        self.postProcessor.renderer.size.height = Float(inputTexture0.height)
+        self.postProcessor.resize(size: (width: Float(inputTexture0.width), height: Float(inputTexture0.height)), scaleFactor: 1)
 
         let renderPassDesc = MTLRenderPassDescriptor()
         renderPassDesc.colorAttachments[0].texture = outImage.texture
@@ -630,7 +702,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         self.outputTexturePort.send(outImage)
     }
 
-    private func fileURLToName(fileURL: URL) -> String {
+    private static func fileURLToName(fileURL: URL) -> String {
         let nodeName = fileURL.deletingPathExtension().lastPathComponent.replacing("ImageNode", with: "")
         return nodeName.titleCase
     }

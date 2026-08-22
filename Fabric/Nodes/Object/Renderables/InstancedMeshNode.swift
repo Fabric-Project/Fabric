@@ -21,7 +21,7 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
         let ports = super.registerPorts(context: context)
         
         return [
-            ("inputGeometry", NodePort<SatinGeometry>(name: "Geometry", kind: .Inlet, description: "Geometry mesh to render")),
+            ("inputGeometry", NodePort<Geometry>(name: "Geometry", kind: .Inlet, description: "Geometry mesh to render")),
             ("inputMaterial", NodePort<Material>(name: "Material", kind: .Inlet, description: "Material to apply to the geometry")),
             ("inputTransforms", NodePort<ContiguousArray<simd_float4x4>>(name: "Transforms", kind: .Inlet, description: "Array of transforms for each instance")),
             ("inputCastsShadow", ParameterPort(parameter:BoolParameter("Enable Shadows", true, .button, "When enabled, the mesh casts and receives shadows"))),
@@ -30,7 +30,7 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
         ] + ports
     }
     // Proxy Ports
-    public var inputGeometry:NodePort<SatinGeometry> { port(named: "inputGeometry") }
+    public var inputGeometry:NodePort<Geometry> { port(named: "inputGeometry") }
     public var inputMaterial:NodePort<Material> { port(named: "inputMaterial") }
     public var inputTransforms:NodePort<ContiguousArray<simd_float4x4>> { port(named: "inputTransforms") }
     public var inputCastsShadow:ParameterPort<Bool> { port(named: "inputCastsShadow") }
@@ -95,9 +95,11 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
         return shouldOutput
     }
     
-    public override func execute(context:GraphExecutionContext,
+    override public func execute(renderer:GraphRenderer,
+                                 executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
+    throws
     {
         if (self.inputGeometry.valueDidChange
             || self.inputMaterial.valueDidChange)
@@ -127,7 +129,7 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
                 }
                 else
                 {
-                    let mesh = InstancedMesh(geometry: geometery, material: material, count: self.inputTransforms.value?.count ?? 1)
+                    let mesh = InstancedMesh(context:self.context, geometry: geometery, material: material, count: self.inputTransforms.value?.count ?? 1)
                     self.applyCurrentMeshState(mesh,
                                                materialJustAttached: true)
 
@@ -142,7 +144,7 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
             
         if let mesh = mesh
         {
-            let _ = self.evaluate(object: mesh, atTime: context.timing.time)
+            let _ = self.evaluate(object: mesh, atTime: executionInfo.timing.time)
             
             if self.inputTransforms.valueDidChange,
                 let transforms = self.inputTransforms.value
@@ -159,7 +161,9 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
         mesh.lookAt(target: simd_float3(repeating: 0))
         mesh.visible = self.inputVisible.value ?? true
         mesh.renderOrder = self.inputRenderOrder.value ?? 0
-        mesh.renderPass = self.inputRenderPass.value ?? 0
+        // TODO:
+        mesh.renderLayer
+//        mesh.renderLayer = self.inputRenderPass.value ?? 0
         mesh.position = self.inputPosition.value ?? .zero
         mesh.scale = self.inputScale.value ?? simd_float3(repeating: 1)
 
