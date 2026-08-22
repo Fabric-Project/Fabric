@@ -207,8 +207,6 @@ public final class FabricCoreNodesPlugin: NSObject, FabricPlugin
             FacePoseAnalysisNode.self,
             HandPoseAnalysisNode.self,
             LucasKanadeOpticalFlowNode.self,
-            DCTNode.self,
-            InverseDCTNode.self,
             LocalVLMNode.self,
             ContourPathNode.self,
             MetalFXSpatialUpsample2xNode.self,

@@ -307,11 +307,6 @@ HDR -> SDR conversion
 
 ### Analysis
 
-- [x] DCT
-- [x] DCT Quantize
-- [x] DCT JPEG Quantize
-- [x] DCT Corruption
-- [x] Inverse DCT
 - [x] Marching Squares Contour (needs better stability at edges)
 - [x] Contour Path
 - [ ] Blob Detection (requires nested array support)
