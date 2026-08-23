@@ -674,7 +674,7 @@ public class GraphRenderer : ViewRenderer
             image = try newSharedImage(fromPixelBuffer: pixelBuffer)
         }
         
-        image.isFlipped = CVImageBufferIsFlipped(pixelBuffer)
+        image.isFlipped = !CVImageBufferIsFlipped(pixelBuffer)
         
         return image
     }

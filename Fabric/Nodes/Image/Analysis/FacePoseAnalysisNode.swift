@@ -277,7 +277,7 @@ public class FacePoseAnalysisNode: Node
         
         let x = remap(Float(imagePoint.x), 0.0, Float(size.width), -1.0, 1.0)
         let y:Float
-        if flipped
+        if !flipped
         {
             y = remap(Float(imagePoint.y), Float(size.height), 0.0, -Float(aspect), Float(aspect))
         }

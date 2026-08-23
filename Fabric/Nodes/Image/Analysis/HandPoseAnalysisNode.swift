@@ -131,7 +131,7 @@ public class HandPoseAnalysisNode: Node
         for joint in joints
         {
             guard let recognizedPoint = recognizedPoints[joint.rawValue] else { return nil }
-            points.append(self.unitPoint(from: recognizedPoint, aspect: aspect, flipped: flipped))
+            points.append(self.unitPoint(from: recognizedPoint, aspect: aspect, flipped: !flipped))
         }
 
         return points

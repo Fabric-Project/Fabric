@@ -49,6 +49,7 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
     public required init(context: Context)
     {
         self.geometry = PlaneGeometry(context:context,width: 1, height: 1, orientation: .xy)
+//        self.geometry = QuadGeometry(context: context)
         self.material = BasicTextureMaterial(context:context)
         self.mesh = Mesh(context:context, geometry: self.geometry, material: self.material)
 
@@ -65,6 +66,7 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
         }
         
         self.geometry = PlaneGeometry(context:context,width: 1, height: 1, orientation: .xy)
+//        self.geometry = QuadGeometry(context: context)// PlaneGeometry(context:context,width: 1, height: 1, orientation: .xy)
         self.material = BasicTextureMaterial(context:context)
         self.mesh = Mesh(context:context, geometry: self.geometry, material: self.material)
 
@@ -111,13 +113,13 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
 
             if self.inputSizingDimension.value == "Height"
             {
-                self.geometry.height = size
-                self.geometry.width = size * aspect
+                self.mesh.scale.y = size
+                self.mesh.scale.x = size * aspect
             }
             else
             {
-                self.geometry.width = size
-                self.geometry.height = size / aspect
+                self.mesh.scale.x = size
+                self.mesh.scale.y = size / aspect
             }
         }
 
