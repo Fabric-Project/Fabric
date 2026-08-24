@@ -137,7 +137,24 @@ public class StrategyNode: Node
     {
         didSet
         {
-            self.rebuildPorts(forStrategy: strategy)
+            guard oldValue != strategy else { return }
+            let previousStrategy = oldValue
+
+            if let graph
+            {
+                graph.withoutUndoRegistration {
+                    self.rebuildPorts(forStrategy: strategy)
+                }
+                graph.undoManager?.registerUndo(withTarget: self) { node in
+                    node.strategy = previousStrategy
+                }
+                graph.undoManager?.setActionName("Change Node Strategy")
+            }
+            else
+            {
+                self.rebuildPorts(forStrategy: strategy)
+            }
+
             // `subtitle` is derived from `strategy`; notify so the title refreshes.
             self.subtitleSubject.send()
         }

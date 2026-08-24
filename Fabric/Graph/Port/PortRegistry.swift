@@ -48,7 +48,9 @@ final class PortRegistry
 
     func remove(_ p: Port)
     {
-        p.disconnectAll()
+        if let graph = p.node?.graph {
+            graph.disconnectAll(from: p)
+        }
         self.byID[p.id] = nil
         if let i = ordered.firstIndex(where: { $0.id == p.id }) { self.ordered.remove(at: i) }
         for (name, port) in self.byName where port.id == p.id

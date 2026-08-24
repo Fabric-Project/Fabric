@@ -49,7 +49,7 @@ struct NodeInletView: View
                                 return
                             }
 
-                            self.port.connect(to: targetPort)
+                            graph.connect(targetPort, to: self.port)
                         }
                 )
                 .modifier(PortInspectionTooltip(port: port))

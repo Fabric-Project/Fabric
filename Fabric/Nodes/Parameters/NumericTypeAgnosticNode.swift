@@ -124,7 +124,11 @@ public class NumericTypeAgnosticNode: StrategyNode
             addDynamicPort(replacement, name: registryName)
             for connected in oldConnections where replacement.canConnect(to: connected)
             {
-                replacement.connect(to: connected)
+                if replacement.kind == .Outlet {
+                    self.graph?.connect(replacement, to: connected)
+                } else {
+                    self.graph?.connect(connected, to: replacement)
+                }
             }
         }
 

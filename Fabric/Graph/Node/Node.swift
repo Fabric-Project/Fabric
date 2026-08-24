@@ -301,7 +301,9 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
         for port in self.ports
         {
-            port.disconnectAll()
+            if let graph = self.graph {
+                graph.disconnectAll(from: port)
+            }
             port.teardown()
         }
 
@@ -733,8 +735,8 @@ public extension NodeFileLoadingProtocol
     {
         guard let resourceRoot = Bundle.module.resourceURL else { return nil }
 
-        let base = resourceRoot.standardizedFileURL.resolvingSymlinksInPath().pathComponents
-        let full = url.standardizedFileURL.resolvingSymlinksInPath().pathComponents
+        let base = resourceRoot.absoluteURL.standardizedFileURL.resolvingSymlinksInPath().pathComponents
+        let full = url.absoluteURL.standardizedFileURL.resolvingSymlinksInPath().pathComponents
 
         guard full.count > base.count, full.starts(with: base) else { return nil }
 
@@ -743,6 +745,6 @@ public extension NodeFileLoadingProtocol
 
     static func resolveBundleResource(path: String) -> URL?
     {
-        Bundle.module.resourceURL?.appending(path: path)
+        Bundle.module.resourceURL?.absoluteURL.appending(path: path)
     }
 }

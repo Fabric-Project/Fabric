@@ -122,12 +122,15 @@ public final class MatrixSwitchNode: RoutingNodeBase
     {
         let routedInputIDs = Set(routedSourceInputPorts().map(\.id))
 
-        inputMap.setConnectionsActive(true)
+        graph?.setConnections(from: inputMap, active: true)
 
         for index in 0..<routeCount
         {
             let inputPort: Port? = findPort(named: Self.inputPortName(index))
-            inputPort?.setConnectionsActive(inputPort.map { routedInputIDs.contains($0.id) } ?? false)
+            if let inputPort
+            {
+                graph?.setConnections(from: inputPort, active: routedInputIDs.contains(inputPort.id))
+            }
         }
     }
 

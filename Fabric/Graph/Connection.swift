@@ -14,7 +14,7 @@ public final class Connection: Codable, Identifiable, Hashable
     public let id: UUID
     public let outletPortID: UUID
     public let inletPortID: UUID
-    public var active: Bool
+    public internal(set) var active: Bool
     {
         didSet
         {

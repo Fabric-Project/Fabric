@@ -139,8 +139,8 @@ struct GraphExecutionTests {
         graph.addNode(right)
         graph.addNode(addNode)
 
-        left.output.connect(to: addNode.inputNumber1)
-        right.output.connect(to: addNode.inputNumber2)
+        graph.connect(left.output, to: addNode.inputNumber1)
+        graph.connect(right.output, to: addNode.inputNumber2)
         publish(addNode.outputNumber, in: graph)
 
         let context = harness.makeExecutionContext(time: 20, deltaTime: 0, frameNumber: 0)
@@ -169,8 +169,8 @@ struct GraphExecutionTests {
         graph.addNode(right)
         graph.addNode(addNode)
 
-        left.output.connect(to: addNode.inputNumber1)
-        right.output.connect(to: addNode.inputNumber2)
+        graph.connect(left.output, to: addNode.inputNumber1)
+        graph.connect(right.output, to: addNode.inputNumber2)
         publish(addNode.outputNumber, in: graph)
 
         let firstContext = harness.makeExecutionContext(time: 30, deltaTime: 0, frameNumber: 0)
@@ -412,7 +412,7 @@ struct GraphExecutionTests {
         let proxyInput = try floatPort(named: "Number A", kind: .Inlet, on: subgraphNode)
         let proxyOutput = try floatPort(named: "Number", kind: .Outlet, on: subgraphNode)
 
-        source.output.connect(to: proxyInput)
+        graph.connect(source.output, to: proxyInput)
         publish(proxyOutput, in: graph)
 
         let context = harness.makeExecutionContext(time: 300, deltaTime: 0, frameNumber: 0)
@@ -496,8 +496,8 @@ struct GraphExecutionTests {
         deferred.subGraph.addNode(material)
         deferred.subGraph.addNode(mesh)
 
-        geometry.outputGeometry.connect(to: mesh.inputGeometry)
-        material.outputMaterial.connect(to: mesh.inputMaterial)
+        deferred.subGraph.connect(geometry.outputGeometry, to: mesh.inputGeometry)
+        deferred.subGraph.connect(material.outputMaterial, to: mesh.inputMaterial)
 
         graph.addNode(deferred)
 
@@ -563,8 +563,8 @@ struct GraphExecutionTests {
         deferred.subGraph.addNode(material)
         deferred.subGraph.addNode(mesh)
 
-        geometry.outputGeometry.connect(to: mesh.inputGeometry)
-        material.outputMaterial.connect(to: mesh.inputMaterial)
+        deferred.subGraph.connect(geometry.outputGeometry, to: mesh.inputGeometry)
+        deferred.subGraph.connect(material.outputMaterial, to: mesh.inputMaterial)
 
         graph.addNode(deferred)
 
@@ -603,8 +603,8 @@ struct GraphExecutionTests {
         graph.addNode(right)
         graph.addNode(addNode)
 
-        left.output.connect(to: addNode.inputNumber1)
-        right.output.connect(to: addNode.inputNumber2)
+        graph.connect(left.output, to: addNode.inputNumber1)
+        graph.connect(right.output, to: addNode.inputNumber2)
         publish(addNode.outputNumber, in: graph)
 
         let decodedGraph = try roundTripGraphToTemporaryFile(graph, context: harness.context)
@@ -682,7 +682,7 @@ struct GraphExecutionTests {
         let proxyInput = try floatPort(named: "Number A", kind: .Inlet, on: subgraphNode)
         let proxyOutput = try floatPort(named: "Number", kind: .Outlet, on: subgraphNode)
 
-        source.output.connect(to: proxyInput)
+        graph.connect(source.output, to: proxyInput)
         publish(proxyOutput, in: graph)
 
         let decodedGraph = try roundTripGraphToTemporaryFile(graph, context: harness.context)
@@ -740,7 +740,7 @@ struct GraphExecutionTests {
         let outerProxyInput = try floatPort(named: "Number A", kind: .Inlet, on: outerSubgraph)
         let outerProxyOutput = try floatPort(named: "Number", kind: .Outlet, on: outerSubgraph)
 
-        source.output.connect(to: outerProxyInput)
+        graph.connect(source.output, to: outerProxyInput)
         publish(outerProxyOutput, in: graph)
 
         let decodedGraph = try roundTripGraphToTemporaryFile(graph, context: harness.context)
@@ -792,8 +792,8 @@ struct GraphExecutionTests {
         deferred.subGraph.addNode(material)
         deferred.subGraph.addNode(mesh)
 
-        geometry.outputGeometry.connect(to: mesh.inputGeometry)
-        material.outputMaterial.connect(to: mesh.inputMaterial)
+        deferred.subGraph.connect(geometry.outputGeometry, to: mesh.inputGeometry)
+        deferred.subGraph.connect(material.outputMaterial, to: mesh.inputMaterial)
 
         graph.addNode(deferred)
 
@@ -840,8 +840,8 @@ struct GraphExecutionTests {
         deferred.subGraph.addNode(material)
         deferred.subGraph.addNode(mesh)
 
-        geometry.outputGeometry.connect(to: mesh.inputGeometry)
-        material.outputMaterial.connect(to: mesh.inputMaterial)
+        deferred.subGraph.connect(geometry.outputGeometry, to: mesh.inputGeometry)
+        deferred.subGraph.connect(material.outputMaterial, to: mesh.inputMaterial)
 
         graph.addNode(deferred)
 

@@ -478,7 +478,13 @@ public class MathExpressionNode: Node
                 self.removePort(port) // disconnects everything
                 let replacement = self.makePort(name: portName, type: valueType, kind: kind)
                 self.addDynamicPort(replacement, name: portName)
-                for other in survivors { replacement.connect(to: other) }
+                for other in survivors {
+                    if replacement.kind == .Outlet {
+                        self.graph?.connect(replacement, to: other)
+                    } else {
+                        self.graph?.connect(other, to: replacement)
+                    }
+                }
             }
             else
             {

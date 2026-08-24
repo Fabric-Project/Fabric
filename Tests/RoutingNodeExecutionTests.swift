@@ -210,9 +210,9 @@ struct RoutingNodeExecutionTests
         graph.addNode(active)
         graph.addNode(switchNode)
 
-        index.output.connect(to: switchNode.inputIndex)
-        inactive.output.connect(to: switchNode.port(named: "input0", as: NodePort<Float>.self))
-        active.output.connect(to: switchNode.port(named: "input1", as: NodePort<Float>.self))
+        graph.connect(index.output, to: switchNode.inputIndex)
+        graph.connect(inactive.output, to: switchNode.port(named: "input0", as: NodePort<Float>.self))
+        graph.connect(active.output, to: switchNode.port(named: "input1", as: NodePort<Float>.self))
         publish(switchNode.output, in: graph)
 
         try harness.execute(graph, frameNumber: 0)
@@ -240,9 +240,9 @@ struct RoutingNodeExecutionTests
         graph.addNode(active)
         graph.addNode(switchNode)
 
-        index.output.connect(to: switchNode.inputIndex)
-        inactive.output.connect(to: switchNode.port(named: "input0", as: NodePort<Float>.self))
-        active.output.connect(to: switchNode.port(named: "input1", as: NodePort<Float>.self))
+        graph.connect(index.output, to: switchNode.inputIndex)
+        graph.connect(inactive.output, to: switchNode.port(named: "input0", as: NodePort<Float>.self))
+        graph.connect(active.output, to: switchNode.port(named: "input1", as: NodePort<Float>.self))
         publish(switchNode.output, in: graph)
 
         // Warm up one frame so the connected index value lands on the port, then measure
@@ -274,7 +274,7 @@ struct RoutingNodeExecutionTests
         graph.addNode(source)
         graph.addNode(switchNode)
 
-        source.output.connect(to: switchNode.port(named: "input0", as: NodePort<PortValue>.self))
+        graph.connect(source.output, to: switchNode.port(named: "input0", as: NodePort<PortValue>.self))
         publish(switchNode.output, in: graph)
 
         try harness.execute(graph)
@@ -305,10 +305,10 @@ struct RoutingNodeExecutionTests
         graph.addNode(inactiveConsumer)
         graph.addNode(activeConsumer)
 
-        index.output.connect(to: gate.inputIndex)
-        source.output.connect(to: gate.port(named: "input", as: NodePort<Float>.self))
-        gate.port(named: "output0", as: NodePort<Float>.self).connect(to: inactiveConsumer.input)
-        gate.port(named: "output1", as: NodePort<Float>.self).connect(to: activeConsumer.input)
+        graph.connect(index.output, to: gate.inputIndex)
+        graph.connect(source.output, to: gate.port(named: "input", as: NodePort<Float>.self))
+        graph.connect(gate.port(named: "output0", as: NodePort<Float>.self), to: inactiveConsumer.input)
+        graph.connect(gate.port(named: "output1", as: NodePort<Float>.self), to: activeConsumer.input)
 
         try harness.execute(graph, frameNumber: 0)
 
@@ -337,10 +337,10 @@ struct RoutingNodeExecutionTests
         graph.addNode(inactiveConsumer)
         graph.addNode(activeConsumer)
 
-        index.output.connect(to: gate.inputIndex)
-        source.output.connect(to: gate.port(named: "input", as: NodePort<Float>.self))
-        gate.port(named: "output0", as: NodePort<Float>.self).connect(to: inactiveConsumer.input)
-        gate.port(named: "output1", as: NodePort<Float>.self).connect(to: activeConsumer.input)
+        graph.connect(index.output, to: gate.inputIndex)
+        graph.connect(source.output, to: gate.port(named: "input", as: NodePort<Float>.self))
+        graph.connect(gate.port(named: "output0", as: NodePort<Float>.self), to: inactiveConsumer.input)
+        graph.connect(gate.port(named: "output1", as: NodePort<Float>.self), to: activeConsumer.input)
 
         // Warm up one frame so the connected index value lands on the port, then measure
         // steady-state routing on the next frame via per-frame execution-count deltas.
@@ -373,12 +373,12 @@ struct RoutingNodeExecutionTests
             graph.addNode(node)
         }
 
-        index.output.connect(to: gate.inputIndex)
-        source.output.connect(to: gate.port(named: "input", as: NodePort<Float>.self))
+        graph.connect(index.output, to: gate.inputIndex)
+        graph.connect(source.output, to: gate.port(named: "input", as: NodePort<Float>.self))
         // Only output 1 has a consumer. On cold start the index port is empty, so
         // route 0 — which nothing consumes — is selected, and every pull arrives
         // via the unselected output 1.
-        gate.port(named: "output1", as: NodePort<Float>.self).connect(to: consumer.input)
+        graph.connect(gate.port(named: "output1", as: NodePort<Float>.self), to: consumer.input)
 
         try harness.execute(graph, frameNumber: 0)
         try harness.execute(graph, frameNumber: 1)
@@ -407,11 +407,11 @@ struct RoutingNodeExecutionTests
             graph.addNode(node)
         }
 
-        index.output.connect(to: gate.inputIndex)
-        source.output.connect(to: gate.port(named: "input", as: NodePort<Float>.self))
+        graph.connect(index.output, to: gate.inputIndex)
+        graph.connect(source.output, to: gate.port(named: "input", as: NodePort<Float>.self))
         // The index selects route 0 every frame, so the sole consumer — on
         // output 1 — declines every pull.
-        gate.port(named: "output1", as: NodePort<Float>.self).connect(to: consumer.input)
+        graph.connect(gate.port(named: "output1", as: NodePort<Float>.self), to: consumer.input)
 
         try harness.execute(graph, frameNumber: 0)
         try harness.execute(graph, frameNumber: 1)
@@ -443,9 +443,9 @@ struct RoutingNodeExecutionTests
             graph.addNode(node)
         }
 
-        source.output.connect(to: gate.port(named: "input", as: NodePort<Float>.self))
-        gate.port(named: "output0", as: NodePort<Float>.self).connect(to: consumer.inputA)
-        live.output.connect(to: consumer.inputB)
+        graph.connect(source.output, to: gate.port(named: "input", as: NodePort<Float>.self))
+        graph.connect(gate.port(named: "output0", as: NodePort<Float>.self), to: consumer.inputA)
+        graph.connect(live.output, to: consumer.inputB)
 
         try harness.execute(graph, frameNumber: 0)
         try harness.execute(graph, frameNumber: 1)
@@ -478,10 +478,10 @@ struct RoutingNodeExecutionTests
             graph.addNode(node)
         }
 
-        source.output.connect(to: gate.port(named: "input", as: NodePort<Float>.self))
-        gate.port(named: "output0", as: NodePort<Float>.self).connect(to: passthrough.port(named: "input0", as: NodePort<Float>.self))
-        passthrough.output.connect(to: firstConsumer.input)
-        passthrough.output.connect(to: secondConsumer.input)
+        graph.connect(source.output, to: gate.port(named: "input", as: NodePort<Float>.self))
+        graph.connect(gate.port(named: "output0", as: NodePort<Float>.self), to: passthrough.port(named: "input0", as: NodePort<Float>.self))
+        graph.connect(passthrough.output, to: firstConsumer.input)
+        graph.connect(passthrough.output, to: secondConsumer.input)
 
         try harness.execute(graph, frameNumber: 0)
         try harness.execute(graph, frameNumber: 1)
@@ -516,12 +516,12 @@ struct RoutingNodeExecutionTests
             graph.addNode(node)
         }
 
-        input0.output.connect(to: matrix.port(named: "input0", as: NodePort<Float>.self))
-        input1.output.connect(to: matrix.port(named: "input1", as: NodePort<Float>.self))
-        input2.output.connect(to: matrix.port(named: "input2", as: NodePort<Float>.self))
-        matrix.port(named: "output0", as: NodePort<Float>.self).connect(to: consumer0.input)
-        matrix.port(named: "output1", as: NodePort<Float>.self).connect(to: consumer1.input)
-        matrix.port(named: "output2", as: NodePort<Float>.self).connect(to: consumer2.input)
+        graph.connect(input0.output, to: matrix.port(named: "input0", as: NodePort<Float>.self))
+        graph.connect(input1.output, to: matrix.port(named: "input1", as: NodePort<Float>.self))
+        graph.connect(input2.output, to: matrix.port(named: "input2", as: NodePort<Float>.self))
+        graph.connect(matrix.port(named: "output0", as: NodePort<Float>.self), to: consumer0.input)
+        graph.connect(matrix.port(named: "output1", as: NodePort<Float>.self), to: consumer1.input)
+        graph.connect(matrix.port(named: "output2", as: NodePort<Float>.self), to: consumer2.input)
 
         try harness.execute(graph)
 
@@ -553,10 +553,10 @@ struct RoutingNodeExecutionTests
             graph.addNode(node)
         }
 
-        routed.output.connect(to: matrix.port(named: "input0", as: NodePort<Float>.self))
-        unrouted.output.connect(to: matrix.port(named: "input1", as: NodePort<Float>.self))
-        matrix.port(named: "output0", as: NodePort<Float>.self).connect(to: activeConsumer.input)
-        matrix.port(named: "output1", as: NodePort<Float>.self).connect(to: frozenConsumer.input)
+        graph.connect(routed.output, to: matrix.port(named: "input0", as: NodePort<Float>.self))
+        graph.connect(unrouted.output, to: matrix.port(named: "input1", as: NodePort<Float>.self))
+        graph.connect(matrix.port(named: "output0", as: NodePort<Float>.self), to: activeConsumer.input)
+        graph.connect(matrix.port(named: "output1", as: NodePort<Float>.self), to: frozenConsumer.input)
 
         try harness.execute(graph)
 
@@ -588,9 +588,9 @@ struct RoutingNodeExecutionTests
             graph.addNode(node)
         }
 
-        winner.output.connect(to: matrix.port(named: "input0", as: NodePort<Float>.self))
-        loser.output.connect(to: matrix.port(named: "input1", as: NodePort<Float>.self))
-        matrix.port(named: "output0", as: NodePort<Float>.self).connect(to: consumer.input)
+        graph.connect(winner.output, to: matrix.port(named: "input0", as: NodePort<Float>.self))
+        graph.connect(loser.output, to: matrix.port(named: "input1", as: NodePort<Float>.self))
+        graph.connect(matrix.port(named: "output0", as: NodePort<Float>.self), to: consumer.input)
 
         try harness.execute(graph)
 
@@ -619,11 +619,11 @@ struct RoutingNodeExecutionTests
         }
 
         // Map arrives via a *connection*, not a directly set value: input 0 -> output 1, input 1 -> output 0.
-        mapProvider.output.connect(to: matrix.inputMap)
-        input0.output.connect(to: matrix.port(named: "input0", as: NodePort<Float>.self))
-        input1.output.connect(to: matrix.port(named: "input1", as: NodePort<Float>.self))
-        matrix.port(named: "output0", as: NodePort<Float>.self).connect(to: consumer0.input)
-        matrix.port(named: "output1", as: NodePort<Float>.self).connect(to: consumer1.input)
+        graph.connect(mapProvider.output, to: matrix.inputMap)
+        graph.connect(input0.output, to: matrix.port(named: "input0", as: NodePort<Float>.self))
+        graph.connect(input1.output, to: matrix.port(named: "input1", as: NodePort<Float>.self))
+        graph.connect(matrix.port(named: "output0", as: NodePort<Float>.self), to: consumer0.input)
+        graph.connect(matrix.port(named: "output1", as: NodePort<Float>.self), to: consumer1.input)
 
         // The map is empty during the first pass (its provider has not run yet), so routing
         // lags by one frame — the same cold-start latency as Switch/Gate. The node must not
@@ -649,10 +649,10 @@ struct RoutingNodeExecutionTests
         graph.addNode(accumulator)
         graph.addNode(consumer)
 
-        increment.output.connect(to: accumulator.inputIncrement)
-        accumulator.output.connect(to: consumer.input)
+        graph.connect(increment.output, to: accumulator.inputIncrement)
+        graph.connect(accumulator.output, to: consumer.input)
         // The cycle: the accumulator's output feeds its own feedback inlet.
-        accumulator.output.connect(to: accumulator.inputFeedback)
+        graph.connect(accumulator.output, to: accumulator.inputFeedback)
 
         // Ports retain the value their upstream outlet last sent, so on each
         // pass the feedback inlet holds the previous frame's output — the
@@ -679,7 +679,7 @@ struct RoutingNodeExecutionTests
         graph.addNode(upstream)
         graph.addNode(switchNode)
 
-        upstream.output.connect(to: switchNode.port(named: "input3", as: NodePort<Float>.self))
+        graph.connect(upstream.output, to: switchNode.port(named: "input3", as: NodePort<Float>.self))
         let savedInput3ID = switchNode.port(named: "input3", as: NodePort<Float>.self).id
 
         let data = try JSONEncoder().encode(graph)

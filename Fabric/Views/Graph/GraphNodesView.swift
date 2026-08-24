@@ -177,7 +177,14 @@ struct GraphNodesView: View
                 ForEach(0 ..< embedClasses.count, id: \.self) { embedClassIndex in
                     let embedClass = embedClasses[embedClassIndex]
                     Button {
-                        currentGraph.createSubgraphFromSelection(centeredOnNode: currentNode, usingClass: embedClass)
+                        do {
+                            _ = try currentGraph.createSubgraph(from: currentGraph.selectedNodes,
+                                                               centeredOn: currentNode,
+                                                               usingClass: embedClass)
+                        }
+                        catch {
+                            print("Create subgraph failed: \(error.localizedDescription)")
+                        }
                     } label: {
                         Text(embedClass.name)
                     }

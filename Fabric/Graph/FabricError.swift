@@ -48,6 +48,7 @@ public enum FabricErrorKind: Sendable, Codable, Equatable
     case loading(Loading)
     case deserialization(Deserialization)
     case execution(Execution)
+    case graph(Graph)
 
     public enum General: Sendable, Codable, Equatable
     {
@@ -78,5 +79,11 @@ public enum FabricErrorKind: Sendable, Codable, Equatable
         case outOfMemory
         case gpu
         case syntax
+    }
+
+    public enum Graph: Sendable, Codable, Equatable
+    {
+        case emptyNodeSelection
+        case nodeNotInGraph
     }
 }

@@ -133,16 +133,16 @@ class FabricDocument: FileDocument
         self.editingContext.currentGraph.addNode(directionalLightNode)
 
         // Connections — animation chain
-        spinNode.output.connect(to: mathNode.findPort(named: "Amount", as: ParameterPort<Float>.self)!)
-        mathNode.findPort(named: "result", as: NodePort<Float>.self)!.connect(to: smoothNode.findPort(named: "inputNumber", as: ParameterPort<Float>.self)!)
-        smoothNode.findPort(named: "outputNumber", as: NodePort<Float>.self)!.connect(to: integralNode.inputNumber)
-        integralNode.outputNumber.connect(to: eulerNode.findPort(named: "inputX", as: ParameterPort<Float>.self)!)
-        integralNode.outputNumber.connect(to: eulerNode.findPort(named: "inputY", as: ParameterPort<Float>.self)!)
-        eulerNode.findPort(named: "outputOrientation", as: NodePort<simd_float4>.self)!.connect(to: meshNode.inputOrientation)
+        self.editingContext.currentGraph.connect(spinNode.output, to: mathNode.findPort(named: "Amount", as: ParameterPort<Float>.self)!)
+        self.editingContext.currentGraph.connect(mathNode.findPort(named: "result", as: NodePort<Float>.self)!, to: smoothNode.findPort(named: "inputNumber", as: ParameterPort<Float>.self)!)
+        self.editingContext.currentGraph.connect(smoothNode.findPort(named: "outputNumber", as: NodePort<Float>.self)!, to: integralNode.inputNumber)
+        self.editingContext.currentGraph.connect(integralNode.outputNumber, to: eulerNode.findPort(named: "inputX", as: ParameterPort<Float>.self)!)
+        self.editingContext.currentGraph.connect(integralNode.outputNumber, to: eulerNode.findPort(named: "inputY", as: ParameterPort<Float>.self)!)
+        self.editingContext.currentGraph.connect(eulerNode.findPort(named: "outputOrientation", as: NodePort<simd_float4>.self)!, to: meshNode.inputOrientation)
 
         // Connections — geometry
-        boxNode.outputGeometry.connect(to: meshNode.inputGeometry)
-        materialNode.outputMaterial.connect(to: meshNode.inputMaterial)
+        self.editingContext.currentGraph.connect(boxNode.outputGeometry, to: meshNode.inputGeometry)
+        self.editingContext.currentGraph.connect(materialNode.outputMaterial, to: meshNode.inputMaterial)
 
         // Auto-layout the graph
         self.editingContext.currentGraph.autoLayout()

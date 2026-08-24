@@ -39,7 +39,7 @@ struct NumberGeneratorPulseTests
             throw GraphExecutionTestFailure("Number Generator has no outputValue port")
         }
 
-        pulse.outputSignal.connect(to: generatorSignal)
+        graph.connect(pulse.outputSignal, to: generatorSignal)
         graph.markConnectionsChanged()
 
         // Publishing the output makes the generator an evaluation root, so the
@@ -96,7 +96,7 @@ struct NumberGeneratorPulseTests
             throw GraphExecutionTestFailure("Number Generator missing ports")
         }
 
-        pulse.outputSignal.connect(to: generatorSignal)
+        graph.connect(pulse.outputSignal, to: generatorSignal)
         graph.markConnectionsChanged()
 
         // Deliberately NOT published and not consumed: the generator is not an
@@ -133,7 +133,7 @@ struct NumberGeneratorPulseTests
               let output = generator.findPort(named: "outputValue", as: NodePort<Float>.self)
         else { throw GraphExecutionTestFailure("Number Generator missing ports") }
 
-        pulse.outputSignal.connect(to: signal)
+        graph.connect(pulse.outputSignal, to: signal)
         graph.markConnectionsChanged()
         output.published = true
         graph.rebuildPublishedParameterGroup()
@@ -220,7 +220,7 @@ struct NumberGeneratorPulseTests
               let output = generator.findPort(named: "outputValue", as: NodePort<Float>.self)
         else { throw GraphExecutionTestFailure("Number Generator missing ports") }
 
-        pulse.outputSignal.connect(to: signal)
+        graph.connect(pulse.outputSignal, to: signal)
         graph.markConnectionsChanged()
         publish(output, in: graph)
 
@@ -282,7 +282,7 @@ struct NumberGeneratorPulseTests
         graph.addNode(pulse)
         graph.addNode(generator)
 
-        pulse.outputSignal.connect(to: generator.inputSignal)
+        graph.connect(pulse.outputSignal, to: generator.inputSignal)
         graph.markConnectionsChanged()
         publish(generator.outputIndex, in: graph)
 

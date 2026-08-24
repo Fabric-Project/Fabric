@@ -32,7 +32,7 @@ struct GraphConnectionsView: View
                             path.stroke(style: StrokeStyle(lineWidth: 5))
                         )
                         .onTapGesture(count: 2) {
-                            outlet.disconnect(from: inlet)
+                            currentGraph.disconnect(connectionPair.connection)
                         }
                 }
                 else

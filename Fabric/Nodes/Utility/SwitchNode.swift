@@ -72,12 +72,15 @@ public final class SwitchNode: RoutingNode
 
     public override func updateConnectionTopology()
     {
-        inputIndex.setConnectionsActive(true)
+        graph?.setConnections(from: inputIndex, active: true)
 
         for index in 0..<routeCount
         {
             let inputPort: Port? = findPort(named: Self.inputPortName(index))
-            inputPort?.setConnectionsActive(index == selectedRouteIndex())
+            if let inputPort
+            {
+                graph?.setConnections(from: inputPort, active: index == selectedRouteIndex())
+            }
         }
     }
 }
