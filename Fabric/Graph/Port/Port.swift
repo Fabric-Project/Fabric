@@ -120,7 +120,7 @@ extension UTType
     @ObservationIgnored public weak var node: Node?
     @ObservationIgnored internal var onValueChanged: (() -> Void)?
 
-    public internal(set) var connections: [Connection] = []
+    internal var connections: [Connection] = []
     @ObservationIgnored public let kind: PortKind
     @ObservationIgnored public let direction:PortDirection = .Horizontal
     @ObservationIgnored public var color:Color
@@ -145,7 +145,6 @@ extension UTType
     {
         case id
         case name
-        case connections
         case kind
         case direction
         case published
@@ -185,9 +184,6 @@ extension UTType
             try container.encode(portDescription, forKey: .portDescription)
         }
 
-        let connectedPortIds = self.connectedPorts.map( { $0.id } )
-
-        try container.encode(connectedPortIds, forKey: .connections)
     }
     
     deinit
@@ -238,14 +234,6 @@ extension UTType
         }
     }
 
-    public func setConnectionsActive(_ active: Bool)
-    {
-        for connection in connections
-        {
-            connection.active = active
-        }
-    }
-
     /// Hover-tooltip string for this port: `displayName: type` plus the
     /// current value when available.
     public var inspectionTooltip: String {
@@ -281,9 +269,6 @@ extension UTType
         return self.portType.canConnect(to: other.portType)
     }
     
-    public func connect(to other: Port) { fatalError("override") }
-    public func disconnect(from other: Port) { fatalError("override") }
-    public func disconnectAll() { fatalError("override") }
     public func teardown() { }
 
 }

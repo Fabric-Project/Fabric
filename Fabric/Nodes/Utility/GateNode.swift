@@ -77,9 +77,12 @@ public final class GateNode: RoutingNode
 
     public override func updateConnectionTopology()
     {
-        inputIndex.setConnectionsActive(true)
+        graph?.setConnections(from: inputIndex, active: true)
         let input: Port? = findPort(named: Self.inputPortName)
-        input?.setConnectionsActive(true)
+        if let input
+        {
+            graph?.setConnections(from: input, active: true)
+        }
 
         let routeIndex = selectedRouteIndex()
         guard activeRouteIndex != routeIndex else { return }

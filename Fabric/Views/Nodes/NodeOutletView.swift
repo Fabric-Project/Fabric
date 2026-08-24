@@ -54,7 +54,7 @@ struct NodeOutletView: View
                                 return
                             }
 
-                            self.port.connect(to: targetPort)
+                            graph.connect(self.port, to: targetPort)
                         }
                 )
                 .modifier(PortInspectionTooltip(port: port))

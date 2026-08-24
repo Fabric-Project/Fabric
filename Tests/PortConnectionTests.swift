@@ -28,19 +28,19 @@ struct PortConnectionTests {
         graph.addNode(source)
         graph.addNode(sink)
 
-        source.outputNumber.connect(to: sink.inputNumber1)
+        graph.connect(source.outputNumber, to: sink.inputNumber1)
         sink.inputNumber1.value = 72
 
         // Duplicate connect from the outlet side, as the decode connection
         // restore does for the outlet-keyed map entry. The source outlet has
         // no value yet, so a disconnect/reconnect would leave the inlet nil.
-        source.outputNumber.connect(to: sink.inputNumber1)
+        graph.connect(source.outputNumber, to: sink.inputNumber1)
         #expect(sink.inputNumber1.value == 72)
         #expect(source.outputNumber.connections.count == 1)
         #expect(sink.inputNumber1.connections.count == 1)
 
-        // ...and from the inlet side, for the inlet-keyed map entry.
-        sink.inputNumber1.connect(to: source.outputNumber)
+        // A repeated graph-owned request remains a no-op.
+        graph.connect(source.outputNumber, to: sink.inputNumber1)
         #expect(sink.inputNumber1.value == 72)
         #expect(source.outputNumber.connections.count == 1)
         #expect(sink.inputNumber1.connections.count == 1)
@@ -56,7 +56,7 @@ struct PortConnectionTests {
         graph.addNode(source)
         graph.addNode(sink)
 
-        source.outputNumber.connect(to: sink.inputNumber1)
+        graph.connect(source.outputNumber, to: sink.inputNumber1)
         sink.inputNumber1.value = 72
 
         let data = try JSONEncoder().encode(graph)
@@ -91,14 +91,14 @@ struct PortConnectionTests {
         graph.addNode(source)
         graph.addNode(sink)
 
-        source.outputNumber.connect(to: sink.inputNumber1)
+        graph.connect(source.outputNumber, to: sink.inputNumber1)
         source.outputNumber.send(9)
         #expect(sink.inputNumber1.value == 9)
 
         // Disconnect force-sends nil into the inlet so it doesn't sit on stale
         // data. A parameter-backed inlet has no valueless state, so rather than
         // being left with a missing input it re-seats on its parameter.
-        source.outputNumber.disconnect(from: sink.inputNumber1)
+        graph.disconnect(source.outputNumber, from: sink.inputNumber1)
         #expect(sink.inputNumber1.connections.isEmpty)
         #expect(sink.inputNumber1.value != nil)
         #expect(sink.inputNumber1.value == (sink.inputNumber1.parameter as? FloatParameter)?.value)
@@ -114,7 +114,7 @@ struct PortConnectionTests {
         graph.addNode(source)
         graph.addNode(sink)
 
-        source.outputNumber.connect(to: sink.inputNumber1)
+        graph.connect(source.outputNumber, to: sink.inputNumber1)
         source.outputNumber.send(9)
 
         sink.markClean()
@@ -125,7 +125,7 @@ struct PortConnectionTests {
         var observedValues: [Float?] = []
         inlet.onValueChanged = { observedValues.append(inlet.value) }
 
-        source.outputNumber.disconnect(from: sink.inputNumber1)
+        graph.disconnect(source.outputNumber, from: sink.inputNumber1)
 
         // The observer retains the port it reads, so clear it before asserting.
         inlet.onValueChanged = nil
@@ -161,7 +161,7 @@ struct PortConnectionTests {
 
         source.inputNumber1.value = 4
         source.inputNumber2.value = 0
-        source.outputNumber.connect(to: x)
+        graph.connect(source.outputNumber, to: x)
         y.value = 1
 
         try harness.renderer.startExecution(graph: graph)
@@ -227,16 +227,16 @@ struct PortConnectionTests {
         graph.addNode(imageSource)
         graph.addNode(numberSink)
 
-        // The canvas gates drops on canConnect; the untyped connect entry the
-        // procedural API and decode restore use must refuse the same pairs.
-        (imageSource.output as Fabric.Port).connect(to: numberSink.inputNumber1)
+        // The canvas gates drops on canConnect; the procedural API rejects the
+        // same invalid pair without partially mutating either endpoint.
+        #expect(graph.connect((imageSource.output as Fabric.Port), to: numberSink.inputNumber1) == nil)
         #expect(imageSource.output.connections.isEmpty)
         #expect(numberSink.inputNumber1.connections.isEmpty)
 
         // Convertible scalars stay connectable — send can service Float→Int.
         let intSink = PassThroughNode<Int>(context: context)
         graph.addNode(intSink)
-        (numberSink.outputNumber as Fabric.Port).connect(to: intSink.input)
+        graph.connect((numberSink.outputNumber as Fabric.Port), to: intSink.input)
         #expect(numberSink.outputNumber.connections.count == 1)
     }
 
@@ -251,7 +251,7 @@ struct PortConnectionTests {
         graph.addNode(holdNode)
 
         let holdInput = try #require(holdNode.findPort(named: "inputValue") as Fabric.Port?)
-        (imageSource.output as Fabric.Port).connect(to: holdInput)
+        graph.connect((imageSource.output as Fabric.Port), to: holdInput)
         #expect(holdInput.connections.count == 1)
 
         // Re-type the node in the saved document, as an edit in a newer build
@@ -289,7 +289,7 @@ struct PortConnectionTests {
         let sink = NumberBinaryOperator(context: context)
         graph.addNode(source)
         graph.addNode(sink)
-        source.outputNumber.connect(to: sink.inputNumber1)
+        graph.connect(source.outputNumber, to: sink.inputNumber1)
 
         // Remove the source node from the document; the port map still holds
         // both directions of its wire.
@@ -448,8 +448,8 @@ struct PortConnectionTests {
         #expect(floatInput.canConnect(to: virtualSwitch.output))
         #expect(virtualSwitch.output.canConnect(to: floatInput))
 
-        floatSwitch.output.connect(to: log.inputAny)
-        number.outputNumber.connect(to: floatInput)
+        graph.connect(floatSwitch.output, to: log.inputAny)
+        graph.connect(number.outputNumber, to: floatInput)
 
         #expect(floatSwitch.output.connections.count == 1)
         #expect(log.inputAny.connections.count == 1)
@@ -470,8 +470,8 @@ struct PortConnectionTests {
         graph.addNode(log)
 
         let inputBefore = try #require(sink.findPort(named: "input0", as: Port.self))
-        source.output.connect(to: inputBefore)
-        sink.output.connect(to: log.inputAny)
+        graph.connect(source.output, to: inputBefore)
+        graph.connect(sink.output, to: log.inputAny)
 
         sink.setPortType(.Float)
 
@@ -503,7 +503,7 @@ struct PortConnectionTests {
         arrayValue.rebuildPorts(forStrategy: PortType.Float.rawValue)
 
         #expect(retiredOutput.node == nil)
-        retiredOutput.connect(to: stringSink.input)
+        #expect(graph.connect(retiredOutput, to: stringSink.input) == nil)
         #expect(retiredOutput.connections.isEmpty)
         #expect(stringSink.input.connections.isEmpty)
     }
@@ -525,7 +525,7 @@ struct PortConnectionTests {
         #expect(stringOutput.canConnect(to: textGeometry.inputText))
         #expect(textGeometry.inputText.canConnect(to: stringOutput))
 
-        stringOutput.connect(to: textGeometry.inputText)
+        graph.connect(stringOutput, to: textGeometry.inputText)
 
         #expect(stringOutput.connectedPorts == [textGeometry.inputText])
         #expect(textGeometry.inputText.connectedPorts == [stringOutput])

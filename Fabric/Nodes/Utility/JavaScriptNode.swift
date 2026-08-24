@@ -605,7 +605,11 @@ public final class JavaScriptNode: Node
             let replacement = definition.portType.makeFreshPort(name: definition.name, kind: expectedKind)
             self.addDynamicPort(replacement, name: definition.name)
             for connectedPort in oldConnections where replacement.canConnect(to: connectedPort) {
-                replacement.connect(to: connectedPort)
+                if replacement.kind == .Outlet {
+                    self.graph?.connect(replacement, to: connectedPort)
+                } else {
+                    self.graph?.connect(connectedPort, to: replacement)
+                }
             }
             reorderedPorts.append(replacement)
         }

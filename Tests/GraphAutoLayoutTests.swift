@@ -31,7 +31,7 @@ private func makeGraph(context: Context, nodes: [Node] = []) -> Graph {
 
 /// Connect number output of `from` → first operand of `to`.
 private func connect(_ from: NumberBinaryOperator, to: NumberBinaryOperator) {
-    from.outputNumber.connect(to: to.inputNumber1)
+    from.graph?.connect(from.outputNumber, to: to.inputNumber1)
 }
 
 /// Look up a node's computed position from layout results.
@@ -144,7 +144,7 @@ struct GraphAutoLayoutTests {
         let consumer = makeNode(context: ctx)
         let graph = makeGraph(context: ctx, nodes: [p1, p2, consumer])
         connect(p1, to: consumer)
-        p2.outputNumber.connect(to: consumer.inputNumber2)
+        graph.connect(p2.outputNumber, to: consumer.inputNumber2)
 
         let layout = GraphAutoLayout.compute(graph: graph)
         let xP1 = xPosition(of: p1, in: layout)!
@@ -168,11 +168,11 @@ struct GraphAutoLayoutTests {
         let e = makeNode(context: ctx) // col 2, feeds F
         let graph = makeGraph(context: ctx, nodes: [d, b, f, a, c, e])
 
-        b.outputNumber.connect(to: d.inputNumber1)
-        f.outputNumber.connect(to: d.inputNumber2)
-        a.outputNumber.connect(to: b.inputNumber1)
-        c.outputNumber.connect(to: b.inputNumber2)
-        e.outputNumber.connect(to: f.inputNumber1)
+        graph.connect(b.outputNumber, to: d.inputNumber1)
+        graph.connect(f.outputNumber, to: d.inputNumber2)
+        graph.connect(a.outputNumber, to: b.inputNumber1)
+        graph.connect(c.outputNumber, to: b.inputNumber2)
+        graph.connect(e.outputNumber, to: f.inputNumber1)
 
         let layout = GraphAutoLayout.compute(graph: graph)
 
@@ -209,10 +209,10 @@ struct GraphAutoLayoutTests {
         let y = makeNode(context: ctx) // col 2, feeds B
         let graph = makeGraph(context: ctx, nodes: [d, a, b, x, y])
 
-        a.outputNumber.connect(to: d.inputNumber1)
-        b.outputNumber.connect(to: d.inputNumber2)
-        x.outputNumber.connect(to: a.inputNumber1)
-        y.outputNumber.connect(to: b.inputNumber1)
+        graph.connect(a.outputNumber, to: d.inputNumber1)
+        graph.connect(b.outputNumber, to: d.inputNumber2)
+        graph.connect(x.outputNumber, to: a.inputNumber1)
+        graph.connect(y.outputNumber, to: b.inputNumber1)
 
         let layout = GraphAutoLayout.compute(graph: graph)
 
@@ -256,11 +256,11 @@ struct GraphAutoLayoutTests {
         let y = makeNode(context: ctx) // col 2, feeds D
         let graph = makeGraph(context: ctx, nodes: [c, a, b, d, x, y])
 
-        a.outputNumber.connect(to: c.inputNumber1)
-        b.outputNumber.connect(to: c.inputNumber2)
-        d.outputNumber.connect(to: c.inputParam)
-        x.outputNumber.connect(to: a.inputNumber1)
-        y.outputNumber.connect(to: d.inputNumber1)
+        graph.connect(a.outputNumber, to: c.inputNumber1)
+        graph.connect(b.outputNumber, to: c.inputNumber2)
+        graph.connect(d.outputNumber, to: c.inputParam)
+        graph.connect(x.outputNumber, to: a.inputNumber1)
+        graph.connect(y.outputNumber, to: d.inputNumber1)
 
         let layout = GraphAutoLayout.compute(graph: graph)
 
@@ -291,13 +291,13 @@ struct GraphAutoLayoutTests {
                                 twoMinusActive, secsTimesSpeed, colorTween]
         let graph = makeGraph(context: ctx, nodes: allNodes)
 
-        vector3.outputNumber.connect(to: mesh.inputNumber1)
-        eulerOrientation.outputNumber.connect(to: mesh.inputNumber2)
-        physicalMaterial.outputNumber.connect(to: mesh.inputParam)
+        graph.connect(vector3.outputNumber, to: mesh.inputNumber1)
+        graph.connect(eulerOrientation.outputNumber, to: mesh.inputNumber2)
+        graph.connect(physicalMaterial.outputNumber, to: mesh.inputParam)
 
-        twoMinusActive.outputNumber.connect(to: vector3.inputNumber1)
-        secsTimesSpeed.outputNumber.connect(to: eulerOrientation.inputNumber1)
-        colorTween.outputNumber.connect(to: physicalMaterial.inputNumber1)
+        graph.connect(twoMinusActive.outputNumber, to: vector3.inputNumber1)
+        graph.connect(secsTimesSpeed.outputNumber, to: eulerOrientation.inputNumber1)
+        graph.connect(colorTween.outputNumber, to: physicalMaterial.inputNumber1)
 
         let layout = GraphAutoLayout.compute(graph: graph)
 
@@ -330,17 +330,17 @@ struct GraphAutoLayoutTests {
         let source = makeNode(context: ctx)       // col 2 — fan-out
         let graph = makeGraph(context: ctx, nodes: [sink, topConsumer, midConsumer, botConsumer, source])
 
-        topConsumer.outputNumber.connect(to: sink.inputNumber1)
-        midConsumer.outputNumber.connect(to: sink.inputNumber2)
-        botConsumer.outputNumber.connect(to: sink.inputParam)
+        graph.connect(topConsumer.outputNumber, to: sink.inputNumber1)
+        graph.connect(midConsumer.outputNumber, to: sink.inputNumber2)
+        graph.connect(botConsumer.outputNumber, to: sink.inputParam)
 
         // Connect source to BOTTOM, MIDDLE, TOP in that order.
         // `outputNodes` ends up [bot, mid, top] — so a positioning
         // path that picks the first connection ends up aligning with
         // `bot` rather than the topmost layout neighbour `top`.
-        source.outputNumber.connect(to: botConsumer.inputNumber1)
-        source.outputNumber.connect(to: midConsumer.inputNumber1)
-        source.outputNumber.connect(to: topConsumer.inputNumber1)
+        graph.connect(source.outputNumber, to: botConsumer.inputNumber1)
+        graph.connect(source.outputNumber, to: midConsumer.inputNumber1)
+        graph.connect(source.outputNumber, to: topConsumer.inputNumber1)
 
         let layout = GraphAutoLayout.compute(graph: graph)
 
@@ -372,10 +372,10 @@ struct GraphAutoLayoutTests {
         let y = makeNode(context: ctx) // col 2, feeds B
         let graph = makeGraph(context: ctx, nodes: [c, a, b, x, y])
 
-        a.outputNumber.connect(to: c.inputNumber1)  // A is row 0 (port 0 on C)
-        b.outputNumber.connect(to: c.inputNumber2)  // B is row 1 (port 1 on C)
-        x.outputNumber.connect(to: a.inputNumber1)
-        y.outputNumber.connect(to: b.inputNumber1)
+        graph.connect(a.outputNumber, to: c.inputNumber1)  // A is row 0 (port 0 on C)
+        graph.connect(b.outputNumber, to: c.inputNumber2)  // B is row 1 (port 1 on C)
+        graph.connect(x.outputNumber, to: a.inputNumber1)
+        graph.connect(y.outputNumber, to: b.inputNumber1)
 
         let layout = GraphAutoLayout.compute(graph: graph)
 
@@ -425,18 +425,18 @@ struct GraphAutoLayoutTests {
         ]
         let graph = makeGraph(context: ctx, nodes: allNodes)
 
-        vector3.outputNumber.connect(to: mesh.inputNumber1)              // Position (port 0)
-        eulerOrientation.outputNumber.connect(to: mesh.inputNumber2)    // Orientation (port 1)
-        physicalMaterial.outputNumber.connect(to: mesh.inputParam) // Material (port 2)
+        graph.connect(vector3.outputNumber, to: mesh.inputNumber1)              // Position (port 0)
+        graph.connect(eulerOrientation.outputNumber, to: mesh.inputNumber2)    // Orientation (port 1)
+        graph.connect(physicalMaterial.outputNumber, to: mesh.inputParam) // Material (port 2)
 
-        twoMinusActive.outputNumber.connect(to: vector3.inputNumber1)          // → X
-        secsTimesSpeed.outputNumber.connect(to: eulerOrientation.inputNumber1) // → Pitch
-        colorTween.outputNumber.connect(to: physicalMaterial.inputNumber1)     // → Base Color
+        graph.connect(twoMinusActive.outputNumber, to: vector3.inputNumber1)          // → X
+        graph.connect(secsTimesSpeed.outputNumber, to: eulerOrientation.inputNumber1) // → Pitch
+        graph.connect(colorTween.outputNumber, to: physicalMaterial.inputNumber1)     // → Base Color
 
-        stateInfo.outputNumber.connect(to: twoMinusActive.inputNumber1)    // → active
-        patchTime.outputNumber.connect(to: secsTimesSpeed.inputNumber1)    // → secs
-        number.outputNumber.connect(to: secsTimesSpeed.inputNumber2)      // → speed
-        vector4.outputNumber.connect(to: colorTween.inputNumber1)          // → Target
+        graph.connect(stateInfo.outputNumber, to: twoMinusActive.inputNumber1)    // → active
+        graph.connect(patchTime.outputNumber, to: secsTimesSpeed.inputNumber1)    // → secs
+        graph.connect(number.outputNumber, to: secsTimesSpeed.inputNumber2)      // → speed
+        graph.connect(vector4.outputNumber, to: colorTween.inputNumber1)          // → Target
 
         let layout = GraphAutoLayout.compute(graph: graph)
         let cols = columns(from: layout)

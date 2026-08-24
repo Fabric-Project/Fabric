@@ -62,8 +62,8 @@ struct CameraNodeTests
         mesh.inputCullingMode.value = "None"
         graph.addNode(mesh)
 
-        geometry.outputGeometry.connect(to: mesh.inputGeometry)
-        material.outputMaterial.connect(to: mesh.inputMaterial)
+        graph.connect(geometry.outputGeometry, to: mesh.inputGeometry)
+        graph.connect(material.outputMaterial, to: mesh.inputMaterial)
         graph.markConnectionsChanged()
 
         return graph

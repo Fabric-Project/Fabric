@@ -22,6 +22,13 @@ struct PortHydrationTests
         )
     }
 
+    private func bundledComputeShaderURL() throws -> URL
+    {
+        try #require(Bundle.module.url(forResource: "ComputeInvertColor",
+                                       withExtension: "metal",
+                                       subdirectory: "Compute/ColorEffect"))
+    }
+
     private func roundTrip<N: Node>(_ node: N, context: Context, editJSON: ((inout [String: Any]) -> Void)? = nil) throws -> N
     {
         let data = try JSONEncoder().encode(node)
@@ -219,7 +226,7 @@ struct PortHydrationTests
             """)
 
         let outputPort = try #require(node.findPort(named: "doubled") as Fabric.Port?)
-        outputPort.connect(to: consumer.inputNumber1)
+        graph.connect(outputPort, to: consumer.inputNumber1)
 
         let savedPortIDs = node.ports.map(\.id)
         #expect(savedPortIDs.count == 2)
@@ -268,7 +275,7 @@ struct PortHydrationTests
 
         let gainPort = try #require(node.findPort(named: "Gain") as? ParameterPort<Float>)
         gainPort.value = 1.7
-        source.outputNumber.connect(to: gainPort)
+        graph.connect(source.outputNumber, to: gainPort)
 
         let savedPortIDs = node.ports.map(\.id)
 
@@ -341,21 +348,35 @@ struct PortHydrationTests
     {
         guard let context = makeContext() else { return }
 
-        // Resolve the shader through the registry wrapper so the test follows
-        // the same path a document's node class resolution does.
-        let wrapper = try #require(try NodeRegistry.shared.availableNodes.first {
-            $0.nodeClass == BaseTextureComputeProcessorNode.self
-        })
-        let fileURL = try #require(wrapper.fileURL)
-
-        let node = try BaseTextureComputeProcessorNode(context: context, fileURL: fileURL)
+        let node = try BaseTextureComputeProcessorNode(context: context,
+                                                       fileURL: bundledComputeShaderURL())
         let savedPortIDs = node.ports.map(\.id)
-        let savedDisplayName = node.displayName
+        let savedTitle = node.title
 
-        let decoded = try roundTrip(node, context: context)
+        let encodedData = try JSONEncoder().encode(node)
+        let encodedObject = try #require(
+            JSONSerialization.jsonObject(with: encodedData) as? [String: Any]
+        )
+        let effectPath = try #require(
+            encodedObject["effectPath"] as? String,
+            "The bundled compute shader was not encoded as a bundle-relative effectPath."
+        )
+        let resolvedShaderURL = try #require(
+            BaseTextureComputeProcessorNode.resolveBundleResource(path: effectPath),
+            "The encoded compute effectPath could not be resolved against Bundle.module."
+        )
+        #expect(
+            FileManager.default.fileExists(atPath: resolvedShaderURL.path(percentEncoded: false)),
+            "The encoded compute effectPath resolved to a missing file: \(resolvedShaderURL.path(percentEncoded: false))"
+        )
 
-        #expect(decoded.compute != nil)
-        #expect(decoded.displayName == savedDisplayName)
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decoded = try decoder.decode(BaseTextureComputeProcessorNode.self, from: encodedData)
+
+        #expect(decoded.compute != nil,
+                "A valid bundled compute effectPath decoded without rebuilding its processor.")
+        #expect(decoded.title == savedTitle)
         #expect(decoded.ports.map(\.id) == savedPortIDs)
         #expect(decoded.droppedPortStateKeys.isEmpty)
     }
@@ -365,10 +386,8 @@ struct PortHydrationTests
     {
         guard let context = makeContext() else { return }
 
-        let wrapper = try #require(try NodeRegistry.shared.availableNodes.first {
-            $0.nodeClass == BaseTextureComputeProcessorNode.self
-        })
-        let node = try BaseTextureComputeProcessorNode(context: context, fileURL: try #require(wrapper.fileURL))
+        let node = try BaseTextureComputeProcessorNode(context: context,
+                                                       fileURL: bundledComputeShaderURL())
 
         let retiredPath = "Effects/Compute/RetiredEffect.metal"
         let decoded = try roundTrip(node, context: context) { jsonObject in

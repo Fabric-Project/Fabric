@@ -386,6 +386,8 @@ extension Graph {
     public func insertParameterNode(for port: Port)
     {
         guard let sourceNode = port.node,
+              sourceNode.graph === self,
+              nodePort(forID: port.id) === port,
               let nodeClass = port.portType.parameterNodeClass
         else { return }
 
@@ -395,6 +397,12 @@ extension Graph {
         let paramInlet  = paramNode.inputPorts().first
 
         guard let paramOutlet, let paramInlet else { return }
+
+        self.undoManager?.beginUndoGrouping()
+        defer {
+            self.undoManager?.endUndoGrouping()
+            self.undoManager?.setActionName("Insert Parameter Node")
+        }
 
         switch port.kind
         {
@@ -413,18 +421,19 @@ extension Graph {
                 let savedName = port.publishedName
                 port.publishedName = nil
 
-                let publishTarget = paramInlet ?? paramOutlet
-                publishTarget.published = true
-                publishTarget.publishedName = savedName
+                paramInlet.published = true
+                paramInlet.publishedName = savedName
             }
-
-            // Move existing upstream connections to the parameter node's input
-            for connection in existingConnections { connection.disconnect(from: port) }
-            for connection in existingConnections { connection.connect(to: paramInlet) }
 
             self.addNode(paramNode)
             paramInlet.restoreValue(from: port.snapshotValue())
-            paramOutlet.connect(to: port)
+
+            // Connecting the parameter outlet replaces the original inlet
+            // connection after its upstream source has been preserved.
+            for connectedPort in existingConnections {
+                self.connect(connectedPort, to: paramInlet)
+            }
+            self.connect(paramOutlet, to: port)
 
         case .Outlet:
 
@@ -441,18 +450,19 @@ extension Graph {
                 let savedName = port.publishedName
                 port.publishedName = nil
 
-                let publishTarget = paramOutlet ?? paramInlet
-                publishTarget.published = true
-                publishTarget.publishedName = savedName
+                paramOutlet.published = true
+                paramOutlet.publishedName = savedName
             }
-
-            // Move existing downstream connections to the parameter node's outlet
-            for connection in existingConnections { port.disconnect(from: connection) }
-            for connection in existingConnections { paramOutlet.connect(to: connection) }
 
             self.addNode(paramNode)
             paramInlet.restoreValue(from: port.snapshotValue())
-            port.connect(to: paramInlet)
+
+            // Preserve the original outlet first, then replace each downstream
+            // inlet with the parameter node's outlet.
+            self.connect(port, to: paramInlet)
+            for connectedPort in existingConnections {
+                self.connect(paramOutlet, to: connectedPort)
+            }
 
         }
 

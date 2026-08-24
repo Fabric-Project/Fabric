@@ -303,7 +303,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
 
             let inboundConnections = legacyPort.connectedInlets
             for inlet in inboundConnections {
-                canonicalPort.connect(to: inlet)
+                self.graph?.connect(canonicalPort, to: inlet)
             }
         }
 

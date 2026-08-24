@@ -168,9 +168,9 @@ public class LiveImageNode: BaseImageNode
         let fileManager = FileManager.default
         try fileManager.createDirectory(at: workspaceURL, withIntermediateDirectories: true)
 
-        let rootLygiaLink = Self.rootWorkspaceURL.appending(path: "lygia", directoryHint: .isDirectory)
-        let localLygiaLink = workspaceURL.appending(path: "lygia", directoryHint: .isDirectory)
-        let bundleLygia = Bundle.module.resourceURL?.appending(path: "lygia", directoryHint: .isDirectory)
+        let rootLygiaLink = Self.rootWorkspaceURL.appending(path: "lygia")
+        let localLygiaLink = workspaceURL.appending(path: "lygia")
+        let bundleLygia = Bundle.module.resourceURL?.appending(path: "lygia")
 
         if let bundleLygia {
             try self.ensureSymlink(at: rootLygiaLink, destination: bundleLygia)
@@ -191,7 +191,7 @@ public class LiveImageNode: BaseImageNode
                 return
             }
 
-            try fileManager.removeItem(at: linkURL)
+            try fileManager.removeItem(atPath: linkPath)
         }
         else if fileManager.fileExists(atPath: linkPath) {
             var isDirectory = ObjCBool(false)
@@ -200,7 +200,7 @@ public class LiveImageNode: BaseImageNode
                 return
             }
 
-            try fileManager.removeItem(at: linkURL)
+            try fileManager.removeItem(atPath: linkPath)
         }
 
         try fileManager.createSymbolicLink(at: linkURL, withDestinationURL: destination)

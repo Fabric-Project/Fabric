@@ -17,6 +17,7 @@ struct GraphConnectionPair: Identifiable
 
     let outlet: Port
     let inlet: Port
+    let connection: Connection
 
     var id: ID
     {
@@ -87,7 +88,7 @@ public class GraphCanvasContext
                   let inlet = graph.nodePort(forID: connection.inletPortID)
             else { return nil }
 
-            return GraphConnectionPair(outlet: outlet, inlet: inlet)
+            return GraphConnectionPair(outlet: outlet, inlet: inlet, connection: connection)
         }
         cachedConnectionGraphID = graph.id
         cachedConnectionRevision = graph.connectionRevision

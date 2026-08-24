@@ -64,7 +64,6 @@ struct PortContextMenu: View
 
     private func disconnect()
     {
-        port.disconnectAll()
-        graph.markConnectionsChanged()
+        graph.disconnectAll(from: port)
     }
 }
