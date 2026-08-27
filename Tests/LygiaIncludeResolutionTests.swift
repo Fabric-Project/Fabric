@@ -6,11 +6,8 @@ import Satin
 @Suite("Lygia Include Resolution", .serialized)
 struct LygiaIncludeResolutionTests {
 
-    /// The compiler's fallback, against a root built here rather than the
-    /// injected bundle root: the SPM-built resource bundle carries `lygia`
-    /// as a dangling symlink (a known packaging fragility), so the bundle
-    /// tree is only real where Xcode's resource copy materialised it — the
-    /// app, not this test process.
+    /// The compiler's fallback, against a root built here so the test
+    /// controls both sides of the resolution.
     ///
     /// The nested include also pins that once the fallback lands inside the
     /// root, a lygia file's own relative includes continue from there.
@@ -58,8 +55,11 @@ struct LygiaIncludeResolutionTests {
     func corePluginLoadInjectsLygiaRoot() throws {
         try PluginLoader.shared.loadAllPlugins()
 
-        _ = try #require(
+        let root = try #require(
             shaderIncludeRootURLs.first(where: { $0.lastPathComponent == "lygia" }),
             "Core plugin load should hand Satin the lygia root")
+        #expect(FileManager.default.fileExists(
+            atPath: root.appending(path: "sampler.msl").path(percentEncoded: false)),
+                "The injected root should hold the shipped lygia tree")
     }
 }

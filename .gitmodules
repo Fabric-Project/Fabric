@@ -2,7 +2,7 @@
 	path = Satin
 	url = https://github.com/Fabric-Project/Satin
 [submodule "Lygia"]
-	path = Lygia
+	path = Fabric/lygia
 	url = https://github.com/vade/lygia/
 [submodule "Syphon"]
 	path = Syphon
