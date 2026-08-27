@@ -5,19 +5,27 @@ import Satin
 import simd
 import UniformTypeIdentifiers
 
-public class BaseImageNode: Node, NodeFileLoadingProtocol
+open class BaseImageNode: Node, NodeFileLoadingProtocol
 {
     public static var supportedContentTypes: [UTType] { [] }
     
-    override public class var name: String { "Base Image" }
-    override public class var nodeType: Node.NodeType { .Image(imageType: .BaseEffect) }
+    override open class var name: String { "Base Image" }
+    override open class var nodeType: Node.NodeType { .Image(imageType: .BaseEffect) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Image processing effect" }
+    override open class var nodeDescription: String { "Image processing effect" }
 
     override public func deriveTitle() -> String { self.cachedFileURLName ?? Self.name }
 
     open class var sourceShaderName: String { "" }
+
+    /// Where the class's shader ships. The default resolves `sourceShaderName`
+    /// from Fabric's Shaders directory; a subclass in a plugin overrides this to
+    /// its own bundle, which init and decode then resolve against.
+    open class var sourceShaderURL: URL? {
+        Bundle.module.url(forResource: sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
+    }
+
     open class var defaultImageInputCountHint: Int? { nil }
 
     open class PostMaterial: SourceMaterial {}
@@ -96,9 +104,8 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         self.postSetupSynchronizePorts(allowReplace: true)
     }
 
-    required init(context: Context) {
-        let bundle = Bundle.module
-        let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
+    public required init(context: Context) {
+        let shaderURL = Self.sourceShaderURL
 
         let material = PostMaterial(context:context, pipelineURL: shaderURL!)
 
@@ -139,7 +146,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         self.syncDynamicParameterPortsFromMaterial()
     }
 
-    required init(from decoder: any Decoder) throws {
+    public required init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
         guard let context = decoder.context?.documentContext as? Context else {
@@ -167,8 +174,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
             else {
                 self.cachedFileURLName = nil
 
-                let bundle = Bundle.module
-                let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
+                let shaderURL = Self.sourceShaderURL
 
                 let material = PostMaterial(context:context,pipelineURL: shaderURL!)
 
@@ -185,8 +191,7 @@ public class BaseImageNode: Node, NodeFileLoadingProtocol
         else {
             self.cachedFileURLName = nil
 
-            let bundle = Bundle.module
-            let shaderURL = bundle.url(forResource: Self.sourceShaderName, withExtension: "metal", subdirectory: "Shaders")
+            let shaderURL = Self.sourceShaderURL
 
             let material = PostMaterial(context:context,pipelineURL: shaderURL!)
 
