@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Satin
 import os
 
 /// Loads Fabric's embedded core plugin plus optional external node plugin bundles.
@@ -166,6 +167,13 @@ public final class PluginLoader
         guard loadedPlugins[Self.coreNodesPluginID] == nil else { return }
 
         let bundle = Bundle.module
+
+        // Satin resolves `lygia/…` includes against this root when a shader's
+        // own relative path misses — external plugins' shaders have no lygia
+        // beside them, and only Fabric knows where its tree ships.
+        if let lygiaRoot = bundle.resourceURL?.appending(path: "lygia") {
+            shaderIncludeRootURLs.append(lygiaRoot)
+        }
         // Core nodes are compiled into Fabric so Swift Package consumers only
         // need to depend on the Fabric product. Registration still flows
         // through the same plugin loader path as external bundles.
