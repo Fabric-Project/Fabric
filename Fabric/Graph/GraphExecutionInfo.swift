@@ -29,15 +29,19 @@ public struct GraphExecutionTiming : Hashable
     /// System absolute time when graph execution as requested
     public let systemTime:TimeInterval
     
+    
+    public let hostMediaTime:TimeInterval
+    
     /// The frame number being requested
     public let frameNumber:Int
     
-    public init(time: TimeInterval, deltaTime: TimeInterval, displayTime: TimeInterval?, systemTime: TimeInterval, frameNumber: Int) {
+    public init(time: TimeInterval, deltaTime: TimeInterval, displayTime: TimeInterval?, systemTime: TimeInterval, hostMediaTime:TimeInterval, frameNumber: Int) {
         self.time = time
         self.deltaTime = deltaTime
         self.displayTime = displayTime
         self.systemTime = systemTime
         self.frameNumber = frameNumber
+        self.hostMediaTime = hostMediaTime
     }
 }
 

@@ -24,19 +24,12 @@ public class PersonSegmentationMaskNode: Node
     let inputTexturePort:NodePort<FabricImage>
     let outputTexturePort:NodePort<FabricImage>
     override public var ports: [Port] { [inputTexturePort, outputTexturePort] + super.ports}
-    
-    private var textureCache:CVMetalTextureCache?
-    
+        
     required init(context:Context)
     {
         self.inputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to analyze")
         self.outputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Person segmentation mask")
         
-        let _ = CVMetalTextureCacheCreate(kCFAllocatorDefault,
-                                          nil,
-                                          context.device,
-                                          nil,
-                                          &self.textureCache)
         super.init(context: context)
     }
     
@@ -68,13 +61,7 @@ public class PersonSegmentationMaskNode: Node
         
         self.inputTexturePort = try container.decode(NodePort<FabricImage>.self, forKey: .inputTexturePort)
         self.outputTexturePort = try container.decode(NodePort<FabricImage>.self, forKey: .outputTexturePort)
-        
-        let _ = CVMetalTextureCacheCreate(kCFAllocatorDefault,
-                                          nil,
-                                          decodeContext.documentContext.device,
-                                          nil,
-                                          &self.textureCache)
-        
+                
         try super.init(from:decoder)
     }
     
@@ -91,19 +78,21 @@ public class PersonSegmentationMaskNode: Node
 //            request.qualityLevel = .fast
 //            request.outputPixelFormat = kCVPixelFormatType_OneComponent16Half
             
-            if let inTex = self.inputTexturePort.value?.texture,
-               let maskTex =  self.maskForRequest(request, from: inTex)
+            if self.inputTexturePort.valueDidChange
             {
-                self.outputTexturePort.send( FabricImage.unmanaged(texture: maskTex) )
-            }
-            else
-            {
-                self.outputTexturePort.send( nil )
+                if  let inImage = self.inputTexturePort.value,
+                    let mask =  self.maskForRequest(request, from: inImage.texture)
+                {
+                    let outputImage = try renderer.newImage(fromPixelBuffer: mask)
+                    outputImage.isFlipped = CVImageBufferIsFlipped(mask)
+                 
+                    self.outputTexturePort.send( outputImage )
+                }
             }
         }
     }
     
-    private func maskForRequest(_ request: VNGeneratePersonInstanceMaskRequest, from texture:MTLTexture,) -> MTLTexture?
+    private func maskForRequest(_ request: VNGeneratePersonInstanceMaskRequest, from texture:MTLTexture,) -> CVPixelBuffer?
     {
         if let inputImage = CIImage(mtlTexture: texture)
         {
@@ -132,28 +121,9 @@ public class PersonSegmentationMaskNode: Node
                                 
                 if let observation = request.results?.first
                 {
-//                    let mask = observation.pixelBuffer
-  
-                    // Doesnt always work?
                     let mask = try observation.generateMask(forInstances: IndexSet(integer: 1) )
-
-                    CVMetalTextureCacheFlush(self.textureCache!, 0)
                     
-                    var cvMask:CVMetalTexture? = nil
-                    let success = CVMetalTextureCacheCreateTextureFromImage(kCFAllocatorDefault,
-                                                                            self.textureCache!,
-                                                                            mask,
-                                                                            nil,
-                                                                            .bgra8Unorm,
-                                                                            CVPixelBufferGetWidth(mask),
-                                                                            CVPixelBufferGetHeight(mask),
-                                                                            0,
-                                                                            &cvMask)
-                    
-                    if success == kCVReturnSuccess, let cvMask
-                    {
-                        return CVMetalTextureGetTexture(cvMask)
-                    }
+                    return mask
                 }
             }
             catch

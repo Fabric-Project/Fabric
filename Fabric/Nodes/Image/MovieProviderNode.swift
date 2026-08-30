@@ -421,7 +421,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
             performSeek(to: pending)
         }
 
-        let time = executionInfo.timing.time
+        let time = executionInfo.timing.hostMediaTime
 
 #if FABRIC_HAP_ENABLED
         if try self.executeHapPath(renderer: renderer, hostTime: time) {
@@ -586,7 +586,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
 
 
                 let playerItem = AVPlayerItem(asset: self.asset!, automaticallyLoadedAssetKeys: ["tracks", "metadata", "duration"])
-
+                
                 playerItem.preferredForwardBufferDuration = 0.5
 #if FABRIC_HAP_ENABLED
                 if !self.attachHapOutput(to: playerItem, url: inputURL)
