@@ -116,7 +116,7 @@ public class ComposeOrientationNode: StrategyNode
             let up = simd_quatf.upDirection(from: inputUpOrientation.value ?? simd_float4(0, 0, 0, 1))
             let offset = simd_quatf(safeVector: inputAimOffset.value ?? simd_float4(0, 0, 0, 1))
 
-            let look = simd_quatf(lookingAlong: position - target , up: up)
+            let look = simd_quatf(lookingAlong: target - position, up: up)
             outputOrientation.send((look * offset).vector)
 
         default:
