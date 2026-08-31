@@ -37,11 +37,9 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
     private var cachedFileURLName: String?
     private var lastKnownInputCount: Int = 1
     private var cachedImageInputPorts: [NodePort<FabricImage>] = []
-    private lazy var inputTextureTransformBuffer = StructBuffer<simd_float4x4>(
-        device: self.context.device,
-        count: 25,
-        label: "BaseImageNode Input Texture Transforms"
-    )
+    private lazy var inputTextureTransformBuffer = StructBuffer<simd_float4x4>(device: self.context.device,
+                                                                               count: 25,
+                                                                               label: "BaseImageNode Input Texture Transforms")
 
     enum CodingKeys: String, CodingKey
     {

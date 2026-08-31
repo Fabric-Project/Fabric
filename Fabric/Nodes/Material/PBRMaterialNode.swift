@@ -204,10 +204,8 @@ public class PBRMaterialNode : StandardMaterialNode
         if self.inputClearcoatRoughTexture.valueDidChange || self.inputClearcoatGlossTexture.valueDidChange
         {
             let clearcoatSurfaceImage = self.inputClearcoatRoughTexture.value ?? self.inputClearcoatGlossTexture.value
-            self.material.setTextureTransform(
-                clearcoatSurfaceImage?.textureTransform ?? matrix_identity_float4x4,
-                type: .clearcoatRoughness
-            )
+            self.material.setTextureTransform(clearcoatSurfaceImage?.textureTransform ?? matrix_identity_float4x4,
+                                              type: .clearcoatRoughness)
         }
         
         if self.inputTransmissionTexture.valueDidChange

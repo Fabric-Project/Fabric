@@ -28,13 +28,12 @@ public final class FabricImage: Identifiable, Equatable
     public private(set) var presentationSize: CGSize
 
     private func calculatePresentationSize() -> CGSize {
-        let transformedSize = simd_abs(
-            textureTransform * simd_float4(Float(texture.width), Float(texture.height), 0, 0)
-        )
-        return CGSize(
-            width: CGFloat(transformedSize.x),
-            height: CGFloat(transformedSize.y)
-        )
+        let transformedSize = simd_abs(textureTransform * simd_float4(Float(texture.width),
+                                                                      Float(texture.height),
+                                                                      0,
+                                                                      0))
+        return CGSize(width: CGFloat(transformedSize.x),
+                      height: CGFloat(transformedSize.y))
     }
 
     // MARK: - Managed/unmanaged
@@ -106,31 +105,26 @@ public final class FabricImage: Identifiable, Equatable
 
         func presentationPoint(fromStoredPoint point: CGPoint) -> CGPoint
         {
-            let storedTextureCoordinate = simd_float4(
-                Float(point.x / storedWidth),
-                1.0 - Float(point.y / storedHeight),
-                0,
-                1
-            )
+            let storedTextureCoordinate = simd_float4(Float(point.x / storedWidth),
+                                                      1.0 - Float(point.y / storedHeight),
+                                                      0,
+                                                      1)
+
             let presentationTextureCoordinate = textureTransform.inverse * storedTextureCoordinate
 
-            return CGPoint(
-                x: CGFloat(presentationTextureCoordinate.x) * presentationWidth,
-                y: (1.0 - CGFloat(presentationTextureCoordinate.y)) * presentationHeight
-            )
+            return CGPoint(x: CGFloat(presentationTextureCoordinate.x) * presentationWidth,
+                           y: (1.0 - CGFloat(presentationTextureCoordinate.y)) * presentationHeight)
         }
 
         let origin = presentationPoint(fromStoredPoint: .zero)
         let horizontalPoint = presentationPoint(fromStoredPoint: CGPoint(x: 1, y: 0))
         let verticalPoint = presentationPoint(fromStoredPoint: CGPoint(x: 0, y: 1))
-        let pixelTransform = CGAffineTransform(
-            a: horizontalPoint.x - origin.x,
-            b: horizontalPoint.y - origin.y,
-            c: verticalPoint.x - origin.x,
-            d: verticalPoint.y - origin.y,
-            tx: origin.x,
-            ty: origin.y
-        )
+        let pixelTransform = CGAffineTransform(a: horizontalPoint.x - origin.x,
+                                               b: horizontalPoint.y - origin.y,
+                                               c: verticalPoint.x - origin.x,
+                                               d: verticalPoint.y - origin.y,
+                                               tx: origin.x,
+                                               ty: origin.y)
 
         return storedImage
             .transformed(by: pixelTransform)
@@ -164,27 +158,21 @@ public enum FabricImageTextureTransform
 
         func storedUV(presentationUV: CGPoint) -> simd_float2
         {
-            let presentationPoint = CGPoint(
-                x: presentationBounds.minX + presentationUV.x * presentationBounds.width,
-                y: presentationBounds.minY + presentationUV.y * presentationBounds.height
-            )
+            let presentationPoint = CGPoint(x: presentationBounds.minX + presentationUV.x * presentationBounds.width,
+                                            y: presentationBounds.minY + presentationUV.y * presentationBounds.height)
             let sourcePoint = presentationPoint.applying(inverseTransform)
-            return simd_float2(
-                Float(sourcePoint.x / sourceSize.width),
-                Float(sourcePoint.y / sourceSize.height)
-            )
+            return simd_float2(Float(sourcePoint.x / sourceSize.width),
+                               Float(sourcePoint.y / sourceSize.height))
         }
 
         let origin = storedUV(presentationUV: .zero)
         let horizontal = storedUV(presentationUV: CGPoint(x: 1, y: 0)) - origin
         let vertical = storedUV(presentationUV: CGPoint(x: 0, y: 1)) - origin
 
-        return simd_float4x4(
-            simd_float4(horizontal.x, horizontal.y, 0, 0),
-            simd_float4(vertical.x, vertical.y, 0, 0),
-            simd_float4(0, 0, 1, 0),
-            simd_float4(origin.x, origin.y, 0, 1)
-        )
+        return simd_float4x4(simd_float4(horizontal.x, horizontal.y, 0, 0),
+                             simd_float4(vertical.x, vertical.y, 0, 0),
+                             simd_float4(0, 0, 1, 0),
+                             simd_float4(origin.x, origin.y, 0, 1))
     }
 
     /// Composes Core Video storage orientation with source presentation

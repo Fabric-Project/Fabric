@@ -272,10 +272,8 @@ public class FacePoseAnalysisNode: Node
         
         let imagePoint = VNImagePointForFaceLandmarkPoint( simd_float2(x:Float(point.x), y:Float(point.y)), boundingBox,  Int(size.width), Int(size.height))
 
-        return simd_float2(
-            remap(Float(imagePoint.x / size.width), 0.0, 1.0, -1.0, 1.0),
-            remap(Float(imagePoint.y / size.height), 0.0, 1.0, -Float(aspect), Float(aspect))
-        )
+        return simd_float2(remap(Float(imagePoint.x / size.width), 0.0, 1.0, -1.0, 1.0),
+                           remap(Float(imagePoint.y / size.height), 0.0, 1.0, -Float(aspect), Float(aspect)))
     }
         
     private func faceLandmarksForRequest(_ request: VNDetectFaceLandmarksRequest, from image: FabricImage) ->  VNFaceObservation?

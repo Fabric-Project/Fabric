@@ -53,11 +53,9 @@ public class BaseMultiPassBlurEffectTwoChannelNode: BaseImageNode
 
     public func setTextureTransforms(_ textureTransforms: [simd_float4x4], forStepIndex index: Int) {
         while self.textureTransformBuffers.count <= index {
-            let buffer = StructBuffer<simd_float4x4>(
-                device: self.context.device,
-                count: 2,
-                label: "Two-Channel Multi-Pass Blur Texture Transforms \(self.textureTransformBuffers.count)"
-            )
+            let buffer = StructBuffer<simd_float4x4>(device: self.context.device,
+                                                      count: 2,
+                                                      label: "Two-Channel Multi-Pass Blur Texture Transforms \(self.textureTransformBuffers.count)")
             self.textureTransformBuffers.append(buffer)
         }
 
@@ -100,13 +98,9 @@ public class BaseMultiPassBlurEffectTwoChannelNode: BaseImageNode
 
             prepareStep(index, step)
 
-            self.setTextureTransforms(
-                [
-                    index == 0 ? inputAImage.textureTransform : matrix_identity_float4x4,
-                    inputBImage.textureTransform,
-                ],
-                forStepIndex: index
-            )
+            self.setTextureTransforms([index == 0 ? inputAImage.textureTransform : matrix_identity_float4x4,
+                                       inputBImage.textureTransform],
+                                      forStepIndex: index)
 
             self.postProcessor.mesh.preDraw = { renderEncoder in
                 renderEncoder.setFragmentTexture(currentTexture, index: FragmentTextureIndex.Custom0.rawValue)

@@ -24,7 +24,7 @@ public class PersonSegmentationMaskNode: Node
     let inputTexturePort:NodePort<FabricImage>
     let outputTexturePort:NodePort<FabricImage>
     override public var ports: [Port] { [inputTexturePort, outputTexturePort] + super.ports}
-        
+
     required init(context:Context)
     {
         self.inputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to analyze")
@@ -61,7 +61,7 @@ public class PersonSegmentationMaskNode: Node
         
         self.inputTexturePort = try container.decode(NodePort<FabricImage>.self, forKey: .inputTexturePort)
         self.outputTexturePort = try container.decode(NodePort<FabricImage>.self, forKey: .outputTexturePort)
-                
+
         try super.init(from:decoder)
     }
     

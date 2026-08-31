@@ -50,11 +50,9 @@ public class BaseMultiPassBlurEffectNode: BaseImageNode
 
     private func textureTransformBuffer(forStepIndex index: Int) -> StructBuffer<simd_float4x4> {
         while self.textureTransformBuffers.count <= index {
-            let buffer = StructBuffer<simd_float4x4>(
-                device: self.context.device,
-                count: 1,
-                label: "Multi-Pass Blur Texture Transform \(self.textureTransformBuffers.count)"
-            )
+            let buffer = StructBuffer<simd_float4x4>(device: self.context.device,
+                                                      count: 1,
+                                                      label: "Multi-Pass Blur Texture Transform \(self.textureTransformBuffers.count)")
             self.textureTransformBuffers.append(buffer)
         }
 

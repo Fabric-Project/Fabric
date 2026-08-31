@@ -144,13 +144,9 @@ public final class GaussianBlurChannelsNode: BaseMultiPassBlurEffectTwoChannelNo
             let passBuffer = self.passUniformsBuffer(forStepIndex: index)
             passBuffer.update(data: [passUniforms])
             self.postMaterial.set(passBuffer, index: FragmentBufferIndex.Custom0)
-            self.setTextureTransforms(
-                [
-                    index == 0 ? inputImage.textureTransform : matrix_identity_float4x4,
-                    originalImage.textureTransform,
-                ],
-                forStepIndex: index
-            )
+            self.setTextureTransforms([index == 0 ? inputImage.textureTransform : matrix_identity_float4x4,
+                                       originalImage.textureTransform],
+                                      forStepIndex: index)
 
             self.postProcessor.mesh.preDraw = { renderEncoder in
                 renderEncoder.setFragmentTexture(currentTexture, index: FragmentTextureIndex.Custom0.rawValue)

@@ -24,7 +24,7 @@ public class ForegroundMaskNode: Node
     let inputTexturePort:NodePort<FabricImage>
     let outputTexturePort:NodePort<FabricImage>
     override public var ports: [Port] { [inputTexturePort, outputTexturePort] + super.ports}
-        
+
     required init(context:Context)
     {
         self.inputTexturePort = NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to analyze")

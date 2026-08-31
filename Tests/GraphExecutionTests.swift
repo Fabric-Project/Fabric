@@ -116,31 +116,23 @@ struct GraphExecutionTests {
         let sourceSize = CGSize(width: 1920, height: 1080)
         let verticalFlip = CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: sourceSize.height)
 
-        let textureTransform = FabricImageTextureTransform.sourceToPresentation(
-            verticalFlip,
-            sourceSize: sourceSize
-        )
+        let textureTransform = FabricImageTextureTransform.sourceToPresentation(verticalFlip,
+                                                                                sourceSize: sourceSize)
 
         expectEqual(textureTransform, .textureVerticalFlip)
 
-        let clockwiseQuarterTurn = CGAffineTransform(
-            a: 0,
-            b: 1,
-            c: -1,
-            d: 0,
-            tx: sourceSize.height,
-            ty: 0
-        )
-        let rotatedTextureTransform = FabricImageTextureTransform.sourceToPresentation(
-            clockwiseQuarterTurn,
-            sourceSize: sourceSize
-        )
-        let expectedRotatedTextureTransform = simd_float4x4(
-            simd_float4(0, -1, 0, 0),
-            simd_float4(1, 0, 0, 0),
-            simd_float4(0, 0, 1, 0),
-            simd_float4(0, 1, 0, 1)
-        )
+        let clockwiseQuarterTurn = CGAffineTransform(a: 0,
+                                                     b: 1,
+                                                     c: -1,
+                                                     d: 0,
+                                                     tx: sourceSize.height,
+                                                     ty: 0)
+        let rotatedTextureTransform = FabricImageTextureTransform.sourceToPresentation(clockwiseQuarterTurn,
+                                                                                       sourceSize: sourceSize)
+        let expectedRotatedTextureTransform = simd_float4x4(simd_float4(0, -1, 0, 0),
+                                                            simd_float4(1, 0, 0, 0),
+                                                            simd_float4(0, 0, 1, 0),
+                                                            simd_float4(0, 1, 0, 1))
         expectEqual(rotatedTextureTransform, expectedRotatedTextureTransform)
     }
 
@@ -148,12 +140,10 @@ struct GraphExecutionTests {
     func presentationCIImageUsesTextureTransform() throws {
         guard let harness = GraphExecutionTestHarness(renderWidth: 4, renderHeight: 2) else { return }
         let rotatedImage = try harness.makeImage(width: 4, height: 2)
-        rotatedImage.textureTransform = simd_float4x4(
-            simd_float4(0, -1, 0, 0),
-            simd_float4(1, 0, 0, 0),
-            simd_float4(0, 0, 1, 0),
-            simd_float4(0, 1, 0, 1)
-        )
+        rotatedImage.textureTransform = simd_float4x4(simd_float4(0, -1, 0, 0),
+                                                      simd_float4(1, 0, 0, 0),
+                                                      simd_float4(0, 0, 1, 0),
+                                                      simd_float4(0, 1, 0, 1))
         #expect(rotatedImage.presentationCIImage?.extent == CGRect(x: 0, y: 0, width: 2, height: 4))
     }
 
@@ -195,12 +185,10 @@ struct GraphExecutionTests {
         }
         let sourcePixels = red + blue
         sourcePixels.withUnsafeBytes { bytes in
-            image.texture.replace(
-                region: MTLRegionMake2D(0, 0, 4, 4),
-                mipmapLevel: 0,
-                withBytes: bytes.baseAddress!,
-                bytesPerRow: 4 * 4
-            )
+            image.texture.replace(region: MTLRegionMake2D(0, 0, 4, 4),
+                                  mipmapLevel: 0,
+                                  withBytes: bytes.baseAddress!,
+                                  bytesPerRow: 4 * 4)
         }
         image.textureTransform = .textureVerticalFlip
 
@@ -212,67 +200,55 @@ struct GraphExecutionTests {
         input.send(image, force: true)
 
         try harness.renderer.startExecution(graph: graph)
-        try harness.render(
-            graph: graph,
-            executionInfo: harness.makeExecutionInfo(),
-            drawScene: false
-        )
+        try harness.render(graph: graph,
+                           executionInfo: harness.makeExecutionInfo(),
+                           drawScene: false)
 
         let outputImage = try #require(output.value)
         expectEqual(outputImage.textureTransform, matrix_identity_float4x4)
         #expect(outputImage.texture.width == 4)
         #expect(outputImage.texture.height == 4)
 
-        let readbackDescriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: .bgra8Unorm,
-            width: 4,
-            height: 4,
-            mipmapped: false
-        )
+        let readbackDescriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm,
+                                                                          width: 4,
+                                                                          height: 4,
+                                                                          mipmapped: false)
         readbackDescriptor.storageMode = .shared
         let readbackTexture = try #require(harness.context.device.makeTexture(descriptor: readbackDescriptor))
         let readbackCommandBuffer = try #require(harness.renderer.commandQueue.makeCommandBuffer())
         let blitEncoder = try #require(readbackCommandBuffer.makeBlitCommandEncoder())
-        blitEncoder.copy(
-            from: outputImage.texture,
-            sourceSlice: 0,
-            sourceLevel: 0,
-            sourceOrigin: .init(x: 0, y: 0, z: 0),
-            sourceSize: .init(width: 4, height: 4, depth: 1),
-            to: readbackTexture,
-            destinationSlice: 0,
-            destinationLevel: 0,
-            destinationOrigin: .init(x: 0, y: 0, z: 0)
-        )
+        blitEncoder.copy(from: outputImage.texture,
+                         sourceSlice: 0,
+                         sourceLevel: 0,
+                         sourceOrigin: .init(x: 0, y: 0, z: 0),
+                         sourceSize: .init(width: 4, height: 4, depth: 1),
+                         to: readbackTexture,
+                         destinationSlice: 0,
+                         destinationLevel: 0,
+                         destinationOrigin: .init(x: 0, y: 0, z: 0))
         blitEncoder.endEncoding()
         readbackCommandBuffer.commit()
         readbackCommandBuffer.waitUntilCompleted()
 
         var outputPixels = [UInt8](repeating: 0, count: 4 * 4 * 4)
         outputPixels.withUnsafeMutableBytes { bytes in
-            readbackTexture.getBytes(
-                bytes.baseAddress!,
-                bytesPerRow: 4 * 4,
-                from: MTLRegionMake2D(0, 0, 4, 4),
-                mipmapLevel: 0
-            )
+            readbackTexture.getBytes(bytes.baseAddress!,
+                                     bytesPerRow: 4 * 4,
+                                     from: MTLRegionMake2D(0, 0, 4, 4),
+                                     mipmapLevel: 0)
         }
         #expect(Array(outputPixels[0..<4]) == [255, 0, 0, 255])
         #expect(Array(outputPixels[(3 * 4 * 4)..<(3 * 4 * 4 + 4)]) == [0, 0, 255, 255])
 
         let rotatedImage = try harness.makeImage(width: 4, height: 2)
-        rotatedImage.textureTransform = simd_float4x4(
-            simd_float4(0, -1, 0, 0),
-            simd_float4(1, 0, 0, 0),
-            simd_float4(0, 0, 1, 0),
-            simd_float4(0, 1, 0, 1)
-        )
+        rotatedImage.textureTransform = simd_float4x4(simd_float4(0, -1, 0, 0),
+                                                      simd_float4(1, 0, 0, 0),
+                                                      simd_float4(0, 0, 1, 0),
+                                                      simd_float4(0, 1, 0, 1))
         input.send(rotatedImage, force: true)
-        try harness.render(
-            graph: graph,
-            executionInfo: harness.makeExecutionInfo(frameNumber: 1),
-            drawScene: false
-        )
+        try harness.render(graph: graph,
+                           executionInfo: harness.makeExecutionInfo(frameNumber: 1),
+                           drawScene: false)
 
         let rotatedOutputImage = try #require(output.value)
         expectEqual(rotatedOutputImage.textureTransform, matrix_identity_float4x4)
@@ -287,12 +263,10 @@ struct GraphExecutionTests {
         guard let harness = GraphExecutionTestHarness(renderWidth: 2, renderHeight: 4) else { return }
 
         let image = try harness.makeImage(width: 4, height: 2)
-        image.textureTransform = simd_float4x4(
-            simd_float4(0, -1, 0, 0),
-            simd_float4(1, 0, 0, 0),
-            simd_float4(0, 0, 1, 0),
-            simd_float4(0, 1, 0, 1)
-        )
+        image.textureTransform = simd_float4x4(simd_float4(0, -1, 0, 0),
+                                               simd_float4(1, 0, 0, 0),
+                                               simd_float4(0, 0, 1, 0),
+                                               simd_float4(0, 1, 0, 1))
 
         let blurNodes: [BaseImageNode] = [
             GaussianBlurNode(context: harness.context),
@@ -315,11 +289,9 @@ struct GraphExecutionTests {
             }
 
             try harness.renderer.startExecution(graph: graph)
-            try harness.render(
-                graph: graph,
-                executionInfo: harness.makeExecutionInfo(),
-                drawScene: false
-            )
+            try harness.render(graph: graph,
+                               executionInfo: harness.makeExecutionInfo(),
+                               drawScene: false)
 
             let outputImage = try #require(output.value)
             #expect(outputImage.texture.width == 2)
@@ -341,19 +313,15 @@ struct GraphExecutionTests {
             + Array(repeating: redPixel, count: 4).flatMap { $0 }
         sourcePixels.withUnsafeBytes { bytes in
             guard let baseAddress = bytes.baseAddress else { return }
-            image.texture.replace(
-                region: MTLRegionMake2D(0, 0, 4, 2),
-                mipmapLevel: 0,
-                withBytes: baseAddress,
-                bytesPerRow: 4 * 4
-            )
+            image.texture.replace(region: MTLRegionMake2D(0, 0, 4, 2),
+                                  mipmapLevel: 0,
+                                  withBytes: baseAddress,
+                                  bytesPerRow: 4 * 4)
         }
-        image.textureTransform = simd_float4x4(
-            simd_float4(0, -1, 0, 0),
-            simd_float4(1, 0, 0, 0),
-            simd_float4(0, 0, 1, 0),
-            simd_float4(0, 1, 0, 1)
-        )
+        image.textureTransform = simd_float4x4(simd_float4(0, -1, 0, 0),
+                                               simd_float4(1, 0, 0, 0),
+                                               simd_float4(0, 0, 1, 0),
+                                               simd_float4(0, 1, 0, 1))
 
         let cropNode = TextureCropNode(context: harness.context)
         cropNode.inputCropX.value = 0
@@ -376,27 +344,23 @@ struct GraphExecutionTests {
         #expect(outputImage.texture.height == 4)
         expectEqual(outputImage.textureTransform, matrix_identity_float4x4)
 
-        let readbackDescriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: .bgra8Unorm,
-            width: 1,
-            height: 4,
-            mipmapped: false
-        )
+        let readbackDescriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm,
+                                                                          width: 1,
+                                                                          height: 4,
+                                                                          mipmapped: false)
         readbackDescriptor.storageMode = .shared
         let readbackTexture = try #require(harness.context.device.makeTexture(descriptor: readbackDescriptor))
         let readbackCommandBuffer = try #require(harness.renderer.commandQueue.makeCommandBuffer())
         let blitEncoder = try #require(readbackCommandBuffer.makeBlitCommandEncoder())
-        blitEncoder.copy(
-            from: outputImage.texture,
-            sourceSlice: 0,
-            sourceLevel: 0,
-            sourceOrigin: .init(x: 0, y: 0, z: 0),
-            sourceSize: .init(width: 1, height: 4, depth: 1),
-            to: readbackTexture,
-            destinationSlice: 0,
-            destinationLevel: 0,
-            destinationOrigin: .init(x: 0, y: 0, z: 0)
-        )
+        blitEncoder.copy(from: outputImage.texture,
+                         sourceSlice: 0,
+                         sourceLevel: 0,
+                         sourceOrigin: .init(x: 0, y: 0, z: 0),
+                         sourceSize: .init(width: 1, height: 4, depth: 1),
+                         to: readbackTexture,
+                         destinationSlice: 0,
+                         destinationLevel: 0,
+                         destinationOrigin: .init(x: 0, y: 0, z: 0))
         blitEncoder.endEncoding()
         readbackCommandBuffer.commit()
         readbackCommandBuffer.waitUntilCompleted()
@@ -404,12 +368,10 @@ struct GraphExecutionTests {
         var outputPixels = [UInt8](repeating: 0, count: 1 * 4 * 4)
         outputPixels.withUnsafeMutableBytes { bytes in
             guard let baseAddress = bytes.baseAddress else { return }
-            readbackTexture.getBytes(
-                baseAddress,
-                bytesPerRow: 4,
-                from: MTLRegionMake2D(0, 0, 1, 4),
-                mipmapLevel: 0
-            )
+            readbackTexture.getBytes(baseAddress,
+                                     bytesPerRow: 4,
+                                     from: MTLRegionMake2D(0, 0, 1, 4),
+                                     mipmapLevel: 0)
         }
         for row in 0..<4 {
             #expect(Array(outputPixels[(row * 4)..<(row * 4 + 4)]) == redPixel)
@@ -463,20 +425,16 @@ struct GraphExecutionTests {
             0, 0, 0, 255, 0, 0, 0, 255,
         ]
         image0Pixels.withUnsafeBytes { bytes in
-            image0.texture.replace(
-                region: MTLRegionMake2D(0, 0, 2, 2),
-                mipmapLevel: 0,
-                withBytes: bytes.baseAddress!,
-                bytesPerRow: 2 * 4
-            )
+            image0.texture.replace(region: MTLRegionMake2D(0, 0, 2, 2),
+                                   mipmapLevel: 0,
+                                   withBytes: bytes.baseAddress!,
+                                   bytesPerRow: 2 * 4)
         }
         image1Pixels.withUnsafeBytes { bytes in
-            image1.texture.replace(
-                region: MTLRegionMake2D(0, 0, 2, 2),
-                mipmapLevel: 0,
-                withBytes: bytes.baseAddress!,
-                bytesPerRow: 2 * 4
-            )
+            image1.texture.replace(region: MTLRegionMake2D(0, 0, 2, 2),
+                                   mipmapLevel: 0,
+                                   withBytes: bytes.baseAddress!,
+                                   bytesPerRow: 2 * 4)
         }
         image0.textureTransform = .textureVerticalFlip
 
@@ -494,39 +452,33 @@ struct GraphExecutionTests {
         let outputImage = try #require(output.value)
         expectEqual(outputImage.textureTransform, matrix_identity_float4x4)
 
-        let readbackDescriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: .bgra8Unorm,
-            width: 2,
-            height: 2,
-            mipmapped: false
-        )
+        let readbackDescriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm,
+                                                                          width: 2,
+                                                                          height: 2,
+                                                                          mipmapped: false)
         readbackDescriptor.storageMode = .shared
         let readbackTexture = try #require(harness.context.device.makeTexture(descriptor: readbackDescriptor))
         let readbackCommandBuffer = try #require(harness.renderer.commandQueue.makeCommandBuffer())
         let blitEncoder = try #require(readbackCommandBuffer.makeBlitCommandEncoder())
-        blitEncoder.copy(
-            from: outputImage.texture,
-            sourceSlice: 0,
-            sourceLevel: 0,
-            sourceOrigin: .init(x: 0, y: 0, z: 0),
-            sourceSize: .init(width: 2, height: 2, depth: 1),
-            to: readbackTexture,
-            destinationSlice: 0,
-            destinationLevel: 0,
-            destinationOrigin: .init(x: 0, y: 0, z: 0)
-        )
+        blitEncoder.copy(from: outputImage.texture,
+                         sourceSlice: 0,
+                         sourceLevel: 0,
+                         sourceOrigin: .init(x: 0, y: 0, z: 0),
+                         sourceSize: .init(width: 2, height: 2, depth: 1),
+                         to: readbackTexture,
+                         destinationSlice: 0,
+                         destinationLevel: 0,
+                         destinationOrigin: .init(x: 0, y: 0, z: 0))
         blitEncoder.endEncoding()
         readbackCommandBuffer.commit()
         readbackCommandBuffer.waitUntilCompleted()
 
         var outputPixels = [UInt8](repeating: 0, count: 2 * 2 * 4)
         outputPixels.withUnsafeMutableBytes { bytes in
-            readbackTexture.getBytes(
-                bytes.baseAddress!,
-                bytesPerRow: 2 * 4,
-                from: MTLRegionMake2D(0, 0, 2, 2),
-                mipmapLevel: 0
-            )
+            readbackTexture.getBytes(bytes.baseAddress!,
+                                     bytesPerRow: 2 * 4,
+                                     from: MTLRegionMake2D(0, 0, 2, 2),
+                                     mipmapLevel: 0)
         }
         #expect(Array(outputPixels[0..<4]) == [0, 255, 0, 255])
         #expect(Array(outputPixels[(2 * 2 * 4 - 4)..<(2 * 2 * 4)]) == [0, 0, 255, 255])
@@ -542,12 +494,10 @@ struct GraphExecutionTests {
         let image = try harness.makeImage(width: 16, height: 8)
         #expect(image.presentationSize == CGSize(width: 16, height: 8))
 
-        let clockwiseQuarterTurn = simd_float4x4(
-            simd_float4(0, -1, 0, 0),
-            simd_float4(1, 0, 0, 0),
-            simd_float4(0, 0, 1, 0),
-            simd_float4(0, 1, 0, 1)
-        )
+        let clockwiseQuarterTurn = simd_float4x4(simd_float4(0, -1, 0, 0),
+                                                 simd_float4(1, 0, 0, 0),
+                                                 simd_float4(0, 0, 1, 0),
+                                                 simd_float4(0, 1, 0, 1))
         image.textureTransform = clockwiseQuarterTurn
         #expect(image.presentationSize == CGSize(width: 8, height: 16))
         node.inputImage.value = image
@@ -556,11 +506,9 @@ struct GraphExecutionTests {
         graph.addNode(node)
 
         try harness.renderer.startExecution(graph: graph)
-        try harness.render(
-            graph: graph,
-            executionInfo: harness.makeExecutionInfo(),
-            drawScene: false
-        )
+        try harness.render(graph: graph,
+                           executionInfo: harness.makeExecutionInfo(),
+                           drawScene: false)
         try harness.renderer.stopExecution(graph: graph)
 
         let mesh = try #require(node.getObject() as? Mesh)
@@ -575,12 +523,10 @@ struct GraphExecutionTests {
     func materialImageInputsApplyTextureTransforms() throws {
         guard let harness = GraphExecutionTestHarness() else { return }
 
-        let quarterTurn = simd_float4x4(
-            simd_float4(0, -1, 0, 0),
-            simd_float4(1, 0, 0, 0),
-            simd_float4(0, 0, 1, 0),
-            simd_float4(0, 1, 0, 1)
-        )
+        let quarterTurn = simd_float4x4(simd_float4(0, -1, 0, 0),
+                                        simd_float4(1, 0, 0, 0),
+                                        simd_float4(0, 0, 1, 0),
+                                        simd_float4(0, 1, 0, 1))
         let flippedImage = try harness.makeImage(width: 4, height: 2)
         flippedImage.textureTransform = .textureVerticalFlip
         let rotatedImage = try harness.makeImage(width: 4, height: 2)
@@ -591,18 +537,10 @@ struct GraphExecutionTests {
         standardNode.inputNormalTexture.send(rotatedImage, force: true)
         try harness.execute(standardNode)
 
-        let baseColorTransform = try #require(
-            standardNode.material.parameters.get(
-                PBRTextureType.baseColor.texcoordName.titleCase,
-                as: Float4x4Parameter.self
-            )
-        )
-        let normalTransform = try #require(
-            standardNode.material.parameters.get(
-                PBRTextureType.normal.texcoordName.titleCase,
-                as: Float4x4Parameter.self
-            )
-        )
+        let baseColorTransform = try #require(standardNode.material.parameters.get(PBRTextureType.baseColor.texcoordName.titleCase,
+                                                                                   as: Float4x4Parameter.self))
+        let normalTransform = try #require(standardNode.material.parameters.get(PBRTextureType.normal.texcoordName.titleCase,
+                                                                                as: Float4x4Parameter.self))
         expectEqual(baseColorTransform.value, .textureVerticalFlip)
         expectEqual(normalTransform.value, quarterTurn)
 
@@ -613,24 +551,12 @@ struct GraphExecutionTests {
         pbrNode.inputClearcoatGlossTexture.send(rotatedImage, force: true)
         try harness.execute(pbrNode)
 
-        let bumpTransform = try #require(
-            pbrNode.material.parameters.get(
-                PBRTextureType.bump.texcoordName.titleCase,
-                as: Float4x4Parameter.self
-            )
-        )
-        let transmissionTransform = try #require(
-            pbrNode.material.parameters.get(
-                PBRTextureType.transmission.texcoordName.titleCase,
-                as: Float4x4Parameter.self
-            )
-        )
-        let clearcoatSurfaceTransform = try #require(
-            pbrNode.material.parameters.get(
-                PBRTextureType.clearcoatRoughness.texcoordName.titleCase,
-                as: Float4x4Parameter.self
-            )
-        )
+        let bumpTransform = try #require(pbrNode.material.parameters.get(PBRTextureType.bump.texcoordName.titleCase,
+                                                                         as: Float4x4Parameter.self))
+        let transmissionTransform = try #require(pbrNode.material.parameters.get(PBRTextureType.transmission.texcoordName.titleCase,
+                                                                                 as: Float4x4Parameter.self))
+        let clearcoatSurfaceTransform = try #require(pbrNode.material.parameters.get(PBRTextureType.clearcoatRoughness.texcoordName.titleCase,
+                                                                                    as: Float4x4Parameter.self))
         expectEqual(bumpTransform.value, .textureVerticalFlip)
         expectEqual(transmissionTransform.value, quarterTurn)
         expectEqual(clearcoatSurfaceTransform.value, .textureVerticalFlip)
@@ -641,24 +567,12 @@ struct GraphExecutionTests {
         displacementNode.inputPointSpriteTexture.send(flippedImage, force: true)
         try harness.execute(displacementNode)
 
-        let displacementTransform = try #require(
-            displacementNode.material.parameters.get(
-                "displacementTextureTransform",
-                as: Float4x4Parameter.self
-            )
-        )
-        let colorTransform = try #require(
-            displacementNode.material.parameters.get(
-                "colorTextureTransform",
-                as: Float4x4Parameter.self
-            )
-        )
-        let pointSpriteTransform = try #require(
-            displacementNode.material.parameters.get(
-                "pointSpriteTextureTransform",
-                as: Float4x4Parameter.self
-            )
-        )
+        let displacementTransform = try #require(displacementNode.material.parameters.get("displacementTextureTransform",
+                                                                                           as: Float4x4Parameter.self))
+        let colorTransform = try #require(displacementNode.material.parameters.get("colorTextureTransform",
+                                                                                    as: Float4x4Parameter.self))
+        let pointSpriteTransform = try #require(displacementNode.material.parameters.get("pointSpriteTextureTransform",
+                                                                                          as: Float4x4Parameter.self))
         expectEqual(displacementTransform.value, .textureVerticalFlip)
         expectEqual(colorTransform.value, quarterTurn)
         expectEqual(pointSpriteTransform.value, .textureVerticalFlip)

@@ -165,11 +165,9 @@ public class SpotLightNode : ObjectNode<SpotLight>
         self.light.projectionTexture = image?.texture
         self.light.projectionTransform = image.map {
             let transform = $0.textureTransform
-            return simd_float3x3(
-                simd_float3(transform.columns.0.x, transform.columns.0.y, 0),
-                simd_float3(transform.columns.1.x, transform.columns.1.y, 0),
-                simd_float3(transform.columns.3.x, transform.columns.3.y, 1)
-            )
+            return simd_float3x3(simd_float3(transform.columns.0.x, transform.columns.0.y, 0),
+                                 simd_float3(transform.columns.1.x, transform.columns.1.y, 0),
+                                 simd_float3(transform.columns.3.x, transform.columns.3.y, 1))
         } ?? matrix_identity_float3x3
     }
 

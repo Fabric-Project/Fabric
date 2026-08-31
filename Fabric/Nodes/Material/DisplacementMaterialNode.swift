@@ -122,10 +122,8 @@ public class DisplacementMaterialNode: BaseMaterialNode
         {
             let displacementImage = self.inputDisplacementTexture.value ?? self.inputTexture.value
             self.material.set(displacementImage?.texture, index: VertexTextureIndex.Custom0)
-            self.material.set(
-                "displacementTextureTransform",
-                displacementImage?.textureTransform ?? matrix_identity_float4x4
-            )
+            self.material.set("displacementTextureTransform",
+                              displacementImage?.textureTransform ?? matrix_identity_float4x4)
             shouldOutput = true
         }
         
@@ -133,10 +131,8 @@ public class DisplacementMaterialNode: BaseMaterialNode
         {
             let image = self.inputTexture.value
             self.material.set(image?.texture, index: FragmentTextureIndex.Custom0)
-            self.material.set(
-                "colorTextureTransform",
-                image?.textureTransform ?? matrix_identity_float4x4
-            )
+            self.material.set("colorTextureTransform",
+                              image?.textureTransform ?? matrix_identity_float4x4)
             shouldOutput = true
         }
         
@@ -144,10 +140,8 @@ public class DisplacementMaterialNode: BaseMaterialNode
         {
             let image = self.inputPointSpriteTexture.value
             self.material.set(image?.texture, index: FragmentTextureIndex.Custom1)
-            self.material.set(
-                "pointSpriteTextureTransform",
-                image?.textureTransform ?? matrix_identity_float4x4
-            )
+            self.material.set("pointSpriteTextureTransform",
+                              image?.textureTransform ?? matrix_identity_float4x4)
             shouldOutput = true
         }
         

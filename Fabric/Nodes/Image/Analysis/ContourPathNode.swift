@@ -201,10 +201,8 @@ public final class ContourPathNode: Node {
         var segments: [simd_float4] = []
         segments.reserveCapacity(segCount)
         let storageSize = simd_float2(Float(image.texture.width), Float(image.texture.height))
-        let presentationSize = simd_float2(
-            Float(image.presentationSize.width),
-            Float(image.presentationSize.height)
-        )
+        let presentationSize = simd_float2(Float(image.presentationSize.width),
+                                           Float(image.presentationSize.height))
 
         func presentationPoint(fromStoredPoint point: simd_float2) -> simd_float2
         {

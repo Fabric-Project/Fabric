@@ -43,25 +43,21 @@ public class TextureCropNode: Node
 
     private let cropMaterial: PostMaterial
     private let cropProcessor: PostProcessEncoder
-    private lazy var cropUniformsBuffer = StructBuffer<CropUniforms>(
-        device: self.context.device,
-        count: 1,
-        label: "Texture Crop Uniforms"
-    )
+    private lazy var cropUniformsBuffer = StructBuffer<CropUniforms>(device: self.context.device,
+                                                                     count: 1,
+                                                                     label: "Texture Crop Uniforms")
 
     public required init(context: Context)
     {
         let material = PostMaterial(context: context, pipelineURL: Self.shaderURL())
         self.cropMaterial = material
-        self.cropProcessor = PostProcessEncoder(
-            context: context,
-            material: material,
-            depthPixelFormat: .invalid,
-            stencilPixelFormat: .invalid,
-            depthStoreAction: .dontCare,
-            stencilStoreAction: .dontCare,
-            frameBufferOnly: false
-        )
+        self.cropProcessor = PostProcessEncoder(context: context,
+                                                material: material,
+                                                depthPixelFormat: .invalid,
+                                                stencilPixelFormat: .invalid,
+                                                depthStoreAction: .dontCare,
+                                                stencilStoreAction: .dontCare,
+                                                frameBufferOnly: false)
         super.init(context: context)
     }
 
@@ -73,15 +69,13 @@ public class TextureCropNode: Node
 
         let material = PostMaterial(context: context, pipelineURL: Self.shaderURL())
         self.cropMaterial = material
-        self.cropProcessor = PostProcessEncoder(
-            context: context,
-            material: material,
-            depthPixelFormat: .invalid,
-            stencilPixelFormat: .invalid,
-            depthStoreAction: .dontCare,
-            stencilStoreAction: .dontCare,
-            frameBufferOnly: false
-        )
+        self.cropProcessor = PostProcessEncoder(context: context,
+                                                material: material,
+                                                depthPixelFormat: .invalid,
+                                                stencilPixelFormat: .invalid,
+                                                depthStoreAction: .dontCare,
+                                                stencilStoreAction: .dontCare,
+                                                frameBufferOnly: false)
         try super.init(from: decoder)
     }
 
@@ -101,42 +95,30 @@ public class TextureCropNode: Node
         let cropHeight = max(1, min(inputCropHeight.value ?? 1080, presentationHeight - cropY))
 
         let outImage = try renderer.newImage(withWidth: cropWidth, height: cropHeight)
-        let cropUniforms = CropUniforms(
-            origin: simd_float2(
-                Float(cropX) / Float(presentationWidth),
-                Float(cropY) / Float(presentationHeight)
-            ),
-            size: simd_float2(
-                Float(cropWidth) / Float(presentationWidth),
-                Float(cropHeight) / Float(presentationHeight)
-            ),
-            textureTransform: sourceImage.textureTransform
-        )
+        let cropUniforms = CropUniforms(origin: simd_float2(Float(cropX) / Float(presentationWidth),
+                                                            Float(cropY) / Float(presentationHeight)),
+                                        size: simd_float2(Float(cropWidth) / Float(presentationWidth),
+                                                          Float(cropHeight) / Float(presentationHeight)),
+                                        textureTransform: sourceImage.textureTransform)
         self.cropUniformsBuffer.update(data: [cropUniforms])
         self.cropMaterial.set(self.cropUniformsBuffer, index: FragmentBufferIndex.Custom0)
         self.cropMaterial.set(sourceImage.texture, index: FragmentTextureIndex.Custom0)
-        self.cropProcessor.resize(
-            size: (width: Float(cropWidth), height: Float(cropHeight)),
-            scaleFactor: 1
-        )
+        self.cropProcessor.resize(size: (width: Float(cropWidth), height: Float(cropHeight)),
+                                  scaleFactor: 1)
 
         let cropRenderPassDescriptor = MTLRenderPassDescriptor()
         cropRenderPassDescriptor.colorAttachments[0].texture = outImage.texture
-        self.cropProcessor.draw(
-            renderPassDescriptor: cropRenderPassDescriptor,
-            commandBuffer: commandBuffer
-        )
+        self.cropProcessor.draw(renderPassDescriptor: cropRenderPassDescriptor,
+                                commandBuffer: commandBuffer)
 
         outputTexture.send(outImage)
     }
 
     private static func shaderURL() -> URL
     {
-        guard let shaderURL = Bundle.module.url(
-            forResource: "TextureCropShader",
-            withExtension: "metal",
-            subdirectory: "Shaders"
-        ) else {
+        guard let shaderURL = Bundle.module.url(forResource: "TextureCropShader",
+                                                withExtension: "metal",
+                                                subdirectory: "Shaders") else {
             fatalError("TextureCropShader.metal is missing from the Fabric resource bundle")
         }
 

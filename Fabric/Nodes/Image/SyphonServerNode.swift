@@ -72,10 +72,8 @@ public class SyphonServerNode : Node
         if self.inputTexture.valueDidChange,
            let inputImage = self.inputTexture.value
         {
-            let region = NSRect(
-                origin: .zero,
-                size: CGSize(width: inputImage.texture.width, height: inputImage.texture.height)
-            )
+            let region = NSRect(origin: .zero,
+                                size: CGSize(width: inputImage.texture.width, height: inputImage.texture.height))
 
             let syphonRequiresVerticalFlip = inputImage.textureTransform == .textureVerticalFlip
             self.syphonServer.publishFrameTexture(inputImage.texture,

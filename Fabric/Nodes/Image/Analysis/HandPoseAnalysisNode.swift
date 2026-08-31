@@ -139,10 +139,8 @@ public class HandPoseAnalysisNode: Node
 
     private func unitPoint(from recognizedPoint: VNRecognizedPoint, aspect: Float) -> simd_float2
     {
-        return simd_float2(
-            remap(Float(recognizedPoint.x), 0.0, 1.0, -1.0, 1.0),
-            remap(Float(recognizedPoint.y), 0.0, 1.0, -aspect, aspect)
-        )
+        return simd_float2(remap(Float(recognizedPoint.x), 0.0, 1.0, -1.0, 1.0),
+                           remap(Float(recognizedPoint.y), 0.0, 1.0, -aspect, aspect))
     }
         
     private func handPointsForRequest(_ request: VNDetectHumanHandPoseRequest, from image: FabricImage) ->  [VNRecognizedPointKey : VNRecognizedPoint]?

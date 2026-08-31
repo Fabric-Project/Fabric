@@ -66,10 +66,8 @@ public class StandardMaterialNode : BaseMaterialNode
     func setImage(_ image: FabricImage?, for textureType: PBRTextureType)
     {
         self.material.setTexture(image?.texture, type: textureType)
-        self.material.setTextureTransform(
-            image?.textureTransform ?? matrix_identity_float4x4,
-            type: textureType
-        )
+        self.material.setTextureTransform(image?.textureTransform ?? matrix_identity_float4x4,
+                                          type: textureType)
     }
     
     public override func evaluate(material: Material, atTime: TimeInterval) -> Bool

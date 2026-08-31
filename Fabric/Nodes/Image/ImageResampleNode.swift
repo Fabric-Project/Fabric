@@ -185,18 +185,12 @@ public final class ImageResampleNode: Node
         }
 
         let sourceTexture = sourceImage.texture
-        let presentationWidth = resolvedDimension(
-            inputWidth.value,
-            fallback: Int(sourceImage.presentationSize.width.rounded())
-        )
-        let presentationHeight = resolvedDimension(
-            inputHeight.value,
-            fallback: Int(sourceImage.presentationSize.height.rounded())
-        )
-        let storageSize = simd_abs(
-            sourceImage.textureTransform.inverse
-                * simd_float4(Float(presentationWidth), Float(presentationHeight), 0, 0)
-        )
+        let presentationWidth = resolvedDimension(inputWidth.value,
+                                                  fallback: Int(sourceImage.presentationSize.width.rounded()))
+        let presentationHeight = resolvedDimension(inputHeight.value,
+                                                   fallback: Int(sourceImage.presentationSize.height.rounded()))
+        let storageSize = simd_abs(sourceImage.textureTransform.inverse
+            * simd_float4(Float(presentationWidth), Float(presentationHeight), 0, 0))
         let outputWidth = max(1, Int(storageSize.x.rounded()))
         let outputHeight = max(1, Int(storageSize.y.rounded()))
         let method = ResamplingMethod(rawValue: inputMethod.value ?? "") ?? .bilinear

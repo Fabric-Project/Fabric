@@ -597,7 +597,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
 
 
                 let playerItem = AVPlayerItem(asset: self.asset!, automaticallyLoadedAssetKeys: ["tracks", "metadata", "duration"])
-                
+
                 playerItem.preferredForwardBufferDuration = 0.5
 #if FABRIC_HAP_ENABLED
                 if !self.attachHapOutput(to: playerItem, url: inputURL)
@@ -641,11 +641,9 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         let sourceSize = self.sourceNaturalSize == .zero
             ? CGSize(width: CVPixelBufferGetWidth(pixelBuffer), height: CVPixelBufferGetHeight(pixelBuffer))
             : self.sourceNaturalSize
-        return FabricImageTextureTransform.video(
-            pixelBuffer: pixelBuffer,
-            sourceToPresentationTransform: self.sourceToPresentationTransform,
-            sourceSize: sourceSize
-        )
+        return FabricImageTextureTransform.video(pixelBuffer: pixelBuffer,
+                                                 sourceToPresentationTransform: self.sourceToPresentationTransform,
+                                                 sourceSize: sourceSize)
     }
 
 #if FABRIC_HAP_ENABLED
@@ -924,12 +922,10 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
 
         let region = MTLRegionMake2D(0, 0, texWidth, texHeight)
         image.texture.replace(region: region, mipmapLevel: 0, withBytes: dxtData!, bytesPerRow: bytesPerRow)
-        image.textureTransform = FabricImageTextureTransform.sourceToPresentation(
-            self.sourceToPresentationTransform,
-            sourceSize: self.sourceNaturalSize == .zero
-                ? CGSize(width: trueWidth, height: trueHeight)
-                : self.sourceNaturalSize
-        )
+        image.textureTransform = FabricImageTextureTransform.sourceToPresentation(self.sourceToPresentationTransform,
+                                                                                  sourceSize: self.sourceNaturalSize == .zero
+                                                                                      ? CGSize(width: trueWidth, height: trueHeight)
+                                                                                      : self.sourceNaturalSize)
 
         return image
     }
