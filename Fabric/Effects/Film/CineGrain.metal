@@ -8,6 +8,7 @@
 #define SAMPLER_TYPE texture2d<half>
 
 #include "../../lygia/sampler.msl"
+#include "../../Shaders/FabricImageTextureTransform.metal"
 
 typedef struct {
     float intensity; // slider, 0.0, 1.0, 0.1, Intensity
@@ -109,9 +110,13 @@ static inline float grainSample(float2 pixelPosition, float seed, constant PostU
 
 fragment half4 postFragment(VertexData in [[stage_in]],
                             constant PostUniforms &uniforms [[buffer(FragmentBufferMaterialUniforms)]],
+                            constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
                             texture2d<half, access::sample> renderTex [[texture(FragmentTextureCustom0)]])
 {
-    float2 resolution = float2(renderTex.get_width(), renderTex.get_height());
+    float2 resolution = fabricPresentationSize(
+        imageTransforms[0],
+        float2(renderTex.get_width(), renderTex.get_height())
+    );
     float2 pixelPosition = in.texcoord * resolution;
     float grainSize = max(uniforms.grainSize, 0.001f);
     float seed = uniforms.time;
@@ -128,7 +133,7 @@ fragment half4 postFragment(VertexData in [[stage_in]],
         grain += grainSample(pixelPosition + float2(0.0f, -radius), seed, uniforms) * 0.190f;
     }
 
-    half4 sampledColor = SAMPLER_FNC(renderTex, in.texcoord);
+    half4 sampledColor = SAMPLER_FNC(renderTex, fabricTextureCoordinate(imageTransforms[0], in.texcoord));
     float3 color = float3(sampledColor.rgb);
 
     float luma = dot(color, float3(0.2126f, 0.7152f, 0.0722f));

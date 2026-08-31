@@ -12,6 +12,7 @@
 
 #include "../../lygia/sample/clamp2edge.msl"
 #include "../../lygia/sampler.msl"
+#include "../../Shaders/FabricImageTextureTransform.metal"
 
 typedef struct {
     float amount; // slider, 0.0, 1.0, 0.0, Displacement Amount
@@ -19,12 +20,13 @@ typedef struct {
 
 fragment half4 postFragment( VertexData in [[stage_in]],
     constant PostUniforms &uniforms [[buffer( FragmentBufferMaterialUniforms )]],
+    constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
     texture2d<half, access::sample> renderTex [[texture( FragmentTextureCustom0 )]],
     texture2d<half, access::sample> renderTex2 [[texture( FragmentTextureCustom1 )]])
 {
-    half4 displacement = SAMPLER_FNC( renderTex2, in.texcoord );
+    half4 displacement = SAMPLER_FNC( renderTex2, fabricTextureCoordinate(imageTransforms[1], in.texcoord));
 
-    half4 color = SAMPLER_FNC( renderTex, mix(in.texcoord, in.texcoord + float2(displacement.xy), float2(uniforms.amount) ) );
+    half4 color = SAMPLER_FNC( renderTex, fabricTextureCoordinate(imageTransforms[0], mix(in.texcoord, in.texcoord + float2(displacement.xy), float2(uniforms.amount) )));
 
     return color;
 }

@@ -14,6 +14,7 @@ using namespace metal;
 #define SAMPLER_TYPE texture2d<half>
 #include "../../lygia/sampler.msl"
 #include "../../lygia/color/luminance.msl"
+#include "../../Shaders/FabricImageTextureTransform.metal"
 
 struct PostUniforms {
     float2 scale; // slider, 0.0, 10.0, 0.0, Scale
@@ -23,12 +24,19 @@ struct PostUniforms {
 
 fragment half4 postFragment( VertexData in [[stage_in]],
     constant PostUniforms &u [[buffer( FragmentBufferMaterialUniforms )]],
+    constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
     texture2d<half, access::sample> tex0 [[texture( FragmentTextureCustom0 )]],
     texture2d<half, access::sample> tex1 [[texture( FragmentTextureCustom1 )]])
 {
     
-    float2 texSize0 = float2(tex0.get_width(), tex0.get_height());
-    float2 texSize1 = float2(tex1.get_width(), tex1.get_height());
+    float2 texSize0 = fabricPresentationSize(
+        imageTransforms[0],
+        float2(tex0.get_width(), tex0.get_height())
+    );
+    float2 texSize1 = fabricPresentationSize(
+        imageTransforms[1],
+        float2(tex1.get_width(), tex1.get_height())
+    );
 
     // If tex0/tex1 differ in size, this preserves the slightly-odd behavior
     // of applying offsets in each texture's own pixel space.
@@ -42,18 +50,18 @@ fragment half4 postFragment( VertexData in [[stage_in]],
     float2 tc0 = in.texcoord;
     float2 tc1 = in.texcoord;
 
-    half4 a = SAMPLER_FNC(tex0, tc0);
-    half4 b = SAMPLER_FNC(tex1, tc1);
+    half4 a = SAMPLER_FNC(tex0, fabricTextureCoordinate(imageTransforms[0], tc0));
+    half4 b = SAMPLER_FNC(tex1, fabricTextureCoordinate(imageTransforms[1], tc1));
 
     // get the difference
     half4 curdif = b - a;
 
     // calculate the gradient (per-channel), summing gradients from both frames
-    half4 gradx = SAMPLER_FNC(tex1, tc1 + x1) - SAMPLER_FNC(tex1, tc1 - x1);
-    gradx +=       SAMPLER_FNC(tex0, tc0 + x0) - SAMPLER_FNC(tex0, tc0 - x0);
+    half4 gradx = SAMPLER_FNC(tex1, fabricTextureCoordinate(imageTransforms[1], tc1 + x1)) - SAMPLER_FNC(tex1, fabricTextureCoordinate(imageTransforms[1], tc1 - x1));
+    gradx +=       SAMPLER_FNC(tex0, fabricTextureCoordinate(imageTransforms[0], tc0 + x0)) - SAMPLER_FNC(tex0, fabricTextureCoordinate(imageTransforms[0], tc0 - x0));
 
-    half4 grady = SAMPLER_FNC(tex1, tc1 + y1) - SAMPLER_FNC(tex1, tc1 - y1);
-    grady +=       SAMPLER_FNC(tex0, tc0 + y0) - SAMPLER_FNC(tex0, tc0 - y0);
+    half4 grady = SAMPLER_FNC(tex1, fabricTextureCoordinate(imageTransforms[1], tc1 + y1)) - SAMPLER_FNC(tex1, fabricTextureCoordinate(imageTransforms[1], tc1 - y1));
+    grady +=       SAMPLER_FNC(tex0, fabricTextureCoordinate(imageTransforms[0], tc0 + y0)) - SAMPLER_FNC(tex0, fabricTextureCoordinate(imageTransforms[0], tc0 - y0));
 
     half4 gradmag = sqrt((gradx * gradx) + (grady * grady) + half4(u.lambda));
 

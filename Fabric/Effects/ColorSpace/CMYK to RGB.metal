@@ -11,15 +11,17 @@
 
 #include "../../lygia/sampler.msl"
 #include "../../lygia/color/space/cmyk2rgb.msl"
+#include "../../Shaders/FabricImageTextureTransform.metal"
 
 typedef struct {
 } PostUniforms;
 
 fragment half4 postFragment( VertexData in [[stage_in]],
     constant PostUniforms &uniforms [[buffer( FragmentBufferMaterialUniforms )]],
+    constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
     texture2d<half, access::sample> renderTex [[texture( FragmentTextureCustom0 )]] )
 {
-    half4 color = SAMPLER_FNC( renderTex, in.texcoord );
+    half4 color = SAMPLER_FNC( renderTex, fabricTextureCoordinate(imageTransforms[0], in.texcoord));
 
     return half4(cmyk2rgb( color ), color.a);
 }

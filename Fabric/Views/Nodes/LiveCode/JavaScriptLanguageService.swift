@@ -169,7 +169,7 @@ final class JavaScriptLanguageService: LanguageService
         .init(label: "handleID", insertText: "handleID", documentation: "Stable handle identity for the current image.", kind: .property, priority: 500),
         .init(label: "width", insertText: "width", documentation: "Image width in pixels.", kind: .property, priority: 500),
         .init(label: "height", insertText: "height", documentation: "Image height in pixels.", kind: .property, priority: 500),
-        .init(label: "isFlipped", insertText: "isFlipped", documentation: "Whether the image is vertically flipped.", kind: .property, priority: 500),
+        .init(label: "textureTransform", insertText: "textureTransform", documentation: "Column-major texture-coordinate transform matrix.", kind: .property, priority: 500),
         .init(label: "pixelFormat", insertText: "pixelFormat", documentation: "Metal pixel format name.", kind: .property, priority: 500),
     ]
 

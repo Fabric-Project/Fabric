@@ -128,8 +128,9 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
     public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
         guard self.inputImage.valueDidChange,
-              let inTex = self.inputImage.value?.texture
+              let inputImage = self.inputImage.value
         else { return }
+        let inTex = inputImage.texture
 
         guard self.compute != nil else
         {
@@ -139,6 +140,7 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
         }
 
         let outImage = try renderer.newImage(withWidth: inTex.width, height: inTex.height)
+        outImage.textureTransform = inputImage.textureTransform
 
         guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else
         {

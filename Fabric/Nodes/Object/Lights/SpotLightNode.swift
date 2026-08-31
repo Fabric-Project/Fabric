@@ -19,12 +19,6 @@ public class SpotLightNode : ObjectNode<SpotLight>
     override public class var nodeDescription: String { "Adds a Spot Light to the scene with optional cookie or projector image support."}
 
     private static let projectionModeOptions = ["Mask", "Color"]
-    private static let verticalFlipProjectionTransform = simd_float3x3(
-        simd_float3(1.0, 0.0, 0.0),
-        simd_float3(0.0, -1.0, 0.0),
-        simd_float3(0.0, 1.0, 1.0)
-    )
-
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
 
@@ -169,9 +163,14 @@ public class SpotLightNode : ObjectNode<SpotLight>
     {
         let image = self.inputProjectionImage.value
         self.light.projectionTexture = image?.texture
-        self.light.projectionTransform = image?.isFlipped == true
-            ? Self.verticalFlipProjectionTransform
-            : matrix_identity_float3x3
+        self.light.projectionTransform = image.map {
+            let transform = $0.textureTransform
+            return simd_float3x3(
+                simd_float3(transform.columns.0.x, transform.columns.0.y, 0),
+                simd_float3(transform.columns.1.x, transform.columns.1.y, 0),
+                simd_float3(transform.columns.3.x, transform.columns.3.y, 1)
+            )
+        } ?? matrix_identity_float3x3
     }
 
     private func resolvedProjectionMode() -> SpotLightProjectionMode

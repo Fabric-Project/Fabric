@@ -9,6 +9,7 @@
 
 #include "../../lygia/sampler.msl"
 #include "../../lygia/color/blend.msl"
+#include "../../Shaders/FabricImageTextureTransform.metal"
 
 typedef struct {
     float4 tint; // color, 1.0, 0.35, 0.12, 1.0, Tint
@@ -18,11 +19,12 @@ typedef struct {
 
 fragment half4 postFragment(VertexData in [[stage_in]],
                             constant PostUniforms &uniforms [[buffer(FragmentBufferMaterialUniforms)]],
+                            constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
                             texture2d<half, access::sample> sourceTex [[texture(FragmentTextureCustom0)]],
                             texture2d<half, access::sample> halationTex [[texture(FragmentTextureCustom1)]])
 {
-    half4 source = SAMPLER_FNC(sourceTex, in.texcoord);
-    half4 halation = SAMPLER_FNC(halationTex, in.texcoord);
+    half4 source = SAMPLER_FNC(sourceTex, fabricTextureCoordinate(imageTransforms[0], in.texcoord));
+    half4 halation = SAMPLER_FNC(halationTex, fabricTextureCoordinate(imageTransforms[1], in.texcoord));
     
     half3 bias = half3(uniforms.tint.rgb * uniforms.tint.a * uniforms.amount);
     

@@ -105,9 +105,9 @@ private protocol JavaScriptOpaqueValueBoxing
 {
     var type: String { get }
     var handleID: String { get }
-    var width: Int { get }
-    var height: Int { get }
-    var isFlipped: Bool { get }
+    var width: Double { get }
+    var height: Double { get }
+    var textureTransform: [Double] { get }
     var pixelFormat: String { get }
 }
 
@@ -122,9 +122,17 @@ private protocol JavaScriptOpaqueValueBoxing
 
     var type: String { "Image" }
     var handleID: String { image.id.uuidString }
-    var width: Int { image.texture.width }
-    var height: Int { image.texture.height }
-    var isFlipped: Bool { image.isFlipped }
+    var width: Double { image.presentationSize.width }
+    var height: Double { image.presentationSize.height }
+    var textureTransform: [Double] {
+        let matrix = image.textureTransform
+        return [
+            Double(matrix.columns.0.x), Double(matrix.columns.0.y), Double(matrix.columns.0.z), Double(matrix.columns.0.w),
+            Double(matrix.columns.1.x), Double(matrix.columns.1.y), Double(matrix.columns.1.z), Double(matrix.columns.1.w),
+            Double(matrix.columns.2.x), Double(matrix.columns.2.y), Double(matrix.columns.2.z), Double(matrix.columns.2.w),
+            Double(matrix.columns.3.x), Double(matrix.columns.3.y), Double(matrix.columns.3.z), Double(matrix.columns.3.w),
+        ]
+    }
     var pixelFormat: String { String(describing: image.texture.pixelFormat) }
     var boxedPortValue: PortValue { .Image(image) }
 }

@@ -48,18 +48,21 @@ public final class GaussianBlurMaskNode: BaseMultiPassBlurEffectTwoChannelNode {
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let (inputTexture, inputMask) = self.validatedTwoInputTextures() else {
+        guard let (inputImage, inputMaskImage) = self.validatedTwoInputImages() else {
             self.outputTexturePort.send(nil)
             return
         }
+
+        let outputWidth = Int(inputImage.presentationSize.width.rounded())
+        let outputHeight = Int(inputImage.presentationSize.height.rounded())
 
         let amount = self.floatParameterValue(named: "Amount")
 
         var steps: [MultiPassStep] = []
 
         if amount <= Self.lowAmountThreshold {
-            steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 1.0, vector: simd_float2(1.0, 0.0)))
-            steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 1.0, vector: simd_float2(0.0, 1.0)))
+            steps.append(MultiPassStep(width: outputWidth, height: outputHeight, amountScale: 1.0, vector: simd_float2(1.0, 0.0)))
+            steps.append(MultiPassStep(width: outputWidth, height: outputHeight, amountScale: 1.0, vector: simd_float2(0.0, 1.0)))
         } else {
             let stageRatios: [(ratio: Float, multiplier: Float)] = [
                 (0.2, 1.0),
@@ -69,8 +72,8 @@ public final class GaussianBlurMaskNode: BaseMultiPassBlurEffectTwoChannelNode {
             ]
 
             for stage in stageRatios {
-                let stageSize = self.scaledPassSize(baseWidth: inputTexture.width,
-                                                    baseHeight: inputTexture.height,
+                let stageSize = self.scaledPassSize(baseWidth: outputWidth,
+                                                    baseHeight: outputHeight,
                                                     amount: amount,
                                                     passRatio: stage.ratio)
 
@@ -85,15 +88,15 @@ public final class GaussianBlurMaskNode: BaseMultiPassBlurEffectTwoChannelNode {
                                            vector: simd_float2(0.0, 1.0)))
             }
 
-            steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 1.0, vector: simd_float2(1.0, 0.0)))
-            steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 1.0, vector: simd_float2(0.0, 1.0)))
+            steps.append(MultiPassStep(width: outputWidth, height: outputHeight, amountScale: 1.0, vector: simd_float2(1.0, 0.0)))
+            steps.append(MultiPassStep(width: outputWidth, height: outputHeight, amountScale: 1.0, vector: simd_float2(0.0, 1.0)))
         }
 
         if let outputImage = self.runPassChain(renderer: renderer,
                                                executionInfo: executionInfo,
                                                commandBuffer: commandBuffer,
-                                               inputATexture: inputTexture,
-                                               inputBTexture: inputMask,
+                                               inputAImage: inputImage,
+                                               inputBImage: inputMaskImage,
                                                steps: steps,
                                                prepareStep: { [weak self] stepIndex, step in
             guard let self else { return }

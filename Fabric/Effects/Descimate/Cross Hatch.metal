@@ -8,6 +8,7 @@ using namespace metal;
 
 #include "../../lygia/sampler.msl"
 #include "../../lygia/math/mod.msl"
+#include "../../Shaders/FabricImageTextureTransform.metal"
 
 
 typedef struct {
@@ -47,18 +48,27 @@ static inline float2 rotate2D(float2 p, float a) {
     return float2(c * p.x - s * p.y, s * p.x + c * p.y);
 }
 
-static inline float lumaSample(texture2d<half, access::sample> tex, float2 uv) {
-    half4 c = SAMPLER_FNC(tex, clamp(uv, 0.0f, 1.0f));
+static inline float lumaSample(
+    texture2d<half, access::sample> tex,
+    float4x4 textureTransform,
+    float2 uv
+) {
+    const float2 textureCoordinate = fabricTextureCoordinate(
+        textureTransform,
+        clamp(uv, 0.0f, 1.0f)
+    );
+    half4 c = SAMPLER_FNC(tex, textureCoordinate);
     return luma(float3(c.rgb));
 }
 
 fragment half4 postFragment( VertexData                       in   [[stage_in]],
                              constant PostUniforms           &u    [[buffer( FragmentBufferMaterialUniforms )]],
+                             constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
                              texture2d<half, access::sample>  tex0 [[texture( FragmentTextureCustom0 )]] )
 {
     float2 uv = in.texcoord;
 
-    half4 src = SAMPLER_FNC(tex0, uv);
+    half4 src = SAMPLER_FNC(tex0, fabricTextureCoordinate(imageTransforms[0], uv));
     float lum = luma(float3(src.rgb));
 
     // Duotone ramp based on luma:
@@ -80,7 +90,10 @@ fragment half4 postFragment( VertexData                       in   [[stage_in]],
     half4 ink   = fgLayer;
 
     // Pixel-space coords for hatch pattern
-    float2 texSize = float2(tex0.get_width(), tex0.get_height());
+    float2 texSize = fabricPresentationSize(
+        imageTransforms[0],
+        float2(tex0.get_width(), tex0.get_height())
+    );
     float2 coord   = uv * texSize;
 
     // Rotate hatch space around center
@@ -114,20 +127,20 @@ fragment half4 postFragment( VertexData                       in   [[stage_in]],
     // Sobel-ish edge detection (same as prior)
     float2 texel = 1.0f / max(texSize, float2(1.0f));
     float gx = 0.0f;
-    gx += -1.0f * lumaSample(tex0, uv + texel * float2(-1.0f, -1.0f));
-    gx += -2.0f * lumaSample(tex0, uv + texel * float2(-1.0f,  0.0f));
-    gx += -1.0f * lumaSample(tex0, uv + texel * float2(-1.0f,  1.0f));
-    gx +=  1.0f * lumaSample(tex0, uv + texel * float2( 1.0f, -1.0f));
-    gx +=  2.0f * lumaSample(tex0, uv + texel * float2( 1.0f,  0.0f));
-    gx +=  1.0f * lumaSample(tex0, uv + texel * float2( 1.0f,  1.0f));
+    gx += -1.0f * lumaSample(tex0, imageTransforms[0], uv + texel * float2(-1.0f, -1.0f));
+    gx += -2.0f * lumaSample(tex0, imageTransforms[0], uv + texel * float2(-1.0f,  0.0f));
+    gx += -1.0f * lumaSample(tex0, imageTransforms[0], uv + texel * float2(-1.0f,  1.0f));
+    gx +=  1.0f * lumaSample(tex0, imageTransforms[0], uv + texel * float2( 1.0f, -1.0f));
+    gx +=  2.0f * lumaSample(tex0, imageTransforms[0], uv + texel * float2( 1.0f,  0.0f));
+    gx +=  1.0f * lumaSample(tex0, imageTransforms[0], uv + texel * float2( 1.0f,  1.0f));
 
     float gy = 0.0f;
-    gy += -1.0f * lumaSample(tex0, uv + texel * float2(-1.0f, -1.0f));
-    gy += -2.0f * lumaSample(tex0, uv + texel * float2( 0.0f, -1.0f));
-    gy += -1.0f * lumaSample(tex0, uv + texel * float2( 1.0f, -1.0f));
-    gy +=  1.0f * lumaSample(tex0, uv + texel * float2(-1.0f,  1.0f));
-    gy +=  2.0f * lumaSample(tex0, uv + texel * float2( 0.0f,  1.0f));
-    gy +=  1.0f * lumaSample(tex0, uv + texel * float2( 1.0f,  1.0f));
+    gy += -1.0f * lumaSample(tex0, imageTransforms[0], uv + texel * float2(-1.0f, -1.0f));
+    gy += -2.0f * lumaSample(tex0, imageTransforms[0], uv + texel * float2( 0.0f, -1.0f));
+    gy += -1.0f * lumaSample(tex0, imageTransforms[0], uv + texel * float2( 1.0f, -1.0f));
+    gy +=  1.0f * lumaSample(tex0, imageTransforms[0], uv + texel * float2(-1.0f,  1.0f));
+    gy +=  2.0f * lumaSample(tex0, imageTransforms[0], uv + texel * float2( 0.0f,  1.0f));
+    gy +=  1.0f * lumaSample(tex0, imageTransforms[0], uv + texel * float2( 1.0f,  1.0f));
 
     float g = (gx * gx + gy * gy) * u.edgeStrength;
     float edgeInk = clamp(g, 0.0f, 1.0f);

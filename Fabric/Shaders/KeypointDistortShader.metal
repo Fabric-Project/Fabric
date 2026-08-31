@@ -11,6 +11,7 @@ using namespace metal;
 #define SAMPLER_TYPE texture2d<half>
 
 #include "../lygia/sampler.msl"
+#include "FabricImageTextureTransform.metal"
 
 // Input Uniform Buffer Struct type for our 2 Keypoint Buffers
 struct KeypointUV {
@@ -27,7 +28,8 @@ fragment half4 postFragment( VertexData in [[stage_in]],
                             texture2d<half, access::sample> renderTex [[texture( FragmentTextureCustom0 )]],
                             constant KeypointUV* origKP   [[ buffer( FragmentBufferCustom0 )]],
                             constant KeypointUV* newKP    [[ buffer( FragmentBufferCustom1 )]],
-                            constant uint* count           [[ buffer( FragmentBufferCustom2 ) ]]
+                            constant uint* count           [[ buffer( FragmentBufferCustom2 ) ]],
+                            constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]]
 )
 {
     float2 uv = in.texcoord;
@@ -72,7 +74,5 @@ fragment half4 postFragment( VertexData in [[stage_in]],
     
     float2 finalUV =  mix(uv, uv + disp, uniforms.amount);
     
-    return half4(finalUV.x, finalUV.y, length(disp), 1.0);
-    
-    return SAMPLER_FNC( renderTex, finalUV );
+    return SAMPLER_FNC(renderTex, fabricTextureCoordinate(imageTransforms[0], finalUV));
 }

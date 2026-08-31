@@ -10,6 +10,7 @@
 
 #include "../../lygia/sampler.msl"
 #include "../../lygia/math/mod.msl"
+#include "../../Shaders/FabricImageTextureTransform.metal"
 
 typedef struct {
     float amount; // slider, 0.00000001, 1.0, 0.05, Amount
@@ -18,12 +19,15 @@ typedef struct {
 fragment half4 postFragment(
     VertexData in [[stage_in]],
     constant PostUniforms &uniforms [[buffer(FragmentBufferMaterialUniforms)]],
+    constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
     texture2d<half, access::sample> renderTex [[texture(FragmentTextureCustom0)]]
 )
 {
-    const float width = float(renderTex.get_width());
-    const float height = float(renderTex.get_height());
-    const float aspect = width / height;
+    const float2 presentationSize = fabricPresentationSize(
+        imageTransforms[0],
+        float2(renderTex.get_width(), renderTex.get_height())
+    );
+    const float aspect = presentationSize.x / presentationSize.y;
     const float amount = max(uniforms.amount, 0.00000001);
     const float tilings = 1.0 / amount;
 
@@ -48,5 +52,5 @@ fragment half4 postFragment(
     sampleUV.x /= aspect;
     sampleUV = clamp(sampleUV + 0.5, 0.01, 0.99);
 
-    return SAMPLER_FNC(renderTex, sampleUV);
+    return SAMPLER_FNC(renderTex, fabricTextureCoordinate(imageTransforms[0], sampleUV));
 }

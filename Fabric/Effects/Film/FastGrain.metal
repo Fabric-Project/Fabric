@@ -9,6 +9,7 @@
 #define SAMPLER_TYPE texture2d<half>
 
 #include "../../lygia/sampler.msl"
+#include "../../Shaders/FabricImageTextureTransform.metal"
 
 typedef struct {
     float amount; // slider, 0.0, 1.0, 0.05, Amount
@@ -40,11 +41,15 @@ static inline float3 fastGrainNoise(float2 grainCell, float seed, float amount, 
 
 fragment half4 postFragment(VertexData in [[stage_in]],
                             constant PostUniforms &uniforms [[buffer(FragmentBufferMaterialUniforms)]],
+                            constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
                             texture2d<half, access::sample> renderTex [[texture(FragmentTextureCustom0)]])
 {
-    half4 sampledColor = SAMPLER_FNC(renderTex, in.texcoord);
+    half4 sampledColor = SAMPLER_FNC(renderTex, fabricTextureCoordinate(imageTransforms[0], in.texcoord));
     float3 sceneColor = float3(sampledColor.rgb);
-    float2 textureSize = float2(renderTex.get_width(), renderTex.get_height());
+    float2 textureSize = fabricPresentationSize(
+        imageTransforms[0],
+        float2(renderTex.get_width(), renderTex.get_height())
+    );
     float grainSize = max(uniforms.grainSize, 0.5f);
     float2 grainCell = floor(in.texcoord * textureSize / grainSize);
 

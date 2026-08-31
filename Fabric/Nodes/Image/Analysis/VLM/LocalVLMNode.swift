@@ -218,7 +218,7 @@ struct LocalVLMNodeSettingsView: View {
                 self.vlmEvaluator.prompt = prompt
             }
 
-            let image = self.inputTexturePort.value.map { CIImage(mtlTexture: $0.texture) }.flatMap { $0 }
+            let image = self.inputTexturePort.value?.presentationCIImage
             self.vlmEvaluator.generate(image: image)
 
             if self.inputGenerate.connections.isEmpty {

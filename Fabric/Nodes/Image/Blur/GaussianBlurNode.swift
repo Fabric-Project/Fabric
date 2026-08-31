@@ -48,10 +48,13 @@ public final class GaussianBlurNode: BaseMultiPassBlurEffectNode {
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputTexture = self.validatedSingleInputTexture() else {
+        guard let inputImage = self.validatedSingleInputImage() else {
             self.outputTexturePort.send(nil)
             return
         }
+
+        let outputWidth = Int(inputImage.presentationSize.width.rounded())
+        let outputHeight = Int(inputImage.presentationSize.height.rounded())
 
         let amount = self.floatParameterValue(named: "Amount")
 
@@ -78,8 +81,8 @@ public final class GaussianBlurNode: BaseMultiPassBlurEffectNode {
 
             for stage in stageRatios
             {
-                let stageSize = self.scaledPassSize(baseWidth: inputTexture.width,
-                                                    baseHeight: inputTexture.height,
+                let stageSize = self.scaledPassSize(baseWidth: outputWidth,
+                                                    baseHeight: outputHeight,
                                                     amount: amount,
                                                     passRatio: stage.ratio)
 
@@ -94,14 +97,14 @@ public final class GaussianBlurNode: BaseMultiPassBlurEffectNode {
                                            vector: simd_float2(0.0, 1.0)))
             }
 
-        steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 0.333, vector: simd_float2(1.0, 0.0)))
-        steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 0.333, vector: simd_float2(0.0, 1.0)))
+        steps.append(MultiPassStep(width: outputWidth, height: outputHeight, amountScale: 0.333, vector: simd_float2(1.0, 0.0)))
+        steps.append(MultiPassStep(width: outputWidth, height: outputHeight, amountScale: 0.333, vector: simd_float2(0.0, 1.0)))
 //        }
         
         let outputImage = self.runPassChain(renderer: renderer,
                                             executionInfo: executionInfo,
                                             commandBuffer: commandBuffer,
-                                            inputTexture: inputTexture,
+                                            inputImage: inputImage,
                                             steps: steps,
                                             prepareStep: { [weak self] stepIndex, step in
             guard let self else { return }

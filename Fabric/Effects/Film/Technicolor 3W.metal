@@ -13,6 +13,7 @@ using namespace metal;
 #define SAMPLER_TYPE texture2d<half>
 
 #include "../../lygia/sampler.msl"
+#include "../../Shaders/FabricImageTextureTransform.metal"
 
 // Uniforms → Fabric UI slider
 typedef struct {
@@ -21,11 +22,12 @@ typedef struct {
 
 fragment half4 postFragment( VertexData                        in        [[stage_in]],
                              constant PostUniforms            &uniforms  [[buffer( FragmentBufferMaterialUniforms )]],
+                             constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
                              texture2d<half, access::sample>   tex        [[texture( FragmentTextureCustom0 )]] )
 {
     float2 uv = in.texcoord;
 
-    half4 input0 = SAMPLER_FNC(tex, uv);
+    half4 input0 = SAMPLER_FNC(tex, fabricTextureCoordinate(imageTransforms[0], uv));
 
     // Filters
     const half4 redfilter        = half4(1.0h, 0.0h, 0.0h, 1.0h);

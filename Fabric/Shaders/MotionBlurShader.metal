@@ -1,7 +1,7 @@
 using namespace metal;
 
 #include <metal_stdlib>
-#include "../lygia/math/radians.msl"
+#include "FabricImageTextureTransform.metal"
 
 typedef struct {
     float amount; // slider, 0.0, 50.0, 0.0, Amount
@@ -15,16 +15,18 @@ struct MotionPassUniforms {
 fragment half4 postFragment(VertexData in [[stage_in]],
                             constant PostUniforms &uniforms [[buffer(FragmentBufferMaterialUniforms)]],
                             texture2d<half, access::sample> renderTex [[texture(FragmentTextureCustom0)]],
-                            constant MotionPassUniforms &passUniforms [[buffer(FragmentBufferCustom0)]])
+                            constant MotionPassUniforms &passUniforms [[buffer(FragmentBufferCustom0)]],
+                            constant float4x4 *textureTransforms [[buffer(FragmentBufferCustom10)]])
 {
     constexpr sampler linearSampler(coord::normalized,
                                     address::clamp_to_edge,
                                     min_filter::linear,
                                     mag_filter::linear);
 
-    const float2 texelSize = 1.0 / float2(renderTex.get_width(), renderTex.get_height());
+    const float2 textureSize = float2(renderTex.get_width(), renderTex.get_height());
+    const float2 texelSize = 1.0 / fabricPresentationSize(textureTransforms[0], textureSize);
 
-    const float theta = radians(uniforms.angle);
+    const float theta = uniforms.angle * 0.017453292519943295f;
     const float2 direction = float2(cos(theta), sin(theta));
 
     const float scaledAmount = uniforms.amount * passUniforms.amountScale;
@@ -36,15 +38,15 @@ fragment half4 postFragment(VertexData in [[stage_in]],
 
     const float2 uv = in.texcoord;
 
-    half4 sample0 = renderTex.sample(linearSampler, uv);
-    half4 sample1 = renderTex.sample(linearSampler, uv + step1);
-    half4 sample2 = renderTex.sample(linearSampler, uv + step2);
-    half4 sample3 = renderTex.sample(linearSampler, uv + step3);
-    half4 sample4 = renderTex.sample(linearSampler, uv + step4);
-    half4 sample5 = renderTex.sample(linearSampler, uv - step1);
-    half4 sample6 = renderTex.sample(linearSampler, uv - step2);
-    half4 sample7 = renderTex.sample(linearSampler, uv - step3);
-    half4 sample8 = renderTex.sample(linearSampler, uv - step4);
+    half4 sample0 = renderTex.sample(linearSampler, fabricTextureCoordinate(textureTransforms[0], uv));
+    half4 sample1 = renderTex.sample(linearSampler, fabricTextureCoordinate(textureTransforms[0], uv + step1));
+    half4 sample2 = renderTex.sample(linearSampler, fabricTextureCoordinate(textureTransforms[0], uv + step2));
+    half4 sample3 = renderTex.sample(linearSampler, fabricTextureCoordinate(textureTransforms[0], uv + step3));
+    half4 sample4 = renderTex.sample(linearSampler, fabricTextureCoordinate(textureTransforms[0], uv + step4));
+    half4 sample5 = renderTex.sample(linearSampler, fabricTextureCoordinate(textureTransforms[0], uv - step1));
+    half4 sample6 = renderTex.sample(linearSampler, fabricTextureCoordinate(textureTransforms[0], uv - step2));
+    half4 sample7 = renderTex.sample(linearSampler, fabricTextureCoordinate(textureTransforms[0], uv - step3));
+    half4 sample8 = renderTex.sample(linearSampler, fabricTextureCoordinate(textureTransforms[0], uv - step4));
 
 //    return (sample0 + sample1 + sample2 + sample3 + sample4 + sample5 + sample6 + sample7 + sample8) / 9.0h;
     return (sample0 * 0.39894 + sample1 * 0.24197 + sample2 * 0.24197 + sample3 * 0.05399 + sample4 * 0.05399 + sample5 * 0.00443 + sample6 * 0.00443 + sample7 * 0.00013+ sample8 * 0.00013);

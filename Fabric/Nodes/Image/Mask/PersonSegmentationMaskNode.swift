@@ -81,20 +81,17 @@ public class PersonSegmentationMaskNode: Node
             if self.inputTexturePort.valueDidChange
             {
                 if  let inImage = self.inputTexturePort.value,
-                    let mask =  self.maskForRequest(request, from: inImage.texture)
+                    let mask = self.maskForRequest(request, from: inImage)
                 {
-                    let outputImage = try renderer.newImage(fromPixelBuffer: mask)
-                    outputImage.isFlipped = CVImageBufferIsFlipped(mask)
-                 
-                    self.outputTexturePort.send( outputImage )
+                    self.outputTexturePort.send(try renderer.newImage(fromPixelBuffer: mask))
                 }
             }
         }
     }
     
-    private func maskForRequest(_ request: VNGeneratePersonInstanceMaskRequest, from texture:MTLTexture,) -> CVPixelBuffer?
+    private func maskForRequest(_ request: VNGeneratePersonInstanceMaskRequest, from image: FabricImage) -> CVPixelBuffer?
     {
-        if let inputImage = CIImage(mtlTexture: texture)
+        if let inputImage = image.presentationCIImage
         {
             for computeDevice in MLComputeDevice.allComputeDevices
             {

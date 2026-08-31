@@ -8,6 +8,7 @@ using namespace metal;
 #define SAMPLER sampler( min_filter::linear, mag_filter::linear, address::mirrored_repeat )
 
 #include "../../lygia/sampler.msl"
+#include "../../Shaders/FabricImageTextureTransform.metal"
 
 // Derived from Metal's built-in constants
 constant float C_PI    = M_PI_F;
@@ -24,6 +25,7 @@ typedef struct {
 
 fragment half4 postFragment( VertexData                        in        [[stage_in]],
                              constant PostUniforms            &uniforms  [[buffer( FragmentBufferMaterialUniforms )]],
+                             constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
                              texture2d<half, access::sample>   renderTex [[texture( FragmentTextureCustom0 )]] )
 {
     float2 uv = in.texcoord; // normalized [0, 1]
@@ -71,5 +73,5 @@ fragment half4 postFragment( VertexData                        in        [[stage
     // Final UV with wobble
     float2 wobbleUV = uv + perturb;
 
-    return SAMPLER_FNC(renderTex, wobbleUV);
+    return SAMPLER_FNC(renderTex, fabricTextureCoordinate(imageTransforms[0], wobbleUV));
 }

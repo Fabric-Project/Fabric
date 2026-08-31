@@ -10,6 +10,7 @@ using namespace metal;
 #include "../../lygia/color/space/cmyk2rgb.msl"
 #include "../../lygia/color/space/rgb2cmyk.msl"
 #include "../../lygia/math/radians.msl"
+#include "../../Shaders/FabricImageTextureTransform.metal"
 
 // Uniforms -> Fabric UI
 typedef struct {
@@ -59,11 +60,12 @@ static inline float2 amHalftone(float channel, float angleDeg, float scale, floa
 
 fragment half4 postFragment( VertexData                        in        [[stage_in]],
                              constant PostUniforms            &u         [[buffer( FragmentBufferMaterialUniforms )]],
+                             constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
                              texture2d<half, access::sample>   tex0      [[texture( FragmentTextureCustom0 )]] )
 {
     float2 uv = in.texcoord;
 
-    half4 src = SAMPLER_FNC(tex0, uv);
+    half4 src = SAMPLER_FNC(tex0, fabricTextureCoordinate(imageTransforms[0], uv));
     float3 rgb = float3(src.rgb);
 
     // Convert to CMYK (C,M,Y,K)

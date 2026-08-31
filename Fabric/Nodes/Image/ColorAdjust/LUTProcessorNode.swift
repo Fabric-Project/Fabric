@@ -75,27 +75,16 @@ public class LUTProcessorNode : BaseImageNode
             try self.loadLUTFromInputValue()
         }
 
-        if self.imageInputPorts().first?.valueDidChange == true
-        {
-            if let inImage = self.inputImage(at: 0),
-               let inTex2 = self.texture
-            {
-                let inTex = inImage.texture
-                let outImage = try renderer.newImage(withWidth: inTex.width, height: inTex.height)
+        guard let lutTexture = self.texture else {
+            self.outputTexturePort.send(nil)
+            return
+        }
 
-                self.postMaterial.set(inTex, index: FragmentTextureIndex.Custom0)
-                self.postMaterial.set(inTex2, index: FragmentTextureIndex.Custom1)
-                
-                self.postProcessor.resize(size: (width: Float(inTex.width), height: Float(inTex.height)), scaleFactor: 1)
-                
-                let renderPassDesc = MTLRenderPassDescriptor()
-                renderPassDesc.colorAttachments[0].texture = outImage.texture
-                
-                self.postProcessor.draw(renderPassDescriptor:renderPassDesc , commandBuffer: commandBuffer)
-
-                self.outputTexturePort.send( outImage )
-            }
-        }        
+        self.postMaterial.set(lutTexture, index: FragmentTextureIndex.Custom1)
+        try super.execute(renderer: renderer,
+                          executionInfo: executionInfo,
+                          renderPassDescriptor: renderPassDescriptor,
+                          commandBuffer: commandBuffer)
      }
     
     private func loadLUTFromInputValue() throws

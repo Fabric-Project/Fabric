@@ -9,6 +9,7 @@
 #define SAMPLER_TYPE texture2d<half>
 
 #include "../../lygia/sampler.msl"
+#include "../../Shaders/FabricImageTextureTransform.metal"
 
 typedef struct {
     float amount; // slider, 0.00000001, 1.0, 0.03, Amount
@@ -17,13 +18,16 @@ typedef struct {
 fragment half4 postFragment(
     VertexData in [[stage_in]],
     constant PostUniforms &uniforms [[buffer(FragmentBufferMaterialUniforms)]],
+    constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
     texture2d<half, access::sample> renderTex [[texture(FragmentTextureCustom0)]]
 )
 {
-    const float width = float(renderTex.get_width());
-    const float height = float(renderTex.get_height());
+    const float2 presentationSize = fabricPresentationSize(
+        imageTransforms[0],
+        float2(renderTex.get_width(), renderTex.get_height())
+    );
     const float amount = max(uniforms.amount, 0.00000001);
-    const float2 pixelating = float2(1.0, width / height) * amount;
+    const float2 pixelating = float2(1.0, presentationSize.x / presentationSize.y) * amount;
 
     float2 uv = (in.texcoord - 0.5) / pixelating;
 
@@ -44,5 +48,5 @@ fragment half4 postFragment(
     uv -= sampleOffsetTransform * trianglePosition + float2(-0.25, 0.25);
 
     const float2 sampleUV = clamp(uv * pixelating + 0.5, 0.01, 0.99);
-    return SAMPLER_FNC(renderTex, sampleUV);
+    return SAMPLER_FNC(renderTex, fabricTextureCoordinate(imageTransforms[0], sampleUV));
 }

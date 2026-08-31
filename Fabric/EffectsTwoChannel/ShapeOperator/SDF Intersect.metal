@@ -8,6 +8,7 @@
 
 #include "../../lygia/sampler.msl"
 #include "../../lygia/sdf/opIntersection.msl"
+#include "../../Shaders/FabricImageTextureTransform.metal"
 
 
 typedef struct {
@@ -17,13 +18,14 @@ typedef struct {
 
 fragment half4 postFragment( VertexData in [[stage_in]],
     constant PostUniforms &uniforms [[buffer( FragmentBufferMaterialUniforms )]],
+    constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
     texture2d<float, access::sample> sdfa [[texture( FragmentTextureCustom0 )]],
     texture2d<float, access::sample> sdfb [[texture( FragmentTextureCustom1 )]] )
 {    
     float2 coords = in.texcoord;
 
-    float sdf1 = SAMPLER_FNC(sdfa, coords).r;
-    float sdf2 = SAMPLER_FNC(sdfb, coords).r;
+    float sdf1 = SAMPLER_FNC(sdfa, fabricTextureCoordinate(imageTransforms[0], coords)).r;
+    float sdf2 = SAMPLER_FNC(sdfb, fabricTextureCoordinate(imageTransforms[1], coords)).r;
 
     // Read pixel intensities from the current and reference frames
     return half4(opIntersection(sdf1, sdf2));

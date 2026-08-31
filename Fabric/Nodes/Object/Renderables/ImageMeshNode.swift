@@ -85,7 +85,7 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
         if self.inputImage.valueDidChange
         {
             self.material.texture = self.inputImage.value?.texture
-            self.material.flipped = (self.inputImage.value?.isFlipped ?? false)
+            self.material.textureTransform = self.inputImage.value?.textureTransform ?? matrix_identity_float4x4
         }
 
         if self.inputColor.valueDidChange,
@@ -102,9 +102,9 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
             let size = self.inputSize.value ?? 1.0
             let aspect: Float
 
-            if let texture = self.inputImage.value?.texture
+            if let image = self.inputImage.value
             {
-                aspect = Float(texture.width) / Float(texture.height)
+                aspect = Float(image.presentationSize.width / image.presentationSize.height)
             }
             else
             {
@@ -113,13 +113,13 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
 
             if self.inputSizingDimension.value == "Height"
             {
-                self.mesh.scale.y = size
-                self.mesh.scale.x = size * aspect
+                self.geometry.height = size
+                self.geometry.width = size * aspect
             }
             else
             {
-                self.mesh.scale.x = size
-                self.mesh.scale.y = size / aspect
+                self.geometry.width = size
+                self.geometry.height = size / aspect
             }
         }
 

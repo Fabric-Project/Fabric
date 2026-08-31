@@ -88,12 +88,13 @@ public final class ContourPathNode: Node {
         guard
             inputMask.valueDidChange,
             let proc = processor,
-            let inTex = inputMask.value?.texture
+            let inputMaskImage = inputMask.value
         else {
             outputContour.send(nil)
 //            print("not outputting contour")
             return
         }
+        let inTex = inputMaskImage.texture
         
         let device = renderer.context.device
 
@@ -129,8 +130,7 @@ public final class ContourPathNode: Node {
         let epsilon = inputJoinEpsilon.value ?? 1.0
         /*let points = */readAndBuildContour(device: device,
                                          commandBuffer: commandBuffer,
-                                         width: inTex.width,
-                                         height: inTex.height,
+                                         image: inputMaskImage,
                                          epsilon: epsilon)
 
         // Emit
@@ -182,7 +182,7 @@ public final class ContourPathNode: Node {
     // MARK: - Readback & Stitching
     private func readAndBuildContour(device: MTLDevice,
                                      commandBuffer: MTLCommandBuffer,
-                                     width: Int, height: Int,
+                                     image: FabricImage,
                                      epsilon: Float)
     {
         guard
@@ -200,8 +200,23 @@ public final class ContourPathNode: Node {
         let segPtr = segBuf.contents().bindMemory(to: simd_float4.self, capacity: segCount)
         var segments: [simd_float4] = []
         segments.reserveCapacity(segCount)
+        let storageSize = simd_float2(Float(image.texture.width), Float(image.texture.height))
+        let presentationSize = simd_float2(
+            Float(image.presentationSize.width),
+            Float(image.presentationSize.height)
+        )
+
+        func presentationPoint(fromStoredPoint point: simd_float2) -> simd_float2
+        {
+            image.canonicalTextureCoordinate(fromStoredTextureCoordinate: point / storageSize)
+                * presentationSize
+        }
+
         for i in 0..<segCount {
-            segments.append(segPtr[i])
+            let segment = segPtr[i]
+            let start = presentationPoint(fromStoredPoint: simd_float2(segment.x, segment.y))
+            let end = presentationPoint(fromStoredPoint: simd_float2(segment.z, segment.w))
+            segments.append(simd_float4(start.x, start.y, end.x, end.y))
         }
         
         self.outputContour.send( self.stitchSegmentsToPath(segments: segments) )

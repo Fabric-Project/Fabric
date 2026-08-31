@@ -16,6 +16,7 @@
 #include "../../lygia/sampler.msl"
 #include "../../lygia/distort/barrel.msl"
 #include "../../lygia/distort/pincushion.msl"
+#include "../../Shaders/FabricImageTextureTransform.metal"
 
 
 typedef struct {
@@ -23,20 +24,36 @@ typedef struct {
     float barrel; // slider, 0.0, 0.2, 0.0
 } PostUniforms;
 
+static half3 fabricBarrel(
+    texture2d<half, access::sample> texture,
+    float4x4 textureTransform,
+    float2 coordinate,
+    float distance
+) {
+    half3 accumulatedColor = half3(0.0h);
+    for (int octave = 0; octave < 12; ++octave) {
+        const float amount = float(octave) * 0.2;
+        const float2 sampleCoordinate = barrel(coordinate, amount, distance);
+        accumulatedColor += SAMPLER_FNC(
+            texture,
+            fabricTextureCoordinate(textureTransform, sampleCoordinate)
+        ).rgb;
+    }
+    return accumulatedColor / 12.0h;
+}
+
 fragment half4 postFragment( VertexData in [[stage_in]],
     constant PostUniforms &uniforms [[buffer( FragmentBufferMaterialUniforms )]],
+    constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
     texture2d<half, access::sample> renderTex [[texture( FragmentTextureCustom0 )]] )
 {
-
-   	float2 inRatio = float2(renderTex.get_width(), renderTex.get_height());
-   	float2 outRatio = float2(renderTex.get_height(), renderTex.get_width());
 
 	float2 uv = in.texcoord;
 
  	 uv = pincushion(uv, float2(1.0), uniforms.pincushion + 0.001);
 //	half3 cushion = pincushion(renderTex, uv, float2(0.5), uniforms.amount);
 
-	half3 cushion = barrel(renderTex, uv, uniforms.barrel);
+	half3 cushion = fabricBarrel(renderTex, imageTransforms[0], uv, uniforms.barrel);
 
     return half4(cushion, 1.0); 
 }

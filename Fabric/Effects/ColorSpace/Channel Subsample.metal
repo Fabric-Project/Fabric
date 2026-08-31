@@ -6,6 +6,7 @@
 //
 
 #include <metal_stdlib>
+#include "../../Shaders/FabricImageTextureTransform.metal"
 using namespace metal;
 
 typedef struct {
@@ -39,52 +40,74 @@ static uint2 subsampledCoordinate(
     return min(blockOrigin + centerOffset, textureSize - 1);
 }
 
+static uint2 storedTextureCoordinate(
+    uint2 presentationCoordinate,
+    uint2 presentationSize,
+    uint2 textureSize,
+    float4x4 textureTransform
+) {
+    const float2 presentationUV =
+        (float2(presentationCoordinate) + 0.5) / float2(presentationSize);
+    const float2 storedUV = fabricTextureCoordinate(textureTransform, presentationUV);
+    return min(uint2(storedUV * float2(textureSize)), textureSize - 1);
+}
+
 fragment half4 postFragment(
     VertexData in [[stage_in]],
     constant PostUniforms &uniforms [[buffer(FragmentBufferMaterialUniforms)]],
+    constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
     texture2d<half, access::read> renderTex [[texture(FragmentTextureCustom0)]]
 ) {
     const uint2 textureSize = uint2(
         renderTex.get_width(),
         renderTex.get_height()
     );
-    const uint2 coordinate = min(
-        uint2(in.texcoord * float2(textureSize)),
-        textureSize - 1
+    const uint2 presentationSize = uint2(
+        fabricPresentationSize(imageTransforms[0], float2(textureSize))
+    );
+    const uint2 presentationCoordinate = min(
+        uint2(in.texcoord * float2(presentationSize)),
+        presentationSize - 1
+    );
+    const uint2 coordinate = storedTextureCoordinate(
+        presentationCoordinate,
+        presentationSize,
+        textureSize,
+        imageTransforms[0]
     );
 
     const half4 source = renderTex.read(coordinate);
 
     const uint2 channel1Coordinate = subsampledCoordinate(
-        coordinate,
-        textureSize,
+        presentationCoordinate,
+        presentationSize,
         uniforms.channel1Horizontal,
         uniforms.channel1Vertical
     );
     const uint2 channel2Coordinate = subsampledCoordinate(
-        coordinate,
-        textureSize,
+        presentationCoordinate,
+        presentationSize,
         uniforms.channel2Horizontal,
         uniforms.channel2Vertical
     );
     const uint2 channel3Coordinate = subsampledCoordinate(
-        coordinate,
-        textureSize,
+        presentationCoordinate,
+        presentationSize,
         uniforms.channel3Horizontal,
         uniforms.channel3Vertical
     );
     const uint2 channel4Coordinate = subsampledCoordinate(
-        coordinate,
-        textureSize,
+        presentationCoordinate,
+        presentationSize,
         uniforms.channel4Horizontal,
         uniforms.channel4Vertical
     );
 
     const half4 subsampled = half4(
-        renderTex.read(channel1Coordinate).r,
-        renderTex.read(channel2Coordinate).g,
-        renderTex.read(channel3Coordinate).b,
-        renderTex.read(channel4Coordinate).a
+        renderTex.read(storedTextureCoordinate(channel1Coordinate, presentationSize, textureSize, imageTransforms[0])).r,
+        renderTex.read(storedTextureCoordinate(channel2Coordinate, presentationSize, textureSize, imageTransforms[0])).g,
+        renderTex.read(storedTextureCoordinate(channel3Coordinate, presentationSize, textureSize, imageTransforms[0])).b,
+        renderTex.read(storedTextureCoordinate(channel4Coordinate, presentationSize, textureSize, imageTransforms[0])).a
     );
 
     return mix(source, subsampled, half(clamp(uniforms.amount, 0.0, 1.0)));

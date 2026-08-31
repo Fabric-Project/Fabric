@@ -16,6 +16,7 @@ using namespace metal;
 #include "../../lygia/sampler.msl"
 #include "../../lygia/math/radians.msl"
 #include "../../lygia/math/rotate2d.msl"
+#include "../../Shaders/FabricImageTextureTransform.metal"
 
 // Uniforms → Fabric UI sliders
 typedef struct {
@@ -26,13 +27,14 @@ typedef struct {
 
 fragment half4 postFragment( VertexData                        in        [[stage_in]],
                              constant PostUniforms            &uniforms  [[buffer( FragmentBufferMaterialUniforms )]],
+                             constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
                              texture2d<half, access::sample>   imageTex  [[texture( FragmentTextureCustom0 )]],
                              texture2d<half, access::sample>   lutTex    [[texture( FragmentTextureCustom1 )]] )
 {
     float2 uv = in.texcoord; // normalized [0, 1]
 
     // Base image sample
-    half4 input0 = SAMPLER_FNC(imageTex, uv);
+    half4 input0 = SAMPLER_FNC(imageTex, fabricTextureCoordinate(imageTransforms[0], uv));
 
     // Rotate sampling point around center (0.5, 0.5)
     float2 point = uv;
@@ -51,7 +53,7 @@ fragment half4 postFragment( VertexData                        in        [[stage
 
     // Sample LUT (1D across X, y=0), wrapping X
     float2 lutUV = point;// float2(fract(point.x), uv.y);
-    half4 leak = SAMPLER_FNC(lutTex, lutUV);
+    half4 leak = SAMPLER_FNC(lutTex, fabricTextureCoordinate(imageTransforms[1], lutUV));
 
     leak *= leakIntensity; //pow(leak * leakIntensity, vec4(1.0/(leakIntensity)));
 //    float safeLeakI = max(leakIntensity, 0.0001f);
