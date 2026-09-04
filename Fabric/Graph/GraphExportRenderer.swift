@@ -9,6 +9,7 @@ import Foundation
 import Metal
 import Satin
 import simd
+import QuartzCore
 
 public enum GraphExportRendererError: Error {
     case alreadyStarted
@@ -160,6 +161,7 @@ public final class GraphExportRenderer {
                 deltaTime: deltaTime,
                 displayTime: time,
                 systemTime: Date.timeIntervalSinceReferenceDate,
+                hostMediaTime: CACurrentMediaTime(),
                 frameNumber: frameNumber
             ),
             iterationInfo: nil,

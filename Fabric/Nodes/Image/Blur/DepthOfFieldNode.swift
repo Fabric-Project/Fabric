@@ -65,14 +65,14 @@ public final class DepthOfFieldNode: Node
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard
-              let colorTexture = self.inputImage.value?.texture,
-              let depthTexture = self.inputDepthImage.value?.texture
+        guard let colorImage = self.inputImage.value,
+              let depthImage = self.inputDepthImage.value
         else
         {
             self.outputImage.send(nil)
             return
         }
+        let colorTexture = colorImage.texture
 
         if renderer.currentCamera == nil
         {
@@ -80,7 +80,7 @@ public final class DepthOfFieldNode: Node
         }
 
         self.postProcessor.colorTexture = colorTexture
-        self.postProcessor.depthTexture = depthTexture
+        self.postProcessor.depthTexture = depthImage.texture
         self.postProcessor.sceneCamera = renderer.currentCamera ?? self.fallbackCamera
         self.postProcessor.focusDistance = self.inputFocusDistance.value ?? 4.0
         self.postProcessor.focusRange = self.inputFocusRange.value ?? 1.5
@@ -99,7 +99,7 @@ public final class DepthOfFieldNode: Node
         let outputImage = try renderer.newImage(withWidth: processedTexture.width,
                                                 height: processedTexture.height,
                                                 format: processedTexture.pixelFormat)
-
+        outputImage.textureTransform = colorImage.textureTransform
         try self.copyTexture(processedTexture, to: outputImage.texture, using: commandBuffer)
         self.outputImage.send(outputImage)
     }

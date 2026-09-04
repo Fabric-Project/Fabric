@@ -39,7 +39,7 @@ public class BasicTextureMaterialNode : BasicColorMaterialNode
         if self.inputTexture.valueDidChange
         {
             self.material.texture =  self.inputTexture.value?.texture
-            self.material.flipped =  (self.inputTexture.value?.isFlipped ?? false)
+            self.material.textureTransform = self.inputTexture.value?.textureTransform ?? matrix_identity_float4x4
             shouldOutput = true
         }
         

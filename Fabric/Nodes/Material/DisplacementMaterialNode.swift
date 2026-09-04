@@ -118,31 +118,31 @@ public class DisplacementMaterialNode: BaseMaterialNode
     {
         var shouldOutput = super.evaluate(material: material, atTime: atTime)
         
-        if self.inputDisplacementTexture.valueDidChange
+        if self.inputDisplacementTexture.valueDidChange || self.inputTexture.valueDidChange
         {
-            if let texture = self.inputDisplacementTexture.value?.texture ?? self.inputTexture.value?.texture
-            {
-                self.material.set(texture, index: VertexTextureIndex.Custom0)
-                shouldOutput = true
-            }
+            let displacementImage = self.inputDisplacementTexture.value ?? self.inputTexture.value
+            self.material.set(displacementImage?.texture, index: VertexTextureIndex.Custom0)
+            self.material.set("displacementTextureTransform",
+                              displacementImage?.textureTransform ?? matrix_identity_float4x4)
+            shouldOutput = true
         }
         
         if self.inputTexture.valueDidChange
         {
-            if let texture = self.inputTexture.value?.texture
-            {
-                self.material.set(texture, index: FragmentTextureIndex.Custom0)
-                shouldOutput = true
-            }
+            let image = self.inputTexture.value
+            self.material.set(image?.texture, index: FragmentTextureIndex.Custom0)
+            self.material.set("colorTextureTransform",
+                              image?.textureTransform ?? matrix_identity_float4x4)
+            shouldOutput = true
         }
         
         if self.inputPointSpriteTexture.valueDidChange
         {
-            if let texture = self.inputPointSpriteTexture.value?.texture
-            {
-                self.material.set(texture, index: FragmentTextureIndex.Custom1)
-                shouldOutput = true
-            }
+            let image = self.inputPointSpriteTexture.value
+            self.material.set(image?.texture, index: FragmentTextureIndex.Custom1)
+            self.material.set("pointSpriteTextureTransform",
+                              image?.textureTransform ?? matrix_identity_float4x4)
+            shouldOutput = true
         }
         
         if self.inputAmount.valueDidChange,

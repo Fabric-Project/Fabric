@@ -81,32 +81,31 @@ public class HandPoseAnalysisNode: Node
             request.maximumHandCount = 1
             
             if let inImage = self.inputImage.value,
-               let allPoints =  self.handPointsForRequest(request, from: inImage.texture)
+               let allPoints = self.handPointsForRequest(request, from: inImage)
             {
-                let inTex = inImage.texture
-                let aspect = Float(inTex.height)/Float(inTex.width)
+                let aspect = Float(inImage.presentationSize.height / inImage.presentationSize.width)
 
-                if let thumbPoints = self.unitPoints(for: Self.thumbJoints, from: allPoints, aspect: aspect, flipped:inImage.isFlipped )
+                if let thumbPoints = self.unitPoints(for: Self.thumbJoints, from: allPoints, aspect: aspect)
                 {
                     self.outputThumb.send(thumbPoints)
                 }
 
-                if let indexPoints = self.unitPoints(for: Self.indexJoints, from: allPoints, aspect: aspect, flipped:inImage.isFlipped)
+                if let indexPoints = self.unitPoints(for: Self.indexJoints, from: allPoints, aspect: aspect)
                 {
                     self.outputIndex.send(indexPoints)
                 }
 
-                if let middlePoints = self.unitPoints(for: Self.middleJoints, from: allPoints, aspect: aspect, flipped:inImage.isFlipped)
+                if let middlePoints = self.unitPoints(for: Self.middleJoints, from: allPoints, aspect: aspect)
                 {
                     self.outputMiddle.send(middlePoints)
                 }
 
-                if let ringPoints = self.unitPoints(for: Self.ringJoints, from: allPoints, aspect: aspect, flipped:inImage.isFlipped)
+                if let ringPoints = self.unitPoints(for: Self.ringJoints, from: allPoints, aspect: aspect)
                 {
                     self.outputRing.send(ringPoints)
                 }
 
-                if let littlePoints = self.unitPoints(for: Self.littleJoints, from: allPoints, aspect: aspect, flipped:inImage.isFlipped)
+                if let littlePoints = self.unitPoints(for: Self.littleJoints, from: allPoints, aspect: aspect)
                 {
                     self.outputLittle.send(littlePoints)
                 }
@@ -121,8 +120,7 @@ public class HandPoseAnalysisNode: Node
 
     private func unitPoints(for joints: [VNHumanHandPoseObservation.JointName],
                             from recognizedPoints: [VNRecognizedPointKey: VNRecognizedPoint],
-                            aspect: Float,
-                            flipped:Bool
+                            aspect: Float
     ) -> ContiguousArray<simd_float2>?
     {
         var points = ContiguousArray<simd_float2>()
@@ -131,7 +129,7 @@ public class HandPoseAnalysisNode: Node
         for joint in joints
         {
             guard let recognizedPoint = recognizedPoints[joint.rawValue] else { return nil }
-            points.append(self.unitPoint(from: recognizedPoint, aspect: aspect, flipped: flipped))
+            points.append(self.unitPoint(from: recognizedPoint, aspect: aspect))
         }
 
         return points
@@ -139,25 +137,15 @@ public class HandPoseAnalysisNode: Node
     
     
 
-    private func unitPoint(from recognizedPoint: VNRecognizedPoint, aspect: Float, flipped:Bool = false) -> simd_float2
+    private func unitPoint(from recognizedPoint: VNRecognizedPoint, aspect: Float) -> simd_float2
     {
-        let x = remap(Float(recognizedPoint.x), 0.0, 1.0, -1.0, 1.0)
-        let y:Float
-        if flipped
-        {
-            y = remap(Float(recognizedPoint.y), 1.0, 0.0, -aspect, aspect)
-
-        }
-        else
-        {
-            y = remap(Float(recognizedPoint.y), 0.0, 1.0, -aspect, aspect)
-        }
-        return simd_float2(x, y)
+        return simd_float2(remap(Float(recognizedPoint.x), 0.0, 1.0, -1.0, 1.0),
+                           remap(Float(recognizedPoint.y), 0.0, 1.0, -aspect, aspect))
     }
         
-    private func handPointsForRequest(_ request: VNDetectHumanHandPoseRequest, from texture:MTLTexture) ->  [VNRecognizedPointKey : VNRecognizedPoint]?
+    private func handPointsForRequest(_ request: VNDetectHumanHandPoseRequest, from image: FabricImage) ->  [VNRecognizedPointKey : VNRecognizedPoint]?
     {
-        if let inputImage = CIImage(mtlTexture: texture)
+        if let inputImage = image.presentationCIImage
         {
 //            for computeDevice in MLComputeDevice.allComputeDevices
 //            {

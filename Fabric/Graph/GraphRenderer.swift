@@ -27,7 +27,7 @@ public class GraphRenderer : ViewRenderer
     private var graphExecutionStartTime = CACurrentMediaTime()
 
     public private(set) var currentExecutionInfo: GraphExecutionInfo = GraphExecutionInfo(
-        timing: GraphExecutionTiming(time: 0, deltaTime: 0, displayTime: nil, systemTime: 0, frameNumber: -1)
+        timing: GraphExecutionTiming(time: 0, deltaTime: 0, displayTime: nil, systemTime: 0, hostMediaTime: 0, frameNumber: -1)
     )
 
     public private(set) var currentCamera: Camera? = nil
@@ -111,6 +111,7 @@ public class GraphRenderer : ViewRenderer
             deltaTime: delta,
             displayTime: now - self.graphExecutionStartTime,
             systemTime: Date.timeIntervalSinceReferenceDate,
+            hostMediaTime: now,
             frameNumber: frameIndex
         )
         currentExecutionInfo = GraphExecutionInfo(timing: timing, eventInfo: pendingEventInfo)
@@ -674,7 +675,7 @@ public class GraphRenderer : ViewRenderer
             image = try newSharedImage(fromPixelBuffer: pixelBuffer)
         }
         
-        image.isFlipped = CVImageBufferIsFlipped(pixelBuffer)
+        image.textureTransform = FabricImageTextureTransform.coreVideo(pixelBuffer)
         
         return image
     }

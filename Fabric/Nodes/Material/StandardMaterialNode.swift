@@ -62,6 +62,13 @@ public class StandardMaterialNode : BaseMaterialNode
     }
     
     private lazy var _material = StandardMaterial(context:self.context)
+
+    func setImage(_ image: FabricImage?, for textureType: PBRTextureType)
+    {
+        self.material.setTexture(image?.texture, type: textureType)
+        self.material.setTextureTransform(image?.textureTransform ?? matrix_identity_float4x4,
+                                          type: textureType)
+    }
     
     public override func evaluate(material: Material, atTime: TimeInterval) -> Bool
     {
@@ -125,37 +132,37 @@ public class StandardMaterialNode : BaseMaterialNode
 
         if self.inputDiffuseTexture.valueDidChange
         {
-            self.material.setTexture(self.inputDiffuseTexture.value?.texture, type: .baseColor)
+            self.setImage(self.inputDiffuseTexture.value, for: .baseColor)
             shouldOutput = true
         }
         
         if self.inputNormalTexture.valueDidChange
         {
-            self.material.setTexture(self.inputNormalTexture.value?.texture, type: .normal)
+            self.setImage(self.inputNormalTexture.value, for: .normal)
             shouldOutput = true
         }
 
         if self.inputEmissiveTexture.valueDidChange
         {
-            self.material.setTexture(self.inputEmissiveTexture.value?.texture, type: .emissive)
+            self.setImage(self.inputEmissiveTexture.value, for: .emissive)
             shouldOutput = true
         }
 
         if self.inputSpecularTexture.valueDidChange
         {
-            self.material.setTexture(self.inputSpecularTexture.value?.texture, type: .specular)
+            self.setImage(self.inputSpecularTexture.value, for: .specular)
             shouldOutput = true
         }
 
         if self.inputRoughnessTexture.valueDidChange
         {
-            self.material.setTexture(self.inputRoughnessTexture.value?.texture, type: .roughness)
+            self.setImage(self.inputRoughnessTexture.value, for: .roughness)
             shouldOutput = true
         }
         
         if self.inputMetallicTexture.valueDidChange
         {
-            self.material.setTexture(self.inputMetallicTexture.value?.texture, type: .metallic)
+            self.setImage(self.inputMetallicTexture.value, for: .metallic)
             shouldOutput = true
         }
 //        self.material.setTexture(self.inputBumpTexture.value?.texture, type: .displacement)

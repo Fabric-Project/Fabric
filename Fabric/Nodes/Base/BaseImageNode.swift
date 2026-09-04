@@ -37,6 +37,9 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
     private var cachedFileURLName: String?
     private var lastKnownInputCount: Int = 1
     private var cachedImageInputPorts: [NodePort<FabricImage>] = []
+    private lazy var inputTextureTransformBuffer = StructBuffer<simd_float4x4>(device: self.context.device,
+                                                                               count: 25,
+                                                                               label: "BaseImageNode Input Texture Transforms")
 
     enum CodingKeys: String, CodingKey
     {
@@ -684,12 +687,17 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
         }
         
         let inputTexture0 = inputImage.texture
+        let inputImages = self.imageInputPorts().map(\.value)
+        let textures = inputImages.map { $0?.texture }
+        let outputWidth = Int(inputImage.presentationSize.width.rounded())
+        let outputHeight = Int(inputImage.presentationSize.height.rounded())
 
-        let outImage = try renderer.newImage(withWidth: inputTexture0.width, height: inputTexture0.height)
+        let outImage = try renderer.newImage(withWidth: outputWidth, height: outputHeight)
 
-        outImage.isFlipped = inputImage.isFlipped
-        
-        let textures = self.imageInputPorts().map { $0.value?.texture }
+        let transforms = inputImages.map { $0?.textureTransform ?? inputImage.textureTransform }
+        self.inputTextureTransformBuffer.update(data: transforms)
+        self.postMaterial.set(self.inputTextureTransformBuffer, index: FragmentBufferIndex.Custom10)
+        outImage.textureTransform = matrix_identity_float4x4
 
         self.postProcessor.mesh.preDraw = { renderEncoder in
             for (index, texture) in textures.enumerated() {
@@ -698,7 +706,7 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
             }
         }
 
-        self.postProcessor.resize(size: (width: Float(inputTexture0.width), height: Float(inputTexture0.height)), scaleFactor: 1)
+        self.postProcessor.resize(size: (width: Float(outputWidth), height: Float(outputHeight)), scaleFactor: 1)
 
         let renderPassDesc = MTLRenderPassDescriptor()
         renderPassDesc.colorAttachments[0].texture = outImage.texture

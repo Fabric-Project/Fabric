@@ -161,31 +161,31 @@ public class PBRMaterialNode : StandardMaterialNode
         
         if self.inputBumpTexture.valueDidChange
         {
-            self.material.setTexture(self.inputBumpTexture.value?.texture, type: .bump)
+            self.setImage(self.inputBumpTexture.value, for: .bump)
             shouldOutput = true
         }
         
         if self.inputDisplacementTexture.valueDidChange
         {
-            self.material.setTexture(self.inputDisplacementTexture.value?.texture, type: .displacement)
+            self.setImage(self.inputDisplacementTexture.value, for: .displacement)
             shouldOutput = true
         }
         
         if self.inputOcclusionTexture.valueDidChange
         {
-            self.material.setTexture(self.inputOcclusionTexture.value?.texture, type: .occlusion)
+            self.setImage(self.inputOcclusionTexture.value, for: .occlusion)
             shouldOutput = true
         }
         
         if self.inputSubsurfaceTexture.valueDidChange
         {
-            self.material.setTexture(self.inputSubsurfaceTexture.value?.texture, type: .subsurface)
+            self.setImage(self.inputSubsurfaceTexture.value, for: .subsurface)
             shouldOutput = true
         }
         
         if self.inputClearcoatTexture.valueDidChange
         {
-            self.material.setTexture(self.inputClearcoatTexture.value?.texture, type: .clearcoat)
+            self.setImage(self.inputClearcoatTexture.value, for: .clearcoat)
             shouldOutput = true
         }
         
@@ -200,10 +200,17 @@ public class PBRMaterialNode : StandardMaterialNode
             self.material.setTexture(self.inputClearcoatGlossTexture.value?.texture, type: .clearcoatGloss)
             shouldOutput = true
         }
+
+        if self.inputClearcoatRoughTexture.valueDidChange || self.inputClearcoatGlossTexture.valueDidChange
+        {
+            let clearcoatSurfaceImage = self.inputClearcoatRoughTexture.value ?? self.inputClearcoatGlossTexture.value
+            self.material.setTextureTransform(clearcoatSurfaceImage?.textureTransform ?? matrix_identity_float4x4,
+                                              type: .clearcoatRoughness)
+        }
         
         if self.inputTransmissionTexture.valueDidChange
         {
-            self.material.setTexture(self.inputTransmissionTexture.value?.texture, type: .transmission)
+            self.setImage(self.inputTransmissionTexture.value, for: .transmission)
             shouldOutput = true
         }
         

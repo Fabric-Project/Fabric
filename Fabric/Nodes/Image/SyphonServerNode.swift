@@ -70,12 +70,16 @@ public class SyphonServerNode : Node
         }
             
         if self.inputTexture.valueDidChange,
-           let texture = self.inputTexture.value
+           let inputImage = self.inputTexture.value
         {
-            let region = NSRect(origin: .zero, size: .init(width: texture.texture.width, height: texture.texture.height))
+            let region = NSRect(origin: .zero,
+                                size: CGSize(width: inputImage.texture.width, height: inputImage.texture.height))
 
-            // Somethings up with flippedness?
-            self.syphonServer.publishFrameTexture(texture.texture, on: commandBuffer, imageRegion: region, flipped: !texture.isFlipped)
+            let syphonRequiresVerticalFlip = inputImage.textureTransform == .textureVerticalFlip
+            self.syphonServer.publishFrameTexture(inputImage.texture,
+                                                  on: commandBuffer,
+                                                  imageRegion: region,
+                                                  flipped: syphonRequiresVerticalFlip)
         }
      }
 }

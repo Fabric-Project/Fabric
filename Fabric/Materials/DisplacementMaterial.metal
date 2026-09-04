@@ -14,6 +14,9 @@ typedef struct {
     float maxPointSize;
     float brightness;
     float lumaVPosMix;
+    float4x4 displacementTextureTransform;
+    float4x4 colorTextureTransform;
+    float4x4 pointSpriteTextureTransform;
 } DisplacementUniforms;
 
 constexpr sampler s( min_filter::linear, mag_filter::linear);
@@ -35,7 +38,9 @@ vertex CustomVertexData displacementVertex(Vertex in [[stage_in]],
 {
     CustomVertexData out;
 
-    const half4 sample = rdTex.sample( s, in.texcoord );
+    const float2 displacementUV =
+        (uniforms.displacementTextureTransform * float4(in.texcoord, 0.0, 1.0)).xy;
+    const half4 sample = rdTex.sample(s, displacementUV);
     const half luma = dot(lumcoeff, sample);
 
     const float3 position = mix(in.position, float3(sample.rgb), uniforms.amount);
@@ -84,8 +89,12 @@ fragment half4 displacementFragment( CustomVertexData in [[stage_in]],
     
 //    const half4 blendFactor = 1.0 - half4(stencilValue) / half4(refValue); // fade out at limit
 
-    const half4 color = colorTex.sample( s, in.uv );
-    const half4 sprite = pointSpriteTex.sample( p, puv ) ;
+    const float2 colorUV =
+        (uniforms.colorTextureTransform * float4(in.uv, 0.0, 1.0)).xy;
+    const float2 pointSpriteUV =
+        (uniforms.pointSpriteTextureTransform * float4(puv, 0.0, 1.0)).xy;
+    const half4 color = colorTex.sample(s, colorUV);
+    const half4 sprite = pointSpriteTex.sample(p, pointSpriteUV);
         
     return sprite * color * uniforms.brightness;
 }

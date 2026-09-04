@@ -8,6 +8,7 @@ using namespace metal;
 #define SAMPLER sampler( min_filter::linear, mag_filter::linear, address::mirrored_repeat )
 
 #include "../../lygia/sampler.msl"
+#include "../../Shaders/FabricImageTextureTransform.metal"
 
 // Optional, only if you need it elsewhere
 // #include "Library/Repeat.metal"
@@ -20,6 +21,7 @@ typedef struct {
 
 fragment half4 postFragment( VertexData                 in        [[stage_in]],
                              constant PostUniforms     &uniforms  [[buffer( FragmentBufferMaterialUniforms )]],
+                             constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
                              texture2d<half, access::sample> renderTex [[texture( FragmentTextureCustom0 )]] )
 {
     // Normalized UVs in [0, 1]
@@ -45,5 +47,5 @@ fragment half4 postFragment( VertexData                 in        [[stage_in]],
     // Back to [0, 1] UV space
     float2 uv = normCoord * 0.5 + 0.5;
 
-    return SAMPLER_FNC(renderTex, uv);
+    return SAMPLER_FNC(renderTex, fabricTextureCoordinate(imageTransforms[0], uv));
 }

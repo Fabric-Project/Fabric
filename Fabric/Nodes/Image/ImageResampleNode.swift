@@ -185,8 +185,14 @@ public final class ImageResampleNode: Node
         }
 
         let sourceTexture = sourceImage.texture
-        let outputWidth = resolvedDimension(inputWidth.value, fallback: sourceTexture.width)
-        let outputHeight = resolvedDimension(inputHeight.value, fallback: sourceTexture.height)
+        let presentationWidth = resolvedDimension(inputWidth.value,
+                                                  fallback: Int(sourceImage.presentationSize.width.rounded()))
+        let presentationHeight = resolvedDimension(inputHeight.value,
+                                                   fallback: Int(sourceImage.presentationSize.height.rounded()))
+        let storageSize = simd_abs(sourceImage.textureTransform.inverse
+            * simd_float4(Float(presentationWidth), Float(presentationHeight), 0, 0))
+        let outputWidth = max(1, Int(storageSize.x.rounded()))
+        let outputHeight = max(1, Int(storageSize.y.rounded()))
         let method = ResamplingMethod(rawValue: inputMethod.value ?? "") ?? .bilinear
 
         guard outputWidth != sourceTexture.width || outputHeight != sourceTexture.height else {
@@ -199,6 +205,7 @@ public final class ImageResampleNode: Node
             height: outputHeight,
             format: sourceTexture.pixelFormat
         )
+        destinationImage.textureTransform = sourceImage.textureTransform
 
         guard let computeEncoder = commandBuffer.makeComputeCommandEncoder() else
         {
@@ -232,7 +239,6 @@ public final class ImageResampleNode: Node
             )
         }
 
-        destinationImage.isFlipped = sourceImage.isFlipped
         outputImage.send(destinationImage)
     }
 

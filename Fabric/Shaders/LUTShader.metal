@@ -9,6 +9,7 @@
 #define SAMPLER_TYPE texture2d<half>
 
 #include "../lygia/sampler.msl"
+#include "FabricImageTextureTransform.metal"
 
 typedef struct {
     float amount; // slider, 0.0, 2.0, 1.0, Amount
@@ -16,13 +17,14 @@ typedef struct {
 
 fragment half4 postFragment( VertexData in [[stage_in]],
     constant PostUniforms &uniforms [[buffer( FragmentBufferMaterialUniforms )]],
+    constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
     texture2d<half, access::sample> renderTex [[texture( FragmentTextureCustom0 )]],
     texture3d<half, access::sample> lutTex [[texture( FragmentTextureCustom1 )]]
     )
 {
     constexpr sampler s = sampler( min_filter::linear, mag_filter::linear );
 
-    half4 rgba = SAMPLER_FNC(renderTex, in.texcoord);
+    half4 rgba = SAMPLER_FNC(renderTex, fabricTextureCoordinate(imageTransforms[0], in.texcoord));
 
     // Sample the 3D LUT
     half4 lutColor = lutTex.sample(s, float3(rgba.rgb) );

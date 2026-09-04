@@ -59,11 +59,13 @@ public final class GaussianBlurChannelsNode: BaseMultiPassBlurEffectTwoChannelNo
     {
         let inputs = self.imageInputPorts()
         guard inputs.count >= 1,
-              let inputTexture = inputs[0].value?.texture else {
+              let inputImage = inputs[0].value else {
             self.outputTexturePort.send(nil)
             return
         }
-        let originalTexture = inputs.indices.contains(1) ? (inputs[1].value?.texture ?? inputTexture) : inputTexture
+        let originalImage = inputs.indices.contains(1) ? (inputs[1].value ?? inputImage) : inputImage
+        let outputWidth = Int(inputImage.presentationSize.width.rounded())
+        let outputHeight = Int(inputImage.presentationSize.height.rounded())
 
         let redAmount = self.floatParameterValue(named: "Red Amount")
         let greenAmount = self.floatParameterValue(named: "Green Amount")
@@ -72,8 +74,8 @@ public final class GaussianBlurChannelsNode: BaseMultiPassBlurEffectTwoChannelNo
 
         var steps: [MultiPassStep] = []
         if amount <= Self.lowAmountThreshold {
-            steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 0.0, vector: simd_float2(1.0, 0.0)))
-            steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 0.0, vector: simd_float2(0.0, 1.0)))
+            steps.append(MultiPassStep(width: outputWidth, height: outputHeight, amountScale: 0.0, vector: simd_float2(1.0, 0.0)))
+            steps.append(MultiPassStep(width: outputWidth, height: outputHeight, amountScale: 0.0, vector: simd_float2(0.0, 1.0)))
         } else {
             let stageRatios: [(ratio: Float, multiplier: Float)] = [
                 (0.1, 0.111),
@@ -84,8 +86,8 @@ public final class GaussianBlurChannelsNode: BaseMultiPassBlurEffectTwoChannelNo
             ]
 
             for stage in stageRatios {
-                let stageSize = self.scaledPassSize(baseWidth: inputTexture.width,
-                                                    baseHeight: inputTexture.height,
+                let stageSize = self.scaledPassSize(baseWidth: outputWidth,
+                                                    baseHeight: outputHeight,
                                                     amount: amount,
                                                     passRatio: stage.ratio)
 
@@ -99,14 +101,14 @@ public final class GaussianBlurChannelsNode: BaseMultiPassBlurEffectTwoChannelNo
                                            vector: simd_float2(0.0, 1.0)))
             }
 
-            steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 0.333, vector: simd_float2(1.0, 0.0)))
-            steps.append(MultiPassStep(width: inputTexture.width, height: inputTexture.height, amountScale: 0.333, vector: simd_float2(0.0, 1.0)))
+            steps.append(MultiPassStep(width: outputWidth, height: outputHeight, amountScale: 0.333, vector: simd_float2(1.0, 0.0)))
+            steps.append(MultiPassStep(width: outputWidth, height: outputHeight, amountScale: 0.333, vector: simd_float2(0.0, 1.0)))
         }
 
         let outputImage = self.runChannelPassChain(renderer: renderer,
                                                    commandBuffer: commandBuffer,
-                                                   inputTexture: inputTexture,
-                                                   originalTexture: originalTexture,
+                                                   inputImage: inputImage,
+                                                   originalImage: originalImage,
                                                    steps: steps)
 
         if let outputImage {
@@ -118,14 +120,14 @@ public final class GaussianBlurChannelsNode: BaseMultiPassBlurEffectTwoChannelNo
 
     private func runChannelPassChain(renderer: GraphRenderer,
                                      commandBuffer: MTLCommandBuffer,
-                                     inputTexture: MTLTexture,
-                                     originalTexture: MTLTexture,
+                                     inputImage: FabricImage,
+                                     originalImage: FabricImage,
                                      steps: [MultiPassStep]) -> FabricImage? {
         guard !steps.isEmpty else {
             return nil
         }
 
-        var currentTexture: MTLTexture = inputTexture
+        var currentTexture = inputImage.texture
         var currentImage: FabricImage? = nil
 
         for (index, step) in steps.enumerated() {
@@ -142,10 +144,13 @@ public final class GaussianBlurChannelsNode: BaseMultiPassBlurEffectTwoChannelNo
             let passBuffer = self.passUniformsBuffer(forStepIndex: index)
             passBuffer.update(data: [passUniforms])
             self.postMaterial.set(passBuffer, index: FragmentBufferIndex.Custom0)
+            self.setTextureTransforms([index == 0 ? inputImage.textureTransform : matrix_identity_float4x4,
+                                       originalImage.textureTransform],
+                                      forStepIndex: index)
 
             self.postProcessor.mesh.preDraw = { renderEncoder in
                 renderEncoder.setFragmentTexture(currentTexture, index: FragmentTextureIndex.Custom0.rawValue)
-                renderEncoder.setFragmentTexture(originalTexture, index: FragmentTextureIndex.Custom1.rawValue)
+                renderEncoder.setFragmentTexture(originalImage.texture, index: FragmentTextureIndex.Custom1.rawValue)
             }
 
             self.postProcessor.resize(size: (width: Float(step.width), height: Float(step.height)), scaleFactor: 1)

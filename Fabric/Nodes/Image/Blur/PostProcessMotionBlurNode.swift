@@ -55,17 +55,17 @@ public final class PostProcessMotionBlurNode: Node
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard
-              let colorTexture = self.inputImage.value?.texture,
-              let velocityTexture = self.inputVelocityImage.value?.texture
+        guard let colorImage = self.inputImage.value,
+              let velocityImage = self.inputVelocityImage.value
         else
         {
             self.outputImage.send(nil)
             return
         }
+        let colorTexture = colorImage.texture
 
         self.postProcessor.colorTexture = colorTexture
-        self.postProcessor.velocityTexture = velocityTexture
+        self.postProcessor.velocityTexture = velocityImage.texture
         self.postProcessor.depthTexture = self.inputDepthImage.value?.texture
         self.postProcessor.motionBlurMaterial.shutterAngle = self.inputShutterAngle.value ?? 180.0
         self.postProcessor.motionBlurMaterial.samples = Int32(self.inputSamples.value ?? 16)
@@ -82,7 +82,7 @@ public final class PostProcessMotionBlurNode: Node
         let outputImage = try renderer.newImage(withWidth: processedTexture.width,
                                                 height: processedTexture.height,
                                                 format: processedTexture.pixelFormat)
-
+        outputImage.textureTransform = colorImage.textureTransform
         try self.copyTexture(processedTexture, to: outputImage.texture, using: commandBuffer)
         self.outputImage.send(outputImage)
     }

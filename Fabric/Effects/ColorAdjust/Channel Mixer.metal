@@ -7,6 +7,7 @@ using namespace metal;
 #define SAMPLER_TYPE texture2d<half>
 
 #include "../../lygia/sampler.msl"
+#include "../../Shaders/FabricImageTextureTransform.metal"
 
 
 // Uniforms → Fabric UI controls
@@ -19,11 +20,12 @@ typedef struct {
 
 fragment half4 postFragment( VertexData                        in        [[stage_in]],
                              constant PostUniforms            &uniforms  [[buffer( FragmentBufferMaterialUniforms )]],
+                             constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
                              texture2d<half, access::sample>   tex        [[texture( FragmentTextureCustom0 )]] )
 {
     float2 uv = in.texcoord;
 
-    half4 input0 = SAMPLER_FNC(tex, uv);
+    half4 input0 = SAMPLER_FNC(tex, fabricTextureCoordinate(imageTransforms[0], uv));
     half3 rgb = input0.rgb;
 
     // Channel mixing

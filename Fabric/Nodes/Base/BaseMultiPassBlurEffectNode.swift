@@ -26,6 +26,7 @@ public class BaseMultiPassBlurEffectNode: BaseImageNode
 
     public static let lowAmountThreshold: Float = 0.0
     private var hasLoggedInputCountMismatch = false
+    private var textureTransformBuffers: [StructBuffer<simd_float4x4>] = []
 
 
     public func floatParameterValue(named name: String, default defaultValue: Float = 0.0) -> Float
@@ -33,7 +34,7 @@ public class BaseMultiPassBlurEffectNode: BaseImageNode
         self.postMaterial.parameters.get(name, as: FloatParameter.self)?.value ?? defaultValue
     }
 
-    public func validatedSingleInputTexture() -> MTLTexture? {
+    public func validatedSingleInputImage() -> FabricImage? {
         let inputs = self.imageInputPorts()
         if inputs.count != 1 {
             if self.hasLoggedInputCountMismatch == false {
@@ -44,7 +45,18 @@ public class BaseMultiPassBlurEffectNode: BaseImageNode
         }
 
         self.hasLoggedInputCountMismatch = false
-        return inputs[0].value?.texture
+        return inputs[0].value
+    }
+
+    private func textureTransformBuffer(forStepIndex index: Int) -> StructBuffer<simd_float4x4> {
+        while self.textureTransformBuffers.count <= index {
+            let buffer = StructBuffer<simd_float4x4>(device: self.context.device,
+                                                      count: 1,
+                                                      label: "Multi-Pass Blur Texture Transform \(self.textureTransformBuffers.count)")
+            self.textureTransformBuffers.append(buffer)
+        }
+
+        return self.textureTransformBuffers[index]
     }
 
     public func scaledPassSize(baseWidth: Int, baseHeight: Int, amount: Float, passRatio: Float) -> (width: Int, height: Int)
@@ -61,7 +73,7 @@ public class BaseMultiPassBlurEffectNode: BaseImageNode
     public func runPassChain(renderer:GraphRenderer,
                              executionInfo: GraphExecutionInfo,
                              commandBuffer: MTLCommandBuffer,
-                             inputTexture: MTLTexture,
+                             inputImage: FabricImage,
                              steps: [MultiPassStep],
                              prepareStep: (Int, MultiPassStep) -> Void ) -> FabricImage? {
 
@@ -69,7 +81,7 @@ public class BaseMultiPassBlurEffectNode: BaseImageNode
             return nil
         }
 
-        var currentTexture: MTLTexture = inputTexture
+        var currentTexture = inputImage.texture
         var currentImage: FabricImage? = nil
 
         for (index, step) in steps.enumerated() {
@@ -81,6 +93,13 @@ public class BaseMultiPassBlurEffectNode: BaseImageNode
             commandBuffer.pushDebugGroup("\(self.debugDescription) - pass \(index)")
 
             prepareStep(index, step)
+
+            let textureTransform = index == 0
+                ? inputImage.textureTransform
+                : matrix_identity_float4x4
+            let textureTransformBuffer = self.textureTransformBuffer(forStepIndex: index)
+            textureTransformBuffer.update(data: [textureTransform])
+            self.postMaterial.set(textureTransformBuffer, index: FragmentBufferIndex.Custom10)
 
             self.postProcessor.mesh.preDraw = { renderEncoder in
                 renderEncoder.setFragmentTexture(currentTexture, index: FragmentTextureIndex.Custom0.rawValue)

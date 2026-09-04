@@ -104,8 +104,8 @@ public final class ImageDimensions: Node
             return
         }
 
-        let width = Float(image.texture.width)
-        let height = Float(image.texture.height)
+        let width = Float(image.presentationSize.width)
+        let height = Float(image.presentationSize.height)
 
         self.outputWidth.send(width)
         self.outputHeight.send(height)

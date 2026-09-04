@@ -13,6 +13,7 @@
 
 // From Satin, not Lygia FWIW
 #include "Library/Repeat.metal"
+#include "../../Shaders/FabricImageTextureTransform.metal"
 
 
 typedef struct {
@@ -21,10 +22,15 @@ typedef struct {
 
 fragment half4 postFragment( VertexData in [[stage_in]],
     constant PostUniforms &uniforms [[buffer( FragmentBufferMaterialUniforms )]],
+    constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
     texture2d<half, access::sample> renderTex [[texture( FragmentTextureCustom0 )]] )
 {
 
-    const float aspect = float(renderTex.get_width()) / float(renderTex.get_height());
+    const float2 presentationSize = fabricPresentationSize(
+        imageTransforms[0],
+        float2(renderTex.get_width(), renderTex.get_height())
+    );
+    const float aspect = presentationSize.x / presentationSize.y;
     
     float2 uv = in.texcoord;
     uv.x *= aspect;
@@ -35,5 +41,5 @@ fragment half4 postFragment( VertexData in [[stage_in]],
     float2 suv = float2(cell) * div;
     suv.x /= aspect;
 
-    return SAMPLER_FNC( renderTex, suv );
+    return SAMPLER_FNC( renderTex, fabricTextureCoordinate(imageTransforms[0], suv));
 }

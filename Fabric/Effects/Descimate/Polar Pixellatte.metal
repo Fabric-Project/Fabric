@@ -16,6 +16,7 @@
 #include "../../lygia/space/sqTile.msl"
 // From Satin, not Lygia FWIW
 #include "Library/Repeat.metal"
+#include "../../Shaders/FabricImageTextureTransform.metal"
 
 
 typedef struct {
@@ -26,10 +27,14 @@ typedef struct {
 
 fragment half4 postFragment( VertexData in [[stage_in]],
     constant PostUniforms &uniforms [[buffer( FragmentBufferMaterialUniforms )]],
+    constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
     texture2d<half, access::sample> renderTex [[texture( FragmentTextureCustom0 )]] )
 {
 	
-	float2 texSize = float2(renderTex.get_width(), renderTex.get_height());
+    float2 texSize = fabricPresentationSize(
+        imageTransforms[0],
+        float2(renderTex.get_width(), renderTex.get_height())
+    );
     float2 aspect  = float2(texSize.x / texSize.y, 1.0);
 
     // origin in normalized UV (0..1). If you don’t have it yet, use center:
@@ -66,7 +71,7 @@ fragment half4 postFragment( VertexData in [[stage_in]],
     // (optional) clamp to avoid sampling outside
     uv = clamp(uv, 0.0, 1.0);
 
-    half4 color = SAMPLER_FNC(renderTex, uv);
+    half4 color = SAMPLER_FNC(renderTex, fabricTextureCoordinate(imageTransforms[0], uv));
     return color;
 
 }

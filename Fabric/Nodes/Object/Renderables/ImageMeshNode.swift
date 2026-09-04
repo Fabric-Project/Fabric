@@ -49,6 +49,7 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
     public required init(context: Context)
     {
         self.geometry = PlaneGeometry(context:context,width: 1, height: 1, orientation: .xy)
+//        self.geometry = QuadGeometry(context: context)
         self.material = BasicTextureMaterial(context:context)
         self.mesh = Mesh(context:context, geometry: self.geometry, material: self.material)
 
@@ -65,6 +66,7 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
         }
         
         self.geometry = PlaneGeometry(context:context,width: 1, height: 1, orientation: .xy)
+//        self.geometry = QuadGeometry(context: context)// PlaneGeometry(context:context,width: 1, height: 1, orientation: .xy)
         self.material = BasicTextureMaterial(context:context)
         self.mesh = Mesh(context:context, geometry: self.geometry, material: self.material)
 
@@ -83,7 +85,7 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
         if self.inputImage.valueDidChange
         {
             self.material.texture = self.inputImage.value?.texture
-            self.material.flipped = (self.inputImage.value?.isFlipped ?? false)
+            self.material.textureTransform = self.inputImage.value?.textureTransform ?? matrix_identity_float4x4
         }
 
         if self.inputColor.valueDidChange,
@@ -100,9 +102,9 @@ class ImageMeshNode: BaseRenderableNode<Mesh>
             let size = self.inputSize.value ?? 1.0
             let aspect: Float
 
-            if let texture = self.inputImage.value?.texture
+            if let image = self.inputImage.value
             {
-                aspect = Float(texture.width) / Float(texture.height)
+                aspect = Float(image.presentationSize.width / image.presentationSize.height)
             }
             else
             {

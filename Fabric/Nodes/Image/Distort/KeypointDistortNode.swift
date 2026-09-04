@@ -104,39 +104,15 @@ public class KeypointDistortNode: BaseImageNode {
             self.disKeyPointStructBuffer.update(data: inputDisplacedKeyPoints)
         }
         
-        if self.imageInputPorts().first?.valueDidChange == true
-        {
-            if let inImage = self.inputImage(at: 0)
-            {
-                let inTex = inImage.texture
-                
-                let outImage = try renderer.newImage(withWidth: inTex.width, height: inTex.height)
+        let minimumCount = min(self.refKeyPointStructBuffer.count, self.disKeyPointStructBuffer.count)
+        self.countBuffer.update(data: [UInt32(minimumCount)])
+        self.postMaterial.set(self.refKeyPointStructBuffer, index: FragmentBufferIndex.Custom0)
+        self.postMaterial.set(self.disKeyPointStructBuffer, index: FragmentBufferIndex.Custom1)
+        self.postMaterial.set(self.countBuffer, index: FragmentBufferIndex.Custom2)
 
-                let minCount = min (self.refKeyPointStructBuffer.count, self.disKeyPointStructBuffer.count)
-                self.countBuffer.update(data: [UInt32(minCount)] )
-                
-                self.postMaterial.set(self.refKeyPointStructBuffer, index: FragmentBufferIndex.Custom0)
-                self.postMaterial.set(self.disKeyPointStructBuffer, index: FragmentBufferIndex.Custom1)
-                self.postMaterial.set(self.countBuffer, index: FragmentBufferIndex.Custom2)
-                
-                self.postMaterial.set(inTex, index: FragmentTextureIndex.Custom0)
-
-                    
-                self.postProcessor.resize(size: (width: Float(inTex.width), height: Float(inTex.height)), scaleFactor: 1)
-                
-                let renderPassDesc = MTLRenderPassDescriptor()
-                renderPassDesc.colorAttachments[0].texture = outImage.texture
-                
-                self.postProcessor.draw(renderPassDescriptor:renderPassDesc , commandBuffer: commandBuffer)
-
-                self.outputTexturePort.send( outImage )
-            }
-            else
-            {
-                self.outputTexturePort.send( nil )
-            }
-        }
-
-        
+        try super.execute(renderer: renderer,
+                          executionInfo: executionInfo,
+                          renderPassDescriptor: renderPassDescriptor,
+                          commandBuffer: commandBuffer)
     }
 }

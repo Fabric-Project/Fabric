@@ -110,6 +110,8 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     private var didPlayToEndPendingPulse: Bool = false
     public private(set) var duration: TimeInterval = 0
     public private(set) var currentTime: TimeInterval = 0
+    private var sourceToPresentationTransform: CGAffineTransform = .identity
+    private var sourceNaturalSize: CGSize = .zero
 
 #if FABRIC_HAP_ENABLED
     /// Hap decoder output, present only while the loaded asset is a
@@ -421,7 +423,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
             performSeek(to: pending)
         }
 
-        let time = executionInfo.timing.time
+        let time = executionInfo.timing.hostMediaTime
 
 #if FABRIC_HAP_ENABLED
         if try self.executeHapPath(renderer: renderer, hostTime: time) {
@@ -440,6 +442,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
             {
                 self.updateCurrentTime(from: displayTime, fallback: itemTime)
                 let image = try renderer.newImage(fromPixelBuffer: pixelBuffer)
+                image.textureTransform = self.videoTextureTransform(for: pixelBuffer)
 
                 self.outputTexturePort.send( image )
             }
@@ -458,6 +461,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
             {
                 self.updateCurrentTime(from: displayTime, fallback: pausedTime)
                 let image = try renderer.newImage(fromPixelBuffer: pixelBuffer)
+                image.textureTransform = self.videoTextureTransform(for: pixelBuffer)
 
                 self.outputTexturePort.send( image )
             }
@@ -530,6 +534,8 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         self.player.replaceCurrentItem(with: nil)
         self.asset = nil
         self.url = nil
+        self.sourceToPresentationTransform = .identity
+        self.sourceNaturalSize = .zero
         self.outputTexturePort.send(nil)
         self.resetPlaybackInfo()
 
@@ -581,6 +587,11 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
 #endif
 
                 self.asset = AVURLAsset(url: inputURL, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
+                if let videoTrack = self.asset?.tracks(withMediaType: .video).first
+                {
+                    self.sourceToPresentationTransform = videoTrack.preferredTransform
+                    self.sourceNaturalSize = videoTrack.naturalSize
+                }
                 self.cacheDuration(from: self.asset)
                 self.currentTime = 0
 
@@ -623,6 +634,16 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
                                   message: "Movie file not found: \(inputURL.path)")
             }
         }
+    }
+
+    private func videoTextureTransform(for pixelBuffer: CVPixelBuffer) -> simd_float4x4
+    {
+        let sourceSize = self.sourceNaturalSize == .zero
+            ? CGSize(width: CVPixelBufferGetWidth(pixelBuffer), height: CVPixelBufferGetHeight(pixelBuffer))
+            : self.sourceNaturalSize
+        return FabricImageTextureTransform.video(pixelBuffer: pixelBuffer,
+                                                 sourceToPresentationTransform: self.sourceToPresentationTransform,
+                                                 sourceSize: sourceSize)
     }
 
 #if FABRIC_HAP_ENABLED
@@ -689,6 +710,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         else if let pixelBuffer = Self.makePixelBuffer(fromHapFrame: frame)
         {
             let image = try renderer.newImage(fromPixelBuffer: pixelBuffer)
+            image.textureTransform = self.videoTextureTransform(for: pixelBuffer)
 
             self.outputTexturePort.send( image )
             emitted = true
@@ -900,6 +922,10 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
 
         let region = MTLRegionMake2D(0, 0, texWidth, texHeight)
         image.texture.replace(region: region, mipmapLevel: 0, withBytes: dxtData!, bytesPerRow: bytesPerRow)
+        image.textureTransform = FabricImageTextureTransform.sourceToPresentation(self.sourceToPresentationTransform,
+                                                                                  sourceSize: self.sourceNaturalSize == .zero
+                                                                                      ? CGSize(width: trueWidth, height: trueHeight)
+                                                                                      : self.sourceNaturalSize)
 
         return image
     }

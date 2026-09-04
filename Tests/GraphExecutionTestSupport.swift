@@ -67,6 +67,7 @@ struct GraphExecutionTestHarness
                 deltaTime: deltaTime,
                 displayTime: time,
                 systemTime: systemTime ?? time,
+                hostMediaTime: systemTime ?? time,
                 frameNumber: frameNumber
             ),
             iterationInfo: nil,

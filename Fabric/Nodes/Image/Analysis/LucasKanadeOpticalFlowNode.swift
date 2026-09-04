@@ -133,11 +133,13 @@ public class LucasKanadeOpticalFlowNode: Node
                 || self.inputTemporalSmoothing.valueDidChange
         else { return }
 
-        guard let inTex = self.inputImage.value?.texture else
+        guard let inputImage = self.inputImage.value else
         {
             outputFlow.send(nil)
             return
         }
+
+        let inTex = inputImage.texture
 
         guard
             let preProc = preprocessPipeline,
@@ -333,6 +335,7 @@ public class LucasKanadeOpticalFlowNode: Node
             outputImage = temporallySmoothedFlow
         }
 
+        outputImage.textureTransform = inputImage.textureTransform
         outputFlow.send(outputImage)
     }
 

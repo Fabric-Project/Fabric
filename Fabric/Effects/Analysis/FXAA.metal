@@ -7,6 +7,7 @@ using namespace metal;
 #define SAMPLER_TYPE texture2d<half>
 
 #include "../../lygia/sampler.msl"
+#include "../../Shaders/FabricImageTextureTransform.metal"
 
 static inline float luma(float3 rgb) {
     return dot(rgb, float3(0.299f, 0.587f, 0.114f));
@@ -14,11 +15,15 @@ static inline float luma(float3 rgb) {
 
 fragment half4 postFragment(
     VertexData in [[stage_in]],
+    constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
     texture2d<half, access::sample> tex [[texture(FragmentTextureCustom0)]]
 ) {
     float2 uv = in.texcoord;
 
-    float2 texSize = float2(tex.get_width(), tex.get_height());
+    float2 texSize = fabricPresentationSize(
+        imageTransforms[0],
+        float2(tex.get_width(), tex.get_height())
+    );
     float2 rcpFrame = 1.0f / texSize;
 
     // Rebuild pixel-space position
@@ -35,11 +40,11 @@ fragment half4 postFragment(
     float2 uvSW = (posM + float2(0.0f, 1.0f)) * rcpFrame;
     float2 uvSE = (posM + float2(1.0f, 1.0f)) * rcpFrame;
 
-    float3 rgbNW = float3(SAMPLER_FNC(tex, uvNW).rgb);
-    float3 rgbNE = float3(SAMPLER_FNC(tex, uvNE).rgb);
-    float3 rgbSW = float3(SAMPLER_FNC(tex, uvSW).rgb);
-    float3 rgbSE = float3(SAMPLER_FNC(tex, uvSE).rgb);
-    float3 rgbM  = float3(SAMPLER_FNC(tex, uvM ).rgb);
+    float3 rgbNW = float3(SAMPLER_FNC(tex, fabricTextureCoordinate(imageTransforms[0], uvNW)).rgb);
+    float3 rgbNE = float3(SAMPLER_FNC(tex, fabricTextureCoordinate(imageTransforms[0], uvNE)).rgb);
+    float3 rgbSW = float3(SAMPLER_FNC(tex, fabricTextureCoordinate(imageTransforms[0], uvSW)).rgb);
+    float3 rgbSE = float3(SAMPLER_FNC(tex, fabricTextureCoordinate(imageTransforms[0], uvSE)).rgb);
+    float3 rgbM  = float3(SAMPLER_FNC(tex, fabricTextureCoordinate(imageTransforms[0], uvM)).rgb);
 
     float lumaNW = luma(rgbNW);
     float lumaNE = luma(rgbNE);
@@ -73,13 +78,13 @@ fragment half4 postFragment(
     float2 dirUV = dir * rcpFrame;
 
     half4 rgbA = 0.5h * (
-        SAMPLER_FNC(tex, uvM + dirUV * (1.0f/3.0f - 0.5f)) +
-        SAMPLER_FNC(tex, uvM + dirUV * (2.0f/3.0f - 0.5f))
+        SAMPLER_FNC(tex, fabricTextureCoordinate(imageTransforms[0], uvM + dirUV * (1.0f/3.0f - 0.5f))) +
+        SAMPLER_FNC(tex, fabricTextureCoordinate(imageTransforms[0], uvM + dirUV * (2.0f/3.0f - 0.5f)))
     );
 
     half4 rgbB = rgbA * 0.5h + 0.25h * (
-        SAMPLER_FNC(tex, uvM + dirUV * (0.0f/3.0f - 0.5f)) +
-        SAMPLER_FNC(tex, uvM + dirUV * (3.0f/3.0f - 0.5f))
+        SAMPLER_FNC(tex, fabricTextureCoordinate(imageTransforms[0], uvM + dirUV * (0.0f/3.0f - 0.5f))) +
+        SAMPLER_FNC(tex, fabricTextureCoordinate(imageTransforms[0], uvM + dirUV * (3.0f/3.0f - 0.5f)))
     );
 
     float lumaB = luma(float3(rgbB.rgb));

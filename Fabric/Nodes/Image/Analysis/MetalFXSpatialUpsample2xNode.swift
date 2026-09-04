@@ -70,7 +70,7 @@ final class MetalFXSpatialUpsample2xNode: BaseImageNode
             height: inputHeight * 2,
             format: inputFormat
         )
-
+        outImage.textureTransform = inImage.textureTransform
         // Validate usage (best-effort). MetalFX requires the texture usage be a superset of these.
         // (Some upstream nodes may create textures with too-restrictive usage flags.)
         if !inTex.usage.contains(scaler.colorTextureUsage) {

@@ -3,9 +3,11 @@ import Satin
 import simd
 import Metal
 
-/// Crops a rectangular sub-region from an input texture using a blit encoder.
+/// Crops a presentation-space rectangle and returns an identity-oriented image.
 public class TextureCropNode: Node
 {
+    private final class PostMaterial: SourceMaterial {}
+
     public override class var name: String { "Texture Crop" }
     public override class var nodeType: Node.NodeType { .Image(imageType: .BaseEffect) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
@@ -32,6 +34,51 @@ public class TextureCropNode: Node
     public var inputCropHeight: ParameterPort<Int> { port(named: "inputCropHeight") }
     public var outputTexture: NodePort<FabricImage> { port(named: "outputTexture") }
 
+    private struct CropUniforms
+    {
+        var origin: simd_float2
+        var size: simd_float2
+        var textureTransform: simd_float4x4
+    }
+
+    private let cropMaterial: PostMaterial
+    private let cropProcessor: PostProcessEncoder
+    private lazy var cropUniformsBuffer = StructBuffer<CropUniforms>(device: self.context.device,
+                                                                     count: 1,
+                                                                     label: "Texture Crop Uniforms")
+
+    public required init(context: Context)
+    {
+        let material = PostMaterial(context: context, pipelineURL: Self.shaderURL())
+        self.cropMaterial = material
+        self.cropProcessor = PostProcessEncoder(context: context,
+                                                material: material,
+                                                depthPixelFormat: .invalid,
+                                                stencilPixelFormat: .invalid,
+                                                depthStoreAction: .dontCare,
+                                                stencilStoreAction: .dontCare,
+                                                frameBufferOnly: false)
+        super.init(context: context)
+    }
+
+    public required init(from decoder: any Decoder) throws
+    {
+        guard let context = decoder.context?.documentContext as? Context else {
+            fatalError("Required Decode Context Not set")
+        }
+
+        let material = PostMaterial(context: context, pipelineURL: Self.shaderURL())
+        self.cropMaterial = material
+        self.cropProcessor = PostProcessEncoder(context: context,
+                                                material: material,
+                                                depthPixelFormat: .invalid,
+                                                stencilPixelFormat: .invalid,
+                                                depthStoreAction: .dontCare,
+                                                stencilStoreAction: .dontCare,
+                                                frameBufferOnly: false)
+        try super.init(from: decoder)
+    }
+
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
@@ -40,41 +87,41 @@ public class TextureCropNode: Node
     {
         guard let sourceImage = inputTexture.value else { return }
 
-        let srcTex = sourceImage.texture
-        let x = max(0, min(inputCropX.value ?? 0, srcTex.width - 1))
-        var y = max(0, min(inputCropY.value ?? 0, srcTex.height - 1))
-        let w = max(1, min(inputCropWidth.value ?? 1920, srcTex.width - x))
-        let h = max(1, min(inputCropHeight.value ?? 1080, srcTex.height - y))
+        let presentationWidth = max(1, Int(sourceImage.presentationSize.width.rounded()))
+        let presentationHeight = max(1, Int(sourceImage.presentationSize.height.rounded()))
+        let cropX = max(0, min(inputCropX.value ?? 0, presentationWidth - 1))
+        let cropY = max(0, min(inputCropY.value ?? 0, presentationHeight - 1))
+        let cropWidth = max(1, min(inputCropWidth.value ?? 1920, presentationWidth - cropX))
+        let cropHeight = max(1, min(inputCropHeight.value ?? 1080, presentationHeight - cropY))
 
-        let outImage = try renderer.newImage(withWidth: w, height: h, format: sourceImage.texture.pixelFormat)
-        // For flipped sources (e.g. Syphon/OpenGL with bottom-left origin),
-        // the visual top of the image is stored at the bottom of texture
-        // memory. Invert the Y coordinate so crop regions specified in
-        // visual space select the correct memory rows.
-        if sourceImage.isFlipped {
-            y = max(0, srcTex.height - y - h)
-        }
+        let outImage = try renderer.newImage(withWidth: cropWidth, height: cropHeight)
+        let cropUniforms = CropUniforms(origin: simd_float2(Float(cropX) / Float(presentationWidth),
+                                                            Float(cropY) / Float(presentationHeight)),
+                                        size: simd_float2(Float(cropWidth) / Float(presentationWidth),
+                                                          Float(cropHeight) / Float(presentationHeight)),
+                                        textureTransform: sourceImage.textureTransform)
+        self.cropUniformsBuffer.update(data: [cropUniforms])
+        self.cropMaterial.set(self.cropUniformsBuffer, index: FragmentBufferIndex.Custom0)
+        self.cropMaterial.set(sourceImage.texture, index: FragmentTextureIndex.Custom0)
+        self.cropProcessor.resize(size: (width: Float(cropWidth), height: Float(cropHeight)),
+                                  scaleFactor: 1)
 
-        guard let encoder = commandBuffer.makeBlitCommandEncoder() else
-        {
-            throw FabricError(.execution(.gpu),
-                              severity: .recoverable,
-                              message: "Could not create Texture Crop blit encoder")
-        }
-        encoder.copy(
-            from: srcTex,
-            sourceSlice: 0, sourceLevel: 0,
-            sourceOrigin: MTLOrigin(x: x, y: y, z: 0),
-            sourceSize: MTLSize(width: w, height: h, depth: 1),
-            to: outImage.texture,
-            destinationSlice: 0, destinationLevel: 0,
-            destinationOrigin: MTLOrigin(x: 0, y: 0, z: 0)
-        )
-        encoder.endEncoding()
+        let cropRenderPassDescriptor = MTLRenderPassDescriptor()
+        cropRenderPassDescriptor.colorAttachments[0].texture = outImage.texture
+        self.cropProcessor.draw(renderPassDescriptor: cropRenderPassDescriptor,
+                                commandBuffer: commandBuffer)
 
-        // Preserve the source's flip flag so downstream material nodes
-        // apply the correct UV orientation.
-        outImage.isFlipped = sourceImage.isFlipped
         outputTexture.send(outImage)
+    }
+
+    private static func shaderURL() -> URL
+    {
+        guard let shaderURL = Bundle.module.url(forResource: "TextureCropShader",
+                                                withExtension: "metal",
+                                                subdirectory: "Shaders") else {
+            fatalError("TextureCropShader.metal is missing from the Fabric resource bundle")
+        }
+
+        return shaderURL
     }
 }

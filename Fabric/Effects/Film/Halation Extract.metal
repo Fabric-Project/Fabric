@@ -8,6 +8,7 @@
 #define SAMPLER_TYPE texture2d<half>
 
 #include "../../lygia/sampler.msl"
+#include "../../Shaders/FabricImageTextureTransform.metal"
 
 typedef struct {
     float threshold; // slider, 0.0, 2.0, 0.75, Threshold
@@ -17,9 +18,10 @@ typedef struct {
 
 fragment half4 postFragment(VertexData in [[stage_in]],
                             constant PostUniforms &uniforms [[buffer(FragmentBufferMaterialUniforms)]],
+                            constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
                             texture2d<half, access::sample> renderTex [[texture(FragmentTextureCustom0)]])
 {
-    half4 color = SAMPLER_FNC(renderTex, in.texcoord);
+    half4 color = SAMPLER_FNC(renderTex, fabricTextureCoordinate(imageTransforms[0], in.texcoord));
     float3 sourceColor = float3(color.rgb);
     float luma = dot(sourceColor, float3(0.2126f, 0.7152f, 0.0722f));
     float softness = max(uniforms.softness, 0.0001f);

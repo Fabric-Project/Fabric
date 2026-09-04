@@ -17,6 +17,7 @@ using namespace metal;
 
 #include "../../lygia/sampler.msl"
 #include "../../lygia/filter/gaussianBlur.msl"
+#include "../../Shaders/FabricImageTextureTransform.metal"
 
 // Uniforms → Fabric UI sliders
 typedef struct {
@@ -32,8 +33,40 @@ constant half4 kLumCoeff = half4(0.299h, 0.587h, 0.114h, 0.0h);
 // sqrt(2) from Metal's constants
 constant float kSqrt2 = M_SQRT2_F;
 
+static half4 fabricGaussianBlur(
+    texture2d<half, access::sample> texture,
+    float4x4 textureTransform,
+    float2 coordinate,
+    float2 pixelScale,
+    int kernelSize
+) {
+    half4 accumulatedColor = half4(0.0h);
+    float accumulatedWeight = 0.0;
+    const float kernelSizeFloat = float(kernelSize);
+    const float gaussianNormalization = 0.15915494;
+
+    for (int vertical = 0; vertical < kernelSize; ++vertical) {
+        const float verticalOffset = -0.5 * (kernelSizeFloat - 1.0) + float(vertical);
+        for (int horizontal = 0; horizontal < kernelSize; ++horizontal) {
+            const float horizontalOffset = -0.5 * (kernelSizeFloat - 1.0) + float(horizontal);
+            const float2 kernelOffset = float2(horizontalOffset, verticalOffset);
+            const float weight = (gaussianNormalization / kernelSizeFloat)
+                * gaussian(kernelOffset, kernelSizeFloat);
+            const float2 sampleCoordinate = fabricTextureCoordinate(
+                textureTransform,
+                coordinate + kernelOffset * pixelScale
+            );
+            accumulatedColor += half(weight) * sampleClamp2edge(texture, sampleCoordinate);
+            accumulatedWeight += weight;
+        }
+    }
+
+    return accumulatedColor / half(accumulatedWeight);
+}
+
 fragment half4 postFragment( VertexData                        in        [[stage_in]],
                              constant PostUniforms            &uniforms  [[buffer( FragmentBufferMaterialUniforms )]],
+                             constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
                              texture2d<half, access::sample>   renderTex [[texture( FragmentTextureCustom0 )]] )
 {
     float2 uv = in.texcoord;
@@ -61,27 +94,36 @@ fragment half4 postFragment( VertexData                        in        [[stage
 //    uv8 = clamp(uv8, 0.0f, 1.0f);
 //
 //    // Samples
-    half4 input0 = SAMPLER_FNC(renderTex, uv);
-//    half4 input1 = SAMPLER_FNC(renderTex, uv1);
-//    half4 input2 = SAMPLER_FNC(renderTex, uv2);
-//    half4 input3 = SAMPLER_FNC(renderTex, uv3);
-//    half4 input4 = SAMPLER_FNC(renderTex, uv4);
-//    half4 input5 = SAMPLER_FNC(renderTex, uv5);
-//    half4 input6 = SAMPLER_FNC(renderTex, uv6);
-//    half4 input7 = SAMPLER_FNC(renderTex, uv7);
-//    half4 input8 = SAMPLER_FNC(renderTex, uv8);
+    half4 input0 = SAMPLER_FNC(renderTex, fabricTextureCoordinate(imageTransforms[0], uv));
+//    half4 input1 = SAMPLER_FNC(renderTex, fabricTextureCoordinate(imageTransforms[0], uv1));
+//    half4 input2 = SAMPLER_FNC(renderTex, fabricTextureCoordinate(imageTransforms[0], uv2));
+//    half4 input3 = SAMPLER_FNC(renderTex, fabricTextureCoordinate(imageTransforms[0], uv3));
+//    half4 input4 = SAMPLER_FNC(renderTex, fabricTextureCoordinate(imageTransforms[0], uv4));
+//    half4 input5 = SAMPLER_FNC(renderTex, fabricTextureCoordinate(imageTransforms[0], uv5));
+//    half4 input6 = SAMPLER_FNC(renderTex, fabricTextureCoordinate(imageTransforms[0], uv6));
+//    half4 input7 = SAMPLER_FNC(renderTex, fabricTextureCoordinate(imageTransforms[0], uv7));
+//    half4 input8 = SAMPLER_FNC(renderTex, fabricTextureCoordinate(imageTransforms[0], uv8));
 //
 //    // Blur (note original used *0.125 with 9 taps)
 //    half4 blurresult = (input0 + input1 + input2 + input3 +
 //                        input4 + input5 + input6 + input7 + input8) * 0.125h;
 
-    float2 resolution = float2(renderTex.get_width(), renderTex.get_height());
+    float2 resolution = fabricPresentationSize(
+        imageTransforms[0],
+        float2(renderTex.get_width(), renderTex.get_height())
+    );
     float2 pixel = 1.0/resolution;
 
     float ix = floor( b );
     float kernel_size = max(1.0, ix );
     
-    half4 blurresult = gaussianBlur( renderTex, in.texcoord,  pixel, int(kernel_size));
+    half4 blurresult = fabricGaussianBlur(
+        renderTex,
+        imageTransforms[0],
+        in.texcoord,
+        pixel,
+        int(kernel_size)
+    );
 
     // Luma of original and blurred
     half4 origLuma = half4(dot(input0, kLumCoeff));

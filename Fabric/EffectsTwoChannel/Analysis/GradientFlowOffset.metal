@@ -16,6 +16,7 @@ using namespace metal;
 #define SAMPLER_TYPE texture2d<half>
 
 #include "../../lygia/sampler.msl"
+#include "../../Shaders/FabricImageTextureTransform.metal"
 
 typedef struct {
     float amt;   // slider, -2.0, 2.0, 1.0, Amount
@@ -23,6 +24,7 @@ typedef struct {
 
 fragment half4 postFragment( VertexData                        in        [[stage_in]],
                              constant PostUniforms            &u         [[buffer( FragmentBufferMaterialUniforms )]],
+                             constant float4x4 *imageTransforms [[buffer(FragmentBufferCustom10)]],
                              texture2d<half, access::sample>   tex0      [[texture( FragmentTextureCustom0 )]],
                              texture2d<half, access::sample>   tex1      [[texture( FragmentTextureCustom1 )]] )
 {
@@ -31,10 +33,10 @@ fragment half4 postFragment( VertexData                        in        [[stage
     // Sample the flow / velocity field.
     // Expects standard signed-RG format: R = dx (rightward +), G = dy (downward +).
     // Compatible with: LucasKanadeOpticalFlowNode, Satin velocity buffers.
-    half2 flow = SAMPLER_FNC(tex1, uv).rg;
+    half2 flow = SAMPLER_FNC(tex1, fabricTextureCoordinate(imageTransforms[1], uv)).rg;
 
     // Displace the UV coordinate along the flow direction.
     float2 coord = mix(uv, uv + float2(flow), u.amt);
 
-    return SAMPLER_FNC(tex0, coord);
+    return SAMPLER_FNC(tex0, fabricTextureCoordinate(imageTransforms[0], coord));
 }
