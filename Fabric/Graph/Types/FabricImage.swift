@@ -106,7 +106,7 @@ public final class FabricImage: Identifiable, Equatable
         func presentationPoint(fromStoredPoint point: CGPoint) -> CGPoint
         {
             let storedTextureCoordinate = simd_float4(Float(point.x / storedWidth),
-                                                      1.0 - Float(point.y / storedHeight),
+                                                      Float(point.y / storedHeight),
                                                       0,
                                                       1)
 
