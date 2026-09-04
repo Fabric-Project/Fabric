@@ -10,6 +10,7 @@ import Satin
 import simd
 import Metal
 import MetalKit
+import UniformTypeIdentifiers
 
 public class LUTProcessorNode : BaseImageNode
 {
@@ -22,6 +23,8 @@ public class LUTProcessorNode : BaseImageNode
     // Auto load our LUT shader
     public override class var sourceShaderName:String { "LUTShader" }
     public override class var defaultImageInputCountHint: Int? { 1 }
+    
+    public override class var supportedContentTypes:[UTType] { [.data] }
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {

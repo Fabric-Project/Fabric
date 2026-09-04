@@ -7,12 +7,12 @@ import UniformTypeIdentifiers
 
 open class BaseImageNode: Node, NodeFileLoadingProtocol
 {
-    public static var supportedContentTypes: [UTType] { [] }
+    open class var supportedContentTypes: [UTType] { [] }
     
     override open class var name: String { "Base Image" }
     override open class var nodeType: Node.NodeType { .Image(imageType: .BaseEffect) }
-    override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
-    override public class var nodeTimeMode: Node.TimeMode { .None }
+    override open class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override open class var nodeTimeMode: Node.TimeMode { .None }
     override open class var nodeDescription: String { "Image processing effect" }
 
     override public func deriveTitle() -> String { self.cachedFileURLName ?? Self.name }
