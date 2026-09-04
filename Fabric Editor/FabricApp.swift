@@ -33,8 +33,6 @@ struct FabricApp: App {
 
         }
         .commands {
-            AboutCommands()
-
             DocumentCommands()
 
             ViewCommands()
@@ -42,25 +40,6 @@ struct FabricApp: App {
             CommandGroup(after: .appInfo)
             {
                 CheckForUpdatesView(updater: updaterController.updater)
-            }
-        }
-        
-        Window("About Fabric Editor", id: "about") {
-            AboutView()
-        }
-        .windowStyle(.hiddenTitleBar)
-        .windowResizability(.contentSize)
-        .defaultPosition(.center)
-    }
-}
-
-struct AboutCommands: Commands {
-    @Environment(\.openWindow) private var openWindow
-    
-    var body: some Commands {
-        CommandGroup(replacing: .appInfo) {
-            Button("About Fabric Editor") {
-                openWindow(id: "about")
             }
         }
     }
