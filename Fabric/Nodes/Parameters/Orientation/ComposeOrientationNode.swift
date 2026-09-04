@@ -52,7 +52,6 @@ public class ComposeOrientationNode: StrategyNode
             [
                 ("inputPosition", ParameterPort(parameter: Float3Parameter("Position", simd_float3(0, 0, 0), .inputfield, "Viewpoint position (XYZ)"))),
                 ("inputTarget", ParameterPort(parameter: Float3Parameter("Target", simd_float3(0, 0, 1), .inputfield, "World-space target to face (XYZ)"))),
-                ("inputUpOrientation", ParameterPort(parameter: Float4Parameter("Up Orientation", simd_float4(0, 0, 0, 1), .inputfield, "Roll reference; local +Z is the up direction (identity gives world +Z). Quaternion (X, Y, Z, W)"))),
                 ("inputAimOffset", ParameterPort(parameter: Float4Parameter("Aim Offset", simd_float4(0, 0, 0, 1), .inputfield, "Rotation in the look frame after aiming (identity looks at, 180° looks away). Quaternion (X, Y, Z, W)"))),
                 ("outputOrientation", NodePort<simd_float4>(name: "Orientation", kind: .Outlet, description: "Quaternion orientation (X, Y, Z, W)")),
             ]
@@ -104,19 +103,17 @@ public class ComposeOrientationNode: StrategyNode
         case "Target":
             guard let inputPosition: ParameterPort<simd_float3> = findPort(named: "inputPosition"),
                   let inputTarget: ParameterPort<simd_float3> = findPort(named: "inputTarget"),
-                  let inputUpOrientation: ParameterPort<simd_float4> = findPort(named: "inputUpOrientation"),
                   let inputAimOffset: ParameterPort<simd_float4> = findPort(named: "inputAimOffset")
             else { return }
             guard inputPosition.valueDidChange || inputTarget.valueDidChange
-                || inputUpOrientation.valueDidChange || inputAimOffset.valueDidChange
+                || inputAimOffset.valueDidChange
             else { return }
 
             let position = inputPosition.value ?? simd_float3(0, 0, 0)
             let target = inputTarget.value ?? simd_float3(0, 0, 1)
-            let up = simd_quatf.upDirection(from: inputUpOrientation.value ?? simd_float4(0, 0, 0, 1))
             let offset = simd_quatf(safeVector: inputAimOffset.value ?? simd_float4(0, 0, 0, 1))
 
-            let look = simd_quatf(lookingAlong: target - position, up: up)
+            let look = simd_quatf(lookingAlong: position - target , up: Satin.worldUpDirection)
             outputOrientation.send((look * offset).vector)
 
         default:
