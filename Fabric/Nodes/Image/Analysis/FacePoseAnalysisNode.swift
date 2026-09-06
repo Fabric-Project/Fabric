@@ -1,5 +1,5 @@
 //
-//  ForegroundMaskNode.swift
+//  FacePoseAnalysisNode.swift
 //  Fabric
 //
 //  Created by Anton Marini on 6/28/25.
@@ -18,23 +18,24 @@ public class FacePoseAnalysisNode: Node
     override public class var nodeType:Node.NodeType { .Image(imageType: .Analysis) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Detect Face Poses in an Image and outputs in Units" }
+    override public class var nodeDescription: String { "Detects face landmarks in an image (via RTMPose-Face6) and outputs them in unit coordinates. Wire a Region Detection node into Region of Interest for accurate tracking — without one this runs on the full frame, which is only accurate if the face already fills most of it. Face6 has no dedicated pupil landmark (Pupil outputs approximate the eye centroid) or median-line group (approximated from the nose bridge)." }
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
-        
+
         return ports +
         [
             ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to analyze for face landmarks")),
+            ("inputRegionOfInterest", NodePort<simd_float4>(name: "Region of Interest", kind: .Inlet, description: "Region to crop before pose refinement, as (x, y, width, height) normalized bottom-left-origin — wire in from a Region Detection node. Defaults to the full frame when unconnected.")),
 
             ("outputFaceContour", NodePort<ContiguousArray<simd_float2>>(name: "Face Contour", kind: .Outlet, description: "Array of points tracing the face outline in unit coordinates")),
 
             ("outputLeftEye", NodePort<ContiguousArray<simd_float2>>(name: "Left Eye", kind: .Outlet, description: "Array of points tracing the left eye in unit coordinates")),
             ("outputRightEye", NodePort<ContiguousArray<simd_float2>>(name: "Right Eye", kind: .Outlet, description: "Array of points tracing the right eye in unit coordinates")),
 
-            ("outputLeftPupil", NodePort<ContiguousArray<simd_float2>>(name: "Left Pupil", kind: .Outlet, description: "Position of left pupil center in unit coordinates")),
-            ("outputRightPupil", NodePort<ContiguousArray<simd_float2>>(name: "Right Pupil", kind: .Outlet, description: "Position of right pupil center in unit coordinates")),
+            ("outputLeftPupil", NodePort<ContiguousArray<simd_float2>>(name: "Left Pupil", kind: .Outlet, description: "Approximate left pupil position (eye centroid) in unit coordinates")),
+            ("outputRightPupil", NodePort<ContiguousArray<simd_float2>>(name: "Right Pupil", kind: .Outlet, description: "Approximate right pupil position (eye centroid) in unit coordinates")),
 
             ("outputLeftEyebrow", NodePort<ContiguousArray<simd_float2>>(name: "Left Eyebrow", kind: .Outlet, description: "Array of points tracing the left eyebrow in unit coordinates")),
             ("outputRightEyebrow", NodePort<ContiguousArray<simd_float2>>(name: "Right Eyebrow", kind: .Outlet, description: "Array of points tracing the right eyebrow in unit coordinates")),
@@ -42,7 +43,7 @@ public class FacePoseAnalysisNode: Node
             ("outputNose", NodePort<ContiguousArray<simd_float2>>(name: "Nose", kind: .Outlet, description: "Array of points tracing the nose outline in unit coordinates")),
             ("outputNoseCrest", NodePort<ContiguousArray<simd_float2>>(name: "Nose Crest", kind: .Outlet, description: "Array of points along the nose crest in unit coordinates")),
 
-            ("outputMedianLine", NodePort<ContiguousArray<simd_float2>>(name: "Median Line", kind: .Outlet, description: "Array of points along the face median line in unit coordinates")),
+            ("outputMedianLine", NodePort<ContiguousArray<simd_float2>>(name: "Median Line", kind: .Outlet, description: "Approximate face median line (from the nose bridge) in unit coordinates")),
 
             ("outputInnerLips", NodePort<ContiguousArray<simd_float2>>(name: "Inner Lips", kind: .Outlet, description: "Array of points tracing the inner lip contour in unit coordinates")),
             ("outputOuterLips", NodePort<ContiguousArray<simd_float2>>(name: "Outer Lips", kind: .Outlet, description: "Array of points tracing the outer lip contour in unit coordinates")),
@@ -51,9 +52,10 @@ public class FacePoseAnalysisNode: Node
     }
 
     public var inputImage:NodePort<FabricImage>  { port(named: "inputImage") }
+    public var inputRegionOfInterest:NodePort<simd_float4> { port(named: "inputRegionOfInterest") }
 
     public var outputFaceContour:NodePort<ContiguousArray<simd_float2>> { port(named: "outputFaceContour") }
-    
+
     public var outputLeftEye:NodePort<ContiguousArray<simd_float2>> { port(named: "outputLeftEye") }
     public var outputRightEye:NodePort<ContiguousArray<simd_float2>> { port(named: "outputRightEye") }
 
@@ -71,9 +73,12 @@ public class FacePoseAnalysisNode: Node
     public var outputInnerLips:NodePort<ContiguousArray<simd_float2>> { port(named: "outputInnerLips") }
     public var outputOuterLips:NodePort<ContiguousArray<simd_float2>> { port(named: "outputOuterLips") }
 
-    
+    private static let fullFrameRegion = simd_float4(0, 0, 1, 1)
+    private static let face106KeypointCount = 106
+
     private var ciContext:CIContext!
-    
+    private var lastKeypoints: [simd_float2] = []
+
     override public func startExecution(renderer:GraphRenderer) throws
     {
 
@@ -84,240 +89,86 @@ public class FacePoseAnalysisNode: Node
             CIContextOption.workingColorSpace : nil,
             CIContextOption.outputColorSpace :nil,
         ] as? [CIContextOption : Any]
-        
+
         self.ciContext = CIContext(mtlCommandQueue: self.context.commandQueue, options: options)
     }
-    
+
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if self.inputImage.valueDidChange
+        if self.inputImage.valueDidChange, let inputImage = self.inputImage.value
         {
-            let request = VNDetectFaceLandmarksRequest()
-            request.preferBackgroundProcessing = false
-            
-            
-            if let inImage = self.inputImage.value,
-               let observation = self.faceLandmarksForRequest(request, from: inImage)
+            let regionOfInterest = self.inputRegionOfInterest.value ?? Self.fullFrameRegion
+            if let keypoints = try? RTMPoseInference.run(
+                image: inputImage,
+                regionOfInterest: regionOfInterest,
+                modelIdentity: .facePose(.tiny),
+                keypointCount: Self.face106KeypointCount,
+                ciContext: self.ciContext
+            )
             {
-                if let faceContour = observation.landmarks?.faceContour
-                {
-                    let points = faceContour.normalizedPoints.map {
-                            
-                        return self.normalizedPointToUnits($0, image: inImage, boundingBox: observation.boundingBox)
-                    }
-                    
-                    self.outputFaceContour.send( ContiguousArray(points) )
-                }
-                
-                if let leftEye = observation.landmarks?.leftEye
-                {
-                    let points = leftEye.normalizedPoints.map {
-                            
-                        return self.normalizedPointToUnits($0, image: inImage, boundingBox: observation.boundingBox)
-                    }
-                    
-                    self.outputLeftEye.send( ContiguousArray(points) )
-                }
-                
-                if let rightEye = observation.landmarks?.rightEye
-                {
-                    let points = rightEye.normalizedPoints.map {
-                            
-                        return self.normalizedPointToUnits($0, image: inImage, boundingBox: observation.boundingBox)
-                    }
-                    
-                    self.outputRightEye.send( ContiguousArray(points) )
-                }
-                
-                if let leftPupil = observation.landmarks?.leftPupil
-                {
-                    let points = leftPupil.normalizedPoints.map {
-                            
-                        return self.normalizedPointToUnits($0, image: inImage, boundingBox: observation.boundingBox)
-                    }
-                    
-                    self.outputLeftPupil.send( ContiguousArray(points) )
-                }
-                
-                if let rightPupil = observation.landmarks?.rightPupil
-                {
-                    let points = rightPupil.normalizedPoints.map {
-                            
-                        return self.normalizedPointToUnits($0, image: inImage, boundingBox: observation.boundingBox)
-                    }
-                    
-                    self.outputRightPupil.send( ContiguousArray(points) )
-                }
-                
-                if let leftEyebrow = observation.landmarks?.leftEyebrow
-                {
-                    let points = leftEyebrow.normalizedPoints.map {
-                            
-                        return self.normalizedPointToUnits($0, image: inImage, boundingBox: observation.boundingBox)
-                    }
-                    
-                    self.outputLeftEyebrow.send( ContiguousArray(points) )
-                }
-                
-                if let rightEyebrow = observation.landmarks?.rightEyebrow
-                {
-                    let points = rightEyebrow.normalizedPoints.map {
-                            
-                        return self.normalizedPointToUnits($0, image: inImage, boundingBox: observation.boundingBox)
-                    }
-                    
-                    self.outputRightEyebrow.send( ContiguousArray(points) )
-                }
-                
-                if let nose = observation.landmarks?.nose
-                {
-                    let points = nose.normalizedPoints.map {
-                            
-                        return self.normalizedPointToUnits($0, image: inImage, boundingBox: observation.boundingBox)
-                    }
-                    
-                    self.outputNose.send( ContiguousArray(points) )
-                }
-                
-                if let noseCrest = observation.landmarks?.noseCrest
-                {
-                    let points = noseCrest.normalizedPoints.map {
-                            
-                        return self.normalizedPointToUnits($0, image: inImage, boundingBox: observation.boundingBox)
-                    }
-                    
-                    self.outputNoseCrest.send( ContiguousArray(points) )
-                }
-                
-                if let medianLine = observation.landmarks?.medianLine
-                {
-                    let points = medianLine.normalizedPoints.map {
-                            
-                        return self.normalizedPointToUnits($0, image: inImage, boundingBox: observation.boundingBox)
-                    }
-                    
-                    self.outputMedianLine.send( ContiguousArray(points) )
-                }
-                
-                if let innerLips = observation.landmarks?.innerLips
-                {
-                    let points = innerLips.normalizedPoints.map {
-                            
-                        return self.normalizedPointToUnits($0, image: inImage, boundingBox: observation.boundingBox)
-                    }
-                    
-                    self.outputInnerLips.send( ContiguousArray(points) )
-                }
-                
-                if let outerLips = observation.landmarks?.outerLips
-                {
-                    let points = outerLips.normalizedPoints.map {
-                            
-                        return self.normalizedPointToUnits($0, image: inImage, boundingBox: observation.boundingBox)
-                    }
-                    
-                    self.outputOuterLips.send( ContiguousArray(points) )
-                }
-                
-                
-//                for poseKey in allPoints.
-//                {
-//                    let faceLandmark = VNFaceLandmarkRegion2D.
-//                    
-//                    let jointName = VNHumanHandPoseObservation.JointName(rawValue: poseKey)
-//
-//                    if let portForKey = self.portNameForPoseKey[jointName],
-//                       let position = allPoints[poseKey]
-//                    {
-//                        let port:NodePort<simd_float2> = self.port(named: portForKey)
-//                        let ux = remap(Float(position.x), 0.0, 1.0, -1.0, 1.0)
-//                        let uy = remap(Float(position.y), 0.0, 1.0, -aspect, aspect)
-//                        
-//                        port.send( simd_float2(ux, uy) )
-//                       //
-//                    }
-//                }
-//                for position in handPoints
-//                {
-//                    let px = remap(position.x, 0.0, 1.0, 0, size.x)
-//                    let py = remap(position.y, 0.0, 1.0, 0, size.y)
-//                    
-//                    let ux = remap(position.x, 0.0, 1.0, -1.0, 1.0)
-//                    let uy = remap(position.y, 0.0, 1.0, -aspect, aspect)
-//                    
-//                    normalizedArray.append(simd_float2( position.x, position.y) )
-//                    pixelsArray.append(simd_float2(x: px, y: py))
-//                    unitsArray.append(simd_float3(x: ux, y: uy, z: 0))
-//                }
-//                
-//                self.outputHandPointsNormalized.send( normalizedArray )
-//                self.outputHandPointsUnits.send( unitsArray )
-//                self.outputHandPointsPixels.send( handPoints )
+                self.lastKeypoints = keypoints
             }
-//            else
-//            {
-//                self.outputHandPointsPixels.send( nil )
-//            }
+        }
+
+        guard let inImage = self.inputImage.value else { return }
+        guard self.lastKeypoints.isEmpty == false else { return }
+
+        let aspect = Float(inImage.presentationSize.height / inImage.presentationSize.width)
+
+        self.outputFaceContour.send(self.unitPoints(in: RTMPoseKeypointSchema.face106ContourRange, from: self.lastKeypoints, aspect: aspect))
+        self.outputLeftEye.send(self.unitPoints(in: RTMPoseKeypointSchema.face106LeftEyeRange, from: self.lastKeypoints, aspect: aspect))
+        self.outputRightEye.send(self.unitPoints(in: RTMPoseKeypointSchema.face106RightEyeRange, from: self.lastKeypoints, aspect: aspect))
+        self.outputLeftEyebrow.send(self.unitPoints(in: RTMPoseKeypointSchema.face106LeftEyebrowRange, from: self.lastKeypoints, aspect: aspect))
+        self.outputRightEyebrow.send(self.unitPoints(in: RTMPoseKeypointSchema.face106RightEyebrowRange, from: self.lastKeypoints, aspect: aspect))
+        self.outputNose.send(self.unitPoints(in: RTMPoseKeypointSchema.face106NoseRange, from: self.lastKeypoints, aspect: aspect))
+        self.outputNoseCrest.send(self.unitPoints(in: RTMPoseKeypointSchema.face106NoseCrestRange, from: self.lastKeypoints, aspect: aspect))
+        // No explicit median-line group in Face6 — approximated from the nose bridge.
+        self.outputMedianLine.send(self.unitPoints(in: RTMPoseKeypointSchema.face106NoseCrestRange, from: self.lastKeypoints, aspect: aspect))
+        self.outputInnerLips.send(self.unitPoints(in: RTMPoseKeypointSchema.face106InnerLipsRange, from: self.lastKeypoints, aspect: aspect))
+        self.outputOuterLips.send(self.unitPoints(in: RTMPoseKeypointSchema.face106OuterLipsRange, from: self.lastKeypoints, aspect: aspect))
+
+        // No dedicated pupil landmark in Face6 — approximated as the eye region's centroid.
+        if let leftPupil = self.centroid(in: RTMPoseKeypointSchema.face106LeftEyeRange, from: self.lastKeypoints)
+        {
+            self.outputLeftPupil.send([self.unitPoint(from: leftPupil, aspect: aspect)])
+        }
+        if let rightPupil = self.centroid(in: RTMPoseKeypointSchema.face106RightEyeRange, from: self.lastKeypoints)
+        {
+            self.outputRightPupil.send([self.unitPoint(from: rightPupil, aspect: aspect)])
         }
     }
-    
-    private func normalizedPointToUnits(_ point: CGPoint, image: FabricImage, boundingBox: CGRect) -> simd_float2
-    {
-        let size = image.presentationSize
-        let aspect = size.height / size.width
-        
-        let imagePoint = VNImagePointForFaceLandmarkPoint( simd_float2(x:Float(point.x), y:Float(point.y)), boundingBox,  Int(size.width), Int(size.height))
 
-        return simd_float2(remap(Float(imagePoint.x / size.width), 0.0, 1.0, -1.0, 1.0),
-                           remap(Float(imagePoint.y / size.height), 0.0, 1.0, -Float(aspect), Float(aspect)))
-    }
-        
-    private func faceLandmarksForRequest(_ request: VNDetectFaceLandmarksRequest, from image: FabricImage) ->  VNFaceObservation?
+    private func unitPoints(in range: Range<Int>, from positions: [simd_float2], aspect: Float) -> ContiguousArray<simd_float2>
     {
-        if let inputImage = image.presentationCIImage
+        var points = ContiguousArray<simd_float2>()
+        points.reserveCapacity(range.count)
+
+        for index in range where positions.indices.contains(index)
         {
-//            for computeDevice in MLComputeDevice.allComputeDevices
-//            {
-//                switch computeDevice
-//                {
-//                case .neuralEngine(let aneDevice):
-//                    request.setComputeDevice(.neuralEngine(aneDevice), for: .main)
-//                    request.setComputeDevice(.neuralEngine(aneDevice), for: .postProcessing)
-//                    
-////                case .gpu(let gpu):
-////                    request.setComputeDevice(.gpu(gpu), for: .main)
-////                    request.setComputeDevice(.gpu(gpu), for: .postProcessing)
-//                    
-//                default:
-//                    break
-//                }
-//            }
-            
-            let handler = VNImageRequestHandler(ciImage: inputImage, options: [.ciContext : self.ciContext!])
-            
-            do {
-
-                // Perform the Vision request
-                try handler.perform([request])
-
-                guard let observation = request.results?.first as? VNFaceObservation
-                else { return nil }
-                                
-                
-                return observation
-                
-            }
-            catch
-            {
-                return nil
-            }
-            
+            points.append(self.unitPoint(from: positions[index], aspect: aspect))
         }
-        
-        return nil
+
+        return points
+    }
+
+    private func centroid(in range: Range<Int>, from positions: [simd_float2]) -> simd_float2?
+    {
+        let pointsInRange = range.compactMap { positions.indices.contains($0) ? positions[$0] : nil }
+        guard pointsInRange.isEmpty == false else { return nil }
+
+        let sum = pointsInRange.reduce(simd_float2(0, 0), +)
+        return sum / Float(pointsInRange.count)
+    }
+
+    /// `visionNormalizedPoint` is bottom-left-origin, [0,1] — the same space
+    /// VNRecognizedPoint.x/y and RTMPoseInference's output both occupy.
+    private func unitPoint(from visionNormalizedPoint: simd_float2, aspect: Float) -> simd_float2
+    {
+        return simd_float2(remap(visionNormalizedPoint.x, 0.0, 1.0, -1.0, 1.0),
+                           remap(visionNormalizedPoint.y, 0.0, 1.0, -Float(aspect), Float(aspect)))
     }
 }

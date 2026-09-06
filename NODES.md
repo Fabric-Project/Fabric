@@ -315,9 +315,11 @@ HDR -> SDR conversion
 - [x] Gradient Flow
 - [x] Gradient Flow Offset
 - [ ] Classification
-- [x] Face Pose Analysis / Landmark
-- [x] Hand Pose Detection / Landmark
-- [ ] Body Pose Detection / Landmark
+- [x] Face Pose Analysis / Landmark (RTMPose-Face6)
+- [x] Hand Pose Detection / Landmark (RTMPose-Hand5)
+- [x] Body Pose Detection / Landmark (RTMPose)
+- [x] Whole-Body Pose Detection / Landmark (RTMW, 133 keypoints)
+- [x] Region Detection (RTMDet person/hand/face, feeds pose nodes' Region of Interest)
 - [ ] Depth Map Prediction
 - [x] Metal FX 2x Upsampler (ML based)  
 - [x] FXAA Antialiasing  

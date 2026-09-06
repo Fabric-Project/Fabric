@@ -37,6 +37,22 @@ struct HandPoseAnalysisNodeTests
         #expect(node.findPort(named: "outputThumb1") as Fabric.Port? == nil)
     }
 
+    @Test("Additive Region of Interest inlet exists, is a Vector 4, and legacy Hand Count port is untouched")
+    func regionOfInterestInletIsAdditive() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = HandPoseAnalysisNode(context: context)
+
+        let roiPort: Fabric.Port = try #require(node.findPort(named: "inputRegionOfInterest") as Fabric.Port?)
+        #expect(roiPort.kind == .Inlet)
+        #expect(roiPort.portType == .Vector4)
+        #expect(node.inputRegionOfInterest.value == nil, "Unconnected ROI has no value — the node falls back to full-frame (0,0,1,1) at read time, not via a port default")
+
+        // Legacy port kept for decode compatibility with existing saved
+        // graphs, even though it's no longer wired to anything.
+        #expect(node.inputHandCount.portType == .Int)
+    }
+
     @Test("Finger array ports survive serialization")
     func fingerOutputsSurviveSerialization() throws
     {

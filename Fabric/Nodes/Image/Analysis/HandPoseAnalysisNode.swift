@@ -10,7 +10,6 @@ import Satin
 import simd
 import Metal
 import MetalKit
-import Vision
 
 public class HandPoseAnalysisNode: Node
 {
@@ -18,16 +17,17 @@ public class HandPoseAnalysisNode: Node
     override public class var nodeType:Node.NodeType { .Image(imageType: .Analysis) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Detects a hand pose in an image and outputs ordered finger-point arrays in unit coordinates" }
+    override public class var nodeDescription: String { "Detects a hand pose in an image (via RTMPose-Hand5) and outputs ordered finger-point arrays in unit coordinates. Wire a Region Detection node into Region of Interest for accurate tracking — without one this runs on the full frame, which is only accurate if the hand already fills most of it. Hand Count is retained for backward compatibility but is no longer used; set Max Detections on the upstream Region Detection node instead." }
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
-        
+
         return ports +
         [
             ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to analyze for hand poses")),
-            ("inputHandCount", ParameterPort(parameter: IntParameter("Hand Count", 1, 1, 16, .inputfield, "Maximum number of hands to detect"))),
+            ("inputRegionOfInterest", NodePort<simd_float4>(name: "Region of Interest", kind: .Inlet, description: "Region to crop before pose refinement, as (x, y, width, height) normalized bottom-left-origin — wire in from a Region Detection node. Defaults to the full frame when unconnected.")),
+            ("inputHandCount", ParameterPort(parameter: IntParameter("Hand Count", 1, 1, 16, .inputfield, "Legacy, no longer used — set Max Detections on the upstream Region Detection node instead"))),
 
             ("outputThumb", NodePort<ContiguousArray<simd_float2>>(name: "Thumb", kind: .Outlet, description: "Thumb points ordered CMC, MP, IP, Tip in unit coordinates")),
             ("outputIndex", NodePort<ContiguousArray<simd_float2>>(name: "Index", kind: .Outlet, description: "Index finger points ordered MCP, PIP, DIP, Tip in unit coordinates")),
@@ -40,6 +40,8 @@ public class HandPoseAnalysisNode: Node
     }
 
     public var inputImage:NodePort<FabricImage>  { port(named: "inputImage") }
+    public var inputRegionOfInterest:NodePort<simd_float4> { port(named: "inputRegionOfInterest") }
+    public var inputHandCount:ParameterPort<Int> { port(named: "inputHandCount") }
 
     public var outputThumb:NodePort<ContiguousArray<simd_float2>> { port(named: "outputThumb") }
     public var outputIndex:NodePort<ContiguousArray<simd_float2>> { port(named: "outputIndex") }
@@ -49,17 +51,14 @@ public class HandPoseAnalysisNode: Node
 
     public var outputWrist:NodePort<simd_float2> { port(named: "outputWrist") }
 
-    private static let thumbJoints: [VNHumanHandPoseObservation.JointName] = [.thumbCMC, .thumbMP, .thumbIP, .thumbTip]
-    private static let indexJoints: [VNHumanHandPoseObservation.JointName] = [.indexMCP, .indexPIP, .indexDIP, .indexTip]
-    private static let middleJoints: [VNHumanHandPoseObservation.JointName] = [.middleMCP, .middlePIP, .middleDIP, .middleTip]
-    private static let ringJoints: [VNHumanHandPoseObservation.JointName] = [.ringMCP, .ringPIP, .ringDIP, .ringTip]
-    private static let littleJoints: [VNHumanHandPoseObservation.JointName] = [.littleMCP, .littlePIP, .littleDIP, .littleTip]
-    
+    private static let fullFrameRegion = simd_float4(0, 0, 1, 1)
+
     private var ciContext:CIContext!
-    
+    private var lastKeypoints: [simd_float2] = []
+
     override public func startExecution(renderer:GraphRenderer) throws
     {
-        
+
         let options = [
             CIContextOption.cacheIntermediates : false,
             CIContextOption.highQualityDownsample : false,
@@ -67,125 +66,63 @@ public class HandPoseAnalysisNode: Node
             CIContextOption.workingColorSpace : nil,
             CIContextOption.outputColorSpace :nil,
         ] as? [CIContextOption : Any]
-        
+
         self.ciContext = CIContext(mtlCommandQueue: self.context.commandQueue, options: options)
     }
-    
+
     public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
     throws
     {
-        if self.inputImage.valueDidChange
+        if self.inputImage.valueDidChange, let inputImage = self.inputImage.value
         {
-            let request = VNDetectHumanHandPoseRequest()
-            request.preferBackgroundProcessing = false
-            request.maximumHandCount = 1
-            
-            if let inImage = self.inputImage.value,
-               let allPoints = self.handPointsForRequest(request, from: inImage)
+            let regionOfInterest = self.inputRegionOfInterest.value ?? Self.fullFrameRegion
+            if let keypoints = try? RTMPoseInference.run(
+                image: inputImage,
+                regionOfInterest: regionOfInterest,
+                modelIdentity: .handPose,
+                keypointCount: RTMPoseKeypointSchema.hand21Names.count,
+                ciContext: self.ciContext
+            )
             {
-                let aspect = Float(inImage.presentationSize.height / inImage.presentationSize.width)
-
-                if let thumbPoints = self.unitPoints(for: Self.thumbJoints, from: allPoints, aspect: aspect)
-                {
-                    self.outputThumb.send(thumbPoints)
-                }
-
-                if let indexPoints = self.unitPoints(for: Self.indexJoints, from: allPoints, aspect: aspect)
-                {
-                    self.outputIndex.send(indexPoints)
-                }
-
-                if let middlePoints = self.unitPoints(for: Self.middleJoints, from: allPoints, aspect: aspect)
-                {
-                    self.outputMiddle.send(middlePoints)
-                }
-
-                if let ringPoints = self.unitPoints(for: Self.ringJoints, from: allPoints, aspect: aspect)
-                {
-                    self.outputRing.send(ringPoints)
-                }
-
-                if let littlePoints = self.unitPoints(for: Self.littleJoints, from: allPoints, aspect: aspect)
-                {
-                    self.outputLittle.send(littlePoints)
-                }
-
-                if let wrist = allPoints[VNHumanHandPoseObservation.JointName.wrist.rawValue]
-                {
-                    self.outputWrist.send(self.unitPoint(from: wrist, aspect: aspect))
-                }
+                self.lastKeypoints = keypoints
             }
+        }
+
+        guard let inImage = self.inputImage.value else { return }
+        guard self.lastKeypoints.isEmpty == false else { return }
+
+        let aspect = Float(inImage.presentationSize.height / inImage.presentationSize.width)
+
+        self.outputThumb.send(self.unitPoints(at: RTMPoseKeypointSchema.hand21ThumbIndices, in: self.lastKeypoints, aspect: aspect))
+        self.outputIndex.send(self.unitPoints(at: RTMPoseKeypointSchema.hand21IndexIndices, in: self.lastKeypoints, aspect: aspect))
+        self.outputMiddle.send(self.unitPoints(at: RTMPoseKeypointSchema.hand21MiddleIndices, in: self.lastKeypoints, aspect: aspect))
+        self.outputRing.send(self.unitPoints(at: RTMPoseKeypointSchema.hand21RingIndices, in: self.lastKeypoints, aspect: aspect))
+        self.outputLittle.send(self.unitPoints(at: RTMPoseKeypointSchema.hand21LittleIndices, in: self.lastKeypoints, aspect: aspect))
+
+        if self.lastKeypoints.indices.contains(RTMPoseKeypointSchema.hand21WristIndex)
+        {
+            self.outputWrist.send(self.unitPoint(from: self.lastKeypoints[RTMPoseKeypointSchema.hand21WristIndex], aspect: aspect))
         }
     }
 
-    private func unitPoints(for joints: [VNHumanHandPoseObservation.JointName],
-                            from recognizedPoints: [VNRecognizedPointKey: VNRecognizedPoint],
-                            aspect: Float
-    ) -> ContiguousArray<simd_float2>?
+    private func unitPoints(at indices: [Int], in positions: [simd_float2], aspect: Float) -> ContiguousArray<simd_float2>
     {
         var points = ContiguousArray<simd_float2>()
-        points.reserveCapacity(joints.count)
+        points.reserveCapacity(indices.count)
 
-        for joint in joints
+        for index in indices where positions.indices.contains(index)
         {
-            guard let recognizedPoint = recognizedPoints[joint.rawValue] else { return nil }
-            points.append(self.unitPoint(from: recognizedPoint, aspect: aspect))
+            points.append(self.unitPoint(from: positions[index], aspect: aspect))
         }
 
         return points
     }
-    
-    
 
-    private func unitPoint(from recognizedPoint: VNRecognizedPoint, aspect: Float) -> simd_float2
+    /// `visionNormalizedPoint` is bottom-left-origin, [0,1] — the same space
+    /// VNRecognizedPoint.x/y and RTMPoseInference's output both occupy.
+    private func unitPoint(from visionNormalizedPoint: simd_float2, aspect: Float) -> simd_float2
     {
-        return simd_float2(remap(Float(recognizedPoint.x), 0.0, 1.0, -1.0, 1.0),
-                           remap(Float(recognizedPoint.y), 0.0, 1.0, -aspect, aspect))
-    }
-        
-    private func handPointsForRequest(_ request: VNDetectHumanHandPoseRequest, from image: FabricImage) ->  [VNRecognizedPointKey : VNRecognizedPoint]?
-    {
-        if let inputImage = image.presentationCIImage
-        {
-//            for computeDevice in MLComputeDevice.allComputeDevices
-//            {
-//                switch computeDevice
-//                {
-//                case .neuralEngine(let aneDevice):
-//                    request.setComputeDevice(.neuralEngine(aneDevice), for: .main)
-//                    request.setComputeDevice(.neuralEngine(aneDevice), for: .postProcessing)
-//                    
-////                case .gpu(let gpu):
-////                    request.setComputeDevice(.gpu(gpu), for: .main)
-////                    request.setComputeDevice(.gpu(gpu), for: .postProcessing)
-//                    
-//                default:
-//                    break
-//                }
-//            }
-            
-            let handler = VNImageRequestHandler(ciImage: inputImage, options: [.ciContext : self.ciContext!])
-            
-            do {
-
-                // Perform the Vision request
-                try handler.perform([request])
-
-                guard let observation = request.results?.first as? VNRecognizedPointsObservation
-                else { return nil }
-                
-                let allPoints: [VNRecognizedPointKey : VNRecognizedPoint] = try observation.recognizedPoints(forGroupKey: .all)
-                
-                return allPoints
-                
-            }
-            catch
-            {
-                return nil
-            }
-            
-        }
-        
-        return nil
+        return simd_float2(remap(visionNormalizedPoint.x, 0.0, 1.0, -1.0, 1.0),
+                           remap(visionNormalizedPoint.y, 0.0, 1.0, -aspect, aspect))
     }
 }

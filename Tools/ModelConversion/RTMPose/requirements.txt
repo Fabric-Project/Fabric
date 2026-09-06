@@ -1,0 +1,7 @@
+# See README.md for the full environment setup (conda + PyTorch + MIM +
+# mmengine/mmcv/mmdet + mmpose/mmdetection from source). This file only
+# covers what this directory's own scripts need on top of that stack.
+
+coremltools>=7.2
+numpy
+Pillow

@@ -103,6 +103,7 @@ let package = Package(
                 .copy("Compute"),
                 .copy("Shaders"),
                 .copy("Materials"),
+                .copy("Models"),
                 .process("Fabric.xcassets"),
                 .copy("lygia"),
             ],
