@@ -162,6 +162,7 @@ public final class FabricCoreNodesPlugin: NSObject, FabricPlugin
         BreatherSurfaceGeometryNode.self,
         DiniSurfaceGeometryNode.self,
         MathExpressionParametricGeometryNode.self,
+        PolylineGeometryNode.self,
     ]
 
     private static let materialNodeClasses: [Node.Type] = [
@@ -174,6 +175,7 @@ public final class FabricCoreNodesPlugin: NSObject, FabricPlugin
         StandardMaterialNode.self,
         PBRMaterialNode.self,
         DisplacementMaterialNode.self,
+        LineMaterialNode.self,
     ]
 
     private static var textureNodeClasses: [Node.Type]
