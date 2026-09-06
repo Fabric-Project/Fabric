@@ -107,7 +107,8 @@ public class FacePoseAnalysisNode: Node
                 regionOfInterest: regionOfInterest,
                 modelIdentity: .facePose(.tiny),
                 keypointCount: Self.face106KeypointCount,
-                ciContext: self.ciContext
+                ciContext: self.ciContext,
+                device: self.context.device
             )
             {
                 self.lastKeypoints = keypoints

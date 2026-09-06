@@ -82,7 +82,8 @@ public class BodyPoseDetectionNode: Node
                 regionOfInterest: regionOfInterest,
                 modelIdentity: .bodyPose(tier),
                 keypointCount: RTMPoseKeypointSchema.coco17BodyNames.count,
-                ciContext: self.ciContext
+                ciContext: self.ciContext,
+                device: self.context.device
             )
             {
                 self.lastKeypoints = keypoints

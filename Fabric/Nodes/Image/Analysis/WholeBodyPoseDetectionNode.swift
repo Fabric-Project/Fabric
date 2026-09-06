@@ -98,7 +98,8 @@ public class WholeBodyPoseDetectionNode: Node
                 regionOfInterest: regionOfInterest,
                 modelIdentity: .wholeBodyPose,
                 keypointCount: Self.keypointCount,
-                ciContext: self.ciContext
+                ciContext: self.ciContext,
+                device: self.context.device
             )
             {
                 self.lastKeypoints = keypoints

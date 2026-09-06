@@ -53,21 +53,31 @@ public class HandPoseAnalysisNode: Node
 
     private static let fullFrameRegion = simd_float4(0, 0, 1, 1)
 
-    private var ciContext:CIContext!
-    private var lastKeypoints: [simd_float2] = []
+    /// Not a Setting yet — a plain toggle while the async path is validated.
+    /// false: existing synchronous `RTMPoseInference.run()`, blocks execute()
+    /// until the GPU finishes. true: `submitHandPose()`, which encodes GPU
+    /// work without blocking execute() and updates `lastKeypoints` from a
+    /// completion callback ~1 frame (or more, under load) later.
+    private static let useAsynchronousInference = true
 
-    override public func startExecution(renderer:GraphRenderer) throws
+    private let lastKeypointsLock = NSLock()
+    private var lastKeypointsStorage: [simd_float2] = []
+    /// Backed by a lock because, under the async path, the GPU completion
+    /// callback writes this from a thread other than execute()'s.
+    private var lastKeypoints: [simd_float2]
     {
-
-        let options = [
-            CIContextOption.cacheIntermediates : false,
-            CIContextOption.highQualityDownsample : false,
-            CIContextOption.workingFormat : CIFormat.RGBAh.rawValue,
-            CIContextOption.workingColorSpace : nil,
-            CIContextOption.outputColorSpace :nil,
-        ] as? [CIContextOption : Any]
-
-        self.ciContext = CIContext(mtlCommandQueue: self.context.commandQueue, options: options)
+        get
+        {
+            self.lastKeypointsLock.lock()
+            defer { self.lastKeypointsLock.unlock() }
+            return self.lastKeypointsStorage
+        }
+        set
+        {
+            self.lastKeypointsLock.lock()
+            self.lastKeypointsStorage = newValue
+            self.lastKeypointsLock.unlock()
+        }
     }
 
     public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)
@@ -76,12 +86,26 @@ public class HandPoseAnalysisNode: Node
         if self.inputImage.valueDidChange, let inputImage = self.inputImage.value
         {
             let regionOfInterest = self.inputRegionOfInterest.value ?? Self.fullFrameRegion
-            if let keypoints = try? RTMPoseInference.run(
+
+            if Self.useAsynchronousInference
+            {
+                try? RTMPoseInference.submitHandPose(
+                    image: inputImage,
+                    regionOfInterest: regionOfInterest,
+                    keypointCount: RTMPoseKeypointSchema.hand21Names.count,
+                    device: self.context.device,
+                    commandQueue: self.context.commandQueue
+                ) { [weak self] keypoints in
+                    self?.lastKeypoints = keypoints
+                }
+            }
+            else if let keypoints = try? RTMPoseInference.run(
                 image: inputImage,
                 regionOfInterest: regionOfInterest,
                 modelIdentity: .handPose,
                 keypointCount: RTMPoseKeypointSchema.hand21Names.count,
-                ciContext: self.ciContext
+                device: self.context.device,
+                commandQueue: self.context.commandQueue
             )
             {
                 self.lastKeypoints = keypoints

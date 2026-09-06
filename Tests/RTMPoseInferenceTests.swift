@@ -1,4 +1,3 @@
-import CoreImage
 import Foundation
 import Metal
 import Testing
@@ -25,13 +24,13 @@ struct RTMPoseInferenceTests
     func runIsSafeWithOrWithoutBundledModel() throws
     {
         guard let image = makeDummyImage() else { return }
-        let ciContext = CIContext()
+        guard let commandQueue = image.texture.device.makeCommandQueue() else { return }
         let keypointCount = 21
 
         // A missing bundled model throws — that's an expected outcome in
         // some environments (e.g. CI without the conversion pipeline run),
         // not a test failure, so it's swallowed to an empty result here.
-        let result = (try? RTMPoseInference.run(image: image, regionOfInterest: simd_float4(0, 0, 1, 1), modelIdentity: .handPose, keypointCount: keypointCount, ciContext: ciContext)) ?? []
+        let result = (try? RTMPoseInference.run(image: image, regionOfInterest: simd_float4(0, 0, 1, 1), modelIdentity: .handPose, keypointCount: keypointCount, device: image.texture.device, commandQueue: commandQueue)) ?? []
 
         if result.isEmpty == false
         {

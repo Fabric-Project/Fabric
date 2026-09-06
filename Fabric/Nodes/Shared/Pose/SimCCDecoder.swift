@@ -42,6 +42,13 @@ enum SimCCDecoder
     /// coremltools may order dimensions differently than the PyTorch source.
     static func decodeAll(simccX: MLMultiArray, simccY: MLMultiArray, keypointCount: Int, splitRatio: Float = 2.0) -> [(position: simd_float2, confidence: Float)]
     {
+        Self.decodeAll(simccX: Self.floatValues(from: simccX), simccY: Self.floatValues(from: simccY), keypointCount: keypointCount, splitRatio: splitRatio)
+    }
+
+    /// Same as above, for callers that already have plain float arrays
+    /// (e.g. an MPSGraph-based model's output) rather than an MLMultiArray.
+    static func decodeAll(simccX: [Float], simccY: [Float], keypointCount: Int, splitRatio: Float = 2.0) -> [(position: simd_float2, confidence: Float)]
+    {
         let xBinCount = simccX.count / max(keypointCount, 1)
         let yBinCount = simccY.count / max(keypointCount, 1)
 
@@ -53,16 +60,13 @@ enum SimCCDecoder
             return Array(repeating: (simd_float2(0, 0), Float(0)), count: keypointCount)
         }
 
-        let xValues = Self.floatValues(from: simccX)
-        let yValues = Self.floatValues(from: simccY)
-
         var results: [(position: simd_float2, confidence: Float)] = []
         results.reserveCapacity(keypointCount)
 
         for keypointIndex in 0..<keypointCount
         {
-            let xRow = Array(xValues[(keypointIndex * xBinCount)..<((keypointIndex + 1) * xBinCount)])
-            let yRow = Array(yValues[(keypointIndex * yBinCount)..<((keypointIndex + 1) * yBinCount)])
+            let xRow = Array(simccX[(keypointIndex * xBinCount)..<((keypointIndex + 1) * xBinCount)])
+            let yRow = Array(simccY[(keypointIndex * yBinCount)..<((keypointIndex + 1) * yBinCount)])
             results.append(Self.decode(simccX: xRow, simccY: yRow, splitRatio: splitRatio))
         }
 
