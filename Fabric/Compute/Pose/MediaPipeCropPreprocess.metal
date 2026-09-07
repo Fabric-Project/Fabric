@@ -1,5 +1,5 @@
 //
-//  MediaPipeHandCropPreprocess.metal
+//  MediaPipeCropPreprocess.metal
 //  Fabric
 //
 
@@ -20,10 +20,14 @@ using namespace metal;
 struct MediaPipeCropUniforms {
     float2 centerPixels;             // (cx, cy), top-left-origin PRESENTATION PIXEL space
     float2 rectSizePixels;           // (width, height) in pixels
-    float rotationRadians;           // MediaPipeHandDetectorDecoder.computeRotation's own convention
+    float rotationRadians;           // MediaPipeSSDDetectorDecoder.computeRotation's own convention
     float4x4 textureTransform;
     float2 presentationSizePixels;
     uint2 outputSize;
+    float2 outputPixelRange;         // (min, max) the sampled [0,1] color maps onto -- BlazePalm/
+                                      // BlazeFace's landmark models both normalize to [0,1], but
+                                      // BlazeFace's detector normalizes to [-1,1]; confirmed against
+                                      // each model's own ImageToTensorCalculatorOptions.output_tensor_float_range.
 };
 
 kernel void cropRotateAndNormalizeNHWC(
@@ -59,13 +63,12 @@ kernel void cropRotateAndNormalizeNHWC(
     const float2 presentationCoordinate = sourcePixels / uniforms.presentationSizePixels;
     const float2 storedCoordinate = fabricTextureCoordinate(uniforms.textureTransform, presentationCoordinate);
 
-    const float3 color = saturate(sourceTexture.sample(cropSampler, storedCoordinate).rgb);
+    const float3 sampledColor = saturate(sourceTexture.sample(cropSampler, storedCoordinate).rgb);
+    const float3 color = mix(uniforms.outputPixelRange.x, uniforms.outputPixelRange.y, sampledColor);
 
-    // NHWC (model input is [1, H, W, 3], not NCHW) — matches
-    // MediaPipeHandDetector/MediaPipeHandLandmarks.mlpackage's declared
-    // input shape directly, no transpose needed downstream. Values are
-    // already display-referred [0,1] (BlazePalm/hand-landmark models
-    // normalize by a plain /255, unlike RTMPose's ImageNet mean/std).
+    // NHWC (model input is [1, H, W, 3], not NCHW) — matches every bundled
+    // MediaPipe model's declared input shape directly, no transpose needed
+    // downstream.
     const uint pixelIndex = (position.y * uniforms.outputSize.x + position.x) * 3;
     destination[pixelIndex + 0] = color.r;
     destination[pixelIndex + 1] = color.g;

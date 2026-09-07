@@ -1,5 +1,5 @@
 //
-//  MediaPipeHandCropPreprocessor.swift
+//  MediaPipeCropPreprocessor.swift
 //  Fabric
 //
 
@@ -8,15 +8,22 @@ import Metal
 import Satin
 import simd
 
-/// Encodes a rotated crop + /255 normalize directly from a FabricImage
-/// texture into an NHWC float32 buffer — no CVPixelBuffer, no Vision, no
-/// CPU-side pixel copy. The output buffer is `.storageModeShared` (genuinely
-/// unified CPU/GPU memory on Apple Silicon) and fed directly into
+/// Encodes a rotated crop + normalize directly from a FabricImage texture
+/// into an NHWC float32 buffer — no CVPixelBuffer, no Vision, no CPU-side
+/// pixel copy. The output buffer is `.storageModeShared` (genuinely unified
+/// CPU/GPU memory on Apple Silicon) and fed directly into
 /// MediaPipeTFLiteMPSGraph as an MPSGraphTensorData, the same "GPU writes
 /// directly into the model's input buffer" approach RTMPoseInputPreprocessor
 /// uses. Deliberately avoids the VNImageRequestHandler / CVPixelBuffer-
 /// wrapping overhead profiled as a real bottleneck earlier in this pose work.
-final class MediaPipeHandCropPreprocessor
+///
+/// `outputPixelRange` is fixed per instance (not per call), since a given
+/// preprocessor is always paired with one model: BlazePalm/BlazeFace's
+/// landmark models both normalize to [0,1], but BlazeFace's *detector*
+/// normalizes to [-1,1] — confirmed against each model's own
+/// ImageToTensorCalculatorOptions.output_tensor_float_range, not assumed
+/// from BlazePalm's convention.
+final class MediaPipeCropPreprocessor
 {
     private struct Uniforms
     {
@@ -26,22 +33,25 @@ final class MediaPipeHandCropPreprocessor
         var textureTransform: simd_float4x4
         var presentationSizePixels: simd_float2
         var outputSize: simd_uint2
+        var outputPixelRange: simd_float2
     }
 
     private let outputWidth: Int
     private let outputHeight: Int
+    private let outputPixelRange: simd_float2
     private let pipeline: MTLComputePipelineState
     private let outputBuffer: MTLBuffer
 
-    init(device: MTLDevice, outputWidth: Int, outputHeight: Int) throws
+    init(device: MTLDevice, outputWidth: Int, outputHeight: Int, outputPixelRange: (min: Float, max: Float) = (0, 1)) throws
     {
         self.outputWidth = outputWidth
         self.outputHeight = outputHeight
+        self.outputPixelRange = simd_float2(outputPixelRange.min, outputPixelRange.max)
 
         let compiler = MetalFileCompiler(watch: false)
         guard
             let shaderURL = Bundle.module.url(
-                forResource: "MediaPipeHandCropPreprocess",
+                forResource: "MediaPipeCropPreprocess",
                 withExtension: "metal",
                 subdirectory: "Compute/Pose"
             ),
@@ -52,7 +62,7 @@ final class MediaPipeHandCropPreprocessor
             throw FabricError(
                 .execution(.gpu),
                 severity: .recoverable,
-                message: "Could not load MediaPipe hand crop preprocessing kernel"
+                message: "Could not load MediaPipe crop preprocessing kernel"
             )
         }
 
@@ -61,9 +71,9 @@ final class MediaPipeHandCropPreprocessor
         let byteCount = outputWidth * outputHeight * 3 * MemoryLayout<Float>.stride
         guard let outputBuffer = device.makeBuffer(length: byteCount, options: .storageModeShared) else
         {
-            throw FabricError(.execution(.outOfMemory), severity: .recoverable, message: "Could not allocate MediaPipe hand crop buffer")
+            throw FabricError(.execution(.outOfMemory), severity: .recoverable, message: "Could not allocate MediaPipe crop buffer")
         }
-        outputBuffer.label = "MediaPipe hand crop NHWC \(outputWidth)x\(outputHeight)"
+        outputBuffer.label = "MediaPipe crop NHWC \(outputWidth)x\(outputHeight)"
         self.outputBuffer = outputBuffer
     }
 
@@ -71,8 +81,7 @@ final class MediaPipeHandCropPreprocessor
     /// own submission (the synchronous run() path). The asynchronous
     /// submit() path uses the command-buffer overload below so preprocessing
     /// and MPSGraph inference share one submission with no intermediate
-    /// wait — see MediaPipeHandDetectionNode/MediaPipeHandLandmarkNode's
-    /// useAsynchronousInference toggle.
+    /// wait — see the MediaPipe nodes' useAsynchronousInference toggle.
     func encode(
         image: FabricImage,
         centerNormalizedBottomLeft: simd_float2,
@@ -83,7 +92,7 @@ final class MediaPipeHandCropPreprocessor
     {
         guard let commandBuffer = commandQueue.makeCommandBuffer() else
         {
-            throw FabricError(.execution(.gpu), severity: .recoverable, message: "Could not create MediaPipe hand crop command buffer")
+            throw FabricError(.execution(.gpu), severity: .recoverable, message: "Could not create MediaPipe crop command buffer")
         }
 
         let outputBuffer = try self.encode(
@@ -100,7 +109,7 @@ final class MediaPipeHandCropPreprocessor
 
     /// `centerNormalizedBottomLeft`/`sizeNormalized` are in Fabric's usual
     /// bottom-left-origin, normalized [0,1] convention; `rotationRadians`
-    /// is MediaPipeHandDetectorDecoder.computeRotation's own convention
+    /// is MediaPipeSSDDetectorDecoder.computeRotation's own convention
     /// (top-left/Y-down, independent of the coordinate's origin choice —
     /// see that type's doc comment). Encodes onto `commandBuffer` without
     /// committing, so MPSGraph inference can be appended to the same
@@ -116,7 +125,7 @@ final class MediaPipeHandCropPreprocessor
     {
         guard let encoder = commandBuffer.makeComputeCommandEncoder() else
         {
-            throw FabricError(.execution(.gpu), severity: .recoverable, message: "Could not create MediaPipe hand crop compute pass")
+            throw FabricError(.execution(.gpu), severity: .recoverable, message: "Could not create MediaPipe crop compute pass")
         }
 
         let presentationSize = image.presentationSize
@@ -132,10 +141,11 @@ final class MediaPipeHandCropPreprocessor
             rotationRadians: rotationRadians,
             textureTransform: image.textureTransform,
             presentationSizePixels: simd_float2(presentationWidth, presentationHeight),
-            outputSize: simd_uint2(UInt32(self.outputWidth), UInt32(self.outputHeight))
+            outputSize: simd_uint2(UInt32(self.outputWidth), UInt32(self.outputHeight)),
+            outputPixelRange: self.outputPixelRange
         )
 
-        encoder.label = "MediaPipe hand crop, rotate, and normalize"
+        encoder.label = "MediaPipe crop, rotate, and normalize"
         encoder.setComputePipelineState(self.pipeline)
         encoder.setTexture(image.texture, index: 0)
         encoder.setBuffer(self.outputBuffer, offset: 0, index: 0)

@@ -1,5 +1,5 @@
 //
-//  MediaPipeHandDetectionNode.swift
+//  MediaPipeFaceDetectionNode.swift
 //  Fabric
 //
 
@@ -8,21 +8,32 @@ import Metal
 import Satin
 import simd
 
-/// Detects hands using MediaPipe's BlazePalm detector, run via a from-
-/// scratch MPSGraph port of the model's own resolved TFLite op graph (see
-/// MediaPipeTFLiteMPSGraph.swift) — no CoreML. Standalone comparison test
-/// against the RTMDet-based RegionDetectionNode — not wired into that
-/// pipeline. Outputs a region (matching RegionDetectionNode's own bottom-
-/// left-origin simd_float4 convention) plus a separate rotation in radians,
-/// rather than a composite rotated-rect type — MediaPipeHandLandmarkNode
+/// Detects faces using MediaPipe's BlazeFace (short-range) detector, run via
+/// the shared generic MPSGraph TFLite interpreter (see
+/// MediaPipeTFLiteMPSGraph.swift) — no CoreML. Standalone comparison path,
+/// mirroring MediaPipeHandDetectionNode's structure exactly (same shared
+/// anchor/decode/rect-transform types, same sync/async toggle). Outputs a
+/// region (matching RegionDetectionNode's own bottom-left-origin simd_float4
+/// convention) plus a separate rotation in radians — MediaPipeFaceLandmarkNode
 /// consumes both directly.
-public class MediaPipeHandDetectionNode: Node
+///
+/// Config values (128x128 input, 6 keypoints, [-1,1] pixel normalize,
+/// rotation from left/right eye targeting 0°, rect scale 1.5 with no shift)
+/// confirmed directly against mediapipe/modules/face_detection/
+/// face_detection_short_range.pbtxt and face_detection_front_detection_to_roi.pbtxt
+/// — there is no local third-party reference for BlazeFace the way
+/// fasthands.pipeline validated BlazePalm, so the CNN/anchor/decode math is
+/// numerically validated against the real converted model (see
+/// MediaPipeTFLiteMPSGraph.swift's header), but the ROI/rotation geometry is
+/// validated by formula derivation and hand-checked sanity cases only, not
+/// against a real detected face end-to-end.
+public class MediaPipeFaceDetectionNode: Node
 {
-    override public class var name: String { "MediaPipe Hand Detection" }
+    override public class var name: String { "MediaPipe Face Detection" }
     override public class var nodeType: Node.NodeType { .Image(imageType: .Analysis) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Detects hands using MediaPipe's BlazePalm detector, run via MPSGraph (test/comparison path, separate from RegionDetectionNode/RTMDet). Outputs a region and a separate rotation in radians — wire both into MediaPipe Hand Landmark's matching inputs." }
+    override public class var nodeDescription: String { "Detects faces using MediaPipe's BlazeFace short-range detector, run via MPSGraph (test/comparison path, separate from RegionDetectionNode/RTMDet — RTMDet has no face-detector checkpoint at all). Outputs a region and a separate rotation in radians — wire both into MediaPipe Face Landmark's matching inputs." }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
     {
@@ -30,14 +41,14 @@ public class MediaPipeHandDetectionNode: Node
 
         return ports +
         [
-            ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to detect hands in")),
-            ("inputMaxDetections", ParameterPort(parameter: IntParameter("Max Detections", 2, 1, 16, .inputfield, "Maximum number of hands to detect"))),
+            ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to detect faces in")),
+            ("inputMaxDetections", ParameterPort(parameter: IntParameter("Max Detections", 2, 1, 16, .inputfield, "Maximum number of faces to detect"))),
 
-            ("outputRegionsOfInterest", NodePort<ContiguousArray<simd_float4>>(name: "Regions", kind: .Outlet, description: "Detected hand regions, confidence-sorted descending, as (x, y, width, height) normalized bottom-left-origin rects")),
+            ("outputRegionsOfInterest", NodePort<ContiguousArray<simd_float4>>(name: "Regions", kind: .Outlet, description: "Detected face regions, confidence-sorted descending, as (x, y, width, height) normalized bottom-left-origin rects")),
             ("outputRegionOfInterest", NodePort<simd_float4>(name: "Region", kind: .Outlet, description: "The single best detected region, or the full frame (0,0,1,1) if nothing was detected")),
-            ("outputRotations", NodePort<ContiguousArray<Float>>(name: "Rotations", kind: .Outlet, description: "In-plane rotation in radians per region (index-aligned with Regions) — wrist-to-middle-finger angle, MediaPipe's own convention (image-raster Y-down, independent of the region's bottom-left-origin coordinate convention)")),
+            ("outputRotations", NodePort<ContiguousArray<Float>>(name: "Rotations", kind: .Outlet, description: "In-plane rotation in radians per region (index-aligned with Regions) — left-eye-to-right-eye angle, MediaPipe's own convention (image-raster Y-down, independent of the region's bottom-left-origin coordinate convention)")),
             ("outputRotation", NodePort<Float>(name: "Rotation", kind: .Outlet, description: "Rotation for the single best region, or 0 if nothing was detected")),
-            ("outputDetectionCount", NodePort<Int>(name: "Count", kind: .Outlet, description: "Number of hands actually detected")),
+            ("outputDetectionCount", NodePort<Int>(name: "Count", kind: .Outlet, description: "Number of faces actually detected")),
         ]
     }
 
@@ -52,14 +63,14 @@ public class MediaPipeHandDetectionNode: Node
 
     private static let fullFrameRegion = simd_float4(0, 0, 1, 1)
 
-    // BlazePalm-specific constants (see MediaPipeSSDDetectorDecoder/
-    // MediaPipeSSDRectTransform's doc comments for BlazeFace's own values).
-    private static let detectSize = 192
-    private static let numKeypoints = 7
-    private static let rotationKeypoints = (start: 0, end: 2) // wrist -> middle finger MCP
-    private static let targetAngleRadians: Float = 90.0 // a real MediaPipe proto quirk -- see computeRotation's doc comment
-    private static let rectScale: Float = 2.6
-    private static let rectShiftY: Float = -0.5
+    // BlazeFace-short-range-specific constants (see MediaPipeHandDetectionNode
+    // for BlazePalm's own values — same shared types, different constants).
+    private static let detectSize = 128
+    private static let numKeypoints = 6
+    private static let detectorPixelRange: (min: Float, max: Float) = (-1, 1)
+    private static let rotationKeypoints = (start: 0, end: 1) // left eye -> right eye
+    private static let targetAngleRadians: Float = 0.0
+    private static let rectScale: Float = 1.5
 
     private static let anchors = MediaPipeSSDAnchors.generate(detectSize: detectSize)
 
@@ -67,11 +78,7 @@ public class MediaPipeHandDetectionNode: Node
     private static let modelLock = NSLock()
 
     /// Not a Setting yet — a plain toggle while the async path is
-    /// validated, mirroring HandPoseAnalysisNode's own toggle. false:
-    /// synchronous run(), blocks execute() until the GPU finishes. true:
-    /// submit(), which encodes crop+inference onto one command buffer
-    /// without waiting and updates lastRects from a completion callback
-    /// ~1 frame (or more, under load) later.
+    /// validated, mirroring MediaPipeHandDetectionNode's own toggle.
     private static let useAsynchronousInference = true
 
     private var preprocessor: MediaPipeCropPreprocessor?
@@ -124,13 +131,14 @@ public class MediaPipeHandDetectionNode: Node
 
     private func detect(image: FabricImage, maxDetections: Int) throws -> [(region: simd_float4, rotation: Float, score: Float)]
     {
-        let preprocessor = try self.preprocessor ?? MediaPipeCropPreprocessor(device: self.context.device, outputWidth: Self.detectSize, outputHeight: Self.detectSize)
+        let preprocessor = try self.preprocessor ?? MediaPipeCropPreprocessor(device: self.context.device, outputWidth: Self.detectSize, outputHeight: Self.detectSize, outputPixelRange: Self.detectorPixelRange)
         self.preprocessor = preprocessor
 
         let model = try Self.mpsGraphModel(commandQueue: self.context.commandQueue)
 
         // Letterbox: full image, no rotation, square side = max(iw, ih),
-        // centered — matches fasthands.pipeline._detect_rects exactly.
+        // centered — matches MediaPipeHandDetectionNode's own letterbox
+        // (same ImageToTensorCalculator keep_aspect_ratio convention).
         let presentationSize = image.presentationSize
         let imageWidth = Float(presentationSize.width)
         let imageHeight = Float(presentationSize.height)
@@ -156,7 +164,7 @@ public class MediaPipeHandDetectionNode: Node
     /// matching detect()'s no-backlog semantics.
     private func submitDetect(image: FabricImage, maxDetections: Int) throws
     {
-        let preprocessor = try self.preprocessor ?? MediaPipeCropPreprocessor(device: self.context.device, outputWidth: Self.detectSize, outputHeight: Self.detectSize)
+        let preprocessor = try self.preprocessor ?? MediaPipeCropPreprocessor(device: self.context.device, outputWidth: Self.detectSize, outputHeight: Self.detectSize, outputPixelRange: Self.detectorPixelRange)
         self.preprocessor = preprocessor
 
         let model = try Self.mpsGraphModel(commandQueue: self.context.commandQueue)
@@ -168,7 +176,7 @@ public class MediaPipeHandDetectionNode: Node
 
         guard let commandBuffer = self.context.commandQueue.makeCommandBuffer() else
         {
-            throw FabricError(.execution(.gpu), severity: .recoverable, message: "Could not create asynchronous MediaPipe hand detection command buffer")
+            throw FabricError(.execution(.gpu), severity: .recoverable, message: "Could not create asynchronous MediaPipe face detection command buffer")
         }
 
         let inputBuffer = try preprocessor.encode(
@@ -196,7 +204,7 @@ public class MediaPipeHandDetectionNode: Node
             let rect = MediaPipeSSDRectTransform.rect(
                 from: projected, imageWidth: imageWidth, imageHeight: imageHeight,
                 rotationKeypoints: Self.rotationKeypoints, targetAngleRadians: Self.targetAngleRadians,
-                rectScale: Self.rectScale, rectShiftY: Self.rectShiftY
+                rectScale: Self.rectScale
             )
 
             // Convert (cx, cy, w, h) top-left-origin normalized -> Fabric's
@@ -220,12 +228,12 @@ public class MediaPipeHandDetectionNode: Node
         if let existing = Self.cachedModel { return existing }
 
         guard
-            let binaryURL = Bundle.module.url(forResource: "MediaPipeHandDetector_weights", withExtension: "bin", subdirectory: "Models/Pose"),
-            let manifestURL = Bundle.module.url(forResource: "MediaPipeHandDetector_weights", withExtension: "json", subdirectory: "Models/Pose"),
-            let opsURL = Bundle.module.url(forResource: "MediaPipeHandDetector_ops", withExtension: "json", subdirectory: "Models/Pose")
+            let binaryURL = Bundle.module.url(forResource: "MediaPipeFaceDetector_weights", withExtension: "bin", subdirectory: "Models/Pose"),
+            let manifestURL = Bundle.module.url(forResource: "MediaPipeFaceDetector_weights", withExtension: "json", subdirectory: "Models/Pose"),
+            let opsURL = Bundle.module.url(forResource: "MediaPipeFaceDetector_ops", withExtension: "json", subdirectory: "Models/Pose")
         else
         {
-            throw FabricError(.execution(.failed), severity: .recoverable, message: "Could not find bundled MediaPipeHandDetector graph resources")
+            throw FabricError(.execution(.failed), severity: .recoverable, message: "Could not find bundled MediaPipeFaceDetector graph resources")
         }
 
         let model = try MediaPipeTFLiteMPSGraph(

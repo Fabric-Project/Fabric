@@ -1,21 +1,24 @@
 // MediaPipeTFLiteMPSGraph.swift
 //
-// From-scratch MPSGraph reimplementation of MediaPipe's BlazePalm hand
-// detector and hand-landmark model, run directly on GPU — no CoreML. Unlike
-// RTMPoseMPSGraph/RTMDetMPSGraph (hand-identified architectures, built from
-// mmdetection/mmpose source), this walks a generic, fully-resolved TFLite
-// op graph exported by Tools/ModelConversion/MediaPipeHands/
-// dump_tflite_graph.py (itself reusing Mediapipe-Hands-PyTorch-CoreML's own
-// tflite_graph.TFLiteModule to resolve padding/groups/NHWC-vs-NCHW layout
-// once, offline) — lower-risk than re-deriving BlazePalm/BlazeHand's block
-// structure by hand, since the op sequence is already fully resolved and
-// this interprets it directly rather than pattern-matching it.
+// From-scratch MPSGraph reimplementation of any MediaPipe "Blaze"-family
+// TFLite model, run directly on GPU — no CoreML. Shared by BlazePalm/
+// BlazeHand (hand detector + landmark model) and BlazeFace/FaceMesh (face
+// detector + landmark model) — a single generic interpreter, not a
+// per-model port. Unlike RTMPoseMPSGraph/RTMDetMPSGraph (hand-identified
+// architectures, built from mmdetection/mmpose source), this walks a
+// generic, fully-resolved TFLite op graph exported by
+// Tools/ModelConversion/MediaPipeHands/dump_tflite_graph.py (itself reusing
+// Mediapipe-Hands-PyTorch-CoreML's own tflite_graph.TFLiteModule to resolve
+// padding/groups/NHWC-vs-NCHW layout once, offline) — lower-risk than
+// re-deriving each model's block structure by hand, since the op sequence
+// is already fully resolved and this interprets it directly rather than
+// pattern-matching it.
 //
 // Numerically validated against tflite_graph.TFLiteModule's own PyTorch
-// execution of the same op graph on identical random input: ~1e-4 absolute
-// on the detector's raw box regression (values up to ~18, so ~1e-5
-// relative), ~1e-5 on the landmark model's outputs — both float32-precision
-// noise, not a structural mismatch.
+// execution of the same op graph on identical random input, for all four
+// models: ~1e-4 absolute (BlazePalm), ~7.6e-5 (BlazeFace), ~4e-5
+// (BlazeHand landmark), ~3.8e-5 (FaceMesh) — all float32-precision noise,
+// not a structural mismatch.
 
 import Foundation
 import Metal
@@ -55,7 +58,7 @@ final class MediaPipeTFLiteMPSGraph
         let inputIds = (opsJSON["inputIds"] as! [Any]).map { ($0 as! NSNumber).intValue }
         let outputIds = (opsJSON["outputIds"] as! [Any]).map { ($0 as! NSNumber).intValue }
 
-        // Input arrives NHWC (MediaPipeHandCropPreprocessor's own output
+        // Input arrives NHWC (MediaPipeCropPreprocessor's own output
         // layout, matching TFLite's native format); TFLiteModule's own
         // forward() immediately permutes to NCHW, so match that exactly —
         // every op after this point operates in NCHW.
@@ -102,7 +105,7 @@ final class MediaPipeTFLiteMPSGraph
         return descriptor
     }
 
-    /// `inputBuffer` is NHWC float32, matching MediaPipeHandCropPreprocessor's
+    /// `inputBuffer` is NHWC float32, matching MediaPipeCropPreprocessor's
     /// output exactly — fed straight into the compiled executable, no CPU
     /// round-trip. Returns each output tensor's flattened values in the
     /// model's own output order.
@@ -352,6 +355,12 @@ final class MediaPipeTFLiteMPSGraph
 
         case "LOGISTIC":
             return graph.sigmoid(with: input(0), name: nil)
+
+        case "RELU":
+            // Standalone (not fused into a conv/add's activation option) —
+            // BlazeFace's detector uses plain ReLU throughout instead of
+            // BlazePalm/BlazeHand's PReLU.
+            return graph.reLU(with: input(0), name: nil)
 
         default:
             fatalError("Unhandled TFLite op type: \(op.type)")

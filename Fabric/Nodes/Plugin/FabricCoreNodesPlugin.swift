@@ -213,6 +213,8 @@ public final class FabricCoreNodesPlugin: NSObject, FabricPlugin
             WholeBodyPoseDetectionNode.self,
             MediaPipeHandDetectionNode.self,
             MediaPipeHandLandmarkNode.self,
+            MediaPipeFaceDetectionNode.self,
+            MediaPipeFaceLandmarkNode.self,
             LucasKanadeOpticalFlowNode.self,
             LocalVLMNode.self,
             ContourPathNode.self,

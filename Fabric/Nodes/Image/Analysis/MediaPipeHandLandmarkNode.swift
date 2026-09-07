@@ -75,7 +75,7 @@ public class MediaPipeHandLandmarkNode: Node
     /// ~1 frame (or more, under load) later.
     private static let useAsynchronousInference = true
 
-    private var preprocessor: MediaPipeHandCropPreprocessor?
+    private var preprocessor: MediaPipeCropPreprocessor?
 
     private let lastLandmarksLock = NSLock()
     private var lastLandmarksStorage: [simd_float3] = []
@@ -133,7 +133,7 @@ public class MediaPipeHandLandmarkNode: Node
 
     private func runLandmarks(image: FabricImage, region: simd_float4, rotation: Float) throws -> [simd_float3]
     {
-        let preprocessor = try self.preprocessor ?? MediaPipeHandCropPreprocessor(device: self.context.device, outputWidth: Self.inputSize, outputHeight: Self.inputSize)
+        let preprocessor = try self.preprocessor ?? MediaPipeCropPreprocessor(device: self.context.device, outputWidth: Self.inputSize, outputHeight: Self.inputSize)
         self.preprocessor = preprocessor
 
         let model = try Self.mpsGraphModel(commandQueue: self.context.commandQueue)
@@ -160,7 +160,7 @@ public class MediaPipeHandLandmarkNode: Node
     /// matching runLandmarks()'s no-backlog semantics.
     private func submitLandmarks(image: FabricImage, region: simd_float4, rotation: Float) throws
     {
-        let preprocessor = try self.preprocessor ?? MediaPipeHandCropPreprocessor(device: self.context.device, outputWidth: Self.inputSize, outputHeight: Self.inputSize)
+        let preprocessor = try self.preprocessor ?? MediaPipeCropPreprocessor(device: self.context.device, outputWidth: Self.inputSize, outputHeight: Self.inputSize)
         self.preprocessor = preprocessor
 
         let model = try Self.mpsGraphModel(commandQueue: self.context.commandQueue)
@@ -201,7 +201,7 @@ public class MediaPipeHandLandmarkNode: Node
         let handedness = handednessRaw.first ?? 0
 
         // MediaPipeHandLandmarkProjection's rect.cy is top-left-origin
-        // (matching MediaPipeHandRectTransform.handRect's own convention),
+        // (matching MediaPipeSSDRectTransform.rect's own convention),
         // but `center` above is bottom-left-origin (the preprocessor's own
         // parameter flips it back internally) -- flip here for the
         // projection math, then flip the resulting landmarks' y back to

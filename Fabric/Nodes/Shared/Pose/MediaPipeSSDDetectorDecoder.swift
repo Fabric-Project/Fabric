@@ -1,50 +1,59 @@
 //
-//  MediaPipeHandDetectorDecoder.swift
+//  MediaPipeSSDDetectorDecoder.swift
 //  Fabric
 //
 
 import Foundation
 
-/// Decodes BlazePalm's raw per-anchor output (TensorsToDetectionsCalculator)
-/// and merges overlapping detections (NonMaxSuppressionCalculator,
-/// algorithm=WEIGHTED — a score-weighted average of overlapping boxes, not a
-/// greedy suppress like RTMDetDecoder's). Ported from
-/// fasthands.pipeline.decode_detections/weighted_nms/iou, numerically
-/// validated against that Python reference (and the real bundled
-/// MediaPipeHandDetector.mlpackage's output on a real image) to float32
-/// precision. Pure Swift, no CoreML dependency — independently unit-testable
-/// against synthetic tensors, matching RTMDetDecoderTests' pattern.
-enum MediaPipeHandDetectorDecoder
+/// Decodes a "Blaze"-family SSD detector's raw per-anchor output
+/// (TensorsToDetectionsCalculator) and merges overlapping detections
+/// (NonMaxSuppressionCalculator, algorithm=WEIGHTED — a score-weighted
+/// average of overlapping boxes, not a greedy suppress like
+/// RTMDetDecoder's). Shared by BlazePalm (hand) and BlazeFace, which use
+/// this exact calculator pair with different `numKeypoints`/`detectSize`.
+///
+/// BlazePalm's box/keypoint decode ported from and validated against
+/// fasthands.pipeline.decode_detections/weighted_nms/iou (a validated
+/// third-party port) to float32 precision on the real bundled
+/// MediaPipeHandDetector model's output on a real image. BlazeFace's decode
+/// confirmed by reading mediapipe/calculators/tensor/
+/// tensors_to_detections_calculator.cc directly: `reverse_output_order`
+/// selects `XYWH` box-channel order, matching what BlazePalm already
+/// assumed (BlazePalm's own — older — calculator has no such flag and uses
+/// the equivalent fixed order), so the same decode formula applies to both
+/// unmodified. Pure Swift, no CoreML dependency — independently
+/// unit-testable against synthetic tensors, matching RTMDetDecoderTests'
+/// pattern.
+enum MediaPipeSSDDetectorDecoder
 {
-    static let numKeypoints = 7
     static let minDetectionConfidence: Float = 0.5
     static let nmsThreshold: Float = 0.3
     static let scoreClippingThreshold: Float = 100.0
 
-    /// All coordinates normalized [0,1] in the detector's 192x192 tensor
-    /// space, top-left origin (MediaPipe/OpenCV convention) — callers project
-    /// into full-image space separately (see MediaPipeHandDetectionNode).
+    /// All coordinates normalized [0,1] in the detector's tensor space,
+    /// top-left origin (MediaPipe/OpenCV convention) — callers project into
+    /// full-image space separately.
     struct Detection
     {
         var xmin: Float
         var ymin: Float
         var width: Float
         var height: Float
-        /// 7 palm keypoints (x,y) — index 0 is the wrist, index 2 is the
-        /// middle finger's MCP joint; both are used downstream to compute
-        /// the hand's in-plane rotation.
         var keypoints: [(x: Float, y: Float)]
         var score: Float
     }
 
-    /// `rawBoxes` is the flattened [2016,18] box-regression tensor (per
-    /// anchor: 4 box values + 7 keypoints x,y), `rawScores` the flattened
-    /// [2016,1] (really [2016]) classification tensor — both in the exact
-    /// row-major order MLMultiArray/numpy already produce, straight off the
-    /// model's two outputs, no MLMultiArray dependency here.
-    static func decode(rawBoxes: [Float], rawScores: [Float], anchors: [(cx: Float, cy: Float, w: Float, h: Float)]) -> [Detection]
+    /// `rawBoxes` is the flattened `[anchors, 4 + numKeypoints*2]` box-
+    /// regression tensor, `rawScores` the flattened `[anchors]`
+    /// classification tensor — both in the exact row-major order
+    /// MLMultiArray/numpy already produce, straight off the model's two
+    /// outputs. `detectSize` is the square detector input size (192 for
+    /// BlazePalm, 128 for BlazeFace) — box/keypoint regression values are
+    /// scaled by it before being added to each anchor's center.
+    static func decode(rawBoxes: [Float], rawScores: [Float], anchors: [(cx: Float, cy: Float, w: Float, h: Float)], numKeypoints: Int, detectSize: Int) -> [Detection]
     {
-        let scale = Float(MediaPipeHandAnchors.detectSize)
+        let scale = Float(detectSize)
+        let coordsPerAnchor = 4 + numKeypoints * 2
         var detections: [Detection] = []
 
         for anchorIndex in 0..<anchors.count
@@ -56,7 +65,7 @@ enum MediaPipeHandDetectorDecoder
             guard score >= minDetectionConfidence else { continue }
 
             let anchor = anchors[anchorIndex]
-            let base = anchorIndex * 18
+            let base = anchorIndex * coordsPerAnchor
 
             let xc = rawBoxes[base + 0] / scale * anchor.w + anchor.cx
             let yc = rawBoxes[base + 1] / scale * anchor.h + anchor.cy
@@ -95,9 +104,15 @@ enum MediaPipeHandDetectorDecoder
     /// WEIGHTED NMS: each retained detection is a score-weighted average of
     /// itself and every remaining detection whose IoU with it exceeds
     /// `nmsThreshold` — not a greedy suppress. Matches
-    /// fasthands.pipeline.weighted_nms exactly, including iterating IoU
-    /// against the full remaining set (the top detection always matches
-    /// itself with IoU 1.0 and is folded into its own merge).
+    /// fasthands.pipeline.weighted_nms exactly (also confirmed as BlazeFace's
+    /// own NonMaxSuppressionCalculator config: algorithm=WEIGHTED,
+    /// min_suppression_threshold=0.3 — identical to BlazePalm's), including
+    /// iterating IoU against the full remaining set. `top` is removed from
+    /// `remaining` unconditionally (not via its own self-IoU exceeding
+    /// `nmsThreshold`) so the loop provably terminates even for a
+    /// degenerate (zero-width) detection, whose self-IoU is 0 — see
+    /// intersectionOverUnion's early-out. (This is the fix for a real
+    /// infinite-loop bug hit during BlazePalm bring-up.)
     static func weightedNonMaximumSuppression(_ detections: [Detection]) -> [Detection]
     {
         var remaining = detections.sorted { $0.score > $1.score }
@@ -105,11 +120,6 @@ enum MediaPipeHandDetectorDecoder
 
         while remaining.isEmpty == false
         {
-            // Removing `top` unconditionally (rather than relying on its own
-            // self-IoU exceeding nmsThreshold) guarantees `remaining` shrinks
-            // every iteration — a zero-width/degenerate detection has a
-            // self-IoU of 0 (see intersectionOverUnion's early-out), which
-            // would otherwise leave it stuck in `remaining` forever.
             let top = remaining.removeFirst()
             let overlaps = remaining.map { intersectionOverUnion($0, top) }
             let candidates = [top] + zip(remaining, overlaps).filter { $0.1 > nmsThreshold }.map(\.0)
@@ -120,7 +130,7 @@ enum MediaPipeHandDetectorDecoder
             {
                 var weightedXmin: Float = 0, weightedYmin: Float = 0, weightedXmax: Float = 0, weightedYmax: Float = 0
                 var totalScore: Float = 0
-                var keypointAccumulator = [(x: Float, y: Float)](repeating: (0, 0), count: numKeypoints)
+                var keypointAccumulator = [(x: Float, y: Float)](repeating: (0, 0), count: top.keypoints.count)
 
                 for candidate in candidates
                 {
@@ -129,7 +139,7 @@ enum MediaPipeHandDetectorDecoder
                     weightedYmin += candidate.ymin * candidate.score
                     weightedXmax += (candidate.xmin + candidate.width) * candidate.score
                     weightedYmax += (candidate.ymin + candidate.height) * candidate.score
-                    for keypointIndex in 0..<numKeypoints
+                    for keypointIndex in 0..<top.keypoints.count
                     {
                         keypointAccumulator[keypointIndex].x += candidate.keypoints[keypointIndex].x * candidate.score
                         keypointAccumulator[keypointIndex].y += candidate.keypoints[keypointIndex].y * candidate.score
@@ -149,14 +159,20 @@ enum MediaPipeHandDetectorDecoder
         return merged
     }
 
-    /// DetectionsToRectsCalculator::ComputeRotation, reproduced exactly: the
-    /// "90" is in RADIANS, not degrees — a MediaPipe proto quirk (the tasks
-    /// graph sets rotation_vector_target_angle(90), and that field's units
-    /// are radians; the _degrees variant is a separate proto field).
-    static func computeRotation(wrist: (x: Float, y: Float), middleMCP: (x: Float, y: Float)) -> Float
+    /// DetectionsToRectsCalculator::ComputeRotation, generalized over which
+    /// two keypoints define the rotation vector and the target angle:
+    /// BlazePalm uses (wrist=0, middleMCP=2), target 90 — reproduced
+    /// exactly including a real MediaPipe proto quirk (the tasks graph sets
+    /// rotation_vector_target_angle(90), whose units are radians, not the
+    /// separate _degrees field — so the effective target really is 90
+    /// radians, confirmed against fasthands.pipeline's own comment to this
+    /// effect). BlazeFace uses (leftEye=0, rightEye=1), target 0 (confirmed
+    /// against mediapipe/modules/face_landmark/
+    /// face_detection_front_detection_to_roi.pbtxt's
+    /// rotation_vector_target_angle_degrees:0, i.e. 0 radians either way).
+    static func computeRotation(from startPoint: (x: Float, y: Float), to endPoint: (x: Float, y: Float), targetAngleRadians: Float) -> Float
     {
-        let targetAngle: Float = 90.0
-        let angle = targetAngle - atan2(-(middleMCP.y - wrist.y), middleMCP.x - wrist.x)
+        let angle = targetAngleRadians - atan2(-(endPoint.y - startPoint.y), endPoint.x - startPoint.x)
         return normalizeRadians(angle)
     }
 
