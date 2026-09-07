@@ -43,6 +43,7 @@ enum RTMPoseInference
     static func run(image: FabricImage, regionOfInterest: simd_float4, modelIdentity: RTMModelCache.ModelIdentity, keypointCount: Int, ciContext: CIContext? = nil, device: MTLDevice, commandQueue: MTLCommandQueue? = nil) throws -> [simd_float2]
     {
         let modelInputSize = Self.inputSize(for: modelIdentity)
+        let croppedRegion = Self.topDownCroppedRegion(regionOfInterest: regionOfInterest, presentationSize: image.presentationSize, modelInputSize: modelInputSize)
 
         let decodedInModelSpace: [(position: simd_float2, confidence: Float)]
 
@@ -55,14 +56,14 @@ enum RTMPoseInference
             let mpsModel = try Self.handMPSGraphModel(commandQueue: commandQueue)
             let (simccXValues, simccYValues) = try mpsModel.run(
                 image: image,
-                regionOfInterest: regionOfInterest
+                regionOfInterest: croppedRegion
             )
             decodedInModelSpace = SimCCDecoder.decodeAll(simccX: simccXValues, simccY: simccYValues, keypointCount: keypointCount)
         }
         else
         {
             guard let ciContext else { return [] }
-            guard let pixelBuffer = ANEInputBuffer.cropAndScale(image: image, regionOfInterest: regionOfInterest, destSize: modelInputSize, ciContext: ciContext) else
+            guard let pixelBuffer = ANEInputBuffer.cropAndScale(image: image, regionOfInterest: croppedRegion, destSize: modelInputSize, ciContext: ciContext) else
             {
                 return []
             }
@@ -81,7 +82,7 @@ enum RTMPoseInference
             decodedInModelSpace = SimCCDecoder.decodeAll(simccX: simccX, simccY: simccY, keypointCount: keypointCount)
         }
 
-        return Self.remapToFullImage(decodedInModelSpace, regionOfInterest: regionOfInterest, modelInputSize: modelInputSize)
+        return Self.remapToFullImage(decodedInModelSpace, regionOfInterest: croppedRegion, modelInputSize: modelInputSize)
     }
 
     /// Asynchronous hand-pose path: kicks off GPU work via RTMPoseMPSGraph's
@@ -101,11 +102,12 @@ enum RTMPoseInference
         }
         let mpsModel = try Self.handMPSGraphModel(commandQueue: commandQueue)
         let modelInputSize = Self.inputSize(for: .handPose)
+        let croppedRegion = Self.topDownCroppedRegion(regionOfInterest: regionOfInterest, presentationSize: image.presentationSize, modelInputSize: modelInputSize)
 
-        try mpsModel.submit(image: image, regionOfInterest: regionOfInterest) { result in
+        try mpsModel.submit(image: image, regionOfInterest: croppedRegion) { result in
             guard case .success(let simcc) = result else { return }
             let decoded = SimCCDecoder.decodeAll(simccX: simcc.simccX, simccY: simcc.simccY, keypointCount: keypointCount)
-            completion(Self.remapToFullImage(decoded, regionOfInterest: regionOfInterest, modelInputSize: modelInputSize))
+            completion(Self.remapToFullImage(decoded, regionOfInterest: croppedRegion, modelInputSize: modelInputSize))
         }
     }
 
@@ -127,6 +129,54 @@ enum RTMPoseInference
                 regionOfInterest.y + normalizedInROIBottomLeft.y * regionOfInterest.w
             )
         }
+    }
+
+    /// Reproduces mmpose's top-down crop convention exactly — confirmed
+    /// against the installed package source (GetBBoxCenterScale.transform
+    /// in datasets/transforms/common_transforms.py, default padding=1.25;
+    /// TopdownAffine._fix_aspect_ratio in datasets/transforms/
+    /// topdown_transforms.py). Every bundled RTMPose checkpoint was trained
+    /// on boxes padded 1.25x around the detected bbox's center and then
+    /// expanded — never shrunk — on whichever axis is short so the box's
+    /// aspect ratio matches the model's own input aspect ratio, before a
+    /// uniform (non-distorting) scale into the input rect. RTMDetDecoder
+    /// returns the raw, tight detector box; applying this once here, ahead
+    /// of both the CoreML and MPSGraph backends, keeps the crop shape
+    /// consistent with training instead of stretching a tight box to fit —
+    /// this does not touch what RegionDetectionNode publishes on its own
+    /// output ports, which stay the honest, tight detection box.
+    private static func topDownCroppedRegion(regionOfInterest: simd_float4, presentationSize: CGSize, modelInputSize: CGSize, padding: Float = 1.25) -> simd_float4
+    {
+        let imageWidth = Float(presentationSize.width)
+        let imageHeight = Float(presentationSize.height)
+        guard imageWidth > 0, imageHeight > 0 else { return regionOfInterest }
+
+        // Aspect ratio must be computed in real pixels, not per-axis
+        // normalized units — a non-square source image otherwise skews it.
+        let pixelWidth = regionOfInterest.z * imageWidth
+        let pixelHeight = regionOfInterest.w * imageHeight
+        let centerX = regionOfInterest.x * imageWidth + pixelWidth * 0.5
+        let centerY = regionOfInterest.y * imageHeight + pixelHeight * 0.5
+
+        var scaleWidth = pixelWidth * padding
+        var scaleHeight = pixelHeight * padding
+
+        let targetAspectRatio = Float(modelInputSize.width) / Float(modelInputSize.height)
+        if scaleWidth > scaleHeight * targetAspectRatio
+        {
+            scaleHeight = scaleWidth / targetAspectRatio
+        }
+        else
+        {
+            scaleWidth = scaleHeight * targetAspectRatio
+        }
+
+        return simd_float4(
+            (centerX - scaleWidth * 0.5) / imageWidth,
+            (centerY - scaleHeight * 0.5) / imageHeight,
+            scaleWidth / imageWidth,
+            scaleHeight / imageHeight
+        )
     }
 
     /// Pose model input resolutions (height matches the "H×W" convention

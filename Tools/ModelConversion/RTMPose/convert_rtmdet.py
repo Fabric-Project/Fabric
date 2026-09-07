@@ -56,6 +56,14 @@ class RTMDetTraceWrapper(torch.nn.Module):
         # entry per FPN level — confirm this against the actual head class
         # for the config being converted.
         cls_scores, bbox_preds = self.bbox_head.forward(features)
+        # forward() returns raw pre-sigmoid logits (confirmed against
+        # RTMDetSepBNHead.forward in mmdet/models/dense_heads/rtmdet_head.py —
+        # cls_score is the bare conv output unless with_objectness is set,
+        # and even then it's inverse_sigmoid'd, i.e. still logit-space).
+        # mmdet's own predict_by_feat applies sigmoid before thresholding;
+        # baking it in here keeps RTMDetDecoder's scoreThreshold comparable
+        # to an actual probability instead of a logit.
+        cls_scores = [score.sigmoid() for score in cls_scores]
         return tuple(cls_scores) + tuple(bbox_preds)
 
 
@@ -104,6 +112,15 @@ def convert(config_path: str, checkpoint_path: str, input_size: tuple[int, int],
         outputs=[ct.TensorType(name=name) for name in output_names],
         convert_to="mlprogram",
         compute_units=getattr(ct.ComputeUnit, compute_units),
+        # mlprogram defaults to FP16 weights/activations. Verified empirically
+        # (isolated re-conversion, same checkpoint) that this alone produces
+        # ~0.1 absolute score error and ~35px box error on this backbone+neck
+        # +head depth -- not a code bug, but too coarse for NMS thresholds to
+        # be meaningful. FLOAT32 brought both down to ~1e-3 / ~0.2px. RTMDet-
+        # nano is small enough that the FP16->FP32 tradeoff isn't a real
+        # speed concern here; re-check if that stops being true for a larger
+        # detector variant.
+        compute_precision=ct.precision.FLOAT32,
         minimum_deployment_target=ct.target.iOS17,
     )
 

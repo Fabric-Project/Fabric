@@ -31,8 +31,13 @@ enum RTMDetDecoder
     /// `perLevelScores[i]` and `perLevelBoxDistances[i]` must correspond to
     /// the same FPN level, decoded at `strides[i]`. Expected shapes (confirm
     /// against the actual converted model before relying on this):
-    /// scores `[1, 1, H, W]` (single class), box distances `[1, 4, H, W]`
-    /// ordered (left, top, right, bottom).
+    /// scores `[1, 1, H, W]` (single class, sigmoid probability — baked into
+    /// the traced model by convert_rtmdet.py, since RTMDetSepBNHead.forward
+    /// itself returns pre-sigmoid logits), box distances `[1, 4, H, W]`
+    /// ordered (left, top, right, bottom), already multiplied by that
+    /// level's stride (RTMDetSepBNHead.forward does `reg_dist * stride`
+    /// internally when exp_on_reg=False, confirmed for the person/hand
+    /// nano configs — re-check exp_on_reg for any other converted config).
     static func decode(
         perLevelScores: [MLMultiArray],
         perLevelBoxDistances: [MLMultiArray],
@@ -87,13 +92,20 @@ enum RTMDetDecoder
                 let score = scoreBuffer[planeIndex]
                 guard score >= scoreThreshold else { continue }
 
-                let centerX = (Float(column) + 0.5) * Float(stride)
-                let centerY = (Float(row) + 0.5) * Float(stride)
+                // MlvlPointGenerator grid points are (column + offset) *
+                // stride; both the person and hand nano configs set
+                // anchor_generator.offset = 0 (not the library default of
+                // 0.5) — re-check this for any other converted config.
+                let centerX = Float(column) * Float(stride)
+                let centerY = Float(row) * Float(stride)
 
-                let left = distanceBuffer[0 * planeSize + planeIndex] * Float(stride)
-                let top = distanceBuffer[1 * planeSize + planeIndex] * Float(stride)
-                let right = distanceBuffer[2 * planeSize + planeIndex] * Float(stride)
-                let bottom = distanceBuffer[3 * planeSize + planeIndex] * Float(stride)
+                // Already in absolute pixel units — RTMDetSepBNHead.forward
+                // multiplies by stride before returning (see decode(...)'s
+                // doc comment), so no further scaling here.
+                let left = distanceBuffer[0 * planeSize + planeIndex]
+                let top = distanceBuffer[1 * planeSize + planeIndex]
+                let right = distanceBuffer[2 * planeSize + planeIndex]
+                let bottom = distanceBuffer[3 * planeSize + planeIndex]
 
                 // Box in top-left-origin pixel space first...
                 let x0 = centerX - left

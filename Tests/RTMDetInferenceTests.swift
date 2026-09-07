@@ -1,4 +1,3 @@
-import CoreImage
 import Foundation
 import Metal
 import Testing
@@ -16,7 +15,7 @@ struct RTMDetInferenceTests
         return FabricImage.unmanaged(texture: texture)
     }
 
-    // Whether Models/Pose has the RTMDet detector .mlpackage files bundled
+    // Whether Models/Pose has the RTMDet detector weight files bundled
     // varies by environment, so this tolerates either outcome — a missing
     // bundled model throws, which is swallowed to an empty result here
     // rather than treated as a test failure.
@@ -24,9 +23,9 @@ struct RTMDetInferenceTests
     func runIsSafeWithOrWithoutBundledModel()
     {
         guard let image = makeDummyImage() else { return }
-        let ciContext = CIContext()
+        guard let commandQueue = image.texture.device.makeCommandQueue() else { return }
 
-        let result = (try? RTMDetInference.run(image: image, targetClass: .personDetector, maxDetections: 1, ciContext: ciContext)) ?? []
+        let result = (try? RTMDetInference.run(image: image, targetClass: .personDetector, maxDetections: 1, device: image.texture.device, commandQueue: commandQueue)) ?? []
 
         for detection in result
         {

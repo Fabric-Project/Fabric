@@ -88,15 +88,18 @@ class WeightExporter:
         print(f"wrote {output_prefix}.json")
 
 
-def export_cspnext_block(exporter: WeightExporter, state_dict: dict, prefix: str, export_prefix: str, depthwise_conv2: bool):
-    """CSPNeXtBlock: conv1 (plain ConvModule) + conv2 (DepthwiseSeparableConvModule)."""
-    exporter.add_conv_bn(state_dict, f"{prefix}.conv1", f"{export_prefix}.conv1")
-    if depthwise_conv2:
-        # DepthwiseSeparableConvModule = depthwise_conv (ConvModule) + pointwise_conv (ConvModule)
-        exporter.add_conv_bn(state_dict, f"{prefix}.conv2.depthwise_conv", f"{export_prefix}.conv2_depthwise")
-        exporter.add_conv_bn(state_dict, f"{prefix}.conv2.pointwise_conv", f"{export_prefix}.conv2_pointwise")
+def export_cspnext_block(exporter: WeightExporter, state_dict: dict, prefix: str, export_prefix: str, use_depthwise: bool = False):
+    """CSPNeXtBlock: conv1 is ConvModule if not use_depthwise, else
+    DepthwiseSeparableConvModule (conditional on the SAME use_depthwise flag
+    as the enclosing CSPLayer/backbone/neck -- confirmed against mmdetection's
+    layers/csp_layer.py CSPNeXtBlock.__init__). conv2 is
+    DepthwiseSeparableConvModule UNCONDITIONALLY -- hardcoded in
+    CSPNeXtBlock regardless of use_depthwise, confirmed same source."""
+    if use_depthwise:
+        export_depthwise_separable(exporter, state_dict, f"{prefix}.conv1", f"{export_prefix}.conv1")
     else:
-        exporter.add_conv_bn(state_dict, f"{prefix}.conv2", f"{export_prefix}.conv2")
+        exporter.add_conv_bn(state_dict, f"{prefix}.conv1", f"{export_prefix}.conv1")
+    export_depthwise_separable(exporter, state_dict, f"{prefix}.conv2", f"{export_prefix}.conv2")
 
 
 def export_channel_attention(exporter: WeightExporter, state_dict: dict, prefix: str, export_prefix: str):
@@ -115,11 +118,15 @@ def export_channel_attention(exporter: WeightExporter, state_dict: dict, prefix:
 
 
 def export_csp_layer(exporter: WeightExporter, state_dict: dict, prefix: str, export_prefix: str,
-                      num_blocks: int, add_identity: bool, has_channel_attention: bool):
+                      num_blocks: int, add_identity: bool, has_channel_attention: bool, use_depthwise: bool = False):
+    """main_conv/short_conv/final_conv are always plain ConvModules, never
+    depthwise, regardless of use_depthwise -- confirmed against
+    mmdetection's layers/csp_layer.py CSPLayer.__init__: that flag only
+    reaches the block(...) constructor, not these three."""
     exporter.add_conv_bn(state_dict, f"{prefix}.main_conv", f"{export_prefix}.main_conv")
     exporter.add_conv_bn(state_dict, f"{prefix}.short_conv", f"{export_prefix}.short_conv")
     for i in range(num_blocks):
-        export_cspnext_block(exporter, state_dict, f"{prefix}.blocks.{i}", f"{export_prefix}.block{i}", depthwise_conv2=True)
+        export_cspnext_block(exporter, state_dict, f"{prefix}.blocks.{i}", f"{export_prefix}.block{i}", use_depthwise=use_depthwise)
     if has_channel_attention:
         export_channel_attention(exporter, state_dict, f"{prefix}.attention", f"{export_prefix}.attention")
     exporter.add_conv_bn(state_dict, f"{prefix}.final_conv", f"{export_prefix}.final_conv")
@@ -131,7 +138,15 @@ def export_spp_bottleneck(exporter: WeightExporter, state_dict: dict, prefix: st
     # poolings have no weights (nn.MaxPool2d) — kernel sizes (5,9,13) are architecture constants, not exported.
 
 
-def export_backbone(exporter: WeightExporter, state_dict: dict, deepen_factor: float, num_blocks_p5: list[int]):
+def export_backbone(exporter: WeightExporter, state_dict: dict, deepen_factor: float, num_blocks_p5: list[int], use_depthwise: bool = False):
+    """use_depthwise (CSPNeXt.__init__'s own flag, e.g. True for RTMDet-nano,
+    False for the RTMPose checkpoints exported so far) makes the per-stage
+    downsample conv (nn.Sequential index 0) a DepthwiseSeparableConvModule
+    instead of a plain ConvModule, and cascades into export_csp_layer for
+    each stage's CSPNeXtBlocks (their conv1, specifically -- conv2 is always
+    depthwise). The stem is unaffected either way: CSPNeXt.__init__ builds
+    it from three explicit ConvModule calls, never the conditional `conv`
+    variable used for the downsample/CSPLayer/neck/head convs."""
     exporter.add_conv_bn(state_dict, "backbone.stem.0", "backbone.stem0")
     exporter.add_conv_bn(state_dict, "backbone.stem.1", "backbone.stem1")
     exporter.add_conv_bn(state_dict, "backbone.stem.2", "backbone.stem2")
@@ -146,7 +161,10 @@ def export_backbone(exporter: WeightExporter, state_dict: dict, deepen_factor: f
         export_prefix = f"backbone.stage{stage_index + 1}"
 
         # nn.Sequential index 0 is always the downsample conv.
-        exporter.add_conv_bn(state_dict, f"{stage_prefix}.0", f"{export_prefix}.downsample")
+        if use_depthwise:
+            export_depthwise_separable(exporter, state_dict, f"{stage_prefix}.0", f"{export_prefix}.downsample")
+        else:
+            exporter.add_conv_bn(state_dict, f"{stage_prefix}.0", f"{export_prefix}.downsample")
 
         if use_spp_per_stage[stage_index]:
             export_spp_bottleneck(exporter, state_dict, f"{stage_prefix}.1", f"{export_prefix}.spp")
@@ -157,8 +175,64 @@ def export_backbone(exporter: WeightExporter, state_dict: dict, deepen_factor: f
         export_csp_layer(
             exporter, state_dict, f"{stage_prefix}.{csp_index}", f"{export_prefix}.csp",
             num_blocks=num_blocks, add_identity=add_identity_per_stage[stage_index],
-            has_channel_attention=True,
+            has_channel_attention=True, use_depthwise=use_depthwise,
         )
+
+
+def export_depthwise_separable(exporter: WeightExporter, state_dict: dict, prefix: str, export_prefix: str):
+    """DepthwiseSeparableConvModule (mmcv): depthwise_conv + pointwise_conv,
+    each themselves a ConvModule (.conv + .bn). Used standalone by
+    CSPNeXtPAFPN's downsamples/out_convs and RTMDetSepBNHead's cls_convs/
+    reg_convs (as opposed to CSPNeXtBlock.conv2, which is the same pattern
+    nested one level deeper — see export_cspnext_block)."""
+    exporter.add_conv_bn(state_dict, f"{prefix}.depthwise_conv", f"{export_prefix}_depthwise")
+    exporter.add_conv_bn(state_dict, f"{prefix}.pointwise_conv", f"{export_prefix}_pointwise")
+
+
+def export_neck(exporter: WeightExporter, state_dict: dict, num_csp_blocks: int, level_count: int = 3, use_depthwise: bool = True):
+    """CSPNeXtPAFPN. CSPLayers here have channel_attention=False (mmdetection's
+    CSPNeXtPAFPN never passes channel_attention=True to CSPLayer, unlike the
+    backbone) and num_csp_blocks is NOT deepen_factor-scaled (used as-is from
+    the config, unlike backbone stage block counts). use_depthwise defaults
+    to True since RTMDet-nano's neck config sets it -- confirm for any other
+    converted config; reduce_layers is always a plain ConvModule regardless
+    (CSPNeXtPAFPN.__init__ builds it directly, never via the conditional
+    `conv` variable used for downsamples/out_convs)."""
+    for i in range(level_count - 1):
+        exporter.add_conv_bn(state_dict, f"neck.reduce_layers.{i}", f"neck.reduce_layers{i}")
+        export_csp_layer(
+            exporter, state_dict, f"neck.top_down_blocks.{i}", f"neck.top_down_blocks{i}",
+            num_blocks=num_csp_blocks, add_identity=False, has_channel_attention=False, use_depthwise=use_depthwise,
+        )
+
+    for i in range(level_count - 1):
+        export_depthwise_separable(exporter, state_dict, f"neck.downsamples.{i}", f"neck.downsamples{i}")
+        export_csp_layer(
+            exporter, state_dict, f"neck.bottom_up_blocks.{i}", f"neck.bottom_up_blocks{i}",
+            num_blocks=num_csp_blocks, add_identity=False, has_channel_attention=False, use_depthwise=use_depthwise,
+        )
+
+    for i in range(level_count):
+        export_depthwise_separable(exporter, state_dict, f"neck.out_convs.{i}", f"neck.out_convs{i}")
+
+
+def export_det_head(exporter: WeightExporter, state_dict: dict, stacked_convs: int, level_count: int = 3):
+    """RTMDetSepBNHead with share_conv=False (independent weights per FPN
+    level — verify share_conv against the config before reusing this for a
+    different checkpoint). rtm_cls/rtm_reg are bare nn.Conv2d (bias=True,
+    no BN, no activation) -- exported raw, not through add_conv_bn."""
+    for level in range(level_count):
+        for conv_index in range(stacked_convs):
+            export_depthwise_separable(
+                exporter, state_dict, f"bbox_head.cls_convs.{level}.{conv_index}", f"head.cls_convs{level}_{conv_index}"
+            )
+            export_depthwise_separable(
+                exporter, state_dict, f"bbox_head.reg_convs.{level}.{conv_index}", f"head.reg_convs{level}_{conv_index}"
+            )
+        exporter.add_raw(state_dict, f"bbox_head.rtm_cls.{level}.weight", f"head.rtm_cls{level}.weight")
+        exporter.add_raw(state_dict, f"bbox_head.rtm_cls.{level}.bias", f"head.rtm_cls{level}.bias")
+        exporter.add_raw(state_dict, f"bbox_head.rtm_reg.{level}.weight", f"head.rtm_reg{level}.weight")
+        exporter.add_raw(state_dict, f"bbox_head.rtm_reg.{level}.bias", f"head.rtm_reg{level}.bias")
 
 
 def export_head(exporter: WeightExporter, state_dict: dict):
@@ -184,18 +258,36 @@ def main():
     parser.add_argument("--config", required=True)
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--output", required=True, help="Output file prefix (writes <output>.bin and <output>.json)")
+    parser.add_argument("--kind", choices=["pose", "detector"], default="pose",
+                         help="pose: mmpose RTMPose checkpoint (CSPNeXt backbone + RTMCCHead). "
+                              "detector: mmdetection RTMDet checkpoint (CSPNeXt backbone + CSPNeXtPAFPN neck + RTMDetSepBNHead).")
     parser.add_argument("--deepen-factor", type=float, default=0.67, help="Must match the config's backbone.deepen_factor")
+    parser.add_argument("--num-csp-blocks", type=int, default=1, help="detector only: neck.num_csp_blocks (NOT deepen-factor-scaled)")
+    parser.add_argument("--stacked-convs", type=int, default=2, help="detector only: bbox_head.stacked_convs")
     args = parser.parse_args()
 
-    from mmpose.apis import init_model
-    model = init_model(args.config, args.checkpoint, device="cpu")
-    model.eval()
-    state_dict = model.state_dict()
-
     exporter = WeightExporter()
-    # P5 base block counts before deepen_factor scaling, from CSPNeXt.arch_settings.
-    export_backbone(exporter, state_dict, deepen_factor=args.deepen_factor, num_blocks_p5=[3, 6, 6, 3])
-    export_head(exporter, state_dict)
+    # P5 base block counts before deepen_factor scaling, from CSPNeXt.arch_settings — shared by both kinds.
+    if args.kind == "pose":
+        from mmpose.apis import init_model
+        model = init_model(args.config, args.checkpoint, device="cpu")
+        model.eval()
+        state_dict = model.state_dict()
+
+        export_backbone(exporter, state_dict, deepen_factor=args.deepen_factor, num_blocks_p5=[3, 6, 6, 3])
+        export_head(exporter, state_dict)
+    else:
+        from mmdet.apis import init_detector
+        model = init_detector(args.config, args.checkpoint, device="cpu")
+        model.eval()
+        state_dict = model.state_dict()
+
+        # RTMDet-nano's backbone.use_depthwise=True -- confirm for any other
+        # converted detector config before assuming this default holds.
+        export_backbone(exporter, state_dict, deepen_factor=args.deepen_factor, num_blocks_p5=[3, 6, 6, 3], use_depthwise=True)
+        export_neck(exporter, state_dict, num_csp_blocks=args.num_csp_blocks)
+        export_det_head(exporter, state_dict, stacked_convs=args.stacked_convs)
+
     exporter.save(args.output)
 
     unconsumed = set(state_dict.keys()) - exporter.consumed_keys

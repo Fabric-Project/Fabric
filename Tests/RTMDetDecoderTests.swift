@@ -11,6 +11,10 @@ struct RTMDetDecoderTests
     private let stride = 16
     private var inputSize: CGSize { CGSize(width: gridSize * stride, height: gridSize * stride) }
 
+    /// `distance` is an already-stride-scaled absolute pixel value, matching
+    /// what the real converted model emits (RTMDetSepBNHead.forward does
+    /// `reg_dist * stride` internally) — RTMDetDecoder does not multiply by
+    /// stride again.
     private func makeLevelTensors(scoredCells: [(row: Int, column: Int, score: Float, distance: Float)]) throws -> (scores: MLMultiArray, boxDistances: MLMultiArray)
     {
         let planeSize = gridSize * gridSize
@@ -36,7 +40,12 @@ struct RTMDetDecoderTests
     @Test("A single high-confidence cell decodes to the expected normalized rect")
     func singleDetectionDecodesExpectedRect() throws
     {
-        let (scores, boxDistances) = try makeLevelTensors(scoredCells: [(row: 1, column: 1, score: 0.9, distance: 1.0)])
+        // Grid point is (column * stride, row * stride) = (16, 16) — offset
+        // 0, matching MlvlPointGenerator(offset=0) in the real configs, not
+        // the library's own default of 0.5. A 16px distance in each
+        // direction gives a top-left-origin box of [0,32]x[0,32] in the
+        // 64x64 input.
+        let (scores, boxDistances) = try makeLevelTensors(scoredCells: [(row: 1, column: 1, score: 0.9, distance: 16.0)])
 
         let detections = RTMDetDecoder.decode(
             perLevelScores: [scores],
@@ -50,8 +59,8 @@ struct RTMDetDecoderTests
 
         #expect(detections.count == 1)
         let rect = try #require(detections.first).rect
-        #expect(abs(rect.origin.x - 0.125) < 0.01)
-        #expect(abs(rect.origin.y - 0.375) < 0.01)
+        #expect(abs(rect.origin.x - 0.0) < 0.01)
+        #expect(abs(rect.origin.y - 0.5) < 0.01)
         #expect(abs(rect.width - 0.5) < 0.01)
         #expect(abs(rect.height - 0.5) < 0.01)
     }
@@ -76,8 +85,8 @@ struct RTMDetDecoderTests
     func nmsSuppressesOverlappingBoxes() throws
     {
         let (scores, boxDistances) = try makeLevelTensors(scoredCells: [
-            (row: 1, column: 1, score: 0.9, distance: 1.0),
-            (row: 1, column: 2, score: 0.8, distance: 1.0),
+            (row: 1, column: 1, score: 0.9, distance: 16.0),
+            (row: 1, column: 2, score: 0.8, distance: 16.0),
         ])
 
         // These two boxes overlap with IoU ≈ 0.33 (computed from the fixture
@@ -102,8 +111,8 @@ struct RTMDetDecoderTests
     func maxDetectionsCapsResults() throws
     {
         let (scores, boxDistances) = try makeLevelTensors(scoredCells: [
-            (row: 0, column: 0, score: 0.9, distance: 1.0),
-            (row: 3, column: 3, score: 0.8, distance: 1.0),
+            (row: 0, column: 0, score: 0.9, distance: 16.0),
+            (row: 3, column: 3, score: 0.8, distance: 16.0),
         ])
 
         let detections = RTMDetDecoder.decode(

@@ -130,6 +130,19 @@ Face node's ROI, in order of effort:
    Interest unconnected (full-frame fallback) until a face detector is
    sourced.
 
+**Current state (superseding the CoreML instructions below for Person/Hand):**
+Person and hand are converted and bundled via the MPS path —
+`export_weights.py --kind detector` (see "MPSGraph export" below), loaded by
+`RTMDetMPSGraph.swift`, numerically validated against the PyTorch reference
+to ~1e-6 (scores) / ~1e-3px (box distances) using both real checkpoints.
+`convert_rtmdet.py`/`.mlpackage` (this section) is the CoreML path — kept as
+a documented alternative, not the live one. `RTMDetDecoder`'s stride
+assumption is confirmed `[8, 16, 32]` for both configs (via
+`mmengine.Config.fromfile`, not the checkpoint filename) — the `64` in the
+table below and the `RTMDetectionEvaluator.swift` reference are both stale,
+predating the actual implementation (that file doesn't exist; detection runs
+through `RTMDetInference.swift`).
+
 | Output | Config path (inside mmpose repo) | Checkpoint URL | Input size |
 |---|---|---|---|
 | `RTMDetPerson.mlpackage` | `projects/rtmpose/rtmdet/person/rtmdet_nano_320-8xb32_coco-person.py` | https://download.openmmlab.com/mmpose/v1/projects/rtmpose/rtmdet_nano_8xb32-100e_coco-obj365-person-05d8511e.pth | 320×320 (there's also an `rtmdet_m_640-8xb32_coco-person.py` / `rtmdet_m_8xb32-100e_coco-obj365-person-235e8209.pth` pairing at 640×640 for higher accuracy, per the Pipeline Performance table) |
@@ -144,18 +157,30 @@ python convert_rtmdet.py \
   --output ../../Fabric/Models/Pose/RTMDetPerson.mlpackage
 ```
 
-Before trusting `RTMDetDecoder`'s stride assumptions (`[8, 16, 32, 64]` in
-`RTMDetectionEvaluator.swift`) against these specific checkpoints, run
-`convert_rtmdet.py` and read its printed tensor count — the script prints
-`Traced model returns N tensors (N/2 score levels + N/2 box-distance
-levels)` — and cross-check against the config's
-`bbox_head.anchor_generator`/`prior_generator` strides before wiring a new
-detector into `RTMModelCache`.
+### MPSGraph export (the live path for Person/Hand)
+
+```shell
+python export_weights.py \
+  --config <path to rtmdet_nano_320-8xb32_coco-person.py> \
+  --checkpoint <path to the .pth above> \
+  --output ../../Fabric/Models/Pose/RTMDetPerson_weights \
+  --kind detector --deepen-factor 0.33 --num-csp-blocks 1 --stacked-convs 2
+```
+
+Same invocation for hand, swapping config/checkpoint/output. Both `deepen-factor`,
+`num-csp-blocks`, and `stacked-convs` are confirmed against the actual resolved
+config (via `mmengine.Config.fromfile`, not assumed) — re-check them for any
+other detector config before reusing these defaults; the script's own
+"all state_dict keys accounted for" check at the end is the strongest signal
+that the architecture assumptions (backbone `use_depthwise`, neck
+`channel_attention=false`, `share_conv=false` head) still hold.
 
 ## After conversion
 
-Copy the resulting `.mlpackage` directories (and their `.conversion_check.json`
-sidecars, kept alongside for audit purposes but not bundled into the app) into
-`Fabric/Fabric/Models/Pose/`. `Package.swift` already copies that whole
-directory as a resource — no project file changes needed once the files are
-in place.
+Copy the resulting files into `Fabric/Fabric/Models/Pose/`:
+`export_weights.py` output is a `<name>_weights.bin` + `<name>_weights.json`
+pair (no sidecar); `convert_rtmpose.py`/`convert_rtmdet.py` output is a
+`.mlpackage` directory plus a `.conversion_check.json` sidecar (kept
+alongside for audit purposes, not bundled into the app). `Package.swift`
+already copies the whole `Models` directory as a resource — no project file
+changes needed once the files are in place.

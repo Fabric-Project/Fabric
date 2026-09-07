@@ -3,61 +3,51 @@
 //  Fabric
 //
 
-import CoreImage
 import CoreML
 import Foundation
+import Metal
 import simd
 
 /// Runs a converted RTMDet model against the full frame and decodes boxes
 /// via RTMDetDecoder. Pure function, no stored state — RegionDetectionNode
 /// calls this directly from execute() and keeps its own last-good cache.
 ///
-/// No Vision dependency: ANEInputBuffer does the scale-to-input-size
-/// directly via CIContext, and the resulting CVPixelBuffer is fed straight
-/// into MLModel.prediction(from:) — see ANEInputBuffer.swift for why
-/// VNImageRequestHandler/VNCoreMLRequest were dropped.
+/// Runs on GPU via a from-scratch MPSGraph port (CSPNeXt backbone +
+/// CSPNeXtPAFPN neck + RTMDetSepBNHead), not CoreML — see RTMDetMPSGraph.swift.
+/// RTMDetDecoder's decode(perLevelScores:perLevelBoxDistances:...) predates
+/// this and takes MLMultiArray, so this wraps the MPSGraph model's raw
+/// per-level [Float] outputs into MLMultiArray rather than changing that
+/// decoder's (still CoreML-shaped) public API.
 ///
 /// Blocks the calling thread until inference completes, matching Fabric's
 /// pull-based, one-execute-per-frame model.
 enum RTMDetInference
 {
-    /// Standard mmdetection FPN strides, smallest-stride (largest feature
-    /// map) first. RTMDet's typical 3-level head uses the first three;
-    /// sliced to match however many levels the converted model actually
-    /// reports. Confirm against the specific converted checkpoint.
-    private static let defaultStrides = [8, 16, 32, 64]
     private static let fullFrameRegion = simd_float4(0, 0, 1, 1)
 
-    static func run(image: FabricImage, targetClass: RTMModelCache.ModelIdentity, maxDetections: Int, ciContext: CIContext) throws -> [(rect: CGRect, confidence: Float)]
+    static func run(image: FabricImage, targetClass: RTMModelCache.ModelIdentity, maxDetections: Int, device: MTLDevice, commandQueue: MTLCommandQueue? = nil) throws -> [(rect: CGRect, confidence: Float)]
     {
-        let modelInputSize = Self.inputSize(for: targetClass)
-
-        guard let pixelBuffer = ANEInputBuffer.cropAndScale(image: image, regionOfInterest: Self.fullFrameRegion, destSize: modelInputSize, ciContext: ciContext) else
+        guard let commandQueue = commandQueue ?? device.makeCommandQueue() else
         {
-            return []
+            throw FabricError(.execution(.gpu), severity: .recoverable, message: "Could not create RTMDet command queue")
         }
 
-        let mlModel = try RTMModelCache.shared.model(for: targetClass)
-        let inputProvider = try MLDictionaryFeatureProvider(dictionary: ["image": MLFeatureValue(pixelBuffer: pixelBuffer)])
-        let outputProvider = try mlModel.prediction(from: inputProvider)
+        let modelInputSize = Self.inputSize(for: targetClass)
+        let mpsModel = try Self.detectorMPSGraphModel(for: targetClass, commandQueue: commandQueue)
 
-        let scoreNames = outputProvider.featureNames
-            .filter { $0.hasPrefix("scores_level") }
-            .sorted { Self.levelIndex(from: $0) < Self.levelIndex(from: $1) }
-        let boxNames = outputProvider.featureNames
-            .filter { $0.hasPrefix("box_distances_level") }
-            .sorted { Self.levelIndex(from: $0) < Self.levelIndex(from: $1) }
+        let (scores, boxDistances) = try mpsModel.run(image: image, regionOfInterest: Self.fullFrameRegion)
 
-        let scores = scoreNames.compactMap { outputProvider.featureValue(for: $0)?.multiArrayValue }
-        let boxDistances = boxNames.compactMap { outputProvider.featureValue(for: $0)?.multiArrayValue }
-        guard scores.isEmpty == false, scores.count == boxDistances.count else { return [] }
-
-        let strides = Array(Self.defaultStrides.prefix(scores.count))
+        let scoreArrays = try zip(scores, mpsModel.levelSizes).map { values, size in
+            try Self.multiArray(from: values, shape: [1, 1, size.height, size.width])
+        }
+        let boxArrays = try zip(boxDistances, mpsModel.levelSizes).map { values, size in
+            try Self.multiArray(from: values, shape: [1, 4, size.height, size.width])
+        }
 
         let decoded = RTMDetDecoder.decode(
-            perLevelScores: scores,
-            perLevelBoxDistances: boxDistances,
-            strides: strides,
+            perLevelScores: scoreArrays,
+            perLevelBoxDistances: boxArrays,
+            strides: RTMDetMPSGraph.strides,
             inputSize: modelInputSize,
             maxDetections: maxDetections
         )
@@ -65,21 +55,51 @@ enum RTMDetInference
         return decoded.map { ($0.rect, $0.confidence) }
     }
 
-    private static func levelIndex(from featureName: String) -> Int
+    private static func multiArray(from values: [Float], shape: [Int]) throws -> MLMultiArray
     {
-        guard let range = featureName.range(of: "level") else { return 0 }
-        return Int(featureName[range.upperBound...]) ?? 0
+        let multiArray = try MLMultiArray(shape: shape.map { NSNumber(value: $0) }, dataType: .float32)
+        let pointer = multiArray.dataPointer.bindMemory(to: Float.self, capacity: values.count)
+        values.withUnsafeBufferPointer { buffer in
+            pointer.update(from: buffer.baseAddress!, count: values.count)
+        }
+        return multiArray
     }
 
-    /// Detector input resolutions — confirm against each converted
-    /// checkpoint's actual training config.
+    /// Detector input resolution — 320x320 for both the person and hand
+    /// nano configs, resolved via mmengine.Config.fromfile against the
+    /// actual configs, not assumed from checkpoint filenames. Face has no
+    /// converted checkpoint yet — confirm before use.
     private static func inputSize(for identity: RTMModelCache.ModelIdentity) -> CGSize
     {
-        switch identity
+        CGSize(width: 320, height: 320)
+    }
+
+    // MARK: - MPSGraph detector models (one per identity, loaded once, reused)
+
+    private static var cachedDetectorModels: [RTMModelCache.ModelIdentity: RTMDetMPSGraph] = [:]
+    private static let detectorModelLock = NSLock()
+
+    private static func detectorMPSGraphModel(for identity: RTMModelCache.ModelIdentity, commandQueue: MTLCommandQueue) throws -> RTMDetMPSGraph
+    {
+        Self.detectorModelLock.lock()
+        defer { Self.detectorModelLock.unlock() }
+
+        if let existing = Self.cachedDetectorModels[identity]
         {
-        case .personDetector: return CGSize(width: 640, height: 640)
-        case .handDetector, .faceDetector: return CGSize(width: 320, height: 320)
-        default: return CGSize(width: 640, height: 640)
+            return existing
         }
+
+        let resourceName = "\(identity.resourceName)_weights"
+        guard
+            let binaryURL = Bundle.module.url(forResource: resourceName, withExtension: "bin", subdirectory: "Models/Pose"),
+            let manifestURL = Bundle.module.url(forResource: resourceName, withExtension: "json", subdirectory: "Models/Pose")
+        else
+        {
+            throw RTMModelCache.RTMModelCacheError.resourceNotFound(resourceName)
+        }
+
+        let model = try RTMDetMPSGraph(weightsBinaryURL: binaryURL, weightsManifestURL: manifestURL, commandQueue: commandQueue)
+        Self.cachedDetectorModels[identity] = model
+        return model
     }
 }

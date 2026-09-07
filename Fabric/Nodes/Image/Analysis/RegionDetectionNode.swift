@@ -3,10 +3,9 @@
 //  Fabric
 //
 
-import CoreImage
 import Foundation
+import Metal
 import Satin
-import Vision
 import simd
 
 /// Detects one or more regions of interest (person, hand, or face) in an
@@ -54,21 +53,7 @@ public class RegionDetectionNode: Node
 
     private static let fullFrameRegion = simd_float4(0, 0, 1, 1)
 
-    private var ciContext: CIContext!
     private var lastDetections: [(rect: CGRect, confidence: Float)] = []
-
-    override public func startExecution(renderer: GraphRenderer) throws
-    {
-        let options = [
-            CIContextOption.cacheIntermediates: false,
-            CIContextOption.highQualityDownsample: false,
-            CIContextOption.workingFormat: CIFormat.RGBAh.rawValue,
-            CIContextOption.workingColorSpace: nil,
-            CIContextOption.outputColorSpace: nil,
-        ] as? [CIContextOption: Any]
-
-        self.ciContext = CIContext(mtlCommandQueue: self.context.commandQueue, options: options)
-    }
 
     override public func execute(renderer: GraphRenderer, executionInfo: GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
@@ -76,7 +61,7 @@ public class RegionDetectionNode: Node
         {
             let maxDetections = max(1, self.inputMaxDetections.value ?? 1)
             let targetClass = Self.modelIdentity(forTarget: self.inputTarget.value ?? "Person")
-            if let detections = try? RTMDetInference.run(image: inputImage, targetClass: targetClass, maxDetections: maxDetections, ciContext: self.ciContext)
+            if let detections = try? RTMDetInference.run(image: inputImage, targetClass: targetClass, maxDetections: maxDetections, device: self.context.device, commandQueue: self.context.commandQueue)
             {
                 self.lastDetections = detections
             }
