@@ -135,6 +135,39 @@ internal import AnyCodable
         connectionRevision += 1
         pendingConnectionSceneSync = true
         connectionTopologyGeneration += 1
+        noteContentChanged()
+    }
+
+    /// Bumped by every edit of the graph's design: topology, layout, renames,
+    /// published state, unwired parameter values, notes. Runtime traffic
+    /// (values arriving on wired or published inlets) does not count. The
+    /// graph's own mutation API bumps it; a clone set member's observer bumps
+    /// it for the edits nodes and ports publish.
+    @ObservationIgnored public private(set) var contentRevision = 0
+
+    /// Records an edit and, when this graph sits inside a clone set, asks the
+    /// coordinator to sync the set once edits pause. Writes made while a
+    /// member is being reconciled are not edits and schedule nothing.
+    public func noteContentChanged()
+    {
+        contentRevision += 1
+
+        let coordinator = self.cloneSetCoordinator
+        guard !coordinator.isReconciling, !self.enclosingCloneMembers.isEmpty else { return }
+        coordinator.noteContentChanged(in: self)
+    }
+
+    /// The clone set members this graph sits inside, innermost first.
+    internal var enclosingCloneMembers: [SubgraphNode]
+    {
+        var members: [SubgraphNode] = []
+        var current: Graph? = self
+        while let owner = current?.ownerNode
+        {
+            if owner.cloneSetID != nil { members.append(owner) }
+            current = owner.graph
+        }
+        return members
     }
 
     public func markExecutionTopologyChanged()
@@ -561,11 +594,13 @@ internal import AnyCodable
     public func addNote(_ note: Note)
     {
         self.notes.append(note)
+        self.noteContentChanged()
     }
     
     public func deleteNote(_ note:Note)
     {
         self.notes.removeAll(where: { $0.id == note.id })
+        self.noteContentChanged()
     }
     
     //MARK: - Nodes API -
@@ -898,6 +933,7 @@ internal import AnyCodable
         guard connection.active != active else { return true }
         let previousActive = connection.active
         connection.active = active
+        noteContentChanged()
 
         undoManager?.registerUndo(withTarget: self) { graph in
             graph.setConnection(connection, active: previousActive)

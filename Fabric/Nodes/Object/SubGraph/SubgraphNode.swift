@@ -28,6 +28,19 @@ open class SubgraphNode: BaseObjectNode
     /// Mutate through Graph.duplicateAsClone / unlinkClone so the change is
     /// undoable. See CloneSet.
     public internal(set) var cloneSetID: UUID?
+    {
+        didSet { if oldValue != cloneSetID { self.cloneMembershipDidChange() } }
+    }
+
+    /// Watches the sub graph for edits while this node is a member; see
+    /// CloneMemberObserver.
+    internal private(set) var cloneObserver: CloneMemberObserver?
+
+    private func cloneMembershipDidChange()
+    {
+        self.cloneObserver?.stop()
+        self.cloneObserver = self.cloneSetID == nil ? nil : CloneMemberObserver(member: self)
+    }
 
     /// The member's record: every id in the set's template mapped to this
     /// member's own id for the same node, port, wire or nested graph. Keys are
@@ -303,6 +316,8 @@ open class SubgraphNode: BaseObjectNode
         self.wireSubGraphCallback()
         self.proxyPorts.forEach { $0.node = self }
         self.rebuildProxyPorts()
+        // didSet does not fire in init; a decoded member starts watching here.
+        self.cloneMembershipDidChange()
     }
 
     private static func decodeProxyPortsIfPossible(from container: KeyedDecodingContainer<CodingKeys>,

@@ -201,21 +201,27 @@ public class GraphCanvasContext
     public func pop()
     {
         guard !entries.isEmpty else { return }
+        let leaving = currentGraph
         entries.removeLast()
         syncUndoManager()
+        syncCloneSets(leaving: leaving)
     }
 
     public func popTo(_ node: SubgraphNode)
     {
         guard let index = entries.firstIndex(where: { $0.id == node.id }) else { return }
+        let leaving = currentGraph
         entries = Array(entries.prefix(through: index))
         syncUndoManager()
+        syncCloneSets(leaving: leaving)
     }
 
     public func popToRoot()
     {
+        let leaving = currentGraph
         entries.removeAll()
         syncUndoManager()
+        syncCloneSets(leaving: leaving)
     }
 
     // MARK: - Interactive Node Addition
@@ -260,6 +266,13 @@ public class GraphCanvasContext
     }
 
     // MARK: - Private
+
+    /// Leaving a canvas is the point where edits made there are known to be
+    /// complete, so every clone set around it is brought in line.
+    private func syncCloneSets(leaving graph: Graph)
+    {
+        rootGraph.reconcileCloneSets(enclosing: graph)
+    }
 
     /// Propagate the undo manager to the active subgraph so undo works at any nesting level.
     private func syncUndoManager()

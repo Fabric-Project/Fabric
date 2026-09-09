@@ -389,7 +389,8 @@ class FabricDocument: FileDocument
 
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted]
-        
+
+        self.editingContext.rootGraph.flushPendingCloneSync()
         let data = try encoder.encode(self.editingContext.rootGraph)
         self.lastWrittenGraph = (data, self.editingContext.rootGraph.fileReferenceBaseURL)
 

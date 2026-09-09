@@ -275,6 +275,13 @@ extension Graph
         }
     }
 
+    /// Runs any sync still waiting on the debounce, so a document is saved
+    /// with every set in step.
+    public func flushPendingCloneSync()
+    {
+        self.cloneSetCoordinator.flush()
+    }
+
     /// True when this graph is `ancestor` or sits anywhere inside it.
     internal func isDescendant(of ancestor: Graph) -> Bool
     {

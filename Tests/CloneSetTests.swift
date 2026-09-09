@@ -760,3 +760,196 @@ extension CloneSetTests
         #expect(pair.graph.cloneSet(for: setID)?.templateJSON == newTemplate)
     }
 }
+
+// MARK: - Editor triggers
+
+extension CloneSetTests
+{
+    @Test("Leaving a member's canvas syncs its siblings")
+    func leavingMemberSyncs() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let canvas = GraphCanvasContext(rootGraph: pair.graph)
+
+        canvas.enter(pair.member.member)
+        canvas.currentGraph.addNode(NumberBinaryOperator(context: context))
+        #expect(pair.target.nodes.count == 3)
+
+        canvas.pop()
+
+        #expect(pair.target.nodes.count == 4)
+    }
+
+    @Test("Leaving a nested member syncs every enclosing set")
+    func leavingNestedMemberSyncsEnclosingSets() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let canvas = GraphCanvasContext(rootGraph: pair.graph)
+
+        canvas.enter(pair.member.member)
+        canvas.enter(pair.member.nested)
+        canvas.currentGraph.addNode(NumberBinaryOperator(context: context))
+
+        canvas.popToRoot()
+
+        let nestedCopy = try #require(pair.counterpart(of: pair.member.nested))
+        #expect(nestedCopy.subGraph.nodes.count == 2)
+    }
+}
+
+// MARK: - Live sync
+
+extension CloneSetTests
+{
+    @Test("Edits inside a member bump its graph's content revision, through the member's own subscriptions")
+    @MainActor
+    func editsBumpContentRevision() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        var revision = pair.source.contentRevision
+
+        func expectBump(_ what: String, sourceLocation: SourceLocation = #_sourceLocation)
+        {
+            #expect(pair.source.contentRevision > revision, "\(what) should bump", sourceLocation: sourceLocation)
+            revision = pair.source.contentRevision
+        }
+
+        // Nodes present when the member joined the set are watched already.
+        pair.member.second.offset = CGSize(width: 10, height: 10)
+        expectBump("offset")
+        pair.member.second.userName = "Renamed"
+        expectBump("userName")
+        pair.member.second.outputNumber.published = true
+        expectBump("published")
+        pair.member.second.outputNumber.publishedName = "Out"
+        expectBump("publishedName")
+        pair.member.second.inputNumber2.value = 42
+        expectBump("unwired parameter value")
+        pair.member.nestedInner.inputNumber2.value = 7
+        expectBump("nested unwired parameter value")
+
+        let added = NumberBinaryOperator(context: context)
+        pair.source.addNode(added)
+        expectBump("addNode")
+        let connection = try #require(pair.source.connect(pair.member.second.outputNumber, to: added.inputNumber1))
+        expectBump("connect")
+        #expect(pair.source.setConnection(connection, active: false))
+        expectBump("setConnection")
+        #expect(pair.source.disconnect(connection))
+        expectBump("disconnect")
+        pair.source.addNote(Note(note: "n", rect: .zero))
+        expectBump("addNote")
+        pair.source.delete(node: added)
+        expectBump("delete")
+    }
+
+    @Test("A node added after a sync is watched from the next sync on")
+    @MainActor
+    func subscriptionsFollowAddedNodes() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let coordinator = pair.graph.cloneSetCoordinator
+
+        let added = NumberBinaryOperator(context: context)
+        pair.source.addNode(added)
+        coordinator.flush()
+        #expect(coordinator.hasPendingSync == false)
+
+        added.inputNumber2.value = 3
+        #expect(coordinator.hasPendingSync)
+        coordinator.flush()
+        let addedCopy = try #require(pair.counterpart(of: added))
+        #expect(addedCopy.inputNumber2.value == 3)
+    }
+
+    @Test("Values arriving on published or wired inlets are not edits")
+    @MainActor
+    func drivenValuesDoNotBump() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let revision = pair.source.contentRevision
+
+        pair.member.first.inputNumber1.value = 3       // published: per member
+        pair.member.second.inputNumber1.value = 4      // wired: driven
+
+        #expect(pair.source.contentRevision == revision)
+    }
+
+    @Test("An edit inside a member schedules a sync; flushing applies it and settles")
+    @MainActor
+    func editSchedulesSync() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let coordinator = pair.graph.cloneSetCoordinator
+        #expect(coordinator.hasPendingSync == false)
+
+        pair.source.addNode(NumberBinaryOperator(context: context))
+        #expect(coordinator.hasPendingSync)
+
+        coordinator.flush()
+
+        #expect(pair.target.nodes.count == 4)
+        #expect(coordinator.hasPendingSync == false)
+    }
+
+    @Test("Edits outside any clone set schedule nothing, and an unlinked member stops watching")
+    @MainActor
+    func editsOutsideSetsScheduleNothing() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let coordinator = pair.graph.cloneSetCoordinator
+
+        pair.graph.addNode(NumberBinaryOperator(context: context))
+        #expect(coordinator.hasPendingSync == false)
+
+        pair.graph.unlinkClone(pair.sibling)
+        let siblingSecond = try #require(pair.target.nodes.compactMap { $0 as? NumberBinaryOperator }.last)
+        let revision = pair.target.contentRevision
+        siblingSecond.inputNumber2.value = 11
+        #expect(pair.target.contentRevision == revision)
+        #expect(coordinator.hasPendingSync == false)
+    }
+
+    @Test("The debounce fires on its own")
+    @MainActor
+    func debounceFires() async throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        pair.graph.cloneSetCoordinator.debounceInterval = .milliseconds(20)
+
+        pair.source.addNode(NumberBinaryOperator(context: context))
+        #expect(pair.target.nodes.count == 3)
+
+        try await Task.sleep(for: .milliseconds(200))
+
+        #expect(pair.target.nodes.count == 4)
+        #expect(pair.graph.cloneSetCoordinator.hasPendingSync == false)
+    }
+
+    @Test("Undoing an edit on the source syncs the siblings back")
+    @MainActor
+    func undoSyncsBack() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let coordinator = pair.graph.cloneSetCoordinator
+
+        pair.source.addNode(NumberBinaryOperator(context: context))
+        coordinator.flush()
+        #expect(pair.target.nodes.count == 4)
+
+        pair.undoManager.undo()
+        coordinator.flush()
+
+        #expect(pair.source.nodes.count == 3)
+        #expect(pair.target.nodes.count == 3)
+    }
+}
