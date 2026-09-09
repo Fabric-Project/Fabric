@@ -953,3 +953,63 @@ extension CloneSetTests
         #expect(pair.target.nodes.count == 3)
     }
 }
+
+// MARK: - Fidelity
+
+extension CloneSetTests
+{
+    /// Node types that need a device, a permission, a download or a file to
+    /// construct; the encode/decode contract they rely on is the same.
+    private static let liveSourceNamePattern = #"Camera|Audio|Screen|Syphon|Model|Movie|Video|Hand|Face|Pose|Vision|MIDI|OSC|Capture|Microphone|Speech|Image Loader|Loader|Recorder|Writer|Export"#
+
+    @Test("Every core node type clones with nothing left for reconcile to change")
+    func everyCoreNodeTypeClonesCleanly() throws
+    {
+        guard let context = makeContext() else { return }
+        let registry = try NodeRegistry.shared
+        let graph = Graph(context: context)
+        let member = SubgraphNode(context: context)
+        graph.addNode(member)
+
+        var constructed: [String] = []
+        var skipped: [String] = []
+        for wrapper in registry.availableNodes
+        where wrapper.pluginBundleID == FabricCoreNodesPlugin.pluginID
+            && wrapper.nodeName.range(of: Self.liveSourceNamePattern, options: .regularExpression) == nil
+        {
+            guard let node = try? wrapper.initializeNode(context: context) else
+            {
+                skipped.append(wrapper.nodeName)
+                continue
+            }
+            member.subGraph.addNode(node)
+            constructed.append(wrapper.nodeName)
+        }
+        #expect(constructed.count > 50, "constructed \(constructed.count), skipped \(skipped)")
+
+        let sibling = try #require(graph.duplicateAsClone(member))
+        #expect(sibling.subGraph.nodes.count == member.subGraph.nodes.count)
+
+        var mismatched: [String] = []
+        for node in member.subGraph.nodes
+        {
+            guard let templateID = member.templateID(forLocal: node.id),
+                  let localID = sibling.localID(forTemplate: templateID),
+                  let copy = sibling.subGraph.node(forID: localID)
+            else { mismatched.append("\(type(of: node)) did not clone"); continue }
+            if copy.cloneSettingsSignature() != node.cloneSettingsSignature()
+            {
+                mismatched.append("\(type(of: node)) settings signature differs after cloning")
+            }
+        }
+        #expect(mismatched.isEmpty, "\(mismatched)")
+
+        let report = graph.reconcileCloneMember(sibling, from: member)
+        #expect(report.isEmpty, "\(report)")
+
+        // A member made from the template alone matches too.
+        let made = try #require(graph.instantiateCloneSetMember(of: member.cloneSetID!))
+        #expect(made.subGraph.nodes.count == member.subGraph.nodes.count)
+        #expect(graph.reconcileCloneMember(made, from: member).isEmpty)
+    }
+}
