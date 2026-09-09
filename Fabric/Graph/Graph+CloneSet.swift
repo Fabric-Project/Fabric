@@ -67,7 +67,8 @@ extension Graph
         let previousRecord = node.cloneRecord
         if node.cloneSetID == nil
         {
-            let set = CloneSet(name: self.nextFreeCloneSetName(), templateJSON: Data())
+            guard let memberNodeType = try? self.qualifiedNodeID(for: type(of: node)).description else { return nil }
+            let set = CloneSet(name: self.nextFreeCloneSetName(), memberNodeType: memberNodeType, templateJSON: Data())
             self.addCloneSetUndoably(set)
             self.setCloneMembership(setID: set.id, record: [:], on: node)
         }
@@ -86,17 +87,29 @@ extension Graph
 
     // MARK: - Template
 
-    /// Rewrites the set's template from `member`'s current design. Any id the
-    /// member has that the template did not is given a template id and
-    /// recorded, so the template and the record together describe the member
-    /// exactly. Returns false where the member is in no set.
+    /// Rewrites the set's template from `member`'s current design. Returns
+    /// false where the member is in no set.
     @discardableResult
     internal func refreshCloneTemplate(from member: SubgraphNode) -> Bool
     {
         guard let setID = member.cloneSetID, let set = self.cloneSet(for: setID),
-              let data = try? JSONEncoder().encode(member.subGraph),
-              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+              let canonical = self.cloneTemplateJSON(from: member)
         else { return false }
+
+        if canonical != set.templateJSON { set.templateJSON = canonical }
+        return true
+    }
+
+    /// `member`'s current design in the template's ids: canonical JSON of its
+    /// sub graph with every local id rewritten to the id the member records
+    /// for it. Any id the record did not have is given a template id and
+    /// recorded first, so the template and the record together describe the
+    /// member exactly. Does not touch the set.
+    public func cloneTemplateJSON(from member: SubgraphNode) -> Data?
+    {
+        guard let data = try? JSONEncoder().encode(member.subGraph),
+              let object = CloneSet.jsonObject(from: data)
+        else { return nil }
 
         var record = member.cloneRecord
         var templateIDsByLocal = Dictionary(record.map { ($0.value, $0.key) },
@@ -112,9 +125,7 @@ extension Graph
         let templateObject = Self.remapUUIDs(in: object,
                                              remap: templateIDsByLocal,
                                              preservingKeys: [Self.cloneSetIDKey]) as? [String: Any] ?? [:]
-        let canonical = CloneSet.canonicalJSON(templateObject)
-        if canonical != set.templateJSON { set.templateJSON = canonical }
-        return true
+        return CloneSet.canonicalJSON(templateObject)
     }
 
     // MARK: - Discovery
@@ -214,7 +225,7 @@ extension Graph
             guard let nestedSet = self.cloneSet(for: nestedSetID) else { continue }
             let name = self.nextFreeCloneSetName(excluding: claimedNames)
             claimedNames.insert(name)
-            detachedSets[nestedSetID] = CloneSet(name: name, templateJSON: nestedSet.templateJSON)
+            detachedSets[nestedSetID] = CloneSet(name: name, memberNodeType: nestedSet.memberNodeType, templateJSON: nestedSet.templateJSON)
         }
 
         undoManager?.beginUndoGrouping()

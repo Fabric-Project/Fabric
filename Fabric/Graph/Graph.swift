@@ -176,6 +176,39 @@ internal import AnyCodable
         markNodeForLifecycleReview(node)
     }
 
+    /// Clone set bookkeeping lives on the document's root graph; every graph
+    /// in the document reaches the same coordinator.
+    @ObservationIgnored private var rootCloneSetCoordinator: CloneSetCoordinator?
+    internal var cloneSetCoordinator: CloneSetCoordinator
+    {
+        let root = self.rootGraph
+        guard root === self else { return root.cloneSetCoordinator }
+        if let rootCloneSetCoordinator { return rootCloneSetCoordinator }
+        let coordinator = CloneSetCoordinator(rootGraph: self)
+        self.rootCloneSetCoordinator = coordinator
+        return coordinator
+    }
+
+    /// Drops wires whose ports no longer resolve in this graph, e.g. to a
+    /// proxy that disappeared when its inner port was unpublished.
+    internal func pruneDanglingConnections() -> Int
+    {
+        let dangling = connections.filter {
+            nodePort(forID: $0.outletPortID) == nil || nodePort(forID: $0.inletPortID) == nil
+        }
+        guard !dangling.isEmpty else { return 0 }
+
+        for connection in dangling
+        {
+            connection.graph = nil
+            connection.outletPortReference = nil
+            connection.inletPortReference = nil
+        }
+        connections.removeAll { connection in dangling.contains { $0 === connection } }
+        markConnectionTopologyChanged()
+        return dangling.count
+    }
+
     public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
 
     /// Called when the set of published ports changes. SubgraphNode uses
@@ -1699,7 +1732,7 @@ internal import AnyCodable
         return requirementsByID.values.sorted { $0.id < $1.id }
     }
 
-    private static func qualifiedNodeID(fromSerializedType serializedType: String) -> PluginQualifiedNodeID
+    internal static func qualifiedNodeID(fromSerializedType serializedType: String) -> PluginQualifiedNodeID
     {
         guard let separatorRange = serializedType.range(of: PluginQualifiedNodeID.separator) else
         {

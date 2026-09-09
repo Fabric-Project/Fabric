@@ -374,3 +374,389 @@ struct CloneSetTests
         #expect(viewModel.titleIcon?.tooltip.contains("1 member.") == true)
     }
 }
+
+// MARK: - Reconcile
+
+extension CloneSetTests
+{
+    /// A two-member set plus a fresh undo manager, so tests can both edit the
+    /// source and assert that syncing never registers undo steps of its own.
+    private struct PairFixture
+    {
+        let member: MemberFixture
+        let sibling: SubgraphNode
+        let undoManager: UndoManager
+
+        var graph: Graph { member.graph }
+        var source: Graph { member.member.subGraph }
+        var target: Graph { sibling.subGraph }
+
+        func sync() { graph.reconcileCloneSiblings(of: member.member) }
+
+        /// Syncs with a fresh undo manager on every graph, so any undo step
+        /// left behind can only have come from the sync itself.
+        func syncExpectingNoUndo(sourceLocation: SourceLocation = #_sourceLocation)
+        {
+            let fresh = UndoManager()
+            graph.undoManager = fresh
+            source.undoManager = fresh
+            target.undoManager = fresh
+            sync()
+            #expect(fresh.canUndo == false, sourceLocation: sourceLocation)
+        }
+
+        /// The sibling's node for one of the source member's, at any depth,
+        /// through the two records.
+        func counterpart<T: Node>(of node: T) -> T?
+        {
+            guard let templateID = member.member.templateID(forLocal: node.id),
+                  let localID = sibling.localID(forTemplate: templateID)
+            else { return nil }
+            return sibling.subGraph.nodesRecursive().first { $0.id == localID } as? T
+        }
+    }
+
+    private func makePair(context: Context) throws -> PairFixture
+    {
+        let member = try makeMemberFixture(context: context)
+        let sibling = try #require(member.graph.duplicateAsClone(member.member))
+        let undoManager = UndoManager()
+        member.graph.undoManager = undoManager
+        member.member.subGraph.undoManager = undoManager
+        sibling.subGraph.undoManager = undoManager
+        return PairFixture(member: member, sibling: sibling, undoManager: undoManager)
+    }
+
+    @Test("Adding and wiring a node in one member appears in the sibling, and both records grow")
+    func addedNodeAppearsInSibling() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+
+        let added = NumberBinaryOperator(context: context)
+        added.offset = CGSize(width: 300, height: 40)
+        pair.source.addNode(added)
+        _ = try #require(pair.source.connect(pair.member.second.outputNumber, to: added.inputNumber2))
+        #expect(pair.member.member.templateID(forLocal: added.id) == nil)
+
+        pair.syncExpectingNoUndo()
+
+        let addedCopy = try #require(pair.counterpart(of: added))
+        let secondCopy = try #require(pair.counterpart(of: pair.member.second))
+        #expect(addedCopy.id != added.id)
+        #expect(addedCopy.offset == added.offset)
+        #expect(pair.target.nodes.count == 4)
+        #expect(pair.target.connections.count == 2)
+        #expect(pair.target.connections.contains {
+            $0.outletPort === secondCopy.outputNumber && $0.inletPort === addedCopy.inputNumber2
+        })
+        #expect(pair.member.member.templateID(forLocal: added.inputNumber2.id) != nil)
+        #expect(pair.sibling.localID(forTemplate: pair.member.member.templateID(forLocal: added.inputNumber2.id)!) == addedCopy.inputNumber2.id)
+    }
+
+    @Test("Deleting a node in one member removes it and its wires from the sibling")
+    func deletedNodeLeavesSibling() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+
+        pair.source.delete(node: pair.member.second)
+        pair.sync()
+
+        #expect(pair.counterpart(of: pair.member.second) == nil)
+        #expect(pair.target.nodes.count == 2)
+        #expect(pair.target.connections.isEmpty)
+    }
+
+    @Test("Wires and their enabled state follow the source")
+    func connectionsFollow() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let existing = try #require(pair.source.connections.first)
+
+        #expect(pair.source.disconnect(existing))
+        let rewired = try #require(pair.source.connect(pair.member.first.outputNumber, to: pair.member.second.inputNumber2))
+        #expect(pair.source.setConnection(rewired, active: false))
+
+        pair.sync()
+
+        let firstCopy = try #require(pair.counterpart(of: pair.member.first))
+        let secondCopy = try #require(pair.counterpart(of: pair.member.second))
+        #expect(pair.target.connections.count == 1)
+        let copiedConnection = try #require(pair.target.connections.first)
+        #expect(copiedConnection.outletPort === firstCopy.outputNumber)
+        #expect(copiedConnection.inletPort === secondCopy.inputNumber2)
+        #expect(copiedConnection.active == false)
+
+        #expect(pair.source.setConnection(rewired, active: true))
+        pair.sync()
+        #expect(pair.target.connections.first?.active == true)
+    }
+
+    @Test("Publishing in the source adds a proxy on the sibling's node; unpublishing removes it")
+    func publishedPortsFollow() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let secondCopy = try #require(pair.counterpart(of: pair.member.second))
+        let firstCopy = try #require(pair.counterpart(of: pair.member.first))
+
+        pair.member.second.outputNumber.published = true
+        pair.member.second.outputNumber.publishedName = "Result"
+        pair.member.first.inputNumber1.published = false
+        pair.source.rebuildPublishedParameterGroup()
+
+        pair.sync()
+
+        #expect(secondCopy.outputNumber.published)
+        #expect(secondCopy.outputNumber.publishedName == "Result")
+        #expect(firstCopy.inputNumber1.published == false)
+        #expect(pair.sibling.ports.contains { $0.id == secondCopy.outputNumber.id && $0 is any ProxyPortProtocol })
+        #expect(pair.sibling.ports.contains { $0.id == firstCopy.inputNumber1.id } == false)
+    }
+
+    @Test("Published inlet values stay per member; unpublished values follow the source")
+    func valuesSplitAtThePublishBoundary() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let firstCopy = try #require(pair.counterpart(of: pair.member.first))
+        let secondCopy = try #require(pair.counterpart(of: pair.member.second))
+
+        pair.member.first.inputNumber1.value = 1
+        firstCopy.inputNumber1.value = 5
+        pair.member.second.inputNumber2.value = 7
+        secondCopy.inputNumber2.value = 8
+        pair.member.first.inputNumber2.value = 9
+        firstCopy.inputNumber2.value = 9
+
+        pair.sync()
+
+        #expect(firstCopy.inputNumber1.value == 5)
+        #expect(secondCopy.inputNumber2.value == 7)
+        #expect(firstCopy.inputNumber2.value == 9)
+        #expect(secondCopy.inputNumber1.connections.count == 1)
+    }
+
+    @Test("Layout, renames and notes follow the source")
+    func layoutAndRenameFollow() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let firstCopy = try #require(pair.counterpart(of: pair.member.first))
+
+        pair.member.first.offset = CGSize(width: -120, height: 64)
+        pair.member.first.userName = "Gain"
+        let note = Note(note: "Feed this from the clock", rect: CGRect(x: 1, y: 2, width: 300, height: 100))
+        pair.source.addNote(note)
+
+        pair.sync()
+
+        #expect(firstCopy.offset == pair.member.first.offset)
+        #expect(firstCopy.userName == "Gain")
+        #expect(pair.target.notes.count == 1)
+        #expect(pair.target.notes.first?.note == note.note)
+        #expect(pair.target.notes.first?.rect == note.rect)
+    }
+
+    @Test("A settings change that rebuilds ports replaces the sibling's node, keeping its ids, and rewires it")
+    func settingsChangeReplacesNode() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+
+        let sampler = SampleAndHoldNode(context: context)
+        sampler.strategy = PortType.Float.rawValue
+        pair.source.addNode(sampler)
+        let inlet = try #require(sampler.findPort(named: "inputValue", as: Port.self))
+        _ = try #require(pair.source.connect(pair.member.second.outputNumber, to: inlet))
+        pair.sync()
+
+        let samplerCopy = try #require(pair.counterpart(of: sampler))
+        #expect(samplerCopy.strategy == PortType.Float.rawValue)
+        #expect(pair.target.connections.count == 2)
+        let copyID = samplerCopy.id
+
+        sampler.strategy = PortType.Virtual.rawValue
+        let rebuiltInlet = try #require(sampler.findPort(named: "inputValue", as: Port.self))
+        #expect(rebuiltInlet !== inlet)
+        #expect(rebuiltInlet.id == inlet.id)
+        #expect(pair.source.connections.count == 2)
+        #expect(pair.source.connections.contains {
+            $0.outletPort === pair.member.second.outputNumber && $0.inletPort === rebuiltInlet
+        })
+        pair.syncExpectingNoUndo()
+
+        let replaced = try #require(pair.counterpart(of: sampler))
+        #expect(replaced !== samplerCopy)
+        #expect(replaced.id == copyID)
+        #expect(replaced.strategy == PortType.Virtual.rawValue)
+        #expect(pair.target.nodes.contains { $0 === samplerCopy } == false)
+        #expect(pair.target.connections.count == 2)
+        let replacedInlet = try #require(replaced.findPort(named: "inputValue", as: Port.self))
+        let secondCopy = try #require(pair.counterpart(of: pair.member.second))
+        #expect(pair.target.connections.contains {
+            $0.outletPort === secondCopy.outputNumber && $0.inletPort === replacedInlet
+        })
+    }
+
+    @Test("Edits inside a nested subgraph reach the sibling's nested subgraph")
+    func nestedEditsFollow() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+
+        let deepAdded = NumberBinaryOperator(context: context)
+        pair.member.nested.subGraph.addNode(deepAdded)
+        _ = try #require(pair.member.nested.subGraph.connect(pair.member.nestedInner.outputNumber, to: deepAdded.inputNumber1))
+        deepAdded.outputNumber.published = true
+        pair.member.nested.subGraph.rebuildPublishedParameterGroup()
+        let nestedProxy = try #require(pair.member.nested.ports.first { $0.id == deepAdded.outputNumber.id })
+        _ = try #require(pair.source.connect(nestedProxy, to: pair.member.second.inputNumber2))
+
+        pair.sync()
+
+        let nestedCopy = try #require(pair.counterpart(of: pair.member.nested))
+        let deepCopy = try #require(pair.counterpart(of: deepAdded))
+        let nestedInnerCopy = try #require(pair.counterpart(of: pair.member.nestedInner))
+        #expect(deepCopy.graph === nestedCopy.subGraph)
+        #expect(nestedCopy.subGraph.nodes.count == 2)
+        #expect(nestedCopy.subGraph.connections.contains {
+            $0.outletPort === nestedInnerCopy.outputNumber && $0.inletPort === deepCopy.inputNumber1
+        })
+        let nestedProxyCopy = try #require(nestedCopy.ports.first { $0.id == deepCopy.outputNumber.id })
+        let secondCopy = try #require(pair.counterpart(of: pair.member.second))
+        #expect(pair.target.connections.contains {
+            $0.outletPort === nestedProxyCopy && $0.inletPort === secondCopy.inputNumber2
+        })
+    }
+
+    @Test("A sync refreshes the template, and a second sync with no edits changes nothing")
+    func syncRefreshesTemplateAndIsIdempotent() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let set = try #require(pair.graph.cloneSet(for: pair.member.member.cloneSetID!))
+        let before = set.templateJSON
+
+        pair.source.addNode(NumberBinaryOperator(context: context))
+        pair.sync()
+        #expect(set.templateJSON != before)
+
+        let report = pair.graph.reconcileCloneMember(pair.sibling, from: pair.member.member)
+        #expect(report.isEmpty)
+    }
+
+    @Test("An unlinked member no longer follows")
+    func unlinkedStopsFollowing() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        pair.graph.unlinkClone(pair.sibling)
+
+        pair.source.addNode(NumberBinaryOperator(context: context))
+        pair.sync()
+
+        #expect(pair.target.nodes.count == 3)
+    }
+
+    @Test("Sync is refused between a member and a member nested inside it")
+    func syncSkipsNestedSelf() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        pair.graph.delete(node: pair.sibling)
+        pair.source.addNode(pair.sibling)
+
+        pair.source.addNode(NumberBinaryOperator(context: context))
+        pair.sync()
+
+        #expect(pair.target.nodes.count == 3)
+    }
+
+    // MARK: Template as source
+
+    @Test("A member can be made from the template alone, with the set's member class and a full record")
+    func instantiateFromTemplate() throws
+    {
+        guard let context = makeContext() else { return }
+        let graph = Graph(context: context)
+        let iterator = IteratorNode(context: context)
+        graph.addNode(iterator)
+        let inner = NumberBinaryOperator(context: context)
+        iterator.subGraph.addNode(inner)
+        inner.outputNumber.published = true
+        iterator.subGraph.rebuildPublishedParameterGroup()
+        _ = try #require(graph.duplicateAsClone(iterator))
+        let setID = try #require(iterator.cloneSetID)
+
+        let made = try #require(graph.instantiateCloneSetMember(of: setID))
+
+        #expect(made is IteratorNode)
+        #expect(made.graph === graph)
+        #expect(made.cloneSetID == setID)
+        #expect(graph.cloneSetMembers(of: setID).count == 3)
+        let madeInner = try #require(made.subGraph.nodes.first as? NumberBinaryOperator)
+        #expect(madeInner.id != inner.id)
+        #expect(madeInner.outputNumber.published)
+        #expect(made.ports.contains { $0.id == madeInner.outputNumber.id && $0 is any ProxyPortProtocol })
+        let templateID = try #require(iterator.templateID(forLocal: inner.id))
+        #expect(made.localID(forTemplate: templateID) == madeInner.id)
+
+        // It follows edits like any member.
+        iterator.subGraph.addNode(NumberBinaryOperator(context: context))
+        graph.reconcileCloneSiblings(of: iterator)
+        #expect(made.subGraph.nodes.count == 2)
+    }
+
+    @Test("A member with no record is rebuilt from the template, keeping its parent wires by published name")
+    func memberWithoutRecordIsRecovered() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+
+        // Wire the sibling's published inlet from the parent graph.
+        let upstream = NumberBinaryOperator(context: context)
+        pair.graph.addNode(upstream)
+        let proxy = try #require(pair.sibling.ports.first { $0.kind == .Inlet && $0.displayName == "Amount" })
+        _ = try #require(pair.graph.connect(upstream.outputNumber, to: proxy))
+
+        // Lose the record, as a document from before records would.
+        pair.sibling.cloneRecord = [:]
+        pair.source.addNode(NumberBinaryOperator(context: context))
+        pair.sync()
+
+        let rebuilt = try #require(pair.graph.cloneSetMembers(of: pair.member.member.cloneSetID!).first { $0 !== pair.member.member })
+        #expect(rebuilt.subGraph.nodes.count == 4)
+        #expect(!rebuilt.cloneRecord.isEmpty)
+        let rebuiltProxy = try #require(rebuilt.ports.first { $0.kind == .Inlet && $0.displayName == "Amount" })
+        #expect(pair.graph.connections.contains { $0.outletPort === upstream.outputNumber && $0.inletPort === rebuiltProxy })
+        #expect(pair.graph.nodes.contains { $0 === pair.sibling } == false)
+    }
+
+    @Test("A template updated from outside reconciles every member")
+    func externalTemplateUpdateReconcilesMembers() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let setID = try #require(pair.member.member.cloneSetID)
+
+        // Produce a newer template from a third, independent member, then feed
+        // its JSON back in as if it had arrived from a sidecar file.
+        let scratch = Graph(context: context)
+        let editor = try #require(pair.graph.instantiateCloneSetMember(of: setID))
+        pair.graph.delete(node: editor)
+        scratch.addNode(editor)
+        editor.subGraph.addNode(NumberBinaryOperator(context: context))
+        let newTemplate = try #require(pair.graph.cloneTemplateJSON(from: editor))
+
+        let reports = pair.graph.applyCloneTemplate(newTemplate, to: setID)
+
+        #expect(reports.count == 2)
+        #expect(reports.allSatisfy { $0.nodesAdded == 1 })
+        #expect(pair.source.nodes.count == 4)
+        #expect(pair.target.nodes.count == 4)
+        #expect(pair.graph.cloneSet(for: setID)?.templateJSON == newTemplate)
+    }
+}
