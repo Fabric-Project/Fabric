@@ -52,7 +52,7 @@ open class SubgraphNode: BaseObjectNode
         didSet { self.templateIDsByLocal = nil }
     }
 
-    @ObservationIgnored private var templateIDsByLocal: [String: String]?
+    private var templateIDsByLocal: [String: String]?
 
     /// The template id this member records for one of its own ids.
     public func templateID(forLocal localID: UUID) -> UUID?

@@ -359,18 +359,27 @@ struct CloneSetTests
         let viewModel = fixture.graph.viewModel(for: fixture.member)
         #expect(viewModel.titleIcon == nil)
 
+        // Mirrors arrive on the main queue; poll briefly rather than sleep a fixed time.
+        func settle(until condition: @escaping () -> Bool) async throws
+        {
+            for _ in 0..<50 where !condition()
+            {
+                try await Task.sleep(for: .milliseconds(10))
+            }
+        }
+
         let sibling = try #require(fixture.graph.duplicateAsClone(fixture.member))
-        try await Task.sleep(for: .milliseconds(50))
+        try await settle { viewModel.titleIcon?.tooltip.contains("2 members") == true }
         #expect(viewModel.titleIcon?.tooltip.contains("2 members") == true)
         #expect(viewModel.subtitle == "Set A")
 
         fixture.member.userName = "Left"
-        try await Task.sleep(for: .milliseconds(50))
+        try await settle { viewModel.subtitle == "Left" }
         #expect(viewModel.subtitle == "Left")
         #expect(viewModel.titleIcon?.tooltip.contains("Set A") == true)
 
         fixture.graph.delete(node: sibling)
-        try await Task.sleep(for: .milliseconds(50))
+        try await settle { viewModel.titleIcon?.tooltip.contains("1 member.") == true }
         #expect(viewModel.titleIcon?.tooltip.contains("1 member.") == true)
     }
 }
@@ -928,7 +937,7 @@ extension CloneSetTests
         pair.source.addNode(NumberBinaryOperator(context: context))
         #expect(pair.target.nodes.count == 3)
 
-        try await Task.sleep(for: .milliseconds(200))
+        await pair.graph.cloneSetCoordinator.settle()
 
         #expect(pair.target.nodes.count == 4)
         #expect(pair.graph.cloneSetCoordinator.hasPendingSync == false)

@@ -16,10 +16,13 @@ import Satin
 /// pause. Owned by the member; nothing on Node or Port knows about it.
 ///
 /// What counts as an edit: a node moved or renamed, a port published,
-/// unpublished or renamed, a resting parameter value changed from the main
-/// thread. Values arriving on wired or published inlets, and anything the
-/// render thread writes, are runtime traffic and are ignored. Topology
-/// changes reach the graph directly through its mutation API.
+/// unpublished or renamed, a resting parameter value changed. Edits happen
+/// on the main thread; every signal here is delivered on the thread that
+/// sent it, and some send every frame from the render thread (a subtitle
+/// following a port, a value arriving on a wire), so each sink first drops
+/// anything not on the main thread. Values arriving on wired or published
+/// inlets are ignored as well. Topology changes reach the graph directly
+/// through its mutation API.
 final class CloneMemberObserver
 {
     private weak var member: SubgraphNode?
@@ -64,14 +67,17 @@ final class CloneMemberObserver
 
         node.offsetSubject
             .dropFirst()
-            .sink { [weak self] _ in self?.noteEdit() }
+            .sink { [weak self] _ in
+                guard Thread.isMainThread else { return }
+                self?.noteEdit()
+            }
             .store(in: &cancellables)
 
         // The subject also fires for derived subtitles, some of which follow
         // a port every frame; only the rename is an edit.
         node.subtitleSubject
             .sink { [weak self, weak node] in
-                guard let self, let node else { return }
+                guard Thread.isMainThread, let self, let node else { return }
                 let userName = node.userName
                 guard self.userNames[node.id] != .some(userName) else { return }
                 self.userNames[node.id] = userName
@@ -80,7 +86,10 @@ final class CloneMemberObserver
             .store(in: &cancellables)
 
         node.portsChangedSubject
-            .sink { [weak self] in self?.noteEdit() }
+            .sink { [weak self] in
+                guard Thread.isMainThread else { return }
+                self?.noteEdit()
+            }
             .store(in: &cancellables)
 
         for port in node.ports
@@ -101,7 +110,7 @@ final class CloneMemberObserver
             _ = port.published
             _ = port.publishedName
         } onChange: { [weak self, weak port] in
-            guard let self, self.active else { return }
+            guard Thread.isMainThread, let self, self.active else { return }
             self.noteEdit()
             if let port { self.watchPublishedState(of: port) }
         }

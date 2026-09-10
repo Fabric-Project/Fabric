@@ -151,6 +151,18 @@ internal import AnyCodable
     public func noteContentChanged()
     {
         contentRevision += 1
+        self.scheduleCloneSyncIfNeeded()
+    }
+
+    /// The coordinator and its flag are main-thread state; an edit made
+    /// elsewhere is handed to the main actor to schedule.
+    private func scheduleCloneSyncIfNeeded()
+    {
+        guard Thread.isMainThread else
+        {
+            Task { @MainActor [weak self] in self?.scheduleCloneSyncIfNeeded() }
+            return
+        }
 
         let coordinator = self.cloneSetCoordinator
         guard !coordinator.isReconciling, !self.enclosingCloneMembers.isEmpty else { return }

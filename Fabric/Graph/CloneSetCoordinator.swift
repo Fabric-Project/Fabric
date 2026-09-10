@@ -10,6 +10,10 @@ import Foundation
 /// Per-document clone set state, owned by the root graph: the reconcile
 /// re-entrancy flag and the debounced sync that follows edits inside a
 /// member. See Graph+CloneSet.
+///
+/// Main thread only. Edits, syncs and the debounce all happen there, as does
+/// every other edit of a graph; a call from elsewhere is moved to the main
+/// actor rather than run in place.
 public final class CloneSetCoordinator
 {
     /// Set while a member is being brought in line with its set, so the
@@ -20,7 +24,6 @@ public final class CloneSetCoordinator
     public var debounceInterval: Duration = .milliseconds(100)
 
     private(set) weak var rootGraph: Graph?
-    private let lock = NSLock()
     private var pendingGraphs: [Graph] = []
     private var debounceTask: Task<Void, Never>?
 
@@ -32,25 +35,27 @@ public final class CloneSetCoordinator
     /// True between an edit inside a member and the sync that follows it.
     public var hasPendingSync: Bool
     {
-        lock.withLock { !pendingGraphs.isEmpty }
+        !pendingGraphs.isEmpty
     }
 
     /// An edit landed in `graph`. Coalesces with other edits until they pause.
     func noteContentChanged(in graph: Graph)
     {
+        guard Thread.isMainThread else
+        {
+            Task { @MainActor [weak self] in self?.noteContentChanged(in: graph) }
+            return
+        }
+
+        if !pendingGraphs.contains(where: { $0 === graph }) { pendingGraphs.append(graph) }
+
+        debounceTask?.cancel()
         let interval = self.debounceInterval
-        let task = Task { @MainActor [weak self] in
+        debounceTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: interval)
             guard !Task.isCancelled else { return }
             self?.flush()
         }
-
-        let superseded: Task<Void, Never>? = lock.withLock {
-            if !pendingGraphs.contains(where: { $0 === graph }) { pendingGraphs.append(graph) }
-            defer { debounceTask = task }
-            return debounceTask
-        }
-        superseded?.cancel()
     }
 
     /// Runs every pending sync now. Each edited graph is the source for the
@@ -60,17 +65,17 @@ public final class CloneSetCoordinator
     /// already running.
     public func flush()
     {
+        guard Thread.isMainThread else
+        {
+            Task { @MainActor [weak self] in self?.flush() }
+            return
+        }
         guard !isReconciling, let rootGraph else { return }
 
-        let (graphs, task): ([Graph], Task<Void, Never>?) = lock.withLock {
-            defer
-            {
-                pendingGraphs.removeAll()
-                debounceTask = nil
-            }
-            return (pendingGraphs, debounceTask)
-        }
-        task?.cancel()
+        debounceTask?.cancel()
+        debounceTask = nil
+        let graphs = pendingGraphs
+        pendingGraphs.removeAll()
 
         var touchedSetIDs = Set<UUID>()
         for graph in graphs
@@ -86,5 +91,12 @@ public final class CloneSetCoordinator
                 member.cloneObserver?.refresh()
             }
         }
+    }
+
+    /// Waits for a pending debounce to run its sync, for callers that need
+    /// the siblings in step now rather than after the pause.
+    public func settle() async
+    {
+        await debounceTask?.value
     }
 }
