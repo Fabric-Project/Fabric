@@ -299,6 +299,14 @@ internal import AnyCodable
 
     // MARK: - Clone sets
 
+    /// Set to true in an encoder's userInfo to write clone set members that
+    /// match their set's template as their record and per-member values only,
+    /// the way a document is saved. Members that have drifted from the
+    /// template are written in full regardless, so nothing is lost. Left
+    /// unset, as for duplication, the clipboard and templates themselves,
+    /// every member is written in full.
+    public static let compactCloneMembersKey = CodingUserInfoKey(rawValue: "graphics.fabric.compactCloneMembers")!
+
     public func cloneSet(for setID: UUID) -> CloneSet?
     {
         self.rootGraph.cloneSets.first { $0.id == setID }
@@ -357,6 +365,10 @@ internal import AnyCodable
 
         self.notes = try container.decodeIfPresent([Note].self, forKey: .notes) ?? []
         self.cloneSets = try container.decodeIfPresent([CloneSet].self, forKey: .cloneSets) ?? []
+        if !self.cloneSets.isEmpty, decodeContext.cloneSets.isEmpty
+        {
+            decodeContext.cloneSets = self.cloneSets
+        }
         let requiredPlugins = try container.decodeIfPresent([PluginRequirement].self, forKey: .requiredPlugins) ?? []
         let nodeRegistry = try NodeRegistry.shared
         try nodeRegistry.validatePluginRequirements(requiredPlugins)

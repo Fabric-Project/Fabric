@@ -156,6 +156,44 @@ extension Graph
         return CloneSet.canonicalJSON(templateObject)
     }
 
+    /// The template with every published inlet's value removed: the form in
+    /// which two members' designs compare, since those values are each
+    /// member's own. The stored template keeps them so a member made from
+    /// it alone still decodes.
+    internal static func designComparableJSON(_ templateJSON: Data) -> Data
+    {
+        guard let object = CloneSet.jsonObject(from: templateJSON) else { return templateJSON }
+        return CloneSet.canonicalJSON(stripPublishedInletValues(in: object) as? [String: Any] ?? object)
+    }
+
+    private static func stripPublishedInletValues(in object: Any) -> Any
+    {
+        switch object
+        {
+        case let array as [Any]:
+            return array.map { stripPublishedInletValues(in: $0) }
+
+        case var dict as [String: Any]:
+            if dict["kind"] as? String == PortKind.Inlet.rawValue,
+               dict["published"] as? Bool == true,
+               var parameter = dict["parameter"] as? [String: Any],
+               var base = parameter["base"] as? [String: Any]
+            {
+                base["value"] = nil
+                parameter["base"] = base
+                dict["parameter"] = parameter
+            }
+            for (key, value) in dict
+            {
+                dict[key] = stripPublishedInletValues(in: value)
+            }
+            return dict
+
+        default:
+            return object
+        }
+    }
+
     // MARK: - Discovery
 
     /// Every member of the set anywhere in the document, in document order.

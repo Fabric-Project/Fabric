@@ -97,6 +97,16 @@ public final class CloneSetCoordinator
         }
     }
 
+    /// Drops any pending sync without running it. For tests that want a
+    /// member's edit left unseen by its set.
+    public func discardPendingSync()
+    {
+        dispatchPrecondition(condition: .onQueue(.main))
+        debounceTask?.cancel()
+        debounceTask = nil
+        pendingGraphs.removeAll()
+    }
+
     /// Waits for a pending debounce to run its sync, for callers that need
     /// the siblings in step now rather than after the pause.
     public func settle() async

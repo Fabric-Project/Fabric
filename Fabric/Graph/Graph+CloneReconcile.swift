@@ -209,9 +209,27 @@ extension Graph
             return nil
         }
 
+        // The member's own values, its published inlets', carried over by name
+        // since a member with no record cannot be mapped any other way.
+        var publishedValues: [String: PortValue] = [:]
+        for node in member.subGraph.nodes
+        {
+            for port in node.ports where port.kind == .Inlet && port.published
+            {
+                if let value = port.snapshotValue() { publishedValues[port.displayName] = value }
+            }
+        }
+
         let fresh = try parent.instantiateCloneSetMember(of: setID, at: member.offset)
         parent.withoutUndoRegistration {
             fresh.userName = member.userName
+            for node in fresh.subGraph.nodes
+            {
+                for port in node.ports where port.kind == .Inlet && port.published
+                {
+                    if let value = publishedValues[port.displayName] { port.restoreValue(from: value) }
+                }
+            }
             report.nodesRemoved += member.subGraph.nodesRecursive().count
             report.nodesAdded += fresh.subGraph.nodesRecursive().count
 
@@ -403,6 +421,21 @@ extension Graph
         if let targetSubgraph = target as? SubgraphNode, let sourceSubgraph = source as? SubgraphNode
         {
             targetSubgraph.subGraph.reconcile(from: sourceSubgraph.subGraph, context: &context, report: &report)
+
+            // A nested member's set travels with the design; its record is the
+            // source's, with the source's local ids mapped to the target's.
+            var record: [String: String] = [:]
+            for (templateID, sourceLocal) in sourceSubgraph.cloneRecord
+            {
+                record[templateID] = context.targetLocalID(forTemplate: context.templateID(forSourceLocal: sourceLocal))
+            }
+            if targetSubgraph.cloneSetID != sourceSubgraph.cloneSetID || targetSubgraph.cloneRecord != record
+            {
+                targetSubgraph.cloneRecord = record
+                targetSubgraph.cloneSetID = sourceSubgraph.cloneSetID
+                targetSubgraph.subtitleSubject.send()
+                report.nodesUpdated += 1
+            }
         }
 
         var changed = false
@@ -562,10 +595,13 @@ extension Node
 {
     /// Same class and same settings: the port set the code declares matches,
     /// so state can be applied port by port instead of replacing the node.
+    /// A node with no settings view has no settings to compare, so its
+    /// encode is skipped.
     fileprivate func canReconcileInPlace(from source: Node) -> Bool
     {
-        type(of: self) == type(of: source)
-            && self.cloneSettingsSignature() == source.cloneSettingsSignature()
+        guard type(of: self) == type(of: source) else { return false }
+        guard self.providesSettingsView() || source.providesSettingsView() else { return true }
+        return self.cloneSettingsSignature() == source.cloneSettingsSignature()
     }
 
     /// Encoded keys that are not settings: identity, layout, port state, and
@@ -575,7 +611,7 @@ extension Node
         var keys: Set<String> = ["id", "nodeOffset", "ports", "userName"]
         if self is SubgraphNode
         {
-            keys.formUnion(["subGraph", "proxyPorts", Graph.cloneSetIDKey, "cloneRecord"])
+            keys.formUnion(["subGraph", "proxyPorts", Graph.cloneSetIDKey, "cloneRecord", "memberValues"])
         }
         return keys
     }

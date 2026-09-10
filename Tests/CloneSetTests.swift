@@ -1108,3 +1108,121 @@ extension CloneSetTests
         #expect(fixture.graph.nodes.contains { $0 === sibling })
     }
 }
+
+// MARK: - Storage by record
+
+extension CloneSetTests
+{
+    /// Encodes the way the editor saves a document: members that match their
+    /// set's template are written as their record and per-member values only.
+    private func saveCompactly(_ graph: Graph) throws -> Data
+    {
+        let encoder = JSONEncoder()
+        encoder.userInfo[Graph.compactCloneMembersKey] = true
+        return try encoder.encode(graph)
+    }
+
+    private func decode(_ data: Data, context: Context) throws -> Graph
+    {
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        return try decoder.decode(Graph.self, from: data)
+    }
+
+    private func memberEntries(in data: Data) throws -> [[String: Any]]
+    {
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let nodeMap = try #require(object["nodeMap"] as? [[String: Any]])
+        return nodeMap.compactMap { $0["value"] as? [String: Any] }.filter { $0["cloneSetID"] != nil }
+    }
+
+    @Test("A saved document holds the template once and members as their record and per-member values")
+    @MainActor
+    func membersSaveByRecord() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let setID = try #require(pair.member.member.cloneSetID)
+        _ = try pair.member.member.subGraph.duplicateAsClone(pair.member.nested)   // a nested set inside the member
+        pair.graph.cloneSetCoordinator.flush()
+
+        // A parent wire onto the sibling's published inlet, and a per-member value on it.
+        let upstream = NumberBinaryOperator(context: context)
+        pair.graph.addNode(upstream)
+        let proxy = try #require(pair.sibling.ports.first { $0.kind == .Inlet && $0.displayName == "Amount" })
+        _ = try #require(pair.graph.connect(upstream.outputNumber, to: proxy))
+        let firstCopy = try #require(pair.counterpart(of: pair.member.first))
+        pair.member.first.inputNumber1.value = 1
+        firstCopy.inputNumber1.value = 5
+        pair.graph.cloneSetCoordinator.flush()
+
+        let data = try saveCompactly(pair.graph)
+        let entries = try memberEntries(in: data)
+        #expect(entries.count == 2)
+        #expect(entries.allSatisfy { $0["subGraph"] == nil })
+        #expect(entries.allSatisfy { $0["cloneRecord"] != nil && $0["memberValues"] != nil })
+
+        let decoded = try decode(data, context: context)
+        let members = decoded.cloneSetMembers(of: setID)
+        #expect(members.map(\.id) == [pair.member.member.id, pair.sibling.id])
+        let decodedSibling = members[1]
+        // Materialised through the record, so every id is the one the document knew.
+        #expect(Set(decodedSibling.subGraph.nodesRecursive().map(\.id)) == Set(pair.sibling.subGraph.nodesRecursive().map(\.id)))
+        let decodedFirstCopy = try #require(decodedSibling.subGraph.node(forID: firstCopy.id) as? NumberBinaryOperator)
+        #expect(decodedFirstCopy.inputNumber1.value == 5)
+        let decodedMemberFirst = try #require(members[0].subGraph.node(forID: pair.member.first.id) as? NumberBinaryOperator)
+        #expect(decodedMemberFirst.inputNumber1.value == 1)
+        // The parent's wire onto the sibling's proxy survived.
+        let decodedUpstream = try #require(decoded.node(forID: upstream.id) as? NumberBinaryOperator)
+        let decodedProxy = try #require(decodedSibling.ports.first { $0.id == proxy.id })
+        #expect(decoded.connections.contains { $0.outletPort === decodedUpstream.outputNumber && $0.inletPort === decodedProxy })
+        // The nested set came back too.
+        #expect(decodedSibling.subGraph.nodes.compactMap { $0 as? SubgraphNode }.allSatisfy { $0.cloneSetID != nil })
+        #expect(decoded.cloneSets.count == 2)
+    }
+
+    @Test("A member whose design has drifted from the template is saved in full, so nothing is lost")
+    @MainActor
+    func driftedMemberSavesInFull() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        pair.graph.cloneSetCoordinator.flush()
+
+        // An edit the template has not seen: made, then the pending sync dropped.
+        let added = NumberBinaryOperator(context: context)
+        pair.target.addNode(added)
+        pair.graph.cloneSetCoordinator.discardPendingSync()
+
+        let data = try saveCompactly(pair.graph)
+        let entries = try memberEntries(in: data)
+        #expect(entries.filter { $0["subGraph"] == nil }.count == 1)
+        #expect(entries.filter { $0["subGraph"] != nil }.count == 1)
+
+        let decoded = try decode(data, context: context)
+        let decodedSibling = try #require(decoded.node(forID: pair.sibling.id) as? SubgraphNode)
+        #expect(decodedSibling.subGraph.nodes.count == 4)
+        #expect(decodedSibling.subGraph.node(forID: added.id) != nil)
+    }
+}
+
+// MARK: - Settings signature gate
+
+extension CloneSetTests
+{
+    @Test("Nodes without settings are reconciled in place without an encode")
+    func plainNodesSkipTheSignature() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let firstCopy = try #require(pair.counterpart(of: pair.member.first))
+
+        pair.member.first.inputNumber2.value = 3
+        let report = try pair.graph.reconcileCloneMember(pair.sibling, from: pair.member.member)
+
+        #expect(report.nodesReplaced == 0)
+        #expect(report.nodesUpdated == 1)
+        #expect(firstCopy.inputNumber2.value == 3)
+        #expect(pair.member.first.providesSettingsView() == false)
+    }
+}
