@@ -274,6 +274,7 @@ struct LocalVLMNodeSettingsView: View {
 
     private func didUpdateModelSettings() {
         guard self.suppressSettingSideEffects == false else { return }
+        self.settingsDidChange()
         self.vlmEvaluator.resetSessionState()
         self.applyEvaluatorConfiguration()
         self.observeSelectedModelState()
@@ -281,6 +282,7 @@ struct LocalVLMNodeSettingsView: View {
 
     private func didUpdateInferenceSettings() {
         guard self.suppressSettingSideEffects == false else { return }
+        self.settingsDidChange()
         self.applyEvaluatorConfiguration()
         self.vlmEvaluator.clearConversation()
     }

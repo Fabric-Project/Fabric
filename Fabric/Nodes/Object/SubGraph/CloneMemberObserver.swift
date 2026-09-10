@@ -16,7 +16,8 @@ import Satin
 /// pause. Owned by the member; nothing on Node or Port knows about it.
 ///
 /// What counts as an edit: a node moved or renamed, a port published,
-/// unpublished or renamed, a resting parameter value changed. Edits happen
+/// unpublished or renamed, a resting parameter value changed, a setting
+/// changed as the node reports through settingsDidChange(). Edits happen
 /// on the main thread; every signal here is delivered on the thread that
 /// sent it, and some send every frame from the render thread (a subtitle
 /// following a port, a value arriving on a wire), so each sink first drops
@@ -86,6 +87,13 @@ final class CloneMemberObserver
             .store(in: &cancellables)
 
         node.portsChangedSubject
+            .sink { [weak self] in
+                guard Thread.isMainThread else { return }
+                self?.noteEdit()
+            }
+            .store(in: &cancellables)
+
+        node.settingsDidChangeSubject
             .sink { [weak self] in
                 guard Thread.isMainThread else { return }
                 self?.noteEdit()

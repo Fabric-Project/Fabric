@@ -169,6 +169,26 @@ internal import AnyCodable
         coordinator.noteContentChanged(in: self)
     }
 
+    /// A set cannot contain itself. A member of a set arriving in this graph
+    /// while this graph already sits inside a member of the same set is
+    /// unlinked, and so is any such member nested in what arrived.
+    private func unlinkMembersNestedInTheirOwnSet(in node: Node)
+    {
+        let enclosingSetIDs = Set(self.enclosingCloneMembers.compactMap(\.cloneSetID))
+        guard !enclosingSetIDs.isEmpty else { return }
+
+        let arriving = ([node] + ((node as? SubgraphNode)?.subGraph.nodesRecursive() ?? []))
+            .compactMap { $0 as? SubgraphNode }
+        for member in arriving
+        {
+            guard let setID = member.cloneSetID, enclosingSetIDs.contains(setID) else { continue }
+            print("Graph: unlinking \(member) — a clone set cannot contain one of its own members")
+            member.cloneSetID = nil
+            member.cloneRecord = [:]
+            member.subtitleSubject.send()
+        }
+    }
+
     /// The clone set members this graph sits inside, innermost first.
     internal var enclosingCloneMembers: [SubgraphNode]
     {
@@ -632,6 +652,7 @@ internal import AnyCodable
     public func addNode(_ node:Node)
     {
         print("Graph: \(self.id) Add Node", node)
+        self.unlinkMembersNestedInTheirOwnSet(in: node)
         self.maybeAddNodeToScene(node)
 
         // Create the ViewModel before appending so it is always present
@@ -781,6 +802,7 @@ internal import AnyCodable
                                     connections: [Connection])
     {
         withoutUndoRegistration {
+            unlinkMembersNestedInTheirOwnSet(in: node)
             node.offset = offset
             nodeViewModels[node.id] = NodeViewModel(node: node)
             nodes.append(node)

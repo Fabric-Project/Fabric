@@ -39,6 +39,9 @@ public final class CloneSetCoordinator
     }
 
     /// An edit landed in `graph`. Coalesces with other edits until they pause.
+    /// The last graph edited in a set is that set's source: an earlier
+    /// pending graph in any of the same sets is dropped, since syncing from
+    /// it would overwrite the newer edit.
     func noteContentChanged(in graph: Graph)
     {
         guard Thread.isMainThread else
@@ -47,7 +50,12 @@ public final class CloneSetCoordinator
             return
         }
 
-        if !pendingGraphs.contains(where: { $0 === graph }) { pendingGraphs.append(graph) }
+        let setIDs = Set(graph.enclosingCloneMembers.compactMap(\.cloneSetID))
+        pendingGraphs.removeAll { pending in
+            pending === graph
+                || !setIDs.isDisjoint(with: pending.enclosingCloneMembers.compactMap(\.cloneSetID))
+        }
+        pendingGraphs.append(graph)
 
         debounceTask?.cancel()
         let interval = self.debounceInterval
@@ -65,11 +73,7 @@ public final class CloneSetCoordinator
     /// already running.
     public func flush()
     {
-        guard Thread.isMainThread else
-        {
-            Task { @MainActor [weak self] in self?.flush() }
-            return
-        }
+        dispatchPrecondition(condition: .onQueue(.main))
         guard !isReconciling, let rootGraph else { return }
 
         debounceTask?.cancel()

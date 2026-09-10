@@ -117,6 +117,7 @@ public class LiveImageNode: BaseImageNode
     @MainActor
     public func updateShaderSource(_ source: String) {
         self.shaderSource = source
+        self.settingsDidChange()
         guard let shaderFileURL else { return }
 
         do {

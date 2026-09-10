@@ -103,6 +103,7 @@ public class DeferredSubgraphNode: SubgraphNode
         {
             guard oldValue != deferredMRTEnabled else { return }
             self.synchronizeDeferredConfiguration()
+            self.settingsDidChange()
         }
     }
 

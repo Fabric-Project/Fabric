@@ -276,9 +276,11 @@ extension Graph
     }
 
     /// Runs any sync still waiting on the debounce, so a document is saved
-    /// with every set in step.
+    /// with every set in step. Main thread only, like every graph edit: a
+    /// save on another thread would otherwise encode stale members.
     public func flushPendingCloneSync()
     {
+        dispatchPrecondition(condition: .onQueue(.main))
         self.cloneSetCoordinator.flush()
     }
 

@@ -1022,3 +1022,64 @@ extension CloneSetTests
         #expect(graph.reconcileCloneMember(made, from: member).isEmpty)
     }
 }
+
+// MARK: - Review follow-ups
+
+extension CloneSetTests
+{
+    @Test("When two members are edited before a sync, the later edit wins")
+    @MainActor
+    func laterEditorWins() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let coordinator = pair.graph.cloneSetCoordinator
+        let firstCopy = try #require(pair.counterpart(of: pair.member.first))
+
+        pair.member.first.inputNumber2.value = 1      // edit in A
+        firstCopy.inputNumber2.value = 2               // then in B
+        coordinator.flush()
+
+        #expect(pair.member.first.inputNumber2.value == 2)
+        #expect(firstCopy.inputNumber2.value == 2)
+    }
+
+    @Test("A member moved inside a member of its own set is unlinked")
+    func selfNestingUnlinks() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let setID = try #require(pair.member.member.cloneSetID)
+
+        pair.graph.delete(node: pair.sibling)
+        pair.source.addNode(pair.sibling)
+
+        #expect(pair.sibling.cloneSetID == nil)
+        #expect(pair.sibling.cloneRecord.isEmpty)
+        #expect(pair.graph.cloneSetMembers(of: setID).map(\.id) == [pair.member.member.id])
+    }
+
+    @Test("A settings change that keeps the ports bumps the revision and reaches the sibling")
+    @MainActor
+    func settingsChangeWithoutPortChangeSyncs() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let coordinator = pair.graph.cloneSetCoordinator
+
+        let expression = MathExpressionNode(context: context, expression: "sin(x) + y")
+        pair.source.addNode(expression)
+        coordinator.flush()
+        let expressionCopy = try #require(pair.counterpart(of: expression))
+        #expect(expressionCopy.stringExpression == "sin(x) + y")
+        let revision = pair.source.contentRevision
+
+        expression.stringExpression = "cos(x) + y"     // same ports, different design
+        #expect(pair.source.contentRevision > revision)
+        #expect(coordinator.hasPendingSync)
+        coordinator.flush()
+
+        let synced = try #require(pair.counterpart(of: expression))
+        #expect(synced.stringExpression == "cos(x) + y")
+    }
+}

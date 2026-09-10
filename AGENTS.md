@@ -212,6 +212,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 - [ ] If we have a Settings View, we should have a custom initializer so procedural graph creation has an entry to settings.
 - [ ] If we have a Settings View and a custom initializer, use a custom struct or enum for the settings
 - [ ] If the Node overrides `deriveSubtitle()`, every mutation of the state it derives from fires `subtitleSubject.send()` (StrategyNode’s `strategy` already does)
+- [ ] If the Node encodes state that is not a port (a script, an expression, a strategy, a device selection), every mutation of it calls `settingsDidChange()`; port changes report themselves
 - [ ] New Nodes should live in an appropriate spot in the NodeRegistry
 
 ---
