@@ -7,13 +7,22 @@
 
 import SwiftUI
 
+/// A rename in progress: which node's set, and the draft name. Created with
+/// the set's current name when the menu item is chosen, so the alert opens
+/// showing it; the draft is what OK commits, empty included.
+struct CloneSetRenameRequest: Equatable
+{
+    let nodeID: UUID
+    var name: String
+}
+
 /// Clone set items of a Subgraph node's context menu. Renaming presents the
 /// alert owned by CloneSetRenameAlert on the node, keyed by node id.
 struct CloneSetContextMenu: View
 {
     let subgraphNode: SubgraphNode
     let currentGraph: Graph
-    @Binding var renamingNodeID: UUID?
+    @Binding var renameRequest: CloneSetRenameRequest?
 
     var body: some View
     {
@@ -27,10 +36,10 @@ struct CloneSetContextMenu: View
             Text("Duplicate as Clone")
         }
 
-        if subgraphNode.cloneSetID != nil
+        if let setInfo = subgraphNode.cloneSetInfo
         {
             Button {
-                renamingNodeID = subgraphNode.id
+                renameRequest = CloneSetRenameRequest(nodeID: subgraphNode.id, name: setInfo.name)
             } label: {
                 Text("Rename Clone Set…")
             }
@@ -57,46 +66,47 @@ struct CloneSetContextMenu: View
     }
 }
 
-/// Owns the rename alert for a Subgraph node's clone set, presented when the
-/// canvas's renaming id names this node.
+/// Owns the rename alert for a Subgraph node's clone set, presented while
+/// the canvas's request names this node. The text field edits the request's
+/// draft directly, so there is no hand-off to time against the alert.
 struct CloneSetRenameAlert: ViewModifier
 {
     let subgraphNode: SubgraphNode
     let graph: Graph
-    @Binding var renamingNodeID: UUID?
+    @Binding var renameRequest: CloneSetRenameRequest?
 
-    @State private var renameText = ""
-
-    private var isRenaming: Binding<Bool>
+    private var isPresented: Binding<Bool>
     {
         Binding(
-            get: { renamingNodeID == subgraphNode.id },
-            set: { presenting in if !presenting, renamingNodeID == subgraphNode.id { renamingNodeID = nil } }
+            get: { renameRequest?.nodeID == subgraphNode.id },
+            set: { presenting in if !presenting, renameRequest?.nodeID == subgraphNode.id { renameRequest = nil } }
+        )
+    }
+
+    private var draftName: Binding<String>
+    {
+        Binding(
+            get: { renameRequest?.name ?? "" },
+            set: { renameRequest?.name = $0 }
         )
     }
 
     func body(content: Content) -> some View
     {
         content
-            .alert("Rename Clone Set", isPresented: isRenaming) {
-                TextField("Set name", text: $renameText)
+            .alert("Rename Clone Set", isPresented: isPresented) {
+                TextField("Set name", text: draftName)
                 Button("OK", action: commitRename)
                 Button("Cancel", role: .cancel) { }
             } message: {
                 Text("The name shows on every member of the set. Leave it empty for a system name.")
             }
-            .onChange(of: isRenaming.wrappedValue) {
-                if isRenaming.wrappedValue
-                {
-                    renameText = subgraphNode.cloneSetInfo?.name ?? ""
-                }
-            }
     }
 
     private func commitRename()
     {
-        guard let setID = subgraphNode.cloneSetID else { return }
-        graph.renameCloneSet(setID, to: renameText)
+        guard let setID = subgraphNode.cloneSetID, let request = renameRequest else { return }
+        graph.renameCloneSet(setID, to: request.name)
     }
 }
 
@@ -105,7 +115,7 @@ struct CloneSetRenameAlertIfSubgraph: ViewModifier
 {
     let node: Node
     let graph: Graph
-    @Binding var renamingNodeID: UUID?
+    @Binding var renameRequest: CloneSetRenameRequest?
 
     func body(content: Content) -> some View
     {
@@ -113,7 +123,7 @@ struct CloneSetRenameAlertIfSubgraph: ViewModifier
         {
             content.modifier(CloneSetRenameAlert(subgraphNode: subgraphNode,
                                                  graph: graph,
-                                                 renamingNodeID: $renamingNodeID))
+                                                 renameRequest: $renameRequest))
         }
         else
         {
