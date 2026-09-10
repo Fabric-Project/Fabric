@@ -50,12 +50,20 @@ extension Graph
     /// Adds a sibling of `node` to this graph: a duplicate that shares the
     /// node's clone set and records the same template ids against fresh ids
     /// of its own. Starts a set, with the node's design as its template, if
-    /// the node is not in one yet. One undo step.
+    /// the node is not in one yet. One undo step, and nothing of it remains
+    /// if the copy cannot be made.
     @discardableResult
     public func duplicateAsClone(_ node: SubgraphNode,
-                                 offset: CGSize = CGSize(width: 20, height: 20)) -> SubgraphNode?
+                                 offset: CGSize = CGSize(width: 20, height: 20)) throws -> SubgraphNode
     {
-        guard node.graph === self else { return nil }
+        guard node.graph === self else
+        {
+            throw recoverableGraphError(.nodeNotInGraph, message: "Node \(node.id) does not belong to this graph.")
+        }
+
+        let previousSetID = node.cloneSetID
+        let previousRecord = node.cloneRecord
+        var startedSet: CloneSet?
 
         undoManager?.beginUndoGrouping()
         defer
@@ -64,25 +72,45 @@ extension Graph
             undoManager?.setActionName("Duplicate as Clone")
         }
 
-        let previousRecord = node.cloneRecord
-        if node.cloneSetID == nil
+        do
         {
-            guard let memberNodeType = try? self.qualifiedNodeID(for: type(of: node)).description else { return nil }
-            let set = CloneSet(name: self.nextFreeCloneSetName(), memberNodeType: memberNodeType, templateJSON: Data())
-            self.addCloneSetUndoably(set)
-            self.setCloneMembership(setID: set.id, record: [:], on: node)
+            if node.cloneSetID == nil
+            {
+                let memberNodeType = try self.qualifiedNodeID(for: type(of: node)).description
+                let set = CloneSet(name: self.nextFreeCloneSetName(), memberNodeType: memberNodeType, templateJSON: Data())
+                self.addCloneSetUndoably(set)
+                self.setCloneMembership(setID: set.id, record: [:], on: node)
+                startedSet = set
+            }
+
+            // The template and the source's record must be complete before the
+            // copy is taken, since the copy's record is the source's, rewritten.
+            guard self.refreshCloneTemplate(from: node) else
+            {
+                throw recoverableGraphError(.cloneOperationFailed, message: "The sub graph of \(node) could not be encoded as a template.")
+            }
+            self.registerRecordUndo(on: node, previousRecord: previousRecord)
+
+            let copies = self.duplicateNodes([node], offset: offset, preservingCloneLinks: true)
+            guard let copy = copies.first as? SubgraphNode else
+            {
+                throw recoverableGraphError(.cloneOperationFailed, message: "\(node) could not be duplicated.")
+            }
+
+            self.cloneSetMembershipChanged(setID: copy.cloneSetID)
+            return copy
         }
-
-        // The template and the source's record must be complete before the
-        // copy is taken, since the copy's record is the source's, rewritten.
-        self.refreshCloneTemplate(from: node)
-        self.registerRecordUndo(on: node, previousRecord: previousRecord)
-
-        let copies = self.duplicateNodes([node], offset: offset, preservingCloneLinks: true)
-        guard let copy = copies.first as? SubgraphNode else { return nil }
-
-        self.cloneSetMembershipChanged(setID: copy.cloneSetID)
-        return copy
+        catch
+        {
+            // Leave no half-made set behind, with or without an undo manager.
+            self.withoutUndoRegistration {
+                node.cloneSetID = previousSetID
+                node.cloneRecord = previousRecord
+                node.subtitleSubject.send()
+                if let startedSet { self.removeCloneSet(startedSet) }
+            }
+            throw error
+        }
     }
 
     // MARK: - Template
@@ -105,7 +133,7 @@ extension Graph
     /// for it. Any id the record did not have is given a template id and
     /// recorded first, so the template and the record together describe the
     /// member exactly. Does not touch the set.
-    public func cloneTemplateJSON(from member: SubgraphNode) -> Data?
+    internal func cloneTemplateJSON(from member: SubgraphNode) -> Data?
     {
         guard let data = try? JSONEncoder().encode(member.subGraph),
               let object = CloneSet.jsonObject(from: data)
@@ -156,9 +184,12 @@ extension Graph
 
     /// Renames the set. Whitespace is trimmed; an empty name goes back to a
     /// system name, the lowest not in use by another set. Undoable.
-    public func renameCloneSet(_ setID: UUID, to name: String)
+    public func renameCloneSet(_ setID: UUID, to name: String) throws
     {
-        guard let set = self.cloneSet(for: setID) else { return }
+        guard let set = self.cloneSet(for: setID) else
+        {
+            throw recoverableGraphError(.cloneSetNotFound, message: "No clone set \(setID) in this document.")
+        }
 
         var trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty
@@ -172,7 +203,7 @@ extension Graph
         self.cloneSetMembershipChanged(setID: setID)
 
         undoManager?.registerUndo(withTarget: self) { graph in
-            graph.renameCloneSet(setID, to: previous)
+            try? graph.renameCloneSet(setID, to: previous)
         }
         undoManager?.setActionName("Rename Clone Set")
     }
@@ -212,9 +243,16 @@ extension Graph
     /// ordinary subgraph. Sets nested inside it get sets of their own, each
     /// on a copy of the nested template, so their records still resolve while
     /// they detach from their counterparts in the former siblings. Undoable.
-    public func unlinkClone(_ node: SubgraphNode)
+    public func unlinkClone(_ node: SubgraphNode) throws
     {
-        guard node.graph === self, let setID = node.cloneSetID else { return }
+        guard node.graph === self else
+        {
+            throw recoverableGraphError(.nodeNotInGraph, message: "Node \(node.id) does not belong to this graph.")
+        }
+        guard let setID = node.cloneSetID else
+        {
+            throw recoverableGraphError(.notACloneMember, message: "\(node) is not in a clone set.")
+        }
 
         let nestedMembers = node.subGraph.subgraphNodesRecursive().filter { $0.cloneSetID != nil }
         let nestedSetIDs = Set(nestedMembers.compactMap(\.cloneSetID))

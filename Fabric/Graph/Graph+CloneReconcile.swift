@@ -106,7 +106,14 @@ extension Graph
 
         for sibling in self.cloneSiblings(of: member)
         {
-            self.reconcileCloneMember(sibling, from: member)
+            do
+            {
+                try self.reconcileCloneMember(sibling, from: member)
+            }
+            catch
+            {
+                print("Clone set sync: \(sibling) not synced from \(member): \(error.localizedDescription)")
+            }
         }
     }
 
@@ -130,17 +137,24 @@ extension Graph
     /// grows the records with anything new. A target with no record cannot be
     /// matched and is rebuilt from the template instead. Registers no undo
     /// steps: the edit that caused this is undone on the source, and the
-    /// siblings follow again. Returns what changed; empty where nothing did
-    /// or the pair cannot be synced.
+    /// siblings follow again. Returns what changed; empty where nothing did.
+    /// Throws where the two are not members of one set, or one contains the
+    /// other.
     @discardableResult
-    public func reconcileCloneMember(_ target: SubgraphNode, from source: SubgraphNode) -> CloneReconcileReport
+    public func reconcileCloneMember(_ target: SubgraphNode, from source: SubgraphNode) throws -> CloneReconcileReport
     {
         var report = CloneReconcileReport()
-        guard target !== source,
-              let setID = source.cloneSetID, target.cloneSetID == setID,
-              !target.subGraph.isDescendant(of: source.subGraph),
+        guard target !== source else { return report }
+        guard let setID = source.cloneSetID, target.cloneSetID == setID else
+        {
+            throw recoverableGraphError(.notACloneMember, message: "\(target) and \(source) are not members of one clone set.")
+        }
+        guard !target.subGraph.isDescendant(of: source.subGraph),
               !source.subGraph.isDescendant(of: target.subGraph)
-        else { return report }
+        else
+        {
+            throw recoverableGraphError(.cloneOperationFailed, message: "\(target) and \(source) contain one another; a clone set cannot contain itself.")
+        }
 
         let coordinator = self.cloneSetCoordinator
         let wasReconciling = coordinator.isReconciling
@@ -149,7 +163,7 @@ extension Graph
 
         if target.cloneRecord.isEmpty
         {
-            return self.recoverCloneMember(target)
+            return try self.recoverCloneMember(target)
         }
 
         var context = CloneSyncContext(source: source, target: target)
@@ -168,10 +182,17 @@ extension Graph
     /// to its published ports by their names. For a member whose record is
     /// missing, so nothing in it can be matched.
     @discardableResult
-    internal func recoverCloneMember(_ member: SubgraphNode) -> CloneReconcileReport
+    internal func recoverCloneMember(_ member: SubgraphNode) throws -> CloneReconcileReport
     {
         var report = CloneReconcileReport()
-        guard let setID = member.cloneSetID, let parent = member.graph else { return report }
+        guard let setID = member.cloneSetID else
+        {
+            throw recoverableGraphError(.notACloneMember, message: "\(member) is not in a clone set.")
+        }
+        guard let parent = member.graph else
+        {
+            throw recoverableGraphError(.nodeNotInGraph, message: "\(member) is not in a graph.")
+        }
 
         struct ParentWire { let otherPort: Port; let proxyName: String; let proxyKind: PortKind; let active: Bool }
         let memberPortIDs = Set(member.ports.map(\.id))
@@ -188,8 +209,8 @@ extension Graph
             return nil
         }
 
+        let fresh = try parent.instantiateCloneSetMember(of: setID, at: member.offset)
         parent.withoutUndoRegistration {
-            guard let fresh = parent.instantiateCloneSetMember(of: setID, at: member.offset) else { return }
             fresh.userName = member.userName
             report.nodesRemoved += member.subGraph.nodesRecursive().count
             report.nodesAdded += fresh.subGraph.nodesRecursive().count
@@ -218,37 +239,48 @@ extension Graph
     /// A new member of the set made from the template alone, added to this
     /// graph at `offset`: every id fresh and recorded, the set's member class.
     @discardableResult
-    public func instantiateCloneSetMember(of setID: UUID, at offset: CGSize = .zero) -> SubgraphNode?
+    public func instantiateCloneSetMember(of setID: UUID, at offset: CGSize = .zero) throws -> SubgraphNode
     {
-        guard let set = self.cloneSet(for: setID) else { return nil }
-        return self.instantiateMember(of: set, at: offset)
+        guard let set = self.cloneSet(for: setID) else
+        {
+            throw recoverableGraphError(.cloneSetNotFound, message: "No clone set \(setID) in this document.")
+        }
+        return try self.instantiateMember(of: set, at: offset)
     }
 
     /// The same for a set this graph's document may not hold, as for the
     /// transient source an updated template is applied through.
-    internal func instantiateMember(of set: CloneSet, at offset: CGSize = .zero) -> SubgraphNode?
+    internal func instantiateMember(of set: CloneSet, at offset: CGSize = .zero) throws -> SubgraphNode
     {
         let remap = Dictionary(uniqueKeysWithValues: Self.findAllUUIDs(in: set.templateObject).map { ($0, UUID().uuidString) })
         let subGraphObject = Self.remapUUIDs(in: set.templateObject, remap: remap, preservingKeys: [Self.cloneSetIDKey])
 
         let qualified = Self.qualifiedNodeID(fromSerializedType: set.memberNodeType)
-        guard let registry = try? NodeRegistry.shared,
-              let memberClass = registry.nodeClass(pluginID: qualified.pluginID, nodeID: qualified.nodeID) as? SubgraphNode.Type
-        else { return nil }
+        guard let memberClass = try NodeRegistry.shared.nodeClass(pluginID: qualified.pluginID, nodeID: qualified.nodeID) as? SubgraphNode.Type
+        else
+        {
+            throw recoverableGraphError(.cloneOperationFailed, message: "The member type \(set.memberNodeType) of clone set \(set.name) is not a registered subgraph type.")
+        }
 
         // Decode a member the way a document does: a blank node of the class
         // encoded for its own keys, with the template put in as its sub graph.
         let blank = memberClass.init(context: self.context)
         guard let blankData = try? JSONEncoder().encode(blank),
               var object = CloneSet.jsonObject(from: blankData)
-        else { return nil }
+        else
+        {
+            throw recoverableGraphError(.cloneOperationFailed, message: "A blank \(set.memberNodeType) could not be encoded.")
+        }
         object["subGraph"] = subGraphObject
         object["proxyPorts"] = nil
         object[Self.cloneSetIDKey] = set.id.uuidString
         object["cloneRecord"] = remap
 
         let map = AnyCodableMap(type: set.memberNodeType, value: AnyCodable(object))
-        guard let node = self.decodeNode(from: map) as? SubgraphNode else { return nil }
+        guard let node = self.decodeNode(from: map) as? SubgraphNode else
+        {
+            throw recoverableGraphError(.cloneOperationFailed, message: "The template of clone set \(set.name) could not be decoded.")
+        }
         node.offset = offset
         self.addNode(node)
         return node
@@ -259,19 +291,24 @@ extension Graph
     /// A transient member is made from the new template to serve as the
     /// source, then discarded.
     @discardableResult
-    public func applyCloneTemplate(_ templateJSON: Data, to setID: UUID) -> [CloneReconcileReport]
+    public func applyCloneTemplate(_ templateJSON: Data, to setID: UUID) throws -> [CloneReconcileReport]
     {
-        guard let set = self.cloneSet(for: setID),
-              let object = CloneSet.jsonObject(from: templateJSON)
-        else { return [] }
+        guard let set = self.cloneSet(for: setID) else
+        {
+            throw recoverableGraphError(.cloneSetNotFound, message: "No clone set \(setID) in this document.")
+        }
+        guard let object = CloneSet.jsonObject(from: templateJSON) else
+        {
+            throw recoverableGraphError(.cloneOperationFailed, message: "The template for clone set \(set.name) is not a JSON object.")
+        }
         set.templateObject = object
 
         let scratch = Graph(context: self.context)
-        guard let transient = scratch.instantiateMember(of: set) else { return [] }
+        let transient = try scratch.instantiateMember(of: set)
         defer { scratch.delete(node: transient) }
 
-        return self.cloneSetMembers(of: setID).map { member in
-            self.reconcileCloneMember(member, from: transient)
+        return try self.cloneSetMembers(of: setID).map { member in
+            try self.reconcileCloneMember(member, from: transient)
         }
     }
 

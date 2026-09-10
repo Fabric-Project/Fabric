@@ -855,7 +855,7 @@ internal import AnyCodable
         return allPorts.first(where: { $0.id == forID })
     }
 
-    private func recoverableGraphError(_ kind: FabricErrorKind.Graph,
+    internal func recoverableGraphError(_ kind: FabricErrorKind.Graph,
                                        message: String) -> FabricError
     {
         FabricError(.graph(kind), severity: .recoverable, message: message)

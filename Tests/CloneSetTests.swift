@@ -108,7 +108,7 @@ struct CloneSetTests
         #expect(fixture.member.cloneSetID == nil)
         #expect(fixture.graph.cloneSets.isEmpty)
 
-        let copy = try #require(fixture.graph.duplicateAsClone(fixture.member))
+        let copy = try fixture.graph.duplicateAsClone(fixture.member)
 
         let set = try #require(fixture.graph.cloneSets.first)
         #expect(fixture.graph.cloneSets.count == 1)
@@ -150,9 +150,9 @@ struct CloneSetTests
     {
         guard let context = makeContext() else { return }
         let fixture = try makeMemberFixture(context: context)
-        let copy = try #require(fixture.graph.duplicateAsClone(fixture.member))
+        let copy = try fixture.graph.duplicateAsClone(fixture.member)
         let setID = try #require(fixture.member.cloneSetID)
-        fixture.graph.renameCloneSet(setID, to: "Lyric Panel")
+        try fixture.graph.renameCloneSet(setID, to: "Lyric Panel")
 
         let decoded = try roundTrip(fixture.graph, context: context)
 
@@ -175,7 +175,7 @@ struct CloneSetTests
         let undoManager = UndoManager()
         fixture.graph.undoManager = undoManager
 
-        let copy = try #require(fixture.graph.duplicateAsClone(fixture.member))
+        let copy = try fixture.graph.duplicateAsClone(fixture.member)
         let setID = try #require(fixture.member.cloneSetID)
 
         undoManager.undo()
@@ -197,8 +197,8 @@ struct CloneSetTests
     {
         guard let context = makeContext() else { return }
         let fixture = try makeMemberFixture(context: context)
-        _ = try #require(fixture.member.subGraph.duplicateAsClone(fixture.nested))
-        _ = try #require(fixture.graph.duplicateAsClone(fixture.member))
+        _ = try fixture.member.subGraph.duplicateAsClone(fixture.nested)
+        _ = try fixture.graph.duplicateAsClone(fixture.member)
 
         let plain = try #require(fixture.graph.duplicateNodes([fixture.member]).first as? SubgraphNode)
 
@@ -212,12 +212,12 @@ struct CloneSetTests
     {
         guard let context = makeContext() else { return }
         let fixture = try makeMemberFixture(context: context)
-        let sibling = try #require(fixture.graph.duplicateAsClone(fixture.member))
+        let sibling = try fixture.graph.duplicateAsClone(fixture.member)
         let setID = try #require(fixture.member.cloneSetID)
 
         let container = SubgraphNode(context: context)
         fixture.graph.addNode(container)
-        let deepCopy = try #require(fixture.graph.duplicateAsClone(fixture.member))
+        let deepCopy = try fixture.graph.duplicateAsClone(fixture.member)
         fixture.graph.delete(node: deepCopy)
         container.subGraph.addNode(deepCopy)
 
@@ -234,16 +234,16 @@ struct CloneSetTests
         guard let context = makeContext() else { return }
         let fixture = try makeMemberFixture(context: context)
 
-        let nestedCopy = try #require(fixture.member.subGraph.duplicateAsClone(fixture.nested))
+        let nestedCopy = try fixture.member.subGraph.duplicateAsClone(fixture.nested)
         let nestedSetID = try #require(fixture.nested.cloneSetID)
-        let sibling = try #require(fixture.graph.duplicateAsClone(fixture.member))
+        let sibling = try fixture.graph.duplicateAsClone(fixture.member)
         let setID = try #require(fixture.member.cloneSetID)
         #expect(fixture.graph.cloneSetMembers(of: nestedSetID).count == 4)
         #expect(fixture.graph.cloneSets.count == 2)
 
         let undoManager = UndoManager()
         fixture.graph.undoManager = undoManager
-        fixture.graph.unlinkClone(sibling)
+        try fixture.graph.unlinkClone(sibling)
 
         #expect(sibling.cloneSetID == nil)
         #expect(sibling.cloneRecord.isEmpty)
@@ -282,11 +282,11 @@ struct CloneSetTests
     {
         guard let context = makeContext() else { return }
         let fixture = try makeMemberFixture(context: context)
-        let copy = try #require(fixture.graph.duplicateAsClone(fixture.member))
+        let copy = try fixture.graph.duplicateAsClone(fixture.member)
         let setID = try #require(fixture.member.cloneSetID)
 
-        fixture.graph.unlinkClone(copy)
-        fixture.graph.unlinkClone(fixture.member)
+        try fixture.graph.unlinkClone(copy)
+        try fixture.graph.unlinkClone(fixture.member)
         #expect(fixture.graph.cloneSet(for: setID) != nil)
 
         let decoded = try roundTrip(fixture.graph, context: context)
@@ -300,22 +300,22 @@ struct CloneSetTests
     {
         guard let context = makeContext() else { return }
         let fixture = try makeMemberFixture(context: context)
-        let sibling = try #require(fixture.graph.duplicateAsClone(fixture.member))
+        let sibling = try fixture.graph.duplicateAsClone(fixture.member)
         let setID = try #require(fixture.member.cloneSetID)
         #expect(fixture.graph.cloneSet(for: setID)?.name == "Set A")
 
         let other = SubgraphNode(context: context)
         fixture.graph.addNode(other)
-        _ = try #require(fixture.graph.duplicateAsClone(other))
+        _ = try fixture.graph.duplicateAsClone(other)
         let otherSetID = try #require(other.cloneSetID)
         #expect(fixture.graph.cloneSet(for: otherSetID)?.name == "Set B")
 
-        _ = try #require(fixture.member.subGraph.duplicateAsClone(fixture.nested))
+        _ = try fixture.member.subGraph.duplicateAsClone(fixture.nested)
         #expect(fixture.graph.cloneSet(for: fixture.nested.cloneSetID!)?.name == "Set C")
 
         let undoManager = UndoManager()
         fixture.graph.undoManager = undoManager
-        fixture.graph.renameCloneSet(setID, to: "  Lyric Panel ")
+        try fixture.graph.renameCloneSet(setID, to: "  Lyric Panel ")
         #expect(fixture.graph.cloneSet(for: setID)?.name == "Lyric Panel")
         #expect(sibling.subtitle == "Lyric Panel")
 
@@ -325,7 +325,7 @@ struct CloneSetTests
         #expect(sibling.subtitle == "Lyric Panel")
 
         // Empty goes back to the lowest free system name; A is free again.
-        fixture.graph.renameCloneSet(setID, to: "   ")
+        try fixture.graph.renameCloneSet(setID, to: "   ")
         #expect(sibling.subtitle == "Set A")
     }
 
@@ -337,7 +337,7 @@ struct CloneSetTests
         #expect(fixture.member.subtitle == nil)
         #expect(fixture.member.titleIcon == nil)
 
-        let sibling = try #require(fixture.graph.duplicateAsClone(fixture.member))
+        let sibling = try fixture.graph.duplicateAsClone(fixture.member)
         let setID = try #require(fixture.member.cloneSetID)
         #expect(fixture.member.subtitle == "Set A")
         #expect(fixture.member.cloneSetInfo == CloneSetInfo(setID: setID, name: "Set A", memberCount: 2))
@@ -368,7 +368,7 @@ struct CloneSetTests
             }
         }
 
-        let sibling = try #require(fixture.graph.duplicateAsClone(fixture.member))
+        let sibling = try fixture.graph.duplicateAsClone(fixture.member)
         try await settle { viewModel.titleIcon?.tooltip.contains("2 members") == true }
         #expect(viewModel.titleIcon?.tooltip.contains("2 members") == true)
         #expect(viewModel.subtitle == "Set A")
@@ -428,7 +428,7 @@ extension CloneSetTests
     private func makePair(context: Context) throws -> PairFixture
     {
         let member = try makeMemberFixture(context: context)
-        let sibling = try #require(member.graph.duplicateAsClone(member.member))
+        let sibling = try member.graph.duplicateAsClone(member.member)
         let undoManager = UndoManager()
         member.graph.undoManager = undoManager
         member.member.subGraph.undoManager = undoManager
@@ -653,7 +653,7 @@ extension CloneSetTests
         pair.sync()
         #expect(set.templateJSON != before)
 
-        let report = pair.graph.reconcileCloneMember(pair.sibling, from: pair.member.member)
+        let report = try pair.graph.reconcileCloneMember(pair.sibling, from: pair.member.member)
         #expect(report.isEmpty)
     }
 
@@ -662,7 +662,7 @@ extension CloneSetTests
     {
         guard let context = makeContext() else { return }
         let pair = try makePair(context: context)
-        pair.graph.unlinkClone(pair.sibling)
+        try pair.graph.unlinkClone(pair.sibling)
 
         pair.source.addNode(NumberBinaryOperator(context: context))
         pair.sync()
@@ -697,10 +697,10 @@ extension CloneSetTests
         iterator.subGraph.addNode(inner)
         inner.outputNumber.published = true
         iterator.subGraph.rebuildPublishedParameterGroup()
-        _ = try #require(graph.duplicateAsClone(iterator))
+        _ = try graph.duplicateAsClone(iterator)
         let setID = try #require(iterator.cloneSetID)
 
-        let made = try #require(graph.instantiateCloneSetMember(of: setID))
+        let made = try graph.instantiateCloneSetMember(of: setID)
 
         #expect(made is IteratorNode)
         #expect(made.graph === graph)
@@ -754,13 +754,13 @@ extension CloneSetTests
         // Produce a newer template from a third, independent member, then feed
         // its JSON back in as if it had arrived from a sidecar file.
         let scratch = Graph(context: context)
-        let editor = try #require(pair.graph.instantiateCloneSetMember(of: setID))
+        let editor = try pair.graph.instantiateCloneSetMember(of: setID)
         pair.graph.delete(node: editor)
         scratch.addNode(editor)
         editor.subGraph.addNode(NumberBinaryOperator(context: context))
         let newTemplate = try #require(pair.graph.cloneTemplateJSON(from: editor))
 
-        let reports = pair.graph.applyCloneTemplate(newTemplate, to: setID)
+        let reports = try pair.graph.applyCloneTemplate(newTemplate, to: setID)
 
         #expect(reports.count == 2)
         #expect(reports.allSatisfy { $0.nodesAdded == 1 })
@@ -918,7 +918,7 @@ extension CloneSetTests
         pair.graph.addNode(NumberBinaryOperator(context: context))
         #expect(coordinator.hasPendingSync == false)
 
-        pair.graph.unlinkClone(pair.sibling)
+        try pair.graph.unlinkClone(pair.sibling)
         let siblingSecond = try #require(pair.target.nodes.compactMap { $0 as? NumberBinaryOperator }.last)
         let revision = pair.target.contentRevision
         siblingSecond.inputNumber2.value = 11
@@ -996,7 +996,7 @@ extension CloneSetTests
         }
         #expect(constructed.count > 50, "constructed \(constructed.count), skipped \(skipped)")
 
-        let sibling = try #require(graph.duplicateAsClone(member))
+        let sibling = try graph.duplicateAsClone(member)
         #expect(sibling.subGraph.nodes.count == member.subGraph.nodes.count)
 
         var mismatched: [String] = []
@@ -1013,13 +1013,13 @@ extension CloneSetTests
         }
         #expect(mismatched.isEmpty, "\(mismatched)")
 
-        let report = graph.reconcileCloneMember(sibling, from: member)
+        let report = try graph.reconcileCloneMember(sibling, from: member)
         #expect(report.isEmpty, "\(report)")
 
         // A member made from the template alone matches too.
-        let made = try #require(graph.instantiateCloneSetMember(of: member.cloneSetID!))
+        let made = try graph.instantiateCloneSetMember(of: member.cloneSetID!)
         #expect(made.subGraph.nodes.count == member.subGraph.nodes.count)
-        #expect(graph.reconcileCloneMember(made, from: member).isEmpty)
+        #expect(try graph.reconcileCloneMember(made, from: member).isEmpty)
     }
 }
 
@@ -1081,5 +1081,30 @@ extension CloneSetTests
 
         let synced = try #require(pair.counterpart(of: expression))
         #expect(synced.stringExpression == "cos(x) + y")
+    }
+}
+
+// MARK: - Failure paths
+
+extension CloneSetTests
+{
+    @Test("The clone APIs throw typed errors rather than doing nothing")
+    func apisThrow() throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = try makeMemberFixture(context: context)
+        let elsewhere = Graph(context: context)
+
+        #expect(throws: FabricError.self) { try elsewhere.duplicateAsClone(fixture.member) }
+        #expect(throws: FabricError.self) { try fixture.graph.unlinkClone(fixture.member) }
+        #expect(throws: FabricError.self) { try fixture.graph.renameCloneSet(UUID(), to: "X") }
+        #expect(throws: FabricError.self) { try fixture.graph.instantiateCloneSetMember(of: UUID()) }
+        #expect(throws: FabricError.self) { try fixture.graph.applyCloneTemplate(Data(), to: UUID()) }
+
+        let sibling = try fixture.graph.duplicateAsClone(fixture.member)
+        let stranger = SubgraphNode(context: context)
+        fixture.graph.addNode(stranger)
+        #expect(throws: FabricError.self) { try fixture.graph.reconcileCloneMember(stranger, from: fixture.member) }
+        #expect(fixture.graph.nodes.contains { $0 === sibling })
     }
 }

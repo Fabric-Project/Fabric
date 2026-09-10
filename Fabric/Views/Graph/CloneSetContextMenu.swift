@@ -31,7 +31,8 @@ struct CloneSetContextMenu: View
         Divider()
 
         Button {
-            currentGraph.duplicateAsClone(subgraphNode)
+            do { try currentGraph.duplicateAsClone(subgraphNode) }
+            catch { print("Duplicate as Clone failed: \(error.localizedDescription)") }
         } label: {
             Text("Duplicate as Clone")
         }
@@ -58,7 +59,8 @@ struct CloneSetContextMenu: View
             }
 
             Button {
-                currentGraph.unlinkClone(subgraphNode)
+                do { try currentGraph.unlinkClone(subgraphNode) }
+                catch { print("Unlink from Clones failed: \(error.localizedDescription)") }
             } label: {
                 Text("Unlink from Clones")
             }
@@ -106,7 +108,8 @@ struct CloneSetRenameAlert: ViewModifier
     private func commitRename()
     {
         guard let setID = subgraphNode.cloneSetID, let request = renameRequest else { return }
-        graph.renameCloneSet(setID, to: request.name)
+        do { try graph.renameCloneSet(setID, to: request.name) }
+        catch { print("Rename Clone Set failed: \(error.localizedDescription)") }
     }
 }
 
