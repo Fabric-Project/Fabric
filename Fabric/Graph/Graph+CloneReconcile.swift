@@ -26,45 +26,43 @@ public struct CloneReconcileReport: Equatable
 }
 
 /// The id correspondence one reconcile works through: the source member's
-/// local ids to template ids, and template ids to the target member's local
-/// ids. The target side grows as the target gains what the source has; the
-/// source side grows only where the source had an id its record did not,
-/// which a template refresh beforehand makes rare.
+/// local ids to template ids, fixed because the source's record is completed
+/// before a sync, and template ids to the target member's local ids, which
+/// grow as the target gains what the source has.
 struct CloneSyncContext
 {
-    private(set) var templateByLocal: [String: String]
+    let templateByLocal: [String: String]
     private(set) var localByTemplate: [String: String]
-    private(set) var sourceRecordGrowth: [String: String] = [:]
 
     /// Settings signatures of the source's nodes, shared across every
     /// sibling synced from the same source in one pass.
     let signatures: CloneSettingsSignatureCache
 
-    init(source: SubgraphNode, target: SubgraphNode, signatures: CloneSettingsSignatureCache = CloneSettingsSignatureCache())
+    init(source: SubgraphNode, target: SubgraphNode, signatures: CloneSettingsSignatureCache)
     {
-        self.templateByLocal = Dictionary(source.cloneRecord.map { ($0.value, $0.key) },
-                                          uniquingKeysWith: { first, _ in first })
+        self.templateByLocal = source.cloneRecord.inverted
         self.localByTemplate = target.cloneRecord
         self.signatures = signatures
     }
 
-    /// The template id of one of the source's ids, assigned if unknown.
-    mutating func templateID(forSourceLocal localID: String) -> String
+    func templateID(for sourceLocal: UUID) -> String?
     {
-        if let known = templateByLocal[localID] { return known }
-        let templateID = UUID().uuidString
-        templateByLocal[localID] = templateID
-        sourceRecordGrowth[templateID] = localID
-        return templateID
+        templateByLocal[sourceLocal.uuidString]
     }
 
-    func templateID(forSourceLocal id: UUID) -> String?
+    func targetLocalID(for templateID: String) -> UUID?
     {
-        templateByLocal[id.uuidString]
+        localByTemplate[templateID].flatMap(UUID.init(uuidString:))
     }
 
-    /// The target's id for a template id, assigned and recorded if unknown.
-    mutating func targetLocalID(forTemplate templateID: String) -> String
+    func targetLocalID(forSourceLocal id: UUID) -> UUID?
+    {
+        templateID(for: id).flatMap { targetLocalID(for: $0) }
+    }
+
+    /// The target's id for a template id, minted and recorded where the
+    /// target has nothing for it yet: the one place ids are made.
+    mutating func targetLocalID(allocatingFor templateID: String) -> String
     {
         if let known = localByTemplate[templateID] { return known }
         let localID = UUID().uuidString
@@ -72,28 +70,9 @@ struct CloneSyncContext
         return localID
     }
 
-    func targetLocalID(forTemplate templateID: String) -> UUID?
-    {
-        localByTemplate[templateID].flatMap(UUID.init(uuidString:))
-    }
-
-    /// The target's id that stands for one of the source's ids, where both
-    /// records already know it.
-    func targetLocalID(forSourceLocal id: UUID) -> UUID?
-    {
-        guard let templateID = templateByLocal[id.uuidString] else { return nil }
-        return targetLocalID(forTemplate: templateID)
-    }
-
     mutating func record(targetLocal localID: UUID, forTemplate templateID: String)
     {
         localByTemplate[templateID] = localID.uuidString
-    }
-
-    /// Template ids the target currently records, by the target's local id.
-    var templateByTargetLocal: [String: String]
-    {
-        Dictionary(localByTemplate.map { ($0.value, $0.key) }, uniquingKeysWith: { first, _ in first })
     }
 }
 
@@ -143,14 +122,9 @@ extension Graph
     /// enclosing member as the source each time.
     public func reconcileCloneSets(enclosing graph: Graph)
     {
-        var current: Graph? = graph
-        while let owner = current?.ownerNode
+        for member in graph.enclosingCloneMembers
         {
-            if owner.cloneSetID != nil, let ownerGraph = owner.graph
-            {
-                ownerGraph.reconcileCloneSiblings(of: owner)
-            }
-            current = owner.graph
+            member.graph?.reconcileCloneSiblings(of: member)
         }
     }
 
@@ -165,7 +139,10 @@ extension Graph
     @discardableResult
     public func reconcileCloneMember(_ target: SubgraphNode, from source: SubgraphNode) throws -> CloneReconcileReport
     {
-        try self.reconcileCloneMember(target, from: source, signatures: CloneSettingsSignatureCache())
+        // A sync from reconcileCloneSiblings completes the source's record as
+        // it refreshes the template; a direct call has to do it here.
+        self.completeCloneRecord(of: source)
+        return try self.reconcileCloneMember(target, from: source, signatures: CloneSettingsSignatureCache())
     }
 
     internal func reconcileCloneMember(_ target: SubgraphNode, from source: SubgraphNode,
@@ -198,10 +175,6 @@ extension Graph
         target.subGraph.reconcile(from: source.subGraph, context: &context, report: &report)
 
         if context.localByTemplate != target.cloneRecord { target.cloneRecord = context.localByTemplate }
-        if !context.sourceRecordGrowth.isEmpty
-        {
-            source.cloneRecord.merge(context.sourceRecordGrowth) { current, _ in current }
-        }
         return report
     }
 
@@ -240,23 +213,17 @@ extension Graph
         // The member's own values, its published inlets', carried over by name
         // since a member with no record cannot be mapped any other way.
         var publishedValues: [String: PortValue] = [:]
-        for node in member.subGraph.nodes
+        for port in member.subGraph.publishedInputPorts()
         {
-            for port in node.ports where port.kind == .Inlet && port.published
-            {
-                if let value = port.snapshotValue() { publishedValues[port.displayName] = value }
-            }
+            if let value = port.snapshotValue() { publishedValues[port.displayName] = value }
         }
 
         try parent.withoutUndoRegistration {
             let fresh = try parent.instantiateCloneSetMember(of: setID, at: member.offset)
             fresh.userName = member.userName
-            for node in fresh.subGraph.nodes
+            for port in fresh.subGraph.publishedInputPorts()
             {
-                for port in node.ports where port.kind == .Inlet && port.published
-                {
-                    if let value = publishedValues[port.displayName] { port.restoreValue(from: value) }
-                }
+                if let value = publishedValues[port.displayName] { port.restoreValue(from: value) }
             }
             report.nodesRemoved += member.subGraph.nodesRecursive().count
             report.nodesAdded += fresh.subGraph.nodesRecursive().count
@@ -348,7 +315,7 @@ extension Graph
         {
             throw recoverableGraphError(.cloneOperationFailed, message: "The template for clone set \(set.name) is not a JSON object.")
         }
-        set.templateObject = object
+        set.templateJSON = CloneSet.canonicalJSON(object)
 
         let scratch = Graph(context: self.context)
         let transient = try scratch.instantiateMember(of: set)
@@ -364,20 +331,13 @@ extension Graph
     /// save on another thread would otherwise encode stale members.
     public func flushPendingCloneSync()
     {
-        dispatchPrecondition(condition: .onQueue(.main))
         self.cloneSetCoordinator.flush()
     }
 
     /// True when this graph is `ancestor` or sits anywhere inside it.
     internal func isDescendant(of ancestor: Graph) -> Bool
     {
-        var current: Graph? = self
-        while let graph = current
-        {
-            if graph === ancestor { return true }
-            current = graph.ownerNode?.graph
-        }
-        return false
+        ancestors.contains { $0 === ancestor }
     }
 
     // MARK: - Reconcile one graph
@@ -404,8 +364,8 @@ extension Graph
 
     private func reconcileNodes(from source: Graph, context: inout CloneSyncContext, report: inout CloneReconcileReport)
     {
-        let sourceTemplateIDs = Set(source.nodes.map { context.templateID(forSourceLocal: $0.id.uuidString) })
-        let templateByTargetLocal = context.templateByTargetLocal
+        let sourceTemplateIDs = Set(source.nodes.compactMap { context.templateID(for: $0.id) })
+        let templateByTargetLocal = context.localByTemplate.inverted
         for node in self.nodes
         {
             if let templateID = templateByTargetLocal[node.id.uuidString], sourceTemplateIDs.contains(templateID) { continue }
@@ -415,8 +375,8 @@ extension Graph
 
         for sourceNode in source.nodes
         {
-            let templateID = context.templateID(forSourceLocal: sourceNode.id.uuidString)
-            if let localID = context.targetLocalID(forTemplate: templateID), let target = self.node(forID: localID)
+            guard let templateID = context.templateID(for: sourceNode.id) else { continue }
+            if let localID = context.targetLocalID(for: templateID), let target = self.node(forID: localID)
             {
                 if target.canReconcileInPlace(from: sourceNode, signatures: context.signatures)
                 {
@@ -455,7 +415,8 @@ extension Graph
             var record: [String: String] = [:]
             for (templateID, sourceLocal) in sourceSubgraph.cloneRecord
             {
-                record[templateID] = context.targetLocalID(forTemplate: context.templateID(forSourceLocal: sourceLocal))
+                guard let outerTemplateID = context.templateByLocal[sourceLocal] else { continue }
+                record[templateID] = context.targetLocalID(allocatingFor: outerTemplateID)
             }
             if targetSubgraph.cloneSetID != sourceSubgraph.cloneSetID || targetSubgraph.cloneRecord != record
             {
@@ -484,8 +445,8 @@ extension Graph
         let targetPortsByID = Dictionary(target.ports.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         for sourcePort in source.ports
         {
-            let templateID = context.templateID(forSourceLocal: sourcePort.id.uuidString)
-            var port = context.targetLocalID(forTemplate: templateID).flatMap { targetPortsByID[$0] }
+            guard let templateID = context.templateID(for: sourcePort.id) else { continue }
+            var port = context.targetLocalID(for: templateID).flatMap { targetPortsByID[$0] }
             if port == nil,
                let byName = target.ports.first(where: {
                    $0.kind == sourcePort.kind && $0.name == sourcePort.name && $0.portType == sourcePort.portType
@@ -601,14 +562,10 @@ extension Graph
             var remap: [String: String] = [:]
             for sourceLocal in Graph.findAllUUIDs(in: data)
             {
-                let templateID = context.templateID(forSourceLocal: sourceLocal)
-                remap[sourceLocal] = context.targetLocalID(forTemplate: templateID)
+                guard let templateID = context.templateByLocal[sourceLocal] else { continue }
+                remap[sourceLocal] = context.targetLocalID(allocatingFor: templateID)
             }
-            guard let rewritten = Graph.rewriteUUIDs(in: data, remap: remap, preservingKeys: [Self.cloneSetIDKey])
-            else { return nil }
-
-            let rewrittenMap = try JSONDecoder().decode(AnyCodableMap.self, from: rewritten)
-            return self.decodeNode(from: rewrittenMap)
+            return self.decodeNode(from: data, remap: remap, preservingKeys: [Self.cloneSetIDKey])
         }
         catch
         {

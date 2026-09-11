@@ -59,21 +59,11 @@ open class SubgraphNode: BaseObjectNode
     /// rewritten correctly whenever the node is duplicated. Empty outside a
     /// set. Grows as edits here add ids the template did not have.
     public internal(set) var cloneRecord: [String: String] = [:]
-    {
-        didSet { self.templateIDsByLocal = nil }
-    }
-
-    private var templateIDsByLocal: [String: String]?
 
     /// The template id this member records for one of its own ids.
     public func templateID(forLocal localID: UUID) -> UUID?
     {
-        if self.templateIDsByLocal == nil
-        {
-            self.templateIDsByLocal = Dictionary(self.cloneRecord.map { ($0.value, $0.key) },
-                                                 uniquingKeysWith: { first, _ in first })
-        }
-        return self.templateIDsByLocal?[localID.uuidString].flatMap(UUID.init(uuidString:))
+        self.cloneRecord.inverted[localID.uuidString].flatMap(UUID.init(uuidString:))
     }
 
     /// This member's id for a template id, nil where the template has

@@ -38,12 +38,18 @@ internal import AnyCodable
     @ObservationIgnored public weak var undoManager: UndoManager?
     /// The SubgraphNode whose sub graph this is; nil for a document's root graph.
     @ObservationIgnored public internal(set) weak var ownerNode: SubgraphNode?
-    /// The document's root graph, reached by walking up through owner nodes.
+    /// This graph, then each graph it sits inside, ending at the document's root.
+    internal var ancestors: some Sequence<Graph>
+    {
+        sequence(first: self) { $0.ownerNode?.graph }
+    }
+
+    /// The document's root graph.
     public var rootGraph: Graph
     {
-        var graph = self
-        while let parent = graph.ownerNode?.graph { graph = parent }
-        return graph
+        var root = self
+        for graph in ancestors { root = graph }
+        return root
     }
     /// The document's clone sets, held by the root graph and empty elsewhere.
     /// Members refer to a set by SubgraphNode.cloneSetID. A set no member
@@ -194,14 +200,7 @@ internal import AnyCodable
     /// The clone set members this graph sits inside, innermost first.
     internal var enclosingCloneMembers: [SubgraphNode]
     {
-        var members: [SubgraphNode] = []
-        var current: Graph? = self
-        while let owner = current?.ownerNode
-        {
-            if owner.cloneSetID != nil { members.append(owner) }
-            current = owner.graph
-        }
-        return members
+        ancestors.compactMap(\.ownerNode).filter { $0.cloneSetID != nil }
     }
 
     public func markExecutionTopologyChanged()
@@ -1677,6 +1676,16 @@ internal import AnyCodable
 
     // MARK: - Private Decode API Helpers -
     
+    /// Decodes a node from its encoded map with every UUID in it rewritten
+    /// through `remap`: the copy step duplication, paste and clone syncs share.
+    internal func decodeNode(from data: Data, remap: [String: String], preservingKeys: Set<String> = []) -> Node?
+    {
+        guard let rewritten = Self.rewriteUUIDs(in: data, remap: remap, preservingKeys: preservingKeys),
+              let map = try? JSONDecoder().decode(AnyCodableMap.self, from: rewritten)
+        else { return nil }
+        return self.decodeNode(from: map)
+    }
+
     /// Decodes a single node from an AnyCodableMap, replicating the type resolution from Graph.init(from:)
     internal func decodeNode(from map: AnyCodableMap) -> Node?
     {
@@ -1972,23 +1981,14 @@ internal import AnyCodable
 
         for data in encodedEntries
         {
-            guard let rewrittenData = Graph.rewriteUUIDs(in: data, remap: uuidRemap, preservingKeys: preservedKeys) else { continue }
-
-            do
+            guard let newNode = self.decodeNode(from: data, remap: uuidRemap, preservingKeys: preservedKeys) else
             {
-                let rewrittenMap = try JSONDecoder().decode(AnyCodableMap.self, from: rewrittenData)
-
-                if let newNode = self.decodeNode(from: rewrittenMap)
-                {
-                    newNode.offset = newNode.offset + offset
-                    if !preservingCloneLinks { Self.clearCloneLinks(in: newNode) }
-                    newNodes.append(newNode)
-                }
+                print("duplicateNodes: Failed to decode rewritten node")
+                continue
             }
-            catch
-            {
-                print("duplicateNodes: Failed to decode rewritten node: \(error)")
-            }
+            newNode.offset = newNode.offset + offset
+            if !preservingCloneLinks { Self.clearCloneLinks(in: newNode) }
+            newNodes.append(newNode)
         }
 
         // 4. Add all new nodes (grouped undo)
@@ -2144,16 +2144,10 @@ extension Graph
 
             for entryData in encodedEntries
             {
-                guard let rewrittenData = Graph.rewriteUUIDs(in: entryData, remap: uuidRemap) else { continue }
-
-                let rewrittenMap = try JSONDecoder().decode(AnyCodableMap.self, from: rewrittenData)
-
-                if let newNode = self.decodeNode(from: rewrittenMap)
-                {
-                    newNode.offset = newNode.offset + offset
-                    Self.clearCloneLinks(in: newNode)
-                    newNodes.append(newNode)
-                }
+                guard let newNode = self.decodeNode(from: entryData, remap: uuidRemap) else { continue }
+                newNode.offset = newNode.offset + offset
+                Self.clearCloneLinks(in: newNode)
+                newNodes.append(newNode)
             }
 
             // Add nodes and restore connections

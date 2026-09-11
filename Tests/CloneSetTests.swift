@@ -23,10 +23,7 @@ struct CloneSetTests
 
     private func roundTrip(_ graph: Graph, context: Context) throws -> Graph
     {
-        let data = try JSONEncoder().encode(graph)
-        let decoder = JSONDecoder()
-        decoder.context = DecoderContext(documentContext: context)
-        return try decoder.decode(Graph.self, from: data)
+        try decode(JSONEncoder().encode(graph), context: context)
     }
 
     /// A member with two wired inner nodes, one published inlet and a nested
@@ -777,34 +774,41 @@ extension CloneSetTests
 
 extension CloneSetTests
 {
+    // Canvas navigation is a main-thread affair, like the edits it flushes;
+    // the fixtures are built off it so the run's other main-queue work is not
+    // held up.
     @Test("Leaving a member's canvas syncs its siblings")
-    func leavingMemberSyncs() throws
+    func leavingMemberSyncs() async throws
     {
         guard let context = makeContext() else { return }
         let pair = try makePair(context: context)
-        let canvas = GraphCanvasContext(rootGraph: pair.graph)
 
-        canvas.enter(pair.member.member)
-        canvas.currentGraph.addNode(NumberBinaryOperator(context: context))
-        #expect(pair.target.nodes.count == 3)
+        await MainActor.run {
+            let canvas = GraphCanvasContext(rootGraph: pair.graph)
+            canvas.enter(pair.member.member)
+            canvas.currentGraph.addNode(NumberBinaryOperator(context: context))
+            #expect(pair.target.nodes.count == 3)
 
-        canvas.pop()
+            canvas.pop()
+        }
 
         #expect(pair.target.nodes.count == 4)
     }
 
     @Test("Leaving a nested member syncs every enclosing set")
-    func leavingNestedMemberSyncsEnclosingSets() throws
+    func leavingNestedMemberSyncsEnclosingSets() async throws
     {
         guard let context = makeContext() else { return }
         let pair = try makePair(context: context)
-        let canvas = GraphCanvasContext(rootGraph: pair.graph)
 
-        canvas.enter(pair.member.member)
-        canvas.enter(pair.member.nested)
-        canvas.currentGraph.addNode(NumberBinaryOperator(context: context))
+        await MainActor.run {
+            let canvas = GraphCanvasContext(rootGraph: pair.graph)
+            canvas.enter(pair.member.member)
+            canvas.enter(pair.member.nested)
+            canvas.currentGraph.addNode(NumberBinaryOperator(context: context))
 
-        canvas.popToRoot()
+            canvas.popToRoot()
+        }
 
         let nestedCopy = try #require(pair.counterpart(of: pair.member.nested))
         #expect(nestedCopy.subGraph.nodes.count == 2)

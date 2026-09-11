@@ -32,6 +32,16 @@ public struct CloneSetInfo: Equatable
     public var status: NodeStatus { .linked(message) }
 }
 
+extension Dictionary where Key == Value
+{
+    /// The same pairs the other way round: a record's local ids by template id
+    /// becomes template ids by local id.
+    var inverted: [Value: Key]
+    {
+        Dictionary(self.map { ($0.value, $0.key) }, uniquingKeysWith: { first, _ in first })
+    }
+}
+
 /// Clone sets: groups of SubgraphNodes kept identical in design to a shared
 /// template while each executes on its own. Members are peers to edit: the
 /// member you edit refreshes the template and its siblings are reconciled
@@ -160,25 +170,31 @@ extension Graph
     /// member exactly. Does not touch the set.
     internal func cloneTemplateJSON(from member: SubgraphNode) -> Data?
     {
+        guard let object = self.completeCloneRecord(of: member) else { return nil }
+        let templateObject = Self.remapUUIDs(in: object,
+                                             remap: member.cloneRecord.inverted,
+                                             preservingKeys: [Self.cloneSetIDKey]) as? [String: Any] ?? [:]
+        return CloneSet.canonicalJSON(templateObject)
+    }
+
+    /// Gives every id in `member`'s sub graph that the record does not know a
+    /// template id, so the record covers the member exactly. Returns the
+    /// member's encoded sub graph, which the completion had to produce.
+    @discardableResult
+    internal func completeCloneRecord(of member: SubgraphNode) -> [String: Any]?
+    {
         guard let data = try? JSONEncoder().encode(member.subGraph),
               let object = CloneSet.jsonObject(from: data)
         else { return nil }
 
         var record = member.cloneRecord
-        var templateIDsByLocal = Dictionary(record.map { ($0.value, $0.key) },
-                                            uniquingKeysWith: { first, _ in first })
-        for localID in Self.findAllUUIDs(in: object) where templateIDsByLocal[localID] == nil
+        let known = Set(record.values)
+        for localID in Self.findAllUUIDs(in: object) where !known.contains(localID)
         {
-            let templateID = UUID().uuidString
-            record[templateID] = localID
-            templateIDsByLocal[localID] = templateID
+            record[UUID().uuidString] = localID
         }
         if record != member.cloneRecord { member.cloneRecord = record }
-
-        let templateObject = Self.remapUUIDs(in: object,
-                                             remap: templateIDsByLocal,
-                                             preservingKeys: [Self.cloneSetIDKey]) as? [String: Any] ?? [:]
-        return CloneSet.canonicalJSON(templateObject)
+        return object
     }
 
     /// The template with every published inlet's value removed: the form in
@@ -244,10 +260,7 @@ extension Graph
     /// Subgraph nodes in this graph and, depth first, in their sub graphs.
     internal func subgraphNodesRecursive() -> [SubgraphNode]
     {
-        self.nodes.flatMap { node -> [SubgraphNode] in
-            guard let subgraphNode = node as? SubgraphNode else { return [] }
-            return [subgraphNode] + subgraphNode.subGraph.subgraphNodesRecursive()
-        }
+        self.nodesRecursive().compactMap { $0 as? SubgraphNode }
     }
 
     // MARK: - Names

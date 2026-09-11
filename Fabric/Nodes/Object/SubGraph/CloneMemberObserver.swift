@@ -135,12 +135,7 @@ final class CloneMemberObserver
         }
     }
 
-    private func watchValue(of parameter: any Parameter, on port: Port)
-    {
-        self.watchValue(parameter, on: port)
-    }
-
-    private func watchValue<P: Parameter>(_ parameter: P, on port: Port)
+    private func watchValue<P: Parameter>(of parameter: P, on port: Port)
     {
         parameter.valuePublisher
             .sink { [weak self, weak port] _ in

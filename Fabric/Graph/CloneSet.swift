@@ -30,21 +30,10 @@ public final class CloneSet: Codable, Identifiable
     /// Canonical JSON of the template graph, keys sorted, so two templates
     /// with the same design compare equal byte for byte.
     public internal(set) var templateJSON: Data
-    {
-        didSet { comparableTemplateJSONCache = nil }
-    }
 
     /// The template with every published inlet's value left out, the form a
     /// member's design is compared against; see Graph.designComparableJSON.
-    /// Computed once per template, since every member of the set asks.
-    var comparableTemplateJSON: Data
-    {
-        if let comparableTemplateJSONCache { return comparableTemplateJSONCache }
-        let comparable = Graph.designComparableJSON(templateJSON)
-        comparableTemplateJSONCache = comparable
-        return comparable
-    }
-    private var comparableTemplateJSONCache: Data?
+    var comparableTemplateJSON: Data { Graph.designComparableJSON(templateJSON) }
 
     init(id: UUID = UUID(), name: String, memberNodeType: String, templateJSON: Data)
     {
@@ -55,11 +44,7 @@ public final class CloneSet: Codable, Identifiable
     }
 
     /// The template as a JSON object, for rewriting ids.
-    var templateObject: [String: Any]
-    {
-        get { Self.jsonObject(from: templateJSON) ?? [:] }
-        set { templateJSON = Self.canonicalJSON(newValue) }
-    }
+    var templateObject: [String: Any] { Self.jsonObject(from: templateJSON) ?? [:] }
 
     static func canonicalJSON(_ object: [String: Any]) -> Data
     {

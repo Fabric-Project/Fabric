@@ -11,17 +11,16 @@ import Foundation
 /// re-entrancy flag and the debounced sync that follows edits inside a
 /// member. See Graph+CloneSet.
 ///
-/// Main thread only. Edits, syncs and the debounce all happen there, as does
-/// every other edit of a graph; a call from elsewhere is moved to the main
-/// actor rather than run in place.
-public final class CloneSetCoordinator
+/// Main thread only, like every other edit of a graph. Graph hands an edit
+/// made elsewhere to the main actor before it reaches here.
+final class CloneSetCoordinator
 {
     /// Set while a member is being brought in line with its set, so the
     /// writes that reconcile makes are never mistaken for edits of their own.
     var isReconciling = false
 
     /// How long edits must pause before pending syncs run.
-    public var debounceInterval: Duration = .milliseconds(100)
+    var debounceInterval: Duration = .milliseconds(100)
 
     private(set) weak var rootGraph: Graph?
     private var pendingGraphs: [Graph] = []
@@ -33,7 +32,7 @@ public final class CloneSetCoordinator
     }
 
     /// True between an edit inside a member and the sync that follows it.
-    public var hasPendingSync: Bool
+    var hasPendingSync: Bool
     {
         !pendingGraphs.isEmpty
     }
@@ -44,11 +43,7 @@ public final class CloneSetCoordinator
     /// it would overwrite the newer edit.
     func noteContentChanged(in graph: Graph)
     {
-        guard Thread.isMainThread else
-        {
-            Task { @MainActor [weak self] in self?.noteContentChanged(in: graph) }
-            return
-        }
+        dispatchPrecondition(condition: .onQueue(.main))
 
         // A pending graph nested inside this one already covers every set
         // around this one, and syncs them from the same members: an edit in a
@@ -86,7 +81,7 @@ public final class CloneSetCoordinator
     /// by that sync. The members involved then re-subscribe to their node
     /// trees, which the sync may have changed. No-op while a reconcile is
     /// already running.
-    public func flush()
+    func flush()
     {
         dispatchPrecondition(condition: .onQueue(.main))
         guard !isReconciling, let rootGraph else { return }
@@ -114,7 +109,7 @@ public final class CloneSetCoordinator
 
     /// Drops any pending sync without running it. For tests that want a
     /// member's edit left unseen by its set.
-    public func discardPendingSync()
+    func discardPendingSync()
     {
         dispatchPrecondition(condition: .onQueue(.main))
         debounceTask?.cancel()
@@ -124,7 +119,7 @@ public final class CloneSetCoordinator
 
     /// Waits for a pending debounce to run its sync, for callers that need
     /// the siblings in step now rather than after the pause.
-    public func settle() async
+    func settle() async
     {
         await debounceTask?.value
     }
