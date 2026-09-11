@@ -248,8 +248,8 @@ extension Graph
             }
         }
 
-        let fresh = try parent.instantiateCloneSetMember(of: setID, at: member.offset)
-        parent.withoutUndoRegistration {
+        try parent.withoutUndoRegistration {
+            let fresh = try parent.instantiateCloneSetMember(of: setID, at: member.offset)
             fresh.userName = member.userName
             for node in fresh.subGraph.nodes
             {
@@ -459,9 +459,10 @@ extension Graph
             }
             if targetSubgraph.cloneSetID != sourceSubgraph.cloneSetID || targetSubgraph.cloneRecord != record
             {
-                targetSubgraph.cloneRecord = record
-                targetSubgraph.cloneSetID = sourceSubgraph.cloneSetID
-                targetSubgraph.subtitleSubject.send()
+                let previousSetID = targetSubgraph.cloneSetID
+                targetSubgraph.setCloneMembership(setID: sourceSubgraph.cloneSetID, record: record)
+                self.cloneSetMembershipChanged(setID: previousSetID)
+                self.cloneSetMembershipChanged(setID: sourceSubgraph.cloneSetID)
                 report.nodesUpdated += 1
             }
         }

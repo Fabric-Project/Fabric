@@ -42,6 +42,17 @@ open class SubgraphNode: BaseObjectNode
         self.cloneObserver = self.cloneSetID == nil ? nil : CloneMemberObserver(member: self)
     }
 
+    /// The one place membership is written: set and record together, the
+    /// badge refreshed, and the change reported as the design change it is.
+    /// Not undoable; Graph.setCloneMembership wraps it with undo.
+    internal func setCloneMembership(setID: UUID?, record: [String: String])
+    {
+        self.cloneSetID = setID
+        self.cloneRecord = record
+        self.subtitleSubject.send()
+        self.settingsDidChange()
+    }
+
     /// The member's record: every id in the set's template mapped to this
     /// member's own id for the same node, port, wire or nested graph. Keys are
     /// template ids, values local ids, both as UUID strings so the record is
@@ -281,6 +292,9 @@ open class SubgraphNode: BaseObjectNode
 
         // A member that matches its set's template is written as its record
         // and the values that are its own; the template holds the rest once.
+        // The proxies are the member's face in the parent graph, published
+        // and named there per member, so they are written either way.
+        try container.encode(self.proxyPorts.map(AnyPort.init), forKey: .proxyPorts)
         if encoder.userInfo[Graph.compactCloneMembersKey] as? Bool == true,
            let memberValues = self.compactMemberValues()
         {
@@ -289,15 +303,16 @@ open class SubgraphNode: BaseObjectNode
         else
         {
             try container.encode(self.subGraph, forKey: .subGraph)
-            try container.encode(self.proxyPorts.map(AnyPort.init), forKey: .proxyPorts)
         }
 
         try super.encode(to: encoder)
     }
 
-    /// The per-member values, the published inlets' resting values, when this
-    /// member's design matches its set's template exactly; nil otherwise, so
-    /// a member the template has not caught up with is saved in full.
+    /// The per-member values, the resting values of every published inlet
+    /// at any depth (the design comparison leaves those out at every depth
+    /// too), when this member's design matches its set's template; nil
+    /// otherwise, so a member the template has not caught up with is saved
+    /// in full.
     private func compactMemberValues() -> [String: AnyPort]?
     {
         guard let graph = self.graph, let setID = self.cloneSetID, let set = graph.cloneSet(for: setID),
@@ -306,15 +321,9 @@ open class SubgraphNode: BaseObjectNode
               Graph.designComparableJSON(design) == set.comparableTemplateJSON
         else { return nil }
 
-        var values: [String: AnyPort] = [:]
-        for node in self.subGraph.nodes
-        {
-            for port in node.ports where port.kind == .Inlet && port.published
-            {
-                values[port.id.uuidString] = AnyPort(port)
-            }
-        }
-        return values
+        return Dictionary(uniqueKeysWithValues: self.subGraph.publishedInletsRecursive().map {
+            ($0.id.uuidString, AnyPort($0))
+        })
     }
     
     public required init(from decoder: any Decoder) throws
@@ -393,7 +402,7 @@ open class SubgraphNode: BaseObjectNode
                                           to subGraph: Graph) throws
     {
         guard let values = try container.decodeIfPresent([String: AnyPort].self, forKey: .memberValues) else { return }
-        let portsByID = Dictionary(subGraph.nodes.flatMap(\.ports).map { ($0.id.uuidString, $0) },
+        let portsByID = Dictionary(subGraph.publishedInletsRecursive().map { ($0.id.uuidString, $0) },
                                    uniquingKeysWith: { first, _ in first })
         for (portID, saved) in values
         {

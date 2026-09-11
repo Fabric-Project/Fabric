@@ -50,13 +50,28 @@ public final class CloneSetCoordinator
             return
         }
 
+        // A pending graph nested inside this one already covers every set
+        // around this one, and syncs them from the same members: an edit in a
+        // nested member is noted by the outer member's observer as well.
+        guard !pendingGraphs.contains(where: { $0 === graph || $0.isDescendant(of: graph) }) else
+        {
+            restartDebounce()
+            return
+        }
+
+        // Otherwise this graph is the later editor of its sets: drop pending
+        // graphs whose sets it covers entirely, keep those with sets of their
+        // own to sync.
         let setIDs = Set(graph.enclosingCloneMembers.compactMap(\.cloneSetID))
         pendingGraphs.removeAll { pending in
-            pending === graph
-                || !setIDs.isDisjoint(with: pending.enclosingCloneMembers.compactMap(\.cloneSetID))
+            Set(pending.enclosingCloneMembers.compactMap(\.cloneSetID)).isSubset(of: setIDs)
         }
         pendingGraphs.append(graph)
+        restartDebounce()
+    }
 
+    private func restartDebounce()
+    {
         debounceTask?.cancel()
         let interval = self.debounceInterval
         debounceTask = Task { @MainActor [weak self] in

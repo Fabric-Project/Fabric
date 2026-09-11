@@ -59,52 +59,83 @@ extension Graph
         let previousRecord = node.cloneRecord
         var startedSet: CloneSet?
 
-        undoManager?.beginUndoGrouping()
-        defer
-        {
-            undoManager?.endUndoGrouping()
-            undoManager?.setActionName("Duplicate as Clone")
-        }
-
+        // Nothing is registered with undo until the copy exists, so a failure
+        // leaves neither a half-made set nor an undo step behind.
+        let copy: SubgraphNode
         do
         {
-            if node.cloneSetID == nil
-            {
-                let memberNodeType = try self.qualifiedNodeID(for: type(of: node)).description
-                let set = CloneSet(name: self.nextFreeCloneSetName(), memberNodeType: memberNodeType, templateJSON: Data())
-                self.addCloneSetUndoably(set)
-                self.setCloneMembership(setID: set.id, record: [:], on: node)
-                startedSet = set
-            }
+            copy = try self.withoutUndoRegistration {
+                if node.cloneSetID == nil
+                {
+                    let memberNodeType = try self.qualifiedNodeID(for: type(of: node)).description
+                    let set = CloneSet(name: self.nextFreeCloneSetName(), memberNodeType: memberNodeType, templateJSON: Data())
+                    self.addCloneSet(set)
+                    node.setCloneMembership(setID: set.id, record: [:])
+                    startedSet = set
+                }
 
-            // The template and the source's record must be complete before the
-            // copy is taken, since the copy's record is the source's, rewritten.
-            guard self.refreshCloneTemplate(from: node) else
-            {
-                throw recoverableGraphError(.cloneOperationFailed, message: "The sub graph of \(node) could not be encoded as a template.")
-            }
-            self.registerRecordUndo(on: node, previousRecord: previousRecord)
+                // The template and the source's record must be complete before the
+                // copy is taken, since the copy's record is the source's, rewritten.
+                guard self.refreshCloneTemplate(from: node) else
+                {
+                    throw recoverableGraphError(.cloneOperationFailed, message: "The sub graph of \(node) could not be encoded as a template.")
+                }
 
-            let copies = self.duplicateNodes([node], offset: offset, preservingCloneLinks: true)
-            guard let copy = copies.first as? SubgraphNode else
-            {
-                throw recoverableGraphError(.cloneOperationFailed, message: "\(node) could not be duplicated.")
+                let copies = self.duplicateNodes([node], offset: offset, preservingCloneLinks: true)
+                guard let copy = copies.first as? SubgraphNode else
+                {
+                    throw recoverableGraphError(.cloneOperationFailed, message: "\(node) could not be duplicated.")
+                }
+                return copy
             }
-
-            self.cloneSetMembershipChanged(setID: copy.cloneSetID)
-            return copy
         }
         catch
         {
-            // Leave no half-made set behind, with or without an undo manager.
             self.withoutUndoRegistration {
-                node.cloneSetID = previousSetID
-                node.cloneRecord = previousRecord
-                node.subtitleSubject.send()
+                node.setCloneMembership(setID: previousSetID, record: previousRecord)
                 if let startedSet { self.removeCloneSet(startedSet) }
             }
             throw error
         }
+
+        self.registerDuplicateAsCloneUndo(copy: copy, source: node, startedSet: startedSet,
+                                          previousSetID: previousSetID, previousRecord: previousRecord)
+        self.cloneSetMembershipChanged(around: copy)
+        return copy
+    }
+
+    /// One undo step for a whole Duplicate as Clone: the copy goes, the
+    /// source's membership and record go back, a set that was started goes.
+    /// Redo puts all three back.
+    private func registerDuplicateAsCloneUndo(copy: SubgraphNode, source: SubgraphNode, startedSet: CloneSet?,
+                                              previousSetID: UUID?, previousRecord: [String: String])
+    {
+        let currentSetID = source.cloneSetID
+        let currentRecord = source.cloneRecord
+        let copyOffset = copy.offset
+
+        undoManager?.registerUndo(withTarget: self) { graph in
+            graph.withoutUndoRegistration {
+                graph.delete(node: copy)
+                source.setCloneMembership(setID: previousSetID, record: previousRecord)
+                if let startedSet { graph.removeCloneSet(startedSet) }
+            }
+            graph.cloneSetMembershipChanged(around: source)
+
+            graph.undoManager?.registerUndo(withTarget: graph) { graph in
+                graph.withoutUndoRegistration {
+                    if let startedSet { graph.addCloneSet(startedSet) }
+                    source.setCloneMembership(setID: currentSetID, record: currentRecord)
+                    copy.offset = copyOffset
+                    graph.addNode(copy)
+                }
+                graph.registerDuplicateAsCloneUndo(copy: copy, source: source, startedSet: startedSet,
+                                                   previousSetID: previousSetID, previousRecord: previousRecord)
+                graph.cloneSetMembershipChanged(around: copy)
+            }
+            graph.undoManager?.setActionName("Duplicate as Clone")
+        }
+        undoManager?.setActionName("Duplicate as Clone")
     }
 
     // MARK: - Template
@@ -201,6 +232,13 @@ extension Graph
     {
         guard let setID = node.cloneSetID else { return [] }
         return self.cloneSetMembers(of: setID).filter { $0 !== node }
+    }
+
+    /// Published inlets in this graph and, depth first, in nested sub graphs:
+    /// the ports whose values are each member's own.
+    internal func publishedInletsRecursive() -> [Port]
+    {
+        self.nodesRecursive().flatMap { node in node.ports.filter { $0.kind == .Inlet && $0.published } }
     }
 
     /// Subgraph nodes in this graph and, depth first, in their sub graphs.
@@ -315,6 +353,7 @@ extension Graph
         }
 
         self.cloneSetMembershipChanged(setID: setID)
+        for nestedSetID in nestedSetIDs { self.cloneSetMembershipChanged(setID: nestedSetID) }
     }
 
     // MARK: - Bookkeeping
@@ -343,10 +382,7 @@ extension Graph
         let previousRecord = node.cloneRecord
         guard previousID != setID || previousRecord != record else { return }
 
-        node.cloneSetID = setID
-        node.cloneRecord = record
-        node.subtitleSubject.send()
-        node.settingsDidChange()
+        node.setCloneMembership(setID: setID, record: record)
 
         undoManager?.registerUndo(withTarget: self) { graph in
             graph.setCloneMembership(setID: previousID, record: previousRecord, on: node)
@@ -377,14 +413,24 @@ extension Graph
         }
     }
 
+    /// A node arrived or left, taking every member nested in it along:
+    /// refresh every set any of them belongs to.
+    internal func cloneSetMembershipChanged(around node: Node)
+    {
+        let members = ([node] + ((node as? SubgraphNode)?.subGraph.nodesRecursive() ?? []))
+            .compactMap { $0 as? SubgraphNode }
+        for setID in Set(members.compactMap(\.cloneSetID))
+        {
+            self.cloneSetMembershipChanged(setID: setID)
+        }
+    }
+
     /// Strips clone links from a node and everything nested in it, for copies
     /// that must not be members.
     internal static func clearCloneLinks(in node: Node)
     {
         guard let subgraphNode = node as? SubgraphNode else { return }
-        subgraphNode.cloneSetID = nil
-        subgraphNode.cloneRecord = [:]
-        subgraphNode.settingsDidChange()
+        subgraphNode.setCloneMembership(setID: nil, record: [:])
         for inner in subgraphNode.subGraph.nodes { clearCloneLinks(in: inner) }
     }
 }

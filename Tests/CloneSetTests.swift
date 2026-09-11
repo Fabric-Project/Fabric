@@ -1274,3 +1274,128 @@ extension CloneSetTests
         #expect(try #require(pair.counterpart(of: nestedCopy)).cloneSetID != nil)
     }
 }
+
+// MARK: - Review round two
+
+extension CloneSetTests
+{
+    @Test("A compact save keeps a member's own proxy state and nested per-member values")
+    @MainActor
+    func compactSaveKeepsProxyStateAndNestedValues() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let setID = try #require(pair.member.member.cloneSetID)
+        pair.graph.cloneSetCoordinator.flush()
+
+        // Publish one of the sibling's proxies onward, up into the root graph, and rename it there.
+        let proxy = try #require(pair.sibling.ports.first { $0.kind == .Inlet && $0.displayName == "Amount" })
+        proxy.published = true
+        proxy.publishedName = "Root Amount"
+        pair.graph.rebuildPublishedParameterGroup()
+
+        // A published inlet two levels down, with a value of its own per member.
+        pair.member.nestedInner.inputNumber1.published = true
+        pair.member.nested.subGraph.rebuildPublishedParameterGroup()
+        pair.graph.cloneSetCoordinator.flush()
+        let nestedInnerCopy = try #require(pair.counterpart(of: pair.member.nestedInner))
+        pair.member.nestedInner.inputNumber1.value = 7
+        nestedInnerCopy.inputNumber1.value = 5
+        pair.graph.cloneSetCoordinator.flush()
+
+        let data = try saveCompactly(pair.graph)
+        #expect(try memberEntries(in: data).allSatisfy { $0["subGraph"] == nil })
+        let decoded = try decode(data, context: context)
+
+        let decodedSibling = try #require(decoded.cloneSetMembers(of: setID).first { $0.id == pair.sibling.id })
+        let decodedProxy = try #require(decodedSibling.ports.first { $0.id == proxy.id })
+        #expect(decodedProxy.published)
+        #expect(decodedProxy.publishedName == "Root Amount")
+        #expect(decoded.publishedInputPorts().contains { $0.id == proxy.id })
+
+        let decodedNestedInnerCopy = try #require(decodedSibling.subGraph.nodesRecursive().first { $0.id == nestedInnerCopy.id } as? NumberBinaryOperator)
+        #expect(decodedNestedInnerCopy.inputNumber1.value == 5)
+        let decodedMember = try #require(decoded.cloneSetMembers(of: setID).first { $0.id == pair.member.member.id })
+        let decodedNestedInner = try #require(decodedMember.subGraph.nodesRecursive().first { $0.id == pair.member.nestedInner.id } as? NumberBinaryOperator)
+        #expect(decodedNestedInner.inputNumber1.value == 7)
+    }
+
+    @Test("An edit inside a nested member syncs the nested set even when the outer member's graph is noted last")
+    @MainActor
+    func nestedEditSyncsInnerSetWhicheverObserverFiresLast() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let coordinator = pair.graph.cloneSetCoordinator
+        let nestedCopy = try pair.member.member.subGraph.duplicateAsClone(pair.member.nested)
+        coordinator.flush()
+
+        // The two observers fire in whichever order they subscribed; force the
+        // outer member's note to arrive last, which is the order that lost the inner set.
+        pair.member.nested.subGraph.noteContentChanged()
+        pair.member.member.subGraph.noteContentChanged()
+        pair.member.nestedInner.offset = CGSize(width: 99, height: 99)
+        coordinator.flush()
+
+        let nestedCopyInner = try #require(nestedCopy.subGraph.nodes.first as? NumberBinaryOperator)
+        #expect(nestedCopyInner.offset == CGSize(width: 99, height: 99))
+        let siblingNestedInner = try #require(pair.counterpart(of: pair.member.nestedInner))
+        #expect(siblingNestedInner.offset == CGSize(width: 99, height: 99))
+    }
+
+    @Test("Recovering a member registers no undo step")
+    @MainActor
+    func recoveryRegistersNoUndo() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        pair.sibling.cloneRecord = [:]
+        pair.source.addNode(NumberBinaryOperator(context: context))
+
+        pair.syncExpectingNoUndo()
+
+        #expect(pair.graph.cloneSetMembers(of: pair.member.member.cloneSetID!).count == 2)
+    }
+
+    @Test("Removing an outer member refreshes the badges of the nested set it took with it")
+    @MainActor
+    func nestedSetBadgesFollowOuterMembership() async throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let coordinator = pair.graph.cloneSetCoordinator
+        _ = try pair.member.member.subGraph.duplicateAsClone(pair.member.nested)
+        coordinator.flush()
+        let nestedSetID = try #require(pair.member.nested.cloneSetID)
+        #expect(pair.graph.cloneSetMembers(of: nestedSetID).count == 4)
+        let nestedViewModel = pair.member.member.subGraph.viewModel(for: pair.member.nested)
+        for _ in 0..<50 where nestedViewModel.status?.message.contains("4 members") != true
+        {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(nestedViewModel.status?.message.contains("4 members") == true)
+
+        pair.graph.delete(node: pair.sibling)
+
+        for _ in 0..<50 where nestedViewModel.status?.message.contains("2 members") != true
+        {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(nestedViewModel.status?.message.contains("2 members") == true)
+    }
+
+    @Test("A pasted member is an ordinary subgraph")
+    func pastedMemberCarriesNoLinks() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+
+        pair.graph.copyNodesToPasteboard([pair.sibling])
+        let pasted = pair.graph.pasteNodesFromPasteboard()
+
+        let pastedMember = try #require(pasted.first as? SubgraphNode)
+        #expect(pastedMember.cloneSetID == nil)
+        #expect(pastedMember.cloneRecord.isEmpty)
+        #expect(pastedMember.subGraph.subgraphNodesRecursive().allSatisfy { $0.cloneSetID == nil })
+    }
+}

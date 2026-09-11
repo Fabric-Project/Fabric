@@ -187,6 +187,7 @@ internal import AnyCodable
             member.cloneRecord = [:]
             member.subtitleSubject.send()
             member.settingsDidChange()
+            self.cloneSetMembershipChanged(setID: setID)
         }
     }
 
@@ -694,7 +695,7 @@ internal import AnyCodable
 
         self.updateCameraSelection(afterAdding: node)
         self.rebuildPublishedParameterGroup()
-        self.cloneSetMembershipChanged(setID: (node as? SubgraphNode)?.cloneSetID)
+        self.cloneSetMembershipChanged(around: node)
     }
 
     /// Updates the saved-document directory used by relative file paths and
@@ -811,7 +812,7 @@ internal import AnyCodable
 
         self.updateCameraSelection()
         self.rebuildPublishedParameterGroup()
-        self.cloneSetMembershipChanged(setID: (node as? SubgraphNode)?.cloneSetID)
+        self.cloneSetMembershipChanged(around: node)
     }
 
     private func restoreDeletedNode(_ node: Node,
@@ -836,7 +837,7 @@ internal import AnyCodable
             rebuildPublishedParameterGroup()
             syncNodesToScene()
             markConnectionsChanged()
-            cloneSetMembershipChanged(setID: (node as? SubgraphNode)?.cloneSetID)
+            cloneSetMembershipChanged(around: node)
         }
 
         undoManager?.registerUndo(withTarget: self) { graph in
@@ -1614,14 +1615,14 @@ internal import AnyCodable
         undoManager?.setActionName("Create Subgraph")
     }
 
-    internal func withoutUndoRegistration(_ operation: () -> Void)
+    internal func withoutUndoRegistration<Result>(_ operation: () throws -> Result) rethrows -> Result
     {
         let shouldRestoreUndoRegistration = undoManager?.isUndoRegistrationEnabled == true
         if shouldRestoreUndoRegistration { undoManager?.disableUndoRegistration() }
         defer {
             if shouldRestoreUndoRegistration { undoManager?.enableUndoRegistration() }
         }
-        operation()
+        return try operation()
     }
 
     internal func performWithBatchedConnectionTopologyChanges(_ operation: () -> Void)
@@ -2150,6 +2151,7 @@ extension Graph
                 if let newNode = self.decodeNode(from: rewrittenMap)
                 {
                     newNode.offset = newNode.offset + offset
+                    Self.clearCloneLinks(in: newNode)
                     newNodes.append(newNode)
                 }
             }
