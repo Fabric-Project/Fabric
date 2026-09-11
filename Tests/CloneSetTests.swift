@@ -795,6 +795,23 @@ extension CloneSetTests
         #expect(pair.target.nodes.count == 4)
     }
 
+    @Test("A save on a background queue still flushes the pending sync")
+    func backgroundSaveFlushesPendingSync() async throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+
+        await MainActor.run {
+            pair.source.addNode(NumberBinaryOperator(context: context))
+            #expect(pair.target.nodes.count == 3)
+        }
+
+        // FileDocument.fileWrapper(configuration:) runs off the main thread.
+        await Task.detached { pair.graph.flushPendingCloneSync() }.value
+
+        #expect(pair.target.nodes.count == 4)
+    }
+
     @Test("Leaving a nested member syncs every enclosing set")
     func leavingNestedMemberSyncsEnclosingSets() async throws
     {
