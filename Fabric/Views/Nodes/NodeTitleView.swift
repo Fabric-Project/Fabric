@@ -227,35 +227,14 @@ private struct NodeStatusIconView: View
     let all: [NodeStatus]
     let cellSide: CGFloat
 
-    private var systemName: String
-    {
-        switch mostSevere
-        {
-        case .error:   "xmark.octagon.fill"
-        case .warning: "exclamationmark.triangle.fill"
-        }
-    }
-
-    private var color: Color
-    {
-        switch mostSevere
-        {
-        case .error:   .red
-        case .warning: .yellow
-        }
-    }
-
-    private var tooltip: String
-    {
-        all.map(\.description).joined(separator: "\n")
-    }
+    private var tooltip: String { NodeStatusGlyph.tooltip(for: all) }
 
     var body: some View
     {
-        Image(systemName: systemName)
+        Image(systemName: NodeStatusGlyph.symbolName(for: mostSevere))
             .font(.system(size: 9))
             .bold()
-            .foregroundStyle(color)
+            .foregroundStyle(NodeStatusGlyph.color(for: mostSevere))
             .frame(width: cellSide, height: cellSide)
             .help(tooltip)
             .accessibilityLabel(tooltip)

@@ -84,11 +84,11 @@ open class SubgraphNode: BaseObjectNode
     }
 
     /// A member describes itself by its set's name, the way a Strategy node
-    /// shows its strategy. The member count lives in the icon's tooltip.
+    /// shows its strategy. The member count lives in the status's message.
     override open func deriveSubtitle() -> String? { self.cloneSetInfo?.name }
 
-    /// A member wears the clone glyph, with the set's details on hover.
-    override open func deriveTitleIcon() -> NodeTitleIcon? { self.cloneSetInfo?.titleIcon }
+    /// A member reports itself linked to its set.
+    override open func deriveStatuses() -> [NodeStatus] { self.cloneSetInfo.map { [$0.status] } ?? [] }
 
     /// ProxyPorts wrapping the sub graph's published ports.
     /// Each proxy has node = self (the SubgraphNode) and published = false.

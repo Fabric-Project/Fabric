@@ -8,9 +8,9 @@
 import SwiftUI
 import Fabric
 
-/// A breadcrumb entry: the subgraph node's title, preceded by its title icon
-/// where it has one (a clone set member's glyph), with the icon's tooltip on
-/// hover, the same way the node shows it on the canvas.
+/// A breadcrumb entry: the subgraph node's title, preceded by the glyph of
+/// its most severe status where it has one (a clone set member's link),
+/// with every status on hover, the same way the node shows them on the canvas.
 struct BreadcrumbEntry: View
 {
     let node: SubgraphNode
@@ -19,21 +19,21 @@ struct BreadcrumbEntry: View
 
     var body: some View
     {
-        let titleIcon = nodeViewModel?.titleIcon
+        let statuses = nodeViewModel?.statuses ?? []
 
         Button(action: action)
         {
             HStack(spacing: 4)
             {
-                if let titleIcon
+                if let mostSevere = statuses.first
                 {
-                    Image(systemName: titleIcon.systemName)
+                    Image(systemName: NodeStatusGlyph.symbolName(for: mostSevere))
+                        .help(NodeStatusGlyph.tooltip(for: statuses))
                 }
                 Text(node.title)
             }
         }
         .font(.headline)
         .buttonStyle(.plain)
-        .help(titleIcon?.tooltip ?? "")
     }
 }

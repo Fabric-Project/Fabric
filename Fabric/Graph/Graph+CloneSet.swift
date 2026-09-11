@@ -8,8 +8,8 @@
 import Foundation
 internal import AnyCodable
 
-/// A member's view of its set: the source of its title icon, its subtitle
-/// and their tooltip. See SubgraphNode.cloneSetInfo.
+/// A member's view of its set: the source of its linked status and its
+/// subtitle. See SubgraphNode.cloneSetInfo.
 public struct CloneSetInfo: Equatable
 {
     public let setID: UUID
@@ -23,19 +23,13 @@ public struct CloneSetInfo: Equatable
         self.memberCount = memberCount
     }
 
-    /// The glyph every clone set member wears.
-    public static let symbolName = "square.on.square"
-
-    public var tooltip: String
+    public var message: String
     {
-        "Clone set: \(name), \(memberCount) \(memberCount == 1 ? "member" : "members"). Edits here reach every member."
+        "Clone set \(name), \(memberCount) \(memberCount == 1 ? "member" : "members"). Edits here reach every member."
     }
 
-    /// The member's title icon: the clone glyph, with the set and its size on hover.
-    public var titleIcon: NodeTitleIcon
-    {
-        NodeTitleIcon(systemName: Self.symbolName, tooltip: tooltip)
-    }
+    /// The member's status: linked, to the set and its members.
+    public var status: NodeStatus { .linked(message) }
 }
 
 /// Clone sets: groups of SubgraphNodes kept identical in design to a shared

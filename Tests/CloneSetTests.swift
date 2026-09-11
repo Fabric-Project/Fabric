@@ -329,35 +329,35 @@ struct CloneSetTests
         #expect(sibling.subtitle == "Set A")
     }
 
-    @Test("Members show the set name as their subtitle and the clone glyph as their title icon")
-    func subtitleAndTitleIcon() throws
+    @Test("Members show the set name as their subtitle and report a linked status")
+    func subtitleAndLinkedStatus() throws
     {
         guard let context = makeContext() else { return }
         let fixture = try makeMemberFixture(context: context)
         #expect(fixture.member.subtitle == nil)
-        #expect(fixture.member.titleIcon == nil)
+        #expect(fixture.member.status == nil)
 
         let sibling = try fixture.graph.duplicateAsClone(fixture.member)
         let setID = try #require(fixture.member.cloneSetID)
         #expect(fixture.member.subtitle == "Set A")
         #expect(fixture.member.cloneSetInfo == CloneSetInfo(setID: setID, name: "Set A", memberCount: 2))
-        let icon = try #require(sibling.titleIcon)
-        #expect(icon.systemName == CloneSetInfo.symbolName)
-        #expect(icon.tint == .neutral)
-        #expect(icon.tooltip == "Clone set: Set A, 2 members. Edits here reach every member.")
+        let status = try #require(sibling.status)
+        #expect(status == .linked("Clone set Set A, 2 members. Edits here reach every member."))
+        #expect(status.description == "Linked: Clone set Set A, 2 members. Edits here reach every member.")
+        #expect(NodeStatus.warning("w") > status)
 
         fixture.graph.delete(node: sibling)
-        #expect(fixture.member.titleIcon?.tooltip == "Clone set: Set A, 1 member. Edits here reach every member.")
+        #expect(fixture.member.status?.message == "Clone set Set A, 1 member. Edits here reach every member.")
     }
 
-    @Test("The view model mirrors the clone glyph as membership changes")
+    @Test("The view model mirrors the linked status as membership changes")
     @MainActor
-    func viewModelMirrorsTitleIcon() async throws
+    func viewModelMirrorsLinkedStatus() async throws
     {
         guard let context = makeContext() else { return }
         let fixture = try makeMemberFixture(context: context)
         let viewModel = fixture.graph.viewModel(for: fixture.member)
-        #expect(viewModel.titleIcon == nil)
+        #expect(viewModel.status == nil)
 
         // Mirrors arrive on the main queue; poll briefly rather than sleep a fixed time.
         func settle(until condition: @escaping () -> Bool) async throws
@@ -369,18 +369,18 @@ struct CloneSetTests
         }
 
         let sibling = try fixture.graph.duplicateAsClone(fixture.member)
-        try await settle { viewModel.titleIcon?.tooltip.contains("2 members") == true }
-        #expect(viewModel.titleIcon?.tooltip.contains("2 members") == true)
+        try await settle { viewModel.status?.message.contains("2 members") == true }
+        #expect(viewModel.status?.message.contains("2 members") == true)
         #expect(viewModel.subtitle == "Set A")
 
         fixture.member.userName = "Left"
         try await settle { viewModel.subtitle == "Left" }
         #expect(viewModel.subtitle == "Left")
-        #expect(viewModel.titleIcon?.tooltip.contains("Set A") == true)
+        #expect(viewModel.status?.message.contains("Set A") == true)
 
         fixture.graph.delete(node: sibling)
-        try await settle { viewModel.titleIcon?.tooltip.contains("1 member.") == true }
-        #expect(viewModel.titleIcon?.tooltip.contains("1 member.") == true)
+        try await settle { viewModel.status?.message.contains("1 member.") == true }
+        #expect(viewModel.status?.message.contains("1 member.") == true)
     }
 }
 
