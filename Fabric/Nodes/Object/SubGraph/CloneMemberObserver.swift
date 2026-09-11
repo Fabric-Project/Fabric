@@ -31,6 +31,11 @@ final class CloneMemberObserver
     private var userNames: [UUID: String?] = [:]
     private var active = true
 
+    /// Observation registrations cannot be cancelled; each carries the
+    /// generation it was made in and stands down once a refresh or stop has
+    /// moved past it, so a port never has more than one live watcher.
+    private var generation = 0
+
     init(member: SubgraphNode)
     {
         self.member = member
@@ -41,6 +46,7 @@ final class CloneMemberObserver
     /// which is when nodes may have come or gone.
     func refresh()
     {
+        generation += 1
         cancellables.removeAll()
         userNames.removeAll()
         guard active, let member else { return }
@@ -53,6 +59,7 @@ final class CloneMemberObserver
 
     func stop()
     {
+        generation += 1
         active = false
         cancellables.removeAll()
     }
@@ -102,25 +109,29 @@ final class CloneMemberObserver
 
         for port in node.ports
         {
-            self.watchPublishedState(of: port)
-            if let parameter = port.parameter
+            self.watchPublishedState(of: port, generation: generation)
+            // Only a resting inlet's value is design; a wired one is driven
+            // every frame and a published one is the member's own. Wiring
+            // and publishing changes sync the set, which refreshes this.
+            if port.kind == .Inlet, !port.published, port.connections.isEmpty, let parameter = port.parameter
             {
                 self.watchValue(of: parameter, on: port)
             }
         }
     }
 
-    /// Port is Observable: one registration per change, renewed on each.
-    private func watchPublishedState(of port: Port)
+    /// Port is Observable: one registration per change, renewed on each
+    /// while its generation is current.
+    private func watchPublishedState(of port: Port, generation: Int)
     {
-        guard active else { return }
+        guard active, generation == self.generation else { return }
         withObservationTracking {
             _ = port.published
             _ = port.publishedName
         } onChange: { [weak self, weak port] in
-            guard Thread.isMainThread, let self, self.active else { return }
+            guard Thread.isMainThread, let self, self.active, generation == self.generation else { return }
             self.noteEdit()
-            if let port { self.watchPublishedState(of: port) }
+            if let port { self.watchPublishedState(of: port, generation: generation) }
         }
     }
 

@@ -36,11 +36,16 @@ struct CloneSyncContext
     private(set) var localByTemplate: [String: String]
     private(set) var sourceRecordGrowth: [String: String] = [:]
 
-    init(source: SubgraphNode, target: SubgraphNode)
+    /// Settings signatures of the source's nodes, shared across every
+    /// sibling synced from the same source in one pass.
+    let signatures: CloneSettingsSignatureCache
+
+    init(source: SubgraphNode, target: SubgraphNode, signatures: CloneSettingsSignatureCache = CloneSettingsSignatureCache())
     {
         self.templateByLocal = Dictionary(source.cloneRecord.map { ($0.value, $0.key) },
                                           uniquingKeysWith: { first, _ in first })
         self.localByTemplate = target.cloneRecord
+        self.signatures = signatures
     }
 
     /// The template id of one of the source's ids, assigned if unknown.
@@ -92,6 +97,22 @@ struct CloneSyncContext
     }
 }
 
+/// Settings signatures computed once per node for one sync pass. A source
+/// node's signature is the same for every sibling it is compared against.
+final class CloneSettingsSignatureCache
+{
+    private var signatures: [ObjectIdentifier: Data?] = [:]
+
+    func signature(of node: Node) -> Data?
+    {
+        let key = ObjectIdentifier(node)
+        if let cached = signatures[key] { return cached }
+        let signature = node.cloneSettingsSignature()
+        signatures[key] = signature
+        return signature
+    }
+}
+
 extension Graph
 {
     // MARK: - Sync
@@ -104,11 +125,12 @@ extension Graph
         guard member.cloneSetID != nil else { return }
         self.refreshCloneTemplate(from: member)
 
+        let signatures = CloneSettingsSignatureCache()
         for sibling in self.cloneSiblings(of: member)
         {
             do
             {
-                try self.reconcileCloneMember(sibling, from: member)
+                try self.reconcileCloneMember(sibling, from: member, signatures: signatures)
             }
             catch
             {
@@ -143,6 +165,12 @@ extension Graph
     @discardableResult
     public func reconcileCloneMember(_ target: SubgraphNode, from source: SubgraphNode) throws -> CloneReconcileReport
     {
+        try self.reconcileCloneMember(target, from: source, signatures: CloneSettingsSignatureCache())
+    }
+
+    internal func reconcileCloneMember(_ target: SubgraphNode, from source: SubgraphNode,
+                                       signatures: CloneSettingsSignatureCache) throws -> CloneReconcileReport
+    {
         var report = CloneReconcileReport()
         guard target !== source else { return report }
         guard let setID = source.cloneSetID, target.cloneSetID == setID else
@@ -166,7 +194,7 @@ extension Graph
             return try self.recoverCloneMember(target)
         }
 
-        var context = CloneSyncContext(source: source, target: target)
+        var context = CloneSyncContext(source: source, target: target, signatures: signatures)
         target.subGraph.reconcile(from: source.subGraph, context: &context, report: &report)
 
         if context.localByTemplate != target.cloneRecord { target.cloneRecord = context.localByTemplate }
@@ -270,8 +298,9 @@ extension Graph
     /// transient source an updated template is applied through.
     internal func instantiateMember(of set: CloneSet, at offset: CGSize = .zero) throws -> SubgraphNode
     {
-        let remap = Dictionary(uniqueKeysWithValues: Self.findAllUUIDs(in: set.templateObject).map { ($0, UUID().uuidString) })
-        let subGraphObject = Self.remapUUIDs(in: set.templateObject, remap: remap, preservingKeys: [Self.cloneSetIDKey])
+        let template = set.templateObject
+        let remap = Dictionary(uniqueKeysWithValues: Self.findAllUUIDs(in: template).map { ($0, UUID().uuidString) })
+        let subGraphObject = Self.remapUUIDs(in: template, remap: remap, preservingKeys: [Self.cloneSetIDKey])
 
         let qualified = Self.qualifiedNodeID(fromSerializedType: set.memberNodeType)
         guard let memberClass = try NodeRegistry.shared.nodeClass(pluginID: qualified.pluginID, nodeID: qualified.nodeID) as? SubgraphNode.Type
@@ -379,8 +408,7 @@ extension Graph
         let templateByTargetLocal = context.templateByTargetLocal
         for node in self.nodes
         {
-            let templateID = templateByTargetLocal[node.id.uuidString]
-            guard templateID == nil || !sourceTemplateIDs.contains(templateID!) else { continue }
+            if let templateID = templateByTargetLocal[node.id.uuidString], sourceTemplateIDs.contains(templateID) { continue }
             self.delete(node: node)
             report.nodesRemoved += 1
         }
@@ -390,7 +418,7 @@ extension Graph
             let templateID = context.templateID(forSourceLocal: sourceNode.id.uuidString)
             if let localID = context.targetLocalID(forTemplate: templateID), let target = self.node(forID: localID)
             {
-                if target.canReconcileInPlace(from: sourceNode)
+                if target.canReconcileInPlace(from: sourceNode, signatures: context.signatures)
                 {
                     self.reconcileNodeState(target, from: sourceNode, context: &context, report: &report)
                     continue
@@ -452,12 +480,11 @@ extension Graph
             changed = true
         }
 
+        let targetPortsByID = Dictionary(target.ports.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         for sourcePort in source.ports
         {
             let templateID = context.templateID(forSourceLocal: sourcePort.id.uuidString)
-            var port = context.targetLocalID(forTemplate: templateID).flatMap { localID in
-                target.ports.first { $0.id == localID }
-            }
+            var port = context.targetLocalID(forTemplate: templateID).flatMap { targetPortsByID[$0] }
             if port == nil,
                let byName = target.ports.first(where: {
                    $0.kind == sourcePort.kind && $0.name == sourcePort.name && $0.portType == sourcePort.portType
@@ -501,13 +528,14 @@ extension Graph
     private func reconcileConnections(from source: Graph, context: inout CloneSyncContext, report: inout CloneReconcileReport)
     {
         report.connectionsRemoved += self.pruneDanglingConnections()
+        let portsByID = Dictionary(self.nodes.flatMap(\.ports).map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
 
         var desired: [UUID: [UUID: Bool]] = [:]
         for connection in source.connections
         {
             guard let outletID = context.targetLocalID(forSourceLocal: connection.outletPortID),
                   let inletID = context.targetLocalID(forSourceLocal: connection.inletPortID),
-                  self.nodePort(forID: outletID) != nil, self.nodePort(forID: inletID) != nil
+                  portsByID[outletID] != nil, portsByID[inletID] != nil
             else { continue }
 
             desired[outletID, default: [:]][inletID] = connection.active
@@ -534,8 +562,8 @@ extension Graph
         {
             for (inletID, active) in inlets where presentPairs[outletID]?.contains(inletID) != true
             {
-                guard let outlet = self.nodePort(forID: outletID),
-                      let inlet = self.nodePort(forID: inletID),
+                guard let outlet = portsByID[outletID],
+                      let inlet = portsByID[inletID],
                       let connection = self.connect(outlet, to: inlet)
                 else { continue }
 
@@ -597,11 +625,11 @@ extension Node
     /// so state can be applied port by port instead of replacing the node.
     /// A node with no settings view has no settings to compare, so its
     /// encode is skipped.
-    fileprivate func canReconcileInPlace(from source: Node) -> Bool
+    fileprivate func canReconcileInPlace(from source: Node, signatures: CloneSettingsSignatureCache) -> Bool
     {
         guard type(of: self) == type(of: source) else { return false }
         guard self.providesSettingsView() || source.providesSettingsView() else { return true }
-        return self.cloneSettingsSignature() == source.cloneSettingsSignature()
+        return self.cloneSettingsSignature() == signatures.signature(of: source)
     }
 
     /// Encoded keys that are not settings: identity, layout, port state, and

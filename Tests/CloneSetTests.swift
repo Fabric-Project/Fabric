@@ -311,7 +311,8 @@ struct CloneSetTests
         #expect(fixture.graph.cloneSet(for: otherSetID)?.name == "Set B")
 
         _ = try fixture.member.subGraph.duplicateAsClone(fixture.nested)
-        #expect(fixture.graph.cloneSet(for: fixture.nested.cloneSetID!)?.name == "Set C")
+        let nestedSetID = try #require(fixture.nested.cloneSetID)
+        #expect(fixture.graph.cloneSet(for: nestedSetID)?.name == "Set C")
 
         let undoManager = UndoManager()
         fixture.graph.undoManager = undoManager
@@ -460,7 +461,8 @@ extension CloneSetTests
             $0.outletPort === secondCopy.outputNumber && $0.inletPort === addedCopy.inputNumber2
         })
         #expect(pair.member.member.templateID(forLocal: added.inputNumber2.id) != nil)
-        #expect(pair.sibling.localID(forTemplate: pair.member.member.templateID(forLocal: added.inputNumber2.id)!) == addedCopy.inputNumber2.id)
+        let addedInletTemplateID = try #require(pair.member.member.templateID(forLocal: added.inputNumber2.id))
+        #expect(pair.sibling.localID(forTemplate: addedInletTemplateID) == addedCopy.inputNumber2.id)
     }
 
     @Test("Deleting a node in one member removes it and its wires from the sibling")
@@ -646,7 +648,8 @@ extension CloneSetTests
     {
         guard let context = makeContext() else { return }
         let pair = try makePair(context: context)
-        let set = try #require(pair.graph.cloneSet(for: pair.member.member.cloneSetID!))
+        let setID = try #require(pair.member.member.cloneSetID)
+        let set = try #require(pair.graph.cloneSet(for: setID))
         let before = set.templateJSON
 
         pair.source.addNode(NumberBinaryOperator(context: context))
@@ -1017,7 +1020,8 @@ extension CloneSetTests
         #expect(report.isEmpty, "\(report)")
 
         // A member made from the template alone matches too.
-        let made = try graph.instantiateCloneSetMember(of: member.cloneSetID!)
+        let madeSetID = try #require(member.cloneSetID)
+        let made = try graph.instantiateCloneSetMember(of: madeSetID)
         #expect(made.subGraph.nodes.count == member.subGraph.nodes.count)
         #expect(try graph.reconcileCloneMember(made, from: member).isEmpty)
     }
@@ -1224,5 +1228,49 @@ extension CloneSetTests
         #expect(report.nodesUpdated == 1)
         #expect(firstCopy.inputNumber2.value == 3)
         #expect(pair.member.first.providesSettingsView() == false)
+    }
+}
+
+// MARK: - Code review follow-ups
+
+extension CloneSetTests
+{
+    @Test("Re-subscribing after syncs leaves one live watcher per port, not one per sync")
+    @MainActor
+    func observerRegistrationsDoNotAccumulate() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let coordinator = pair.graph.cloneSetCoordinator
+
+        for _ in 0..<5
+        {
+            pair.member.first.inputNumber2.value = (pair.member.first.inputNumber2.value ?? 0) + 1
+            coordinator.flush()
+        }
+
+        let revision = pair.source.contentRevision
+        pair.member.second.outputNumber.published.toggle()
+        #expect(pair.source.contentRevision == revision + 1)
+    }
+
+    @Test("Unlinking a member nested inside a member reaches the siblings")
+    @MainActor
+    func nestedMembershipChangeSyncs() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let coordinator = pair.graph.cloneSetCoordinator
+        let nestedCopy = try pair.member.member.subGraph.duplicateAsClone(pair.member.nested)
+        coordinator.flush()
+        let siblingNested = try #require(pair.counterpart(of: pair.member.nested))
+        #expect(siblingNested.cloneSetID != nil)
+
+        try pair.source.unlinkClone(pair.member.nested)
+        #expect(coordinator.hasPendingSync)
+        coordinator.flush()
+
+        #expect(siblingNested.cloneSetID == nil)
+        #expect(try #require(pair.counterpart(of: nestedCopy)).cloneSetID != nil)
     }
 }

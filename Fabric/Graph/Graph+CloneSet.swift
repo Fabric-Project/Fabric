@@ -346,6 +346,7 @@ extension Graph
         node.cloneSetID = setID
         node.cloneRecord = record
         node.subtitleSubject.send()
+        node.settingsDidChange()
 
         undoManager?.registerUndo(withTarget: self) { graph in
             graph.setCloneMembership(setID: previousID, record: previousRecord, on: node)
@@ -383,6 +384,7 @@ extension Graph
         guard let subgraphNode = node as? SubgraphNode else { return }
         subgraphNode.cloneSetID = nil
         subgraphNode.cloneRecord = [:]
+        subgraphNode.settingsDidChange()
         for inner in subgraphNode.subGraph.nodes { clearCloneLinks(in: inner) }
     }
 }

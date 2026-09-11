@@ -303,7 +303,7 @@ open class SubgraphNode: BaseObjectNode
         guard let graph = self.graph, let setID = self.cloneSetID, let set = graph.cloneSet(for: setID),
               !self.cloneRecord.isEmpty,
               let design = graph.cloneTemplateJSON(from: self),
-              Graph.designComparableJSON(design) == Graph.designComparableJSON(set.templateJSON)
+              Graph.designComparableJSON(design) == set.comparableTemplateJSON
         else { return nil }
 
         var values: [String: AnyPort] = [:]
@@ -393,11 +393,11 @@ open class SubgraphNode: BaseObjectNode
                                           to subGraph: Graph) throws
     {
         guard let values = try container.decodeIfPresent([String: AnyPort].self, forKey: .memberValues) else { return }
+        let portsByID = Dictionary(subGraph.nodes.flatMap(\.ports).map { ($0.id.uuidString, $0) },
+                                   uniquingKeysWith: { first, _ in first })
         for (portID, saved) in values
         {
-            guard let id = UUID(uuidString: portID), let port = subGraph.nodePort(forID: id),
-                  port.portType == saved.base.portType
-            else { continue }
+            guard let port = portsByID[portID], port.portType == saved.base.portType else { continue }
             port.restoreValue(from: saved.base.snapshotValue())
         }
     }

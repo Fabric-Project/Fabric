@@ -186,6 +186,7 @@ internal import AnyCodable
             member.cloneSetID = nil
             member.cloneRecord = [:]
             member.subtitleSubject.send()
+            member.settingsDidChange()
         }
     }
 
@@ -258,8 +259,9 @@ internal import AnyCodable
     /// proxy that disappeared when its inner port was unpublished.
     internal func pruneDanglingConnections() -> Int
     {
+        let portIDs = Set(nodes.flatMap { $0.ports.map(\.id) })
         let dangling = connections.filter {
-            nodePort(forID: $0.outletPortID) == nil || nodePort(forID: $0.inletPortID) == nil
+            !portIDs.contains($0.outletPortID) || !portIDs.contains($0.inletPortID)
         }
         guard !dangling.isEmpty else { return 0 }
 
@@ -619,11 +621,14 @@ internal import AnyCodable
         
         try container.encode(self.notes, forKey: .notes)
 
-        let liveSetIDs = Set(self.subgraphNodesRecursive().compactMap(\.cloneSetID))
-        let liveSets = self.cloneSets.filter { liveSetIDs.contains($0.id) }
-        if !liveSets.isEmpty
+        if !self.cloneSets.isEmpty
         {
-            try container.encode(liveSets, forKey: .cloneSets)
+            let liveSetIDs = Set(self.subgraphNodesRecursive().compactMap(\.cloneSetID))
+            let liveSets = self.cloneSets.filter { liveSetIDs.contains($0.id) }
+            if !liveSets.isEmpty
+            {
+                try container.encode(liveSets, forKey: .cloneSets)
+            }
         }
 
         try container.encode( nodeMap, forKey: .nodeMap)

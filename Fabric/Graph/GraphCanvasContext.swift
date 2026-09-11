@@ -195,6 +195,7 @@ public class GraphCanvasContext
     public func enter(_ node: SubgraphNode)
     {
         entries.append(node)
+        entryRevisions.append(node.subGraph.contentRevision)
         syncUndoManager()
     }
 
@@ -202,26 +203,44 @@ public class GraphCanvasContext
     {
         guard !entries.isEmpty else { return }
         let leaving = currentGraph
+        let edited = poppedEntriesWereEdited(from: entries.count - 1)
         entries.removeLast()
+        entryRevisions.removeLast()
         syncUndoManager()
-        syncCloneSets(leaving: leaving)
+        if edited { syncCloneSets(leaving: leaving) }
     }
 
     public func popTo(_ node: SubgraphNode)
     {
         guard let index = entries.firstIndex(where: { $0.id == node.id }) else { return }
         let leaving = currentGraph
+        let edited = poppedEntriesWereEdited(from: index + 1)
         entries = Array(entries.prefix(through: index))
+        entryRevisions = Array(entryRevisions.prefix(through: index))
         syncUndoManager()
-        syncCloneSets(leaving: leaving)
+        if edited { syncCloneSets(leaving: leaving) }
     }
 
     public func popToRoot()
     {
         let leaving = currentGraph
+        let edited = poppedEntriesWereEdited(from: 0)
         entries.removeAll()
+        entryRevisions.removeAll()
         syncUndoManager()
-        syncCloneSets(leaving: leaving)
+        if edited { syncCloneSets(leaving: leaving) }
+    }
+
+    /// Each entry's graph content revision as it was entered, so leaving
+    /// can tell whether anything was edited on the way.
+    @ObservationIgnored private var entryRevisions: [Int] = []
+
+    private func poppedEntriesWereEdited(from index: Int) -> Bool
+    {
+        guard index < entries.count else { return false }
+        return zip(entries[index...], entryRevisions[index...]).contains { entry, revision in
+            entry.subGraph.contentRevision != revision
+        }
     }
 
     // MARK: - Interactive Node Addition
@@ -268,7 +287,8 @@ public class GraphCanvasContext
     // MARK: - Private
 
     /// Leaving a canvas is the point where edits made there are known to be
-    /// complete, so every clone set around it is brought in line.
+    /// complete, so every clone set around it is brought in line. Skipped
+    /// when nothing was edited since entering.
     private func syncCloneSets(leaving graph: Graph)
     {
         rootGraph.reconcileCloneSets(enclosing: graph)

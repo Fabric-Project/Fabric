@@ -23,7 +23,7 @@ struct BreadcrumbEntry: View
 
         Button(action: action)
         {
-            HStack(spacing: 4)
+            HStack
             {
                 if let mostSevere = statuses.first
                 {

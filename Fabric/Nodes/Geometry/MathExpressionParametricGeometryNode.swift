@@ -72,7 +72,7 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
         let axes = [expressionX, expressionY, expressionZ]
         guard axes.contains(where: { !$0.isEmpty }) else { return nil }
         // Collapse newlines to spaces so the single-line node title reads cleanly.
-        return axes.joined(separator: ", ").replacingOccurrences(of: "\n", with: " ")
+        return axes.joined(separator: ", ").replacing("\n", with: " ")
     }
 
     /// An axis that fails to compile is the node's status, naming the failing
