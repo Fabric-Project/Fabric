@@ -59,21 +59,23 @@ public class StringWrapNode: Node {
             return
         }
 
-        let charLimit: Int
+        let wrapped: String
         switch mode {
         case .Characters:
-            charLimit = max(1, inputLimit.value ?? 40)
+            wrapped = Self.wrapToCharLimit(words, charLimit: max(1, inputLimit.value ?? 40))
         case .Words:
-            charLimit = wordCountToCharLimit(words: words, wordLimit: max(1, inputLimit.value ?? 10))
+            wrapped = Self.wrapToWordLimit(words, wordLimit: max(1, inputLimit.value ?? 10))
         case .Aspect:
-            charLimit = aspectToCharLimit(words: words, aspect: inputAspect.value ?? 4.0)
+            wrapped = Self.wrapToCharLimit(words, charLimit: Self.aspectToCharLimit(words: words, aspect: inputAspect.value ?? 4.0))
         }
 
-        outputPort.send(wrapWords(words, charLimit: charLimit))
+        outputPort.send(wrapped)
     }
 
-    /// Wrap words into lines, breaking at word boundaries at or after `charLimit` characters.
-    private func wrapWords(_ words: [String], charLimit: Int) -> String {
+    /// Greedily fill each line with whole words, breaking before the word that would
+    /// take the line past `charLimit`. A word longer than the limit takes a line of
+    /// its own and overruns it — the alternative is splitting mid-word.
+    static func wrapToCharLimit(_ words: [String], charLimit: Int) -> String {
         var lines: [String] = []
         var currentLine = ""
 
@@ -82,7 +84,7 @@ public class StringWrapNode: Node {
                 currentLine = word
             } else {
                 let candidate = currentLine + " " + word
-                if currentLine.count >= charLimit {
+                if candidate.count > charLimit {
                     lines.append(currentLine)
                     currentLine = word
                 } else {
@@ -96,17 +98,19 @@ public class StringWrapNode: Node {
         return lines.joined(separator: "\n")
     }
 
-    /// Convert a word-count limit to a character limit by measuring the average word length.
-    private func wordCountToCharLimit(words: [String], wordLimit: Int) -> Int {
-        let totalChars = words.reduce(0) { $0 + $1.count }
-        let avgWordLen = Double(totalChars) / Double(words.count)
-        // word + space
-        return max(1, Int((avgWordLen + 1) * Double(wordLimit)))
+    /// Break every `wordLimit` words. Counts words rather than deriving a character
+    /// limit from them, so the requested count is exact whatever the word lengths.
+    /// `wordLimit` must be at least 1.
+    static func wrapToWordLimit(_ words: [String], wordLimit: Int) -> String {
+        stride(from: 0, to: words.count, by: wordLimit).map { start in
+            words[start ..< min(start + wordLimit, words.count)].joined(separator: " ")
+        }
+        .joined(separator: "\n")
     }
 
     /// Calculate a character-per-line limit that fits the text within the target aspect ratio.
     /// aspect = characters across / lines down, so chars = sqrt(totalChars * aspect).
-    private func aspectToCharLimit(words: [String], aspect: Float) -> Int {
+    static func aspectToCharLimit(words: [String], aspect: Float) -> Int {
         let totalChars = words.reduce(0) { $0 + $1.count } + max(0, words.count - 1) // include spaces
         let charsAcross = sqrt(Double(totalChars) * Double(aspect))
         return max(1, Int(charsAcross))
