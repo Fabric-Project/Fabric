@@ -12,14 +12,14 @@ public class StringWrapNode: Node {
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .String) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Wrap a String by inserting newlines at word boundaries" }
+    override public class var nodeDescription: String { "Wrap at word boundaries using: Characters – line length in characters; Words – number of words per line; Aspect – overall aspect ratio (characters across vs. lines down" }
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
 
         return ports + [
-            ("inputPort", NodePort<String>(name: "String", kind: .Inlet, description: "Input string to wrap")),
+            ("inputPort", ParameterPort(parameter: StringParameter("String", "", .inputfield, "Input string to wrap"))),
             ("inputMode", ParameterPort(parameter: StringParameter("Mode", "Characters", WrapMode.allCases.map(\.rawValue), .dropdown, "Wrap criterion: Characters, Words, or Aspect"))),
             ("inputLimit", ParameterPort(parameter: IntParameter("Limit", 40, 1, 10000, .inputfield, "Character or word count per line"))),
             ("inputAspect", ParameterPort(parameter: FloatParameter("Aspect", 4.0, 0.01, 100.0, .inputfield, "Target aspect ratio (characters across / lines down)"))),
@@ -28,7 +28,7 @@ public class StringWrapNode: Node {
     }
 
     // Port proxies
-    public var inputPort: NodePort<String> { port(named: "inputPort") }
+    public var inputPort: ParameterPort<String> { port(named: "inputPort") }
     public var inputMode: ParameterPort<String> { port(named: "inputMode") }
     public var inputLimit: ParameterPort<Int> { port(named: "inputLimit") }
     public var inputAspect: ParameterPort<Float> { port(named: "inputAspect") }
