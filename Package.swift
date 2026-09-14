@@ -17,6 +17,11 @@ let package = Package(
         // Local Satin package
         .package(path: "Satin"),
 
+        // Local MPS-MediaPipe package (MediaPipe MPSGraph ports, extracted
+        // out of Fabric so they're usable standalone too — see
+        // https://github.com/Fabric-Project/MPS-MediaPipe)
+        .package(path: "../MPS-MediaPipe"),
+
         // Standalone expression engine (backs the Math Expression node)
         .package(url: "https://github.com/Fabric-Project/MathExpressionEngine", from: "1.1.0"),
 
@@ -61,6 +66,7 @@ let package = Package(
                 "FabricCore",
                 .product(name: "Satin", package: "Satin"),
                 .product(name: "SatinCore", package: "Satin"),
+                .product(name: "MPSMediaPipe", package: "MPS-MediaPipe"),
                 .product(name: "AnyCodable", package: "AnyCodable"),
                 .product(name: "MLX", package: "mlx-swift"),
                 .product(name: "MLXFFT", package: "mlx-swift"),
