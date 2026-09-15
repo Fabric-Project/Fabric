@@ -124,6 +124,9 @@ A Port on a Node inside a Subgraph that is marked `published = true`, exposing i
 ### Deferred Subgraph
 A SubgraphNode variant that renders its content to textures (colour + depth) rather than contributing objects to the parent scene. Useful for post-processing pipelines.
 
+### Clone Set
+A `CloneSet` on the document's root graph: a name and a template, the encoded form of a member's sub graph in the template's own ids, held as data. Its members are SubgraphNodes with that `cloneSetID`, kept identical in design to the template while each executes on its own. Members are peers to edit: the one you edit refreshes the template and its siblings are reconciled from it through their `cloneRecord`s, each mapping template ids to that member's own. Published inlet values are the per-member exception. A member wears the `square.on.square` glyph as its title icon, on the canvas and in the breadcrumb, shows the set name as its subtitle, and gives the member count on hover. See `CloneSet.swift`, `Graph+CloneSet.swift` and `Graph+CloneReconcile.swift`.
+
 ### Iterator
 A SubgraphNode variant that executes its contained Graph multiple times per frame, providing iteration index, progress, and count via an Iterator Info Node.
 

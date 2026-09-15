@@ -336,7 +336,8 @@ class FabricDocument: FileDocument
     {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted]
-        
+
+        self.editingContext.rootGraph.flushPendingCloneSync()
         let data = try encoder.encode(self.editingContext.rootGraph)
         
         return .init(regularFileWithContents: data)

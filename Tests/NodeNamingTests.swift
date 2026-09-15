@@ -14,6 +14,7 @@ private final class NamingTestNode: Node
 
     private var nodeDerivedSubtitle: String?
     private var nodeDerivedTitle: String?
+    private var nodeDerivedTitleIcon: NodeTitleIcon?
 
     override func deriveTitle() -> String
     {
@@ -34,6 +35,17 @@ private final class NamingTestNode: Node
     func setDerivedTitle(_ title: String?)
     {
         nodeDerivedTitle = title
+        subtitleSubject.send()
+    }
+
+    override func deriveTitleIcon() -> NodeTitleIcon?
+    {
+        nodeDerivedTitleIcon
+    }
+
+    func setDerivedTitleIcon(_ icon: NodeTitleIcon?)
+    {
+        nodeDerivedTitleIcon = icon
         subtitleSubject.send()
     }
 }
@@ -231,5 +243,46 @@ private final class NamingTestNode: Node
         }
 
         #expect(nodeViewModel.title == "Updated Instance Title")
+    }
+
+    @Test("Title icon is nil unless the node derives one")
+    func titleIconDefaultsToNil() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = NamingTestNode(context: context)
+        #expect(node.titleIcon == nil)
+
+        let icon = NodeTitleIcon(systemName: "exclamationmark.triangle.fill", tooltip: "Needs attention", tint: .warning)
+        node.setDerivedTitleIcon(icon)
+        #expect(node.titleIcon == icon)
+
+        node.setDerivedTitleIcon(nil)
+        #expect(node.titleIcon == nil)
+    }
+
+    @Test("NodeViewModel mirrors title icon changes")
+    func viewModelMirrorsTitleIcon() async throws
+    {
+        guard let context = makeContext() else { return }
+        let node = NamingTestNode(context: context)
+        let initial = NodeTitleIcon(systemName: "square.on.square", tooltip: "Initial")
+        node.setDerivedTitleIcon(initial)
+        let nodeViewModel = NodeViewModel(node: node)
+        #expect(nodeViewModel.titleIcon == initial)
+
+        let updated = NodeTitleIcon(systemName: "xmark.octagon.fill", tooltip: "Broken", tint: .error)
+        node.setDerivedTitleIcon(updated)
+        for _ in 0..<50 where nodeViewModel.titleIcon != updated
+        {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(nodeViewModel.titleIcon == updated)
+
+        node.setDerivedTitleIcon(nil)
+        for _ in 0..<50 where nodeViewModel.titleIcon != nil
+        {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(nodeViewModel.titleIcon == nil)
     }
 }

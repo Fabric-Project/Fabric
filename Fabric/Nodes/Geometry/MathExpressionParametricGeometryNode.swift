@@ -65,16 +65,27 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
     // u and v are always resolved by the generator; they never become ports.
     private static let parametricBindings: Set<String> = ["u", "v"]
 
-    /// Shown as the node's title: the three axis expressions, ⚠-prefixed when any
-    /// fails to compile. Falls back to the type name when all axes are blank; a
-    /// user `userName` overrides it. Refreshed via subtitleSubject in parseExpressions().
+    /// Shown as the node's title: the three axis expressions. Falls back to the
+    /// type name when all axes are blank; a user `userName` overrides it.
+    /// Refreshed via subtitleSubject in parseExpressions().
     override public func deriveSubtitle() -> String? {
         let axes = [expressionX, expressionY, expressionZ]
         guard axes.contains(where: { !$0.isEmpty }) else { return nil }
         // Collapse newlines to spaces so the single-line node title reads cleanly.
-        let combined = axes.joined(separator: ", ").replacingOccurrences(of: "\n", with: " ")
-        let hasError = evalX == nil || evalY == nil || evalZ == nil
-        return hasError ? "⚠ \(combined)" : combined
+        return axes.joined(separator: ", ").replacingOccurrences(of: "\n", with: " ")
+    }
+
+    /// An axis that fails to compile is flagged at the title's trailing edge,
+    /// naming the failing axes in the tooltip.
+    override public func deriveTitleIcon() -> NodeTitleIcon? {
+        let failing = zip(["X", "Y", "Z"], [evalX, evalY, evalZ])
+            .filter { $0.1 == nil }
+            .map(\.0)
+        guard !failing.isEmpty else { return nil }
+        let axes = failing.joined(separator: ", ")
+        return NodeTitleIcon(systemName: "xmark.octagon.fill",
+                             tooltip: "\(axes) expression\(failing.count == 1 ? " does" : "s do") not compile.",
+                             tint: .error)
     }
 
     // MARK: - Settings Model

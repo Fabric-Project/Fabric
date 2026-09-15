@@ -102,4 +102,23 @@ import Satin
         node.expressionX = "out a = u; out b = v"
         #expect(!node._settingsModel.statusX)
     }
+
+    /// An axis that fails to compile is flagged by the title icon, naming the
+    /// axis, and the subtitle stays the plain expressions.
+    @Test func failingAxisShowsTitleIcon() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = MathExpressionParametricGeometryNode(context: context)
+        #expect(node.titleIcon == nil)
+
+        node.expressionY = "sin("
+        let icon = try #require(node.titleIcon)
+        #expect(icon.tint == .error)
+        #expect(icon.tooltip.contains("Y"))
+        #expect(icon.tooltip.contains("X") == false)
+        #expect(node.subtitle?.contains("⚠") == false)
+
+        node.expressionY = "sin(v)"
+        #expect(node.titleIcon == nil)
+    }
 }

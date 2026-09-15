@@ -81,13 +81,14 @@ For all development:
   - `class var name` — override: the stable name the type is registered and listed under, and the default instance title.
   - `func deriveTitle() -> String` — override only when an instance has a more specific authoritative title, such as a shader-backed `BaseImageNode`; defaults to `Self.name`.
   - `func deriveSubtitle() -> String?` — override where the node describes itself, nil otherwise: Math Expression's expression, StrategyNode's strategy.
+  - `func deriveTitleIcon() -> NodeTitleIcon?` — override where the node has something to flag at the trailing edge of its title row, with a tooltip: Math Expression's parse error. nil otherwise.
   - `var userName: String?` — final: the user's rename, serialized and public for rename-specific callers.
   - An empty name is no name: `userName` normalizes "" to nil at set and decode.
 - From those it composes, both final:
   - `var title` — the normalized result of `deriveTitle()`, falling back to `Self.name` when empty.
   - `var subtitle` — `userName ?? deriveSubtitle()`, normalized so empty values and values equal to `title` read as nil. General consumers read this rather than `userName`.
   - `var debugDescription` — the title plus resolved subtitle, e.g. `Math Expression (My Rename)`. `print(node)` and `"\(node)"` give it; diagnostic labels and traces use it when they need both values.
-- Fire `subtitleSubject.send()` whenever state feeding `deriveTitle()` or `deriveSubtitle()` changes; `NodeViewModel` mirrors the node's `title` / `subtitle` observably and keeps `userName` only for rename editing, clearing, and undo.
+- Fire `subtitleSubject.send()` whenever state feeding `deriveTitle()`, `deriveSubtitle()` or `deriveTitleIcon()` changes; `NodeViewModel` mirrors the node's `title` / `subtitle` / `titleIcon` observably and keeps `userName` only for rename editing, clearing, and undo.
 - Execution is **pull-based**; one execute per node per pass.
 - `GraphRenderer` (executor and scheduler) today does not use `nodeExecutionMode` or `nodeTimeMode` but will in the future.
 - **Iterator (QC-style)** remains the multi-evaluation macro; refinements allowed, paradigm fixed.
@@ -170,6 +171,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 ### 3.4  Subgraph Behavior
 - Iterator applies per-iteration params before subgraph execute.
 - Render-to-Image-with-Depth sizes to inputs, attaches depth, outputs typed textures.
+- Clone sets (`CloneSet`, `Graph+CloneSet.swift`, `Graph+CloneReconcile.swift`): what a node encodes is its design and replicates across members; what it does not encode is runtime and stays per member. Published inlet values are the one encoded exception. Identity across members is the member's `cloneRecord` (template id → local id), never a field on Node; a settings change that rebuilds ports replaces the sibling's node under the ids it recorded, everything else reconciles in place. Edits reach siblings through `Graph.noteContentChanged()`: the Graph mutation API bumps it, and a member's `CloneMemberObserver` bumps it for the signals nodes, ports and parameters already publish. Nothing clone-specific belongs on Node or Port.
 
 ---
 

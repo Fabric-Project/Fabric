@@ -69,6 +69,9 @@ import Satin
     /// `Node.subtitle`, cached and kept fresh by subtitleSubject.
     public private(set) var subtitle: String?
 
+    /// `Node.titleIcon`, cached and kept fresh by subtitleSubject.
+    public private(set) var titleIcon: NodeTitleIcon?
+
     // MARK: - Forwarded node metadata
 
     public var nodeType: Node.NodeType { node.nodeType }
@@ -100,6 +103,7 @@ import Satin
         self._userName    = node.userName
         self.title        = node.title
         self.subtitle     = node.subtitle
+        self.titleIcon    = node.titleIcon
         self.ports        = node.ports
         self.nodeSize     = node.nodeSize
 
@@ -137,6 +141,8 @@ import Satin
                 if newTitle != self.title { self.title = newTitle }
                 let newSubtitle = node.subtitle
                 if newSubtitle != self.subtitle { self.subtitle = newSubtitle }
+                let newTitleIcon = node.titleIcon
+                if newTitleIcon != self.titleIcon { self.titleIcon = newTitleIcon }
             }
             .store(in: &cancellables)
     }

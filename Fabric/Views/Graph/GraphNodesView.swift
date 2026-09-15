@@ -22,6 +22,7 @@ struct GraphNodesView: View
 
     @State private var initialOffsets: [UUID: CGSize] = [:]
     @State private var activeDragAnchor: UUID? = nil
+    @State private var cloneSetRenameRequest: CloneSetRenameRequest? = nil
 
     var body: some View
     {
@@ -80,6 +81,9 @@ struct GraphNodesView: View
                 .onChange(of: nodeViewModel.showSettings) { _, show in
                     self.sychronizeSettingsFor(nodeViewModel: nodeViewModel, show: show)
                 }
+                .modifier(CloneSetRenameAlertIfSubgraph(node: currentNode,
+                                                        graph: currentGraph,
+                                                        renameRequest: $cloneSetRenameRequest))
         }
     }
 
@@ -214,6 +218,13 @@ struct GraphNodesView: View
             currentGraph.duplicateNodes(nodesToDuplicate)
         } label: {
             Text("Duplicate")
+        }
+
+        if let subgraphNode = currentNode as? SubgraphNode
+        {
+            CloneSetContextMenu(subgraphNode: subgraphNode,
+                                currentGraph: currentGraph,
+                                renameRequest: $cloneSetRenameRequest)
         }
     }
 
