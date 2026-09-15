@@ -28,12 +28,14 @@ public class SyphonClientNode : Node
 
         return ports +
         [
-            ("inputServerName", ParameterPort(parameter: StringParameter("Server Name", "", [String](), .inputfield, "Name of the Syphon server to connect to"))),
-            ("inputServerAppName", ParameterPort(parameter: StringParameter("Application Name", "", [String](), .inputfield, "Name of the application hosting the Syphon server"))),
+            ("inputEnabled", ParameterPort(parameter: BoolParameter("Enabled", true, .toggle, "Connect to a server. Off receives nothing, where an empty name receives the first server there is"))),
+            ("inputServerName", ParameterPort(parameter: StringParameter("Server Name", "", [String](), .inputfield, "Name of the Syphon server to connect to. Empty takes the first server there is"))),
+            ("inputServerAppName", ParameterPort(parameter: StringParameter("Application Name", "", [String](), .inputfield, "Name of the application hosting the Syphon server. Empty takes any application"))),
             ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Received Syphon frame")),
         ]
     }
 
+    public var inputEnabled:ParameterPort<Bool> { port(named: "inputEnabled") }
     public var inputServerName:ParameterPort<String>  { port(named: "inputServerName") }
     public var inputServerAppName:ParameterPort<String>  { port(named: "inputServerAppName") }
     public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
@@ -167,7 +169,21 @@ public class SyphonClientNode : Node
             clientDidInvalidate = true
         }
 
-        let inputsDidChange = self.inputServerName.valueDidChange || self.inputServerAppName.valueDidChange
+        // An empty name means the first server there is, which is what makes
+        // the node work on being dropped into a patch. That leaves nothing to
+        // say "no server at all" with, which is what this is for.
+        let isEnabled = self.inputEnabled.value ?? true
+        guard isEnabled
+        else
+        {
+            self.syphonClient = nil
+            self.outputTexturePort.send(nil)
+            return
+        }
+
+        let inputsDidChange = self.inputEnabled.valueDidChange
+            || self.inputServerName.valueDidChange
+            || self.inputServerAppName.valueDidChange
 
         let inputServerName = self.inputServerName.value ?? ""
         let inputServerAppName = self.inputServerAppName.value ?? ""
