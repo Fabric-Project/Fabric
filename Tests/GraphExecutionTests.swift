@@ -852,6 +852,37 @@ struct GraphExecutionTests {
         #expect(availableNames.contains(PostProcessMotionBlurNode.name))
     }
 
+    @Test("Zip Depth node produces a full-resolution Float32 depth image")
+    func zipDepthNodeProducesDepthImage() throws {
+        guard let harness = GraphExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let node = ZipDepthNode(context: harness.context)
+        node.inputImage.value = try harness.makeImage(
+            width: 32,
+            height: 32,
+            pixelFormat: harness.context.colorPixelFormat
+        )
+        graph.addNode(node)
+        publish(node.outputDepthImage, in: graph)
+
+        let executionContext = harness.makeExecutionContext(time: 0, deltaTime: 0, frameNumber: 0)
+        try harness.renderer.startExecution(graph: graph)
+        try harness.render(graph: graph, executionInfo: executionContext, drawScene: false)
+        try harness.renderer.stopExecution(graph: graph)
+
+        let outputImage = try requireValue(node.outputDepthImage.value, "Expected Zip Depth output image")
+        #expect(outputImage.texture.width == 32)
+        #expect(outputImage.texture.height == 32)
+        #expect(outputImage.texture.pixelFormat == .r32Float)
+    }
+
+    @Test("Zip Depth node is registered in the node registry")
+    func zipDepthNodeIsRegistered() throws {
+        let availableNames = try Set(NodeRegistry.shared.availableNodes.map(\.nodeName))
+        #expect(availableNames.contains(ZipDepthNode.name))
+    }
+
     @Test("Render info reports renderer size and execution count")
     func renderInfoReportsMetrics() throws {
         guard let harness = GraphExecutionTestHarness(renderWidth: 640, renderHeight: 360) else { return }
