@@ -21,11 +21,11 @@ public class ArrayShuffleNode: TypeAgnosticNode
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
     {
         super.registerPorts(context: context) + [
-            ("inputShuffle", NodePort<Bool>(name: "Shuffle", kind: .Inlet, description: "When true, randomizes element order; when false, passes through unchanged")),
+            ("inputShuffle", ParameterPort(parameter: BoolParameter("Shuffle", false, .toggle, "When true, randomizes element order; when false, passes through unchanged"))),
         ]
     }
 
-    public var inputShuffle: NodePort<Bool> { port(named: "inputShuffle") }
+    public var inputShuffle: ParameterPort<Bool> { port(named: "inputShuffle") }
 
     public override func rebuildPorts(forStrategy strategy: String)
     {

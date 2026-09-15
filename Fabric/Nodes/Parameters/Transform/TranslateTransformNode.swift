@@ -25,14 +25,14 @@ public class TranslateTransformNode : Node
         return ports +
         [
             ("inputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Inlet, description: "4x4 transform matrix to translate")),
-            ("inputTranslation", NodePort<simd_float3>(name: "Translation" , kind: .Inlet, description: "XYZ translation offset to apply")),
+            ("inputTranslation", ParameterPort(parameter: Float3Parameter("Translation", simd_float3(0, 0, 0), .inputfield, "XYZ translation offset to apply"))),
             ("outputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Outlet, description: "Translated 4x4 transform matrix")),
         ]
     }
-    
+
     // Port Proxy
     public var inputTransform:NodePort<simd_float4x4> { port(named: "inputTransform") }
-    public var inputTranslation:NodePort<simd_float3> { port(named: "inputTranslation") }
+    public var inputTranslation:ParameterPort<simd_float3> { port(named: "inputTranslation") }
     public var outputTransform:NodePort<simd_float4x4> { port(named: "outputTransform") }
     
     override public func execute(renderer:GraphRenderer,

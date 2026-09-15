@@ -32,7 +32,7 @@ public class DecomposeOrientationNode: StrategyNode
         case "To Euler":
             wanted =
             [
-                ("inputOrientation", NodePort<simd_float4>(name: "Orientation", kind: .Inlet, description: "Quaternion orientation (X, Y, Z, W)")),
+                ("inputOrientation", ParameterPort(parameter: Float4Parameter("Orientation", simd_float4(0, 0, 0, 1), .inputfield, "Quaternion orientation (X, Y, Z, W)"))),
                 ("outputX", NodePort<Float>(name: "X (Pitch)", kind: .Outlet, description: "Rotation around the X axis in degrees")),
                 ("outputY", NodePort<Float>(name: "Y (Yaw)", kind: .Outlet, description: "Rotation around the Y axis in degrees")),
                 ("outputZ", NodePort<Float>(name: "Z (Roll)", kind: .Outlet, description: "Rotation around the Z axis in degrees")),
@@ -41,7 +41,7 @@ public class DecomposeOrientationNode: StrategyNode
         case "To Axis Angle":
             wanted =
             [
-                ("inputOrientation", NodePort<simd_float4>(name: "Orientation", kind: .Inlet, description: "Quaternion orientation (X, Y, Z, W)")),
+                ("inputOrientation", ParameterPort(parameter: Float4Parameter("Orientation", simd_float4(0, 0, 0, 1), .inputfield, "Quaternion orientation (X, Y, Z, W)"))),
                 ("outputAxis", NodePort<simd_float3>(name: "Axis", kind: .Outlet, description: "Normalized rotation axis")),
                 ("outputAngle", NodePort<Float>(name: "Angle", kind: .Outlet, description: "Rotation angle in degrees")),
             ]
@@ -67,7 +67,7 @@ public class DecomposeOrientationNode: StrategyNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        guard let inputOrientation: NodePort<simd_float4> = findPort(named: "inputOrientation"),
+        guard let inputOrientation: ParameterPort<simd_float4> = findPort(named: "inputOrientation"),
               inputOrientation.valueDidChange,
               let orientationVector = inputOrientation.value
         else { return }
