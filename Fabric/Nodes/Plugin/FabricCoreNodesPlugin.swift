@@ -216,6 +216,7 @@ public final class FabricCoreNodesPlugin: NSObject, FabricPlugin
             MediaPipePoseLandmarkNode.self,
             MediaPipeSelfieSegmentationNode.self,
             LucasKanadeOpticalFlowNode.self,
+            ZipDepthNode.self,
             LocalVLMNode.self,
             ContourPathNode.self,
             MetalFXSpatialUpsample2xNode.self,

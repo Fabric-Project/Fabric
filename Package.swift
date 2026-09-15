@@ -16,6 +16,7 @@ let package = Package(
     dependencies: [
         // Local Satin package
         .package(path: "Satin"),
+        .package(path: "../MPS-ZipDepth"),
 
         // Local MPS-MediaPipe package (MediaPipe MPSGraph ports, extracted
         // out of Fabric so they're usable standalone too — see
@@ -67,6 +68,7 @@ let package = Package(
                 .product(name: "Satin", package: "Satin"),
                 .product(name: "SatinCore", package: "Satin"),
                 .product(name: "MPSMediaPipe", package: "MPS-MediaPipe"),
+                .product(name: "MPSZipDepth", package: "MPS-ZipDepth"),
                 .product(name: "AnyCodable", package: "AnyCodable"),
                 .product(name: "MLX", package: "mlx-swift"),
                 .product(name: "MLXFFT", package: "mlx-swift"),
