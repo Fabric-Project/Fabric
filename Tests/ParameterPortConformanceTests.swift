@@ -161,4 +161,101 @@ struct ParameterPortConformanceTests
         #expect(portsChecked > 0)
         record(violations, "proxy port(s) do not present the port they proxy")
     }
+
+    @Test("A saved proxy comes back as the proxy it was", .timeLimit(.minutes(10)))
+    func everyProxySurvivesADocumentRoundTrip() throws
+    {
+        guard let context = makeContext() else { return }
+
+        var violations: [String] = []
+        var proxiesChecked = 0
+
+        try eachRegisteredNode(context: context)
+        { wrapper, node in
+            let subGraph = Graph(context: context)
+            subGraph.addNode(node)
+
+            let subgraphNode = SubgraphNode(context: context, subGraph: subGraph)
+
+            let graph = Graph(context: context)
+            graph.addNode(subgraphNode)
+
+            for port in node.ports
+            {
+                port.published = true
+            }
+
+            subGraph.rebuildPublishedParameterGroup()
+
+            let proxies = subgraphNode.ports.filter { $0 is any ProxyPortProtocol }
+
+            // Publishing a proxy on under a name of its own is what nests one
+            // sub graph's port in another's, and it is state the parent graph
+            // owns — the rebuild on load has nowhere to recover it from.
+            for (index, proxy) in proxies.enumerated()
+            {
+                proxy.published = true
+                proxy.publishedName = "Parent Rename \(index)"
+            }
+
+            graph.rebuildPublishedParameterGroup()
+
+            let decodedSubgraphNode: SubgraphNode
+
+            do
+            {
+                let data = try JSONEncoder().encode(graph)
+                let decoder = JSONDecoder()
+                decoder.context = DecoderContext(documentContext: context)
+                let decoded = try decoder.decode(Graph.self, from: data)
+
+                guard let found = decoded.nodes.compactMap({ $0 as? SubgraphNode }).first
+                else
+                {
+                    violations.append("\(label(wrapper)): sub graph node missing after decode")
+                    return
+                }
+
+                decodedSubgraphNode = found
+            }
+            catch
+            {
+                violations.append("\(label(wrapper)): sub graph failed to round trip — \(error)")
+                return
+            }
+
+            let decodedPortsByID = Dictionary(decodedSubgraphNode.ports.map { ($0.id, $0) },
+                                              uniquingKeysWith: { first, _ in first })
+
+            for proxy in proxies
+            {
+                proxiesChecked += 1
+
+                guard let decodedPort = decodedPortsByID[proxy.id]
+                else
+                {
+                    violations.append("\(label(wrapper)): \(proxy.name) [\(proxy.portType.rawValue)] has no port at its id after decode")
+                    continue
+                }
+
+                if !(decodedPort is any ProxyPortProtocol)
+                {
+                    violations.append("\(label(wrapper)): \(proxy.name) [\(proxy.portType.rawValue)] decoded as \(type(of: decodedPort)), which proxies nothing")
+                }
+
+                if decodedPort.portType != proxy.portType
+                {
+                    violations.append("\(label(wrapper)): \(proxy.name) decoded as [\(decodedPort.portType.rawValue)], saved as [\(proxy.portType.rawValue)]")
+                }
+
+                if decodedPort.published != proxy.published || decodedPort.publishedName != proxy.publishedName
+                {
+                    violations.append("\(label(wrapper)): \(proxy.name) [\(proxy.portType.rawValue)] decoded published=\(decodedPort.published) name=\(decodedPort.publishedName ?? "nil"), saved published=\(proxy.published) name=\(proxy.publishedName ?? "nil")")
+                }
+            }
+        }
+
+        #expect(proxiesChecked > 0)
+        record(violations, "proxy port(s) do not survive a document round trip")
+    }
 }
