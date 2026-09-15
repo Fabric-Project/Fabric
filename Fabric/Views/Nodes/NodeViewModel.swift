@@ -28,6 +28,9 @@ import Satin
     public var isSelected: Bool = false
     public var isDragging: Bool = false
 
+    /// Version tracking for changes that should trigger view redraws
+    public private(set) var version:Int = 0
+
     /// Whether the node's settings panel is open.
     /// Writing true/false also syncs node.showSettings so subclasses
     /// can still inspect it (e.g. AudioSpectrumNode).
@@ -78,6 +81,8 @@ import Satin
     public private(set) var ports: [Port]
     public private(set) var nodeSize: CGSize
 
+   
+
     // MARK: - Parameters (stable reference — ParameterGroup is not @Observable)
 
     public var parameterGroup: ParameterGroup { node.parameterGroup }
@@ -120,6 +125,9 @@ import Satin
                 guard let self else { return }
                 self.ports    = node.ports
                 self.nodeSize = node.nodeSize
+                // this forces redraw of a node to pull in changed ports
+                // esp if port type changed and UUID didnt (which can happen)... 
+                self.version += 1
             }
             .store(in: &cancellables)
 
