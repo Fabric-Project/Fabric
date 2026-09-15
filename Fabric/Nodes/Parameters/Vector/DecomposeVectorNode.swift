@@ -43,9 +43,9 @@ public class DecomposeVectorNode: StrategyNode
         if findPort(named: "inputVector") == nil {
             let inputPort: Port
             switch vt {
-            case .float2: inputPort = NodePort<simd_float2>(name: vt.portType.rawValue, kind: .Inlet, description: "Vector to decompose")
-            case .float3: inputPort = NodePort<simd_float3>(name: vt.portType.rawValue, kind: .Inlet, description: "Vector to decompose")
-            case .float4: inputPort = NodePort<simd_float4>(name: vt.portType.rawValue, kind: .Inlet, description: "Vector to decompose")
+            case .float2: inputPort = ParameterPort(parameter: Float2Parameter(vt.portType.rawValue, simd_float2(0, 0), .inputfield, "Vector to decompose"))
+            case .float3: inputPort = ParameterPort(parameter: Float3Parameter(vt.portType.rawValue, simd_float3(0, 0, 0), .inputfield, "Vector to decompose"))
+            case .float4: inputPort = ParameterPort(parameter: Float4Parameter(vt.portType.rawValue, simd_float4(0, 0, 0, 0), .inputfield, "Vector to decompose"))
             }
             addDynamicPort(inputPort, name: "inputVector")
         }
@@ -82,15 +82,15 @@ public class DecomposeVectorNode: StrategyNode
 
         switch vt {
         case .float2:
-            guard let inp: NodePort<simd_float2> = findPort(named: "inputVector"),
+            guard let inp: ParameterPort<simd_float2> = findPort(named: "inputVector"),
                   inp.valueDidChange, let v = inp.value else { return }
             sendComponents([v.x, v.y])
         case .float3:
-            guard let inp: NodePort<simd_float3> = findPort(named: "inputVector"),
+            guard let inp: ParameterPort<simd_float3> = findPort(named: "inputVector"),
                   inp.valueDidChange, let v = inp.value else { return }
             sendComponents([v.x, v.y, v.z])
         case .float4:
-            guard let inp: NodePort<simd_float4> = findPort(named: "inputVector"),
+            guard let inp: ParameterPort<simd_float4> = findPort(named: "inputVector"),
                   inp.valueDidChange, let v = inp.value else { return }
             sendComponents([v.x, v.y, v.z, v.w])
         }

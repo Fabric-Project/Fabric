@@ -19,13 +19,13 @@ public class UnitsoPixelsNode : Node
     public override class var nodeDescription: String { "Converts Units in default camera space to Pixels"}
 
     // Ports
-    public let inputUnitPosition:NodePort<Float>
+    public let inputUnitPosition:ParameterPort<Float>
     public let outputPixelPosition:NodePort<Float>
     public override var ports: [Port] { [ self.inputUnitPosition, self.outputPixelPosition ] + super.ports}
-    
+
     public required init(context: Context)
     {
-        self.inputUnitPosition = NodePort<Float>(name: "Unit" , kind: .Inlet, description: "Position in normalized units (-1 to 1)")
+        self.inputUnitPosition = ParameterPort(parameter: FloatParameter("Unit", 0, -1, 1, .inputfield, "Position in normalized units (-1 to 1)"))
         self.outputPixelPosition = NodePort<Float>(name: "Pixel" , kind: .Outlet, description: "Position in pixels")
 
         super.init(context: context)
@@ -51,7 +51,22 @@ public class UnitsoPixelsNode : Node
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
-        self.inputUnitPosition = try container.decode(NodePort<Float>.self, forKey: .inputUnitPositionPort)
+        if let decoded = try? container.decode(ParameterPort<Float>.self, forKey: .inputUnitPositionPort)
+        {
+            self.inputUnitPosition = decoded
+        }
+        else
+        {
+            // Pre-existing documents saved this port as a plain NodePort<Float>
+            // with no backing parameter (see issue #343). Adopt the legacy
+            // port's identity so saved connections survive; the value itself
+            // was never persisted by the legacy port, so the fresh parameter's
+            // default stands.
+            let legacy = try container.decode(NodePort<Float>.self, forKey: .inputUnitPositionPort)
+            let fresh = ParameterPort(parameter: FloatParameter("Unit", 0, -1, 1, .inputfield, "Position in normalized units (-1 to 1)"))
+            fresh.hydrate(from: legacy)
+            self.inputUnitPosition = fresh
+        }
         self.outputPixelPosition = try container.decode(NodePort<Float>.self, forKey: .outputCursorPositionPort)
 
         try super.init(from: decoder)

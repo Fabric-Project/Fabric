@@ -25,14 +25,14 @@ public class ScaleTransformNode : Node
         return ports +
         [
             ("inputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Inlet, description: "4x4 transform matrix to scale")),
-            ("inputScale", NodePort<simd_float3>(name: "Scale" , kind: .Inlet, description: "XYZ scale factors to apply")),
+            ("inputScale", ParameterPort(parameter: Float3Parameter("Scale", simd_float3(1, 1, 1), .inputfield, "XYZ scale factors to apply"))),
             ("outputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Outlet, description: "Scaled 4x4 transform matrix")),
         ]
     }
-    
+
     // Port Proxy
     public var inputTransform:NodePort<simd_float4x4> { port(named: "inputTransform") }
-    public var inputScale:NodePort<simd_float3> { port(named: "inputScale") }
+    public var inputScale:ParameterPort<simd_float3> { port(named: "inputScale") }
     public var outputTransform:NodePort<simd_float4x4> { port(named: "outputTransform") }
     
     override public func execute(renderer:GraphRenderer,

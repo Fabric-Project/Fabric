@@ -25,14 +25,14 @@ public class RotateTransformNode : Node
         return ports +
         [
             ("inputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Inlet, description: "4x4 transform matrix to rotate")),
-            ("inputRotation", NodePort<simd_float4>(name: "Rotation" , kind: .Inlet, description: "Quaternion rotation to apply")),
+            ("inputRotation", ParameterPort(parameter: Float4Parameter("Rotation", simd_float4(0, 0, 0, 1), .inputfield, "Quaternion rotation to apply (X, Y, Z, W)"))),
             ("outputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Outlet, description: "Rotated 4x4 transform matrix")),
         ]
     }
-    
+
     // Port Proxy
     public var inputTransform:NodePort<simd_float4x4> { port(named: "inputTransform") }
-    public var inputRotation:NodePort<simd_float4> { port(named: "inputRotation") }
+    public var inputRotation:ParameterPort<simd_float4> { port(named: "inputRotation") }
     public var outputTransform:NodePort<simd_float4x4> { port(named: "outputTransform") }
     
     override public func execute(renderer:GraphRenderer,
@@ -45,7 +45,7 @@ public class RotateTransformNode : Node
            let inputTransform = self.inputTransform.value,
            let inputRotation = self.inputRotation.value
         {
-            let rotationTransform = simd_float4x4( simd_quatf(vector:inputRotation) )
+            let rotationTransform = simd_float4x4( simd_quatf(safeVector:inputRotation) )
             
             self.outputTransform.send( simd_mul(inputTransform, rotationTransform) )
         }

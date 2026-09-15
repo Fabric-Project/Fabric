@@ -21,7 +21,7 @@ public class DirectoryScannerNode: Node {
         return ports + [
             ("inputPath", ParameterPort(parameter: StringParameter("Directory", "", .filepicker, "Path to the directory to scan"))),
             ("inputExtension", ParameterPort(parameter: StringParameter("Extension", "", .inputfield, "File extension filter (e.g. png), leave empty for all files"))),
-            ("inputRescan", NodePort<Bool>(name: "Rescan", kind: .Inlet, description: "Signal to rescan the directory")),
+            ("inputRescan", ParameterPort(parameter: BoolParameter("Rescan", false, .button, "Signal to rescan the directory"))),
             ("outputPaths", NodePort<ContiguousArray<String>>(name: "Paths", kind: .Outlet, description: "Array of file paths found in the directory")),
             ("outputCount", NodePort<Int>(name: "Count", kind: .Outlet, description: "Number of files found")),
         ]
@@ -30,7 +30,7 @@ public class DirectoryScannerNode: Node {
     // Port proxies
     public var inputPath: ParameterPort<String> { port(named: "inputPath") }
     public var inputExtension: ParameterPort<String> { port(named: "inputExtension") }
-    public var inputRescan: NodePort<Bool> { port(named: "inputRescan") }
+    public var inputRescan: ParameterPort<Bool> { port(named: "inputRescan") }
     public var outputPaths: NodePort<ContiguousArray<String>> { port(named: "outputPaths") }
     public var outputCount: NodePort<Int> { port(named: "outputCount") }
 
