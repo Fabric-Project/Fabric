@@ -195,6 +195,13 @@ extension UTType
     /// The display name: publishedName if set, otherwise the port's own name.
     public var displayName: String { publishedName ?? name }
 
+    /// Identity for view code that must re-identify a port view when its type
+    /// changes: `id` alone survives a TypeAgnosticNode Settings-driven type
+    /// swap unchanged (addOrReplaceDynamicPortPreservingIdentity preserves it
+    /// so wires reconnect), so views keyed on `id` alone see no change and
+    /// skip re-rendering the stale type.
+    public var identitySignature: String { "\(id):\(portType.rawValue)" }
+
     public var connectedPorts: [Port]
     {
         connections.compactMap { $0.port(opposite: self) }
