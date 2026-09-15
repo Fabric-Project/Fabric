@@ -37,7 +37,7 @@ Author
 * images and video analysis pipelines
 * embed your scenes into your own apps
 
-Check out the [Samples](https://github.com/Fabric-Project/Fabric/tree/main/Samples) 
+Check out the [Samples](https://github.com/Fabric-Project/Fabric-Samples/tree/main/Samples) 
 
 Fabric supports, thanks to Satin and Lygia, high fidelity modern rendering techniques including
 
@@ -83,7 +83,7 @@ For Developers:
 
 Checkout our [Architecture Document ](ARCHITECTURE.md) to understand the underlying paradigms of working with Fabric's Nodes and execution model, learn what a `Node` and a `Port` is, the types of data Fabric can generate and process, and how Fabric executes your compositions.
 
-We also provide a set of evolving tutorial / getting started and sample Fabric compositions along with a readme walk through. You can use the [Sample Compositions](https://github.com/Fabric-Project/Fabric/tree/main/Samples) 
+We also provide a set of evolving tutorial / getting started and sample Fabric compositions along with a readme walk through. You can use the [Sample Compositions](https://github.com/Fabric-Project/Fabric-Samples/tree/main/Samples) 
 to learn and build off of.
 
 You can view a comprehensive list of available and planned [Nodes](NODES.md) here to explore and learn how to compose more advanced and custom setups with Fabric. 
