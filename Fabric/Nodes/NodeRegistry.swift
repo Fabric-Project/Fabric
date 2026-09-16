@@ -45,10 +45,7 @@ public class NodeRegistry
     private func rebuildNodeLists()
     {
         availableNodes = PluginLoader.shared.pluginNodeWrappers
-        subgraphNodeTypes = availableNodes.compactMap { wrapper in
-            guard let subgraphClass = wrapper.nodeClass as? SubgraphNode.Type else { return nil }
-            return SubgraphNodeType(wrapper: wrapper, subgraphClass: subgraphClass)
-        }
+        subgraphNodes = availableNodes.filter { $0.subgraphClass != nil }
         allSupportedDropTypes = nodeFileLoadingClasses.flatMap { $0.supportedContentTypes }
     }
 
@@ -85,20 +82,10 @@ public class NodeRegistry
     /// Every registered node.
     public private(set) var availableNodes: [NodeClassWrapper] = []
 
-    /// A registered node class that is a kind of subgraph, for choices such
-    /// as Embed Selection In.
-    public struct SubgraphNodeType: Identifiable
-    {
-        public let wrapper: NodeClassWrapper
-        public let subgraphClass: SubgraphNode.Type
-
-        public var id: UUID { wrapper.id }
-        public var name: String { wrapper.nodeName }
-    }
-
-    /// The subgraph node types, in registration order: the core kinds and
-    /// any a plugin adds.
-    public private(set) var subgraphNodeTypes: [SubgraphNodeType] = []
+    /// The registered node classes that are a kind of subgraph, in
+    /// registration order: the core kinds and any a plugin adds. For choices
+    /// such as Embed Selection In.
+    public private(set) var subgraphNodes: [NodeClassWrapper] = []
 
     public var pluginLoadErrors: [PluginLoadError]
     {

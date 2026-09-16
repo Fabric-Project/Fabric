@@ -53,6 +53,12 @@ public struct NodeClassWrapper: Identifiable
         self.pluginBundleID = pluginBundleID
     }
     
+    /// The node class as a subgraph kind, if it is one.
+    public var subgraphClass:SubgraphNode.Type?
+    {
+        self.nodeClass as? SubgraphNode.Type
+    }
+
     public func initializeNode(context:Context) throws -> Node
     {
         if let nodeClassFile = self.nodeClass as? (any NodeFileLoadingProtocol.Type),

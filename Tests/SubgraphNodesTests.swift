@@ -4,10 +4,10 @@ import Testing
 @testable import Fabric
 import Satin
 
-/// The registry's list of subgraph node types, which Embed Selection In
-/// offers: the core kinds and any a plugin adds, fixed between plugin loads.
-@Suite("Subgraph Node Types")
-struct SubgraphNodeTypesTests
+/// The registry's list of subgraph nodes, which Embed Selection In offers:
+/// the core kinds and any a plugin adds, fixed between plugin loads.
+@Suite("Subgraph Nodes")
+struct SubgraphNodesTests
 {
     private func makeContext() -> Context?
     {
@@ -23,18 +23,16 @@ struct SubgraphNodeTypesTests
     func registryListsSubgraphTypes() throws
     {
         let registry = try NodeRegistry.shared
-        let types = registry.subgraphNodeTypes
+        let subgraphNodes = registry.subgraphNodes
 
-        let classNames = types.map { String(describing: $0.subgraphClass) }
+        let classNames = subgraphNodes.compactMap(\.subgraphClass).map { String(describing: $0) }
         #expect(classNames.contains("SubgraphNode"))
         #expect(classNames.contains("DeferredSubgraphNode"))
         #expect(classNames.contains("IteratorNode"))
         #expect(classNames.contains("EnvironmentNode"))
-        #expect(types.allSatisfy { $0.wrapper.nodeClass == $0.subgraphClass })
 
         let expectedCount = registry.availableNodes.filter { $0.nodeClass is SubgraphNode.Type }.count
-        #expect(types.count == expectedCount)
-        #expect(types.map(\.name) == types.map(\.wrapper.nodeName))
+        #expect(subgraphNodes.count == expectedCount)
         #expect(registry.availableNodes.map(\.id) == PluginLoader.shared.pluginNodeWrappers.map(\.id))
     }
 
@@ -44,16 +42,17 @@ struct SubgraphNodeTypesTests
         guard let context = makeContext() else { return }
         let registry = try NodeRegistry.shared
 
-        for type in registry.subgraphNodeTypes
+        for subgraphNode in registry.subgraphNodes
         {
+            let subgraphClass = try #require(subgraphNode.subgraphClass)
             let graph = Graph(context: context)
             let node = NumberBinaryOperator(context: context)
             graph.addNode(node)
 
-            let container = try graph.createSubgraph(from: [node], centeredOn: node, usingClass: type.subgraphClass)
+            let container = try graph.createSubgraph(from: [node], centeredOn: node, usingClass: subgraphClass)
 
-            #expect(Swift.type(of: container) == type.subgraphClass, "\(type.name)")
-            #expect(container.subGraph.nodes.contains { $0 === node }, "\(type.name)")
+            #expect(Swift.type(of: container) == subgraphClass, "\(subgraphNode.nodeName)")
+            #expect(container.subGraph.nodes.contains { $0 === node }, "\(subgraphNode.nodeName)")
         }
     }
 }
