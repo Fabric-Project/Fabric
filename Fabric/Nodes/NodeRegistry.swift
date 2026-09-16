@@ -13,8 +13,6 @@ public class NodeRegistry
 {
     private static let sharedResult = Result { try NodeRegistry() }
 
-    private let pluginLoadLock = NSRecursiveLock()
-
     public static var shared: NodeRegistry
     {
         get throws
@@ -23,30 +21,16 @@ public class NodeRegistry
         }
     }
 
+    /// The node lists are what the plugins registered, which is settled by the
+    /// time the plugins have loaded: computed once here, read as plain arrays.
     init() throws
     {
-        try loadPluginsIfNeeded()
-        rebuildNodeLists()
-    }
+        try PluginLoader.shared.loadAllPlugins()
 
-    /// Loads a plugin bundle after startup and rebuilds the node lists.
-    public func loadPlugin(at url: URL) throws
-    {
-        pluginLoadLock.lock()
-        defer { pluginLoadLock.unlock() }
-
-        let loader = PluginLoader.shared
-        try loader.loadPlugin(at: url, existingNodeNames: Set(loader.pluginNodeWrappers.map(\.nodeName)))
-        rebuildNodeLists()
-    }
-
-    /// The node lists are fixed between plugin loads: computed once here,
-    /// read as plain arrays until the next load.
-    private func rebuildNodeLists()
-    {
-        availableNodes = PluginLoader.shared.pluginNodeWrappers
-        subgraphNodes = availableNodes.filter { $0.subgraphClass != nil }
-        allSupportedDropTypes = nodeFileLoadingClasses.flatMap { $0.supportedContentTypes }
+        let availableNodes = PluginLoader.shared.pluginNodeWrappers
+        self.availableNodes = availableNodes
+        self.subgraphNodes = availableNodes.filter { $0.subgraphClass != nil }
+        self.allSupportedDropTypes = Self.nodeFileLoadingClasses.flatMap { $0.supportedContentTypes }
     }
 
     public func nodeClass(pluginID: String, nodeID: String) -> (Node.Type)?
@@ -65,7 +49,7 @@ public class NodeRegistry
     /// `ImageProviderNode` whose list includes `.image`.
     public func dropTargetNodeClass(for contentType: UTType) -> (any NodeFileLoadingProtocol.Type)?
     {
-        for dropNodeClass in self.nodeFileLoadingClasses
+        for dropNodeClass in Self.nodeFileLoadingClasses
         {
             if dropNodeClass.supportedContentTypes.contains(where: { contentType.conforms(to: $0) })
             {
@@ -77,22 +61,22 @@ public class NodeRegistry
     }
 
     /// All UTTypes accepted by drop-target nodes, for use with drop destination handlers.
-    public private(set) var allSupportedDropTypes: [UTType] = []
+    public let allSupportedDropTypes: [UTType]
 
     /// Every registered node.
-    public private(set) var availableNodes: [NodeClassWrapper] = []
+    public let availableNodes: [NodeClassWrapper]
 
     /// The registered node classes that are a kind of subgraph, in
     /// registration order: the core kinds and any a plugin adds. For choices
     /// such as Embed Selection In.
-    public private(set) var subgraphNodes: [NodeClassWrapper] = []
+    public let subgraphNodes: [NodeClassWrapper]
 
     public var pluginLoadErrors: [PluginLoadError]
     {
         return PluginLoader.shared.loadErrors
     }
 
-    private var nodeFileLoadingClasses: [(any NodeFileLoadingProtocol.Type)]
+    private static var nodeFileLoadingClasses: [(any NodeFileLoadingProtocol.Type)]
     {
         PluginLoader.shared.pluginNodeClasses.values.compactMap { nodeClass in
             nodeClass as? any NodeFileLoadingProtocol.Type
@@ -202,13 +186,5 @@ public class NodeRegistry
         }
 
         return true
-    }
-
-    private func loadPluginsIfNeeded() throws
-    {
-        pluginLoadLock.lock()
-        defer { pluginLoadLock.unlock() }
-
-        try PluginLoader.shared.loadAllPlugins()
     }
 }

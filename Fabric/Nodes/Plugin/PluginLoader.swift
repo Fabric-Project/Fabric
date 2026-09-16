@@ -228,7 +228,10 @@ public final class PluginLoader
         }
     }
 
-    public func loadPlugin(at url: URL, existingNodeNames: Set<String>) throws
+    /// Loads one plugin bundle as a step of a discovery pass, which is what
+    /// supplies `existingNodeNames` and tolerates a bundle re-declaring a plugin
+    /// already loaded. Hosts load through `loadAllPlugins()`.
+    func loadPlugin(at url: URL, existingNodeNames: Set<String>) throws
     {
         guard FileManager.default.fileExists(atPath: url.path) else
         {
