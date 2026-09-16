@@ -2,7 +2,7 @@
 //  NodeStatus.swift
 //  Fabric
 //
-//  Created by Claude on 9/9/26.
+//  Created by Toby Harris on 9/9/26.
 //
 
 import Foundation
@@ -15,7 +15,7 @@ import Foundation
 ///
 /// Statuses order by severity, so a node reporting several shows the glyph
 /// of the most severe, an error over a warning, and lists them all on hover.
-public enum NodeStatus: Equatable, Comparable, CustomStringConvertible
+public enum NodeStatus: Sendable, Equatable, Comparable, CustomStringConvertible
 {
     /// The node cannot run: a parse failure, later an execution failure.
     case error(String)
@@ -52,8 +52,11 @@ public enum NodeStatus: Equatable, Comparable, CustomStringConvertible
         }
     }
 
+    // Severity orders the cases and the message breaks ties. Without the
+    // tie-break two statuses of one severity compare neither <, > nor ==, and
+    // a sort of them is then free to return either order.
     public static func < (lhs: NodeStatus, rhs: NodeStatus) -> Bool
     {
-        lhs.severity < rhs.severity
+        (lhs.severity, lhs.message) < (rhs.severity, rhs.message)
     }
 }

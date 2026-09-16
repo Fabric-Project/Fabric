@@ -267,6 +267,15 @@ private final class NamingTestNode: Node
         #expect(node.statuses == [.error("Broken"), .warning("Needs attention")])
         #expect(node.statuses.map(\.description) == ["Error: Broken", "Warning: Needs attention"])
 
+        // Two of one severity order the same whichever way they are reported,
+        // so the glyph and the tooltip do not shuffle between reads.
+        node.setDerivedStatuses([.error("Alpha"), .error("Beta")])
+        #expect(node.statuses == [.error("Beta"), .error("Alpha")])
+        #expect(node.status == .error("Beta"))
+        node.setDerivedStatuses([.error("Beta"), .error("Alpha")])
+        #expect(node.statuses == [.error("Beta"), .error("Alpha")])
+        #expect(node.status == .error("Beta"))
+
         node.setDerivedStatuses([])
         #expect(node.status == nil)
     }

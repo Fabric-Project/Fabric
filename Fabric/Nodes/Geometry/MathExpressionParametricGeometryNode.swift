@@ -78,6 +78,9 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
     /// An axis that fails to compile is the node's status, naming the failing
     /// axes in the message.
     override public func deriveStatuses() -> [NodeStatus] {
+        // Blank everywhere is a node not yet written rather than one that
+        // fails, as deriveSubtitle() also has it.
+        guard [expressionX, expressionY, expressionZ].contains(where: { !$0.isEmpty }) else { return [] }
         let failing = zip(["X", "Y", "Z"], [evalX, evalY, evalZ])
             .filter { $0.1 == nil }
             .map(\.0)
