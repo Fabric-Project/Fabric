@@ -323,7 +323,7 @@ HDR -> SDR conversion
 - [x] MediaPipe Pose Detection + Landmark (BlazePose, 33 keypoints, MPSGraph, test/comparison path)
 - [x] MediaPipe Selfie Segmentation (person-vs-background mask, General/Landscape variants, MPSGraph, test/comparison path)
 - [x] Zip Depth Map Prediction
->>>>>>> 82b2ef84 (First draft MPS Zip Depth)
+- [x] Depth Calibration (Relative Depth → Reverse-Z Scene Depth)
 - [x] Metal FX 2x Upsampler (ML based)  
 - [x] FXAA Antialiasing  
 - [ ] Image Embedding Vector( via fast Clip like model or Vision Feature Print? whats most useful - careful do we want to stray into comfy ui bullshit? )
