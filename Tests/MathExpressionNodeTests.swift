@@ -77,16 +77,23 @@ import MathExpressionEngine
     }
 
     /// A transiently invalid edit keeps the last good ports (and their wires)
-    /// rather than tearing them down, and surfaces an error diagnostic.
+    /// rather than tearing them down, and surfaces an error diagnostic: in the
+    /// settings model, and as the node's title icon with the message as tooltip.
     @Test func invalidEditKeepsPortsAndReportsError() throws
     {
         guard let context = makeContext() else { return }
         let node = MathExpressionNode(context: context)
+        #expect(node.status == nil)
 
         node.stringExpression = "sin("
         #expect(names(node.inputPorts()) == ["x", "y"]) // unchanged
-        #expect(node._settingsModel.diagnostics.contains { $0.severity == .error })
-        #expect(node.subtitle?.hasPrefix("⚠") == true)
+        let diagnostic = try #require(node._settingsModel.diagnostics.first { $0.severity == .error })
+        guard case .error(let message)? = node.status else { Issue.record("expected an error status"); return }
+        #expect(message.contains(diagnostic.message))
+        #expect(node.subtitle?.contains("⚠") == false)
+
+        node.stringExpression = "sin(x)"
+        #expect(node.status == nil)
     }
 
     /// Torture-tests for the node-title heuristic, drawn from the language spec:
@@ -167,15 +174,17 @@ import MathExpressionEngine
         #expect(title("in x: float").isEmpty)
     }
 
-    /// An erroring expression whose salient title is empty must not leave the
-    /// node titled a bare "⚠" — the warning is joined to the type name instead.
+    /// An erroring expression whose salient title is empty leaves the node
+    /// titled by its type name alone; the error shows as the title icon.
     @Test func errorWithEmptySalientTitleFallsBackToTypeName() throws
     {
         guard let context = makeContext() else { return }
         let node = MathExpressionNode(context: context)
 
         node.stringExpression = "in x: floot"
-        #expect(node.subtitle == "⚠ \(MathExpressionNode.name)")
+        #expect(node.subtitle == nil)
+        #expect(node.title == MathExpressionNode.name)
+        guard case .error? = node.status else { Issue.record("expected an error status"); return }
     }
 
     @Test func retypeReplacesPortWithNewType() throws

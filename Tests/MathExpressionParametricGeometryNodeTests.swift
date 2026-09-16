@@ -102,4 +102,41 @@ import Satin
         node.expressionX = "out a = u; out b = v"
         #expect(!node._settingsModel.statusX)
     }
+
+    /// An axis that fails to compile is flagged by the title icon, naming the
+    /// axis, and the subtitle stays the plain expressions.
+    @Test func failingAxisShowsTitleIcon() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = MathExpressionParametricGeometryNode(context: context)
+        #expect(node.status == nil)
+
+        node.expressionY = "sin("
+        guard case .error(let message)? = node.status else { Issue.record("expected an error status"); return }
+        #expect(message.contains("Y"))
+        #expect(message.contains("X") == false)
+        #expect(node.subtitle?.contains("⚠") == false)
+
+        node.expressionY = "sin(v)"
+        #expect(node.status == nil)
+    }
+
+    /// Blank everywhere is a node not yet written rather than one that fails,
+    /// and reports nothing — as the subtitle also has it.
+    @Test func blankExpressionsReportNothing() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = MathExpressionParametricGeometryNode(context: context)
+
+        node.expressionX = ""
+        node.expressionY = ""
+        node.expressionZ = ""
+        #expect(node.status == nil)
+        #expect(node.subtitle == nil)
+
+        // One axis written is a node being written: the blank two now fail.
+        node.expressionY = "sin(v)"
+        guard case .error(let message)? = node.status else { Issue.record("expected an error status"); return }
+        #expect(message.contains("X, Z"))
+    }
 }

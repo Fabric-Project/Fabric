@@ -65,17 +65,21 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
     // u and v are always resolved by the generator; they never become ports.
     private static let parametricBindings: Set<String> = ["u", "v"]
 
-    /// Shown as the node's title: the three axis expressions, ⚠-prefixed when any
-    /// fails to compile. Falls back to the type name when all axes are blank; a
-    /// user `userName` overrides it. Refreshed via subtitleSubject in parseExpressions().
+    /// Shown as the node's title: the three axis expressions. Falls back to the
+    /// type name when all axes are blank; a user `userName` overrides it.
+    /// Refreshed via subtitleSubject in parseExpressions().
     override public func deriveSubtitle() -> String? {
         let axes = [expressionX, expressionY, expressionZ]
         guard axes.contains(where: { !$0.isEmpty }) else { return nil }
         // Collapse newlines to spaces so the single-line node title reads cleanly.
-        let combined = axes.joined(separator: ", ").replacingOccurrences(of: "\n", with: " ")
-        let hasError = evalX == nil || evalY == nil || evalZ == nil
-        return hasError ? "⚠ \(combined)" : combined
+        return axes.joined(separator: ", ").replacingOccurrences(of: "\n", with: " ")
     }
+
+    /// An axis that fails to compile is the node's status, naming the failing
+    /// axes. Worded once, in updateCompileErrorStatus(): execute() throws this
+    /// same message, so the glyph and the thrown error cannot drift apart.
+    override public func deriveStatuses() -> [NodeStatus] { compileErrorStatus.map { [$0] } ?? [] }
+    private var compileErrorStatus: NodeStatus?
 
     // MARK: - Settings Model
 
@@ -259,9 +263,31 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
         evalZ = axisExpression(from: expressionZ)
         _settingsModel.statusZ = evalZ != nil
 
+        updateCompileErrorStatus()
         syncVariablePorts()
         _expressionsDirty = true
         subtitleSubject.send()
+    }
+
+    /// Blank everywhere is a node not yet written rather than one that fails,
+    /// and reports nothing, as deriveSubtitle() also has it. Such a node still
+    /// cannot run; execute() has its own wording for that.
+    private func updateCompileErrorStatus()
+    {
+        let failing = zip(["X", "Y", "Z"], [evalX, evalY, evalZ])
+            .filter { $0.1 == nil }
+            .map(\.0)
+
+        guard [expressionX, expressionY, expressionZ].contains(where: { !$0.isEmpty }),
+              !failing.isEmpty
+        else
+        {
+            compileErrorStatus = nil
+            return
+        }
+
+        let axes = failing.joined(separator: ", ")
+        compileErrorStatus = .error("\(axes) expression\(failing.count == 1 ? " does" : "s do") not compile to a single float output.")
     }
 
     private func axisExpression(from source: String) -> AxisExpression?
@@ -332,7 +358,8 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
         {
             throw FabricError(.execution(.syntax),
                               severity: .recoverable,
-                              message: "Parametric geometry expressions must compile to one float output per axis.")
+                              message: compileErrorStatus?.message
+                                       ?? "Parametric geometry needs an expression for X, Y and Z.")
         }
 
         try super.execute(renderer: renderer,

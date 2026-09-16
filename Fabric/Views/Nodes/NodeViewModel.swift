@@ -72,6 +72,12 @@ import Satin
     /// `Node.subtitle`, cached and kept fresh by subtitleSubject.
     public private(set) var subtitle: String?
 
+    /// `Node.statuses`, most severe first, cached and kept fresh by subtitleSubject.
+    public private(set) var statuses: [NodeStatus] = []
+
+    /// The most severe status; nil for none.
+    public var status: NodeStatus? { statuses.first }
+
     // MARK: - Forwarded node metadata
 
     public var nodeType: Node.NodeType { node.nodeType }
@@ -105,6 +111,7 @@ import Satin
         self._userName    = node.userName
         self.title        = node.title
         self.subtitle     = node.subtitle
+        self.statuses     = node.statuses
         self.ports        = node.ports
         self.nodeSize     = node.nodeSize
 
@@ -145,6 +152,8 @@ import Satin
                 if newTitle != self.title { self.title = newTitle }
                 let newSubtitle = node.subtitle
                 if newSubtitle != self.subtitle { self.subtitle = newSubtitle }
+                let newStatuses = node.statuses
+                if newStatuses != self.statuses { self.statuses = newStatuses }
             }
             .store(in: &cancellables)
     }

@@ -188,10 +188,19 @@ public class MathExpressionNode: Node
     /// previous node so existing behaviour is preserved.
     public class var defaultExpression: String { "sin(x) + y^2" }
 
-    /// Shown as the node's title: the expression, or a ⚠-prefixed form on error.
-    /// nil (empty) falls back to the type name; a user `userName` overrides this.
+    /// Shown as the node's title: the salient part of the expression. nil
+    /// (empty) falls back to the type name; a user `userName` overrides this.
     override public func deriveSubtitle() -> String? { evaluatedSubtitle }
     private var evaluatedSubtitle: String = ""
+
+    /// A compile error is the node's status, with the diagnostics as the
+    /// message. Worded once, in compileAndSync(): execute() throws this same
+    /// message, so the glyph and the thrown error cannot drift apart.
+    override public func deriveStatuses() -> [NodeStatus] { compileErrorStatus.map { [$0] } ?? [] }
+    private var compileErrorStatus: NodeStatus?
+
+    /// Stands in when a compile fails without saying why.
+    private static let invalidExpressionMessage = "Math expression is invalid."
 
     /// Extracts the salient part of a (possibly multi-statement) expression for
     /// use as the node title. A leading `//` comment is taken verbatim as an
@@ -416,16 +425,14 @@ public class MathExpressionNode: Node
             self.needsEvaluation = true
         }
 
-        let hasError = result.diagnostics.contains { $0.severity == .error }
-        let salientTitle = Self.salientTitle(from: self.stringExpression)
-        // An empty title with an error would otherwise render as a bare "⚠ "
-        // — non-empty, so subtitle's type-name fallback never kicks in.
-        self.evaluatedSubtitle = switch (hasError, salientTitle.isEmpty)
-        {
-            case (true, true):  "⚠ \(Self.name)"
-            case (true, false): "⚠ \(salientTitle)"
-            case (false, _):    salientTitle
-        }
+        self.evaluatedSubtitle = Self.salientTitle(from: self.stringExpression)
+
+        let errors = result.diagnostics.filter { $0.severity == .error }
+        self.compileErrorStatus = result.isValid && errors.isEmpty
+            ? nil
+            : .error(errors.isEmpty
+                     ? Self.invalidExpressionMessage
+                     : errors.map(\.message).joined(separator: "\n"))
 
         // Keep the settings model mirroring the node, not just model → node.
         // Its didSet guards on equality, so this cannot loop.
@@ -510,10 +517,9 @@ public class MathExpressionNode: Node
     {
         guard let compiled = self.compiled, compiled.isValid else
         {
-            let message = self.compiled?.diagnostics.first(where: { $0.severity == .error })?.message ?? "Math expression is invalid."
             throw FabricError(.execution(.syntax),
                               severity: .recoverable,
-                              message: message)
+                              message: self.compileErrorStatus?.message ?? Self.invalidExpressionMessage)
         }
 
         let inlets = self.inputPorts()

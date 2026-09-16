@@ -14,6 +14,7 @@ private final class NamingTestNode: Node
 
     private var nodeDerivedSubtitle: String?
     private var nodeDerivedTitle: String?
+    private var nodeDerivedStatuses: [NodeStatus] = []
 
     override func deriveTitle() -> String
     {
@@ -34,6 +35,17 @@ private final class NamingTestNode: Node
     func setDerivedTitle(_ title: String?)
     {
         nodeDerivedTitle = title
+        subtitleSubject.send()
+    }
+
+    override func deriveStatuses() -> [NodeStatus]
+    {
+        nodeDerivedStatuses
+    }
+
+    func setDerivedStatuses(_ statuses: [NodeStatus])
+    {
+        nodeDerivedStatuses = statuses
         subtitleSubject.send()
     }
 }
@@ -231,5 +243,65 @@ private final class NamingTestNode: Node
         }
 
         #expect(nodeViewModel.title == "Updated Instance Title")
+    }
+
+    @Test("Status is nil unless the node derives one, and the most severe of several wins")
+    func statusIsTheMostSevereDerived() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = NamingTestNode(context: context)
+        #expect(node.status == nil)
+
+        node.setDerivedStatuses([.warning("Needs attention")])
+        #expect(node.status == .warning("Needs attention"))
+
+        // Order is the status type's: error outranks warning whatever the order reported.
+        node.setDerivedStatuses([.warning("Needs attention"), .error("Broken")])
+        #expect(node.status == .error("Broken"))
+        node.setDerivedStatuses([.error("Broken"), .warning("Needs attention")])
+        #expect(node.status == .error("Broken"))
+        #expect(NodeStatus.error("a") > NodeStatus.warning("b"))
+        #expect(node.status?.message == "Broken")
+        // All of them, most severe first, for the tooltip, each naming its kind.
+        node.setDerivedStatuses([.warning("Needs attention"), .error("Broken")])
+        #expect(node.statuses == [.error("Broken"), .warning("Needs attention")])
+        #expect(node.statuses.map(\.description) == ["Error: Broken", "Warning: Needs attention"])
+
+        // Two of one severity order the same whichever way they are reported,
+        // so the glyph and the tooltip do not shuffle between reads.
+        node.setDerivedStatuses([.error("Alpha"), .error("Beta")])
+        #expect(node.statuses == [.error("Beta"), .error("Alpha")])
+        #expect(node.status == .error("Beta"))
+        node.setDerivedStatuses([.error("Beta"), .error("Alpha")])
+        #expect(node.statuses == [.error("Beta"), .error("Alpha")])
+        #expect(node.status == .error("Beta"))
+
+        node.setDerivedStatuses([])
+        #expect(node.status == nil)
+    }
+
+    @Test("NodeViewModel mirrors status changes")
+    func viewModelMirrorsStatus() async throws
+    {
+        guard let context = makeContext() else { return }
+        let node = NamingTestNode(context: context)
+        node.setDerivedStatuses([.warning("Initial")])
+        let nodeViewModel = NodeViewModel(node: node)
+        #expect(nodeViewModel.status == .warning("Initial"))
+
+        node.setDerivedStatuses([.warning("Initial"), .error("Broken")])
+        for _ in 0..<50 where nodeViewModel.status != .error("Broken")
+        {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(nodeViewModel.status == .error("Broken"))
+        #expect(nodeViewModel.statuses == [.error("Broken"), .warning("Initial")])
+
+        node.setDerivedStatuses([])
+        for _ in 0..<50 where nodeViewModel.status != nil
+        {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(nodeViewModel.status == nil)
     }
 }

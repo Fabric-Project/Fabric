@@ -81,13 +81,14 @@ For all development:
   - `class var name` — override: the stable name the type is registered and listed under, and the default instance title.
   - `func deriveTitle() -> String` — override only when an instance has a more specific authoritative title, such as a shader-backed `BaseImageNode`; defaults to `Self.name`.
   - `func deriveSubtitle() -> String?` — override where the node describes itself, nil otherwise: Math Expression's expression, StrategyNode's strategy.
+  - `func deriveStatuses() -> [NodeStatus]` — override where the node has something to report: Math Expression's parse error. The most severe (`NodeStatus` orders error over warning) picks the glyph at the trailing edge of the title row, and every status's message shows on hover; the view layer draws them. Empty otherwise.
   - `var userName: String?` — final: the user's rename, serialized and public for rename-specific callers.
   - An empty name is no name: `userName` normalizes "" to nil at set and decode.
 - From those it composes, both final:
   - `var title` — the normalized result of `deriveTitle()`, falling back to `Self.name` when empty.
   - `var subtitle` — `userName ?? deriveSubtitle()`, normalized so empty values and values equal to `title` read as nil. General consumers read this rather than `userName`.
   - `var debugDescription` — the title plus resolved subtitle, e.g. `Math Expression (My Rename)`. `print(node)` and `"\(node)"` give it; diagnostic labels and traces use it when they need both values.
-- Fire `subtitleSubject.send()` whenever state feeding `deriveTitle()` or `deriveSubtitle()` changes; `NodeViewModel` mirrors the node's `title` / `subtitle` observably and keeps `userName` only for rename editing, clearing, and undo.
+- Fire `subtitleSubject.send()` whenever state feeding `deriveTitle()`, `deriveSubtitle()` or `deriveStatuses()` changes; `NodeViewModel` mirrors the node's `title` / `subtitle` / `status` observably and keeps `userName` only for rename editing, clearing, and undo.
 - Execution is **pull-based**; one execute per node per pass.
 - `GraphRenderer` (executor and scheduler) today does not use `nodeExecutionMode` or `nodeTimeMode` but will in the future.
 - **Iterator (QC-style)** remains the multi-evaluation macro; refinements allowed, paradigm fixed.
