@@ -4,7 +4,7 @@ import Satin
 
 public final class ZipDepthNode: Node
 {
-    override public class var name: String { "Zip Depth" }
+    override public class var name: String { "MPS Zip Depth" }
     override public class var nodeType: Node.NodeType { .Image(imageType: .Analysis) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
@@ -53,11 +53,41 @@ public final class ZipDepthNode: Node
 
     override public func stopExecution(renderer: GraphRenderer) throws
     {
+        self.drainCommandQueueBeforeReleasingModel()
         self.model = nil
         self.modelInputBuffer = nil
         self.modelOutputBuffer = nil
         self.modelWidth = 0
         self.modelHeight = 0
+    }
+
+    deinit
+    {
+        // stopExecution(renderer:) above is only invoked for subgraphs
+        // (SubgraphNode, IteratorNode, DeferredSubgraphNode) and export
+        // rendering -- closing a document window releases this node via
+        // plain ARC deallocation (FabricDocument.deinit -> Graph.deinit ->
+        // Node.teardown(), none of which have any GPU-completion
+        // awareness), never through that method. deinit is the one hook
+        // guaranteed to fire either way, so the drain has to happen here
+        // too, not just there.
+        self.drainCommandQueueBeforeReleasingModel()
+    }
+
+    // `model` wraps an MPSGraphExecutable, which owns its own GPU-resident
+    // heap for intermediate tensors. Cheap insurance kept from when this
+    // node was hitting `-[MTLDebugHeap setPurgeableState:]` crashes caused
+    // by ZipDepthMPSGraph.encode() never calling MPSCommandBuffer.commit()
+    // (fixed at the package level -- see its doc comment): committing and
+    // waiting on one more, empty command buffer on the same queue drains it
+    // before `model` gets released, guaranteeing every earlier command
+    // buffer on this queue -- and its completion handling -- has finished.
+    private func drainCommandQueueBeforeReleasingModel()
+    {
+        guard self.model != nil,
+              let drainCommandBuffer = self.context.commandQueue.makeCommandBuffer() else { return }
+        drainCommandBuffer.commit()
+        drainCommandBuffer.waitUntilCompleted()
     }
 
     override public func execute(
@@ -106,27 +136,30 @@ public final class ZipDepthNode: Node
         )
         outputImage.texture.label = "Zip Depth Relative Depth"
 
-        commandBuffer.pushDebugGroup("Zip Depth \(modelSize.width)×\(modelSize.height)")
-        defer { commandBuffer.popDebugGroup() }
-
-        // The GPU-resident model.encode(inputBuffer:outputBuffer:commandBuffer:)
-        // path has no slot/frame-in-flight protection (unlike run()/submit(),
-        // which serialize access through a maxFramesInFlight semaphore) and
-        // crashed with Metal heap-purgeability assertions when called once
-        // per frame against the same model instance. model.run(inputBuffer:)
-        // is the proven path -- the same one MediaPipeHandDetectionNode.
-        // detect() and the package's own end-to-end test already exercise
-        // successfully -- at the cost of a GPU -> CPU -> GPU round trip for
-        // the depth values.
-        guard let preprocessCommandBuffer = self.context.commandQueue.makeCommandBuffer() else
+        // model.encode() writes modelOutputBuffer entirely on the GPU -- no
+        // CPU readback. Root cause of every earlier crash on this path this
+        // session: MPS-ZipDepth's encode() was never calling
+        // MPSCommandBuffer.commit() on the MPSCommandBuffer wrapper it
+        // creates internally (submit() always did; encode() was missing it)
+        // -- relying instead on MPSGraphExecutable.encode(to:)'s
+        // undocumented, conditional internal commitAndContinue behavior,
+        // which is why three different crash mechanisms showed up rather
+        // than the same one recurring. Fixed at the package level; see
+        // ZipDepthMPSGraph.encode()'s doc comment.
+        //
+        // Kept on its own dedicated command buffer rather than Fabric's
+        // shared per-frame `commandBuffer`: encode() commits whatever
+        // MTLCommandBuffer it's given, and Fabric's shared buffer is still
+        // being encoded into by other nodes this frame.
+        guard let modelCommandBuffer = self.context.commandQueue.makeCommandBuffer() else
         {
             throw FabricError(
                 .execution(.gpu),
                 severity: .recoverable,
-                message: "Could not create the Zip Depth preprocess command buffer"
+                message: "Could not create the Zip Depth model command buffer"
             )
         }
-        preprocessCommandBuffer.label = "Zip Depth Preprocess \(modelSize.width)×\(modelSize.height)"
+        modelCommandBuffer.label = "Zip Depth Model \(modelSize.width)×\(modelSize.height)"
 
         try preprocessor.encode(
             inputTexture: inputImage.texture,
@@ -134,27 +167,40 @@ public final class ZipDepthNode: Node
             outputBuffer: modelInputBuffer,
             outputWidth: modelSize.width,
             outputHeight: modelSize.height,
-            commandBuffer: preprocessCommandBuffer
+            commandBuffer: modelCommandBuffer
         )
 
-        preprocessCommandBuffer.commit()
-        preprocessCommandBuffer.waitUntilCompleted()
-        if let preprocessError = preprocessCommandBuffer.error
-        {
-            throw FabricError(
-                .execution(.gpu),
-                severity: .recoverable,
-                message: "Zip Depth preprocess failed: \(preprocessError.localizedDescription)"
-            )
+        // Registered before model.encode(), since that call commits
+        // modelCommandBuffer and Metal requires completion handlers to be
+        // added before commit. Captures the specific model,
+        // modelInputBuffer, and modelOutputBuffer instances used for *this*
+        // call: with no CPU wait below, prepareModel() can reassign
+        // self.model/self.modelInputBuffer/self.modelOutputBuffer on a
+        // later frame (input aspect ratio change) while this frame's GPU
+        // work is still in flight against the OLD instances.
+        modelCommandBuffer.addCompletedHandler { [model, modelInputBuffer, modelOutputBuffer] commandBuffer in
+            withExtendedLifetime((model, modelInputBuffer, modelOutputBuffer)) {}
+            if let modelError = commandBuffer.error
+            {
+                print("Zip Depth model execution failed: \(modelError.localizedDescription)")
+            }
         }
 
-        let depthValues = try model.run(inputBuffer: modelInputBuffer)
-        depthValues.withUnsafeBytes { rawDepthValues in
-            modelOutputBuffer.contents().copyMemory(
-                from: rawDepthValues.baseAddress!,
-                byteCount: rawDepthValues.count
-            )
-        }
+        try model.encode(
+            inputBuffer: modelInputBuffer,
+            outputBuffer: modelOutputBuffer,
+            commandBuffer: modelCommandBuffer
+        )
+        // No explicit commit() here -- model.encode() commits
+        // modelCommandBuffer itself. No CPU wait either: postprocessing
+        // below is encoded onto Fabric's shared `commandBuffer`, committed
+        // to the same MTLCommandQueue after this call returns -- Metal
+        // orders command buffers on one queue by commit order and tracks
+        // the read-after-write dependency on modelOutputBuffer across that
+        // boundary automatically.
+
+        commandBuffer.pushDebugGroup("Zip Depth \(modelSize.width)×\(modelSize.height)")
+        defer { commandBuffer.popDebugGroup() }
 
         try postprocessor.encode(
             inputBuffer: modelOutputBuffer,
@@ -169,15 +215,9 @@ public final class ZipDepthNode: Node
         // `commandBuffer` is Fabric's shared per-frame buffer -- this node
         // never waits on it, so it's still in flight when execute() returns.
         // GraphRendererTextureCache recycles a managed FabricImage's texture
-        // the instant its last Swift reference drops (FabricImage.deinit ->
-        // release() -> onRelease), with no regard for whether the GPU is
-        // still using it. If nothing downstream keeps inputImage/outputImage
-        // alive that long (e.g. this port's value gets replaced next frame
-        // before this frame's GPU work retires), their textures can be
-        // handed back out while `commandBuffer` is still writing/reading
-        // them. Keep both alive until this buffer's GPU work actually
-        // completes, matching MediaPipeHandDetectionNode's `[weak self,
-        // image]` completion-handler capture on origin/feature/media-pipe-mps.
+        // the instant its last Swift reference drops, with no regard for
+        // whether the GPU is still using it. Keep both alive until this
+        // buffer's GPU work actually completes.
         commandBuffer.addCompletedHandler { [inputImage, outputImage] _ in
             withExtendedLifetime((inputImage, outputImage)) {}
         }
@@ -205,7 +245,7 @@ public final class ZipDepthNode: Node
             options: .storageModePrivate
         ), let outputBuffer = self.context.device.makeBuffer(
             length: model.outputBufferLength,
-            options: .storageModeShared
+            options: .storageModePrivate
         ) else
         {
             throw FabricError(
@@ -216,8 +256,8 @@ public final class ZipDepthNode: Node
         }
 
         inputBuffer.label = "Zip Depth RGB Input"
-        // Shared, not private: model.run()'s [Float] result is copied in via
-        // .contents() before the postprocess kernel reads it back on the GPU.
+        // Private, not shared: model.encode() writes and the postprocess
+        // kernel reads this entirely on the GPU, with no CPU-side copy.
         outputBuffer.label = "Zip Depth Model Output"
         self.model = model
         self.modelInputBuffer = inputBuffer
