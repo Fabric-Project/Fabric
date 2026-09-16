@@ -852,7 +852,7 @@ struct GraphExecutionTests {
         #expect(availableNames.contains(PostProcessMotionBlurNode.name))
     }
 
-    @Test("Zip Depth node produces a full-resolution Float32 depth image")
+    @Test("Zip Depth node produces a Float32 depth image at its native model resolution")
     func zipDepthNodeProducesDepthImage() throws {
         guard let harness = GraphExecutionTestHarness() else { return }
 
@@ -871,9 +871,13 @@ struct GraphExecutionTests {
         try harness.render(graph: graph, executionInfo: executionContext, drawScene: false)
         try harness.renderer.stopExecution(graph: graph)
 
+        // ZipDepthNode no longer upsamples to presentation resolution -- it
+        // outputs at its native model resolution (short side 384, other side
+        // rounded to the nearest multiple of 32) and leaves upsampling to a
+        // downstream node. A 32x32 input is square, so both sides land on 384.
         let outputImage = try requireValue(node.outputDepthImage.value, "Expected Zip Depth output image")
-        #expect(outputImage.texture.width == 32)
-        #expect(outputImage.texture.height == 32)
+        #expect(outputImage.texture.width == 384)
+        #expect(outputImage.texture.height == 384)
         #expect(outputImage.texture.pixelFormat == .r32Float)
     }
 

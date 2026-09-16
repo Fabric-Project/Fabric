@@ -136,10 +136,12 @@ public class MediaPipePoseDetectionNode: StrategyNode
     private static var cachedModel: MediaPipeMPSGraph?
     private static let modelLock = NSLock()
 
-    /// Not a Setting yet -- plain toggle while the async path is validated.
-    private static let useAsynchronousInference = false
-
     private var preprocessor: MediaPipeCropPreprocessor?
+
+    /// GPU-resident destinations for MediaPipeMPSGraph.encode()'s output
+    /// tensors (rawBoxes, rawScores) -- .storageModeShared so the completion
+    /// handler can read them back without a CPU round-trip through submit().
+    private var outputBuffers: [MTLBuffer]?
 
     private let lastRectsLock = NSLock()
     private var lastRectsStorage: [(region: simd_float4, rotation: Float, score: Float, keypoints: [simd_float2])] = []
@@ -182,28 +184,12 @@ public class MediaPipePoseDetectionNode: StrategyNode
                 else
                 {
                     self.framesSinceLastDetect = 0
-
-                    if Self.useAsynchronousInference
-                    {
-                        try? self.submitDetect(image: inputImage, maxDetections: 1)
-                    }
-                    else if let rects = try? self.detect(image: inputImage, maxDetections: 1)
-                    {
-                        self.lastRects = rects
-                    }
+                    try? self.detect(image: inputImage, maxDetections: 1, commandBuffer: commandBuffer)
                 }
 
             case .multi:
                 let maxDetections = max(1, (findPort(named: "inputMaxDetections") as ParameterPort<Int>?)?.value ?? 1)
-
-                if Self.useAsynchronousInference
-                {
-                    try? self.submitDetect(image: inputImage, maxDetections: maxDetections)
-                }
-                else if let rects = try? self.detect(image: inputImage, maxDetections: maxDetections)
-                {
-                    self.lastRects = rects
-                }
+                try? self.detect(image: inputImage, maxDetections: maxDetections, commandBuffer: commandBuffer)
             }
         }
 
@@ -246,13 +232,40 @@ public class MediaPipePoseDetectionNode: StrategyNode
         })
     }
 
-    private func detect(image: FabricImage, maxDetections: Int) throws -> [(region: simd_float4, rotation: Float, score: Float, keypoints: [simd_float2])]
+    private func outputBuffers(for model: MediaPipeMPSGraph) throws -> [MTLBuffer]
+    {
+        if let existing = self.outputBuffers { return existing }
+
+        let buffers = try model.outputBufferLengths.map { length -> MTLBuffer in
+            guard let buffer = self.context.device.makeBuffer(length: length, options: .storageModeShared) else
+            {
+                throw FabricError(.execution(.outOfMemory), severity: .recoverable, message: "Could not allocate MediaPipe pose detection output buffer")
+            }
+            return buffer
+        }
+        self.outputBuffers = buffers
+        return buffers
+    }
+
+    /// Encodes crop-and-normalize AND MPSGraph inference onto Fabric's
+    /// shared `commandBuffer`, one after the other -- never a second,
+    /// separately created buffer. Neither call commits anything on its own,
+    /// so both just sit encoded here, in order, until whoever owns
+    /// `commandBuffer` (Fabric's render loop) commits it once at the end of
+    /// the frame. This node must never call commit()/commitAndContinue() on
+    /// it itself. lastRects updates once that whole buffer completes.
+    /// Silently drops the cycle (never updates lastRects) if all
+    /// maxFramesInFlight inference slots are already busy, matching
+    /// MediaPipeMPSGraph.encode()'s and MediaPipeCropPreprocessor's own
+    /// no-backlog semantics.
+    private func detect(image: FabricImage, maxDetections: Int, commandBuffer: MTLCommandBuffer) throws
     {
         let startTime = Date()
         let preprocessor = try self.preprocessor ?? MediaPipeCropPreprocessor(device: self.context.device, outputWidth: MediaPipePoseDetector.detectSize, outputHeight: MediaPipePoseDetector.detectSize, outputPixelRange: MediaPipePoseDetector.detectorPixelRange)
         self.preprocessor = preprocessor
 
         let model = try Self.mpsGraphModel(commandQueue: self.context.commandQueue)
+        let outputBuffers = try self.outputBuffers(for: model)
 
         // Letterbox: full image, no rotation, square side = max(iw, ih), centered.
         let presentationSize = image.presentationSize
@@ -266,50 +279,30 @@ public class MediaPipePoseDetectionNode: StrategyNode
             centerNormalizedBottomLeft: simd_float2(0.5, 0.5),
             sizeNormalized: simd_float2(side / imageWidth, side / imageHeight),
             rotationRadians: 0,
-            commandQueue: self.context.commandQueue
-        )
-
-        let outputs = model.run(inputBuffer: inputBuffer)
-        MediaPipeInferenceTimingLogger.log(nodeName: Self.name, elapsed: Date().timeIntervalSince(startTime))
-        guard outputs.count >= 2 else { return [] }
-        return Self.decodeRects(rawBoxes: outputs[0], rawScores: outputs[1], maxDetections: maxDetections, imageWidth: imageWidth, imageHeight: imageHeight)
-    }
-
-    /// Async counterpart of detect(): encodes crop+inference onto one
-    /// command buffer without waiting, updating lastRects from the
-    /// completion callback once the GPU finishes. Silently drops the frame
-    /// (never updates lastRects) if all in-flight slots are busy,
-    /// matching detect()'s no-backlog semantics -- now N-deep instead of
-    /// single-flight (see MediaPipeCropPreprocessor's maxFramesInFlight).
-    private func submitDetect(image: FabricImage, maxDetections: Int) throws
-    {
-        let startTime = Date()
-        let preprocessor = try self.preprocessor ?? MediaPipeCropPreprocessor(device: self.context.device, outputWidth: MediaPipePoseDetector.detectSize, outputHeight: MediaPipePoseDetector.detectSize, outputPixelRange: MediaPipePoseDetector.detectorPixelRange)
-        self.preprocessor = preprocessor
-
-        let model = try Self.mpsGraphModel(commandQueue: self.context.commandQueue)
-
-        let presentationSize = image.presentationSize
-        let imageWidth = Float(presentationSize.width)
-        let imageHeight = Float(presentationSize.height)
-        let side = max(imageWidth, imageHeight)
-
-        guard let commandBuffer = self.context.commandQueue.makeCommandBuffer() else
-        {
-            throw FabricError(.execution(.gpu), severity: .recoverable, message: "Could not create asynchronous MediaPipe pose detection command buffer")
-        }
-
-        let inputBuffer = try preprocessor.encode(
-            texture: image.texture,
-            textureTransform: image.textureTransform,
-            centerNormalizedBottomLeft: simd_float2(0.5, 0.5),
-            sizeNormalized: simd_float2(side / imageWidth, side / imageHeight),
-            rotationRadians: 0,
             commandBuffer: commandBuffer
         )
 
-        model.submit(inputBuffer: inputBuffer, commandBuffer: commandBuffer) { [weak self, image] result in
-            guard let self, case .success(let outputs) = result, outputs.count >= 2 else { return }
+        guard try model.encode(inputBuffer: inputBuffer, outputBuffers: outputBuffers, commandBuffer: commandBuffer) else
+        {
+            return
+        }
+
+        // Keeps `image` (and its texture) out of GraphRendererTextureCache's
+        // recycle pool until the GPU work reading it is verified done, not
+        // just encoded.
+        commandBuffer.addCompletedHandler { [weak self, image] finishedBuffer in
+            withExtendedLifetime(image) {}
+            guard let self else { return }
+            if let error = finishedBuffer.error
+            {
+                print("MediaPipePoseDetectionNode: detection failed: \(error)")
+                return
+            }
+            let outputs = outputBuffers.map { buffer -> [Float] in
+                let count = buffer.length / MemoryLayout<Float>.stride
+                return Array(UnsafeBufferPointer(start: buffer.contents().assumingMemoryBound(to: Float.self), count: count))
+            }
+            guard outputs.count >= 2 else { return }
             MediaPipeInferenceTimingLogger.log(nodeName: Self.name, elapsed: Date().timeIntervalSince(startTime))
             self.lastRects = Self.decodeRects(rawBoxes: outputs[0], rawScores: outputs[1], maxDetections: maxDetections, imageWidth: imageWidth, imageHeight: imageHeight)
         }
