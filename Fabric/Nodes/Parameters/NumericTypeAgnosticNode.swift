@@ -159,29 +159,13 @@ public class NumericTypeAgnosticNode: StrategyNode
                                       description: String,
                                       editable: Bool) -> Port
     {
-        guard editable, kind == .Inlet else
+        guard editable,
+              let parameterPort = portType.makeFreshParameterPort(name: name, kind: kind, description: description)
+        else
         {
             return portType.makeFreshPort(name: name, kind: kind, description: description)
         }
 
-        switch portType
-        {
-        case .Int:
-            return ParameterPort(parameter: IntParameter(name, 0, .inputfield, description))
-        case .Float:
-            return ParameterPort(parameter: FloatParameter(name, 0, .inputfield, description))
-        case .Vector2:
-            return ParameterPort(parameter: Float2Parameter(name, .zero, .inputfield, description))
-        case .Vector3:
-            return ParameterPort(parameter: Float3Parameter(name, .zero, .inputfield, description))
-        case .Vector4:
-            return ParameterPort(parameter: Float4Parameter(name, .zero, .inputfield, description))
-        case .Color:
-            return ParameterPort(parameter: Float4Parameter(name, simd_float4(0, 0, 0, 1), .colorpicker, description))
-        case .Transform:
-            return ParameterPort(parameter: Float4x4Parameter(name, matrix_identity_float4x4, .inputfield, description))
-        default:
-            return portType.makeFreshPort(name: name, kind: kind, description: description)
-        }
+        return parameterPort
     }
 }
