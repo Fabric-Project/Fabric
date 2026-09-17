@@ -31,6 +31,13 @@ public class GraphRenderer : ViewRenderer
     )
 
     public private(set) var currentCamera: Camera? = nil
+
+    /// How deep in nested `execute` calls this renderer is. What the outermost
+    /// call is cannot be read off the graph it was handed: a renderer of its own
+    /// — Deferred Subgraph's, an exporter's — makes that call with a graph it
+    /// does not hold.
+    private var executionDepth = 0
+
     private let defaultCamera: PerspectiveCamera
     private let sceneProxy: Object
 
@@ -166,6 +173,11 @@ public class GraphRenderer : ViewRenderer
         try executeAndDraw(graph: graph, executionInfo: currentExecutionInfo, renderPassDescriptor: renderPassDescriptor, commandBuffer: commandBuffer)
     }
 
+    /// Draws `graph`'s scene through the camera the outermost execution found.
+    /// Callers that draw a graph of their own — Deferred Subgraph, the exporter —
+    /// bring their own renderer and so are that outermost execution; re-entering
+    /// this on a renderer already drawing would draw the inner scene through the
+    /// outer graph's camera.
     public func executeAndDraw(graph: Graph, executionInfo: GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
         let clearColor = self.renderEncoder.clearColor
@@ -217,13 +229,27 @@ public class GraphRenderer : ViewRenderer
     {
         self.resetTextureCaches(for: executionInfo)
 
+        self.executionDepth += 1
+
         defer {
+            self.executionDepth -= 1
+
             if clearFlags {
                 self.graphRequiresResize = false
             }
         }
 
-        self.currentCamera = graph.latestCamera ?? self.defaultCamera
+        // A subgraph runs its contents through this renderer, so execute re-enters
+        // with the inner graph. The scene is the outermost graph's, and so is the
+        // camera it draws through.
+        //
+        // Searched rather than read from `latestCamera`: that cache is recomputed
+        // only on the graph whose own nodes changed, and a subgraph holds no
+        // reference to its parent, so what is inside one does not reach it here.
+        if self.executionDepth == 1
+        {
+            self.currentCamera = Graph.latestCamera(in: graph) ?? self.defaultCamera
+        }
 
         var capturedError: (any Error)?
         var scheduledNodes = nodesInExecutionOrder(for: graph)
