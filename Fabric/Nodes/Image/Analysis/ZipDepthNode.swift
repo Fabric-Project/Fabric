@@ -12,6 +12,13 @@ public final class ZipDepthNode: Node
         "Estimates relative depth at Zip Depth's native model resolution using Metal Performance Shaders Graph. Upsample to presentation resolution downstream, e.g. with a guided/joint bilateral filter."
     }
 
+    /// Preset short-side resolutions the model may run at -- every value is
+    /// an exact multiple of 32 (ZipDepthMPSGraph requires this for both
+    /// dimensions), spanning the original hardcoded default (384) up through
+    /// resolutions expensive enough that they should be an explicit,
+    /// deliberate choice rather than a free-form field.
+    private static let shortSideOptions = ["384", "512", "768", "1024", "1088", "1984"]
+
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
     {
         super.registerPorts(context: context) + [
@@ -20,15 +27,23 @@ public final class ZipDepthNode: Node
                 kind: .Inlet,
                 description: "Image from which to estimate relative depth"
             )),
+            ("inputShortSide", ParameterPort(parameter: StringParameter(
+                "Model Resolution",
+                Self.shortSideOptions[0],
+                Self.shortSideOptions,
+                .dropdown,
+                "Short-side resolution the depth model runs at -- the long side is scaled to the nearest multiple of 32 to preserve aspect ratio. Higher values cost significantly more GPU time."
+            ))),
             ("outputDepthImage", NodePort<FabricImage>(
                 name: "Depth Image",
                 kind: .Outlet,
-                description: "Single-channel Float32 relative depth image at Zip Depth's native model resolution, not presentation resolution -- upsample downstream, e.g. with a Joint Bilateral Filter guided by the original color image"
+                description: "Single-channel Float32 relative depth image at Zip Depth's native model resolution (see Model Resolution), not presentation resolution -- upsample downstream, e.g. with a Joint Bilateral Filter guided by the original color image"
             )),
         ]
     }
 
     public var inputImage: NodePort<FabricImage> { port(named: "inputImage") }
+    public var inputShortSide: ParameterPort<String> { port(named: "inputShortSide") }
     public var outputDepthImage: NodePort<FabricImage> { port(named: "outputDepthImage") }
 
     private var preprocessor: ZipDepthPreprocessor?
@@ -83,9 +98,11 @@ public final class ZipDepthNode: Node
 
         let presentationWidth = max(1, Int(inputImage.presentationSize.width.rounded()))
         let presentationHeight = max(1, Int(inputImage.presentationSize.height.rounded()))
+        let shortSide = self.inputShortSide.value.flatMap(Double.init) ?? 384.0
         let modelSize = Self.modelInputSize(
             presentationWidth: presentationWidth,
-            presentationHeight: presentationHeight
+            presentationHeight: presentationHeight,
+            shortSide: shortSide
         )
         try self.prepareModel(width: modelSize.width, height: modelSize.height)
 
@@ -131,11 +148,19 @@ public final class ZipDepthNode: Node
             commandBuffer: commandBuffer
         )
 
-        try model.encode(
+        // Drops this frame's depth output (never calls outputDepthImage.send(),
+        // so downstream nodes keep whatever was last sent) instead of blocking
+        // if all maxFramesInFlight slots are already in flight on the GPU --
+        // matches every MediaPipe node's own no-backlog semantics.
+        guard try model.encode(
             inputBuffer: modelInputBuffer,
             outputBuffer: modelOutputBuffer,
-            commandBuffer: commandBuffer
-        )
+            commandBuffer: commandBuffer,
+            commit: false
+        ) else
+        {
+            return
+        }
 
         // modelOutputBuffer is already exactly modelSize.width ×
         // modelSize.height, row-major float32 -- a straight copy into a
@@ -228,18 +253,18 @@ public final class ZipDepthNode: Node
 
     private static func modelInputSize(
         presentationWidth: Int,
-        presentationHeight: Int
+        presentationHeight: Int,
+        shortSide: Double
     ) -> (width: Int, height: Int)
     {
-        let shortSide = 384.0
         if presentationWidth <= presentationHeight
         {
             let scaledHeight = shortSide * Double(presentationHeight) / Double(presentationWidth)
-            return (384, Self.nearestMultipleOf32(scaledHeight))
+            return (Self.nearestMultipleOf32(shortSide), Self.nearestMultipleOf32(scaledHeight))
         }
 
         let scaledWidth = shortSide * Double(presentationWidth) / Double(presentationHeight)
-        return (Self.nearestMultipleOf32(scaledWidth), 384)
+        return (Self.nearestMultipleOf32(scaledWidth), Self.nearestMultipleOf32(shortSide))
     }
 
     private static func nearestMultipleOf32(_ value: Double) -> Int

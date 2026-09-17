@@ -187,7 +187,7 @@ public class MediaPipeSelfieSegmentationNode: Node
             commandBuffer: commandBuffer
         )
 
-        guard try model.encode(inputBuffer: cropBuffer, outputBuffers: [maskOutputBuffer], commandBuffer: commandBuffer) else
+        guard try model.encode(inputBuffer: cropBuffer, outputBuffers: [maskOutputBuffer], commandBuffer: commandBuffer, commit: false) else
         {
             return
         }
