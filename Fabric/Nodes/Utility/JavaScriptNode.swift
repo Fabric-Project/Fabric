@@ -358,6 +358,14 @@ private final class JavaScriptNodeRuntime
         }
 
         self.mainFunction = mainFunction
+
+        // Evaluating the source above happens before there is a `self` to record
+        // against, hence the local. Every exception after it is a running script's,
+        // and has to reach the instance for `execute` to report it. Weakly: the
+        // context holds the handler, and this holds the context.
+        context.exceptionHandler = { [weak self] _, exception in
+            self?.latestDiagnostic = JavaScriptNodeRuntime.makeDiagnostic(from: exception)
+        }
     }
 
     func execute(signature: JavaScriptNodeSignature,
@@ -372,17 +380,18 @@ private final class JavaScriptNodeRuntime
             bridge.javaScriptArgument(for: node.findPort(named: definition.name, as: Port.self)?.snapshotValue())
         }
 
-        guard let result = self.mainFunction.call(withArguments: arguments) else {
-            throw JavaScriptNodeExecutionError.invalidReturnShape
-        }
+        let result = self.mainFunction.call(withArguments: arguments)
 
+        // A script that throws returns nothing, so the exception has to be read
+        // before the result: a return-shape error inferred from the absence of a
+        // return names neither the failure nor the line it happened on.
         if let diagnostic = self.latestDiagnostic {
             throw FabricError(.execution(.syntax),
                               severity: .recoverable,
                               message: diagnostic.summary)
         }
 
-        guard result.isObject else {
+        guard let result, result.isObject else {
             throw JavaScriptNodeExecutionError.invalidReturnShape
         }
 
@@ -555,7 +564,11 @@ public final class JavaScriptNode: Node
         }
         catch {
             let summary = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            self.diagnostics = [JavaScriptNodeDiagnostic(summary: summary, detail: summary)]
+            // The runtime's own diagnostic carries the line and column the
+            // exception reported; one rebuilt from the error text points at the
+            // script's first character instead.
+            self.diagnostics = [runtime.latestDiagnostic
+                                ?? JavaScriptNodeDiagnostic(summary: summary, detail: summary)]
             throw FabricError(.execution(.syntax),
                               severity: .recoverable,
                               message: summary,
