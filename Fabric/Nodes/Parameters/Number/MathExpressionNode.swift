@@ -25,6 +25,8 @@ struct MathExpressionView: View
 {
     @Bindable var model: MathExpressionNode.SettingsModel
 
+    @Environment(\.colorScheme) private var colorScheme
+
     // Editor disclosure lives on the (observable) model so the node's
     // `settingsSize` reacts to it too. The single-line field is the resting
     // state; the code editor appears when the expression spans multiple
@@ -94,6 +96,7 @@ struct MathExpressionView: View
                    position: $editorPosition,
                    messages: $editorMessages,
                    layout: CodeEditor.LayoutConfiguration(showMinimap: false, wrapText: true))
+            .environment(\.codeEditorTheme, Theme.v(for: self.colorScheme))
             .frame(maxWidth: .infinity, minHeight: 300)
             .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.secondary.opacity(0.4)))
 

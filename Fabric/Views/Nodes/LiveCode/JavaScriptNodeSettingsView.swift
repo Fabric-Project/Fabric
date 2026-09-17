@@ -77,6 +77,7 @@ struct JavaScriptNodeSettingsView: View
 {
     @State private var editorModel: JavaScriptNodeEditorModel
     @State private var position: CodeEditor.Position = .init()
+    @Environment(\.colorScheme) private var colorScheme
 
     init(node: JavaScriptNode)
     {
@@ -107,7 +108,7 @@ struct JavaScriptNodeSettingsView: View
                        position: self.$position,
                        messages: self.$editorModel.messages,
                        language: .javaScriptLanguage(self.editorModel.languageService))
-            .environment(\.codeEditorTheme, Theme.vDark)
+            .environment(\.codeEditorTheme, Theme.v(for: self.colorScheme))
             .environment(\.codeEditorLayoutConfiguration, .init(showMinimap: false, wrapText: true))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onChange(of: self.editorModel.content) { _, _ in

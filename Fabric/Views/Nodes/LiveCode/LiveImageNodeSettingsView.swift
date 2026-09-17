@@ -169,6 +169,7 @@ struct LiveImageNodeSettingsView: View
 {
     @State private var editorModel: LiveImageNodeEditorModel
     @State private var position: CodeEditor.Position = .init()
+    @Environment(\.colorScheme) private var colorScheme
 
     init(node: LiveImageNode) {
         _editorModel = State(initialValue: LiveImageNodeEditorModel(node: node))
@@ -183,7 +184,7 @@ struct LiveImageNodeSettingsView: View
                    layout: CodeEditor.LayoutConfiguration(showMinimap: false, wrapText: true))
         
 
-        .environment(\.codeEditorTheme, Theme.vDark )
+        .environment(\.codeEditorTheme, Theme.v(for: self.colorScheme))
         .onChange(of: self.editorModel.content) { _, _ in
             self.editorModel.scheduleSave()
         }
@@ -224,9 +225,12 @@ struct LiveImageNodeSettingsView: View
 
 
 extension Theme {
-    
-    public static var vDark: Theme {
-        var theme = Theme.defaultDark
+
+    /// The theme every code editor in the app uses, in the appearance the system
+    /// is in. `CodeEditor` takes a theme rather than reading the environment, so
+    /// each editor resolves this against its own `\.colorScheme`.
+    public static func v(for colorScheme: ColorScheme) -> Theme {
+        var theme = colorScheme == .dark ? Theme.defaultDark : Theme.defaultLight
         theme.fontName = "SFMono-Medium"
         theme.fontSize = 11.0
         return theme
