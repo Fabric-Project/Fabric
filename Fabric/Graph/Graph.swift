@@ -513,7 +513,6 @@ internal import AnyCodable
         self.undoManager?.setActionName("Add Node")
         self.markConnectionsChanged()
 
-        self.updateRenderingNodes()
         self.rebuildPublishedParameterGroup()
     }
 
@@ -554,7 +553,6 @@ internal import AnyCodable
         self.undoManager?.setActionName("Delete Node")
         self.markConnectionsChanged()
 
-        self.updateRenderingNodes()
         self.rebuildPublishedParameterGroup()
     }
 
@@ -574,7 +572,6 @@ internal import AnyCodable
             }
 
             node.markDirty()
-            updateRenderingNodes()
             rebuildPublishedParameterGroup()
             syncNodesToScene()
             markConnectionsChanged()
@@ -916,17 +913,7 @@ internal import AnyCodable
     }
      
     // MARK: -Rendering Helpers
-    internal var consumerNodes: [Node] = []
-    internal var sceneObjectNodes:[BaseObjectNode] = []
-    internal var latestCamera:Camera? = nil
-    
-    func updateRenderingNodes()
-    {
-        self.consumerNodes = self.nodes.filter( { $0.nodeExecutionMode == .Consumer } )
-        
-        self.latestCamera = Self.latestCamera(in:self)
-    }
-    
+
     /// The camera a graph renders with: the last one added to it, so a camera
     /// added to a graph that has one takes control rather than joining a queue
     /// behind it. One camera is active at a time; the rest are in the scene and

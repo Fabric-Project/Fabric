@@ -98,11 +98,6 @@ struct RendererCameraSelectionTests
         container.subGraph.rebuildPublishedParameterGroup()
         try #require(container.nodeExecutionMode != .Consumer)
 
-        // The state a reload arrives in, and any later edit restores: caches
-        // rebuilt with the subgraph already publishing, so nothing derived from
-        // execution mode still counts it among the nodes that draw.
-        graph.updateRenderingNodes()
-
         let renderer = GraphRenderer(context: context, graph: graph)
         renderer.resize(size: (width: 320, height: 180), scaleFactor: 1)
         try execute(renderer, graph)
