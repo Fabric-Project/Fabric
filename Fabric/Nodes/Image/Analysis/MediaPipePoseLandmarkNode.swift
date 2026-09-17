@@ -30,11 +30,10 @@ import MPSMediaPipe
 /// node picking Regions[i]/Rotations[i] per iteration; an Array Append/
 /// Queue node collects each iteration's Landmarks back into an array).
 /// Running inside an Iterator automatically forces synchronous inference
-/// and bypasses smoothing for that execute() call, regardless of either
-/// toggle's own setting — an Iterator re-executes this same node instance
-/// N times sequentially within one frame, so the async path's
-/// later-arriving completion and the one shared smoothing filter would
-/// both apply to the wrong subject's data.
+/// and bypasses smoothing for that execute() call — an Iterator re-executes
+/// this same node instance N times sequentially within one frame, so the
+/// async path's later-arriving completion and the one shared smoothing
+/// filter would both apply to the wrong subject's data.
 public class MediaPipePoseLandmarkNode: Node
 {
     override public class var name: String { "MediaPipe Pose Landmarks" }
@@ -87,6 +86,13 @@ public class MediaPipePoseLandmarkNode: Node
 
     private static var cachedModels: [ModelTier: MediaPipeMPSGraph] = [:]
     private static let modelLock = NSLock()
+
+    /// Not a port -- Fabric has no systemized protocol yet for per-node
+    /// synchronous/asynchronous execution, so this stays a compile-time
+    /// switch for development/comparison until that exists (Iterator use
+    /// forces synchronous regardless -- see execute()'s insideIterator
+    /// comment). Flip locally to test the bounded-GPU-wait path.
+    private static let synchronousInference = false
 
     private var preprocessor: MediaPipeCropPreprocessor?
 
@@ -187,15 +193,13 @@ public class MediaPipePoseLandmarkNode: Node
         // Rotations are being fed in one at a time via an Iterator (see
         // MediaPipeDetectionMode's header). An Iterator re-executes this
         // same node instance N times sequentially within one command
-        // buffer/frame -- encoding onto that shared buffer wouldn't produce
-        // a result until the whole frame's buffer completes, long after
-        // this iteration needs it to feed the next one, and the one shared
-        // landmarksSmoothingFilter would blend across unrelated subjects if
-        // left on. Force synchronous inference (detectLandmarks() encodes
-        // onto the shared buffer and returns whenever it finishes; only
-        // runLandmarks() actually blocks for its own dedicated,
-        // self-contained buffer) and bypass smoothing whenever inside an
-        // iterator.
+        // buffer/frame -- encoding onto the shared buffer async wouldn't
+        // produce a result until the whole frame's buffer completes, long
+        // after this iteration needs it to feed the next one, and the one
+        // shared landmarksSmoothingFilter would blend across unrelated
+        // subjects if left on. Force synchronous inference (see
+        // detectLandmarks()'s `synchronous` parameter) and bypass smoothing
+        // whenever inside an iterator.
         let insideIterator = executionInfo.iterationInfo != nil
 
         if self.inputImage.valueDidChange, let inputImage = self.inputImage.value
@@ -203,23 +207,10 @@ public class MediaPipePoseLandmarkNode: Node
             let region = self.inputRegionOfInterest.value ?? Self.fullFrameRegion
             let rotation = self.inputRotation.value ?? 0
             let tier = ModelTier.from(self.inputModelTier.value)
+            let synchronous = insideIterator || Self.synchronousInference
 
-            if !insideIterator
-            {
-                do { try self.detectLandmarks(image: inputImage, region: region, rotation: rotation, tier: tier, commandBuffer: commandBuffer) }
-                catch { print("MediaPipePoseLandmarkNode: detectLandmarks failed: \(error)") }
-            }
-            else
-            {
-                do
-                {
-                    let (landmarks, auxiliaryLandmarks, maskLogits) = try self.runLandmarks(image: inputImage, region: region, rotation: rotation, tier: tier)
-                    self.lastLandmarks = landmarks
-                    self.lastAuxiliaryLandmarks = auxiliaryLandmarks
-                    self.lastSegmentationMask = (maskLogits, (center: simd_float2(region.x + region.z / 2, region.y + region.w / 2), size: simd_float2(region.z, region.w), rotation: rotation))
-                }
-                catch { print("MediaPipePoseLandmarkNode: runLandmarks failed: \(error)") }
-            }
+            do { try self.detectLandmarks(image: inputImage, region: region, rotation: rotation, tier: tier, commandBuffer: commandBuffer, synchronous: synchronous) }
+            catch { print("MediaPipePoseLandmarkNode: detectLandmarks failed: \(error)") }
         }
 
         self.outputKeypoints.send(self.inputKeypoints.value ?? [])
@@ -308,33 +299,6 @@ public class MediaPipePoseLandmarkNode: Node
         }
     }
 
-    private func runLandmarks(image: FabricImage, region: simd_float4, rotation: Float, tier: ModelTier) throws -> ([simd_float3], [simd_float3], [Float])
-    {
-        let startTime = Date()
-        let preprocessor = try self.preprocessor ?? MediaPipeCropPreprocessor(device: self.context.device, outputWidth: Int(MediaPipePoseLandmarkProjection.landmarkSize), outputHeight: Int(MediaPipePoseLandmarkProjection.landmarkSize))
-        self.preprocessor = preprocessor
-
-        let model = try Self.mpsGraphModel(for: tier, commandQueue: self.context.commandQueue)
-
-        let center = simd_float2(region.x + region.z / 2, region.y + region.w / 2)
-        let size = simd_float2(region.z, region.w)
-
-        let inputBuffer = try preprocessor.encode(
-            texture: image.texture,
-            textureTransform: image.textureTransform,
-            centerNormalizedBottomLeft: center,
-            sizeNormalized: size,
-            rotationRadians: rotation,
-            commandQueue: self.context.commandQueue
-        )
-
-        let outputs = model.run(inputBuffer: inputBuffer)
-        MediaPipeInferenceTimingLogger.log(nodeName: Self.name, elapsed: Date().timeIntervalSince(startTime))
-        let (landmarks, auxiliaryLandmarks) = Self.projectLandmarks(outputs: outputs, center: center, size: size, rotation: rotation)
-        let maskLogits = outputs.count >= 3 ? outputs[2] : []
-        return (landmarks, auxiliaryLandmarks, maskLogits)
-    }
-
     private func outputBuffers(for tier: ModelTier, model: MediaPipeMPSGraph) throws -> [MTLBuffer]
     {
         if let existing = self.outputBuffers, self.outputBuffersTier == tier { return existing }
@@ -351,19 +315,18 @@ public class MediaPipePoseLandmarkNode: Node
         return buffers
     }
 
-    /// Encodes crop-and-normalize AND MPSGraph inference onto Fabric's
-    /// shared `commandBuffer`, one after the other -- never a second,
-    /// separately created buffer. Neither call commits anything on its own,
-    /// so both just sit encoded here, in order, until whoever owns
-    /// `commandBuffer` (Fabric's render loop) commits it once at the end of
-    /// the frame. This node must never call commit()/commitAndContinue() on
-    /// it itself. lastLandmarks updates once that whole buffer completes.
-    /// Silently drops the cycle (never updates lastLandmarks) if all
-    /// maxFramesInFlight inference slots are already busy, matching
-    /// MediaPipeMPSGraph.encode()'s and MediaPipeCropPreprocessor's own
-    /// no-backlog semantics. Not used inside an Iterator -- see execute()'s
-    /// insideIterator comment; runLandmarks() handles that case instead.
-    private func detectLandmarks(image: FabricImage, region: simd_float4, rotation: Float, tier: ModelTier, commandBuffer: MTLCommandBuffer) throws
+    /// Encodes crop-and-normalize AND MPSGraph inference, one after the
+    /// other, onto either Fabric's shared `commandBuffer` (async) or a
+    /// dedicated one this call owns exclusively (synchronous) -- the same
+    /// two encode() calls either way, never committed by this node when
+    /// sharing Fabric's buffer (its owner, the render loop, commits it once
+    /// at the end of the frame), committed and waited on immediately by
+    /// this call when `synchronous` is true (always true inside an
+    /// Iterator -- see execute()'s insideIterator comment). Silently drops
+    /// the cycle (never updates lastLandmarks) if all maxFramesInFlight
+    /// inference slots are already busy, matching MediaPipeMPSGraph
+    /// .encode()'s and MediaPipeCropPreprocessor's own no-backlog semantics.
+    private func detectLandmarks(image: FabricImage, region: simd_float4, rotation: Float, tier: ModelTier, commandBuffer: MTLCommandBuffer, synchronous: Bool) throws
     {
         let startTime = Date()
         let preprocessor = try self.preprocessor ?? MediaPipeCropPreprocessor(device: self.context.device, outputWidth: Int(MediaPipePoseLandmarkProjection.landmarkSize), outputHeight: Int(MediaPipePoseLandmarkProjection.landmarkSize))
@@ -375,40 +338,88 @@ public class MediaPipePoseLandmarkNode: Node
         let center = simd_float2(region.x + region.z / 2, region.y + region.w / 2)
         let size = simd_float2(region.z, region.w)
 
+        let targetBuffer: MTLCommandBuffer
+        if synchronous
+        {
+            guard let dedicated = self.context.commandQueue.makeCommandBuffer() else
+            {
+                throw FabricError(.execution(.gpu), severity: .recoverable, message: "Could not create synchronous MediaPipe pose landmark command buffer")
+            }
+            targetBuffer = dedicated
+        }
+        else
+        {
+            targetBuffer = commandBuffer
+        }
+
         let inputBuffer = try preprocessor.encode(
             texture: image.texture,
             textureTransform: image.textureTransform,
             centerNormalizedBottomLeft: center,
             sizeNormalized: size,
             rotationRadians: rotation,
-            commandBuffer: commandBuffer
+            commandBuffer: targetBuffer
         )
 
-        guard try model.encode(inputBuffer: inputBuffer, outputBuffers: outputBuffers, commandBuffer: commandBuffer) else
+        guard try model.encode(inputBuffer: inputBuffer, outputBuffers: outputBuffers, commandBuffer: targetBuffer, commit: synchronous) else
         {
             return
         }
 
-        // Keeps `image` (and its texture) out of GraphRendererTextureCache's
-        // recycle pool until the GPU work reading it is verified done, not
-        // just encoded.
-        commandBuffer.addCompletedHandler { [weak self, image] finishedBuffer in
-            withExtendedLifetime(image) {}
-            guard let self else { return }
-            if let error = finishedBuffer.error
-            {
-                print("MediaPipePoseLandmarkNode: landmark detection failed: \(error)")
-                return
-            }
+        // Captures no `self` -- safe to call from inside a [weak self]
+        // completion handler without accidentally keeping this node alive
+        // via the closure. Returns values rather than assigning lastX
+        // properties directly, so each call site assigns using its own
+        // correctly-scoped `self` (the weakly-captured one in the async
+        // branch) instead of this function silently capturing a strong
+        // `self` from detectLandmarks()'s own invocation.
+        func decodedResults() -> (landmarks: [simd_float3], auxiliaryLandmarks: [simd_float3], maskLogits: [Float])
+        {
             let outputs = outputBuffers.map { buffer -> [Float] in
                 let count = buffer.length / MemoryLayout<Float>.stride
                 return Array(UnsafeBufferPointer(start: buffer.contents().assumingMemoryBound(to: Float.self), count: count))
             }
-            MediaPipeInferenceTimingLogger.log(nodeName: Self.name, elapsed: Date().timeIntervalSince(startTime))
             let (landmarks, auxiliaryLandmarks) = Self.projectLandmarks(outputs: outputs, center: center, size: size, rotation: rotation)
-            self.lastLandmarks = landmarks
-            self.lastAuxiliaryLandmarks = auxiliaryLandmarks
-            self.lastSegmentationMask = (outputs.count >= 3 ? outputs[2] : [], (center: center, size: size, rotation: rotation))
+            return (landmarks, auxiliaryLandmarks, outputs.count >= 3 ? outputs[2] : [])
+        }
+
+        if synchronous
+        {
+            // model.encode() above already committed targetBuffer itself
+            // (commit: synchronous) -- never call .commit() again on the
+            // raw buffer here; see encode()'s doc comment for why (it
+            // crashed exactly this way for MediaPipeFaceDetectionNode).
+            targetBuffer.waitUntilCompleted()
+            if let error = targetBuffer.error
+            {
+                print("MediaPipePoseLandmarkNode: landmark detection failed: \(error)")
+                return
+            }
+            MediaPipeInferenceTimingLogger.log(nodeName: Self.name, elapsed: Date().timeIntervalSince(startTime))
+            let results = decodedResults()
+            self.lastLandmarks = results.landmarks
+            self.lastAuxiliaryLandmarks = results.auxiliaryLandmarks
+            self.lastSegmentationMask = (results.maskLogits, (center: center, size: size, rotation: rotation))
+        }
+        else
+        {
+            // Keeps `image` (and its texture) out of GraphRendererTextureCache's
+            // recycle pool until the GPU work reading it is verified done, not
+            // just encoded.
+            targetBuffer.addCompletedHandler { [weak self, image] finishedBuffer in
+                withExtendedLifetime(image) {}
+                guard let self else { return }
+                if let error = finishedBuffer.error
+                {
+                    print("MediaPipePoseLandmarkNode: landmark detection failed: \(error)")
+                    return
+                }
+                MediaPipeInferenceTimingLogger.log(nodeName: Self.name, elapsed: Date().timeIntervalSince(startTime))
+                let results = decodedResults()
+                self.lastLandmarks = results.landmarks
+                self.lastAuxiliaryLandmarks = results.auxiliaryLandmarks
+                self.lastSegmentationMask = (results.maskLogits, (center: center, size: size, rotation: rotation))
+            }
         }
     }
 

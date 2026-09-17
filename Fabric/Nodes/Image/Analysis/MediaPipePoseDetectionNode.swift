@@ -136,6 +136,12 @@ public class MediaPipePoseDetectionNode: StrategyNode
     private static var cachedModel: MediaPipeMPSGraph?
     private static let modelLock = NSLock()
 
+    /// Not a port -- Fabric has no systemized protocol yet for per-node
+    /// synchronous/asynchronous execution, so this stays a compile-time
+    /// switch for development/comparison until that exists. Flip locally to
+    /// test the bounded-GPU-wait path.
+    private static let synchronousInference = false
+
     private var preprocessor: MediaPipeCropPreprocessor?
 
     /// GPU-resident destinations for MediaPipeMPSGraph.encode()'s output
@@ -184,12 +190,12 @@ public class MediaPipePoseDetectionNode: StrategyNode
                 else
                 {
                     self.framesSinceLastDetect = 0
-                    try? self.detect(image: inputImage, maxDetections: 1, commandBuffer: commandBuffer)
+                    try? self.detect(image: inputImage, maxDetections: 1, commandBuffer: commandBuffer, synchronous: Self.synchronousInference)
                 }
 
             case .multi:
                 let maxDetections = max(1, (findPort(named: "inputMaxDetections") as ParameterPort<Int>?)?.value ?? 1)
-                try? self.detect(image: inputImage, maxDetections: maxDetections, commandBuffer: commandBuffer)
+                try? self.detect(image: inputImage, maxDetections: maxDetections, commandBuffer: commandBuffer, synchronous: Self.synchronousInference)
             }
         }
 
@@ -247,18 +253,17 @@ public class MediaPipePoseDetectionNode: StrategyNode
         return buffers
     }
 
-    /// Encodes crop-and-normalize AND MPSGraph inference onto Fabric's
-    /// shared `commandBuffer`, one after the other -- never a second,
-    /// separately created buffer. Neither call commits anything on its own,
-    /// so both just sit encoded here, in order, until whoever owns
-    /// `commandBuffer` (Fabric's render loop) commits it once at the end of
-    /// the frame. This node must never call commit()/commitAndContinue() on
-    /// it itself. lastRects updates once that whole buffer completes.
-    /// Silently drops the cycle (never updates lastRects) if all
-    /// maxFramesInFlight inference slots are already busy, matching
-    /// MediaPipeMPSGraph.encode()'s and MediaPipeCropPreprocessor's own
-    /// no-backlog semantics.
-    private func detect(image: FabricImage, maxDetections: Int, commandBuffer: MTLCommandBuffer) throws
+    /// Encodes crop-and-normalize AND MPSGraph inference, one after the
+    /// other, onto either Fabric's shared `commandBuffer` (async) or a
+    /// dedicated one this call owns exclusively (synchronous) -- the same
+    /// two encode() calls either way, never committed by this node when
+    /// sharing Fabric's buffer (its owner, the render loop, commits it once
+    /// at the end of the frame), committed and waited on immediately by
+    /// this call when `synchronous` is true. Silently drops the cycle
+    /// (never updates lastRects) if all maxFramesInFlight inference slots
+    /// are already busy, matching MediaPipeMPSGraph.encode()'s and
+    /// MediaPipeCropPreprocessor's own no-backlog semantics.
+    private func detect(image: FabricImage, maxDetections: Int, commandBuffer: MTLCommandBuffer, synchronous: Bool) throws
     {
         let startTime = Date()
         let preprocessor = try self.preprocessor ?? MediaPipeCropPreprocessor(device: self.context.device, outputWidth: MediaPipePoseDetector.detectSize, outputHeight: MediaPipePoseDetector.detectSize, outputPixelRange: MediaPipePoseDetector.detectorPixelRange)
@@ -273,38 +278,84 @@ public class MediaPipePoseDetectionNode: StrategyNode
         let imageHeight = Float(presentationSize.height)
         let side = max(imageWidth, imageHeight)
 
+        let targetBuffer: MTLCommandBuffer
+        if synchronous
+        {
+            guard let dedicated = self.context.commandQueue.makeCommandBuffer() else
+            {
+                throw FabricError(.execution(.gpu), severity: .recoverable, message: "Could not create synchronous MediaPipe pose detection command buffer")
+            }
+            targetBuffer = dedicated
+        }
+        else
+        {
+            targetBuffer = commandBuffer
+        }
+
         let inputBuffer = try preprocessor.encode(
             texture: image.texture,
             textureTransform: image.textureTransform,
             centerNormalizedBottomLeft: simd_float2(0.5, 0.5),
             sizeNormalized: simd_float2(side / imageWidth, side / imageHeight),
             rotationRadians: 0,
-            commandBuffer: commandBuffer
+            commandBuffer: targetBuffer
         )
 
-        guard try model.encode(inputBuffer: inputBuffer, outputBuffers: outputBuffers, commandBuffer: commandBuffer) else
+        guard try model.encode(inputBuffer: inputBuffer, outputBuffers: outputBuffers, commandBuffer: targetBuffer, commit: synchronous) else
         {
             return
         }
 
-        // Keeps `image` (and its texture) out of GraphRendererTextureCache's
-        // recycle pool until the GPU work reading it is verified done, not
-        // just encoded.
-        commandBuffer.addCompletedHandler { [weak self, image] finishedBuffer in
-            withExtendedLifetime(image) {}
-            guard let self else { return }
-            if let error = finishedBuffer.error
-            {
-                print("MediaPipePoseDetectionNode: detection failed: \(error)")
-                return
-            }
+        // Captures no `self` -- safe to call from inside a [weak self]
+        // completion handler without accidentally keeping this node alive
+        // via the closure.
+        func decodedRects() -> [(region: simd_float4, rotation: Float, score: Float, keypoints: [simd_float2])]?
+        {
             let outputs = outputBuffers.map { buffer -> [Float] in
                 let count = buffer.length / MemoryLayout<Float>.stride
                 return Array(UnsafeBufferPointer(start: buffer.contents().assumingMemoryBound(to: Float.self), count: count))
             }
-            guard outputs.count >= 2 else { return }
-            MediaPipeInferenceTimingLogger.log(nodeName: Self.name, elapsed: Date().timeIntervalSince(startTime))
-            self.lastRects = Self.decodeRects(rawBoxes: outputs[0], rawScores: outputs[1], maxDetections: maxDetections, imageWidth: imageWidth, imageHeight: imageHeight)
+            guard outputs.count >= 2 else { return nil }
+            return Self.decodeRects(rawBoxes: outputs[0], rawScores: outputs[1], maxDetections: maxDetections, imageWidth: imageWidth, imageHeight: imageHeight)
+        }
+
+        if synchronous
+        {
+            // model.encode() above already committed targetBuffer itself
+            // (commit: synchronous) -- never call .commit() again on the
+            // raw buffer here; see encode()'s doc comment for why (it
+            // crashed exactly this way for MediaPipeFaceDetectionNode).
+            targetBuffer.waitUntilCompleted()
+            if let error = targetBuffer.error
+            {
+                print("MediaPipePoseDetectionNode: detection failed: \(error)")
+                return
+            }
+            if let rects = decodedRects()
+            {
+                MediaPipeInferenceTimingLogger.log(nodeName: Self.name, elapsed: Date().timeIntervalSince(startTime))
+                self.lastRects = rects
+            }
+        }
+        else
+        {
+            // Keeps `image` (and its texture) out of GraphRendererTextureCache's
+            // recycle pool until the GPU work reading it is verified done, not
+            // just encoded.
+            targetBuffer.addCompletedHandler { [weak self, image] finishedBuffer in
+                withExtendedLifetime(image) {}
+                guard let self else { return }
+                if let error = finishedBuffer.error
+                {
+                    print("MediaPipePoseDetectionNode: detection failed: \(error)")
+                    return
+                }
+                if let rects = decodedRects()
+                {
+                    MediaPipeInferenceTimingLogger.log(nodeName: Self.name, elapsed: Date().timeIntervalSince(startTime))
+                    self.lastRects = rects
+                }
+            }
         }
     }
 
