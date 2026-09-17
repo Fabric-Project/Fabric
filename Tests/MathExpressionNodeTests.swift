@@ -23,6 +23,22 @@ import MathExpressionEngine
 
     private func names(_ ports: [Fabric.Port]) -> Set<String> { Set(ports.map(\.name)) }
 
+    /// `GraphRenderer` skips a Processor whose `isDirty` is false. Nothing
+    /// upstream of an expression edit moves, so the node has to ask for itself.
+    @Test func editingTheExpressionMarksItDirty() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = MathExpressionNode(context: context, expression: "x + y")
+
+        node.markClean()
+        try #require(node.isDirty == false)
+
+        node.stringExpression = "x * y"
+
+        #expect(node.isDirty,
+                "a Processor that is not dirty is skipped, so the edit would not take effect")
+    }
+
     @Test func defaultExpressionDerivesTwoFloatInputsOneFloatOutput() throws
     {
         guard let context = makeContext() else { return }

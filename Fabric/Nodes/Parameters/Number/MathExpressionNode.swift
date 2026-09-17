@@ -413,6 +413,11 @@ public class MathExpressionNode: Node
 
     private func compileAndSync()
     {
+        // `needsEvaluation` only reaches the node once the renderer runs it, and
+        // a Processor that is not dirty is skipped. Nothing upstream of an edit
+        // moves, so the node asks for itself.
+        self.markDirty()
+
         let result = compile(self.stringExpression)
         self.compiled = result
 
