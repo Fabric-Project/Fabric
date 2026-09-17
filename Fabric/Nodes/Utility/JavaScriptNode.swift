@@ -578,6 +578,12 @@ public final class JavaScriptNode: Node
 
     private func compileAndSynchronizePorts()
     {
+        // A new runtime means whatever the node last sent came from a script it
+        // no longer runs. Nothing upstream of an edit moves, and a Processor that
+        // is not dirty is skipped, so without this the edit takes effect only
+        // once something else in the graph happens to.
+        self.markDirty()
+
         do {
             let signature = try JavaScriptNodeSourceParser.parse(source: self.scriptSource)
             let runtime = try JavaScriptNodeRuntime(signature: signature)
