@@ -76,6 +76,41 @@ struct RendererCameraSelectionTests
                 "the outer graph never looked again after the subgraph gained a camera")
     }
 
+    /// A subgraph's execution mode is derived from what it publishes, so it must
+    /// not decide whether the subgraph is searched: a camera inside one is the
+    /// scene's however the subgraph's own ports are wired.
+    @Test("A camera inside a subgraph is found however the subgraph is wired up")
+    func aCameraInsideAPublishingSubgraphIsUsed() throws
+    {
+        guard let context = makeContext() else { return }
+        let graph = Graph(context: context)
+
+        let inner = CurrentTimeNode(context: context)
+        graph.addNode(inner)
+        let container = try graph.createSubgraph(from: [inner], centeredOn: inner,
+                                                 usingClass: SubgraphNode.self)
+
+        let camera = PerspectiveCameraNode(context: context)
+        container.subGraph.addNode(camera)
+
+        // One published outlet is enough: the subgraph stops being a Consumer.
+        inner.outputNumber.published = true
+        container.subGraph.rebuildPublishedParameterGroup()
+        try #require(container.nodeExecutionMode != .Consumer)
+
+        // The state a reload arrives in, and any later edit restores: caches
+        // rebuilt with the subgraph already publishing, so nothing derived from
+        // execution mode still counts it among the nodes that draw.
+        graph.updateRenderingNodes()
+
+        let renderer = GraphRenderer(context: context, graph: graph)
+        renderer.resize(size: (width: 320, height: 180), scaleFactor: 1)
+        try execute(renderer, graph)
+
+        #expect(renderer.currentCamera === camera.getObject(),
+                "a published port hid the camera inside the subgraph")
+    }
+
     @Test("Removing a subgraph's camera stops the scene drawing through it")
     func removingACameraInsideASubgraphIsNoticed() throws
     {

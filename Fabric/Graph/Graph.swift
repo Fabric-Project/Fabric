@@ -931,40 +931,34 @@ internal import AnyCodable
     /// added to a graph that has one takes control rather than joining a queue
     /// behind it. One camera is active at a time; the rest are in the scene and
     /// inert.
+    ///
+    /// Every node is searched, not only the ones that draw: a subgraph's execution
+    /// mode is derived from what it publishes, so it cannot also decide whether the
+    /// subgraph is looked inside.
     static func latestCamera(in graph:Graph) -> Camera?
     {
-        let sceneObjectNodes:[BaseObjectNode] = graph.consumerNodes.compactMap({ $0 as? BaseObjectNode})
-
-        let latestCameraNode = sceneObjectNodes.last(where: { $0.nodeType == .Object(objectType: .Camera)})
-
-        let camera = latestCameraNode?.getObject() as? Camera
-        
-        // Only recurse if we need to
-        guard let camera else
+        if let latestCameraNode = graph.nodes.last(where: { $0.nodeType == .Object(objectType: .Camera) }),
+           let camera = (latestCameraNode as? BaseObjectNode)?.getObject() as? Camera
         {
-            let subGraphNodes:[SubgraphNode] = graph.consumerNodes.compactMap({
-                
-                // We dont want to leak a Deferred Rendering camera out
-                if let _ =  $0 as? DeferredSubgraphNode
-                {
-                    return nil
-                }
-                
-                return $0 as? SubgraphNode
-            })
-                
-            let subGraphs = subGraphNodes.map({ $0.subGraph } )
-            
-            for subGraph in subGraphs.reversed() {
-                if let camera = latestCamera(in: subGraph) {
-                    return camera
-                }
-            }
-            
-            return nil
+            return camera
         }
 
-        return camera
+        // Only recurse if we need to. A subgraph has no scene of its own, so a
+        // camera in one belongs to this graph; a Deferred Subgraph renders its
+        // own pass, and its camera stays there.
+        for node in graph.nodes.reversed()
+        {
+            guard !(node is DeferredSubgraphNode),
+                  let subgraphNode = node as? SubgraphNode
+            else { continue }
+
+            if let camera = latestCamera(in: subgraphNode.subGraph)
+            {
+                return camera
+            }
+        }
+
+        return nil
     }
     
     // MARK: -Selection
