@@ -31,11 +31,6 @@ import LanguageSupport
         self.refreshMessages()
     }
 
-    var portPreview: [JavaScriptNodePortDefinition]
-    {
-        node?.portPreview ?? []
-    }
-
     var diagnostics: [JavaScriptNodeDiagnostic]
     {
         node?.currentDiagnostics ?? []
@@ -121,23 +116,6 @@ struct JavaScriptNodeSettingsView: View
             }
             .onChange(of: self.editorModel.selectedTimeMode) { _, _ in
                 self.editorModel.scheduleSave()
-            }
-
-            GroupBox("Ports")
-            {
-                ScrollView
-                {
-                    VStack(alignment: .leading, spacing: 6)
-                    {
-                        ForEach(Array(self.editorModel.portPreview.enumerated()), id: \.offset) { _, port in
-                            Text("\(port.direction == .input ? "In" : "Out")  \(port.name): \(port.portType.rawValue)")
-                                .font(.caption.monospaced())
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .frame(maxHeight: 110)
             }
 
             if self.editorModel.diagnostics.isEmpty == false {

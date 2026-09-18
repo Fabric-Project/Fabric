@@ -467,12 +467,6 @@ public final class JavaScriptNode: Node
     @ObservationIgnored override public var nodeExecutionMode: ExecutionMode { self.selectedExecutionMode }
     @ObservationIgnored override public var nodeTimeMode: TimeMode { self.selectedTimeMode }
 
-    var portPreview: [JavaScriptNodePortDefinition]
-    {
-        guard let compiledSignature else { return [] }
-        return compiledSignature.inputs + compiledSignature.outputs
-    }
-
     var currentDiagnostics: [JavaScriptNodeDiagnostic] { diagnostics }
 
     /// What the script has to say about itself is the node's status, so a script
