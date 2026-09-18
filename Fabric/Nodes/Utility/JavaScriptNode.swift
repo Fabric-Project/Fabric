@@ -453,6 +453,13 @@ public final class JavaScriptNode: Node
     @ObservationIgnored private var compiledSignature: JavaScriptNodeSignature?
     @ObservationIgnored private var runtime: JavaScriptNodeRuntime?
     @ObservationIgnored private var diagnostics: [JavaScriptNodeDiagnostic] = []
+    {
+        didSet
+        {
+            guard oldValue != diagnostics else { return }
+            self.subtitleSubject.send()
+        }
+    }
 
     public var selectedExecutionMode: Node.ExecutionMode = .Processor
     public var selectedTimeMode: Node.TimeMode = .None
@@ -467,6 +474,17 @@ public final class JavaScriptNode: Node
     }
 
     var currentDiagnostics: [JavaScriptNodeDiagnostic] { diagnostics }
+
+    /// What the script has to say about itself is the node's status, so a script
+    /// that will not compile or threw last frame says so on the canvas rather
+    /// than only inside its settings.
+    override public func deriveStatuses() -> [NodeStatus]
+    {
+        self.diagnostics.map { diagnostic in
+            diagnostic.severity == .warning ? .warning(diagnostic.summary)
+                                            : .error(diagnostic.summary)
+        }
+    }
 
     public required init(context: Context)
     {

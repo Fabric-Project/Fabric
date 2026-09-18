@@ -79,4 +79,57 @@ struct JavaScriptNodeDiagnosticsTests
         #expect(diagnostic?.line ?? 0 > 0,
                 "the diagnostic should point into the script, not at its first character")
     }
+
+    @Test("A script that will not compile says so on the node")
+    func aScriptThatWillNotCompileIsANodeError() throws
+    {
+        guard let context = makeContextIfPossible() else { return }
+        let node = JavaScriptNode(context: context)
+
+        node.updateScriptSource("this is not a signature")
+
+        let statuses = node.deriveStatuses()
+        #expect(statuses.count == 1)
+        #expect(statuses.first?.kind == "Error")
+    }
+
+    @Test("A script that throws says so on the node")
+    func aScriptThatThrowsIsANodeError() throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let node = JavaScriptNode(context: harness.context)
+        node.updateScriptSource(Self.throwingScript)
+
+        try #require(node.deriveStatuses().isEmpty, "it compiled, so nothing to report yet")
+
+        try? harness.execute(node)
+
+        #expect(node.deriveStatuses().count == 1)
+        #expect(node.deriveStatuses().first?.message.contains("JSON") == true)
+    }
+
+    @Test("A script that runs leaves the node saying nothing")
+    func aWorkingScriptClearsTheNodeStatus() throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let node = JavaScriptNode(context: harness.context)
+        node.updateScriptSource(Self.throwingScript)
+        try? harness.execute(node)
+        try #require(node.deriveStatuses().isEmpty == false)
+
+        node.updateScriptSource("""
+        function (__int Count) main(__string Spec)
+        {
+            return { Count: 1 };
+        }
+        """)
+        try harness.execute(node)
+
+        #expect(node.deriveStatuses().isEmpty)
+    }
+
+    private func makeContextIfPossible() -> Context?
+    {
+        GraphExecutionTestHarness()?.context
+    }
 }
