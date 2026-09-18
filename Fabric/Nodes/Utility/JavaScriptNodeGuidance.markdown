@@ -1,0 +1,89 @@
+# JavaScript Node
+
+Processes Fabric data with a JavaScript function. The function's signature
+declares the node's ports, and running it moves values through them.
+
+## The signature
+
+```typescript
+function main(a: FabricNumber, b: FabricNumber): { sum: FabricNumber, over: FabricBool } {
+  const total = a + b
+  return { sum: total, over: total > 1 }
+}
+```
+
+The parameters are the node's inputs, the return type its outputs, and both take
+the port's name from the declaration. The function **must return** an object with
+a key per declared output; a script that returns something else, or throws, has
+its error reported on the node and at the line it happened.
+
+A script with nothing to send declares no return type.
+
+## Types
+
+| Signature type | Arrives as | Return as |
+| --- | --- | --- |
+| `FabricBool` | `boolean` | `boolean` |
+| `FabricInt` | `number` | `number`, truncated to a 32-bit integer |
+| `FabricNumber` | `number` | `number` |
+| `FabricString` | `string` | `string` |
+| `FabricVector2` | `[x, y]` | two numbers |
+| `FabricVector3` | `[x, y, z]` | three numbers |
+| `FabricVector4` | `[x, y, z, w]` | four numbers |
+| `FabricColor` | `[r, g, b, a]` | four numbers |
+| `FabricQuaternion` | `[x, y, z, w]` | four numbers, `w` last |
+| `FabricTransform` | sixteen numbers | sixteen numbers, column-major |
+| `FabricGeometry` | `{ type, handleID, vertexCount, indexCount, boundsMin, boundsMax }` | the object it arrived as |
+| `FabricMaterial` | `{ type, handleID, label, hasShader, parameterCount, blending }` | the object it arrived as |
+| `FabricImage` | `{ type, handleID, width, height, textureTransform, pixelFormat }` | the object it arrived as |
+
+An array of any of them is `FabricType[]`, and a dictionary keyed by string is
+`Record<string, FabricType>`. Both nest: `Record<string, FabricTransform[]>` is a
+dictionary of arrays.
+
+`Record<string, FabricValue>` takes a dictionary of anything, and can only be an
+input — there is no way to say what a value is on the way back out.
+
+A transform's sixteen numbers are four columns of four, so `m[12]`, `m[13]` and
+`m[14]` are its translation.
+
+## What is in scope
+
+`context`, describing the frame being run:
+
+| | |
+| --- | --- |
+| `time` | seconds since the graph started |
+| `deltaTime` | seconds since the last frame |
+| `displayTime` | when the frame is for, where a source knows |
+| `systemTime` | seconds since the reference date |
+| `frameNumber` | frames since the graph started |
+| `iterationIndex` | which pass, inside an Iterator |
+| `iterationCount` | how many passes, inside an Iterator |
+
+`console.log` prints to the app's output. `import`, `export`, `require` and
+dynamic `import` are rejected: a script is the document's, and reaches nothing
+the document does not carry.
+
+## Worth knowing
+
+**Geometry, material and image are handles.** Their properties read, but nothing
+written to them is kept, and an output of one of those types has to be an object
+that arrived as an input. An object merely shaped like one sends nothing.
+
+**A collection is all or nothing.** One element that cannot be converted discards
+the whole array or dictionary rather than that element, so a single stray value
+costs the lot.
+
+**Colour is a vector4.** Fabric holds no separate colour value, so the two are
+interchangeable in both directions.
+
+**An input with nothing on it is `null`.** Returning `null` or `undefined` for an
+output sends nothing rather than a zero.
+
+## The annotated form
+
+Scripts written for this node before it took a TypeScript signature declared
+their ports as `function (__type name) main(__type name)`, outputs first. Those
+still parse, and are rewritten to the signature above as they are read — the
+signature only, leaving the body as its author wrote it.

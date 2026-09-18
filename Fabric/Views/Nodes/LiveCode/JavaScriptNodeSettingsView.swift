@@ -88,7 +88,8 @@ struct JavaScriptNodeSettingsView: View
         VStack(alignment: .leading, spacing: 12)
         {
             CodeEditorGuidance(
-                "Process Fabric data using a JavaScript function. The node's ports are set from the signature — `function main(name: FabricType, …): { name: FabricType, … }` — and the function returns an object keyed by those output names. Types: `FabricBool`, `FabricInt`, `FabricNumber`, `FabricString`, `FabricVector2`/`3`/`4`, `FabricColor`, `FabricQuaternion`, `FabricTransform`, `FabricGeometry`, `FabricMaterial`, `FabricImage`, with `FabricType[]` for an array and `Record<string, FabricType>` for a dictionary.")
+                "Process Fabric data using a JavaScript function. The node's ports are set from the typed signature, and the function must return an object keyed by those output names. Types: `FabricBool`, `FabricInt`, `FabricNumber`, `FabricString`, `FabricVector2`/`3`/`4`, `FabricColor`, `FabricQuaternion`, `FabricTransform`, `FabricGeometry`, `FabricMaterial`, `FabricImage`, with `FabricType[]` for an array and `Record<string, FabricType>` for a dictionary. `context` is in scope, carrying `time`, `deltaTime`, `displayTime`, `systemTime`, `frameNumber`, `iterationIndex` and `iterationCount`.",
+                guide: "[JavaScript node guide ↗](https://github.com/Fabric-Project/Fabric/blob/main/Fabric/Nodes/Utility/JavaScriptNodeGuidance.markdown)")
 
             HStack
             {
