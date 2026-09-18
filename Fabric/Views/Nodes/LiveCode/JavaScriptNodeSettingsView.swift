@@ -88,7 +88,7 @@ struct JavaScriptNodeSettingsView: View
         VStack(alignment: .leading, spacing: 12)
         {
             CodeEditorGuidance(
-                "Process Fabric data using a JavaScript function. The node's ports are set from the signature — `function (__type name, …) main(__type name, …)`, outputs first then inputs — and the function returns an object keyed by those output names. Types: `bool`, `int`, `number`, `string`, `vector2`/`3`/`4`, `color`, `quaternion`, `transform`, `geometry`, `material`, `image`, each also as `array_…` and `dictionary_…`.")
+                "Process Fabric data using a JavaScript function. The node's ports are set from the signature — `function main(name: FabricType, …): { name: FabricType, … }` — and the function returns an object keyed by those output names. Types: `FabricBool`, `FabricInt`, `FabricNumber`, `FabricString`, `FabricVector2`/`3`/`4`, `FabricColor`, `FabricQuaternion`, `FabricTransform`, `FabricGeometry`, `FabricMaterial`, `FabricImage`, with `FabricType[]` for an array and `Record<string, FabricType>` for a dictionary.")
 
             HStack
             {

@@ -605,6 +605,15 @@ public final class JavaScriptNode: Node
         do {
             let signature = try JavaScriptNodeSourceParser.parse(source: self.scriptSource)
             let runtime = try JavaScriptNodeRuntime(signature: signature)
+
+            // A script written in the annotated form is kept as the TypeScript
+            // it was read as, so a document carries one syntax however it was
+            // written.
+            if signature.canonicalSource != self.scriptSource
+            {
+                self.scriptSource = signature.canonicalSource
+            }
+
             self.compiledSignature = signature
             self.runtime = runtime
             self.diagnostics = []
@@ -665,7 +674,7 @@ public final class JavaScriptNode: Node
     private static func defaultScriptSource() -> String
     {
         """
-        function (__number sum, __bool thresholdPassed) main(__number a, __number b, __number threshold) {
+        function main(a: FabricNumber, b: FabricNumber, threshold: FabricNumber): { sum: FabricNumber, thresholdPassed: FabricBool } {
           const total = a + b
           return {
             sum: total,
