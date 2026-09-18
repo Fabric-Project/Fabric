@@ -77,7 +77,6 @@ struct JavaScriptNodeSettingsView: View
 {
     @State private var editorModel: JavaScriptNodeEditorModel
     @State private var position: CodeEditor.Position = .init()
-    @Environment(\.colorScheme) private var colorScheme
 
     init(node: JavaScriptNode)
     {
@@ -88,6 +87,9 @@ struct JavaScriptNodeSettingsView: View
     {
         VStack(alignment: .leading, spacing: 12)
         {
+            CodeEditorGuidance(
+                "Process Fabric data using a JavaScript function. The node's ports are set from the signature — `function (__type name, …) main(__type name, …)`, outputs first then inputs — and the function returns an object keyed by those output names. Types: `bool`, `int`, `number`, `string`, `vector2`/`3`/`4`, `color`, `quaternion`, `transform`, `geometry`, `material`, `image`, each also as `array_…` and `dictionary_…`.")
+
             HStack
             {
                 Picker("Execution", selection: self.$editorModel.selectedExecutionMode) {
@@ -108,8 +110,7 @@ struct JavaScriptNodeSettingsView: View
                        position: self.$position,
                        messages: self.$editorModel.messages,
                        language: .javaScriptLanguage(self.editorModel.languageService))
-            .environment(\.codeEditorTheme, Theme.v(for: self.colorScheme))
-            .environment(\.codeEditorLayoutConfiguration, .init(showMinimap: false, wrapText: true))
+            .codeEditorChrome()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onChange(of: self.editorModel.content) { _, _ in
                 self.editorModel.scheduleSave()

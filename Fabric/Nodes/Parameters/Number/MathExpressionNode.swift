@@ -25,8 +25,6 @@ struct MathExpressionView: View
 {
     @Bindable var model: MathExpressionNode.SettingsModel
 
-    @Environment(\.colorScheme) private var colorScheme
-
     // Editor disclosure lives on the (observable) model so the node's
     // `settingsSize` reacts to it too. The single-line field is the resting
     // state; the code editor appears when the expression spans multiple
@@ -44,13 +42,9 @@ struct MathExpressionView: View
     {
         VStack(alignment: .leading, spacing: 8)
         {
-            Text("Write an expression — free names become input ports, results become output ports. Beyond numbers, values can be vectors, transforms or arrays, and a single expression can drive several named inputs and outputs at once.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Text("[Language guide ↗](https://github.com/tobyspark/MathExpressionEngine/blob/main/GUIDE.md)")
-                .font(.caption)
+            CodeEditorGuidance(
+                "Write an expression — free names become input ports, results become output ports. Beyond numbers, values can be vectors, transforms or arrays, and a single expression can drive several named inputs and outputs at once.",
+                guide: "[Language guide ↗](https://github.com/tobyspark/MathExpressionEngine/blob/main/GUIDE.md)")
 
             if model.showsCode { codeEditor } else { simpleField }
         }
@@ -94,9 +88,8 @@ struct MathExpressionView: View
     {
         CodeEditor(text: $model.stringExpression,
                    position: $editorPosition,
-                   messages: $editorMessages,
-                   layout: CodeEditor.LayoutConfiguration(showMinimap: false, wrapText: true))
-            .environment(\.codeEditorTheme, Theme.v(for: self.colorScheme))
+                   messages: $editorMessages)
+            .codeEditorChrome()
             .frame(maxWidth: .infinity, minHeight: 300)
             .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.secondary.opacity(0.4)))
 

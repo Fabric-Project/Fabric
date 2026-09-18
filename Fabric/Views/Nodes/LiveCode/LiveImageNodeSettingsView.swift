@@ -169,7 +169,6 @@ struct LiveImageNodeSettingsView: View
 {
     @State private var editorModel: LiveImageNodeEditorModel
     @State private var position: CodeEditor.Position = .init()
-    @Environment(\.colorScheme) private var colorScheme
 
     init(node: LiveImageNode) {
         _editorModel = State(initialValue: LiveImageNodeEditorModel(node: node))
@@ -177,20 +176,26 @@ struct LiveImageNodeSettingsView: View
 
     var body: some View {
 
-        CodeEditor(text: self.$editorModel.content,
-                   position: self.$position,
-                   messages: self.$editorModel.messages,
-                   language: .metalShaderLanguage(),
-                   layout: CodeEditor.LayoutConfiguration(showMinimap: false, wrapText: true))
-        
+        VStack(alignment: .leading, spacing: 12) {
 
-        .environment(\.codeEditorTheme, Theme.v(for: self.colorScheme))
-        .onChange(of: self.editorModel.content) { _, _ in
-            self.editorModel.scheduleSave()
+            CodeEditorGuidance(
+                "Process an image using a Metal fragment shader. `postFragment` is the entry point, sampling `inputTexture` through `imageTransforms[0]`, and each field of `PostUniforms` becomes an input port — the trailing comment giving its control, range, default and name, as `float amount; // slider, 0.0, 1.0, 1.0, Amount`.",
+                guide: "[Metal Shading Language specification ↗](https://developer.apple.com/metal/Metal-Shading-Language-Specification.pdf)")
+
+            CodeEditor(text: self.$editorModel.content,
+                       position: self.$position,
+                       messages: self.$editorModel.messages,
+                       language: .metalShaderLanguage())
+            .codeEditorChrome()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .onChange(of: self.editorModel.content) { _, _ in
+                self.editorModel.scheduleSave()
+            }
+            .onDisappear {
+                self.editorModel.flush()
+            }
         }
-        .onDisappear {
-            self.editorModel.flush()
-        }
+        .padding(10)
     }
 
     private func diagnosticLineText(_ diagnostic: LiveImageNodeEditorModel.ShaderDiagnostic) -> String {
@@ -223,16 +228,3 @@ struct LiveImageNodeSettingsView: View
     }
 }
 
-
-extension Theme {
-
-    /// The theme every code editor in the app uses, in the appearance the system
-    /// is in. `CodeEditor` takes a theme rather than reading the environment, so
-    /// each editor resolves this against its own `\.colorScheme`.
-    public static func v(for colorScheme: ColorScheme) -> Theme {
-        var theme = colorScheme == .dark ? Theme.defaultDark : Theme.defaultLight
-        theme.fontName = "SFMono-Medium"
-        theme.fontSize = 11.0
-        return theme
-    }
-}
