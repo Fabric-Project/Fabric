@@ -17,8 +17,9 @@ let package = Package(
         // Local Satin package
         .package(path: "Satin"),
 
-        // Standalone expression engine (backs the Math Expression node)
-        .package(url: "https://github.com/Fabric-Project/MathExpressionEngine", from: "1.1.0"),
+        // Standalone expression engine (backs the Math Expression node), and its
+        // editor support product (the language the code editor is configured with)
+        .package(url: "https://github.com/Fabric-Project/MathExpressionEngine", from: "1.2.0"),
 
         // External dependencies
         .package(url: "https://github.com/Flight-School/AnyCodable", from: "0.6.7"),
@@ -79,6 +80,7 @@ let package = Package(
                 .product(name: "SwiftSimplify", package: "SwiftSimplify"),
                 .product(name: "Textual", package: "textual"),
                 .product(name: "MathExpressionEngine", package: "MathExpressionEngine"),
+                .product(name: "MathExpressionEditorSupport", package: "MathExpressionEngine"),
                 .product(name: "OSCKit", package: "OSCKit"),
                 .product(name: "MIDIKit", package: "MIDIKit"),
                 .product(name: "CodeEditorView", package: "CodeEditorView"),

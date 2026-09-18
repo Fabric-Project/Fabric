@@ -16,6 +16,7 @@ import Metal
 import SwiftUI
 import simd
 import MathExpressionEngine
+import MathExpressionEditorSupport
 import CodeEditorView
 import LanguageSupport
 
@@ -31,6 +32,7 @@ struct MathExpressionView: View
     // statements (a `;` or newline) or when explicitly expanded — so a one-liner
     // always opens simple and compact, and the mode needs no persistence.
     @State private var editorPosition = CodeEditor.Position()
+    @State private var languageService = MathExpressionLanguageService()
     @State private var editorMessages: Set<TextLocated<Message>> = []
 
     private var isMultiStatement: Bool
@@ -88,7 +90,8 @@ struct MathExpressionView: View
     {
         CodeEditor(text: $model.stringExpression,
                    position: $editorPosition,
-                   messages: $editorMessages)
+                   messages: $editorMessages,
+                   language: .mathExpressionLanguage(self.languageService))
             .codeEditorChrome()
             .frame(maxWidth: .infinity, minHeight: 300)
             .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.secondary.opacity(0.4)))
