@@ -614,17 +614,23 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     func computeNodeSize() -> CGSize
     {
-        let horizontalInputsCount = self.ports.filter { $0.direction == .Horizontal && $0.kind != .Inlet  }.count
-        let horizontalOutputsCount = self.ports.filter { $0.direction == .Horizontal && $0.kind != .Outlet  }.count
+        let inputPorts = self.inputPorts()
+        let outputPorts = self.outputPorts()
+        
+        let longestInputPortTitle = inputPorts.reduce(into: "") { maxTitle, port in
+            maxTitle = (maxTitle.count > port.displayName.count) ? maxTitle : port.displayName
+        }
 
-        let verticalInputsCount = self.ports.filter { $0.direction == .Vertical && $0.kind != .Inlet  }.count
-        let verticalOutputsCount = self.ports.filter { $0.direction == .Vertical && $0.kind != .Outlet  }.count
+        let longestOutputPortTitle = outputPorts.reduce(into: "") { maxTitle, port in
+            maxTitle = (maxTitle.count > port.displayName.count) ? maxTitle : port.displayName
+        }
 
-        let horizontalMax = max(horizontalInputsCount, horizontalOutputsCount)
-        let verticalMax = max(verticalInputsCount, verticalOutputsCount)
+        let horizontalMax = max(inputPorts.count, outputPorts.count)
 
         let height:CGFloat = 40 + (CGFloat(horizontalMax) * 25)
-        let width:CGFloat = 20 + (CGFloat(verticalMax) * 25)
+
+        // heuristic to choose width without calculating pixel values from rendering a string
+        let width:CGFloat = 20.0 + (6.0 * CGFloat(longestOutputPortTitle.count + longestInputPortTitle.count))
 
         return CGSize(width: max(width, 150), height: max(height, 60) )
     }
