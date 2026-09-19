@@ -28,7 +28,7 @@ struct JavaScriptNodeDiagnosticsTests
     /// rewrite from the annotated form produces, and so the shape every migrated
     /// script has.
     private static let throwingTypeScript = """
-    function main(Spec: FabricString): { Count: FabricInt }
+    function main(Spec: String): { Count: Int }
     {
         return { Count: JSON.parse(Spec).surfaces.length };
     }
@@ -45,7 +45,7 @@ struct JavaScriptNodeDiagnosticsTests
     /// Declares three numbers and returns two of them. Nothing throws: the
     /// script is wrong only about the shape of one value it hands back.
     private static let shortVectorScript = """
-    function main(a: FabricNumber): { Position: FabricVector3 }
+    function main(a: Number): { Position: Vector3 }
     {
         return { Position: [1, 2] };
     }
@@ -54,7 +54,7 @@ struct JavaScriptNodeDiagnosticsTests
     /// Declares an output and sets nothing, which is a script choosing to send
     /// nothing this frame rather than a script getting something wrong.
     private static let silentOutputScript = """
-    function main(a: FabricNumber): { Position: FabricVector3 }
+    function main(a: Number): { Position: Vector3 }
     {
         return {};
     }
@@ -183,10 +183,10 @@ struct JavaScriptNodeDiagnosticsTests
         try harness.execute(node)
 
         let diagnostic = try #require(node.currentDiagnostics.first,
-                                      "a two-long array is not a FabricVector3, and nothing said so")
+                                      "a two-long array is not a Vector3, and nothing said so")
         #expect(diagnostic.severity == .warning, "the script ran; only one value was wrong")
         #expect(diagnostic.summary.contains("Position"))
-        #expect(diagnostic.summary.contains("FabricVector3"))
+        #expect(diagnostic.summary.contains("Vector3"))
         #expect(diagnostic.summary.contains("2"), "the count is the explanation: \(diagnostic.summary)")
 
         #expect(node.deriveStatuses().first?.kind == "Warning")
@@ -216,7 +216,7 @@ struct JavaScriptNodeDiagnosticsTests
         try #require(node.currentDiagnostics.isEmpty == false)
 
         node.updateScriptSource("""
-        function main(a: FabricNumber): { Position: FabricVector3 }
+        function main(a: Number): { Position: Vector3 }
         {
             return { Position: [1, 2, 3] };
         }

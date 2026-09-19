@@ -34,7 +34,7 @@ struct JavaScriptNodeSignatureTests
     func typeScriptSignatureDeclaresPorts() throws
     {
         let signature = try JavaScriptNodeSourceParser.parse(source: """
-        function main(a: FabricNumber, flag: FabricBool): { total: FabricNumber, image: FabricImage } {
+        function main(a: Number, flag: Bool): { total: Number, image: Image } {
           return { total: a, image: null }
         }
         """)
@@ -49,7 +49,7 @@ struct JavaScriptNodeSignatureTests
     func collectionsComposeFromTheirElement() throws
     {
         let signature = try JavaScriptNodeSourceParser.parse(source: """
-        function main(rows: FabricTransform[], named: Record<string, FabricVector3>, any: Record<string, FabricValue>): { out: FabricString[] } {
+        function main(rows: Transform[], named: Record<string, Vector3>, any: Record<string, Value>): { out: String[] } {
           return { out: [] }
         }
         """)
@@ -66,7 +66,7 @@ struct JavaScriptNodeSignatureTests
     func aScriptCanHaveNoOutputs() throws
     {
         let signature = try JavaScriptNodeSourceParser.parse(source: """
-        function main(value: FabricNumber) {
+        function main(value: Number) {
           console.log(value)
         }
         """)
@@ -79,13 +79,34 @@ struct JavaScriptNodeSignatureTests
     func theRunnableSourceIsPlainJavaScript() throws
     {
         let signature = try JavaScriptNodeSourceParser.parse(source: """
-        function main(a: FabricNumber, b: FabricNumber): { sum: FabricNumber } {
+        function main(a: Number, b: Number): { sum: Number } {
           return { sum: a + b }
         }
         """)
 
         #expect(signature.transpiledSource.contains("function main(a, b)"))
-        #expect(signature.transpiledSource.contains("FabricNumber") == false)
+        // The annotation, not the word: `Number` and `String` are JavaScript
+        // globals, so a body is entitled to say them.
+        #expect(signature.transpiledSource.contains(": Number") == false)
+    }
+
+    /// The type names are the JavaScript globals of the same name, now that
+    /// they are unprefixed. Only the signature is rewritten, so a body calling
+    /// `Number(…)` or `String(…)` has to come through untouched.
+    @Test("A body may call the globals the types are named after")
+    func theTypeNamesDoNotShadowTheGlobals() throws
+    {
+        let signature = try JavaScriptNodeSourceParser.parse(source: """
+        function main(a: String): { n: Number, s: String } {
+          return { n: Number(a), s: String(Number(a) * 2) }
+        }
+        """)
+
+        #expect(signature.transpiledSource.contains("function main(a)"))
+        #expect(signature.transpiledSource.contains("Number(a)"))
+        #expect(signature.transpiledSource.contains("String(Number(a) * 2)"))
+        #expect(signature.inputs.map(\.name) == ["a"])
+        #expect(signature.outputs.map(\.name) == ["n", "s"])
     }
 
     /// The body brace on its own line, and a parameter list over two. Both are
@@ -95,8 +116,8 @@ struct JavaScriptNodeSignatureTests
     func transpilingKeepsTheLineNumbering() throws
     {
         let source = """
-        function main(a: FabricNumber,
-                      b: FabricNumber): { sum: FabricNumber }
+        function main(a: Number,
+                      b: Number): { sum: Number }
         {
           return { sum: a + b }
         }
@@ -113,21 +134,21 @@ struct JavaScriptNodeSignatureTests
     {
         #expect(throws: JavaScriptNodeParseError.self) {
             try JavaScriptNodeSourceParser.parse(source: """
-            function main(a: FabricMatrix): { b: FabricNumber } { return { b: 0 } }
+            function main(a: Matrix): { b: Number } { return { b: 0 } }
             """)
         }
     }
 
-    // MARK: - FabricValue
+    // MARK: - Value
 
-    /// `FabricValue` is how a script says "whatever is plugged in". It is the
+    /// `Value` is how a script says "whatever is plugged in". It is the
     /// value type Fabric's own dictionary nodes default to, so it is the only
     /// spelling that receives them — which is why it is offered at all.
     @Test("A script takes a dictionary of anything")
     func aDictionaryOfAnythingIsAnInput() throws
     {
         let signature = try JavaScriptNodeSourceParser.parse(source: """
-        function main(Spec: Record<string, FabricValue>): { Count: FabricInt } {
+        function main(Spec: Record<string, Value>): { Count: Int } {
           return { Count: Object.keys(Spec).length }
         }
         """)
@@ -138,14 +159,14 @@ struct JavaScriptNodeSignatureTests
 
     /// The other direction has nothing to box a value back into, so it is
     /// refused where it used to compile and then quietly emit nothing.
-    @Test("A script cannot return a FabricValue, however it is wrapped")
+    @Test("A script cannot return a Value, however it is wrapped")
     func aVirtualOutputIsRefused() throws
     {
-        for returnType in ["FabricValue", "FabricValue[]", "Record<string, FabricValue>"]
+        for returnType in ["Value", "Value[]", "Record<string, Value>"]
         {
             #expect(throws: JavaScriptNodeParseError.self) {
                 try JavaScriptNodeSourceParser.parse(source: """
-                function main(a: FabricNumber): { out: \(returnType) } { return { out: a } }
+                function main(a: Number): { out: \(returnType) } { return { out: a } }
                 """)
             }
         }
@@ -156,11 +177,11 @@ struct JavaScriptNodeSignatureTests
     {
         let error = #expect(throws: JavaScriptNodeParseError.self) {
             try JavaScriptNodeSourceParser.parse(source: """
-            function main(a: FabricNumber): { out: Record<string, FabricValue> } { return { out: {} } }
+            function main(a: Number): { out: Record<string, Value> } { return { out: {} } }
             """)
         }
 
-        #expect(error?.errorDescription?.contains("Record<string, FabricValue>") == true,
+        #expect(error?.errorDescription?.contains("Record<string, Value>") == true,
                 "got: \(error?.errorDescription ?? "no description")")
     }
 
@@ -212,7 +233,7 @@ struct JavaScriptNodeSignatureTests
         let signature = try JavaScriptNodeSourceParser.parse(source: Self.annotated)
 
         #expect(signature.canonicalSource.contains(
-            "function main(Spec: FabricString, FlipV: FabricBool): { Geometry: FabricTransform[], UV: FabricTransform[], Names: FabricString[], Count: FabricInt }"))
+            "function main(Spec: String, FlipV: Bool): { Geometry: Transform[], UV: Transform[], Names: String[], Count: Int }"))
         #expect(signature.canonicalSource.contains("__array_transform") == false)
 
         // The body is the author's, and is not touched.

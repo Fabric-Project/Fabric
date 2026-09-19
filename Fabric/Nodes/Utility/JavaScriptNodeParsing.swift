@@ -75,7 +75,7 @@ enum JavaScriptNodeParseError: LocalizedError
         case .blockedSyntax(let token):
             return "Blocked JavaScript syntax: \(token)"
         case .missingMainSignature:
-            return "Expected `function main(name: FabricType, …): { name: FabricType, … }` at the top level."
+            return "Expected `function main(name: Type, …): { name: Type, … }` at the top level."
         case .invalidAnnotation(let annotation):
             return "Invalid port declaration `\(annotation)`."
         case .duplicatePortName(let name):
@@ -83,7 +83,7 @@ enum JavaScriptNodeParseError: LocalizedError
         case .unsupportedType(let type):
             return "Unsupported Fabric type `\(type)`."
         case .virtualOutput(let type):
-            return "`\(type)` cannot be an output: there is no way to say what a `FabricValue` is on the way back out."
+            return "`\(type)` cannot be an output: there is no way to say what a `Value` is on the way back out."
         }
     }
 }
@@ -97,7 +97,7 @@ enum JavaScriptNodeSourceParser
         ("dynamic import", #"\bimport\s*\("#),
     ]
 
-    /// `function main(a: FabricNumber): { b: FabricBool }`, stopping at the last
+    /// `function main(a: Number): { b: Bool }`, stopping at the last
     /// character of the signature. A return type is optional — a script with no
     /// outputs has none. The whitespace up to the body brace is deliberately
     /// outside the match: it is what separates the signature from the body, and
@@ -115,22 +115,22 @@ enum JavaScriptNodeSourceParser
     /// dictionaries are written the way TypeScript writes them — `T[]` and
     /// `Record<string, T>` — so they are composed rather than listed here.
     static let scalarTypeLookup: [String: PortType] = [
-        "FabricBool": .Bool,
-        "FabricInt": .Int,
-        "FabricNumber": .Float,
-        "FabricString": .String,
-        "FabricVector2": .Vector2,
-        "FabricVector3": .Vector3,
-        "FabricVector4": .Vector4,
-        "FabricColor": .Color,
-        "FabricQuaternion": .Quaternion,
-        "FabricTransform": .Transform,
-        "FabricGeometry": .Geometry,
-        "FabricMaterial": .Material,
-        "FabricImage": .Image,
+        "Bool": .Bool,
+        "Int": .Int,
+        "Number": .Float,
+        "String": .String,
+        "Vector2": .Vector2,
+        "Vector3": .Vector3,
+        "Vector4": .Vector4,
+        "Color": .Color,
+        "Quaternion": .Quaternion,
+        "Transform": .Transform,
+        "Geometry": .Geometry,
+        "Material": .Material,
+        "Image": .Image,
         // Only meaningful as a dictionary's value: a dictionary that takes any
         // of the above.
-        "FabricValue": .Virtual,
+        "Value": .Virtual,
     ]
 
     /// The annotated form's type names, kept so scripts written against it go on
@@ -188,7 +188,7 @@ enum JavaScriptNodeSourceParser
         return scalarTypeLookup[trimmed]
     }
 
-    /// A `FabricValue` anywhere in a type: bare, an array's element, or a
+    /// A `Value` anywhere in a type: bare, an array's element, or a
     /// dictionary's value. The bridge has nothing to box such a value back into
     /// — see `virtualOutput` — so it is an input's to declare and no output's.
     static func isVirtual(_ portType: PortType) -> Bool
@@ -326,7 +326,7 @@ enum JavaScriptNodeSourceParser
     {
         func declaration(_ port: JavaScriptNodePortDefinition) -> String
         {
-            "\(port.name): \(typeScriptName(for: port.portType) ?? "FabricValue")"
+            "\(port.name): \(typeScriptName(for: port.portType) ?? "Value")"
         }
 
         let parameters = inputs.map(declaration).joined(separator: ", ")

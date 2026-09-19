@@ -6,7 +6,7 @@ declares the node's ports, and running it moves values through them.
 ## The signature
 
 ```typescript
-function main(a: FabricNumber, b: FabricNumber): { sum: FabricNumber, over: FabricBool } {
+function main(a: Number, b: Number): { sum: Number, over: Bool } {
   const total = a + b
   return { sum: total, over: total > 1 }
 }
@@ -23,28 +23,28 @@ A script with nothing to send declares no return type.
 
 | Signature type | Arrives as | Return as |
 | --- | --- | --- |
-| `FabricBool` | `boolean` | `boolean` |
-| `FabricInt` | `number` | `number`, truncated to a 32-bit integer |
-| `FabricNumber` | `number` | `number` |
-| `FabricString` | `string` | `string` |
-| `FabricVector2` | `[x, y]` | two numbers |
-| `FabricVector3` | `[x, y, z]` | three numbers |
-| `FabricVector4` | `[x, y, z, w]` | four numbers |
-| `FabricColor` | `[r, g, b, a]` | four numbers |
-| `FabricQuaternion` | `[x, y, z, w]` | four numbers, `w` last |
-| `FabricTransform` | sixteen numbers | sixteen numbers, column-major |
-| `FabricGeometry` | `{ type, handleID, vertexCount, indexCount, boundsMin, boundsMax }` | the object it arrived as |
-| `FabricMaterial` | `{ type, handleID, label, hasShader, parameterCount, blending }` | the object it arrived as |
-| `FabricImage` | `{ type, handleID, width, height, textureTransform, pixelFormat }` | the object it arrived as |
+| `Bool` | `boolean` | `boolean` |
+| `Int` | `number` | `number`, truncated to a 32-bit integer |
+| `Number` | `number` | `number` |
+| `String` | `string` | `string` |
+| `Vector2` | `[x, y]` | two numbers |
+| `Vector3` | `[x, y, z]` | three numbers |
+| `Vector4` | `[x, y, z, w]` | four numbers |
+| `Color` | `[r, g, b, a]` | four numbers |
+| `Quaternion` | `[x, y, z, w]` | four numbers, `w` last |
+| `Transform` | sixteen numbers | sixteen numbers, column-major |
+| `Geometry` | `{ type, handleID, vertexCount, indexCount, boundsMin, boundsMax }` | the object it arrived as |
+| `Material` | `{ type, handleID, label, hasShader, parameterCount, blending }` | the object it arrived as |
+| `Image` | `{ type, handleID, width, height, textureTransform, pixelFormat }` | the object it arrived as |
 
-An array of any of them is `FabricType[]`, and a dictionary keyed by string is
-`Record<string, FabricType>`. Both nest: `Record<string, FabricTransform[]>` is a
+An array of any of them is `Type[]`, and a dictionary keyed by string is
+`Record<string, Type>`. Both nest: `Record<string, Transform[]>` is a
 dictionary of arrays.
 
-`FabricValue` is any value at all, and is what the dictionary nodes and the JSON
-parser hand out, so `Record<string, FabricValue>` is how a script takes one of
+`Value` is any value at all, and is what the dictionary nodes and the JSON
+parser hand out, so `Record<string, Value>` is how a script takes one of
 those. It can only be an input, in any of its forms: a signature that returns a
-`FabricValue` is refused, because there is no way to say what a value is on the
+`Value` is refused, because there is no way to say what a value is on the
 way back out.
 
 A transform's sixteen numbers are four columns of four, so `m[12]`, `m[13]` and
