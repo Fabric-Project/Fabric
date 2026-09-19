@@ -93,6 +93,9 @@ let package = Package(
                 "Nodes/Geometry/SuperShape/SuperShapeGenerator.mm",
                 "Nodes/Geometry/SuperShape/SuperShapeGenerator.h",
                 "Nodes/Deprecated",
+                // Read on GitHub, where the JavaScript node's settings link to
+                // it. Named here so it is not taken for an unhandled resource.
+                "Nodes/Utility/JavaScriptNodeGuidance.markdown",
                 "Nodes/Parameters/Number/Deprecated",
                 "module.modulemap",
                 "Fabric.h",
