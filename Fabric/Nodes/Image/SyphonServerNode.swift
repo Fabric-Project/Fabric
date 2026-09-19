@@ -75,13 +75,30 @@ public class SyphonServerNode : Node
             let region = NSRect(origin: .zero,
                                 size: CGSize(width: inputImage.texture.width, height: inputImage.texture.height))
 
-            let syphonRequiresVerticalFlip = inputImage.textureTransform == .textureVerticalFlip
             self.syphonServer.publishFrameTexture(inputImage.texture,
                                                   on: commandBuffer,
                                                   imageRegion: region,
-                                                  flipped: syphonRequiresVerticalFlip)
+                                                  flipped: Self.syphonRequiresVerticalFlip(for: inputImage.textureTransform))
         }
      }
+
+    /// Whether Syphon has to turn the frame over on its way into the shared
+    /// surface.
+    ///
+    /// Syphon's surfaces are bottom-up, so a canonical top-left image is the
+    /// one that needs turning over, and an image whose stored texture is
+    /// already flipped is already in Syphon's orientation and goes across as
+    /// it stands — which is what a frame from `SyphonClientNode` is.
+    ///
+    /// A flag can only say those two things. An image carrying any other
+    /// transform — a movie's rotation, a crop — is published as though it were
+    /// canonical, because there is nowhere in `publishFrameTexture` to put the
+    /// rest of the matrix. Such a frame needs resampling into canonical
+    /// orientation before it gets here.
+    static func syphonRequiresVerticalFlip(for storedTextureTransform: simd_float4x4) -> Bool
+    {
+        storedTextureTransform != .textureVerticalFlip
+    }
 }
 
 #endif // FABRIC_SYPHON_ENABLED

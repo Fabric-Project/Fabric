@@ -234,7 +234,16 @@ public class SyphonClientNode : Node
            syphonClient.isValid,
            let texture = syphonClient.newFrameImage()
         {
-            self.outputTexturePort.send(FabricImage.unmanaged(texture: texture))
+            // A Syphon surface is bottom-up, and the client wraps it as it
+            // stands — `newFrameImage` builds a texture straight onto the
+            // IOSurface and turns nothing over. So the frame in hand is upside
+            // down to Fabric's canonical top-left, and says so rather than
+            // being copied the right way up: downstream samples through the
+            // transform, and a frame passed back out to Syphon is already in
+            // the orientation Syphon wants.
+            let image = FabricImage.unmanaged(texture: texture)
+            image.textureTransform = .textureVerticalFlip
+            self.outputTexturePort.send(image)
         }
         else
         {
