@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Metal
+import MetalPerformanceShaders
 import Satin
 
 // Graph Execution Engine
@@ -146,6 +147,22 @@ public class GraphRenderer : ViewRenderer
     }
 
     // MARK: - Draw
+
+    // Fabric's per-frame command buffer must be an MPSCommandBuffer, not a plain
+    // MTLCommandBuffer: MPSGraphExecutable.encode(to:) requires one, and can internally
+    // call commitAndContinue() on it depending on the compiled graph. Wrapping it once
+    // here -- at its single point of creation, before it is handed to any node -- means
+    // every caller (this class's own draw/postDraw, and every MPS-backed node) shares
+    // the same instance for the whole frame. commitAndContinue() keeps that instance
+    // valid to keep encoding on and to eventually .commit(), no matter how many times it
+    // fires. Wrapping a shared buffer locally anywhere else (e.g. inside an individual
+    // node, or inside an MPS SPM package) would create a second, temporary wrapper that
+    // the rest of the frame doesn't know about, and is unsafe for the same reason.
+    override public func preDraw() -> MTLCommandBuffer?
+    {
+        guard let rawCommandBuffer = super.preDraw() else { return nil }
+        return MPSCommandBuffer(commandBuffer: rawCommandBuffer)
+    }
 
     override public func draw(renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
