@@ -122,6 +122,10 @@ public class LiveImageNode: BaseImageNode
         do {
             // Use non-atomic writes to preserve inode/watcher continuity for live recompiles.
             try source.write(to: shaderFileURL, atomically: false, encoding: .utf8)
+            // A write that succeeds retires whatever the last one failed with.
+            // Nothing else clears this outside init, so without it one transient
+            // failure leaves the node refusing to run for the document's life.
+            self.workspaceError = nil
             self.recompileAndResyncPorts()
         }
         catch {
