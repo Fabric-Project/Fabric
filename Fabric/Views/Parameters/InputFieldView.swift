@@ -62,9 +62,11 @@ struct InputFieldView: View
 
     init(param:StringParameter)
     {
-        
+        // The whole value, however much of it the field can show. This read is
+        // what an edit is compared and written back against, so shortening it
+        // here commits the shortening as soon as a rebuilt field is typed into.
         self.vm = ParameterObservableModel(label: param.label,
-                                           get: { String(param.value.prefix(100)) },
+                                           get: { param.value },
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher)
     }
