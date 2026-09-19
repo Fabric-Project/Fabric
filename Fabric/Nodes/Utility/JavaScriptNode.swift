@@ -9,12 +9,13 @@ import Foundation
 import JavaScriptCore
 import Metal
 import Satin
+import Synchronization
 import SwiftUI
 import simd
 
-public struct JavaScriptNodeDiagnostic: Hashable
+public struct JavaScriptNodeDiagnostic: Hashable, Sendable
 {
-    public enum Severity: String, Codable, Hashable
+    public enum Severity: String, Codable, Hashable, Sendable
     {
         case error
         case warning
@@ -499,12 +500,27 @@ public final class JavaScriptNode: Node
     @ObservationIgnored private(set) var scriptSource: String = JavaScriptNode.defaultScriptSource()
     @ObservationIgnored private var compiledSignature: JavaScriptNodeSignature?
     @ObservationIgnored private var runtime: JavaScriptNodeRuntime?
-    @ObservationIgnored private var diagnostics: [JavaScriptNodeDiagnostic] = []
+    /// What the script last had to say about itself. `execute` writes this from
+    /// the renderer thread, and the canvas reads it on the main thread through
+    /// `deriveStatuses` — as does the settings panel — so every access to the
+    /// array itself goes through the lock.
+    private let diagnosticsState = Mutex<[JavaScriptNodeDiagnostic]>([])
+
+    private var diagnostics: [JavaScriptNodeDiagnostic]
     {
-        didSet
+        get { self.diagnosticsState.withLock { $0 } }
+        set
         {
-            guard oldValue != diagnostics else { return }
-            self.subtitleSubject.send()
+            let changed = self.diagnosticsState.withLock { state in
+                guard state != newValue else { return false }
+                state = newValue
+                return true
+            }
+
+            // Sent with the lock given up, and not only to keep a frame off the
+            // canvas's wake: a subscriber's first move is to read the statuses
+            // back, and this lock is not recursive.
+            if changed { self.subtitleSubject.send() }
         }
     }
 
