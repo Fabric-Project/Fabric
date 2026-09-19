@@ -46,7 +46,7 @@ struct MathExpressionView: View
         {
             CodeEditorGuidance(
                 "Write an expression — free names become input ports, results become output ports. Beyond numbers, values can be vectors, transforms or arrays, and a single expression can drive several named inputs and outputs at once.",
-                guide: "[Language guide ↗](https://github.com/tobyspark/MathExpressionEngine/blob/main/GUIDE.md)")
+                guide: "[Language guide ↗](https://github.com/Fabric-Project/MathExpressionEngine/blob/main/GUIDE.md)")
 
             if model.showsCode { codeEditor } else { simpleField }
         }
