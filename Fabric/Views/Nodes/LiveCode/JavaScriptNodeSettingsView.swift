@@ -51,6 +51,16 @@ import LanguageSupport
         guard let node else { return }
         node.updateScriptSource(self.content)
         node.updateModes(executionMode: self.selectedExecutionMode, timeMode: self.selectedTimeMode)
+
+        // A script written in the annotated form is kept as the TypeScript it
+        // was read as. Taking that back is what puts the rewrite in front of the
+        // author; without it the editor still holds the annotated text and the
+        // next keystroke saves it over the node's canonical form again.
+        if node.scriptSource != self.content
+        {
+            self.content = node.scriptSource
+        }
+
         self.refreshMessages()
     }
 
