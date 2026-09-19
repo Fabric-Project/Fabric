@@ -852,6 +852,41 @@ struct GraphExecutionTests {
         #expect(availableNames.contains(PostProcessMotionBlurNode.name))
     }
 
+    @Test("Zip Depth node produces a Float32 depth image at its native model resolution")
+    func zipDepthNodeProducesDepthImage() throws {
+        guard let harness = GraphExecutionTestHarness() else { return }
+
+        let graph = Graph(context: harness.context)
+        let node = ZipDepthNode(context: harness.context)
+        node.inputImage.value = try harness.makeImage(
+            width: 32,
+            height: 32,
+            pixelFormat: harness.context.colorPixelFormat
+        )
+        graph.addNode(node)
+        publish(node.outputDepthImage, in: graph)
+
+        let executionContext = harness.makeExecutionContext(time: 0, deltaTime: 0, frameNumber: 0)
+        try harness.renderer.startExecution(graph: graph)
+        try harness.render(graph: graph, executionInfo: executionContext, drawScene: false)
+        try harness.renderer.stopExecution(graph: graph)
+
+        // ZipDepthNode no longer upsamples to presentation resolution -- it
+        // outputs at its native model resolution (short side 384, other side
+        // rounded to the nearest multiple of 32) and leaves upsampling to a
+        // downstream node. A 32x32 input is square, so both sides land on 384.
+        let outputImage = try requireValue(node.outputDepthImage.value, "Expected Zip Depth output image")
+        #expect(outputImage.texture.width == 384)
+        #expect(outputImage.texture.height == 384)
+        #expect(outputImage.texture.pixelFormat == .r32Float)
+    }
+
+    @Test("Zip Depth node is registered in the node registry")
+    func zipDepthNodeIsRegistered() throws {
+        let availableNames = try Set(NodeRegistry.shared.availableNodes.map(\.nodeName))
+        #expect(availableNames.contains(ZipDepthNode.name))
+    }
+
     @Test("Render info reports renderer size and execution count")
     func renderInfoReportsMetrics() throws {
         guard let harness = GraphExecutionTestHarness(renderWidth: 640, renderHeight: 360) else { return }

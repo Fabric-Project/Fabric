@@ -236,6 +236,7 @@ HDR -> SDR conversion
 - [x] Apply Mask
 - [x] Foreground Mask (ML)
 - [x] Person Mask (ML)
+- [x] Joint Bilateral Filter (edge-aware smoothing guided by a second image, e.g. sharpening a low-res segmentation mask against the source frame)
 
 ### Tiling
 
@@ -310,7 +311,7 @@ HDR -> SDR conversion
 - [x] Marching Squares Contour (needs better stability at edges)
 - [x] Contour Path
 - [ ] Blob Detection (requires nested array support)
-- [ ] Segmentation
+- [x] Segmentation (MediaPipe Selfie Segmentation, see below)
 - [x] Lucas-Kanade Optical Flow
 - [x] Gradient Flow
 - [x] Gradient Flow Offset
@@ -318,7 +319,11 @@ HDR -> SDR conversion
 - [x] Face Pose Analysis / Landmark
 - [x] Hand Pose Detection / Landmark
 - [ ] Body Pose Detection / Landmark
-- [ ] Depth Map Prediction
+- [x] MediaPipe Face/Hand Detection + Landmark (BlazeFace/BlazeHand + FaceMesh/hand landmark, MPSGraph, test/comparison path; Face Landmark also exposes Geometry/Transform outputs, connection-gated, fit against the canonical face model via MediaPipe Face Geometry's ported solver)
+- [x] MediaPipe Pose Detection + Landmark (BlazePose, 33 keypoints, MPSGraph, test/comparison path)
+- [x] MediaPipe Selfie Segmentation (person-vs-background mask, General/Landscape variants, MPSGraph, test/comparison path)
+- [x] Zip Depth Map Prediction
+- [x] Depth Calibration (Relative Depth → Reverse-Z Scene Depth)
 - [x] Metal FX 2x Upsampler (ML based)  
 - [x] FXAA Antialiasing  
 - [ ] Image Embedding Vector( via fast Clip like model or Vision Feature Print? whats most useful - careful do we want to stray into comfy ui bullshit? )
