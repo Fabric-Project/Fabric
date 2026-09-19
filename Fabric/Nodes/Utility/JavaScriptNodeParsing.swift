@@ -66,6 +66,7 @@ enum JavaScriptNodeParseError: LocalizedError
     case invalidAnnotation(String)
     case duplicatePortName(String)
     case unsupportedType(String)
+    case virtualOutput(String)
 
     var errorDescription: String?
     {
@@ -81,6 +82,8 @@ enum JavaScriptNodeParseError: LocalizedError
             return "Port name `\(name)` is declared more than once."
         case .unsupportedType(let type):
             return "Unsupported Fabric type `\(type)`."
+        case .virtualOutput(let type):
+            return "`\(type)` cannot be an output: there is no way to say what a `FabricValue` is on the way back out."
         }
     }
 }
@@ -183,6 +186,20 @@ enum JavaScriptNodeSourceParser
         }
 
         return scalarTypeLookup[trimmed]
+    }
+
+    /// A `FabricValue` anywhere in a type: bare, an array's element, or a
+    /// dictionary's value. The bridge has nothing to box such a value back into
+    /// — see `virtualOutput` — so it is an input's to declare and no output's.
+    static func isVirtual(_ portType: PortType) -> Bool
+    {
+        switch portType
+        {
+        case .Virtual: return true
+        case .Array(portType: let element): return isVirtual(element)
+        case .Dictionary(valueType: let value): return isVirtual(value)
+        default: return false
+        }
     }
 
     /// How a port type is written in a signature.
@@ -360,6 +377,11 @@ enum JavaScriptNodeSourceParser
                 throw JavaScriptNodeParseError.unsupportedType(typeName)
             }
 
+            if direction == .output, isVirtual(portType)
+            {
+                throw JavaScriptNodeParseError.virtualOutput(typeName)
+            }
+
             if seenNames.contains(name) { throw JavaScriptNodeParseError.duplicatePortName(name) }
             seenNames.insert(name)
 
@@ -401,6 +423,11 @@ enum JavaScriptNodeSourceParser
             guard let portType = annotatedTypeLookup[normalizedType] else
             {
                 throw JavaScriptNodeParseError.unsupportedType(typeToken)
+            }
+
+            if direction == .output, isVirtual(portType)
+            {
+                throw JavaScriptNodeParseError.virtualOutput(typeToken)
             }
 
             if seenNames.contains(nameToken) { throw JavaScriptNodeParseError.duplicatePortName(nameToken) }

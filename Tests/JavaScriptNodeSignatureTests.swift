@@ -118,6 +118,67 @@ struct JavaScriptNodeSignatureTests
         }
     }
 
+    // MARK: - FabricValue
+
+    /// `FabricValue` is how a script says "whatever is plugged in". It is the
+    /// value type Fabric's own dictionary nodes default to, so it is the only
+    /// spelling that receives them — which is why it is offered at all.
+    @Test("A script takes a dictionary of anything")
+    func aDictionaryOfAnythingIsAnInput() throws
+    {
+        let signature = try JavaScriptNodeSourceParser.parse(source: """
+        function main(Spec: Record<string, FabricValue>): { Count: FabricInt } {
+          return { Count: Object.keys(Spec).length }
+        }
+        """)
+
+        #expect(names(signature.inputs) == ["Spec"])
+        #expect(signature.inputs.first?.portType == .Dictionary(valueType: .Virtual))
+    }
+
+    /// The other direction has nothing to box a value back into, so it is
+    /// refused where it used to compile and then quietly emit nothing.
+    @Test("A script cannot return a FabricValue, however it is wrapped")
+    func aVirtualOutputIsRefused() throws
+    {
+        for returnType in ["FabricValue", "FabricValue[]", "Record<string, FabricValue>"]
+        {
+            #expect(throws: JavaScriptNodeParseError.self) {
+                try JavaScriptNodeSourceParser.parse(source: """
+                function main(a: FabricNumber): { out: \(returnType) } { return { out: a } }
+                """)
+            }
+        }
+    }
+
+    @Test("The refusal says which type it is refusing")
+    func theVirtualOutputErrorNamesTheType() throws
+    {
+        let error = #expect(throws: JavaScriptNodeParseError.self) {
+            try JavaScriptNodeSourceParser.parse(source: """
+            function main(a: FabricNumber): { out: Record<string, FabricValue> } { return { out: {} } }
+            """)
+        }
+
+        #expect(error?.errorDescription?.contains("Record<string, FabricValue>") == true,
+                "got: \(error?.errorDescription ?? "no description")")
+    }
+
+    /// `__dictionary` is the annotated form's spelling of the same thing, and
+    /// has been emitting nothing for as long as it has been parsed.
+    @Test("The annotated form cannot return a dictionary of anything either")
+    func anAnnotatedVirtualOutputIsRefused() throws
+    {
+        #expect(throws: JavaScriptNodeParseError.self) {
+            try JavaScriptNodeSourceParser.parse(source: """
+            function (__dictionary Out) main(__string Spec)
+            {
+                return { Out: {} };
+            }
+            """)
+        }
+    }
+
     // MARK: - The annotated form it replaced
 
     /// The signature of the immersive room document's script, which is the shape

@@ -41,8 +41,11 @@ An array of any of them is `FabricType[]`, and a dictionary keyed by string is
 `Record<string, FabricType>`. Both nest: `Record<string, FabricTransform[]>` is a
 dictionary of arrays.
 
-`Record<string, FabricValue>` takes a dictionary of anything, and can only be an
-input — there is no way to say what a value is on the way back out.
+`FabricValue` is any value at all, and is what the dictionary nodes and the JSON
+parser hand out, so `Record<string, FabricValue>` is how a script takes one of
+those. It can only be an input, in any of its forms: a signature that returns a
+`FabricValue` is refused, because there is no way to say what a value is on the
+way back out.
 
 A transform's sixteen numbers are four columns of four, so `m[12]`, `m[13]` and
 `m[14]` are its translation.
