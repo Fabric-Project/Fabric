@@ -12,9 +12,23 @@ extension Theme
     /// The theme every code editor in the app uses, in the appearance the system
     /// is in. `CodeEditor` takes a theme rather than reading the environment, so
     /// it is resolved per editor against that editor's own `\.colorScheme`.
+    ///
+    /// Both are built once. Writing any of a theme's properties stamps it with a
+    /// fresh `id`, and `CodeEditor` restyles the whole text storage whenever that
+    /// `id` differs from the one it holds — so a theme built per view update has
+    /// a new identity on every keystroke, and is paid for on every keystroke.
+    @MainActor
     public static func v(for colorScheme: ColorScheme) -> Theme
     {
-        var theme = colorScheme == .dark ? Theme.defaultDark : Theme.defaultLight
+        colorScheme == .dark ? Self.vDark : Self.vLight
+    }
+
+    @MainActor private static let vDark = Theme.v(basedOn: .defaultDark)
+    @MainActor private static let vLight = Theme.v(basedOn: .defaultLight)
+
+    private static func v(basedOn base: Theme) -> Theme
+    {
+        var theme = base
         theme.fontName = "SFMono-Medium"
         theme.fontSize = 11.0
         return theme
