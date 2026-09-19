@@ -94,10 +94,13 @@ enum JavaScriptNodeSourceParser
         ("dynamic import", #"\bimport\s*\("#),
     ]
 
-    /// `function main(a: FabricNumber): { b: FabricBool }`, stopping at the body
-    /// brace. A return type is optional — a script with no outputs has none.
+    /// `function main(a: FabricNumber): { b: FabricBool }`, stopping at the last
+    /// character of the signature. A return type is optional — a script with no
+    /// outputs has none. The whitespace up to the body brace is deliberately
+    /// outside the match: it is what separates the signature from the body, and
+    /// replacing the match must not take it — see `lineSpanPreserved`.
     private static let typeScriptSignaturePattern =
-        #"function\s+main\s*\(([^)]*)\)\s*(?::\s*(\{[^}]*\}|void))?\s*(?=\{)"#
+        #"function\s+main\s*\(([^)]*)\)(?:\s*:\s*(\{[^}]*\}|void))?(?=\s*\{)"#
 
     /// The annotated form this node started with: `function (__type name) main(__type name)`.
     private static let annotatedSignaturePattern =
@@ -246,7 +249,9 @@ enum JavaScriptNodeSourceParser
         return JavaScriptNodeSignature(
             inputs: inputs,
             outputs: outputs,
-            transpiledSource: source.replacingCharacters(in: fullRange, with: runnableSignature(inputs: inputs)),
+            transpiledSource: source.replacingCharacters(
+                in: fullRange,
+                with: lineSpanPreserved(runnableSignature(inputs: inputs), replacing: source[fullRange])),
             canonicalSource: source)
     }
 
@@ -267,15 +272,31 @@ enum JavaScriptNodeSourceParser
 
         try rejectDuplicates(inputs: inputs, outputs: outputs)
 
+        let replaced = source[fullRange]
+
         return JavaScriptNodeSignature(
             inputs: inputs,
             outputs: outputs,
-            transpiledSource: source.replacingCharacters(in: fullRange, with: runnableSignature(inputs: inputs)),
-            canonicalSource: source.replacingCharacters(in: fullRange,
-                                                        with: typeScriptSignature(inputs: inputs, outputs: outputs)))
+            transpiledSource: source.replacingCharacters(
+                in: fullRange,
+                with: lineSpanPreserved(runnableSignature(inputs: inputs), replacing: replaced)),
+            canonicalSource: source.replacingCharacters(
+                in: fullRange,
+                with: lineSpanPreserved(typeScriptSignature(inputs: inputs, outputs: outputs), replacing: replaced)))
     }
 
     // MARK: - Signatures
+
+    /// A signature written to take up as many lines as the one it stands in for.
+    /// JavaScriptCore reports an exception at a line of the transpiled source and
+    /// the editor marks that line of the script the author wrote, so a signature
+    /// rewritten onto fewer lines would report every line below it too high.
+    private static func lineSpanPreserved(_ replacement: String, replacing replaced: Substring) -> String
+    {
+        let shortfall = replaced.filter(\.isNewline).count - replacement.filter(\.isNewline).count
+        guard shortfall > 0 else { return replacement }
+        return replacement + String(repeating: "\n", count: shortfall)
+    }
 
     /// What JavaScriptCore is given: no types, no return type.
     private static func runnableSignature(inputs: [JavaScriptNodePortDefinition]) -> String

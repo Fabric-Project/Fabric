@@ -24,6 +24,16 @@ struct JavaScriptNodeDiagnosticsTests
     }
     """
 
+    /// The TypeScript form with the body brace on its own line — the shape the
+    /// rewrite from the annotated form produces, and so the shape every migrated
+    /// script has.
+    private static let throwingTypeScript = """
+    function main(Spec: FabricString): { Count: FabricInt }
+    {
+        return { Count: JSON.parse(Spec).surfaces.length };
+    }
+    """
+
     /// Returns, but not an object carrying the declared outputs.
     private static let nonObjectScript = """
     function (__int Count) main(__string Spec)
@@ -78,6 +88,20 @@ struct JavaScriptNodeDiagnosticsTests
 
         #expect(diagnostic?.line ?? 0 > 0,
                 "the diagnostic should point into the script, not at its first character")
+    }
+
+    /// Not merely "into the script": the whole worth of the line is that it is
+    /// the right one, and a signature transpiled onto fewer lines than it was
+    /// written on is off by exactly the difference.
+    @Test("A throwing script points at the line it threw on, not the one above")
+    func aThrowingScriptPointsAtTheLineItThrewOn() throws
+    {
+        guard GraphExecutionTestHarness() != nil else { return }
+        let diagnostic = try run(Self.throwingTypeScript).first
+
+        // Zero-based, so the third line of the script.
+        #expect(diagnostic?.line == 2,
+                "the JSON.parse is on line 3, reported at line \((diagnostic?.line ?? -1) + 1)")
     }
 
     @Test("A script that will not compile says so on the node")

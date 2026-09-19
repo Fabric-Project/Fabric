@@ -26,6 +26,8 @@ struct JavaScriptNodeSignatureTests
 
     private func names(_ ports: [JavaScriptNodePortDefinition]) -> [String] { ports.map(\.name) }
 
+    private static func lineCount(_ text: String) -> Int { text.filter(\.isNewline).count + 1 }
+
     // MARK: - TypeScript
 
     @Test("Parameters are inputs and the return type is outputs")
@@ -86,6 +88,26 @@ struct JavaScriptNodeSignatureTests
         #expect(signature.transpiledSource.contains("FabricNumber") == false)
     }
 
+    /// The body brace on its own line, and a parameter list over two. Both are
+    /// shapes the rewrite from the annotated form can leave behind, and both put
+    /// the signature on more lines than the one it is transpiled to.
+    @Test("Transpiling a signature leaves every line below it where it was")
+    func transpilingKeepsTheLineNumbering() throws
+    {
+        let source = """
+        function main(a: FabricNumber,
+                      b: FabricNumber): { sum: FabricNumber }
+        {
+          return { sum: a + b }
+        }
+        """
+
+        let signature = try JavaScriptNodeSourceParser.parse(source: source)
+
+        #expect(Self.lineCount(signature.transpiledSource) == Self.lineCount(source),
+                "the body moved: \n\(signature.transpiledSource)")
+    }
+
     @Test("A type Fabric has no port for is named in the error")
     func anUnknownTypeIsReported() throws
     {
@@ -134,6 +156,25 @@ struct JavaScriptNodeSignatureTests
 
         // The body is the author's, and is not touched.
         #expect(signature.canonicalSource.contains("return { Geometry: [], UV: [], Names: [], Count: 0 }"))
+    }
+
+    @Test("The rewrite leaves every line below the signature where it was")
+    func theRewriteKeepsTheLineNumbering() throws
+    {
+        let source = """
+        function (__int Count)
+          main(__string Spec)
+        {
+            return { Count: 1 };
+        }
+        """
+
+        let signature = try JavaScriptNodeSourceParser.parse(source: source)
+
+        #expect(Self.lineCount(signature.canonicalSource) == Self.lineCount(source),
+                "the body moved: \n\(signature.canonicalSource)")
+        #expect(Self.lineCount(signature.transpiledSource) == Self.lineCount(source),
+                "the body moved: \n\(signature.transpiledSource)")
     }
 
     @Test("The rewrite parses as itself, to the same ports")
