@@ -45,7 +45,7 @@ private enum JavaScriptNodeExecutionError: LocalizedError
     case missingMainFunction
     case invalidReturnShape
     case extraOutput(String)
-    case invalidOutput(name: String, expected: String)
+    case invalidOutput(name: String, expected: String, returned: String)
 
     var errorDescription: String?
     {
@@ -57,8 +57,8 @@ private enum JavaScriptNodeExecutionError: LocalizedError
             return "JavaScript `main` must return an object containing the declared output values."
         case .extraOutput(let key):
             return "JavaScript returned undeclared output `\(key)`."
-        case .invalidOutput(let name, let expected):
-            return "Output `\(name)` does not match expected type `\(expected)`."
+        case .invalidOutput(let name, let expected, let returned):
+            return "Output `\(name)` is declared `\(expected)`, but the script returned \(returned)."
         }
     }
 }
@@ -328,6 +328,11 @@ private final class JavaScriptNodeRuntime
     private let bridge = JavaScriptValueBridge()
     private(set) var latestDiagnostic: JavaScriptNodeDiagnostic?
 
+    /// Outputs the last run declared but did not return a value this port could
+    /// hold. Not fatal — the script ran, and its other outputs are good — but
+    /// the author is the only one who can reconcile the two, so it is said.
+    private(set) var outputDiagnostics: [JavaScriptNodeDiagnostic] = []
+
     init(signature: JavaScriptNodeSignature) throws
     {
         let context = JSContext()!
@@ -373,6 +378,7 @@ private final class JavaScriptNodeRuntime
                  executionInfo: GraphExecutionInfo) throws -> [String: PortValue?]
     {
         self.latestDiagnostic = nil
+        self.outputDiagnostics = []
         self.context.exception = nil
         self.context.setObject(JavaScriptExecutionContextValue(executionInfo: executionInfo), forKeyedSubscript: "context" as NSString)
 
@@ -406,13 +412,54 @@ private final class JavaScriptNodeRuntime
         var outputs: [String: PortValue?] = [:]
         for definition in signature.outputs {
             let outputValue = result.forProperty(definition.name)
-            guard let boxedValue = bridge.boxedValue(from: outputValue, as: definition.portType) ?? nil else {
+
+            // Undefined and null are a script declining to set an output this
+            // frame, which sends nothing and is nobody's mistake.
+            guard let outputValue,
+                  outputValue.isUndefined == false,
+                  outputValue.isNull == false
+            else {
                 outputs[definition.name] = nil
                 continue
             }
+
+            // Anything else that will not box is the declared type and the
+            // returned value disagreeing. Sending nil for it and saying nothing
+            // leaves an author watching a port that never fires with no idea why.
+            guard let boxedValue = bridge.boxedValue(from: outputValue, as: definition.portType) else {
+                let expected = JavaScriptNodeSourceParser.typeScriptName(for: definition.portType)
+                    ?? definition.portType.rawValue
+                let error = JavaScriptNodeExecutionError.invalidOutput(name: definition.name,
+                                                                      expected: expected,
+                                                                      returned: Self.describe(outputValue))
+                let summary = error.errorDescription ?? "Output `\(definition.name)` will not box."
+                self.outputDiagnostics.append(JavaScriptNodeDiagnostic(severity: .warning,
+                                                                       summary: summary,
+                                                                       detail: summary))
+                outputs[definition.name] = nil
+                continue
+            }
+
             outputs[definition.name] = boxedValue
         }
         return outputs
+    }
+
+    /// What came back, from JavaScript's side of the bridge. An array's count is
+    /// worth carrying: a `FabricVector3` that arrives two long is the common
+    /// version of this mistake, and the count is the whole of the explanation.
+    private static func describe(_ value: JSValue) -> String
+    {
+        if value.isBoolean { return "a boolean" }
+        if value.isNumber { return "a number" }
+        if value.isString { return "a string" }
+        if value.isArray
+        {
+            let count = Int(value.forProperty("length")?.toInt32() ?? 0)
+            return count == 1 ? "an array of 1 value" : "an array of \(count) values"
+        }
+        if value.isObject { return "an object" }
+        return "a value it cannot box"
     }
 
     private static func makeDiagnostic(from exception: JSValue?) -> JavaScriptNodeDiagnostic
@@ -567,7 +614,7 @@ public final class JavaScriptNode: Node
 
         do {
             let outputValues = try runtime.execute(signature: compiledSignature, node: self, executionInfo: executionInfo)
-            self.diagnostics = []
+            self.diagnostics = runtime.outputDiagnostics
 
             for definition in compiledSignature.outputs {
                 guard let port = self.findPort(named: definition.name) else { continue }
