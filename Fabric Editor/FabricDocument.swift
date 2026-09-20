@@ -177,11 +177,12 @@ class FabricDocument: FileDocument
         self.renderer = GraphRenderer(context: self.context, graph: graph)
 
         self.graphName = name
-        
+
         Task
         {
             await MainActor.run {
                 ActiveFabricDocumentStore.shared.activeDocument = self
+                self.presentLoadDiagnosticsAlertIfNeeded(for: graph)
             }
         }
     }
@@ -249,7 +250,7 @@ class FabricDocument: FileDocument
         do {
             try exporter.export()
         } catch {
-            self.presentExportAlert(
+            self.presentAlert(
                 title: "Image Export Failed",
                 message: error.localizedDescription
             )
@@ -365,13 +366,65 @@ class FabricDocument: FileDocument
     }
 
     @MainActor
-    private func presentExportAlert(title: String, message: String)
+    private func presentAlert(title: String, message: String)
     {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = title
         alert.informativeText = message
         alert.runModal()
+    }
+
+    /// A node this document referenced could not be loaded, or a wire/port's
+    /// saved state couldn't be restored (see Graph.MissingNodeDiagnostic /
+    /// DroppedConnectionDiagnostic / DroppedPortStateDiagnostic) — the rest of
+    /// the graph loaded fine, but silently dropping this on the floor would
+    /// hide real data loss from whoever opened the document.
+    ///
+    /// Only checks the root graph: a missing node nested inside a subgraph
+    /// isn't surfaced here today, since subgraphs decode as their own Graph
+    /// instances with their own diagnostics arrays.
+    @MainActor
+    private func presentLoadDiagnosticsAlertIfNeeded(for graph: Graph)
+    {
+        // Several un-renamed instances of the same node type (e.g. two
+        // Erosion nodes both losing the same retired key) produce identical
+        // lines with nothing else to distinguish them for a reader; collapse
+        // those to one line with a count instead of repeating them verbatim.
+        func section(_ title: String, _ lines: [String]) -> String?
+        {
+            guard lines.isEmpty == false else { return nil }
+
+            var countByLine: [String: Int] = [:]
+            var firstSeenOrder: [String] = []
+            for line in lines
+            {
+                if countByLine[line] == nil { firstSeenOrder.append(line) }
+                countByLine[line, default: 0] += 1
+            }
+
+            let deduped = firstSeenOrder.map { line -> String in
+                let count = countByLine[line, default: 1]
+                return count > 1 ? "\(line) (×\(count))" : line
+            }
+
+            return "\(title):\n" + deduped.map { "• \($0)" }.joined(separator: "\n")
+        }
+
+        let sections = [
+            section("Missing nodes", graph.missingNodeDiagnostics.map(\.summary)),
+            section("Dropped connections", graph.droppedConnectionDiagnostics.map(\.summary)),
+            section("Dropped port state", graph.droppedPortStateDiagnostics.map {
+                "'\($0.nodeTitle)' dropped: \($0.droppedRegistryKeys.joined(separator: ", "))"
+            })
+        ].compactMap { $0 }
+
+        guard sections.isEmpty == false else { return }
+
+        self.presentAlert(
+            title: "Document Loaded With Warnings",
+            message: sections.joined(separator: "\n\n")
+        )
     }
 
     @MainActor
