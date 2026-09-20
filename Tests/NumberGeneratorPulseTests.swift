@@ -137,7 +137,6 @@ struct NumberGeneratorPulseTests
         graph.markConnectionsChanged()
         output.published = true
         graph.rebuildPublishedParameterGroup()
-        graph.updateRenderingNodes()
 
         let renderer = GraphRenderer(context: harness.context, graph: graph)
         renderer.resize(size: (width: Float(harness.renderWidth), height: Float(harness.renderHeight)), scaleFactor: 1.0)

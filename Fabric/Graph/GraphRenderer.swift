@@ -34,6 +34,11 @@ public class GraphRenderer : ViewRenderer
     private let defaultCamera: PerspectiveCamera
     private let sceneProxy: Object
 
+    // Regular subgraphs execute by re-entering execute(graph:) on this renderer.
+    // Only the outermost call selects the camera for the scene that will draw;
+    // nested executions must not replace it with their own cached selection.
+    private var isExecutingGraph = false
+
     // Staging slot for external event injection (e.g. input event handlers).
     // update() drains this into currentExecutionInfo each frame.
     public var pendingEventInfo: GraphEventInfo? = nil
@@ -280,7 +285,20 @@ public class GraphRenderer : ViewRenderer
             }
         }
 
-        self.currentCamera = graph.latestCamera ?? self.defaultCamera
+        let isOutermostExecution = !self.isExecutingGraph
+        if isOutermostExecution
+        {
+            self.currentCamera = graph.latestCamera ?? self.defaultCamera
+        }
+
+        self.isExecutingGraph = true
+        defer
+        {
+            if isOutermostExecution
+            {
+                self.isExecutingGraph = false
+            }
+        }
 
         var capturedError: (any Error)?
         var scheduledNodes = nodesInExecutionOrder(for: graph)

@@ -134,6 +134,11 @@ internal import AnyCodable
     /// this to rebuild its proxy ports without polling.
     @ObservationIgnored var onPublishedPortsChanged: (() -> Void)?
 
+    /// Called when this graph resolves to a different scene camera. A
+    /// SubgraphNode propagates the change to its containing graph so camera
+    /// selection remains cached across the complete nested graph hierarchy.
+    @ObservationIgnored var onCameraSelectionChanged: (() -> Void)?
+
     enum CodingKeys : String, CodingKey
     {
         case id
@@ -476,7 +481,7 @@ internal import AnyCodable
         self.undoManager?.setActionName("Add Node")
         self.markConnectionsChanged()
 
-        self.updateRenderingNodes()
+        self.updateCameraSelection(afterAdding: node)
         self.rebuildPublishedParameterGroup()
     }
 
@@ -517,7 +522,7 @@ internal import AnyCodable
         self.undoManager?.setActionName("Delete Node")
         self.markConnectionsChanged()
 
-        self.updateRenderingNodes()
+        self.updateCameraSelection()
         self.rebuildPublishedParameterGroup()
     }
 
@@ -537,7 +542,7 @@ internal import AnyCodable
             }
 
             node.markDirty()
-            updateRenderingNodes()
+            updateCameraSelection(afterAdding: node)
             rebuildPublishedParameterGroup()
             syncNodesToScene()
             markConnectionsChanged()
@@ -879,15 +884,38 @@ internal import AnyCodable
     }
      
     // MARK: -Rendering Helpers
-    internal var consumerNodes: [Node] = []
-    internal var sceneObjectNodes:[BaseObjectNode] = []
     internal var latestCamera:Camera? = nil
-    
-    func updateRenderingNodes()
+
+    private func setCameraSelection(_ camera: Camera?)
     {
-        self.consumerNodes = self.nodes.filter( { $0.nodeExecutionMode == .Consumer } )
-        
-        self.latestCamera = Self.latestCamera(in:self)
+        guard self.latestCamera !== camera else { return }
+        self.latestCamera = camera
+        self.onCameraSelectionChanged?()
+    }
+
+    private func updateCameraSelection(afterAdding node: Node)
+    {
+        if node.nodeType == .Object(objectType: .Camera),
+           let camera = (node as? BaseObjectNode)?.getObject() as? Camera
+        {
+            self.setCameraSelection(camera)
+            return
+        }
+
+        guard !(node is DeferredSubgraphNode),
+              let subgraphNode = node as? SubgraphNode,
+              let camera = subgraphNode.subGraph.latestCamera,
+              !self.nodes.contains(where: { $0.nodeType == .Object(objectType: .Camera) })
+        else { return }
+
+        // With no direct camera, a newly appended subgraph is the last eligible
+        // subgraph and therefore takes control.
+        self.setCameraSelection(camera)
+    }
+
+    func updateCameraSelection()
+    {
+        self.setCameraSelection(Self.latestCamera(in: self))
     }
     
     /// The camera a graph renders with: the last one added to it, so a camera
@@ -896,38 +924,26 @@ internal import AnyCodable
     /// inert.
     static func latestCamera(in graph:Graph) -> Camera?
     {
-        let sceneObjectNodes:[BaseObjectNode] = graph.consumerNodes.compactMap({ $0 as? BaseObjectNode})
-
-        let latestCameraNode = sceneObjectNodes.last(where: { $0.nodeType == .Object(objectType: .Camera)})
-
-        let camera = latestCameraNode?.getObject() as? Camera
-        
-        // Only recurse if we need to
-        guard let camera else
+        if let latestCameraNode = graph.nodes.last(where: { $0.nodeType == .Object(objectType: .Camera) }),
+           let camera = (latestCameraNode as? BaseObjectNode)?.getObject() as? Camera
         {
-            let subGraphNodes:[SubgraphNode] = graph.consumerNodes.compactMap({
-                
-                // We dont want to leak a Deferred Rendering camera out
-                if let _ =  $0 as? DeferredSubgraphNode
-                {
-                    return nil
-                }
-                
-                return $0 as? SubgraphNode
-            })
-                
-            let subGraphs = subGraphNodes.map({ $0.subGraph } )
-            
-            for subGraph in subGraphs.reversed() {
-                if let camera = latestCamera(in: subGraph) {
-                    return camera
-                }
-            }
-            
-            return nil
+            return camera
         }
 
-        return camera
+        // A regular subgraph contributes its scene to this graph, so its cached
+        // camera is eligible here. A Deferred Subgraph renders through its own
+        // renderer and keeps its camera isolated to that render pass.
+        for node in graph.nodes.reversed()
+        {
+            guard !(node is DeferredSubgraphNode),
+                  let subgraphNode = node as? SubgraphNode,
+                  let camera = subgraphNode.subGraph.latestCamera
+            else { continue }
+
+            return camera
+        }
+
+        return nil
     }
     
     // MARK: -Selection
