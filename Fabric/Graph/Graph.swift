@@ -15,38 +15,10 @@ internal import AnyCodable
         case alpha1
     }
 
-    /// Port state a document carried for registry keys the node's code no
-    /// longer declares or rebuilds. That state (and any wires into those
-    /// ports) is dropped on load — deliberately, the code owns the port set —
-    /// and surfaced here so hosts can warn instead of losing data silently.
-    public struct DroppedPortStateDiagnostic
-    {
-        public let nodeID: UUID
-        public let nodeTitle: String
-        public let droppedRegistryKeys: [String]
-    }
+    // Diagnostic types (DroppedPortStateDiagnostic, DroppedConnectionDiagnostic,
+    // MissingNodeDiagnostic) and the recording functions that populate the
+    // arrays below live in Graph+SerializationDiagnostics.swift.
 
-    /// A saved wire the decode-time connection restore could not re-establish:
-    /// an endpoint no longer exists (its port was retired, or its node failed
-    /// to decode) or its port's type changed to something incompatible since
-    /// the save. Wires are the destructive loss on load, so hosts should
-    /// surface these.
-    public struct DroppedConnectionDiagnostic
-    {
-        public enum Reason
-        {
-            case missingEndpoint
-            case incompatibleTypes
-        }
-
-        public let portID: UUID
-        public let otherPortID: UUID
-        public let reason: Reason
-
-        /// Endpoints named as "node.port" where they still resolve.
-        public let summary: String
-    }
-    
     public static func == (lhs: Graph, rhs: Graph) -> Bool
     {
         return lhs.id == rhs.id
@@ -118,10 +90,12 @@ internal import AnyCodable
     /// Populated once at decode; empty for graphs built programmatically.
     @ObservationIgnored public private(set) var droppedConnectionDiagnostics: [DroppedConnectionDiagnostic] = []
 
+    /// Populated once at decode; empty for graphs built programmatically.
+    @ObservationIgnored public private(set) var missingNodeDiagnostics: [MissingNodeDiagnostic] = []
+
     @ObservationIgnored private var cachedPublishedOutputPortsRevision: Int?
     @ObservationIgnored private var cachedPublishedOutputPorts: [Port] = []
   
-
     @ObservationIgnored weak var lastNode:(Node)? = nil
 
     public func markConnectionTopologyChanged()
@@ -231,15 +205,11 @@ internal import AnyCodable
 
         while !nestedContainer.isAtEnd
         {
-            do {
-                
-                let anyCodableMap = try nestedContainer.decode(AnyCodableMap.self)
-                
-//                print(anyCodableMap.type)
-//                print(anyCodableMap.value)
-                
-                let nodeID = Self.qualifiedNodeID(fromSerializedType: anyCodableMap.type)
+            let anyCodableMap = try nestedContainer.decode(AnyCodableMap.self)
 
+            let nodeID = Self.qualifiedNodeID(fromSerializedType: anyCodableMap.type)
+
+            do {
                 if let nodeClass = nodeRegistry.nodeClass(pluginID: nodeID.pluginID, nodeID: nodeID.nodeID)
                 {
                     let jsonData = try encoder.encode(anyCodableMap.value)
@@ -317,14 +287,20 @@ internal import AnyCodable
                
                 else
                 {
-                    throw FabricError(.deserialization(.nodeNotFound),
-                                      severity: .fatal,
-                                      message: "Could not find node '\(nodeID.nodeID)' in plugin '\(nodeID.pluginID)'")
+                    self.missingNodeDiagnostics.append(
+                        self.makeMissingNodeDiagnostic(serializedType: anyCodableMap.type,
+                                                       reason: .typeNotRegistered,
+                                                       summary: "Could not find \(nodeID.nodeID)")
+                    )
                 }
             }
             catch
             {
-                throw error
+                self.missingNodeDiagnostics.append(
+                    self.makeMissingNodeDiagnostic(serializedType: anyCodableMap.type,
+                                                   reason: .decodeFailed,
+                                                   summary: "Could not load \(nodeID.nodeID): \(error.localizedDescription)")
+                )
             }
         }
         
@@ -333,14 +309,7 @@ internal import AnyCodable
         // matched nothing the code declares, and closing the window here means
         // ports added later in the document's life cannot resurrect stale
         // snapshot state.
-        self.droppedPortStateDiagnostics = self.nodes.compactMap { node in
-            let droppedKeys = node.finalizePortHydration()
-            guard !droppedKeys.isEmpty else { return nil }
-            print("Graph decode: '\(node.title)' dropped port state for retired keys \(droppedKeys)")
-            return DroppedPortStateDiagnostic(nodeID: node.id,
-                                              nodeTitle: node.title,
-                                              droppedRegistryKeys: droppedKeys)
-        }
+        self.droppedPortStateDiagnostics = self.makeDroppedPortStateDiagnostics()
 
         let decodedConnections = try container.decodeIfPresent([Connection].self, forKey: .connections)
 
@@ -358,19 +327,13 @@ internal import AnyCodable
 
         func reportDroppedConnection(from portID: UUID, to otherPortID: UUID, reason: DroppedConnectionDiagnostic.Reason)
         {
-            guard reportedDroppedPairs.insert(Set([portID, otherPortID])).inserted else { return }
+            guard let diagnostic = self.makeDroppedConnectionDiagnostic(from: portID,
+                                                                        to: otherPortID,
+                                                                        reason: reason,
+                                                                        portsByID: portsByID,
+                                                                        reportedPairs: &reportedDroppedPairs)
+            else { return }
 
-            func describe(_ id: UUID) -> String
-            {
-                guard let port = portsByID[id] else { return "missing port \(id)" }
-                return "\(port.node?.title ?? "?").\(port.displayName)"
-            }
-
-            let diagnostic = DroppedConnectionDiagnostic(portID: portID,
-                                                         otherPortID: otherPortID,
-                                                         reason: reason,
-                                                         summary: "\(describe(portID)) ↔ \(describe(otherPortID))")
-            print("Graph decode: dropped connection (\(reason)): \(diagnostic.summary)")
             self.droppedConnectionDiagnostics.append(diagnostic)
         }
 
