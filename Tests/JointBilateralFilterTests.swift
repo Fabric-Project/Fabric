@@ -1,4 +1,5 @@
 import Metal
+import simd
 import Testing
 import Satin
 @testable import Fabric
@@ -76,44 +77,25 @@ struct JointBilateralFilterTests
 
         let height = signal.count, width = signal[0].count
 
-        func makeTexture(_ values: [[Float]]) throws -> MTLTexture
-        {
-            let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba32Float, width: width, height: height, mipmapped: false)
-            descriptor.usage = [.shaderRead, .shaderWrite]
-            descriptor.storageMode = .shared
-            guard let texture = device.makeTexture(descriptor: descriptor) else
-            {
-                throw GraphExecutionTestFailure("Failed to create test texture")
-            }
-            var pixels = [Float](repeating: 0, count: width * height * 4)
-            for y in 0..<height
-            {
-                for x in 0..<width
-                {
-                    let base = (y * width + x) * 4
-                    pixels[base + 0] = values[y][x]
-                    pixels[base + 1] = values[y][x]
-                    pixels[base + 2] = values[y][x]
-                    pixels[base + 3] = 1
-                }
-            }
-            pixels.withUnsafeBytes { rawBuffer in
-                texture.replace(region: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0, withBytes: rawBuffer.baseAddress!, bytesPerRow: width * 4 * MemoryLayout<Float>.stride)
-            }
-            return texture
-        }
-
-        let signalTexture = try makeTexture(signal)
-        let guideTexture = try makeTexture(guideLuma)
-        let outputTexture = try makeTexture(signal.map { $0.map { _ in Float(0) } })
+        let signalTexture = try makeTexture(device: device, signal)
+        let guideTexture = try makeTexture(device: device, guideLuma)
+        let outputTexture = try makeTexture(device: device, signal.map { $0.map { _ in Float(0) } })
 
         struct FilterUniforms
         {
             var radius: Int32
             var spatialSigma: Float
             var rangeSigma: Float
+            var guideTransform: simd_float4x4
+            var signalTransform: simd_float4x4
+            var signalTransformInverse: simd_float4x4
         }
-        var uniforms = FilterUniforms(radius: Int32(radius), spatialSigma: spatialSigma, rangeSigma: rangeSigma)
+        var uniforms = FilterUniforms(
+            radius: Int32(radius), spatialSigma: spatialSigma, rangeSigma: rangeSigma,
+            guideTransform: matrix_identity_float4x4,
+            signalTransform: matrix_identity_float4x4,
+            signalTransformInverse: matrix_identity_float4x4
+        )
 
         guard let commandBuffer = commandQueue.makeCommandBuffer(),
               let encoder = commandBuffer.makeComputeCommandEncoder() else { return nil }
@@ -142,6 +124,92 @@ struct JointBilateralFilterTests
             }
         }
         return result
+    }
+
+    private func makeTexture(device: MTLDevice, _ values: [[Float]]) throws -> MTLTexture
+    {
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba32Float, width: width, height: height, mipmapped: false)
+        descriptor.usage = [.shaderRead, .shaderWrite]
+        descriptor.storageMode = .shared
+        guard let texture = device.makeTexture(descriptor: descriptor) else
+        {
+            throw GraphExecutionTestFailure("Failed to create test texture")
+        }
+        var pixels = [Float](repeating: 0, count: width * height * 4)
+        for y in 0..<height
+        {
+            for x in 0..<width
+            {
+                let base = (y * width + x) * 4
+                pixels[base + 0] = values[y][x]
+                pixels[base + 1] = values[y][x]
+                pixels[base + 2] = values[y][x]
+                pixels[base + 3] = 1
+            }
+        }
+        pixels.withUnsafeBytes { rawBuffer in
+            texture.replace(region: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0, withBytes: rawBuffer.baseAddress!, bytesPerRow: width * 4 * MemoryLayout<Float>.stride)
+        }
+        return texture
+    }
+
+    /// Runs the kernel with a signal and guide of DIFFERENT sizes, the guide
+    /// optionally stored with a transform. The output is the guide's size,
+    /// canonical orientation, like JointBilateralFilterNode's.
+    private func runResamplingKernel(
+        signal: [[Float]], guideLuma: [[Float]], guideTransform: simd_float4x4,
+        radius: Int, spatialSigma: Float, rangeSigma: Float
+    ) throws -> [[Float]]?
+    {
+        guard let device = MTLCreateSystemDefaultDevice(),
+              let commandQueue = device.makeCommandQueue() else { return nil }
+
+        guard
+            let shaderURL = Bundle.module.url(forResource: "JointBilateralFilter", withExtension: "metal", subdirectory: "Compute/Mask"),
+            let source = try? MetalFileCompiler(watch: false).parse(shaderURL),
+            let library = try? device.makeLibrary(source: source, options: nil),
+            let function = library.makeFunction(name: "jointBilateralFilter")
+        else { return nil }
+        let pipeline = try device.makeComputePipelineState(function: function)
+
+        let outputHeight = guideLuma.count, outputWidth = guideLuma[0].count
+        let signalTexture = try makeTexture(device: device, signal)
+        let guideTexture = try makeTexture(device: device, guideLuma)
+        let outputTexture = try makeTexture(device: device, guideLuma.map { $0.map { _ in Float(0) } })
+
+        struct FilterUniforms
+        {
+            var radius: Int32
+            var spatialSigma: Float
+            var rangeSigma: Float
+            var guideTransform: simd_float4x4
+            var signalTransform: simd_float4x4
+            var signalTransformInverse: simd_float4x4
+        }
+        var uniforms = FilterUniforms(
+            radius: Int32(radius), spatialSigma: spatialSigma, rangeSigma: rangeSigma,
+            guideTransform: guideTransform,
+            signalTransform: matrix_identity_float4x4,
+            signalTransformInverse: matrix_identity_float4x4
+        )
+
+        guard let commandBuffer = commandQueue.makeCommandBuffer(),
+              let encoder = commandBuffer.makeComputeCommandEncoder() else { return nil }
+        encoder.setComputePipelineState(pipeline)
+        encoder.setTexture(signalTexture, index: 0)
+        encoder.setTexture(guideTexture, index: 1)
+        encoder.setTexture(outputTexture, index: 2)
+        encoder.setBytes(&uniforms, length: MemoryLayout<FilterUniforms>.stride, index: 0)
+        encoder.dispatchThreads(MTLSize(width: outputWidth, height: outputHeight, depth: 1), threadsPerThreadgroup: MTLSize(width: 8, height: 8, depth: 1))
+        encoder.endEncoding()
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+
+        var readback = [Float](repeating: 0, count: outputWidth * outputHeight * 4)
+        readback.withUnsafeMutableBytes { rawBuffer in
+            outputTexture.getBytes(rawBuffer.baseAddress!, bytesPerRow: outputWidth * 4 * MemoryLayout<Float>.stride, from: MTLRegionMake2D(0, 0, outputWidth, outputHeight), mipmapLevel: 0)
+        }
+        return (0..<outputHeight).map { y in (0..<outputWidth).map { x in readback[(y * outputWidth + x) * 4] } }
     }
 
     @Test("A flat guide reduces to a plain Gaussian-weighted spatial blur")
@@ -236,6 +304,59 @@ struct JointBilateralFilterTests
             {
                 #expect(abs(output[y][x] - signal[y][x]) < 0.001)
             }
+        }
+    }
+
+    @Test("A small signal is upsampled to the guide's size and snapped to the guide's edge")
+    func smallSignalIsUpsampledToTheGuide() throws
+    {
+        // A 2x2 mask whose only boundary is between its two columns, against a
+        // 4x4 guide whose sharp edge sits at the same place. Plain bilinear
+        // upsampling would leave a soft ramp across the middle two columns.
+        let signal: [[Float]] = [[0, 1], [0, 1]]
+        let guideLuma: [[Float]] = Array(repeating: [0, 0, 1, 1], count: 4)
+
+        guard let output = try runResamplingKernel(
+            signal: signal, guideLuma: guideLuma, guideTransform: matrix_identity_float4x4,
+            radius: 1, spatialSigma: 1000, rangeSigma: 0.05
+        ) else { return }
+
+        // The output has the guide's dimensions, not the signal's.
+        #expect(output.count == 4)
+        #expect(output.allSatisfy { $0.count == 4 })
+        for y in 0..<4
+        {
+            #expect(output[y][0] < 0.01, "left of the edge stays 0 (row \(y))")
+            #expect(output[y][1] < 0.01, "left of the edge stays 0 (row \(y))")
+            #expect(output[y][2] > 0.99, "right of the edge stays 1 (row \(y))")
+            #expect(output[y][3] > 0.99, "right of the edge stays 1 (row \(y))")
+        }
+    }
+
+    @Test("The guide is read through its own texture transform")
+    func guideIsSampledThroughItsTransform() throws
+    {
+        // Signal is 0 on its top row and 1 on its bottom row. The guide has
+        // the matching edge, but its texture is stored upside down, so only
+        // sampling through the guide's vertical-flip transform lines them up.
+        let signal: [[Float]] = [[0, 0], [1, 1]]
+        let guideStoredUpsideDown: [[Float]] = [[1, 1, 1, 1], [1, 1, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0]]
+        let verticalFlip = simd_float4x4(columns: (
+            simd_float4(1, 0, 0, 0),
+            simd_float4(0, -1, 0, 0),
+            simd_float4(0, 0, 1, 0),
+            simd_float4(0, 1, 0, 1)
+        ))
+
+        guard let output = try runResamplingKernel(
+            signal: signal, guideLuma: guideStoredUpsideDown, guideTransform: verticalFlip,
+            radius: 1, spatialSigma: 1000, rangeSigma: 0.05
+        ) else { return }
+
+        for x in 0..<4
+        {
+            #expect(output[0][x] < 0.01 && output[1][x] < 0.01, "canonical top half stays 0 (column \(x))")
+            #expect(output[2][x] > 0.99 && output[3][x] > 0.99, "canonical bottom half stays 1 (column \(x))")
         }
     }
 }

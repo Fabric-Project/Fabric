@@ -132,8 +132,6 @@ public class MediaPipeFaceDetectionNode: StrategyNode
     /// execute()/rebuildPorts on the graph thread.
     private var framesSinceLastDetect = 0
 
-    private static var cachedModels: [DetectorVariant: MediaPipeMPSGraph] = [:]
-    private static let modelLock = NSLock()
 
     /// Not a port -- Fabric has no systemized protocol yet for per-node
     /// synchronous/asynchronous execution, so this stays a compile-time
@@ -400,17 +398,6 @@ public class MediaPipeFaceDetectionNode: StrategyNode
 
     private static func mpsGraphModel(for variant: DetectorVariant, commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
     {
-        Self.modelLock.lock()
-        defer { Self.modelLock.unlock() }
-
-        if let existing = Self.cachedModels[variant] { return existing }
-
-        let model = try MediaPipeMPSGraph.loadBundled(
-            named: variant.resourcePrefix,
-            inputWidth: variant.detectSize, inputHeight: variant.detectSize,
-            commandQueue: commandQueue
-        )
-        Self.cachedModels[variant] = model
-        return model
+        try MediaPipeSharedModels.model(named: variant.resourcePrefix, inputWidth: variant.detectSize, inputHeight: variant.detectSize, commandQueue: commandQueue)
     }
 }

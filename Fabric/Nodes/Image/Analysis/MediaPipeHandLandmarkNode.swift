@@ -81,8 +81,6 @@ public class MediaPipeHandLandmarkNode: Node
 
     private static let fullFrameRegion = simd_float4(0, 0, 1, 1)
 
-    private static var cachedModel: MediaPipeMPSGraph?
-    private static let modelLock = NSLock()
 
     /// Not a port -- Fabric has no systemized protocol yet for per-node
     /// synchronous/asynchronous execution, so this stays a compile-time
@@ -380,18 +378,7 @@ public class MediaPipeHandLandmarkNode: Node
 
     private static func mpsGraphModel(commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
     {
-        Self.modelLock.lock()
-        defer { Self.modelLock.unlock() }
-
-        if let existing = Self.cachedModel { return existing }
-
-        let model = try MediaPipeMPSGraph.loadBundled(
-            named: MediaPipeHandLandmarkProjection.resourcePrefix,
-            inputWidth: Int(MediaPipeHandLandmarkProjection.landmarkSize), inputHeight: Int(MediaPipeHandLandmarkProjection.landmarkSize),
-            commandQueue: commandQueue
-        )
-        Self.cachedModel = model
-        return model
+        try MediaPipeSharedModels.model(named: MediaPipeHandLandmarkProjection.resourcePrefix, inputWidth: Int(MediaPipeHandLandmarkProjection.landmarkSize), inputHeight: Int(MediaPipeHandLandmarkProjection.landmarkSize), commandQueue: commandQueue)
     }
 
     private func unitPoints(from landmarks: [simd_float3], at indices: [Int], aspect: Float) -> ContiguousArray<simd_float2>
