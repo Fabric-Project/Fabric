@@ -23,6 +23,8 @@ As you can see in the image above, `Nodes` have inputs and outputs depending on 
 
 You can peruse the complete set of Nodes Fabric supports in the code base, or get an overview via our [Nodes Reference](https://github.com/Fabric-Project/Fabric/blob/main/NODES.md)
 
+For nodes built on an MPSGraph-backed SPM package (MediaPipe, ZipDepth, and similar ML/MPS ports), see [MLArchitecture.md](MLArchitecture.md) for the command-buffer ownership contract every such package and node must follow.
+
 ### Ports
 
 `Ports` in Fabric represent specific types of data a `Node` can `Produce`, `Process` or `Consume`. 
