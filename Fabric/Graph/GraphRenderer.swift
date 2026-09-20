@@ -156,6 +156,24 @@ public class GraphRenderer : ViewRenderer
         self.stageEventForNextExecution(event)
         return false
     }
+
+#elseif os(iOS)
+    // MARK: - Input Events
+
+    // Satin's MetalViewController pushes UIKit touch events at the renderer
+    // as they happen, mirroring the macOS AppKit path above. The slot is
+    // drained once per frame in update(), so when several arrive between
+    // frames the newest wins. Delivery and update() share the main thread
+    // (the display link runs on the main run loop), so no locking.
+    private func stageEventForNextExecution(_ event: UIEvent?)
+    {
+        self.pendingEventInfo = GraphEventInfo(event: event)
+    }
+
+    override public func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) { self.stageEventForNextExecution(event) }
+    override public func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) { self.stageEventForNextExecution(event) }
+    override public func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) { self.stageEventForNextExecution(event) }
+    override public func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) { self.stageEventForNextExecution(event) }
 #endif
 
     /// Set the execution info without reading the wall clock. Tests call this
