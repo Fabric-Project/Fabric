@@ -119,6 +119,63 @@ public class GraphRenderer : ViewRenderer
         
     }
 
+#if os(macOS)
+    // MARK: - Input Events
+
+    // Satin's MetalViewController pushes AppKit events at the renderer as they
+    // happen. Only the events Cursor and Keyboard nodes consume are staged;
+    // the slot is drained once per frame in update(), so when several arrive
+    // between frames the newest wins. Delivery and update() share the main
+    // thread (the display link runs on the main run loop), so no locking.
+    private func stageEventForNextExecution(_ event: NSEvent)
+    {
+        self.pendingEventInfo = GraphEventInfo(event: event)
+    }
+
+    override public func mouseMoved(with event: NSEvent) { self.stageEventForNextExecution(event) }
+    override public func mouseDown(with event: NSEvent) { self.stageEventForNextExecution(event) }
+    override public func mouseDragged(with event: NSEvent) { self.stageEventForNextExecution(event) }
+    override public func mouseUp(with event: NSEvent) { self.stageEventForNextExecution(event) }
+    override public func rightMouseDown(with event: NSEvent) { self.stageEventForNextExecution(event) }
+    override public func rightMouseDragged(with event: NSEvent) { self.stageEventForNextExecution(event) }
+    override public func rightMouseUp(with event: NSEvent) { self.stageEventForNextExecution(event) }
+    override public func otherMouseDown(with event: NSEvent) { self.stageEventForNextExecution(event) }
+    override public func otherMouseDragged(with event: NSEvent) { self.stageEventForNextExecution(event) }
+    override public func otherMouseUp(with event: NSEvent) { self.stageEventForNextExecution(event) }
+
+    // Not reported as handled: the graph observes keys, it does not own them,
+    // so the responder chain carries on as it did before.
+    override public func keyDown(with event: NSEvent) -> Bool
+    {
+        self.stageEventForNextExecution(event)
+        return false
+    }
+
+    override public func keyUp(with event: NSEvent) -> Bool
+    {
+        self.stageEventForNextExecution(event)
+        return false
+    }
+
+#elseif os(iOS)
+    // MARK: - Input Events
+
+    // Satin's MetalViewController pushes UIKit touch events at the renderer
+    // as they happen, mirroring the macOS AppKit path above. The slot is
+    // drained once per frame in update(), so when several arrive between
+    // frames the newest wins. Delivery and update() share the main thread
+    // (the display link runs on the main run loop), so no locking.
+    private func stageEventForNextExecution(_ event: UIEvent?)
+    {
+        self.pendingEventInfo = GraphEventInfo(event: event)
+    }
+
+    override public func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) { self.stageEventForNextExecution(event) }
+    override public func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) { self.stageEventForNextExecution(event) }
+    override public func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) { self.stageEventForNextExecution(event) }
+    override public func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) { self.stageEventForNextExecution(event) }
+#endif
+
     /// Set the execution info without reading the wall clock. Tests call this
     /// directly to drive the update/draw path with deterministic timing.
     func planFrame(executionInfo: GraphExecutionInfo) {
