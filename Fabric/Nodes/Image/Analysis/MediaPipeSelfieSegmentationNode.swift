@@ -18,17 +18,21 @@ import MPSMediaPipe
 /// Two model variants: General (256x256), Landscape (256x144), selected by
 /// a plain dropdown (switching variant never changes port shape).
 ///
-/// Crop-and-normalize AND MPSGraph inference are both encoded onto Fabric's
-/// own shared per-frame command buffer, never a second, independently
-/// committed one: `MPSGraphExecutable.encode(to:)` never commits anything on
-/// its own -- that's always the caller's explicit choice (`commit()` /
-/// `commitAndContinue()`) -- so as long as this node never calls either,
-/// its work just sits encoded, in order, alongside everything else, until
-/// whoever owns the shared buffer commits it at the end of the frame. That
-/// also makes ordering against whatever upstream node most recently wrote
-/// `inputImage`'s texture this same frame trivial: same buffer, sequential
-/// encode order, no cross-buffer commit-order reasoning needed at all. See
-/// `MediaPipeMPSGraph.encode(...)`.
+/// Image in, image out, entirely on the GPU, and structured exactly like
+/// ZipDepthNode, the other image-only MPS node: crop-and-normalize, MPSGraph
+/// inference and the mask projection are all encoded, in that order, onto
+/// Fabric's own shared per-frame command buffer, never a second,
+/// independently committed one. `MPSGraphExecutable.encode(to:)` never commits
+/// anything on its own -- that's always the caller's explicit choice -- so as
+/// long as this node never calls either, its work just sits encoded, in order,
+/// alongside everything else, until whoever owns the shared buffer commits it
+/// at the end of the frame. That also makes ordering against whatever upstream
+/// node most recently wrote `inputImage`'s texture this same frame trivial:
+/// same buffer, sequential encode order, no cross-buffer commit-order reasoning
+/// needed at all. The mask is read from the model's output buffer by the
+/// projection kernel directly, so there is no CPU readback and the result is
+/// available downstream in the same frame it was produced. Having no numerical
+/// port outputs, it has no synchronous path. See `MediaPipeMPSGraph.encode(...)`.
 public class MediaPipeSelfieSegmentationNode: Node
 {
     override public class var name: String { "MediaPipe Selfie Segmentation" }
@@ -56,178 +60,122 @@ public class MediaPipeSelfieSegmentationNode: Node
     public var inputModelVariant: ParameterPort<String> { port(named: "inputModelVariant") }
     public var outputSegmentationMask: NodePort<FabricImage> { port(named: "outputSegmentationMask") }
 
-    private static var cachedModels: [ModelVariant: MediaPipeMPSGraph] = [:]
-    private static let modelLock = NSLock()
-
-    /// Recreated when the active variant's resolution changes.
+    /// Everything below is built for one variant's resolution and rebuilt
+    /// together when the variant changes -- see `prepareModel`.
+    private var preparedVariant: ModelVariant?
     private var preprocessor: MediaPipeCropPreprocessor?
-    private var preprocessorVariant: ModelVariant?
     private var maskProjector: MediaPipeSegmentationMaskProjector?
-    private var maskProjectorVariant: ModelVariant?
+    private var model: MediaPipeMPSGraph?
 
-    /// GPU-resident destination for MediaPipeMPSGraph.encode()'s output --
-    /// .storageModeShared so the completion handler can read it back into
-    /// lastMaskLogits without a CPU round-trip through run()/submit().
+    /// GPU-only destination for MediaPipeMPSGraph.encode()'s output, read by
+    /// the mask projection kernel on the same command buffer. Private, as
+    /// nothing on the CPU ever reads it. Reused every frame: the next frame's
+    /// write is ordered after this frame's projection by command buffer order.
     private var maskOutputBuffer: MTLBuffer?
-    private var maskOutputBufferVariant: ModelVariant?
 
-    private let lastMaskLogitsLock = NSLock()
-    private var lastMaskLogitsStorage: [Float] = []
-    /// Backed by a lock because, under the async path, the GPU completion
-    /// callback writes this from a thread other than execute()'s.
-    private var lastMaskLogits: [Float]
+    override public func stopExecution(renderer: GraphRenderer) throws
     {
-        get
-        {
-            self.lastMaskLogitsLock.lock()
-            defer { self.lastMaskLogitsLock.unlock() }
-            return self.lastMaskLogitsStorage
-        }
-        set
-        {
-            self.lastMaskLogitsLock.lock()
-            self.lastMaskLogitsStorage = newValue
-            self.lastMaskLogitsLock.unlock()
-        }
+        self.preparedVariant = nil
+        self.preprocessor = nil
+        self.maskProjector = nil
+        self.model = nil
+        self.maskOutputBuffer = nil
     }
 
     public override func execute(renderer: GraphRenderer, executionInfo: GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
+        guard self.inputImage.valueDidChange || self.inputModelVariant.valueDidChange || self.isDirty else { return }
+
+        guard let inputImage = self.inputImage.value else
+        {
+            self.outputSegmentationMask.send(nil)
+            return
+        }
+
         let variant = ModelVariant.from(self.inputModelVariant.value)
+        try self.prepareModel(for: variant)
 
-        if self.inputImage.valueDidChange, let inputImage = self.inputImage.value
+        guard let preprocessor, let maskProjector, let model, let maskOutputBuffer else
         {
-            do { try self.scheduleSegmentation(image: inputImage, variant: variant, commandBuffer: commandBuffer) }
-            catch { print("MediaPipeSelfieSegmentationNode: scheduleSegmentation failed: \(error)") }
+            throw FabricError(.execution(.gpu), severity: .recoverable, message: "MediaPipe Selfie Segmentation model is unavailable")
         }
 
-        guard let inImage = self.inputImage.value else { return }
-
-        let maskLogits = self.lastMaskLogits
-        guard maskLogits.isEmpty == false else { return }
-
-        do
-        {
-            let projector = try self.maskProjector(for: variant)
-            let presentationSize = inImage.presentationSize
-            let outImage = try renderer.newImage(withWidth: Int(presentationSize.width), height: Int(presentationSize.height))
-
-            try projector.encode(
-                maskValues: maskLogits,
-                applySigmoid: MediaPipeSelfieSegmentation.applySigmoid,
-                centerNormalizedBottomLeft: MediaPipeSelfieSegmentation.fullFrameCenter,
-                sizeNormalized: MediaPipeSelfieSegmentation.fullFrameSize,
-                rotationRadians: MediaPipeSelfieSegmentation.noRotation,
-                destinationTexture: outImage.texture,
-                commandBuffer: commandBuffer
-            )
-
-            self.outputSegmentationMask.send(outImage)
-        }
-        catch { print("MediaPipeSelfieSegmentationNode: mask projection failed: \(error)") }
-    }
-
-    private func preprocessor(for variant: ModelVariant) throws -> MediaPipeCropPreprocessor
-    {
-        if let existing = self.preprocessor, self.preprocessorVariant == variant { return existing }
-        let created = try MediaPipeCropPreprocessor(device: self.context.device, outputWidth: variant.inputWidth, outputHeight: variant.inputHeight)
-        self.preprocessor = created
-        self.preprocessorVariant = variant
-        return created
-    }
-
-    private func maskProjector(for variant: ModelVariant) throws -> MediaPipeSegmentationMaskProjector
-    {
-        if let existing = self.maskProjector, self.maskProjectorVariant == variant { return existing }
-        let created = try MediaPipeSegmentationMaskProjector(device: self.context.device, maskWidth: variant.inputWidth, maskHeight: variant.inputHeight)
-        self.maskProjector = created
-        self.maskProjectorVariant = variant
-        return created
-    }
-
-    private func maskOutputBuffer(for variant: ModelVariant, model: MediaPipeMPSGraph) throws -> MTLBuffer
-    {
-        if let existing = self.maskOutputBuffer, self.maskOutputBufferVariant == variant { return existing }
-
-        guard let length = model.outputBufferLengths.first,
-              let buffer = self.context.device.makeBuffer(length: length, options: .storageModeShared)
-        else
-        {
-            throw FabricError(.execution(.outOfMemory), severity: .recoverable, message: "Could not allocate MediaPipe selfie segmentation mask output buffer")
-        }
-        buffer.label = "MediaPipe Selfie Segmentation Mask Output"
-        self.maskOutputBuffer = buffer
-        self.maskOutputBufferVariant = variant
-        return buffer
-    }
-
-    /// Encodes crop-and-normalize AND MPSGraph inference onto Fabric's
-    /// shared `commandBuffer`, one after the other -- never a second,
-    /// separately created buffer. Neither call commits anything on its own,
-    /// so both just sit encoded here, in order, until whoever owns
-    /// `commandBuffer` (Fabric's render loop) commits it once at the end of
-    /// the frame. lastMaskLogits updates once that whole buffer completes.
-    /// Silently drops the cycle (never updates lastMaskLogits) if all
-    /// maxFramesInFlight inference slots are already busy, matching
-    /// MediaPipeMPSGraph.encode()'s and MediaPipeCropPreprocessor's own
-    /// no-backlog semantics.
-    private func scheduleSegmentation(image: FabricImage, variant: ModelVariant, commandBuffer: MTLCommandBuffer) throws
-    {
         let startTime = Date()
-        let preprocessor = try self.preprocessor(for: variant)
-        let model = try Self.mpsGraphModel(for: variant, commandQueue: self.context.commandQueue)
-        let maskOutputBuffer = try self.maskOutputBuffer(for: variant, model: model)
+        let presentationSize = inputImage.presentationSize
+        let outputImage = try renderer.newImage(withWidth: Int(presentationSize.width), height: Int(presentationSize.height))
+        outputImage.texture.label = "MediaPipe Selfie Segmentation Mask"
+
+        commandBuffer.pushDebugGroup("MediaPipe Selfie Segmentation")
+        defer { commandBuffer.popDebugGroup() }
 
         let cropBuffer = try preprocessor.encode(
-            texture: image.texture,
-            textureTransform: image.textureTransform,
+            texture: inputImage.texture,
+            textureTransform: inputImage.textureTransform,
             centerNormalizedBottomLeft: MediaPipeSelfieSegmentation.fullFrameCenter,
             sizeNormalized: MediaPipeSelfieSegmentation.fullFrameSize,
             rotationRadians: MediaPipeSelfieSegmentation.noRotation,
             commandBuffer: commandBuffer
         )
 
+        // Drops this frame's mask (never calls outputSegmentationMask.send(), so
+        // downstream nodes keep whatever was last sent) instead of blocking if
+        // all in-flight slots are already busy -- matches ZipDepthNode and every
+        // other MediaPipe node's own no-backlog semantics.
         guard try model.encode(inputBuffer: cropBuffer, outputBuffers: [maskOutputBuffer], commandBuffer: commandBuffer, commit: false) else
         {
             return
         }
 
-        // Keeps `image`/`cropBuffer` out of GraphRendererTextureCache's
-        // recycle pool until the GPU work reading them is verified done, not
-        // just encoded -- same reasoning as ZipDepthNode's completion-handler
-        // lifetime capture. Reads maskOutputBuffer back once the whole
-        // shared buffer (crop and inference both) actually completes.
-        commandBuffer.addCompletedHandler { [weak self, image, cropBuffer] sharedBuffer in
-            withExtendedLifetime((image, cropBuffer)) {}
-            guard let self else { return }
-            if let error = sharedBuffer.error
-            {
-                print("MediaPipeSelfieSegmentationNode: segmentation failed: \(error)")
-                return
-            }
-            let count = maskOutputBuffer.length / MemoryLayout<Float>.stride
-            let logits = Array(UnsafeBufferPointer(
-                start: maskOutputBuffer.contents().assumingMemoryBound(to: Float.self),
-                count: count
-            ))
+        try maskProjector.encode(
+            maskBuffer: maskOutputBuffer,
+            applySigmoid: MediaPipeSelfieSegmentation.applySigmoid,
+            centerNormalizedBottomLeft: MediaPipeSelfieSegmentation.fullFrameCenter,
+            sizeNormalized: MediaPipeSelfieSegmentation.fullFrameSize,
+            rotationRadians: MediaPipeSelfieSegmentation.noRotation,
+            destinationTexture: outputImage.texture,
+            commandBuffer: commandBuffer
+        )
+
+        // `commandBuffer` is Fabric's shared per-frame buffer -- this node never
+        // waits on it, so it's still in flight when execute() returns.
+        // GraphRendererTextureCache recycles a managed FabricImage's texture the
+        // instant its last Swift reference drops, with no regard for whether the
+        // GPU is still using it, so the images must stay alive until this
+        // buffer's GPU work actually completes. The model and buffers need the
+        // same treatment: `prepareModel` can reassign them on a later frame (a
+        // variant change) while this frame's work is still in flight.
+        commandBuffer.addCompletedHandler { [inputImage, outputImage, model, cropBuffer, maskOutputBuffer, maskProjector] _ in
+            withExtendedLifetime((inputImage, outputImage, model, cropBuffer, maskOutputBuffer, maskProjector)) {}
             MediaPipeInferenceTimingLogger.log(nodeName: Self.name, elapsed: Date().timeIntervalSince(startTime))
-            self.lastMaskLogits = logits
         }
+
+        self.outputSegmentationMask.send(outputImage)
+    }
+
+    private func prepareModel(for variant: ModelVariant) throws
+    {
+        guard self.preparedVariant != variant || self.model == nil else { return }
+
+        let model = try Self.mpsGraphModel(for: variant, commandQueue: self.context.commandQueue)
+        guard let length = model.outputBufferLengths.first,
+              let maskOutputBuffer = self.context.device.makeBuffer(length: length, options: .storageModePrivate)
+        else
+        {
+            throw FabricError(.execution(.outOfMemory), severity: .recoverable, message: "Could not allocate MediaPipe selfie segmentation mask output buffer")
+        }
+        maskOutputBuffer.label = "MediaPipe Selfie Segmentation Mask Output"
+
+        self.preprocessor = try MediaPipeCropPreprocessor(device: self.context.device, outputWidth: variant.inputWidth, outputHeight: variant.inputHeight)
+        // The GPU-resident projection never uses the projector's per-slot CPU
+        // scratch buffers, so one is enough.
+        self.maskProjector = try MediaPipeSegmentationMaskProjector(device: self.context.device, maskWidth: variant.inputWidth, maskHeight: variant.inputHeight, maxFramesInFlight: 1)
+        self.model = model
+        self.maskOutputBuffer = maskOutputBuffer
+        self.preparedVariant = variant
     }
 
     private static func mpsGraphModel(for variant: ModelVariant, commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
     {
-        Self.modelLock.lock()
-        defer { Self.modelLock.unlock() }
-
-        if let existing = Self.cachedModels[variant] { return existing }
-
-        let model = try MediaPipeMPSGraph.loadBundled(
-            named: variant.resourcePrefix,
-            inputWidth: variant.inputWidth, inputHeight: variant.inputHeight,
-            commandQueue: commandQueue
-        )
-        Self.cachedModels[variant] = model
-        return model
+        try MediaPipeSharedModels.model(named: variant.resourcePrefix, inputWidth: variant.inputWidth, inputHeight: variant.inputHeight, commandQueue: commandQueue)
     }
 }

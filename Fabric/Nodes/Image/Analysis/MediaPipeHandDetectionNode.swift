@@ -128,8 +128,6 @@ public class MediaPipeHandDetectionNode: StrategyNode
     /// execute()/rebuildPorts on the graph thread.
     private var framesSinceLastDetect = 0
 
-    private static var cachedModel: MediaPipeMPSGraph?
-    private static let modelLock = NSLock()
 
     /// Not a port -- Fabric has no systemized protocol yet for per-node
     /// synchronous/asynchronous execution, so this stays a compile-time
@@ -377,17 +375,6 @@ public class MediaPipeHandDetectionNode: StrategyNode
 
     private static func mpsGraphModel(commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
     {
-        Self.modelLock.lock()
-        defer { Self.modelLock.unlock() }
-
-        if let existing = Self.cachedModel { return existing }
-
-        let model = try MediaPipeMPSGraph.loadBundled(
-            named: MediaPipeHandDetector.resourcePrefix,
-            inputWidth: MediaPipeHandDetector.detectSize, inputHeight: MediaPipeHandDetector.detectSize,
-            commandQueue: commandQueue
-        )
-        Self.cachedModel = model
-        return model
+        try MediaPipeSharedModels.model(named: MediaPipeHandDetector.resourcePrefix, inputWidth: MediaPipeHandDetector.detectSize, inputHeight: MediaPipeHandDetector.detectSize, commandQueue: commandQueue)
     }
 }

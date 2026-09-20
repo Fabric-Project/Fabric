@@ -220,9 +220,13 @@ public final class ZipDepthNode: Node
     {
         guard self.model == nil || width != self.modelWidth || height != self.modelHeight else { return }
 
-        let model = try ZipDepthMPSGraph(
-            inputWidth: width,
-            inputHeight: height,
+        // Shared with every other Zip Depth node at this resolution: one compile
+        // and one copy of the weights however many nodes ask. Held weakly by the
+        // cache, so this node's own reference (`self.model`) is what keeps it
+        // alive, and it is released when the last node stops or changes size.
+        let model = try ZipDepthSharedModels.model(
+            width: width,
+            height: height,
             commandQueue: self.context.commandQueue
         )
         guard let inputBuffer = self.context.device.makeBuffer(

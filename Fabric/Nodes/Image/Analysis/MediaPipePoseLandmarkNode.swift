@@ -84,8 +84,6 @@ public class MediaPipePoseLandmarkNode: Node
 
     private static let fullFrameRegion = simd_float4(0, 0, 1, 1)
 
-    private static var cachedModels: [ModelTier: MediaPipeMPSGraph] = [:]
-    private static let modelLock = NSLock()
 
     /// Not a port -- Fabric has no systemized protocol yet for per-node
     /// synchronous/asynchronous execution, so this stays a compile-time
@@ -472,18 +470,7 @@ public class MediaPipePoseLandmarkNode: Node
 
     private static func mpsGraphModel(for tier: ModelTier, commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
     {
-        Self.modelLock.lock()
-        defer { Self.modelLock.unlock() }
-
-        if let existing = Self.cachedModels[tier] { return existing }
-
-        let model = try MediaPipeMPSGraph.loadBundled(
-            named: tier.resourcePrefix,
-            inputWidth: Int(MediaPipePoseLandmarkProjection.landmarkSize), inputHeight: Int(MediaPipePoseLandmarkProjection.landmarkSize),
-            commandQueue: commandQueue
-        )
-        Self.cachedModels[tier] = model
-        return model
+        try MediaPipeSharedModels.model(named: tier.resourcePrefix, inputWidth: Int(MediaPipePoseLandmarkProjection.landmarkSize), inputHeight: Int(MediaPipePoseLandmarkProjection.landmarkSize), commandQueue: commandQueue)
     }
 
     /// `landmark` is normalized full-image, bottom-left origin.
