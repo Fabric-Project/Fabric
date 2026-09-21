@@ -23,7 +23,19 @@ public struct SyphonServerDescription: Identifiable, Hashable, Sendable
 
     public let appName: String
 
+    /// Syphon's identity where it offers one, and the pair the directory is
+    /// asked by otherwise, so there is always something to tell one server
+    /// from another by.
     public var id: String { self.identity ?? "\(self.appName)/\(self.name)" }
+
+    /// From the directory's own dictionary, which is how every server here
+    /// arrives.
+    public init(_ description: [String: any NSCoding])
+    {
+        self.identity = (description[SyphonServerDescriptionUUIDKey] as? NSString) as String?
+        self.name = ((description[SyphonServerDescriptionNameKey] as? NSString) as String?) ?? ""
+        self.appName = ((description[SyphonServerDescriptionAppNameKey] as? NSString) as String?) ?? ""
+    }
 
     /// The application on its own where the server is unnamed, both otherwise.
     public var displayName: String
@@ -93,12 +105,7 @@ public final class SyphonServerList
     public func refresh()
     {
         self.servers = SyphonServerDirectory.shared().servers
-            .map
-            { description in
-                SyphonServerDescription(identity: (description[SyphonServerDescriptionUUIDKey] as? NSString) as String?,
-                                        name: ((description[SyphonServerDescriptionNameKey] as? NSString) as String?) ?? "",
-                                        appName: ((description[SyphonServerDescriptionAppNameKey] as? NSString) as String?) ?? "")
-            }
+            .map(SyphonServerDescription.init)
             .sorted
             { lhs, rhs in
                 (lhs.appName, lhs.name) < (rhs.appName, rhs.name)

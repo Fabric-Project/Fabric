@@ -66,13 +66,13 @@ public class SyphonClientNode : Node
         }
     }
 
-    /// Syphon's identity for the server the client was made for. The inputs
-    /// name a server, and the thing answering to that name is replaced every
-    /// time its application is relaunched, so this is what says whether the
-    /// client in hand is still the right one.
+    /// The identity of the server the client was made for. The inputs name a
+    /// server, and the thing answering to that name is replaced every time its
+    /// application is relaunched, so this is what says whether the client in
+    /// hand is still the right one.
     private var boundServerIdentity:String? = nil
 
-    /// Syphon's identities for servers a client went invalid on. A client
+    /// The identities of servers a client went invalid on. A client
     /// goes invalid over its own channel to the server, where the directory
     /// drops the server on a notification from the publishing app — and an
     /// application that crashed or was force quit posts nothing, so the dead
@@ -98,10 +98,14 @@ public class SyphonClientNode : Node
         self.invalidServerIdentities.removeAll()
     }
 
-    /// Syphon's identity for a server, where it offers one.
-    private func serverIdentity(_ description: [String: any NSCoding]) -> String?
+    /// What tells one server from another: Syphon's identity where it offers
+    /// one, and the name pair otherwise. Always something, never nothing — a
+    /// server there was no identity for could not be held as invalid, and so
+    /// would be taken up again on the next execute, and the one after, for as
+    /// long as it stayed on offer.
+    private func serverIdentity(_ description: [String: any NSCoding]) -> String
     {
-        (description[SyphonServerDescriptionUUIDKey] as? NSString) as String?
+        SyphonServerDescription(description).id
     }
 
     override public func execute(renderer:GraphRenderer,
@@ -149,15 +153,14 @@ public class SyphonClientNode : Node
         // Syphon does not say an identity is never seen twice, and this
         // does not need it to be: one come again costs a client, found
         // invalid the next frame.
-        self.invalidServerIdentities.formIntersection(matches.compactMap(self.serverIdentity))
+        self.invalidServerIdentities.formIntersection(matches.map(self.serverIdentity))
 
         // Taken past a dead server rather than stopped by it: a relaunched
         // application leaves its old entry on offer beside its new one,
         // and which of the two comes first is not ours to say.
         let match = matches.first
         { description in
-            guard let identity = self.serverIdentity(description) else { return true }
-            return !self.invalidServerIdentities.contains(identity)
+            !self.invalidServerIdentities.contains(self.serverIdentity(description))
         }
 
         if let match
