@@ -41,7 +41,30 @@ public class SyphonClientNode : Node
     public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
 
     private var syphonClient:SyphonMetalClient? = nil
-    private var texture: (any MTLTexture)? = nil
+    {
+        // A frame belongs to the client it came from, so the two are dropped
+        // together — taking up another server never leaves the last one's
+        // frame on the outlet.
+        didSet { self.heldImage = nil }
+    }
+
+    /// The frame in hand, and what the outlet carries: assigning it is what
+    /// sends it, so every path that takes a frame or lets one go says so here
+    /// and nowhere else.
+    ///
+    /// Made once per frame received rather than once per execute. A Provider
+    /// executes every frame, and a client with nothing new hands back the
+    /// texture it already had, so an image built each time would carry a new
+    /// identity over unchanged pixels and mark the whole chain below dirty at
+    /// frame rate. A feed that is still sends nothing at all.
+    private var heldImage: FabricImage? = nil
+    {
+        didSet
+        {
+            guard self.heldImage !== oldValue else { return }
+            self.outputTexturePort.send(self.heldImage)
+        }
+    }
 
     /// Syphon's identity for the server the client was made for. The inputs
     /// name a server, and the thing answering to that name is replaced every
@@ -177,7 +200,6 @@ public class SyphonClientNode : Node
         else
         {
             self.syphonClient = nil
-            self.outputTexturePort.send(nil)
             return
         }
 
@@ -230,26 +252,31 @@ public class SyphonClientNode : Node
             }
         }
 
-        if let syphonClient = self.syphonClient,
-           syphonClient.isValid,
-           let texture = syphonClient.newFrameImage()
+        if let syphonClient = self.syphonClient, syphonClient.isValid
         {
-            // A Syphon surface is bottom-up, and the client wraps it as it
-            // stands — `newFrameImage` builds a texture straight onto the
-            // IOSurface and turns nothing over. So the frame in hand is upside
-            // down to Fabric's canonical top-left, and says so rather than
-            // being copied the right way up: downstream samples through the
-            // transform, and a frame passed back out to Syphon is already in
-            // the orientation Syphon wants.
-            let image = FabricImage.unmanaged(texture: texture)
-            image.textureTransform = .textureVerticalFlip
-            self.outputTexturePort.send(image)
+            // `hasNewFrame` is read before the frame is asked for, never
+            // after: taking a frame is what marks it seen. Nothing in hand
+            // asks regardless of the flag, so a client's first frame is never
+            // waited a turn for.
+            if self.heldImage == nil || syphonClient.hasNewFrame,
+               let texture = syphonClient.newFrameImage()
+            {
+                // A Syphon surface is bottom-up, and the client wraps it as it
+                // stands — `newFrameImage` builds a texture straight onto the
+                // IOSurface and turns nothing over. So the frame in hand is
+                // upside down to Fabric's canonical top-left, and says so
+                // rather than being copied the right way up: downstream samples
+                // through the transform, and a frame passed back out to Syphon
+                // is already in the orientation Syphon wants.
+                let image = FabricImage.unmanaged(texture: texture)
+                image.textureTransform = .textureVerticalFlip
+                self.heldImage = image
+            }
         }
         else
         {
-            self.outputTexturePort.send(nil)
+            self.heldImage = nil
         }
-
     }
 
 }
