@@ -1,5 +1,5 @@
 {
-  "originHash" : "13c3a14b60009301035fa1d0a29e687dd06de2fef62eb4db43b674e8e9a56811",
+  "originHash" : "afdf0e7d52f0e9337df975284101684b442f13557094cdd783399ce66d08292c",
   "pins" : [
     {
       "identity" : "anycodable",
@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Fabric-Project/MathExpressionEngine",
       "state" : {
-        "revision" : "57d78b673f4d6a86375692600092c8a02d63fca9",
-        "version" : "1.1.1"
+        "revision" : "bc28a1cce4ec7206d4f9ada389bbd10218a9046a",
+        "version" : "1.2.0"
       }
     },
     {
@@ -177,7 +177,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tayloraswift/swift-hash",
       "state" : {
-        "revision" : "ea0b9fc3152ed5941dd82e4a01e65f99fe1a75d2",
+        "revision" : "7fd5fb1753fe69bd6c04ecda36aab546cdcaae99",
         "version" : "0.7.1"
       }
     },
@@ -213,7 +213,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tayloraswift/swift-noise",
       "state" : {
-        "revision" : "8e35a914d28e4123a749955de19e275488343751",
+        "revision" : "7e07173ca05f9fdf57f33888abc1cfac39852096",
         "version" : "1.1.0"
       }
     },
@@ -231,7 +231,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tayloraswift/swift-png",
       "state" : {
-        "revision" : "d444d98aa32f022bf4a8e74b5a697c7ee856a6ad",
+        "revision" : "2f68db3d6b3005035dc213275e8f35b6a4d0581f",
         "version" : "4.4.9"
       }
     },
