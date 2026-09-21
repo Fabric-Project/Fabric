@@ -266,9 +266,15 @@ struct SyphonClientNodeView: View
     {
         var rows = [Row(serverName: "", appName: "", title: "First available")]
 
-        rows += SyphonServerList.shared.servers.map
+        // Two servers on offer can come to one row: a relaunched application
+        // leaves its old entry beside its new one, and both answer to the same
+        // pair. One row is all there is to pick, and identifiers a `ForEach`
+        // sees twice are identifiers it does not have.
+        for server in SyphonServerList.shared.servers
         {
-            Row(serverName: $0.name, appName: $0.appName, title: $0.displayName)
+            let row = Row(serverName: server.name, appName: server.appName, title: server.displayName)
+            guard !rows.contains(where: { $0.id == row.id }) else { continue }
+            rows.append(row)
         }
 
         let named = Row(serverName: self.serverName.uiValue, appName: self.appName.uiValue, title: "")
