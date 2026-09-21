@@ -322,6 +322,7 @@ HDR -> SDR conversion
 - [x] MediaPipe Face/Hand Detection + Landmark (BlazeFace/BlazeHand + FaceMesh/hand landmark, MPSGraph, test/comparison path; Face Landmark also exposes Geometry/Transform outputs, connection-gated, fit against the canonical face model via MediaPipe Face Geometry's ported solver)
 - [x] MediaPipe Pose Detection + Landmark (BlazePose, 33 keypoints, MPSGraph, test/comparison path)
 - [x] MediaPipe Selfie Segmentation (person-vs-background mask, General/Landscape variants, MPSGraph, test/comparison path)
+- [x] MPS EfficientTAM Tracker (video object tracking from a point prompt, forward-only, single object; 128x128 mask + region, centroid, presence; MPSGraph)
 - [x] Zip Depth Map Prediction
 - [x] Depth Calibration (Relative Depth → Reverse-Z Scene Depth)
 - [x] Metal FX 2x Upsampler (ML based)  

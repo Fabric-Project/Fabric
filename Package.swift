@@ -18,6 +18,10 @@ let package = Package(
         .package(path: "Satin"),
         .package(path: "../MPS-ZipDepth"),
 
+        // Local MPS-EfficientTAM package (EfficientTAM image encoder, prompt decoder
+        // and video tracker as MPSGraph)
+        .package(path: "../MPS-EfficientTAM"),
+
         // Local MPS-MediaPipe package (MediaPipe MPSGraph ports, extracted
         // out of Fabric so they're usable standalone too — see
         // https://github.com/Fabric-Project/MPS-MediaPipe)
@@ -69,6 +73,7 @@ let package = Package(
                 .product(name: "SatinCore", package: "Satin"),
                 .product(name: "MPSMediaPipe", package: "MPS-MediaPipe"),
                 .product(name: "MPSZipDepth", package: "MPS-ZipDepth"),
+                .product(name: "MPSEfficientTAM", package: "MPS-EfficientTAM"),
                 .product(name: "AnyCodable", package: "AnyCodable"),
                 .product(name: "MLX", package: "mlx-swift"),
                 .product(name: "MLXFFT", package: "mlx-swift"),
