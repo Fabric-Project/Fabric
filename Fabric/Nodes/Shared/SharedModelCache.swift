@@ -6,6 +6,7 @@
 import Foundation
 import Metal
 import MPSMediaPipe
+import MPSTAPNextPlusPlus
 import MPSZipDepth
 
 /// Frames of inference one shared model allows in flight at once, summed over
@@ -132,6 +133,37 @@ enum ZipDepthSharedModels
                 inputHeight: height,
                 commandQueue: commandQueue,
                 maxFramesInFlight: SharedModelCapacity.framesInFlight
+            )
+        }
+    }
+}
+
+/// TAPIR graphs are keyed by every fixed-shape compilation choice. The cache
+/// is weak because point capacity, refinement count, precision, and the chosen
+/// checkpoint directory form an open-ended set; each live node retains the
+/// model it is actively using.
+enum TAPIRSharedModels
+{
+    private static let cache = SharedModelCache<TAPIROnlineModel>(retention: .weak)
+
+    static func model(
+        configuration: TAPIRConfiguration,
+        commandQueue: MTLCommandQueue
+    ) throws -> TAPIROnlineModel
+    {
+        let precision = configuration.computePrecision == .mixedFloat16 ? "mixedFloat16" : "float32"
+        let cacheName = [
+            "bundled-causal-bootstapir",
+            "points=\(configuration.maximumPointCount)",
+            "refinements=\(configuration.refinementCount)",
+            "precision=\(precision)",
+        ].joined(separator: "|")
+
+        return try Self.cache.model(named: cacheName, device: commandQueue.device)
+        {
+            try TAPIROnlineModel.loadBundled(
+                configuration: configuration,
+                commandQueue: commandQueue
             )
         }
     }

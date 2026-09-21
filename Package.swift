@@ -26,6 +26,7 @@ let package = Package(
         // out of Fabric so they're usable standalone too — see
         // https://github.com/Fabric-Project/MPS-MediaPipe)
         .package(path: "../MPS-MediaPipe"),
+        .package(path: "../MPS-TAPNextPlusPlus"),
 
         // Standalone expression engine (backs the Math Expression node)
         .package(url: "https://github.com/Fabric-Project/MathExpressionEngine", from: "1.1.0"),
@@ -72,6 +73,7 @@ let package = Package(
                 .product(name: "Satin", package: "Satin"),
                 .product(name: "SatinCore", package: "Satin"),
                 .product(name: "MPSMediaPipe", package: "MPS-MediaPipe"),
+                .product(name: "MPSTAPNextPlusPlus", package: "MPS-TAPNextPlusPlus"),
                 .product(name: "MPSZipDepth", package: "MPS-ZipDepth"),
                 .product(name: "MPSEfficientTAM", package: "MPS-EfficientTAM"),
                 .product(name: "AnyCodable", package: "AnyCodable"),
