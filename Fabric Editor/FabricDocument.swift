@@ -24,7 +24,7 @@ final class ActiveFabricDocumentStore
 
 extension UTType {
     static var fabricDocument: UTType {
-        UTType(importedAs: "info.HiRez.fabric")
+        UTType(importedAs: "graphics.fabric.document")
     }
 }
 

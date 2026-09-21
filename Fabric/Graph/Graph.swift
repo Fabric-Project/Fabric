@@ -13,7 +13,10 @@ internal import AnyCodable
     public enum Version : Codable
     {
         case alpha1
+        case beta
     }
+    
+    static let currentVersion = Version.beta
 
     // Diagnostic types (DroppedPortStateDiagnostic, DroppedConnectionDiagnostic,
     // MissingNodeDiagnostic) and the recording functions that populate the
@@ -150,7 +153,7 @@ internal import AnyCodable
         self.scene = Object(context: context)
         print("Init Graph")
         self.id = UUID()
-        self.version = .alpha1
+        self.version = .beta
         self.context = context
         self.nodes = []
         self.notes = []
@@ -412,7 +415,7 @@ internal import AnyCodable
         var container = encoder.container(keyedBy: CodingKeys.self)
 
         try container.encode(self.id, forKey: .id)
-        try container.encode(self.version, forKey: .version)
+        try container.encode(Self.currentVersion, forKey: .version)
         let requiredPlugins = try self.requiredPlugins(for: self.nodes)
         try container.encode(requiredPlugins, forKey: .requiredPlugins)
 
