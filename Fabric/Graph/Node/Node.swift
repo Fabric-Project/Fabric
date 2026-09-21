@@ -220,6 +220,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         }
 
         self.context = decodeContext.documentContext
+        self.graph = decodeContext.currentGraph
 
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -734,10 +735,15 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     }
 }
 
-/// Nodes that are constructed from a file (e.g. Metal shader effect nodes).
-/// Nodes that accept a user-dropped file via a file-path parameter port.
-/// Conformers declare which UTTypes they handle and receive the URL after
-/// normal construction via ``setFileURL(_:)``.
+/// Nodes that are constructed from a file (e.g. Metal shader effect nodes),
+/// or accept a user-dropped file via a file-path parameter port. Conformers
+/// declare which UTTypes they handle and receive the URL after normal
+/// construction via ``setFileURL(_:)``.
+///
+/// For conformers that expose a user-editable file-path parameter, decoding
+/// restores the saved reference but does not load it. Runtime assets load
+/// during execution, so a missing or invalid external file cannot prevent the
+/// node itself from deserializing.
 public protocol NodeFileLoadingProtocol : Node
 {
     init(context:Context, fileURL:URL) throws

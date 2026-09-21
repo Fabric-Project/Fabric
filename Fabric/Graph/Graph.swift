@@ -37,6 +37,9 @@ internal import AnyCodable
     @ObservationIgnored public let context:Context
     @ObservationIgnored public weak var undoManager: UndoManager?
 
+    /// Directory against which scheme-less file-picker values resolve.
+    @ObservationIgnored public private(set) var fileReferenceBaseURL: URL?
+
     public private(set) var nodes: [Node]
     public private(set) var notes: [Note]
     public private(set) var connections: [Connection] = []
@@ -148,13 +151,14 @@ internal import AnyCodable
         case notes
     }
     
-    public init(context:Context)
+    public init(context:Context, fileReferenceBaseURL: URL? = nil)
     {
         self.scene = Object(context: context)
         print("Init Graph")
         self.id = UUID()
         self.version = .beta
         self.context = context
+        self.fileReferenceBaseURL = fileReferenceBaseURL?.standardizedFileURL
         self.nodes = []
         self.notes = []
     }
@@ -167,6 +171,7 @@ internal import AnyCodable
         }
         
         self.context = decodeContext.documentContext
+        self.fileReferenceBaseURL = decodeContext.fileReferenceBaseURL?.standardizedFileURL
 
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -472,6 +477,11 @@ internal import AnyCodable
         self.nodes.append(node)
         node.graph = self
 
+        if let subgraphNode = node as? SubgraphNode
+        {
+            subgraphNode.subGraph.updateFileReferenceBaseURL(self.fileReferenceBaseURL)
+        }
+
         self.undoManager?.registerUndo(withTarget: self) { graph in
             graph.delete(node: node)
         }
@@ -481,6 +491,48 @@ internal import AnyCodable
 
         self.updateRenderingNodes()
         self.rebuildPublishedParameterGroup()
+    }
+
+    /// Updates the saved-document directory used by relative file paths and
+    /// invalidates every file-picker node so it reloads at the new location.
+    /// This propagates through nested subgraphs.
+    public func updateFileReferenceBaseURL(_ url: URL?)
+    {
+        let standardizedURL = url?.standardizedFileURL
+        guard self.fileReferenceBaseURL != standardizedURL else { return }
+
+        self.fileReferenceBaseURL = standardizedURL
+
+        for node in self.nodes
+        {
+            var hasFileReference = false
+
+            for port in node.ports where port.parameter?.controlType == .filepicker
+            {
+                port.valueDidChange = true
+                hasFileReference = true
+            }
+
+            if hasFileReference
+            {
+                node.markDirty()
+            }
+
+            if let subgraphNode = node as? SubgraphNode
+            {
+                subgraphNode.subGraph.updateFileReferenceBaseURL(standardizedURL)
+            }
+        }
+    }
+
+    /// Resolves an absolute file URL, absolute filesystem path, or path relative
+    /// to the directory containing this graph's document.
+    public func resolveFileReference(_ reference: String,
+                                     directoryHint: URL.DirectoryHint = .inferFromPath) -> URL?
+    {
+        DocumentFileReference.resolve(reference,
+                                      relativeTo: self.fileReferenceBaseURL,
+                                      directoryHint: directoryHint)
     }
 
     
