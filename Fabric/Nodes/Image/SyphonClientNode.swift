@@ -11,7 +11,7 @@ import Foundation
 import Satin
 import simd
 import Metal
-import Synchronization
+import SwiftUI
 import Syphon
 
 public class SyphonClientNode : Node
@@ -80,90 +80,22 @@ public class SyphonClientNode : Node
     /// of once the directory stops offering them.
     private var invalidServerIdentities: Set<String> = []
 
-    /// Set when the servers on offer have changed, so the next execute looks
-    /// again. Written from the notifications below, read on the render thread,
-    /// which is why it is a mutex and not a plain flag. Kept apart from the
-    /// node so the notification blocks capture this alone.
-    private final class DirectoryFlag: Sendable
-    {
-        private let changed = Mutex<Bool>(true)
-
-        func set()
-        {
-            self.changed.withLock { $0 = true }
-        }
-
-        /// Whether to look the server up again, clearing the flag as it reads
-        /// it. Read ahead of the lookup it answers, so a change arriving
-        /// during that lookup is answered by the next one rather than lost.
-        func take() -> Bool
-        {
-            self.changed.withLock
-            {
-                let changed = $0
-                $0 = false
-                return changed
-            }
-        }
-    }
-
-    private let directoryFlag = DirectoryFlag()
-
-    /// Syphon's announce / retire / update notifications, by raw name.
+    /// The client is an open connection to another application, so it is let
+    /// go of when the graph stops rather than whenever this object is released.
+    /// A node outlives its place in the graph — a deleted one is held by the
+    /// undo stack — and a connection left open goes on taking frames from an
+    /// application the patch no longer mentions.
     ///
-    /// Named literally rather than through Syphon's exported constants: those
-    /// are `NSString * const` ending in "Notification", so Swift imports them
-    /// as members of `NSNotification.Name` under refined spellings, and the
-    /// literal values are the stabler reference. They are part of Syphon's
-    /// cross-process contract — every publishing app posts exactly these.
-    private static let directoryNotifications: [NSNotification.Name] = [
-        NSNotification.Name("SyphonServerAnnounceNotification"),
-        NSNotification.Name("SyphonServerRetireNotification"),
-        NSNotification.Name("SyphonServerUpdateNotification"),
-    ]
-
-    private var directoryObservers: [NSObjectProtocol] = []
-
-    public required init(context: Context)
+    /// The stopping pair rather than the disabling one: the only thing a client
+    /// yields is a frame for `execute`, and a graph that is not executing has
+    /// no use for one. A Syphon client is not free to the other end — the
+    /// server is told it has one, and an application that publishes only while
+    /// watched will go on rendering for a graph that stopped.
+    override public func stopExecution(renderer: GraphRenderer) throws
     {
-        super.init(context: context)
-        observeDirectory()
-    }
-
-    public required init(from decoder: any Decoder) throws
-    {
-        try super.init(from: decoder)
-        observeDirectory()
-    }
-
-    deinit
-    {
-        for observer in self.directoryObservers
-        {
-            NotificationCenter.default.removeObserver(observer)
-        }
-    }
-
-    /// A server appearing or going away is the one thing that can change what
-    /// this node should be connected to without any of its inputs changing —
-    /// a patch opened before the app it takes its image from, or that app
-    /// quitting and coming back.
-    private func observeDirectory()
-    {
-        // The directory keeps observers of its own, and those are what post
-        // the notifications below, so it is made here — on the thread the node
-        // is made on — rather than lazily from the render thread in execute.
-        _ = SyphonServerDirectory.shared()
-
-        let center = NotificationCenter.default
-        let flag = self.directoryFlag
-        self.directoryObservers = Self.directoryNotifications.map
-        { name in
-            center.addObserver(forName: name, object: nil, queue: nil)
-            { _ in
-                flag.set()
-            }
-        }
+        self.syphonClient = nil
+        self.boundServerIdentity = nil
+        self.invalidServerIdentities.removeAll()
     }
 
     /// Syphon's identity for a server, where it offers one.
@@ -180,7 +112,6 @@ public class SyphonClientNode : Node
     {
         // A client whose server has gone yields nothing further, so it is
         // dropped and a server looked for again.
-        var clientDidInvalidate = false
         if let syphonClient = self.syphonClient, !syphonClient.isValid
         {
             self.syphonClient = nil
@@ -189,67 +120,60 @@ public class SyphonClientNode : Node
                 self.invalidServerIdentities.insert(boundServerIdentity)
             }
             self.boundServerIdentity = nil
-            clientDidInvalidate = true
         }
 
         // An empty name means the first server there is, which is what makes
         // the node work on being dropped into a patch. That leaves nothing to
         // say "no server at all" with, which is what this is for.
-        let isEnabled = self.inputEnabled.value ?? true
-        guard isEnabled
+        guard self.inputEnabled.value ?? true
         else
         {
             self.syphonClient = nil
             return
         }
 
-        let inputsDidChange = self.inputEnabled.valueDidChange
-            || self.inputServerName.valueDidChange
-            || self.inputServerAppName.valueDidChange
+        // Looked up every execute rather than when a change is signalled. The
+        // directory already watches for the whole process and answers from the
+        // handful of servers it holds behind its own lock, so asking it costs
+        // less than a node's own watching did — and leaves the node owning
+        // nothing that has to be given back.
+        //
+        // Asked every time rather than only when there is nothing in hand: the
+        // server answering to a name is a different one each time its
+        // application is relaunched, and a client made for the last one can go
+        // on saying it is valid.
+        let matches = SyphonServerDirectory.shared().servers(matchingName: self.inputServerName.value ?? "",
+                                                             appName: self.inputServerAppName.value ?? "")
 
-        let inputServerName = self.inputServerName.value ?? ""
-        let inputServerAppName = self.inputServerAppName.value ?? ""
+        // Held only while the directory still offers the identity.
+        // Syphon does not say an identity is never seen twice, and this
+        // does not need it to be: one come again costs a client, found
+        // invalid the next frame.
+        self.invalidServerIdentities.formIntersection(matches.compactMap(self.serverIdentity))
 
-        // Asked again whenever what is on offer changes, not only when there
-        // is nothing in hand: the server answering to a name is a different
-        // one each time its application is relaunched, and a client made for
-        // the last one can go on saying it is valid. Read here, where the
-        // lookup that answers it follows on unconditionally.
-        let serversDidChange = self.directoryFlag.take()
-        if inputsDidChange || clientDidInvalidate || serversDidChange
+        // Taken past a dead server rather than stopped by it: a relaunched
+        // application leaves its old entry on offer beside its new one,
+        // and which of the two comes first is not ours to say.
+        let match = matches.first
+        { description in
+            guard let identity = self.serverIdentity(description) else { return true }
+            return !self.invalidServerIdentities.contains(identity)
+        }
+
+        if let match
         {
-            let matches = SyphonServerDirectory.shared().servers(matchingName: inputServerName, appName: inputServerAppName)
+            let matchIdentity = self.serverIdentity(match)
 
-            // Held only while the directory still offers the identity.
-            // Syphon does not say an identity is never seen twice, and this
-            // does not need it to be: one come again costs a client, found
-            // invalid the next frame.
-            self.invalidServerIdentities.formIntersection(matches.compactMap(self.serverIdentity))
-
-            // Taken past a dead server rather than stopped by it: a relaunched
-            // application leaves its old entry on offer beside its new one,
-            // and which of the two comes first is not ours to say.
-            let match = matches.first
-            { description in
-                guard let identity = self.serverIdentity(description) else { return true }
-                return !self.invalidServerIdentities.contains(identity)
-            }
-
-            if let match
+            if self.syphonClient == nil || matchIdentity != self.boundServerIdentity
             {
-                let matchIdentity = self.serverIdentity(match)
-
-                if self.syphonClient == nil || matchIdentity != self.boundServerIdentity
-                {
-                    self.syphonClient = SyphonMetalClient(serverDescription: match, device:renderer.device)
-                    self.boundServerIdentity = matchIdentity
-                }
+                self.syphonClient = SyphonMetalClient(serverDescription: match, device:renderer.device)
+                self.boundServerIdentity = matchIdentity
             }
-            else
-            {
-                self.syphonClient = nil
-                self.boundServerIdentity = nil
-            }
+        }
+        else
+        {
+            self.syphonClient = nil
+            self.boundServerIdentity = nil
         }
 
         if let syphonClient = self.syphonClient, syphonClient.isValid
@@ -279,6 +203,114 @@ public class SyphonClientNode : Node
         }
     }
 
+    // MARK: - Settings
+
+    override public func providesSettingsView() -> Bool { true }
+
+    override public func settingsView() -> AnyView
+    {
+        guard let serverNameParameter = self.inputServerName.parameter as? GenericParameter<String>,
+              let appNameParameter = self.inputServerAppName.parameter as? GenericParameter<String>
+        else { return AnyView(EmptyView()) }
+
+        return AnyView(SyphonClientNodeView(serverNameParameter: serverNameParameter,
+                                            appNameParameter: appNameParameter))
+    }
+
+    override public var settingsSize: SettingsViewSize { .Mini }
+}
+
+// MARK: - Settings View
+
+/// Names a server from those publishing now. The two inputs stay the authority
+/// — a name can be typed for a server that is not running, so that a patch
+/// opens before the application it takes its image from — and this writes them
+/// from what the directory is offering.
+struct SyphonClientNodeView: View
+{
+    private let serverName: ParameterObservableModel<String>
+    private let appName: ParameterObservableModel<String>
+
+    init(serverNameParameter: GenericParameter<String>, appNameParameter: GenericParameter<String>)
+    {
+        self.serverName = ParameterObservableModel(label: serverNameParameter.label,
+                                                   get: { serverNameParameter.value },
+                                                   set: { serverNameParameter.value = $0 },
+                                                   publisher: serverNameParameter.valuePublisher)
+
+        self.appName = ParameterObservableModel(label: appNameParameter.label,
+                                                get: { appNameParameter.value },
+                                                set: { appNameParameter.value = $0 },
+                                                publisher: appNameParameter.valuePublisher)
+    }
+
+    /// A server to pick, identified by the pair the node matches on rather than
+    /// by Syphon's identity: what is written is a name, which outlives the
+    /// server answering to it.
+    private struct Row: Identifiable
+    {
+        let serverName: String
+        let appName: String
+        let title: String
+
+        var id: String { "\(self.appName)\u{1}\(self.serverName)" }
+    }
+
+    /// Everything on offer, the row for naming nothing, and — where no server
+    /// answers to what the inputs hold — that pair too, so the menu shows what
+    /// the node is waiting for rather than reading as a choice it did make.
+    private var rows: [Row]
+    {
+        var rows = [Row(serverName: "", appName: "", title: "First available")]
+
+        rows += SyphonServerList.shared.servers.map
+        {
+            Row(serverName: $0.name, appName: $0.appName, title: $0.displayName)
+        }
+
+        let named = Row(serverName: self.serverName.uiValue, appName: self.appName.uiValue, title: "")
+        if !rows.contains(where: { $0.id == named.id })
+        {
+            let description = [named.appName, named.serverName].filter { !$0.isEmpty }.joined(separator: " \u{2013} ")
+            rows.append(Row(serverName: named.serverName,
+                            appName: named.appName,
+                            title: "\(description) (not publishing)"))
+        }
+
+        return rows
+    }
+
+    private var selection: Binding<Row.ID>
+    {
+        Binding(get: { Row(serverName: self.serverName.uiValue, appName: self.appName.uiValue, title: "").id },
+                set: { picked in
+                    guard let row = self.rows.first(where: { $0.id == picked }) else { return }
+                    self.serverName.uiValue = row.serverName
+                    self.appName.uiValue = row.appName
+                })
+    }
+
+    var body: some View
+    {
+        VStack(alignment: .leading, spacing: 8)
+        {
+            Picker("", selection: self.selection)
+            {
+                ForEach(self.rows) { row in
+                    Text(row.title).tag(row.id)
+                }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+
+            if SyphonServerList.shared.servers.isEmpty
+            {
+                Text("Nothing is publishing a Syphon server")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
 }
 
 #endif // FABRIC_SYPHON_ENABLED
