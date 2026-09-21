@@ -28,6 +28,29 @@ struct JavaScriptNodeSignatureTests
 
     private static func lineCount(_ text: String) -> Int { text.filter(\.isNewline).count + 1 }
 
+    // MARK: - The node a user gets
+
+    /// The template ships as the first script every author reads, so a type name
+    /// it spells the parser's way is the difference between a working node and
+    /// one that arrives with an error and no ports at all.
+    @Test("A new node's template parses to the ports it declares")
+    func theDefaultScriptIsValid() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = JavaScriptNode(context: context)
+
+        #expect(node.currentDiagnostics.isEmpty,
+                "a node a user has only just made has nothing to complain about: \(node.currentDiagnostics)")
+        #expect(node.deriveStatuses().isEmpty)
+
+        let inlets = node.ports.filter { $0.kind == .Inlet }
+        let outlets = node.ports.filter { $0.kind == .Outlet }
+        #expect(inlets.map(\.name) == ["a", "b", "threshold"])
+        #expect(outlets.map(\.name) == ["sum", "thresholdPassed"])
+        #expect(inlets.allSatisfy { $0.portType == .Float })
+        #expect(outlets.map(\.portType) == [.Float, .Bool])
+    }
+
     // MARK: - TypeScript
 
     @Test("Parameters are inputs and the return type is outputs")

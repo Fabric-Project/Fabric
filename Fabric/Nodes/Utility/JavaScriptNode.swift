@@ -447,7 +447,7 @@ private final class JavaScriptNodeRuntime
     }
 
     /// What came back, from JavaScript's side of the bridge. An array's count is
-    /// worth carrying: a `FabricVector3` that arrives two long is the common
+    /// worth carrying: a `Vector3` that arrives two long is the common
     /// version of this mistake, and the count is the whole of the explanation.
     private static func describe(_ value: JSValue) -> String
     {
@@ -731,7 +731,7 @@ public final class JavaScriptNode: Node
     private static func defaultScriptSource() -> String
     {
         """
-        function main(a: FabricNumber, b: FabricNumber, threshold: FabricNumber): { sum: FabricNumber, thresholdPassed: FabricBool } {
+        function main(a: Number, b: Number, threshold: Number): { sum: Number, thresholdPassed: Bool } {
           const total = a + b
           return {
             sum: total,
