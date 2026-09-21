@@ -130,7 +130,10 @@ let package = Package(
         .testTarget(
             name: "FabricTests",
             dependencies: ["Fabric"],
-            path: "Tests"
+            path: "Tests",
+            swiftSettings: [
+                .define("FABRIC_SYPHON_ENABLED", .when(platforms: [.macOS])),
+            ]
         ),
 
     ],
