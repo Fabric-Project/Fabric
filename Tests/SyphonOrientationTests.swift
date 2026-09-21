@@ -1,3 +1,5 @@
+#if FABRIC_SYPHON_ENABLED
+
 import Testing
 import simd
 import Satin
@@ -24,3 +26,5 @@ struct SyphonOrientationTests
         #expect(SyphonServerNode.syphonRequiresVerticalFlip(for: .textureVerticalFlip) == false)
     }
 }
+
+#endif // FABRIC_SYPHON_ENABLED
