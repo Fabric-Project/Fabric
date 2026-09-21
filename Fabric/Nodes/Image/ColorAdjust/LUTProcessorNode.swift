@@ -23,6 +23,7 @@ public class LUTProcessorNode : BaseImageNode
     // Auto load our LUT shader
     public override class var sourceShaderName:String { "LUTShader" }
     public override class var defaultImageInputCountHint: Int? { 1 }
+    public override class var fixedImageInputCount: Int? { 1 }
     
     public override class var supportedContentTypes:[UTType] { [.data] }
 
@@ -40,12 +41,18 @@ public class LUTProcessorNode : BaseImageNode
 
     private var texture: (any MTLTexture)? = nil
     private var url: URL? = nil
+
+    override public func setFileURL(_ url: URL)
+    {
+        self.inputFilePathParam.value = url.standardizedFileURL.absoluteString
+    }
     
-    public required init(context:Context, fileURL:URL? = nil)
+    public required init(context: Context, fileURL: URL) throws
     {
         super.init(context: context)
-          
-        try? self.loadLUTFromInputValue()
+
+        self.setFileURL(fileURL)
+        try self.loadLUTFromInputValue()
     }
     
     public required init(context:Context)
@@ -92,31 +99,49 @@ public class LUTProcessorNode : BaseImageNode
     
     private func loadLUTFromInputValue() throws
     {
-        if let path = self.inputFilePathParam.value,
-           path.isEmpty == false && self.url != URL(string: path)
-        {
-            guard let url = URL(string: path) else
-            {
-                throw FabricError(.execution(.fileNotFound),
-                                  severity: .recoverable,
-                                  message: "LUT file path is invalid: \(path)")
-            }
-
-            self.url = url
-
-            guard FileManager.default.fileExists(atPath: url.standardizedFileURL.path(percentEncoded: false)) else
-            {
-                self.texture = nil
-                throw FabricError(.execution(.fileNotFound),
-                                  severity: .recoverable,
-                                  message: "LUT file not found: \(url.path)")
-            }
-
-            self.texture = try Self.loadLUT(url: url, device: self.context.device)
-        }
+        guard let path = self.inputFilePathParam.value,
+              path.isEmpty == false
         else
         {
+            self.url = nil
             self.texture = nil
+            return
+        }
+
+        guard let url = URL(string: path) else
+        {
+            self.url = nil
+            self.texture = nil
+            throw FabricError(.execution(.fileNotFound),
+                              severity: .recoverable,
+                              message: "LUT file path is invalid: \(path)")
+        }
+
+        if self.url == url, self.texture != nil
+        {
+            return
+        }
+
+        guard FileManager.default.fileExists(atPath: url.standardizedFileURL.path(percentEncoded: false)) else
+        {
+            self.url = url
+            self.texture = nil
+            throw FabricError(.execution(.fileNotFound),
+                              severity: .recoverable,
+                              message: "LUT file not found: \(url.path)")
+        }
+
+        do
+        {
+            let texture = try Self.loadLUT(url: url, device: self.context.device)
+            self.texture = texture
+            self.url = url
+        }
+        catch
+        {
+            self.url = url
+            self.texture = nil
+            throw error
         }
     }
 

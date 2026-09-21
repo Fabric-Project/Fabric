@@ -28,6 +28,10 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
 
     open class var defaultImageInputCountHint: Int? { nil }
 
+    /// Overrides shader-reflected image input discovery for nodes that bind
+    /// additional textures internally rather than exposing them as ports.
+    open class var fixedImageInputCount: Int? { nil }
+
     open class PostMaterial: SourceMaterial {}
 
     let postMaterial: PostMaterial
@@ -244,7 +248,9 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
     }
     
     open func postSetupSynchronizePorts(allowReplace: Bool) {
-        let inferredInputCount = self.inferInputCountFromShader() ?? self.lastKnownInputCount
+        let inferredInputCount = Self.fixedImageInputCount
+            ?? self.inferInputCountFromShader()
+            ?? self.lastKnownInputCount
         self.lastKnownInputCount = max(0, inferredInputCount)
 
         self.syncImageInputPorts(targetCount: self.lastKnownInputCount, allowReplace: allowReplace)
