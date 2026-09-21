@@ -398,6 +398,11 @@ private final class JavaScriptNodeRuntime
                               message: diagnostic.summary)
         }
 
+        // A script that declares no outputs is written for its side effects, and
+        // has nothing to hand back. Reading a return out of one is the caller
+        // asking for what the signature already said does not exist.
+        guard signature.outputs.isEmpty == false else { return [:] }
+
         guard let result, result.isObject else {
             throw JavaScriptNodeExecutionError.invalidReturnShape
         }

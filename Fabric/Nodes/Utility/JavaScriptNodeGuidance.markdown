@@ -13,11 +13,12 @@ function main(a: Number, b: Number): { sum: Number, over: Bool } {
 ```
 
 The parameters are the node's inputs, the return type its outputs, and both take
-the port's name from the declaration. The function **must return** an object with
-a key per declared output; a script that returns something else, or throws, has
-its error reported on the node and at the line it happened.
+the port's name from the declaration. A function that declares outputs **must
+return** an object with a key per declared output; a script that returns
+something else, or throws, has its error reported on the node and at the line it
+happened.
 
-A script with nothing to send declares no return type.
+A script with nothing to send declares no return type, and returns nothing.
 
 ## Types
 
