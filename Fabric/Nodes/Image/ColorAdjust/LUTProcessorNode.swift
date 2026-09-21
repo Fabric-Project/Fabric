@@ -70,8 +70,9 @@ public class LUTProcessorNode : BaseImageNode
 //        }
         
         try super.init(from:decoder)
-        
-        try self.loadLUTFromInputValue()
+
+        // External resource availability is runtime state. The hydrated port
+        // remains changed so the first execution attempts the load.
     }
     
     override public func execute(renderer:GraphRenderer,
@@ -108,7 +109,8 @@ public class LUTProcessorNode : BaseImageNode
             return
         }
 
-        guard let url = URL(string: path) else
+        guard let url = self.graph?.resolveFileReference(path)
+            ?? DocumentFileReference.resolve(path, relativeTo: nil) else
         {
             self.url = nil
             self.texture = nil
