@@ -26,11 +26,16 @@ extension UTType {
     static var fabricDocument: UTType {
         UTType(importedAs: "graphics.fabric.document")
     }
+
+    static var fabricDocumentBundle: UTType {
+        UTType(exportedAs: "graphics.fabric.document-bundle", conformingTo: .package)
+    }
 }
 
 class FabricDocument: FileDocument
 {
-    static var readableContentTypes: [UTType] { [.fabricDocument] }
+    static var readableContentTypes: [UTType] { [.fabricDocument, .fabricDocumentBundle] }
+    static var writableContentTypes: [UTType] { [.fabricDocument] }
 
     @ObservationIgnored let context = Context(device: MTLCreateSystemDefaultDevice()!,
                                               sampleCount: 1,
@@ -159,7 +164,17 @@ class FabricDocument: FileDocument
     {
         print("Read Configuration Document Init")
 
-        guard let data = configuration.file.regularFileContents,
+        let data: Data?
+        if configuration.contentType == .fabricDocumentBundle
+        {
+            data = configuration.file.fileWrappers?[DocumentBundleExporter.graphFilename]?.regularFileContents
+        }
+        else
+        {
+            data = configuration.file.regularFileContents
+        }
+
+        guard let data,
               let name = configuration.file.filename
         else
         {
@@ -202,6 +217,31 @@ class FabricDocument: FileDocument
         self.outputPresenter = OutputPresenter(ownerDocument: self, renderer: self.renderer)
         self.outputPresenter?.setWindowTitle(self.graphName)
         ActiveFabricDocumentStore.shared.activeDocument = self
+    }
+
+    /// SwiftUI supplies the document URL to the scene configuration rather
+    /// than FileDocument's read/write callbacks. Install its containing
+    /// directory before rendering so scheme-less file paths resolve locally.
+    func updateDocumentURL(_ documentURL: URL?)
+    {
+        let fileReferenceBaseURL: URL?
+        if documentURL?.pathExtension.localizedCaseInsensitiveCompare("fabricbundle") == .orderedSame
+        {
+            fileReferenceBaseURL = documentURL
+        }
+        else
+        {
+            fileReferenceBaseURL = documentURL?.deletingLastPathComponent()
+        }
+
+        self.editingContext.rootGraph.updateFileReferenceBaseURL(
+            fileReferenceBaseURL
+        )
+
+        if let documentURL
+        {
+            self.graphName = documentURL.lastPathComponent
+        }
     }
 
     @MainActor
@@ -254,6 +294,27 @@ class FabricDocument: FileDocument
                 title: "Image Export Failed",
                 message: error.localizedDescription
             )
+        }
+    }
+
+    @MainActor
+    func exportDocumentBundle()
+    {
+        let savePanel = NSSavePanel()
+        savePanel.allowedContentTypes = [.fabricDocumentBundle]
+        savePanel.canCreateDirectories = true
+        savePanel.isExtensionHidden = false
+        savePanel.nameFieldStringValue = self.defaultBundleExportFilename()
+
+        guard savePanel.runModal() == .OK, let url = savePanel.url else { return }
+
+        do
+        {
+            try DocumentBundleExporter.export(graph: self.editingContext.rootGraph, to: url)
+        }
+        catch
+        {
+            self.presentAlert(title: "Bundle Export Failed", message: error.localizedDescription)
         }
     }
 
@@ -363,6 +424,13 @@ class FabricDocument: FileDocument
         }
 
         return "\(sanitizedGraphName).mov"
+    }
+
+    private func defaultBundleExportFilename() -> String
+    {
+        let documentName = self.graphName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let nameWithoutExtension = URL(filePath: documentName).deletingPathExtension().lastPathComponent
+        return "\(nameWithoutExtension.isEmpty ? "Untitled" : nameWithoutExtension).fabricbundle"
     }
 
     @MainActor

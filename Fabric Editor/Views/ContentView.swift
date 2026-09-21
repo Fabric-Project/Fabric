@@ -19,6 +19,7 @@ struct ContentView: View {
     }
     
     @Binding var document: FabricDocument
+    let documentURL: URL?
     @Environment(\.undoManager) private var undoManager
 
     @State private var canvasHitTestingEnabled = true
@@ -41,8 +42,9 @@ struct ContentView: View {
     // route and move focus. Never shadow it with plain @State.
     @FocusState private var focusTarget: FabricEditorFocusTarget?
 
-    init(document: Binding<FabricDocument>) {
+    init(document: Binding<FabricDocument>, documentURL: URL? = nil) {
         self._document = document
+        self.documentURL = documentURL
     }
 
     // Magic Numbers...
@@ -248,8 +250,12 @@ struct ContentView: View {
             .onAppear {
                 // AppKit window creation has to happen on the main thread
                 // once the scene is up; onAppear guarantees both.
+                self.document.updateDocumentURL(self.documentURL)
                 self.document.setupOutputPresentation()
                 self.outputPresenter = self.document.outputPresenter
+            }
+            .onChange(of: self.documentURL) { _, newDocumentURL in
+                self.document.updateDocumentURL(newDocumentURL)
             }
             .onDisappear {
                 self.outputPresenter = nil
