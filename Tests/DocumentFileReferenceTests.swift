@@ -159,6 +159,96 @@ struct DocumentFileReferenceTests
         #expect(exportedGraph.connections.count == 1)
     }
 
+    @Test("Bundle document writes preserve existing assets and gather new static references")
+    func bundleDocumentWritePreservesAndGathersAssets() throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+
+        let rootURL = FileManager.default.temporaryDirectory.appending(
+            path: "FabricDocumentBundleWriteTests-\(UUID().uuidString)",
+            directoryHint: .isDirectory
+        )
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: rootURL) }
+
+        let newAssetURL = rootURL.appending(path: "new.txt")
+        try Data("new asset".utf8).write(to: newAssetURL)
+
+        let graph = Graph(context: harness.context, fileReferenceBaseURL: rootURL)
+        let node = TextFileLoaderNode(context: harness.context)
+        node.setFileURL(newAssetURL)
+        graph.addNode(node)
+
+        let retainedAsset = FileWrapper(regularFileWithContents: Data("retained asset".utf8))
+        retainedAsset.preferredFilename = "retained.txt"
+        let existingAssets = FileWrapper(directoryWithFileWrappers: [
+            "retained.txt": retainedAsset,
+        ])
+        existingAssets.preferredFilename = DocumentBundleExporter.assetsDirectoryName
+        let existingBundle = FileWrapper(directoryWithFileWrappers: [
+            DocumentBundleExporter.assetsDirectoryName: existingAssets,
+        ])
+
+        let bundleWrapper = try DocumentBundleExporter.fileWrapper(
+            graph: graph,
+            preserving: existingBundle
+        )
+        let children = try #require(bundleWrapper.fileWrappers)
+        let graphWrapper = try #require(children[DocumentBundleExporter.graphFilename])
+        let graphData = try #require(graphWrapper.regularFileContents)
+        let assets = try #require(
+            children[DocumentBundleExporter.assetsDirectoryName]?.fileWrappers
+        )
+
+        #expect(assets["retained.txt"]?.regularFileContents == Data("retained asset".utf8))
+        #expect(assets["new.txt"]?.regularFileContents == Data("new asset".utf8))
+
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: harness.context,
+                                         fileReferenceBaseURL: rootURL)
+        let savedGraph = try decoder.decode(Graph.self, from: graphData)
+        let savedNode = try #require(
+            savedGraph.nodes.compactMap { $0 as? TextFileLoaderNode }.first
+        )
+        #expect(savedNode.inputFilePathParam.value == "Assets/new.txt")
+    }
+
+    @Test("Save As converts an existing standalone file wrapper into a bundle")
+    func standaloneFileWrapperConvertsToBundle() throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+
+        let rootURL = FileManager.default.temporaryDirectory.appending(
+            path: "FabricStandaloneToBundleTests-\(UUID().uuidString)",
+            directoryHint: .isDirectory
+        )
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: rootURL) }
+
+        let assetURL = rootURL.appending(path: "asset.txt")
+        try Data("asset".utf8).write(to: assetURL)
+
+        let graph = Graph(context: harness.context, fileReferenceBaseURL: rootURL)
+        let node = TextFileLoaderNode(context: harness.context)
+        node.setFileURL(assetURL)
+        graph.addNode(node)
+
+        let existingStandaloneFile = FileWrapper(
+            regularFileWithContents: try JSONEncoder().encode(graph)
+        )
+        let bundleWrapper = try DocumentBundleExporter.fileWrapper(
+            graph: graph,
+            preserving: existingStandaloneFile
+        )
+
+        #expect(bundleWrapper.isDirectory)
+        #expect(bundleWrapper.fileWrappers?[DocumentBundleExporter.graphFilename]?.isRegularFile == true)
+        #expect(
+            bundleWrapper.fileWrappers?[DocumentBundleExporter.assetsDirectoryName]?
+                .fileWrappers?["asset.txt"]?.regularFileContents == Data("asset".utf8)
+        )
+    }
+
     @Test("Bundle graphs defer relative LUT loading until their location is known")
     func bundleDecodeDefersRelativeLUTLoading() throws
     {

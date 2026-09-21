@@ -35,7 +35,7 @@ extension UTType {
 class FabricDocument: FileDocument
 {
     static var readableContentTypes: [UTType] { [.fabricDocument, .fabricDocumentBundle] }
-    static var writableContentTypes: [UTType] { [.fabricDocument] }
+    static var writableContentTypes: [UTType] { [.fabricDocument, .fabricDocumentBundle] }
 
     @ObservationIgnored let context = Context(device: MTLCreateSystemDefaultDevice()!,
                                               sampleCount: 1,
@@ -298,27 +298,6 @@ class FabricDocument: FileDocument
     }
 
     @MainActor
-    func exportDocumentBundle()
-    {
-        let savePanel = NSSavePanel()
-        savePanel.allowedContentTypes = [.fabricDocumentBundle]
-        savePanel.canCreateDirectories = true
-        savePanel.isExtensionHidden = false
-        savePanel.nameFieldStringValue = self.defaultBundleExportFilename()
-
-        guard savePanel.runModal() == .OK, let url = savePanel.url else { return }
-
-        do
-        {
-            try DocumentBundleExporter.export(graph: self.editingContext.rootGraph, to: url)
-        }
-        catch
-        {
-            self.presentAlert(title: "Bundle Export Failed", message: error.localizedDescription)
-        }
-    }
-
-    @MainActor
     func exportMovie()
     {
         self.movieExportCoordinator.present(initialSettings: MovieExportSettings(
@@ -396,6 +375,14 @@ class FabricDocument: FileDocument
     
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper
     {
+        if configuration.contentType == .fabricDocumentBundle
+        {
+            return try DocumentBundleExporter.fileWrapper(
+                graph: self.editingContext.rootGraph,
+                preserving: configuration.existingFile
+            )
+        }
+
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted]
         
@@ -424,13 +411,6 @@ class FabricDocument: FileDocument
         }
 
         return "\(sanitizedGraphName).mov"
-    }
-
-    private func defaultBundleExportFilename() -> String
-    {
-        let documentName = self.graphName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let nameWithoutExtension = URL(filePath: documentName).deletingPathExtension().lastPathComponent
-        return "\(nameWithoutExtension.isEmpty ? "Untitled" : nameWithoutExtension).fabricbundle"
     }
 
     @MainActor

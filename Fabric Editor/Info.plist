@@ -16,10 +16,23 @@
 			<key>LSItemContentTypes</key>
 			<array>
 				<string>graphics.fabric.document</string>
-				<string>graphics.fabric.document-bundle</string>
 			</array>
 			<key>NSUbiquitousDocumentUserActivityType</key>
 			<string>$(PRODUCT_BUNDLE_IDENTIFIER).exampledocument</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeIconSystemGenerated</key>
+			<true/>
+			<key>CFBundleTypeName</key>
+			<string>Fabric Document Bundle</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Default</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>graphics.fabric.document-bundle</string>
+			</array>
 		</dict>
 	</array>
 	<key>SUEnableAutomaticChecks</key>

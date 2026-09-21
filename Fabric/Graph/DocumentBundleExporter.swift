@@ -101,6 +101,62 @@ public enum DocumentBundleExporter
         try fileManager.moveItem(at: temporaryBundleURL, to: destinationURL)
     }
 
+    /// Builds the package representation used by FileDocument Save and Save As.
+    /// Existing package children are retained so connected/dynamic references
+    /// cannot accidentally prune assets that the graph may select at runtime.
+    public static func fileWrapper(graph: Graph,
+                                   preserving existingBundle: FileWrapper?) throws -> FileWrapper
+    {
+        let fileManager = FileManager.default
+        let references = try self.assetReferences(in: graph, fileManager: fileManager)
+        let exportedGraph = try self.clone(graph)
+        try self.rewrite(references, in: exportedGraph)
+
+        var packageChildren: [String: FileWrapper]
+        if let existingBundle, existingBundle.isDirectory
+        {
+            packageChildren = existingBundle.fileWrappers ?? [:]
+        }
+        else
+        {
+            // Save As may convert an existing standalone document into a
+            // bundle. SwiftUI still supplies that regular file as
+            // existingFile, whose fileWrappers accessor raises NSException.
+            packageChildren = [:]
+        }
+
+        var assetChildren: [String: FileWrapper]
+        if let existingAssets = packageChildren[self.assetsDirectoryName],
+           existingAssets.isDirectory
+        {
+            assetChildren = existingAssets.fileWrappers ?? [:]
+        }
+        else
+        {
+            assetChildren = [:]
+        }
+
+        for reference in references
+        {
+            let assetWrapper = try FileWrapper(url: reference.sourceURL,
+                                               options: [.immediate])
+            assetChildren[reference.sourceURL.lastPathComponent] = assetWrapper
+        }
+
+        let assetsWrapper = FileWrapper(directoryWithFileWrappers: assetChildren)
+        assetsWrapper.preferredFilename = self.assetsDirectoryName
+        packageChildren[self.assetsDirectoryName] = assetsWrapper
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let graphData = try encoder.encode(exportedGraph)
+        let graphWrapper = FileWrapper(regularFileWithContents: graphData)
+        graphWrapper.preferredFilename = self.graphFilename
+        packageChildren[self.graphFilename] = graphWrapper
+
+        return FileWrapper(directoryWithFileWrappers: packageChildren)
+    }
+
     private static func assetReferences(in graph: Graph,
                                         fileManager: FileManager) throws -> [AssetReference]
     {

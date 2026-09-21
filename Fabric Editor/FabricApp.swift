@@ -147,11 +147,6 @@ struct DocumentCommands:Commands
                 }
                 .disabled(self.activeDocument == nil)
 
-                Button("Fabric Bundle…")
-                {
-                    self.activeDocument?.exportDocumentBundle()
-                }
-                .disabled(self.activeDocument == nil)
             }
         }
     }
