@@ -90,6 +90,13 @@ public class SyphonServerNode : Node
     /// already flipped is already in Syphon's orientation and goes across as
     /// it stands — which is what a frame from `SyphonClientNode` is.
     ///
+    /// Which way round this goes was settled by looking rather than by reading
+    /// Syphon's headers, and against another application rather than a loop
+    /// back through Fabric, where the publishing and receiving claims cancel
+    /// out: a canonical frame published from Spark Stage reads the right way up
+    /// in Syphon Recorder with this, and upside down with what Fabric did
+    /// before it.
+    ///
     /// A flag can only say those two things. An image carrying any other
     /// transform — a movie's rotation, a crop — is published as though it were
     /// canonical, because there is nowhere in `publishFrameTexture` to put the
