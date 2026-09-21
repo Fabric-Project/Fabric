@@ -195,6 +195,12 @@ public class SyphonClientNode : Node
                 // rather than being copied the right way up: downstream samples
                 // through the transform, and a frame passed back out to Syphon
                 // is already in the orientation Syphon wants.
+                //
+                // Which way round that is was checked against an application
+                // outside Fabric — see `SyphonServerNode.syphonRequiresVerticalFlip`.
+                // A loop back through Fabric cannot say: a frame declared the
+                // wrong way up here and turned the wrong way there comes out
+                // looking right.
                 let image = FabricImage.unmanaged(texture: texture)
                 image.textureTransform = .textureVerticalFlip
                 self.heldImage = image
