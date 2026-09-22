@@ -51,6 +51,208 @@ struct JavaScriptNodeSignatureTests
         #expect(outlets.map(\.portType) == [.Float, .Bool])
     }
 
+    // MARK: - Commentary is not code
+
+    /// The edit this is really about: writing the replacement signature under the
+    /// one being replaced. The patterns took the first `function main` in the
+    /// source, so the node read its ports off the commented-out line and handed
+    /// JavaScriptCore the real signature untranspiled, types and all.
+    @Test("A signature commented out above the real one is not the signature")
+    func aCommentedSignatureIsIgnored() throws
+    {
+        let signature = try JavaScriptNodeSourceParser.parse(source: """
+        // function main(oldValue: Number): { oldResult: Number } {
+        function main(value: Number): { result: Number } {
+          return { result: value }
+        }
+        """)
+
+        #expect(names(signature.inputs) == ["value"])
+        #expect(names(signature.outputs) == ["result"])
+        #expect(signature.transpiledSource.contains("function main(value)"),
+                "the real signature is the one transpiled: \(signature.transpiledSource)")
+    }
+
+    /// And the node built on it runs, which is the half a parse assertion alone
+    /// would miss: what JavaScriptCore was handed used to be TypeScript.
+    @Test("A node whose script carries a commented signature compiles")
+    func aCommentedSignatureLeavesTheNodeClean() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = JavaScriptNode(context: context)
+
+        node.updateScriptSource("""
+        // function main(oldValue: Number): { oldResult: Number } {
+        function main(value: Number): { result: Number } {
+          return { result: value }
+        }
+        """)
+
+        #expect(node.currentDiagnostics.isEmpty, "\(node.currentDiagnostics)")
+        #expect(node.ports.map(\.name) == ["value", "result"])
+    }
+
+    @Test("A signature inside a block comment is not the signature")
+    func aBlockCommentedSignatureIsIgnored() throws
+    {
+        let signature = try JavaScriptNodeSourceParser.parse(source: """
+        /*
+          function main(oldValue: Number): { oldResult: Number } {
+        */
+        function main(value: Number): { result: Number } {
+          return { result: value }
+        }
+        """)
+
+        #expect(names(signature.inputs) == ["value"])
+        #expect(names(signature.outputs) == ["result"])
+    }
+
+    @Test("A signature inside a string is not the signature")
+    func aQuotedSignatureIsIgnored() throws
+    {
+        let signature = try JavaScriptNodeSourceParser.parse(source: """
+        const usage = "function main(oldValue: Number): { oldResult: Number } {"
+        function main(value: Number): { result: Number } {
+          return { result: value }
+        }
+        """)
+
+        #expect(names(signature.inputs) == ["value"])
+        #expect(names(signature.outputs) == ["result"])
+    }
+
+    /// A script that is all commentary has no signature, rather than the one it
+    /// talks about.
+    @Test("A script that is entirely commented out declares nothing")
+    func aFullyCommentedScriptHasNoSignature() throws
+    {
+        let error = #expect(throws: JavaScriptNodeParseError.self) {
+            try JavaScriptNodeSourceParser.parse(source: """
+            // function main(value: Number): { result: Number } {
+            //   return { result: value }
+            // }
+            """)
+        }
+
+        #expect(error?.errorDescription?.contains("at the top level") == true,
+                "got: \(error?.errorDescription ?? "no description")")
+    }
+
+    /// The blocked-syntax scan reads the source the same way, and had the same
+    /// blind spot: a line a script no longer runs was still a line it was
+    /// refused for.
+    @Test("A commented-out require is not a require")
+    func aCommentedRequireIsNotBlocked() throws
+    {
+        let signature = try JavaScriptNodeSourceParser.parse(source: """
+        // const helper = require("helper")
+        function main(value: Number): { result: Number } {
+          return { result: value }
+        }
+        """)
+
+        #expect(names(signature.inputs) == ["value"])
+    }
+
+    @Test("A require the script actually makes is still refused")
+    func aRealRequireIsStillBlocked() throws
+    {
+        let error = #expect(throws: JavaScriptNodeParseError.self) {
+            try JavaScriptNodeSourceParser.parse(source: """
+            const helper = require("helper")
+            function main(value: Number): { result: Number } {
+              return { result: value }
+            }
+            """)
+        }
+
+        #expect(error?.errorDescription?.contains("require") == true,
+                "got: \(error?.errorDescription ?? "no description")")
+    }
+
+    /// A comment that says `function main(` without closing the paren used to
+    /// take the real signature's `)` and return type into its own match, leaving
+    /// no separate match for the real one to be found as. The patterns are
+    /// anchored now, so prose about a signature is not a match to begin with.
+    @Test("An unclosed signature in prose does not consume the real one")
+    func proseAboutASignatureIsNotAMatch() throws
+    {
+        for commentary in ["// function main(",
+                           "/**\n * Replaces function main(\n */",
+                           "/* function main( */"]
+        {
+            let signature = try JavaScriptNodeSourceParser.parse(source: """
+            \(commentary)
+            function main(value: Number): { result: Number } {
+              return { result: value }
+            }
+            """)
+
+            #expect(names(signature.inputs) == ["value"], "for \(commentary)")
+            #expect(names(signature.outputs) == ["result"], "for \(commentary)")
+        }
+    }
+
+    /// The scan reads comments, not strings: a signature inside one is passed
+    /// over because the patterns want the start of a line and a string's
+    /// contents have its opening quote ahead of them. That leaves `require` in a
+    /// string looking like a require, which is a refusal the script does not
+    /// deserve but a safe one, and cheaper than reading string literals to tell.
+    @Test("A require inside a string is refused with the rest")
+    func aQuotedRequireIsStillBlocked() throws
+    {
+        let error = #expect(throws: JavaScriptNodeParseError.self) {
+            try JavaScriptNodeSourceParser.parse(source: """
+            const advice = "call require() somewhere else"
+            function main(value: Number): { result: Number } {
+              return { result: value }
+            }
+            """)
+        }
+
+        #expect(error?.errorDescription?.contains("require") == true,
+                "got: \(error?.errorDescription ?? "no description")")
+    }
+
+    /// The scan does not read regular-expression literals, so a quote inside one
+    /// opens a string the script never wrote. Bounding a `'` or `"` to its line
+    /// is what keeps that from swallowing the signature underneath it.
+    @Test("A quote inside a regular expression does not hide the signature")
+    func aQuoteInsideARegexLeavesTheSignatureVisible() throws
+    {
+        for pattern in ["/'/g", #"/"/g"#, "/`/g"]
+        {
+            let signature = try JavaScriptNodeSourceParser.parse(source: """
+            const strip = (s) => s.replace(\(pattern), "")
+            function main(value: Number): { result: Number } {
+              return { result: value }
+            }
+            """)
+
+            #expect(names(signature.inputs) == ["value"], "for \(pattern)")
+            #expect(names(signature.outputs) == ["result"], "for \(pattern)")
+        }
+    }
+
+    /// A template literal is multi-line by design, so it is the one string the
+    /// scan still follows past a newline.
+    @Test("A signature inside a template literal is not the signature")
+    func aTemplatedSignatureIsIgnored() throws
+    {
+        let signature = try JavaScriptNodeSourceParser.parse(source: """
+        const usage = `write it as
+        function main(oldValue: Number): { oldResult: Number } {
+        and it will run`
+        function main(value: Number): { result: Number } {
+          return { result: value }
+        }
+        """)
+
+        #expect(names(signature.inputs) == ["value"])
+        #expect(names(signature.outputs) == ["result"])
+    }
+
     // MARK: - TypeScript
 
     @Test("Parameters are inputs and the return type is outputs")

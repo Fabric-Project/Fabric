@@ -102,12 +102,20 @@ enum JavaScriptNodeSourceParser
     /// outputs has none. The whitespace up to the body brace is deliberately
     /// outside the match: it is what separates the signature from the body, and
     /// replacing the match must not take it — see `lineSpanPreserved`.
+    ///
+    /// Anchored to the start of a line, where a top-level declaration is
+    /// written. Anything ahead of it on the line — a `//`, an assignment — makes
+    /// it commentary about the script rather than the script's own signature,
+    /// and the anchor is what keeps commentary from being a match at all rather
+    /// than a match to be discarded afterwards. The indent the anchor takes with
+    /// it is not part of the signature: see `signatureRange`.
     private static let typeScriptSignaturePattern =
-        #"function\s+main\s*\(([^)]*)\)(?:\s*:\s*(\{[^}]*\}|void))?(?=\s*\{)"#
+        #"(?m)^[ \t]*function\s+main\s*\(([^)]*)\)(?:\s*:\s*(\{[^}]*\}|void))?(?=\s*\{)"#
 
-    /// The annotated form this node started with: `function (__type name) main(__type name)`.
+    /// The annotated form this node started with: `function (__type name) main(__type name)`,
+    /// anchored as `typeScriptSignaturePattern` is.
     private static let annotatedSignaturePattern =
-        #"function\s*\(([\s\S]*?)\)\s*main\s*\(([\s\S]*?)\)"#
+        #"(?m)^[ \t]*function\s*\(([\s\S]*?)\)\s*main\s*\(([\s\S]*?)\)"#
 
     // MARK: - Types
 
@@ -224,29 +232,175 @@ enum JavaScriptNodeSourceParser
 
     static func parse(source: String) throws -> JavaScriptNodeSignature
     {
+        // Worked out once and handed down: every regex below asks the same
+        // question of the same source, and the answer does not change between
+        // them.
+        let outsideComment = positionsOutsideComments(of: source)
+
         for blockedPattern in blockedPatterns
         {
-            if source.range(of: blockedPattern.pattern, options: .regularExpression) != nil
+            let regex = try NSRegularExpression(pattern: blockedPattern.pattern)
+            if firstCodeMatch(of: regex, in: source, outsideComment: outsideComment) != nil
             {
                 throw JavaScriptNodeParseError.blockedSyntax(blockedPattern.label)
             }
         }
 
-        if let signature = try parseTypeScript(source: source) { return signature }
-        if let signature = try parseAnnotated(source: source) { return signature }
+        if let signature = try parseTypeScript(source: source, outsideComment: outsideComment) { return signature }
+        if let signature = try parseAnnotated(source: source, outsideComment: outsideComment) { return signature }
 
         throw JavaScriptNodeParseError.missingMainSignature
     }
 
+    // MARK: - Where the code is
+
+    /// Which of the source's UTF-16 offsets fall outside a comment. A
+    /// `function main(…)` written inside one is prose about the script rather
+    /// than the script's signature, and the patterns take the first one they are
+    /// shown: commenting a signature out while writing its replacement is an
+    /// ordinary edit, and it used to hand JavaScriptCore the commented signature
+    /// with the real, still-typed one left underneath it.
+    ///
+    /// Comments only. A string cannot hold a line the signature patterns would
+    /// match, because they are anchored to the start of a line and a string's
+    /// contents always have its opening quote ahead of them — with one
+    /// exception, the template literal, which `insideTemplateLiteral` answers
+    /// for. Following string literals here would mean following
+    /// regular-expression literals too, since telling a delimiting `/` from a
+    /// dividing one needs the parse this node does without, and a quote inside a
+    /// regex would otherwise open a string the script never wrote. Comments ask
+    /// none of that: neither form quotes or escapes anything.
+    private static func positionsOutsideComments(of source: String) -> [Bool]
+    {
+        let units = Array(source.utf16)
+        var outsideComment = [Bool](repeating: false, count: units.count)
+
+        let slash = UInt16(UInt8(ascii: "/"))
+        let star = UInt16(UInt8(ascii: "*"))
+        let newline = UInt16(UInt8(ascii: "\n"))
+
+        var index = 0
+        while index < units.count
+        {
+            let unit = units[index]
+
+            if unit == slash, index + 1 < units.count, units[index + 1] == slash
+            {
+                while index < units.count, units[index] != newline { index += 1 }
+                continue
+            }
+
+            if unit == slash, index + 1 < units.count, units[index + 1] == star
+            {
+                index += 2
+                while index + 1 < units.count, !(units[index] == star && units[index + 1] == slash)
+                {
+                    index += 1
+                }
+                index = min(index + 2, units.count)
+                continue
+            }
+
+            outsideComment[index] = true
+            index += 1
+        }
+
+        return outsideComment
+    }
+
+    /// Whether the offset stands inside a template literal. It is the one string
+    /// that spans lines, so the one that can hold a line the anchored patterns
+    /// would otherwise match.
+    ///
+    /// A backtick opens one only where another closes it. The scan does not read
+    /// regular-expression literals, so a lone backtick inside one would
+    /// otherwise put every line below it inside a template the script never
+    /// wrote. Two of them still pair with each other, which is as far as this
+    /// goes without the parse.
+    private static func insideTemplateLiteral(_ source: String,
+                                              at offset: Int,
+                                              outsideComment: [Bool]) -> Bool
+    {
+        let units = Array(source.utf16)
+        let backtick = UInt16(UInt8(ascii: "`"))
+        let backslash = UInt16(UInt8(ascii: "\\"))
+
+        func nextBacktick(from start: Int) -> Int?
+        {
+            var index = start
+            while index < units.count
+            {
+                if units[index] == backslash { index += 2; continue }
+                if units[index] == backtick, outsideComment[index] { return index }
+                index += 1
+            }
+            return nil
+        }
+
+        var index = 0
+        while let open = nextBacktick(from: index)
+        {
+            if open >= offset { return false }
+            guard let close = nextBacktick(from: open + 1) else { return false }
+            if offset < close { return true }
+            index = close + 1
+        }
+
+        return false
+    }
+
+    /// The first match the source actually says, rather than the first one it
+    /// contains: the first beginning outside a comment and outside a template
+    /// literal.
+    private static func firstCodeMatch(of regex: NSRegularExpression,
+                                       in source: String,
+                                       outsideComment: [Bool]) -> NSTextCheckingResult?
+    {
+        let sourceRange = NSRange(source.startIndex..., in: source)
+        return regex.matches(in: source, options: [], range: sourceRange).first { match in
+            let start = contentStart(of: match, in: source)
+            return start < outsideComment.count
+                && outsideComment[start]
+                && !insideTemplateLiteral(source, at: start, outsideComment: outsideComment)
+        }
+    }
+
+    /// Where a match's own text begins, past any whitespace its anchor took with
+    /// it. That is the offset the two tests above are asking about, the indent
+    /// ahead of a signature being neither its comment nor its own.
+    private static func contentStart(of match: NSTextCheckingResult, in source: String) -> Int
+    {
+        let units = Array(source.utf16)
+        let whitespace: Set<UInt16> = [UInt16(UInt8(ascii: " ")),
+                                       UInt16(UInt8(ascii: "\t")),
+                                       UInt16(UInt8(ascii: "\n")),
+                                       UInt16(UInt8(ascii: "\r"))]
+
+        var start = match.range.location
+        while start < units.count, whitespace.contains(units[start]) { start += 1 }
+        return start
+    }
+
+    /// The signature a match stands for, without the indent the anchor took with
+    /// it. This is the span a rewrite replaces, and taking the indent too would
+    /// move the signature to the start of its line.
+    private static func signatureRange(of match: NSTextCheckingResult,
+                                       in source: String) -> Range<String.Index>?
+    {
+        let start = contentStart(of: match, in: source)
+        let end = match.range.location + match.range.length
+        guard start <= end else { return nil }
+        return Range(NSRange(location: start, length: end - start), in: source)
+    }
+
     /// The TypeScript form, which is also what a parsed script is written back as.
-    private static func parseTypeScript(source: String) throws -> JavaScriptNodeSignature?
+    private static func parseTypeScript(source: String, outsideComment: [Bool]) throws -> JavaScriptNodeSignature?
     {
         let regex = try NSRegularExpression(pattern: typeScriptSignaturePattern, options: [.dotMatchesLineSeparators])
-        let sourceRange = NSRange(source.startIndex..., in: source)
 
-        guard let match = regex.firstMatch(in: source, options: [], range: sourceRange),
+        guard let match = firstCodeMatch(of: regex, in: source, outsideComment: outsideComment),
               let parameterRange = Range(match.range(at: 1), in: source),
-              let fullRange = Range(match.range(at: 0), in: source)
+              let fullRange = signatureRange(of: match, in: source)
         else { return nil }
 
         let inputs = try ports(inTypeScriptList: String(source[parameterRange]), direction: .input)
@@ -273,15 +427,14 @@ enum JavaScriptNodeSourceParser
     }
 
     /// The annotated form, rewritten to TypeScript as it is read.
-    private static func parseAnnotated(source: String) throws -> JavaScriptNodeSignature?
+    private static func parseAnnotated(source: String, outsideComment: [Bool]) throws -> JavaScriptNodeSignature?
     {
         let regex = try NSRegularExpression(pattern: annotatedSignaturePattern, options: [.dotMatchesLineSeparators])
-        let sourceRange = NSRange(source.startIndex..., in: source)
 
-        guard let match = regex.firstMatch(in: source, options: [], range: sourceRange),
+        guard let match = firstCodeMatch(of: regex, in: source, outsideComment: outsideComment),
               let outputsRange = Range(match.range(at: 1), in: source),
               let inputsRange = Range(match.range(at: 2), in: source),
-              let fullRange = Range(match.range(at: 0), in: source)
+              let fullRange = signatureRange(of: match, in: source)
         else { return nil }
 
         let outputs = try ports(inAnnotatedList: String(source[outputsRange]), direction: .output)
