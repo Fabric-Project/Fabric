@@ -13,7 +13,6 @@ import LanguageSupport
 @Observable final class JavaScriptNodeEditorModel
 {
     var content: String
-    var selectedExecutionMode: Node.ExecutionMode
     var selectedTimeMode: Node.TimeMode
     var messages: Set<TextLocated<Message>> = []
     let languageService: JavaScriptLanguageService
@@ -25,7 +24,6 @@ import LanguageSupport
     {
         self.node = node
         self.content = node.scriptSource
-        self.selectedExecutionMode = node.selectedExecutionMode
         self.selectedTimeMode = node.selectedTimeMode
         self.languageService = JavaScriptLanguageService()
         self.refreshMessages()
@@ -34,6 +32,12 @@ import LanguageSupport
     var diagnostics: [JavaScriptNodeDiagnostic]
     {
         node?.currentDiagnostics ?? []
+    }
+
+    /// Read off the node, which reads it off the ports the script declares.
+    var executionMode: Node.ExecutionMode
+    {
+        node?.nodeExecutionMode ?? .Processor
     }
 
     func scheduleSave()
@@ -50,7 +54,7 @@ import LanguageSupport
     {
         guard let node else { return }
         node.updateScriptSource(self.content)
-        node.updateModes(executionMode: self.selectedExecutionMode, timeMode: self.selectedTimeMode)
+        node.updateTimeMode(self.selectedTimeMode)
 
         // A script written in the annotated form is kept as the TypeScript it
         // was read as. Taking that back is what puts the rewrite in front of the
@@ -98,10 +102,9 @@ struct JavaScriptNodeSettingsView: View
 
             HStack
             {
-                Picker("Execution", selection: self.$editorModel.selectedExecutionMode) {
-                    Text("Provider").tag(Node.ExecutionMode.Provider)
-                    Text("Processor").tag(Node.ExecutionMode.Processor)
-                    Text("Consumer").tag(Node.ExecutionMode.Consumer)
+                LabeledContent("Execution") {
+                    Text(self.editorModel.executionMode.rawValue)
+                        .foregroundStyle(.secondary)
                 }
 
                 Picker("Time", selection: self.$editorModel.selectedTimeMode) {
@@ -109,8 +112,8 @@ struct JavaScriptNodeSettingsView: View
                     Text("Idle").tag(Node.TimeMode.Idle)
                     Text("Time Base").tag(Node.TimeMode.TimeBase)
                 }
+                .pickerStyle(.segmented)
             }
-            .pickerStyle(.segmented)
 
             CodeEditor(text: self.$editorModel.content,
                        position: self.$position,
@@ -119,9 +122,6 @@ struct JavaScriptNodeSettingsView: View
             .codeEditorChrome()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onChange(of: self.editorModel.content) { _, _ in
-                self.editorModel.scheduleSave()
-            }
-            .onChange(of: self.editorModel.selectedExecutionMode) { _, _ in
                 self.editorModel.scheduleSave()
             }
             .onChange(of: self.editorModel.selectedTimeMode) { _, _ in

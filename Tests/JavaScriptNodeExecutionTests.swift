@@ -63,6 +63,14 @@ struct JavaScriptNodeExecutionTests
     }
     """
 
+    /// Takes nothing and returns something: a source, not a filter.
+    private static let providerScript = """
+    function main(): { tick: Number }
+    {
+        return { tick: context.frameNumber }
+    }
+    """
+
     @Test("A script edit leaves the node asking to run again")
     func editingTheScriptMarksItDirty() throws
     {
@@ -79,8 +87,8 @@ struct JavaScriptNodeExecutionTests
                 "a Processor that is not dirty is skipped, so the edit would not take effect")
     }
 
-    @Test("Changing the execution mode also leaves it asking to run again")
-    func changingModeMarksItDirty() throws
+    @Test("Changing the time dependency also leaves it asking to run again")
+    func changingTimeModeMarksItDirty() throws
     {
         guard let context = makeContext() else { return }
         let node = JavaScriptNode(context: context)
@@ -88,7 +96,7 @@ struct JavaScriptNodeExecutionTests
         node.markClean()
         try #require(node.isDirty == false)
 
-        node.updateModes(executionMode: .Consumer, timeMode: .None)
+        node.updateTimeMode(.TimeBase)
 
         #expect(node.isDirty)
     }
@@ -195,5 +203,101 @@ struct JavaScriptNodeExecutionTests
         node.updateScriptSource(Self.uncompilableScript)
 
         #expect(node.ports.map(\.name) == ["value", "doubled"])
+    }
+
+    // MARK: - The role the signature puts the node in
+
+    @Test("A script that takes and returns is a Processor")
+    func inputsAndOutputsAreAProcessor() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = JavaScriptNode(context: context)
+        node.updateScriptSource(Self.doublingScript)
+
+        #expect(node.nodeExecutionMode == .Processor)
+    }
+
+    @Test("A script that takes nothing is a Provider")
+    func outputsOnlyIsAProvider() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = JavaScriptNode(context: context)
+        node.updateScriptSource(Self.providerScript)
+
+        #expect(node.nodeExecutionMode == .Provider)
+    }
+
+    /// The case the mode matters most for: with nothing to return there is
+    /// nothing downstream to ask for a value, so only a Consumer is ever run.
+    @Test("A script with nothing to return is a Consumer")
+    func noOutputsIsAConsumer() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = JavaScriptNode(context: context)
+        node.updateScriptSource(Self.sideEffectScript)
+
+        #expect(node.nodeExecutionMode == .Consumer)
+    }
+
+    @Test("The role follows the script when it is rewritten")
+    func theModeFollowsAnEdit() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = JavaScriptNode(context: context)
+        node.updateScriptSource(Self.doublingScript)
+        try #require(node.nodeExecutionMode == .Processor)
+
+        node.updateScriptSource(Self.sideEffectScript)
+
+        #expect(node.nodeExecutionMode == .Consumer)
+    }
+
+    /// A failed compile leaves the ports alone, and the mode is read off them,
+    /// so a half-typed script does not change what the node is either.
+    @Test("An edit that does not compile keeps the role the last one gave it")
+    func aFailedCompileKeepsItsMode() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = JavaScriptNode(context: context)
+        node.updateScriptSource(Self.doublingScript)
+
+        node.updateScriptSource(Self.uncompilableScript)
+
+        #expect(node.nodeExecutionMode == .Processor)
+    }
+
+    /// Deriving the mode is only half of it: the graph renders from its own list
+    /// of Consumers, and that list is rebuilt when a node is added or deleted —
+    /// which an edit is not.
+    @Test("A script that becomes a Consumer joins the graph's roots")
+    func becomingAConsumerReachesTheGraph() throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let graph = Graph(context: harness.context)
+        let node = JavaScriptNode(context: harness.context)
+        graph.addNode(node)
+
+        try #require(graph.consumerNodes.contains { $0 === node } == false,
+                     "the template takes and returns, so it is a Processor")
+
+        node.updateScriptSource(Self.sideEffectScript)
+
+        #expect(graph.consumerNodes.contains { $0 === node },
+                "it is a Consumer now, and nothing else will ever pull it")
+    }
+
+    @Test("A script that stops being a Consumer leaves them")
+    func leavingConsumerReachesTheGraph() throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let graph = Graph(context: harness.context)
+        let node = JavaScriptNode(context: harness.context)
+        graph.addNode(node)
+        node.updateScriptSource(Self.sideEffectScript)
+        try #require(graph.consumerNodes.contains { $0 === node })
+
+        node.updateScriptSource(Self.doublingScript)
+
+        #expect(graph.consumerNodes.contains { $0 === node } == false)
     }
 }

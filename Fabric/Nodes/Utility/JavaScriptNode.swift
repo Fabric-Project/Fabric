@@ -495,7 +495,6 @@ public final class JavaScriptNode: Node
     private enum CodingKeys: String, CodingKey
     {
         case scriptSource
-        case selectedExecutionMode
         case selectedTimeMode
         case scriptSchemaVersion
     }
@@ -529,10 +528,26 @@ public final class JavaScriptNode: Node
         }
     }
 
-    public var selectedExecutionMode: Node.ExecutionMode = .Processor
     public var selectedTimeMode: Node.TimeMode = .None
 
-    @ObservationIgnored override public var nodeExecutionMode: ExecutionMode { self.selectedExecutionMode }
+    /// The role the signature puts the node in, on the same reading of it that
+    /// gives the node its ports. A script with nothing to return is a script
+    /// written for its side effects: nothing downstream will ask it for a value,
+    /// so only a Consumer — a root the renderer pulls — ever runs it at all. One
+    /// that takes nothing produces from time or the outside, which is a Provider.
+    /// Anything with both is a Processor, the ordinary case.
+    ///
+    /// Derived rather than picked because the signature already says it, and two
+    /// places to say the same thing is one place for them to disagree: a
+    /// consumer-style script left on the Processor a picker defaulted to is a
+    /// node that never runs and never says why. Both lists are the node's cached
+    /// topology, so this costs nothing to read per frame.
+    @ObservationIgnored override public var nodeExecutionMode: ExecutionMode
+    {
+        guard self.outputPorts().isEmpty == false else { return .Consumer }
+        return self.inputPorts().isEmpty ? .Provider : .Processor
+    }
+
     @ObservationIgnored override public var nodeTimeMode: TimeMode { self.selectedTimeMode }
 
     var currentDiagnostics: [JavaScriptNodeDiagnostic] { diagnostics }
@@ -560,7 +575,6 @@ public final class JavaScriptNode: Node
 
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.scriptSource = try container.decodeIfPresent(String.self, forKey: .scriptSource) ?? JavaScriptNode.defaultScriptSource()
-        self.selectedExecutionMode = try container.decodeIfPresent(Node.ExecutionMode.self, forKey: .selectedExecutionMode) ?? .Processor
         self.selectedTimeMode = try container.decodeIfPresent(Node.TimeMode.self, forKey: .selectedTimeMode) ?? .None
         // Every port is dynamic, so decode must rebuild them from the restored
         // script; each recreated port adopts its persisted identity and state
@@ -574,7 +588,6 @@ public final class JavaScriptNode: Node
 
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.scriptSource, forKey: .scriptSource)
-        try container.encode(self.selectedExecutionMode, forKey: .selectedExecutionMode)
         try container.encode(self.selectedTimeMode, forKey: .selectedTimeMode)
         try container.encode(Self.scriptSchemaVersion, forKey: .scriptSchemaVersion)
     }
@@ -601,17 +614,14 @@ public final class JavaScriptNode: Node
         self.compileAndSynchronizePorts()
     }
 
+    /// The execution mode has no setter: it is read off the ports. The time
+    /// dependency has one, being the half of the pair a signature cannot show.
     @MainActor
-    public func updateModes(executionMode: Node.ExecutionMode, timeMode: Node.TimeMode)
+    public func updateTimeMode(_ timeMode: Node.TimeMode)
     {
-        if self.selectedExecutionMode != executionMode {
-            self.selectedExecutionMode = executionMode
-            self.markDirty()
-        }
-        if self.selectedTimeMode != timeMode {
-            self.selectedTimeMode = timeMode
-            self.markDirty()
-        }
+        guard self.selectedTimeMode != timeMode else { return }
+        self.selectedTimeMode = timeMode
+        self.markDirty()
     }
 
     override public func execute(renderer: GraphRenderer,
@@ -663,6 +673,21 @@ public final class JavaScriptNode: Node
         // is not dirty is skipped, so without this the edit takes effect only
         // once something else in the graph happens to.
         self.markDirty()
+
+        // Read before the ports move, compared after: the mode is derived from
+        // them, and the graph keeps its own list of the Consumers it renders from.
+        let previousExecutionMode = self.nodeExecutionMode
+        defer
+        {
+            // That list is rebuilt when a node is added or deleted, and an edit
+            // is neither. A script that becomes a Consumer has to join it to be
+            // rendered from at all, and one that stops being a Consumer has to
+            // leave it.
+            if self.nodeExecutionMode != previousExecutionMode
+            {
+                self.graph?.updateRenderingNodes()
+            }
+        }
 
         do {
             let signature = try JavaScriptNodeSourceParser.parse(source: self.scriptSource)
