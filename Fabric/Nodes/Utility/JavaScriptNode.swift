@@ -686,6 +686,17 @@ public final class JavaScriptNode: Node
             let summary = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             self.diagnostics = [JavaScriptNodeDiagnostic(summary: summary, detail: summary)]
 
+            // The script that no longer compiles is the one this node runs.
+            // Holding on to the last runtime that did has the node go on emitting
+            // from a script the editor no longer shows, and the next clean run
+            // clears the compile error along with it. `execute` throws this
+            // diagnostic for as long as there is nothing to run, as
+            // MathExpressionNode's does. The ports are left where they are:
+            // every one of them came from the last signature that parsed, and a
+            // half-typed script is no reason to take an author's wires down.
+            self.compiledSignature = nil
+            self.runtime = nil
+
             // Every port here is minted from the script's signature, so a saved
             // script that no longer parses leaves the node with none at all.
             self.adoptRemainingSnapshotPortsAsFallback()
