@@ -128,6 +128,12 @@ struct JointBilateralFilterTests
 
     private func makeTexture(device: MTLDevice, _ values: [[Float]]) throws -> MTLTexture
     {
+        guard let firstRow = values.first, !firstRow.isEmpty, values.allSatisfy({ $0.count == firstRow.count }) else
+        {
+            throw GraphExecutionTestFailure("Test texture values must be a non-empty rectangle")
+        }
+        let width = firstRow.count
+        let height = values.count
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba32Float, width: width, height: height, mipmapped: false)
         descriptor.usage = [.shaderRead, .shaderWrite]
         descriptor.storageMode = .shared
