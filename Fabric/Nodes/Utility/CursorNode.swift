@@ -30,12 +30,18 @@ public class CursorNode : Node
 
     // Ports
     public let outputCursorPosition:NodePort<simd_float2>
+    public let outputCursorPositionInFabricUnits:NodePort<simd_float2>
     public let outputTap:NodePort<Bool>
-    public override var ports: [Port] { [ self.outputCursorPosition, self.outputTap] + super.ports}
+    public override var ports: [Port] { [self.outputCursorPosition, self.outputCursorPositionInFabricUnits, self.outputTap] + super.ports }
       
     public required init(context: Context)
     {
-        self.outputCursorPosition = NodePort<simd_float2>(name: "Position" , kind: .Outlet, description: "Current cursor position in pixels")
+        self.outputCursorPosition = NodePort<simd_float2>(name: "Position (Pixels)" , kind: .Outlet, description: "Current cursor position in pixels")
+        self.outputCursorPositionInFabricUnits = NodePort<simd_float2>(
+            name: "Position (Units)",
+            kind: .Outlet,
+            description: "Current cursor position in Fabric units (-1...1 horizontally, aspect-scaled vertically)"
+        )
         self.outputTap = NodePort<Bool>(name: "Tap" , kind: .Outlet, description: "True when mouse button is pressed")
         
         super.init(context: context)
@@ -44,6 +50,7 @@ public class CursorNode : Node
     enum CodingKeys : String, CodingKey
     {
         case outputCursorPositionPort
+        case outputCursorPositionInFabricUnitsPort
         case outputTapPort
     }
 
@@ -52,6 +59,7 @@ public class CursorNode : Node
         var container = encoder.container(keyedBy: CodingKeys.self)
         
         try container.encode(self.outputCursorPosition, forKey: .outputCursorPositionPort)
+        try container.encode(self.outputCursorPositionInFabricUnits, forKey: .outputCursorPositionInFabricUnitsPort)
         try container.encode(self.outputTap, forKey: .outputTapPort)
 
         try super.encode(to: encoder)
@@ -62,10 +70,47 @@ public class CursorNode : Node
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
         self.outputCursorPosition =  try container.decode(NodePort<simd_float2>.self, forKey: .outputCursorPositionPort)
+        self.outputCursorPositionInFabricUnits = try container.decodeIfPresent(
+            NodePort<simd_float2>.self,
+            forKey: .outputCursorPositionInFabricUnitsPort
+        ) ?? NodePort<simd_float2>(
+            name: "Position (Fabric Units)",
+            kind: .Outlet,
+            description: "Current cursor position in Fabric units (-1...1 horizontally, aspect-scaled vertically)"
+        )
         self.outputTap = try container.decode(NodePort<Bool>.self, forKey: .outputTapPort)
 
         try super.init(from: decoder)
     }
+
+    static func fabricUnitPosition(
+        from pixelPosition: simd_float2,
+        renderSize: (width: Float, height: Float)
+    ) -> simd_float2
+    {
+        guard renderSize.width > 0, renderSize.height > 0 else { return .zero }
+
+        let aspect = renderSize.height / renderSize.width
+        return simd_float2(
+            remap(pixelPosition.x, 0, renderSize.width, -1, 1),
+            remap(pixelPosition.y, 0, renderSize.height, -aspect, aspect)
+        )
+    }
+
+#if os(macOS)
+    private func publishCursorPosition(_ point: CGPoint, renderer: GraphRenderer)
+    {
+        let pixelPosition = simd_float2(
+            x: Float(point.x) * renderer.resizeScaleFactor,
+            y: Float(point.y) * renderer.resizeScaleFactor
+        )
+        self.outputCursorPosition.send(pixelPosition)
+        self.outputCursorPositionInFabricUnits.send(Self.fabricUnitPosition(
+            from: pixelPosition,
+            renderSize: renderer.renderEncoder.size
+        ))
+    }
+#endif
     
 #if os(macOS)
     private let moveEventTypesWeListenFor:[NSEvent.EventType] = [
@@ -106,8 +151,7 @@ public class CursorNode : Node
         {
             if moveEventTypesWeListenFor.contains(event.type)
             {
-                let point = event.locationInWindow
-                self.outputCursorPosition.send( simd_float2(x: Float(point.x) * renderer.resizeScaleFactor, y: Float(point.y) * renderer.resizeScaleFactor) )
+                self.publishCursorPosition(event.locationInWindow, renderer: renderer)
             }
             
             if upEventTypesWeListenFor.contains(event.type)
@@ -120,8 +164,7 @@ public class CursorNode : Node
                 print("Cursor Down")
                 self.outputTap.send( true )
              
-                let point = event.locationInWindow
-                self.outputCursorPosition.send( simd_float2(x: Float(point.x) * renderer.resizeScaleFactor, y: Float(point.y) * renderer.resizeScaleFactor) )
+                self.publishCursorPosition(event.locationInWindow, renderer: renderer)
 
             }
         }
