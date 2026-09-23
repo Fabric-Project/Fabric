@@ -9,6 +9,24 @@ import Satin
 import QuartzCore
 import simd
 import MPSMediaPipe
+import SwiftUI
+
+public struct MediaPipePoseLandmarkSettings: Codable, Equatable
+{
+    public enum ModelTier: String, Codable, CaseIterable
+    {
+        case lite = "Lite"
+        case full = "Full"
+        case heavy = "Heavy"
+    }
+
+    public var modelTier: ModelTier
+
+    public init(modelTier: ModelTier = .lite)
+    {
+        self.modelTier = modelTier
+    }
+}
 
 /// Runs MediaPipe's BlazePose landmark model (33 points) against a
 /// caller-supplied region + rotation. Standalone comparison path,
@@ -16,8 +34,8 @@ import MPSMediaPipe
 /// structure. Wire MediaPipe Pose Detection's Region/Rotation/Keypoints
 /// outputs into this node's matching inputs.
 ///
-/// Model tier (Lite/Full/Heavy) is a plain dropdown — switching it never
-/// changes port shape, only accuracy/latency.
+/// Model tier (Lite/Full/Heavy) is selected in Node Settings because changing
+/// it reloads weights. It never changes port shape, only accuracy/latency.
 ///
 /// outputSegmentationMask is computed by the model every frame regardless
 /// of whether it's wired up, so exposing it costs no extra inference.
@@ -54,7 +72,6 @@ public class MediaPipePoseLandmarkNode: Node
             ("inputRegionOfInterest", NodePort<simd_float4>(name: "Region", kind: .Inlet, description: "Body region as (x, y, width, height) normalized bottom-left-origin — wire in from MediaPipe Pose Detection's Region output. Defaults to the full frame when unconnected.")),
             ("inputRotation", NodePort<Float>(name: "Rotation", kind: .Inlet, description: "In-plane rotation in radians — wire in from MediaPipe Pose Detection's Rotation output. Defaults to 0 (no rotation) when unconnected.")),
             ("inputKeypoints", NodePort<ContiguousArray<simd_float2>>(name: "Keypoints", kind: .Inlet, description: "Detector keypoints, already in Fabric's unit coordinate space — wire in from MediaPipe Pose Detection's Keypoints output. Passed straight through to this node's own Keypoints output so a single downstream consumer can see both the detector's coarse keypoints and the refined landmarks. Empty when unconnected.")),
-            ("inputModelTier", ParameterPort(parameter: StringParameter("Model Tier", ModelTier.lite.rawValue, ModelTier.allCases.map(\.rawValue), .dropdown, "BlazePose landmark model size — Lite is fastest, Heavy is most accurate"))),
             ("inputEnableSmoothing", ParameterPort(parameter: BoolParameter("Smoothing", true, .toggle, "Temporally smooth landmarks with a One Euro filter. Disable to see the model's raw, unsmoothed output."))),
 
             ("outputLandmarks", NodePort<ContiguousArray<simd_float2>>(name: "Landmarks", kind: .Outlet, description: "All 33 BlazePose landmarks (see mediapipe's own topology: 0 nose, 1-6 eyes, 7-8 ears, 9-10 mouth, 11-22 shoulders/elbows/wrists/hands, 23-32 hips/knees/ankles/feet), in unit coordinates")),
@@ -71,8 +88,9 @@ public class MediaPipePoseLandmarkNode: Node
     public var inputRegionOfInterest: NodePort<simd_float4> { port(named: "inputRegionOfInterest") }
     public var inputRotation: NodePort<Float> { port(named: "inputRotation") }
     public var inputKeypoints: NodePort<ContiguousArray<simd_float2>> { port(named: "inputKeypoints") }
-    public var inputModelTier: ParameterPort<String> { port(named: "inputModelTier") }
     public var inputEnableSmoothing: ParameterPort<Bool> { port(named: "inputEnableSmoothing") }
+
+    public private(set) var modelSettings: MediaPipePoseLandmarkSettings
 
     public var outputLandmarks: NodePort<ContiguousArray<simd_float2>> { port(named: "outputLandmarks") }
     public var outputLandmarks3D: NodePort<ContiguousArray<simd_float3>> { port(named: "outputLandmarks3D") }
@@ -93,6 +111,9 @@ public class MediaPipePoseLandmarkNode: Node
     private static let synchronousInference = false
 
     private var preprocessor: MediaPipeCropPreprocessor?
+    private var model: MediaPipeMPSGraph?
+    private var preparedTier: ModelTier?
+    private var executionEnabled = false
 
     /// GPU-resident destinations for MediaPipeMPSGraph.encode()'s output
     /// tensors (landmarks, pose flag, segmentation) -- .storageModeShared so
@@ -102,6 +123,79 @@ public class MediaPipePoseLandmarkNode: Node
     private var outputBuffersTier: ModelTier?
     private var segmentationMaskProjector: MediaPipeSegmentationMaskProjector?
     private let landmarksSmoothingFilter = MediaPipeLandmarksSmoothingFilter(debugLabel: "Pose")
+
+    private enum ModelSettingsCodingKeys: String, CodingKey
+    {
+        case modelSettings
+    }
+
+    public required init(context: Context)
+    {
+        self.modelSettings = .init()
+        super.init(context: context)
+    }
+
+    public init(context: Context, modelSettings: MediaPipePoseLandmarkSettings)
+    {
+        self.modelSettings = modelSettings
+        super.init(context: context)
+    }
+
+    public required init(from decoder: any Decoder) throws
+    {
+        let container = try decoder.container(keyedBy: ModelSettingsCodingKeys.self)
+        if let decoded = try container.decodeIfPresent(MediaPipePoseLandmarkSettings.self, forKey: .modelSettings)
+        {
+            self.modelSettings = decoded
+        }
+        else
+        {
+            let legacy = LegacyModelConfigurationPort.string(named: "inputModelTier", from: decoder)
+            self.modelSettings = MediaPipePoseLandmarkSettings(
+                modelTier: MediaPipePoseLandmarkSettings.ModelTier(rawValue: legacy ?? "") ?? .lite
+            )
+        }
+        try super.init(from: decoder)
+    }
+
+    public override func encode(to encoder: Encoder) throws
+    {
+        try super.encode(to: encoder)
+        var container = encoder.container(keyedBy: ModelSettingsCodingKeys.self)
+        try container.encode(self.modelSettings, forKey: .modelSettings)
+    }
+
+    override public func providesSettingsView() -> Bool { true }
+    override public var settingsSize: SettingsViewSize { .Mini }
+
+    override public func settingsView() -> AnyView
+    {
+        AnyView(MPSModelConfigurationSettingsView(options: [
+            MPSModelConfigurationOption(
+                label: "Model Tier",
+                choices: MediaPipePoseLandmarkSettings.ModelTier.allCases.map(\.rawValue),
+                selection: Binding(
+                    get: { [weak self] in self?.modelSettings.modelTier.rawValue ?? MediaPipePoseLandmarkSettings.ModelTier.lite.rawValue },
+                    set: { [weak self] value in
+                        guard let self, let tier = MediaPipePoseLandmarkSettings.ModelTier(rawValue: value) else { return }
+                        self.apply(modelSettings: .init(modelTier: tier))
+                    }
+                )
+            ),
+        ]))
+    }
+
+    override public func enableExecution(renderer: GraphRenderer) throws
+    {
+        try self.prepareModel(for: self.selectedTier)
+        self.executionEnabled = true
+    }
+
+    override public func disableExecution(renderer: GraphRenderer) throws
+    {
+        self.executionEnabled = false
+        self.releasePreparedModel()
+    }
 
     private let lastLandmarksLock = NSLock()
     private var lastLandmarksStorage: [simd_float3] = []
@@ -204,7 +298,7 @@ public class MediaPipePoseLandmarkNode: Node
         {
             let region = self.inputRegionOfInterest.value ?? Self.fullFrameRegion
             let rotation = self.inputRotation.value ?? 0
-            let tier = ModelTier.from(self.inputModelTier.value)
+            let tier = self.selectedTier
             let synchronous = insideIterator || Self.synchronousInference
 
             do { try self.detectLandmarks(image: inputImage, region: region, rotation: rotation, tier: tier, commandBuffer: commandBuffer, synchronous: synchronous) }
@@ -327,10 +421,11 @@ public class MediaPipePoseLandmarkNode: Node
     private func detectLandmarks(image: FabricImage, region: simd_float4, rotation: Float, tier: ModelTier, commandBuffer: MTLCommandBuffer, synchronous: Bool) throws
     {
         let startTime = Date()
-        let preprocessor = try self.preprocessor ?? MediaPipeCropPreprocessor(device: self.context.device, outputWidth: Int(MediaPipePoseLandmarkProjection.landmarkSize), outputHeight: Int(MediaPipePoseLandmarkProjection.landmarkSize))
-        self.preprocessor = preprocessor
-
-        let model = try Self.mpsGraphModel(for: tier, commandQueue: self.context.commandQueue)
+        try self.prepareModel(for: tier)
+        guard let preprocessor = self.preprocessor, let model = self.model else
+        {
+            throw FabricError(.execution(.gpu), severity: .recoverable, message: "MediaPipe pose landmark model is unavailable")
+        }
         let outputBuffers = try self.outputBuffers(for: tier, model: model)
 
         let center = simd_float2(region.x + region.z / 2, region.y + region.w / 2)
@@ -404,8 +499,8 @@ public class MediaPipePoseLandmarkNode: Node
             // Keeps `image` (and its texture) out of GraphRendererTextureCache's
             // recycle pool until the GPU work reading it is verified done, not
             // just encoded.
-            targetBuffer.addCompletedHandler { [weak self, image] finishedBuffer in
-                withExtendedLifetime(image) {}
+            targetBuffer.addCompletedHandler { [weak self, image, model, preprocessor, inputBuffer] finishedBuffer in
+                withExtendedLifetime((image, model, preprocessor, inputBuffer)) {}
                 guard let self else { return }
                 if let error = finishedBuffer.error
                 {
@@ -471,6 +566,70 @@ public class MediaPipePoseLandmarkNode: Node
     private static func mpsGraphModel(for tier: ModelTier, commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
     {
         try MediaPipeSharedModels.model(named: tier.resourcePrefix, inputWidth: Int(MediaPipePoseLandmarkProjection.landmarkSize), inputHeight: Int(MediaPipePoseLandmarkProjection.landmarkSize), commandQueue: commandQueue)
+    }
+
+    private var selectedTier: ModelTier
+    {
+        ModelTier.from(self.modelSettings.modelTier.rawValue)
+    }
+
+    private func prepareModel(for tier: ModelTier) throws
+    {
+        guard self.model == nil || self.preparedTier != tier else { return }
+        let model = try Self.mpsGraphModel(for: tier, commandQueue: self.context.commandQueue)
+        let preprocessor = try MediaPipeCropPreprocessor(
+            device: self.context.device,
+            outputWidth: Int(MediaPipePoseLandmarkProjection.landmarkSize),
+            outputHeight: Int(MediaPipePoseLandmarkProjection.landmarkSize)
+        )
+        let outputBuffers = try model.outputBufferLengths.map { length -> MTLBuffer in
+            guard let buffer = self.context.device.makeBuffer(length: length, options: .storageModeShared) else
+            {
+                throw FabricError(.execution(.outOfMemory), severity: .recoverable, message: "Could not allocate MediaPipe pose landmark output buffer")
+            }
+            return buffer
+        }
+        let segmentationMaskProjector = try MediaPipeSegmentationMaskProjector(
+            device: self.context.device,
+            maskWidth: MediaPipePoseLandmarkProjection.maskSize,
+            maskHeight: MediaPipePoseLandmarkProjection.maskSize
+        )
+
+        self.model = model
+        self.preprocessor = preprocessor
+        self.outputBuffers = outputBuffers
+        self.outputBuffersTier = tier
+        self.segmentationMaskProjector = segmentationMaskProjector
+        self.preparedTier = tier
+    }
+
+    private func releasePreparedModel()
+    {
+        self.model = nil
+        self.preprocessor = nil
+        self.outputBuffers = nil
+        self.outputBuffersTier = nil
+        self.segmentationMaskProjector = nil
+        self.preparedTier = nil
+    }
+
+    private func apply(modelSettings: MediaPipePoseLandmarkSettings)
+    {
+        guard modelSettings != self.modelSettings else { return }
+        if self.executionEnabled
+        {
+            do
+            {
+                try self.prepareModel(for: ModelTier.from(modelSettings.modelTier.rawValue))
+            }
+            catch
+            {
+                print("MediaPipePoseLandmarkNode: could not apply model settings: \(error)")
+                return
+            }
+        }
+        self.modelSettings = modelSettings
+        self.markDirty()
     }
 
     /// `landmark` is normalized full-image, bottom-left origin.

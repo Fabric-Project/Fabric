@@ -141,6 +141,19 @@ public class MediaPipeHandDetectionNode: StrategyNode
     /// tensors (rawBoxes, rawScores) -- .storageModeShared so the completion
     /// handler can read them back without a CPU round-trip through submit().
     private var outputBuffers: [MTLBuffer]?
+    private var model: MediaPipeMPSGraph?
+
+    override public func enableExecution(renderer: GraphRenderer) throws
+    {
+        try self.prepareModel()
+    }
+
+    override public func disableExecution(renderer: GraphRenderer) throws
+    {
+        self.model = nil
+        self.preprocessor = nil
+        self.outputBuffers = nil
+    }
 
     private let lastRectsLock = NSLock()
     private var lastRectsStorage: [(region: simd_float4, rotation: Float, score: Float, keypoints: [simd_float2])] = []
@@ -259,10 +272,11 @@ public class MediaPipeHandDetectionNode: StrategyNode
     private func detect(image: FabricImage, maxDetections: Int, commandBuffer: MTLCommandBuffer, synchronous: Bool) throws
     {
         let startTime = Date()
-        let preprocessor = try self.preprocessor ?? MediaPipeCropPreprocessor(device: self.context.device, outputWidth: MediaPipeHandDetector.detectSize, outputHeight: MediaPipeHandDetector.detectSize)
-        self.preprocessor = preprocessor
-
-        let model = try Self.mpsGraphModel(commandQueue: self.context.commandQueue)
+        try self.prepareModel()
+        guard let preprocessor = self.preprocessor, let model = self.model else
+        {
+            throw FabricError(.execution(.gpu), severity: .recoverable, message: "MediaPipe hand detection model is unavailable")
+        }
         let outputBuffers = try self.outputBuffers(for: model)
 
         // Letterbox: full image, no rotation, square side = max(iw, ih), centered.
@@ -335,8 +349,8 @@ public class MediaPipeHandDetectionNode: StrategyNode
             // Keeps `image` (and its texture) out of GraphRendererTextureCache's
             // recycle pool until the GPU work reading it is verified done, not
             // just encoded.
-            targetBuffer.addCompletedHandler { [weak self, image] finishedBuffer in
-                withExtendedLifetime(image) {}
+            targetBuffer.addCompletedHandler { [weak self, image, model, preprocessor, inputBuffer] finishedBuffer in
+                withExtendedLifetime((image, model, preprocessor, inputBuffer)) {}
                 guard let self else { return }
                 if let error = finishedBuffer.error
                 {
@@ -376,5 +390,19 @@ public class MediaPipeHandDetectionNode: StrategyNode
     private static func mpsGraphModel(commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
     {
         try MediaPipeSharedModels.model(named: MediaPipeHandDetector.resourcePrefix, inputWidth: MediaPipeHandDetector.detectSize, inputHeight: MediaPipeHandDetector.detectSize, commandQueue: commandQueue)
+    }
+
+    private func prepareModel() throws
+    {
+        guard self.model == nil else { return }
+        let model = try Self.mpsGraphModel(commandQueue: self.context.commandQueue)
+        self.preprocessor = try MediaPipeCropPreprocessor(
+            device: self.context.device,
+            outputWidth: MediaPipeHandDetector.detectSize,
+            outputHeight: MediaPipeHandDetector.detectSize
+        )
+        self.outputBuffers = nil
+        _ = try self.outputBuffers(for: model)
+        self.model = model
     }
 }

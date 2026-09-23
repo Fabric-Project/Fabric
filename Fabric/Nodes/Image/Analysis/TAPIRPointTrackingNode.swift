@@ -10,6 +10,31 @@ import MPSMediaPipe
 import MPSTAPNextPlusPlus
 import Satin
 import simd
+import SwiftUI
+
+public struct TAPIRPointTrackingSettings: Codable, Equatable
+{
+    public enum ComputePrecision: String, Codable, CaseIterable
+    {
+        case mixedFloat16 = "Mixed Float16"
+        case float32 = "Float32"
+    }
+
+    public var pointCapacity: Int
+    public var refinementCount: Int
+    public var computePrecision: ComputePrecision
+
+    public init(
+        pointCapacity: Int = 32,
+        refinementCount: Int = 1,
+        computePrecision: ComputePrecision = .mixedFloat16
+    )
+    {
+        self.pointCapacity = pointCapacity
+        self.refinementCount = refinementCount
+        self.computePrecision = computePrecision
+    }
+}
 
 /// Tracks caller-supplied points through a video stream using DeepMind's
 /// causal BootsTAPIR model. Preprocessing, inference, recurrent-state updates,
@@ -50,27 +75,6 @@ public final class TAPIRPointTrackingNode: Node
                 .button,
                 "Reinitialize the current query points on the next image"
             ))),
-            ("inputPointCapacity", ParameterPort(parameter: StringParameter(
-                "Point Capacity",
-                "32",
-                Self.pointCapacityOptions,
-                .dropdown,
-                "Fixed graph capacity. Extra points are ignored and unused slots are padded; changing this recompiles the model."
-            ))),
-            ("inputRefinementCount", ParameterPort(parameter: StringParameter(
-                "Refinement Passes",
-                "1",
-                Self.refinementOptions,
-                .dropdown,
-                "One is fastest; four matches the full checkpoint configuration. Changing this recompiles the model."
-            ))),
-            ("inputComputePrecision", ParameterPort(parameter: StringParameter(
-                "Compute Precision",
-                Self.precisionOptions[0],
-                Self.precisionOptions,
-                .dropdown,
-                "Mixed Float16 is substantially faster and preserves TAPIR's visibility decision in the differential tests."
-            ))),
             ("outputTrackedPoints", NodePort<ContiguousArray<simd_float2>>(
                 name: "Tracked Points",
                 kind: .Outlet,
@@ -92,9 +96,6 @@ public final class TAPIRPointTrackingNode: Node
     public var inputImage: NodePort<FabricImage> { port(named: "inputImage") }
     public var inputQueryPoints: NodePort<ContiguousArray<simd_float2>> { port(named: "inputQueryPoints") }
     public var inputReset: ParameterPort<Bool> { port(named: "inputReset") }
-    public var inputPointCapacity: ParameterPort<String> { port(named: "inputPointCapacity") }
-    public var inputRefinementCount: ParameterPort<String> { port(named: "inputRefinementCount") }
-    public var inputComputePrecision: ParameterPort<String> { port(named: "inputComputePrecision") }
     public var outputTrackedPoints: NodePort<ContiguousArray<simd_float2>> { port(named: "outputTrackedPoints") }
     public var outputVisible: NodePort<ContiguousArray<Bool>> { port(named: "outputVisible") }
     public var outputVisibilityConfidence: NodePort<ContiguousArray<Float>> { port(named: "outputVisibilityConfidence") }
@@ -154,9 +155,115 @@ public final class TAPIRPointTrackingNode: Node
     private let completedResultLock = NSLock()
     private var completedResult: CompletedResult?
 
+    public private(set) var modelSettings: TAPIRPointTrackingSettings
+    private var executionEnabled = false
+
+    private enum ModelSettingsCodingKeys: String, CodingKey
+    {
+        case modelSettings
+    }
+
+    public required init(context: Context)
+    {
+        self.modelSettings = .init()
+        super.init(context: context)
+    }
+
+    public init(context: Context, modelSettings: TAPIRPointTrackingSettings)
+    {
+        self.modelSettings = modelSettings
+        super.init(context: context)
+    }
+
+    public required init(from decoder: any Decoder) throws
+    {
+        let container = try decoder.container(keyedBy: ModelSettingsCodingKeys.self)
+        if let decoded = try container.decodeIfPresent(TAPIRPointTrackingSettings.self, forKey: .modelSettings)
+        {
+            self.modelSettings = decoded
+        }
+        else
+        {
+            self.modelSettings = TAPIRPointTrackingSettings(
+                pointCapacity: Int(LegacyModelConfigurationPort.string(named: "inputPointCapacity", from: decoder) ?? "32") ?? 32,
+                refinementCount: Int(LegacyModelConfigurationPort.string(named: "inputRefinementCount", from: decoder) ?? "1") ?? 1,
+                computePrecision: LegacyModelConfigurationPort.string(named: "inputComputePrecision", from: decoder) == Self.precisionOptions[1] ? .float32 : .mixedFloat16
+            )
+        }
+        try super.init(from: decoder)
+    }
+
+    public override func encode(to encoder: Encoder) throws
+    {
+        try super.encode(to: encoder)
+        var container = encoder.container(keyedBy: ModelSettingsCodingKeys.self)
+        try container.encode(self.modelSettings, forKey: .modelSettings)
+    }
+
+    override public func providesSettingsView() -> Bool { true }
+    override public var settingsSize: SettingsViewSize { .Small }
+
+    override public func settingsView() -> AnyView
+    {
+        AnyView(MPSModelConfigurationSettingsView(options: [
+            MPSModelConfigurationOption(
+                label: "Point Capacity",
+                choices: Self.pointCapacityOptions,
+                selection: Binding(
+                    get: { [weak self] in String(self?.modelSettings.pointCapacity ?? 32) },
+                    set: { [weak self] value in
+                        guard let self, let pointCapacity = Int(value) else { return }
+                        var settings = self.modelSettings
+                        settings.pointCapacity = pointCapacity
+                        self.apply(modelSettings: settings)
+                    }
+                )
+            ),
+            MPSModelConfigurationOption(
+                label: "Refinement Passes",
+                choices: Self.refinementOptions,
+                selection: Binding(
+                    get: { [weak self] in String(self?.modelSettings.refinementCount ?? 1) },
+                    set: { [weak self] value in
+                        guard let self, let refinementCount = Int(value) else { return }
+                        var settings = self.modelSettings
+                        settings.refinementCount = refinementCount
+                        self.apply(modelSettings: settings)
+                    }
+                )
+            ),
+            MPSModelConfigurationOption(
+                label: "Compute Precision",
+                choices: Self.precisionOptions,
+                selection: Binding(
+                    get: { [weak self] in self?.modelSettings.computePrecision.rawValue ?? Self.precisionOptions[0] },
+                    set: { [weak self] value in
+                        guard let self, let precision = TAPIRPointTrackingSettings.ComputePrecision(rawValue: value) else { return }
+                        var settings = self.modelSettings
+                        settings.computePrecision = precision
+                        self.apply(modelSettings: settings)
+                    }
+                )
+            ),
+        ]))
+    }
+
+    override public func enableExecution(renderer: GraphRenderer) throws
+    {
+        try self.prepareModel(self.requestedConfiguration(for: self.modelSettings))
+        self.executionEnabled = true
+    }
+
+    override public func disableExecution(renderer: GraphRenderer) throws
+    {
+        self.executionEnabled = false
+        self.invalidatePreparedModel()
+        self.clearPublishedResults()
+    }
+
     override public func stopExecution(renderer: GraphRenderer) throws
     {
-        self.invalidatePreparedModel()
+        self.resetSequence()
         self.clearPublishedResults()
     }
 
@@ -173,7 +280,7 @@ public final class TAPIRPointTrackingNode: Node
         let resetTriggered = resetValue && !self.lastResetValue
         self.lastResetValue = resetValue
 
-        guard self.inputImage.valueDidChange || self.inputQueryPoints.valueDidChange || resetTriggered || self.configurationDidChange || self.isDirty else { return }
+        guard self.inputImage.valueDidChange || self.inputQueryPoints.valueDidChange || resetTriggered || self.isDirty else { return }
         guard let image = self.inputImage.value else
         {
             self.clearPublishedResults()
@@ -188,7 +295,7 @@ public final class TAPIRPointTrackingNode: Node
             return
         }
 
-        let configuration = try self.requestedConfiguration()
+        let configuration = self.requestedConfiguration(for: self.modelSettings)
         try self.prepareModel(configuration)
         guard let model, let preprocessor else
         {
@@ -283,23 +390,32 @@ public final class TAPIRPointTrackingNode: Node
         }
     }
 
-    private var configurationDidChange: Bool
+    private func requestedConfiguration(for settings: TAPIRPointTrackingSettings) -> PreparedConfiguration
     {
-        self.inputPointCapacity.valueDidChange
-            || self.inputRefinementCount.valueDidChange
-            || self.inputComputePrecision.valueDidChange
+        return PreparedConfiguration(
+            pointCapacity: Self.pointCapacityOptions.compactMap(Int.init).contains(settings.pointCapacity) ? settings.pointCapacity : 32,
+            refinementCount: Self.refinementOptions.compactMap(Int.init).contains(settings.refinementCount) ? settings.refinementCount : 1,
+            computePrecision: settings.computePrecision == .float32 ? .float32 : .mixedFloat16
+        )
     }
 
-    private func requestedConfiguration() throws -> PreparedConfiguration
+    private func apply(modelSettings: TAPIRPointTrackingSettings)
     {
-        let pointCapacity = Int(self.inputPointCapacity.value ?? "32") ?? 32
-        let refinementCount = Int(self.inputRefinementCount.value ?? "1") ?? 1
-        let precision: TAPIRComputePrecision = self.inputComputePrecision.value == Self.precisionOptions[1] ? .float32 : .mixedFloat16
-        return PreparedConfiguration(
-            pointCapacity: pointCapacity,
-            refinementCount: refinementCount,
-            computePrecision: precision
-        )
+        guard modelSettings != self.modelSettings else { return }
+        if self.executionEnabled
+        {
+            do
+            {
+                try self.prepareModel(self.requestedConfiguration(for: modelSettings))
+            }
+            catch
+            {
+                print("TAPIRPointTrackingNode: could not apply model settings: \(error)")
+                return
+            }
+        }
+        self.modelSettings = modelSettings
+        self.markDirty()
     }
 
     private func prepareModel(_ requested: PreparedConfiguration) throws

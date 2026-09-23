@@ -280,6 +280,7 @@ public class MediaPipeFaceLandmarkNode: Node
     /// tensors -- .storageModeShared so the completion handler can read them
     /// back without a CPU round-trip through submit().
     private var outputBuffers: [MTLBuffer]?
+    private var model: MediaPipeMPSGraph?
     private let landmarksSmoothingFilter = MediaPipeLandmarksSmoothingFilter(debugLabel: "Face")
     private lazy var faceMeshGeometry = FaceMeshGeometry(context: self.context)
 
@@ -287,6 +288,18 @@ public class MediaPipeFaceLandmarkNode: Node
     private var lastLandmarksStorage: [simd_float3] = []
     private var lastLandmarksTimestampStorage: CFTimeInterval = 0
     private var lastRegionStorage: simd_float4 = MediaPipeFaceLandmarkNode.fullFrameRegion
+
+    override public func enableExecution(renderer: GraphRenderer) throws
+    {
+        try self.prepareModel()
+    }
+
+    override public func disableExecution(renderer: GraphRenderer) throws
+    {
+        self.model = nil
+        self.preprocessor = nil
+        self.outputBuffers = nil
+    }
     /// Backed by a lock because, under the async path, the GPU completion
     /// callback writes this from a thread other than execute()'s.
     private var lastLandmarks: [simd_float3]
@@ -477,10 +490,11 @@ public class MediaPipeFaceLandmarkNode: Node
     private func detectLandmarks(image: FabricImage, region: simd_float4, rotation: Float, commandBuffer: MTLCommandBuffer, synchronous: Bool) throws
     {
         let startTime = Date()
-        let preprocessor = try self.preprocessor ?? MediaPipeCropPreprocessor(device: self.context.device, outputWidth: Int(MediaPipeFaceLandmarkProjection.landmarkSize), outputHeight: Int(MediaPipeFaceLandmarkProjection.landmarkSize))
-        self.preprocessor = preprocessor
-
-        let model = try Self.mpsGraphModel(commandQueue: self.context.commandQueue)
+        try self.prepareModel()
+        guard let preprocessor = self.preprocessor, let model = self.model else
+        {
+            throw FabricError(.execution(.gpu), severity: .recoverable, message: "MediaPipe face landmark model is unavailable")
+        }
         let outputBuffers = try self.outputBuffers(for: model)
 
         let center = simd_float2(region.x + region.z / 2, region.y + region.w / 2)
@@ -547,8 +561,8 @@ public class MediaPipeFaceLandmarkNode: Node
             // Keeps `image` (and its texture) out of GraphRendererTextureCache's
             // recycle pool until the GPU work reading it is verified done, not
             // just encoded.
-            targetBuffer.addCompletedHandler { [weak self, image] finishedBuffer in
-                withExtendedLifetime(image) {}
+            targetBuffer.addCompletedHandler { [weak self, image, model, preprocessor, inputBuffer] finishedBuffer in
+                withExtendedLifetime((image, model, preprocessor, inputBuffer)) {}
                 guard let self else { return }
                 if let error = finishedBuffer.error
                 {
@@ -589,6 +603,20 @@ public class MediaPipeFaceLandmarkNode: Node
     private static func mpsGraphModel(commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
     {
         try MediaPipeSharedModels.model(named: MediaPipeFaceLandmarkProjection.resourcePrefix, inputWidth: Int(MediaPipeFaceLandmarkProjection.landmarkSize), inputHeight: Int(MediaPipeFaceLandmarkProjection.landmarkSize), commandQueue: commandQueue)
+    }
+
+    private func prepareModel() throws
+    {
+        guard self.model == nil else { return }
+        let model = try Self.mpsGraphModel(commandQueue: self.context.commandQueue)
+        self.preprocessor = try MediaPipeCropPreprocessor(
+            device: self.context.device,
+            outputWidth: Int(MediaPipeFaceLandmarkProjection.landmarkSize),
+            outputHeight: Int(MediaPipeFaceLandmarkProjection.landmarkSize)
+        )
+        self.outputBuffers = nil
+        _ = try self.outputBuffers(for: model)
+        self.model = model
     }
 
     /// `landmark` is normalized full-image, bottom-left origin.

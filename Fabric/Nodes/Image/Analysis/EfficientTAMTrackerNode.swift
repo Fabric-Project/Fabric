@@ -19,7 +19,7 @@ import MPSEfficientTAM
 /// input image go to the model as they are, so convert upstream if needed.
 ///
 /// Every stage (frame pack, image encode, memory attention, decode, mask
-/// selection, memory encode, mask projection) is encoded back to back onto
+/// selection, memory encode, and mask projection) is encoded back to back onto
 /// Fabric's shared per-frame `MPSCommandBuffer` and is never committed by this
 /// node, so the Mask image is available downstream in the same frame with no
 /// GPU wait. Only the small scalar results (region, centroid, presence,
@@ -35,7 +35,7 @@ public final class EfficientTAMTrackerNode: Node
     override public class var nodeTimeMode: Node.TimeMode { .TimeBase }
     override public class var nodeDescription: String
     {
-        "Tracks one object through video with EfficientTAM via Metal Performance Shaders Graph. Set Prompt Point on the object and fire Prompt to start tracking from the current frame. Forward-only, one object. Outputs a 128x128 mask (upsample downstream, e.g. with a Joint Bilateral Filter guided by the source image), the object's region and centroid, and whether it is currently visible."
+        "Tracks one object through video with EfficientTAM via Metal Performance Shaders Graph. Set Prompt Point on the object and fire Prompt to start tracking from the current frame. Forward-only, one object. Outputs a bilinearly projected 512x512 probability mask for optional downstream refinement, the object's region and centroid, and whether it is currently visible."
     }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
@@ -82,7 +82,7 @@ public final class EfficientTAMTrackerNode: Node
             ("outputMask", NodePort<FabricImage>(
                 name: "Mask",
                 kind: .Outlet,
-                description: "Probability that each pixel belongs to the tracked object, single-channel Float32 at the model's native 128x128 resolution, not presentation resolution. Zero everywhere while the object is absent. Upsample downstream, e.g. with a Joint Bilateral Filter guided by the source image."
+                description: "Probability that each pixel belongs to the tracked object, single-channel Float32 at the model's 512x512 input resolution. The native 128x128 logits are bilinearly projected to 512x512 before sigmoid. Refine or upscale downstream with Guided Filter or Joint Bilateral Filter and the source image as Guide. Zero everywhere while the object is absent."
             )),
             ("outputRegion", NodePort<simd_float4>(
                 name: "Region",
@@ -148,13 +148,6 @@ public final class EfficientTAMTrackerNode: Node
     private static let maskSize = EfficientTAMMaskProjector.maskSize
     private static let modelSide = Float(EfficientTAMImageEncoder.inputWidth)
 
-    private enum TrackingState: Equatable
-    {
-        case idle
-        case tracking
-        case objectAbsent
-    }
-
     private struct TrackedFrameResult
     {
         let sequenceIdentifier: Int
@@ -181,25 +174,17 @@ public final class EfficientTAMTrackerNode: Node
     private var latestResult: TrackedFrameResult?
     private var hasUnpublishedResult = false
 
-    private var trackingState: TrackingState = .idle
+    override public func enableExecution(renderer: GraphRenderer) throws
     {
-        didSet
-        {
-            if self.trackingState != oldValue { self.subtitleSubject.send() }
-        }
-    }
-
-    override public func deriveSubtitle() -> String?
-    {
-        switch self.trackingState
-        {
-        case .idle: nil
-        case .tracking: "Tracking"
-        case .objectAbsent: "Object absent"
-        }
+        try self.prepareModel()
     }
 
     override public func stopExecution(renderer: GraphRenderer) throws
+    {
+        self.endSession(clearingOutputs: false)
+    }
+
+    override public func disableExecution(renderer: GraphRenderer) throws
     {
         self.endSession(clearingOutputs: false)
         self.tracker = nil
@@ -247,7 +232,6 @@ public final class EfficientTAMTrackerNode: Node
                     self.pendingPromptPoint = nil
                     self.isSessionActive = true
                     self.lastSubmittedFrameTime = frameTime
-                    self.trackingState = .tracking
                     self.outputTracking.send(true)
                 }
             }
@@ -289,7 +273,6 @@ public final class EfficientTAMTrackerNode: Node
         self.latestResultLock.unlock()
 
         guard clearingOutputs else { return }
-        self.trackingState = .idle
         self.outputMask.send(nil)
         self.outputRegion.send(nil)
         self.outputCentroid.send(nil)
@@ -312,7 +295,7 @@ public final class EfficientTAMTrackerNode: Node
 
     // MARK: - Encoding
 
-    /// Encodes the frame pack, the whole tracker chain and the mask projection,
+    /// Encodes the frame pack, the whole tracker chain and mask projection,
     /// one after the other, onto either Fabric's shared `commandBuffer` (async)
     /// or a dedicated one this call owns exclusively (synchronous) -- the same
     /// encode calls either way. Never committed by this node when sharing
@@ -394,8 +377,11 @@ public final class EfficientTAMTrackerNode: Node
         }
         guard let trackingOutput else { return false }
 
-        let maskImage = try renderer.newImage(withWidth: Self.maskSize, height: Self.maskSize, format: .r32Float)
-        maskImage.texture.label = "EfficientTAM Mask (\(Self.maskSize)x\(Self.maskSize))"
+        let maskWidth = EfficientTAMImageEncoder.inputWidth
+        let maskHeight = EfficientTAMImageEncoder.inputHeight
+        let maskImage = try renderer.newImage(withWidth: maskWidth, height: maskHeight, format: .r32Float)
+        maskImage.texture.label = "EfficientTAM Projected Mask (\(maskWidth)x\(maskHeight))"
+        maskImage.textureTransform = matrix_identity_float4x4
         try maskProjector.encode(
             maskLogitsBuffer: trackingOutput.maskLogitsBuffer,
             outputTexture: maskImage.texture,
@@ -499,7 +485,6 @@ public final class EfficientTAMTrackerNode: Node
         // Results from an earlier session can still arrive after a reset.
         guard let result, result.sequenceIdentifier == self.sequenceIdentifier else { return }
 
-        self.trackingState = result.isPresent ? .tracking : .objectAbsent
         self.outputPresent.send(result.isPresent)
         self.outputConfidence.send(result.confidence)
         self.outputRegion.send(result.isPresent ? result.region : nil)

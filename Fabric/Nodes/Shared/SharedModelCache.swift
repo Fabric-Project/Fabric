@@ -38,10 +38,9 @@ enum SharedModelCapacity
 ///   output buffers, and the model's per-slot scratch is per in-flight call.
 ///   In-flight capacity is the one shared resource; see `SharedModelCapacity`.
 ///
-/// `.strong` keeps a model for the life of the process, right for a small fixed
-/// set of variants. `.weak` lets a model go once no node holds it, right when
-/// the set is open-ended (ZipDepth's resolution), but the caller must keep its
-/// own strong reference for as long as it uses the model.
+/// `.strong` keeps a model for the life of the process. `.weak` lets a model go
+/// once no enabled node or in-flight command buffer holds it. Callers must keep
+/// their own strong reference for as long as they use a weakly cached model.
 final class SharedModelCache<Model: AnyObject>
 {
     enum Retention
@@ -96,11 +95,12 @@ final class SharedModelCache<Model: AnyObject>
     }
 }
 
-/// The MediaPipe models every MediaPipe node loads, shared across nodes. A
-/// small fixed set of variants, so they are kept for the life of the process.
+/// The MediaPipe models every MediaPipe node loads, shared across enabled
+/// nodes. Weak retention lets the weights unload after the last node using a
+/// checkpoint disables execution (and its last GPU command buffer completes).
 enum MediaPipeSharedModels
 {
-    private static let cache = SharedModelCache<MediaPipeMPSGraph>(retention: .strong)
+    private static let cache = SharedModelCache<MediaPipeMPSGraph>(retention: .weak)
 
     static func model(named name: String, inputWidth: Int, inputHeight: Int, commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
     {

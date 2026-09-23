@@ -8,9 +8,26 @@ import Metal
 import Satin
 import simd
 import MPSMediaPipe
+import SwiftUI
+
+public struct MediaPipeFaceDetectionSettings: Codable, Equatable
+{
+    public enum DetectorVariant: String, Codable, CaseIterable
+    {
+        case shortRange = "Short Range"
+        case fullRange = "Full Range"
+    }
+
+    public var detectorVariant: DetectorVariant
+
+    public init(detectorVariant: DetectorVariant = .shortRange)
+    {
+        self.detectorVariant = detectorVariant
+    }
+}
 
 /// Detects faces using MediaPipe's BlazeFace detector (Short Range or Full
-/// Range, selected by a dropdown -- both produce the same port shapes).
+/// Range, selected in Node Settings because the choice reloads weights).
 /// Test/comparison path, separate from RegionDetectionNode/RTMDet. Outputs
 /// a region (bottom-left-origin, matching RegionDetectionNode) plus a
 /// separate rotation in radians -- wire both into MediaPipe Face Landmark's
@@ -78,8 +95,8 @@ public class MediaPipeFaceDetectionNode: StrategyNode
     {
         switch mode
         {
-        case .single: return ["inputImage", "inputDetectorVariant", "inputPreviousRegionOfInterest", "inputPreviousRotation", "inputRedetectInterval", "outputRegionOfInterest", "outputRotation", "outputKeypoints", "outputDetectionCount"]
-        case .multi: return ["inputImage", "inputDetectorVariant", "inputMaxDetections", "outputRegionsOfInterest", "outputRotations", "outputDetectionCount"]
+        case .single: return ["inputImage", "inputPreviousRegionOfInterest", "inputPreviousRotation", "inputRedetectInterval", "outputRegionOfInterest", "outputRotation", "outputKeypoints", "outputDetectionCount"]
+        case .multi: return ["inputImage", "inputMaxDetections", "outputRegionsOfInterest", "outputRotations", "outputDetectionCount"]
         }
     }
 
@@ -90,14 +107,14 @@ public class MediaPipeFaceDetectionNode: StrategyNode
         return ports +
         [
             ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to detect faces in")),
-            ("inputDetectorVariant", ParameterPort(parameter: StringParameter("Detector Variant", DetectorVariant.shortRange.rawValue, DetectorVariant.allCases.map(\.rawValue), .dropdown, "Which BlazeFace detector to run — Short Range (128x128, closer/head-and-shoulders framing) or Full Range (192x192, more anchors, better at distance or off-angle)"))),
             ("outputDetectionCount", NodePort<Int>(name: "Count", kind: .Outlet, description: "Number of faces actually detected")),
         ]
     }
 
     public var inputImage: NodePort<FabricImage> { port(named: "inputImage") }
-    public var inputDetectorVariant: ParameterPort<String> { port(named: "inputDetectorVariant") }
     public var outputDetectionCount: NodePort<Int> { port(named: "outputDetectionCount") }
+
+    public private(set) var modelSettings: MediaPipeFaceDetectionSettings
 
     public override func rebuildPorts(forStrategy strategy: String)
     {
@@ -139,15 +156,90 @@ public class MediaPipeFaceDetectionNode: StrategyNode
     /// test the bounded-GPU-wait path.
     private static let synchronousInference = false
 
-    /// Recreated when the active variant's detectSize changes.
     private var preprocessor: MediaPipeCropPreprocessor?
-    private var preprocessorDetectSize: Int?
 
     /// GPU-resident destinations for MediaPipeMPSGraph.encode()'s output
     /// tensors (rawBoxes, rawScores) -- .storageModeShared so the completion
     /// handler can read them back without a CPU round-trip through submit().
     private var outputBuffers: [MTLBuffer]?
     private var outputBuffersVariant: DetectorVariant?
+    private var model: MediaPipeMPSGraph?
+    private var preparedVariant: DetectorVariant?
+    private var executionEnabled = false
+
+    private enum ModelSettingsCodingKeys: String, CodingKey
+    {
+        case modelSettings
+    }
+
+    public required init(context: Context)
+    {
+        self.modelSettings = .init()
+        super.init(context: context)
+    }
+
+    public init(
+        context: Context,
+        modelSettings: MediaPipeFaceDetectionSettings,
+        mode: MediaPipeDetectionMode = .single
+    )
+    {
+        self.modelSettings = modelSettings
+        super.init(context: context, initialStrategy: mode.rawValue)
+    }
+
+    public required init(from decoder: any Decoder) throws
+    {
+        let container = try decoder.container(keyedBy: ModelSettingsCodingKeys.self)
+        if let decoded = try container.decodeIfPresent(MediaPipeFaceDetectionSettings.self, forKey: .modelSettings)
+        {
+            self.modelSettings = decoded
+        }
+        else
+        {
+            let legacy = LegacyModelConfigurationPort.string(named: "inputDetectorVariant", from: decoder)
+            self.modelSettings = MediaPipeFaceDetectionSettings(
+                detectorVariant: MediaPipeFaceDetectionSettings.DetectorVariant(rawValue: legacy ?? "") ?? .shortRange
+            )
+        }
+        try super.init(from: decoder)
+    }
+
+    public override func encode(to encoder: Encoder) throws
+    {
+        try super.encode(to: encoder)
+        var container = encoder.container(keyedBy: ModelSettingsCodingKeys.self)
+        try container.encode(self.modelSettings, forKey: .modelSettings)
+    }
+
+    override public func providesSettingsView() -> Bool { true }
+    override public var settingsSize: SettingsViewSize { .Small }
+
+    override public func settingsView() -> AnyView
+    {
+        AnyView(MediaPipeFaceDetectionSettingsView(
+            strategyModel: self.strategySettingsModel,
+            detectorVariant: Binding(
+                get: { [weak self] in self?.modelSettings.detectorVariant.rawValue ?? MediaPipeFaceDetectionSettings.DetectorVariant.shortRange.rawValue },
+                set: { [weak self] value in
+                    guard let self, let variant = MediaPipeFaceDetectionSettings.DetectorVariant(rawValue: value) else { return }
+                    self.apply(modelSettings: .init(detectorVariant: variant))
+                }
+            )
+        ))
+    }
+
+    override public func enableExecution(renderer: GraphRenderer) throws
+    {
+        try self.prepareModel(for: self.selectedVariant)
+        self.executionEnabled = true
+    }
+
+    override public func disableExecution(renderer: GraphRenderer) throws
+    {
+        self.executionEnabled = false
+        self.releasePreparedModel()
+    }
 
     private let lastRectsLock = NSLock()
     private var lastRectsStorage: [(region: simd_float4, rotation: Float, score: Float, keypoints: [simd_float2])] = []
@@ -172,7 +264,7 @@ public class MediaPipeFaceDetectionNode: StrategyNode
     public override func execute(renderer: GraphRenderer, executionInfo: GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
         let mode = MediaPipeDetectionMode(rawValue: self.strategy) ?? .single
-        let variant = DetectorVariant.from(self.inputDetectorVariant.value)
+        let variant = self.selectedVariant
 
         if self.inputImage.valueDidChange, let inputImage = self.inputImage.value
         {
@@ -239,18 +331,6 @@ public class MediaPipeFaceDetectionNode: StrategyNode
         })
     }
 
-    /// Recreates the crop preprocessor when the active variant's detectSize
-    /// differs from whatever it was last built for — cheap, and switching
-    /// variants isn't a per-frame operation.
-    private func preprocessor(for variant: DetectorVariant) throws -> MediaPipeCropPreprocessor
-    {
-        if let existing = self.preprocessor, self.preprocessorDetectSize == variant.detectSize { return existing }
-        let created = try MediaPipeCropPreprocessor(device: self.context.device, outputWidth: variant.detectSize, outputHeight: variant.detectSize, outputPixelRange: MediaPipeFaceDetector.detectorPixelRange)
-        self.preprocessor = created
-        self.preprocessorDetectSize = variant.detectSize
-        return created
-    }
-
     private func outputBuffers(for variant: DetectorVariant, model: MediaPipeMPSGraph) throws -> [MTLBuffer]
     {
         if let existing = self.outputBuffers, self.outputBuffersVariant == variant { return existing }
@@ -280,8 +360,11 @@ public class MediaPipeFaceDetectionNode: StrategyNode
     private func detect(image: FabricImage, variant: DetectorVariant, maxDetections: Int, commandBuffer: MTLCommandBuffer, synchronous: Bool) throws
     {
         let startTime = Date()
-        let preprocessor = try self.preprocessor(for: variant)
-        let model = try Self.mpsGraphModel(for: variant, commandQueue: self.context.commandQueue)
+        try self.prepareModel(for: variant)
+        guard let preprocessor = self.preprocessor, let model = self.model else
+        {
+            throw FabricError(.execution(.gpu), severity: .recoverable, message: "MediaPipe face detection model is unavailable")
+        }
         let outputBuffers = try self.outputBuffers(for: variant, model: model)
 
         // Letterbox: full image, no rotation, square side = max(iw, ih), centered.
@@ -358,8 +441,8 @@ public class MediaPipeFaceDetectionNode: StrategyNode
             // Keeps `image` (and its texture) out of GraphRendererTextureCache's
             // recycle pool until the GPU work reading it is verified done, not
             // just encoded.
-            targetBuffer.addCompletedHandler { [weak self, image] finishedBuffer in
-                withExtendedLifetime(image) {}
+            targetBuffer.addCompletedHandler { [weak self, image, model, preprocessor, inputBuffer] finishedBuffer in
+                withExtendedLifetime((image, model, preprocessor, inputBuffer)) {}
                 guard let self else { return }
                 if let error = finishedBuffer.error
                 {
@@ -399,5 +482,85 @@ public class MediaPipeFaceDetectionNode: StrategyNode
     private static func mpsGraphModel(for variant: DetectorVariant, commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
     {
         try MediaPipeSharedModels.model(named: variant.resourcePrefix, inputWidth: variant.detectSize, inputHeight: variant.detectSize, commandQueue: commandQueue)
+    }
+
+    private var selectedVariant: DetectorVariant
+    {
+        DetectorVariant.from(self.modelSettings.detectorVariant.rawValue)
+    }
+
+    private func prepareModel(for variant: DetectorVariant) throws
+    {
+        guard self.model == nil || self.preparedVariant != variant else { return }
+        let model = try Self.mpsGraphModel(for: variant, commandQueue: self.context.commandQueue)
+        let preprocessor = try MediaPipeCropPreprocessor(
+            device: self.context.device,
+            outputWidth: variant.detectSize,
+            outputHeight: variant.detectSize,
+            outputPixelRange: MediaPipeFaceDetector.detectorPixelRange
+        )
+        let outputBuffers = try model.outputBufferLengths.map { length -> MTLBuffer in
+            guard let buffer = self.context.device.makeBuffer(length: length, options: .storageModeShared) else
+            {
+                throw FabricError(.execution(.outOfMemory), severity: .recoverable, message: "Could not allocate MediaPipe face detection output buffer")
+            }
+            return buffer
+        }
+
+        self.model = model
+        self.preprocessor = preprocessor
+        self.outputBuffers = outputBuffers
+        self.outputBuffersVariant = variant
+        self.preparedVariant = variant
+    }
+
+    private func releasePreparedModel()
+    {
+        self.model = nil
+        self.preprocessor = nil
+        self.outputBuffers = nil
+        self.outputBuffersVariant = nil
+        self.preparedVariant = nil
+    }
+
+    private func apply(modelSettings: MediaPipeFaceDetectionSettings)
+    {
+        guard modelSettings != self.modelSettings else { return }
+        if self.executionEnabled
+        {
+            do
+            {
+                try self.prepareModel(for: DetectorVariant.from(modelSettings.detectorVariant.rawValue))
+            }
+            catch
+            {
+                print("MediaPipeFaceDetectionNode: could not apply model settings: \(error)")
+                return
+            }
+        }
+        self.modelSettings = modelSettings
+        self.markDirty()
+    }
+}
+
+private struct MediaPipeFaceDetectionSettingsView: View
+{
+    @Bindable var strategyModel: StrategyNode.SettingsModel
+    @Binding var detectorVariant: String
+
+    var body: some View
+    {
+        Form
+        {
+            StrategyPickerView(model: strategyModel)
+            Picker("Detector Variant", selection: $detectorVariant)
+            {
+                ForEach(MediaPipeFaceDetectionSettings.DetectorVariant.allCases, id: \.rawValue)
+                {
+                    Text($0.rawValue).tag($0.rawValue)
+                }
+            }
+        }
+        .padding()
     }
 }

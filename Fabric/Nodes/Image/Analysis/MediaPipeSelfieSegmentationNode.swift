@@ -8,6 +8,23 @@ import Metal
 import Satin
 import simd
 import MPSMediaPipe
+import SwiftUI
+
+public struct MediaPipeSelfieSegmentationSettings: Codable, Equatable
+{
+    public enum ModelVariant: String, Codable, CaseIterable
+    {
+        case general = "General"
+        case landscape = "Landscape"
+    }
+
+    public var modelVariant: ModelVariant
+
+    public init(modelVariant: ModelVariant = .general)
+    {
+        self.modelVariant = modelVariant
+    }
+}
 
 /// Runs MediaPipe's Selfie Segmentation model (person-vs-background mask).
 /// Standalone comparison path.
@@ -15,8 +32,8 @@ import MPSMediaPipe
 /// Unlike Face/Hand/Pose, there is no detector, no region, and no aspect-
 /// preserving crop -- the whole frame is stretched into the tensor.
 ///
-/// Two model variants: General (256x256), Landscape (256x144), selected by
-/// a plain dropdown (switching variant never changes port shape).
+/// Two model variants: General (256x256), Landscape (256x144), selected in
+/// Node Settings because switching variants reloads weights.
 ///
 /// Image in, image out, entirely on the GPU, and structured exactly like
 /// ZipDepthNode, the other image-only MPS node: crop-and-normalize, MPSGraph
@@ -50,15 +67,14 @@ public class MediaPipeSelfieSegmentationNode: Node
         return ports +
         [
             ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to segment")),
-            ("inputModelVariant", ParameterPort(parameter: StringParameter("Model Variant", ModelVariant.general.rawValue, ModelVariant.allCases.map(\.rawValue), .dropdown, "General (256x256) or Landscape (256x144, faster, tuned for wide framing)"))),
-
             ("outputSegmentationMask", NodePort<FabricImage>(name: "Segmentation Mask", kind: .Outlet, description: "Per-pixel person-segmentation confidence (sigmoid-activated), full image space, RGB-replicated with alpha 1. Not temporally smoothed.")),
         ]
     }
 
     public var inputImage: NodePort<FabricImage> { port(named: "inputImage") }
-    public var inputModelVariant: ParameterPort<String> { port(named: "inputModelVariant") }
     public var outputSegmentationMask: NodePort<FabricImage> { port(named: "outputSegmentationMask") }
+
+    public private(set) var modelSettings: MediaPipeSelfieSegmentationSettings
 
     /// Everything below is built for one variant's resolution and rebuilt
     /// together when the variant changes -- see `prepareModel`.
@@ -72,8 +88,87 @@ public class MediaPipeSelfieSegmentationNode: Node
     /// nothing on the CPU ever reads it. Reused every frame: the next frame's
     /// write is ordered after this frame's projection by command buffer order.
     private var maskOutputBuffer: MTLBuffer?
+    private var executionEnabled = false
+
+    private enum ModelSettingsCodingKeys: String, CodingKey
+    {
+        case modelSettings
+    }
+
+    public required init(context: Context)
+    {
+        self.modelSettings = .init()
+        super.init(context: context)
+    }
+
+    public init(context: Context, modelSettings: MediaPipeSelfieSegmentationSettings)
+    {
+        self.modelSettings = modelSettings
+        super.init(context: context)
+    }
+
+    public required init(from decoder: any Decoder) throws
+    {
+        let container = try decoder.container(keyedBy: ModelSettingsCodingKeys.self)
+        if let decoded = try container.decodeIfPresent(MediaPipeSelfieSegmentationSettings.self, forKey: .modelSettings)
+        {
+            self.modelSettings = decoded
+        }
+        else
+        {
+            let legacy = LegacyModelConfigurationPort.string(named: "inputModelVariant", from: decoder)
+            self.modelSettings = MediaPipeSelfieSegmentationSettings(
+                modelVariant: MediaPipeSelfieSegmentationSettings.ModelVariant(rawValue: legacy ?? "") ?? .general
+            )
+        }
+        try super.init(from: decoder)
+    }
+
+    public override func encode(to encoder: Encoder) throws
+    {
+        try super.encode(to: encoder)
+        var container = encoder.container(keyedBy: ModelSettingsCodingKeys.self)
+        try container.encode(self.modelSettings, forKey: .modelSettings)
+    }
+
+    override public func providesSettingsView() -> Bool { true }
+    override public var settingsSize: SettingsViewSize { .Mini }
+
+    override public func settingsView() -> AnyView
+    {
+        AnyView(MPSModelConfigurationSettingsView(options: [
+            MPSModelConfigurationOption(
+                label: "Model Variant",
+                choices: MediaPipeSelfieSegmentationSettings.ModelVariant.allCases.map(\.rawValue),
+                selection: Binding(
+                    get: { [weak self] in self?.modelSettings.modelVariant.rawValue ?? MediaPipeSelfieSegmentationSettings.ModelVariant.general.rawValue },
+                    set: { [weak self] value in
+                        guard let self, let variant = MediaPipeSelfieSegmentationSettings.ModelVariant(rawValue: value) else { return }
+                        self.apply(modelSettings: .init(modelVariant: variant))
+                    }
+                )
+            ),
+        ]))
+    }
+
+    override public func enableExecution(renderer: GraphRenderer) throws
+    {
+        try self.prepareModel(for: self.selectedVariant)
+        self.executionEnabled = true
+    }
+
+    override public func disableExecution(renderer: GraphRenderer) throws
+    {
+        self.executionEnabled = false
+        self.releasePreparedModel()
+    }
 
     override public func stopExecution(renderer: GraphRenderer) throws
+    {
+        self.outputSegmentationMask.send(nil)
+    }
+
+    private func releasePreparedModel()
     {
         self.preparedVariant = nil
         self.preprocessor = nil
@@ -84,7 +179,7 @@ public class MediaPipeSelfieSegmentationNode: Node
 
     public override func execute(renderer: GraphRenderer, executionInfo: GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer) throws
     {
-        guard self.inputImage.valueDidChange || self.inputModelVariant.valueDidChange || self.isDirty else { return }
+        guard self.inputImage.valueDidChange || self.isDirty else { return }
 
         guard let inputImage = self.inputImage.value else
         {
@@ -92,7 +187,7 @@ public class MediaPipeSelfieSegmentationNode: Node
             return
         }
 
-        let variant = ModelVariant.from(self.inputModelVariant.value)
+        let variant = self.selectedVariant
         try self.prepareModel(for: variant)
 
         guard let preprocessor, let maskProjector, let model, let maskOutputBuffer else
@@ -165,10 +260,13 @@ public class MediaPipeSelfieSegmentationNode: Node
         }
         maskOutputBuffer.label = "MediaPipe Selfie Segmentation Mask Output"
 
-        self.preprocessor = try MediaPipeCropPreprocessor(device: self.context.device, outputWidth: variant.inputWidth, outputHeight: variant.inputHeight)
+        let preprocessor = try MediaPipeCropPreprocessor(device: self.context.device, outputWidth: variant.inputWidth, outputHeight: variant.inputHeight)
         // The GPU-resident projection never uses the projector's per-slot CPU
         // scratch buffers, so one is enough.
-        self.maskProjector = try MediaPipeSegmentationMaskProjector(device: self.context.device, maskWidth: variant.inputWidth, maskHeight: variant.inputHeight, maxFramesInFlight: 1)
+        let maskProjector = try MediaPipeSegmentationMaskProjector(device: self.context.device, maskWidth: variant.inputWidth, maskHeight: variant.inputHeight, maxFramesInFlight: 1)
+
+        self.preprocessor = preprocessor
+        self.maskProjector = maskProjector
         self.model = model
         self.maskOutputBuffer = maskOutputBuffer
         self.preparedVariant = variant
@@ -177,5 +275,29 @@ public class MediaPipeSelfieSegmentationNode: Node
     private static func mpsGraphModel(for variant: ModelVariant, commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
     {
         try MediaPipeSharedModels.model(named: variant.resourcePrefix, inputWidth: variant.inputWidth, inputHeight: variant.inputHeight, commandQueue: commandQueue)
+    }
+
+    private var selectedVariant: ModelVariant
+    {
+        ModelVariant.from(self.modelSettings.modelVariant.rawValue)
+    }
+
+    private func apply(modelSettings: MediaPipeSelfieSegmentationSettings)
+    {
+        guard modelSettings != self.modelSettings else { return }
+        if self.executionEnabled
+        {
+            do
+            {
+                try self.prepareModel(for: ModelVariant.from(modelSettings.modelVariant.rawValue))
+            }
+            catch
+            {
+                print("MediaPipeSelfieSegmentationNode: could not apply model settings: \(error)")
+                return
+            }
+        }
+        self.modelSettings = modelSettings
+        self.markDirty()
     }
 }

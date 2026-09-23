@@ -1,6 +1,19 @@
 import Metal
 import MPSZipDepth
 import Satin
+import SwiftUI
+
+public struct ZipDepthNodeSettings: Codable, Equatable
+{
+    public var modelWidth: Int
+    public var modelHeight: Int
+
+    public init(modelWidth: Int = 384, modelHeight: Int = 384)
+    {
+        self.modelWidth = modelWidth
+        self.modelHeight = modelHeight
+    }
+}
 
 public final class ZipDepthNode: Node
 {
@@ -12,12 +25,10 @@ public final class ZipDepthNode: Node
         "Estimates relative depth at Zip Depth's native model resolution using Metal Performance Shaders Graph. Upsample to presentation resolution downstream, e.g. with a guided/joint bilateral filter."
     }
 
-    /// Preset short-side resolutions the model may run at -- every value is
-    /// an exact multiple of 32 (ZipDepthMPSGraph requires this for both
-    /// dimensions), spanning the original hardcoded default (384) up through
-    /// resolutions expensive enough that they should be an explicit,
-    /// deliberate choice rather than a free-form field.
-    private static let shortSideOptions = ["384", "512", "768", "1024", "1088", "1984"]
+    /// Preset dimensions the model may run at -- every value is an exact
+    /// multiple of 32 (ZipDepthMPSGraph requires this), spanning the original
+    /// hardcoded default through deliberately expensive high-resolution modes.
+    private static let resolutionOptions = ["384", "512", "768", "1024", "1088", "1984"]
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
     {
@@ -27,24 +38,18 @@ public final class ZipDepthNode: Node
                 kind: .Inlet,
                 description: "Image from which to estimate relative depth"
             )),
-            ("inputShortSide", ParameterPort(parameter: StringParameter(
-                "Model Resolution",
-                Self.shortSideOptions[0],
-                Self.shortSideOptions,
-                .dropdown,
-                "Short-side resolution the depth model runs at -- the long side is scaled to the nearest multiple of 32 to preserve aspect ratio. Higher values cost significantly more GPU time."
-            ))),
             ("outputDepthImage", NodePort<FabricImage>(
                 name: "Depth Image",
                 kind: .Outlet,
-                description: "Single-channel Float32 relative depth image at Zip Depth's native model resolution (see Model Resolution), not presentation resolution -- upsample downstream, e.g. with a Joint Bilateral Filter guided by the original color image"
+                description: "Single-channel Float32 relative depth image at the fixed model width and height selected in Settings, not presentation resolution -- upsample downstream, e.g. with a Joint Bilateral Filter guided by the original color image"
             )),
         ]
     }
 
     public var inputImage: NodePort<FabricImage> { port(named: "inputImage") }
-    public var inputShortSide: ParameterPort<String> { port(named: "inputShortSide") }
     public var outputDepthImage: NodePort<FabricImage> { port(named: "outputDepthImage") }
+
+    public private(set) var modelSettings: ZipDepthNodeSettings
 
     private var preprocessor: ZipDepthPreprocessor?
     private var model: ZipDepthMPSGraph?
@@ -52,20 +57,104 @@ public final class ZipDepthNode: Node
     private var modelOutputBuffer: MTLBuffer?
     private var modelWidth = 0
     private var modelHeight = 0
+    private var executionEnabled = false
+
+    private enum ModelSettingsCodingKeys: String, CodingKey
+    {
+        case modelSettings
+    }
 
     public required init(context: Context)
     {
+        self.modelSettings = .init()
+        super.init(context: context)
+        self.setupComputeKernels()
+    }
+
+    public init(context: Context, modelSettings: ZipDepthNodeSettings)
+    {
+        self.modelSettings = modelSettings
         super.init(context: context)
         self.setupComputeKernels()
     }
 
     public required init(from decoder: any Decoder) throws
     {
+        let container = try decoder.container(keyedBy: ModelSettingsCodingKeys.self)
+        if let decoded = try container.decodeIfPresent(ZipDepthNodeSettings.self, forKey: .modelSettings)
+        {
+            self.modelSettings = decoded
+        }
+        else
+        {
+            let legacySide = Int(LegacyModelConfigurationPort.string(named: "inputShortSide", from: decoder) ?? "384") ?? 384
+            self.modelSettings = ZipDepthNodeSettings(modelWidth: legacySide, modelHeight: legacySide)
+        }
         try super.init(from: decoder)
         self.setupComputeKernels()
     }
 
+    public override func encode(to encoder: Encoder) throws
+    {
+        try super.encode(to: encoder)
+        var container = encoder.container(keyedBy: ModelSettingsCodingKeys.self)
+        try container.encode(self.modelSettings, forKey: .modelSettings)
+    }
+
+    override public func providesSettingsView() -> Bool { true }
+    override public var settingsSize: SettingsViewSize { .Small }
+
+    override public func settingsView() -> AnyView
+    {
+        AnyView(MPSModelConfigurationSettingsView(options: [
+            MPSModelConfigurationOption(
+                label: "Model Width",
+                choices: Self.resolutionOptions,
+                selection: Binding(
+                    get: { [weak self] in String(self?.modelSettings.modelWidth ?? 384) },
+                    set: { [weak self] value in
+                        guard let self, let width = Int(value) else { return }
+                        var settings = self.modelSettings
+                        settings.modelWidth = width
+                        self.apply(modelSettings: settings)
+                    }
+                )
+            ),
+            MPSModelConfigurationOption(
+                label: "Model Height",
+                choices: Self.resolutionOptions,
+                selection: Binding(
+                    get: { [weak self] in String(self?.modelSettings.modelHeight ?? 384) },
+                    set: { [weak self] value in
+                        guard let self, let height = Int(value) else { return }
+                        var settings = self.modelSettings
+                        settings.modelHeight = height
+                        self.apply(modelSettings: settings)
+                    }
+                )
+            ),
+        ]))
+    }
+
+    override public func enableExecution(renderer: GraphRenderer) throws
+    {
+        let size = self.resolvedModelSize(for: self.modelSettings)
+        try self.prepareModel(width: size.width, height: size.height)
+        self.executionEnabled = true
+    }
+
+    override public func disableExecution(renderer: GraphRenderer) throws
+    {
+        self.executionEnabled = false
+        self.releasePreparedModel()
+    }
+
     override public func stopExecution(renderer: GraphRenderer) throws
+    {
+        self.outputDepthImage.send(nil)
+    }
+
+    private func releasePreparedModel()
     {
         self.model = nil
         self.modelInputBuffer = nil
@@ -96,14 +185,7 @@ public final class ZipDepthNode: Node
             )
         }
 
-        let presentationWidth = max(1, Int(inputImage.presentationSize.width.rounded()))
-        let presentationHeight = max(1, Int(inputImage.presentationSize.height.rounded()))
-        let shortSide = self.inputShortSide.value.flatMap(Double.init) ?? 384.0
-        let modelSize = Self.modelInputSize(
-            presentationWidth: presentationWidth,
-            presentationHeight: presentationHeight,
-            shortSide: shortSide
-        )
+        let modelSize = self.resolvedModelSize(for: self.modelSettings)
         try self.prepareModel(width: modelSize.width, height: modelSize.height)
 
         guard let model, let modelInputBuffer, let modelOutputBuffer else
@@ -202,7 +284,7 @@ public final class ZipDepthNode: Node
         // model/modelInputBuffer/modelOutputBuffer need the same treatment:
         // with no CPU wait, prepareModel() can reassign
         // self.model/self.modelInputBuffer/self.modelOutputBuffer on a later
-        // frame (input aspect ratio change) while this frame's GPU work is
+        // frame (an explicit Settings change) while this frame's GPU work is
         // still in flight against these specific instances.
         commandBuffer.addCompletedHandler { [inputImage, outputImage, model, modelInputBuffer, modelOutputBuffer] _ in
             withExtendedLifetime((inputImage, outputImage, model, modelInputBuffer, modelOutputBuffer)) {}
@@ -255,24 +337,32 @@ public final class ZipDepthNode: Node
         self.modelHeight = height
     }
 
-    private static func modelInputSize(
-        presentationWidth: Int,
-        presentationHeight: Int,
-        shortSide: Double
-    ) -> (width: Int, height: Int)
+    private func resolvedModelSize(for settings: ZipDepthNodeSettings) -> (width: Int, height: Int)
     {
-        if presentationWidth <= presentationHeight
-        {
-            let scaledHeight = shortSide * Double(presentationHeight) / Double(presentationWidth)
-            return (Self.nearestMultipleOf32(shortSide), Self.nearestMultipleOf32(scaledHeight))
-        }
-
-        let scaledWidth = shortSide * Double(presentationWidth) / Double(presentationHeight)
-        return (Self.nearestMultipleOf32(scaledWidth), Self.nearestMultipleOf32(shortSide))
+        let allowed = Set(Self.resolutionOptions.compactMap(Int.init))
+        return (
+            allowed.contains(settings.modelWidth) ? settings.modelWidth : 384,
+            allowed.contains(settings.modelHeight) ? settings.modelHeight : 384
+        )
     }
 
-    private static func nearestMultipleOf32(_ value: Double) -> Int
+    private func apply(modelSettings: ZipDepthNodeSettings)
     {
-        max(32, Int((value / 32.0).rounded()) * 32)
+        guard modelSettings != self.modelSettings else { return }
+        if self.executionEnabled
+        {
+            let size = self.resolvedModelSize(for: modelSettings)
+            do
+            {
+                try self.prepareModel(width: size.width, height: size.height)
+            }
+            catch
+            {
+                print("ZipDepthNode: could not apply model settings: \(error)")
+                return
+            }
+        }
+        self.modelSettings = modelSettings
+        self.markDirty()
     }
 }
