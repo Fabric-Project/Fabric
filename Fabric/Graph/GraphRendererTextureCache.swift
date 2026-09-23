@@ -75,6 +75,12 @@ internal final class GraphRendererTextureCache {
     // MARK: State
 
     private let device: MTLDevice
+    /// FabricImage releases may arrive on Metal command-buffer callback
+    /// threads while the renderer is allocating the next frame. Every heap,
+    /// pool, frame-index, and statistic mutation must therefore be serialized.
+    /// Recursive locking keeps the recovery path safe when makeTexture calls
+    /// flushReusableTextures() or reset().
+    private let stateLock = NSRecursiveLock()
     public let config: Configuration
 
     private var heaps: [MTLHeap] = []
@@ -104,6 +110,8 @@ internal final class GraphRendererTextureCache {
     /// Use a monotonically increasing frameNumber (e.g. timing.frameNumber).
     public func resetCacheFor(executionContext:GraphExecutionInfo)
     {
+        self.stateLock.lock()
+        defer { self.stateLock.unlock() }
         let frameNumber = executionContext.timing.frameNumber
         let count = max(1, config.framePoolCount)
         self.frameIndex = ((frameNumber % count) + count) % count
@@ -152,6 +160,8 @@ internal final class GraphRendererTextureCache {
     /// Drops all cached reusable textures (does NOT destroy heaps immediately, but releases references).
     /// Useful for memory pressure events or when changing output resolution dramatically.
     public func flushReusableTextures() {
+        self.stateLock.lock()
+        defer { self.stateLock.unlock() }
         for i in available.indices {
             available[i].removeAll(keepingCapacity: false)
         }
@@ -160,6 +170,8 @@ internal final class GraphRendererTextureCache {
     /// Drops all heaps and cached textures. Next allocation will recreate heaps.
     /// Use sparingly (it forces reallocations).
     public func reset() {
+        self.stateLock.lock()
+        defer { self.stateLock.unlock() }
         flushReusableTextures()
         heaps.removeAll(keepingCapacity: false)
         totalResets += 1
@@ -168,6 +180,8 @@ internal final class GraphRendererTextureCache {
     // MARK: Internals: allocate/reuse
 
     private func makeTexture(descriptor: MTLTextureDescriptor, label: String?) -> MTLTexture? {
+        self.stateLock.lock()
+        defer { self.stateLock.unlock() }
         let key = TextureKey(width: descriptor.width,
                              height: descriptor.height,
                              pixelFormat: descriptor.pixelFormat,
@@ -227,6 +241,8 @@ internal final class GraphRendererTextureCache {
 
     private func recycleTexture(_ texture: MTLTexture)
     {
+        self.stateLock.lock()
+        defer { self.stateLock.unlock() }
         // Only recycle textures that match our storage mode.
         // (A stronger check is possible, but this is a good first line of defense.)
         guard texture.storageMode == config.storageMode else { return }
