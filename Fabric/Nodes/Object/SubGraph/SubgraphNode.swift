@@ -258,6 +258,11 @@ open class SubgraphNode: BaseObjectNode
         self.subGraph.onPublishedPortsChanged = { [weak self] in
             self?.rebuildProxyPorts()
         }
+
+        self.subGraph.onCameraSelectionChanged = { [weak self] in
+            guard let self, !(self is DeferredSubgraphNode) else { return }
+            self.graph?.updateCameraSelection()
+        }
     }
      
     // Ensure we always render!
