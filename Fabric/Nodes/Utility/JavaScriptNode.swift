@@ -9,12 +9,13 @@ import Foundation
 import JavaScriptCore
 import Metal
 import Satin
+import Synchronization
 import SwiftUI
 import simd
 
-public struct JavaScriptNodeDiagnostic: Hashable
+public struct JavaScriptNodeDiagnostic: Hashable, Sendable
 {
-    public enum Severity: String, Codable, Hashable
+    public enum Severity: String, Codable, Hashable, Sendable
     {
         case error
         case warning
@@ -45,7 +46,7 @@ private enum JavaScriptNodeExecutionError: LocalizedError
     case missingMainFunction
     case invalidReturnShape
     case extraOutput(String)
-    case invalidOutput(name: String, expected: String)
+    case invalidOutput(name: String, expected: String, returned: String)
 
     var errorDescription: String?
     {
@@ -57,8 +58,8 @@ private enum JavaScriptNodeExecutionError: LocalizedError
             return "JavaScript `main` must return an object containing the declared output values."
         case .extraOutput(let key):
             return "JavaScript returned undeclared output `\(key)`."
-        case .invalidOutput(let name, let expected):
-            return "Output `\(name)` does not match expected type `\(expected)`."
+        case .invalidOutput(let name, let expected, let returned):
+            return "Output `\(name)` is declared `\(expected)`, but the script returned \(returned)."
         }
     }
 }
@@ -328,6 +329,11 @@ private final class JavaScriptNodeRuntime
     private let bridge = JavaScriptValueBridge()
     private(set) var latestDiagnostic: JavaScriptNodeDiagnostic?
 
+    /// Outputs the last run declared but did not return a value this port could
+    /// hold. Not fatal — the script ran, and its other outputs are good — but
+    /// the author is the only one who can reconcile the two, so it is said.
+    private(set) var outputDiagnostics: [JavaScriptNodeDiagnostic] = []
+
     init(signature: JavaScriptNodeSignature) throws
     {
         let context = JSContext()!
@@ -358,6 +364,14 @@ private final class JavaScriptNodeRuntime
         }
 
         self.mainFunction = mainFunction
+
+        // Evaluating the source above happens before there is a `self` to record
+        // against, hence the local. Every exception after it is a running script's,
+        // and has to reach the instance for `execute` to report it. Weakly: the
+        // context holds the handler, and this holds the context.
+        context.exceptionHandler = { [weak self] _, exception in
+            self?.latestDiagnostic = JavaScriptNodeRuntime.makeDiagnostic(from: exception)
+        }
     }
 
     func execute(signature: JavaScriptNodeSignature,
@@ -365,6 +379,7 @@ private final class JavaScriptNodeRuntime
                  executionInfo: GraphExecutionInfo) throws -> [String: PortValue?]
     {
         self.latestDiagnostic = nil
+        self.outputDiagnostics = []
         self.context.exception = nil
         self.context.setObject(JavaScriptExecutionContextValue(executionInfo: executionInfo), forKeyedSubscript: "context" as NSString)
 
@@ -372,17 +387,23 @@ private final class JavaScriptNodeRuntime
             bridge.javaScriptArgument(for: node.findPort(named: definition.name, as: Port.self)?.snapshotValue())
         }
 
-        guard let result = self.mainFunction.call(withArguments: arguments) else {
-            throw JavaScriptNodeExecutionError.invalidReturnShape
-        }
+        let result = self.mainFunction.call(withArguments: arguments)
 
+        // A script that throws returns nothing, so the exception has to be read
+        // before the result: a return-shape error inferred from the absence of a
+        // return names neither the failure nor the line it happened on.
         if let diagnostic = self.latestDiagnostic {
             throw FabricError(.execution(.syntax),
                               severity: .recoverable,
                               message: diagnostic.summary)
         }
 
-        guard result.isObject else {
+        // A script that declares no outputs is written for its side effects, and
+        // has nothing to hand back. Reading a return out of one is the caller
+        // asking for what the signature already said does not exist.
+        guard signature.outputs.isEmpty == false else { return [:] }
+
+        guard let result, result.isObject else {
             throw JavaScriptNodeExecutionError.invalidReturnShape
         }
 
@@ -397,13 +418,54 @@ private final class JavaScriptNodeRuntime
         var outputs: [String: PortValue?] = [:]
         for definition in signature.outputs {
             let outputValue = result.forProperty(definition.name)
-            guard let boxedValue = bridge.boxedValue(from: outputValue, as: definition.portType) ?? nil else {
+
+            // Undefined and null are a script declining to set an output this
+            // frame, which sends nothing and is nobody's mistake.
+            guard let outputValue,
+                  outputValue.isUndefined == false,
+                  outputValue.isNull == false
+            else {
                 outputs[definition.name] = nil
                 continue
             }
+
+            // Anything else that will not box is the declared type and the
+            // returned value disagreeing. Sending nil for it and saying nothing
+            // leaves an author watching a port that never fires with no idea why.
+            guard let boxedValue = bridge.boxedValue(from: outputValue, as: definition.portType) else {
+                let expected = JavaScriptNodeSourceParser.typeScriptName(for: definition.portType)
+                    ?? definition.portType.rawValue
+                let error = JavaScriptNodeExecutionError.invalidOutput(name: definition.name,
+                                                                      expected: expected,
+                                                                      returned: Self.describe(outputValue))
+                let summary = error.errorDescription ?? "Output `\(definition.name)` will not box."
+                self.outputDiagnostics.append(JavaScriptNodeDiagnostic(severity: .warning,
+                                                                       summary: summary,
+                                                                       detail: summary))
+                outputs[definition.name] = nil
+                continue
+            }
+
             outputs[definition.name] = boxedValue
         }
         return outputs
+    }
+
+    /// What came back, from JavaScript's side of the bridge. An array's count is
+    /// worth carrying: a `Vector3` that arrives two long is the common
+    /// version of this mistake, and the count is the whole of the explanation.
+    private static func describe(_ value: JSValue) -> String
+    {
+        if value.isBoolean { return "a boolean" }
+        if value.isNumber { return "a number" }
+        if value.isString { return "a string" }
+        if value.isArray
+        {
+            let count = Int(value.forProperty("length")?.toInt32() ?? 0)
+            return count == 1 ? "an array of 1 value" : "an array of \(count) values"
+        }
+        if value.isObject { return "an object" }
+        return "a value it cannot box"
     }
 
     private static func makeDiagnostic(from exception: JSValue?) -> JavaScriptNodeDiagnostic
@@ -433,7 +495,6 @@ public final class JavaScriptNode: Node
     private enum CodingKeys: String, CodingKey
     {
         case scriptSource
-        case selectedExecutionMode
         case selectedTimeMode
         case scriptSchemaVersion
     }
@@ -443,21 +504,64 @@ public final class JavaScriptNode: Node
     @ObservationIgnored private(set) var scriptSource: String = JavaScriptNode.defaultScriptSource()
     @ObservationIgnored private var compiledSignature: JavaScriptNodeSignature?
     @ObservationIgnored private var runtime: JavaScriptNodeRuntime?
-    @ObservationIgnored private var diagnostics: [JavaScriptNodeDiagnostic] = []
+    /// What the script last had to say about itself. `execute` writes this from
+    /// the renderer thread, and the canvas reads it on the main thread through
+    /// `deriveStatuses` — as does the settings panel — so every access to the
+    /// array itself goes through the lock.
+    private let diagnosticsState = Mutex<[JavaScriptNodeDiagnostic]>([])
 
-    public var selectedExecutionMode: Node.ExecutionMode = .Processor
-    public var selectedTimeMode: Node.TimeMode = .None
-
-    @ObservationIgnored override public var nodeExecutionMode: ExecutionMode { self.selectedExecutionMode }
-    @ObservationIgnored override public var nodeTimeMode: TimeMode { self.selectedTimeMode }
-
-    var portPreview: [JavaScriptNodePortDefinition]
+    private var diagnostics: [JavaScriptNodeDiagnostic]
     {
-        guard let compiledSignature else { return [] }
-        return compiledSignature.inputs + compiledSignature.outputs
+        get { self.diagnosticsState.withLock { $0 } }
+        set
+        {
+            let changed = self.diagnosticsState.withLock { state in
+                guard state != newValue else { return false }
+                state = newValue
+                return true
+            }
+
+            // Sent with the lock given up, and not only to keep a frame off the
+            // canvas's wake: a subscriber's first move is to read the statuses
+            // back, and this lock is not recursive.
+            if changed { self.subtitleSubject.send() }
+        }
     }
 
+    public var selectedTimeMode: Node.TimeMode = .None
+
+    /// The role the signature puts the node in, on the same reading of it that
+    /// gives the node its ports. A script with nothing to return is a script
+    /// written for its side effects: nothing downstream will ask it for a value,
+    /// so only a Consumer — a root the renderer pulls — ever runs it at all. One
+    /// that takes nothing produces from time or the outside, which is a Provider.
+    /// Anything with both is a Processor, the ordinary case.
+    ///
+    /// Derived rather than picked because the signature already says it, and two
+    /// places to say the same thing is one place for them to disagree: a
+    /// consumer-style script left on the Processor a picker defaulted to is a
+    /// node that never runs and never says why. Both lists are the node's cached
+    /// topology, so this costs nothing to read per frame.
+    @ObservationIgnored override public var nodeExecutionMode: ExecutionMode
+    {
+        guard self.outputPorts().isEmpty == false else { return .Consumer }
+        return self.inputPorts().isEmpty ? .Provider : .Processor
+    }
+
+    @ObservationIgnored override public var nodeTimeMode: TimeMode { self.selectedTimeMode }
+
     var currentDiagnostics: [JavaScriptNodeDiagnostic] { diagnostics }
+
+    /// What the script has to say about itself is the node's status, so a script
+    /// that will not compile or threw last frame says so on the canvas rather
+    /// than only inside its settings.
+    override public func deriveStatuses() -> [NodeStatus]
+    {
+        self.diagnostics.map { diagnostic in
+            diagnostic.severity == .warning ? .warning(diagnostic.summary)
+                                            : .error(diagnostic.summary)
+        }
+    }
 
     public required init(context: Context)
     {
@@ -471,7 +575,6 @@ public final class JavaScriptNode: Node
 
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.scriptSource = try container.decodeIfPresent(String.self, forKey: .scriptSource) ?? JavaScriptNode.defaultScriptSource()
-        self.selectedExecutionMode = try container.decodeIfPresent(Node.ExecutionMode.self, forKey: .selectedExecutionMode) ?? .Processor
         self.selectedTimeMode = try container.decodeIfPresent(Node.TimeMode.self, forKey: .selectedTimeMode) ?? .None
         // Every port is dynamic, so decode must rebuild them from the restored
         // script; each recreated port adopts its persisted identity and state
@@ -485,7 +588,6 @@ public final class JavaScriptNode: Node
 
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.scriptSource, forKey: .scriptSource)
-        try container.encode(self.selectedExecutionMode, forKey: .selectedExecutionMode)
         try container.encode(self.selectedTimeMode, forKey: .selectedTimeMode)
         try container.encode(Self.scriptSchemaVersion, forKey: .scriptSchemaVersion)
     }
@@ -512,17 +614,14 @@ public final class JavaScriptNode: Node
         self.compileAndSynchronizePorts()
     }
 
+    /// The execution mode has no setter: it is read off the ports. The time
+    /// dependency has one, being the half of the pair a signature cannot show.
     @MainActor
-    public func updateModes(executionMode: Node.ExecutionMode, timeMode: Node.TimeMode)
+    public func updateTimeMode(_ timeMode: Node.TimeMode)
     {
-        if self.selectedExecutionMode != executionMode {
-            self.selectedExecutionMode = executionMode
-            self.markDirty()
-        }
-        if self.selectedTimeMode != timeMode {
-            self.selectedTimeMode = timeMode
-            self.markDirty()
-        }
+        guard self.selectedTimeMode != timeMode else { return }
+        self.selectedTimeMode = timeMode
+        self.markDirty()
     }
 
     override public func execute(renderer: GraphRenderer,
@@ -546,7 +645,7 @@ public final class JavaScriptNode: Node
 
         do {
             let outputValues = try runtime.execute(signature: compiledSignature, node: self, executionInfo: executionInfo)
-            self.diagnostics = []
+            self.diagnostics = runtime.outputDiagnostics
 
             for definition in compiledSignature.outputs {
                 guard let port = self.findPort(named: definition.name) else { continue }
@@ -555,7 +654,11 @@ public final class JavaScriptNode: Node
         }
         catch {
             let summary = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            self.diagnostics = [JavaScriptNodeDiagnostic(summary: summary, detail: summary)]
+            // The runtime's own diagnostic carries the line and column the
+            // exception reported; one rebuilt from the error text points at the
+            // script's first character instead.
+            self.diagnostics = [runtime.latestDiagnostic
+                                ?? JavaScriptNodeDiagnostic(summary: summary, detail: summary)]
             throw FabricError(.execution(.syntax),
                               severity: .recoverable,
                               message: summary,
@@ -565,9 +668,39 @@ public final class JavaScriptNode: Node
 
     private func compileAndSynchronizePorts()
     {
+        // A new runtime means whatever the node last sent came from a script it
+        // no longer runs. Nothing upstream of an edit moves, and a Processor that
+        // is not dirty is skipped, so without this the edit takes effect only
+        // once something else in the graph happens to.
+        self.markDirty()
+
+        // Read before the ports move, compared after: the mode is derived from
+        // them, and the graph keeps its own list of the Consumers it renders from.
+        let previousExecutionMode = self.nodeExecutionMode
+        defer
+        {
+            // That list is rebuilt when a node is added or deleted, and an edit
+            // is neither. A script that becomes a Consumer has to join it to be
+            // rendered from at all, and one that stops being a Consumer has to
+            // leave it.
+            if self.nodeExecutionMode != previousExecutionMode
+            {
+                self.graph?.updateRenderingNodes()
+            }
+        }
+
         do {
             let signature = try JavaScriptNodeSourceParser.parse(source: self.scriptSource)
             let runtime = try JavaScriptNodeRuntime(signature: signature)
+
+            // A script written in the annotated form is kept as the TypeScript
+            // it was read as, so a document carries one syntax however it was
+            // written.
+            if signature.canonicalSource != self.scriptSource
+            {
+                self.scriptSource = signature.canonicalSource
+            }
+
             self.compiledSignature = signature
             self.runtime = runtime
             self.diagnostics = []
@@ -577,6 +710,17 @@ public final class JavaScriptNode: Node
         catch {
             let summary = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             self.diagnostics = [JavaScriptNodeDiagnostic(summary: summary, detail: summary)]
+
+            // The script that no longer compiles is the one this node runs.
+            // Holding on to the last runtime that did has the node go on emitting
+            // from a script the editor no longer shows, and the next clean run
+            // clears the compile error along with it. `execute` throws this
+            // diagnostic for as long as there is nothing to run, as
+            // MathExpressionNode's does. The ports are left where they are:
+            // every one of them came from the last signature that parsed, and a
+            // half-typed script is no reason to take an author's wires down.
+            self.compiledSignature = nil
+            self.runtime = nil
 
             // Every port here is minted from the script's signature, so a saved
             // script that no longer parses leaves the node with none at all.
@@ -628,7 +772,7 @@ public final class JavaScriptNode: Node
     private static func defaultScriptSource() -> String
     {
         """
-        function (__number sum, __bool thresholdPassed) main(__number a, __number b, __number threshold) {
+        function main(a: Number, b: Number, threshold: Number): { sum: Number, thresholdPassed: Bool } {
           const total = a + b
           return {
             sum: total,
