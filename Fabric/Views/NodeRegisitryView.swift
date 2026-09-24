@@ -37,7 +37,7 @@ public struct NodeRegisitryView: View {
     /// externally (no moveSelectionDown(), no ordered-item query, no "select first" command),
     /// and it silently retains stale UUIDs in the selection binding when items leave the data
     /// source. This property bridges that gap — it gives us the ordered item list needed by
-    /// selectFirstNode(), moveSelection(by:), the search-text onChange validity check,
+    /// selectFirstNode(), moveSelection(by:), selection reconciliation after filtering,
     /// and the "No Results Found" overlay (via numNodesToShow / haveNodesToShow).
     /// When the List has focus (e.g. after a click), its native keyboard handling takes over
     /// and these helpers are bypassed via the isSearchFocused guard.
@@ -154,13 +154,10 @@ public struct NodeRegisitryView: View {
         .searchFocused(focus, equals: .registrySearch)
         .searchPresentationToolbarBehavior(.avoidHidingContent)
         .onChange(of: self.searchString) { _, _ in
-            self.updateFilteredNodes()
-            
-            let selectionStillValid = self.selection.contains(where: { id in self.filteredNodes.contains(where: { $0.id == id }) })
-            if !selectionStillValid
-            {
-                self.selectFirstNode()
-            }
+            self.updateFilteredNodesAndSelection()
+        }
+        .onChange(of: self.headerSelection) { _, _ in
+            self.updateFilteredNodesAndSelection()
         }
         .onChange(of: self.isSearchFocused) { _, focused in
             if focused, self.selection.isEmpty
@@ -195,20 +192,34 @@ public struct NodeRegisitryView: View {
             
             ForEach(Node.NodeTypeGroups.allCases, id: \.self) { nodeGroup in
                 
-                nodeGroup.image()
+                Button(nodeGroup.rawValue, systemImage: nodeGroup.imageName()) {
+                    self.headerSelection = nodeGroup
+                    self.focus.wrappedValue = .registrySearch
+                }
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.plain)
                     .foregroundStyle( nodeGroup == headerSelection ? Color.accentColor : Color.secondary.opacity(0.5))
                     .tag(nodeGroup)
                     .help(nodeGroup.rawValue)
-                    .onTapGesture {
-                        self.focus.wrappedValue = .registrySearch
-                        self.headerSelection = nodeGroup
-                    }
             }
             
             Spacer()
         }
     }
     
+    private func updateFilteredNodesAndSelection()
+    {
+        self.updateFilteredNodes()
+
+        let visibleNodeIDs = Set(self.filteredNodes.map(\.id))
+        self.selection.formIntersection(visibleNodeIDs)
+
+        if self.selection.isEmpty
+        {
+            self.selectFirstNode()
+        }
+    }
+
     private func updateFilteredNodes()
     {
         let filterResults = self.headerSelection.nodeTypes().map { t in (t, self.filteredNodes(forType: t)) }
@@ -287,6 +298,6 @@ public struct NodeRegisitryView: View {
     {
         let availableNodes:[NodeClassWrapper] = (try? NodeRegistry.shared.availableNodes) ?? []
         let nodesForType:[NodeClassWrapper] = availableNodes.filter( { $0.nodeType == nodeType })
-        return  self.searchString.isEmpty ? nodesForType : nodesForType.filter {  $0.nodeName.localizedCaseInsensitiveContains(self.searchString) }
+        return  self.searchString.isEmpty ? nodesForType : nodesForType.filter {  $0.nodeName.localizedStandardContains(self.searchString) }
     }
 }
