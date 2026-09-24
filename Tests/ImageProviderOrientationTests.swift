@@ -34,6 +34,18 @@ struct ImageProviderOrientationTests
             node.setFileURL(url)
             try harness.execute(node)
             let image = try #require(node.outputTexturePort.value)
+            // Core Image is an independent reference here; the provider builds
+            // its sampling matrix directly without allocating a CIImage.
+            let referenceTransform = simd_float4x4.textureVerticalFlip
+                * FabricImageTextureTransform.sourceToPresentation(
+                    bitmap.orientationTransform(forExifOrientation: Int32(orientation)),
+                    sourceSize: bitmap.extent.size)
+                * .textureVerticalFlip
+            for columnIndex in 0..<4
+            {
+                #expect(simd_distance(image.textureTransform[columnIndex],
+                                      referenceTransform[columnIndex]) < 0.00001)
+            }
             #expect(image.texture.width == 120)
             #expect(image.texture.height == 80)
             #expect(image.presentationSize == (orientation >= 5

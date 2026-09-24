@@ -11,7 +11,7 @@ import simd
 import Metal
 import MetalKit
 import ImageIO
-import CoreImage
+import CoreGraphics
 import UniformTypeIdentifiers
 
 public class ImageProviderNode : Node, NodeFileLoadingProtocol
@@ -127,28 +127,51 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
                 }
 
                 let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
-                let orientation = (properties?[kCGImagePropertyOrientation] as? NSNumber)?.int32Value ?? 1
-                let orientationTransform = CIImage(cgImage: sourceImage)
-                    .orientationTransform(forExifOrientation: orientation)
+                let orientationValue = (properties?[kCGImagePropertyOrientation] as? NSNumber)?.uint32Value ?? 1
+                let orientation = CGImagePropertyOrientation(rawValue: orientationValue) ?? .up
 
-                // Load the un-oriented pixels explicitly so metadata is applied
+                // Map presentation UVs back to stored CGImage UVs. Both use
+                // Fabric/Satin/Metal's top-left origin; translations keep the
+                // rotated or mirrored coordinates within the unit square.
+                let samplingTransform: CGAffineTransform
+                switch orientation
+                {
+                case .up:
+                    samplingTransform = .identity
+                case .upMirrored:
+                    samplingTransform = CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: 1, ty: 0)
+                case .down:
+                    samplingTransform = CGAffineTransform(a: -1, b: 0, c: 0, d: -1, tx: 1, ty: 1)
+                case .downMirrored:
+                    samplingTransform = CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: 1)
+                case .leftMirrored:
+                    samplingTransform = CGAffineTransform(a: 0, b: 1, c: 1, d: 0, tx: 0, ty: 0)
+                case .right:
+                    samplingTransform = CGAffineTransform(a: 0, b: -1, c: 1, d: 0, tx: 0, ty: 1)
+                case .rightMirrored:
+                    samplingTransform = CGAffineTransform(a: 0, b: -1, c: -1, d: 0, tx: 1, ty: 1)
+                case .left:
+                    samplingTransform = CGAffineTransform(a: 0, b: 1, c: -1, d: 0, tx: 1, ty: 0)
+                @unknown default:
+                    samplingTransform = .identity
+                }
+
+                // Load the un-oriented CGImage pixels so metadata is applied
                 // exactly once, through FabricImage's sampling transform.
                 let texture = try self.textureLoader.newTexture(cgImage: sourceImage, options: [
                     .generateMipmaps : true,
                     .allocateMipmaps : true,
                     .textureStorageMode : NSNumber( value: MTLStorageMode.shared.rawValue),
-                    .SRGB : true,
+                    .SRGB : false,
                     .origin: MTKTextureLoader.Origin.topLeft,
                 ])
                 let image = FabricImage.unmanaged(texture: texture)
-                // Core Image's orientation matrix maps source to presentation
-                // in bottom-left pixel coordinates. Invert and normalize it,
-                // then flip both UV spaces to Fabric/Satin's top-left convention.
-                image.textureTransform = .textureVerticalFlip
-                    * FabricImageTextureTransform.sourceToPresentation(
-                        orientationTransform,
-                        sourceSize: CGSize(width: sourceImage.width, height: sourceImage.height))
-                    * .textureVerticalFlip
+                // SIMD matrices store columns: X basis, Y basis, Z basis, translation.
+                image.textureTransform = simd_float4x4(
+                    simd_float4(Float(samplingTransform.a), Float(samplingTransform.b), 0, 0),
+                    simd_float4(Float(samplingTransform.c), Float(samplingTransform.d), 0, 0),
+                    simd_float4(0, 0, 1, 0),
+                    simd_float4(Float(samplingTransform.tx), Float(samplingTransform.ty), 0, 1))
                 self.image = image
             }
             catch
@@ -159,9 +182,6 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
                                   message: "Could not load image file: \(url.path)",
                                   underlyingError: error)
             }
-
-            //.newTexture(url: self.url!, options: [:])
-//                self.texture = loadHDR(device: self.context.device, url: self.url! )
         }
     }
 }
