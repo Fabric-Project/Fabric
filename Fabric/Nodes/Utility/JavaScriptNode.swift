@@ -675,17 +675,17 @@ public final class JavaScriptNode: Node
         self.markDirty()
 
         // Read before the ports move, compared after: the mode is derived from
-        // them, and the graph keeps its own list of the Consumers it renders from.
+        // them, and Consumers are the roots the execution plan is pulled from.
         let previousExecutionMode = self.nodeExecutionMode
         defer
         {
-            // That list is rebuilt when a node is added or deleted, and an edit
-            // is neither. A script that becomes a Consumer has to join it to be
-            // rendered from at all, and one that stops being a Consumer has to
-            // leave it.
+            // That plan is cached until the graph's execution topology generation
+            // moves, and an edit does not move it. A script that becomes a
+            // Consumer has to be a root to be executed at all, and one that stops
+            // being a Consumer has to stop being one.
             if self.nodeExecutionMode != previousExecutionMode
             {
-                self.graph?.updateRenderingNodes()
+                self.graph?.markExecutionTopologyChanged()
             }
         }
 
