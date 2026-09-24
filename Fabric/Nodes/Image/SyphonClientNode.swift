@@ -318,6 +318,10 @@ struct SyphonClientNodeView: View
             .pickerStyle(.menu)
             .labelsHidden()
 
+            Text("Sets Server and Application Name")
+                .font(.system(size: 9))
+                .foregroundStyle(.secondary)
+
             if SyphonServerList.shared.servers.isEmpty
             {
                 Text("Nothing is publishing a Syphon server")
