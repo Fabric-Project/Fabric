@@ -76,9 +76,11 @@ struct ContentView: View {
                     ForEach(self.document.editingContext.entries) { node in
                         Text("›")
                             .font(.headline)
-                        Button(node.title) { self.document.editingContext.popTo(node) }
-                            .font(.headline)
-                            .buttonStyle(.plain)
+                        BreadcrumbEntry(node: node,
+                                        nodeViewModel: node.graph?.viewModelIfPresent(for: node))
+                        {
+                            self.document.editingContext.popTo(node)
+                        }
                     }
                 }
                 .padding(.horizontal)

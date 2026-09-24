@@ -36,6 +36,19 @@ internal import AnyCodable
     public let version: Graph.Version
     @ObservationIgnored public let context:Context
     @ObservationIgnored public weak var undoManager: UndoManager?
+    /// The SubgraphNode whose sub graph this is; nil for a document's root graph.
+    @ObservationIgnored public internal(set) weak var ownerNode: SubgraphNode?
+    /// The document's root graph, reached by walking up through owner nodes.
+    public var rootGraph: Graph
+    {
+        var graph = self
+        while let parent = graph.ownerNode?.graph { graph = parent }
+        return graph
+    }
+    /// The document's clone sets, held by the root graph and empty elsewhere.
+    /// Members refer to a set by SubgraphNode.cloneSetID. A set no member
+    /// refers to any more is dropped on save.
+    public private(set) var cloneSets: [CloneSet] = []
 
     public private(set) var nodes: [Node]
     public private(set) var notes: [Note]
@@ -112,6 +125,51 @@ internal import AnyCodable
         connectionRevision += 1
         pendingConnectionSceneSync = true
         connectionTopologyGeneration += 1
+        noteContentChanged()
+    }
+
+    /// Bumped by every edit of the graph's design: topology, layout, renames,
+    /// published state, unwired parameter values, notes. Runtime traffic
+    /// (values arriving on wired or published inlets) does not count. The
+    /// graph's own mutation API bumps it; a clone set member's observer bumps
+    /// it for the edits nodes and ports publish.
+    @ObservationIgnored public private(set) var contentRevision = 0
+
+    /// Records an edit and, when this graph sits inside a clone set, asks the
+    /// coordinator to sync the set once edits pause. Writes made while a
+    /// member is being reconciled are not edits and schedule nothing.
+    public func noteContentChanged()
+    {
+        contentRevision += 1
+        self.scheduleCloneSyncIfNeeded()
+    }
+
+    /// The coordinator and its flag are main-thread state; an edit made
+    /// elsewhere is handed to the main actor to schedule.
+    private func scheduleCloneSyncIfNeeded()
+    {
+        guard Thread.isMainThread else
+        {
+            Task { @MainActor [weak self] in self?.scheduleCloneSyncIfNeeded() }
+            return
+        }
+
+        let coordinator = self.cloneSetCoordinator
+        guard !coordinator.isReconciling, !self.enclosingCloneMembers.isEmpty else { return }
+        coordinator.noteContentChanged(in: self)
+    }
+
+    /// The clone set members this graph sits inside, innermost first.
+    internal var enclosingCloneMembers: [SubgraphNode]
+    {
+        var members: [SubgraphNode] = []
+        var current: Graph? = self
+        while let owner = current?.ownerNode
+        {
+            if owner.cloneSetID != nil { members.append(owner) }
+            current = owner.graph
+        }
+        return members
     }
 
     public func markExecutionTopologyChanged()
@@ -129,6 +187,39 @@ internal import AnyCodable
         let shouldSyncScene = pendingConnectionSceneSync
         pendingConnectionSceneSync = false
         return shouldSyncScene
+    }
+
+    /// Clone set bookkeeping lives on the document's root graph; every graph
+    /// in the document reaches the same coordinator.
+    @ObservationIgnored private var rootCloneSetCoordinator: CloneSetCoordinator?
+    internal var cloneSetCoordinator: CloneSetCoordinator
+    {
+        let root = self.rootGraph
+        guard root === self else { return root.cloneSetCoordinator }
+        if let rootCloneSetCoordinator { return rootCloneSetCoordinator }
+        let coordinator = CloneSetCoordinator(rootGraph: self)
+        self.rootCloneSetCoordinator = coordinator
+        return coordinator
+    }
+
+    /// Drops wires whose ports no longer resolve in this graph, e.g. to a
+    /// proxy that disappeared when its inner port was unpublished.
+    internal func pruneDanglingConnections() -> Int
+    {
+        let dangling = connections.filter {
+            nodePort(forID: $0.outletPortID) == nil || nodePort(forID: $0.inletPortID) == nil
+        }
+        guard !dangling.isEmpty else { return 0 }
+
+        for connection in dangling
+        {
+            connection.graph = nil
+            connection.outletPortReference = nil
+            connection.inletPortReference = nil
+        }
+        connections.removeAll { connection in dangling.contains { $0 === connection } }
+        markConnectionTopologyChanged()
+        return dangling.count
     }
 
     public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
@@ -151,6 +242,35 @@ internal import AnyCodable
         case portConnectionMap
         case connections
         case notes
+        case cloneSets
+    }
+
+    // MARK: - Clone sets
+
+    public func cloneSet(for setID: UUID) -> CloneSet?
+    {
+        self.rootGraph.cloneSets.first { $0.id == setID }
+    }
+
+    internal func addCloneSet(_ set: CloneSet)
+    {
+        let root = self.rootGraph
+        guard !root.cloneSets.contains(where: { $0.id == set.id }) else { return }
+        root.cloneSets.append(set)
+    }
+
+    internal func removeCloneSet(_ set: CloneSet)
+    {
+        self.rootGraph.cloneSets.removeAll { $0.id == set.id }
+    }
+
+    /// Every node in this graph and, depth first, in nested sub graphs.
+    public func nodesRecursive() -> [Node]
+    {
+        self.nodes.flatMap { node -> [Node] in
+            guard let subgraphNode = node as? SubgraphNode else { return [node] }
+            return [node] + subgraphNode.subGraph.nodesRecursive()
+        }
     }
     
     public init(context:Context)
@@ -182,6 +302,7 @@ internal import AnyCodable
         self.scene = Object(context: context)
 
         self.notes = try container.decodeIfPresent([Note].self, forKey: .notes) ?? []
+        self.cloneSets = try container.decodeIfPresent([CloneSet].self, forKey: .cloneSets) ?? []
         let requiredPlugins = try container.decodeIfPresent([PluginRequirement].self, forKey: .requiredPlugins) ?? []
         let nodeRegistry = try NodeRegistry.shared
         try nodeRegistry.validatePluginRequirements(requiredPlugins)
@@ -431,7 +552,14 @@ internal import AnyCodable
         }
         
         try container.encode(self.notes, forKey: .notes)
-        
+
+        let liveSetIDs = Set(self.subgraphNodesRecursive().compactMap(\.cloneSetID))
+        let liveSets = self.cloneSets.filter { liveSetIDs.contains($0.id) }
+        if !liveSets.isEmpty
+        {
+            try container.encode(liveSets, forKey: .cloneSets)
+        }
+
         try container.encode( nodeMap, forKey: .nodeMap)
         try container.encode(self.connections.filter { connection in
             self.nodePort(forID: connection.outletPortID) != nil &&
@@ -444,11 +572,13 @@ internal import AnyCodable
     public func addNote(_ note: Note)
     {
         self.notes.append(note)
+        self.noteContentChanged()
     }
     
     public func deleteNote(_ note:Note)
     {
         self.notes.removeAll(where: { $0.id == note.id })
+        self.noteContentChanged()
     }
     
     //MARK: - Nodes API -
@@ -486,6 +616,7 @@ internal import AnyCodable
 
         self.updateCameraSelection(afterAdding: node)
         self.rebuildPublishedParameterGroup()
+        self.cloneSetMembershipChanged(setID: (node as? SubgraphNode)?.cloneSetID)
     }
 
     
@@ -527,6 +658,7 @@ internal import AnyCodable
 
         self.updateCameraSelection()
         self.rebuildPublishedParameterGroup()
+        self.cloneSetMembershipChanged(setID: (node as? SubgraphNode)?.cloneSetID)
     }
 
     private func restoreDeletedNode(_ node: Node,
@@ -549,6 +681,7 @@ internal import AnyCodable
             rebuildPublishedParameterGroup()
             syncNodesToScene()
             markConnectionsChanged()
+            cloneSetMembershipChanged(setID: (node as? SubgraphNode)?.cloneSetID)
         }
 
         undoManager?.registerUndo(withTarget: self) { graph in
@@ -696,6 +829,7 @@ internal import AnyCodable
         guard connection.active != active else { return true }
         let previousActive = connection.active
         connection.active = active
+        noteContentChanged()
 
         undoManager?.registerUndo(withTarget: self) { graph in
             graph.setConnection(connection, active: previousActive)
@@ -1319,7 +1453,7 @@ internal import AnyCodable
         operation()
     }
 
-    private func performWithBatchedConnectionTopologyChanges(_ operation: () -> Void)
+    internal func performWithBatchedConnectionTopologyChanges(_ operation: () -> Void)
     {
         connectionTopologyBatchDepth += 1
         defer {
@@ -1372,7 +1506,7 @@ internal import AnyCodable
     // MARK: - Private Decode API Helpers -
     
     /// Decodes a single node from an AnyCodableMap, replicating the type resolution from Graph.init(from:)
-    private func decodeNode(from map: AnyCodableMap) -> Node?
+    internal func decodeNode(from map: AnyCodableMap) -> Node?
     {
         // Graph.init(from:) closes each node's hydration window once every node
         // is decoded; duplicate and paste come through here instead, so the
@@ -1472,7 +1606,7 @@ internal import AnyCodable
         }
     }
 
-    private func qualifiedNodeID(for nodeClass: Node.Type) throws -> PluginQualifiedNodeID
+    internal func qualifiedNodeID(for nodeClass: Node.Type) throws -> PluginQualifiedNodeID
     {
         let registry = try NodeRegistry.shared
 
@@ -1514,7 +1648,7 @@ internal import AnyCodable
         return requirementsByID.values.sorted { $0.id < $1.id }
     }
 
-    private static func qualifiedNodeID(fromSerializedType serializedType: String) -> PluginQualifiedNodeID
+    internal static func qualifiedNodeID(fromSerializedType serializedType: String) -> PluginQualifiedNodeID
     {
         guard let separatorRange = serializedType.range(of: PluginQualifiedNodeID.separator) else
         {
@@ -1527,7 +1661,7 @@ internal import AnyCodable
     }
 
     /// Finds all UUID-formatted strings in JSON data by traversing the parsed structure
-    private static func findAllUUIDs(in jsonData: Data) -> Set<String>
+    internal static func findAllUUIDs(in jsonData: Data) -> Set<String>
     {
         guard let object = try? JSONSerialization.jsonObject(with: jsonData) else { return [] }
         var uuids = Set<String>()
@@ -1535,8 +1669,11 @@ internal import AnyCodable
         return uuids
     }
 
-    /// Recursively replaces UUID strings in a JSON object using a remap table
-    private static func remapUUIDs(in object: Any, remap: [String: String]) -> Any
+    /// Recursively replaces UUID strings in a JSON object using a remap table.
+    /// Values under `preservingKeys` are left as they are, at any depth.
+    /// Dictionary keys are never rewritten: a clone record's keys are template
+    /// ids and stay valid through every rewrite of the record's values.
+    internal static func remapUUIDs(in object: Any, remap: [String: String], preservingKeys: Set<String> = []) -> Any
     {
         switch object
         {
@@ -1544,13 +1681,15 @@ internal import AnyCodable
             return remap[string] ?? string
 
         case let array as [Any]:
-            return array.map { remapUUIDs(in: $0, remap: remap) }
+            return array.map { remapUUIDs(in: $0, remap: remap, preservingKeys: preservingKeys) }
 
         case let dict as [String: Any]:
             var newDict = [String: Any]()
             for (key, value) in dict
             {
-                newDict[key] = remapUUIDs(in: value, remap: remap)
+                newDict[key] = preservingKeys.contains(key)
+                    ? value
+                    : remapUUIDs(in: value, remap: remap, preservingKeys: preservingKeys)
             }
             return newDict
 
@@ -1560,11 +1699,21 @@ internal import AnyCodable
     }
 
     /// Rewrites UUID strings in JSON data using a remap table
-    private static func rewriteUUIDs(in jsonData: Data, remap: [String: String]) -> Data?
+    internal static func rewriteUUIDs(in jsonData: Data,
+                                      remap: [String: String],
+                                      preservingKeys: Set<String> = []) -> Data?
     {
         guard let object = try? JSONSerialization.jsonObject(with: jsonData) else { return nil }
-        let remapped = remapUUIDs(in: object, remap: remap)
+        let remapped = remapUUIDs(in: object, remap: remap, preservingKeys: preservingKeys)
         return try? JSONSerialization.data(withJSONObject: remapped)
+    }
+
+    /// Collects every UUID-formatted string in a JSON object.
+    internal static func findAllUUIDs(in object: Any) -> Set<String>
+    {
+        var uuids = Set<String>()
+        collectUUIDs(from: object, into: &uuids)
+        return uuids
     }
 
     /// Builds a connection map containing only connections where both ports belong to nodes in the given set
@@ -1591,11 +1740,25 @@ internal import AnyCodable
         return connectionMap
     }
 
-    /// Duplicates the given nodes, preserving connections between them, and adds them to the graph
+    /// Duplicates the given nodes, preserving connections between them, and adds them to the graph.
+    /// The copies carry no clone links: a plain duplicate of a clone set member, or of anything
+    /// containing one, is an ordinary subgraph. See `duplicateAsClone`.
     @discardableResult
     public func duplicateNodes(_ nodesToDuplicate: [Node], offset: CGSize = CGSize(width: 20, height: 20)) -> [Node]
     {
+        self.duplicateNodes(nodesToDuplicate, offset: offset, preservingCloneLinks: false)
+    }
+
+    /// The JSON key whose UUID value ties a node to its clone set, kept as-is when duplicating as a
+    /// clone. A member's record needs no such care: its keys are template ids, which a rewrite
+    /// never touches, and its values are local ids, which a rewrite maps along with the nodes.
+    internal static let cloneSetIDKey = "cloneSetID"
+
+    @discardableResult
+    internal func duplicateNodes(_ nodesToDuplicate: [Node], offset: CGSize, preservingCloneLinks: Bool) -> [Node]
+    {
         guard !nodesToDuplicate.isEmpty else { return [] }
+        let preservedKeys: Set<String> = preservingCloneLinks ? [Self.cloneSetIDKey] : []
 
         // 1. Capture internal connections before anything changes
         let internalConnections = self.buildInternalConnectionMap(for: nodesToDuplicate)
@@ -1637,7 +1800,7 @@ internal import AnyCodable
 
         for data in encodedEntries
         {
-            guard let rewrittenData = Graph.rewriteUUIDs(in: data, remap: uuidRemap) else { continue }
+            guard let rewrittenData = Graph.rewriteUUIDs(in: data, remap: uuidRemap, preservingKeys: preservedKeys) else { continue }
 
             do
             {
@@ -1646,6 +1809,7 @@ internal import AnyCodable
                 if let newNode = self.decodeNode(from: rewrittenMap)
                 {
                     newNode.offset = newNode.offset + offset
+                    if !preservingCloneLinks { Self.clearCloneLinks(in: newNode) }
                     newNodes.append(newNode)
                 }
             }
