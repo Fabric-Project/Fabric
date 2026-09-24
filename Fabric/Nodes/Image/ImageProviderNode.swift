@@ -11,6 +11,7 @@ import simd
 import Metal
 import MetalKit
 import ImageIO
+import CoreImage
 import UniformTypeIdentifiers
 
 public class ImageProviderNode : Node, NodeFileLoadingProtocol
@@ -39,7 +40,7 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
     public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
     public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
 
-    private var texture: (any MTLTexture)? = nil
+    private var image: FabricImage? = nil
     private var textureLoader:MTKTextureLoader
     private var url: URL? = nil
     
@@ -89,15 +90,7 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
         {
             try self.loadTextureFromInputValue()
             
-            if let texture = self.texture
-            {
-                self.outputTexturePort.send(FabricImage.unmanaged(texture: texture))
-            }
-            
-            else
-            {
-                self.outputTexturePort.send(nil)
-            }
+            self.outputTexturePort.send(self.image)
         }
      }
     
@@ -117,7 +110,7 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
 
             guard FileManager.default.fileExists(atPath: url.standardizedFileURL.path(percentEncoded: false)) else
             {
-                self.texture = nil
+                self.image = nil
                 throw FabricError(.execution(.fileNotFound),
                                   severity: .recoverable,
                                   message: "Image file not found: \(url.path)")
@@ -125,17 +118,42 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
 
             do
             {
-                self.texture = try self.textureLoader.newTexture(URL: url, options: [
+                guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+                      let sourceImage = CGImageSourceCreateImageAtIndex(source, 0, nil) else
+                {
+                    throw FabricError(.execution(.failed),
+                                      severity: .recoverable,
+                                      message: "Could not decode image file: \(url.path)")
+                }
+
+                let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+                let orientation = (properties?[kCGImagePropertyOrientation] as? NSNumber)?.int32Value ?? 1
+                let orientationTransform = CIImage(cgImage: sourceImage)
+                    .orientationTransform(forExifOrientation: orientation)
+
+                // Load the un-oriented pixels explicitly so metadata is applied
+                // exactly once, through FabricImage's sampling transform.
+                let texture = try self.textureLoader.newTexture(cgImage: sourceImage, options: [
                     .generateMipmaps : true,
                     .allocateMipmaps : true,
                     .textureStorageMode : NSNumber( value: MTLStorageMode.shared.rawValue),
                     .SRGB : true,
                     .origin: MTKTextureLoader.Origin.topLeft,
                 ])
+                let image = FabricImage.unmanaged(texture: texture)
+                // Core Image's orientation matrix maps source to presentation
+                // in bottom-left pixel coordinates. Invert and normalize it,
+                // then flip both UV spaces to Fabric/Satin's top-left convention.
+                image.textureTransform = .textureVerticalFlip
+                    * FabricImageTextureTransform.sourceToPresentation(
+                        orientationTransform,
+                        sourceSize: CGSize(width: sourceImage.width, height: sourceImage.height))
+                    * .textureVerticalFlip
+                self.image = image
             }
             catch
             {
-                self.texture = nil
+                self.image = nil
                 throw FabricError(.execution(.failed),
                                   severity: .recoverable,
                                   message: "Could not load image file: \(url.path)",
