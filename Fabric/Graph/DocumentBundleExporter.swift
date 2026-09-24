@@ -35,8 +35,9 @@ public enum DocumentBundleExportError: Error, LocalizedError
 /// Produces a portable directory package containing a graph snapshot and the
 /// static assets referenced by unconnected file-picker parameters.
 ///
-/// The source graph is never mutated. Its cloned file references are rewritten
-/// to `Assets/<original filename>`. Different source assets with the same
+/// File references are rewritten to `Assets/<original filename>`. Export leaves
+/// the source graph untouched; document saves also update its live parameters.
+/// Different source assets with the same
 /// basename are rejected rather than renamed or overwritten. Connected file
 /// references are graph-driven and remain untouched in the exported graph.
 public enum DocumentBundleExporter
@@ -104,6 +105,8 @@ public enum DocumentBundleExporter
     /// Builds the package representation used by FileDocument Save and Save As.
     /// Existing package children are retained so connected/dynamic references
     /// cannot accidentally prune assets that the graph may select at runtime.
+    /// Once the package is prepared, update the live graph's file parameters
+    /// before handing the wrapper to FileDocument for writing.
     public static func fileWrapper(graph: Graph,
                                    preserving existingBundle: FileWrapper?) throws -> FileWrapper
     {
@@ -153,6 +156,8 @@ public enum DocumentBundleExporter
         let graphWrapper = FileWrapper(regularFileWithContents: graphData)
         graphWrapper.preferredFilename = self.graphFilename
         packageChildren[self.graphFilename] = graphWrapper
+
+        try self.rewrite(references, in: graph)
 
         return FileWrapper(directoryWithFileWrappers: packageChildren)
     }

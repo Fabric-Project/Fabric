@@ -1,4 +1,5 @@
 import Foundation
+import Satin
 import Testing
 @testable import Fabric
 
@@ -193,6 +194,8 @@ struct DocumentFileReferenceTests
             graph: graph,
             preserving: existingBundle
         )
+        #expect(node.inputFilePathParam.value == "Assets/new.txt")
+        #expect((node.inputFilePathParam.parameter as? GenericParameter<String>)?.value == "Assets/new.txt")
         let children = try #require(bundleWrapper.fileWrappers)
         let graphWrapper = try #require(children[DocumentBundleExporter.graphFilename])
         let graphData = try #require(graphWrapper.regularFileContents)
