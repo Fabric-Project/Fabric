@@ -13,8 +13,8 @@
 #include "../../Shaders/FabricImageTextureTransform.metal"
 
 typedef struct {
-    float3 low; // color, 0.0, 1.0, 1.0, Dark Color
-    float3 high; // color, 0.0, 1.0, 1.0, Light Color
+    float4 low; // color, 0.0, 0.0, 0.0, 1.0, Dark Color
+    float4 high; // color, 1.0, 1.0, 1.0, 1.0, Light Color
 } PostUniforms;
 
 fragment half4 postFragment( VertexData in [[stage_in]],
@@ -23,8 +23,8 @@ fragment half4 postFragment( VertexData in [[stage_in]],
     texture2d<half, access::sample> renderTex [[texture( FragmentTextureCustom0 )]] )
 {
     half4 color = SAMPLER_FNC( renderTex, fabricTextureCoordinate(imageTransforms[0], in.texcoord));
-    half3 rgb = mix( half3(uniforms.low),
-                     half3(uniforms.high),
+    half3 rgb = mix( half3(uniforms.low.rgb),
+                     half3(uniforms.high.rgb),
                     color.rgb);
     
     return half4( rgb, color.a);
