@@ -9,11 +9,11 @@
 using namespace metal;
 
 typedef struct {
-    float amount;
-    float minPointSize;
-    float maxPointSize;
-    float brightness;
-    float lumaVPosMix;
+    float amount; // slider, 0.0, 2.0, 0.0
+    float minPointSize; // slider, 0.5, 128.0, 1.0
+    float maxPointSize; // slider, 0.5, 128.0, 1.0
+    float brightness; // slider, 0.0, 2.0, 1.0
+    float lumaVPosMix; // slider, 0.0, 1.0, 0.0, Luma vs RGB
     float4x4 displacementTextureTransform;
     float4x4 colorTextureTransform;
     float4x4 pointSpriteTextureTransform;
@@ -44,7 +44,7 @@ vertex CustomVertexData displacementVertex(Vertex in [[stage_in]],
     const half luma = dot(lumcoeff, sample);
 
     const float3 position = mix(in.position, float3(sample.rgb), uniforms.amount);
-    const float3 lumaPos = mix(in.position, (in.position + float3(0.0, 0.0, luma) ) , uniforms.amount);
+    const float3 lumaPos = in.position + normalize(in.normal) * float(luma) * uniforms.amount;
     const float3 final = mix(lumaPos, position, uniforms.lumaVPosMix);
 
 #if INSTANCING
