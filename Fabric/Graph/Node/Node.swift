@@ -754,6 +754,24 @@ public protocol NodeFileLoadingProtocol : Node
 
 public extension NodeFileLoadingProtocol
 {
+    /// Consume a picker URL during changed-input handling, outside parameter
+    /// publisher delivery. Connected inputs and unfinished text paths stay as-is;
+    /// the graph also normalizes file references when saving.
+    func normalizeFileReference(_ port: ParameterPort<String>)
+    {
+        guard port.connectedOutlets.isEmpty,
+              let directoryURL = self.graph?.fileReferenceBaseURL,
+              let reference = port.value, reference.hasPrefix("file://"),
+              let url = DocumentFileReference.resolve(reference, relativeTo: directoryURL)
+        else { return }
+
+        let relativeReference = DocumentFileReference.reference(for: url, relativeTo: directoryURL)
+        if reference != relativeReference
+        {
+            port.value = relativeReference
+        }
+    }
+
     /// A file that ships inside the package bundle is persisted by its path
     /// below the bundle's resource root, not its URL: the bundle sits somewhere
     /// different on every machine and in every build, so an absolute path would

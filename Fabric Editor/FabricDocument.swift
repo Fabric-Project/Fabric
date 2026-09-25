@@ -26,16 +26,12 @@ extension UTType {
     static var fabricDocument: UTType {
         UTType(importedAs: "graphics.fabric.document")
     }
-
-    static var fabricDocumentBundle: UTType {
-        UTType(exportedAs: "graphics.fabric.document-bundle", conformingTo: .package)
-    }
 }
 
 class FabricDocument: FileDocument
 {
-    static var readableContentTypes: [UTType] { [.fabricDocument, .fabricDocumentBundle] }
-    static var writableContentTypes: [UTType] { [.fabricDocument, .fabricDocumentBundle] }
+    static var readableContentTypes: [UTType] { [.fabricDocument] }
+    static var writableContentTypes: [UTType] { [.fabricDocument] }
 
     @ObservationIgnored let context = Context(device: MTLCreateSystemDefaultDevice()!,
                                               sampleCount: 1,
@@ -43,6 +39,10 @@ class FabricDocument: FileDocument
                                               depthPixelFormat: .depth32Float,
                                               stencilPixelFormat: .stencil8,
                                               alphaOitEnabled: true)
+
+    // FileDocument's write configuration has no destination URL. Keep the
+    // exact snapshot until the scene reports the completed save's location.
+    private var lastWrittenGraph: (data: Data, baseURL: URL?)?
 
     //    let graph:Graph
     var graphName:String = "Untitled"
@@ -164,15 +164,7 @@ class FabricDocument: FileDocument
     {
         print("Read Configuration Document Init")
 
-        let data: Data?
-        if configuration.contentType == .fabricDocumentBundle
-        {
-            data = configuration.file.fileWrappers?[DocumentBundleExporter.graphFilename]?.regularFileContents
-        }
-        else
-        {
-            data = configuration.file.regularFileContents
-        }
+        let data = configuration.file.regularFileContents
 
         guard let data,
               let name = configuration.file.filename
@@ -219,29 +211,64 @@ class FabricDocument: FileDocument
         ActiveFabricDocumentStore.shared.activeDocument = self
     }
 
-    /// SwiftUI supplies the document URL to the scene configuration rather
-    /// than FileDocument's read/write callbacks. Install its containing
-    /// directory before rendering so scheme-less file paths resolve locally.
+    /// SwiftUI supplies the destination through the scene after serialization.
+    /// Rebase the saved snapshot as well as the live graph on first save / Save As.
+    @MainActor
     func updateDocumentURL(_ documentURL: URL?)
     {
-        let fileReferenceBaseURL: URL?
-        if documentURL?.pathExtension.localizedCaseInsensitiveCompare("fabricbundle") == .orderedSame
+        guard let documentURL else { return }
+        let directoryURL = documentURL.deletingLastPathComponent().standardizedFileURL
+        let graph = self.editingContext.rootGraph
+
+        if let writtenGraph = self.lastWrittenGraph,
+           writtenGraph.baseURL != directoryURL
         {
-            fileReferenceBaseURL = documentURL
+            do
+            {
+                let decoder = JSONDecoder()
+                decoder.context = DecoderContext(documentContext: self.context,
+                                                 fileReferenceBaseURL: writtenGraph.baseURL)
+                let savedGraph = try decoder.decode(Graph.self, from: writtenGraph.data)
+                savedGraph.rewriteFileReferences(relativeTo: directoryURL)
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.prettyPrinted]
+                let rebasedData = try encoder.encode(savedGraph)
+
+                // Coordinate the follow-up write and never overwrite contents
+                // that have changed since the snapshot SwiftUI just saved.
+                var coordinationError: NSError?
+                var writeError: Error?
+                NSFileCoordinator().coordinate(writingItemAt: documentURL,
+                                                options: .forReplacing,
+                                                error: &coordinationError) { coordinatedURL in
+                    do
+                    {
+                        guard try Data(contentsOf: coordinatedURL) == writtenGraph.data else
+                        {
+                            throw CocoaError(.fileWriteFileExists)
+                        }
+                        try rebasedData.write(to: coordinatedURL, options: .atomic)
+                    }
+                    catch { writeError = error }
+                }
+                if let error = coordinationError ?? writeError { throw error }
+            }
+            catch
+            {
+                self.presentAlert(title: "Could Not Update Saved File Paths",
+                                  message: "Save the document again to write its relative paths. \(error.localizedDescription)")
+            }
+
+            graph.rewriteFileReferences(relativeTo: directoryURL)
         }
         else
         {
-            fileReferenceBaseURL = documentURL?.deletingLastPathComponent()
+            // Opening a graph installs its base without moving its references.
+            graph.updateFileReferenceBaseURL(directoryURL)
         }
 
-        self.editingContext.rootGraph.updateFileReferenceBaseURL(
-            fileReferenceBaseURL
-        )
-
-        if let documentURL
-        {
-            self.graphName = documentURL.lastPathComponent
-        }
+        self.lastWrittenGraph = nil
+        self.graphName = documentURL.lastPathComponent
     }
 
     @MainActor
@@ -375,19 +402,15 @@ class FabricDocument: FileDocument
     
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper
     {
-        if configuration.contentType == .fabricDocumentBundle
-        {
-            return try DocumentBundleExporter.fileWrapper(
-                graph: self.editingContext.rootGraph,
-                preserving: configuration.existingFile
-            )
-        }
+        let graph = self.editingContext.rootGraph
+        graph.rewriteFileReferences(relativeTo: graph.fileReferenceBaseURL)
 
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted]
         
         let data = try encoder.encode(self.editingContext.rootGraph)
-        
+        self.lastWrittenGraph = (data, self.editingContext.rootGraph.fileReferenceBaseURL)
+
         return .init(regularFileWithContents: data)
     }
 

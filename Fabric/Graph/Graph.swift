@@ -525,6 +525,38 @@ internal import AnyCodable
         }
     }
 
+    /// Rewrites static file references at save time, preserving their targets
+    /// when the document acquires a location or is saved to a different directory.
+    public func rewriteFileReferences(relativeTo directoryURL: URL?)
+    {
+        for node in self.nodes
+        {
+            // File-picker metadata also covers directory and model loaders.
+            for port in node.ports
+            {
+                guard let filePort = port as? ParameterPort<String>,
+                      filePort.parameter?.controlType == .filepicker,
+                      filePort.connectedOutlets.isEmpty,
+                      let reference = filePort.value,
+                      let sourceURL = self.resolveFileReference(reference)
+                else { continue }
+
+                let rewrittenReference = DocumentFileReference.reference(for: sourceURL, relativeTo: directoryURL)
+                if rewrittenReference != reference
+                {
+                    filePort.value = rewrittenReference
+                }
+            }
+
+            if let subgraphNode = node as? SubgraphNode
+            {
+                subgraphNode.subGraph.rewriteFileReferences(relativeTo: directoryURL)
+            }
+        }
+
+        self.updateFileReferenceBaseURL(directoryURL)
+    }
+
     /// Resolves an absolute file URL, absolute filesystem path, or path relative
     /// to the directory containing this graph's document.
     public func resolveFileReference(_ reference: String,

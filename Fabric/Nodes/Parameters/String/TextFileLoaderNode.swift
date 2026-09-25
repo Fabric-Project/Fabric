@@ -51,7 +51,7 @@ public final class TextFileLoaderNode : Node, NodeFileLoadingProtocol
     }
     
     public func setFileURL(_ url: URL) {
-        self.inputFilePathParam.value = url.standardizedFileURL.absoluteString
+        self.inputFilePathParam.value = DocumentFileReference.reference(for: url, relativeTo: self.graph?.fileReferenceBaseURL)
     }
 
     override public func execute(renderer:GraphRenderer,
@@ -62,6 +62,7 @@ public final class TextFileLoaderNode : Node, NodeFileLoadingProtocol
     {
         if self.inputFilePathParam.valueDidChange
         {
+            self.normalizeFileReference(self.inputFilePathParam)
             try self.loadStringFromURL()
             
             if let string = self.string

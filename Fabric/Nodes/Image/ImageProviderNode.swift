@@ -44,7 +44,7 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
     private var url: URL? = nil
     
     public func setFileURL(_ url: URL) {
-        self.inputFilePathParam.value = url.standardizedFileURL.absoluteString
+        self.inputFilePathParam.value = DocumentFileReference.reference(for: url, relativeTo: self.graph?.fileReferenceBaseURL)
     }
     
     public required init(context:Context)
@@ -88,6 +88,7 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
     {
         if self.inputFilePathParam.valueDidChange
         {
+            self.normalizeFileReference(self.inputFilePathParam)
             try self.loadTextureFromInputValue()
             
             if let texture = self.texture

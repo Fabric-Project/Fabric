@@ -44,7 +44,7 @@ public class LUTProcessorNode : BaseImageNode
 
     override public func setFileURL(_ url: URL)
     {
-        self.inputFilePathParam.value = url.standardizedFileURL.absoluteString
+        self.inputFilePathParam.value = DocumentFileReference.reference(for: url, relativeTo: self.graph?.fileReferenceBaseURL)
     }
     
     public required init(context: Context, fileURL: URL) throws
@@ -83,6 +83,7 @@ public class LUTProcessorNode : BaseImageNode
     {
         if self.inputFilePathParam.valueDidChange
         {
+            self.normalizeFileReference(self.inputFilePathParam)
             try self.loadLUTFromInputValue()
         }
 

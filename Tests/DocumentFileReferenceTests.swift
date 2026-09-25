@@ -13,6 +13,7 @@ struct DocumentFileReferenceTests
 
         #expect(DocumentFileReference.resolve(expectedURL.absoluteString, relativeTo: nil) == expectedURL)
         #expect(DocumentFileReference.resolve(expectedURL.path, relativeTo: nil) == expectedURL)
+        #expect(DocumentFileReference.reference(for: expectedURL, relativeTo: nil) == expectedURL.absoluteString)
     }
 
     @Test("Local paths resolve relative to the saved document directory")
@@ -28,237 +29,149 @@ struct DocumentFileReferenceTests
         #expect(DocumentFileReference.resolve("Assets/My Image.png", relativeTo: nil) == nil)
     }
 
-    @Test("Bundle export copies assets and rewrites only the exported graph")
-    func bundleExportCopiesAndRewrites() throws
+    @Test("Relative paths include parent directories and preserve literal filename characters")
+    func relativePathRoundTrips()
+    {
+        let directoryURL = URL(filePath: "/tmp/Project/Graphs", directoryHint: .isDirectory)
+        for path in ["/tmp/Project/Graphs/Assets/image.png", "/tmp/Project/Shared/My #100% image.png",
+                     "/Volumes/Media/movie.mov", "/tmp/Project/Graphs"]
+        {
+            let sourceURL = URL(filePath: path).standardizedFileURL
+            let reference = DocumentFileReference.reference(for: sourceURL, relativeTo: directoryURL)
+            #expect(DocumentFileReference.resolve(reference, relativeTo: directoryURL)?.path == sourceURL.path)
+        }
+        #expect(DocumentFileReference.reference(for: URL(filePath: "/tmp/Project/Shared/image.png"),
+                                                   relativeTo: directoryURL) == "../Shared/image.png")
+    }
+
+    @Test("First save rewrites live ports and parameters and persists relative references")
+    func firstSaveRewritesLiveAndSavedGraph() throws
     {
         guard let harness = GraphExecutionTestHarness() else { return }
-
-        let rootURL = FileManager.default.temporaryDirectory.appending(
-            path: "FabricDocumentBundleTests-\(UUID().uuidString)",
-            directoryHint: .isDirectory
-        )
-        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: rootURL) }
-
-        let sourceURL = rootURL.appending(path: "source.txt")
-        try Data("bundle asset".utf8).write(to: sourceURL)
-
-        let graph = Graph(context: harness.context, fileReferenceBaseURL: rootURL)
+        let graph = Graph(context: harness.context)
         let node = TextFileLoaderNode(context: harness.context)
+        let directoryURL = URL(filePath: "/tmp/Project", directoryHint: .isDirectory)
+        let sourceURL = directoryURL.appending(path: "Assets/source.txt")
         node.setFileURL(sourceURL)
         graph.addNode(node)
+        node.normalizeFileReference(node.inputFilePathParam)
+        #expect(node.inputFilePathParam.value == sourceURL.absoluteString)
 
-        let originalReference = try #require(node.inputFilePathParam.value)
-        let bundleURL = rootURL.appending(path: "Export.fabricbundle", directoryHint: .isDirectory)
-        try DocumentBundleExporter.export(graph: graph, to: bundleURL)
+        graph.rewriteFileReferences(relativeTo: directoryURL)
+        #expect(node.inputFilePathParam.value == "Assets/source.txt")
+        #expect((node.inputFilePathParam.parameter as? GenericParameter<String>)?.value == "Assets/source.txt")
 
-        #expect(node.inputFilePathParam.value == originalReference)
-        #expect(FileManager.default.fileExists(
-            atPath: bundleURL.appending(path: "Assets/source.txt").path
-        ))
-
-        let exportedData = try Data(contentsOf: bundleURL.appending(path: "Graph.fabric"))
         let decoder = JSONDecoder()
-        decoder.context = DecoderContext(documentContext: harness.context,
-                                         fileReferenceBaseURL: bundleURL)
-        let exportedGraph = try decoder.decode(Graph.self, from: exportedData)
-        let exportedNode = try #require(exportedGraph.nodes.compactMap { $0 as? TextFileLoaderNode }.first)
-
-        #expect(exportedNode.inputFilePathParam.value == "Assets/source.txt")
-        #expect(exportedGraph.resolveFileReference("Assets/source.txt")
-            == bundleURL.appending(path: "Assets/source.txt").standardizedFileURL)
+        decoder.context = DecoderContext(documentContext: harness.context)
+        let reopenedGraph = try decoder.decode(Graph.self, from: JSONEncoder().encode(graph))
+        reopenedGraph.updateFileReferenceBaseURL(directoryURL)
+        let reopenedNode = try #require(reopenedGraph.nodes.first as? TextFileLoaderNode)
+        #expect(reopenedNode.inputFilePathParam.value == "Assets/source.txt")
+        #expect(reopenedGraph.resolveFileReference(try #require(reopenedNode.inputFilePathParam.value)) == sourceURL)
     }
 
-    @Test("Bundle export rejects different assets with the same basename")
-    func bundleExportRejectsBasenameCollisions() throws
+    @Test("File loaders consume raw picker URLs and graph save handles other paths")
+    func fileAssignmentsUseDocumentLocation() throws
     {
         guard let harness = GraphExecutionTestHarness() else { return }
-
-        let rootURL = FileManager.default.temporaryDirectory.appending(
-            path: "FabricDocumentBundleCollisionTests-\(UUID().uuidString)",
-            directoryHint: .isDirectory
-        )
-        let firstDirectoryURL = rootURL.appending(path: "First", directoryHint: .isDirectory)
-        let secondDirectoryURL = rootURL.appending(path: "Second", directoryHint: .isDirectory)
-        try FileManager.default.createDirectory(at: firstDirectoryURL, withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(at: secondDirectoryURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: rootURL) }
-
-        let firstURL = firstDirectoryURL.appending(path: "shared.txt")
-        let secondURL = secondDirectoryURL.appending(path: "shared.txt")
-        try Data("first".utf8).write(to: firstURL)
-        try Data("second".utf8).write(to: secondURL)
-
-        let graph = Graph(context: harness.context, fileReferenceBaseURL: rootURL)
-        let firstNode = TextFileLoaderNode(context: harness.context)
-        firstNode.setFileURL(firstURL)
-        graph.addNode(firstNode)
-        let secondNode = TextFileLoaderNode(context: harness.context)
-        secondNode.setFileURL(secondURL)
-        graph.addNode(secondNode)
-
-        let destinationURL = rootURL.appending(path: "Collision.fabricbundle", directoryHint: .isDirectory)
-
-        do
-        {
-            try DocumentBundleExporter.export(graph: graph, to: destinationURL)
-            Issue.record("Expected basename collision to fail export")
-        }
-        catch let error as DocumentBundleExportError
-        {
-            guard case .basenameCollision(let name, _, _) = error else
-            {
-                Issue.record("Unexpected bundle export error: \(error)")
-                return
-            }
-
-            #expect(name == "shared.txt")
-        }
-    }
-
-    @Test("Bundle export leaves connected file references dynamic")
-    func bundleExportSkipsDynamicReferences() throws
-    {
-        guard let harness = GraphExecutionTestHarness() else { return }
-
-        let rootURL = FileManager.default.temporaryDirectory.appending(
-            path: "FabricDocumentBundleDynamicTests-\(UUID().uuidString)",
-            directoryHint: .isDirectory
-        )
-        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: rootURL) }
-
-        let sourceURL = rootURL.appending(path: "dynamic.txt")
-        try Data("dynamic asset".utf8).write(to: sourceURL)
-
-        let graph = Graph(context: harness.context, fileReferenceBaseURL: rootURL)
-        let sourceNode = PassThroughNode<String>(context: harness.context)
-        let loaderNode = TextFileLoaderNode(context: harness.context)
-        loaderNode.setFileURL(sourceURL)
-        graph.addNode(sourceNode)
-        graph.addNode(loaderNode)
-        graph.connect(sourceNode.output, to: loaderNode.inputFilePathParam)
-
-        let destinationURL = rootURL.appending(path: "Dynamic.fabricbundle", directoryHint: .isDirectory)
-        try DocumentBundleExporter.export(graph: graph, to: destinationURL)
-
-        #expect(FileManager.default.fileExists(
-            atPath: destinationURL.appending(path: "Assets/dynamic.txt").path
-        ) == false)
-
-        let exportedData = try Data(contentsOf: destinationURL.appending(path: "Graph.fabric"))
-        let decoder = JSONDecoder()
-        decoder.context = DecoderContext(documentContext: harness.context,
-                                         fileReferenceBaseURL: destinationURL)
-        let exportedGraph = try decoder.decode(Graph.self, from: exportedData)
-        let exportedNode = try #require(
-            exportedGraph.nodes.compactMap { $0 as? TextFileLoaderNode }.first
-        )
-
-        #expect(exportedNode.inputFilePathParam.value == sourceURL.standardizedFileURL.absoluteString)
-        #expect(exportedNode.inputFilePathParam.connectedOutlets.isEmpty == false)
-        #expect(exportedGraph.connections.count == 1)
-    }
-
-    @Test("Bundle document writes preserve existing assets and gather new static references")
-    func bundleDocumentWritePreservesAndGathersAssets() throws
-    {
-        guard let harness = GraphExecutionTestHarness() else { return }
-
-        let rootURL = FileManager.default.temporaryDirectory.appending(
-            path: "FabricDocumentBundleWriteTests-\(UUID().uuidString)",
-            directoryHint: .isDirectory
-        )
-        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: rootURL) }
-
-        let newAssetURL = rootURL.appending(path: "new.txt")
-        try Data("new asset".utf8).write(to: newAssetURL)
-
-        let graph = Graph(context: harness.context, fileReferenceBaseURL: rootURL)
+        let directoryURL = URL(filePath: "/tmp/Project", directoryHint: .isDirectory)
+        let graph = Graph(context: harness.context, fileReferenceBaseURL: directoryURL)
         let node = TextFileLoaderNode(context: harness.context)
-        node.setFileURL(newAssetURL)
+        node.setFileURL(directoryURL.appending(path: "before-add.txt"))
         graph.addNode(node)
+        #expect(node.inputFilePathParam.value == directoryURL.appending(path: "before-add.txt").absoluteString)
+        node.normalizeFileReference(node.inputFilePathParam)
+        #expect(node.inputFilePathParam.value == "before-add.txt")
+        node.setFileURL(directoryURL.appending(path: "after-add.txt"))
+        #expect(node.inputFilePathParam.value == "after-add.txt")
+        node.inputFilePathParam.value = "/tmp/shared.txt"
+        #expect(node.inputFilePathParam.value == "/tmp/shared.txt")
+        graph.rewriteFileReferences(relativeTo: directoryURL)
+        #expect(node.inputFilePathParam.value == "../shared.txt")
+        let parameter = try #require(node.inputFilePathParam.parameter as? GenericParameter<String>)
+        let pickedURL = directoryURL.appending(path: "Picked #1.txt")
+        parameter.value = pickedURL.absoluteString
+        #expect(node.inputFilePathParam.value == pickedURL.absoluteString)
+        node.normalizeFileReference(node.inputFilePathParam)
+        #expect(node.inputFilePathParam.value == "Picked #1.txt")
+        #expect(parameter.value == "Picked #1.txt")
+        parameter.value = ""
+        #expect(node.inputFilePathParam.value == "")
+    }
 
-        let retainedAsset = FileWrapper(regularFileWithContents: Data("retained asset".utf8))
-        retainedAsset.preferredFilename = "retained.txt"
-        let existingAssets = FileWrapper(directoryWithFileWrappers: [
-            "retained.txt": retainedAsset,
-        ])
-        existingAssets.preferredFilename = DocumentBundleExporter.assetsDirectoryName
-        let existingBundle = FileWrapper(directoryWithFileWrappers: [
-            DocumentBundleExporter.assetsDirectoryName: existingAssets,
-        ])
+    @Test("Save As preserves targets throughout nested graphs")
+    func saveAsRebasesNestedReferences() throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let oldDirectory = URL(filePath: "/tmp/Project", directoryHint: .isDirectory)
+        let newDirectory = oldDirectory.appending(path: "Versions", directoryHint: .isDirectory)
+        let graph = Graph(context: harness.context, fileReferenceBaseURL: oldDirectory)
+        let subgraphNode = SubgraphNode(context: harness.context)
+        let loader = TextFileLoaderNode(context: harness.context)
+        loader.setFileURL(oldDirectory.appending(path: "Assets/source.txt"))
+        subgraphNode.subGraph.addNode(loader)
+        graph.addNode(subgraphNode)
+        graph.rewriteFileReferences(relativeTo: oldDirectory)
+        #expect(loader.inputFilePathParam.value == "Assets/source.txt")
 
-        let bundleWrapper = try DocumentBundleExporter.fileWrapper(
-            graph: graph,
-            preserving: existingBundle
-        )
-        #expect(node.inputFilePathParam.value == "Assets/new.txt")
-        #expect((node.inputFilePathParam.parameter as? GenericParameter<String>)?.value == "Assets/new.txt")
-        let children = try #require(bundleWrapper.fileWrappers)
-        let graphWrapper = try #require(children[DocumentBundleExporter.graphFilename])
-        let graphData = try #require(graphWrapper.regularFileContents)
-        let assets = try #require(
-            children[DocumentBundleExporter.assetsDirectoryName]?.fileWrappers
-        )
+        graph.rewriteFileReferences(relativeTo: newDirectory)
+        #expect(loader.inputFilePathParam.value == "../Assets/source.txt")
+        #expect(subgraphNode.subGraph.fileReferenceBaseURL == newDirectory)
+        #expect(subgraphNode.subGraph.resolveFileReference(try #require(loader.inputFilePathParam.value))
+            == oldDirectory.appending(path: "Assets/source.txt"))
+        graph.rewriteFileReferences(relativeTo: newDirectory)
+        #expect(loader.inputFilePathParam.value == "../Assets/source.txt")
+    }
 
-        #expect(assets["retained.txt"]?.regularFileContents == Data("retained asset".utf8))
-        #expect(assets["new.txt"]?.regularFileContents == Data("new asset".utf8))
+    @Test("Reopening a moved project retains its relative references")
+    func movedProjectUsesNewLocation() throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let graph = Graph(context: harness.context)
+        let node = TextFileLoaderNode(context: harness.context)
+        graph.addNode(node)
+        node.inputFilePathParam.value = "Assets/source.txt"
+        let movedDirectory = URL(filePath: "/tmp/Moved Project", directoryHint: .isDirectory)
+        graph.updateFileReferenceBaseURL(movedDirectory)
+        #expect(node.inputFilePathParam.value == "Assets/source.txt")
+        #expect(graph.resolveFileReference(try #require(node.inputFilePathParam.value))
+            == movedDirectory.appending(path: "Assets/source.txt"))
+    }
+
+    @Test("Connected file paths survive rebasing and decoding unchanged")
+    func connectedPathsRemainDynamic() throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let directoryURL = URL(filePath: "/tmp/Project", directoryHint: .isDirectory)
+        let graph = Graph(context: harness.context, fileReferenceBaseURL: directoryURL)
+        let source = PassThroughNode<String>(context: harness.context)
+        let loader = TextFileLoaderNode(context: harness.context)
+        graph.addNode(source)
+        graph.addNode(loader)
+        graph.connect(source.output, to: loader.inputFilePathParam)
+        let reference = "file:///tmp/Project/dynamic.txt"
+        source.output.send(reference, force: true)
+        loader.normalizeFileReference(loader.inputFilePathParam)
+        #expect(loader.inputFilePathParam.value == reference)
+        graph.rewriteFileReferences(relativeTo: directoryURL.appending(path: "Versions"))
+        #expect(loader.inputFilePathParam.value == reference)
 
         let decoder = JSONDecoder()
-        decoder.context = DecoderContext(documentContext: harness.context,
-                                         fileReferenceBaseURL: rootURL)
-        let savedGraph = try decoder.decode(Graph.self, from: graphData)
-        let savedNode = try #require(
-            savedGraph.nodes.compactMap { $0 as? TextFileLoaderNode }.first
-        )
-        #expect(savedNode.inputFilePathParam.value == "Assets/new.txt")
+        decoder.context = DecoderContext(documentContext: harness.context, fileReferenceBaseURL: directoryURL)
+        let decodedGraph = try decoder.decode(Graph.self, from: JSONEncoder().encode(graph))
+        let decodedLoader = try #require(decodedGraph.nodes.compactMap { $0 as? TextFileLoaderNode }.first)
+        #expect(decodedLoader.inputFilePathParam.value == reference)
+        #expect(decodedGraph.connections.count == 1)
+        #expect(decodedLoader.inputFilePathParam.connectedOutlets.isEmpty == false)
     }
 
-    @Test("Save As converts an existing standalone file wrapper into a bundle")
-    func standaloneFileWrapperConvertsToBundle() throws
+    @Test("Graphs defer relative LUT loading until their location is known")
+    func decodeDefersRelativeLUTLoading() throws
     {
         guard let harness = GraphExecutionTestHarness() else { return }
 
         let rootURL = FileManager.default.temporaryDirectory.appending(
-            path: "FabricStandaloneToBundleTests-\(UUID().uuidString)",
-            directoryHint: .isDirectory
-        )
-        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: rootURL) }
-
-        let assetURL = rootURL.appending(path: "asset.txt")
-        try Data("asset".utf8).write(to: assetURL)
-
-        let graph = Graph(context: harness.context, fileReferenceBaseURL: rootURL)
-        let node = TextFileLoaderNode(context: harness.context)
-        node.setFileURL(assetURL)
-        graph.addNode(node)
-
-        let existingStandaloneFile = FileWrapper(
-            regularFileWithContents: try JSONEncoder().encode(graph)
-        )
-        let bundleWrapper = try DocumentBundleExporter.fileWrapper(
-            graph: graph,
-            preserving: existingStandaloneFile
-        )
-
-        #expect(bundleWrapper.isDirectory)
-        #expect(bundleWrapper.fileWrappers?[DocumentBundleExporter.graphFilename]?.isRegularFile == true)
-        #expect(
-            bundleWrapper.fileWrappers?[DocumentBundleExporter.assetsDirectoryName]?
-                .fileWrappers?["asset.txt"]?.regularFileContents == Data("asset".utf8)
-        )
-    }
-
-    @Test("Bundle graphs defer relative LUT loading until their location is known")
-    func bundleDecodeDefersRelativeLUTLoading() throws
-    {
-        guard let harness = GraphExecutionTestHarness() else { return }
-
-        let rootURL = FileManager.default.temporaryDirectory.appending(
-            path: "FabricDocumentBundleDeferredLoadTests-\(UUID().uuidString)",
+            path: "FabricRelativeDeferredLoadTests-\(UUID().uuidString)",
             directoryHint: .isDirectory
         )
         try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
@@ -288,10 +201,8 @@ struct DocumentFileReferenceTests
         graph.addNode(lutNode)
         graph.connect(movieNode.outputTexturePort, to: try #require(lutNode.imageInputPorts().first))
 
-        let bundleURL = rootURL.appending(path: "Deferred.fabricbundle", directoryHint: .isDirectory)
-        try DocumentBundleExporter.export(graph: graph, to: bundleURL)
-
-        let exportedData = try Data(contentsOf: bundleURL.appending(path: "Graph.fabric"))
+        graph.rewriteFileReferences(relativeTo: rootURL)
+        let exportedData = try JSONEncoder().encode(graph)
         let decoder = JSONDecoder()
         decoder.context = DecoderContext(documentContext: harness.context)
         let decodedGraph = try decoder.decode(Graph.self, from: exportedData)
@@ -299,12 +210,12 @@ struct DocumentFileReferenceTests
         let decodedLUTNode = try #require(
             decodedGraph.nodes.compactMap { $0 as? LUTProcessorNode }.first
         )
-        #expect(decodedLUTNode.inputFilePathParam.value == "Assets/look.cube")
+        #expect(decodedLUTNode.inputFilePathParam.value == "look.cube")
         #expect(decodedGraph.connections.count == 1)
 
-        decodedGraph.updateFileReferenceBaseURL(bundleURL)
-        #expect(decodedGraph.resolveFileReference("Assets/look.cube")
-            == bundleURL.appending(path: "Assets/look.cube").standardizedFileURL)
+        decodedGraph.updateFileReferenceBaseURL(rootURL)
+        #expect(decodedGraph.resolveFileReference("look.cube")
+            == rootURL.appending(path: "look.cube").standardizedFileURL)
     }
 
     @Test("Missing runtime files do not prevent user-editable file-reference nodes from deserializing")

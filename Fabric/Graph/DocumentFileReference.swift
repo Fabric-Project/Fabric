@@ -7,12 +7,24 @@ import Foundation
 
 /// Resolves the string representation used by file-picker parameter ports.
 ///
-/// File importers continue to store absolute `file://` URLs. A user-authored
-/// filesystem path without that prefix is interpreted relative to the saved
-/// document's directory. Keeping the persisted value as a String preserves
-/// compatibility with existing graphs and with String connections.
+/// Saved graphs use paths relative to the document directory, including `../`.
+/// Unsaved graphs retain absolute file URLs. Persisting a String preserves
+/// compatibility with existing graphs and String connections.
 public enum DocumentFileReference
 {
+    public static func reference(for fileURL: URL, relativeTo directoryURL: URL?) -> String
+    {
+        guard let directoryURL else { return fileURL.standardizedFileURL.absoluteString }
+
+        let fileComponents = fileURL.standardizedFileURL.pathComponents
+        let directoryComponents = directoryURL.standardizedFileURL.pathComponents
+        let commonCount = zip(fileComponents, directoryComponents)
+            .prefix { $0.0 == $0.1 }.count
+        let components = Array(repeating: "..", count: directoryComponents.count - commonCount)
+            + fileComponents.dropFirst(commonCount)
+        return components.isEmpty ? "." : components.joined(separator: "/")
+    }
+
     public static func resolve(_ reference: String,
                                relativeTo documentDirectoryURL: URL?,
                                directoryHint: URL.DirectoryHint = .inferFromPath) -> URL?

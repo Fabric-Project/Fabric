@@ -49,7 +49,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     }
 
     public func setFileURL(_ url: URL) {
-        self.inputFilePathParam.value = url.standardizedFileURL.absoluteString
+        self.inputFilePathParam.value = DocumentFileReference.reference(for: url, relativeTo: self.graph?.fileReferenceBaseURL)
     }
 
     override public class var name:String { "Movie Provider" }
@@ -391,6 +391,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     {
         if self.inputFilePathParam.valueDidChange
         {
+            self.normalizeFileReference(self.inputFilePathParam)
             try loadAssetFromInputValue()
         }
 

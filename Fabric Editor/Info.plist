@@ -20,20 +20,7 @@
 			<key>NSUbiquitousDocumentUserActivityType</key>
 			<string>$(PRODUCT_BUNDLE_IDENTIFIER).exampledocument</string>
 		</dict>
-		<dict>
-			<key>CFBundleTypeIconSystemGenerated</key>
-			<true/>
-			<key>CFBundleTypeName</key>
-			<string>Fabric Document Bundle</string>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>LSHandlerRank</key>
-			<string>Default</string>
-			<key>LSItemContentTypes</key>
-			<array>
-				<string>graphics.fabric.document-bundle</string>
-			</array>
-		</dict>
+
 	</array>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
@@ -43,23 +30,7 @@
 	<string>LS/B4r0KdYmY6Xs1UiQ5dcKdUugyv6gu3z2GxESju6c=</string>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
-		<dict>
-			<key>UTTypeConformsTo</key>
-			<array>
-				<string>com.apple.package</string>
-			</array>
-			<key>UTTypeDescription</key>
-			<string>Fabric Document Bundle</string>
-			<key>UTTypeIdentifier</key>
-			<string>graphics.fabric.document-bundle</string>
-			<key>UTTypeTagSpecification</key>
-			<dict>
-				<key>public.filename-extension</key>
-				<array>
-					<string>fabricbundle</string>
-				</array>
-			</dict>
-		</dict>
+
 		<dict>
 			<key>UTTypeConformsTo</key>
 			<array>
