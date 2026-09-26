@@ -25,7 +25,9 @@ public class LUTProcessorNode : BaseImageNode
     public override class var defaultImageInputCountHint: Int? { 1 }
     public override class var fixedImageInputCount: Int? { 1 }
     
-    public override class var supportedContentTypes:[UTType] { [.data] }
+    public override class var supportedContentTypes: [UTType] {
+        [UTType(filenameExtension: "cube")].compactMap { $0 }
+    }
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
