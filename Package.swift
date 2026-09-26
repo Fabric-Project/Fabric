@@ -16,6 +16,17 @@ let package = Package(
     dependencies: [
         // Local Satin package
         .package(path: "Satin"),
+        .package(path: "../MPS-ZipDepth"),
+
+        // Local MPS-EfficientTAM package (EfficientTAM image encoder, prompt decoder
+        // and video tracker as MPSGraph)
+        .package(path: "../MPS-EfficientTAM"),
+
+        // Local MPS-MediaPipe package (MediaPipe MPSGraph ports, extracted
+        // out of Fabric so they're usable standalone too — see
+        // https://github.com/Fabric-Project/MPS-MediaPipe)
+        .package(path: "../MPS-MediaPipe"),
+        .package(path: "../MPS-TAPNextPlusPlus"),
 
         // Standalone expression engine (backs the Math Expression node), and its
         // editor support product (the language the code editor is configured with)
@@ -62,6 +73,10 @@ let package = Package(
                 "FabricCore",
                 .product(name: "Satin", package: "Satin"),
                 .product(name: "SatinCore", package: "Satin"),
+                .product(name: "MPSMediaPipe", package: "MPS-MediaPipe"),
+                .product(name: "MPSTAPNextPlusPlus", package: "MPS-TAPNextPlusPlus"),
+                .product(name: "MPSZipDepth", package: "MPS-ZipDepth"),
+                .product(name: "MPSEfficientTAM", package: "MPS-EfficientTAM"),
                 .product(name: "AnyCodable", package: "AnyCodable"),
                 .product(name: "MLX", package: "mlx-swift"),
                 .product(name: "MLXFFT", package: "mlx-swift"),
