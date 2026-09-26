@@ -43,21 +43,28 @@ public class NodeRegistry
         return PluginLoader.shared.nodeClass(pluginID: pluginID, nodeID: nodeID)
     }
 
-    /// Returns the first drop-target node class whose `supportedContentTypes`
-    /// conforms to the given UTType. More specific types (e.g. .jpeg) are
-    /// checked via `UTType.conforms(to:)`, so dropping a JPEG will match
-    /// `ImageProviderNode` whose list includes `.image`.
+    /// Prefer the most specific supported type. Registration order breaks ties,
+    /// so a broad type cannot steal a drop from a more specific file loader.
     public func dropTargetNodeClass(for contentType: UTType) -> (any NodeFileLoadingProtocol.Type)?
     {
+        var selectedNodeClass: (any NodeFileLoadingProtocol.Type)?
+        var selectedContentType: UTType?
+
         for dropNodeClass in Self.nodeFileLoadingClasses
         {
-            if dropNodeClass.supportedContentTypes.contains(where: { contentType.conforms(to: $0) })
+            for supportedType in dropNodeClass.supportedContentTypes where contentType.conforms(to: supportedType)
             {
-                return dropNodeClass
+                if let selectedContentType,
+                   !supportedType.conforms(to: selectedContentType) || supportedType == selectedContentType
+                {
+                    continue
+                }
+                selectedNodeClass = dropNodeClass
+                selectedContentType = supportedType
             }
         }
 
-        return nil
+        return selectedNodeClass
     }
 
     /// All UTTypes accepted by drop-target nodes, for use with drop destination handlers.
@@ -78,8 +85,8 @@ public class NodeRegistry
 
     private static var nodeFileLoadingClasses: [(any NodeFileLoadingProtocol.Type)]
     {
-        PluginLoader.shared.pluginNodeClasses.values.compactMap { nodeClass in
-            nodeClass as? any NodeFileLoadingProtocol.Type
+        PluginLoader.shared.pluginNodeWrappers.compactMap { wrapper in
+            wrapper.nodeClass as? any NodeFileLoadingProtocol.Type
         }
     }
 

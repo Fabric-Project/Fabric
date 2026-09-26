@@ -158,78 +158,87 @@ public struct GraphCanvas : View
 
     // MARK: - Drop Helpers
 
-    // FIXME: NSItemProvider load callbacks run on an arbitrary queue. Graph/Node are not
-    // thread-safe and have no actor isolation, so the addNode calls below rely on AppKit
-    // happening to deliver on main. If Fabric adopts Swift 6 strict concurrency or
-    // @MainActor isolation, these callbacks will need explicit main-thread dispatch.
-
+    @MainActor
     private func handleDrop(providers: [NSItemProvider], location: CGPoint, canvasSize: CGSize) -> Bool
     {
         let currentGraph = self.editingContext.currentGraph
+        let registryProviders = providers.filter {
+            $0.hasItemConformingToTypeIdentifier(UTType.nodeRegistryItem.identifier)
+        }
 
-        var handled = false
-
-        for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.nodeRegistryItem.identifier)
+        for provider in registryProviders
         {
             provider.loadDataRepresentation(forTypeIdentifier: UTType.nodeRegistryItem.identifier) { data, error in
-                guard let data = data,
-                      let dragData = try? JSONDecoder().decode(NodeRegistryDragData.self, from: data),
-                      let wrapper = try? NodeRegistry.shared.availableNodes.first(where: { $0.id == dragData.wrapperID })
+                guard let data,
+                      let dragData = try? JSONDecoder().decode(NodeRegistryDragData.self, from: data)
                 else {
                     print("GraphCanvas: registry drag decode failed: \(error?.localizedDescription ?? "unknown")")
-                    handled = false
                     return
                 }
 
-                do {
-                    let node = try wrapper.initializeNode(context: currentGraph.context)
-                    try self.editingContext.layoutNode(node)
+                // Item-provider callbacks can arrive on any queue. Create the node
+                // and publish all graph/UI changes together on the main actor.
+                Task { @MainActor in
+                    do {
+                        guard let wrapper = try NodeRegistry.shared.availableNodes.first(where: { $0.id == dragData.wrapperID })
+                        else { return }
 
-                    node.offset.width += location.x - canvasSize.width / 2.0 - self.editingContext.currentScrollOffset.x
-                    node.offset.height += location.y - canvasSize.height / 2.0 - self.editingContext.currentScrollOffset.y - node.nodeSize.height / 4.0
+                        let node = try wrapper.initializeNode(context: currentGraph.context)
+                        try self.editingContext.layoutNode(node)
 
-                    currentGraph.addNode(node)
-                    handled = true
-                }
-                catch {
-                    print("GraphCanvas: failed to create node from registry drag: \(error)")
-                    handled = false
+                        node.offset.width += location.x - canvasSize.width / 2.0 - self.editingContext.currentScrollOffset.x
+                        node.offset.height += location.y - canvasSize.height / 2.0 - self.editingContext.currentScrollOffset.y - node.nodeSize.height / 4.0
+
+                        currentGraph.addNode(node)
+                    }
+                    catch {
+                        print("GraphCanvas: failed to create node from registry drag: \(error)")
+                    }
                 }
             }
-
         }
 
-        return handled ? true :  self.handleFileDrop(providers: providers, location: location, canvasSize: canvasSize)
+        // Acceptance is synchronous; completion callbacks must not mutate it.
+        // A provider advertising both representations should create only one node.
+        let fileProviders = providers.filter {
+            !$0.hasItemConformingToTypeIdentifier(UTType.nodeRegistryItem.identifier)
+        }
+        let acceptedFiles = self.handleFileDrop(providers: fileProviders, location: location, canvasSize: canvasSize)
+        return !registryProviders.isEmpty || acceptedFiles
     }
 
+    @MainActor
     private func handleFileDrop(providers: [NSItemProvider], location: CGPoint, canvasSize: CGSize) -> Bool
     {
         let currentGraph = self.editingContext.currentGraph
-        var handled = false
-
-        for provider in providers
-        {
-            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { data, _ in
-                guard let data = data as? Data,
-                      let url = URL(dataRepresentation: data, relativeTo: nil, isAbsolute: true)
-                else { return }
-
-                guard let resourceValues = try? url.resourceValues(forKeys: [.contentTypeKey]),
-                      let contentType = resourceValues.contentType,
-                      let nodeClass = try? NodeRegistry.shared.dropTargetNodeClass(for: contentType)
-                else { return }
-
-                let node = nodeClass.init(context: currentGraph.context)
-                node.setFileURL(url)
-                node.offset = CGSize(width: location.x - canvasSize.width / 2.0 - node.nodeSize.width / 2.0,
-                                     height: location.y - canvasSize.height / 2.0 - node.nodeSize.height / 2.0)
-                currentGraph.addNode(node)
-            }
-
-            handled = true
+        let fileProviders = providers.filter {
+            $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier)
         }
 
-        return handled
+        for provider in fileProviders
+        {
+            provider.loadDataRepresentation(forTypeIdentifier: UTType.fileURL.identifier) { data, _ in
+                guard let data,
+                      let url = URL(dataRepresentation: data, relativeTo: nil, isAbsolute: true),
+                      url.isFileURL,
+                      let resourceValues = try? url.resourceValues(forKeys: [.contentTypeKey]),
+                      let contentType = resourceValues.contentType
+                else { return }
+
+                Task { @MainActor in
+                    guard let nodeClass = try? NodeRegistry.shared.dropTargetNodeClass(for: contentType)
+                    else { return }
+
+                    let node = nodeClass.init(context: currentGraph.context)
+                    node.setFileURL(url)
+                    node.offset = CGSize(width: location.x - canvasSize.width / 2.0 - node.nodeSize.width / 2.0,
+                                         height: location.y - canvasSize.height / 2.0 - node.nodeSize.height / 2.0)
+                    currentGraph.addNode(node)
+                }
+            }
+        }
+
+        return !fileProviders.isEmpty
     }
 
     // MARK: - Key Press

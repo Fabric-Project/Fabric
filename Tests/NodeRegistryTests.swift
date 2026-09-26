@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 import simd
+import UniformTypeIdentifiers
 @testable import Fabric
 
 @Suite("Node Registry")
@@ -57,6 +58,27 @@ struct NodeRegistryTests {
                                            nodeID: "PerspectiveCameraNode") != nil
             #expect(found)
         }
+    }
+
+    @Test("File drops resolve to the appropriate loader")
+    func fileDropsSelectSpecificLoaders() throws {
+        let registry = try NodeRegistry()
+        let cases: [(UTType, Node.Type)] = [
+            (.png, ImageProviderNode.self),
+            (.jpeg, ImageProviderNode.self),
+            (.quickTimeMovie, MovieProviderNode.self),
+            (.plainText, TextFileLoaderNode.self),
+            (.json, TextFileLoaderNode.self),
+            (try #require(UTType(filenameExtension: "cube")), LUTProcessorNode.self),
+        ]
+
+        for (contentType, expectedClass) in cases {
+            let matches = registry.dropTargetNodeClass(for: contentType) == expectedClass
+            #expect(matches, "Wrong loader for \(contentType.identifier)")
+        }
+
+        let acceptsUnclassifiedData = registry.dropTargetNodeClass(for: .data) != nil
+        #expect(!acceptsUnclassifiedData)
     }
 
     // MARK: - Legacy aliases
