@@ -98,4 +98,25 @@ struct GraphRendererFrameErrorTests
 
         #expect(deferredSubgraphNode.outputColorTexture.value != nil)
     }
+
+    @Test("A fatal error after a recoverable one takes precedence, and the frame is not drawn")
+    func fatalErrorTakesPrecedenceOverEarlierRecoverableError() throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let graph = Graph(context: harness.context)
+        graph.addNode(ThrowingConsumerNode(context: harness.context))
+        let fatalNode = ThrowingConsumerNode(context: harness.context)
+        fatalNode.severity = .fatal
+        graph.addNode(fatalNode)
+        let renderer = harness.graphRenderer(for: graph)
+        try renderer.startExecution()
+
+        let executionCountBeforeFrame = renderer.executionCount
+        let error = #expect(throws: FabricError.self) {
+            try harness.execute(graph: graph, executionInfo: harness.makeExecutionInfo(), drawScene: true)
+        }
+
+        #expect(error?.severity == .fatal)
+        #expect(renderer.executionCount == executionCountBeforeFrame)
+    }
 }

@@ -245,8 +245,8 @@ struct GraphNodeLifecycleTests
         #expect(node.lifecycleCalls == ["enable", "start", "stop"])
     }
 
-    @Test("Nodes added while the renderer is stopped wait for it to start")
-    func nodesAddedWhileStoppedWaitForStart() throws
+    @Test("Nodes added while the renderer is stopped are enabled, and start when it starts")
+    func nodesAddedWhileStoppedStartWhenItStarts() throws
     {
         guard let harness = GraphExecutionTestHarness() else { return }
         let graph = Graph(context: harness.context)
@@ -260,8 +260,8 @@ struct GraphNodeLifecycleTests
         graph.addNode(second)
         graph.connect(first.output, to: second.input)
         try renderer.synchronizeLifecycle()
-        #expect(first.lifecycleCalls.isEmpty)
-        #expect(second.lifecycleCalls.isEmpty)
+        #expect(first.lifecycleCalls == ["enable"])
+        #expect(second.lifecycleCalls == ["enable"])
 
         try renderer.startExecution()
         #expect(first.lifecycleCalls == ["enable", "start"])

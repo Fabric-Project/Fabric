@@ -96,7 +96,7 @@ public class GraphRenderer : ViewRenderer
         self.graphExecutionStartTime = now
         self.lastGraphExecutionTime = now
 
-        try enableExecution()
+        // Starting enables each node first, and one failing node does not keep the rest from starting.
         try startExecution(trace: traceEditorExecution)
     }
 
@@ -186,10 +186,20 @@ public class GraphRenderer : ViewRenderer
     override public func cleanup() throws {
         let traceURL = URL(fileURLWithPath: "/private/tmp")
             .appending(path: "fabric-graph-execution-trace-\(graph.id).json")
-        try stopExecution(saveTraceTo: traceEditorExecution ? traceURL : nil)
-        try disableExecution()
+        // Every phase runs even when an earlier one fails; the first failure is rethrown.
+        var capturedError: (any Error)?
+        do { try stopExecution(saveTraceTo: traceEditorExecution ? traceURL : nil) }
+        catch { capturedError = error }
+        do { try disableExecution() }
+        catch { if capturedError == nil { capturedError = error } }
         teardown()
-        try super.cleanup()
+        do { try super.cleanup() }
+        catch { if capturedError == nil { capturedError = error } }
+
+        if let capturedError
+        {
+            throw capturedError
+        }
     }
 
     override public func resize(size: (width: Float, height: Float), scaleFactor: Float)
@@ -385,7 +395,12 @@ public class GraphRenderer : ViewRenderer
             {
                 if capturedError == nil { capturedError = executionError }
 
-                if !executionError.isRecoverable { break }
+                // A fatal error takes precedence, so the unfinished frame is not drawn.
+                if !executionError.isRecoverable
+                {
+                    capturedError = executionError
+                    break
+                }
             }
         }
 
@@ -804,7 +819,7 @@ public class GraphRenderer : ViewRenderer
 
         switch (node.executionState, target)
         {
-        case (.disabled, .enabled):
+        case (.disabled, .enabled), (.disabled, .stopped):
             try node.enableExecution(renderer: self)
 
         case (.disabled, .started):
@@ -831,8 +846,7 @@ public class GraphRenderer : ViewRenderer
             try node.disableExecution(renderer: self)
 
         default:
-            // Already there, or a ceiling that leaves the node where it is:
-            // .enabled never stops a running node, .stopped never enables a disabled one.
+            // Already there, or an .enabled ceiling, which never stops a running node.
             break
         }
     }
