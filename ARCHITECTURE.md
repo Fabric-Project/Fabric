@@ -78,6 +78,32 @@ Generally speaking this means `Consumers` are connected to `Processors`, which a
 
 We then evaluate the `Providers`, then the `Processors`, and finally the `Consumers` , ensuring they have the data they need to execute correctly.
 
+## Node Lifecycle
+
+Each `Node` records its runtime lifecycle in `executionState` (`ExecutionState`: `.disabled`, `.enabled`, `.started`, `.stopped`). It is never serialized. The node's `enableExecution`, `startExecution`, `stopExecution` and `disableExecution` record the state, so overrides call `super` after their own work succeeds. A node that throws stays in its previous state.
+
+A `GraphRenderer` owns exactly one `Graph` and has an `executionState` of its own, set by its `enableExecution()`, `startExecution()`, `stopExecution()` and `disableExecution()`. Only started nodes execute.
+
+`Graph` owns topology. Each edit records the nodes it touches: added and removed nodes, both ends of a connection or disconnection, and nodes whose published ports change. `GraphRenderer` owns execution. At the start of every frame it reconciles the recorded nodes, and only those, against the graph as it is now:
+
+| Node | Renderer started | Renderer stopped | Renderer disabled |
+|---|---|---|---|
+| Removed from the graph | stopped, then disabled | stopped, then disabled | stopped, then disabled |
+| Connected, published, or a `Consumer` | started | stopped | disabled |
+| Otherwise | stopped | stopped | disabled |
+
+A disabled node is enabled on its way to `.started` or `.stopped`. An enabled renderer enables disabled nodes and leaves the rest where they are. Frames without edits make no lifecycle calls, and routing changes (Gate, Switch, disabled connections) are not edits. Editing code, such as add, delete, duplicate, paste and Create Subgraph, never calls lifecycle methods.
+
+A subgraph node carries its own lifecycle into its inner graph: its inner nodes follow the table above with the subgraph node's state in place of the renderer's. Iterator starts every inner node, connected or not. A Render To Image subgraph drives its inner graph through its own renderer. A node that moves between graphs, as Create Subgraph and its undo do, keeps its state.
+
+### Errors
+
+`FabricErrorProtocol` gives each error a severity; any other error is fatal.
+
+- A node that throws a recoverable error during execution does not stop the pass. `executeAndDraw` still draws the frame, then throws the first error. The live view's `draw` reports it to the renderer's `errorDelegate` instead of throwing, so the frame is presented.
+- A fatal error ends the pass, takes precedence over any recoverable error, and is thrown without drawing.
+- A lifecycle method that throws does not keep other nodes from receiving theirs. A node that fails to stop while being removed is still disabled. Failures during a frame, and failures of a subgraph's inner nodes, go to the renderer's `errorDelegate`.
+
 # Differences to Quartz Composer
 
 * Image Processing - does not use Core Image - images have fixed extent, and are all presumed to be linear for GPU processing. Loading nodes are responsible for linearizing textures, and output rendering is responsible for color matching.
