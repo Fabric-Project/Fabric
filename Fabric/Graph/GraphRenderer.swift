@@ -53,6 +53,10 @@ public class GraphRenderer : ViewRenderer
 
     public let graph: Graph
 
+    // The lifecycle this renderer asks of the graphs it runs. Each node reports
+    // the lifecycle it has actually reached through its own executionState.
+    public private(set) var executionState: ExecutionState = .disabled
+
     // Texture caches — private is GPU-private, shared allows CPU updates
     let privateTextureCache: GraphRendererTextureCache
     let sharedTextureCache: GraphRendererTextureCache
@@ -215,10 +219,19 @@ public class GraphRenderer : ViewRenderer
         renderPassDescriptor.colorAttachments[0].storeAction = .store
         renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0)
 
-        try executeAndDraw(graph: graph,
-                           executionInfo: currentExecutionInfo,
-                           renderPassDescriptor: renderPassDescriptor,
-                           commandBuffer: commandBuffer)
+        do
+        {
+            try executeAndDraw(graph: graph,
+                               executionInfo: currentExecutionInfo,
+                               renderPassDescriptor: renderPassDescriptor,
+                               commandBuffer: commandBuffer)
+        }
+        catch
+        {
+            // Reported rather than thrown, so Satin still presents the drawn frame.
+            guard (error as? any FabricErrorProtocol)?.severity == .recoverable else { throw error }
+            errorDelegate?.renderer(self, didFailWith: error)
+        }
     }
 
     // MARK: - On-demand graph evaluation (for exporters and subgraph callers)
@@ -253,10 +266,19 @@ public class GraphRenderer : ViewRenderer
             self.graphRequiresResize = true
         }
 
-        try self.execute(graph: graph,
-                         executionInfo: executionInfo,
-                         renderPassDescriptor: renderPassDescriptor,
-                         commandBuffer: commandBuffer)
+        var recoverableError: (any Error)?
+        do
+        {
+            try self.execute(graph: graph,
+                             executionInfo: executionInfo,
+                             renderPassDescriptor: renderPassDescriptor,
+                             commandBuffer: commandBuffer)
+        }
+        catch
+        {
+            guard (error as? any FabricErrorProtocol)?.severity == .recoverable else { throw error }
+            recoverableError = error
+        }
 
         if needsSceneSync {
             graph.syncNodesToScene()
@@ -268,6 +290,12 @@ public class GraphRenderer : ViewRenderer
                                 camera: self.currentCamera ?? self.defaultCamera)
 
         self.executionCount += 1
+
+        // The frame is drawn; the caller still learns the pass failed.
+        if let recoverableError
+        {
+            throw recoverableError
+        }
     }
 
     public func execute(graph: Graph,
@@ -288,6 +316,9 @@ public class GraphRenderer : ViewRenderer
         let isOutermostExecution = !self.isExecutingGraph
         if isOutermostExecution
         {
+            do { try synchronizeLifecycle(graph: graph) }
+            catch { print("Graph lifecycle: \(error)") }
+
             self.currentCamera = graph.latestCamera ?? self.defaultCamera
         }
 
@@ -632,9 +663,7 @@ public class GraphRenderer : ViewRenderer
 
     public func enableExecution(graph: Graph) throws
     {
-        for node in graph.nodes {
-            try node.enableExecution(renderer: self)
-        }
+        try transitionExecution(graph: graph, to: .enabled)
     }
 
     public func startExecution(graph: Graph, trace: Bool = false) throws
@@ -652,16 +681,12 @@ public class GraphRenderer : ViewRenderer
             self.nodeExecutionTraceStack.removeAll(keepingCapacity: true)
         }
 
-        for node in graph.nodes {
-            try node.startExecution(renderer: self)
-        }
+        try transitionExecution(graph: graph, to: .started)
     }
 
     public func stopExecution(graph: Graph, saveTraceTo url: URL? = nil) throws
     {
-        for node in graph.nodes {
-            try node.stopExecution(renderer: self)
-        }
+        try transitionExecution(graph: graph, to: .stopped)
 
         if let url {
             try saveExecutionTrace(to: url)
@@ -681,9 +706,7 @@ public class GraphRenderer : ViewRenderer
 
     public func disableExecution(graph: Graph) throws
     {
-        for node in graph.nodes {
-            try node.disableExecution(renderer: self)
-        }
+        try transitionExecution(graph: graph, to: .disabled)
         self.currentCamera = nil
     }
 
@@ -691,6 +714,127 @@ public class GraphRenderer : ViewRenderer
     {
         for node in graph.nodes {
             node.teardown()
+        }
+    }
+
+    // MARK: - Graph Lifecycle Reconciliation
+
+    /// Brings the nodes that edits to `graph` touched to the state their
+    /// connections ask for. The outermost execute of each frame calls this.
+    internal func synchronizeLifecycle(graph: Graph) throws
+    {
+        try reconcileTouchedNodes(in: graph, ceiling: executionState, startsAllNodes: false)
+    }
+
+    /// Moves this renderer, and every node of `graph`, to `state`.
+    internal func transitionExecution(graph: Graph, to state: ExecutionState) throws
+    {
+        executionState = state
+        try reconcileAllNodes(in: graph, ceiling: state, startsAllNodes: false)
+    }
+
+    /// Every node of `graph`, plus nodes removed since its last review.
+    /// Subgraph nodes call this for their inner graph from their own lifecycle methods.
+    internal func reconcileAllNodes(in graph: Graph, ceiling: ExecutionState, startsAllNodes: Bool) throws
+    {
+        let removedNodes = graph.takeNodesAwaitingLifecycleReview().filter { $0.graph !== graph }
+        try reconcileNodes(graph.nodes + removedNodes, in: graph, ceiling: ceiling, startsAllNodes: startsAllNodes)
+    }
+
+    private func reconcileTouchedNodes(in graph: Graph, ceiling: ExecutionState, startsAllNodes: Bool) throws
+    {
+        try reconcileNodes(graph.takeNodesAwaitingLifecycleReview(), in: graph, ceiling: ceiling, startsAllNodes: startsAllNodes)
+
+        // Inner graphs can be edited whether or not their subgraph node executes this frame.
+        for subgraph in graph.subgraphNodes
+        {
+            if let childGraphRenderer = subgraph.childGraphRenderer
+            {
+                try childGraphRenderer.synchronizeLifecycle(graph: subgraph.subGraph)
+            }
+            else
+            {
+                try reconcileTouchedNodes(in: subgraph.subGraph,
+                                          ceiling: subgraph.executionState,
+                                          startsAllNodes: subgraph.startsAllChildNodes)
+            }
+        }
+    }
+
+    /// Carries on past a node that fails: these nodes have already left the
+    /// graph's review set, so stopping early would strand the rest.
+    private func reconcileNodes(_ nodes: some Sequence<Node>, in graph: Graph, ceiling: ExecutionState, startsAllNodes: Bool) throws
+    {
+        var capturedError: (any Error)?
+
+        for node in nodes
+        {
+            do
+            {
+                try reconcileNode(node, in: graph, ceiling: ceiling, startsAllNodes: startsAllNodes)
+            }
+            catch
+            {
+                print("Graph lifecycle: \(node): \(error)")
+                if capturedError == nil { capturedError = error }
+            }
+        }
+
+        if let capturedError
+        {
+            throw capturedError
+        }
+    }
+
+    /// A node in `graph` runs while it is connected or is a consumer, limited
+    /// by `ceiling`: the renderer's state, or its subgraph node's.
+    private func reconcileNode(_ node: Node, in graph: Graph, ceiling: ExecutionState, startsAllNodes: Bool) throws
+    {
+        // A node that moved to another graph is reconciled there.
+        if let owningGraph = node.graph, owningGraph !== graph { return }
+
+        let target: ExecutionState
+        if node.graph == nil
+        {
+            target = .disabled
+        }
+        else if ceiling != .started
+        {
+            target = ceiling
+        }
+        else
+        {
+            // A published port connects the node through its subgraph node, or to the host.
+            let isConnected = !node.inputNodes.isEmpty || !node.outputNodes.isEmpty || !node.publishedPorts().isEmpty
+            target = startsAllNodes || isConnected || node.nodeExecutionMode == .Consumer ? .started : .stopped
+        }
+
+        switch (node.executionState, target)
+        {
+        case (.disabled, .enabled):
+            try node.enableExecution(renderer: self)
+
+        case (.disabled, .started):
+            try node.enableExecution(renderer: self)
+            try node.startExecution(renderer: self)
+
+        case (.enabled, .started), (.stopped, .started):
+            try node.startExecution(renderer: self)
+
+        case (.started, .stopped):
+            try node.stopExecution(renderer: self)
+
+        case (.started, .disabled):
+            try node.stopExecution(renderer: self)
+            try node.disableExecution(renderer: self)
+
+        case (.enabled, .disabled), (.stopped, .disabled):
+            try node.disableExecution(renderer: self)
+
+        default:
+            // Already there, or a ceiling that leaves the node where it is:
+            // .enabled never stops a running node, .stopped never enables a disabled one.
+            break
         }
     }
 
