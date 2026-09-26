@@ -250,7 +250,7 @@ The set of Published Ports that define a SubgraphNode's external contract. There
 The number of input images an Effect Node accepts (1, 2, or 3). This is encoded in class names (`BaseEffectNode`, `BaseEffectTwoChannelNode`, `BaseEffectThreeChannelNode`) but never named as a first-class concept.
 
 ### Execution lifecycle
-The sequence `startExecution()` → (per frame: `execute(context:)`) → `stopExecution()` plus `enableExecution()` / `disableExecution()` / `teardown()`. This lifecycle is convention-based rather than documented as a named state machine.
+The sequence `enableExecution()` → `startExecution()` → (per frame: `execute(context:)`) → `stopExecution()` → `disableExecution()`, plus `teardown()`. Each node records where it is in `executionState` (`ExecutionState`), and `GraphRenderer` moves nodes between states as the graph is edited: see `AGENTS.md` § 2.1.
 
 ### Scene proxy
 The `Satin.Object` that the GraphRenderer builds from a Graph's Object Nodes to serve as the renderable scene root. It exists in code but has no domain name beyond being "the scene".
