@@ -70,16 +70,12 @@ class FabricDocument: FileDocument
 
         // Spin toggle, published as 'Spin?'
         let spinNode = PassThroughNode<Bool>(context: self.context)
-        try? spinNode.enableExecution(renderer: self.renderer)
-        try? spinNode.startExecution(renderer: self.renderer)
         spinNode.input.published = true
         spinNode.input.publishedName = "Spin?"
         spinNode.input.value = true
 
         // Math expression: Amount * Speed, with 'Speed' published
         let mathNode = MathExpressionNode(context: self.context, expression: "Amount * Speed")
-        try? mathNode.enableExecution(renderer: self.renderer)
-        try? mathNode.startExecution(renderer: self.renderer)
 
         let speedPort = mathNode.findPort(named: "Speed", as: ParameterPort<Float>.self)!
         speedPort.published = true
@@ -87,14 +83,10 @@ class FabricDocument: FileDocument
 
         // Smooth the stepped speed into a ramp (springy, slightly bouncy)
         let smoothNode = NumberSmoothNode(context: self.context, strategy: SmoothFilterMode.spring)
-        try? smoothNode.enableExecution(renderer: self.renderer)
-        try? smoothNode.startExecution(renderer: self.renderer)
         smoothNode.findPort(named: "inputDamping", as: ParameterPort<Float>.self)!.value = 0.2
 
         // Rotation driver: integrates its input every frame
         let integralNode = NumberIntegralNode(context: self.context)
-        try? integralNode.enableExecution(renderer: self.renderer)
-        try? integralNode.startExecution(renderer: self.renderer)
 
 
         // Euler orientation (drives mesh rotation on X and Y). Defaults to
@@ -102,28 +94,18 @@ class FabricDocument: FileDocument
         // ports are dynamic (added by StrategyNode), hence findPort below
         // instead of typed accessor properties.
         let eulerNode = ComposeOrientationNode(context: self.context)
-        try? eulerNode.enableExecution(renderer: self.renderer)
-        try? eulerNode.startExecution(renderer: self.renderer)
 
         // Geometry, material, mesh
         let boxNode = BoxGeometryNode(context: self.context)
-        try? boxNode.enableExecution(renderer: self.renderer)
-        try? boxNode.startExecution(renderer: self.renderer)
 
         let materialNode = StandardMaterialNode(context: self.context)
-        try? materialNode.enableExecution(renderer: self.renderer)
-        try? materialNode.startExecution(renderer: self.renderer)
 
         let meshNode = MeshNode(context: self.context)
-        try? meshNode.enableExecution(renderer: self.renderer)
-        try? meshNode.startExecution(renderer: self.renderer)
 
         // Light. No camera: a graph renders through the camera node's own
         // defaults until one is added, so a camera here would only be the
         // camera any added one has to displace.
         let directionalLightNode = DirectionalLightNode(context: self.context)
-        try? directionalLightNode.enableExecution(renderer: self.renderer)
-        try? directionalLightNode.startExecution(renderer: self.renderer)
         directionalLightNode.inputPosition.value = SIMD3<Float>(1, 2, 5)
 
         // Ports can only register connections after their nodes belong to the graph.
