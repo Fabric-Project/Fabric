@@ -12,6 +12,14 @@ import Combine
 import UniformTypeIdentifiers
 
 
+/// Runtime lifecycle of a GraphRenderer and of each Node it drives; never serialized with a graph.
+public enum ExecutionState {
+    case enabled
+    case started
+    case stopped
+    case disabled
+}
+
 open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDebugStringConvertible
 {
     // The name this node type is registered and listed under (each subclass
@@ -557,11 +565,19 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     // MARK: - Execution
 
-    open func startExecution(renderer:GraphRenderer) throws { }
-    open func stopExecution(renderer:GraphRenderer) throws { }
+    /// Overrides must call super after successful work. Stopped nodes remain enabled.
+    /// A throwing callback leaves the state at its last completed transition.
+    public private(set) var executionState: ExecutionState = .disabled
 
-    open func enableExecution(renderer:GraphRenderer) throws { }
-    open func disableExecution(renderer:GraphRenderer) throws { }
+    open func startExecution(renderer:GraphRenderer) throws { executionState = .started }
+    open func stopExecution(renderer:GraphRenderer) throws { executionState = .stopped }
+
+    open func enableExecution(renderer:GraphRenderer) throws {
+        executionState = .enabled
+    }
+    open func disableExecution(renderer:GraphRenderer) throws {
+        executionState = .disabled
+    }
 
     open func execute(renderer:GraphRenderer,
                       executionInfo:GraphExecutionInfo,
