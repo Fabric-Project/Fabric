@@ -155,7 +155,11 @@ internal import AnyCodable
 
     private func nodeMembershipDidChange(_ node: Node)
     {
-        subgraphNodes = nodes.compactMap { $0 as? SubgraphNode }
+        if let subgraphNode = node as? SubgraphNode
+        {
+            subgraphNodes.removeAll { $0 === subgraphNode }
+            if subgraphNode.graph === self { subgraphNodes.append(subgraphNode) }
+        }
         markNodeForLifecycleReview(node)
     }
 

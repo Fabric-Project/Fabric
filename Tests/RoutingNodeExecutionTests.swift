@@ -215,6 +215,8 @@ struct RoutingNodeExecutionTests
         graph.connect(active.output, to: switchNode.port(named: "input1", as: NodePort<Float>.self))
         publish(switchNode.output, in: graph)
 
+        try harness.graphRenderer(for: graph).startExecution()
+
         try harness.execute(graph, frameNumber: 0)
 
         // Desired first-frame routing (index 1 -> only the active branch). Fails today
@@ -244,6 +246,8 @@ struct RoutingNodeExecutionTests
         graph.connect(inactive.output, to: switchNode.port(named: "input0", as: NodePort<Float>.self))
         graph.connect(active.output, to: switchNode.port(named: "input1", as: NodePort<Float>.self))
         publish(switchNode.output, in: graph)
+
+        try harness.graphRenderer(for: graph).startExecution()
 
         // Warm up one frame so the connected index value lands on the port, then measure
         // steady-state routing on the next frame via per-frame execution-count deltas.
@@ -276,6 +280,8 @@ struct RoutingNodeExecutionTests
 
         graph.connect(source.output, to: switchNode.port(named: "input0", as: NodePort<PortValue>.self))
         publish(switchNode.output, in: graph)
+
+        try harness.graphRenderer(for: graph).startExecution()
 
         try harness.execute(graph)
 
@@ -310,6 +316,8 @@ struct RoutingNodeExecutionTests
         graph.connect(gate.port(named: "output0", as: NodePort<Float>.self), to: inactiveConsumer.input)
         graph.connect(gate.port(named: "output1", as: NodePort<Float>.self), to: activeConsumer.input)
 
+        try harness.graphRenderer(for: graph).startExecution()
+
         try harness.execute(graph, frameNumber: 0)
 
         // Desired first-frame routing (index 1 -> only the active output branch). Fails
@@ -341,6 +349,8 @@ struct RoutingNodeExecutionTests
         graph.connect(source.output, to: gate.port(named: "input", as: NodePort<Float>.self))
         graph.connect(gate.port(named: "output0", as: NodePort<Float>.self), to: inactiveConsumer.input)
         graph.connect(gate.port(named: "output1", as: NodePort<Float>.self), to: activeConsumer.input)
+
+        try harness.graphRenderer(for: graph).startExecution()
 
         // Warm up one frame so the connected index value lands on the port, then measure
         // steady-state routing on the next frame via per-frame execution-count deltas.
@@ -380,6 +390,8 @@ struct RoutingNodeExecutionTests
         // via the unselected output 1.
         graph.connect(gate.port(named: "output1", as: NodePort<Float>.self), to: consumer.input)
 
+        try harness.graphRenderer(for: graph).startExecution()
+
         try harness.execute(graph, frameNumber: 0)
         try harness.execute(graph, frameNumber: 1)
 
@@ -412,6 +424,8 @@ struct RoutingNodeExecutionTests
         // The index selects route 0 every frame, so the sole consumer — on
         // output 1 — declines every pull.
         graph.connect(gate.port(named: "output1", as: NodePort<Float>.self), to: consumer.input)
+
+        try harness.graphRenderer(for: graph).startExecution()
 
         try harness.execute(graph, frameNumber: 0)
         try harness.execute(graph, frameNumber: 1)
@@ -446,6 +460,8 @@ struct RoutingNodeExecutionTests
         graph.connect(source.output, to: gate.port(named: "input", as: NodePort<Float>.self))
         graph.connect(gate.port(named: "output0", as: NodePort<Float>.self), to: consumer.inputA)
         graph.connect(live.output, to: consumer.inputB)
+
+        try harness.graphRenderer(for: graph).startExecution()
 
         try harness.execute(graph, frameNumber: 0)
         try harness.execute(graph, frameNumber: 1)
@@ -482,6 +498,8 @@ struct RoutingNodeExecutionTests
         graph.connect(gate.port(named: "output0", as: NodePort<Float>.self), to: passthrough.port(named: "input0", as: NodePort<Float>.self))
         graph.connect(passthrough.output, to: firstConsumer.input)
         graph.connect(passthrough.output, to: secondConsumer.input)
+
+        try harness.graphRenderer(for: graph).startExecution()
 
         try harness.execute(graph, frameNumber: 0)
         try harness.execute(graph, frameNumber: 1)
@@ -523,6 +541,8 @@ struct RoutingNodeExecutionTests
         graph.connect(matrix.port(named: "output1", as: NodePort<Float>.self), to: consumer1.input)
         graph.connect(matrix.port(named: "output2", as: NodePort<Float>.self), to: consumer2.input)
 
+        try harness.graphRenderer(for: graph).startExecution()
+
         try harness.execute(graph)
 
         #expect(consumer0.lastValue == 20)
@@ -558,6 +578,8 @@ struct RoutingNodeExecutionTests
         graph.connect(matrix.port(named: "output0", as: NodePort<Float>.self), to: activeConsumer.input)
         graph.connect(matrix.port(named: "output1", as: NodePort<Float>.self), to: frozenConsumer.input)
 
+        try harness.graphRenderer(for: graph).startExecution()
+
         try harness.execute(graph)
 
         #expect(activeConsumer.lastValue == 10)
@@ -592,6 +614,8 @@ struct RoutingNodeExecutionTests
         graph.connect(loser.output, to: matrix.port(named: "input1", as: NodePort<Float>.self))
         graph.connect(matrix.port(named: "output0", as: NodePort<Float>.self), to: consumer.input)
 
+        try harness.graphRenderer(for: graph).startExecution()
+
         try harness.execute(graph)
 
         #expect(consumer.lastValue == 10)
@@ -625,6 +649,8 @@ struct RoutingNodeExecutionTests
         graph.connect(matrix.port(named: "output0", as: NodePort<Float>.self), to: consumer0.input)
         graph.connect(matrix.port(named: "output1", as: NodePort<Float>.self), to: consumer1.input)
 
+        try harness.graphRenderer(for: graph).startExecution()
+
         // The map is empty during the first pass (its provider has not run yet), so routing
         // lags by one frame — the same cold-start latency as Switch/Gate. The node must not
         // gate itself off, or the map would never populate and routing would never recover.
@@ -653,6 +679,8 @@ struct RoutingNodeExecutionTests
         graph.connect(accumulator.output, to: consumer.input)
         // The cycle: the accumulator's output feeds its own feedback inlet.
         graph.connect(accumulator.output, to: accumulator.inputFeedback)
+
+        try harness.graphRenderer(for: graph).startExecution()
 
         // Ports retain the value their upstream outlet last sent, so on each
         // pass the feedback inlet holds the previous frame's output — the

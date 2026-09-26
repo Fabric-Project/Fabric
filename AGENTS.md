@@ -94,7 +94,7 @@ For all development:
 - **Iterator (QC-style)** remains the multi-evaluation macro; refinements allowed, paradigm fixed.
 - One file per Node Class
 - `Node.executionState` (`ExecutionState`: `.disabled`, `.enabled`, `.started`, `.stopped`) is runtime-only and never serialized. Overrides of `enableExecution`, `startExecution`, `stopExecution` and `disableExecution` **must call `super` after their own work succeeds**; that call records the state.
-- `Graph` owns topology: it records the nodes each edit touches (added, removed, connected, disconnected, published). `GraphRenderer` owns execution: each frame it reconciles those nodes against its own `executionState`. Added nodes enable; nodes that are connected, published or Consumers start; fully disconnected nodes stop; removed nodes stop and disable. Subgraph nodes carry their state into their inner graph; Iterator starts every inner node. Editing code never calls node lifecycle methods.
+- `Graph` owns topology: it records the nodes each edit touches (added, removed, connected, disconnected, published). `GraphRenderer` owns execution of exactly one graph: each frame it reconciles those nodes against its own `executionState`. Added nodes enable; nodes that are connected, published or Consumers start; fully disconnected nodes stop; removed nodes stop and disable. Only started nodes execute. Subgraph nodes carry their state into their inner graph; Iterator starts every inner node. Lifecycle failures go to the renderer's `errorDelegate`. Editing code never calls node lifecycle methods.
 
 - Node Settings:
   - Nodes may opt into a QC like ’Settings View’

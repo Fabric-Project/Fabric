@@ -23,16 +23,6 @@ private final class ThrowingConsumerNode: Node
     }
 }
 
-private final class RecordingErrorDelegate: ErrorRenderDelegate
-{
-    private(set) var reportedErrors: [any Error] = []
-
-    func renderer(_ renderer: Renderer, didFailWith error: any Error)
-    {
-        reportedErrors.append(error)
-    }
-}
-
 @Suite("Graph renderer frame errors")
 struct GraphRendererFrameErrorTests
 {
@@ -42,14 +32,15 @@ struct GraphRendererFrameErrorTests
         guard let harness = GraphExecutionTestHarness() else { return }
         let graph = Graph(context: harness.context)
         graph.addNode(ThrowingConsumerNode(context: harness.context))
-        try harness.renderer.startExecution(graph: graph)
+        let renderer = harness.graphRenderer(for: graph)
+        try renderer.startExecution()
 
-        let executionCountBeforeFrame = harness.renderer.executionCount
+        let executionCountBeforeFrame = renderer.executionCount
         #expect(throws: FabricError.self) {
             try harness.execute(graph: graph, executionInfo: harness.makeExecutionInfo(), drawScene: true)
         }
 
-        #expect(harness.renderer.executionCount == executionCountBeforeFrame + 1)
+        #expect(renderer.executionCount == executionCountBeforeFrame + 1)
     }
 
     @Test("The live draw path reports a recoverable error to the error delegate instead of throwing")
@@ -62,7 +53,7 @@ struct GraphRendererFrameErrorTests
         renderer.resize(size: (width: Float(harness.renderWidth), height: Float(harness.renderHeight)), scaleFactor: 1.0)
         let errorDelegate = RecordingErrorDelegate()
         renderer.errorDelegate = errorDelegate
-        try renderer.startExecution(graph: graph)
+        try renderer.startExecution()
 
         let renderPassDescriptor = MTLRenderPassDescriptor()
         renderPassDescriptor.colorAttachments[0].texture = try harness.makeTexture()
@@ -84,10 +75,27 @@ struct GraphRendererFrameErrorTests
         let node = ThrowingConsumerNode(context: harness.context)
         node.severity = .fatal
         graph.addNode(node)
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
 
         #expect(throws: FabricError.self) {
             try harness.execute(graph: graph, executionInfo: harness.makeExecutionInfo(), drawScene: true)
         }
+    }
+
+    @Test("A render-to-image subgraph still sends its drawn image when an inner node fails recoverably")
+    func deferredSubgraphSendsImageDespiteRecoverableError() throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let graph = Graph(context: harness.context)
+        let deferredSubgraphNode = DeferredSubgraphNode(context: harness.context)
+        deferredSubgraphNode.subGraph.addNode(ThrowingConsumerNode(context: harness.context))
+        graph.addNode(deferredSubgraphNode)
+        try harness.graphRenderer(for: graph).startExecution()
+
+        #expect(throws: FabricError.self) {
+            try harness.execute(graph)
+        }
+
+        #expect(deferredSubgraphNode.outputColorTexture.value != nil)
     }
 }

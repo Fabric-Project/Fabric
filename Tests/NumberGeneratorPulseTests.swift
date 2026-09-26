@@ -47,7 +47,7 @@ struct NumberGeneratorPulseTests
         // being wired into a live consumer.
         publish(generatorOutput, in: graph)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
 
         // 35 frames at dt = 0.1s spans 3.4 periods → pulses at t≈1,2,3 (three).
         let deltaTime = 0.1
@@ -63,7 +63,7 @@ struct NumberGeneratorPulseTests
             if let value = generatorOutput.value { values.append(value) }
         }
 
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
 
         // Each pulse rising edge should produce a new (random) value, so the
         // output changes exactly three times over three periods.
@@ -103,7 +103,7 @@ struct NumberGeneratorPulseTests
         // evaluation root and not upstream of one, so the pull-based renderer
         // never reaches it — reproducing "fires once / never" seen when a node
         // is only inspected, not wired into a live output.
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
 
         var emitted = false
         for frame in 0 ..< 35 {
@@ -112,7 +112,7 @@ struct NumberGeneratorPulseTests
             if generatorOutput.value != nil { emitted = true }
         }
 
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
 
         #expect(emitted == false, "generator should never emit when nothing pulls it")
     }
@@ -183,7 +183,7 @@ struct NumberGeneratorPulseTests
         let frameCount = 35 // 3.4 pulse periods at period 1.0
 
         let live = try makePulseGeneratorGraph(harness)
-        try live.renderer.startExecution(graph: live.graph)
+        try live.renderer.startExecution()
         var values: [Float] = []
         for frame in 0 ..< frameCount {
             let info = harness.makeExecutionContext(time: Double(frame) * deltaTime, deltaTime: deltaTime, frameNumber: frame)
@@ -193,7 +193,7 @@ struct NumberGeneratorPulseTests
             }
             values.append(live.output.value ?? .nan)
         }
-        try live.renderer.stopExecution(graph: live.graph)
+        try live.renderer.stopExecution()
 
         let changes = countChanges(values)
         #expect(changes == 3, "expected 3 new numbers over 3 pulse periods on the update/draw path, got \(changes); values = \(values)")
@@ -223,14 +223,14 @@ struct NumberGeneratorPulseTests
         graph.markConnectionsChanged()
         publish(output, in: graph)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         var values: [Float] = []
         for frame in 0 ..< frames {
             let info = harness.makeExecutionContext(time: Double(frame) * deltaTime, deltaTime: deltaTime, frameNumber: frame)
             try harness.execute(graph: graph, executionInfo: info, drawScene: false, checkCommandBufferError: false)
             if let value = output.value { values.append(value) }
         }
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
         return values
     }
 
@@ -285,14 +285,14 @@ struct NumberGeneratorPulseTests
         graph.markConnectionsChanged()
         publish(generator.outputIndex, in: graph)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         var values: [Int] = []
         for frame in 0 ..< frames {
             let info = harness.makeExecutionContext(time: Double(frame) * deltaTime, deltaTime: deltaTime, frameNumber: frame)
             try harness.execute(graph: graph, executionInfo: info, drawScene: false, checkCommandBufferError: false)
             if let value = generator.outputIndex.value { values.append(value) }
         }
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
         return values
     }
 
@@ -312,7 +312,7 @@ struct NumberGeneratorPulseTests
         // Published so the generator is an evaluation root, pulled every frame.
         publish(generator.outputIndex, in: graph)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
 
         var frame = 0
         func step() throws {
@@ -336,7 +336,7 @@ struct NumberGeneratorPulseTests
         generator.inputSize.value = 4
         try step()
 
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
 
         // 5 is now out of range for Size 4; the node must re-emit the clamped 3.
         #expect(generator.outputIndex.value == 3, "Size shrink should re-emit clamped index 3; got \(String(describing: generator.outputIndex.value))")

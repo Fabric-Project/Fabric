@@ -69,8 +69,8 @@ public final class GraphExportRenderer {
             scaleFactor: 1.0
         )
 
-        try self.graphRenderer.enableExecution(graph: self.graph)
-        try self.graphRenderer.startExecution(graph: self.graph)
+        try self.graphRenderer.enableExecution()
+        try self.graphRenderer.startExecution()
 
         self.frameNumber = 0
         self.lastRenderedTime = nil
@@ -107,8 +107,7 @@ public final class GraphExportRenderer {
             throw GraphExportRendererError.commandBufferCreationFailed
         }
         
-        try self.graphRenderer.executeAndDraw(graph: self.graph,
-                                              executionInfo: executionInfo,
+        try self.graphRenderer.executeAndDraw(executionInfo: executionInfo,
                                               renderPassDescriptor: self.renderPassDescriptor,
                                               commandBuffer: commandBuffer)
 
@@ -136,9 +135,9 @@ public final class GraphExportRenderer {
     public func finish() throws {
         guard self.started else { return }
 
-        try self.graphRenderer.disableExecution(graph: self.graph)
-        try self.graphRenderer.stopExecution(graph: self.graph)
-        self.graphRenderer.teardown(graph: self.graph)
+        try self.graphRenderer.disableExecution()
+        try self.graphRenderer.stopExecution()
+        self.graphRenderer.teardown()
 
         self.renderPassDescriptor.colorAttachments[0].texture = nil
         self.renderPassDescriptor.depthAttachment.texture = nil

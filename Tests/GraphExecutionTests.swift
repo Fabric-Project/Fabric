@@ -199,7 +199,7 @@ struct GraphExecutionTests {
         graph.connect(output, to: imageMesh.inputImage)
         input.send(image, force: true)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         try harness.render(graph: graph,
                            executionInfo: harness.makeExecutionInfo(),
                            drawScene: false)
@@ -255,7 +255,7 @@ struct GraphExecutionTests {
         #expect(rotatedOutputImage.texture.width == 2)
         #expect(rotatedOutputImage.texture.height == 4)
 
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
     }
 
     @Test("Multi-pass blur consumes input transforms into presentation-sized identity output")
@@ -288,7 +288,7 @@ struct GraphExecutionTests {
                 input.send(image, force: true)
             }
 
-            try harness.renderer.startExecution(graph: graph)
+            try harness.graphRenderer(for: graph).startExecution()
             try harness.render(graph: graph,
                                executionInfo: harness.makeExecutionInfo(),
                                drawScene: false)
@@ -298,7 +298,7 @@ struct GraphExecutionTests {
             #expect(outputImage.texture.height == 4)
             expectEqual(outputImage.textureTransform, matrix_identity_float4x4)
 
-            try harness.renderer.stopExecution(graph: graph)
+            try harness.graphRenderer(for: graph).stopExecution()
         }
     }
 
@@ -336,7 +336,7 @@ struct GraphExecutionTests {
         graph.addNode(imageMesh)
         graph.connect(cropNode.outputTexture, to: imageMesh.inputImage)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         try harness.render(graph: graph, executionInfo: harness.makeExecutionInfo(), drawScene: false)
 
         let outputImage = try #require(cropNode.outputTexture.value)
@@ -377,7 +377,7 @@ struct GraphExecutionTests {
             #expect(Array(outputPixels[(row * 4)..<(row * 4 + 4)]) == redPixel)
         }
 
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
     }
 
     @Test("Each Base Image input uses its own texture transform")
@@ -446,7 +446,7 @@ struct GraphExecutionTests {
         input0.send(image0, force: true)
         input1.send(image1, force: true)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         try harness.render(graph: graph, executionInfo: harness.makeExecutionInfo(), drawScene: false)
 
         let outputImage = try #require(output.value)
@@ -483,7 +483,7 @@ struct GraphExecutionTests {
         #expect(Array(outputPixels[0..<4]) == [0, 255, 0, 255])
         #expect(Array(outputPixels[(2 * 2 * 4 - 4)..<(2 * 2 * 4)]) == [0, 0, 255, 255])
 
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
     }
 
     @Test("Image Mesh uses Fabric image presentation dimensions and texture transform")
@@ -505,11 +505,11 @@ struct GraphExecutionTests {
         let graph = Graph(context: harness.context)
         graph.addNode(node)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         try harness.render(graph: graph,
                            executionInfo: harness.makeExecutionInfo(),
                            drawScene: false)
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
 
         let mesh = try #require(node.getObject() as? Mesh)
         let material = try #require(mesh.material as? BasicTextureMaterial)
@@ -586,9 +586,9 @@ struct GraphExecutionTests {
         graph.connect(planeNode.outputGeometry, to: meshNode.inputGeometry)
         graph.connect(displacementNode.outputMaterial, to: meshNode.inputMaterial)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         try harness.render(graph: graph, executionInfo: harness.makeExecutionInfo())
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
     }
 
 
@@ -604,9 +604,9 @@ struct GraphExecutionTests {
 
         let context = harness.makeExecutionContext(time: 10, deltaTime: 0, frameNumber: 0)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         try harness.render(graph: graph, executionInfo: context)
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
 
         try expectEqual(numberNode.output.value, 3.5)
     }
@@ -634,9 +634,9 @@ struct GraphExecutionTests {
 
         let context = harness.makeExecutionContext(time: 20, deltaTime: 0, frameNumber: 0)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         try harness.render(graph: graph, executionInfo: context)
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
 
         try expectEqual(addNode.outputNumber.value, 7.0)
     }
@@ -665,13 +665,13 @@ struct GraphExecutionTests {
         let firstContext = harness.makeExecutionContext(time: 30, deltaTime: 0, frameNumber: 0)
         let secondContext = harness.makeExecutionContext(time: 31, deltaTime: 1, frameNumber: 1)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         try harness.render(graph: graph, executionInfo: firstContext)
         try expectEqual(addNode.outputNumber.value, 3)
 
         right.input.value = 9
         try harness.render(graph: graph, executionInfo: secondContext)
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
 
         try expectEqual(addNode.outputNumber.value, 10)
     }
@@ -688,12 +688,12 @@ struct GraphExecutionTests {
         let firstContext = harness.makeExecutionContext(time: 0, deltaTime: 0, systemTime: 200, frameNumber: 0)
         let secondContext = harness.makeExecutionContext(time: 1.25, deltaTime: 1.25, systemTime: 201, frameNumber: 1)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         try harness.render(graph: graph, executionInfo: firstContext)
         try expectEqual(timeNode.outputNumber.value, 0)
 
         try harness.render(graph: graph, executionInfo: secondContext)
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
 
         try expectEqual(timeNode.outputNumber.value, 1.25)
     }
@@ -710,12 +710,12 @@ struct GraphExecutionTests {
         let firstContext = harness.makeExecutionContext(time: 100, deltaTime: 0, systemTime: 500, frameNumber: 0)
         let secondContext = harness.makeExecutionContext(time: 101, deltaTime: 1, systemTime: 502.5, frameNumber: 1)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         try harness.render(graph: graph, executionInfo: firstContext)
         try expectEqual(timeNode.outputNumber.value, 0)
 
         try harness.render(graph: graph, executionInfo: secondContext)
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
 
         try expectEqual(timeNode.outputNumber.value, 2.5)
     }
@@ -739,9 +739,9 @@ struct GraphExecutionTests {
 
         let executionContext = harness.makeExecutionContext(time: 1.0, deltaTime: 0.0, frameNumber: 0)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         try harness.render(graph: graph, executionInfo: executionContext, drawScene: false)
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
 
         guard let light = node.getObject() as? SpotLight else {
             throw GraphExecutionTestFailure("Spot light node did not vend a SpotLight object")
@@ -774,9 +774,9 @@ struct GraphExecutionTests {
 
         let executionContext = harness.makeExecutionContext(time: 2.0, deltaTime: 0.0, frameNumber: 0)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         try harness.render(graph: graph, executionInfo: executionContext, drawScene: false)
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
 
         guard let light = node.getObject() as? SpotLight else {
             throw GraphExecutionTestFailure("Spot light node did not vend a SpotLight object")
@@ -814,9 +814,9 @@ struct GraphExecutionTests {
 
         let executionContext = harness.makeExecutionContext(time: 0, deltaTime: 0, frameNumber: 0)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         try harness.render(graph: graph, executionInfo: executionContext, drawScene: false)
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
 
         let outputImage = try requireValue(node.outputImage.value, "Expected depth-of-field output image")
         #expect(outputImage.texture.width == 48)
@@ -836,9 +836,9 @@ struct GraphExecutionTests {
 
         let executionContext = harness.makeExecutionContext(time: 0, deltaTime: 1.0 / 60.0, frameNumber: 0)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         try harness.render(graph: graph, executionInfo: executionContext, drawScene: false)
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
 
         let outputImage = try requireValue(node.outputImage.value, "Expected motion-blur output image")
         #expect(outputImage.texture.width == 40)
@@ -864,7 +864,7 @@ struct GraphExecutionTests {
         let firstContext = harness.makeExecutionContext(time: 200, deltaTime: 0, frameNumber: 0)
         let secondContext = harness.makeExecutionContext(time: 201, deltaTime: 1, frameNumber: 1)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         try harness.render(graph: graph, executionInfo: firstContext)
 
         try expectEqual(renderInfoNode.outputWidth.value, 640)
@@ -872,7 +872,7 @@ struct GraphExecutionTests {
         #expect(renderInfoNode.outputFrameNumber.value == 0)
 
         try harness.render(graph: graph, executionInfo: secondContext)
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
 
         #expect(renderInfoNode.outputFrameNumber.value == 1)
     }
@@ -906,9 +906,9 @@ struct GraphExecutionTests {
 
         let context = harness.makeExecutionContext(time: 300, deltaTime: 0, frameNumber: 0)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         try harness.render(graph: graph, executionInfo: context)
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
 
         try expectEqual(innerAdd.inputNumber1.value, 4)
         try expectEqual(proxyOutput.value, 7)
@@ -958,9 +958,9 @@ struct GraphExecutionTests {
 
         let context = harness.makeExecutionContext(time: 400, deltaTime: 0, frameNumber: 0)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         try harness.render(graph: graph, executionInfo: context)
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
 
         #expect(indexProxy.value == 3)
         #expect(countProxy.value == 4)
@@ -992,9 +992,9 @@ struct GraphExecutionTests {
 
         let context = harness.makeExecutionContext(time: 500, deltaTime: 0, frameNumber: 0)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         try harness.render(graph: graph, executionInfo: context)
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
 
         let colorImage = try requireValue(deferred.outputColorTexture.value, "Expected deferred color output")
         #expect(colorImage.texture.width == 64)
@@ -1059,9 +1059,9 @@ struct GraphExecutionTests {
 
         let context = harness.makeExecutionContext(time: 550, deltaTime: 0, frameNumber: 0)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         try harness.render(graph: graph, executionInfo: context)
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
 
         let albedoImage = try requireValue(imagePort(named: "Albedo Texture", kind: .Outlet, on: deferred).value, "Expected deferred albedo output")
         let normalImage = try requireValue(imagePort(named: "Normals Texture", kind: .Outlet, on: deferred).value, "Expected deferred normals output")
@@ -1110,9 +1110,9 @@ struct GraphExecutionTests {
 
         let context = harness.makeExecutionContext(time: 600, deltaTime: 0, frameNumber: 0)
 
-        try harness.renderer.startExecution(graph: decodedGraph)
+        try harness.graphRenderer(for: decodedGraph).startExecution()
         try harness.render(graph: decodedGraph, executionInfo: context)
-        try harness.renderer.stopExecution(graph: decodedGraph)
+        try harness.graphRenderer(for: decodedGraph).stopExecution()
 
         try expectEqual(decodedAddNode.outputNumber.value, 21)
     }
@@ -1140,9 +1140,9 @@ struct GraphExecutionTests {
 
         let context = harness.makeExecutionContext(time: 650, deltaTime: 0, frameNumber: 0)
 
-        try harness.renderer.startExecution(graph: decodedGraph)
+        try harness.graphRenderer(for: decodedGraph).startExecution()
         try harness.render(graph: decodedGraph, executionInfo: context)
-        try harness.renderer.stopExecution(graph: decodedGraph)
+        try harness.graphRenderer(for: decodedGraph).stopExecution()
 
         #expect(decodedTransformNode.output.value == matrix_identity_float4x4)
     }
@@ -1189,9 +1189,9 @@ struct GraphExecutionTests {
 
         let context = harness.makeExecutionContext(time: 700, deltaTime: 0, frameNumber: 0)
 
-        try harness.renderer.startExecution(graph: decodedGraph)
+        try harness.graphRenderer(for: decodedGraph).startExecution()
         try harness.render(graph: decodedGraph, executionInfo: context)
-        try harness.renderer.stopExecution(graph: decodedGraph)
+        try harness.graphRenderer(for: decodedGraph).stopExecution()
 
         try expectEqual(decodedProxyOutput.value, 11)
     }
@@ -1256,9 +1256,9 @@ struct GraphExecutionTests {
 
         let context = harness.makeExecutionContext(time: 750, deltaTime: 0, frameNumber: 0)
 
-        try harness.renderer.startExecution(graph: decodedGraph)
+        try harness.graphRenderer(for: decodedGraph).startExecution()
         try harness.render(graph: decodedGraph, executionInfo: context)
-        try harness.renderer.stopExecution(graph: decodedGraph)
+        try harness.graphRenderer(for: decodedGraph).stopExecution()
 
         try expectEqual(decodedOuterProxyOutput.value, 12)
     }
@@ -1298,9 +1298,9 @@ struct GraphExecutionTests {
 
         let context = harness.makeExecutionContext(time: 800, deltaTime: 0, frameNumber: 0)
 
-        try harness.renderer.startExecution(graph: decodedGraph)
+        try harness.graphRenderer(for: decodedGraph).startExecution()
         try harness.render(graph: decodedGraph, executionInfo: context)
-        try harness.renderer.stopExecution(graph: decodedGraph)
+        try harness.graphRenderer(for: decodedGraph).stopExecution()
 
         let colorImage = try requireValue(decodedDeferred.outputColorTexture.value, "Expected decoded deferred color output")
         #expect(colorImage.texture.width == 48)
@@ -1349,9 +1349,9 @@ struct GraphExecutionTests {
 
         let context = harness.makeExecutionContext(time: 850, deltaTime: 0, frameNumber: 0)
 
-        try harness.renderer.startExecution(graph: decodedGraph)
+        try harness.graphRenderer(for: decodedGraph).startExecution()
         try harness.render(graph: decodedGraph, executionInfo: context)
-        try harness.renderer.stopExecution(graph: decodedGraph)
+        try harness.graphRenderer(for: decodedGraph).stopExecution()
 
         let albedoImage = try requireValue(imagePort(named: "Albedo Texture", kind: .Outlet, on: decodedDeferred).value, "Expected decoded deferred albedo output")
         let velocityImage = try requireValue(imagePort(named: "Velocity Texture", kind: .Outlet, on: decodedDeferred).value, "Expected decoded deferred velocity output")

@@ -298,37 +298,46 @@ open class SubgraphNode: BaseObjectNode
 
     override open func startExecution(renderer:GraphRenderer) throws
     {
-        try self.transitionSubgraph(to: .started, renderer: renderer)
+        self.transitionSubgraph(to: .started, renderer: renderer)
         try super.startExecution(renderer: renderer)
     }
 
     override open func stopExecution(renderer:GraphRenderer) throws
     {
-        try self.transitionSubgraph(to: .stopped, renderer: renderer)
+        self.transitionSubgraph(to: .stopped, renderer: renderer)
         try super.stopExecution(renderer: renderer)
     }
 
     override open func enableExecution(renderer:GraphRenderer) throws
     {
-        try self.transitionSubgraph(to: .enabled, renderer: renderer)
+        self.transitionSubgraph(to: .enabled, renderer: renderer)
         try super.enableExecution(renderer: renderer)
     }
 
     override open func disableExecution(renderer:GraphRenderer) throws
     {
-        try self.transitionSubgraph(to: .disabled, renderer: renderer)
+        self.transitionSubgraph(to: .disabled, renderer: renderer)
         try super.disableExecution(renderer: renderer)
     }
 
-    private func transitionSubgraph(to state: ExecutionState, renderer: GraphRenderer) throws
+    /// An inner node's failure is reported, not thrown: it is that node's
+    /// failure, not the subgraph node's, which still reaches its own state.
+    private func transitionSubgraph(to state: ExecutionState, renderer: GraphRenderer)
     {
-        if let childGraphRenderer = self.childGraphRenderer
+        do
         {
-            try childGraphRenderer.transitionExecution(graph: self.subGraph, to: state)
+            if let childGraphRenderer = self.childGraphRenderer
+            {
+                try childGraphRenderer.transitionExecution(to: state)
+            }
+            else
+            {
+                try renderer.reconcileAllNodes(in: self.subGraph, ceiling: state, startsAllNodes: self.startsAllChildNodes)
+            }
         }
-        else
+        catch
         {
-            try renderer.reconcileAllNodes(in: self.subGraph, ceiling: state, startsAllNodes: self.startsAllChildNodes)
+            renderer.errorDelegate?.renderer(renderer, didFailWith: error)
         }
     }
 
