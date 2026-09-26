@@ -28,7 +28,7 @@ struct FabricApp: App {
 
         DocumentGroup(newDocument: FabricDocument(withTemplate: true) ) { file in
             
-            ContentView(document: file.$document)
+            ContentView(document: file.$document, documentURL: file.fileURL)
                 .focusedSceneValue(\.document, file.$document)
 
         }
@@ -146,6 +146,7 @@ struct DocumentCommands:Commands
                     self.activeDocument?.exportMovie()
                 }
                 .disabled(self.activeDocument == nil)
+
             }
         }
     }

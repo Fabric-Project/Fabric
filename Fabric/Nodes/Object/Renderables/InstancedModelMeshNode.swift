@@ -67,8 +67,9 @@ public class InstancedModelMeshNode : InstancedMeshNode
         self.textureLoader = MTKTextureLoader(device: decodeContext.documentContext.device)
 
         try super.init(from: decoder)
-        
-        try self.loadModelFromInputValue()
+
+        // External resource availability is runtime state. The hydrated port
+        // remains changed so the first execution attempts the load.
     }
     
     override public func evaluate(object: Object?, atTime: TimeInterval) -> Bool
@@ -132,15 +133,18 @@ public class InstancedModelMeshNode : InstancedMeshNode
     private func loadModelFromInputValue() throws
     {
         if let path = self.inputFilePathParam.value,
-           path.isEmpty == false && self.url != URL(string: path)
+           path.isEmpty == false
         {
-            guard let url = URL(string: path) else
+            guard let url = self.graph?.resolveFileReference(path)
+                ?? DocumentFileReference.resolve(path, relativeTo: nil) else
             {
                 self.model = nil
                 throw FabricError(.execution(.fileNotFound),
                                   severity: .recoverable,
                                   message: "Model file path is invalid: \(path)")
             }
+
+            guard self.url != url else { return }
 
             self.url = url
 

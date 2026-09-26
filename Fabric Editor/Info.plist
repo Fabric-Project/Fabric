@@ -20,6 +20,7 @@
 			<key>NSUbiquitousDocumentUserActivityType</key>
 			<string>$(PRODUCT_BUNDLE_IDENTIFIER).exampledocument</string>
 		</dict>
+
 	</array>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
@@ -29,6 +30,7 @@
 	<string>LS/B4r0KdYmY6Xs1UiQ5dcKdUugyv6gu3z2GxESju6c=</string>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
+
 		<dict>
 			<key>UTTypeConformsTo</key>
 			<array>

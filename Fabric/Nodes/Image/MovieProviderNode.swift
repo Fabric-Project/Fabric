@@ -49,7 +49,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     }
 
     public func setFileURL(_ url: URL) {
-        self.inputFilePathParam.value = url.standardizedFileURL.absoluteString
+        self.inputFilePathParam.value = DocumentFileReference.reference(for: url, relativeTo: self.graph?.fileReferenceBaseURL)
     }
 
     override public class var name:String { "Movie Provider" }
@@ -378,6 +378,9 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
         self.playerItemVideoOutput.suppressesPlayerRendering = true
 
         try super.init(from:decoder)
+
+        // External resource availability is runtime state. The hydrated port
+        // remains changed so the first execution attempts the load.
     }
 
     override public func execute(renderer:GraphRenderer,
@@ -388,6 +391,7 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
     {
         if self.inputFilePathParam.valueDidChange
         {
+            self.normalizeFileReference(self.inputFilePathParam)
             try loadAssetFromInputValue()
         }
 
@@ -557,7 +561,8 @@ public class MovieProviderNode : Node, NodeFileLoadingProtocol
             return
         }
 
-        guard let inputURL = URL(string: path) else
+        guard let inputURL = self.graph?.resolveFileReference(path)
+            ?? DocumentFileReference.resolve(path, relativeTo: nil) else
         {
             self.unloadCurrentAsset()
             throw FabricError(.execution(.fileNotFound),

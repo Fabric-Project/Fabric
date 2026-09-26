@@ -51,7 +51,7 @@ public final class TextFileLoaderNode : Node, NodeFileLoadingProtocol
     }
     
     public func setFileURL(_ url: URL) {
-        self.inputFilePathParam.value = url.standardizedFileURL.absoluteString
+        self.inputFilePathParam.value = DocumentFileReference.reference(for: url, relativeTo: self.graph?.fileReferenceBaseURL)
     }
 
     override public func execute(renderer:GraphRenderer,
@@ -62,6 +62,7 @@ public final class TextFileLoaderNode : Node, NodeFileLoadingProtocol
     {
         if self.inputFilePathParam.valueDidChange
         {
+            self.normalizeFileReference(self.inputFilePathParam)
             try self.loadStringFromURL()
             
             if let string = self.string
@@ -79,14 +80,17 @@ public final class TextFileLoaderNode : Node, NodeFileLoadingProtocol
     private func loadStringFromURL() throws
     {
         if let path = self.inputFilePathParam.value,
-           path.isEmpty == false && self.url != URL(string: path)
+           path.isEmpty == false
         {
-            guard let url = URL(string: path) else
+            guard let url = self.graph?.resolveFileReference(path)
+                ?? DocumentFileReference.resolve(path, relativeTo: nil) else
             {
                 throw FabricError(.execution(.fileNotFound),
                                   severity: .recoverable,
                                   message: "Text file path is invalid: \(path)")
             }
+
+            guard self.url != url else { return }
 
             self.url = url
 

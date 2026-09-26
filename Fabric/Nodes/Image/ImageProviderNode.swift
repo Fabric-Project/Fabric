@@ -45,7 +45,7 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
     private var url: URL? = nil
     
     public func setFileURL(_ url: URL) {
-        self.inputFilePathParam.value = url.standardizedFileURL.absoluteString
+        self.inputFilePathParam.value = DocumentFileReference.reference(for: url, relativeTo: self.graph?.fileReferenceBaseURL)
     }
     
     public required init(context:Context)
@@ -77,7 +77,8 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
 
         try super.init(from:decoder)
 
-        try self.loadTextureFromInputValue()
+        // External resource availability is runtime state. The hydrated port
+        // remains changed so the first execution attempts the load.
     }
 
     override public func execute(renderer:GraphRenderer,
@@ -88,6 +89,7 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
     {
         if self.inputFilePathParam.valueDidChange
         {
+            self.normalizeFileReference(self.inputFilePathParam)
             try self.loadTextureFromInputValue()
             
             self.outputTexturePort.send(self.image)
@@ -97,14 +99,17 @@ public class ImageProviderNode : Node, NodeFileLoadingProtocol
     private func loadTextureFromInputValue() throws
     {
         if let path = self.inputFilePathParam.value,
-           path.isEmpty == false && self.url != URL(string: path)
+           path.isEmpty == false
         {
-            guard let url = URL(string: path) else
+            guard let url = self.graph?.resolveFileReference(path)
+                ?? DocumentFileReference.resolve(path, relativeTo: nil) else
             {
                 throw FabricError(.execution(.fileNotFound),
                                   severity: .recoverable,
                                   message: "Image file path is invalid: \(path)")
             }
+
+            guard self.url != url else { return }
 
             self.url = url
 
