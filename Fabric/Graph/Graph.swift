@@ -90,6 +90,13 @@ internal import AnyCodable
     @ObservationIgnored private var connectionTopologyBatchDepth = 0
     @ObservationIgnored private var hasPendingBatchedConnectionTopologyChange = false
 
+    /// Nodes whose membership, connections or published ports changed since
+    /// GraphRenderer last reviewed their lifecycle. Holding them strongly keeps
+    /// removed nodes alive until the renderer retires them.
+    @ObservationIgnored private var nodesAwaitingLifecycleReview: Set<Node> = []
+    @ObservationIgnored private var nodesWithPublishedPortsAtLastReview: Set<Node> = []
+    @ObservationIgnored internal private(set) var subgraphNodes: [SubgraphNode] = []
+
     /// Populated once at decode; empty for graphs built programmatically.
     @ObservationIgnored public private(set) var droppedPortStateDiagnostics: [DroppedPortStateDiagnostic] = []
 
@@ -132,6 +139,24 @@ internal import AnyCodable
         let shouldSyncScene = pendingConnectionSceneSync
         pendingConnectionSceneSync = false
         return shouldSyncScene
+    }
+
+    internal func markNodeForLifecycleReview(_ node: Node)
+    {
+        nodesAwaitingLifecycleReview.insert(node)
+    }
+
+    internal func takeNodesAwaitingLifecycleReview() -> Set<Node>
+    {
+        let reviewedNodes = nodesAwaitingLifecycleReview
+        nodesAwaitingLifecycleReview.removeAll(keepingCapacity: true)
+        return reviewedNodes
+    }
+
+    private func nodeMembershipDidChange(_ node: Node)
+    {
+        subgraphNodes = nodes.compactMap { $0 as? SubgraphNode }
+        markNodeForLifecycleReview(node)
     }
 
     public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
@@ -481,6 +506,7 @@ internal import AnyCodable
 
         self.nodes.append(node)
         node.graph = self
+        self.nodeMembershipDidChange(node)
 
         if let subgraphNode = node as? SubgraphNode
         {
@@ -595,6 +621,7 @@ internal import AnyCodable
             self.maybeDeleteNodeFromScene(node)
             self.nodes.removeAll { $0.id == node.id }
             node.graph = nil
+            self.nodeMembershipDidChange(node)
             // Remove ViewModel after removing from nodes so any in-flight
             // ForEach evaluation still finds it.
             self.nodeViewModels[node.id] = nil
@@ -622,6 +649,7 @@ internal import AnyCodable
             nodeViewModels[node.id] = NodeViewModel(node: node)
             nodes.append(node)
             node.graph = self
+            nodeMembershipDidChange(node)
             maybeAddNodeToScene(node)
 
             for connection in connections where connection.graph == nil {
@@ -831,6 +859,8 @@ internal import AnyCodable
             inletNode.didDisconnectFromNode(outletNode)
             outletNode.updateConnectionTopology()
             inletNode.updateConnectionTopology()
+            markNodeForLifecycleReview(outletNode)
+            markNodeForLifecycleReview(inletNode)
         }
     }
 
@@ -863,6 +893,7 @@ internal import AnyCodable
             oppositeNode.didDisconnectFromNode(oldNode)
             oldNode.updateConnectionTopology()
             oppositeNode.updateConnectionTopology()
+            markNodeForLifecycleReview(oldNode)
         }
 
         if let newNode = newPort.node,
@@ -872,6 +903,8 @@ internal import AnyCodable
             oppositeNode.didConnectToNode(newNode)
             newNode.updateConnectionTopology()
             oppositeNode.updateConnectionTopology()
+            markNodeForLifecycleReview(newNode)
+            markNodeForLifecycleReview(oppositeNode)
         }
     }
 
@@ -899,6 +932,8 @@ internal import AnyCodable
             inletNode.didConnectToNode(outletNode)
             outletNode.updateConnectionTopology()
             inletNode.updateConnectionTopology()
+            markNodeForLifecycleReview(outletNode)
+            markNodeForLifecycleReview(inletNode)
         }
     }
     
@@ -945,6 +980,15 @@ internal import AnyCodable
         }
 
         self.publishedParameterGroup.append( publishedParams )
+
+        // A published port connects its node through the enclosing subgraph node.
+        let nodesWithPublishedPorts = Set(self.nodesWithPublishedPorts())
+        for node in nodesWithPublishedPorts.symmetricDifference(self.nodesWithPublishedPortsAtLastReview)
+        {
+            self.markNodeForLifecycleReview(node)
+        }
+        self.nodesWithPublishedPortsAtLastReview = nodesWithPublishedPorts
+
         self.markConnectionsChanged()
         self.onPublishedPortsChanged?()
     }
