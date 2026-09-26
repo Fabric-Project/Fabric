@@ -95,6 +95,7 @@ public class DeferredSubgraphNode: SubgraphNode
     
     private var rendererNeedsSetup = true
     var graphRenderer:GraphRenderer
+    internal override var childGraphRenderer: GraphRenderer? { self.graphRenderer }
 
     public var deferredMRTEnabled: Bool = false
     {
@@ -206,6 +207,10 @@ public class DeferredSubgraphNode: SubgraphNode
     {
         self.graphRenderer = GraphRenderer(context: self.makeRendererContext())
         self.rendererNeedsSetup = true
+
+        // The inner nodes keep running across the swap; the new renderer takes over their lifecycle.
+        do { try self.graphRenderer.transitionExecution(graph: self.subGraph, to: self.executionState) }
+        catch { print("Graph lifecycle: \(self): \(error)") }
     }
 
     private func makeRendererContext() -> Context
@@ -254,24 +259,9 @@ public class DeferredSubgraphNode: SubgraphNode
             self.setupRenderer()
         }
 
-        try self.graphRenderer.startExecution(graph: self.subGraph)
-    }
-    
-    override public func stopExecution(renderer:GraphRenderer) throws
-    {
-        try self.graphRenderer.stopExecution(graph: self.subGraph)
+        try super.startExecution(renderer: renderer)
     }
 
-    override public func enableExecution(renderer:GraphRenderer) throws
-    {
-        try self.graphRenderer.enableExecution(graph: self.subGraph)
-    }
-    
-    override public func disableExecution(renderer:GraphRenderer) throws
-    {
-        try self.graphRenderer.disableExecution(graph: self.subGraph)
-    }
-    
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,

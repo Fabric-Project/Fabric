@@ -76,7 +76,6 @@ public class FacePoseAnalysisNode: Node
     
     override public func startExecution(renderer:GraphRenderer) throws
     {
-
         let options = [
             CIContextOption.cacheIntermediates : false,
             CIContextOption.highQualityDownsample : false,
@@ -86,6 +85,7 @@ public class FacePoseAnalysisNode: Node
         ] as? [CIContextOption : Any]
         
         self.ciContext = CIContext(mtlCommandQueue: self.context.commandQueue, options: options)
+        try super.startExecution(renderer: renderer)
     }
     
     override public func execute(renderer:GraphRenderer,

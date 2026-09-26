@@ -669,6 +669,7 @@ public class HIDNode: Node
     throws
     {
         setupHIDManager()
+        try super.enableExecution(renderer: renderer)
     }
 
     public override func disableExecution(renderer:GraphRenderer)
@@ -679,6 +680,7 @@ public class HIDNode: Node
             hidManager?.stopMonitoring(deviceID: deviceID)
         }
         hidManager = nil
+        try super.disableExecution(renderer: renderer)
     }
 
     private func setupHIDManager()

@@ -53,11 +53,10 @@ public class OrthographicCameraNode : ObjectNode<OrthographicCamera>
 
     override public func startExecution(renderer:GraphRenderer) throws
     {
-        try super.startExecution(renderer: renderer)
-
         self.camera.position = self.inputPosition.value ?? Self.defaultPosition
         self.camera.scale = self.inputScale.value ?? .one
         self.camera.orientation = simd_quatf(safeVector: self.inputOrientation.value ?? Self.defaultOrientation)
+        try super.startExecution(renderer: renderer)
     }
 
     override public func evaluate(object: Object?, atTime: TimeInterval) -> Bool

@@ -290,24 +290,46 @@ open class SubgraphNode: BaseObjectNode
         super.markDirty()
     }
     
+    /// Ordinary subgraphs run on their parent's renderer; a deferred subgraph owns one.
+    internal var childGraphRenderer: GraphRenderer? { nil }
+
+    /// Iterator evaluates every inner node, connected or not.
+    internal var startsAllChildNodes: Bool { false }
+
     override open func startExecution(renderer:GraphRenderer) throws
     {
-        try renderer.startExecution(graph: self.subGraph)
+        try self.transitionSubgraph(to: .started, renderer: renderer)
+        try super.startExecution(renderer: renderer)
     }
 
     override open func stopExecution(renderer:GraphRenderer) throws
     {
-        try renderer.stopExecution(graph: self.subGraph)
+        try self.transitionSubgraph(to: .stopped, renderer: renderer)
+        try super.stopExecution(renderer: renderer)
     }
 
     override open func enableExecution(renderer:GraphRenderer) throws
     {
-        try renderer.enableExecution(graph: self.subGraph)
+        try self.transitionSubgraph(to: .enabled, renderer: renderer)
+        try super.enableExecution(renderer: renderer)
     }
 
     override open func disableExecution(renderer:GraphRenderer) throws
     {
-        try renderer.disableExecution(graph: self.subGraph)
+        try self.transitionSubgraph(to: .disabled, renderer: renderer)
+        try super.disableExecution(renderer: renderer)
+    }
+
+    private func transitionSubgraph(to state: ExecutionState, renderer: GraphRenderer) throws
+    {
+        if let childGraphRenderer = self.childGraphRenderer
+        {
+            try childGraphRenderer.transitionExecution(graph: self.subGraph, to: state)
+        }
+        else
+        {
+            try renderer.reconcileAllNodes(in: self.subGraph, ceiling: state, startsAllNodes: self.startsAllChildNodes)
+        }
     }
 
     open func forwardPortValues(force:Bool = false)

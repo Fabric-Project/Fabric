@@ -40,6 +40,7 @@ public class SystemTimeNode : Node
     override public func startExecution(renderer: GraphRenderer) throws
     {
         self.startTime = nil
+        try super.startExecution(renderer: renderer)
     }
     
     override public func execute(renderer:GraphRenderer,

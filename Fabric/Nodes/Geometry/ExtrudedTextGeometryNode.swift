@@ -36,12 +36,11 @@ public class ExtrudedTextGeometryNode : BaseGeometryNode
 
     override public func startExecution(renderer: GraphRenderer) throws
     {
-        try super.startExecution(renderer:renderer)
-
         if let fontParam = self.inputFont.parameter as? StringParameter
         {
             fontParam.options = Self.installedFonts()
         }
+        try super.startExecution(renderer: renderer)
     }
     
     override public func evaluate(geometry: Geometry, atTime: TimeInterval) -> Bool

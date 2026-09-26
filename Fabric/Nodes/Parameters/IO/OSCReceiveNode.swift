@@ -323,12 +323,14 @@ public class OSCReceiveNode: Node
     throws
     {
         try startListening()
+        try super.enableExecution(renderer: renderer)
     }
 
     public override func disableExecution(renderer: GraphRenderer)
     throws
     {
         stopListening()
+        try super.disableExecution(renderer: renderer)
     }
 
     // MARK: - Execution

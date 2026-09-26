@@ -41,12 +41,11 @@ public class NumberBinaryOperator : Node
     
     override public func startExecution(renderer:GraphRenderer) throws
     {
-        try super.startExecution(renderer: renderer)
-        
         if let stringParam = self.inputParam.parameter as? StringParameter
         {
             stringParam.options = BinaryMathOperator.allCases.map(\.rawValue)
         }
+        try super.startExecution(renderer: renderer)
     }
          
     override public func execute(renderer:GraphRenderer,
