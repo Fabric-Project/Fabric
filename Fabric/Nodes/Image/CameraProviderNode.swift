@@ -30,11 +30,17 @@ private let CameraProviderNodeInitializer: Void = {
     var allow : UInt32 = 1
     let sizeOfAllow = MemoryLayout.size(ofValue: allow)
 
-    var property = CMIOObjectPropertyAddress(mSelector: CMIOObjectPropertySelector(kCMIOHardwarePropertyAllowScreenCaptureDevices), mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal), mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain))
+    
+    let screenCaptureProperty = CMIOObjectPropertySelector(kCMIOHardwarePropertyAllowScreenCaptureDevices)
+    let wirelessCaptureProperty = CMIOObjectPropertySelector(kCMIOHardwarePropertyAllowWirelessScreenCaptureDevices)
+    let globalScope = CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal)
+    let mainElement = CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain)
+    
+    var property = CMIOObjectPropertyAddress(mSelector: screenCaptureProperty, mScope: globalScope, mElement:mainElement )
 
     CMIOObjectSetPropertyData(CMIOObjectID(kCMIOObjectSystemObject), &property, 0, nil, UInt32(sizeOfAllow), &allow)
 
-    property = CMIOObjectPropertyAddress(mSelector: CMIOObjectPropertySelector(kCMIOHardwarePropertyAllowWirelessScreenCaptureDevices), mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal), mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain))
+    property = CMIOObjectPropertyAddress(mSelector: wirelessCaptureProperty, mScope: globalScope, mElement: mainElement)
 
     CMIOObjectSetPropertyData(CMIOObjectID(kCMIOObjectSystemObject), &property, 0, nil, UInt32(sizeOfAllow), &allow)
     #endif
