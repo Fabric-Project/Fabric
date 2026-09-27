@@ -23,6 +23,7 @@ public struct GraphCanvasZoomModifier: ViewModifier
     private let zoomLimits: ClosedRange<CGFloat>
     private let commandZoomAnchor: () -> CGPoint
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var committedTransform = GraphCanvasZoomTransform()
     @GestureState(resetTransaction: Transaction(animation: nil))
     private var gestureTransform: GraphCanvasZoomTransform?
@@ -87,6 +88,10 @@ public struct GraphCanvasZoomModifier: ViewModifier
         guard gestureTransform == nil else { return }
         let canvasPosition = CGPoint(x: graphPosition.x + canvasSize.width / 2,
                                      y: graphPosition.y + canvasSize.height / 2)
-        committedTransform = committedTransform.placing(canvasPosition, at: commandZoomAnchor())
+        // Repeated selections retarget the same spring instead of queuing moves.
+        withAnimation(reduceMotion ? nil : .spring(duration: 0.16, bounce: 0))
+        {
+            committedTransform = committedTransform.placing(canvasPosition, at: commandZoomAnchor())
+        }
     }
 }
