@@ -24,9 +24,6 @@ struct ContentView: View {
 
     @State private var canvasHitTestingEnabled = true
     
-    @GestureState private var magnifyBy = 1.0
-    @State private var finalMagnification = 1.0
-    @State private var magnifyAnchor: UnitPoint = .center
     @State private var radialGradientEndRadius: CGFloat = .zero
 
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
@@ -48,8 +45,6 @@ struct ContentView: View {
     }
 
     // Magic Numbers...
-    private let zoomMin = 0.25
-    private let zoomMax = 2.0
     private let canvasSize = 10000.0
     private let halfCanvasSize = 5000.0
     
@@ -103,7 +98,10 @@ struct ContentView: View {
                                         connectionsHitTestingEnabled: self.canvasHitTestingEnabled)
                                 .id("canvas")
                                 .frame(width: self.canvasSize, height: self.canvasSize)
-                                .scaleEffect(finalMagnification * magnifyBy, anchor: magnifyAnchor)
+                                .modifier(GraphCanvasZoomModifier(
+                                    canvasSize: CGSize(width: self.canvasSize, height: self.canvasSize),
+                                    allowsContentHitTesting: self.canvasHitTestingEnabled
+                                ))
                                 .contextMenu(menuItems: {
                                     Button("New Note") {
                                         let currentGraph = self.document.editingContext.currentGraph
@@ -111,50 +109,6 @@ struct ContentView: View {
                                         currentGraph.addNote(note)
                                     }
                                 })
-                                .gesture(
-                                    MagnifyGesture()
-                                        .updating($magnifyBy, body: { value, state, _ in
-
-                                            self.canvasHitTestingEnabled = false
-                                            
-                                            let proposedScale = finalMagnification * value.magnification
-
-                                            guard (self.zoomMin ..< self.zoomMax).contains(proposedScale)
-                                            else
-                                            {
-                                                return
-                                            }
-
-                                            state = min(max(value.magnification, self.zoomMin), self.zoomMax)
-
-                                            let scale = proposedScale
-
-                                            let u = value.startAnchor.x
-                                            let v = value.startAnchor.y
-
-                                            let containerSize = self.document.editingContext.currentScrollContainerSize
-                                            let contentOffset = self.document.editingContext.currentScrollContentOffset
-
-                                            let visibleWidthInCanvas  = containerSize.width  / scale
-                                            let visibleHeightInCanvas = containerSize.height / scale
-
-                                            let offsetXInCanvas = contentOffset.x / scale
-                                            let offsetYInCanvas = contentOffset.y / scale
-
-                                            let canvasX = offsetXInCanvas + u * visibleWidthInCanvas
-                                            let canvasY = offsetYInCanvas + v * visibleHeightInCanvas
-
-                                            let newX = max(0, min(1, canvasX / (self.canvasSize / scale)))
-                                            let newY = max(0, min(1, canvasY / (self.canvasSize / scale)))
-
-                                            magnifyAnchor = UnitPoint(x: newX, y: newY)
-                                        })
-                                        .onEnded { value in
-                                            self.canvasHitTestingEnabled = true
-                                            finalMagnification = min(max(finalMagnification * value.magnification, self.zoomMin), self.zoomMax)
-                                        }
-                                )
-                                .allowsHitTesting(self.canvasHitTestingEnabled)
                                 .onAppear {
                                     self.document.editingContext.rootGraph.undoManager = undoManager
 
