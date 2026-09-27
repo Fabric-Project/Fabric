@@ -1,5 +1,20 @@
 import SwiftUI
 
+private struct CenterGraphCanvasKey: EnvironmentKey
+{
+    static let defaultValue: (CGPoint) -> Void = { _ in }
+}
+
+extension EnvironmentValues
+{
+    /// A view action accepting a graph-space position; no document state is changed.
+    var centerGraphCanvas: (CGPoint) -> Void
+    {
+        get { self[CenterGraphCanvasKey.self] }
+        set { self[CenterGraphCanvasKey.self] = newValue }
+    }
+}
+
 /// Keeps pinch state in the view layer and preserves the canvas point under the pinch.
 public struct GraphCanvasZoomModifier: ViewModifier
 {
@@ -28,6 +43,7 @@ public struct GraphCanvasZoomModifier: ViewModifier
         let transform = gestureTransform ?? committedTransform
 
         content
+            .environment(\.centerGraphCanvas, center(on:))
             .allowsHitTesting(allowsContentHitTesting && gestureTransform == nil)
             .scaleEffect(transform.scale, anchor: .topLeading)
             .offset(transform.translation)
@@ -64,5 +80,13 @@ public struct GraphCanvasZoomModifier: ViewModifier
         committedTransform = committedTransform.magnified(by: magnification,
                                                          around: commandZoomAnchor(),
                                                          limits: zoomLimits)
+    }
+
+    private func center(on graphPosition: CGPoint)
+    {
+        guard gestureTransform == nil else { return }
+        let canvasPosition = CGPoint(x: graphPosition.x + canvasSize.width / 2,
+                                     y: graphPosition.y + canvasSize.height / 2)
+        committedTransform = committedTransform.placing(canvasPosition, at: commandZoomAnchor())
     }
 }

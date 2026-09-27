@@ -22,6 +22,29 @@ struct GraphCanvasZoomTransformTests
                     canvasPosition)
     }
 
+    @Test func centeringPreservesZoomAtEverySupportedScale()
+    {
+        let viewportCenterInLayout = CGPoint(x: 7200, y: 3100)
+        // A node's graph-space offset plus half the fixed canvas dimensions.
+        let nodeCanvasPosition = CGPoint(x: 4200, y: 5600)
+
+        for scale in [CGFloat(0.25), 0.75, 1, 1.5, 2]
+        {
+            let initial = GraphCanvasZoomTransform(scale: scale,
+                                                  translation: CGSize(width: -1900, height: 700))
+            let centered = initial.placing(nodeCanvasPosition, at: viewportCenterInLayout)
+
+            #expect(centered.scale == scale)
+            expectEqual(centered.position(forCanvasPosition: nodeCanvasPosition), viewportCenterInLayout)
+            #expect(centered.placing(nodeCanvasPosition, at: viewportCenterInLayout) == centered)
+
+            let nextNodePosition = CGPoint(x: 8100, y: 2900)
+            let nextCentered = centered.placing(nextNodePosition, at: viewportCenterInLayout)
+            #expect(nextCentered.scale == scale)
+            expectEqual(nextCentered.position(forCanvasPosition: nextNodePosition), viewportCenterInLayout)
+        }
+    }
+
     @Test func successivePinchesPreserveTheirOwnAnchor()
     {
         var transform = GraphCanvasZoomTransform()

@@ -19,6 +19,14 @@ struct GraphCanvasZoomTransform: Equatable
                 y: position.y * scale + translation.height)
     }
 
+    /// Places an unscaled canvas point at a layout-frame point without changing zoom.
+    func placing(_ canvasPosition: CGPoint, at position: CGPoint) -> Self
+    {
+        Self(scale: scale,
+             translation: CGSize(width: position.x - canvasPosition.x * scale,
+                                 height: position.y - canvasPosition.y * scale))
+    }
+
     /// Magnification is relative to this snapshot, not the preceding gesture update.
     func magnified(by magnification: CGFloat,
                    around anchor: CGPoint,
@@ -27,8 +35,6 @@ struct GraphCanvasZoomTransform: Equatable
         let newScale = min(max(scale * magnification, limits.lowerBound), limits.upperBound)
         let anchoredPosition = canvasPosition(at: anchor)
 
-        return Self(scale: newScale,
-                    translation: CGSize(width: anchor.x - anchoredPosition.x * newScale,
-                                        height: anchor.y - anchoredPosition.y * newScale))
+        return Self(scale: newScale).placing(anchoredPosition, at: anchor)
     }
 }
