@@ -100,6 +100,15 @@ struct ContentView: View {
                                 .frame(width: self.canvasSize, height: self.canvasSize)
                                 .modifier(GraphCanvasZoomModifier(
                                     canvasSize: CGSize(width: self.canvasSize, height: self.canvasSize),
+                                    commandZoomAnchor: {
+                                        // Read current metrics when invoked; scrolling doesn't
+                                        // need to invalidate the zoom modifier or menu actions.
+                                        let context = self.document.editingContext
+                                        return CGPoint(
+                                            x: context.currentScrollContentOffset.x + context.currentScrollContainerSize.width / 2,
+                                            y: context.currentScrollContentOffset.y + context.currentScrollContainerSize.height / 2
+                                        )
+                                    },
                                     allowsContentHitTesting: self.canvasHitTestingEnabled
                                 ))
                                 .contextMenu(menuItems: {

@@ -6,16 +6,19 @@ public struct GraphCanvasZoomModifier: ViewModifier
     private let canvasSize: CGSize
     private let allowsContentHitTesting: Bool
     private let zoomLimits: ClosedRange<CGFloat>
+    private let commandZoomAnchor: () -> CGPoint
 
     @State private var committedTransform = GraphCanvasZoomTransform()
     @GestureState(resetTransaction: Transaction(animation: nil))
     private var gestureTransform: GraphCanvasZoomTransform?
 
     public init(canvasSize: CGSize,
+                commandZoomAnchor: @escaping () -> CGPoint,
                 allowsContentHitTesting: Bool = true,
                 zoomLimits: ClosedRange<CGFloat> = 0.25...2)
     {
         self.canvasSize = canvasSize
+        self.commandZoomAnchor = commandZoomAnchor
         self.allowsContentHitTesting = allowsContentHitTesting
         self.zoomLimits = zoomLimits
     }
@@ -33,6 +36,12 @@ public struct GraphCanvasZoomModifier: ViewModifier
             // while node/connection hit testing is suspended.
             .frame(width: canvasSize.width, height: canvasSize.height)
             .contentShape(.rect)
+            .focusedSceneValue(\.graphCanvasZoomActions, GraphCanvasZoomActions(
+                zoomIn: gestureTransform == nil && committedTransform.scale < zoomLimits.upperBound
+                    ? { zoom(by: 1.25) } : nil,
+                zoomOut: gestureTransform == nil && committedTransform.scale > zoomLimits.lowerBound
+                    ? { zoom(by: 1 / 1.25) } : nil
+            ))
             .gesture(
                 MagnifyGesture()
                     .updating($gestureTransform) { value, state, transaction in
@@ -47,5 +56,13 @@ public struct GraphCanvasZoomModifier: ViewModifier
                                                                          limits: zoomLimits)
                     }
             )
+    }
+
+    private func zoom(by magnification: CGFloat)
+    {
+        guard gestureTransform == nil else { return }
+        committedTransform = committedTransform.magnified(by: magnification,
+                                                         around: commandZoomAnchor(),
+                                                         limits: zoomLimits)
     }
 }

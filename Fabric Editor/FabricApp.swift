@@ -36,6 +36,7 @@ struct FabricApp: App {
             DocumentCommands()
 
             ViewCommands()
+            GraphCanvasZoomCommands()
 
             CommandGroup(after: .appInfo)
             {
