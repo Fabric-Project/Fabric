@@ -45,8 +45,9 @@ public struct GraphCanvas : View
     {
         ZStack
         {
-            GraphBackground()
-                .offset(-canvasSize / 2)
+            // Preserve the canvas's flexible layout and empty-space hit region;
+            // the zoom modifier draws the repeating background outside its scale.
+            Color.clear
 
             GraphNotesView(editingContext: editingContext,
                            focus: focus)

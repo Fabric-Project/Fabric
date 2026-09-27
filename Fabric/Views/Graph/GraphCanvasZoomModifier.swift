@@ -52,6 +52,9 @@ public struct GraphCanvasZoomModifier: ViewModifier
             // of the transform being edited. The gesture itself stays enabled
             // while node/connection hit testing is suspended.
             .frame(width: canvasSize.width, height: canvasSize.height)
+            .background {
+                GraphBackground(scale: transform.scale, translation: transform.translation)
+            }
             .contentShape(.rect)
             .focusedSceneValue(\.graphCanvasZoomActions, GraphCanvasZoomActions(
                 zoomIn: gestureTransform == nil && committedTransform.scale < zoomLimits.upperBound
