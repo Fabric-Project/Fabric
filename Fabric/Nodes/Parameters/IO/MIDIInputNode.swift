@@ -11,6 +11,7 @@ import Metal
 import MIDIKit
 import Satin
 import simd
+import Synchronization
 
 // MARK: - Detected MIDI Input
 
@@ -372,7 +373,17 @@ public class MIDIInputNode: Node
 
     // MARK: - Properties
 
+    /// One CoreMIDI client for the process: MIDIKit never disposes a manager's
+    /// client, so a manager per node, or per enable, leaks one each time.
+    private static let sharedMIDIManager = MIDIManager(
+        clientName: "Fabric",
+        model: "Fabric",
+        manufacturer: "Fabric"
+    )
+
+    /// The shared manager while this node is enabled, nil otherwise.
     private var midiManager: MIDIManager?
+    private var connectionTag: String { "MIDIInputNode-\(self.id)" }
     private var savedInputInfo: MIDIInputInfo?
 
     fileprivate var selectedInputID: String?
@@ -403,8 +414,13 @@ public class MIDIInputNode: Node
         }
     }
 
-    private var floatValues: [String: Float] = [:]
-    private var boolValues: [String: Bool] = [:]
+    // Written on the main queue, read by execute on the render thread.
+    private struct InputValues
+    {
+        var floatValues: [String: Float] = [:]
+        var boolValues: [String: Bool] = [:]
+    }
+    private let inputValues = Mutex(InputValues())
 
     // MARK: - Settings View
 
@@ -469,6 +485,7 @@ public class MIDIInputNode: Node
     public override func disableExecution(renderer: GraphRenderer)
     throws
     {
+        midiManager?.remove(.inputConnection, .withTag(connectionTag))
         midiManager = nil
         try super.disableExecution(renderer: renderer)
     }
@@ -477,14 +494,9 @@ public class MIDIInputNode: Node
     {
         do
         {
-            midiManager = MIDIManager(
-                clientName: "Fabric",
-                model: "Fabric",
-                manufacturer: "Fabric"
-            )
-
-            try midiManager?.start()
-            print("[MIDI] Manager started")
+            // Starting an already started manager does nothing.
+            try Self.sharedMIDIManager.start()
+            midiManager = Self.sharedMIDIManager
 
             refreshInputs()
 
@@ -537,21 +549,22 @@ public class MIDIInputNode: Node
         else
         {
             // Remove existing connection if any
-            manager.remove(.inputConnection, .all)
+            manager.remove(.inputConnection, .withTag(connectionTag))
             return
         }
 
         do
         {
             // Remove existing connections
-            manager.remove(.inputConnection, .all)
+            manager.remove(.inputConnection, .withTag(connectionTag))
 
             // Create new connection to receive from this output endpoint
             try manager.addInputConnection(
                 to: .outputs([endpoint]),
-                tag: "FabricMIDI",
+                tag: connectionTag,
                 receiver: .events { [weak self] events, _, _ in
-                    self?.handleMIDIEvents(events)
+                    // Handling reads and writes learn-mode and configuration state the settings view owns.
+                    DispatchQueue.main.async { self?.handleMIDIEvents(events) }
                 }
             )
 
@@ -694,9 +707,9 @@ public class MIDIInputNode: Node
                 switch input.type
                 {
                 case .noteGate:
-                    boolValues[input.uniqueKey] = true
+                    inputValues.withLock { $0.boolValues[input.uniqueKey] = true }
                 case .noteVelocity:
-                    floatValues[input.uniqueKey] = normalizedVel
+                    inputValues.withLock { $0.floatValues[input.uniqueKey] = normalizedVel }
                 default:
                     break
                 }
@@ -727,9 +740,9 @@ public class MIDIInputNode: Node
                 switch input.type
                 {
                 case .noteGate:
-                    boolValues[input.uniqueKey] = false
+                    inputValues.withLock { $0.boolValues[input.uniqueKey] = false }
                 case .noteVelocity:
-                    floatValues[input.uniqueKey] = 0.0
+                    inputValues.withLock { $0.floatValues[input.uniqueKey] = 0.0 }
                 default:
                     break
                 }
@@ -760,7 +773,7 @@ public class MIDIInputNode: Node
         {
             if input.type == .controlChange && input.channel == channel && input.number == cc
             {
-                floatValues[input.uniqueKey] = normalizedValue
+                inputValues.withLock { $0.floatValues[input.uniqueKey] = normalizedValue }
             }
         }
         markDirty()
@@ -789,7 +802,7 @@ public class MIDIInputNode: Node
         {
             if input.type == .pitchBend && input.channel == channel
             {
-                floatValues[input.uniqueKey] = normalizedValue
+                inputValues.withLock { $0.floatValues[input.uniqueKey] = normalizedValue }
             }
         }
         markDirty()
@@ -817,7 +830,7 @@ public class MIDIInputNode: Node
         {
             if input.type == .aftertouch && input.channel == channel
             {
-                floatValues[input.uniqueKey] = normalizedValue
+                inputValues.withLock { $0.floatValues[input.uniqueKey] = normalizedValue }
             }
         }
         markDirty()
@@ -841,11 +854,11 @@ public class MIDIInputNode: Node
         {
             if input.type == .noteGate
             {
-                boolValues[input.uniqueKey] = false
+                inputValues.withLock { $0.boolValues[input.uniqueKey] = false }
             }
             else
             {
-                floatValues[input.uniqueKey] = 0.0
+                inputValues.withLock { $0.floatValues[input.uniqueKey] = 0.0 }
             }
 
             print("[MIDI] Added port: \(input.portName)")
@@ -860,6 +873,8 @@ public class MIDIInputNode: Node
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
+        let currentValues = inputValues.withLock { $0 }
+
         for input in configuredInputs
         {
             let portName = input.portName
@@ -867,7 +882,7 @@ public class MIDIInputNode: Node
             if input.type == .noteGate
             {
                 if let port = findPort(named: portName) as? NodePort<Bool>,
-                   let value = boolValues[input.uniqueKey]
+                   let value = currentValues.boolValues[input.uniqueKey]
                 {
                     port.send(value)
                 }
@@ -875,7 +890,7 @@ public class MIDIInputNode: Node
             else
             {
                 if let port = findPort(named: portName) as? NodePort<Float>,
-                   let value = floatValues[input.uniqueKey]
+                   let value = currentValues.floatValues[input.uniqueKey]
                 {
                     port.send(value)
                 }
