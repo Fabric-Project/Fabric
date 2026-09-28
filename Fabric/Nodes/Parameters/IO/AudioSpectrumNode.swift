@@ -355,26 +355,17 @@ public class AudioSpectrumNode : Node
     public required init(context: Context)
     {
         super.init(context: context)
-        self.commonPostSetup()
+        self.captureDelegate.owner = self
     }
 
     public required init(from decoder: any Decoder) throws
     {
         try super.init(from: decoder)
-        self.commonPostSetup()
-    }
-
-    deinit
-    {
-        if let t = wasConnectedObserver    { NotificationCenter.default.removeObserver(t) }
-        if let t = wasDisconnectedObserver { NotificationCenter.default.removeObserver(t) }
-    }
-
-    private func commonPostSetup()
-    {
         self.captureDelegate.owner = self
-        self.refreshAudioDeviceOptions()
+    }
 
+    override public func enableExecution(renderer:GraphRenderer) throws
+    {
         self.wasConnectedObserver = NotificationCenter.default.addObserver(
             forName: AVCaptureDevice.wasConnectedNotification, object: nil, queue: .main
         ) { [weak self] _ in
@@ -385,15 +376,29 @@ public class AudioSpectrumNode : Node
         ) { [weak self] _ in
             self?.refreshAudioDeviceOptions()
         }
+
+        self.refreshAudioDeviceOptions()
+        try super.enableExecution(renderer: renderer)
+    }
+
+    override public func disableExecution(renderer:GraphRenderer) throws
+    {
+        if let observer = self.wasConnectedObserver    { NotificationCenter.default.removeObserver(observer) }
+        if let observer = self.wasDisconnectedObserver { NotificationCenter.default.removeObserver(observer) }
+        self.wasConnectedObserver = nil
+        self.wasDisconnectedObserver = nil
+        try super.disableExecution(renderer: renderer)
     }
 
     private func refreshAudioDeviceOptions()
     {
         let fresh = self.discoverySession.devices
         self.devicesLock.withLock { $0.devices = fresh }
-        if let param = self.inputAudioDevice.parameter as? StringParameter
-        {
-            param.options = fresh.map(\.localizedName)
+
+        // Enable can run on the render thread; options are main-thread state (see DeviceList).
+        let names = fresh.map(\.localizedName)
+        DispatchQueue.main.async { [weak self] in
+            (self?.inputAudioDevice.parameter as? StringParameter)?.options = names
         }
     }
 
@@ -408,33 +413,33 @@ public class AudioSpectrumNode : Node
         return AVCaptureDevice.default(for: .audio)
     }
 
+    // Capture runs only while started. The session is built in execute, so a
+    // start and a device change in the same frame build it once.
+    private var captureSessionNeedsSetup = false
+
     override public func startExecution(renderer:GraphRenderer) throws {
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
             case .authorized:
-                self.setupCaptureSession()
+                self.captureSessionNeedsSetup = true
             case .notDetermined:
-                AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
-                    if granted {
-                        print("Granted Mic Access")
-                        self?.setupCaptureSession()
-                    }
-                    else
-                    {
-                        print("Not Granted Mic Access")
+                AVCaptureDevice.requestAccess(for: .audio) { granted in
+                    DispatchQueue.main.async { [weak self] in
+                        // The node may have stopped while the prompt was up.
+                        guard granted, let self, self.executionState == .started else { return }
+                        self.captureSessionNeedsSetup = true
                     }
                 }
-            case .denied:
-                print("Not Granted Mic Access")
-            case .restricted:
-                print("Restricted from Granting Mic Access")
-            @unknown default:
-                print("Restricted from Granting Mic Access")
+            default:
+                throw FabricError(.execution(.failed),
+                                  severity: .recoverable,
+                                  message: "Microphone access is not granted")
         }
         try super.startExecution(renderer: renderer)
     }
-    
+
     override public func stopExecution(renderer:GraphRenderer) throws
     {
+        self.captureSessionNeedsSetup = false
         if self.captureSession.isRunning
         {
             self.captureSession.stopRunning()
@@ -442,14 +447,6 @@ public class AudioSpectrumNode : Node
         try super.stopExecution(renderer: renderer)
     }
 
-    override public func disableExecution(renderer:GraphRenderer) throws
-    {
-        if self.captureSession.isRunning{
-            self.captureSession.stopRunning()
-        }
-        try super.disableExecution(renderer: renderer)
-    }
-    
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
@@ -458,8 +455,17 @@ public class AudioSpectrumNode : Node
     {
         if self.inputAudioDevice.valueDidChange
         {
-            self.setupCaptureSession()
+            if AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
+            {
+                self.captureSessionNeedsSetup = true
+            }
             pendingRebuild = true
+        }
+
+        if self.captureSessionNeedsSetup
+        {
+            self.captureSessionNeedsSetup = false
+            self.setupCaptureSession()
         }
 
         // Collect parameter changes; mark rebuild for structural params.
