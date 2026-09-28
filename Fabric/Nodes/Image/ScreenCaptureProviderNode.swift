@@ -91,33 +91,40 @@ public class ScreenCaptureProviderNode: Node
     private var stream: SCStream? = nil
     private var optionsToTargets: [String: CaptureTarget] = [:]
     private var latestShareableContent: SCShareableContent? = nil
-    private var refreshTask: Task<Void, Never>? = nil
-    private var streamTask: Task<Void, Never>? = nil
+    // Capture changes run one at a time on the main actor, each after the one
+    // before it, so a stop is never overtaken by a start still in flight.
+    private var captureChangeTask: Task<Void, Never>? = nil
 
     public required init(context: Context)
     {
         super.init(context: context)
-        self.scheduleRefreshAndReconfigure()
+        self.enqueueCaptureChange { await $0.refreshTargets() }
     }
 
     public required init(from decoder: any Decoder) throws
     {
         try super.init(from: decoder)
-        self.scheduleRefreshAndReconfigure()
+        self.enqueueCaptureChange { await $0.refreshTargets() }
+    }
+
+    override public func startExecution(renderer: GraphRenderer)
+    throws
+    {
+        self.enqueueCaptureRestart()
+        try super.startExecution(renderer: renderer)
     }
 
     override public func stopExecution(renderer: GraphRenderer)
     throws
     {
-        self.stopStreamAndClear()
+        self.stopCapture()
         try super.stopExecution(renderer: renderer)
     }
-    
 
     override public func teardown()
     {
         super.teardown()
-        self.stopStreamAndClear()
+        self.stopCapture()
     }
 
     override public func execute(renderer:GraphRenderer,
@@ -128,7 +135,7 @@ public class ScreenCaptureProviderNode: Node
     {
         if self.inputCaptureType.valueDidChange || self.inputCaptureSource.valueDidChange
         {
-            self.scheduleRefreshAndReconfigure()
+            self.enqueueCaptureRestart()
         }
 
         if let pixelBuffer = streamOutputHandler.consumeLatestPixelBuffer()
@@ -139,64 +146,69 @@ public class ScreenCaptureProviderNode: Node
         }
     }
 
-    private func scheduleRefreshAndReconfigure()
+    /// A change that is superseded is cancelled, and still finishes before the next one runs.
+    private func enqueueCaptureChange(_ change: @escaping @MainActor (ScreenCaptureProviderNode) async -> Void)
     {
-        self.refreshTask?.cancel()
-        self.refreshTask = Task { [weak self] in
-            await self?.refreshTargetsAndReconfigure()
+        let previousChange = self.captureChangeTask
+        previousChange?.cancel()
+        self.captureChangeTask = Task { @MainActor [weak self] in
+            await previousChange?.value
+            guard let self else { return }
+            await change(self)
+        }
+    }
+
+    private func enqueueCaptureRestart()
+    {
+        self.enqueueCaptureChange { node in
+            await node.refreshTargets()
+            guard !Task.isCancelled else { return }
+            await node.restartStream()
+        }
+    }
+
+    private func stopCapture()
+    {
+        self.outputTexturePort.send(nil)
+        self.enqueueCaptureChange { await $0.stopStream() }
+    }
+
+    @MainActor
+    private func refreshTargets() async
+    {
+        guard let shareableContent = try? await SCShareableContent.current else { return }
+
+        let captureKind = self.currentCaptureKind()
+        self.latestShareableContent = shareableContent
+
+        self.optionsToTargets = self.makeOptions(shareableContent: shareableContent, captureKind: captureKind)
+
+        let options = self.optionsToTargets.keys.sorted()
+        if let sourceParameter = self.inputCaptureSource.parameter as? StringParameter
+        {
+            sourceParameter.options = options
+        }
+
+        let selectionIsValid = options.contains(self.inputCaptureSource.value ?? "")
+        if !selectionIsValid
+        {
+            self.inputCaptureSource.value = options.first ?? ""
         }
     }
 
     @MainActor
-    private func refreshTargetsAndReconfigure() async
+    private func restartStream() async
     {
-        do
-        {
-            let shareableContent = try await SCShareableContent.current
-            let captureKind = self.currentCaptureKind()
-            self.latestShareableContent = shareableContent
+        await self.stopStream()
 
-            self.optionsToTargets = self.makeOptions(shareableContent: shareableContent, captureKind: captureKind)
-
-            let options = self.optionsToTargets.keys.sorted()
-            if let sourceParameter = self.inputCaptureSource.parameter as? StringParameter
-            {
-                sourceParameter.options = options
-            }
-
-            let selectionIsValid = options.contains(self.inputCaptureSource.value ?? "")
-            if !selectionIsValid
-            {
-                self.inputCaptureSource.value = options.first ?? ""
-            }
-
-            await self.reconfigureStream()
-        }
-        catch
-        {
-            self.outputTexturePort.send(nil)
-            await self.stopStream()
-        }
-    }
-
-    @MainActor
-    private func reconfigureStream() async
-    {
         let selection = self.inputCaptureSource.value ?? ""
-        guard let target = self.optionsToTargets[selection]
-        else
+        guard let target = self.optionsToTargets[selection] else
         {
             self.outputTexturePort.send(nil)
-            await self.stopStream()
             return
         }
 
-        self.streamTask?.cancel()
-        self.streamTask = Task { [weak self] in
-            guard let self else { return }
-            await self.stopStream()
-            await self.startStream(target: target)
-        }
+        await self.startStream(target: target)
     }
 
     @MainActor
@@ -256,17 +268,6 @@ public class ScreenCaptureProviderNode: Node
 
         self.stream = nil
         self.streamOutputHandler.clear()
-    }
-
-    private func stopStreamAndClear()
-    {
-        self.refreshTask?.cancel()
-        self.streamTask?.cancel()
-        self.outputTexturePort.send(nil)
-
-        Task { [weak self] in
-            await self?.stopStream()
-        }
     }
 
     @MainActor
