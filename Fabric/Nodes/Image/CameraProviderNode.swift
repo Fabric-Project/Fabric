@@ -10,6 +10,7 @@ import Satin
 import simd
 import Metal
 import AVFoundation
+import Synchronization
 #if os(macOS)
 import CoreMediaIO
 import VideoToolbox
@@ -95,7 +96,8 @@ public class CameraProviderNode : Node
 
     private var observer: Any? = nil
     
-    private var devices = [AVCaptureDevice]()
+    // Written on the main queue and at enable, read by execute on the render thread.
+    private let devices = Mutex<[AVCaptureDevice]>([])
 
     private var wasConnectedObserver:Any? = nil
     private var wasDisconnectedObserver:Any? = nil
@@ -108,8 +110,6 @@ public class CameraProviderNode : Node
         self.captureSession = AVCaptureSession()
 
         super.init(context: context)
-        
-        self.commonPostSetup()
     }
     
     
@@ -121,40 +121,43 @@ public class CameraProviderNode : Node
         self.captureSession = AVCaptureSession()
                 
         try super.init(from:decoder)
-        
-        self.commonPostSetup()
     }
-    
-    func commonPostSetup()
+
+    override public func enableExecution(renderer:GraphRenderer) throws
     {
         self.wasConnectedObserver = NotificationCenter.default.addObserver(forName: AVCaptureDevice.wasConnectedNotification, object: nil, queue: .main)
-        { [weak self] notification in
-            
-            guard let self = self,
-                  let inputCameraParam = self.inputCamera.parameter as? StringParameter
-            else { return }
-            
-            self.devices = self.discoverySession.devices
-            inputCameraParam.options = self.devices.compactMap( { $0.localizedName } )
-        }
-        
-        self.wasDisconnectedObserver = NotificationCenter.default.addObserver(forName: AVCaptureDevice.wasDisconnectedNotification, object: nil, queue: .main)
-        { [weak self] notification in
-            
-            guard let self = self,
-                  let inputCameraParam = self.inputCamera.parameter as? StringParameter
-            else { return }
-            
-            self.devices = self.discoverySession.devices
-            inputCameraParam.options = self.devices.compactMap( { $0.localizedName } )
-        }
-        
-        self.devices = self.discoverySession.devices
-        if let inputCameraParam = self.inputCamera.parameter as? StringParameter
-        {
-            inputCameraParam.options = self.devices.compactMap( { $0.localizedName } )
+        { [weak self] _ in
+            self?.refreshDevices()
         }
 
+        self.wasDisconnectedObserver = NotificationCenter.default.addObserver(forName: AVCaptureDevice.wasDisconnectedNotification, object: nil, queue: .main)
+        { [weak self] _ in
+            self?.refreshDevices()
+        }
+
+        self.refreshDevices()
+        try super.enableExecution(renderer: renderer)
+    }
+
+    override public func disableExecution(renderer:GraphRenderer) throws
+    {
+        if let observer = self.wasConnectedObserver    { NotificationCenter.default.removeObserver(observer) }
+        if let observer = self.wasDisconnectedObserver { NotificationCenter.default.removeObserver(observer) }
+        self.wasConnectedObserver = nil
+        self.wasDisconnectedObserver = nil
+        try super.disableExecution(renderer: renderer)
+    }
+
+    private func refreshDevices()
+    {
+        let fresh = self.discoverySession.devices
+        self.devices.withLock { $0 = fresh }
+
+        // Enable can run on the render thread; parameter options are observable, main-thread state.
+        let names = fresh.map(\.localizedName)
+        DispatchQueue.main.async { [weak self] in
+            (self?.inputCamera.parameter as? StringParameter)?.options = names
+        }
     }
     
     override public func startExecution(renderer:GraphRenderer) throws
@@ -235,7 +238,8 @@ public class CameraProviderNode : Node
     {
         if let deviceLocalizedName = self.inputCamera.value
         {
-            if let uniqueIDForDeviceWithMatchingName = self.devices.first(where: { $0.localizedName == deviceLocalizedName })?.uniqueID,
+            let knownDevices = self.devices.withLock { $0 }
+            if let uniqueIDForDeviceWithMatchingName = knownDevices.first(where: { $0.localizedName == deviceLocalizedName })?.uniqueID,
                let device = AVCaptureDevice.init(uniqueID: uniqueIDForDeviceWithMatchingName)
             {
                 try self.setupCaptureSession(videoDevice: device)
