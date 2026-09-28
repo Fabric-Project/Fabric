@@ -11,6 +11,7 @@ import Metal
 internal import OSCKit
 import Satin
 import simd
+import Synchronization
 
 // MARK: - OSC Address Binding
 
@@ -262,8 +263,8 @@ public class OSCReceiveNode: Node
     private var oscServer: OSCServer?
     fileprivate var isListening: Bool = false
 
-    // Store latest values for each address
-    private var latestValues: [String: Any] = [:]
+    // Latest value for each address: written on the main queue, read by execute on the render thread.
+    private let latestValues = Mutex<[String: Any]>([:])
 
     // MARK: - Settings View
 
@@ -341,11 +342,13 @@ public class OSCReceiveNode: Node
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
+        let currentValues = latestValues.withLock { $0 }
+
         // Send latest values to ports
         for binding in addressBindings
         {
             let portName = portNameForAddress(binding.address)
-            guard let value = latestValues[binding.address] else { continue }
+            guard let value = currentValues[binding.address] else { continue }
 
             switch binding.dataType
             {
@@ -389,7 +392,8 @@ public class OSCReceiveNode: Node
 
         do
         {
-            oscServer = OSCServer(port: listenPort) { [weak self] message, _ in
+            // Handling reads the address bindings the settings view owns.
+            oscServer = OSCServer(port: listenPort, queue: .main) { [weak self] message, _, _, _ in
                 self?.handleOSCMessage(message)
             }
             try oscServer?.start()
@@ -432,37 +436,37 @@ public class OSCReceiveNode: Node
         case .float:
             if let value = firstArg as? Float
             {
-                latestValues[address] = value
+                latestValues.withLock { $0[address] = value }
             }
             else if let value = firstArg as? Double
             {
-                latestValues[address] = Float(value)
+                latestValues.withLock { $0[address] = Float(value) }
             }
 
         case .int:
             if let value = firstArg as? Int32
             {
-                latestValues[address] = Int(value)
+                latestValues.withLock { $0[address] = Int(value) }
             }
             else if let value = firstArg as? Int
             {
-                latestValues[address] = value
+                latestValues.withLock { $0[address] = value }
             }
 
         case .string:
             if let value = firstArg as? String
             {
-                latestValues[address] = value
+                latestValues.withLock { $0[address] = value }
             }
 
         case .bool:
             if let value = firstArg as? Bool
             {
-                latestValues[address] = value
+                latestValues.withLock { $0[address] = value }
             }
             else if let value = firstArg as? Int32
             {
-                latestValues[address] = value != 0
+                latestValues.withLock { $0[address] = value != 0 }
             }
         }
 
