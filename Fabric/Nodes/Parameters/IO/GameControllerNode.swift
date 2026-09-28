@@ -166,6 +166,7 @@ public class GameControllerNode: Node
 
     private var savedControllerInfo: GameControllerInfo?
     private var currentController: GCController?
+    private var controllerObservers: [any NSObjectProtocol] = []
 
     fileprivate var selectedControllerID: String?
     {
@@ -259,22 +260,22 @@ public class GameControllerNode: Node
     public override func disableExecution(renderer:GraphRenderer)
     throws
     {
-        NotificationCenter.default.removeObserver(self)
-        currentController = nil
+        removeNotifications()
+        detachController()
         try super.disableExecution(renderer: renderer)
     }
 
     private func setupNotifications()
     {
-        NotificationCenter.default.addObserver(
+        controllerObservers.append(NotificationCenter.default.addObserver(
             forName: .GCControllerDidConnect,
             object: nil,
             queue: .main
         ) { [weak self] _ in
             self?.refreshControllers()
-        }
+        })
 
-        NotificationCenter.default.addObserver(
+        controllerObservers.append(NotificationCenter.default.addObserver(
             forName: .GCControllerDidDisconnect,
             object: nil,
             queue: .main
@@ -285,10 +286,17 @@ public class GameControllerNode: Node
                 self?.currentController = nil
             }
             self?.refreshControllers()
-        }
+        })
 
         // Start wireless controller discovery
         GCController.startWirelessControllerDiscovery { }
+    }
+
+    // Block-based observers are removed by their tokens; removeObserver(self) does not reach them.
+    private func removeNotifications()
+    {
+        controllerObservers.forEach(NotificationCenter.default.removeObserver)
+        controllerObservers.removeAll()
     }
 
     fileprivate func refreshControllers()
@@ -313,12 +321,17 @@ public class GameControllerNode: Node
         }
     }
 
-    private func setupController()
+    /// Removes the handlers from the controller, which outlives this node.
+    private func detachController()
     {
-        // Remove handlers from old controller
         currentController?.extendedGamepad?.valueChangedHandler = nil
         currentController?.microGamepad?.valueChangedHandler = nil
         currentController = nil
+    }
+
+    private func setupController()
+    {
+        detachController()
 
         axisValues.removeAll()
         buttonValues.removeAll()
