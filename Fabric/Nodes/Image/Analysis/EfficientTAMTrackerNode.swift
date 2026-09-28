@@ -324,7 +324,7 @@ public final class EfficientTAMTrackerNode: Node
         }
 
         let synchronousCommandBuffer: MPSCommandBuffer?
-        let targetBuffer: MTLCommandBuffer
+        let targetBuffer: MPSCommandBuffer
         if synchronous
         {
             guard let dedicated = self.context.commandQueue.makeCommandBuffer() else
@@ -337,8 +337,12 @@ public final class EfficientTAMTrackerNode: Node
         }
         else
         {
+            guard let frameCommandBuffer = commandBuffer as? MPSCommandBuffer else
+            {
+                throw FabricError(.execution(.gpu), severity: .recoverable, message: "EfficientTAM requires Fabric's per-frame MPSCommandBuffer")
+            }
             synchronousCommandBuffer = nil
-            targetBuffer = commandBuffer
+            targetBuffer = frameCommandBuffer
         }
 
         guard let modelInput = self.context.device.makeBuffer(
@@ -367,13 +371,12 @@ public final class EfficientTAMTrackerNode: Node
                     EfficientTAMPrompt(x: modelPoint.x, y: modelPoint.y, label: .positivePoint),
                     EfficientTAMPrompt(x: 0, y: 0, label: .padding),
                 ],
-                commandBuffer: targetBuffer,
-                commit: false
+                commandBuffer: targetBuffer
             )
         }
         else
         {
-            trackingOutput = try tracker.encodeNextFrame(inputBuffer: modelInput, commandBuffer: targetBuffer, commit: false)
+            trackingOutput = try tracker.encodeNextFrame(inputBuffer: modelInput, commandBuffer: targetBuffer)
         }
         guard let trackingOutput else { return false }
 

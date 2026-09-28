@@ -7,6 +7,7 @@
 
 import Foundation
 import Metal
+import MetalPerformanceShaders
 import Satin
 import simd
 import QuartzCore
@@ -103,9 +104,10 @@ public final class GraphExportRenderer {
         self.renderPassDescriptor.renderTargetWidth = self.size.width
         self.renderPassDescriptor.renderTargetHeight = self.size.height
 
-        guard let commandBuffer = self.graphRenderer.commandQueue.makeCommandBuffer() else {
+        guard let rawCommandBuffer = self.graphRenderer.commandQueue.makeCommandBuffer() else {
             throw GraphExportRendererError.commandBufferCreationFailed
         }
+        let commandBuffer = MPSCommandBuffer(commandBuffer: rawCommandBuffer)
         
         try self.graphRenderer.executeAndDraw(graph: self.graph,
                                               executionInfo: executionInfo,

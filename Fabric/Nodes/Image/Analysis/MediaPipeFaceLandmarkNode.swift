@@ -5,6 +5,7 @@
 
 import Foundation
 import Metal
+import MetalPerformanceShaders
 import Satin
 import SwiftUI
 import QuartzCore
@@ -476,14 +477,13 @@ public class MediaPipeFaceLandmarkNode: Node
         return buffers
     }
 
-    /// Encodes crop-and-normalize AND MPSGraph inference, one after the
-    /// other, onto either Fabric's shared `commandBuffer` (async) or a
-    /// dedicated one this call owns exclusively (synchronous) -- the same
-    /// two encode() calls either way, never committed by this node when
-    /// sharing Fabric's buffer (its owner, the render loop, commits it once
-    /// at the end of the frame), committed and waited on immediately by
-    /// this call when `synchronous` is true (always true inside an
-    /// Iterator -- see execute()'s insideIterator comment). Silently drops
+    /// Async: encodes crop-and-normalize AND MPSGraph inference onto Fabric's
+    /// shared `commandBuffer`, never committed by this node (its owner, the
+    /// render loop, commits it once at the end of the frame). Synchronous:
+    /// encodes the crop onto a dedicated buffer this call commits without
+    /// waiting, then calls the model's `run()`, which waits once on its own
+    /// buffer on the same queue. `synchronous` is always true inside an
+    /// Iterator -- see execute()'s insideIterator comment. Silently drops
     /// the cycle (never updates lastLandmarks) if all maxFramesInFlight
     /// inference slots are already busy, matching MediaPipeMPSGraph
     /// .encode()'s and MediaPipeCropPreprocessor's own no-backlog semantics.
@@ -523,56 +523,54 @@ public class MediaPipeFaceLandmarkNode: Node
             commandBuffer: targetBuffer
         )
 
-        guard try model.encode(inputBuffer: inputBuffer, outputBuffers: outputBuffers, commandBuffer: targetBuffer, commit: synchronous) else
-        {
-            return
-        }
-
         // Captures no `self` -- safe to call from inside a [weak self]
         // completion handler without accidentally keeping this node alive
         // via the closure.
-        func projectedLandmarks() -> [simd_float3]
+        func projectedLandmarks(_ outputs: [[Float]]) -> [simd_float3]
         {
-            let outputs = outputBuffers.map { buffer -> [Float] in
-                let count = buffer.length / MemoryLayout<Float>.stride
-                return Array(UnsafeBufferPointer(start: buffer.contents().assumingMemoryBound(to: Float.self), count: count))
-            }
             return Self.projectLandmarks(outputs: outputs, center: center, size: size, rotation: rotation)
         }
 
         if synchronous
         {
-            // model.encode() above already committed targetBuffer itself
-            // (commit: synchronous) -- never call .commit() again on the
-            // raw buffer here; see encode()'s doc comment for why (it
-            // crashed exactly this way for MediaPipeFaceDetectionNode).
-            targetBuffer.waitUntilCompleted()
-            if let error = targetBuffer.error
+            // The crop's dedicated buffer is committed without a wait;
+            // run() encodes onto its own buffer on the same queue, so the
+            // GPU runs inference after the crop, and run() waits once.
+            targetBuffer.commit()
+            let outputs = try model.run(inputBuffer: inputBuffer)
+            MediaPipeInferenceTimingLogger.log(nodeName: Self.name, elapsed: Date().timeIntervalSince(startTime))
+            self.lastLandmarks = projectedLandmarks(outputs)
+            self.lastRegion = region
+            return
+        }
+
+        guard let frameCommandBuffer = targetBuffer as? MPSCommandBuffer else
+        {
+            throw FabricError(.execution(.gpu), severity: .recoverable, message: "MediaPipe face landmarks requires Fabric's per-frame MPSCommandBuffer")
+        }
+        guard try model.encode(inputBuffer: inputBuffer, outputBuffers: outputBuffers, commandBuffer: frameCommandBuffer) else
+        {
+            return
+        }
+
+        // Keeps `image` (and its texture) out of GraphRendererTextureCache's
+        // recycle pool until the GPU work reading it is verified done, not
+        // just encoded.
+        frameCommandBuffer.addCompletedHandler { [weak self, image, model, preprocessor, inputBuffer] finishedBuffer in
+            withExtendedLifetime((image, model, preprocessor, inputBuffer)) {}
+            guard let self else { return }
+            if let error = finishedBuffer.error
             {
                 print("MediaPipeFaceLandmarkNode: landmark detection failed: \(error)")
                 return
             }
-            MediaPipeInferenceTimingLogger.log(nodeName: Self.name, elapsed: Date().timeIntervalSince(startTime))
-            self.lastLandmarks = projectedLandmarks()
-            self.lastRegion = region
-        }
-        else
-        {
-            // Keeps `image` (and its texture) out of GraphRendererTextureCache's
-            // recycle pool until the GPU work reading it is verified done, not
-            // just encoded.
-            targetBuffer.addCompletedHandler { [weak self, image, model, preprocessor, inputBuffer] finishedBuffer in
-                withExtendedLifetime((image, model, preprocessor, inputBuffer)) {}
-                guard let self else { return }
-                if let error = finishedBuffer.error
-                {
-                    print("MediaPipeFaceLandmarkNode: landmark detection failed: \(error)")
-                    return
-                }
-                MediaPipeInferenceTimingLogger.log(nodeName: Self.name, elapsed: Date().timeIntervalSince(startTime))
-                self.lastLandmarks = projectedLandmarks()
-                self.lastRegion = region
+            let outputs = outputBuffers.map { buffer -> [Float] in
+                let count = buffer.length / MemoryLayout<Float>.stride
+                return Array(UnsafeBufferPointer(start: buffer.contents().assumingMemoryBound(to: Float.self), count: count))
             }
+            MediaPipeInferenceTimingLogger.log(nodeName: Self.name, elapsed: Date().timeIntervalSince(startTime))
+            self.lastLandmarks = projectedLandmarks(outputs)
+            self.lastRegion = region
         }
     }
 

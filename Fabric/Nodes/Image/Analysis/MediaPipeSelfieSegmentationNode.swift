@@ -5,6 +5,7 @@
 
 import Foundation
 import Metal
+import MetalPerformanceShaders
 import Satin
 import simd
 import MPSMediaPipe
@@ -216,7 +217,11 @@ public class MediaPipeSelfieSegmentationNode: Node
         // downstream nodes keep whatever was last sent) instead of blocking if
         // all in-flight slots are already busy -- matches ZipDepthNode and every
         // other MediaPipe node's own no-backlog semantics.
-        guard try model.encode(inputBuffer: cropBuffer, outputBuffers: [maskOutputBuffer], commandBuffer: commandBuffer, commit: false) else
+        guard let frameCommandBuffer = commandBuffer as? MPSCommandBuffer else
+        {
+            throw FabricError(.execution(.gpu), severity: .recoverable, message: "MediaPipe Selfie Segmentation requires Fabric's per-frame MPSCommandBuffer")
+        }
+        guard try model.encode(inputBuffer: cropBuffer, outputBuffers: [maskOutputBuffer], commandBuffer: frameCommandBuffer) else
         {
             return
         }

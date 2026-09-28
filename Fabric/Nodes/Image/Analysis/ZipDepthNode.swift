@@ -1,4 +1,5 @@
 import Metal
+import MetalPerformanceShaders
 import MPSZipDepth
 import Satin
 import SwiftUI
@@ -209,15 +210,12 @@ public final class ZipDepthNode: Node
         outputImage.texture.label = "Zip Depth Relative Depth (\(modelSize.width)×\(modelSize.height))"
 
         // Preprocess, model inference, and the output blit are all encoded
-        // onto Fabric's shared per-frame `commandBuffer` -- no second
-        // command buffer. Neither the crop kernel nor model.encode() ever
-        // commits anything (MPSGraphExecutable.encode(to:) doesn't commit on
-        // its own -- that's always an explicit, caller-owned decision), so
-        // all three steps just sit encoded here, in order, like any other
-        // node's work, until whoever owns `commandBuffer` (Fabric's render
-        // loop) commits it at the end of the frame. That ordering is also
-        // what makes the blit below safe to read modelOutputBuffer with no
-        // CPU wait: everything on one buffer executes in encode order.
+        // through Fabric's shared per-frame MPSCommandBuffer. MPSGraph may
+        // call commitAndContinue() while encoding the executable, so the
+        // persistent wrapper created by GraphRenderer -- rather than a
+        // temporary wrapper around its raw root buffer -- must flow through
+        // this entire sequence. The wrapper follows any replacement root and
+        // preserves encode order without a CPU wait.
         commandBuffer.pushDebugGroup("Zip Depth \(modelSize.width)×\(modelSize.height)")
         defer { commandBuffer.popDebugGroup() }
 
@@ -234,11 +232,18 @@ public final class ZipDepthNode: Node
         // so downstream nodes keep whatever was last sent) instead of blocking
         // if all maxFramesInFlight slots are already in flight on the GPU --
         // matches every MediaPipe node's own no-backlog semantics.
+        guard let frameCommandBuffer = commandBuffer as? MPSCommandBuffer else
+        {
+            throw FabricError(
+                .execution(.gpu),
+                severity: .recoverable,
+                message: "Zip Depth requires Fabric's per-frame MPSCommandBuffer"
+            )
+        }
         guard try model.encode(
             inputBuffer: modelInputBuffer,
             outputBuffer: modelOutputBuffer,
-            commandBuffer: commandBuffer,
-            commit: false
+            commandBuffer: frameCommandBuffer
         ) else
         {
             return
@@ -275,8 +280,9 @@ public final class ZipDepthNode: Node
         )
         blitEncoder.endEncoding()
 
-        // `commandBuffer` is Fabric's shared per-frame buffer -- this node
-        // never waits on it, so it's still in flight when execute() returns.
+        // `commandBuffer` is Fabric's shared per-frame MPS wrapper -- this
+        // node never waits on it, so its current root remains in flight when
+        // execute() returns.
         // GraphRendererTextureCache recycles a managed FabricImage's texture
         // the instant its last Swift reference drops, with no regard for
         // whether the GPU is still using it, so inputImage/outputImage need

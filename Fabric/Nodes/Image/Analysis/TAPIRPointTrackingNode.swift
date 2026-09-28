@@ -301,7 +301,7 @@ public final class TAPIRPointTrackingNode: Node
         {
             throw FabricError(.execution(.gpu), severity: .recoverable, message: "TAPIR model is unavailable")
         }
-        guard commandBuffer is MPSCommandBuffer else
+        guard let frameCommandBuffer = commandBuffer as? MPSCommandBuffer else
         {
             throw FabricError(.execution(.gpu), severity: .recoverable, message: "TAPIR requires Fabric's shared MPSCommandBuffer")
         }
@@ -340,8 +340,7 @@ public final class TAPIRPointTrackingNode: Node
             resetValueBuffer: resetBuffer,
             state: currentState,
             output: output,
-            commandBuffer: commandBuffer,
-            commit: false
+            commandBuffer: frameCommandBuffer
         )
         self.currentState = output.state
 
