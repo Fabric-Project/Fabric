@@ -14,6 +14,7 @@ import IOKit
 import IOKit.hid
 import Satin
 import simd
+import Synchronization
 
 // MARK: - HID Device Info
 
@@ -239,8 +240,18 @@ class HIDManager
 
     deinit
     {
+        // Every callback holds an unretained pointer to self, so each is
+        // unregistered before self is gone; closing alone does not do that.
+        for device in connectedDevices.values
+        {
+            IOHIDDeviceRegisterInputValueCallback(device, nil, nil)
+        }
+
         if let manager = manager
         {
+            IOHIDManagerRegisterDeviceMatchingCallback(manager, nil, nil)
+            IOHIDManagerRegisterDeviceRemovalCallback(manager, nil, nil)
+            IOHIDManagerUnscheduleFromRunLoop(manager, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
             IOHIDManagerClose(manager, IOOptionBits(kIOHIDOptionsTypeNone))
         }
     }
@@ -619,7 +630,8 @@ public class HIDNode: Node
     fileprivate var availableDevices: [HIDDeviceInfo] = []
     fileprivate var deviceElements: [HIDElementInfo] = []
 
-    private var latestValues: [String: Int] = [:]
+    // Written on the main run loop, read by execute on the render thread.
+    private let latestValues = Mutex<[String: Int]>([:])
 
     // MARK: - Settings View
 
@@ -675,11 +687,11 @@ public class HIDNode: Node
     public override func disableExecution(renderer:GraphRenderer)
     throws
     {
-        if let deviceID = selectedDeviceID
-        {
-            hidManager?.stopMonitoring(deviceID: deviceID)
-        }
+        // Its callbacks run on the main run loop, so it is freed there, never
+        // mid-callback; its deinit unregisters them.
+        let releasedManager = hidManager
         hidManager = nil
+        DispatchQueue.main.async { withExtendedLifetime(releasedManager) {} }
         try super.disableExecution(renderer: renderer)
     }
 
@@ -723,7 +735,7 @@ public class HIDNode: Node
     {
         guard deviceID == selectedDeviceID else { return }
 
-        latestValues[element.id] = value
+        latestValues.withLock { $0[element.id] = value }
         self.markDirty()
     }
 
@@ -735,10 +747,12 @@ public class HIDNode: Node
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
+        let currentValues = latestValues.withLock { $0 }
+
         for element in deviceElements
         {
             guard let portName = portNameForElement(element),
-                  let value = latestValues[element.id] else { continue }
+                  let value = currentValues[element.id] else { continue }
 
             if element.isButton
             {
