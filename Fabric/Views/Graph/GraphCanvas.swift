@@ -17,6 +17,8 @@ public struct GraphCanvas : View
     let canvasSize: CGSize
     let connectionsHitTestingEnabled: Bool
 
+    @Environment(\.centerGraphCanvas) private var centerGraphCanvas
+
     public init(editingContext: GraphCanvasContext,
                 focus: FocusState<FabricEditorFocusTarget?>.Binding,
                 canvasSize: CGSize,
@@ -43,8 +45,9 @@ public struct GraphCanvas : View
     {
         ZStack
         {
-            GraphBackground()
-                .offset(-canvasSize / 2)
+            // Preserve the canvas's flexible layout and empty-space hit region;
+            // the zoom modifier draws the repeating background outside its scale.
+            Color.clear
 
             GraphNotesView(editingContext: editingContext,
                            focus: focus)
@@ -259,16 +262,16 @@ public struct GraphCanvas : View
         switch keyPress.key
         {
         case .upArrow:
-            self.editingContext.currentGraph.selectNextNode(inDirection: .Up, expandSelection: keyPress.modifiers.contains(.shift))
+            self.selectAndCenterNode(inDirection: .Up, expandSelection: keyPress.modifiers.contains(.shift))
 
         case .downArrow:
-            self.editingContext.currentGraph.selectNextNode(inDirection: .Down, expandSelection: keyPress.modifiers.contains(.shift))
+            self.selectAndCenterNode(inDirection: .Down, expandSelection: keyPress.modifiers.contains(.shift))
 
         case .leftArrow:
-            self.editingContext.currentGraph.selectNextNode(inDirection: .Left, expandSelection: keyPress.modifiers.contains(.shift))
+            self.selectAndCenterNode(inDirection: .Left, expandSelection: keyPress.modifiers.contains(.shift))
 
         case .rightArrow:
-            self.editingContext.currentGraph.selectNextNode(inDirection: .Right, expandSelection: keyPress.modifiers.contains(.shift))
+            self.selectAndCenterNode(inDirection: .Right, expandSelection: keyPress.modifiers.contains(.shift))
 
         case .escape:
             self.editingContext.currentGraph.deselectAllNodes()
@@ -282,5 +285,20 @@ public struct GraphCanvas : View
         }
 
         return .handled
+    }
+
+    private func selectAndCenterNode(inDirection direction: Graph.NodeSelectionDirection, expandSelection: Bool)
+    {
+        let graph = editingContext.currentGraph
+        graph.selectNextNode(inDirection: direction, expandSelection: expandSelection)
+
+        let selectedNodes = graph.selectedNodes
+        // Selection order is not node-array order, especially with Shift-arrow.
+        // Ignore a stale lastNode after deletion or deselection.
+        let selectedNode = selectedNodes.first { $0.id == graph.lastNode?.id }
+            ?? (selectedNodes.count == 1 ? selectedNodes.first : nil)
+        guard let selectedNode else { return }
+
+        centerGraphCanvas(graph.viewModel(for: selectedNode).titleBarCenter)
     }
 }
