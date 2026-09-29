@@ -41,6 +41,15 @@ import Satin
 
     // MARK: - Layout (Observable here, authoritative on Node for Codable)
 
+    static let titleBarHeight: CGFloat = 30
+
+    /// Title-bar center in graph coordinates; node offsets locate the whole node's center.
+    var titleBarCenter: CGPoint
+    {
+        CGPoint(x: offset.width,
+                y: offset.height - nodeSize.height / 2 + Self.titleBarHeight / 2)
+    }
+
     public var offset: CGSize
     {
         get { _offset }

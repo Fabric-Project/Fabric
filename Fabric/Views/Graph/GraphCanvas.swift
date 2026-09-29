@@ -299,6 +299,6 @@ public struct GraphCanvas : View
             ?? (selectedNodes.count == 1 ? selectedNodes.first : nil)
         guard let selectedNode else { return }
 
-        centerGraphCanvas(CGPoint(x: selectedNode.offset.width, y: selectedNode.offset.height))
+        centerGraphCanvas(graph.viewModel(for: selectedNode).titleBarCenter)
     }
 }

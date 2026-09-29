@@ -25,7 +25,7 @@ struct NodeView : View
 
             Rectangle()
                 .fill( Color.black.gradient )
-                .frame(height: 30)
+                .frame(height: NodeViewModel.titleBarHeight)
 
             VStack(alignment: .leading, spacing: 10) {
                 NodeTitleView(nodeViewModel: nodeViewModel)
