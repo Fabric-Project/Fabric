@@ -51,6 +51,7 @@ struct RendererCameraSelectionTests
         graph.addNode(cameraNode)
 
         let renderer = GraphRenderer(context: context, graph: graph)
+        try renderer.startExecution()
         try execute(renderer, graph: graph)
 
         #expect(renderer.currentCamera === cameraNode.getObject())
@@ -67,6 +68,7 @@ struct RendererCameraSelectionTests
         subgraphNode.subGraph.addNode(cameraNode)
 
         let renderer = GraphRenderer(context: context, graph: graph)
+        try renderer.startExecution()
         try execute(renderer, graph: graph)
 
         #expect(renderer.currentCamera === cameraNode.getObject())
@@ -87,6 +89,7 @@ struct RendererCameraSelectionTests
         try #require(subgraphNode.nodeExecutionMode != .Consumer)
 
         let renderer = GraphRenderer(context: context, graph: graph)
+        try renderer.startExecution()
         try execute(renderer, graph: graph)
 
         #expect(renderer.currentCamera === cameraNode.getObject())
@@ -103,6 +106,7 @@ struct RendererCameraSelectionTests
         innerSubgraphNode.subGraph.addNode(cameraNode)
 
         let renderer = GraphRenderer(context: context, graph: outerGraph)
+        try renderer.startExecution()
         try execute(renderer, graph: outerGraph)
         try #require(renderer.currentCamera === cameraNode.getObject())
 
@@ -122,6 +126,7 @@ struct RendererCameraSelectionTests
         graph.addNode(cameraNode)
 
         let renderer = GraphRenderer(context: context, graph: graph)
+        try renderer.startExecution()
         try execute(renderer, graph: graph)
 
         #expect(renderer.currentCamera === cameraNode.getObject())

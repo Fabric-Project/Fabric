@@ -53,6 +53,7 @@ public class PointLightNode : ObjectNode<PointLight>
     throws
     {
         self.setupDefaultLight( )
+        try super.startExecution(renderer: renderer)
     }
     
     private func setupDefaultLight()

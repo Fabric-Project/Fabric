@@ -66,6 +66,7 @@ public class SpotLightNode : ObjectNode<SpotLight>
     throws
     {
         self.setupDefaultLight()
+        try super.startExecution(renderer: renderer)
     }
 
     private func setupDefaultLight()

@@ -49,6 +49,7 @@ public class ArrayFromRippledValueNode<Value : PortValueRepresentable & DefaultP
         self.history.removeAll()
         self.oldest = nil
         self.lastTime = nil
+        try super.startExecution(renderer: renderer)
     }
 
     public override func execute(renderer: GraphRenderer,

@@ -253,6 +253,7 @@ public class GameControllerNode: Node
                 selectedControllerID = matching.id
             }
         }
+        try super.enableExecution(renderer: renderer)
     }
 
     public override func disableExecution(renderer:GraphRenderer)
@@ -260,6 +261,7 @@ public class GameControllerNode: Node
     {
         NotificationCenter.default.removeObserver(self)
         currentController = nil
+        try super.disableExecution(renderer: renderer)
     }
 
     private func setupNotifications()

@@ -29,9 +29,9 @@ struct ConsolidatedNumericNodeTests
         graph.addNode(distance)
         publish(distance.outputDistance, in: graph)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         try harness.execute(graph, checkCommandBufferError: false)
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
 
         #expect(distance.outputDistance.value == 5)
     }
@@ -51,9 +51,9 @@ struct ConsolidatedNumericNodeTests
         graph.addNode(distance)
         publish(distance.outputDistances, in: graph)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         try harness.execute(graph, checkCommandBufferError: false)
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
 
         #expect(distance.outputDistances.value == [3, 4])
     }
@@ -73,9 +73,9 @@ struct ConsolidatedNumericNodeTests
         graph.addNode(resample)
         publish(outputArray, in: graph)
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         try harness.execute(graph, checkCommandBufferError: false)
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
 
         #expect(outputArray.value == [0, 5, 10])
     }

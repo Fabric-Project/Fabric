@@ -169,6 +169,7 @@ public class CameraProviderNode : Node
         {
             self.captureSession.startRunning()
         }
+        try super.startExecution(renderer: renderer)
     }
     
     override public func stopExecution(renderer:GraphRenderer) throws
@@ -177,6 +178,7 @@ public class CameraProviderNode : Node
         {
             self.captureSession.stopRunning()
         }
+        try super.stopExecution(renderer: renderer)
     }
   
     override public func execute(renderer:GraphRenderer,

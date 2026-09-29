@@ -244,10 +244,7 @@ public struct NodeRegisitryView: View {
                      let node = try nodeWrapper.initializeNode(context: self.graphRenderer.context)
                      
                      try self.editingContext.layoutNode(node)
-                     
-                     try node.enableExecution(renderer: self.graphRenderer)
-                     try node.startExecution(renderer: self.graphRenderer)
-                     
+
                      self.editingContext.currentGraph.addNode(node)
                  }
                  catch

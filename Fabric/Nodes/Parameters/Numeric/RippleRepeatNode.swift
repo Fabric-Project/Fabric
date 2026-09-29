@@ -52,6 +52,7 @@ public final class RippleRepeatNode: NumericTypeAgnosticNode
         history.removeAll()
         oldest = nil
         lastTime = nil
+        try super.startExecution(renderer: renderer)
     }
 
     override public func execute(renderer: GraphRenderer,

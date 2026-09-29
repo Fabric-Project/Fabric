@@ -89,12 +89,12 @@ struct CameraNodeTests
         guard let harness = GraphExecutionTestHarness(renderWidth: Self.width, renderHeight: Self.height) else { return }
 
         let free = makeGraph(context: harness.context)
-        try harness.renderer.startExecution(graph: free)
+        try harness.graphRenderer(for: free).startExecution()
         let withoutCamera = try #require(try draw(free, with: harness, from: 0), "The graph drew nothing")
 
         let authored = makeGraph(context: harness.context)
         authored.addNode(PerspectiveCameraNode(context: harness.context))
-        try harness.renderer.startExecution(graph: authored)
+        try harness.graphRenderer(for: authored).startExecution()
         let withCamera = try #require(try draw(authored, with: harness, from: 10), "The graph drew nothing")
 
         #expect(withCamera == withoutCamera,
@@ -107,7 +107,7 @@ struct CameraNodeTests
         guard let harness = GraphExecutionTestHarness(renderWidth: Self.width, renderHeight: Self.height) else { return }
 
         let graph = makeGraph(context: harness.context)
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         let before = try #require(try draw(graph, with: harness, from: 0), "The graph drew nothing")
 
         graph.addNode(PerspectiveCameraNode(context: harness.context))
@@ -129,7 +129,7 @@ struct CameraNodeTests
         let camera = PerspectiveCameraNode(context: harness.context)
         camera.inputPosition.value = simd_float3(0, 0, 10)
         graph.addNode(camera)
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
 
         let drawn = try #require(try draw(graph, with: harness, from: 0), "The graph drew nothing")
         #expect(drawn.width == drawn.height, "Subject drew \(drawn), which is not square")
@@ -143,14 +143,14 @@ struct CameraNodeTests
 
         let unscaled = makeGraph(context: harness.context)
         unscaled.addNode(OrthographicCameraNode(context: harness.context))
-        try harness.renderer.startExecution(graph: unscaled)
+        try harness.graphRenderer(for: unscaled).startExecution()
         let atOne = try #require(try draw(unscaled, with: harness, from: 0), "The graph drew nothing")
 
         let scaled = makeGraph(context: harness.context)
         let camera = OrthographicCameraNode(context: harness.context)
         camera.inputScale.value = simd_float3(2, 2, 1)
         scaled.addNode(camera)
-        try harness.renderer.startExecution(graph: scaled)
+        try harness.graphRenderer(for: scaled).startExecution()
         let atTwo = try #require(try draw(scaled, with: harness, from: 10), "The graph drew nothing")
 
         // Twice the view volume, so half the subject — and square either way.
@@ -169,7 +169,7 @@ struct CameraNodeTests
         let sitting = PerspectiveCameraNode(context: harness.context)
         sitting.inputPosition.value = simd_float3(0, 0, 3)
         graph.addNode(sitting)
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         let before = try #require(try draw(graph, with: harness, from: 0), "The graph drew nothing")
 
         let added = PerspectiveCameraNode(context: harness.context)
@@ -192,7 +192,7 @@ struct CameraNodeTests
         let sitting = PerspectiveCameraNode(context: harness.context)
         sitting.inputPosition.value = simd_float3(0, 0, 3)
         graph.addNode(sitting)
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         let underSitting = try #require(try draw(graph, with: harness, from: 0), "The graph drew nothing")
 
         let added = PerspectiveCameraNode(context: harness.context)
@@ -213,7 +213,7 @@ struct CameraNodeTests
         guard let harness = GraphExecutionTestHarness(renderWidth: Self.width, renderHeight: Self.height) else { return }
 
         let graph = makeGraph(context: harness.context)
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         let free = try #require(try draw(graph, with: harness, from: 0), "The graph drew nothing")
 
         let camera = PerspectiveCameraNode(context: harness.context)

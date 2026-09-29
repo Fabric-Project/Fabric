@@ -69,8 +69,13 @@ public final class GraphExportRenderer {
             scaleFactor: 1.0
         )
 
-        try self.graphRenderer.enableExecution(graph: self.graph)
-        try self.graphRenderer.startExecution(graph: self.graph)
+        // Starting enables each node first. A failed start never reaches finish(), so disable what did start.
+        do { try self.graphRenderer.startExecution() }
+        catch
+        {
+            try? self.graphRenderer.disableExecution()
+            throw error
+        }
 
         self.frameNumber = 0
         self.lastRenderedTime = nil
@@ -107,8 +112,7 @@ public final class GraphExportRenderer {
             throw GraphExportRendererError.commandBufferCreationFailed
         }
         
-        try self.graphRenderer.executeAndDraw(graph: self.graph,
-                                              executionInfo: executionInfo,
+        try self.graphRenderer.executeAndDraw(executionInfo: executionInfo,
                                               renderPassDescriptor: self.renderPassDescriptor,
                                               commandBuffer: commandBuffer)
 
@@ -136,9 +140,13 @@ public final class GraphExportRenderer {
     public func finish() throws {
         guard self.started else { return }
 
-        try self.graphRenderer.disableExecution(graph: self.graph)
-        try self.graphRenderer.stopExecution(graph: self.graph)
-        self.graphRenderer.teardown(graph: self.graph)
+        // Every phase runs even when an earlier one fails; the first failure is rethrown.
+        var capturedError: (any Error)?
+        do { try self.graphRenderer.stopExecution() }
+        catch { capturedError = error }
+        do { try self.graphRenderer.disableExecution() }
+        catch { if capturedError == nil { capturedError = error } }
+        self.graphRenderer.teardown()
 
         self.renderPassDescriptor.colorAttachments[0].texture = nil
         self.renderPassDescriptor.depthAttachment.texture = nil
@@ -148,6 +156,11 @@ public final class GraphExportRenderer {
         self.frameNumber = 0
         self.lastRenderedTime = nil
         self.started = false
+
+        if let capturedError
+        {
+            throw capturedError
+        }
     }
 
     private func makeExecutionInfo(

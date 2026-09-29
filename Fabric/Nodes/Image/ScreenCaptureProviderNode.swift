@@ -110,6 +110,7 @@ public class ScreenCaptureProviderNode: Node
     throws
     {
         self.stopStreamAndClear()
+        try super.stopExecution(renderer: renderer)
     }
     
 

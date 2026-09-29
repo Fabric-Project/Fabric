@@ -49,26 +49,8 @@ public class IteratorNode: SubgraphNode
         try super.init(from: decoder)
     }
     
-    override public func startExecution(renderer:GraphRenderer) throws
-    {
-        try renderer.startExecution(graph: self.subGraph)
-    }
-    
-    override public func stopExecution(renderer:GraphRenderer) throws
-    {
-        try renderer.stopExecution(graph: self.subGraph)
-    }
+    override var startsAllChildNodes: Bool { true }
 
-    override public func enableExecution(renderer:GraphRenderer) throws
-    {
-        try renderer.enableExecution(graph: self.subGraph)
-    }
-    
-    override public func disableExecution(renderer:GraphRenderer) throws
-    {
-        try renderer.disableExecution(graph: self.subGraph)
-    }
-    
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,

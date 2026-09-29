@@ -17,7 +17,7 @@ struct GraphRendererConfigurationTests
             stencilPixelFormat: .stencil8
         )
 
-        let renderer = GraphRenderer(context: context)
+        let renderer = GraphRenderer(context: context, graph: Graph(context: context))
         let clearColor = renderer.renderEncoder.clearColor
 
         #expect(clearColor.red == 0)
@@ -38,7 +38,7 @@ struct GraphRendererConfigurationTests
             stencilPixelFormat: .invalid
         )
 
-        let renderer = GraphRenderer(context: context)
+        let renderer = GraphRenderer(context: context, graph: Graph(context: context))
         try renderer.setup()
         defer { try? renderer.cleanup() }
 

@@ -113,6 +113,7 @@ public class NumberGeneratorNode : StrategyNode
     override public func startExecution(renderer: GraphRenderer) throws
     {
         self.resetGeneratorState()
+        try super.startExecution(renderer: renderer)
     }
 
     private func resetGeneratorState()

@@ -61,6 +61,7 @@ public class NumberLFONode : Node
 
     override public func startExecution(renderer: GraphRenderer) throws {
         self.phase = 0
+        try super.startExecution(renderer: renderer)
     }
 
     override public func execute(renderer: GraphRenderer,
