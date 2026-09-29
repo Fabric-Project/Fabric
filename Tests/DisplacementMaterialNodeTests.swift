@@ -75,7 +75,8 @@ struct DisplacementMaterialNodeTests {
                 let restoredParameter = try #require(restoredPort.parameter as? FloatParameter)
                 #expect(restoredParameter.value == originalParameter.value)
                 #expect(restoredParameter.id == restoredPort.id)
-                #expect(restored.material.get(restoredParameter.label, as: FloatParameter.self) === restoredParameter)
+                // Keyed by the port's name: publishing relabels the parameter to its published name.
+                #expect(restored.material.get(restoredPort.name, as: FloatParameter.self) === restoredParameter)
             }
         }
 

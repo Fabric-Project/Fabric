@@ -9,10 +9,10 @@
 using namespace metal;
 
 typedef struct {
-    float amount; // slider, 0.0, 2.0, 0.0
-    float minPointSize; // slider, 0.5, 128.0, 1.0
-    float maxPointSize; // slider, 0.5, 128.0, 1.0
-    float brightness; // slider, 0.0, 2.0, 1.0
+    float amount; // slider, 0.0, 2.0, 0.0, Amount
+    float minPointSize; // slider, 0.5, 128.0, 1.0, Min Point Size
+    float maxPointSize; // slider, 0.5, 128.0, 1.0, Max Point Size
+    float brightness; // slider, 0.0, 2.0, 1.0, Brightness
     float lumaVPosMix; // slider, 0.0, 1.0, 0.0, Luma vs RGB
     float4x4 displacementTextureTransform;
     float4x4 colorTextureTransform;
