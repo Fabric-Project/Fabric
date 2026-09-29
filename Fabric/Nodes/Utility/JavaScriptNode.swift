@@ -754,7 +754,10 @@ public final class JavaScriptNode: Node
                 self.removePort(existingPort)
             }
 
-            let replacement = definition.portType.makeFreshPort(name: definition.name, kind: expectedKind)
+            // An inlet the script declares is one the patcher can leave unwired,
+            // so it needs a value of its own to edit for the types that have one.
+            let replacement = definition.portType.makeFreshParameterPort(name: definition.name, kind: expectedKind)
+                ?? definition.portType.makeFreshPort(name: definition.name, kind: expectedKind)
             self.addDynamicPort(replacement, name: definition.name)
             for connectedPort in oldConnections where replacement.canConnect(to: connectedPort) {
                 if replacement.kind == .Outlet {

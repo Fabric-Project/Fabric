@@ -171,6 +171,28 @@ extension PortType
         }
     }
 
+    /// Creates a new port carrying an editable parameter of its own, or nil for
+    /// a type that has none to offer — the caller falls back to `makeFreshPort`.
+    /// Only an inlet gets one: an outlet's value is the node's to write.
+    ///
+    /// Which types can carry a parameter is `DefaultParameterProviding`'s to
+    /// say, save for Color. Color and Vector4 are both simd_float4, so the type
+    /// cannot tell them apart; the colorpicker control is what makes the port
+    /// read back as .Color (see `ParameterPort.portType`).
+    public func makeFreshParameterPort(name: String, kind: PortKind, description: String = "") -> Port?
+    {
+        guard kind == .Inlet else { return nil }
+
+        if case .Color = self
+        {
+            return ParameterPort(parameter: Float4Parameter(name, simd_float4(0, 0, 0, 1), .colorpicker, description))
+        }
+
+        guard let parameterProviding = self.type as? any DefaultParameterProviding.Type else { return nil }
+
+        return parameterProviding.makeDefaultParameterPort(name: name, description: description)
+    }
+
     public func makeFreshPort(name: String, kind: PortKind, description: String = "", id: UUID) -> Port
     {
         switch self
