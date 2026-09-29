@@ -25,95 +25,68 @@ public class DisplacementMaterialNode: BaseMaterialNode
             ("inputTexture", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Color texture to apply to displaced geometry")),
             ("inputDisplacementTexture", NodePort<FabricImage>(name: "Displacement Image", kind: .Inlet, description: "Grayscale image for vertex displacement")),
             ("inputPointSpriteTexture", NodePort<FabricImage>(name: "Point Sprite Image", kind: .Inlet, description: "Texture for point sprite rendering")),
-            ("inputAmount", ParameterPort(parameter:FloatParameter("Amount", 0.0, 0.0, 2.0, .slider, "Displacement strength multiplier"))),
-            ("inputLumaVsRGBAmount", ParameterPort(parameter:FloatParameter("Luma v RGB", 0.0, 0.0, 1.0, .slider, "Blend between luminance (0) and RGB (1) for displacement"))),
-            ("inputMinPointSize", ParameterPort(parameter:FloatParameter("Min PointSize", 1.0, 0.5, 128.0, .slider, "Minimum point sprite size in pixels"))),
-            ("inputMaxPointSize", ParameterPort(parameter:FloatParameter("Max PointSize", 1.0, 0.5, 128.0, .slider, "Maximum point sprite size in pixels"))),
-            ("inputBrightness", ParameterPort(parameter:FloatParameter("Brightness", 1.0, 0.0, 2.0, .slider, "Output brightness multiplier"))),
         ] + ports
     }
-
-    public var inputFilePathParam:ParameterPort<String>  { port(named: "inputFilePathParam") }
-    public var outputTexturePort:NodePort<FabricImage> { port(named: "outputTexturePort") }
 
     // Proxy Params
     public var inputTexture:NodePort<FabricImage> { port(named: "inputTexture") }
     public var inputDisplacementTexture:NodePort<FabricImage> { port(named: "inputDisplacementTexture") }
     public var inputPointSpriteTexture:NodePort<FabricImage> { port(named: "inputPointSpriteTexture") }
-    public var inputAmount:ParameterPort<Float> { port(named: "inputAmount") }
-    public var inputLumaVsRGBAmount:ParameterPort<Float> { port(named: "inputLumaVsRGBAmount") }
-    public var inputMinPointSize:ParameterPort<Float> { port(named: "inputMinPointSize") }
-    public var inputMaxPointSize:ParameterPort<Float> { port(named: "inputMaxPointSize") }
-    public var inputBrightness:ParameterPort<Float> { port(named: "inputBrightness") }
+    public var inputAmount:ParameterPort<Float> { port(named: "Amount") }
+    public var inputLumaVsRGBAmount:ParameterPort<Float> { port(named: "Luma Vs RGB") }
+    public var inputMinPointSize:ParameterPort<Float> { port(named: "Min Point Size") }
+    public var inputMaxPointSize:ParameterPort<Float> { port(named: "Max Point Size") }
+    public var inputBrightness:ParameterPort<Float> { port(named: "Brightness") }
     
     
     public override var material: DisplacementMaterial {
         return _material
     }
     
-    private var _material:DisplacementMaterial
-    
-//    private var depthStencilDescriptor:MTLDepthStencilDescriptor
-        
-   
-    required public init(context: Context)
-    {
-        // Bundle(for:) cannot see SPM package resources; Bundle.module owns them.
-        let shaderURL = Bundle.module.url(forResource: "DisplacementMaterial", withExtension: "metal", subdirectory: "Materials")
+    private let _material: DisplacementMaterial
 
-        self._material = DisplacementMaterial(context:context, pipelineURL: shaderURL!)
+    private static func makeMaterial(context: Context) -> DisplacementMaterial {
+        guard let shaderURL = Bundle.module.url(forResource: "DisplacementMaterial", withExtension: "metal", subdirectory: "Materials") else {
+            fatalError("Missing bundled DisplacementMaterial shader.")
+        }
 
-        super.init(context: context)
+        let material = DisplacementMaterial(context: context, pipelineURL: shaderURL)
+        // Populate the fixed shader parameters before ports are created or hydrated.
+        material.setupShader()
+        material.set("Displacement Texture Transform", matrix_identity_float4x4)
+        material.set("Color Texture Transform", matrix_identity_float4x4)
+        material.set("Point Sprite Texture Transform", matrix_identity_float4x4)
+        return material
     }
 
-    public required init(from decoder: any Decoder) throws
-    {
+    required public init(context: Context) {
+        self._material = Self.makeMaterial(context: context)
+        super.init(context: context)
+        self.addMaterialParameterPorts()
+    }
+
+    public required init(from decoder: any Decoder) throws {
         guard let context = decoder.context?.documentContext as? Context else { fatalError("Invalid Context") }
 
-        let shaderURL = Bundle.module.url(forResource: "DisplacementMaterial", withExtension: "metal", subdirectory: "Materials")
-
-        self._material = DisplacementMaterial(context:context, pipelineURL: shaderURL!)
-
+        self._material = Self.makeMaterial(context: context)
         try super.init(from: decoder)
+        self.addMaterialParameterPorts()
     }
-        
-    class private func setupDepthStencil() -> MTLDepthStencilDescriptor
-    {
-        let stencil = MTLStencilDescriptor()
-        stencil.stencilCompareFunction = .greaterEqual           // Pass if current count <= 4
-        stencil.stencilFailureOperation = .keep             // If stencil test fails
-        stencil.depthFailureOperation = .keep               // If depth test fails
-        stencil.depthStencilPassOperation = .incrementClamp // If both pass: increment
 
-        let depthStencil = MTLDepthStencilDescriptor()
-        depthStencil.frontFaceStencil = stencil
-        depthStencil.backFaceStencil = stencil
-        depthStencil.isDepthWriteEnabled = false            // Optional with blending
-        depthStencil.depthCompareFunction = .always
-
-        depthStencil.label = "DisplacementMaterialNode.depthStencil"
-        return depthStencil
-        
-//        let stencil = MTLStencilDescriptor()
-//        stencil.writeMask = 0xFF
-//        stencil.readMask = 0xFF
-//        stencil.stencilCompareFunction = .never
-//        stencil.stencilFailureOperation = .replace
-//        stencil.depthFailureOperation = .replace               // If depth test fails
-//        stencil.depthStencilPassOperation = .replace // If both pass: increment
-//
-//
-//        let depthStencil = MTLDepthStencilDescriptor()
-//        depthStencil.frontFaceStencil = stencil
-//        depthStencil.backFaceStencil = stencil
-//        depthStencil.isDepthWriteEnabled = false
-//        depthStencil.depthCompareFunction = .always
-//        depthStencil.label = "DisplacementMaterialNode.depthStencil"
-
-//        return depthStencil
+    private func addMaterialParameterPorts() {
+        // Only shader-authored controls become ports; texture transforms stay internal.
+        // The port wraps the material's parameter directly, including during hydration.
+        let inheritedPorts = self.ports.filter { $0.parameter != nil || $0.kind == .Outlet }
+        for parameter in self.material.parameters.params where parameter.controlType != .none {
+            if let port = PortType.portForType(from: parameter) {
+                self.addDynamicPort(port)
+            }
+        }
+        self.reorderPorts(self.ports.filter { port in
+            !inheritedPorts.contains(where: { $0.id == port.id })
+        } + inheritedPorts)
     }
-   
-    
+
     override public func evaluate(material: Material, atTime: TimeInterval) -> Bool
     {
         var shouldOutput = super.evaluate(material: material, atTime: atTime)
@@ -122,7 +95,7 @@ public class DisplacementMaterialNode: BaseMaterialNode
         {
             let displacementImage = self.inputDisplacementTexture.value ?? self.inputTexture.value
             self.material.set(displacementImage?.texture, index: VertexTextureIndex.Custom0)
-            self.material.set("displacementTextureTransform",
+            self.material.set("Displacement Texture Transform",
                               displacementImage?.textureTransform ?? matrix_identity_float4x4)
             shouldOutput = true
         }
@@ -131,7 +104,7 @@ public class DisplacementMaterialNode: BaseMaterialNode
         {
             let image = self.inputTexture.value
             self.material.set(image?.texture, index: FragmentTextureIndex.Custom0)
-            self.material.set("colorTextureTransform",
+            self.material.set("Color Texture Transform",
                               image?.textureTransform ?? matrix_identity_float4x4)
             shouldOutput = true
         }
@@ -140,43 +113,8 @@ public class DisplacementMaterialNode: BaseMaterialNode
         {
             let image = self.inputPointSpriteTexture.value
             self.material.set(image?.texture, index: FragmentTextureIndex.Custom1)
-            self.material.set("pointSpriteTextureTransform",
+            self.material.set("Point Sprite Texture Transform",
                               image?.textureTransform ?? matrix_identity_float4x4)
-            shouldOutput = true
-        }
-        
-        if self.inputAmount.valueDidChange,
-           let inputAmount = self.inputAmount.value
-        {
-            self.material.set("amount", inputAmount)
-            shouldOutput = true
-        }
-        
-        if self.inputLumaVsRGBAmount.valueDidChange,
-            let inputLumaVsRGBAmount = self.inputLumaVsRGBAmount.value
-        {
-            self.material.set("lumaVPosMix", inputLumaVsRGBAmount)
-            shouldOutput = true
-        }
-        
-        if self.inputMinPointSize.valueDidChange,
-           let inputMinPointSize = self.inputMinPointSize.value
-        {
-            self.material.set("minPointSize", inputMinPointSize)
-            shouldOutput = true
-        }
-        
-        if  self.inputMaxPointSize.valueDidChange,
-            let inputMaxPointSize = self.inputMaxPointSize.value
-        {
-            self.material.set("maxPointSize", inputMaxPointSize)
-            shouldOutput = true
-        }
-        
-        if self.inputBrightness.valueDidChange,
-           let inputBrightness = self.inputBrightness.value
-        {
-            self.material.set("brightness", inputBrightness)
             shouldOutput = true
         }
         

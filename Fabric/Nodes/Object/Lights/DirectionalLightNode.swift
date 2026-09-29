@@ -51,6 +51,7 @@ public class DirectionalLightNode : ObjectNode<DirectionalLight>
     throws
     {
         self.setupDefaultLight( )
+        try super.startExecution(renderer: renderer)
     }
     
     private func setupDefaultLight()

@@ -164,7 +164,7 @@ struct PortConnectionTests {
         graph.connect(source.outputNumber, to: x)
         y.value = 1
 
-        try harness.renderer.startExecution(graph: graph)
+        try harness.graphRenderer(for: graph).startExecution()
         try harness.execute(graph, frameNumber: 0, checkCommandBufferError: false)
         #expect(result.value == 5)
 
@@ -176,7 +176,7 @@ struct PortConnectionTests {
 
         try harness.execute(graph, frameNumber: 1, checkCommandBufferError: false)
         #expect(result.value == 14)
-        try harness.renderer.stopExecution(graph: graph)
+        try harness.graphRenderer(for: graph).stopExecution()
     }
 
     @Test("Graph encoding records required plugins and qualified node IDs")

@@ -18,6 +18,15 @@ public enum FabricErrorSeverity: Sendable, Codable, Equatable
     case fatal
 }
 
+extension Error
+{
+    /// Recoverable only when a FabricErrorProtocol says so; any other error is fatal.
+    var isRecoverable: Bool
+    {
+        (self as? any FabricErrorProtocol)?.severity == .recoverable
+    }
+}
+
 public struct FabricError: FabricErrorProtocol
 {
     public let severity: FabricErrorSeverity

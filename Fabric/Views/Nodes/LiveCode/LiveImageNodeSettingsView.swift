@@ -176,20 +176,26 @@ struct LiveImageNodeSettingsView: View
 
     var body: some View {
 
-        CodeEditor(text: self.$editorModel.content,
-                   position: self.$position,
-                   messages: self.$editorModel.messages,
-                   language: .metalShaderLanguage(),
-                   layout: CodeEditor.LayoutConfiguration(showMinimap: false, wrapText: true))
-        
+        VStack(alignment: .leading, spacing: 12) {
 
-        .environment(\.codeEditorTheme, Theme.vDark )
-        .onChange(of: self.editorModel.content) { _, _ in
-            self.editorModel.scheduleSave()
+            CodeEditorGuidance(
+                "Process an image using a Metal fragment shader. `postFragment` is the entry point, sampling `inputTexture` through `imageTransforms[0]`, and each field of `PostUniforms` becomes an input port — the trailing comment giving its control, range, default and name, as `float amount; // slider, 0.0, 1.0, 1.0, Amount`.",
+                guide: "[Metal Shading Language specification ↗](https://developer.apple.com/metal/Metal-Shading-Language-Specification.pdf)")
+
+            CodeEditor(text: self.$editorModel.content,
+                       position: self.$position,
+                       messages: self.$editorModel.messages,
+                       language: .metalShaderLanguage())
+            .codeEditorChrome()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .onChange(of: self.editorModel.content) { _, _ in
+                self.editorModel.scheduleSave()
+            }
+            .onDisappear {
+                self.editorModel.flush()
+            }
         }
-        .onDisappear {
-            self.editorModel.flush()
-        }
+        .padding(10)
     }
 
     private func diagnosticLineText(_ diagnostic: LiveImageNodeEditorModel.ShaderDiagnostic) -> String {
@@ -222,13 +228,3 @@ struct LiveImageNodeSettingsView: View
     }
 }
 
-
-extension Theme {
-    
-    public static var vDark: Theme {
-        var theme = Theme.defaultDark
-        theme.fontName = "SFMono-Medium"
-        theme.fontSize = 11.0
-        return theme
-    }
-}

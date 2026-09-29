@@ -409,8 +409,6 @@ public class AudioSpectrumNode : Node
     }
 
     override public func startExecution(renderer:GraphRenderer) throws {
-        try super.startExecution(renderer:renderer)
-
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
             case .authorized:
                 self.setupCaptureSession()
@@ -432,23 +430,24 @@ public class AudioSpectrumNode : Node
             @unknown default:
                 print("Restricted from Granting Mic Access")
         }
+        try super.startExecution(renderer: renderer)
     }
     
     override public func stopExecution(renderer:GraphRenderer) throws
     {
-        try super.stopExecution(renderer:renderer)
         if self.captureSession.isRunning
         {
             self.captureSession.stopRunning()
         }
+        try super.stopExecution(renderer: renderer)
     }
 
     override public func disableExecution(renderer:GraphRenderer) throws
     {
-        try super.disableExecution(renderer:renderer)
         if self.captureSession.isRunning{
             self.captureSession.stopRunning()
         }
+        try super.disableExecution(renderer: renderer)
     }
     
     override public func execute(renderer:GraphRenderer,

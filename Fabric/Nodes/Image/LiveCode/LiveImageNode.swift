@@ -44,6 +44,9 @@ public class LiveImageNode: BaseImageNode
     private var workspaceURL: URL?
     private var shaderFileURL: URL?
     private var workspaceError: (any Error)?
+    {
+        didSet { self.subtitleSubject.send() }
+    }
 
     /// Set for the duration of super.init(from:) — see init(from:).
     private var suppressesTemplateShaderPortSync = false
@@ -119,11 +122,30 @@ public class LiveImageNode: BaseImageNode
         do {
             // Use non-atomic writes to preserve inode/watcher continuity for live recompiles.
             try source.write(to: shaderFileURL, atomically: false, encoding: .utf8)
+            // A write that succeeds retires whatever the last one failed with.
+            // Nothing else clears this outside init, so without it one transient
+            // failure leaves the node refusing to run for the document's life.
+            self.workspaceError = nil
             self.recompileAndResyncPorts()
         }
         catch {
             self.workspaceError = error
         }
+    }
+
+    /// The two ways this node cannot run: nowhere to keep the shader, or a
+    /// shader that will not compile. Both are already known — neither is stored
+    /// for the sake of the glyph.
+    override public func deriveStatuses() -> [NodeStatus] {
+        if let workspaceError = self.workspaceError {
+            return [.error("Live Image workspace is unavailable: \(workspaceError.localizedDescription)")]
+        }
+
+        if let shaderError = self.currentShaderErrorDescription() {
+            return [.error(shaderError)]
+        }
+
+        return []
     }
 
     public func currentShaderErrorDescription() -> String? {
@@ -218,6 +240,9 @@ public class LiveImageNode: BaseImageNode
     }
 
     private func recompileAndResyncPorts() {
+        // Whether the shader compiled is the node's status, and it just changed.
+        defer { self.subtitleSubject.send() }
+
         if let sourceShader = self.postMaterial.shader as? SourceShader {
             sourceShader.reloadFromSource()
 

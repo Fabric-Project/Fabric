@@ -30,7 +30,6 @@ open class ObjectNode<ObjectType : Satin.Object> : BaseObjectNode
         return [
             ("inputVisible", ParameterPort(parameter:BoolParameter("Visible", true, .button, "When enabled, the object is rendered in the scene") ) ),
             ("inputRenderOrder", ParameterPort(parameter:IntParameter("Render Order", 0, .inputfield, "Draw order within the same render pass (lower = earlier)") ) ),
-            ("inputRenderPass", ParameterPort(parameter:IntParameter("Render Pass", 0, .inputfield, "Render pass index for multi-pass rendering") ) ),
 
             ("inputPosition", ParameterPort(parameter:Float3Parameter("Position", simd_float3(repeating:0), .inputfield, "Position in 3D space (X, Y, Z) in world units") ) ),
 
@@ -44,7 +43,6 @@ open class ObjectNode<ObjectType : Satin.Object> : BaseObjectNode
     // Port Proxy
     public var inputVisible:ParameterPort<Bool>    { port(named: "inputVisible") }
     public var inputRenderOrder:ParameterPort<Int>          { port(named: "inputRenderOrder") }
-    public var inputRenderPass:ParameterPort<Int>           { port(named: "inputRenderPass") }
     
     public var inputPosition:ParameterPort<simd_float3>          { port(named: "inputPosition") }
     public var inputScale:ParameterPort<simd_float3>          { port(named: "inputScale") }

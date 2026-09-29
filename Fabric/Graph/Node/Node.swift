@@ -12,6 +12,14 @@ import Combine
 import UniformTypeIdentifiers
 
 
+/// Runtime lifecycle of a GraphRenderer and of each Node it drives; never serialized with a graph.
+public enum ExecutionState {
+    case enabled
+    case started
+    case stopped
+    case disabled
+}
+
 open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDebugStringConvertible
 {
     // The name this node type is registered and listed under (each subclass
@@ -220,6 +228,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         }
 
         self.context = decodeContext.documentContext
+        self.graph = decodeContext.currentGraph
 
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -556,11 +565,19 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     // MARK: - Execution
 
-    open func startExecution(renderer:GraphRenderer) throws { }
-    open func stopExecution(renderer:GraphRenderer) throws { }
+    /// Overrides must call super after successful work. Stopped nodes remain enabled.
+    /// A throwing callback leaves the state at its last completed transition.
+    public private(set) var executionState: ExecutionState = .disabled
 
-    open func enableExecution(renderer:GraphRenderer) throws { }
-    open func disableExecution(renderer:GraphRenderer) throws { }
+    open func startExecution(renderer:GraphRenderer) throws { executionState = .started }
+    open func stopExecution(renderer:GraphRenderer) throws { executionState = .stopped }
+
+    open func enableExecution(renderer:GraphRenderer) throws {
+        executionState = .enabled
+    }
+    open func disableExecution(renderer:GraphRenderer) throws {
+        executionState = .disabled
+    }
 
     open func execute(renderer:GraphRenderer,
                       executionInfo:GraphExecutionInfo,
@@ -734,10 +751,15 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     }
 }
 
-/// Nodes that are constructed from a file (e.g. Metal shader effect nodes).
-/// Nodes that accept a user-dropped file via a file-path parameter port.
-/// Conformers declare which UTTypes they handle and receive the URL after
-/// normal construction via ``setFileURL(_:)``.
+/// Nodes that are constructed from a file (e.g. Metal shader effect nodes),
+/// or accept a user-dropped file via a file-path parameter port. Conformers
+/// declare which UTTypes they handle and receive the URL after normal
+/// construction via ``setFileURL(_:)``.
+///
+/// For conformers that expose a user-editable file-path parameter, decoding
+/// restores the saved reference but does not load it. Runtime assets load
+/// during execution, so a missing or invalid external file cannot prevent the
+/// node itself from deserializing.
 public protocol NodeFileLoadingProtocol : Node
 {
     init(context:Context, fileURL:URL) throws
@@ -748,6 +770,24 @@ public protocol NodeFileLoadingProtocol : Node
 
 public extension NodeFileLoadingProtocol
 {
+    /// Consume a picker URL during changed-input handling, outside parameter
+    /// publisher delivery. Connected inputs and unfinished text paths stay as-is;
+    /// the graph also normalizes file references when saving.
+    func normalizeFileReference(_ port: ParameterPort<String>)
+    {
+        guard port.connectedOutlets.isEmpty,
+              let directoryURL = self.graph?.fileReferenceBaseURL,
+              let reference = port.value, reference.hasPrefix("file://"),
+              let url = DocumentFileReference.resolve(reference, relativeTo: directoryURL)
+        else { return }
+
+        let relativeReference = DocumentFileReference.reference(for: url, relativeTo: directoryURL)
+        if reference != relativeReference
+        {
+            port.value = relativeReference
+        }
+    }
+
     /// A file that ships inside the package bundle is persisted by its path
     /// below the bundle's resource root, not its URL: the bundle sits somewhere
     /// different on every machine and in every build, so an absolute path would

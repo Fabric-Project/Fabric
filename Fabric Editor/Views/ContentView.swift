@@ -19,13 +19,11 @@ struct ContentView: View {
     }
     
     @Binding var document: FabricDocument
+    let documentURL: URL?
     @Environment(\.undoManager) private var undoManager
 
     @State private var canvasHitTestingEnabled = true
     
-    @GestureState private var magnifyBy = 1.0
-    @State private var finalMagnification = 1.0
-    @State private var magnifyAnchor: UnitPoint = .center
     @State private var radialGradientEndRadius: CGFloat = .zero
 
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
@@ -41,13 +39,12 @@ struct ContentView: View {
     // route and move focus. Never shadow it with plain @State.
     @FocusState private var focusTarget: FabricEditorFocusTarget?
 
-    init(document: Binding<FabricDocument>) {
+    init(document: Binding<FabricDocument>, documentURL: URL? = nil) {
         self._document = document
+        self.documentURL = documentURL
     }
 
     // Magic Numbers...
-    private let zoomMin = 0.25
-    private let zoomMax = 2.0
     private let canvasSize = 10000.0
     private let halfCanvasSize = 5000.0
     
@@ -101,7 +98,19 @@ struct ContentView: View {
                                         connectionsHitTestingEnabled: self.canvasHitTestingEnabled)
                                 .id("canvas")
                                 .frame(width: self.canvasSize, height: self.canvasSize)
-                                .scaleEffect(finalMagnification * magnifyBy, anchor: magnifyAnchor)
+                                .modifier(GraphCanvasZoomModifier(
+                                    canvasSize: CGSize(width: self.canvasSize, height: self.canvasSize),
+                                    commandZoomAnchor: {
+                                        // Read current metrics when invoked; scrolling doesn't
+                                        // need to invalidate the zoom modifier or menu actions.
+                                        let context = self.document.editingContext
+                                        return CGPoint(
+                                            x: context.currentScrollContentOffset.x + context.currentScrollContainerSize.width / 2,
+                                            y: context.currentScrollContentOffset.y + context.currentScrollContainerSize.height / 2
+                                        )
+                                    },
+                                    allowsContentHitTesting: self.canvasHitTestingEnabled
+                                ))
                                 .contextMenu(menuItems: {
                                     Button("New Note") {
                                         let currentGraph = self.document.editingContext.currentGraph
@@ -109,50 +118,6 @@ struct ContentView: View {
                                         currentGraph.addNote(note)
                                     }
                                 })
-                                .gesture(
-                                    MagnifyGesture()
-                                        .updating($magnifyBy, body: { value, state, _ in
-
-                                            self.canvasHitTestingEnabled = false
-                                            
-                                            let proposedScale = finalMagnification * value.magnification
-
-                                            guard (self.zoomMin ..< self.zoomMax).contains(proposedScale)
-                                            else
-                                            {
-                                                return
-                                            }
-
-                                            state = min(max(value.magnification, self.zoomMin), self.zoomMax)
-
-                                            let scale = proposedScale
-
-                                            let u = value.startAnchor.x
-                                            let v = value.startAnchor.y
-
-                                            let containerSize = self.document.editingContext.currentScrollContainerSize
-                                            let contentOffset = self.document.editingContext.currentScrollContentOffset
-
-                                            let visibleWidthInCanvas  = containerSize.width  / scale
-                                            let visibleHeightInCanvas = containerSize.height / scale
-
-                                            let offsetXInCanvas = contentOffset.x / scale
-                                            let offsetYInCanvas = contentOffset.y / scale
-
-                                            let canvasX = offsetXInCanvas + u * visibleWidthInCanvas
-                                            let canvasY = offsetYInCanvas + v * visibleHeightInCanvas
-
-                                            let newX = max(0, min(1, canvasX / (self.canvasSize / scale)))
-                                            let newY = max(0, min(1, canvasY / (self.canvasSize / scale)))
-
-                                            magnifyAnchor = UnitPoint(x: newX, y: newY)
-                                        })
-                                        .onEnded { value in
-                                            self.canvasHitTestingEnabled = true
-                                            finalMagnification = min(max(finalMagnification * value.magnification, self.zoomMin), self.zoomMax)
-                                        }
-                                )
-                                .allowsHitTesting(self.canvasHitTestingEnabled)
                                 .onAppear {
                                     self.document.editingContext.rootGraph.undoManager = undoManager
 
@@ -248,8 +213,12 @@ struct ContentView: View {
             .onAppear {
                 // AppKit window creation has to happen on the main thread
                 // once the scene is up; onAppear guarantees both.
+                self.document.updateDocumentURL(self.documentURL)
                 self.document.setupOutputPresentation()
                 self.outputPresenter = self.document.outputPresenter
+            }
+            .onChange(of: self.documentURL) { _, newDocumentURL in
+                self.document.updateDocumentURL(newDocumentURL)
             }
             .onDisappear {
                 self.outputPresenter = nil

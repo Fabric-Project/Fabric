@@ -163,7 +163,7 @@ public class InstancedMeshNode : BaseRenderableNode<InstancedMesh>
         mesh.renderOrder = self.inputRenderOrder.value ?? 0
         // TODO:
         mesh.renderLayer
-//        mesh.renderLayer = self.inputRenderPass.value ?? 0
+
         mesh.position = self.inputPosition.value ?? .zero
         mesh.scale = self.inputScale.value ?? simd_float3(repeating: 1)
 

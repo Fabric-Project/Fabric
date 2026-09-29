@@ -25,7 +25,9 @@ public class LUTProcessorNode : BaseImageNode
     public override class var defaultImageInputCountHint: Int? { 1 }
     public override class var fixedImageInputCount: Int? { 1 }
     
-    public override class var supportedContentTypes:[UTType] { [.data] }
+    public override class var supportedContentTypes: [UTType] {
+        [UTType(filenameExtension: "cube")].compactMap { $0 }
+    }
 
     // Ports
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
@@ -44,7 +46,7 @@ public class LUTProcessorNode : BaseImageNode
 
     override public func setFileURL(_ url: URL)
     {
-        self.inputFilePathParam.value = url.standardizedFileURL.absoluteString
+        self.inputFilePathParam.value = DocumentFileReference.reference(for: url, relativeTo: self.graph?.fileReferenceBaseURL)
     }
     
     public required init(context: Context, fileURL: URL) throws
@@ -70,8 +72,9 @@ public class LUTProcessorNode : BaseImageNode
 //        }
         
         try super.init(from:decoder)
-        
-        try self.loadLUTFromInputValue()
+
+        // External resource availability is runtime state. The hydrated port
+        // remains changed so the first execution attempts the load.
     }
     
     override public func execute(renderer:GraphRenderer,
@@ -82,6 +85,7 @@ public class LUTProcessorNode : BaseImageNode
     {
         if self.inputFilePathParam.valueDidChange
         {
+            self.normalizeFileReference(self.inputFilePathParam)
             try self.loadLUTFromInputValue()
         }
 
@@ -108,7 +112,8 @@ public class LUTProcessorNode : BaseImageNode
             return
         }
 
-        guard let url = URL(string: path) else
+        guard let url = self.graph?.resolveFileReference(path)
+            ?? DocumentFileReference.resolve(path, relativeTo: nil) else
         {
             self.url = nil
             self.texture = nil

@@ -69,6 +69,7 @@ public class HandPoseAnalysisNode: Node
         ] as? [CIContextOption : Any]
         
         self.ciContext = CIContext(mtlCommandQueue: self.context.commandQueue, options: options)
+        try super.startExecution(renderer: renderer)
     }
     
     public override func execute(renderer:GraphRenderer, executionInfo:GraphExecutionInfo, renderPassDescriptor: MTLRenderPassDescriptor, commandBuffer: MTLCommandBuffer)

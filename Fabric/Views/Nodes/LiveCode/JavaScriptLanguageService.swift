@@ -43,6 +43,17 @@ final class JavaScriptLanguageService: LanguageService
 
     private static let identifierCharacters = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_$"))
 
+    /// The types a signature declares ports with, offered so they can be picked
+    /// rather than remembered. Composed forms are the two TypeScript writes.
+    private static let typeEntries: [JavaScriptCompletionEntry] =
+        JavaScriptNodeSourceParser.scalarTypeLookup.keys.sorted().map { name in
+            .init(label: name,
+                  insertText: name,
+                  documentation: "Fabric port type. `\(name)[]` for an array, `Record<string, \(name)>` for a dictionary.",
+                  kind: .keyword,
+                  priority: 250)
+        }
+
     private static let keywordEntries: [JavaScriptCompletionEntry] = [
         .init(label: "function", insertText: "function", documentation: "Declare a JavaScript function.", kind: .keyword, priority: 300),
         .init(label: "return", insertText: "return", documentation: "Return a value from the current function.", kind: .keyword, priority: 300),
@@ -245,7 +256,7 @@ final class JavaScriptLanguageService: LanguageService
         let isReturnObjectContext = self.isInsideReturnObject(at: clampedLocation)
         let outputEntries = self.outputCompletionEntries(prioritizedForReturnObject: isReturnObjectContext)
         let inputEntries = self.inputCompletionEntries()
-        let entries = outputEntries + inputEntries + Self.builtinEntries + Self.keywordEntries
+        let entries = outputEntries + inputEntries + Self.builtinEntries + Self.keywordEntries + Self.typeEntries
 
         let selectedLabel: String?
         if isReturnObjectContext {

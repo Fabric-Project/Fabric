@@ -31,6 +31,7 @@ extension UTType {
 class FabricDocument: FileDocument
 {
     static var readableContentTypes: [UTType] { [.fabricDocument] }
+    static var writableContentTypes: [UTType] { [.fabricDocument] }
 
     @ObservationIgnored let context = Context(device: MTLCreateSystemDefaultDevice()!,
                                               sampleCount: 1,
@@ -38,6 +39,10 @@ class FabricDocument: FileDocument
                                               depthPixelFormat: .depth32Float,
                                               stencilPixelFormat: .stencil8,
                                               alphaOitEnabled: true)
+
+    // FileDocument's write configuration has no destination URL. Keep the
+    // exact snapshot until the scene reports the completed save's location.
+    private var lastWrittenGraph: (data: Data, baseURL: URL?)?
 
     //    let graph:Graph
     var graphName:String = "Untitled"
@@ -65,16 +70,12 @@ class FabricDocument: FileDocument
 
         // Spin toggle, published as 'Spin?'
         let spinNode = PassThroughNode<Bool>(context: self.context)
-        try? spinNode.enableExecution(renderer: self.renderer)
-        try? spinNode.startExecution(renderer: self.renderer)
         spinNode.input.published = true
         spinNode.input.publishedName = "Spin?"
         spinNode.input.value = true
 
         // Math expression: Amount * Speed, with 'Speed' published
         let mathNode = MathExpressionNode(context: self.context, expression: "Amount * Speed")
-        try? mathNode.enableExecution(renderer: self.renderer)
-        try? mathNode.startExecution(renderer: self.renderer)
 
         let speedPort = mathNode.findPort(named: "Speed", as: ParameterPort<Float>.self)!
         speedPort.published = true
@@ -82,14 +83,10 @@ class FabricDocument: FileDocument
 
         // Smooth the stepped speed into a ramp (springy, slightly bouncy)
         let smoothNode = NumberSmoothNode(context: self.context, strategy: SmoothFilterMode.spring)
-        try? smoothNode.enableExecution(renderer: self.renderer)
-        try? smoothNode.startExecution(renderer: self.renderer)
         smoothNode.findPort(named: "inputDamping", as: ParameterPort<Float>.self)!.value = 0.2
 
         // Rotation driver: integrates its input every frame
         let integralNode = NumberIntegralNode(context: self.context)
-        try? integralNode.enableExecution(renderer: self.renderer)
-        try? integralNode.startExecution(renderer: self.renderer)
 
 
         // Euler orientation (drives mesh rotation on X and Y). Defaults to
@@ -97,28 +94,18 @@ class FabricDocument: FileDocument
         // ports are dynamic (added by StrategyNode), hence findPort below
         // instead of typed accessor properties.
         let eulerNode = ComposeOrientationNode(context: self.context)
-        try? eulerNode.enableExecution(renderer: self.renderer)
-        try? eulerNode.startExecution(renderer: self.renderer)
 
         // Geometry, material, mesh
         let boxNode = BoxGeometryNode(context: self.context)
-        try? boxNode.enableExecution(renderer: self.renderer)
-        try? boxNode.startExecution(renderer: self.renderer)
 
         let materialNode = StandardMaterialNode(context: self.context)
-        try? materialNode.enableExecution(renderer: self.renderer)
-        try? materialNode.startExecution(renderer: self.renderer)
 
         let meshNode = MeshNode(context: self.context)
-        try? meshNode.enableExecution(renderer: self.renderer)
-        try? meshNode.startExecution(renderer: self.renderer)
 
         // Light. No camera: a graph renders through the camera node's own
         // defaults until one is added, so a camera here would only be the
         // camera any added one has to displace.
         let directionalLightNode = DirectionalLightNode(context: self.context)
-        try? directionalLightNode.enableExecution(renderer: self.renderer)
-        try? directionalLightNode.startExecution(renderer: self.renderer)
         directionalLightNode.inputPosition.value = SIMD3<Float>(1, 2, 5)
 
         // Ports can only register connections after their nodes belong to the graph.
@@ -159,7 +146,9 @@ class FabricDocument: FileDocument
     {
         print("Read Configuration Document Init")
 
-        guard let data = configuration.file.regularFileContents,
+        let data = configuration.file.regularFileContents
+
+        guard let data,
               let name = configuration.file.filename
         else
         {
@@ -202,6 +191,66 @@ class FabricDocument: FileDocument
         self.outputPresenter = OutputPresenter(ownerDocument: self, renderer: self.renderer)
         self.outputPresenter?.setWindowTitle(self.graphName)
         ActiveFabricDocumentStore.shared.activeDocument = self
+    }
+
+    /// SwiftUI supplies the destination through the scene after serialization.
+    /// Rebase the saved snapshot as well as the live graph on first save / Save As.
+    @MainActor
+    func updateDocumentURL(_ documentURL: URL?)
+    {
+        guard let documentURL else { return }
+        let directoryURL = documentURL.deletingLastPathComponent().standardizedFileURL
+        let graph = self.editingContext.rootGraph
+
+        if let writtenGraph = self.lastWrittenGraph,
+           writtenGraph.baseURL != directoryURL
+        {
+            do
+            {
+                let decoder = JSONDecoder()
+                decoder.context = DecoderContext(documentContext: self.context,
+                                                 fileReferenceBaseURL: writtenGraph.baseURL)
+                let savedGraph = try decoder.decode(Graph.self, from: writtenGraph.data)
+                savedGraph.rewriteFileReferences(relativeTo: directoryURL)
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.prettyPrinted]
+                let rebasedData = try encoder.encode(savedGraph)
+
+                // Coordinate the follow-up write and never overwrite contents
+                // that have changed since the snapshot SwiftUI just saved.
+                var coordinationError: NSError?
+                var writeError: Error?
+                NSFileCoordinator().coordinate(writingItemAt: documentURL,
+                                                options: .forReplacing,
+                                                error: &coordinationError) { coordinatedURL in
+                    do
+                    {
+                        guard try Data(contentsOf: coordinatedURL) == writtenGraph.data else
+                        {
+                            throw CocoaError(.fileWriteFileExists)
+                        }
+                        try rebasedData.write(to: coordinatedURL, options: .atomic)
+                    }
+                    catch { writeError = error }
+                }
+                if let error = coordinationError ?? writeError { throw error }
+            }
+            catch
+            {
+                self.presentAlert(title: "Could Not Update Saved File Paths",
+                                  message: "Save the document again to write its relative paths. \(error.localizedDescription)")
+            }
+
+            graph.rewriteFileReferences(relativeTo: directoryURL)
+        }
+        else
+        {
+            // Opening a graph installs its base without moving its references.
+            graph.updateFileReferenceBaseURL(directoryURL)
+        }
+
+        self.lastWrittenGraph = nil
+        self.graphName = documentURL.lastPathComponent
     }
 
     @MainActor
@@ -335,11 +384,15 @@ class FabricDocument: FileDocument
     
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper
     {
+        let graph = self.editingContext.rootGraph
+        graph.rewriteFileReferences(relativeTo: graph.fileReferenceBaseURL)
+
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted]
         
         let data = try encoder.encode(self.editingContext.rootGraph)
-        
+        self.lastWrittenGraph = (data, self.editingContext.rootGraph.fileReferenceBaseURL)
+
         return .init(regularFileWithContents: data)
     }
 

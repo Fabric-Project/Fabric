@@ -22,6 +22,8 @@ struct GraphNodesView: View
 
     @State private var initialOffsets: [UUID: CGSize] = [:]
     @State private var activeDragAnchor: UUID? = nil
+    @State private var constrainsDragToAxis = false
+    @State private var dragTranslation: CGSize = .zero
 
     var body: some View
     {
@@ -81,6 +83,15 @@ struct GraphNodesView: View
                     self.sychronizeSettingsFor(nodeViewModel: nodeViewModel, show: show)
                 }
         }
+#if os(macOS)
+        .onModifierKeysChanged(mask: .shift) { _, modifiers in
+            constrainsDragToAxis = modifiers.contains(.shift)
+            if activeDragAnchor != nil
+            {
+                applyDragTranslation(currentGraph: currentGraph)
+            }
+        }
+#endif
     }
 
     // MARK: - Drag Helpers
@@ -107,12 +118,32 @@ struct GraphNodesView: View
             currentGraph.selectedNodes.forEach { currentGraph.viewModel(for: $0).isDragging = true }
         }
 
-        let t = value.translation
+        dragTranslation = value.translation
+        applyDragTranslation(currentGraph: currentGraph)
+    }
+
+    private func applyDragTranslation(currentGraph: Graph)
+    {
+        var translation = dragTranslation
+        if constrainsDragToAxis
+        {
+            // Re-evaluate the dominant axis from the original drag position.
+            // Retain the full translation so releasing Shift restores free movement.
+            if abs(translation.width) >= abs(translation.height)
+            {
+                translation.height = 0
+            }
+            else
+            {
+                translation.width = 0
+            }
+        }
+
         for node in currentGraph.selectedNodes
         {
             let nodeViewModel = currentGraph.viewModel(for: node)
-            if let base = initialOffsets[node.id] {
-                nodeViewModel.offset = base + t
+            if let initialOffset = initialOffsets[node.id] {
+                nodeViewModel.offset = initialOffset + translation
             }
         }
     }
@@ -140,6 +171,7 @@ struct GraphNodesView: View
 
         selectedNodes.forEach { currentGraph.viewModel(for: $0).isDragging = false }
         self.activeDragAnchor = nil
+        self.dragTranslation = .zero
         self.initialOffsets.removeAll()
     }
 

@@ -49,6 +49,7 @@ public class NumberTriggerNode : Node
         self.state = 0
         self.triggerTime = 0
         self.hasEmitted = false
+        try super.startExecution(renderer: renderer)
     }
 
     override public func execute(renderer: GraphRenderer,

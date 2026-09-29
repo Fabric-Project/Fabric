@@ -126,6 +126,7 @@ public class NumberIndexGeneratorNode : StrategyNode
         self.previousSignal = nil
         self.hasEmitted = false
         self.resetSequence()
+        try super.startExecution(renderer: renderer)
     }
 
     private func resetSequence() {

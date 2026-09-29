@@ -58,7 +58,8 @@ public class DirectoryScannerNode: Node {
     }
 
     private func scanDirectory(path: String) throws {
-        guard let url = URL(string: path) else
+        guard let url = self.graph?.resolveFileReference(path, directoryHint: .isDirectory)
+            ?? DocumentFileReference.resolve(path, relativeTo: nil, directoryHint: .isDirectory) else
         {
             throw FabricError(.execution(.fileNotFound),
                               severity: .recoverable,

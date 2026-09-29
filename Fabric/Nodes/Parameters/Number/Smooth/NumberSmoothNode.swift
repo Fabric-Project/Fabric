@@ -149,6 +149,7 @@ public class NumberSmoothNode : StrategyNode
     override public func startExecution(renderer: GraphRenderer) throws
     {
         self.resetSmoothingState()
+        try super.startExecution(renderer: renderer)
     }
 
     private func resetSmoothingState()

@@ -17,6 +17,17 @@ struct GraphExecutionTestFailure: Error, CustomStringConvertible
     }
 }
 
+/// Collects what a renderer reports to its error delegate.
+final class RecordingErrorDelegate: ErrorRenderDelegate
+{
+    private(set) var reportedErrors: [any Error] = []
+
+    func renderer(_ renderer: Renderer, didFailWith error: any Error)
+    {
+        reportedErrors.append(error)
+    }
+}
+
 /// Shared Metal device/Context/GraphRenderer bring-up for the graph-execution test suites.
 ///
 /// Five suites previously each carried their own near-identical copy of this harness, and the
@@ -25,12 +36,14 @@ struct GraphExecutionTestFailure: Error, CustomStringConvertible
 /// ignored it, Dictionary Ports never committed a command buffer at all). This consolidates the
 /// setup while preserving each suite's original behavior via explicit parameters rather than
 /// papering over the differences.
-struct GraphExecutionTestHarness
+final class GraphExecutionTestHarness
 {
     let context: Context
+    /// For tests that execute a single node directly rather than a graph.
     let renderer: GraphRenderer
     let renderWidth: Int
     let renderHeight: Int
+    private var graphRenderers: [ObjectIdentifier: GraphRenderer] = [:]
 
     init?(renderWidth: Int = 320, renderHeight: Int = 180)
     {
@@ -43,13 +56,30 @@ struct GraphExecutionTestHarness
             depthPixelFormat: .depth32Float,
             stencilPixelFormat: .invalid
         )
-        self.renderer = GraphRenderer(context: self.context)
+        self.renderer = GraphRenderer(context: self.context, graph: Graph(context: self.context))
         self.renderWidth = renderWidth
         self.renderHeight = renderHeight
         self.renderer.resize(
             size: (width: Float(renderWidth), height: Float(renderHeight)),
             scaleFactor: 1.0
         )
+    }
+
+    /// The renderer that owns `graph`, sized to the harness. Created once per
+    /// graph and never started here: tests drive its lifecycle themselves.
+    func graphRenderer(for graph: Graph) -> GraphRenderer
+    {
+        if let graphRenderer = graphRenderers[ObjectIdentifier(graph)] {
+            return graphRenderer
+        }
+
+        let graphRenderer = GraphRenderer(context: context, graph: graph)
+        graphRenderer.resize(
+            size: (width: Float(renderWidth), height: Float(renderHeight)),
+            scaleFactor: 1.0
+        )
+        graphRenderers[ObjectIdentifier(graph)] = graphRenderer
+        return graphRenderer
     }
 
     // MARK: - Execution info
@@ -144,19 +174,20 @@ struct GraphExecutionTestHarness
         renderPassDescriptor.colorAttachments[0].loadAction = .clear
         renderPassDescriptor.colorAttachments[0].storeAction = .store
 
-        guard let commandBuffer = renderer.commandQueue.makeCommandBuffer() else {
+        let graphRenderer = self.graphRenderer(for: graph)
+
+        guard let commandBuffer = graphRenderer.commandQueue.makeCommandBuffer() else {
             throw GraphExecutionTestFailure("Failed to create command buffer")
         }
 
         if drawScene {
-            try renderer.executeAndDraw(
-                graph: graph,
+            try graphRenderer.executeAndDraw(
                 executionInfo: executionInfo,
                 renderPassDescriptor: renderPassDescriptor,
                 commandBuffer: commandBuffer
             )
         } else {
-            try renderer.execute(
+            try graphRenderer.execute(
                 graph: graph,
                 executionInfo: executionInfo,
                 renderPassDescriptor: renderPassDescriptor,

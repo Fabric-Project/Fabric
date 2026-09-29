@@ -28,8 +28,9 @@ let package = Package(
         .package(path: "../MPS-MediaPipe"),
         .package(path: "../MPS-TAPNextPlusPlus"),
 
-        // Standalone expression engine (backs the Math Expression node)
-        .package(url: "https://github.com/Fabric-Project/MathExpressionEngine", from: "1.1.0"),
+        // Standalone expression engine (backs the Math Expression node), and its
+        // editor support product (the language the code editor is configured with)
+        .package(url: "https://github.com/Fabric-Project/MathExpressionEngine", from: "1.2.0"),
 
         // External dependencies
         .package(url: "https://github.com/Flight-School/AnyCodable", from: "0.6.7"),
@@ -94,6 +95,7 @@ let package = Package(
                 .product(name: "SwiftSimplify", package: "SwiftSimplify"),
                 .product(name: "Textual", package: "textual"),
                 .product(name: "MathExpressionEngine", package: "MathExpressionEngine"),
+                .product(name: "MathExpressionEditorSupport", package: "MathExpressionEngine"),
                 .product(name: "OSCKit", package: "OSCKit"),
                 .product(name: "MIDIKit", package: "MIDIKit"),
                 .product(name: "CodeEditorView", package: "CodeEditorView"),
@@ -106,6 +108,9 @@ let package = Package(
                 "Nodes/Geometry/SuperShape/SuperShapeGenerator.mm",
                 "Nodes/Geometry/SuperShape/SuperShapeGenerator.h",
                 "Nodes/Deprecated",
+                // Read on GitHub, where the JavaScript node's settings link to
+                // it. Named here so it is not taken for an unhandled resource.
+                "Nodes/Utility/JavaScriptNodeGuidance.markdown",
                 "Nodes/Parameters/Number/Deprecated",
                 "module.modulemap",
                 "Fabric.h",
@@ -145,7 +150,10 @@ let package = Package(
         .testTarget(
             name: "FabricTests",
             dependencies: ["Fabric"],
-            path: "Tests"
+            path: "Tests",
+            swiftSettings: [
+                .define("FABRIC_SYPHON_ENABLED", .when(platforms: [.macOS])),
+            ]
         ),
 
     ],

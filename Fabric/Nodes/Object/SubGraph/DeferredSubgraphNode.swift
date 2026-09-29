@@ -94,7 +94,8 @@ public class DeferredSubgraphNode: SubgraphNode
     }
     
     private var rendererNeedsSetup = true
-    var graphRenderer:GraphRenderer
+    lazy var graphRenderer:GraphRenderer = self.makeGraphRenderer()
+    internal override var childGraphRenderer: GraphRenderer? { self.graphRenderer }
 
     public var deferredMRTEnabled: Bool = false
     {
@@ -107,29 +108,18 @@ public class DeferredSubgraphNode: SubgraphNode
 
     public required init(context: Context)
     {
-        self.graphRenderer = GraphRenderer(context: context)
-
         super.init(context: context)
         self.synchronizeDeferredConfiguration()
     }
 
     public override init(context: Context, subGraph: Graph)
     {
-        self.graphRenderer = GraphRenderer(context: context)
-
         super.init(context: context, subGraph: subGraph)
         self.synchronizeDeferredConfiguration()
     }
 
     public required init(from decoder: any Decoder) throws
     {
-        guard let decodeContext = decoder.context else
-        {
-            fatalError("Required Decode Context Not set")
-        }
-
-        self.graphRenderer = GraphRenderer(context: decodeContext.documentContext)
-
         try super.init(from: decoder)
 
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -204,8 +194,17 @@ public class DeferredSubgraphNode: SubgraphNode
 
     private func rebuildGraphRenderer()
     {
-        self.graphRenderer = GraphRenderer(context: self.makeRendererContext())
+        self.graphRenderer = self.makeGraphRenderer()
         self.rendererNeedsSetup = true
+
+        // The inner nodes keep running across the swap; the new renderer takes over their lifecycle.
+        do { try self.graphRenderer.transitionExecution(to: self.executionState) }
+        catch { print("Graph lifecycle: \(self): \(error)") }
+    }
+
+    private func makeGraphRenderer() -> GraphRenderer
+    {
+        GraphRenderer(context: self.makeRendererContext(), graph: self.subGraph)
     }
 
     private func makeRendererContext() -> Context
@@ -254,24 +253,9 @@ public class DeferredSubgraphNode: SubgraphNode
             self.setupRenderer()
         }
 
-        try self.graphRenderer.startExecution(graph: self.subGraph)
-    }
-    
-    override public func stopExecution(renderer:GraphRenderer) throws
-    {
-        try self.graphRenderer.stopExecution(graph: self.subGraph)
+        try super.startExecution(renderer: renderer)
     }
 
-    override public func enableExecution(renderer:GraphRenderer) throws
-    {
-        try self.graphRenderer.enableExecution(graph: self.subGraph)
-    }
-    
-    override public func disableExecution(renderer:GraphRenderer) throws
-    {
-        try self.graphRenderer.disableExecution(graph: self.subGraph)
-    }
-    
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
@@ -303,10 +287,19 @@ public class DeferredSubgraphNode: SubgraphNode
         let outputImage = try self.graphRenderer.newImage(withWidth: width, height: height)
         rpd1.colorAttachments[0].texture = outputImage.texture
 
-        try self.graphRenderer.executeAndDraw(graph: self.subGraph,
-                                              executionInfo: executionInfo,
-                                              renderPassDescriptor: rpd1,
-                                              commandBuffer: commandBuffer)
+        var recoverableError: (any Error)?
+        do
+        {
+            try self.graphRenderer.executeAndDraw(executionInfo: executionInfo,
+                                                  renderPassDescriptor: rpd1,
+                                                  commandBuffer: commandBuffer)
+        }
+        catch
+        {
+            // A recoverable failure still drew the image, so it is sent before the error is rethrown.
+            guard error.isRecoverable else { throw error }
+            recoverableError = error
+        }
 
         self.outputColorTexture.send(outputImage)
         
@@ -330,6 +323,11 @@ public class DeferredSubgraphNode: SubgraphNode
         
         // We need to call this to ensure any published port values also get forwarded.
         self.forwardPortValues(force:true)
+
+        if let recoverableError
+        {
+            throw recoverableError
+        }
     }
     
     override public func resize(size: (width: Float, height: Float), scaleFactor: Float)

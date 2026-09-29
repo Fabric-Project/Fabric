@@ -16,6 +16,7 @@ import Metal
 import SwiftUI
 import simd
 import MathExpressionEngine
+import MathExpressionEditorSupport
 import CodeEditorView
 import LanguageSupport
 
@@ -31,6 +32,7 @@ struct MathExpressionView: View
     // statements (a `;` or newline) or when explicitly expanded — so a one-liner
     // always opens simple and compact, and the mode needs no persistence.
     @State private var editorPosition = CodeEditor.Position()
+    @State private var languageService = MathExpressionLanguageService()
     @State private var editorMessages: Set<TextLocated<Message>> = []
 
     private var isMultiStatement: Bool
@@ -42,13 +44,9 @@ struct MathExpressionView: View
     {
         VStack(alignment: .leading, spacing: 8)
         {
-            Text("Write an expression — free names become input ports, results become output ports. Beyond numbers, values can be vectors, transforms or arrays, and a single expression can drive several named inputs and outputs at once.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Text("[Language guide ↗](https://github.com/tobyspark/MathExpressionEngine/blob/main/GUIDE.md)")
-                .font(.caption)
+            CodeEditorGuidance(
+                "Write an expression — free names become input ports, results become output ports. Beyond numbers, values can be vectors, transforms or arrays, and a single expression can drive several named inputs and outputs at once.",
+                guide: "[Language guide ↗](https://github.com/Fabric-Project/MathExpressionEngine/blob/main/GUIDE.md)")
 
             if model.showsCode { codeEditor } else { simpleField }
         }
@@ -93,7 +91,8 @@ struct MathExpressionView: View
         CodeEditor(text: $model.stringExpression,
                    position: $editorPosition,
                    messages: $editorMessages,
-                   layout: CodeEditor.LayoutConfiguration(showMinimap: false, wrapText: true))
+                   language: .mathExpressionLanguage(self.languageService))
+            .codeEditorChrome()
             .frame(maxWidth: .infinity, minHeight: 300)
             .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.secondary.opacity(0.4)))
 
@@ -413,6 +412,11 @@ public class MathExpressionNode: Node
 
     private func compileAndSync()
     {
+        // `needsEvaluation` only reaches the node once the renderer runs it, and
+        // a Processor that is not dirty is skipped. Nothing upstream of an edit
+        // moves, so the node asks for itself.
+        self.markDirty()
+
         let result = compile(self.stringExpression)
         self.compiled = result
 

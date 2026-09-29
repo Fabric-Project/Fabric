@@ -37,7 +37,7 @@ struct LUTProcessorNodeTests
         return url
     }
 
-    @Test("File initializer stores the LUT path and deserialization reloads it")
+    @Test("File initializer stores the LUT path and missing files do not prevent deserialization")
     func filePathSurvivesRoundTripAndReloads() throws
     {
         guard let context = makeContext() else { return }
@@ -55,18 +55,13 @@ struct LUTProcessorNodeTests
         let decodedNode = try decoder.decode(LUTProcessorNode.self, from: encodedNode)
 
         #expect(decodedNode.inputFilePathParam.value == lutURL.standardizedFileURL.absoluteString)
+        #expect(decodedNode.inputFilePathParam.valueDidChange)
         #expect(decodedNode.imageInputPorts().count == 1)
 
         try FileManager.default.removeItem(at: lutURL)
-
-        do
-        {
-            _ = try decoder.decode(LUTProcessorNode.self, from: encodedNode)
-            Issue.record("Deserialization should reload the saved LUT path")
-        }
-        catch
-        {
-            // The missing file proves decode attempted to reload the saved path.
-        }
+        let decodedMissingLUTNode = try decoder.decode(LUTProcessorNode.self, from: encodedNode)
+        #expect(decodedMissingLUTNode.inputFilePathParam.value == lutURL.standardizedFileURL.absoluteString)
+        #expect(decodedMissingLUTNode.inputFilePathParam.valueDidChange)
+        #expect(decodedMissingLUTNode.imageInputPorts().count == 1)
     }
 }

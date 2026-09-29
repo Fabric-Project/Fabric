@@ -28,7 +28,7 @@ struct FabricApp: App {
 
         DocumentGroup(newDocument: FabricDocument(withTemplate: true) ) { file in
             
-            ContentView(document: file.$document)
+            ContentView(document: file.$document, documentURL: file.fileURL)
                 .focusedSceneValue(\.document, file.$document)
 
         }
@@ -36,6 +36,7 @@ struct FabricApp: App {
             DocumentCommands()
 
             ViewCommands()
+            GraphCanvasZoomCommands()
 
             CommandGroup(after: .appInfo)
             {
@@ -146,6 +147,7 @@ struct DocumentCommands:Commands
                     self.activeDocument?.exportMovie()
                 }
                 .disabled(self.activeDocument == nil)
+
             }
         }
     }

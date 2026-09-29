@@ -13,7 +13,6 @@ import LanguageSupport
 @Observable final class JavaScriptNodeEditorModel
 {
     var content: String
-    var selectedExecutionMode: Node.ExecutionMode
     var selectedTimeMode: Node.TimeMode
     var messages: Set<TextLocated<Message>> = []
     let languageService: JavaScriptLanguageService
@@ -25,20 +24,20 @@ import LanguageSupport
     {
         self.node = node
         self.content = node.scriptSource
-        self.selectedExecutionMode = node.selectedExecutionMode
         self.selectedTimeMode = node.selectedTimeMode
         self.languageService = JavaScriptLanguageService()
         self.refreshMessages()
     }
 
-    var portPreview: [JavaScriptNodePortDefinition]
-    {
-        node?.portPreview ?? []
-    }
-
     var diagnostics: [JavaScriptNodeDiagnostic]
     {
         node?.currentDiagnostics ?? []
+    }
+
+    /// Read off the node, which reads it off the ports the script declares.
+    var executionMode: Node.ExecutionMode
+    {
+        node?.nodeExecutionMode ?? .Processor
     }
 
     func scheduleSave()
@@ -55,7 +54,17 @@ import LanguageSupport
     {
         guard let node else { return }
         node.updateScriptSource(self.content)
-        node.updateModes(executionMode: self.selectedExecutionMode, timeMode: self.selectedTimeMode)
+        node.updateTimeMode(self.selectedTimeMode)
+
+        // A script written in the annotated form is kept as the TypeScript it
+        // was read as. Taking that back is what puts the rewrite in front of the
+        // author; without it the editor still holds the annotated text and the
+        // next keystroke saves it over the node's canonical form again.
+        if node.scriptSource != self.content
+        {
+            self.content = node.scriptSource
+        }
+
         self.refreshMessages()
     }
 
@@ -87,12 +96,15 @@ struct JavaScriptNodeSettingsView: View
     {
         VStack(alignment: .leading, spacing: 12)
         {
+            CodeEditorGuidance(
+                "Process Fabric data using a JavaScript function. The node's ports are set from the typed signature, and the function must return an object keyed by those output names. Types: `Bool`, `Int`, `Number`, `String`, `Vector2`/`3`/`4`, `Color`, `Quaternion`, `Transform`, `Geometry`, `Material`, `Image`, with `Type[]` for an array and `Record<string, Type>` for a dictionary. `context` is in scope, carrying `time`, `deltaTime`, `displayTime`, `systemTime`, `frameNumber`, `iterationIndex` and `iterationCount`.",
+                guide: "[JavaScript node guide ↗](https://github.com/Fabric-Project/Fabric/blob/main/Fabric/Nodes/Utility/JavaScriptNodeGuidance.markdown)")
+
             HStack
             {
-                Picker("Execution", selection: self.$editorModel.selectedExecutionMode) {
-                    Text("Provider").tag(Node.ExecutionMode.Provider)
-                    Text("Processor").tag(Node.ExecutionMode.Processor)
-                    Text("Consumer").tag(Node.ExecutionMode.Consumer)
+                LabeledContent("Execution") {
+                    Text(self.editorModel.executionMode.rawValue)
+                        .foregroundStyle(.secondary)
                 }
 
                 Picker("Time", selection: self.$editorModel.selectedTimeMode) {
@@ -100,41 +112,20 @@ struct JavaScriptNodeSettingsView: View
                     Text("Idle").tag(Node.TimeMode.Idle)
                     Text("Time Base").tag(Node.TimeMode.TimeBase)
                 }
+                .pickerStyle(.segmented)
             }
-            .pickerStyle(.segmented)
 
             CodeEditor(text: self.$editorModel.content,
                        position: self.$position,
                        messages: self.$editorModel.messages,
                        language: .javaScriptLanguage(self.editorModel.languageService))
-            .environment(\.codeEditorTheme, Theme.vDark)
-            .environment(\.codeEditorLayoutConfiguration, .init(showMinimap: false, wrapText: true))
+            .codeEditorChrome()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onChange(of: self.editorModel.content) { _, _ in
                 self.editorModel.scheduleSave()
             }
-            .onChange(of: self.editorModel.selectedExecutionMode) { _, _ in
-                self.editorModel.scheduleSave()
-            }
             .onChange(of: self.editorModel.selectedTimeMode) { _, _ in
                 self.editorModel.scheduleSave()
-            }
-
-            GroupBox("Ports")
-            {
-                ScrollView
-                {
-                    VStack(alignment: .leading, spacing: 6)
-                    {
-                        ForEach(Array(self.editorModel.portPreview.enumerated()), id: \.offset) { _, port in
-                            Text("\(port.direction == .input ? "In" : "Out")  \(port.name): \(port.portType.rawValue)")
-                                .font(.caption.monospaced())
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .frame(maxHeight: 110)
             }
 
             if self.editorModel.diagnostics.isEmpty == false {

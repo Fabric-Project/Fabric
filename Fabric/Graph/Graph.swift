@@ -37,6 +37,9 @@ internal import AnyCodable
     @ObservationIgnored public let context:Context
     @ObservationIgnored public weak var undoManager: UndoManager?
 
+    /// Directory against which scheme-less file-picker values resolve.
+    @ObservationIgnored public private(set) var fileReferenceBaseURL: URL?
+
     public private(set) var nodes: [Node]
     public private(set) var notes: [Note]
     public private(set) var connections: [Connection] = []
@@ -87,6 +90,13 @@ internal import AnyCodable
     @ObservationIgnored private var connectionTopologyBatchDepth = 0
     @ObservationIgnored private var hasPendingBatchedConnectionTopologyChange = false
 
+    /// Nodes whose membership, connections or published ports changed since
+    /// GraphRenderer last reviewed their lifecycle. Holding them strongly keeps
+    /// removed nodes alive until the renderer retires them.
+    @ObservationIgnored private var nodesAwaitingLifecycleReview: Set<Node> = []
+    @ObservationIgnored private var nodesWithPublishedPortsAtLastReview: Set<Node> = []
+    @ObservationIgnored internal private(set) var subgraphNodes: [SubgraphNode] = []
+
     /// Populated once at decode; empty for graphs built programmatically.
     @ObservationIgnored public private(set) var droppedPortStateDiagnostics: [DroppedPortStateDiagnostic] = []
 
@@ -131,11 +141,38 @@ internal import AnyCodable
         return shouldSyncScene
     }
 
+    internal func markNodeForLifecycleReview(_ node: Node)
+    {
+        nodesAwaitingLifecycleReview.insert(node)
+    }
+
+    internal func takeNodesAwaitingLifecycleReview() -> Set<Node>
+    {
+        let reviewedNodes = nodesAwaitingLifecycleReview
+        nodesAwaitingLifecycleReview.removeAll(keepingCapacity: true)
+        return reviewedNodes
+    }
+
+    private func nodeMembershipDidChange(_ node: Node)
+    {
+        if let subgraphNode = node as? SubgraphNode
+        {
+            subgraphNodes.removeAll { $0 === subgraphNode }
+            if subgraphNode.graph === self { subgraphNodes.append(subgraphNode) }
+        }
+        markNodeForLifecycleReview(node)
+    }
+
     public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
 
     /// Called when the set of published ports changes. SubgraphNode uses
     /// this to rebuild its proxy ports without polling.
     @ObservationIgnored var onPublishedPortsChanged: (() -> Void)?
+
+    /// Called when this graph resolves to a different scene camera. A
+    /// SubgraphNode propagates the change to its containing graph so camera
+    /// selection remains cached across the complete nested graph hierarchy.
+    @ObservationIgnored var onCameraSelectionChanged: (() -> Void)?
 
     enum CodingKeys : String, CodingKey
     {
@@ -148,13 +185,14 @@ internal import AnyCodable
         case notes
     }
     
-    public init(context:Context)
+    public init(context:Context, fileReferenceBaseURL: URL? = nil)
     {
         self.scene = Object(context: context)
         print("Init Graph")
         self.id = UUID()
         self.version = .beta
         self.context = context
+        self.fileReferenceBaseURL = fileReferenceBaseURL?.standardizedFileURL
         self.nodes = []
         self.notes = []
     }
@@ -167,6 +205,7 @@ internal import AnyCodable
         }
         
         self.context = decodeContext.documentContext
+        self.fileReferenceBaseURL = decodeContext.fileReferenceBaseURL?.standardizedFileURL
 
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -471,6 +510,12 @@ internal import AnyCodable
 
         self.nodes.append(node)
         node.graph = self
+        self.nodeMembershipDidChange(node)
+
+        if let subgraphNode = node as? SubgraphNode
+        {
+            subgraphNode.subGraph.updateFileReferenceBaseURL(self.fileReferenceBaseURL)
+        }
 
         self.undoManager?.registerUndo(withTarget: self) { graph in
             graph.delete(node: node)
@@ -479,8 +524,82 @@ internal import AnyCodable
         self.undoManager?.setActionName("Add Node")
         self.markConnectionsChanged()
 
-        self.updateRenderingNodes()
+        self.updateCameraSelection(afterAdding: node)
         self.rebuildPublishedParameterGroup()
+    }
+
+    /// Updates the saved-document directory used by relative file paths and
+    /// invalidates every file-picker node so it reloads at the new location.
+    /// This propagates through nested subgraphs.
+    public func updateFileReferenceBaseURL(_ url: URL?)
+    {
+        let standardizedURL = url?.standardizedFileURL
+        guard self.fileReferenceBaseURL != standardizedURL else { return }
+
+        self.fileReferenceBaseURL = standardizedURL
+
+        for node in self.nodes
+        {
+            var hasFileReference = false
+
+            for port in node.ports where port.parameter?.controlType == .filepicker
+            {
+                port.valueDidChange = true
+                hasFileReference = true
+            }
+
+            if hasFileReference
+            {
+                node.markDirty()
+            }
+
+            if let subgraphNode = node as? SubgraphNode
+            {
+                subgraphNode.subGraph.updateFileReferenceBaseURL(standardizedURL)
+            }
+        }
+    }
+
+    /// Rewrites static file references at save time, preserving their targets
+    /// when the document acquires a location or is saved to a different directory.
+    public func rewriteFileReferences(relativeTo directoryURL: URL?)
+    {
+        for node in self.nodes
+        {
+            // File-picker metadata also covers directory and model loaders.
+            for port in node.ports
+            {
+                guard let filePort = port as? ParameterPort<String>,
+                      filePort.parameter?.controlType == .filepicker,
+                      filePort.connectedOutlets.isEmpty,
+                      let reference = filePort.value,
+                      let sourceURL = self.resolveFileReference(reference)
+                else { continue }
+
+                let rewrittenReference = DocumentFileReference.reference(for: sourceURL, relativeTo: directoryURL)
+                if rewrittenReference != reference
+                {
+                    filePort.value = rewrittenReference
+                }
+            }
+
+            if let subgraphNode = node as? SubgraphNode
+            {
+                subgraphNode.subGraph.rewriteFileReferences(relativeTo: directoryURL)
+            }
+        }
+
+        self.updateFileReferenceBaseURL(directoryURL)
+    }
+
+    /// Resolves an absolute file URL, absolute filesystem path, or path relative
+    /// to the directory containing this graph's document.
+    public func resolveFileReference(_ reference: String,
+                                     directoryHint: URL.DirectoryHint = .inferFromPath) -> URL?
+    {
+        DocumentFileReference.resolve(reference,
+                                      relativeTo: self.fileReferenceBaseURL,
+                                      directoryHint: directoryHint)
     }
 
     
@@ -506,6 +625,7 @@ internal import AnyCodable
             self.maybeDeleteNodeFromScene(node)
             self.nodes.removeAll { $0.id == node.id }
             node.graph = nil
+            self.nodeMembershipDidChange(node)
             // Remove ViewModel after removing from nodes so any in-flight
             // ForEach evaluation still finds it.
             self.nodeViewModels[node.id] = nil
@@ -520,7 +640,7 @@ internal import AnyCodable
         self.undoManager?.setActionName("Delete Node")
         self.markConnectionsChanged()
 
-        self.updateRenderingNodes()
+        self.updateCameraSelection()
         self.rebuildPublishedParameterGroup()
     }
 
@@ -533,6 +653,7 @@ internal import AnyCodable
             nodeViewModels[node.id] = NodeViewModel(node: node)
             nodes.append(node)
             node.graph = self
+            nodeMembershipDidChange(node)
             maybeAddNodeToScene(node)
 
             for connection in connections where connection.graph == nil {
@@ -540,7 +661,7 @@ internal import AnyCodable
             }
 
             node.markDirty()
-            updateRenderingNodes()
+            updateCameraSelection(afterAdding: node)
             rebuildPublishedParameterGroup()
             syncNodesToScene()
             markConnectionsChanged()
@@ -742,6 +863,8 @@ internal import AnyCodable
             inletNode.didDisconnectFromNode(outletNode)
             outletNode.updateConnectionTopology()
             inletNode.updateConnectionTopology()
+            markNodeForLifecycleReview(outletNode)
+            markNodeForLifecycleReview(inletNode)
         }
     }
 
@@ -774,6 +897,7 @@ internal import AnyCodable
             oppositeNode.didDisconnectFromNode(oldNode)
             oldNode.updateConnectionTopology()
             oppositeNode.updateConnectionTopology()
+            markNodeForLifecycleReview(oldNode)
         }
 
         if let newNode = newPort.node,
@@ -783,6 +907,8 @@ internal import AnyCodable
             oppositeNode.didConnectToNode(newNode)
             newNode.updateConnectionTopology()
             oppositeNode.updateConnectionTopology()
+            markNodeForLifecycleReview(newNode)
+            markNodeForLifecycleReview(oppositeNode)
         }
     }
 
@@ -810,6 +936,8 @@ internal import AnyCodable
             inletNode.didConnectToNode(outletNode)
             outletNode.updateConnectionTopology()
             inletNode.updateConnectionTopology()
+            markNodeForLifecycleReview(outletNode)
+            markNodeForLifecycleReview(inletNode)
         }
     }
     
@@ -856,6 +984,15 @@ internal import AnyCodable
         }
 
         self.publishedParameterGroup.append( publishedParams )
+
+        // A published port connects its node through the enclosing subgraph node.
+        let nodesWithPublishedPorts = Set(self.nodesWithPublishedPorts())
+        for node in nodesWithPublishedPorts.symmetricDifference(self.nodesWithPublishedPortsAtLastReview)
+        {
+            self.markNodeForLifecycleReview(node)
+        }
+        self.nodesWithPublishedPortsAtLastReview = nodesWithPublishedPorts
+
         self.markConnectionsChanged()
         self.onPublishedPortsChanged?()
     }
@@ -882,15 +1019,38 @@ internal import AnyCodable
     }
      
     // MARK: -Rendering Helpers
-    internal var consumerNodes: [Node] = []
-    internal var sceneObjectNodes:[BaseObjectNode] = []
     internal var latestCamera:Camera? = nil
-    
-    func updateRenderingNodes()
+
+    private func setCameraSelection(_ camera: Camera?)
     {
-        self.consumerNodes = self.nodes.filter( { $0.nodeExecutionMode == .Consumer } )
-        
-        self.latestCamera = Self.latestCamera(in:self)
+        guard self.latestCamera !== camera else { return }
+        self.latestCamera = camera
+        self.onCameraSelectionChanged?()
+    }
+
+    private func updateCameraSelection(afterAdding node: Node)
+    {
+        if node.nodeType == .Object(objectType: .Camera),
+           let camera = (node as? BaseObjectNode)?.getObject() as? Camera
+        {
+            self.setCameraSelection(camera)
+            return
+        }
+
+        guard !(node is DeferredSubgraphNode),
+              let subgraphNode = node as? SubgraphNode,
+              let camera = subgraphNode.subGraph.latestCamera,
+              !self.nodes.contains(where: { $0.nodeType == .Object(objectType: .Camera) })
+        else { return }
+
+        // With no direct camera, a newly appended subgraph is the last eligible
+        // subgraph and therefore takes control.
+        self.setCameraSelection(camera)
+    }
+
+    func updateCameraSelection()
+    {
+        self.setCameraSelection(Self.latestCamera(in: self))
     }
     
     /// The camera a graph renders with: the last one added to it, so a camera
@@ -899,38 +1059,26 @@ internal import AnyCodable
     /// inert.
     static func latestCamera(in graph:Graph) -> Camera?
     {
-        let sceneObjectNodes:[BaseObjectNode] = graph.consumerNodes.compactMap({ $0 as? BaseObjectNode})
-
-        let latestCameraNode = sceneObjectNodes.last(where: { $0.nodeType == .Object(objectType: .Camera)})
-
-        let camera = latestCameraNode?.getObject() as? Camera
-        
-        // Only recurse if we need to
-        guard let camera else
+        if let latestCameraNode = graph.nodes.last(where: { $0.nodeType == .Object(objectType: .Camera) }),
+           let camera = (latestCameraNode as? BaseObjectNode)?.getObject() as? Camera
         {
-            let subGraphNodes:[SubgraphNode] = graph.consumerNodes.compactMap({
-                
-                // We dont want to leak a Deferred Rendering camera out
-                if let _ =  $0 as? DeferredSubgraphNode
-                {
-                    return nil
-                }
-                
-                return $0 as? SubgraphNode
-            })
-                
-            let subGraphs = subGraphNodes.map({ $0.subGraph } )
-            
-            for subGraph in subGraphs.reversed() {
-                if let camera = latestCamera(in: subGraph) {
-                    return camera
-                }
-            }
-            
-            return nil
+            return camera
         }
 
-        return camera
+        // A regular subgraph contributes its scene to this graph, so its cached
+        // camera is eligible here. A Deferred Subgraph renders through its own
+        // renderer and keeps its camera isolated to that render pass.
+        for node in graph.nodes.reversed()
+        {
+            guard !(node is DeferredSubgraphNode),
+                  let subgraphNode = node as? SubgraphNode,
+                  let camera = subgraphNode.subGraph.latestCamera
+            else { continue }
+
+            return camera
+        }
+
+        return nil
     }
     
     // MARK: -Selection

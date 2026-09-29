@@ -463,12 +463,14 @@ public class MIDIInputNode: Node
     throws
     {
         try setupMIDIManager()
+        try super.enableExecution(renderer: renderer)
     }
 
     public override func disableExecution(renderer: GraphRenderer)
     throws
     {
         midiManager = nil
+        try super.disableExecution(renderer: renderer)
     }
 
     private func setupMIDIManager() throws
