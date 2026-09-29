@@ -59,7 +59,8 @@ struct LygiaIncludeResolutionTests {
             shaderIncludeRootURLs.first(where: { $0.lastPathComponent == "lygia" }),
             "Core plugin load should hand Satin the lygia root")
         #expect(FileManager.default.fileExists(
-            atPath: root.appending(path: "sampler.msl").path(percentEncoded: false)),
+            // The bundle's resourceURL is relative to the bundle, and a relative URL's path drops its base.
+            atPath: root.appending(path: "sampler.msl").absoluteURL.path(percentEncoded: false)),
                 "The injected root should hold the shipped lygia tree")
     }
 }
