@@ -5,6 +5,7 @@ struct GraphCanvasZoomActions
 {
     let zoomIn: (() -> Void)?
     let zoomOut: (() -> Void)?
+    let actualSize: (() -> Void)?
 }
 
 private struct GraphCanvasZoomActionsKey: FocusedValueKey
@@ -40,6 +41,10 @@ public struct GraphCanvasZoomCommands: Commands
                 Button("Zoom Out") { actions?.zoomOut?() }
                     .keyboardShortcut("-", modifiers: .command)
                     .disabled(actions?.zoomOut == nil)
+
+                Button("Actual Size") { actions?.actualSize?() }
+                    .keyboardShortcut("0", modifiers: .command)
+                    .disabled(actions?.actualSize == nil)
             }
         }
     }

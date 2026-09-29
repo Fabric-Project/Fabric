@@ -60,7 +60,9 @@ public struct GraphCanvasZoomModifier: ViewModifier
                 zoomIn: gestureTransform == nil && committedTransform.scale < zoomLimits.upperBound
                     ? { zoom(by: 1.25) } : nil,
                 zoomOut: gestureTransform == nil && committedTransform.scale > zoomLimits.lowerBound
-                    ? { zoom(by: 1 / 1.25) } : nil
+                    ? { zoom(by: 1 / 1.25) } : nil,
+                actualSize: gestureTransform == nil && committedTransform.scale != 1
+                    ? { zoom(by: 1 / committedTransform.scale) } : nil
             ))
             .gesture(
                 MagnifyGesture()
