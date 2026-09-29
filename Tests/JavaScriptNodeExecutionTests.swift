@@ -266,9 +266,9 @@ struct JavaScriptNodeExecutionTests
         #expect(node.nodeExecutionMode == .Processor)
     }
 
-    /// Deriving the mode is only half of it: the graph renders from its own list
-    /// of Consumers, and that list is rebuilt when a node is added or deleted —
-    /// which an edit is not.
+    /// Deriving the mode is only half of it: the renderer pulls from the graph's
+    /// Consumers through an execution plan cached until the graph's execution
+    /// topology generation moves — which an edit alone does not.
     @Test("A script that becomes a Consumer joins the graph's roots")
     func becomingAConsumerReachesTheGraph() throws
     {
@@ -277,12 +277,14 @@ struct JavaScriptNodeExecutionTests
         let node = JavaScriptNode(context: harness.context)
         graph.addNode(node)
 
-        try #require(graph.consumerNodes.contains { $0 === node } == false,
+        try #require(node.nodeExecutionMode != .Consumer,
                      "the template takes and returns, so it is a Processor")
+        let generationBeforeEdit = graph.executionTopologyGeneration
 
         node.updateScriptSource(Self.sideEffectScript)
 
-        #expect(graph.consumerNodes.contains { $0 === node },
+        #expect(node.nodeExecutionMode == .Consumer)
+        #expect(graph.executionTopologyGeneration != generationBeforeEdit,
                 "it is a Consumer now, and nothing else will ever pull it")
     }
 
@@ -294,10 +296,12 @@ struct JavaScriptNodeExecutionTests
         let node = JavaScriptNode(context: harness.context)
         graph.addNode(node)
         node.updateScriptSource(Self.sideEffectScript)
-        try #require(graph.consumerNodes.contains { $0 === node })
+        try #require(node.nodeExecutionMode == .Consumer)
+        let generationBeforeEdit = graph.executionTopologyGeneration
 
         node.updateScriptSource(Self.doublingScript)
 
-        #expect(graph.consumerNodes.contains { $0 === node } == false)
+        #expect(node.nodeExecutionMode != .Consumer)
+        #expect(graph.executionTopologyGeneration != generationBeforeEdit)
     }
 }
