@@ -28,8 +28,8 @@ public class SyphonClientNode : Node
 
         return ports +
         [
-            ("inputEnabled", ParameterPort(parameter: BoolParameter("Enabled", true, .toggle, "Connect to a server. Off receives nothing, where an empty name receives the first server there is"))),
-            ("inputServerName", ParameterPort(parameter: StringParameter("Server Name", "", [String](), .inputfield, "Name of the Syphon server to connect to. Empty takes the first server there is"))),
+            ("inputEnabled", ParameterPort(parameter: BoolParameter("Enabled", true, .toggle, "Connect to a server. Off receives nothing; empty names select the most recently announced server"))),
+            ("inputServerName", ParameterPort(parameter: StringParameter("Server Name", "", [String](), .inputfield, "Name of the Syphon server to connect to. Empty takes the most recently announced matching server"))),
             ("inputServerAppName", ParameterPort(parameter: StringParameter("Application Name", "", [String](), .inputfield, "Name of the application hosting the Syphon server. Empty takes any application"))),
             ("outputTexturePort", NodePort<FabricImage>(name: "Image", kind: .Outlet, description: "Received Syphon frame")),
         ]
@@ -96,6 +96,8 @@ public class SyphonClientNode : Node
         self.syphonClient = nil
         self.boundServerIdentity = nil
         self.invalidServerIdentities.removeAll()
+
+        try super.stopExecution(renderer:renderer)
     }
 
     /// What tells one server from another: Syphon's identity where it offers
@@ -126,7 +128,7 @@ public class SyphonClientNode : Node
             self.boundServerIdentity = nil
         }
 
-        // An empty name means the first server there is, which is what makes
+        // An empty name means the newest matching server, which is what makes
         // the node work on being dropped into a patch. That leaves nothing to
         // say "no server at all" with, which is what this is for.
         guard self.inputEnabled.value ?? true
@@ -155,10 +157,10 @@ public class SyphonClientNode : Node
         // invalid the next frame.
         self.invalidServerIdentities.formIntersection(matches.map(self.serverIdentity))
 
-        // Taken past a dead server rather than stopped by it: a relaunched
-        // application leaves its old entry on offer beside its new one,
-        // and which of the two comes first is not ours to say.
-        let match = matches.first
+        // Syphon appends new announcements. Prefer the newest eligible server
+        // so a relaunched publisher replaces a stale client even when that
+        // client still reports itself as valid.
+        let match = matches.last
         { description in
             !self.invalidServerIdentities.contains(self.serverIdentity(description))
         }
@@ -270,7 +272,7 @@ struct SyphonClientNodeView: View
     /// the node is waiting for rather than reading as a choice it did make.
     private var rows: [Row]
     {
-        var rows = [Row(serverName: "", appName: "", title: "First available")]
+        var rows = [Row(serverName: "", appName: "", title: "Most recently announced")]
 
         // Two servers on offer can come to one row: a relaunched application
         // leaves its old entry beside its new one, and both answer to the same

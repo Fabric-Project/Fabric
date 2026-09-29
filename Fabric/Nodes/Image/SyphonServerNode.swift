@@ -35,52 +35,67 @@ public class SyphonServerNode : Node
     public var inputServerName:ParameterPort<String>  { port(named: "inputServerName") }
     public var inputTexture:NodePort<FabricImage> { port(named: "inputTexture") }
 
-    private let syphonServer:SyphonMetalServer
-    private var texture: (any MTLTexture)? = nil
-    
-    public required init(context:Context)
+    private var syphonServer: SyphonMetalServer?
+    private var needsInitialFrame = false
+
+    override public func startExecution(renderer: GraphRenderer) throws
     {
-        self.syphonServer = SyphonMetalServer(name: "Fabric", device: context.device, options: nil)
-        super.init(context: context)
-    }
-    
-    
-    public required init(from decoder: any Decoder) throws
-    {
-        guard let decodeContext = decoder.context else
+        // Syphon starts advertising on initialization. A stopped instance cannot
+        // restart, so replace the retained instance when execution resumes.
+        if self.executionState != .started
         {
-            fatalError("Required Decode Context Not set")
+            self.syphonServer = SyphonMetalServer(name: self.inputServerName.value ?? "Fabric",
+                                                  device: renderer.device,
+                                                  options: nil)
+            self.needsInitialFrame = true
         }
-        
-        self.syphonServer = SyphonMetalServer(name: "Fabric", device: decodeContext.documentContext.device, options: nil)
-        
-        try super.init(from:decoder)
+        try super.startExecution(renderer: renderer)
     }
-    
+
+    override public func stopExecution(renderer: GraphRenderer) throws
+    {
+        // Retain the stopped object until disable or a subsequent start replaces it.
+        self.syphonServer?.stop()
+        self.needsInitialFrame = false
+        try super.stopExecution(renderer: renderer)
+    }
+
+    override public func disableExecution(renderer: GraphRenderer) throws
+    {
+        // Also safe when disabling directly without a preceding stop.
+        self.syphonServer?.stop()
+        self.syphonServer = nil
+        self.needsInitialFrame = false
+        try super.disableExecution(renderer: renderer)
+    }
+
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
+        guard self.executionState == .started, let syphonServer = self.syphonServer else { return }
+
         if self.inputServerName.valueDidChange,
            let name = self.inputServerName.value
         {
-            self.syphonServer.name = name
+            syphonServer.name = name
         }
             
-        if self.inputTexture.valueDidChange,
+        if self.needsInitialFrame || self.inputTexture.valueDidChange,
            let inputImage = self.inputTexture.value
         {
             let region = NSRect(origin: .zero,
                                 size: CGSize(width: inputImage.texture.width, height: inputImage.texture.height))
 
-            self.syphonServer.publishFrameTexture(inputImage.texture,
-                                                  on: commandBuffer,
-                                                  imageRegion: region,
-                                                  flipped: Self.syphonRequiresVerticalFlip(for: inputImage.textureTransform))
+            syphonServer.publishFrameTexture(inputImage.texture,
+                                             on: commandBuffer,
+                                             imageRegion: region,
+                                             flipped: Self.syphonRequiresVerticalFlip(for: inputImage.textureTransform))
+            self.needsInitialFrame = false
         }
-     }
+    }
 
     /// Whether Syphon has to turn the frame over on its way into the shared
     /// surface.
