@@ -10,7 +10,7 @@ import CoreGraphics
 import CoreVideo
 import simd
 
-public final class FabricImage: Identifiable, Equatable
+public final class FabricImage: Identifiable, Equatable,  CustomDebugStringConvertible
 {
     public let id = UUID()
     public let texture: MTLTexture
@@ -130,6 +130,9 @@ public final class FabricImage: Identifiable, Equatable
             .transformed(by: pixelTransform)
             .cropped(to: CGRect(origin: .zero, size: presentationSize))
     }
+    
+    /// A textual representation of the identifier, suitable for debugging.
+    public var debugDescription: String { "Fabric.FabricImage: \(self.id) \(self.texture.width)x\(self.texture.height)" }
 }
 
 public enum FabricImageTextureTransform
