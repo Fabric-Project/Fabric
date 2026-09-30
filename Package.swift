@@ -16,15 +16,10 @@ let package = Package(
     dependencies: [
         // Local Satin package
         .package(path: "Satin"),
+ 
+        // Metal Performance Shader optimized implementatons of various networks we rolled ourselves.
         .package(path: "../MPS-ZipDepth"),
-
-        // Local MPS-EfficientTAM package (EfficientTAM image encoder, prompt decoder
-        // and video tracker as MPSGraph)
         .package(path: "../MPS-EfficientTAM"),
-
-        // Local MPS-MediaPipe package (MediaPipe MPSGraph ports, extracted
-        // out of Fabric so they're usable standalone too — see
-        // https://github.com/Fabric-Project/MPS-MediaPipe)
         .package(path: "../MPS-MediaPipe"),
         .package(path: "../MPS-TAPNextPlusPlus"),
 

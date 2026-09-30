@@ -9,6 +9,7 @@ import MetalPerformanceShaders
 import Satin
 import simd
 import MPSEfficientTAM
+import SwiftUI
 
 /// Tracks one object through video with EfficientTAM (Tiny, 512), via MPSGraph.
 ///
@@ -24,9 +25,9 @@ import MPSEfficientTAM
 /// node, so the Mask image is available downstream in the same frame with no
 /// GPU wait. Only the small scalar results (region, centroid, presence,
 /// confidence) are read back, in the buffer's completion handler, so they
-/// arrive one or more frames later, stamped by the Frame Time output. With
-/// `synchronousInference` they are read back immediately instead, as in the
-/// MediaPipe nodes: see `encodeFrame`.
+/// arrive one or more frames later, stamped by the Frame Time output. With the
+/// Inference setting on Synchronous they are read back immediately instead,
+/// as in the MediaPipe nodes: see `encodeFrame`.
 public final class EfficientTAMTrackerNode: Node
 {
     override public class var name: String { "MPS EfficientTAM Tracker" }
@@ -132,12 +133,6 @@ public final class EfficientTAMTrackerNode: Node
     public var outputTracking: NodePort<Bool> { port(named: "outputTracking") }
     public var outputFrameTime: NodePort<Float> { port(named: "outputFrameTime") }
 
-    /// Not a port -- Fabric has no systemized protocol yet for per-node
-    /// synchronous/asynchronous execution, so this stays a compile-time switch
-    /// like the MediaPipe nodes' (an Iterator forces synchronous regardless).
-    /// Flip locally for offline rendering, where every frame must be tracked
-    /// and every result must be available in the frame that produced it.
-    private static let synchronousInference = false
 
     /// Frames of tracking work allowed on the GPU at once. Every MPSGraph stage
     /// that MPSGraph splits across command buffers takes a queue slot, and Metal
@@ -174,14 +169,102 @@ public final class EfficientTAMTrackerNode: Node
     private var latestResult: TrackedFrameResult?
     private var hasUnpublishedResult = false
 
+    private var preparedExecution: MPSModelExecution?
+
+    public private(set) var modelPrecision: MPSModelPrecision = .highQuality
+    public private(set) var modelComputeUnits: MPSModelComputeUnits = .gpuAndNeuralEngine
+    public private(set) var inferenceTiming: MPSInferenceTiming = .synchronous
+
+    private enum ModelPrecisionCodingKeys: String, CodingKey
+    {
+        case modelPrecision
+        case modelComputeUnits
+        case inferenceTiming
+    }
+
+    public required init(context: Context)
+    {
+        super.init(context: context)
+    }
+
+    public init(context: Context, modelPrecision: MPSModelPrecision, modelComputeUnits: MPSModelComputeUnits = .gpuAndNeuralEngine, inferenceTiming: MPSInferenceTiming = .synchronous)
+    {
+        self.modelPrecision = modelPrecision
+        self.modelComputeUnits = modelComputeUnits
+        self.inferenceTiming = inferenceTiming
+        super.init(context: context)
+    }
+
+    public required init(from decoder: any Decoder) throws
+    {
+        let container = try decoder.container(keyedBy: ModelPrecisionCodingKeys.self)
+        self.modelPrecision = try container.decodeIfPresent(MPSModelPrecision.self, forKey: .modelPrecision) ?? .highQuality
+        self.modelComputeUnits = try container.decodeIfPresent(MPSModelComputeUnits.self, forKey: .modelComputeUnits) ?? .gpuAndNeuralEngine
+        self.inferenceTiming = try container.decodeIfPresent(MPSInferenceTiming.self, forKey: .inferenceTiming) ?? .synchronous
+        try super.init(from: decoder)
+    }
+
+    public override func encode(to encoder: Encoder) throws
+    {
+        try super.encode(to: encoder)
+        var container = encoder.container(keyedBy: ModelPrecisionCodingKeys.self)
+        try container.encode(self.modelPrecision, forKey: .modelPrecision)
+        try container.encode(self.modelComputeUnits, forKey: .modelComputeUnits)
+        try container.encode(self.inferenceTiming, forKey: .inferenceTiming)
+    }
+
+    override public func providesSettingsView() -> Bool { true }
+    override public var settingsSize: SettingsViewSize { .Small }
+
+    override public func settingsView() -> AnyView
+    {
+        AnyView(MPSModelConfigurationSettingsView(options: [
+            MPSModelConfigurationOption(
+                label: "Precision",
+                choices: MPSModelPrecision.labels,
+                selection: Binding(
+                    get: { [weak self] in (self?.modelPrecision ?? .highQuality).label },
+                    set: { [weak self] value in
+                        guard let self, let precision = MPSModelPrecision(label: value) else { return }
+                        self.apply(modelPrecision: precision)
+                    }
+                )
+            ),
+            MPSModelConfigurationOption(
+                label: "Compute",
+                choices: MPSModelComputeUnits.labels,
+                selection: Binding(
+                    get: { [weak self] in (self?.modelComputeUnits ?? .gpuAndNeuralEngine).label },
+                    set: { [weak self] value in
+                        guard let self, let computeUnits = MPSModelComputeUnits(label: value) else { return }
+                        self.apply(modelComputeUnits: computeUnits)
+                    }
+                )
+            ),
+            MPSModelConfigurationOption(
+                label: "Inference",
+                choices: MPSInferenceTiming.labels,
+                selection: Binding(
+                    get: { [weak self] in (self?.inferenceTiming ?? .synchronous).label },
+                    set: { [weak self] value in
+                        guard let self, let inferenceTiming = MPSInferenceTiming(label: value) else { return }
+                        self.apply(inferenceTiming: inferenceTiming)
+                    }
+                )
+            ),
+        ]))
+    }
+
     override public func enableExecution(renderer: GraphRenderer) throws
     {
-        try self.prepareModel()
+        try self.prepareModel(execution: self.modelExecution)
+        try super.enableExecution(renderer: renderer)
     }
 
     override public func stopExecution(renderer: GraphRenderer) throws
     {
         self.endSession(clearingOutputs: false)
+        try super.stopExecution(renderer: renderer)
     }
 
     override public func disableExecution(renderer: GraphRenderer) throws
@@ -190,6 +273,8 @@ public final class EfficientTAMTrackerNode: Node
         self.tracker = nil
         self.framePreprocessor = nil
         self.maskProjector = nil
+        self.preparedExecution = nil
+        try super.disableExecution(renderer: renderer)
     }
 
     override public func execute(
@@ -215,7 +300,7 @@ public final class EfficientTAMTrackerNode: Node
         if let inputImage = self.inputImage.value
         {
             let frameTime = self.inputFrameTime.value ?? Float(executionInfo.timing.time)
-            let synchronous = Self.synchronousInference || executionInfo.iterationInfo != nil
+            let synchronous = self.inferenceTiming == .synchronous || executionInfo.iterationInfo != nil
 
             if let promptPoint = self.pendingPromptPoint
             {
@@ -317,7 +402,7 @@ public final class EfficientTAMTrackerNode: Node
         synchronous: Bool
     ) throws -> Bool
     {
-        try self.prepareModel()
+        try self.prepareModel(execution: self.modelExecution)
         guard let tracker, let framePreprocessor, let maskProjector else
         {
             throw FabricError(.execution(.gpu), severity: .recoverable, message: "EfficientTAM tracker is unavailable")
@@ -454,18 +539,82 @@ public final class EfficientTAMTrackerNode: Node
         return true
     }
 
-    private func prepareModel() throws
+    private func prepareModel(execution: MPSModelExecution) throws
     {
-        guard self.tracker == nil else { return }
+        guard self.tracker == nil || self.preparedExecution != execution else { return }
         let tracker = try EfficientTAMVideoTracker(
             commandQueue: self.context.commandQueue,
-            maxFramesInFlight: Self.framesInFlight
+            maxFramesInFlight: Self.framesInFlight,
+            precision: execution.precision.efficientTAM,
+            computeUnits: execution.computeUnits.efficientTAM
         )
         // One compile, done here rather than in the first tracked frame.
         try tracker.prewarmMemoryAttention()
         self.framePreprocessor = try EfficientTAMFramePreprocessor(device: self.context.device)
         self.maskProjector = try EfficientTAMMaskProjector(device: self.context.device)
+        // A new tracker starts with empty memory, so any session the old one
+        // was tracking cannot continue on it.
+        if self.tracker != nil
+        {
+            self.endSession(clearingOutputs: false)
+        }
         self.tracker = tracker
+        self.preparedExecution = execution
+    }
+
+    private func apply(modelPrecision: MPSModelPrecision)
+    {
+        guard modelPrecision != self.modelPrecision else { return }
+        // A loaded tracker means execution is enabled: swap it now, keeping
+        // the old one if the new precision fails to load.
+        if self.tracker != nil
+        {
+            do
+            {
+                try self.prepareModel(execution: MPSModelExecution(precision: modelPrecision, computeUnits: self.modelComputeUnits))
+            }
+            catch
+            {
+                print("EfficientTAMTrackerNode: could not apply precision: \(error)")
+                return
+            }
+        }
+        self.modelPrecision = modelPrecision
+        self.markDirty()
+    }
+
+    private func apply(modelComputeUnits: MPSModelComputeUnits)
+    {
+        guard modelComputeUnits != self.modelComputeUnits else { return }
+        // A loaded tracker means execution is enabled: swap it now, keeping
+        // the old one if the new compute units fail to load.
+        if self.tracker != nil
+        {
+            do
+            {
+                try self.prepareModel(execution: MPSModelExecution(precision: self.modelPrecision, computeUnits: modelComputeUnits))
+            }
+            catch
+            {
+                print("EfficientTAMTrackerNode: could not apply compute units: \(error)")
+                return
+            }
+        }
+        self.modelComputeUnits = modelComputeUnits
+        self.markDirty()
+    }
+
+    private var modelExecution: MPSModelExecution
+    {
+        MPSModelExecution(precision: self.modelPrecision, computeUnits: self.modelComputeUnits)
+    }
+
+    /// Takes effect on the next frame; the model does not change.
+    private func apply(inferenceTiming: MPSInferenceTiming)
+    {
+        guard inferenceTiming != self.inferenceTiming else { return }
+        self.inferenceTiming = inferenceTiming
+        self.markDirty()
     }
 
     // MARK: - Results

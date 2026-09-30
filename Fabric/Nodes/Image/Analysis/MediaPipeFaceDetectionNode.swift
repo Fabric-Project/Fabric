@@ -39,10 +39,10 @@ public struct MediaPipeFaceDetectionSettings: Codable, Equatable
 ///
 /// Single mode tracks exactly one face and exposes the tracking fast path
 /// — wire MediaPipe Face Landmark's outputTrackedRegionOfInterest/
-/// outputTrackedRotation back into this node's Previous Region/Previous
+/// outputTrackedRotation back into this node's Tracked Region/Previous
 /// Rotation inputs to skip re-running the detector while tracking holds. A
-/// nil or unconnected Previous Region falls through to running the detector
-/// every frame. Redetect Interval forces a fresh detector run periodically
+/// nil or unconnected Tracked Region falls through to running the detector
+/// every frame. Re-Detect Interval forces a fresh detector run periodically
 /// even while a previous region is present, since nothing here can otherwise
 /// notice a stale-but-still-confident lock.
 ///
@@ -58,9 +58,13 @@ public class MediaPipeFaceDetectionNode: StrategyNode
     override public class var nodeType: Node.NodeType { .Image(imageType: .Analysis) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Detects faces using MediaPipe's BlazeFace detector (Short Range or Full Range), run via MPSGraph (test/comparison path, separate from RegionDetectionNode/RTMDet — RTMDet has no face-detector checkpoint at all). Single/Multi mode (Settings) picks between one tracked face with Previous Region/Rotation, or up to Max Detections faces with plural Regions/Rotations." }
+    override public class var nodeDescription: String { "Detects faces using MediaPipe's BlazeFace detector (Short Range or Full Range), run via MPSGraph (test/comparison path, separate from RegionDetectionNode/RTMDet — RTMDet has no face-detector checkpoint at all). Single/Multi mode (Settings) picks between one tracked face with Tracked Region/Rotation, or up to Max Detections faces with plural Regions/Rotations." }
 
     override public class var strategyOptions: [any NodeStrategyOption] { MediaPipeDetectionMode.allCases }
+
+    /// The Single/Multi mode is a Settings choice, not part of the node's name:
+    /// the title stays the plain type name (or the user's rename).
+    override public func deriveSubtitle() -> String? { nil }
 
     private typealias DetectorVariant = MediaPipeFaceDetector.Variant
 
@@ -76,9 +80,9 @@ public class MediaPipeFaceDetectionNode: StrategyNode
         {
         case .single:
             return [
-                ("inputPreviousRegionOfInterest", NodePort<simd_float4>(name: "Previous Region", kind: .Inlet, description: "Optional tracking fast path — wire in MediaPipe Face Landmark's Tracked Region output. When present (and the redetect interval hasn't elapsed), the detector model is skipped and this region is passed straight through. Leave unconnected for plain per-frame detection.")),
-                ("inputPreviousRotation", NodePort<Float>(name: "Previous Rotation", kind: .Inlet, description: "Paired with Previous Region — wire in MediaPipe Face Landmark's Tracked Rotation output.")),
-                ("inputRedetectInterval", ParameterPort(parameter: IntParameter("Re-detect Every N Frames", Self.defaultRedetectInterval, 1, 240, .inputfield, "Forces a fresh detector run at least this often even while a tracked region is present, so a stale or wrong lock can recover"))),
+                ("inputPreviousRegionOfInterest", NodePort<simd_float4>(name: "Tracked Region", kind: .Inlet, description: "Optional tracking fast path — wire in MediaPipe Face Landmark's Tracked Region output. When present (and the redetect interval hasn't elapsed), the detector model is skipped and this region is passed straight through. Leave unconnected for plain per-frame detection.")),
+                ("inputPreviousRotation", NodePort<Float>(name: "Tracked Rotation", kind: .Inlet, description: "Paired with Tracked Region — wire in MediaPipe Face Landmark's Tracked Rotation output.")),
+                ("inputRedetectInterval", ParameterPort(parameter: IntParameter("Re-Detect Interval", Self.defaultRedetectInterval, 1, 240, .inputfield, "Forces a fresh detector run at least this often even while a tracked region is present, so a stale or wrong lock can recover"))),
                 ("outputRegionOfInterest", NodePort<simd_float4>(name: "Region", kind: .Outlet, description: "The tracked/detected region, or the full frame (0,0,1,1) if nothing was detected")),
                 ("outputRotation", NodePort<Float>(name: "Rotation", kind: .Outlet, description: "Rotation for the tracked/detected region, or 0 if nothing was detected")),
                 ("outputKeypoints", NodePort<ContiguousArray<simd_float2>>(name: "Keypoints", kind: .Outlet, description: "The detection's 6 raw BlazeFace keypoints, in the model's own output order: index 0/1 are the two eyes (used for rotation — MediaPipe's own C++ graph comments and Python solutions wrapper disagree on which is left/right, so treat that labeling as unconfirmed), then nose tip, mouth center, and the two ear tragions (index 4/5, same left/right caveat) — Fabric's unit coordinate space (-1...1 horizontally, -aspect...aspect vertically), empty if nothing was detected")),
@@ -144,18 +148,13 @@ public class MediaPipeFaceDetectionNode: StrategyNode
 
     private static let defaultRedetectInterval = 30
 
-    /// Consecutive frames served from a tracked region (Previous Region inlet)
+    /// Consecutive frames served from a tracked region (Tracked Region inlet)
     /// without running the detector. Reset to 0 whenever the detector
     /// actually runs, or the mode changes. Only ever touched from
     /// execute()/rebuildPorts on the graph thread.
     private var framesSinceLastDetect = 0
 
 
-    /// Not a port -- Fabric has no systemized protocol yet for per-node
-    /// synchronous/asynchronous execution, so this stays a compile-time
-    /// switch for development/comparison until that exists. Flip locally to
-    /// test the bounded-GPU-wait path.
-    private static let synchronousInference = false
 
     private var preprocessor: MediaPipeCropPreprocessor?
 
@@ -166,26 +165,39 @@ public class MediaPipeFaceDetectionNode: StrategyNode
     private var outputBuffersVariant: DetectorVariant?
     private var model: MediaPipeMPSGraph?
     private var preparedVariant: DetectorVariant?
+    private var preparedExecution: MPSModelExecution?
     private var executionEnabled = false
+
+    public private(set) var modelPrecision: MPSModelPrecision
+    public private(set) var modelComputeUnits: MPSModelComputeUnits = .gpuAndNeuralEngine
+    public private(set) var inferenceTiming: MPSInferenceTiming = .synchronous
 
     private enum ModelSettingsCodingKeys: String, CodingKey
     {
         case modelSettings
+        case modelPrecision
+        case modelComputeUnits
+        case inferenceTiming
     }
 
     public required init(context: Context)
     {
         self.modelSettings = .init()
+        self.modelPrecision = .highQuality
         super.init(context: context)
     }
 
     public init(
         context: Context,
         modelSettings: MediaPipeFaceDetectionSettings,
-        mode: MediaPipeDetectionMode = .single
+        mode: MediaPipeDetectionMode = .single,
+        modelPrecision: MPSModelPrecision = .highQuality, modelComputeUnits: MPSModelComputeUnits = .gpuAndNeuralEngine, inferenceTiming: MPSInferenceTiming = .synchronous
     )
     {
         self.modelSettings = modelSettings
+        self.modelPrecision = modelPrecision
+        self.modelComputeUnits = modelComputeUnits
+        self.inferenceTiming = inferenceTiming
         super.init(context: context, initialStrategy: mode.rawValue)
     }
 
@@ -203,6 +215,9 @@ public class MediaPipeFaceDetectionNode: StrategyNode
                 detectorVariant: MediaPipeFaceDetectionSettings.DetectorVariant(rawValue: legacy ?? "") ?? .shortRange
             )
         }
+        self.modelPrecision = try container.decodeIfPresent(MPSModelPrecision.self, forKey: .modelPrecision) ?? .highQuality
+        self.modelComputeUnits = try container.decodeIfPresent(MPSModelComputeUnits.self, forKey: .modelComputeUnits) ?? .gpuAndNeuralEngine
+        self.inferenceTiming = try container.decodeIfPresent(MPSInferenceTiming.self, forKey: .inferenceTiming) ?? .synchronous
         try super.init(from: decoder)
     }
 
@@ -211,6 +226,9 @@ public class MediaPipeFaceDetectionNode: StrategyNode
         try super.encode(to: encoder)
         var container = encoder.container(keyedBy: ModelSettingsCodingKeys.self)
         try container.encode(self.modelSettings, forKey: .modelSettings)
+        try container.encode(self.modelPrecision, forKey: .modelPrecision)
+        try container.encode(self.modelComputeUnits, forKey: .modelComputeUnits)
+        try container.encode(self.inferenceTiming, forKey: .inferenceTiming)
     }
 
     override public func providesSettingsView() -> Bool { true }
@@ -226,20 +244,43 @@ public class MediaPipeFaceDetectionNode: StrategyNode
                     guard let self, let variant = MediaPipeFaceDetectionSettings.DetectorVariant(rawValue: value) else { return }
                     self.apply(modelSettings: .init(detectorVariant: variant))
                 }
+            ),
+            precision: Binding(
+                get: { [weak self] in (self?.modelPrecision ?? .highQuality).label },
+                set: { [weak self] value in
+                    guard let self, let precision = MPSModelPrecision(label: value) else { return }
+                    self.apply(modelPrecision: precision)
+                }
+            ),
+            computeUnits: Binding(
+                get: { [weak self] in (self?.modelComputeUnits ?? .gpuAndNeuralEngine).label },
+                set: { [weak self] value in
+                    guard let self, let computeUnits = MPSModelComputeUnits(label: value) else { return }
+                    self.apply(modelComputeUnits: computeUnits)
+                }
+            ),
+            inferenceTiming: Binding(
+                get: { [weak self] in (self?.inferenceTiming ?? .synchronous).label },
+                set: { [weak self] value in
+                    guard let self, let inferenceTiming = MPSInferenceTiming(label: value) else { return }
+                    self.apply(inferenceTiming: inferenceTiming)
+                }
             )
         ))
     }
 
     override public func enableExecution(renderer: GraphRenderer) throws
     {
-        try self.prepareModel(for: self.selectedVariant)
+        try self.prepareModel(for: self.selectedVariant, execution: self.modelExecution)
         self.executionEnabled = true
+        try super.enableExecution(renderer: renderer)
     }
 
     override public func disableExecution(renderer: GraphRenderer) throws
     {
         self.executionEnabled = false
         self.releasePreparedModel()
+        try super.disableExecution(renderer: renderer)
     }
 
     private let lastRectsLock = NSLock()
@@ -284,12 +325,12 @@ public class MediaPipeFaceDetectionNode: StrategyNode
                 else
                 {
                     self.framesSinceLastDetect = 0
-                    try? self.detect(image: inputImage, variant: variant, maxDetections: 1, commandBuffer: commandBuffer, synchronous: Self.synchronousInference)
+                    try? self.detect(image: inputImage, variant: variant, maxDetections: 1, commandBuffer: commandBuffer, synchronous: self.inferenceTiming == .synchronous)
                 }
 
             case .multi:
                 let maxDetections = max(1, (findPort(named: "inputMaxDetections") as ParameterPort<Int>?)?.value ?? 2)
-                try? self.detect(image: inputImage, variant: variant, maxDetections: maxDetections, commandBuffer: commandBuffer, synchronous: Self.synchronousInference)
+                try? self.detect(image: inputImage, variant: variant, maxDetections: maxDetections, commandBuffer: commandBuffer, synchronous: self.inferenceTiming == .synchronous)
             }
         }
 
@@ -360,7 +401,7 @@ public class MediaPipeFaceDetectionNode: StrategyNode
     private func detect(image: FabricImage, variant: DetectorVariant, maxDetections: Int, commandBuffer: MTLCommandBuffer, synchronous: Bool) throws
     {
         let startTime = Date()
-        try self.prepareModel(for: variant)
+        try self.prepareModel(for: variant, execution: self.modelExecution)
         guard let preprocessor = self.preprocessor, let model = self.model else
         {
             throw FabricError(.execution(.gpu), severity: .recoverable, message: "MediaPipe face detection model is unavailable")
@@ -473,9 +514,9 @@ public class MediaPipeFaceDetectionNode: StrategyNode
         }
     }
 
-    private static func mpsGraphModel(for variant: DetectorVariant, commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
+    private static func mpsGraphModel(for variant: DetectorVariant, execution: MPSModelExecution, commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
     {
-        try MediaPipeSharedModels.model(named: variant.resourcePrefix, inputWidth: variant.detectSize, inputHeight: variant.detectSize, commandQueue: commandQueue)
+        try MediaPipeSharedModels.model(named: variant.resourcePrefix, inputWidth: variant.detectSize, inputHeight: variant.detectSize, execution: execution, commandQueue: commandQueue)
     }
 
     private var selectedVariant: DetectorVariant
@@ -483,10 +524,10 @@ public class MediaPipeFaceDetectionNode: StrategyNode
         DetectorVariant.from(self.modelSettings.detectorVariant.rawValue)
     }
 
-    private func prepareModel(for variant: DetectorVariant) throws
+    private func prepareModel(for variant: DetectorVariant, execution: MPSModelExecution) throws
     {
-        guard self.model == nil || self.preparedVariant != variant else { return }
-        let model = try Self.mpsGraphModel(for: variant, commandQueue: self.context.commandQueue)
+        guard self.model == nil || self.preparedVariant != variant || self.preparedExecution != execution else { return }
+        let model = try Self.mpsGraphModel(for: variant, execution: execution, commandQueue: self.context.commandQueue)
         let preprocessor = try MediaPipeCropPreprocessor(
             device: self.context.device,
             outputWidth: variant.detectSize,
@@ -506,6 +547,7 @@ public class MediaPipeFaceDetectionNode: StrategyNode
         self.outputBuffers = outputBuffers
         self.outputBuffersVariant = variant
         self.preparedVariant = variant
+        self.preparedExecution = execution
     }
 
     private func releasePreparedModel()
@@ -515,6 +557,7 @@ public class MediaPipeFaceDetectionNode: StrategyNode
         self.outputBuffers = nil
         self.outputBuffersVariant = nil
         self.preparedVariant = nil
+        self.preparedExecution = nil
     }
 
     private func apply(modelSettings: MediaPipeFaceDetectionSettings)
@@ -524,7 +567,7 @@ public class MediaPipeFaceDetectionNode: StrategyNode
         {
             do
             {
-                try self.prepareModel(for: DetectorVariant.from(modelSettings.detectorVariant.rawValue))
+                try self.prepareModel(for: DetectorVariant.from(modelSettings.detectorVariant.rawValue), execution: self.modelExecution)
             }
             catch
             {
@@ -535,25 +578,92 @@ public class MediaPipeFaceDetectionNode: StrategyNode
         self.modelSettings = modelSettings
         self.markDirty()
     }
+
+    private func apply(modelPrecision: MPSModelPrecision)
+    {
+        guard modelPrecision != self.modelPrecision else { return }
+        if self.executionEnabled
+        {
+            do
+            {
+                try self.prepareModel(for: self.selectedVariant, execution: MPSModelExecution(precision: modelPrecision, computeUnits: self.modelComputeUnits))
+            }
+            catch
+            {
+                print("MediaPipeFaceDetectionNode: could not apply precision: \(error)")
+                return
+            }
+        }
+        self.modelPrecision = modelPrecision
+        self.markDirty()
+    }
+
+    private func apply(modelComputeUnits: MPSModelComputeUnits)
+    {
+        guard modelComputeUnits != self.modelComputeUnits else { return }
+        if self.executionEnabled
+        {
+            do
+            {
+                try self.prepareModel(for: self.selectedVariant, execution: MPSModelExecution(precision: self.modelPrecision, computeUnits: modelComputeUnits))
+            }
+            catch
+            {
+                print("MediaPipeFaceDetectionNode: could not apply compute units: \(error)")
+                return
+            }
+        }
+        self.modelComputeUnits = modelComputeUnits
+        self.markDirty()
+    }
+
+    private var modelExecution: MPSModelExecution
+    {
+        MPSModelExecution(precision: self.modelPrecision, computeUnits: self.modelComputeUnits)
+    }
+
+    /// Takes effect on the next frame; the model does not change.
+    private func apply(inferenceTiming: MPSInferenceTiming)
+    {
+        guard inferenceTiming != self.inferenceTiming else { return }
+        self.inferenceTiming = inferenceTiming
+        self.markDirty()
+    }
 }
 
 private struct MediaPipeFaceDetectionSettingsView: View
 {
     @Bindable var strategyModel: StrategyNode.SettingsModel
-    @Binding var detectorVariant: String
+    let detectorVariant: Binding<String>
+    let precision: Binding<String>
+    let computeUnits: Binding<String>
+    let inferenceTiming: Binding<String>
 
     var body: some View
     {
         Form
         {
             StrategyPickerView(model: strategyModel)
-            Picker("Detector Variant", selection: $detectorVariant)
-            {
-                ForEach(MediaPipeFaceDetectionSettings.DetectorVariant.allCases, id: \.rawValue)
-                {
-                    Text($0.rawValue).tag($0.rawValue)
-                }
-            }
+            MPSModelConfigurationPicker(option: MPSModelConfigurationOption(
+                label: "Detector Variant",
+                choices: MediaPipeFaceDetectionSettings.DetectorVariant.allCases.map(\.rawValue),
+                selection: self.detectorVariant
+            ))
+            MPSModelConfigurationPicker(option: MPSModelConfigurationOption(
+                label: "Precision",
+                choices: MPSModelPrecision.labels,
+                selection: self.precision
+            ))
+            MPSModelConfigurationPicker(option: MPSModelConfigurationOption(
+                label: "Compute",
+                choices: MPSModelComputeUnits.labels,
+                selection: self.computeUnits
+            ))
+            MPSModelConfigurationPicker(option: MPSModelConfigurationOption(
+                label: "Inference",
+                choices: MPSInferenceTiming.labels,
+                selection: self.inferenceTiming
+            ))
         }
         .padding()
     }

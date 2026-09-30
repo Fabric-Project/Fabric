@@ -28,15 +28,40 @@ struct MPSModelConfigurationSettingsView: View
         Form
         {
             ForEach(options) { option in
-                Picker(option.label, selection: option.selection)
-                {
-                    ForEach(option.choices, id: \.self) { choice in
-                        Text(choice).tag(choice)
-                    }
-                }
+                MPSModelConfigurationPicker(option: option)
             }
         }
         .padding()
+    }
+}
+
+/// One settings row. The node's settings are not observable, so a picker bound
+/// straight to them would not redraw after a change; the row keeps the choice
+/// in its own state, writes it through to the node, then re-reads the node so
+/// a change the node rejected snaps back.
+struct MPSModelConfigurationPicker: View
+{
+    let option: MPSModelConfigurationOption
+    @State private var selection: String
+
+    init(option: MPSModelConfigurationOption)
+    {
+        self.option = option
+        self._selection = State(initialValue: option.selection.wrappedValue)
+    }
+
+    var body: some View
+    {
+        Picker(self.option.label, selection: self.$selection)
+        {
+            ForEach(self.option.choices, id: \.self) { choice in
+                Text(choice).tag(choice)
+            }
+        }
+        .onChange(of: self.selection) { _, newValue in
+            self.option.selection.wrappedValue = newValue
+            self.selection = self.option.selection.wrappedValue
+        }
     }
 }
 

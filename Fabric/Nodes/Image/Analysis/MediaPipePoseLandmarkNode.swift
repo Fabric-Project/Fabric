@@ -77,11 +77,11 @@ public class MediaPipePoseLandmarkNode: Node
 
             ("outputLandmarks", NodePort<ContiguousArray<simd_float2>>(name: "Landmarks", kind: .Outlet, description: "All 33 BlazePose landmarks (see mediapipe's own topology: 0 nose, 1-6 eyes, 7-8 ears, 9-10 mouth, 11-22 shoulders/elbows/wrists/hands, 23-32 hips/knees/ankles/feet), in unit coordinates")),
             ("outputLandmarks3D", NodePort<ContiguousArray<simd_float3>>(name: "Landmarks 3D", kind: .Outlet, description: "All 33 BlazePose landmarks including depth. Unlike Landmarks, this is NOT remapped to Fabric's -1...1 unit space — x,y stay normalized [0,1] bottom-left-origin and z is MediaPipe's own relative depth (scaled like x, no aspect meaning) — the raw form a future geometry/transform node would need, matching MediaPipeFaceLandmarkNode's outputLandmarks3D convention exactly. Empty if nothing was detected.")),
-            ("outputLandmarksScene", NodePort<ContiguousArray<simd_float3>>(name: "Landmarks (Scene Space)", kind: .Outlet, description: "All 33 BlazePose landmarks (same order as Landmarks 3D) remapped into Fabric's unit coordinate space (-1...1 horizontally, -aspect...aspect vertically, matching Landmarks), z scaled by the same factor as x. Unlike Landmarks 3D's raw per-model relative depth, this is directly comparable against MediaPipe Face/Hand Landmarks' own Landmarks (Scene Space) output, so all three can be composited in one 3D scene — not physically metric, just a consistent shared space. Empty if nothing was detected.")),
+            ("outputLandmarksScene", NodePort<ContiguousArray<simd_float3>>(name: "3D Landmarks", kind: .Outlet, description: "All 33 BlazePose landmarks (same order as Landmarks 3D) remapped into Fabric's unit coordinate space (-1...1 horizontally, -aspect...aspect vertically, matching Landmarks), z scaled by the same factor as x. Unlike Landmarks 3D's raw per-model relative depth, this is directly comparable against MediaPipe Face/Hand Landmarks' own 3D Landmarks output, so all three can be composited in one 3D scene — not physically metric, just a consistent shared space. Empty if nothing was detected.")),
             ("outputKeypoints", NodePort<ContiguousArray<simd_float2>>(name: "Keypoints", kind: .Outlet, description: "Pass-through of this node's Keypoints inlet, unchanged")),
             ("outputSegmentationMask", NodePort<FabricImage>(name: "Segmentation Mask", kind: .Outlet, description: "BlazePose's per-pixel person-segmentation confidence (sigmoid-activated), reprojected to full image space. Not temporally smoothed.")),
-            ("outputTrackedRegionOfInterest", NodePort<simd_float4>(name: "Tracked Region", kind: .Outlet, description: "This frame's landmarks re-expressed as a region for tracking the same body next frame, matching MediaPipe Pose Detection's Previous Region inlet. Sent as nil (not a stale rect) whenever this frame's pose presence gate fails.")),
-            ("outputTrackedRotation", NodePort<Float>(name: "Tracked Rotation", kind: .Outlet, description: "Paired with Tracked Region — wire into MediaPipe Pose Detection's Previous Rotation inlet.")),
+            ("outputTrackedRegionOfInterest", NodePort<simd_float4>(name: "Tracked Region", kind: .Outlet, description: "This frame's landmarks re-expressed as a region for tracking the same body next frame, matching MediaPipe Pose Detection's Tracked Region inlet. Sent as nil (not a stale rect) whenever this frame's pose presence gate fails.")),
+            ("outputTrackedRotation", NodePort<Float>(name: "Tracked Rotation", kind: .Outlet, description: "Paired with Tracked Region — wire into MediaPipe Pose Detection's Tracked Rotation inlet.")),
         ]
     }
 
@@ -104,17 +104,16 @@ public class MediaPipePoseLandmarkNode: Node
     private static let fullFrameRegion = simd_float4(0, 0, 1, 1)
 
 
-    /// Not a port -- Fabric has no systemized protocol yet for per-node
-    /// synchronous/asynchronous execution, so this stays a compile-time
-    /// switch for development/comparison until that exists (Iterator use
-    /// forces synchronous regardless -- see execute()'s insideIterator
-    /// comment). Flip locally to test the bounded-GPU-wait path.
-    private static let synchronousInference = false
 
     private var preprocessor: MediaPipeCropPreprocessor?
     private var model: MediaPipeMPSGraph?
     private var preparedTier: ModelTier?
+    private var preparedExecution: MPSModelExecution?
     private var executionEnabled = false
+
+    public private(set) var modelPrecision: MPSModelPrecision
+    public private(set) var modelComputeUnits: MPSModelComputeUnits = .gpuAndNeuralEngine
+    public private(set) var inferenceTiming: MPSInferenceTiming = .synchronous
 
     /// GPU-resident destinations for MediaPipeMPSGraph.encode()'s output
     /// tensors (landmarks, pose flag, segmentation) -- .storageModeShared so
@@ -128,17 +127,24 @@ public class MediaPipePoseLandmarkNode: Node
     private enum ModelSettingsCodingKeys: String, CodingKey
     {
         case modelSettings
+        case modelPrecision
+        case modelComputeUnits
+        case inferenceTiming
     }
 
     public required init(context: Context)
     {
         self.modelSettings = .init()
+        self.modelPrecision = .highQuality
         super.init(context: context)
     }
 
-    public init(context: Context, modelSettings: MediaPipePoseLandmarkSettings)
+    public init(context: Context, modelSettings: MediaPipePoseLandmarkSettings, modelPrecision: MPSModelPrecision = .highQuality, modelComputeUnits: MPSModelComputeUnits = .gpuAndNeuralEngine, inferenceTiming: MPSInferenceTiming = .synchronous)
     {
         self.modelSettings = modelSettings
+        self.modelPrecision = modelPrecision
+        self.modelComputeUnits = modelComputeUnits
+        self.inferenceTiming = inferenceTiming
         super.init(context: context)
     }
 
@@ -156,6 +162,9 @@ public class MediaPipePoseLandmarkNode: Node
                 modelTier: MediaPipePoseLandmarkSettings.ModelTier(rawValue: legacy ?? "") ?? .lite
             )
         }
+        self.modelPrecision = try container.decodeIfPresent(MPSModelPrecision.self, forKey: .modelPrecision) ?? .highQuality
+        self.modelComputeUnits = try container.decodeIfPresent(MPSModelComputeUnits.self, forKey: .modelComputeUnits) ?? .gpuAndNeuralEngine
+        self.inferenceTiming = try container.decodeIfPresent(MPSInferenceTiming.self, forKey: .inferenceTiming) ?? .synchronous
         try super.init(from: decoder)
     }
 
@@ -164,10 +173,13 @@ public class MediaPipePoseLandmarkNode: Node
         try super.encode(to: encoder)
         var container = encoder.container(keyedBy: ModelSettingsCodingKeys.self)
         try container.encode(self.modelSettings, forKey: .modelSettings)
+        try container.encode(self.modelPrecision, forKey: .modelPrecision)
+        try container.encode(self.modelComputeUnits, forKey: .modelComputeUnits)
+        try container.encode(self.inferenceTiming, forKey: .inferenceTiming)
     }
 
     override public func providesSettingsView() -> Bool { true }
-    override public var settingsSize: SettingsViewSize { .Mini }
+    override public var settingsSize: SettingsViewSize { .Small }
 
     override public func settingsView() -> AnyView
     {
@@ -183,19 +195,54 @@ public class MediaPipePoseLandmarkNode: Node
                     }
                 )
             ),
+            MPSModelConfigurationOption(
+                label: "Precision",
+                choices: MPSModelPrecision.labels,
+                selection: Binding(
+                    get: { [weak self] in (self?.modelPrecision ?? .highQuality).label },
+                    set: { [weak self] value in
+                        guard let self, let precision = MPSModelPrecision(label: value) else { return }
+                        self.apply(modelPrecision: precision)
+                    }
+                )
+            ),
+            MPSModelConfigurationOption(
+                label: "Compute",
+                choices: MPSModelComputeUnits.labels,
+                selection: Binding(
+                    get: { [weak self] in (self?.modelComputeUnits ?? .gpuAndNeuralEngine).label },
+                    set: { [weak self] value in
+                        guard let self, let computeUnits = MPSModelComputeUnits(label: value) else { return }
+                        self.apply(modelComputeUnits: computeUnits)
+                    }
+                )
+            ),
+            MPSModelConfigurationOption(
+                label: "Inference",
+                choices: MPSInferenceTiming.labels,
+                selection: Binding(
+                    get: { [weak self] in (self?.inferenceTiming ?? .synchronous).label },
+                    set: { [weak self] value in
+                        guard let self, let inferenceTiming = MPSInferenceTiming(label: value) else { return }
+                        self.apply(inferenceTiming: inferenceTiming)
+                    }
+                )
+            ),
         ]))
     }
 
     override public func enableExecution(renderer: GraphRenderer) throws
     {
-        try self.prepareModel(for: self.selectedTier)
+        try self.prepareModel(for: self.selectedTier, execution: self.modelExecution)
         self.executionEnabled = true
+        try super.enableExecution(renderer: renderer)
     }
 
     override public func disableExecution(renderer: GraphRenderer) throws
     {
         self.executionEnabled = false
         self.releasePreparedModel()
+        try super.disableExecution(renderer: renderer)
     }
 
     private let lastLandmarksLock = NSLock()
@@ -300,7 +347,7 @@ public class MediaPipePoseLandmarkNode: Node
             let region = self.inputRegionOfInterest.value ?? Self.fullFrameRegion
             let rotation = self.inputRotation.value ?? 0
             let tier = self.selectedTier
-            let synchronous = insideIterator || Self.synchronousInference
+            let synchronous = insideIterator || self.inferenceTiming == .synchronous
 
             do { try self.detectLandmarks(image: inputImage, region: region, rotation: rotation, tier: tier, commandBuffer: commandBuffer, synchronous: synchronous) }
             catch { print("MediaPipePoseLandmarkNode: detectLandmarks failed: \(error)") }
@@ -421,7 +468,7 @@ public class MediaPipePoseLandmarkNode: Node
     private func detectLandmarks(image: FabricImage, region: simd_float4, rotation: Float, tier: ModelTier, commandBuffer: MTLCommandBuffer, synchronous: Bool) throws
     {
         let startTime = Date()
-        try self.prepareModel(for: tier)
+        try self.prepareModel(for: tier, execution: self.modelExecution)
         guard let preprocessor = self.preprocessor, let model = self.model else
         {
             throw FabricError(.execution(.gpu), severity: .recoverable, message: "MediaPipe pose landmark model is unavailable")
@@ -561,9 +608,9 @@ public class MediaPipePoseLandmarkNode: Node
         return (pose.landmarks.map(flip), pose.auxiliaryLandmarks.map(flip))
     }
 
-    private static func mpsGraphModel(for tier: ModelTier, commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
+    private static func mpsGraphModel(for tier: ModelTier, execution: MPSModelExecution, commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
     {
-        try MediaPipeSharedModels.model(named: tier.resourcePrefix, inputWidth: Int(MediaPipePoseLandmarkProjection.landmarkSize), inputHeight: Int(MediaPipePoseLandmarkProjection.landmarkSize), commandQueue: commandQueue)
+        try MediaPipeSharedModels.model(named: tier.resourcePrefix, inputWidth: Int(MediaPipePoseLandmarkProjection.landmarkSize), inputHeight: Int(MediaPipePoseLandmarkProjection.landmarkSize), execution: execution, commandQueue: commandQueue)
     }
 
     private var selectedTier: ModelTier
@@ -571,10 +618,10 @@ public class MediaPipePoseLandmarkNode: Node
         ModelTier.from(self.modelSettings.modelTier.rawValue)
     }
 
-    private func prepareModel(for tier: ModelTier) throws
+    private func prepareModel(for tier: ModelTier, execution: MPSModelExecution) throws
     {
-        guard self.model == nil || self.preparedTier != tier else { return }
-        let model = try Self.mpsGraphModel(for: tier, commandQueue: self.context.commandQueue)
+        guard self.model == nil || self.preparedTier != tier || self.preparedExecution != execution else { return }
+        let model = try Self.mpsGraphModel(for: tier, execution: execution, commandQueue: self.context.commandQueue)
         let preprocessor = try MediaPipeCropPreprocessor(
             device: self.context.device,
             outputWidth: Int(MediaPipePoseLandmarkProjection.landmarkSize),
@@ -599,6 +646,7 @@ public class MediaPipePoseLandmarkNode: Node
         self.outputBuffersTier = tier
         self.segmentationMaskProjector = segmentationMaskProjector
         self.preparedTier = tier
+        self.preparedExecution = execution
     }
 
     private func releasePreparedModel()
@@ -609,6 +657,7 @@ public class MediaPipePoseLandmarkNode: Node
         self.outputBuffersTier = nil
         self.segmentationMaskProjector = nil
         self.preparedTier = nil
+        self.preparedExecution = nil
     }
 
     private func apply(modelSettings: MediaPipePoseLandmarkSettings)
@@ -618,7 +667,7 @@ public class MediaPipePoseLandmarkNode: Node
         {
             do
             {
-                try self.prepareModel(for: ModelTier.from(modelSettings.modelTier.rawValue))
+                try self.prepareModel(for: ModelTier.from(modelSettings.modelTier.rawValue), execution: self.modelExecution)
             }
             catch
             {
@@ -627,6 +676,57 @@ public class MediaPipePoseLandmarkNode: Node
             }
         }
         self.modelSettings = modelSettings
+        self.markDirty()
+    }
+
+    private func apply(modelPrecision: MPSModelPrecision)
+    {
+        guard modelPrecision != self.modelPrecision else { return }
+        if self.executionEnabled
+        {
+            do
+            {
+                try self.prepareModel(for: self.selectedTier, execution: MPSModelExecution(precision: modelPrecision, computeUnits: self.modelComputeUnits))
+            }
+            catch
+            {
+                print("MediaPipePoseLandmarkNode: could not apply precision: \(error)")
+                return
+            }
+        }
+        self.modelPrecision = modelPrecision
+        self.markDirty()
+    }
+
+    private func apply(modelComputeUnits: MPSModelComputeUnits)
+    {
+        guard modelComputeUnits != self.modelComputeUnits else { return }
+        if self.executionEnabled
+        {
+            do
+            {
+                try self.prepareModel(for: self.selectedTier, execution: MPSModelExecution(precision: self.modelPrecision, computeUnits: modelComputeUnits))
+            }
+            catch
+            {
+                print("MediaPipePoseLandmarkNode: could not apply compute units: \(error)")
+                return
+            }
+        }
+        self.modelComputeUnits = modelComputeUnits
+        self.markDirty()
+    }
+
+    private var modelExecution: MPSModelExecution
+    {
+        MPSModelExecution(precision: self.modelPrecision, computeUnits: self.modelComputeUnits)
+    }
+
+    /// Takes effect on the next frame; the model does not change.
+    private func apply(inferenceTiming: MPSInferenceTiming)
+    {
+        guard inferenceTiming != self.inferenceTiming else { return }
+        self.inferenceTiming = inferenceTiming
         self.markDirty()
     }
 

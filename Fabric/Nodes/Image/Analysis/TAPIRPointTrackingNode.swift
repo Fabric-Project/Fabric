@@ -14,33 +14,27 @@ import SwiftUI
 
 public struct TAPIRPointTrackingSettings: Codable, Equatable
 {
-    public enum ComputePrecision: String, Codable, CaseIterable
-    {
-        case mixedFloat16 = "Mixed Float16"
-        case float32 = "Float32"
-    }
-
     public var pointCapacity: Int
     public var refinementCount: Int
-    public var computePrecision: ComputePrecision
 
     public init(
         pointCapacity: Int = 32,
-        refinementCount: Int = 1,
-        computePrecision: ComputePrecision = .mixedFloat16
+        refinementCount: Int = 1
     )
     {
         self.pointCapacity = pointCapacity
         self.refinementCount = refinementCount
-        self.computePrecision = computePrecision
     }
 }
 
 /// Tracks caller-supplied points through a video stream using DeepMind's
-/// causal BootsTAPIR model. Preprocessing, inference, recurrent-state updates,
-/// and result copies are encoded onto Fabric's shared MPSCommandBuffer. The
-/// node never commits or waits; numerical outputs are published after GPU
-/// completion and therefore intentionally lag the image stream.
+/// causal BootsTAPIR model. Synchronous (the default Inference setting):
+/// preprocessing, inference, recurrent-state updates and result copies go on
+/// the node's own command buffer, which it commits and waits on, so results
+/// belong to the current frame. Asynchronous: the same work is encoded onto
+/// Fabric's shared MPSCommandBuffer, the node never commits or waits, and
+/// numerical outputs are published after GPU completion, so they lag the
+/// image stream.
 public final class TAPIRPointTrackingNode: Node
 {
     override public class var name: String { "MPS TAPIR Point Tracking" }
@@ -48,13 +42,12 @@ public final class TAPIRPointTrackingNode: Node
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String {
-        "Tracks points with the 256×256 causal BootsTAPIR model. Work is encoded asynchronously on Fabric's shared MPS command buffer; point changes or Reset initialize a new tracking sequence."
+        "Tracks points with the 256×256 causal BootsTAPIR model. Asynchronous inference encodes on Fabric's shared MPS command buffer and results lag a frame; Synchronous waits for them in the same frame. Point changes or Reset initialize a new tracking sequence."
     }
 
     private static let modelSize: Float = 256
     private static let pointCapacityOptions = ["1", "8", "16", "32", "64", "128", "256"]
     private static let refinementOptions = ["1", "2", "3", "4"]
-    private static let precisionOptions = ["Mixed Float16", "Float32"]
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
     {
@@ -70,13 +63,13 @@ public final class TAPIRPointTrackingNode: Node
                 description: "Points to initialize in Fabric unit coordinates (-1...1 horizontally, aspect-scaled vertically). Changing the array starts a new tracking sequence."
             )),
             ("inputReset", ParameterPort(parameter: BoolParameter(
-                "Reset Tracking",
+                "Reset",
                 false,
                 .button,
                 "Reinitialize the current query points on the next image"
             ))),
             ("outputTrackedPoints", NodePort<ContiguousArray<simd_float2>>(
-                name: "Tracked Points",
+                name: "Points",
                 kind: .Outlet,
                 description: "Latest completed tracks in Fabric unit coordinates, index-aligned with Query Points"
             )),
@@ -86,7 +79,7 @@ public final class TAPIRPointTrackingNode: Node
                 description: "Per-point TAPIR visibility classification"
             )),
             ("outputVisibilityConfidence", NodePort<ContiguousArray<Float>>(
-                name: "Visibility Confidence",
+                name: "Confidence",
                 kind: .Outlet,
                 description: "Per-point sigmoid(-occlusion) × sigmoid(-expected-distance) confidence"
             )),
@@ -105,6 +98,7 @@ public final class TAPIRPointTrackingNode: Node
         let pointCapacity: Int
         let refinementCount: Int
         let computePrecision: TAPIRComputePrecision
+        let computeUnits: TAPIRComputeUnits
     }
 
     private struct CompletedResult
@@ -156,22 +150,32 @@ public final class TAPIRPointTrackingNode: Node
     private var completedResult: CompletedResult?
 
     public private(set) var modelSettings: TAPIRPointTrackingSettings
+    public private(set) var modelPrecision: MPSModelPrecision
+    public private(set) var modelComputeUnits: MPSModelComputeUnits = .gpuAndNeuralEngine
+    public private(set) var inferenceTiming: MPSInferenceTiming = .synchronous
     private var executionEnabled = false
 
     private enum ModelSettingsCodingKeys: String, CodingKey
     {
         case modelSettings
+        case modelPrecision
+        case modelComputeUnits
+        case inferenceTiming
     }
 
     public required init(context: Context)
     {
         self.modelSettings = .init()
+        self.modelPrecision = .highQuality
         super.init(context: context)
     }
 
-    public init(context: Context, modelSettings: TAPIRPointTrackingSettings)
+    public init(context: Context, modelSettings: TAPIRPointTrackingSettings, modelPrecision: MPSModelPrecision = .highQuality, modelComputeUnits: MPSModelComputeUnits = .gpuAndNeuralEngine, inferenceTiming: MPSInferenceTiming = .synchronous)
     {
         self.modelSettings = modelSettings
+        self.modelPrecision = modelPrecision
+        self.modelComputeUnits = modelComputeUnits
+        self.inferenceTiming = inferenceTiming
         super.init(context: context)
     }
 
@@ -186,10 +190,12 @@ public final class TAPIRPointTrackingNode: Node
         {
             self.modelSettings = TAPIRPointTrackingSettings(
                 pointCapacity: Int(LegacyModelConfigurationPort.string(named: "inputPointCapacity", from: decoder) ?? "32") ?? 32,
-                refinementCount: Int(LegacyModelConfigurationPort.string(named: "inputRefinementCount", from: decoder) ?? "1") ?? 1,
-                computePrecision: LegacyModelConfigurationPort.string(named: "inputComputePrecision", from: decoder) == Self.precisionOptions[1] ? .float32 : .mixedFloat16
+                refinementCount: Int(LegacyModelConfigurationPort.string(named: "inputRefinementCount", from: decoder) ?? "1") ?? 1
             )
         }
+        self.modelPrecision = try container.decodeIfPresent(MPSModelPrecision.self, forKey: .modelPrecision) ?? .highQuality
+        self.modelComputeUnits = try container.decodeIfPresent(MPSModelComputeUnits.self, forKey: .modelComputeUnits) ?? .gpuAndNeuralEngine
+        self.inferenceTiming = try container.decodeIfPresent(MPSInferenceTiming.self, forKey: .inferenceTiming) ?? .synchronous
         try super.init(from: decoder)
     }
 
@@ -198,6 +204,9 @@ public final class TAPIRPointTrackingNode: Node
         try super.encode(to: encoder)
         var container = encoder.container(keyedBy: ModelSettingsCodingKeys.self)
         try container.encode(self.modelSettings, forKey: .modelSettings)
+        try container.encode(self.modelPrecision, forKey: .modelPrecision)
+        try container.encode(self.modelComputeUnits, forKey: .modelComputeUnits)
+        try container.encode(self.inferenceTiming, forKey: .inferenceTiming)
     }
 
     override public func providesSettingsView() -> Bool { true }
@@ -215,7 +224,7 @@ public final class TAPIRPointTrackingNode: Node
                         guard let self, let pointCapacity = Int(value) else { return }
                         var settings = self.modelSettings
                         settings.pointCapacity = pointCapacity
-                        self.apply(modelSettings: settings)
+                        self.apply(modelSettings: settings, modelPrecision: self.modelPrecision, modelComputeUnits: self.modelComputeUnits)
                     }
                 )
             ),
@@ -228,20 +237,40 @@ public final class TAPIRPointTrackingNode: Node
                         guard let self, let refinementCount = Int(value) else { return }
                         var settings = self.modelSettings
                         settings.refinementCount = refinementCount
-                        self.apply(modelSettings: settings)
+                        self.apply(modelSettings: settings, modelPrecision: self.modelPrecision, modelComputeUnits: self.modelComputeUnits)
                     }
                 )
             ),
             MPSModelConfigurationOption(
-                label: "Compute Precision",
-                choices: Self.precisionOptions,
+                label: "Precision",
+                choices: MPSModelPrecision.labels,
                 selection: Binding(
-                    get: { [weak self] in self?.modelSettings.computePrecision.rawValue ?? Self.precisionOptions[0] },
+                    get: { [weak self] in (self?.modelPrecision ?? .highQuality).label },
                     set: { [weak self] value in
-                        guard let self, let precision = TAPIRPointTrackingSettings.ComputePrecision(rawValue: value) else { return }
-                        var settings = self.modelSettings
-                        settings.computePrecision = precision
-                        self.apply(modelSettings: settings)
+                        guard let self, let precision = MPSModelPrecision(label: value) else { return }
+                        self.apply(modelSettings: self.modelSettings, modelPrecision: precision, modelComputeUnits: self.modelComputeUnits)
+                    }
+                )
+            ),
+            MPSModelConfigurationOption(
+                label: "Compute",
+                choices: MPSModelComputeUnits.labels,
+                selection: Binding(
+                    get: { [weak self] in (self?.modelComputeUnits ?? .gpuAndNeuralEngine).label },
+                    set: { [weak self] value in
+                        guard let self, let computeUnits = MPSModelComputeUnits(label: value) else { return }
+                        self.apply(modelSettings: self.modelSettings, modelPrecision: self.modelPrecision, modelComputeUnits: computeUnits)
+                    }
+                )
+            ),
+            MPSModelConfigurationOption(
+                label: "Inference",
+                choices: MPSInferenceTiming.labels,
+                selection: Binding(
+                    get: { [weak self] in (self?.inferenceTiming ?? .synchronous).label },
+                    set: { [weak self] value in
+                        guard let self, let inferenceTiming = MPSInferenceTiming(label: value) else { return }
+                        self.apply(inferenceTiming: inferenceTiming)
                     }
                 )
             ),
@@ -250,8 +279,9 @@ public final class TAPIRPointTrackingNode: Node
 
     override public func enableExecution(renderer: GraphRenderer) throws
     {
-        try self.prepareModel(self.requestedConfiguration(for: self.modelSettings))
+        try self.prepareModel(self.requestedConfiguration(for: self.modelSettings, precision: self.modelPrecision, computeUnits: self.modelComputeUnits))
         self.executionEnabled = true
+        try super.enableExecution(renderer: renderer)
     }
 
     override public func disableExecution(renderer: GraphRenderer) throws
@@ -259,12 +289,14 @@ public final class TAPIRPointTrackingNode: Node
         self.executionEnabled = false
         self.invalidatePreparedModel()
         self.clearPublishedResults()
+        try super.disableExecution(renderer: renderer)
     }
 
     override public func stopExecution(renderer: GraphRenderer) throws
     {
         self.resetSequence()
         self.clearPublishedResults()
+        try super.stopExecution(renderer: renderer)
     }
 
     override public func execute(
@@ -295,15 +327,33 @@ public final class TAPIRPointTrackingNode: Node
             return
         }
 
-        let configuration = self.requestedConfiguration(for: self.modelSettings)
+        let configuration = self.requestedConfiguration(for: self.modelSettings, precision: self.modelPrecision, computeUnits: self.modelComputeUnits)
         try self.prepareModel(configuration)
         guard let model, let preprocessor else
         {
             throw FabricError(.execution(.gpu), severity: .recoverable, message: "TAPIR model is unavailable")
         }
-        guard let frameCommandBuffer = commandBuffer as? MPSCommandBuffer else
+        // Synchronous, as in the MediaPipe nodes: this frame's crop, inference
+        // and readback go on the node's own command buffer, which is committed
+        // and waited on below, so results belong to this frame. Inside an
+        // Iterator every iteration needs its own result, so it is always used.
+        let synchronous = self.inferenceTiming == .synchronous || executionInfo.iterationInfo != nil
+        let targetBuffer: MPSCommandBuffer
+        if synchronous
         {
-            throw FabricError(.execution(.gpu), severity: .recoverable, message: "TAPIR requires Fabric's shared MPSCommandBuffer")
+            guard let dedicated = self.context.commandQueue.makeCommandBuffer() else
+            {
+                throw FabricError(.execution(.gpu), severity: .recoverable, message: "Could not create synchronous TAPIR command buffer")
+            }
+            targetBuffer = MPSCommandBuffer(commandBuffer: dedicated)
+        }
+        else
+        {
+            guard let frameCommandBuffer = commandBuffer as? MPSCommandBuffer else
+            {
+                throw FabricError(.execution(.gpu), severity: .recoverable, message: "TAPIR requires Fabric's shared MPSCommandBuffer")
+            }
+            targetBuffer = frameCommandBuffer
         }
 
         let boundedPoints = ContiguousArray(queryPoints.prefix(configuration.pointCapacity))
@@ -331,7 +381,7 @@ public final class TAPIRPointTrackingNode: Node
             centerNormalizedBottomLeft: simd_float2(repeating: 0.5),
             sizeNormalized: simd_float2(repeating: 1),
             rotationRadians: 0,
-            commandBuffer: commandBuffer
+            commandBuffer: targetBuffer
         )
 
         try model.encode(
@@ -340,7 +390,7 @@ public final class TAPIRPointTrackingNode: Node
             resetValueBuffer: resetBuffer,
             state: currentState,
             output: output,
-            commandBuffer: frameCommandBuffer
+            commandBuffer: targetBuffer
         )
         self.currentState = output.state
 
@@ -349,12 +399,15 @@ public final class TAPIRPointTrackingNode: Node
             // Tracking continues on the GPU even when CPU result consumption
             // falls behind. This deliberately drops a readback, not a frame of
             // recurrent inference and never stalls Fabric's render thread.
+            // The synchronous buffer still commits, so the state advances.
+            if synchronous { targetBuffer.commit() }
             return
         }
 
-        guard let blitEncoder = commandBuffer.makeBlitCommandEncoder() else
+        guard let blitEncoder = targetBuffer.makeBlitCommandEncoder() else
         {
             readbackSlot.release()
+            if synchronous { targetBuffer.commit() }
             throw FabricError(.execution(.gpu), severity: .recoverable, message: "Could not create TAPIR result readback encoder")
         }
         let floatStride = MemoryLayout<Float>.stride
@@ -367,10 +420,32 @@ public final class TAPIRPointTrackingNode: Node
 
         let activePointCount = boundedPoints.count
         let aspect = presentationAspect
+
+        if synchronous
+        {
+            targetBuffer.commit()
+            targetBuffer.waitUntilCompleted()
+            defer { readbackSlot.release() }
+            if let error = targetBuffer.error
+            {
+                throw FabricError(.execution(.gpu), severity: .recoverable, message: "TAPIR synchronous inference failed: \(error)")
+            }
+            let result = Self.decodeResult(
+                buffer: readbackSlot.buffer,
+                activePointCount: activePointCount,
+                pointCapacity: pointCapacity,
+                aspect: aspect
+            )
+            self.outputTrackedPoints.send(result.points)
+            self.outputVisible.send(result.visible)
+            self.outputVisibilityConfidence.send(result.visibilityConfidence)
+            return
+        }
+
         self.completedResultLock.lock()
         let generation = self.sequenceGeneration
         self.completedResultLock.unlock()
-        commandBuffer.addCompletedHandler { [weak self, image, model, sequenceInputs, output, readbackSlot] finishedBuffer in
+        targetBuffer.addCompletedHandler { [weak self, image, model, sequenceInputs, output, readbackSlot] finishedBuffer in
             defer { readbackSlot.release() }
             withExtendedLifetime((image, model, sequenceInputs, output)) {}
             guard finishedBuffer.error == nil, let self else { return }
@@ -389,23 +464,24 @@ public final class TAPIRPointTrackingNode: Node
         }
     }
 
-    private func requestedConfiguration(for settings: TAPIRPointTrackingSettings) -> PreparedConfiguration
+    private func requestedConfiguration(for settings: TAPIRPointTrackingSettings, precision: MPSModelPrecision, computeUnits: MPSModelComputeUnits) -> PreparedConfiguration
     {
         return PreparedConfiguration(
             pointCapacity: Self.pointCapacityOptions.compactMap(Int.init).contains(settings.pointCapacity) ? settings.pointCapacity : 32,
             refinementCount: Self.refinementOptions.compactMap(Int.init).contains(settings.refinementCount) ? settings.refinementCount : 1,
-            computePrecision: settings.computePrecision == .float32 ? .float32 : .mixedFloat16
+            computePrecision: precision.tapir,
+            computeUnits: computeUnits.tapir
         )
     }
 
-    private func apply(modelSettings: TAPIRPointTrackingSettings)
+    private func apply(modelSettings: TAPIRPointTrackingSettings, modelPrecision: MPSModelPrecision, modelComputeUnits: MPSModelComputeUnits)
     {
-        guard modelSettings != self.modelSettings else { return }
+        guard modelSettings != self.modelSettings || modelPrecision != self.modelPrecision || modelComputeUnits != self.modelComputeUnits else { return }
         if self.executionEnabled
         {
             do
             {
-                try self.prepareModel(self.requestedConfiguration(for: modelSettings))
+                try self.prepareModel(self.requestedConfiguration(for: modelSettings, precision: modelPrecision, computeUnits: modelComputeUnits))
             }
             catch
             {
@@ -414,6 +490,16 @@ public final class TAPIRPointTrackingNode: Node
             }
         }
         self.modelSettings = modelSettings
+        self.modelPrecision = modelPrecision
+        self.modelComputeUnits = modelComputeUnits
+        self.markDirty()
+    }
+
+    /// Takes effect on the next frame; the model does not change.
+    private func apply(inferenceTiming: MPSInferenceTiming)
+    {
+        guard inferenceTiming != self.inferenceTiming else { return }
+        self.inferenceTiming = inferenceTiming
         self.markDirty()
     }
 
@@ -423,7 +509,8 @@ public final class TAPIRPointTrackingNode: Node
         let modelConfiguration = TAPIRConfiguration(
             maximumPointCount: requested.pointCapacity,
             refinementCount: requested.refinementCount,
-            computePrecision: requested.computePrecision
+            computePrecision: requested.computePrecision,
+            computeUnits: requested.computeUnits
         )
         let model = try TAPIRSharedModels.model(
             configuration: modelConfiguration,

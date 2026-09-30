@@ -88,10 +88,10 @@ public class MediaPipeFaceLandmarkNode: Node
             ("inputEnableSmoothing", ParameterPort(parameter: BoolParameter("Smoothing", true, .toggle, "Temporally smooth landmarks with a One Euro filter. Disable to see the model's raw, unsmoothed output."))),
 
             ("outputLandmarks", NodePort<ContiguousArray<simd_float2>>(name: "Landmarks", kind: .Outlet, description: "All 468 FaceMesh landmarks, in FaceMesh's own canonical index order, in unit coordinates")),
-            ("outputLandmarksScene", NodePort<ContiguousArray<simd_float3>>(name: "Landmarks (Scene Space)", kind: .Outlet, description: "All 468 FaceMesh landmarks remapped into Fabric's unit coordinate space (-1...1 horizontally, -aspect...aspect vertically, matching Landmarks), z scaled by the same factor as x — directly comparable against MediaPipe Hand/Pose Landmarks' own Landmarks (Scene Space) output, so all three can be composited in one 3D scene. Not physically metric, and not camera-aligned — for an actual placement transform, use this node's own Transform output instead. Empty if nothing was detected.")),
+            ("outputLandmarksScene", NodePort<ContiguousArray<simd_float3>>(name: "3D Landmarks", kind: .Outlet, description: "All 468 FaceMesh landmarks remapped into Fabric's unit coordinate space (-1...1 horizontally, -aspect...aspect vertically, matching Landmarks), z scaled by the same factor as x — directly comparable against MediaPipe Hand/Pose Landmarks' own 3D Landmarks output, so all three can be composited in one 3D scene. Not physically metric, and not camera-aligned — for an actual placement transform, use this node's own Transform output instead. Empty if nothing was detected.")),
             ("outputKeypoints", NodePort<ContiguousArray<simd_float2>>(name: "Keypoints", kind: .Outlet, description: "Pass-through of this node's Keypoints inlet, unchanged")),
-            ("outputTrackedRegionOfInterest", NodePort<simd_float4>(name: "Tracked Region", kind: .Outlet, description: "This frame's landmarks re-expressed as a region for tracking the same face next frame, matching MediaPipe Face Detection's Previous Region inlet. Sent as nil (not a stale rect) whenever this frame's presence gate fails.")),
-            ("outputTrackedRotation", NodePort<Float>(name: "Tracked Rotation", kind: .Outlet, description: "Paired with Tracked Region — wire into MediaPipe Face Detection's Previous Rotation inlet.")),
+            ("outputTrackedRegionOfInterest", NodePort<simd_float4>(name: "Tracked Region", kind: .Outlet, description: "This frame's landmarks re-expressed as a region for tracking the same face next frame, matching MediaPipe Face Detection's Tracked Region inlet. Sent as nil (not a stale rect) whenever this frame's presence gate fails.")),
+            ("outputTrackedRotation", NodePort<Float>(name: "Tracked Rotation", kind: .Outlet, description: "Paired with Tracked Region — wire into MediaPipe Face Detection's Tracked Rotation inlet.")),
         ]
     }
 
@@ -108,7 +108,7 @@ public class MediaPipeFaceLandmarkNode: Node
 
     private static func makeTransformPort() -> Port
     {
-        NodePort<simd_float4x4>(name: "Transform", kind: .Outlet, description: "Rigid placement transform (uniform scale + rotation + translation, head pose only) for the same solve as Geometry, fit directly against Landmarks (Scene Space)'s own already-camera-correct 3D reconstruction — inherits that output's real depth and placement, already in Fabric's world units. Not updated (retains its last value) when no face is present this frame.")
+        NodePort<simd_float4x4>(name: "Transform", kind: .Outlet, description: "Rigid placement transform (uniform scale + rotation + translation, head pose only) for the same solve as Geometry, fit directly against 3D Landmarks's own already-camera-correct 3D reconstruction — inherits that output's real depth and placement, already in Fabric's world units. Not updated (retains its last value) when no face is present this frame.")
     }
 
     public var inputImage: NodePort<FabricImage> { port(named: "inputImage") }
@@ -153,9 +153,17 @@ public class MediaPipeFaceLandmarkNode: Node
         }
     }
 
+    public private(set) var modelPrecision: MPSModelPrecision = .highQuality
+    public private(set) var modelComputeUnits: MPSModelComputeUnits = .gpuAndNeuralEngine
+    public private(set) var inferenceTiming: MPSInferenceTiming = .synchronous
+    private var preparedExecution: MPSModelExecution?
+
     private enum OutputSettingsCodingKeys: String, CodingKey
     {
         case outputSettings
+        case modelPrecision
+        case modelComputeUnits
+        case inferenceTiming
     }
 
     public required init(from decoder: any Decoder) throws
@@ -166,6 +174,9 @@ public class MediaPipeFaceLandmarkNode: Node
         // Initializing assignment -- didSet does not fire here, matching the
         // plain-creation path (ports are (re)built by rebuildOptionalPorts below).
         self.outputSettings = decoded ?? MediaPipeFaceLandmarkOutputSettings()
+        self.modelPrecision = try container.decodeIfPresent(MPSModelPrecision.self, forKey: .modelPrecision) ?? .highQuality
+        self.modelComputeUnits = try container.decodeIfPresent(MPSModelComputeUnits.self, forKey: .modelComputeUnits) ?? .gpuAndNeuralEngine
+        self.inferenceTiming = try container.decodeIfPresent(MPSInferenceTiming.self, forKey: .inferenceTiming) ?? .synchronous
 
         try super.init(from: decoder)
 
@@ -180,6 +191,9 @@ public class MediaPipeFaceLandmarkNode: Node
 
         var container = encoder.container(keyedBy: OutputSettingsCodingKeys.self)
         try container.encode(self.outputSettings, forKey: .outputSettings)
+        try container.encode(self.modelPrecision, forKey: .modelPrecision)
+        try container.encode(self.modelComputeUnits, forKey: .modelComputeUnits)
+        try container.encode(self.inferenceTiming, forKey: .inferenceTiming)
     }
 
     public required init(context: Context)
@@ -190,9 +204,12 @@ public class MediaPipeFaceLandmarkNode: Node
     }
 
     /// Designated init for programmatic construction with specific initial output settings.
-    public init(context: Context, outputSettings: MediaPipeFaceLandmarkOutputSettings)
+    public init(context: Context, outputSettings: MediaPipeFaceLandmarkOutputSettings, modelPrecision: MPSModelPrecision = .highQuality, modelComputeUnits: MPSModelComputeUnits = .gpuAndNeuralEngine, inferenceTiming: MPSInferenceTiming = .synchronous)
     {
         self.outputSettings = outputSettings
+        self.modelPrecision = modelPrecision
+        self.modelComputeUnits = modelComputeUnits
+        self.inferenceTiming = inferenceTiming
         super.init(context: context)
         self.rebuildOptionalPorts(for: self.outputSettings)
     }
@@ -227,11 +244,89 @@ public class MediaPipeFaceLandmarkNode: Node
     // MARK: - Settings View
 
     override public func providesSettingsView() -> Bool { true }
-    override public var settingsSize: SettingsViewSize { .Mini }
+    override public var settingsSize: SettingsViewSize { .Small }
 
     override public func settingsView() -> AnyView
     {
-        AnyView(MediaPipeFaceLandmarkOutputSettingsView(model: self.outputSettingsModel))
+        AnyView(MediaPipeFaceLandmarkOutputSettingsView(
+            model: self.outputSettingsModel,
+            precision: Binding(
+                get: { [weak self] in (self?.modelPrecision ?? .highQuality).label },
+                set: { [weak self] value in
+                    guard let self, let precision = MPSModelPrecision(label: value) else { return }
+                    self.apply(modelPrecision: precision)
+                }
+            ),
+            computeUnits: Binding(
+                get: { [weak self] in (self?.modelComputeUnits ?? .gpuAndNeuralEngine).label },
+                set: { [weak self] value in
+                    guard let self, let computeUnits = MPSModelComputeUnits(label: value) else { return }
+                    self.apply(modelComputeUnits: computeUnits)
+                }
+            ),
+            inferenceTiming: Binding(
+                get: { [weak self] in (self?.inferenceTiming ?? .synchronous).label },
+                set: { [weak self] value in
+                    guard let self, let inferenceTiming = MPSInferenceTiming(label: value) else { return }
+                    self.apply(inferenceTiming: inferenceTiming)
+                }
+            )
+        ))
+    }
+
+    private func apply(modelPrecision: MPSModelPrecision)
+    {
+        guard modelPrecision != self.modelPrecision else { return }
+        // A loaded model means execution is enabled: swap it now, keeping the
+        // old one if the new precision fails to load.
+        if self.model != nil
+        {
+            do
+            {
+                try self.prepareModel(execution: MPSModelExecution(precision: modelPrecision, computeUnits: self.modelComputeUnits))
+            }
+            catch
+            {
+                print("MediaPipeFaceLandmarkNode: could not apply precision: \(error)")
+                return
+            }
+        }
+        self.modelPrecision = modelPrecision
+        self.markDirty()
+    }
+
+    private func apply(modelComputeUnits: MPSModelComputeUnits)
+    {
+        guard modelComputeUnits != self.modelComputeUnits else { return }
+        // A loaded model means execution is enabled: swap it now, keeping the
+        // old one if the new compute units fail to load.
+        if self.model != nil
+        {
+            do
+            {
+                try self.prepareModel(execution: MPSModelExecution(precision: self.modelPrecision, computeUnits: modelComputeUnits))
+            }
+            catch
+            {
+                print("MediaPipeFaceLandmarkNode: could not apply compute units: \(error)")
+                return
+            }
+        }
+        self.modelComputeUnits = modelComputeUnits
+        self.markDirty()
+    }
+
+    private var modelExecution: MPSModelExecution
+    {
+        MPSModelExecution(precision: self.modelPrecision, computeUnits: self.modelComputeUnits)
+    }
+
+    /// Takes effect on the next frame; the model does not change.
+    private func apply(inferenceTiming: MPSInferenceTiming)
+    {
+        guard inferenceTiming != self.inferenceTiming else { return }
+        self.inferenceTiming = inferenceTiming
+        self.markDirty()
     }
 
     private lazy var outputSettingsModel = OutputSettingsModel(node: self)
@@ -268,12 +363,6 @@ public class MediaPipeFaceLandmarkNode: Node
     private static let fullFrameRegion = simd_float4(0, 0, 1, 1)
 
 
-    /// Not a port -- Fabric has no systemized protocol yet for per-node
-    /// synchronous/asynchronous execution, so this stays a compile-time
-    /// switch for development/comparison until that exists (Iterator use
-    /// forces synchronous regardless -- see execute()'s insideIterator
-    /// comment). Flip locally to test the bounded-GPU-wait path.
-    private static let synchronousInference = false
 
     private var preprocessor: MediaPipeCropPreprocessor?
 
@@ -292,7 +381,8 @@ public class MediaPipeFaceLandmarkNode: Node
 
     override public func enableExecution(renderer: GraphRenderer) throws
     {
-        try self.prepareModel()
+        try self.prepareModel(execution: self.modelExecution)
+        try super.enableExecution(renderer: renderer)
     }
 
     override public func disableExecution(renderer: GraphRenderer) throws
@@ -300,6 +390,8 @@ public class MediaPipeFaceLandmarkNode: Node
         self.model = nil
         self.preprocessor = nil
         self.outputBuffers = nil
+        self.preparedExecution = nil
+        try super.disableExecution(renderer: renderer)
     }
     /// Backed by a lock because, under the async path, the GPU completion
     /// callback writes this from a thread other than execute()'s.
@@ -373,7 +465,7 @@ public class MediaPipeFaceLandmarkNode: Node
         {
             let region = self.inputRegionOfInterest.value ?? Self.fullFrameRegion
             let rotation = self.inputRotation.value ?? 0
-            let synchronous = insideIterator || Self.synchronousInference
+            let synchronous = insideIterator || self.inferenceTiming == .synchronous
 
             do { try self.detectLandmarks(image: inputImage, region: region, rotation: rotation, commandBuffer: commandBuffer, synchronous: synchronous) }
             catch { print("MediaPipeFaceLandmarkNode: detectLandmarks failed: \(error)") }
@@ -490,7 +582,7 @@ public class MediaPipeFaceLandmarkNode: Node
     private func detectLandmarks(image: FabricImage, region: simd_float4, rotation: Float, commandBuffer: MTLCommandBuffer, synchronous: Bool) throws
     {
         let startTime = Date()
-        try self.prepareModel()
+        try self.prepareModel(execution: self.modelExecution)
         guard let preprocessor = self.preprocessor, let model = self.model else
         {
             throw FabricError(.execution(.gpu), severity: .recoverable, message: "MediaPipe face landmark model is unavailable")
@@ -598,15 +690,15 @@ public class MediaPipeFaceLandmarkNode: Node
         return face.landmarks.map { simd_float3($0.x, 1 - $0.y, $0.z) }
     }
 
-    private static func mpsGraphModel(commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
+    private static func mpsGraphModel(execution: MPSModelExecution, commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
     {
-        try MediaPipeSharedModels.model(named: MediaPipeFaceLandmarkProjection.resourcePrefix, inputWidth: Int(MediaPipeFaceLandmarkProjection.landmarkSize), inputHeight: Int(MediaPipeFaceLandmarkProjection.landmarkSize), commandQueue: commandQueue)
+        try MediaPipeSharedModels.model(named: MediaPipeFaceLandmarkProjection.resourcePrefix, inputWidth: Int(MediaPipeFaceLandmarkProjection.landmarkSize), inputHeight: Int(MediaPipeFaceLandmarkProjection.landmarkSize), execution: execution, commandQueue: commandQueue)
     }
 
-    private func prepareModel() throws
+    private func prepareModel(execution: MPSModelExecution) throws
     {
-        guard self.model == nil else { return }
-        let model = try Self.mpsGraphModel(commandQueue: self.context.commandQueue)
+        guard self.model == nil || self.preparedExecution != execution else { return }
+        let model = try Self.mpsGraphModel(execution: execution, commandQueue: self.context.commandQueue)
         self.preprocessor = try MediaPipeCropPreprocessor(
             device: self.context.device,
             outputWidth: Int(MediaPipeFaceLandmarkProjection.landmarkSize),
@@ -615,6 +707,7 @@ public class MediaPipeFaceLandmarkNode: Node
         self.outputBuffers = nil
         _ = try self.outputBuffers(for: model)
         self.model = model
+        self.preparedExecution = execution
     }
 
     /// `landmark` is normalized full-image, bottom-left origin.
@@ -721,13 +814,31 @@ private final class FaceMeshGeometry: SatinGeometry
 private struct MediaPipeFaceLandmarkOutputSettingsView: View
 {
     @Bindable var model: MediaPipeFaceLandmarkNode.OutputSettingsModel
+    let precision: Binding<String>
+    let computeUnits: Binding<String>
+    let inferenceTiming: Binding<String>
 
     var body: some View
     {
-        VStack(alignment: .leading)
+        Form
         {
             Toggle("Geometry Output", isOn: $model.enableGeometry)
             Toggle("Transform Output", isOn: $model.enableTransform)
+            MPSModelConfigurationPicker(option: MPSModelConfigurationOption(
+                label: "Precision",
+                choices: MPSModelPrecision.labels,
+                selection: self.precision
+            ))
+            MPSModelConfigurationPicker(option: MPSModelConfigurationOption(
+                label: "Compute",
+                choices: MPSModelComputeUnits.labels,
+                selection: self.computeUnits
+            ))
+            MPSModelConfigurationPicker(option: MPSModelConfigurationOption(
+                label: "Inference",
+                choices: MPSInferenceTiming.labels,
+                selection: self.inferenceTiming
+            ))
         }
         .padding()
     }

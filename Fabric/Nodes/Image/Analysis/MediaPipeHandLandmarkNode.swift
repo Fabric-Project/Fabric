@@ -10,6 +10,7 @@ import Satin
 import QuartzCore
 import simd
 import MPSMediaPipe
+import SwiftUI
 
 /// Runs MediaPipe's hand landmark model against a caller-supplied region +
 /// rotation. Standalone comparison test against HandPoseAnalysisNode's
@@ -55,10 +56,10 @@ public class MediaPipeHandLandmarkNode: Node
             ("outputLittle", NodePort<ContiguousArray<simd_float2>>(name: "Little", kind: .Outlet, description: "Little finger points ordered MCP, PIP, DIP, Tip in unit coordinates")),
             ("outputWrist", NodePort<simd_float2>(name: "Wrist", kind: .Outlet, description: "Position of wrist in unit coordinates")),
             ("outputLandmarks3D", NodePort<ContiguousArray<simd_float3>>(name: "Landmarks 3D", kind: .Outlet, description: "All 21 hand landmarks (MediaPipe's own HAND_CONNECTIONS order: 0=wrist, 1-4=thumb, 5-8=index, 9-12=middle, 13-16=ring, 17-20=little) including depth. Unlike the finger-group outputs, this is NOT remapped to Fabric's -1...1 unit space — x,y stay normalized [0,1] bottom-left-origin and z is MediaPipe's own relative depth (scaled like x, no aspect meaning) — the raw form a future geometry/transform node would need, matching MediaPipeFaceLandmarkNode's outputLandmarks3D convention exactly. Empty if nothing was detected.")),
-            ("outputLandmarksScene", NodePort<ContiguousArray<simd_float3>>(name: "Landmarks (Scene Space)", kind: .Outlet, description: "All 21 hand landmarks (same HAND_CONNECTIONS order as Landmarks 3D) remapped into Fabric's unit coordinate space (-1...1 horizontally, -aspect...aspect vertically, matching the finger-group outputs), z scaled by the same factor as x. Unlike Landmarks 3D's raw per-model relative depth, this is directly comparable against MediaPipe Face/Pose Landmarks' own Landmarks (Scene Space) output, so all three can be composited in one 3D scene — not physically metric, just a consistent shared space. Empty if nothing was detected.")),
+            ("outputLandmarksScene", NodePort<ContiguousArray<simd_float3>>(name: "3D Landmarks", kind: .Outlet, description: "All 21 hand landmarks (same HAND_CONNECTIONS order as Landmarks 3D) remapped into Fabric's unit coordinate space (-1...1 horizontally, -aspect...aspect vertically, matching the finger-group outputs), z scaled by the same factor as x. Unlike Landmarks 3D's raw per-model relative depth, this is directly comparable against MediaPipe Face/Pose Landmarks' own 3D Landmarks output, so all three can be composited in one 3D scene — not physically metric, just a consistent shared space. Empty if nothing was detected.")),
             ("outputKeypoints", NodePort<ContiguousArray<simd_float2>>(name: "Keypoints", kind: .Outlet, description: "Pass-through of this node's Keypoints inlet, unchanged")),
-            ("outputTrackedRegionOfInterest", NodePort<simd_float4>(name: "Tracked Region", kind: .Outlet, description: "This frame's landmarks re-expressed as a region for tracking the same hand next frame, matching MediaPipe Hand Detection's Previous Region inlet. Sent as nil (not a stale rect) whenever this frame's presence gate fails.")),
-            ("outputTrackedRotation", NodePort<Float>(name: "Tracked Rotation", kind: .Outlet, description: "Paired with Tracked Region — wire into MediaPipe Hand Detection's Previous Rotation inlet.")),
+            ("outputTrackedRegionOfInterest", NodePort<simd_float4>(name: "Tracked Region", kind: .Outlet, description: "This frame's landmarks re-expressed as a region for tracking the same hand next frame, matching MediaPipe Hand Detection's Tracked Region inlet. Sent as nil (not a stale rect) whenever this frame's presence gate fails.")),
+            ("outputTrackedRotation", NodePort<Float>(name: "Tracked Rotation", kind: .Outlet, description: "Paired with Tracked Region — wire into MediaPipe Hand Detection's Tracked Rotation inlet.")),
         ]
     }
 
@@ -83,13 +84,6 @@ public class MediaPipeHandLandmarkNode: Node
     private static let fullFrameRegion = simd_float4(0, 0, 1, 1)
 
 
-    /// Not a port -- Fabric has no systemized protocol yet for per-node
-    /// synchronous/asynchronous execution, so this stays a compile-time
-    /// switch for development/comparison until that exists (Iterator use
-    /// forces synchronous regardless -- see execute()'s insideIterator
-    /// comment). Flip locally to test the bounded-GPU-wait path.
-    private static let synchronousInference = false
-
     private var preprocessor: MediaPipeCropPreprocessor?
 
     /// GPU-resident destinations for MediaPipeMPSGraph.encode()'s output
@@ -104,9 +98,96 @@ public class MediaPipeHandLandmarkNode: Node
     private var lastLandmarksTimestampStorage: CFTimeInterval = 0
     private var lastRegionStorage: simd_float4 = MediaPipeHandLandmarkNode.fullFrameRegion
 
+    private var preparedExecution: MPSModelExecution?
+
+    public private(set) var modelPrecision: MPSModelPrecision = .highQuality
+    public private(set) var modelComputeUnits: MPSModelComputeUnits = .gpuAndNeuralEngine
+    public private(set) var inferenceTiming: MPSInferenceTiming = .synchronous
+
+    private enum ModelPrecisionCodingKeys: String, CodingKey
+    {
+        case modelPrecision
+        case modelComputeUnits
+        case inferenceTiming
+    }
+
+    public required init(context: Context)
+    {
+        super.init(context: context)
+    }
+
+    public init(context: Context, modelPrecision: MPSModelPrecision, modelComputeUnits: MPSModelComputeUnits = .gpuAndNeuralEngine, inferenceTiming: MPSInferenceTiming = .synchronous)
+    {
+        self.modelPrecision = modelPrecision
+        self.modelComputeUnits = modelComputeUnits
+        self.inferenceTiming = inferenceTiming
+        super.init(context: context)
+    }
+
+    public required init(from decoder: any Decoder) throws
+    {
+        let container = try decoder.container(keyedBy: ModelPrecisionCodingKeys.self)
+        self.modelPrecision = try container.decodeIfPresent(MPSModelPrecision.self, forKey: .modelPrecision) ?? .highQuality
+        self.modelComputeUnits = try container.decodeIfPresent(MPSModelComputeUnits.self, forKey: .modelComputeUnits) ?? .gpuAndNeuralEngine
+        self.inferenceTiming = try container.decodeIfPresent(MPSInferenceTiming.self, forKey: .inferenceTiming) ?? .synchronous
+        try super.init(from: decoder)
+    }
+
+    public override func encode(to encoder: Encoder) throws
+    {
+        try super.encode(to: encoder)
+        var container = encoder.container(keyedBy: ModelPrecisionCodingKeys.self)
+        try container.encode(self.modelPrecision, forKey: .modelPrecision)
+        try container.encode(self.modelComputeUnits, forKey: .modelComputeUnits)
+        try container.encode(self.inferenceTiming, forKey: .inferenceTiming)
+    }
+
+    override public func providesSettingsView() -> Bool { true }
+    override public var settingsSize: SettingsViewSize { .Small }
+
+    override public func settingsView() -> AnyView
+    {
+        AnyView(MPSModelConfigurationSettingsView(options: [
+            MPSModelConfigurationOption(
+                label: "Precision",
+                choices: MPSModelPrecision.labels,
+                selection: Binding(
+                    get: { [weak self] in (self?.modelPrecision ?? .highQuality).label },
+                    set: { [weak self] value in
+                        guard let self, let precision = MPSModelPrecision(label: value) else { return }
+                        self.apply(modelPrecision: precision)
+                    }
+                )
+            ),
+            MPSModelConfigurationOption(
+                label: "Compute",
+                choices: MPSModelComputeUnits.labels,
+                selection: Binding(
+                    get: { [weak self] in (self?.modelComputeUnits ?? .gpuAndNeuralEngine).label },
+                    set: { [weak self] value in
+                        guard let self, let computeUnits = MPSModelComputeUnits(label: value) else { return }
+                        self.apply(modelComputeUnits: computeUnits)
+                    }
+                )
+            ),
+            MPSModelConfigurationOption(
+                label: "Inference",
+                choices: MPSInferenceTiming.labels,
+                selection: Binding(
+                    get: { [weak self] in (self?.inferenceTiming ?? .synchronous).label },
+                    set: { [weak self] value in
+                        guard let self, let inferenceTiming = MPSInferenceTiming(label: value) else { return }
+                        self.apply(inferenceTiming: inferenceTiming)
+                    }
+                )
+            ),
+        ]))
+    }
+
     override public func enableExecution(renderer: GraphRenderer) throws
     {
-        try self.prepareModel()
+        try self.prepareModel(execution: self.modelExecution)
+        try super.enableExecution(renderer: renderer)
     }
 
     override public func disableExecution(renderer: GraphRenderer) throws
@@ -114,6 +195,63 @@ public class MediaPipeHandLandmarkNode: Node
         self.model = nil
         self.preprocessor = nil
         self.outputBuffers = nil
+        self.preparedExecution = nil
+        try super.disableExecution(renderer: renderer)
+    }
+
+    private func apply(modelPrecision: MPSModelPrecision)
+    {
+        guard modelPrecision != self.modelPrecision else { return }
+        // A loaded model means execution is enabled: swap it now, keeping the
+        // old one if the new precision fails to load.
+        if self.model != nil
+        {
+            do
+            {
+                try self.prepareModel(execution: MPSModelExecution(precision: modelPrecision, computeUnits: self.modelComputeUnits))
+            }
+            catch
+            {
+                print("MediaPipeHandLandmarkNode: could not apply precision: \(error)")
+                return
+            }
+        }
+        self.modelPrecision = modelPrecision
+        self.markDirty()
+    }
+
+    private func apply(modelComputeUnits: MPSModelComputeUnits)
+    {
+        guard modelComputeUnits != self.modelComputeUnits else { return }
+        // A loaded model means execution is enabled: swap it now, keeping the
+        // old one if the new compute units fail to load.
+        if self.model != nil
+        {
+            do
+            {
+                try self.prepareModel(execution: MPSModelExecution(precision: self.modelPrecision, computeUnits: modelComputeUnits))
+            }
+            catch
+            {
+                print("MediaPipeHandLandmarkNode: could not apply compute units: \(error)")
+                return
+            }
+        }
+        self.modelComputeUnits = modelComputeUnits
+        self.markDirty()
+    }
+
+    private var modelExecution: MPSModelExecution
+    {
+        MPSModelExecution(precision: self.modelPrecision, computeUnits: self.modelComputeUnits)
+    }
+
+    /// Takes effect on the next frame; the model does not change.
+    private func apply(inferenceTiming: MPSInferenceTiming)
+    {
+        guard inferenceTiming != self.inferenceTiming else { return }
+        self.inferenceTiming = inferenceTiming
+        self.markDirty()
     }
     /// Backed by a lock because, under the async path, the GPU completion
     /// callback writes this from a thread other than execute()'s.
@@ -187,7 +325,7 @@ public class MediaPipeHandLandmarkNode: Node
         {
             let region = self.inputRegionOfInterest.value ?? Self.fullFrameRegion
             let rotation = self.inputRotation.value ?? 0
-            let synchronous = insideIterator || Self.synchronousInference
+            let synchronous = insideIterator || self.inferenceTiming == .synchronous
             try? self.detectLandmarks(image: inputImage, region: region, rotation: rotation, commandBuffer: commandBuffer, synchronous: synchronous)
         }
 
@@ -279,7 +417,7 @@ public class MediaPipeHandLandmarkNode: Node
     private func detectLandmarks(image: FabricImage, region: simd_float4, rotation: Float, commandBuffer: MTLCommandBuffer, synchronous: Bool) throws
     {
         let startTime = Date()
-        try self.prepareModel()
+        try self.prepareModel(execution: self.modelExecution)
         guard let preprocessor = self.preprocessor, let model = self.model else
         {
             throw FabricError(.execution(.gpu), severity: .recoverable, message: "MediaPipe hand landmark model is unavailable")
@@ -388,15 +526,15 @@ public class MediaPipeHandLandmarkNode: Node
         return hand.landmarks.map { simd_float3($0.x, 1 - $0.y, $0.z) }
     }
 
-    private static func mpsGraphModel(commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
+    private static func mpsGraphModel(execution: MPSModelExecution, commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
     {
-        try MediaPipeSharedModels.model(named: MediaPipeHandLandmarkProjection.resourcePrefix, inputWidth: Int(MediaPipeHandLandmarkProjection.landmarkSize), inputHeight: Int(MediaPipeHandLandmarkProjection.landmarkSize), commandQueue: commandQueue)
+        try MediaPipeSharedModels.model(named: MediaPipeHandLandmarkProjection.resourcePrefix, inputWidth: Int(MediaPipeHandLandmarkProjection.landmarkSize), inputHeight: Int(MediaPipeHandLandmarkProjection.landmarkSize), execution: execution, commandQueue: commandQueue)
     }
 
-    private func prepareModel() throws
+    private func prepareModel(execution: MPSModelExecution) throws
     {
-        guard self.model == nil else { return }
-        let model = try Self.mpsGraphModel(commandQueue: self.context.commandQueue)
+        guard self.model == nil || self.preparedExecution != execution else { return }
+        let model = try Self.mpsGraphModel(execution: execution, commandQueue: self.context.commandQueue)
         self.preprocessor = try MediaPipeCropPreprocessor(
             device: self.context.device,
             outputWidth: Int(MediaPipeHandLandmarkProjection.landmarkSize),
@@ -405,6 +543,7 @@ public class MediaPipeHandLandmarkNode: Node
         self.outputBuffers = nil
         _ = try self.outputBuffers(for: model)
         self.model = model
+        self.preparedExecution = execution
     }
 
     private func unitPoints(from landmarks: [simd_float3], at indices: [Int], aspect: Float) -> ContiguousArray<simd_float2>

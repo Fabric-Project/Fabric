@@ -89,22 +89,31 @@ public class MediaPipeSelfieSegmentationNode: Node
     /// nothing on the CPU ever reads it. Reused every frame: the next frame's
     /// write is ordered after this frame's projection by command buffer order.
     private var maskOutputBuffer: MTLBuffer?
+    private var preparedExecution: MPSModelExecution?
     private var executionEnabled = false
+
+    public private(set) var modelPrecision: MPSModelPrecision
+    public private(set) var modelComputeUnits: MPSModelComputeUnits = .gpuAndNeuralEngine
 
     private enum ModelSettingsCodingKeys: String, CodingKey
     {
         case modelSettings
+        case modelPrecision
+        case modelComputeUnits
     }
 
     public required init(context: Context)
     {
         self.modelSettings = .init()
+        self.modelPrecision = .highQuality
         super.init(context: context)
     }
 
-    public init(context: Context, modelSettings: MediaPipeSelfieSegmentationSettings)
+    public init(context: Context, modelSettings: MediaPipeSelfieSegmentationSettings, modelPrecision: MPSModelPrecision = .highQuality, modelComputeUnits: MPSModelComputeUnits = .gpuAndNeuralEngine)
     {
         self.modelSettings = modelSettings
+        self.modelPrecision = modelPrecision
+        self.modelComputeUnits = modelComputeUnits
         super.init(context: context)
     }
 
@@ -122,6 +131,8 @@ public class MediaPipeSelfieSegmentationNode: Node
                 modelVariant: MediaPipeSelfieSegmentationSettings.ModelVariant(rawValue: legacy ?? "") ?? .general
             )
         }
+        self.modelPrecision = try container.decodeIfPresent(MPSModelPrecision.self, forKey: .modelPrecision) ?? .highQuality
+        self.modelComputeUnits = try container.decodeIfPresent(MPSModelComputeUnits.self, forKey: .modelComputeUnits) ?? .gpuAndNeuralEngine
         try super.init(from: decoder)
     }
 
@@ -130,10 +141,12 @@ public class MediaPipeSelfieSegmentationNode: Node
         try super.encode(to: encoder)
         var container = encoder.container(keyedBy: ModelSettingsCodingKeys.self)
         try container.encode(self.modelSettings, forKey: .modelSettings)
+        try container.encode(self.modelPrecision, forKey: .modelPrecision)
+        try container.encode(self.modelComputeUnits, forKey: .modelComputeUnits)
     }
 
     override public func providesSettingsView() -> Bool { true }
-    override public var settingsSize: SettingsViewSize { .Mini }
+    override public var settingsSize: SettingsViewSize { .Small }
 
     override public func settingsView() -> AnyView
     {
@@ -149,29 +162,55 @@ public class MediaPipeSelfieSegmentationNode: Node
                     }
                 )
             ),
+            MPSModelConfigurationOption(
+                label: "Precision",
+                choices: MPSModelPrecision.labels,
+                selection: Binding(
+                    get: { [weak self] in (self?.modelPrecision ?? .highQuality).label },
+                    set: { [weak self] value in
+                        guard let self, let precision = MPSModelPrecision(label: value) else { return }
+                        self.apply(modelPrecision: precision)
+                    }
+                )
+            ),
+            MPSModelConfigurationOption(
+                label: "Compute",
+                choices: MPSModelComputeUnits.labels,
+                selection: Binding(
+                    get: { [weak self] in (self?.modelComputeUnits ?? .gpuAndNeuralEngine).label },
+                    set: { [weak self] value in
+                        guard let self, let computeUnits = MPSModelComputeUnits(label: value) else { return }
+                        self.apply(modelComputeUnits: computeUnits)
+                    }
+                )
+            ),
         ]))
     }
 
     override public func enableExecution(renderer: GraphRenderer) throws
     {
-        try self.prepareModel(for: self.selectedVariant)
+        try self.prepareModel(for: self.selectedVariant, execution: self.modelExecution)
         self.executionEnabled = true
+        try super.enableExecution(renderer: renderer)
     }
 
     override public func disableExecution(renderer: GraphRenderer) throws
     {
         self.executionEnabled = false
         self.releasePreparedModel()
+        try super.disableExecution(renderer: renderer)
     }
 
     override public func stopExecution(renderer: GraphRenderer) throws
     {
         self.outputSegmentationMask.send(nil)
+        try super.stopExecution(renderer: renderer)
     }
 
     private func releasePreparedModel()
     {
         self.preparedVariant = nil
+        self.preparedExecution = nil
         self.preprocessor = nil
         self.maskProjector = nil
         self.model = nil
@@ -189,7 +228,7 @@ public class MediaPipeSelfieSegmentationNode: Node
         }
 
         let variant = self.selectedVariant
-        try self.prepareModel(for: variant)
+        try self.prepareModel(for: variant, execution: self.modelExecution)
 
         guard let preprocessor, let maskProjector, let model, let maskOutputBuffer else
         {
@@ -252,11 +291,11 @@ public class MediaPipeSelfieSegmentationNode: Node
         self.outputSegmentationMask.send(outputImage)
     }
 
-    private func prepareModel(for variant: ModelVariant) throws
+    private func prepareModel(for variant: ModelVariant, execution: MPSModelExecution) throws
     {
-        guard self.preparedVariant != variant || self.model == nil else { return }
+        guard self.preparedVariant != variant || self.preparedExecution != execution || self.model == nil else { return }
 
-        let model = try Self.mpsGraphModel(for: variant, commandQueue: self.context.commandQueue)
+        let model = try Self.mpsGraphModel(for: variant, execution: execution, commandQueue: self.context.commandQueue)
         guard let length = model.outputBufferLengths.first,
               let maskOutputBuffer = self.context.device.makeBuffer(length: length, options: .storageModePrivate)
         else
@@ -275,11 +314,12 @@ public class MediaPipeSelfieSegmentationNode: Node
         self.model = model
         self.maskOutputBuffer = maskOutputBuffer
         self.preparedVariant = variant
+        self.preparedExecution = execution
     }
 
-    private static func mpsGraphModel(for variant: ModelVariant, commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
+    private static func mpsGraphModel(for variant: ModelVariant, execution: MPSModelExecution, commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
     {
-        try MediaPipeSharedModels.model(named: variant.resourcePrefix, inputWidth: variant.inputWidth, inputHeight: variant.inputHeight, commandQueue: commandQueue)
+        try MediaPipeSharedModels.model(named: variant.resourcePrefix, inputWidth: variant.inputWidth, inputHeight: variant.inputHeight, execution: execution, commandQueue: commandQueue)
     }
 
     private var selectedVariant: ModelVariant
@@ -294,7 +334,7 @@ public class MediaPipeSelfieSegmentationNode: Node
         {
             do
             {
-                try self.prepareModel(for: ModelVariant.from(modelSettings.modelVariant.rawValue))
+                try self.prepareModel(for: ModelVariant.from(modelSettings.modelVariant.rawValue), execution: self.modelExecution)
             }
             catch
             {
@@ -304,5 +344,48 @@ public class MediaPipeSelfieSegmentationNode: Node
         }
         self.modelSettings = modelSettings
         self.markDirty()
+    }
+
+    private func apply(modelPrecision: MPSModelPrecision)
+    {
+        guard modelPrecision != self.modelPrecision else { return }
+        if self.executionEnabled
+        {
+            do
+            {
+                try self.prepareModel(for: self.selectedVariant, execution: MPSModelExecution(precision: modelPrecision, computeUnits: self.modelComputeUnits))
+            }
+            catch
+            {
+                print("MediaPipeSelfieSegmentationNode: could not apply precision: \(error)")
+                return
+            }
+        }
+        self.modelPrecision = modelPrecision
+        self.markDirty()
+    }
+
+    private func apply(modelComputeUnits: MPSModelComputeUnits)
+    {
+        guard modelComputeUnits != self.modelComputeUnits else { return }
+        if self.executionEnabled
+        {
+            do
+            {
+                try self.prepareModel(for: self.selectedVariant, execution: MPSModelExecution(precision: self.modelPrecision, computeUnits: modelComputeUnits))
+            }
+            catch
+            {
+                print("MediaPipeSelfieSegmentationNode: could not apply compute units: \(error)")
+                return
+            }
+        }
+        self.modelComputeUnits = modelComputeUnits
+        self.markDirty()
+    }
+
+    private var modelExecution: MPSModelExecution
+    {
+        MPSModelExecution(precision: self.modelPrecision, computeUnits: self.modelComputeUnits)
     }
 }

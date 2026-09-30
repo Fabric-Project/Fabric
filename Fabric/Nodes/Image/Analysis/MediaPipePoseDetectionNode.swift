@@ -9,6 +9,7 @@ import MetalPerformanceShaders
 import Satin
 import simd
 import MPSMediaPipe
+import SwiftUI
 
 /// Detects a body using MediaPipe's BlazePose detector. Standalone
 /// comparison path, mirroring MediaPipeFaceDetectionNode/
@@ -22,10 +23,10 @@ import MPSMediaPipe
 ///
 /// Single mode tracks exactly one body and exposes the tracking fast path
 /// — wire MediaPipe Pose Landmark's outputTrackedRegionOfInterest/
-/// outputTrackedRotation back into this node's Previous Region/Previous
+/// outputTrackedRotation back into this node's Tracked Region/Previous
 /// Rotation inputs to skip re-running the detector while tracking holds. A
-/// nil or unconnected Previous Region falls through to running the detector
-/// every frame. Redetect Interval forces a fresh detector run periodically
+/// nil or unconnected Tracked Region falls through to running the detector
+/// every frame. Re-Detect Interval forces a fresh detector run periodically
 /// even while a previous region is present. This mirrors mediapipe's own
 /// pose_landmark_cpu.pbtxt exactly, which is genuinely single-instance-only
 /// (prev_pose_rect_from_landmarks is a singular NormalizedRect there too,
@@ -46,9 +47,15 @@ public class MediaPipePoseDetectionNode: StrategyNode
     override public class var nodeType: Node.NodeType { .Image(imageType: .Analysis) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override public class var nodeTimeMode: Node.TimeMode { .None }
-    override public class var nodeDescription: String { "Detects a body using MediaPipe's BlazePose detector, run via MPSGraph (test/comparison path, separate from RegionDetectionNode/RTMDet). Single/Multi mode (Settings) picks between one tracked body with Previous Region/Rotation, or up to Max Detections bodies with plural Regions/Rotations." }
+    override public class var nodeDescription: String { "Detects a body using MediaPipe's BlazePose detector, run via MPSGraph (test/comparison path, separate from RegionDetectionNode/RTMDet). Single/Multi mode (Settings) picks between one tracked body with Tracked Region/Rotation, or up to Max Detections bodies with plural Regions/Rotations." }
 
     override public class var strategyOptions: [any NodeStrategyOption] { MediaPipeDetectionMode.allCases }
+
+    /// The Single/Multi mode is a Settings choice, not part of the node's name:
+    /// the title stays the plain type name (or the user's rename).
+    override public func deriveSubtitle() -> String? { nil }
+
+    override public var settingsSize: SettingsViewSize { .Small }
 
     private static let allDynamicPortNames: Set<String> = [
         "inputPreviousRegionOfInterest", "inputPreviousRotation", "inputRedetectInterval",
@@ -62,9 +69,9 @@ public class MediaPipePoseDetectionNode: StrategyNode
         {
         case .single:
             return [
-                ("inputPreviousRegionOfInterest", NodePort<simd_float4>(name: "Previous Region", kind: .Inlet, description: "Optional tracking fast path — wire in MediaPipe Pose Landmark's Tracked Region output. When present (and the redetect interval hasn't elapsed), the detector model is skipped and this region is passed straight through. Leave unconnected for plain per-frame detection.")),
-                ("inputPreviousRotation", NodePort<Float>(name: "Previous Rotation", kind: .Inlet, description: "Paired with Previous Region — wire in MediaPipe Pose Landmark's Tracked Rotation output.")),
-                ("inputRedetectInterval", ParameterPort(parameter: IntParameter("Re-detect Every N Frames", Self.defaultRedetectInterval, 1, 240, .inputfield, "Forces a fresh detector run at least this often even while a tracked region is present, so a stale or wrong lock can recover — neither this node nor MediaPipe's own graph can otherwise notice tracking has drifted"))),
+                ("inputPreviousRegionOfInterest", NodePort<simd_float4>(name: "Tracked Region", kind: .Inlet, description: "Optional tracking fast path — wire in MediaPipe Pose Landmark's Tracked Region output. When present (and the redetect interval hasn't elapsed), the detector model is skipped and this region is passed straight through. Leave unconnected for plain per-frame detection.")),
+                ("inputPreviousRotation", NodePort<Float>(name: "Tracked Rotation", kind: .Inlet, description: "Paired with Tracked Region — wire in MediaPipe Pose Landmark's Tracked Rotation output.")),
+                ("inputRedetectInterval", ParameterPort(parameter: IntParameter("Re-Detect Interval", Self.defaultRedetectInterval, 1, 240, .inputfield, "Forces a fresh detector run at least this often even while a tracked region is present, so a stale or wrong lock can recover — neither this node nor MediaPipe's own graph can otherwise notice tracking has drifted"))),
                 ("outputRegionOfInterest", NodePort<simd_float4>(name: "Region", kind: .Outlet, description: "The tracked/detected region, or the full frame (0,0,1,1) if nothing was detected")),
                 ("outputRotation", NodePort<Float>(name: "Rotation", kind: .Outlet, description: "Rotation for the tracked/detected region, or 0 if nothing was detected")),
                 ("outputKeypoints", NodePort<ContiguousArray<simd_float2>>(name: "Keypoints", kind: .Outlet, description: "The detection's 4 raw BlazePose keypoints (mid-hip center, full-body size/rotation point, mid-shoulder center, upper-body size/rotation point, in that order), in Fabric's unit coordinate space (-1...1 horizontally, -aspect...aspect vertically) — empty if nothing was detected")),
@@ -135,11 +142,6 @@ public class MediaPipePoseDetectionNode: StrategyNode
     private var framesSinceLastDetect = 0
 
 
-    /// Not a port -- Fabric has no systemized protocol yet for per-node
-    /// synchronous/asynchronous execution, so this stays a compile-time
-    /// switch for development/comparison until that exists. Flip locally to
-    /// test the bounded-GPU-wait path.
-    private static let synchronousInference = false
 
     private var preprocessor: MediaPipeCropPreprocessor?
 
@@ -148,10 +150,82 @@ public class MediaPipePoseDetectionNode: StrategyNode
     /// handler can read them back without a CPU round-trip through submit().
     private var outputBuffers: [MTLBuffer]?
     private var model: MediaPipeMPSGraph?
+    private var preparedExecution: MPSModelExecution?
+
+    public private(set) var modelPrecision: MPSModelPrecision = .highQuality
+    public private(set) var modelComputeUnits: MPSModelComputeUnits = .gpuAndNeuralEngine
+    public private(set) var inferenceTiming: MPSInferenceTiming = .synchronous
+
+    private enum ModelPrecisionCodingKeys: String, CodingKey
+    {
+        case modelPrecision
+        case modelComputeUnits
+        case inferenceTiming
+    }
+
+    public required init(context: Context)
+    {
+        super.init(context: context)
+    }
+
+    public init(context: Context, mode: MediaPipeDetectionMode = .single, modelPrecision: MPSModelPrecision = .highQuality, modelComputeUnits: MPSModelComputeUnits = .gpuAndNeuralEngine, inferenceTiming: MPSInferenceTiming = .synchronous)
+    {
+        self.modelPrecision = modelPrecision
+        self.modelComputeUnits = modelComputeUnits
+        self.inferenceTiming = inferenceTiming
+        super.init(context: context, initialStrategy: mode.rawValue)
+    }
+
+    public required init(from decoder: any Decoder) throws
+    {
+        let container = try decoder.container(keyedBy: ModelPrecisionCodingKeys.self)
+        self.modelPrecision = try container.decodeIfPresent(MPSModelPrecision.self, forKey: .modelPrecision) ?? .highQuality
+        self.modelComputeUnits = try container.decodeIfPresent(MPSModelComputeUnits.self, forKey: .modelComputeUnits) ?? .gpuAndNeuralEngine
+        self.inferenceTiming = try container.decodeIfPresent(MPSInferenceTiming.self, forKey: .inferenceTiming) ?? .synchronous
+        try super.init(from: decoder)
+    }
+
+    public override func encode(to encoder: Encoder) throws
+    {
+        try super.encode(to: encoder)
+        var container = encoder.container(keyedBy: ModelPrecisionCodingKeys.self)
+        try container.encode(self.modelPrecision, forKey: .modelPrecision)
+        try container.encode(self.modelComputeUnits, forKey: .modelComputeUnits)
+        try container.encode(self.inferenceTiming, forKey: .inferenceTiming)
+    }
+
+    override public func settingsView() -> AnyView
+    {
+        AnyView(MediaPipeDetectionSettingsView(
+            strategyModel: self.strategySettingsModel,
+            precision: Binding(
+                get: { [weak self] in (self?.modelPrecision ?? .highQuality).label },
+                set: { [weak self] value in
+                    guard let self, let precision = MPSModelPrecision(label: value) else { return }
+                    self.apply(modelPrecision: precision)
+                }
+            ),
+            computeUnits: Binding(
+                get: { [weak self] in (self?.modelComputeUnits ?? .gpuAndNeuralEngine).label },
+                set: { [weak self] value in
+                    guard let self, let computeUnits = MPSModelComputeUnits(label: value) else { return }
+                    self.apply(modelComputeUnits: computeUnits)
+                }
+            ),
+            inferenceTiming: Binding(
+                get: { [weak self] in (self?.inferenceTiming ?? .synchronous).label },
+                set: { [weak self] value in
+                    guard let self, let inferenceTiming = MPSInferenceTiming(label: value) else { return }
+                    self.apply(inferenceTiming: inferenceTiming)
+                }
+            )
+        ))
+    }
 
     override public func enableExecution(renderer: GraphRenderer) throws
     {
-        try self.prepareModel()
+        try self.prepareModel(execution: self.modelExecution)
+        try super.enableExecution(renderer: renderer)
     }
 
     override public func disableExecution(renderer: GraphRenderer) throws
@@ -159,6 +233,63 @@ public class MediaPipePoseDetectionNode: StrategyNode
         self.model = nil
         self.preprocessor = nil
         self.outputBuffers = nil
+        self.preparedExecution = nil
+        try super.disableExecution(renderer: renderer)
+    }
+
+    private func apply(modelPrecision: MPSModelPrecision)
+    {
+        guard modelPrecision != self.modelPrecision else { return }
+        // A loaded model means execution is enabled: swap it now, keeping the
+        // old one if the new precision fails to load.
+        if self.model != nil
+        {
+            do
+            {
+                try self.prepareModel(execution: MPSModelExecution(precision: modelPrecision, computeUnits: self.modelComputeUnits))
+            }
+            catch
+            {
+                print("MediaPipePoseDetectionNode: could not apply precision: \(error)")
+                return
+            }
+        }
+        self.modelPrecision = modelPrecision
+        self.markDirty()
+    }
+
+    private func apply(modelComputeUnits: MPSModelComputeUnits)
+    {
+        guard modelComputeUnits != self.modelComputeUnits else { return }
+        // A loaded model means execution is enabled: swap it now, keeping the
+        // old one if the new compute units fail to load.
+        if self.model != nil
+        {
+            do
+            {
+                try self.prepareModel(execution: MPSModelExecution(precision: self.modelPrecision, computeUnits: modelComputeUnits))
+            }
+            catch
+            {
+                print("MediaPipePoseDetectionNode: could not apply compute units: \(error)")
+                return
+            }
+        }
+        self.modelComputeUnits = modelComputeUnits
+        self.markDirty()
+    }
+
+    private var modelExecution: MPSModelExecution
+    {
+        MPSModelExecution(precision: self.modelPrecision, computeUnits: self.modelComputeUnits)
+    }
+
+    /// Takes effect on the next frame; the model does not change.
+    private func apply(inferenceTiming: MPSInferenceTiming)
+    {
+        guard inferenceTiming != self.inferenceTiming else { return }
+        self.inferenceTiming = inferenceTiming
+        self.markDirty()
     }
 
     private let lastRectsLock = NSLock()
@@ -202,12 +333,12 @@ public class MediaPipePoseDetectionNode: StrategyNode
                 else
                 {
                     self.framesSinceLastDetect = 0
-                    try? self.detect(image: inputImage, maxDetections: 1, commandBuffer: commandBuffer, synchronous: Self.synchronousInference)
+                    try? self.detect(image: inputImage, maxDetections: 1, commandBuffer: commandBuffer, synchronous: self.inferenceTiming == .synchronous)
                 }
 
             case .multi:
                 let maxDetections = max(1, (findPort(named: "inputMaxDetections") as ParameterPort<Int>?)?.value ?? 1)
-                try? self.detect(image: inputImage, maxDetections: maxDetections, commandBuffer: commandBuffer, synchronous: Self.synchronousInference)
+                try? self.detect(image: inputImage, maxDetections: maxDetections, commandBuffer: commandBuffer, synchronous: self.inferenceTiming == .synchronous)
             }
         }
 
@@ -277,7 +408,7 @@ public class MediaPipePoseDetectionNode: StrategyNode
     private func detect(image: FabricImage, maxDetections: Int, commandBuffer: MTLCommandBuffer, synchronous: Bool) throws
     {
         let startTime = Date()
-        try self.prepareModel()
+        try self.prepareModel(execution: self.modelExecution)
         guard let preprocessor = self.preprocessor, let model = self.model else
         {
             throw FabricError(.execution(.gpu), severity: .recoverable, message: "MediaPipe pose detection model is unavailable")
@@ -390,15 +521,15 @@ public class MediaPipePoseDetectionNode: StrategyNode
         }
     }
 
-    private static func mpsGraphModel(commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
+    private static func mpsGraphModel(execution: MPSModelExecution, commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
     {
-        try MediaPipeSharedModels.model(named: MediaPipePoseDetector.resourcePrefix, inputWidth: MediaPipePoseDetector.detectSize, inputHeight: MediaPipePoseDetector.detectSize, commandQueue: commandQueue)
+        try MediaPipeSharedModels.model(named: MediaPipePoseDetector.resourcePrefix, inputWidth: MediaPipePoseDetector.detectSize, inputHeight: MediaPipePoseDetector.detectSize, execution: execution, commandQueue: commandQueue)
     }
 
-    private func prepareModel() throws
+    private func prepareModel(execution: MPSModelExecution) throws
     {
-        guard self.model == nil else { return }
-        let model = try Self.mpsGraphModel(commandQueue: self.context.commandQueue)
+        guard self.model == nil || self.preparedExecution != execution else { return }
+        let model = try Self.mpsGraphModel(execution: execution, commandQueue: self.context.commandQueue)
         self.preprocessor = try MediaPipeCropPreprocessor(
             device: self.context.device,
             outputWidth: MediaPipePoseDetector.detectSize,
@@ -408,5 +539,6 @@ public class MediaPipePoseDetectionNode: StrategyNode
         self.outputBuffers = nil
         _ = try self.outputBuffers(for: model)
         self.model = model
+        self.preparedExecution = execution
     }
 }

@@ -58,23 +58,32 @@ public final class ZipDepthNode: Node
     private var modelOutputBuffer: MTLBuffer?
     private var modelWidth = 0
     private var modelHeight = 0
+    private var preparedExecution: MPSModelExecution?
     private var executionEnabled = false
+
+    public private(set) var modelPrecision: MPSModelPrecision
+    public private(set) var modelComputeUnits: MPSModelComputeUnits = .gpuAndNeuralEngine
 
     private enum ModelSettingsCodingKeys: String, CodingKey
     {
         case modelSettings
+        case modelPrecision
+        case modelComputeUnits
     }
 
     public required init(context: Context)
     {
         self.modelSettings = .init()
+        self.modelPrecision = .highQuality
         super.init(context: context)
         self.setupComputeKernels()
     }
 
-    public init(context: Context, modelSettings: ZipDepthNodeSettings)
+    public init(context: Context, modelSettings: ZipDepthNodeSettings, modelPrecision: MPSModelPrecision = .highQuality, modelComputeUnits: MPSModelComputeUnits = .gpuAndNeuralEngine)
     {
         self.modelSettings = modelSettings
+        self.modelPrecision = modelPrecision
+        self.modelComputeUnits = modelComputeUnits
         super.init(context: context)
         self.setupComputeKernels()
     }
@@ -91,6 +100,8 @@ public final class ZipDepthNode: Node
             let legacySide = Int(LegacyModelConfigurationPort.string(named: "inputShortSide", from: decoder) ?? "384") ?? 384
             self.modelSettings = ZipDepthNodeSettings(modelWidth: legacySide, modelHeight: legacySide)
         }
+        self.modelPrecision = try container.decodeIfPresent(MPSModelPrecision.self, forKey: .modelPrecision) ?? .highQuality
+        self.modelComputeUnits = try container.decodeIfPresent(MPSModelComputeUnits.self, forKey: .modelComputeUnits) ?? .gpuAndNeuralEngine
         try super.init(from: decoder)
         self.setupComputeKernels()
     }
@@ -100,6 +111,8 @@ public final class ZipDepthNode: Node
         try super.encode(to: encoder)
         var container = encoder.container(keyedBy: ModelSettingsCodingKeys.self)
         try container.encode(self.modelSettings, forKey: .modelSettings)
+        try container.encode(self.modelPrecision, forKey: .modelPrecision)
+        try container.encode(self.modelComputeUnits, forKey: .modelComputeUnits)
     }
 
     override public func providesSettingsView() -> Bool { true }
@@ -134,25 +147,50 @@ public final class ZipDepthNode: Node
                     }
                 )
             ),
+            MPSModelConfigurationOption(
+                label: "Precision",
+                choices: MPSModelPrecision.labels,
+                selection: Binding(
+                    get: { [weak self] in (self?.modelPrecision ?? .highQuality).label },
+                    set: { [weak self] value in
+                        guard let self, let precision = MPSModelPrecision(label: value) else { return }
+                        self.apply(modelPrecision: precision)
+                    }
+                )
+            ),
+            MPSModelConfigurationOption(
+                label: "Compute",
+                choices: MPSModelComputeUnits.labels,
+                selection: Binding(
+                    get: { [weak self] in (self?.modelComputeUnits ?? .gpuAndNeuralEngine).label },
+                    set: { [weak self] value in
+                        guard let self, let computeUnits = MPSModelComputeUnits(label: value) else { return }
+                        self.apply(modelComputeUnits: computeUnits)
+                    }
+                )
+            ),
         ]))
     }
 
     override public func enableExecution(renderer: GraphRenderer) throws
     {
         let size = self.resolvedModelSize(for: self.modelSettings)
-        try self.prepareModel(width: size.width, height: size.height)
+        try self.prepareModel(width: size.width, height: size.height, execution: self.modelExecution)
         self.executionEnabled = true
+        try super.enableExecution(renderer: renderer)
     }
 
     override public func disableExecution(renderer: GraphRenderer) throws
     {
         self.executionEnabled = false
         self.releasePreparedModel()
+        try super.disableExecution(renderer: renderer)
     }
 
     override public func stopExecution(renderer: GraphRenderer) throws
     {
         self.outputDepthImage.send(nil)
+        try super.stopExecution(renderer: renderer)
     }
 
     private func releasePreparedModel()
@@ -162,6 +200,7 @@ public final class ZipDepthNode: Node
         self.modelOutputBuffer = nil
         self.modelWidth = 0
         self.modelHeight = 0
+        self.preparedExecution = nil
     }
 
     override public func execute(
@@ -187,7 +226,7 @@ public final class ZipDepthNode: Node
         }
 
         let modelSize = self.resolvedModelSize(for: self.modelSettings)
-        try self.prepareModel(width: modelSize.width, height: modelSize.height)
+        try self.prepareModel(width: modelSize.width, height: modelSize.height, execution: self.modelExecution)
 
         guard let model, let modelInputBuffer, let modelOutputBuffer else
         {
@@ -304,9 +343,9 @@ public final class ZipDepthNode: Node
         self.preprocessor = try? ZipDepthPreprocessor(device: self.context.device)
     }
 
-    private func prepareModel(width: Int, height: Int) throws
+    private func prepareModel(width: Int, height: Int, execution: MPSModelExecution) throws
     {
-        guard self.model == nil || width != self.modelWidth || height != self.modelHeight else { return }
+        guard self.model == nil || width != self.modelWidth || height != self.modelHeight || self.preparedExecution != execution else { return }
 
         // Shared with every other Zip Depth node at this resolution: one compile
         // and one copy of the weights however many nodes ask. Held weakly by the
@@ -315,6 +354,7 @@ public final class ZipDepthNode: Node
         let model = try ZipDepthSharedModels.model(
             width: width,
             height: height,
+            execution: execution,
             commandQueue: self.context.commandQueue
         )
         guard let inputBuffer = self.context.device.makeBuffer(
@@ -341,6 +381,7 @@ public final class ZipDepthNode: Node
         self.modelOutputBuffer = outputBuffer
         self.modelWidth = width
         self.modelHeight = height
+        self.preparedExecution = execution
     }
 
     private func resolvedModelSize(for settings: ZipDepthNodeSettings) -> (width: Int, height: Int)
@@ -360,7 +401,7 @@ public final class ZipDepthNode: Node
             let size = self.resolvedModelSize(for: modelSettings)
             do
             {
-                try self.prepareModel(width: size.width, height: size.height)
+                try self.prepareModel(width: size.width, height: size.height, execution: self.modelExecution)
             }
             catch
             {
@@ -370,5 +411,50 @@ public final class ZipDepthNode: Node
         }
         self.modelSettings = modelSettings
         self.markDirty()
+    }
+
+    private func apply(modelPrecision: MPSModelPrecision)
+    {
+        guard modelPrecision != self.modelPrecision else { return }
+        if self.executionEnabled
+        {
+            let size = self.resolvedModelSize(for: self.modelSettings)
+            do
+            {
+                try self.prepareModel(width: size.width, height: size.height, execution: MPSModelExecution(precision: modelPrecision, computeUnits: self.modelComputeUnits))
+            }
+            catch
+            {
+                print("ZipDepthNode: could not apply precision: \(error)")
+                return
+            }
+        }
+        self.modelPrecision = modelPrecision
+        self.markDirty()
+    }
+
+    private func apply(modelComputeUnits: MPSModelComputeUnits)
+    {
+        guard modelComputeUnits != self.modelComputeUnits else { return }
+        if self.executionEnabled
+        {
+            let size = self.resolvedModelSize(for: self.modelSettings)
+            do
+            {
+                try self.prepareModel(width: size.width, height: size.height, execution: MPSModelExecution(precision: self.modelPrecision, computeUnits: modelComputeUnits))
+            }
+            catch
+            {
+                print("ZipDepthNode: could not apply compute units: \(error)")
+                return
+            }
+        }
+        self.modelComputeUnits = modelComputeUnits
+        self.markDirty()
+    }
+
+    private var modelExecution: MPSModelExecution
+    {
+        MPSModelExecution(precision: self.modelPrecision, computeUnits: self.modelComputeUnits)
     }
 }

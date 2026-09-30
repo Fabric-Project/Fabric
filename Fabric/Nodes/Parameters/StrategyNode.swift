@@ -280,7 +280,6 @@ struct StrategyPickerView: View
             }
         }
         .pickerStyle(.menu)
-        .controlSize(.small)
     }
 }
 

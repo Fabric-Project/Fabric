@@ -102,16 +102,18 @@ enum MediaPipeSharedModels
 {
     private static let cache = SharedModelCache<MediaPipeMPSGraph>(retention: .weak)
 
-    static func model(named name: String, inputWidth: Int, inputHeight: Int, commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
+    static func model(named name: String, inputWidth: Int, inputHeight: Int, execution: MPSModelExecution, commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
     {
-        try Self.cache.model(named: "\(name) \(inputWidth)x\(inputHeight)", device: commandQueue.device)
+        try Self.cache.model(named: "\(name) \(inputWidth)x\(inputHeight) \(execution.cacheName)", device: commandQueue.device)
         {
             try MediaPipeMPSGraph.loadBundled(
                 named: name,
                 inputWidth: inputWidth,
                 inputHeight: inputHeight,
                 commandQueue: commandQueue,
-                maxFramesInFlight: SharedModelCapacity.framesInFlight
+                maxFramesInFlight: SharedModelCapacity.framesInFlight,
+                precision: execution.precision.mediaPipe,
+                computeUnits: execution.computeUnits.mediaPipe
             )
         }
     }
@@ -124,15 +126,17 @@ enum ZipDepthSharedModels
 {
     private static let cache = SharedModelCache<ZipDepthMPSGraph>(retention: .weak)
 
-    static func model(width: Int, height: Int, commandQueue: MTLCommandQueue) throws -> ZipDepthMPSGraph
+    static func model(width: Int, height: Int, execution: MPSModelExecution, commandQueue: MTLCommandQueue) throws -> ZipDepthMPSGraph
     {
-        try Self.cache.model(named: "\(width)x\(height)", device: commandQueue.device)
+        try Self.cache.model(named: "\(width)x\(height) \(execution.cacheName)", device: commandQueue.device)
         {
             try ZipDepthMPSGraph(
                 inputWidth: width,
                 inputHeight: height,
                 commandQueue: commandQueue,
-                maxFramesInFlight: SharedModelCapacity.framesInFlight
+                maxFramesInFlight: SharedModelCapacity.framesInFlight,
+                precision: execution.precision.zipDepth,
+                computeUnits: execution.computeUnits.zipDepth
             )
         }
     }
@@ -151,20 +155,31 @@ enum TAPIRSharedModels
         commandQueue: MTLCommandQueue
     ) throws -> TAPIROnlineModel
     {
-        let precision = configuration.computePrecision == .mixedFloat16 ? "mixedFloat16" : "float32"
+        let precision = switch configuration.computePrecision
+        {
+        case .float32: "float32"
+        case .mixedFloat16: "mixedFloat16"
+        case .float16: "float16"
+        }
         let cacheName = [
             "bundled-causal-bootstapir",
             "points=\(configuration.maximumPointCount)",
             "refinements=\(configuration.refinementCount)",
             "precision=\(precision)",
+            "computeUnits=\(configuration.computeUnits == .gpuOnly ? "gpuOnly" : "gpuAndNeuralEngine")",
         ].joined(separator: "|")
 
         return try Self.cache.model(named: cacheName, device: commandQueue.device)
         {
-            try TAPIROnlineModel.loadBundled(
+            let model = try TAPIROnlineModel.loadBundled(
                 configuration: configuration,
                 commandQueue: commandQueue
             )
+            // Once per compiled model: MPSGraph's first-run setup (about
+            // 200 ms) happens here, when a node enables, not on the first
+            // tracked frame.
+            try model.prewarm()
+            return model
         }
     }
 }
