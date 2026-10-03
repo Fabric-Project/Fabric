@@ -37,7 +37,7 @@ public struct MediaPipeFaceLandmarkOutputSettings: Codable, Equatable
 /// variant — no iris refinement) against a caller-supplied region +
 /// rotation. Standalone comparison path, mirroring
 /// MediaPipeHandLandmarkNode's structure. Wire MediaPipe Face Detection's
-/// Region/Rotation/Keypoints outputs into this node's matching inputs.
+/// Region/Rotation outputs into this node's matching inputs.
 ///
 /// Unlike hand's 21 points (which map cleanly onto 5 named finger groups),
 /// FaceMesh's 468-point topology has no equivalent small named grouping, so
@@ -84,12 +84,10 @@ public class MediaPipeFaceLandmarkNode: Node
             ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to analyze for face landmarks")),
             ("inputRegionOfInterest", NodePort<simd_float4>(name: "Region", kind: .Inlet, description: "Face region as (x, y, width, height) normalized bottom-left-origin — wire in from MediaPipe Face Detection's Region output. Defaults to the full frame when unconnected.")),
             ("inputRotation", NodePort<Float>(name: "Rotation", kind: .Inlet, description: "In-plane rotation in radians — wire in from MediaPipe Face Detection's Rotation output. Defaults to 0 (no rotation) when unconnected.")),
-            ("inputKeypoints", NodePort<ContiguousArray<simd_float2>>(name: "Keypoints", kind: .Inlet, description: "Detector keypoints, already in Fabric's unit coordinate space — wire in from MediaPipe Face Detection's Keypoints output. Passed straight through to this node's own Keypoints output so a single downstream consumer can see both the detector's coarse keypoints and the refined landmarks. Empty when unconnected.")),
             ("inputEnableSmoothing", ParameterPort(parameter: BoolParameter("Smoothing", true, .toggle, "Temporally smooth landmarks with a One Euro filter. Disable to see the model's raw, unsmoothed output."))),
 
             ("outputLandmarks", NodePort<ContiguousArray<simd_float2>>(name: "Landmarks", kind: .Outlet, description: "All 468 FaceMesh landmarks, in FaceMesh's own canonical index order, in unit coordinates")),
-            ("outputLandmarksScene", NodePort<ContiguousArray<simd_float3>>(name: "3D Landmarks", kind: .Outlet, description: "All 468 FaceMesh landmarks remapped into Fabric's unit coordinate space (-1...1 horizontally, -aspect...aspect vertically, matching Landmarks), z scaled by the same factor as x — directly comparable against MediaPipe Hand/Pose Landmarks' own 3D Landmarks output, so all three can be composited in one 3D scene. Not physically metric, and not camera-aligned — for an actual placement transform, use this node's own Transform output instead. Empty if nothing was detected.")),
-            ("outputKeypoints", NodePort<ContiguousArray<simd_float2>>(name: "Keypoints", kind: .Outlet, description: "Pass-through of this node's Keypoints inlet, unchanged")),
+            ("outputLandmarksScene", NodePort<ContiguousArray<simd_float3>>(name: "3D Landmarks", kind: .Outlet, description: "All 468 FaceMesh landmarks (same order as Landmarks) as the canonical face model fit to this frame, placed in Fabric's scene space so the default perspective camera sees it on top of the image: it keeps its metric size and only its position is fit to the image landmarks, so a face that appears larger sits nearer the camera (larger z); a face 1 m away sits on the image plane. A true 3D shape, so x/y match Landmarks only approximately. Directly comparable against MediaPipe Hand/Pose Landmarks' own 3D Landmarks output, so all three can be composited in one 3D scene — not physically metric, just a consistent shared space. Empty if nothing was detected.")),
             ("outputTrackedRegionOfInterest", NodePort<simd_float4>(name: "Tracked Region", kind: .Outlet, description: "This frame's landmarks re-expressed as a region for tracking the same face next frame, matching MediaPipe Face Detection's Tracked Region inlet. Sent as nil (not a stale rect) whenever this frame's presence gate fails.")),
             ("outputTrackedRotation", NodePort<Float>(name: "Tracked Rotation", kind: .Outlet, description: "Paired with Tracked Region — wire into MediaPipe Face Detection's Tracked Rotation inlet.")),
         ]
@@ -108,18 +106,16 @@ public class MediaPipeFaceLandmarkNode: Node
 
     private static func makeTransformPort() -> Port
     {
-        NodePort<simd_float4x4>(name: "Transform", kind: .Outlet, description: "Rigid placement transform (uniform scale + rotation + translation, head pose only) for the same solve as Geometry, fit directly against 3D Landmarks's own already-camera-correct 3D reconstruction — inherits that output's real depth and placement, already in Fabric's world units. Not updated (retains its last value) when no face is present this frame.")
+        NodePort<simd_float4x4>(name: "Transform", kind: .Outlet, description: "Rigid placement transform (uniform scale + rotation + translation, head pose only) mapping Geometry's centimeters onto 3D Landmarks: the same metric size and camera-fit position, already in Fabric's world units. Not updated (retains its last value) when no face is present this frame.")
     }
 
     public var inputImage: NodePort<FabricImage> { port(named: "inputImage") }
     public var inputRegionOfInterest: NodePort<simd_float4> { port(named: "inputRegionOfInterest") }
     public var inputRotation: NodePort<Float> { port(named: "inputRotation") }
-    public var inputKeypoints: NodePort<ContiguousArray<simd_float2>> { port(named: "inputKeypoints") }
     public var inputEnableSmoothing: ParameterPort<Bool> { port(named: "inputEnableSmoothing") }
 
     public var outputLandmarks: NodePort<ContiguousArray<simd_float2>> { port(named: "outputLandmarks") }
     public var outputLandmarksScene: NodePort<ContiguousArray<simd_float3>> { port(named: "outputLandmarksScene") }
-    public var outputKeypoints: NodePort<ContiguousArray<simd_float2>> { port(named: "outputKeypoints") }
     public var outputTrackedRegionOfInterest: NodePort<simd_float4> { port(named: "outputTrackedRegionOfInterest") }
     public var outputTrackedRotation: NodePort<Float> { port(named: "outputTrackedRotation") }
 
@@ -471,7 +467,6 @@ public class MediaPipeFaceLandmarkNode: Node
             catch { print("MediaPipeFaceLandmarkNode: detectLandmarks failed: \(error)") }
         }
 
-        self.outputKeypoints.send(self.inputKeypoints.value ?? [])
 
         guard let inImage = self.inputImage.value else { return }
 
@@ -505,40 +500,36 @@ public class MediaPipeFaceLandmarkNode: Node
 
         let aspect = Float(inImage.presentationSize.height / inImage.presentationSize.width)
         var points = ContiguousArray<simd_float2>()
-        var scenePoints = ContiguousArray<simd_float3>()
         points.reserveCapacity(smoothedLandmarks.count)
-        scenePoints.reserveCapacity(smoothedLandmarks.count)
         for landmark in smoothedLandmarks
         {
             points.append(self.unitPoint(from: landmark, aspect: aspect))
-            scenePoints.append(self.scenePoint(from: landmark, aspect: aspect))
         }
         self.outputLandmarks.send(points)
-        self.outputLandmarksScene.send(scenePoints)
 
-        if self.outputGeometry != nil || self.outputTransform != nil
+        // 3D Landmarks, Geometry and Transform all come from one placement:
+        // the canonical face model at its metric size, positioned -- depth
+        // included -- so the default perspective camera sees it on top of
+        // the image (see MediaPipeLandmarkSceneSpace.facePlacement).
+        // Transform maps Geometry's canonical-model centimeters onto the
+        // 3D Landmarks.
+        if let placement = MediaPipeLandmarkSceneSpace.facePlacement(imageLandmarks: smoothedLandmarks, aspect: aspect)
         {
-            // Fits the canonical face model directly against scenePoints --
-            // the same reconstruction already proven (both visually and via
-            // direct A/B comparison against FaceGeometrySolver.solve()'s own
-            // near-plane unprojection) to place correctly relative to
-            // whichever camera is actually rendering the scene. poseTransform
-            // then already maps canonical-model centimeters straight into
-            // Fabric's world units, with no separate scale/placement
-            // reconstruction needed -- see fitCanonicalModel's own doc for why
-            // solve()'s own unprojectXY isn't used here.
-            if let result = FaceGeometrySolver.fitCanonicalModel(to: Array(scenePoints))
+            self.outputLandmarksScene.send(placement.scenePoints)
+            if let outputGeometry = self.outputGeometry
             {
-                if let outputGeometry = self.outputGeometry
-                {
-                    self.faceMeshGeometry.metricLandmarks = result.metricLandmarks
-                    outputGeometry.send(self.faceMeshGeometry, force: true)
-                }
-                if let outputTransform = self.outputTransform
-                {
-                    outputTransform.send(result.poseTransform)
-                }
+                self.faceMeshGeometry.metricLandmarks = placement.metricLandmarks
+                outputGeometry.send(self.faceMeshGeometry, force: true)
             }
+            if let outputTransform = self.outputTransform
+            {
+                outputTransform.send(placement.poseTransform)
+            }
+        }
+        else
+        {
+            // No placement: each landmark's own 2.5D position.
+            self.outputLandmarksScene.send(ContiguousArray(smoothedLandmarks.map { MediaPipeLandmarkSceneSpace.scenePoint(from: $0, aspect: aspect) }))
         }
 
         if let tracked = MediaPipeFaceLandmarkProjection.trackedRegion(from: self.lastLandmarks, presentationSize: inImage.presentationSize)
@@ -717,38 +708,6 @@ public class MediaPipeFaceLandmarkNode: Node
                     remap(landmark.y, 0.0, 1.0, -aspect, aspect))
     }
 
-    /// x/y start from the same flat remap as unitPoint(), then get scaled by
-    /// `depthScale` before z is added — without that, a point pulled off the
-    /// z=0 plane no longer lines up with its own 2D position once viewed
-    /// through a real perspective camera (the default one, at
-    /// `PerspectiveCameraNode.defaultPosition.z`): a point closer to the
-    /// camera needs *less* world x/y to land at the same screen position a
-    /// flat point would, one farther away needs more — by exactly
-    /// `(cameraDistance - z) / cameraDistance`, similar triangles along the
-    /// camera's own viewing axis. Skipping that scaling is what made this
-    /// output overshoot outward from center at the face's edges compared to
-    /// Landmarks' own (correct) alignment.
-    ///
-    /// z itself is negated relative to MediaPipe's own landmark.z: raw z
-    /// gets *more negative* the closer a point is to the camera (confirmed
-    /// via `FaceGeometrySolver.canonicalPositions`, which is already in
-    /// Fabric's own convention — nose tip z=+7.48 vs ear z=-2.0 — and via
-    /// `FaceGeometrySolver.changeHandedness`, which negates raw z to reach
-    /// that same array), the opposite of Fabric's own camera, which sits at
-    /// positive z looking toward the origin, so *larger* z is closer. Scale
-    /// factor 2 matches x's own [0,1]->[-1,1] remap, keeping z's magnitude
-    /// on the same scale as x — what makes Face/Hand/Pose Landmarks' scene-
-    /// space output directly comparable, independent of each model's own
-    /// per-model depth-normalization constant (see
-    /// MediaPipeFaceLandmarkProjection.normalizeZ).
-    private func scenePoint(from landmark: simd_float3, aspect: Float) -> simd_float3
-    {
-        let flat = unitPoint(from: landmark, aspect: aspect)
-        let depth = -landmark.z * 2
-        let cameraDistance = PerspectiveCameraNode.defaultPosition.z
-        let depthScale = (cameraDistance - depth) / cameraDistance
-        return simd_float3(flat.x * depthScale, flat.y * depthScale, depth)
-    }
 
 }
 

@@ -32,16 +32,16 @@ public struct MediaPipePoseLandmarkSettings: Codable, Equatable
 /// Runs MediaPipe's BlazePose landmark model (33 points) against a
 /// caller-supplied region + rotation. Standalone comparison path,
 /// mirroring MediaPipeFaceLandmarkNode/MediaPipeHandLandmarkNode's
-/// structure. Wire MediaPipe Pose Detection's Region/Rotation/Keypoints
-/// outputs into this node's matching inputs.
+/// structure. Wire MediaPipe Pose Detection's Region/Rotation outputs into
+/// this node's matching inputs.
 ///
 /// Model tier (Lite/Full/Heavy) is selected in Node Settings because changing
 /// it reloads weights. It never changes port shape, only accuracy/latency.
 ///
 /// outputSegmentationMask is computed by the model every frame regardless
 /// of whether it's wired up, so exposing it costs no extra inference.
-/// outputLandmarks3D exposes depth; the model's separate world-landmarks
-/// output is unused, out of scope.
+/// outputLandmarksScene is the model's world-landmarks output, aligned to
+/// the image (see MediaPipeLandmarkSceneSpace.scenePoints).
 ///
 /// For multiple bodies (MediaPipe Pose Detection's Multi mode), this
 /// node's own ports don't change — wire it inside an Iterator fed by
@@ -72,13 +72,10 @@ public class MediaPipePoseLandmarkNode: Node
             ("inputImage", NodePort<FabricImage>(name: "Image", kind: .Inlet, description: "Input image to analyze for pose landmarks")),
             ("inputRegionOfInterest", NodePort<simd_float4>(name: "Region", kind: .Inlet, description: "Body region as (x, y, width, height) normalized bottom-left-origin — wire in from MediaPipe Pose Detection's Region output. Defaults to the full frame when unconnected.")),
             ("inputRotation", NodePort<Float>(name: "Rotation", kind: .Inlet, description: "In-plane rotation in radians — wire in from MediaPipe Pose Detection's Rotation output. Defaults to 0 (no rotation) when unconnected.")),
-            ("inputKeypoints", NodePort<ContiguousArray<simd_float2>>(name: "Keypoints", kind: .Inlet, description: "Detector keypoints, already in Fabric's unit coordinate space — wire in from MediaPipe Pose Detection's Keypoints output. Passed straight through to this node's own Keypoints output so a single downstream consumer can see both the detector's coarse keypoints and the refined landmarks. Empty when unconnected.")),
             ("inputEnableSmoothing", ParameterPort(parameter: BoolParameter("Smoothing", true, .toggle, "Temporally smooth landmarks with a One Euro filter. Disable to see the model's raw, unsmoothed output."))),
 
             ("outputLandmarks", NodePort<ContiguousArray<simd_float2>>(name: "Landmarks", kind: .Outlet, description: "All 33 BlazePose landmarks (see mediapipe's own topology: 0 nose, 1-6 eyes, 7-8 ears, 9-10 mouth, 11-22 shoulders/elbows/wrists/hands, 23-32 hips/knees/ankles/feet), in unit coordinates")),
-            ("outputLandmarks3D", NodePort<ContiguousArray<simd_float3>>(name: "Landmarks 3D", kind: .Outlet, description: "All 33 BlazePose landmarks including depth. Unlike Landmarks, this is NOT remapped to Fabric's -1...1 unit space — x,y stay normalized [0,1] bottom-left-origin and z is MediaPipe's own relative depth (scaled like x, no aspect meaning) — the raw form a future geometry/transform node would need, matching MediaPipeFaceLandmarkNode's outputLandmarks3D convention exactly. Empty if nothing was detected.")),
-            ("outputLandmarksScene", NodePort<ContiguousArray<simd_float3>>(name: "3D Landmarks", kind: .Outlet, description: "All 33 BlazePose landmarks (same order as Landmarks 3D) remapped into Fabric's unit coordinate space (-1...1 horizontally, -aspect...aspect vertically, matching Landmarks), z scaled by the same factor as x. Unlike Landmarks 3D's raw per-model relative depth, this is directly comparable against MediaPipe Face/Hand Landmarks' own 3D Landmarks output, so all three can be composited in one 3D scene — not physically metric, just a consistent shared space. Empty if nothing was detected.")),
-            ("outputKeypoints", NodePort<ContiguousArray<simd_float2>>(name: "Keypoints", kind: .Outlet, description: "Pass-through of this node's Keypoints inlet, unchanged")),
+            ("outputLandmarksScene", NodePort<ContiguousArray<simd_float3>>(name: "3D Landmarks", kind: .Outlet, description: "All 33 BlazePose landmarks (same order as Landmarks) as the model's metric, view-independent world shape, placed in Fabric's scene space so the default perspective camera sees it on top of the image: it keeps its metric size and only its position is fit to the image landmarks (weighted by each landmark's visibility), so a body that appears larger sits nearer the camera (larger z); a body 1 m away sits on the image plane. A true 3D shape, so x/y match Landmarks only approximately. Directly comparable against MediaPipe Face/Hand Landmarks' own 3D Landmarks output, so all three can be composited in one 3D scene — not physically metric, just a consistent shared space. Empty if nothing was detected.")),
             ("outputSegmentationMask", NodePort<FabricImage>(name: "Segmentation Mask", kind: .Outlet, description: "BlazePose's per-pixel person-segmentation confidence (sigmoid-activated), reprojected to full image space. Not temporally smoothed.")),
             ("outputTrackedRegionOfInterest", NodePort<simd_float4>(name: "Tracked Region", kind: .Outlet, description: "This frame's landmarks re-expressed as a region for tracking the same body next frame, matching MediaPipe Pose Detection's Tracked Region inlet. Sent as nil (not a stale rect) whenever this frame's pose presence gate fails.")),
             ("outputTrackedRotation", NodePort<Float>(name: "Tracked Rotation", kind: .Outlet, description: "Paired with Tracked Region — wire into MediaPipe Pose Detection's Tracked Rotation inlet.")),
@@ -88,15 +85,12 @@ public class MediaPipePoseLandmarkNode: Node
     public var inputImage: NodePort<FabricImage> { port(named: "inputImage") }
     public var inputRegionOfInterest: NodePort<simd_float4> { port(named: "inputRegionOfInterest") }
     public var inputRotation: NodePort<Float> { port(named: "inputRotation") }
-    public var inputKeypoints: NodePort<ContiguousArray<simd_float2>> { port(named: "inputKeypoints") }
     public var inputEnableSmoothing: ParameterPort<Bool> { port(named: "inputEnableSmoothing") }
 
     public private(set) var modelSettings: MediaPipePoseLandmarkSettings
 
     public var outputLandmarks: NodePort<ContiguousArray<simd_float2>> { port(named: "outputLandmarks") }
-    public var outputLandmarks3D: NodePort<ContiguousArray<simd_float3>> { port(named: "outputLandmarks3D") }
     public var outputLandmarksScene: NodePort<ContiguousArray<simd_float3>> { port(named: "outputLandmarksScene") }
-    public var outputKeypoints: NodePort<ContiguousArray<simd_float2>> { port(named: "outputKeypoints") }
     public var outputSegmentationMask: NodePort<FabricImage> { port(named: "outputSegmentationMask") }
     public var outputTrackedRegionOfInterest: NodePort<simd_float4> { port(named: "outputTrackedRegionOfInterest") }
     public var outputTrackedRotation: NodePort<Float> { port(named: "outputTrackedRotation") }
@@ -123,6 +117,7 @@ public class MediaPipePoseLandmarkNode: Node
     private var outputBuffersTier: ModelTier?
     private var segmentationMaskProjector: MediaPipeSegmentationMaskProjector?
     private let landmarksSmoothingFilter = MediaPipeLandmarksSmoothingFilter(debugLabel: "Pose")
+    private let worldLandmarksSmoothingFilter = MediaPipeLandmarksSmoothingFilter(minCutoff: MediaPipeLandmarkSceneSpace.worldLandmarksSmoothingMinCutoff, beta: MediaPipeLandmarkSceneSpace.worldLandmarksSmoothingBeta)
 
     private enum ModelSettingsCodingKeys: String, CodingKey
     {
@@ -302,6 +297,26 @@ public class MediaPipePoseLandmarkNode: Node
         }
     }
 
+    /// The model's metric world landmarks for the same frame as
+    /// lastLandmarks (same lock, same producer), in MediaPipe's own axes,
+    /// with each landmark's in-frame-and-visible confidence.
+    private var lastWorldLandmarksStorage: (landmarks: [simd_float3], confidence: [Float]) = ([], [])
+    private var lastWorldLandmarks: (landmarks: [simd_float3], confidence: [Float])
+    {
+        get
+        {
+            self.lastLandmarksLock.lock()
+            defer { self.lastLandmarksLock.unlock() }
+            return self.lastWorldLandmarksStorage
+        }
+        set
+        {
+            self.lastLandmarksLock.lock()
+            self.lastWorldLandmarksStorage = newValue
+            self.lastLandmarksLock.unlock()
+        }
+    }
+
     /// The raw (pre-sigmoid) segmentation mask tensor plus the crop rect it
     /// was decoded against -- both written alongside lastLandmarks (same
     /// lock, since they're always produced together by the same inference
@@ -353,7 +368,6 @@ public class MediaPipePoseLandmarkNode: Node
             catch { print("MediaPipePoseLandmarkNode: detectLandmarks failed: \(error)") }
         }
 
-        self.outputKeypoints.send(self.inputKeypoints.value ?? [])
 
         guard let inImage = self.inputImage.value else { return }
 
@@ -363,7 +377,9 @@ public class MediaPipePoseLandmarkNode: Node
             // already in, then derive both outputs from the smoothed result
             // -- not smoothing post-unitPoint(), which would put x/y in
             // different, aspect-dependent ranges.
+            let world = self.lastWorldLandmarks
             let smoothedLandmarks: [simd_float3]
+            let smoothedWorldLandmarks: [simd_float3]
             if (self.inputEnableSmoothing.value ?? true) && !insideIterator
             {
                 let presentationSize = inImage.presentationSize
@@ -373,30 +389,35 @@ public class MediaPipePoseLandmarkNode: Node
                 let objectScalePixels = (cropRectSize.x * imageWidthPixels + cropRectSize.y * imageHeightPixels) / 2
                 let timestampNanoseconds = Int64((self.lastLandmarksTimestamp * 1e9).rounded())
                 smoothedLandmarks = self.landmarksSmoothingFilter.smooth(points: self.lastLandmarks, timestampNanoseconds: timestampNanoseconds, objectScalePixels: objectScalePixels, imageWidthPixels: imageWidthPixels, imageHeightPixels: imageHeightPixels)
+                smoothedWorldLandmarks = MediaPipeLandmarkSceneSpace.smoothedWorldLandmarks(world.landmarks, filter: self.worldLandmarksSmoothingFilter, timestampNanoseconds: timestampNanoseconds)
             }
             else
             {
                 self.landmarksSmoothingFilter.reset()
+                self.worldLandmarksSmoothingFilter.reset()
                 smoothedLandmarks = self.lastLandmarks
+                smoothedWorldLandmarks = world.landmarks
             }
 
             let aspect = Float(inImage.presentationSize.height / inImage.presentationSize.width)
             var points = ContiguousArray<simd_float2>()
-            var scenePoints = ContiguousArray<simd_float3>()
             points.reserveCapacity(smoothedLandmarks.count)
-            scenePoints.reserveCapacity(smoothedLandmarks.count)
             for landmark in smoothedLandmarks
             {
                 points.append(self.unitPoint(from: landmark, aspect: aspect))
-                scenePoints.append(self.scenePoint(from: landmark, aspect: aspect))
             }
             self.outputLandmarks.send(points)
-            self.outputLandmarks3D.send(ContiguousArray(smoothedLandmarks))
-            self.outputLandmarksScene.send(scenePoints)
+            self.outputLandmarksScene.send(MediaPipeLandmarkSceneSpace.scenePoints(
+                imageLandmarks: smoothedLandmarks,
+                worldLandmarks: smoothedWorldLandmarks,
+                weights: world.confidence,
+                aspect: aspect
+            ))
         }
         else
         {
             self.landmarksSmoothingFilter.reset()
+            self.worldLandmarksSmoothingFilter.reset()
         }
 
         if let tracked = MediaPipePoseLandmarkProjection.trackedRegion(from: self.lastAuxiliaryLandmarks, presentationSize: inImage.presentationSize)
@@ -508,10 +529,10 @@ public class MediaPipePoseLandmarkNode: Node
         // correctly-scoped `self` (the weakly-captured one in the async
         // branch) instead of this function silently capturing a strong
         // `self` from detectLandmarks()'s own invocation.
-        func decodedResults(_ outputs: [[Float]]) -> (landmarks: [simd_float3], auxiliaryLandmarks: [simd_float3], maskLogits: [Float])
+        func decodedResults(_ outputs: [[Float]]) -> (landmarks: [simd_float3], auxiliaryLandmarks: [simd_float3], worldLandmarks: [simd_float3], landmarkConfidence: [Float], maskLogits: [Float])
         {
-            let (landmarks, auxiliaryLandmarks) = Self.projectLandmarks(outputs: outputs, center: center, size: size, rotation: rotation)
-            return (landmarks, auxiliaryLandmarks, outputs.count >= 3 ? outputs[2] : [])
+            let projected = Self.projectLandmarks(outputs: outputs, center: center, size: size, rotation: rotation)
+            return (projected.landmarks, projected.auxiliaryLandmarks, projected.worldLandmarks, projected.landmarkConfidence, outputs.count >= 3 ? outputs[2] : [])
         }
 
         if synchronous
@@ -525,6 +546,7 @@ public class MediaPipePoseLandmarkNode: Node
             let results = decodedResults(outputs)
             self.lastLandmarks = results.landmarks
             self.lastAuxiliaryLandmarks = results.auxiliaryLandmarks
+            self.lastWorldLandmarks = (results.worldLandmarks, results.landmarkConfidence)
             self.lastSegmentationMask = (results.maskLogits, (center: center, size: size, rotation: rotation))
             return
         }
@@ -557,6 +579,7 @@ public class MediaPipePoseLandmarkNode: Node
             let results = decodedResults(outputs)
             self.lastLandmarks = results.landmarks
             self.lastAuxiliaryLandmarks = results.auxiliaryLandmarks
+            self.lastWorldLandmarks = (results.worldLandmarks, results.landmarkConfidence)
             self.lastSegmentationMask = (results.maskLogits, (center: center, size: size, rotation: rotation))
         }
     }
@@ -564,11 +587,12 @@ public class MediaPipePoseLandmarkNode: Node
     /// outputs = [landmarks(195), pose flag(1), segmentation(256x256),
     /// heatmap(64x64x39), world landmarks(117)]. Segmentation is pulled
     /// directly from `outputs` at the call sites, not through this function.
-    private static func projectLandmarks(outputs: [[Float]], center: simd_float2, size: simd_float2, rotation: Float) -> (landmarks: [simd_float3], auxiliaryLandmarks: [simd_float3])
+    private static func projectLandmarks(outputs: [[Float]], center: simd_float2, size: simd_float2, rotation: Float) -> (landmarks: [simd_float3], auxiliaryLandmarks: [simd_float3], worldLandmarks: [simd_float3], landmarkConfidence: [Float])
     {
-        guard outputs.count >= 4 else { return ([], []) }
+        guard outputs.count >= 4 else { return ([], [], [], []) }
         let (landmarksRaw, presenceRaw, heatmapRaw) = (outputs[0], outputs[1], outputs[3])
-        guard landmarksRaw.count == MediaPipePoseLandmarkProjection.decodedLandmarkCount * 5 else { return ([], []) }
+        let worldLandmarksRaw = outputs.count >= 5 ? outputs[4] : []
+        guard landmarksRaw.count == MediaPipePoseLandmarkProjection.decodedLandmarkCount * 5 else { return ([], [], [], []) }
 
         // Refine x,y for all 39 decoded points from the heatmap before
         // rotation/rect projection. z, visibility, presence pass through
@@ -597,15 +621,16 @@ public class MediaPipePoseLandmarkNode: Node
         // projection math, then flip the result back below.
         guard let pose = MediaPipePoseLandmarkProjection.project(
             landmarksRaw: refinedLandmarksRaw,
+            worldLandmarksRaw: worldLandmarksRaw,
             presenceRaw: presenceRaw.first ?? -Float.greatestFiniteMagnitude,
             rect: (cx: center.x, cy: 1 - center.y, width: size.x, height: size.y, rotation: rotation)
         ) else
         {
-            return ([], [])
+            return ([], [], [], [])
         }
 
         let flip = { (point: simd_float3) in simd_float3(point.x, 1 - point.y, point.z) }
-        return (pose.landmarks.map(flip), pose.auxiliaryLandmarks.map(flip))
+        return (pose.landmarks.map(flip), pose.auxiliaryLandmarks.map(flip), pose.worldLandmarks, pose.landmarkConfidence)
     }
 
     private static func mpsGraphModel(for tier: ModelTier, execution: MPSModelExecution, commandQueue: MTLCommandQueue) throws -> MediaPipeMPSGraph
@@ -735,20 +760,5 @@ public class MediaPipePoseLandmarkNode: Node
     {
         simd_float2(remap(landmark.x, 0.0, 1.0, -1.0, 1.0),
                     remap(landmark.y, 0.0, 1.0, -aspect, aspect))
-    }
-
-    /// Same x/y remap as unitPoint(); z has no [0,1]-domain start/end like
-    /// x/y do (it's a relative, roughly-zero-centered depth), so only the
-    /// same *scale factor* x's remap applies (2, from -1...1 spanning a
-    /// [0,1] domain) carries over -- matching MediaPipe's own convention
-    /// that z's magnitude is on the same scale as x. This is what makes
-    /// Face/Hand/Pose Landmarks' scene-space output directly comparable,
-    /// independent of each model's own per-model depth-normalization
-    /// constant (see MediaPipePoseLandmarkProjection.normalizeZ).
-    private func scenePoint(from landmark: simd_float3, aspect: Float) -> simd_float3
-    {
-        simd_float3(remap(landmark.x, 0.0, 1.0, -1.0, 1.0),
-                    remap(landmark.y, 0.0, 1.0, -aspect, aspect),
-                    landmark.z * 2)
     }
 }
