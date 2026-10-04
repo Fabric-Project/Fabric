@@ -12,6 +12,7 @@ internal import OSCKit
 import Satin
 import simd
 import Synchronization
+import os
 
 // MARK: - OSC Address Binding
 
@@ -185,6 +186,8 @@ struct OSCReceiveNodeView: View
 
 public class OSCReceiveNode: Node
 {
+    fileprivate static let log = Logger(subsystem: "graphics.fabric", category: "OSCReceiveNode")
+
     override public static var name: String { "OSC Receive" }
     override public static var nodeType: Node.NodeType { .Parameter(parameterType: .IO) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
@@ -320,18 +323,25 @@ public class OSCReceiveNode: Node
 
     // MARK: - Lifecycle
 
-    public override func enableExecution(renderer: GraphRenderer)
+    // The node listens while started. The server is main-thread state, which
+    // the settings view's Start and Stop also change, so lifecycle calls, which
+    // can run on the render thread, hand over to main. A server that cannot
+    // start is logged, not thrown: the node still starts, and outputs nothing.
+    public override func startExecution(renderer: GraphRenderer)
     throws
     {
-        try startListening()
-        try super.enableExecution(renderer: renderer)
+        DispatchQueue.main.async { [weak self] in
+            do { try self?.startListening() }
+            catch { Self.log.error("\(error.localizedDescription, privacy: .public)") }
+        }
+        try super.startExecution(renderer: renderer)
     }
 
-    public override func disableExecution(renderer: GraphRenderer)
+    public override func stopExecution(renderer: GraphRenderer)
     throws
     {
-        stopListening()
-        try super.disableExecution(renderer: renderer)
+        DispatchQueue.main.async { [weak self] in self?.stopListening() }
+        try super.stopExecution(renderer: renderer)
     }
 
     // MARK: - Execution
