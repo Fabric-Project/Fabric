@@ -282,7 +282,7 @@ public class AudioSpectrumNode : Node
 
         return ports +
         [
-            ("inputAudioDevice", ParameterPort(parameter: StringParameter("Device Name", "", .dropdown, "Audio input device to capture from"))),
+            ("inputAudioDevice", ParameterPort(parameter: StringParameter("Device Name", AudioSpectrumNode.defaultDeviceName, .dropdown, "Audio input device to capture from, or Default for the system's default input"))),
             ("inputBands", ParameterPort(parameter: IntParameter("Bands", 8, 1, 256, .inputfield, "Number of frequency bands in the spectrum output"))),
             ("inputSensitivity", ParameterPort(parameter: FloatParameter("Sensitivity", 0.5, 0.0, 1.0, .slider, "How sensitive the analyzer is to quiet sounds. 0 = analyses only louder sounds (quiet audio is ignored). 1 = full sensitivity (picks up even very faint audio). Turn up to make the display react to subtle input; turn down if you only care about peaks."))),
             ("inputGain", ParameterPort(parameter: FloatParameter("Gain", 1.0, 0.0, 10.0, .slider, "Multiplier applied to the output band values after normalization, clamped to [0, 1]. 1 = pass-through; values > 1 push bars toward full-scale ('visual overdrive' — the bars saturate earlier); values < 1 scale bars down. Purely affects the output, not the underlying audio analysis."))),
@@ -294,6 +294,10 @@ public class AudioSpectrumNode : Node
     }
 
     public var inputAudioDevice:ParameterPort<String> { port(named: "inputAudioDevice") }
+
+    /// The dropdown entry for the system's default input. An empty name, as
+    /// documents saved before it have, means the same.
+    fileprivate static let defaultDeviceName = "Default"
     public var inputBands:ParameterPort<Int> { port(named: "inputBands") }
     public var inputSensitivity:ParameterPort<Float> { port(named: "inputSensitivity") }
     public var inputGain:ParameterPort<Float> { port(named: "inputGain") }
@@ -352,6 +356,9 @@ public class AudioSpectrumNode : Node
         var devices: [AVCaptureDevice] = []
     }
     private let devicesLock = Mutex<DeviceList>(DeviceList())
+    /// The device the session captures from: set where execute builds it, on the
+    /// render thread, and read when a device disconnects, on main.
+    private let capturingDeviceID = Mutex<String?>(nil)
     private var wasConnectedObserver: Any?
     private var wasDisconnectedObserver: Any?
 
@@ -384,8 +391,17 @@ public class AudioSpectrumNode : Node
         }
         self.wasDisconnectedObserver = NotificationCenter.default.addObserver(
             forName: AVCaptureDevice.wasDisconnectedNotification, object: nil, queue: .main
-        ) { [weak self] _ in
-            self?.refreshAudioDeviceOptions()
+        ) { [weak self] notification in
+            guard let self else { return }
+            self.refreshAudioDeviceOptions()
+
+            // The device capturing has gone: rebuild, falling back to the default
+            // input. Only started nodes execute the rebuild.
+            if let device = notification.object as? AVCaptureDevice,
+               device.uniqueID == self.capturingDeviceID.withLock({ $0 })
+            {
+                self.captureSessionNeedsSetup.store(true, ordering: .relaxed)
+            }
         }
 
         self.refreshAudioDeviceOptions()
@@ -410,21 +426,27 @@ public class AudioSpectrumNode : Node
         self.devicesLock.withLock { $0.devices = fresh }
 
         // Enable can run on the render thread; options are main-thread state (see DeviceList).
-        let names = fresh.map(\.localizedName)
+        let names = [Self.defaultDeviceName] + fresh.map(\.localizedName)
         DispatchQueue.main.async { [weak self] in
             (self?.inputAudioDevice.parameter as? StringParameter)?.options = names
         }
     }
 
-    private func resolveSelectedAudioDevice() -> AVCaptureDevice?
+    /// The selected device, or the default input when Default is selected or the
+    /// selected device is not connected; the name of a device not connected comes too.
+    private func resolveSelectedAudioDevice() -> (device: AVCaptureDevice?, missingDeviceName: String?)
     {
-        let knownDevices = self.devicesLock.withLock { $0.devices }
-        if let name = self.inputAudioDevice.value, !name.isEmpty,
-           let match = knownDevices.first(where: { $0.localizedName == name })
+        guard let name = self.inputAudioDevice.value, !name.isEmpty, name != Self.defaultDeviceName else
         {
-            return match
+            return (AVCaptureDevice.default(for: .audio), nil)
         }
-        return AVCaptureDevice.default(for: .audio)
+
+        let knownDevices = self.devicesLock.withLock { $0.devices }
+        if let match = knownDevices.first(where: { $0.localizedName == name })
+        {
+            return (match, nil)
+        }
+        return (AVCaptureDevice.default(for: .audio), name)
     }
 
     // Capture runs only while started. The session is built in execute, so a
@@ -478,6 +500,8 @@ public class AudioSpectrumNode : Node
         {
             guard captureStatus != oldValue else { return }
             _settingsModel.captureFailure = captureStatus?.message
+            // Retry is for failures; a warning says what the node is doing instead.
+            _settingsModel.canRetry = if case .error = captureStatus { true } else { false }
             self.subtitleSubject.send()
         }
     }
@@ -531,7 +555,9 @@ public class AudioSpectrumNode : Node
             pendingRebuild = true
         }
 
-        if self.captureSessionNeedsSetup.exchange(false, ordering: .relaxed)
+        // Built only with microphone access; without it, the status already says why.
+        if self.captureSessionNeedsSetup.exchange(false, ordering: .relaxed),
+           AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
         {
             self.setupCaptureSession()
         }
@@ -665,7 +691,8 @@ public class AudioSpectrumNode : Node
     /// A fresh session forces a fresh converter.
     private func setupCaptureSession()
     {
-        guard let device = self.resolveSelectedAudioDevice() else
+        let (selectedDevice, missingDeviceName) = self.resolveSelectedAudioDevice()
+        guard let device = selectedDevice else
         {
             self.reportCaptureStatus(.error("No audio input device is available."))
             return
@@ -719,7 +746,9 @@ public class AudioSpectrumNode : Node
 
         self.captureSession = session
         self.captureSession.startRunning()
-        self.reportCaptureStatus(nil)
+        self.capturingDeviceID.withLock { $0 = device.uniqueID }
+        // Capture goes on from the default input, and returns to the selected device when it connects.
+        self.reportCaptureStatus(missingDeviceName.map { .warning("\($0) is not connected; capturing from \(device.localizedName).") })
 
         tripleBuffer.invalidate()
     }
@@ -737,6 +766,7 @@ public class AudioSpectrumNode : Node
         var bandValues: [Float] { node?.visualizationBandValues ?? [] }
         /// Why the node is not capturing although it is started, or nil.
         var captureFailure: String?
+        var canRetry = false
         init(node: AudioSpectrumNode) { self.node = node }
         func retryCapture() { node?.retryCapture() }
     }
@@ -771,11 +801,14 @@ private struct AudioSpectrumNodeSettingsView: View
 
                     Spacer()
 
-                    Button("Retry")
+                    if model.canRetry
                     {
-                        model.retryCapture()
+                        Button("Retry")
+                        {
+                            model.retryCapture()
+                        }
+                        .controlSize(.small)
                     }
-                    .controlSize(.small)
                 }
             }
 
