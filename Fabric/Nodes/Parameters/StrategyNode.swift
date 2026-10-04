@@ -92,19 +92,21 @@ public enum VectorType: NodeStrategyOption, CaseIterable {
 
 // MARK: - StrategyNode
 
-public class StrategyNode: Node
+/// Open so plugins can define strategy nodes: subclass, override `strategyOptions`, and
+/// rebuild ports in `rebuildPorts(forStrategy:)`.
+open class StrategyNode: Node
 {
     /// Ordered strategy options — the single source of truth for the picker and
     /// for programmatic construction.  Subclasses override this; never override
     /// `strategies` directly.
-    public class var strategyOptions: [any NodeStrategyOption] { [] }
+    open class var strategyOptions: [any NodeStrategyOption] { [] }
 
     /// Derived from strategyOptions — do not override.
     public class var strategies: [String] { strategyOptions.map(\.rawValue) }
-    public class var defaultStrategy: String { strategies.first ?? "" }
+    open class var defaultStrategy: String { strategies.first ?? "" }
 
     /// When true, the picker inserts a visual separator after the first strategy in the list.
-    public class var separatorAfterFirstStrategy: Bool { false }
+    open class var separatorAfterFirstStrategy: Bool { false }
 
     /// Standard behaviour: the node-generated `subtitle` is the active strategy,
     /// e.g. "vec3" for "Vector Compose", or "Random" for "Number Generator".
@@ -115,7 +117,7 @@ public class StrategyNode: Node
     /// Subclasses wanting a different title override `deriveSubtitle()` directly:
     /// return nil for the plain type-name title, or a bespoke string — as the
     /// type-agnostic nodes do, suppressing the token for their Virtual default.
-    override public func deriveSubtitle() -> String?
+    override open func deriveSubtitle() -> String?
     {
         Self.strategies.contains(strategy) ? strategy : nil
     }
@@ -181,7 +183,7 @@ public class StrategyNode: Node
         self.rebuildPorts(forStrategy: self.strategy)
     }
 
-    public override func encode(to encoder: Encoder) throws
+    open override func encode(to encoder: Encoder) throws
     {
         try super.encode(to: encoder)
 
@@ -211,18 +213,18 @@ public class StrategyNode: Node
         self.init(context: context, initialStrategy: strategy.rawValue)
     }
 
-    override public func providesSettingsView() -> Bool { true }
+    override open func providesSettingsView() -> Bool { true }
 
-    override public var settingsSize: SettingsViewSize { .Mini }
+    override open var settingsSize: SettingsViewSize { .Mini }
 
-    override public func settingsView() -> AnyView
+    override open func settingsView() -> AnyView
     {
         AnyView(StrategyPickerView(model: strategySettingsModel))
     }
 
     /// Shared settings model behind the strategy picker; composite settings
     /// views (e.g. the routing nodes') reuse it to embed StrategyPickerView.
-    var strategySettingsModel: SettingsModel { _settingsModel }
+    public var strategySettingsModel: SettingsModel { _settingsModel }
 
     /// Subclasses: diff current dynamic ports against the wanted set for
     /// `strategy` (removePort for anything dynamic no longer wanted,
@@ -230,11 +232,11 @@ public class StrategyNode: Node
     /// name-set-diff pattern MathExpressionNode.syncPorts(to:)
     /// already uses. Called on creation, on every Settings-view strategy
     /// change, and once after decode.
-    public func rebuildPorts(forStrategy strategy: String) { }
+    open func rebuildPorts(forStrategy strategy: String) { }
 
     // MARK: - Settings Model
 
-    @Observable final class SettingsModel
+    @Observable public final class SettingsModel
     {
         let strategies: [String]
         let separatorAfterFirst: Bool
@@ -260,11 +262,16 @@ public class StrategyNode: Node
     private lazy var _settingsModel = SettingsModel(node: self)
 }
 
-struct StrategyPickerView: View
+public struct StrategyPickerView: View
 {
     @Bindable var model: StrategyNode.SettingsModel
 
-    var body: some View
+    public init(model: StrategyNode.SettingsModel)
+    {
+        self.model = model
+    }
+
+    public var body: some View
     {
         Picker("Type", selection: $model.strategy)
         {
@@ -287,12 +294,18 @@ struct StrategyPickerView: View
 /// A strategy picker followed by usage guidance for the currently-selected
 /// strategy. Reusable by any StrategyNode whose modes benefit from an
 /// explanatory blurb; `guidance` maps a strategy raw value to its description.
-struct StrategyGuidanceView: View
+public struct StrategyGuidanceView: View
 {
     @Bindable var model: StrategyNode.SettingsModel
     let guidance: (String) -> String
 
-    var body: some View
+    public init(model: StrategyNode.SettingsModel, guidance: @escaping (String) -> String)
+    {
+        self.model = model
+        self.guidance = guidance
+    }
+
+    public var body: some View
     {
         VStack(alignment: .leading)
         {
