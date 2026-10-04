@@ -222,7 +222,7 @@ public class DeferredSubgraphNode: SubgraphNode
             stencilPixelFormat: self.context.stencilPixelFormat,
             vertexAmplificationCount: self.context.vertexAmplificationCount,
             maxBuffersInFlight: self.context.maxBuffersInFlight,
-            renderingMode: .deferredGeometry,
+            renderingMode: .forwardPlus,
             activeOutputs: Self.deferredOutputs,
             albedoPixelFormat: self.context.albedoPixelFormat,
             normalsPixelFormat: self.context.normalsPixelFormat,
