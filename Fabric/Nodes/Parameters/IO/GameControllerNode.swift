@@ -11,6 +11,7 @@ import Metal
 import GameController
 import Satin
 import simd
+import Synchronization
 
 // MARK: - Controller Info
 
@@ -165,8 +166,15 @@ public class GameControllerNode: Node
     // MARK: - Properties
 
     private var savedControllerInfo: GameControllerInfo?
+    // Controller state is main-thread state: the controller's handler, the
+    // notifications and the settings view all use main. Lifecycle calls, which
+    // can run on the render thread, hand over to main; the main queue keeps
+    // them in order.
     private var currentController: GCController?
     private var controllerObservers: [any NSObjectProtocol] = []
+    /// Whether the node is started. It receives from its controller only while started.
+    private var isRunning = false
+    private var subscribedController: GCController?
 
     fileprivate var selectedControllerID: String?
     {
@@ -190,9 +198,13 @@ public class GameControllerNode: Node
         return availableControllers.first { $0.id == controllerID }
     }
 
-    // Latest input values
-    private var axisValues: [String: Float] = [:]
-    private var buttonValues: [String: Bool] = [:]
+    // Latest input values: written on the main queue, read by execute on the render thread.
+    private struct ControllerValues
+    {
+        var axisValues: [String: Float] = [:]
+        var buttonValues: [String: Bool] = [:]
+    }
+    private let controllerValues = Mutex(ControllerValues())
 
     // MARK: - Settings View
 
@@ -238,30 +250,54 @@ public class GameControllerNode: Node
 
     // MARK: - Lifecycle
 
+    // Enabled, the node lists controllers and has the selected controller's
+    // ports; started, it receives from the controller.
     public override func enableExecution(renderer:GraphRenderer)
     throws
     {
-        setupNotifications()
-        refreshControllers()
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.setupNotifications()
+            self.refreshControllers()
 
-        // Try to reconnect to saved controller
-        if let savedInfo = savedControllerInfo
-        {
-            if let matching = availableControllers.first(where: {
-                $0.vendorName == savedInfo.vendorName && $0.productCategory == savedInfo.productCategory
-            })
+            // Try to reconnect to saved controller
+            if let savedInfo = self.savedControllerInfo
             {
-                selectedControllerID = matching.id
+                if let matching = self.availableControllers.first(where: {
+                    $0.vendorName == savedInfo.vendorName && $0.productCategory == savedInfo.productCategory
+                })
+                {
+                    self.selectedControllerID = matching.id
+                }
             }
         }
         try super.enableExecution(renderer: renderer)
     }
 
+    public override func startExecution(renderer:GraphRenderer)
+    throws
+    {
+        DispatchQueue.main.async { [weak self] in
+            self?.isRunning = true
+            self?.updateSubscription()
+        }
+        try super.startExecution(renderer: renderer)
+    }
+
+    public override func stopExecution(renderer:GraphRenderer)
+    throws
+    {
+        DispatchQueue.main.async { [weak self] in
+            self?.isRunning = false
+            self?.updateSubscription()
+        }
+        try super.stopExecution(renderer: renderer)
+    }
+
     public override func disableExecution(renderer:GraphRenderer)
     throws
     {
-        removeNotifications()
-        detachController()
+        DispatchQueue.main.async { [weak self] in self?.removeNotifications() }
         try super.disableExecution(renderer: renderer)
     }
 
@@ -284,6 +320,7 @@ public class GameControllerNode: Node
                self?.currentController == controller
             {
                 self?.currentController = nil
+                self?.updateSubscription()
             }
             self?.refreshControllers()
         })
@@ -321,20 +358,26 @@ public class GameControllerNode: Node
         }
     }
 
-    /// Removes the handlers from the controller, which outlives this node.
-    private func detachController()
+    private func updateSubscription()
     {
-        currentController?.extendedGamepad?.valueChangedHandler = nil
-        currentController?.microGamepad?.valueChangedHandler = nil
-        currentController = nil
+        let wantedController = isRunning ? currentController : nil
+        guard wantedController !== subscribedController else { return }
+
+        if let subscribedController
+        {
+            GameControllerSubscriptions.shared.unsubscribe(self, from: subscribedController)
+        }
+        if let wantedController
+        {
+            GameControllerSubscriptions.shared.subscribe(self, to: wantedController)
+        }
+        subscribedController = wantedController
     }
 
     private func setupController()
     {
-        detachController()
-
-        axisValues.removeAll()
-        buttonValues.removeAll()
+        currentController = nil
+        controllerValues.withLock { $0 = ControllerValues() }
 
         guard let controllerID = selectedControllerID,
               let controller = GCController.controllers().first(where: { $0.uniqueID == controllerID })
@@ -342,6 +385,7 @@ public class GameControllerNode: Node
         {
             self.synchronizePorts(to: [])
             _settingsModelStorage?.outputPortCount = outputPorts().count
+            updateSubscription()
             return
         }
 
@@ -354,16 +398,10 @@ public class GameControllerNode: Node
         if let gamepad = controller.extendedGamepad
         {
             descriptors = Self.extendedGamepadPortDescriptors(gamepad)
-            gamepad.valueChangedHandler = { [weak self] gamepad, element in
-                self?.handleExtendedGamepadChange(gamepad, element: element)
-            }
         }
-        else if let microGamepad = controller.microGamepad
+        else if controller.microGamepad != nil
         {
             descriptors = Self.microGamepadPortDescriptors()
-            microGamepad.valueChangedHandler = { [weak self] gamepad, element in
-                self?.handleMicroGamepadChange(gamepad, element: element)
-            }
         }
         else
         {
@@ -372,6 +410,23 @@ public class GameControllerNode: Node
 
         self.synchronizePorts(to: descriptors)
         _settingsModelStorage?.outputPortCount = outputPorts().count
+        updateSubscription()
+    }
+
+    /// Called by GameControllerSubscriptions, on main, for each change on the subscribed controller.
+    fileprivate func receiveChange(from controller: GCController)
+    {
+        controllerValues.withLock { values in
+            if let gamepad = controller.extendedGamepad
+            {
+                Self.read(gamepad, into: &values)
+            }
+            else if let microGamepad = controller.microGamepad
+            {
+                Self.read(microGamepad, into: &values)
+            }
+        }
+        self.markDirty()
     }
 
     // MARK: - Extended Gamepad Setup
@@ -424,41 +479,39 @@ public class GameControllerNode: Node
         return descriptors
     }
 
-    private func handleExtendedGamepadChange(_ gamepad: GCExtendedGamepad, element: GCControllerElement)
+    private static func read(_ gamepad: GCExtendedGamepad, into values: inout ControllerValues)
     {
         // Thumbsticks
-        axisValues["Left Stick X"] = gamepad.leftThumbstick.xAxis.value
-        axisValues["Left Stick Y"] = gamepad.leftThumbstick.yAxis.value
-        buttonValues["Left Stick Press"] = gamepad.leftThumbstickButton?.isPressed ?? false
+        values.axisValues["Left Stick X"] = gamepad.leftThumbstick.xAxis.value
+        values.axisValues["Left Stick Y"] = gamepad.leftThumbstick.yAxis.value
+        values.buttonValues["Left Stick Press"] = gamepad.leftThumbstickButton?.isPressed ?? false
 
-        axisValues["Right Stick X"] = gamepad.rightThumbstick.xAxis.value
-        axisValues["Right Stick Y"] = gamepad.rightThumbstick.yAxis.value
-        buttonValues["Right Stick Press"] = gamepad.rightThumbstickButton?.isPressed ?? false
+        values.axisValues["Right Stick X"] = gamepad.rightThumbstick.xAxis.value
+        values.axisValues["Right Stick Y"] = gamepad.rightThumbstick.yAxis.value
+        values.buttonValues["Right Stick Press"] = gamepad.rightThumbstickButton?.isPressed ?? false
 
         // D-Pad
-        buttonValues["D-Pad Up"] = gamepad.dpad.up.isPressed
-        buttonValues["D-Pad Down"] = gamepad.dpad.down.isPressed
-        buttonValues["D-Pad Left"] = gamepad.dpad.left.isPressed
-        buttonValues["D-Pad Right"] = gamepad.dpad.right.isPressed
+        values.buttonValues["D-Pad Up"] = gamepad.dpad.up.isPressed
+        values.buttonValues["D-Pad Down"] = gamepad.dpad.down.isPressed
+        values.buttonValues["D-Pad Left"] = gamepad.dpad.left.isPressed
+        values.buttonValues["D-Pad Right"] = gamepad.dpad.right.isPressed
 
         // Face buttons
-        buttonValues["A"] = gamepad.buttonA.isPressed
-        buttonValues["B"] = gamepad.buttonB.isPressed
-        buttonValues["X"] = gamepad.buttonX.isPressed
-        buttonValues["Y"] = gamepad.buttonY.isPressed
+        values.buttonValues["A"] = gamepad.buttonA.isPressed
+        values.buttonValues["B"] = gamepad.buttonB.isPressed
+        values.buttonValues["X"] = gamepad.buttonX.isPressed
+        values.buttonValues["Y"] = gamepad.buttonY.isPressed
 
         // Shoulders and triggers
-        buttonValues["Left Bumper"] = gamepad.leftShoulder.isPressed
-        buttonValues["Right Bumper"] = gamepad.rightShoulder.isPressed
-        axisValues["Left Trigger"] = gamepad.leftTrigger.value
-        axisValues["Right Trigger"] = gamepad.rightTrigger.value
+        values.buttonValues["Left Bumper"] = gamepad.leftShoulder.isPressed
+        values.buttonValues["Right Bumper"] = gamepad.rightShoulder.isPressed
+        values.axisValues["Left Trigger"] = gamepad.leftTrigger.value
+        values.axisValues["Right Trigger"] = gamepad.rightTrigger.value
 
         // Menu buttons
-        buttonValues["Menu"] = gamepad.buttonMenu.isPressed
-        buttonValues["Options"] = gamepad.buttonOptions?.isPressed ?? false
-        buttonValues["Home"] = gamepad.buttonHome?.isPressed ?? false
-
-        self.markDirty()
+        values.buttonValues["Menu"] = gamepad.buttonMenu.isPressed
+        values.buttonValues["Options"] = gamepad.buttonOptions?.isPressed ?? false
+        values.buttonValues["Home"] = gamepad.buttonHome?.isPressed ?? false
     }
 
     // MARK: - Micro Gamepad Setup (Siri Remote, etc.)
@@ -474,15 +527,13 @@ public class GameControllerNode: Node
         ]
     }
 
-    private func handleMicroGamepadChange(_ gamepad: GCMicroGamepad, element: GCControllerElement)
+    private static func read(_ gamepad: GCMicroGamepad, into values: inout ControllerValues)
     {
-        axisValues["D-Pad X"] = gamepad.dpad.xAxis.value
-        axisValues["D-Pad Y"] = gamepad.dpad.yAxis.value
-        buttonValues["A"] = gamepad.buttonA.isPressed
-        buttonValues["X"] = gamepad.buttonX.isPressed
-        buttonValues["Menu"] = gamepad.buttonMenu.isPressed
-
-        self.markDirty()
+        values.axisValues["D-Pad X"] = gamepad.dpad.xAxis.value
+        values.axisValues["D-Pad Y"] = gamepad.dpad.yAxis.value
+        values.buttonValues["A"] = gamepad.buttonA.isPressed
+        values.buttonValues["X"] = gamepad.buttonX.isPressed
+        values.buttonValues["Menu"] = gamepad.buttonMenu.isPressed
     }
 
     // MARK: - Port Creation
@@ -502,15 +553,17 @@ public class GameControllerNode: Node
                                      buttonDescription: "Controller button state (true when pressed)",
                                      axisDescription: "Controller axis value normalized from -1 to 1")
 
-        for descriptor in descriptors
-        {
-            if descriptor.isButton
+        controllerValues.withLock { values in
+            for descriptor in descriptors
             {
-                buttonValues[descriptor.name] = buttonValues[descriptor.name] ?? false
-            }
-            else
-            {
-                axisValues[descriptor.name] = axisValues[descriptor.name] ?? 0.0
+                if descriptor.isButton
+                {
+                    values.buttonValues[descriptor.name] = values.buttonValues[descriptor.name] ?? false
+                }
+                else
+                {
+                    values.axisValues[descriptor.name] = values.axisValues[descriptor.name] ?? 0.0
+                }
             }
         }
     }
@@ -523,8 +576,10 @@ public class GameControllerNode: Node
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
+        let currentValues = controllerValues.withLock { $0 }
+
         // Send axis values
-        for (name, value) in axisValues
+        for (name, value) in currentValues.axisValues
         {
             if let port = findPort(named: name) as? NodePort<Float>
             {
@@ -533,12 +588,69 @@ public class GameControllerNode: Node
         }
 
         // Send button values
-        for (name, value) in buttonValues
+        for (name, value) in currentValues.buttonValues
         {
             if let port = findPort(named: name) as? NodePort<Bool>
             {
                 port.send(value)
             }
+        }
+    }
+}
+
+// MARK: - Controller Subscriptions
+
+/// A controller's value handler is one property on an object the whole process
+/// shares, so nodes never set it: one handler per controller passes each change
+/// to every node subscribed to that controller. Main thread only, as are the
+/// controller's handlers.
+private final class GameControllerSubscriptions
+{
+    static let shared = GameControllerSubscriptions()
+
+    private struct Subscriber
+    {
+        weak var node: GameControllerNode?
+    }
+
+    private var subscribers: [ObjectIdentifier: [Subscriber]] = [:]
+
+    func subscribe(_ node: GameControllerNode, to controller: GCController)
+    {
+        let controllerKey = ObjectIdentifier(controller)
+        if subscribers[controllerKey] == nil
+        {
+            installHandler(on: controller)
+        }
+        subscribers[controllerKey, default: []].append(Subscriber(node: node))
+    }
+
+    func unsubscribe(_ node: GameControllerNode, from controller: GCController)
+    {
+        let controllerKey = ObjectIdentifier(controller)
+        subscribers[controllerKey]?.removeAll { $0.node == nil || $0.node === node }
+
+        guard let remaining = subscribers[controllerKey], remaining.isEmpty else { return }
+        subscribers[controllerKey] = nil
+        controller.extendedGamepad?.valueChangedHandler = nil
+        controller.microGamepad?.valueChangedHandler = nil
+    }
+
+    private func installHandler(on controller: GCController)
+    {
+        let controllerKey = ObjectIdentifier(controller)
+        let deliverChange = { [weak self, weak controller] in
+            guard let self, let controller else { return }
+            self.subscribers[controllerKey]?.forEach { $0.node?.receiveChange(from: controller) }
+        }
+
+        if let gamepad = controller.extendedGamepad
+        {
+            gamepad.valueChangedHandler = { _, _ in deliverChange() }
+        }
+        else if let microGamepad = controller.microGamepad
+        {
+            microGamepad.valueChangedHandler = { _, _ in deliverChange() }
         }
     }
 }
