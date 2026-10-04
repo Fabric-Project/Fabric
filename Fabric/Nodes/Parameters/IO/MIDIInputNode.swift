@@ -12,6 +12,7 @@ import MIDIKit
 import Satin
 import simd
 import Synchronization
+import os
 
 // MARK: - Detected MIDI Input
 
@@ -147,6 +148,13 @@ struct MIDIInputNodeView: View
                 }
                 .controlSize(.small)
                 .disabled(model.isListening)
+            }
+
+            if let inputFailure = model.inputFailure
+            {
+                Text(inputFailure)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.red)
             }
 
             Divider()
@@ -311,6 +319,8 @@ struct DetectedInputRow: View
 
 public class MIDIInputNode: Node
 {
+    fileprivate static let log = Logger(subsystem: "graphics.fabric", category: "MIDIInputNode")
+
     override public static var name: String { "MIDI Input" }
     override public static var nodeType: Node.NodeType { .Parameter(parameterType: .IO) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
@@ -357,11 +367,8 @@ public class MIDIInputNode: Node
         var container = encoder.container(keyedBy: MIDICodingKeys.self)
         try container.encodeIfPresent(self.selectedInputID, forKey: .selectedInputID)
 
-        if let inputID = selectedInputID,
-           let info = availableInputs.first(where: { $0.id == inputID })
-        {
-            try container.encode(info, forKey: .savedInputInfo)
-        }
+        // Saving with the input unplugged must not forget it.
+        try container.encodeIfPresent(self.liveInputInfo() ?? self.savedInputInfo, forKey: .savedInputInfo)
 
         try container.encode(self.configuredInputs, forKey: .configuredInputs)
     }
@@ -378,7 +385,14 @@ public class MIDIInputNode: Node
     private static let sharedMIDIManager = MIDIManager(
         clientName: "Fabric",
         model: "Fabric",
-        manufacturer: "Fabric"
+        manufacturer: "Fabric",
+        // MIDIKit calls this on main, after updating its endpoints.
+        notificationHandler: { notification in
+            if case .setupChanged = notification
+            {
+                NotificationCenter.default.post(name: .midiInputSetupChanged, object: nil)
+            }
+        }
     )
 
     // Connection state is main-thread state, with learn mode and the settings
@@ -391,12 +405,26 @@ public class MIDIInputNode: Node
     private var isRunning = false
     // Not the node's id: that is saved, so two open copies of a document share it.
     private let connectionTag = "MIDIInputNode-\(UUID())"
+    /// The input the connection receives from, or nil when there is no connection.
+    private var connectedInputID: String?
+    private var connectionError: String?
+    private var managerError: String?
+    private var midiSetupObserver: (any NSObjectProtocol)?
     private var savedInputInfo: MIDIInputInfo?
+
+    /// The selected input, as last seen connected; reconnects match it.
+    private func liveInputInfo() -> MIDIInputInfo?
+    {
+        guard let inputID = selectedInputID else { return nil }
+        return availableInputs.first { $0.id == inputID }
+    }
 
     fileprivate var selectedInputID: String?
     {
         didSet
         {
+            // Choosing none forgets the input, so an input appearing does not bring it back.
+            savedInputInfo = selectedInputID == nil ? nil : liveInputInfo() ?? savedInputInfo
             updateMIDIConnection()
             _settingsModelStorage?.selectedInputID = selectedInputID
             // `subtitle` is derived from the selected input; notify so the title refreshes.
@@ -454,6 +482,8 @@ public class MIDIInputNode: Node
             }
         }
         var availableInputs: [MIDIInputInfo] = []
+        /// Why the node cannot receive although it is started, or nil.
+        var inputFailure: String?
         var isListening: Bool = false
         var detectedInputs: Set<DetectedMIDIInput> = []
         var configuredInputs: [DetectedMIDIInput] = []
@@ -465,6 +495,7 @@ public class MIDIInputNode: Node
             self.node = node
             self.selectedInputID = node.selectedInputID
             self.availableInputs = node.availableInputs
+            self.inputFailure = node.inputStatus?.message
             self.isListening = node.isListening
             self.detectedInputs = node.detectedInputs
             self.configuredInputs = node.configuredInputs
@@ -488,10 +519,32 @@ public class MIDIInputNode: Node
     public override func enableExecution(renderer: GraphRenderer)
     throws
     {
-        try Self.startSharedMIDIManager()
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
+
+            // Started here, on main, never by blocking on main: a host whose main
+            // thread waits on rendering would deadlock. Every start then runs on
+            // main, one at a time, which MIDIKit's start() needs, as it checks
+            // whether it has started without a lock. Starting a started manager
+            // does nothing.
+            do
+            {
+                try Self.sharedMIDIManager.start()
+                self.managerError = nil
+            }
+            catch
+            {
+                self.managerError = "Cannot start MIDI: \(error.localizedDescription)"
+                self.updateInputStatus()
+                return
+            }
+
             self.midiManager = Self.sharedMIDIManager
+            self.midiSetupObserver = NotificationCenter.default.addObserver(
+                forName: .midiInputSetupChanged, object: nil, queue: .main
+            ) { [weak self] _ in
+                self?.midiSetupDidChange()
+            }
             self.refreshInputs()
 
             // Try to reconnect to saved input
@@ -517,9 +570,10 @@ public class MIDIInputNode: Node
     public override func stopExecution(renderer: GraphRenderer)
     throws
     {
-        DispatchQueue.main.async { [weak self] in
-            self?.isRunning = false
-            self?.updateMIDIConnection()
+        // Holds the node, as disable does.
+        DispatchQueue.main.async {
+            self.isRunning = false
+            self.updateMIDIConnection()
         }
         try super.stopExecution(renderer: renderer)
     }
@@ -527,36 +581,16 @@ public class MIDIInputNode: Node
     public override func disableExecution(renderer: GraphRenderer)
     throws
     {
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
+        // Holds the node: a deleted node can be freed before this runs, and its
+        // connection on the shared manager must still go.
+        DispatchQueue.main.async {
             self.midiManager?.remove(.inputConnection, .withTag(self.connectionTag))
             self.midiManager = nil
+            self.connectedInputID = nil
+            if let observer = self.midiSetupObserver { NotificationCenter.default.removeObserver(observer) }
+            self.midiSetupObserver = nil
         }
         try super.disableExecution(renderer: renderer)
-    }
-
-    /// MIDIKit's start() checks whether it has started without a lock, so every
-    /// start runs on main, one at a time. Starting a started manager does nothing.
-    private static func startSharedMIDIManager() throws
-    {
-        do
-        {
-            if Thread.isMainThread
-            {
-                try sharedMIDIManager.start()
-            }
-            else
-            {
-                try DispatchQueue.main.sync { try sharedMIDIManager.start() }
-            }
-        }
-        catch
-        {
-            throw FabricError(.execution(.failed),
-                              severity: .recoverable,
-                              message: "Failed to start MIDI manager",
-                              underlyingError: error)
-        }
     }
 
     fileprivate func refreshInputs()
@@ -584,6 +618,9 @@ public class MIDIInputNode: Node
 
     private func updateMIDIConnection()
     {
+        defer { updateInputStatus() }
+        connectionError = nil
+
         guard let manager = midiManager else { return }
 
         guard isRunning || isListening,
@@ -593,6 +630,7 @@ public class MIDIInputNode: Node
         {
             // Remove existing connection if any
             manager.remove(.inputConnection, .withTag(connectionTag))
+            connectedInputID = nil
             return
         }
 
@@ -611,11 +649,93 @@ public class MIDIInputNode: Node
                 }
             )
 
+            connectedInputID = inputID
             print("[MIDI] Connected to: \(endpoint.displayName)")
         }
         catch
         {
-            print("[MIDI] Failed to connect: \(error)")
+            connectedInputID = nil
+            connectionError = "Cannot connect to \(endpoint.displayName): \(error.localizedDescription)"
+        }
+    }
+
+    /// An input appearing or going. One that returns may have a new id, so it is
+    /// matched by name, as enable does; one with the same id needs connecting afresh.
+    private func midiSetupDidChange()
+    {
+        refreshInputs()
+
+        if liveInputInfo() == nil
+        {
+            connectedInputID = nil
+            if let savedInfo = savedInputInfo,
+               let matching = availableInputs.first(where: { $0.name == savedInfo.name })
+            {
+                selectedInputID = matching.id
+                return
+            }
+        }
+
+        if connectedInputID != selectedInputID
+        {
+            updateMIDIConnection()
+        }
+        else
+        {
+            updateInputStatus()
+        }
+    }
+
+    // MARK: - Input Status
+
+    /// Set while the node is started but cannot receive from its input. Worded
+    /// once, in updateInputStatus(), so the glyph, the settings view and the log agree.
+    private var inputStatus: NodeStatus?
+    {
+        didSet
+        {
+            guard inputStatus != oldValue else { return }
+            if let inputStatus
+            {
+                Self.log.error("\(inputStatus.message, privacy: .public)")
+            }
+            _settingsModelStorage?.inputFailure = inputStatus?.message
+            self.subtitleSubject.send()
+        }
+    }
+
+    override public func deriveStatuses() -> [NodeStatus] { inputStatus.map { [$0] } ?? [] }
+
+    // No Retry: an input returning reconnects itself.
+    private func updateInputStatus()
+    {
+        if !isRunning
+        {
+            inputStatus = nil
+        }
+        else if let managerError
+        {
+            inputStatus = .error(managerError)
+        }
+        else if midiManager == nil
+        {
+            inputStatus = nil
+        }
+        else if let connectionError
+        {
+            inputStatus = .error(connectionError)
+        }
+        else if selectedInputID == nil
+        {
+            inputStatus = .warning("No MIDI input is selected.")
+        }
+        else if liveInputInfo() == nil
+        {
+            inputStatus = .warning("\(savedInputInfo?.displayName ?? "The selected MIDI input") is not connected.")
+        }
+        else
+        {
+            inputStatus = nil
         }
     }
 
@@ -942,4 +1062,10 @@ public class MIDIInputNode: Node
             }
         }
     }
+}
+
+private extension Notification.Name
+{
+    /// Posted on main when the shared MIDI manager's setup changes.
+    static let midiInputSetupChanged = Notification.Name("graphics.fabric.MIDIInputNode.setupChanged")
 }
