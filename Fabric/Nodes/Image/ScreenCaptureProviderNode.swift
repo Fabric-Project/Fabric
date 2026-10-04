@@ -13,6 +13,7 @@ import simd
 import Metal
 import CoreMedia
 import ScreenCaptureKit
+import SwiftUI
 import os
 
 public class ScreenCaptureProviderNode: Node
@@ -98,6 +99,78 @@ public class ScreenCaptureProviderNode: Node
     // before it, so a stop is never overtaken by a start still in flight.
     private var captureChangeTask: Task<Void, Never>? = nil
 
+    // MARK: - Capture Status
+
+    /// Why a started node is not capturing, and whether Retry can help: a
+    /// Screen Recording permission granted in System Settings only takes
+    /// effect after a relaunch.
+    private struct CaptureFailure: Equatable
+    {
+        let status: NodeStatus
+        let canRetry: Bool
+    }
+
+    /// Main-actor state, set by the capture changes. Each failure is worded
+    /// once, where it happens, so the glyph, the settings view and the log agree.
+    private var captureFailure: CaptureFailure?
+    {
+        didSet
+        {
+            guard captureFailure != oldValue else { return }
+            _settingsModelStorage?.captureFailure = captureFailure?.status.message
+            _settingsModelStorage?.canRetry = captureFailure?.canRetry ?? false
+            self.subtitleSubject.send()
+        }
+    }
+
+    override public func deriveStatuses() -> [NodeStatus] { captureFailure.map { [$0.status] } ?? [] }
+
+    @MainActor
+    private func reportCaptureFailure(_ message: String?, canRetry: Bool = true)
+    {
+        if let message
+        {
+            Self.log.error("\(message, privacy: .public)")
+        }
+        self.captureFailure = message.map { CaptureFailure(status: .error($0), canRetry: canRetry) }
+    }
+
+    fileprivate func retryCapture()
+    {
+        self.enqueueCaptureRestart()
+    }
+
+    // MARK: - Settings View
+
+    override public func providesSettingsView() -> Bool { true }
+
+    @Observable final class SettingsModel
+    {
+        /// Why the node is not capturing although it is started, or nil.
+        var captureFailure: String?
+        var canRetry = false
+        @ObservationIgnored private weak var node: ScreenCaptureProviderNode?
+
+        init(node: ScreenCaptureProviderNode)
+        {
+            self.node = node
+            self.captureFailure = node.captureFailure?.status.message
+            self.canRetry = node.captureFailure?.canRetry ?? false
+        }
+
+        func retryCapture() { node?.retryCapture() }
+    }
+
+    private var _settingsModelStorage: SettingsModel? = nil
+
+    override public func settingsView() -> AnyView
+    {
+        if _settingsModelStorage == nil { _settingsModelStorage = SettingsModel(node: self) }
+        return AnyView(ScreenCaptureProviderNodeSettingsView(model: _settingsModelStorage!))
+    }
+
+    override public var settingsSize: SettingsViewSize { .Small }
+
     public required init(context: Context)
     {
         super.init(context: context)
@@ -164,7 +237,14 @@ public class ScreenCaptureProviderNode: Node
     private func enqueueCaptureRestart()
     {
         self.enqueueCaptureChange { node in
-            await node.refreshTargets()
+            if let listingError = await node.refreshTargets()
+            {
+                await node.stopStream()
+                node.outputTexturePort.send(nil)
+                node.reportCaptureFailure("Cannot list screens and windows: \(listingError.localizedDescription). If Screen Recording is not allowed, allow it in System Settings › Privacy & Security, then relaunch.",
+                                          canRetry: false)
+                return
+            }
             guard !Task.isCancelled else { return }
             await node.restartStream()
         }
@@ -173,11 +253,16 @@ public class ScreenCaptureProviderNode: Node
     private func stopCapture()
     {
         self.outputTexturePort.send(nil)
-        self.enqueueCaptureChange { await $0.stopStream() }
+        self.enqueueCaptureChange { node in
+            await node.stopStream()
+            node.reportCaptureFailure(nil)
+        }
     }
 
+    /// Lists the sources for the dropdown; returns the error if they cannot be listed.
     @MainActor
-    private func refreshTargets() async
+    @discardableResult
+    private func refreshTargets() async -> (any Error)?
     {
         let shareableContent: SCShareableContent
         do
@@ -187,7 +272,7 @@ public class ScreenCaptureProviderNode: Node
         catch
         {
             Self.log.error("Could not list capture sources: \(error, privacy: .public)")
-            return
+            return error
         }
 
         let captureKind = self.currentCaptureKind()
@@ -206,6 +291,7 @@ public class ScreenCaptureProviderNode: Node
         {
             self.inputCaptureSource.value = options.first ?? ""
         }
+        return nil
     }
 
     @MainActor
@@ -216,7 +302,7 @@ public class ScreenCaptureProviderNode: Node
         let selection = self.inputCaptureSource.value ?? ""
         guard let target = self.optionsToTargets[selection] else
         {
-            Self.log.error("Capture source not found: \(selection, privacy: .public)")
+            self.reportCaptureFailure(selection.isEmpty ? "Nothing to capture." : "Capture source not found: \(selection).")
             self.outputTexturePort.send(nil)
             return
         }
@@ -229,7 +315,7 @@ public class ScreenCaptureProviderNode: Node
     {
         guard let filter = self.contentFilter(for: target) else
         {
-            Self.log.error("No display to capture the application on")
+            self.reportCaptureFailure("No display to capture the application on.")
             self.outputTexturePort.send(nil)
             return
         }
@@ -254,10 +340,11 @@ public class ScreenCaptureProviderNode: Node
             try stream.addStreamOutput(streamOutputHandler, type: .screen, sampleHandlerQueue: sampleHandlerQueue)
             try await stream.startCapture()
             self.stream = stream
+            self.reportCaptureFailure(nil)
         }
         catch
         {
-            Self.log.error("Could not start capture: \(error, privacy: .public)")
+            self.reportCaptureFailure("Cannot start capture: \(error.localizedDescription)")
             self.stream = nil
             self.outputTexturePort.send(nil)
         }
@@ -351,6 +438,35 @@ public class ScreenCaptureProviderNode: Node
         }
 
         return kind
+    }
+}
+
+
+// MARK: - Settings View
+
+private struct ScreenCaptureProviderNodeSettingsView: View
+{
+    let model: ScreenCaptureProviderNode.SettingsModel
+
+    var body: some View
+    {
+        HStack
+        {
+            Text(model.captureFailure ?? "Nothing to report.")
+                .font(.system(size: 10))
+                .foregroundStyle(model.captureFailure == nil ? .secondary : Color.red)
+
+            Spacer()
+
+            if model.canRetry
+            {
+                Button("Retry")
+                {
+                    model.retryCapture()
+                }
+                .controlSize(.small)
+            }
+        }
     }
 }
 
