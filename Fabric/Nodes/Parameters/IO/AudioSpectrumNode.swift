@@ -372,7 +372,15 @@ public class AudioSpectrumNode : Node
         self.wasConnectedObserver = NotificationCenter.default.addObserver(
             forName: AVCaptureDevice.wasConnectedNotification, object: nil, queue: .main
         ) { [weak self] _ in
-            self?.refreshAudioDeviceOptions()
+            guard let self else { return }
+            self.refreshAudioDeviceOptions()
+
+            // A device arriving may be what a failed capture was waiting for.
+            if self.captureStatus != nil,
+               AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
+            {
+                self.captureSessionNeedsSetup.store(true, ordering: .relaxed)
+            }
         }
         self.wasDisconnectedObserver = NotificationCenter.default.addObserver(
             forName: AVCaptureDevice.wasDisconnectedNotification, object: nil, queue: .main
@@ -427,6 +435,14 @@ public class AudioSpectrumNode : Node
 
     // Without microphone access the node still starts, and outputs nothing.
     override public func startExecution(renderer:GraphRenderer) throws {
+        DispatchQueue.main.async { [weak self] in self?.isRunning = true }
+        self.requestCapture()
+        try super.startExecution(renderer: renderer)
+    }
+
+    /// Asks execute to build the session, once microphone access allows it.
+    private func requestCapture()
+    {
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
             case .authorized:
                 self.captureSessionNeedsSetup.store(true, ordering: .relaxed)
@@ -434,19 +450,64 @@ public class AudioSpectrumNode : Node
                 AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
                     guard granted else
                     {
-                        Self.log.error("Microphone access was refused")
+                        self?.reportCaptureStatus(Self.microphoneAccessStatus)
                         return
                     }
                     self?.captureSessionNeedsSetup.store(true, ordering: .relaxed)
                 }
             default:
-                Self.log.error("Microphone access is not granted")
+                self.reportCaptureStatus(Self.microphoneAccessStatus)
         }
-        try super.startExecution(renderer: renderer)
+    }
+
+    private static let microphoneAccessStatus = NodeStatus.error("Microphone access is not allowed. Allow it in System Settings › Privacy & Security › Microphone, then Retry.")
+
+    // MARK: - Capture Status
+
+    // The status is main-thread state, read by the title and settings views.
+    // Start, stop and execute can run on the render thread, and the permission
+    // callback on any thread, so each hands over to main; the main queue keeps
+    // them in order.
+    private var isRunning = false
+
+    /// Set while the node is started but not capturing. Each failure is worded
+    /// once, where it happens, so the glyph, the settings view and the log agree.
+    private var captureStatus: NodeStatus?
+    {
+        didSet
+        {
+            guard captureStatus != oldValue else { return }
+            _settingsModel.captureFailure = captureStatus?.message
+            self.subtitleSubject.send()
+        }
+    }
+
+    override public func deriveStatuses() -> [NodeStatus] { captureStatus.map { [$0] } ?? [] }
+
+    private func reportCaptureStatus(_ status: NodeStatus?)
+    {
+        if let status
+        {
+            Self.log.error("\(status.message, privacy: .public)")
+        }
+        DispatchQueue.main.async { [weak self] in
+            // A failure reported after a stop is no longer the node's state.
+            guard let self, self.isRunning else { return }
+            self.captureStatus = status
+        }
+    }
+
+    fileprivate func retryCapture()
+    {
+        self.requestCapture()
     }
 
     override public func stopExecution(renderer:GraphRenderer) throws
     {
+        DispatchQueue.main.async { [weak self] in
+            self?.isRunning = false
+            self?.captureStatus = nil
+        }
         self.captureSessionNeedsSetup.store(false, ordering: .relaxed)
         if self.captureSession.isRunning
         {
@@ -606,7 +667,7 @@ public class AudioSpectrumNode : Node
     {
         guard let device = self.resolveSelectedAudioDevice() else
         {
-            Self.log.error("No audio input device available")
+            self.reportCaptureStatus(.error("No audio input device is available."))
             return
         }
 
@@ -620,7 +681,7 @@ public class AudioSpectrumNode : Node
             let input = try AVCaptureDeviceInput(device: device)
             guard session.canAddInput(input) else
             {
-                Self.log.error("Cannot add input for device \(device.localizedName, privacy: .public)")
+                self.reportCaptureStatus(.error("Cannot capture from \(device.localizedName)."))
                 session.commitConfiguration()
                 return
             }
@@ -641,7 +702,7 @@ public class AudioSpectrumNode : Node
             output.setSampleBufferDelegate(self.captureDelegate, queue: self.captureQueue)
             guard session.canAddOutput(output) else
             {
-                Self.log.error("Cannot add audio output")
+                self.reportCaptureStatus(.error("Cannot capture audio from \(device.localizedName)."))
                 session.commitConfiguration()
                 return
             }
@@ -649,7 +710,7 @@ public class AudioSpectrumNode : Node
         }
         catch
         {
-            Self.log.error("Failed to create capture input: \(error, privacy: .public)")
+            self.reportCaptureStatus(.error("Cannot capture from \(device.localizedName): \(error.localizedDescription)"))
             session.commitConfiguration()
             return
         }
@@ -658,6 +719,7 @@ public class AudioSpectrumNode : Node
 
         self.captureSession = session
         self.captureSession.startRunning()
+        self.reportCaptureStatus(nil)
 
         tripleBuffer.invalidate()
     }
@@ -670,10 +732,13 @@ public class AudioSpectrumNode : Node
 
     override public func providesSettingsView() -> Bool { true }
 
-    final class SettingsModel {
-        weak var node: AudioSpectrumNode?
+    @Observable final class SettingsModel {
+        @ObservationIgnored weak var node: AudioSpectrumNode?
         var bandValues: [Float] { node?.visualizationBandValues ?? [] }
+        /// Why the node is not capturing although it is started, or nil.
+        var captureFailure: String?
         init(node: AudioSpectrumNode) { self.node = node }
+        func retryCapture() { node?.retryCapture() }
     }
 
     private lazy var _settingsModel = SettingsModel(node: self)
@@ -694,6 +759,27 @@ private struct AudioSpectrumNodeSettingsView: View
 
     var body: some View
     {
-        BandsVisualizer(bands: { model.bandValues })
+        VStack(alignment: .leading)
+        {
+            if let captureFailure = model.captureFailure
+            {
+                HStack
+                {
+                    Text(captureFailure)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.red)
+
+                    Spacer()
+
+                    Button("Retry")
+                    {
+                        model.retryCapture()
+                    }
+                    .controlSize(.small)
+                }
+            }
+
+            BandsVisualizer(bands: { model.bandValues })
+        }
     }
 }
