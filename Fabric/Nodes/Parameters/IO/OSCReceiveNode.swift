@@ -132,19 +132,6 @@ struct OSCReceiveNodeView: View
                     .frame(width: 80)
 
                 Spacer()
-
-                Button(model.isListening ? "Stop" : "Start")
-                {
-                    if model.isListening
-                    {
-                        model.stopListening()
-                    }
-                    else
-                    {
-                        model.startListening()
-                    }
-                }
-                .controlSize(.small)
             }
 
             Divider()
@@ -244,12 +231,7 @@ public class OSCReceiveNode: Node
     {
         didSet
         {
-            // Restart listening if port changes while listening
-            if isListening
-            {
-                stopListening()
-                try? startListening()
-            }
+            updateServer()
             _settingsModelStorage?.listenPort = listenPort
         }
     }
@@ -264,7 +246,8 @@ public class OSCReceiveNode: Node
     }
 
     private var oscServer: OSCServer?
-    fileprivate var isListening: Bool = false
+    /// Whether the node is started. It listens only while started.
+    private var isRunning = false
 
     // Latest value for each address: written on the main queue, read by execute on the render thread.
     private let latestValues = Mutex<[String: Any]>([:])
@@ -301,8 +284,6 @@ public class OSCReceiveNode: Node
                 node?.addressBindings = addressBindings
             }
         }
-        var isListening: Bool = false
-
         private weak var node: OSCReceiveNode?
 
         init(node: OSCReceiveNode)
@@ -310,11 +291,8 @@ public class OSCReceiveNode: Node
             self.node = node
             self.listenPort = node.listenPort
             self.addressBindings = node.addressBindings
-            self.isListening = node.isListening
         }
 
-        func startListening() { try? node?.startListening(); isListening = node?.isListening ?? false }
-        func stopListening() { node?.stopListening(); isListening = false }
         func addAddressBinding() { node?.addAddressBinding() }
         func removeAddressBinding(id: UUID) { node?.removeAddressBinding(id: id) }
     }
@@ -323,16 +301,15 @@ public class OSCReceiveNode: Node
 
     // MARK: - Lifecycle
 
-    // The node listens while started. The server is main-thread state, which
-    // the settings view's Start and Stop also change, so lifecycle calls, which
-    // can run on the render thread, hand over to main. A server that cannot
-    // start is logged, not thrown: the node still starts, and outputs nothing.
+    // The node listens while started. The server is main-thread state, as the
+    // settings view changes the port, so lifecycle calls, which can run on the
+    // render thread, hand over to main; the main queue keeps them in order.
     public override func startExecution(renderer: GraphRenderer)
     throws
     {
         DispatchQueue.main.async { [weak self] in
-            do { try self?.startListening() }
-            catch { Self.log.error("\(error.localizedDescription, privacy: .public)") }
+            self?.isRunning = true
+            self?.updateServer()
         }
         try super.startExecution(renderer: renderer)
     }
@@ -340,7 +317,10 @@ public class OSCReceiveNode: Node
     public override func stopExecution(renderer: GraphRenderer)
     throws
     {
-        DispatchQueue.main.async { [weak self] in self?.stopListening() }
+        DispatchQueue.main.async { [weak self] in
+            self?.isRunning = false
+            self?.updateServer()
+        }
         try super.stopExecution(renderer: renderer)
     }
 
@@ -396,39 +376,30 @@ public class OSCReceiveNode: Node
 
     // MARK: - OSC Server Management
 
-    fileprivate func startListening() throws
-    {
-        guard !isListening else { return }
-
-        do
-        {
-            // Handling reads the address bindings the settings view owns.
-            oscServer = OSCServer(port: listenPort, queue: .main) { [weak self] message, _, _, _ in
-                self?.handleOSCMessage(message)
-            }
-            try oscServer?.start()
-            isListening = true
-            _settingsModelStorage?.isListening = true
-            print("OSC Server started on port \(listenPort)")
-        }
-        catch
-        {
-            isListening = false
-            _settingsModelStorage?.isListening = false
-            throw FabricError(.execution(.failed),
-                              severity: .recoverable,
-                              message: "Failed to start OSC server on port \(listenPort)",
-                              underlyingError: error)
-        }
-    }
-
-    fileprivate func stopListening()
+    /// Replaces any server with one on the current port, if the node is started.
+    /// A server that cannot start, as when its port is taken, is logged rather
+    /// than thrown: a throw from start fails the renderer's whole start. Changing
+    /// the port tries again.
+    private func updateServer()
     {
         oscServer?.stop()
         oscServer = nil
-        isListening = false
-        _settingsModelStorage?.isListening = false
-        print("OSC Server stopped")
+
+        guard isRunning else { return }
+
+        // Handling reads the address bindings the settings view owns.
+        let server = OSCServer(port: listenPort, queue: .main) { [weak self] message, _, _, _ in
+            self?.handleOSCMessage(message)
+        }
+        do
+        {
+            try server.start()
+            oscServer = server
+        }
+        catch
+        {
+            Self.log.error("Failed to start OSC server on port \(self.listenPort): \(error, privacy: .public)")
+        }
     }
 
     private func handleOSCMessage(_ message: OSCMessage)
