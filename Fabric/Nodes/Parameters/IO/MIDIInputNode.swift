@@ -381,8 +381,14 @@ public class MIDIInputNode: Node
         manufacturer: "Fabric"
     )
 
+    // Connection state is main-thread state, with learn mode and the settings
+    // it serves. Lifecycle calls, which can run on the render thread, hand over
+    // to main; the main queue keeps them in order.
+
     /// The shared manager while this node is enabled, nil otherwise.
     private var midiManager: MIDIManager?
+    /// Whether the node is started. It receives MIDI while started, or while learning.
+    private var isRunning = false
     // Not the node's id: that is saved, so two open copies of a document share it.
     private let connectionTag = "MIDIInputNode-\(UUID())"
     private var savedInputInfo: MIDIInputInfo?
@@ -391,7 +397,7 @@ public class MIDIInputNode: Node
     {
         didSet
         {
-            setupMIDIConnection()
+            updateMIDIConnection()
             _settingsModelStorage?.selectedInputID = selectedInputID
             // `subtitle` is derived from the selected input; notify so the title refreshes.
             self.subtitleSubject.send()
@@ -476,36 +482,72 @@ public class MIDIInputNode: Node
 
     // MARK: - Lifecycle
 
+    // Enabled, the node lists inputs and can learn; started, it receives.
+    // Learning works on a node that is not started, as a new node has no ports
+    // to connect until it has learnt some.
     public override func enableExecution(renderer: GraphRenderer)
     throws
     {
-        try setupMIDIManager()
+        try Self.startSharedMIDIManager()
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.midiManager = Self.sharedMIDIManager
+            self.refreshInputs()
+
+            // Try to reconnect to saved input
+            if let savedInfo = self.savedInputInfo,
+               let matching = self.availableInputs.first(where: { $0.name == savedInfo.name })
+            {
+                self.selectedInputID = matching.id
+            }
+        }
         try super.enableExecution(renderer: renderer)
+    }
+
+    public override func startExecution(renderer: GraphRenderer)
+    throws
+    {
+        DispatchQueue.main.async { [weak self] in
+            self?.isRunning = true
+            self?.updateMIDIConnection()
+        }
+        try super.startExecution(renderer: renderer)
+    }
+
+    public override func stopExecution(renderer: GraphRenderer)
+    throws
+    {
+        DispatchQueue.main.async { [weak self] in
+            self?.isRunning = false
+            self?.updateMIDIConnection()
+        }
+        try super.stopExecution(renderer: renderer)
     }
 
     public override func disableExecution(renderer: GraphRenderer)
     throws
     {
-        midiManager?.remove(.inputConnection, .withTag(connectionTag))
-        midiManager = nil
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.midiManager?.remove(.inputConnection, .withTag(self.connectionTag))
+            self.midiManager = nil
+        }
         try super.disableExecution(renderer: renderer)
     }
 
-    private func setupMIDIManager() throws
+    /// MIDIKit's start() checks whether it has started without a lock, so every
+    /// start runs on main, one at a time. Starting a started manager does nothing.
+    private static func startSharedMIDIManager() throws
     {
         do
         {
-            // Starting an already started manager does nothing.
-            try Self.sharedMIDIManager.start()
-            midiManager = Self.sharedMIDIManager
-
-            refreshInputs()
-
-            // Try to reconnect to saved input
-            if let savedInfo = savedInputInfo,
-               let matching = availableInputs.first(where: { $0.name == savedInfo.name })
+            if Thread.isMainThread
             {
-                selectedInputID = matching.id
+                try sharedMIDIManager.start()
+            }
+            else
+            {
+                try DispatchQueue.main.sync { try sharedMIDIManager.start() }
             }
         }
         catch
@@ -540,11 +582,11 @@ public class MIDIInputNode: Node
         }
     }
 
-    private func setupMIDIConnection()
+    private func updateMIDIConnection()
     {
         guard let manager = midiManager else { return }
 
-        guard
+        guard isRunning || isListening,
               let inputID = selectedInputID,
               let endpoint = manager.endpoints.outputs.first(where: { $0.uniqueID.description == inputID })
         else
@@ -585,6 +627,7 @@ public class MIDIInputNode: Node
         isListening = true
         detectedInputs.removeAll()
         _settingsModelStorage?.isListening = true
+        updateMIDIConnection()
         print("[MIDI] Learn mode started. isListening is now \(isListening)")
     }
 
@@ -609,6 +652,7 @@ public class MIDIInputNode: Node
 
         detectedInputs.removeAll()
         _settingsModelStorage?.isListening = false
+        updateMIDIConnection()
         print("[MIDI] Learn mode stopped. Total configured: \(configuredInputs.count) inputs. isListening is now \(isListening)")
     }
 
