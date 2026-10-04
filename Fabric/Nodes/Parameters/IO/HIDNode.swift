@@ -598,29 +598,30 @@ public class HIDNode: Node
 
     // MARK: - Properties
 
+    // The manager and monitoring are main-thread state: the manager's callbacks
+    // run on the main run loop, and the settings view selects the device.
+    // Lifecycle calls, which can run on the render thread, hand over to main;
+    // the main queue keeps them in order.
     private var hidManager: HIDManager?
     private var savedDeviceInfo: HIDDeviceInfo?
+    /// Whether the node is started. It monitors its device only while started.
+    private var isRunning = false
+    private var monitoredDeviceID: String?
 
     fileprivate var selectedDeviceID: String?
     {
         didSet
         {
-            if let oldValue
-            {
-                hidManager?.stopMonitoring(deviceID: oldValue)
-            }
-
             if let deviceID = selectedDeviceID
             {
                 deviceElements = hidManager?.getElements(for: deviceID) ?? []
-                rebuildPorts()
-                hidManager?.startMonitoring(deviceID: deviceID, elements: deviceElements)
             }
             else
             {
                 deviceElements = []
-                rebuildPorts()
             }
+            rebuildPorts()
+            updateMonitoring()
 
             _settingsModelStorage?.selectedDeviceID = selectedDeviceID
             _settingsModelStorage?.deviceElements = deviceElements
@@ -677,22 +678,60 @@ public class HIDNode: Node
 
     // MARK: - Lifecycle
 
+    // Enabled, the node lists devices and has the selected device's ports;
+    // started, it monitors the device.
     public override func enableExecution(renderer:GraphRenderer)
     throws
     {
-        setupHIDManager()
+        DispatchQueue.main.async { [weak self] in self?.setupHIDManager() }
         try super.enableExecution(renderer: renderer)
+    }
+
+    public override func startExecution(renderer:GraphRenderer)
+    throws
+    {
+        DispatchQueue.main.async { [weak self] in
+            self?.isRunning = true
+            self?.updateMonitoring()
+        }
+        try super.startExecution(renderer: renderer)
+    }
+
+    public override func stopExecution(renderer:GraphRenderer)
+    throws
+    {
+        DispatchQueue.main.async { [weak self] in
+            self?.isRunning = false
+            self?.updateMonitoring()
+        }
+        try super.stopExecution(renderer: renderer)
     }
 
     public override func disableExecution(renderer:GraphRenderer)
     throws
     {
-        // Its callbacks run on the main run loop, so it is freed there, never
-        // mid-callback; its deinit unregisters them.
-        let releasedManager = hidManager
-        hidManager = nil
-        DispatchQueue.main.async { withExtendedLifetime(releasedManager) {} }
+        // Freed on main, never mid-callback; its deinit unregisters the callbacks.
+        DispatchQueue.main.async { [weak self] in
+            self?.hidManager = nil
+            self?.monitoredDeviceID = nil
+        }
         try super.disableExecution(renderer: renderer)
+    }
+
+    private func updateMonitoring()
+    {
+        let wantedDeviceID = isRunning ? selectedDeviceID : nil
+        guard wantedDeviceID != monitoredDeviceID else { return }
+
+        if let monitoredDeviceID
+        {
+            hidManager?.stopMonitoring(deviceID: monitoredDeviceID)
+        }
+        if let wantedDeviceID
+        {
+            hidManager?.startMonitoring(deviceID: wantedDeviceID, elements: deviceElements)
+        }
+        monitoredDeviceID = wantedDeviceID
     }
 
     private func setupHIDManager()
