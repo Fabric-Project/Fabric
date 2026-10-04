@@ -134,6 +134,24 @@ struct OSCReceiveNodeView: View
                 Spacer()
             }
 
+            if let serverFailure = model.serverFailure
+            {
+                HStack
+                {
+                    Text(serverFailure)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.red)
+
+                    Spacer()
+
+                    Button("Retry")
+                    {
+                        model.retryServer()
+                    }
+                    .controlSize(.small)
+                }
+            }
+
             Divider()
 
             Text("Address Bindings:")
@@ -249,6 +267,21 @@ public class OSCReceiveNode: Node
     /// Whether the node is started. It listens only while started.
     private var isRunning = false
 
+    /// Set while the node is started but its server is not running. Worded
+    /// once, in updateServer(): the glyph, the settings view and the log say
+    /// the same thing.
+    fileprivate var serverStatus: NodeStatus?
+    {
+        didSet
+        {
+            guard serverStatus != oldValue else { return }
+            _settingsModelStorage?.serverFailure = serverStatus?.message
+            self.subtitleSubject.send()
+        }
+    }
+
+    override public func deriveStatuses() -> [NodeStatus] { serverStatus.map { [$0] } ?? [] }
+
     // Latest value for each address: written on the main queue, read by execute on the render thread.
     private let latestValues = Mutex<[String: Any]>([:])
 
@@ -284,6 +317,8 @@ public class OSCReceiveNode: Node
                 node?.addressBindings = addressBindings
             }
         }
+        /// Why the server is not running although the node is started, or nil.
+        var serverFailure: String?
         private weak var node: OSCReceiveNode?
 
         init(node: OSCReceiveNode)
@@ -291,8 +326,10 @@ public class OSCReceiveNode: Node
             self.node = node
             self.listenPort = node.listenPort
             self.addressBindings = node.addressBindings
+            self.serverFailure = node.serverStatus?.message
         }
 
+        func retryServer() { node?.updateServer() }
         func addAddressBinding() { node?.addAddressBinding() }
         func removeAddressBinding(id: UUID) { node?.removeAddressBinding(id: id) }
     }
@@ -317,9 +354,11 @@ public class OSCReceiveNode: Node
     public override func stopExecution(renderer: GraphRenderer)
     throws
     {
-        DispatchQueue.main.async { [weak self] in
-            self?.isRunning = false
-            self?.updateServer()
+        // Holds the node: a deleted node can be freed before this runs, and its
+        // server must still stop.
+        DispatchQueue.main.async {
+            self.isRunning = false
+            self.updateServer()
         }
         try super.stopExecution(renderer: renderer)
     }
@@ -377,15 +416,19 @@ public class OSCReceiveNode: Node
     // MARK: - OSC Server Management
 
     /// Replaces any server with one on the current port, if the node is started.
-    /// A server that cannot start, as when its port is taken, is logged rather
-    /// than thrown: a throw from start fails the renderer's whole start. Changing
-    /// the port tries again.
-    private func updateServer()
+    /// A server that cannot start, as when its port is taken, is reported in the
+    /// node's status rather than thrown: a throw from start fails the renderer's
+    /// whole start. Changing the port, or Retry in settings, tries again.
+    fileprivate func updateServer()
     {
         oscServer?.stop()
         oscServer = nil
 
-        guard isRunning else { return }
+        guard isRunning else
+        {
+            serverStatus = nil
+            return
+        }
 
         // Handling reads the address bindings the settings view owns.
         let server = OSCServer(port: listenPort, queue: .main) { [weak self] message, _, _, _ in
@@ -395,10 +438,13 @@ public class OSCReceiveNode: Node
         {
             try server.start()
             oscServer = server
+            serverStatus = nil
         }
         catch
         {
-            Self.log.error("Failed to start OSC server on port \(self.listenPort): \(error, privacy: .public)")
+            let status = NodeStatus.error("Cannot listen on port \(listenPort): \(error.localizedDescription)")
+            Self.log.error("\(status.message, privacy: .public)")
+            serverStatus = status
         }
     }
 
