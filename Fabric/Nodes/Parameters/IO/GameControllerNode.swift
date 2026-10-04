@@ -65,11 +65,9 @@ struct GameControllerNodeView: View
                 .controlSize(.small)
             }
 
-            if let controllerFailure = model.controllerFailure
+            if let controllerStatus = model.controllerStatus
             {
-                Text(controllerFailure)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.red)
+                NodeStatusMessageView(status: controllerStatus)
             }
 
             if let controllerID = model.selectedControllerID,
@@ -243,7 +241,7 @@ public class GameControllerNode: Node
         var availableControllers: [GameControllerInfo] = []
         var outputPortCount: Int = 0
         /// Why the node cannot receive although it is started, or nil.
-        var controllerFailure: String?
+        var controllerStatus: NodeStatus?
 
         private weak var node: GameControllerNode?
 
@@ -253,7 +251,7 @@ public class GameControllerNode: Node
             self.selectedControllerID = node.selectedControllerID
             self.availableControllers = node.availableControllers
             self.outputPortCount = node.outputPorts().count
-            self.controllerFailure = node.controllerStatus?.message
+            self.controllerStatus = node.controllerStatus
         }
 
         func refreshControllers() { node?.refreshControllers() }
@@ -469,7 +467,7 @@ public class GameControllerNode: Node
             {
                 Self.log.error("\(controllerStatus.message, privacy: .public)")
             }
-            _settingsModelStorage?.controllerFailure = controllerStatus?.message
+            _settingsModelStorage?.controllerStatus = controllerStatus
             self.subtitleSubject.send()
         }
     }

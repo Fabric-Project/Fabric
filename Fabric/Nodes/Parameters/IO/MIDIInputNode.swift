@@ -150,11 +150,9 @@ struct MIDIInputNodeView: View
                 .disabled(model.isListening)
             }
 
-            if let inputFailure = model.inputFailure
+            if let inputStatus = model.inputStatus
             {
-                Text(inputFailure)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.red)
+                NodeStatusMessageView(status: inputStatus)
             }
 
             Divider()
@@ -483,7 +481,7 @@ public class MIDIInputNode: Node
         }
         var availableInputs: [MIDIInputInfo] = []
         /// Why the node cannot receive although it is started, or nil.
-        var inputFailure: String?
+        var inputStatus: NodeStatus?
         var isListening: Bool = false
         var detectedInputs: Set<DetectedMIDIInput> = []
         var configuredInputs: [DetectedMIDIInput] = []
@@ -495,7 +493,7 @@ public class MIDIInputNode: Node
             self.node = node
             self.selectedInputID = node.selectedInputID
             self.availableInputs = node.availableInputs
-            self.inputFailure = node.inputStatus?.message
+            self.inputStatus = node.inputStatus
             self.isListening = node.isListening
             self.detectedInputs = node.detectedInputs
             self.configuredInputs = node.configuredInputs
@@ -699,7 +697,7 @@ public class MIDIInputNode: Node
             {
                 Self.log.error("\(inputStatus.message, privacy: .public)")
             }
-            _settingsModelStorage?.inputFailure = inputStatus?.message
+            _settingsModelStorage?.inputStatus = inputStatus
             self.subtitleSubject.send()
         }
     }

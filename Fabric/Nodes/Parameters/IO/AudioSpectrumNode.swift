@@ -499,7 +499,7 @@ public class AudioSpectrumNode : Node
         didSet
         {
             guard captureStatus != oldValue else { return }
-            _settingsModel.captureFailure = captureStatus?.message
+            _settingsModel.captureStatus = captureStatus
             // Retry is for failures; a warning says what the node is doing instead.
             _settingsModel.canRetry = if case .error = captureStatus { true } else { false }
             self.subtitleSubject.send()
@@ -765,7 +765,7 @@ public class AudioSpectrumNode : Node
         @ObservationIgnored weak var node: AudioSpectrumNode?
         var bandValues: [Float] { node?.visualizationBandValues ?? [] }
         /// Why the node is not capturing although it is started, or nil.
-        var captureFailure: String?
+        var captureStatus: NodeStatus?
         var canRetry = false
         init(node: AudioSpectrumNode) { self.node = node }
         func retryCapture() { node?.retryCapture() }
@@ -791,13 +791,11 @@ private struct AudioSpectrumNodeSettingsView: View
     {
         VStack(alignment: .leading)
         {
-            if let captureFailure = model.captureFailure
+            if let captureStatus = model.captureStatus
             {
                 HStack
                 {
-                    Text(captureFailure)
-                        .font(.system(size: 10))
-                        .foregroundStyle(.red)
+                    NodeStatusMessageView(status: captureStatus)
 
                     Spacer()
 
