@@ -246,7 +246,7 @@ public class CameraProviderNode : Node
         didSet
         {
             guard captureStatus != oldValue else { return }
-            _settingsModelStorage?.captureFailure = captureStatus?.message
+            _settingsModelStorage?.captureStatus = captureStatus
             // Retry is for failures; a warning, such as no camera selected, has nothing to retry.
             _settingsModelStorage?.canRetry = if case .error = captureStatus { true } else { false }
             self.subtitleSubject.send()
@@ -275,14 +275,14 @@ public class CameraProviderNode : Node
     @Observable final class SettingsModel
     {
         /// Why the node is not capturing although it is started, or nil.
-        var captureFailure: String?
+        var captureStatus: NodeStatus?
         var canRetry = false
         @ObservationIgnored private weak var node: CameraProviderNode?
 
         init(node: CameraProviderNode)
         {
             self.node = node
-            self.captureFailure = node.captureStatus?.message
+            self.captureStatus = node.captureStatus
             self.canRetry = if case .error = node.captureStatus { true } else { false }
         }
 
@@ -477,9 +477,16 @@ private struct CameraProviderNodeSettingsView: View
     {
         HStack
         {
-            Text(model.captureFailure ?? "Nothing to report.")
-                .font(.system(size: 10))
-                .foregroundStyle(model.captureFailure == nil ? .secondary : Color.red)
+            if let captureStatus = model.captureStatus
+            {
+                NodeStatusMessageView(status: captureStatus)
+            }
+            else
+            {
+                Text("Nothing to report.")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            }
 
             Spacer()
 

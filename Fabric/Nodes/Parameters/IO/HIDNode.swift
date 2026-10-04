@@ -512,11 +512,9 @@ struct HIDNodeView: View
                 .controlSize(.small)
             }
 
-            if let deviceFailure = model.deviceFailure
+            if let deviceStatus = model.deviceStatus
             {
-                Text(deviceFailure)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.red)
+                NodeStatusMessageView(status: deviceStatus)
             }
 
             if let _ = model.selectedDeviceID,
@@ -667,7 +665,7 @@ public class HIDNode: Node
             {
                 Self.log.error("\(deviceStatus.message, privacy: .public)")
             }
-            _settingsModelStorage?.deviceFailure = deviceStatus?.message
+            _settingsModelStorage?.deviceStatus = deviceStatus
             self.subtitleSubject.send()
         }
     }
@@ -733,7 +731,7 @@ public class HIDNode: Node
         var availableDevices: [HIDDeviceInfo] = []
         var deviceElements: [HIDElementInfo] = []
         /// Why the node cannot read its device although it is started, or nil.
-        var deviceFailure: String?
+        var deviceStatus: NodeStatus?
 
         private weak var node: HIDNode?
 
@@ -743,7 +741,7 @@ public class HIDNode: Node
             self.selectedDeviceID = node.selectedDeviceID
             self.availableDevices = node.availableDevices
             self.deviceElements = node.deviceElements
-            self.deviceFailure = node.deviceStatus?.message
+            self.deviceStatus = node.deviceStatus
         }
 
         func refreshDevices() { node?.refreshDevices() }

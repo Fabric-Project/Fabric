@@ -134,13 +134,11 @@ struct OSCReceiveNodeView: View
                 Spacer()
             }
 
-            if let serverFailure = model.serverFailure
+            if let serverStatus = model.serverStatus
             {
                 HStack
                 {
-                    Text(serverFailure)
-                        .font(.system(size: 10))
-                        .foregroundStyle(.red)
+                    NodeStatusMessageView(status: serverStatus)
 
                     Spacer()
 
@@ -275,7 +273,7 @@ public class OSCReceiveNode: Node
         didSet
         {
             guard serverStatus != oldValue else { return }
-            _settingsModelStorage?.serverFailure = serverStatus?.message
+            _settingsModelStorage?.serverStatus = serverStatus
             self.subtitleSubject.send()
         }
     }
@@ -318,7 +316,7 @@ public class OSCReceiveNode: Node
             }
         }
         /// Why the server is not running although the node is started, or nil.
-        var serverFailure: String?
+        var serverStatus: NodeStatus?
         private weak var node: OSCReceiveNode?
 
         init(node: OSCReceiveNode)
@@ -326,7 +324,7 @@ public class OSCReceiveNode: Node
             self.node = node
             self.listenPort = node.listenPort
             self.addressBindings = node.addressBindings
-            self.serverFailure = node.serverStatus?.message
+            self.serverStatus = node.serverStatus
         }
 
         func retryServer() { node?.updateServer() }

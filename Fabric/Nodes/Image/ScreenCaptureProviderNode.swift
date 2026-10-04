@@ -117,7 +117,7 @@ public class ScreenCaptureProviderNode: Node
         didSet
         {
             guard captureFailure != oldValue else { return }
-            _settingsModelStorage?.captureFailure = captureFailure?.status.message
+            _settingsModelStorage?.captureStatus = captureFailure?.status
             _settingsModelStorage?.canRetry = captureFailure?.canRetry ?? false
             self.subtitleSubject.send()
         }
@@ -147,14 +147,14 @@ public class ScreenCaptureProviderNode: Node
     @Observable final class SettingsModel
     {
         /// Why the node is not capturing although it is started, or nil.
-        var captureFailure: String?
+        var captureStatus: NodeStatus?
         var canRetry = false
         @ObservationIgnored private weak var node: ScreenCaptureProviderNode?
 
         init(node: ScreenCaptureProviderNode)
         {
             self.node = node
-            self.captureFailure = node.captureFailure?.status.message
+            self.captureStatus = node.captureFailure?.status
             self.canRetry = node.captureFailure?.canRetry ?? false
         }
 
@@ -452,9 +452,16 @@ private struct ScreenCaptureProviderNodeSettingsView: View
     {
         HStack
         {
-            Text(model.captureFailure ?? "Nothing to report.")
-                .font(.system(size: 10))
-                .foregroundStyle(model.captureFailure == nil ? .secondary : Color.red)
+            if let captureStatus = model.captureStatus
+            {
+                NodeStatusMessageView(status: captureStatus)
+            }
+            else
+            {
+                Text("Nothing to report.")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            }
 
             Spacer()
 
