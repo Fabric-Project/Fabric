@@ -13,9 +13,12 @@ import simd
 import Metal
 import CoreMedia
 import ScreenCaptureKit
+import os
 
 public class ScreenCaptureProviderNode: Node
 {
+    fileprivate static let log = Logger(subsystem: "graphics.fabric", category: "ScreenCaptureProviderNode")
+
     private enum CaptureKind: String
     {
         case display = "Display"
@@ -176,7 +179,16 @@ public class ScreenCaptureProviderNode: Node
     @MainActor
     private func refreshTargets() async
     {
-        guard let shareableContent = try? await SCShareableContent.current else { return }
+        let shareableContent: SCShareableContent
+        do
+        {
+            shareableContent = try await SCShareableContent.current
+        }
+        catch
+        {
+            Self.log.error("Could not list capture sources: \(error, privacy: .public)")
+            return
+        }
 
         let captureKind = self.currentCaptureKind()
         self.latestShareableContent = shareableContent
@@ -204,6 +216,7 @@ public class ScreenCaptureProviderNode: Node
         let selection = self.inputCaptureSource.value ?? ""
         guard let target = self.optionsToTargets[selection] else
         {
+            Self.log.error("Capture source not found: \(selection, privacy: .public)")
             self.outputTexturePort.send(nil)
             return
         }
@@ -216,6 +229,7 @@ public class ScreenCaptureProviderNode: Node
     {
         guard let filter = self.contentFilter(for: target) else
         {
+            Self.log.error("No display to capture the application on")
             self.outputTexturePort.send(nil)
             return
         }
@@ -243,6 +257,7 @@ public class ScreenCaptureProviderNode: Node
         }
         catch
         {
+            Self.log.error("Could not start capture: \(error, privacy: .public)")
             self.stream = nil
             self.outputTexturePort.send(nil)
         }
