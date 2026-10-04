@@ -247,6 +247,8 @@ public class CameraProviderNode : Node
         {
             guard captureStatus != oldValue else { return }
             _settingsModelStorage?.captureFailure = captureStatus?.message
+            // Retry is for failures; a warning, such as no camera selected, has nothing to retry.
+            _settingsModelStorage?.canRetry = if case .error = captureStatus { true } else { false }
             self.subtitleSubject.send()
         }
     }
@@ -274,12 +276,14 @@ public class CameraProviderNode : Node
     {
         /// Why the node is not capturing although it is started, or nil.
         var captureFailure: String?
+        var canRetry = false
         @ObservationIgnored private weak var node: CameraProviderNode?
 
         init(node: CameraProviderNode)
         {
             self.node = node
             self.captureFailure = node.captureStatus?.message
+            self.canRetry = if case .error = node.captureStatus { true } else { false }
         }
 
         func retryCapture() { node?.retryCapture() }
@@ -479,7 +483,7 @@ private struct CameraProviderNodeSettingsView: View
 
             Spacer()
 
-            if model.captureFailure != nil
+            if model.canRetry
             {
                 Button("Retry")
                 {
