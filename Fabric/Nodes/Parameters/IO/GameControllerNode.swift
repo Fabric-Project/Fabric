@@ -12,6 +12,7 @@ import GameController
 import Satin
 import simd
 import Synchronization
+import os
 
 // MARK: - Controller Info
 
@@ -64,6 +65,13 @@ struct GameControllerNodeView: View
                 .controlSize(.small)
             }
 
+            if let controllerFailure = model.controllerFailure
+            {
+                Text(controllerFailure)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.red)
+            }
+
             if let controllerID = model.selectedControllerID,
                let controller = model.availableControllers.first(where: { $0.id == controllerID })
             {
@@ -98,6 +106,8 @@ struct GameControllerNodeView: View
 
 public class GameControllerNode: Node
 {
+    fileprivate static let log = Logger(subsystem: "graphics.fabric", category: "GameControllerNode")
+
     override public static var name: String { "Game Controller" }
     override public static var nodeType: Node.NodeType { .Parameter(parameterType: .IO) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
@@ -232,6 +242,8 @@ public class GameControllerNode: Node
         }
         var availableControllers: [GameControllerInfo] = []
         var outputPortCount: Int = 0
+        /// Why the node cannot receive although it is started, or nil.
+        var controllerFailure: String?
 
         private weak var node: GameControllerNode?
 
@@ -241,6 +253,7 @@ public class GameControllerNode: Node
             self.selectedControllerID = node.selectedControllerID
             self.availableControllers = node.availableControllers
             self.outputPortCount = node.outputPorts().count
+            self.controllerFailure = node.controllerStatus?.message
         }
 
         func refreshControllers() { node?.refreshControllers() }
@@ -280,6 +293,7 @@ public class GameControllerNode: Node
         DispatchQueue.main.async { [weak self] in
             self?.isRunning = true
             self?.updateSubscription()
+            self?.updateControllerStatus()
         }
         try super.startExecution(renderer: renderer)
     }
@@ -287,9 +301,12 @@ public class GameControllerNode: Node
     public override func stopExecution(renderer:GraphRenderer)
     throws
     {
-        DispatchQueue.main.async { [weak self] in
-            self?.isRunning = false
-            self?.updateSubscription()
+        // Holds the node: a deleted node can be freed before this runs, and its
+        // subscription must still go.
+        DispatchQueue.main.async {
+            self.isRunning = false
+            self.updateSubscription()
+            self.updateControllerStatus()
         }
         try super.stopExecution(renderer: renderer)
     }
@@ -297,7 +314,7 @@ public class GameControllerNode: Node
     public override func disableExecution(renderer:GraphRenderer)
     throws
     {
-        DispatchQueue.main.async { [weak self] in self?.removeNotifications() }
+        DispatchQueue.main.async { self.removeNotifications() }
         try super.disableExecution(renderer: renderer)
     }
 
@@ -308,7 +325,7 @@ public class GameControllerNode: Node
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.refreshControllers()
+            self?.controllerDidConnect()
         })
 
         controllerObservers.append(NotificationCenter.default.addObserver(
@@ -323,6 +340,7 @@ public class GameControllerNode: Node
                 self?.updateSubscription()
             }
             self?.refreshControllers()
+            self?.updateControllerStatus()
         })
 
         // Start wireless controller discovery
@@ -383,9 +401,15 @@ public class GameControllerNode: Node
               let controller = GCController.controllers().first(where: { $0.uniqueID == controllerID })
         else
         {
+            // Choosing none forgets the controller, so a controller connecting does not bring it back.
+            if selectedControllerID == nil
+            {
+                savedControllerInfo = nil
+            }
             self.synchronizePorts(to: [])
             _settingsModelStorage?.outputPortCount = outputPorts().count
             updateSubscription()
+            updateControllerStatus()
             return
         }
 
@@ -411,6 +435,66 @@ public class GameControllerNode: Node
         self.synchronizePorts(to: descriptors)
         _settingsModelStorage?.outputPortCount = outputPorts().count
         updateSubscription()
+        updateControllerStatus()
+    }
+
+    /// The selected controller may be back, with a new id, as the id carries its
+    /// index among connected controllers: match it as enable does.
+    private func controllerDidConnect()
+    {
+        refreshControllers()
+
+        if currentController == nil,
+           let savedInfo = savedControllerInfo,
+           let matching = availableControllers.first(where: {
+               $0.vendorName == savedInfo.vendorName && $0.productCategory == savedInfo.productCategory
+           })
+        {
+            selectedControllerID = matching.id
+        }
+        updateControllerStatus()
+    }
+
+    // MARK: - Controller Status
+
+    /// Set while the node is started but has no controller to receive from.
+    /// Worded once, in updateControllerStatus(), so the glyph, the settings view
+    /// and the log agree.
+    private var controllerStatus: NodeStatus?
+    {
+        didSet
+        {
+            guard controllerStatus != oldValue else { return }
+            if let controllerStatus
+            {
+                Self.log.error("\(controllerStatus.message, privacy: .public)")
+            }
+            _settingsModelStorage?.controllerFailure = controllerStatus?.message
+            self.subtitleSubject.send()
+        }
+    }
+
+    override public func deriveStatuses() -> [NodeStatus] { controllerStatus.map { [$0] } ?? [] }
+
+    // No Retry: a controller connecting reconnects itself.
+    private func updateControllerStatus()
+    {
+        if !isRunning
+        {
+            controllerStatus = nil
+        }
+        else if selectedControllerID == nil
+        {
+            controllerStatus = .warning("No game controller is selected.")
+        }
+        else if currentController == nil
+        {
+            controllerStatus = .warning("\(savedControllerInfo?.displayName ?? "The selected game controller") is not connected.")
+        }
+        else
+        {
+            controllerStatus = nil
+        }
     }
 
     /// Called by GameControllerSubscriptions, on main, for each change on the subscribed controller.
