@@ -13,9 +13,12 @@ import AVFoundation
 import Accelerate
 import Dispatch
 import Synchronization
+import os
 
 public class AudioSpectrumNode : Node
 {
+    fileprivate static let log = Logger(subsystem: "graphics.fabric", category: "AudioSpectrumNode")
+
     final class SimpleFilterBank {
         // ---- Config ----
         var sampleRate: Float
@@ -387,6 +390,9 @@ public class AudioSpectrumNode : Node
         if let observer = self.wasDisconnectedObserver { NotificationCenter.default.removeObserver(observer) }
         self.wasConnectedObserver = nil
         self.wasDisconnectedObserver = nil
+
+        // Stop has already stopped it; this lets its device input and output go.
+        self.captureSession = AVCaptureSession()
         try super.disableExecution(renderer: renderer)
     }
 
@@ -414,32 +420,34 @@ public class AudioSpectrumNode : Node
     }
 
     // Capture runs only while started. The session is built in execute, so a
-    // start and a device change in the same frame build it once.
-    private var captureSessionNeedsSetup = false
+    // start and a device change in the same frame build it once. Set from the
+    // permission callback too; a set that lands after a stop does nothing, as
+    // only started nodes execute and start sets it afresh.
+    private let captureSessionNeedsSetup = Atomic<Bool>(false)
 
+    // Without microphone access the node still starts, and outputs nothing.
     override public func startExecution(renderer:GraphRenderer) throws {
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
             case .authorized:
-                self.captureSessionNeedsSetup = true
+                self.captureSessionNeedsSetup.store(true, ordering: .relaxed)
             case .notDetermined:
-                AVCaptureDevice.requestAccess(for: .audio) { granted in
-                    DispatchQueue.main.async { [weak self] in
-                        // The node may have stopped while the prompt was up.
-                        guard granted, let self, self.executionState == .started else { return }
-                        self.captureSessionNeedsSetup = true
+                AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
+                    guard granted else
+                    {
+                        Self.log.error("Microphone access was refused")
+                        return
                     }
+                    self?.captureSessionNeedsSetup.store(true, ordering: .relaxed)
                 }
             default:
-                throw FabricError(.execution(.failed),
-                                  severity: .recoverable,
-                                  message: "Microphone access is not granted")
+                Self.log.error("Microphone access is not granted")
         }
         try super.startExecution(renderer: renderer)
     }
 
     override public func stopExecution(renderer:GraphRenderer) throws
     {
-        self.captureSessionNeedsSetup = false
+        self.captureSessionNeedsSetup.store(false, ordering: .relaxed)
         if self.captureSession.isRunning
         {
             self.captureSession.stopRunning()
@@ -457,14 +465,13 @@ public class AudioSpectrumNode : Node
         {
             if AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
             {
-                self.captureSessionNeedsSetup = true
+                self.captureSessionNeedsSetup.store(true, ordering: .relaxed)
             }
             pendingRebuild = true
         }
 
-        if self.captureSessionNeedsSetup
+        if self.captureSessionNeedsSetup.exchange(false, ordering: .relaxed)
         {
-            self.captureSessionNeedsSetup = false
             self.setupCaptureSession()
         }
 
@@ -599,7 +606,7 @@ public class AudioSpectrumNode : Node
     {
         guard let device = self.resolveSelectedAudioDevice() else
         {
-            print("AudioSpectrum: no audio input device available")
+            Self.log.error("No audio input device available")
             return
         }
 
@@ -613,7 +620,7 @@ public class AudioSpectrumNode : Node
             let input = try AVCaptureDeviceInput(device: device)
             guard session.canAddInput(input) else
             {
-                print("AudioSpectrum: cannot add input for device \(device.localizedName)")
+                Self.log.error("Cannot add input for device \(device.localizedName, privacy: .public)")
                 session.commitConfiguration()
                 return
             }
@@ -634,7 +641,7 @@ public class AudioSpectrumNode : Node
             output.setSampleBufferDelegate(self.captureDelegate, queue: self.captureQueue)
             guard session.canAddOutput(output) else
             {
-                print("AudioSpectrum: cannot add audio output")
+                Self.log.error("Cannot add audio output")
                 session.commitConfiguration()
                 return
             }
@@ -642,7 +649,7 @@ public class AudioSpectrumNode : Node
         }
         catch
         {
-            print("AudioSpectrum: failed to create capture input:", error)
+            Self.log.error("Failed to create capture input: \(error, privacy: .public)")
             session.commitConfiguration()
             return
         }
