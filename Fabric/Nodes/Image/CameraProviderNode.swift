@@ -105,6 +105,9 @@ public class CameraProviderNode : Node
     // Written on the main queue and at enable, read by execute on the render thread.
     private let devices = Mutex<[AVCaptureDevice]>([])
 
+    // Disable releases the session, so the first execute after enable builds it again.
+    private var captureSessionNeedsSetup = false
+
     private var wasConnectedObserver:Any? = nil
     private var wasDisconnectedObserver:Any? = nil
 
@@ -142,6 +145,7 @@ public class CameraProviderNode : Node
         }
 
         self.refreshDevices()
+        self.captureSessionNeedsSetup = true
         try super.enableExecution(renderer: renderer)
     }
 
@@ -151,6 +155,9 @@ public class CameraProviderNode : Node
         if let observer = self.wasDisconnectedObserver { NotificationCenter.default.removeObserver(observer) }
         self.wasConnectedObserver = nil
         self.wasDisconnectedObserver = nil
+
+        // Stop has already stopped it; this lets its device input and output go.
+        self.captureSession = AVCaptureSession()
         try super.disableExecution(renderer: renderer)
     }
 
@@ -191,8 +198,9 @@ public class CameraProviderNode : Node
     throws
     {
         
-        if self.inputCamera.valueDidChange
+        if self.inputCamera.valueDidChange || self.captureSessionNeedsSetup
         {
+            self.captureSessionNeedsSetup = false
             try updateCameraSession()
         }
         
