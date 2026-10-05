@@ -43,24 +43,43 @@ struct ParameterPortConformanceTests
         portType.type is any DefaultParameterProviding.Type
     }
 
-    private func label(_ wrapper: NodeClassWrapper) -> String
+    private func label(_ wrapper: NodeClassWrapper, strategy: String? = nil) -> String
     {
-        "\(wrapper.nodeName) (\(String(describing: wrapper.nodeClass)))"
+        let base = "\(wrapper.nodeName) (\(String(describing: wrapper.nodeClass)))"
+        guard let strategy else { return base }
+        return "\(base) [strategy \(strategy)]"
     }
 
-    /// Every node in the registry, instantiated once. A node that cannot be
+    /// Every node in the registry, instantiated once per shape it can take. A
+    /// StrategyNode builds its ports from its strategy, so each strategy is a
+    /// fresh instance switched to it; a TypeAgnosticNode's port types are its
+    /// strategies, so it is swept the same way. A node that cannot be
     /// instantiated is skipped — the port round-trip contract suite owns that
     /// failure, and reporting it twice helps no one.
-    private func eachRegisteredNode(context: Context, body: (NodeClassWrapper, Node) -> Void) throws
+    private func eachRegisteredNode(context: Context, body: (String, Node) -> Void) throws
     {
         let wrappers = try NodeRegistry.shared.availableNodes
         #expect(!wrappers.isEmpty)
 
         for wrapper in wrappers
         {
-            guard let node = try? wrapper.initializeNode(context: context) else { continue }
+            guard let strategyNodeClass = wrapper.nodeClass as? StrategyNode.Type,
+                  !strategyNodeClass.strategies.isEmpty
+            else
+            {
+                guard let node = try? wrapper.initializeNode(context: context) else { continue }
 
-            body(wrapper, node)
+                body(label(wrapper), node)
+                continue
+            }
+
+            for strategy in strategyNodeClass.strategies
+            {
+                guard let node = try? wrapper.initializeNode(context: context) as? StrategyNode else { continue }
+
+                node.strategy = strategy
+                body(label(wrapper, strategy: strategy), node)
+            }
         }
     }
 
@@ -81,14 +100,14 @@ struct ParameterPortConformanceTests
         var inletsChecked = 0
 
         try eachRegisteredNode(context: context)
-        { wrapper, node in
+        { nodeLabel, node in
             for port in node.ports where port.kind == .Inlet && canBeParameter(port.portType)
             {
                 inletsChecked += 1
 
                 guard port.parameter == nil else { continue }
 
-                violations.append("\(label(wrapper)): \(port.name) [\(port.portType.rawValue)] is \(type(of: port)), expected a ParameterPort")
+                violations.append("\(nodeLabel): \(port.name) [\(port.portType.rawValue)] is \(type(of: port)), expected a ParameterPort")
             }
         }
 
@@ -105,7 +124,7 @@ struct ParameterPortConformanceTests
         var portsChecked = 0
 
         try eachRegisteredNode(context: context)
-        { wrapper, node in
+        { nodeLabel, node in
             let subGraph = Graph(context: context)
             subGraph.addNode(node)
 
@@ -135,25 +154,25 @@ struct ParameterPortConformanceTests
                 guard let proxy = proxiesByInnerPortID[port.id]
                 else
                 {
-                    violations.append("\(label(wrapper)): \(port.name) [\(port.portType.rawValue)] published but not proxied — no case for \(type(of: port))")
+                    violations.append("\(nodeLabel): \(port.name) [\(port.portType.rawValue)] published but not proxied — no case for \(type(of: port))")
                     continue
                 }
 
                 if proxy.kind != port.kind
                 {
-                    violations.append("\(label(wrapper)): \(port.name) proxied as \(proxy.kind), inner port is \(port.kind)")
+                    violations.append("\(nodeLabel): \(port.name) proxied as \(proxy.kind), inner port is \(port.kind)")
                 }
 
                 if proxy.portType != port.portType
                 {
-                    violations.append("\(label(wrapper)): \(port.name) proxied as [\(proxy.portType.rawValue)], inner port is [\(port.portType.rawValue)]")
+                    violations.append("\(nodeLabel): \(port.name) proxied as [\(proxy.portType.rawValue)], inner port is [\(port.portType.rawValue)]")
                 }
 
                 if (proxy.parameter == nil) != (port.parameter == nil)
                 {
                     let proxied = proxy.parameter == nil ? "without a parameter" : "with a parameter"
                     let inner = port.parameter == nil ? "has none" : "has one"
-                    violations.append("\(label(wrapper)): \(port.name) proxied \(proxied), inner port \(inner)")
+                    violations.append("\(nodeLabel): \(port.name) proxied \(proxied), inner port \(inner)")
                 }
             }
         }
@@ -171,7 +190,7 @@ struct ParameterPortConformanceTests
         var proxiesChecked = 0
 
         try eachRegisteredNode(context: context)
-        { wrapper, node in
+        { nodeLabel, node in
             let subGraph = Graph(context: context)
             subGraph.addNode(node)
 
@@ -212,7 +231,7 @@ struct ParameterPortConformanceTests
                 guard let found = decoded.nodes.compactMap({ $0 as? SubgraphNode }).first
                 else
                 {
-                    violations.append("\(label(wrapper)): sub graph node missing after decode")
+                    violations.append("\(nodeLabel): sub graph node missing after decode")
                     return
                 }
 
@@ -220,7 +239,7 @@ struct ParameterPortConformanceTests
             }
             catch
             {
-                violations.append("\(label(wrapper)): sub graph failed to round trip — \(error)")
+                violations.append("\(nodeLabel): sub graph failed to round trip — \(error)")
                 return
             }
 
@@ -234,23 +253,23 @@ struct ParameterPortConformanceTests
                 guard let decodedPort = decodedPortsByID[proxy.id]
                 else
                 {
-                    violations.append("\(label(wrapper)): \(proxy.name) [\(proxy.portType.rawValue)] has no port at its id after decode")
+                    violations.append("\(nodeLabel): \(proxy.name) [\(proxy.portType.rawValue)] has no port at its id after decode")
                     continue
                 }
 
                 if !(decodedPort is any ProxyPortProtocol)
                 {
-                    violations.append("\(label(wrapper)): \(proxy.name) [\(proxy.portType.rawValue)] decoded as \(type(of: decodedPort)), which proxies nothing")
+                    violations.append("\(nodeLabel): \(proxy.name) [\(proxy.portType.rawValue)] decoded as \(type(of: decodedPort)), which proxies nothing")
                 }
 
                 if decodedPort.portType != proxy.portType
                 {
-                    violations.append("\(label(wrapper)): \(proxy.name) decoded as [\(decodedPort.portType.rawValue)], saved as [\(proxy.portType.rawValue)]")
+                    violations.append("\(nodeLabel): \(proxy.name) decoded as [\(decodedPort.portType.rawValue)], saved as [\(proxy.portType.rawValue)]")
                 }
 
                 if decodedPort.published != proxy.published || decodedPort.publishedName != proxy.publishedName
                 {
-                    violations.append("\(label(wrapper)): \(proxy.name) [\(proxy.portType.rawValue)] decoded published=\(decodedPort.published) name=\(decodedPort.publishedName ?? "nil"), saved published=\(proxy.published) name=\(proxy.publishedName ?? "nil")")
+                    violations.append("\(nodeLabel): \(proxy.name) [\(proxy.portType.rawValue)] decoded published=\(decodedPort.published) name=\(decodedPort.publishedName ?? "nil"), saved published=\(proxy.published) name=\(proxy.publishedName ?? "nil")")
                 }
             }
         }
