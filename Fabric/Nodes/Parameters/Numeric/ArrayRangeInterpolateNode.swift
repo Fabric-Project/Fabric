@@ -31,8 +31,8 @@ public final class ArrayRangeInterpolateNode: NumericTypeAgnosticNode
         super.rebuildPorts(forStrategy: strategy)
         let valueType = selectedNumericPortType
         let arrayType: PortType = valueType == .NumericVirtual ? .NumericVirtual : .Array(portType: valueType)
-        addOrReplaceDynamicPort(name: "inputFrom", displayName: "From", portType: valueType, kind: .Inlet, description: "Start value", editable: true)
-        addOrReplaceDynamicPort(name: "inputTo", displayName: "To", portType: valueType, kind: .Inlet, description: "End value", editable: true)
+        addOrReplaceDynamicPort(name: "inputFrom", displayName: "From", portType: valueType, kind: .Inlet, description: "Start value")
+        addOrReplaceDynamicPort(name: "inputTo", displayName: "To", portType: valueType, kind: .Inlet, description: "End value")
         addOrReplaceDynamicPort(name: "outputArray", displayName: "Array", portType: arrayType, kind: .Outlet, description: "Generated interpolated values")
         reorderPorts(named: ["inputFrom", "inputTo", "inputCount", "inputEasing", "outputArray"])
     }

@@ -111,6 +111,45 @@ struct PortHydrationTests
 
     /// Type-agnostic nodes whose value inlet is editable once a type is picked,
     /// by the registry name of that inlet.
+    private static let editableValueInlets: [(nodeClass: TypeAgnosticNode.Type, portName: String)] = [
+        (SampleAndHoldNode.self, "inputValue"),
+        (SwitchNode.self, "input0"),
+        (MatrixSwitchNode.self, "input0"),
+        (GateNode.self, "input"),
+        (ArrayQueueNode.self, "inputPort"),
+        (ArrayReplaceValueAtIndexNode.self, "inputValue"),
+        (DictionarySetValueForKeyNode.self, "inputValue"),
+    ]
+
+    @Test("A type-agnostic node's edited value inlet comes back with its value, on its id", arguments: editableValueInlets)
+    func editableValueInletSurvivesRoundTrip(nodeClass: TypeAgnosticNode.Type, portName: String) throws
+    {
+        guard let context = makeContext() else { return }
+
+        let node = nodeClass.init(context: context)
+        node.strategy = PortType.Float.rawValue
+
+        let graph = Graph(context: context)
+        graph.addNode(node)
+
+        let inlet = try #require(node.findPort(named: portName) as ParameterPort<Float>?,
+                                 "\(nodeClass) Float value inlet is not a ParameterPort<Float>")
+        inlet.value = 7.5
+        let savedID = inlet.id
+
+        let data = try JSONEncoder().encode(graph)
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decodedGraph = try decoder.decode(Graph.self, from: data)
+
+        let decoded = try #require(decodedGraph.node(forID: node.id) as? TypeAgnosticNode)
+        let decodedInlet = try #require(decoded.findPort(named: portName) as ParameterPort<Float>?,
+                                        "\(nodeClass) value inlet decoded without its parameter")
+
+        #expect(decodedInlet.id == savedID)
+        #expect(decodedInlet.parameter?.id == savedID)
+        #expect(decodedInlet.value == 7.5)
+    }
 
     @Test("Retired port state is dropped and reported, not resurrected")
     func retiredPortStateIsDroppedAndReported() throws
@@ -159,6 +198,32 @@ struct PortHydrationTests
 
         #expect(decoded.inputNumber1.id == savedID)
         #expect(decoded.inputNumber1.parameter?.id == savedID)
+    }
+
+    @Test("An editable port rebuilt on another's id keeps it, parameter included")
+    func editablePortRebuiltOnIdKeepsIt()
+    {
+        let takenOverID = UUID()
+
+        for portType: PortType in [.Bool, .Int, .Float, .String, .Vector2, .Vector3, .Vector4, .Color]
+        {
+            let port = portType.makeFreshPort(name: "Value", kind: .Inlet, id: takenOverID)
+
+            #expect(port.parameter != nil, "\(portType.rawValue) rebuilt without a parameter")
+            #expect(port.portType == portType, "\(portType.rawValue) rebuilt as \(port.portType.rawValue)")
+            #expect(port.id == takenOverID, "\(portType.rawValue) rebuilt on a new id")
+            #expect(port.parameter?.id == takenOverID, "\(portType.rawValue) parameter keyed to a different id")
+        }
+
+        // A type with no parameter to offer falls back to a plain port, on the same id.
+        let geometry = PortType.Geometry.makeFreshPort(name: "Geometry", kind: .Inlet, id: takenOverID)
+        #expect(geometry.parameter == nil)
+        #expect(geometry.id == takenOverID)
+
+        // An outlet's value is the node's to write, so it never gets one.
+        let outlet = PortType.Float.makeFreshPort(name: "Value", kind: .Outlet, id: takenOverID)
+        #expect(outlet.parameter == nil)
+        #expect(outlet.id == takenOverID)
     }
 
     @Test("A Transform parameter gets a parameter port; a quaternion one, which Satin cannot encode, gets none")

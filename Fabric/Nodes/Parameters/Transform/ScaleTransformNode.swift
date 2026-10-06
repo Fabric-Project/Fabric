@@ -24,7 +24,7 @@ public class ScaleTransformNode : Node
         
         return ports +
         [
-            ("inputTransform", ParameterPort(parameter: Float4x4Parameter("Transform", matrix_identity_float4x4, .none, "4x4 transform matrix to scale"))),
+            ("inputTransform", PortType.Transform.makeFreshPort(name: "Transform", kind: .Inlet, description: "4x4 transform matrix to scale")),
             ("inputScale", ParameterPort(parameter: Float3Parameter("Scale", simd_float3(1, 1, 1), .inputfield, "XYZ scale factors to apply"))),
             ("outputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Outlet, description: "Scaled 4x4 transform matrix")),
         ]

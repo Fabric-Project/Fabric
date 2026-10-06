@@ -63,6 +63,39 @@ import MathExpressionEngine
         #expect(node.outputPorts().first?.portType == .Vector3)
     }
 
+    @Test func inputsCarryAParameterWhereSatinHasOneForTheirType() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = MathExpressionNode(context: context, expression: "in a: float; in b: vec2; in c: vec3; in d: vec4; in m: transform; in q: quat; in l: float[][]; out o = a")
+
+        let parameterNames: Set<String> = ["a", "b", "c", "d", "m"]
+        for port in node.inputPorts()
+        {
+            #expect((port.parameter != nil) == parameterNames.contains(port.name), "\(port.name) [\(port.portType.rawValue)]")
+        }
+
+        // A nested array port carries the type the node asks for, so a rebuild finds it unchanged.
+        let nested = try #require(node.findPort(named: "l", as: Fabric.Port.self))
+        #expect(nested.portType == .Array(portType: .Array(portType: .Float)))
+    }
+
+    @Test func nestedArrayOutletIsTypedLikeItsInletAndSurvivesARecompile() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = MathExpressionNode(context: context, expression: "in l: float[][]; out o = l")
+        #expect(node.status == nil)
+
+        let inlet = try #require(node.findPort(named: "l", as: Fabric.Port.self))
+        let outlet = try #require(node.findPort(named: "o", as: Fabric.Port.self))
+        #expect(outlet.portType == inlet.portType)
+        #expect(outlet.portType == .Array(portType: .Array(portType: .Float)))
+        let outletID = outlet.id
+
+        node.stringExpression = "in l: float[][]; out o = l "
+
+        #expect(node.findPort(named: "o", as: Fabric.Port.self)?.id == outletID)
+    }
+
     @Test func comprehensionProducesTransformArrayOutput() throws
     {
         guard let context = makeContext() else { return }

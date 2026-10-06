@@ -24,7 +24,7 @@ public class TranslateTransformNode : Node
         
         return ports +
         [
-            ("inputTransform", ParameterPort(parameter: Float4x4Parameter("Transform", matrix_identity_float4x4, .none, "4x4 transform matrix to translate"))),
+            ("inputTransform", PortType.Transform.makeFreshPort(name: "Transform", kind: .Inlet, description: "4x4 transform matrix to translate")),
             ("inputTranslation", ParameterPort(parameter: Float3Parameter("Translation", simd_float3(0, 0, 0), .inputfield, "XYZ translation offset to apply"))),
             ("outputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Outlet, description: "Translated 4x4 transform matrix")),
         ]

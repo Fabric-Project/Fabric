@@ -24,7 +24,7 @@ public class RotateTransformNode : Node
         
         return ports +
         [
-            ("inputTransform", ParameterPort(parameter: Float4x4Parameter("Transform", matrix_identity_float4x4, .none, "4x4 transform matrix to rotate"))),
+            ("inputTransform", PortType.Transform.makeFreshPort(name: "Transform", kind: .Inlet, description: "4x4 transform matrix to rotate")),
             ("inputRotation", ParameterPort(parameter: Float4Parameter("Rotation", simd_float4(0, 0, 0, 1), .inputfield, "Quaternion rotation to apply (X, Y, Z, W)"))),
             ("outputTransform", NodePort<simd_float4x4>(name: "Transform" , kind: .Outlet, description: "Rotated 4x4 transform matrix")),
         ]

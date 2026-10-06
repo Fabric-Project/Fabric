@@ -151,7 +151,7 @@ extension PortType
     /// say, save for Color. Color and Vector4 are both simd_float4, so the type
     /// cannot tell them apart; the colorpicker control is what makes the port
     /// read back as .Color (see `ParameterPort.portType`).
-    public func makeFreshParameterPort(name: String, kind: PortKind, description: String = "", id: UUID = UUID()) -> Port?
+    private func makeFreshParameterPort(name: String, kind: PortKind, description: String, id: UUID) -> Port?
     {
         guard kind == .Inlet else { return nil }
 
@@ -165,9 +165,21 @@ extension PortType
         return editableType.makeDefaultParameterPort(name: name, description: description, id: id)
     }
 
-    /// Creates a new port of this type. For deserialization use
+    /// Creates a new port of this type. An inlet whose type can be a parameter
+    /// (see `ParameterValueType`) is a parameter port, so it holds a value of its
+    /// own when unwired; every other port is plain. For deserialization use
     /// `portForType(_:isParameterPort:decoder:)` instead.
     public func makeFreshPort(name: String, kind: PortKind, description: String = "", id: UUID = UUID()) -> Port
+    {
+        if let parameterPort = makeFreshParameterPort(name: name, kind: kind, description: description, id: id)
+        {
+            return parameterPort
+        }
+
+        return makeFreshPlainPort(name: name, kind: kind, description: description, id: id)
+    }
+
+    private func makeFreshPlainPort(name: String, kind: PortKind, description: String, id: UUID) -> Port
     {
         switch self
         {

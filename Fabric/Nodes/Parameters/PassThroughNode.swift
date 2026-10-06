@@ -11,7 +11,8 @@ import simd
 import Metal
 
 /// Patching utility node that passes a value through without modification.
-/// Uses an editable parameter port for the input when the type supports it.
+/// Its input is whatever the port factory makes for the type: a parameter
+/// port where the type can carry one, otherwise a plain port.
 public class PassThroughNode<T: PortValueRepresentable>: Node
 {
     override public class var name: String { T.portType.rawValue }
@@ -27,20 +28,10 @@ public class PassThroughNode<T: PortValueRepresentable>: Node
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)] {
         let ports = super.registerPorts(context: context)
 
-        let inputPort: Port
-        if let editable = T.self as? any ParameterValueType.Type {
-            inputPort = editable.makeDefaultParameterPort(
-                name: T.portType.rawValue,
-                description: "Input \(T.portType.rawValue)"
-            )
-        } else {
-            inputPort = NodePort<T>(name: T.portType.rawValue, kind: .Inlet, description: "Input \(T.portType.rawValue)")
-        }
-
         return ports +
         [
-            ("input", inputPort),
-            ("output", NodePort<T>(name: T.portType.rawValue, kind: .Outlet, description: "Output \(T.portType.rawValue)")),
+            ("input", T.portType.makeFreshPort(name: T.portType.rawValue, kind: .Inlet, description: "Input \(T.portType.rawValue)")),
+            ("output", T.portType.makeFreshPort(name: T.portType.rawValue, kind: .Outlet, description: "Output \(T.portType.rawValue)")),
         ]
     }
     

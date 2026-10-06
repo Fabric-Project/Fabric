@@ -113,57 +113,6 @@ enum EnginePortMarshalling
         }
     }
 
-    // MARK: - Port factory
-
-    /// Build an input (inlet) port for a declared engine input. `float` inputs
-    /// are editable `ParameterPort`s (so an unconnected input still supplies a
-    /// value, exactly like the old node); richer types are plain ports that
-    /// stay nil until wired.
-    static func makeInputPort(name: String, type: ValueType) -> Port
-    {
-        if case .float = type
-        {
-            return ParameterPort(parameter: FloatParameter(name, 0.0, .inputfield))
-        }
-        return makePort(name: name, type: type, kind: .Inlet)
-    }
-
-    /// Build an output (outlet) port for a declared engine output.
-    static func makeOutputPort(name: String, type: ValueType) -> Port
-    {
-        makePort(name: name, type: type, kind: .Outlet)
-    }
-
-    private static func makePort(name: String, type: ValueType, kind: PortKind) -> Port
-    {
-        switch type
-        {
-        case .float:     return NodePort<Float>(name: name, kind: kind)
-        case .vec2:      return NodePort<simd_float2>(name: name, kind: kind)
-        case .vec3:      return NodePort<simd_float3>(name: name, kind: kind)
-        case .vec4:      return NodePort<simd_float4>(name: name, kind: kind)
-        case .transform: return NodePort<simd_float4x4>(name: name, kind: kind)
-        case .quat:      return NodePort<simd_quatf>(name: name, kind: kind)
-        case .array(let elem): return makeArrayPort(name: name, elementType: elem, kind: kind)
-        }
-    }
-
-    private static func makeArrayPort(name: String, elementType: ValueType, kind: PortKind) -> Port
-    {
-        switch elementType
-        {
-        case .float:     return NodePort<ContiguousArray<Float>>(name: name, kind: kind)
-        case .vec2:      return NodePort<ContiguousArray<simd_float2>>(name: name, kind: kind)
-        case .vec3:      return NodePort<ContiguousArray<simd_float3>>(name: name, kind: kind)
-        case .vec4:      return NodePort<ContiguousArray<simd_float4>>(name: name, kind: kind)
-        case .transform: return NodePort<ContiguousArray<simd_float4x4>>(name: name, kind: kind)
-        case .quat:      return NodePort<ContiguousArray<simd_quatf>>(name: name, kind: kind)
-        // Nested arrays aren't representable as a Fabric port; fall back to a
-        // flat float array so the port still exists (evaluation guards it).
-        case .array:     return NodePort<ContiguousArray<Float>>(name: name, kind: kind)
-        }
-    }
-
     // MARK: - Reading inputs / sending outputs
 
     /// Read an input port's current value as the engine value its declared type

@@ -506,9 +506,7 @@ public class MathExpressionNode: Node
 
     private func makePort(name: String, type: ValueType, kind: PortKind) -> Port
     {
-        kind == .Inlet
-            ? EnginePortMarshalling.makeInputPort(name: name, type: type)
-            : EnginePortMarshalling.makeOutputPort(name: name, type: type)
+        EnginePortMarshalling.portType(for: type).makeFreshPort(name: name, kind: kind)
     }
 
     // MARK: - Execution

@@ -29,7 +29,7 @@ public final class RepeatNode: NumericTypeAgnosticNode
         super.rebuildPorts(forStrategy: strategy)
         let valueType = selectedNumericPortType
         let arrayType: PortType = valueType == .NumericVirtual ? .NumericVirtual : .Array(portType: valueType)
-        addOrReplaceDynamicPort(name: "inputValue", displayName: "Value", portType: valueType, kind: .Inlet, description: "Value to repeat", editable: true)
+        addOrReplaceDynamicPort(name: "inputValue", displayName: "Value", portType: valueType, kind: .Inlet, description: "Value to repeat")
         addOrReplaceDynamicPort(name: "outputArray", displayName: "Array", portType: arrayType, kind: .Outlet, description: "Repeated values")
         reorderPorts(named: ["inputValue", "inputCount", "outputArray"])
     }

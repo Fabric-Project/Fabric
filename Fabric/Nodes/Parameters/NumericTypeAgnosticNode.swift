@@ -107,19 +107,16 @@ public class NumericTypeAgnosticNode: StrategyNode
                                         displayName: String,
                                         portType: PortType,
                                         kind: PortKind,
-                                        description: String,
-                                        editable: Bool = false)
+                                        description: String)
     {
         if let existing: Port = findPort(named: registryName), existing.portType != portType
         {
             let oldConnections = existing.connectedPorts
             removePort(existing)
-            let replacement = Self.makeFreshPort(
-                portType: portType,
+            let replacement = portType.makeFreshPort(
                 name: displayName,
                 kind: kind,
-                description: description,
-                editable: editable
+                description: description
             )
             addDynamicPort(replacement, name: registryName)
             for connected in oldConnections where replacement.canConnect(to: connected)
@@ -135,12 +132,10 @@ public class NumericTypeAgnosticNode: StrategyNode
         if findPort(named: registryName) == nil
         {
             addDynamicPort(
-                Self.makeFreshPort(
-                    portType: portType,
+                portType.makeFreshPort(
                     name: displayName,
                     kind: kind,
-                    description: description,
-                    editable: editable
+                    description: description
                 ),
                 name: registryName
             )
@@ -151,21 +146,5 @@ public class NumericTypeAgnosticNode: StrategyNode
     {
         let reordered: [Port] = names.compactMap { name in let p: Port? = findPort(named: name); return p }
         if reordered.count == self.ports.count { reorderPorts(reordered) }
-    }
-
-    private static func makeFreshPort(portType: PortType,
-                                      name: String,
-                                      kind: PortKind,
-                                      description: String,
-                                      editable: Bool) -> Port
-    {
-        guard editable,
-              let parameterPort = portType.makeFreshParameterPort(name: name, kind: kind, description: description)
-        else
-        {
-            return portType.makeFreshPort(name: name, kind: kind, description: description)
-        }
-
-        return parameterPort
     }
 }
