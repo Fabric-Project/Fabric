@@ -32,7 +32,7 @@ public class DecomposeTransformNode: StrategyNode
         case "TRS":
             wanted =
             [
-                ("inputTransform", NodePort<simd_float4x4>(name: "Transform", kind: .Inlet, description: "4x4 transform matrix to decompose")),
+                ("inputTransform", ParameterPort(parameter: Float4x4Parameter("Transform", matrix_identity_float4x4, .none, "4x4 transform matrix to decompose"))),
                 ("outputTranslation", NodePort<simd_float3>(name: "Translation", kind: .Outlet, description: "Translation component as XYZ position")),
                 ("outputScale", NodePort<simd_float3>(name: "Scale", kind: .Outlet, description: "Scale component as XYZ scale factors")),
                 ("outputRotation", NodePort<simd_float4>(name: "Rotation", kind: .Outlet, description: "Rotation component as quaternion vector")),
@@ -41,7 +41,7 @@ public class DecomposeTransformNode: StrategyNode
         case "Columns":
             wanted =
             [
-                ("inputTransform", NodePort<simd_float4x4>(name: "Transform", kind: .Inlet, description: "4x4 transform matrix to decompose")),
+                ("inputTransform", ParameterPort(parameter: Float4x4Parameter("Transform", matrix_identity_float4x4, .none, "4x4 transform matrix to decompose"))),
                 ("outputColumn0", NodePort<simd_float4>(name: "Column 0", kind: .Outlet, description: "First column of the matrix")),
                 ("outputColumn1", NodePort<simd_float4>(name: "Column 1", kind: .Outlet, description: "Second column of the matrix")),
                 ("outputColumn2", NodePort<simd_float4>(name: "Column 2", kind: .Outlet, description: "Third column of the matrix")),

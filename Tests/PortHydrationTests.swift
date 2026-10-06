@@ -192,6 +192,40 @@ struct PortHydrationTests
         #expect(decoded.id == port.id)
     }
 
+    @Test("A Transform parameter port survives a save as a parameter port, value and id intact")
+    func transformParameterPortSurvivesRoundTrip() throws
+    {
+        guard let context = makeContext() else { return }
+
+        let node = TransformParameterPortNode(context: context)
+        let translation = simd_float4x4(columns: (simd_float4(1, 0, 0, 0),
+                                                  simd_float4(0, 1, 0, 0),
+                                                  simd_float4(0, 0, 1, 0),
+                                                  simd_float4(3, 4, 5, 1)))
+        node.input.value = translation
+        node.input.published = true
+        let savedID = node.input.id
+
+        // The port on its own, through the document's port envelope: a parameter
+        // port that fails to decode is quietly re-read as a plain one (AnyPort),
+        // which the node-level round trip below would not notice.
+        let portData = try JSONEncoder().encode(AnyPort(node.input))
+        let portDecoder = JSONDecoder()
+        portDecoder.context = DecoderContext(documentContext: context)
+        let decodedPort = try #require(try portDecoder.decode(AnyPort.self, from: portData).base as? ParameterPort<simd_float4x4>)
+        #expect(decodedPort.id == savedID)
+        #expect(decodedPort.value == translation)
+        #expect((decodedPort.parameter as? Float4x4Parameter)?.value == translation)
+
+        // The node, through declare-then-hydrate.
+        let decoded = try roundTrip(node, context: context)
+        #expect(decoded.input.id == savedID)
+        #expect(decoded.input.value == translation)
+        #expect((decoded.input.parameter as? Float4x4Parameter)?.value == translation)
+        #expect(decoded.input.published)
+        #expect(decoded.droppedPortStateKeys.isEmpty)
+    }
+
     @Test("Declared parameter metadata wins over the document's copy")
     func declaredParameterMetadataWins() throws
     {
@@ -769,6 +803,27 @@ private final class RenamedKeyPortNode: Node
     {
         super.registerPorts(context: context) + [
             ("input", NodePort<Float>(name: "Input", kind: .Inlet)),
+        ]
+    }
+}
+
+/// Declares the Transform parameter port no shipping node declares today, to
+/// show whether one can be saved and loaded as such.
+private final class TransformParameterPortNode: Node
+{
+    override class var name: String { "Transform Parameter Port" }
+    override class var nodeType: Node.NodeType { .Utility }
+    override class var nodeExecutionMode: Node.ExecutionMode { .Processor }
+    override class var nodeTimeMode: Node.TimeMode { .None }
+    override class var nodeDescription: String { "Test node with a Transform parameter port." }
+
+    var input: ParameterPort<simd_float4x4> { port(named: "inputTransform") }
+
+    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
+    {
+        super.registerPorts(context: context) + [
+            ("inputTransform", ParameterPort(parameter: Float4x4Parameter("Transform", matrix_identity_float4x4, .inputfield, "Transform"))),
+            ("outputTransform", NodePort<simd_float4x4>(name: "Transform", kind: .Outlet)),
         ]
     }
 }
