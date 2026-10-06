@@ -536,76 +536,22 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
                 continue
             }
 
-            if self.syncDynamicValuePortFromMaterialParameter(param) {
-                continue
-            }
-
-            if let port = self.ports.first(where: { $0.name == param.label }) {
-                if port.parameter == nil, self.materialSyncedLabels.contains(port.name) {
-                    self.removePort(port)
-                    if let dynamicPort = PortType.port(for: param) {
-                        self.addDynamicPort(dynamicPort)
-                    }
+            if let existingPort = self.ports.first(where: { $0.name == param.label }) {
+                if existingPort.parameter != nil {
+                    self.replaceParameterOfPort(existingPort, withParam: param)
                 }
-                else {
-                    self.replaceParameterOfPort(port, withParam: param)
+                else if let freshPort = PortType.port(for: param, id: existingPort.id) {
+                    // The document's own port, adopted while the shader would
+                    // not compile; a plain one cannot carry the parameter.
+                    self.replacePort(existingPort, with: freshPort)
                 }
             }
-            else if let dynamicPort = PortType.port(for: param) {
-                self.addDynamicPort(dynamicPort)
+            else if let freshPort = PortType.port(for: param) {
+                self.addDynamicPort(freshPort)
             }
         }
 
         self.materialSyncedLabels = newLabels.subtracting(offLimits)
-    }
-
-    private func syncDynamicValuePortFromMaterialParameter(_ parameter: any Parameter) -> Bool {
-        switch parameter.type {
-        case .float4x4:
-            guard let float4x4Parameter = parameter as? Float4x4Parameter else {
-                return false
-            }
-
-            if let existingPort = self.ports.first(where: { $0.name == parameter.label }) {
-                if existingPort.parameter != nil {
-                    self.removePort(existingPort)
-                }
-                else {
-                    return true
-                }
-            }
-
-            let port = NodePort<simd_float4x4>(
-                name: parameter.label,
-                kind: .Inlet,
-                description: parameter.description
-            )
-            port.value = float4x4Parameter.value
-            self.addDynamicPort(port)
-            return true
-
-        default:
-            return false
-        }
-    }
-
-    private func synchronizeDynamicValuePortsToMaterial() {
-        for parameter in self.postMaterial.parameters.params {
-            switch parameter.type {
-            case .float4x4:
-                guard let port = self.ports.first(where: {
-                    $0.name == parameter.label &&
-                    $0.parameter == nil
-                }) as? NodePort<simd_float4x4> else {
-                    continue
-                }
-
-                self.postMaterial.set(parameter.label, port.value ?? matrix_identity_float4x4)
-
-            default:
-                continue
-            }
-        }
     }
 
     private func normalizePortOrderForDisplay()
@@ -637,7 +583,7 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
             if port.portType == .Image {
                 return (0, self.imagePortSortKey(for: port))
             }
-            if let label = port.parameter?.label, self.materialSyncedLabels.contains(label) {
+            if self.materialSyncedLabels.contains(port.name) {
                 return (2, originalIndex)
             }
             return (1, originalIndex)
@@ -656,8 +602,6 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
         defer { commandBuffer.popDebugGroup() }
         
         if self.currentImageInputCount == 0 {
-            self.synchronizeDynamicValuePortsToMaterial()
-
             guard let widthPort = self.resolutionPort(label: "Width"),
                   let heightPort = self.resolutionPort(label: "Height") else {
                 self.outputTexturePort.send(nil)
@@ -683,8 +627,6 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
         guard shouldExecute else {
             return
         }
-
-        self.synchronizeDynamicValuePortsToMaterial()
 
         guard let inputImage = self.inputImage(at: 0)
         else {

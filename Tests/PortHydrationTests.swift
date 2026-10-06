@@ -336,6 +336,146 @@ struct PortHydrationTests
         #expect(decodedGain.connections.count == 1)
     }
 
+    @Test("A shader's Transform uniform is a parameter port that keeps its wire and shares the material's parameter")
+    @MainActor
+    func shaderTransformUniformIsParameterPortSharingMaterialParameter() throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let context = harness.context
+
+        // A second compile re-syncs the uniforms with the Transform port already
+        // there: the edit a user makes while it is wired.
+        func shaderSource(sampling sampleName: String) -> String
+        {
+            """
+            #include <metal_stdlib>
+            using namespace metal;
+
+            typedef struct {
+                float4x4 warpTransform;
+            } PostUniforms;
+
+            fragment half4 postFragment(VertexData in [[stage_in]],
+                                        constant PostUniforms &uniforms [[buffer(FragmentBufferMaterialUniforms)]],
+                                        texture2d<half, access::sample> inputTexture [[texture(FragmentTextureCustom0)]]) {
+                constexpr sampler \(sampleName)(address::clamp_to_edge, filter::linear);
+                float2 uv = (uniforms.warpTransform * float4(in.texcoord, 0.0, 1.0)).xy;
+                return inputTexture.sample(\(sampleName), uv);
+            }
+            """
+        }
+
+        let node = LiveImageNode(context: context)
+        node.updateShaderSource(shaderSource(sampling: "s"))
+
+        let uniformPort = try #require(node.ports.first { $0.kind == .Inlet && $0.portType == .Transform })
+        #expect(uniformPort.parameter != nil)
+
+        let source = PassThroughNode<simd_float4x4>(context: context)
+        let graph = Graph(context: context)
+        graph.addNode(source)
+        graph.addNode(node)
+        graph.connect(source.output, to: uniformPort)
+
+        node.updateShaderSource(shaderSource(sampling: "linearSampler"))
+        let recompiledPort = try #require(node.findPort(named: uniformPort.name) as Fabric.Port?)
+        #expect(recompiledPort.id == uniformPort.id)
+        #expect(recompiledPort.connectedPorts.map(\.id) == [source.output.id])
+
+        let data = try JSONEncoder().encode(graph)
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decodedGraph = try decoder.decode(Graph.self, from: data)
+
+        let decoded = try #require(decodedGraph.node(forID: node.id) as? LiveImageNode)
+        let decodedPort = try #require(decoded.findPort(named: uniformPort.name) as ParameterPort<simd_float4x4>?)
+        #expect(decodedPort.id == uniformPort.id)
+        #expect(decodedPort.connectedPorts.map(\.id) == [source.output.id])
+
+        let scale = simd_float4x4(diagonal: simd_float4(2, 3, 1, 1))
+        decodedPort.value = scale
+        try harness.execute(decoded)
+
+        let materialParameter = try #require(decoded.postMaterial.parameters.get(uniformPort.name) as? Float4x4Parameter)
+        #expect(materialParameter.value == scale)
+        #expect((decodedPort.parameter as AnyObject) === materialParameter)
+    }
+
+    @Test("A Transform uniform saved as a plain port becomes a parameter port on its id once the shader compiles again")
+    @MainActor
+    func plainTransformUniformPortIsReplacedOnItsIdWhenShaderCompiles() throws
+    {
+        guard let context = makeContext() else { return }
+
+        let shaderSource = """
+            #include <metal_stdlib>
+            using namespace metal;
+
+            typedef struct {
+                float4x4 warpTransform;
+            } PostUniforms;
+
+            fragment half4 postFragment(VertexData in [[stage_in]],
+                                        constant PostUniforms &uniforms [[buffer(FragmentBufferMaterialUniforms)]],
+                                        texture2d<half, access::sample> inputTexture [[texture(FragmentTextureCustom0)]]) {
+                constexpr sampler s(address::clamp_to_edge, filter::linear);
+                float2 uv = (uniforms.warpTransform * float4(in.texcoord, 0.0, 1.0)).xy;
+                return inputTexture.sample(s, uv);
+            }
+            """
+
+        let graph = Graph(context: context)
+        let node = LiveImageNode(context: context)
+        let source = PassThroughNode<simd_float4x4>(context: context)
+        graph.addNode(node)
+        graph.addNode(source)
+        node.updateShaderSource(shaderSource)
+
+        let uniformPort = try #require(node.ports.first { $0.kind == .Inlet && $0.portType == .Transform })
+        uniformPort.published = true
+        graph.connect(source.output, to: uniformPort)
+        let savedID = uniformPort.id
+
+        // A document from before Transform carried a parameter holds the uniform
+        // as a plain port, and its shader fails to compile on load, so the node
+        // adopts that port as a stand-in.
+        let decodedNodeID = UUID()
+        let decodedGraph = try roundTripGraph(graph, context: context, editingNode: node.id) { value in
+            value["shaderSource"] = "this is not a metal shader"
+            value["id"] = decodedNodeID.uuidString
+
+            var ports = value["ports"] as? [[String: Any]] ?? []
+            for index in ports.indices
+            {
+                guard var payload = ports[index]["payload"] as? [String: Any],
+                      var base = payload["base"] as? [String: Any],
+                      base["id"] as? String == savedID.uuidString
+                else { continue }
+
+                base["parameter"] = nil
+                payload["base"] = base
+                payload["isParameterPort"] = false
+                ports[index]["payload"] = payload
+            }
+            value["ports"] = ports
+        }
+
+        let decodedNode = try #require(decodedGraph.nodes.first { $0.id == decodedNodeID } as? LiveImageNode)
+        let adopted = try #require(decodedNode.findPort(named: uniformPort.name) as Fabric.Port?)
+        #expect(adopted.parameter == nil)
+        #expect(adopted.id == savedID)
+
+        decodedNode.updateShaderSource(shaderSource)
+
+        let replaced = try #require(decodedNode.findPort(named: uniformPort.name) as ParameterPort<simd_float4x4>?)
+        #expect(replaced.id == savedID)
+        #expect(replaced.published)
+        #expect(replaced.connectedPorts.count == 1)
+        let materialParameter = try #require(decodedNode.postMaterial.parameters.get(uniformPort.name) as? Float4x4Parameter)
+        #expect((replaced.parameter as AnyObject) === materialParameter)
+        #expect(materialParameter.id == savedID)
+    }
+
     @Test("Live Image node rebuilds its saved shader's uniform ports on decode")
     @MainActor
     func liveImageNodeRebuildsSavedShaderUniformPortsOnDecode() throws

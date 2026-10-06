@@ -413,6 +413,13 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         self.portsChangedSubject.send()
     }
 
+    /// The key the port is registered under: the declared or dynamic name, where
+    /// the port's own `name` is what it displays.
+    internal func registryKey(of port: Port) -> String?
+    {
+        self.registry.name(of: port)
+    }
+
     public func removePort(_ p: Port)
     {
         self.portHydrationSession?.relinquish(p)
@@ -426,6 +433,31 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
         self.graph?.markConnectionsChanged()
         self.portsChangedSubject.send()
+    }
+
+    /// Puts `replacement` where `existing` was, under the same registry key,
+    /// carrying the published state across and reconnecting every wire the new
+    /// port still accepts. The caller builds `replacement` on `existing.id`, so
+    /// proxies and views follow it. The old port's value does not carry: it
+    /// cannot convert across types, and the replacement rests at its own default.
+    public func replacePort(_ existing: Port, with replacement: Port)
+    {
+        let registryName = self.registryKey(of: existing) ?? existing.name
+        let oldConnections = existing.connectedPorts
+        replacement.published = existing.published
+        replacement.publishedName = existing.publishedName
+
+        self.removePort(existing)
+        self.addDynamicPort(replacement, name: registryName)
+
+        for connected in oldConnections where replacement.canConnect(to: connected)
+        {
+            if replacement.kind == .Outlet {
+                self.graph?.connect(replacement, to: connected)
+            } else {
+                self.graph?.connect(connected, to: replacement)
+            }
+        }
     }
 
     internal func replaceParameterOfPort(_ port:Port, withParam param:(any Parameter))
