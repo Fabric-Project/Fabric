@@ -12,7 +12,7 @@ import Metal
 
 /// Patching utility node that passes a value through without modification.
 /// Its input is whatever the port factory makes for the type: a parameter
-/// port where the type can carry one, otherwise a plain port.
+/// port where the type can carry one, otherwise a plain port at its resting value.
 public class PassThroughNode<T: PortValueRepresentable>: Node
 {
     override public class var name: String { T.portType.rawValue }

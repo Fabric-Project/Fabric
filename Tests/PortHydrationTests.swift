@@ -240,6 +240,30 @@ struct PortHydrationTests
         #expect(floatPort.parameter != nil)
     }
 
+    @Test("An inlet rests at its type's default: Transform through its parameter, Quaternion as a plain port, a collection at nothing")
+    func inletRestsAtTypeDefault() throws
+    {
+        guard let context = makeContext() else { return }
+
+        let transform = PortType.Transform.makeFreshPort(name: "Transform", kind: .Inlet) as? ParameterPort<simd_float4x4>
+        #expect(transform?.value == matrix_identity_float4x4)
+
+        let quaternion = PortType.Quaternion.makeFreshPort(name: "Rotation", kind: .Inlet) as? NodePort<simd_quatf>
+        #expect(quaternion?.value == simd_quatf.defaultValue)
+
+        #expect(PortType.Transform.makeFreshPort(name: "Transform", kind: .Outlet).snapshotValue() == nil)
+        #expect(PortType.Array(portType: .Transform).makeFreshPort(name: "Transforms", kind: .Inlet).snapshotValue() == nil)
+        #expect(PortType.Geometry.makeFreshPort(name: "Geometry", kind: .Inlet).snapshotValue() == nil)
+
+        // A type-agnostic node's inlets come from the same factory.
+        let switchNode = SwitchNode(context: context, routeCount: 2, portType: .Transform)
+        let input = try #require(switchNode.findPort(named: "input0") as ParameterPort<simd_float4x4>?)
+        #expect(input.value == matrix_identity_float4x4)
+
+        let passThrough = PassThroughNode<simd_quatf>(context: context)
+        #expect(passThrough.input.value == simd_quatf.defaultValue)
+    }
+
     @Test("A saved quaternion parameter port comes back as a plain port on its id, not a crash")
     func quaternionParameterPortDecodesAsPlainPort() throws
     {

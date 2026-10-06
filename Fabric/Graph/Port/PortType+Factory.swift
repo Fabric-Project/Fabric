@@ -176,7 +176,26 @@ extension PortType
             return parameterPort
         }
 
-        return makeFreshPlainPort(name: name, kind: kind, description: description, id: id)
+        let port = makeFreshPlainPort(name: name, kind: kind, description: description, id: id)
+        if kind == .Inlet, let restingValue
+        {
+            port.restoreValue(from: restingValue)
+        }
+        return port
+    }
+
+    /// The value a plain inlet of this type starts at: its leaf value type's
+    /// `defaultValue`, so an unwired Quaternion inlet holds identity. A
+    /// collection or virtual inlet rests at nothing, so an unwired one still
+    /// reads as unwired. A parameter port's parameter supplies its own default
+    /// instead.
+    internal var restingValue: PortValue?
+    {
+        guard Self.scalarCases.contains(self),
+              let valueType = self.type as? any PortValueRepresentable.Type
+        else { return nil }
+
+        return valueType.defaultValue?.toPortValue()
     }
 
     private func makeFreshPlainPort(name: String, kind: PortKind, description: String, id: UUID) -> Port
