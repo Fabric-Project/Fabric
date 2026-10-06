@@ -22,53 +22,59 @@ import simd
 ///
 /// Color is the exception, decided in `PortType.makeFreshParameterPort`.
 public protocol ParameterValueType: PortValueRepresentable {
-    static func makeDefaultParameterPort(name: String, description: String) -> Port
+    static func makeDefaultParameterPort(name: String, description: String, id: UUID) -> Port
+}
+
+extension ParameterValueType {
+    public static func makeDefaultParameterPort(name: String, description: String) -> Port {
+        makeDefaultParameterPort(name: name, description: description, id: UUID())
+    }
 }
 
 extension Bool: ParameterValueType {
-    public static func makeDefaultParameterPort(name: String, description: String) -> Port {
-        ParameterPort(parameter: BoolParameter(name, false, .button, description))
+    public static func makeDefaultParameterPort(name: String, description: String, id: UUID) -> Port {
+        ParameterPort(parameter: BoolParameter(name, false, .button, description), id: id)
     }
 }
 
 extension Int: ParameterValueType {
-    public static func makeDefaultParameterPort(name: String, description: String) -> Port {
-        ParameterPort(parameter: IntParameter(name, 0, .inputfield, description))
+    public static func makeDefaultParameterPort(name: String, description: String, id: UUID) -> Port {
+        ParameterPort(parameter: IntParameter(name, 0, .inputfield, description), id: id)
     }
 }
 
 extension Float: ParameterValueType {
-    public static func makeDefaultParameterPort(name: String, description: String) -> Port {
-        ParameterPort(parameter: FloatParameter(name, 0.0, .inputfield, description))
+    public static func makeDefaultParameterPort(name: String, description: String, id: UUID) -> Port {
+        ParameterPort(parameter: FloatParameter(name, 0.0, .inputfield, description), id: id)
     }
 }
 
 extension String: ParameterValueType {
-    public static func makeDefaultParameterPort(name: String, description: String) -> Port {
-        ParameterPort(parameter: StringParameter(name, "", .inputfield, description))
+    public static func makeDefaultParameterPort(name: String, description: String, id: UUID) -> Port {
+        ParameterPort(parameter: StringParameter(name, "", .inputfield, description), id: id)
     }
 }
 
 extension simd_float2: ParameterValueType {
-    public static func makeDefaultParameterPort(name: String, description: String) -> Port {
-        ParameterPort(parameter: Float2Parameter(name, .zero, .inputfield, description))
+    public static func makeDefaultParameterPort(name: String, description: String, id: UUID) -> Port {
+        ParameterPort(parameter: Float2Parameter(name, .zero, .inputfield, description), id: id)
     }
 }
 
 extension simd_float3: ParameterValueType {
-    public static func makeDefaultParameterPort(name: String, description: String) -> Port {
-        ParameterPort(parameter: Float3Parameter(name, .zero, .inputfield, description))
+    public static func makeDefaultParameterPort(name: String, description: String, id: UUID) -> Port {
+        ParameterPort(parameter: Float3Parameter(name, .zero, .inputfield, description), id: id)
     }
 }
 
 extension simd_float4: ParameterValueType {
-    public static func makeDefaultParameterPort(name: String, description: String) -> Port {
-        ParameterPort(parameter: Float4Parameter(name, .zero, .inputfield, description))
+    public static func makeDefaultParameterPort(name: String, description: String, id: UUID) -> Port {
+        ParameterPort(parameter: Float4Parameter(name, .zero, .inputfield, description), id: id)
     }
 }
 
 extension simd_float4x4: ParameterValueType {
-    public static func makeDefaultParameterPort(name: String, description: String) -> Port {
-        ParameterPort(parameter: Float4x4Parameter(name, matrix_identity_float4x4, .inputfield, description))
+    public static func makeDefaultParameterPort(name: String, description: String, id: UUID) -> Port {
+        ParameterPort(parameter: Float4x4Parameter(name, matrix_identity_float4x4, .inputfield, description), id: id)
     }
 }

@@ -109,6 +109,9 @@ struct PortHydrationTests
         #expect(decoded.droppedPortStateKeys.isEmpty)
     }
 
+    /// Type-agnostic nodes whose value inlet is editable once a type is picked,
+    /// by the registry name of that inlet.
+
     @Test("Retired port state is dropped and reported, not resurrected")
     func retiredPortStateIsDroppedAndReported() throws
     {
@@ -156,6 +159,37 @@ struct PortHydrationTests
 
         #expect(decoded.inputNumber1.id == savedID)
         #expect(decoded.inputNumber1.parameter?.id == savedID)
+    }
+
+    @Test("A Transform parameter gets a parameter port; a quaternion one, which Satin cannot encode, gets none")
+    func parameterPortFollowsWhatSatinCanCarry() throws
+    {
+        let rotation = simd_quatf(angle: 0.5, axis: simd_float3(0, 1, 0))
+        #expect(PortType.port(for: GenericParameter<simd_quatf>("Rotation", rotation)) == nil)
+
+        let scale = simd_float4x4(diagonal: simd_float4(2, 3, 1, 1))
+        let transformPort = try #require(PortType.port(for: Float4x4Parameter("Warp", scale)) as? ParameterPort<simd_float4x4>)
+        #expect(transformPort.value == scale)
+
+        let floatPort = try #require(PortType.port(for: FloatParameter("Gain", 0.5)))
+        #expect(floatPort.parameter != nil)
+    }
+
+    @Test("A saved quaternion parameter port comes back as a plain port on its id, not a crash")
+    func quaternionParameterPortDecodesAsPlainPort() throws
+    {
+        guard let context = makeContext() else { return }
+
+        // What a build before this rule wrote for a quaternion uniform.
+        let port = ParameterPort(parameter: GenericParameter<simd_quatf>("Rotation", simd_quatf(angle: 0.5, axis: simd_float3(0, 1, 0))))
+        let data = try JSONEncoder().encode(AnyPort(port))
+
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decoded = try decoder.decode(AnyPort.self, from: data).base
+        #expect(decoded is NodePort<simd_quatf>)
+        #expect(decoded.parameter == nil)
+        #expect(decoded.id == port.id)
     }
 
     @Test("Declared parameter metadata wins over the document's copy")

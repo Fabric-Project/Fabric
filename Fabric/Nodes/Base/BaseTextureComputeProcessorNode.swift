@@ -117,9 +117,9 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
 //        
         for param in self.compute.parameters.params {
 
-            if let p = PortType.portForType(from:param)
+            if let port = PortType.port(for: param)
             {
-                self.addDynamicPort(p)
+                self.addDynamicPort(port)
             }
         }
     }

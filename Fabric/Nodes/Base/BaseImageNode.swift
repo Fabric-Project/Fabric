@@ -543,7 +543,7 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
             if let port = self.ports.first(where: { $0.name == param.label }) {
                 if port.parameter == nil, self.materialSyncedLabels.contains(port.name) {
                     self.removePort(port)
-                    if let dynamicPort = PortType.portForType(from: param) {
+                    if let dynamicPort = PortType.port(for: param) {
                         self.addDynamicPort(dynamicPort)
                     }
                 }
@@ -551,7 +551,7 @@ open class BaseImageNode: Node, NodeFileLoadingProtocol
                     self.replaceParameterOfPort(port, withParam: param)
                 }
             }
-            else if let dynamicPort = PortType.portForType(from: param) {
+            else if let dynamicPort = PortType.port(for: param) {
                 self.addDynamicPort(dynamicPort)
             }
         }

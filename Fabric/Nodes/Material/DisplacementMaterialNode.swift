@@ -78,7 +78,7 @@ public class DisplacementMaterialNode: BaseMaterialNode
         // The port wraps the material's parameter directly, including during hydration.
         let inheritedPorts = self.ports.filter { $0.parameter != nil || $0.kind == .Outlet }
         for parameter in self.material.parameters.params where parameter.controlType != .none {
-            if let port = PortType.portForType(from: parameter) {
+            if let port = PortType.port(for: parameter) {
                 self.addDynamicPort(port)
             }
         }
