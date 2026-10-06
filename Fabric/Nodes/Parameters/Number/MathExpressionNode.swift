@@ -484,18 +484,7 @@ public class MathExpressionNode: Node
             {
                 if port.portType == wantType { continue } // unchanged — keep wires
 
-                // Retype: preserve connections the new type can still accept.
-                let survivors = port.connectedPorts.filter { wantType.canConnect(to: $0.portType) }
-                self.removePort(port) // disconnects everything
-                let replacement = self.makePort(name: portName, type: valueType, kind: kind)
-                self.addDynamicPort(replacement, name: portName)
-                for other in survivors {
-                    if replacement.kind == .Outlet {
-                        self.graph?.connect(replacement, to: other)
-                    } else {
-                        self.graph?.connect(other, to: replacement)
-                    }
-                }
+                self.replacePort(port, with: self.makePort(name: portName, type: valueType, kind: kind, id: port.id))
             }
             else
             {
@@ -504,9 +493,9 @@ public class MathExpressionNode: Node
         }
     }
 
-    private func makePort(name: String, type: ValueType, kind: PortKind) -> Port
+    private func makePort(name: String, type: ValueType, kind: PortKind, id: UUID = UUID()) -> Port
     {
-        EnginePortMarshalling.portType(for: type).makeFreshPort(name: name, kind: kind)
+        EnginePortMarshalling.portType(for: type).makeFreshPort(name: name, kind: kind, id: id)
     }
 
     // MARK: - Execution

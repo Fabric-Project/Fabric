@@ -37,8 +37,8 @@ public final class TweenNode: NumericTypeAgnosticNode
     {
         super.rebuildPorts(forStrategy: strategy)
         let portType = selectedNumericPortType
-        addOrReplaceDynamicPort(name: "inputTarget", displayName: "Target", portType: portType, kind: .Inlet, description: "Target value")
-        addOrReplaceDynamicPort(name: "outputValue", displayName: "Value", portType: portType, kind: .Outlet, description: "Current tweened value")
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputTarget", displayName: "Target", portType: portType, kind: .Inlet, description: "Target value")
+        addOrReplaceDynamicPortPreservingIdentity(name: "outputValue", displayName: "Value", portType: portType, kind: .Outlet, description: "Current tweened value")
         reorderPorts(named: ["inputTarget", "inputDuration", "inputEasing", "outputValue", "outputProgress"])
         from = nil
         to = nil

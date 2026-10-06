@@ -232,6 +232,36 @@ public class StrategyNode: Node
     /// change, and once after decode.
     public func rebuildPorts(forStrategy strategy: String) { }
 
+    /// The rebuild step for one port: a port of the wanted type is left alone;
+    /// one of another type is replaced (see `Node.replacePort`) by a fresh port
+    /// of the wanted type on the same id; a missing port is added.
+    public func addOrReplaceDynamicPortPreservingIdentity(name registryName: String,
+                                                          displayName: String,
+                                                          portType: PortType,
+                                                          kind: PortKind,
+                                                          description: String)
+    {
+        if let existing: Port = findPort(named: registryName), existing.portType != portType
+        {
+            replacePort(existing, with: portType.makeFreshPort(name: displayName,
+                                                                kind: kind,
+                                                                description: description,
+                                                                id: existing.id))
+        }
+
+        if findPort(named: registryName) == nil
+        {
+            addDynamicPort(
+                portType.makeFreshPort(
+                    name: displayName,
+                    kind: kind,
+                    description: description
+                ),
+                name: registryName
+            )
+        }
+    }
+
     // MARK: - Settings Model
 
     @Observable final class SettingsModel

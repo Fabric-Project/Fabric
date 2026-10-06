@@ -103,45 +103,6 @@ public class NumericTypeAgnosticNode: StrategyNode
         return true
     }
 
-    public func addOrReplaceDynamicPort(name registryName: String,
-                                        displayName: String,
-                                        portType: PortType,
-                                        kind: PortKind,
-                                        description: String)
-    {
-        if let existing: Port = findPort(named: registryName), existing.portType != portType
-        {
-            let oldConnections = existing.connectedPorts
-            removePort(existing)
-            let replacement = portType.makeFreshPort(
-                name: displayName,
-                kind: kind,
-                description: description
-            )
-            addDynamicPort(replacement, name: registryName)
-            for connected in oldConnections where replacement.canConnect(to: connected)
-            {
-                if replacement.kind == .Outlet {
-                    self.graph?.connect(replacement, to: connected)
-                } else {
-                    self.graph?.connect(connected, to: replacement)
-                }
-            }
-        }
-
-        if findPort(named: registryName) == nil
-        {
-            addDynamicPort(
-                portType.makeFreshPort(
-                    name: displayName,
-                    kind: kind,
-                    description: description
-                ),
-                name: registryName
-            )
-        }
-    }
-
     public func reorderPorts(named names: [String])
     {
         let reordered: [Port] = names.compactMap { name in let p: Port? = findPort(named: name); return p }

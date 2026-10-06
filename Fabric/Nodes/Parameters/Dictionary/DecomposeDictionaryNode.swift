@@ -16,29 +16,9 @@ public final class DecomposeDictionaryNode: DictionaryTypeAgnosticNode
     {
         super.rebuildPorts(forStrategy: strategy)
 
-        let requiredTypes: [(String, PortType)] = [
-            ("inputDictionary", dictionaryType),
-            ("outputKeys", .Array(portType: .String)),
-            ("outputValues", valuesArrayType),
-        ]
-
-        for (name, type) in requiredTypes
-        {
-            if let existing: Port = findPort(named: name), existing.portType != type { removePort(existing) }
-        }
-
-        if findPort(named: "inputDictionary") == nil
-        {
-            addDynamicPort(dictionaryType.makeFreshPort(name: "Dictionary", kind: .Inlet, description: "Dictionary to decompose"), name: "inputDictionary")
-        }
-        if findPort(named: "outputKeys") == nil
-        {
-            addDynamicPort(PortType.Array(portType: .String).makeFreshPort(name: "Keys", kind: .Outlet, description: "Dictionary keys sorted by key"), name: "outputKeys")
-        }
-        if findPort(named: "outputValues") == nil
-        {
-            addDynamicPort(valuesArrayType.makeFreshPort(name: "Values", kind: .Outlet, description: "Values sorted by key"), name: "outputValues")
-        }
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputDictionary", displayName: "Dictionary", portType: dictionaryType,            kind: .Inlet,  description: "Dictionary to decompose")
+        addOrReplaceDynamicPortPreservingIdentity(name: "outputKeys",      displayName: "Keys",       portType: .Array(portType: .String), kind: .Outlet, description: "Dictionary keys sorted by key")
+        addOrReplaceDynamicPortPreservingIdentity(name: "outputValues",    displayName: "Values",     portType: valuesArrayType,           kind: .Outlet, description: "Values sorted by key")
 
         reorderPorts(named: ["inputDictionary", "outputKeys", "outputValues"])
     }

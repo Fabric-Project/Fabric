@@ -30,9 +30,9 @@ public final class EasingNode: NumericTypeAgnosticNode
     {
         super.rebuildPorts(forStrategy: strategy)
         let portType = selectedNumericPortType
-        addOrReplaceDynamicPort(name: "inputFrom", displayName: "From", portType: portType, kind: .Inlet, description: "Start value")
-        addOrReplaceDynamicPort(name: "inputTo", displayName: "To", portType: portType, kind: .Inlet, description: "End value")
-        addOrReplaceDynamicPort(name: "outputValue", displayName: "Value", portType: portType, kind: .Outlet, description: "Interpolated value")
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputFrom", displayName: "From", portType: portType, kind: .Inlet, description: "Start value")
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputTo", displayName: "To", portType: portType, kind: .Inlet, description: "End value")
+        addOrReplaceDynamicPortPreservingIdentity(name: "outputValue", displayName: "Value", portType: portType, kind: .Outlet, description: "Interpolated value")
         reorderPorts(named: ["inputFrom", "inputTo", "inputProgress", "inputEasing", "outputValue"])
     }
 

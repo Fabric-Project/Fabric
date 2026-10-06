@@ -181,6 +181,51 @@ struct ParameterPortConformanceTests
         record(violations, "proxy port(s) do not present the port they proxy")
     }
 
+    @Test("A port that survives a strategy change keeps its id and published state", .timeLimit(.minutes(5)))
+    func portSurvivingStrategyChangeKeepsIdentity() throws
+    {
+        guard let context = makeContext() else { return }
+
+        var violations: [String] = []
+        var portsChecked = 0
+
+        for wrapper in try NodeRegistry.shared.availableNodes
+        {
+            guard let strategyNodeClass = wrapper.nodeClass as? StrategyNode.Type,
+                  strategyNodeClass.strategies.count > 1,
+                  let node = try? wrapper.initializeNode(context: context) as? StrategyNode
+            else { continue }
+
+            for strategy in strategyNodeClass.strategies
+            {
+                let before = Dictionary(uniqueKeysWithValues: node.ports.compactMap { port in
+                    node.registryKey(of: port).map { ($0, (id: port.id, published: port.published)) }
+                })
+                for port in node.ports { port.published = true }
+
+                node.strategy = strategy
+
+                for port in node.ports
+                {
+                    guard let key = node.registryKey(of: port), let was = before[key] else { continue }
+                    portsChecked += 1
+
+                    if port.id != was.id
+                    {
+                        violations.append("\(label(wrapper, strategy: strategy)): \(key) came back on a new id")
+                    }
+                    if !port.published
+                    {
+                        violations.append("\(label(wrapper, strategy: strategy)): \(key) came back unpublished")
+                    }
+                }
+            }
+        }
+
+        #expect(portsChecked > 0)
+        record(violations, "port(s) that lost identity across a strategy change")
+    }
+
     @Test("A saved proxy comes back as the proxy it was", .timeLimit(.minutes(10)))
     func everyProxySurvivesADocumentRoundTrip() throws
     {

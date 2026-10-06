@@ -264,6 +264,36 @@ struct PortHydrationTests
         #expect(passThrough.input.value == simd_quatf.defaultValue)
     }
 
+    @Test("A type change leaves the replacement inlet at its type's default, on the old id")
+    func typeChangeRestsReplacementAtTypeDefault() throws
+    {
+        guard let context = makeContext() else { return }
+
+        let node = SwitchNode(context: context, routeCount: 2, portType: .Float)
+        let floatInput = try #require(node.findPort(named: "input0") as ParameterPort<Float>?)
+        floatInput.value = 7.5
+        let savedID = floatInput.id
+
+        node.strategy = PortType.Transform.rawValue
+
+        let transformInput = try #require(node.findPort(named: "input0") as NodePort<simd_float4x4>?)
+        #expect(transformInput.id == savedID)
+        #expect(transformInput.value == matrix_identity_float4x4)
+
+        // The numeric family rebuilds through the same helper.
+        let distance = DistanceNode(context: context)
+        distance.strategy = PortType.Float.rawValue
+        let floatA = try #require(distance.findPort(named: "inputA") as ParameterPort<Float>?)
+        floatA.published = true
+        let savedAID = floatA.id
+
+        distance.strategy = PortType.Vector3.rawValue
+
+        let float3A = try #require(distance.findPort(named: "inputA") as ParameterPort<simd_float3>?)
+        #expect(float3A.id == savedAID)
+        #expect(float3A.published)
+    }
+
     @Test("A saved quaternion parameter port comes back as a plain port on its id, not a crash")
     func quaternionParameterPortDecodesAsPlainPort() throws
     {

@@ -31,8 +31,8 @@ public final class DistanceNode: NumericTypeAgnosticNode
         super.rebuildPorts(forStrategy: strategy)
         let portType = selectedNumericPortType
 
-        addOrReplaceDynamicPort(name: "inputA", displayName: "A", portType: portType, kind: .Inlet, description: "First value")
-        addOrReplaceDynamicPort(name: "inputB", displayName: "B", portType: portType, kind: .Inlet, description: "Second value")
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputA", displayName: "A", portType: portType, kind: .Inlet, description: "First value")
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputB", displayName: "B", portType: portType, kind: .Inlet, description: "Second value")
         reorderPorts(named: ["inputA", "inputB", "inputMetric", "outputDistance"])
     }
 

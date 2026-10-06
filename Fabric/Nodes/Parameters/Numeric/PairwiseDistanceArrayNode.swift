@@ -31,8 +31,8 @@ public final class PairwiseDistanceArrayNode: NumericTypeAgnosticNode
         super.rebuildPorts(forStrategy: strategy)
         let portType = selectedNumericPortType
 
-        addOrReplaceDynamicPort(name: "inputA", displayName: "A", portType: portType, kind: .Inlet, description: "First numeric array")
-        addOrReplaceDynamicPort(name: "inputB", displayName: "B", portType: portType, kind: .Inlet, description: "Second numeric array")
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputA", displayName: "A", portType: portType, kind: .Inlet, description: "First numeric array")
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputB", displayName: "B", portType: portType, kind: .Inlet, description: "Second numeric array")
         reorderPorts(named: ["inputA", "inputB", "inputMetric", "outputDistances"])
     }
 
