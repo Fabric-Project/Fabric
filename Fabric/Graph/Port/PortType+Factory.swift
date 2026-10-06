@@ -175,7 +175,7 @@ extension PortType
     /// a type that has none to offer — the caller falls back to `makeFreshPort`.
     /// Only an inlet gets one: an outlet's value is the node's to write.
     ///
-    /// Which types can carry a parameter is `DefaultParameterProviding`'s to
+    /// Which types can carry a parameter is `ParameterValueType`'s to
     /// say, save for Color. Color and Vector4 are both simd_float4, so the type
     /// cannot tell them apart; the colorpicker control is what makes the port
     /// read back as .Color (see `ParameterPort.portType`).
@@ -188,7 +188,7 @@ extension PortType
             return ParameterPort(parameter: Float4Parameter(name, simd_float4(0, 0, 0, 1), .colorpicker, description))
         }
 
-        guard let parameterProviding = self.type as? any DefaultParameterProviding.Type else { return nil }
+        guard let parameterProviding = self.type as? any ParameterValueType.Type else { return nil }
 
         return parameterProviding.makeDefaultParameterPort(name: name, description: description)
     }

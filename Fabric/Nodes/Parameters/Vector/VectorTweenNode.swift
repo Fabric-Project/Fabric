@@ -11,7 +11,7 @@ import Metal
 /// Tweens a single vector toward a target over a duration using linear
 /// interpolation and an easing curve. The array equivalent is
 /// VectorArrayTweenNode. Generic over simd_float2/3/4.
-public class VectorTweenNode<Value> : Node where Value: PortValueRepresentable & SIMD & DefaultParameterProviding, Value.Scalar == Float
+public class VectorTweenNode<Value> : Node where Value: PortValueRepresentable & SIMD & ParameterValueType, Value.Scalar == Float
 {
     override public class var name: String { "\(Value.portType.rawValue) Tween" }
     override public class var nodeType: Node.NodeType { .Parameter(parameterType: .Vector) }

@@ -8,7 +8,7 @@ import Satin
 import simd
 import Metal
 
-public class RepeatValueNode<Value : PortValueRepresentable & DefaultParameterProviding> : Node
+public class RepeatValueNode<Value : PortValueRepresentable & ParameterValueType> : Node
 {
     public override class var name: String { "\(Value.portType.rawValue) Repeat Value" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }

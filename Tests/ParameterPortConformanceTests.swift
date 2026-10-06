@@ -35,12 +35,12 @@ struct ParameterPortConformanceTests
     }
 
     /// Whether a port of this type could be parameter-backed, asked of the
-    /// library rather than restated here: `DefaultParameterProviding` is what
-    /// PassThroughNode consults to make the same decision, so the two cannot
-    /// drift apart.
+    /// library rather than restated here: `ParameterValueType` is what the port
+    /// factory and PassThroughNode consult to make the same decision, so they
+    /// cannot drift apart.
     private func canBeParameter(_ portType: PortType) -> Bool
     {
-        portType.type is any DefaultParameterProviding.Type
+        portType.type is any ParameterValueType.Type
     }
 
     private func label(_ wrapper: NodeClassWrapper, strategy: String? = nil) -> String
