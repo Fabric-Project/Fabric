@@ -122,7 +122,7 @@ struct NumericFieldCore: View
     private func beginDrag() -> Double
     {
         focused = false
-        let start = (hasEdited ? parse(buffer) : nil) ?? value
+        let start = (hasEdited ? NumericFieldStepping.parse(buffer, current: value, integral: integral) : nil) ?? value
         commitBuffer()
         return start
     }
@@ -130,7 +130,7 @@ struct NumericFieldCore: View
     private func stepValue(by direction: Double, modifiers: EventModifiers)
     {
         let active = NumericFieldStepping.activeStep(base: step, modifiers: modifiers)
-        let current = (hasEdited ? parse(buffer) : nil) ?? value
+        let current = (hasEdited ? NumericFieldStepping.parse(buffer, current: value, integral: integral) : nil) ?? value
         var next = current + direction * active
         if modifiers.contains(.command)
         {
@@ -148,7 +148,7 @@ struct NumericFieldCore: View
     {
         guard hasEdited else { return }
         hasEdited = false
-        if let parsed = parse(buffer)
+        if let parsed = NumericFieldStepping.parse(buffer, current: value, integral: integral)
         {
             write(parsed)
             buffer = formatted(parsed)
@@ -164,20 +164,4 @@ struct NumericFieldCore: View
         value.formatted(.number.precision(.fractionLength(0...fractionDigits)).grouping(.never))
     }
 
-    /// Locale-aware, taking a plain decimal point as well where the locale
-    /// uses a comma. An integer field rounds, and refuses what `Int` cannot
-    /// hold.
-    private func parse(_ text: String) -> Double?
-    {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let parsed = (try? Double(trimmed, format: .number)) ?? Double(trimmed),
-              parsed.isFinite
-        else { return nil }
-        if integral
-        {
-            guard parsed.magnitude < 1e15 else { return nil }
-            return parsed.rounded()
-        }
-        return parsed
-    }
 }

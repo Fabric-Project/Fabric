@@ -85,3 +85,68 @@ struct ParameterFieldStepTests
         #expect(ParameterFieldStep.steps(for: ints) == [1, 1])
     }
 }
+
+/// Typed text as a value: a number, or an expression over the current value.
+@Suite("Numeric field entry")
+struct NumericFieldEntryTests
+{
+    private let en = Locale(identifier: "en_US")
+    private let de = Locale(identifier: "de_DE")
+
+    private func parse(_ text: String, current: Double = 72, integral: Bool = false,
+                       locale: Locale? = nil) -> Double?
+    {
+        NumericFieldStepping.parse(text, current: current, integral: integral, locale: locale ?? en)
+    }
+
+    @Test("A number is a number, in the locale or with a plain decimal point")
+    func numbers()
+    {
+        #expect(parse("1.5") == 1.5)
+        #expect(parse("1,5", locale: de) == 1.5)
+        #expect(parse("1.5", locale: de) == 1.5)
+        #expect(parse("-10") == -10)
+        #expect(parse(" 42 ") == 42)
+        #expect(parse("") == nil)
+        #expect(parse("abc(") == nil)
+    }
+
+    @Test("Typing after the shown value makes an expression of it")
+    func expressionOverTheShownValue()
+    {
+        #expect(parse("72 * 2") == 144)
+        #expect(parse("72 / 4 + 1") == 19)
+        #expect(parse("(72 + 8) * 2") == 160)
+    }
+
+    @Test("Every free name is the current value")
+    func freeNamesAreTheCurrentValue()
+    {
+        #expect(parse("x * 2") == 144)
+        #expect(parse("value / 2 + 1") == 37)
+        #expect(parse("x * y", current: 3) == 9)
+        #expect(parse("abs(v)", current: -5) == 5)
+    }
+
+    @Test("The engine's own names keep their meaning")
+    func engineNamesAreNotTheCurrentValue()
+    {
+        let e = try? #require(parse("e * 2"))
+        #expect(e.map { abs($0 - 2 * 2.718281828) < 1e-5 } == true)
+        #expect(parse("sqr(x)") == nil)
+    }
+
+    @Test("An expression reads the locale's decimal separator")
+    func expressionInACommaLocale()
+    {
+        #expect(parse("1,5 * x", current: 2, locale: de) == 3)
+    }
+
+    @Test("An integer field rounds the result")
+    func integerRounding()
+    {
+        #expect(parse("x / 4", current: 10, integral: true) == 3)
+        #expect(parse("2.5", integral: true) == 3)
+        #expect(parse("1e20", integral: true) == nil)
+    }
+}

@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import MathExpressionEngine
 import SwiftUI
 #if os(macOS)
 import AppKit
@@ -87,5 +88,57 @@ enum NumericFieldStepping
         #else
         return []
         #endif
+    }
+
+    /// Typed text as a value. A number is read whole, with the locale's
+    /// decimal separator or a plain decimal point and no grouping. Anything
+    /// else is an expression over the current value: the field shows the
+    /// value, so `72 * 2` is what typing after it gives, and every free name
+    /// in the text is the current value, so `x * 2` is what replacing it
+    /// gives. An integer field rounds, and refuses what `Int` cannot hold.
+    static func parse(_ text: String, current: Double, integral: Bool,
+                      locale: Locale = .current) -> Double?
+    {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let parsed = number(trimmed, locale: locale) ?? evaluate(trimmed, current: current, locale: locale)
+        guard let parsed, parsed.isFinite else { return nil }
+        if integral
+        {
+            guard parsed.magnitude < 1e15 else { return nil }
+            return parsed.rounded()
+        }
+        return parsed
+    }
+
+    /// A numeric literal and nothing else. `Double`'s format parsing reads a
+    /// leading number and ignores what follows, which would take `72 * 2` as
+    /// 72, so the text is checked whole first.
+    private static func number(_ text: String, locale: Locale) -> Double?
+    {
+        let separator = locale.decimalSeparator ?? "."
+        let separators = separator == "." ? "." : ".\(separator)"
+        guard let literal = try? Regex("^[+-]?(?:[0-9]+(?:[\(separators)][0-9]*)?|[\(separators)][0-9]+)(?:[eE][+-]?[0-9]+)?$"),
+              text.wholeMatch(of: literal) != nil
+        else { return nil }
+        return Double(text.replacing(separator, with: "."))
+    }
+
+    /// The engine reads a decimal point, so the locale's separator becomes
+    /// one. The engine's own names — constants such as `e`, and functions —
+    /// keep their meaning; only free names are the current value.
+    private static func evaluate(_ text: String, current: Double, locale: Locale) -> Double?
+    {
+        let separator = locale.decimalSeparator ?? "."
+        let source = separator == "." ? text : text.replacing(separator, with: ".")
+        let result = compile(source)
+        guard result.isValid,
+              result.interface.outputs.count == 1,
+              result.interface.outputs[0].type == .float,
+              result.interface.inputs.allSatisfy({ $0.type == .float })
+        else { return nil }
+        let inputs = Dictionary(uniqueKeysWithValues: result.interface.inputs.map { ($0.name, Float(current)) })
+        guard let value = try? result.evaluate(inputs) else { return nil }
+        return Double(value)
     }
 }
