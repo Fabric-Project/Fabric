@@ -95,11 +95,17 @@ enum NumericFieldStepping
     /// else is an expression over the current value: the field shows the
     /// value, so `72 * 2` is what typing after it gives, and every free name
     /// in the text is the current value, so `x * 2` is what replacing it
-    /// gives. An integer field rounds, and refuses what `Int` cannot hold.
-    static func parse(_ text: String, current: Double, integral: Bool,
+    /// gives. A field with a unit takes it as a suffix, so `72px` is 72 in a
+    /// pixel field and nothing elsewhere. An integer field rounds, and refuses
+    /// what `Int` cannot hold.
+    static func parse(_ text: String, current: Double, integral: Bool, unit: String? = nil,
                       locale: Locale = .current) -> Double?
     {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        var trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let unit, !unit.isEmpty, trimmed.hasSuffix(unit)
+        {
+            trimmed = String(trimmed.dropLast(unit.count)).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
         guard !trimmed.isEmpty else { return nil }
         let parsed = number(trimmed, locale: locale) ?? evaluate(trimmed, current: current, locale: locale)
         guard let parsed, parsed.isFinite else { return nil }

@@ -94,9 +94,10 @@ struct NumericFieldEntryTests
     private let de = Locale(identifier: "de_DE")
 
     private func parse(_ text: String, current: Double = 72, integral: Bool = false,
-                       locale: Locale? = nil) -> Double?
+                       unit: String? = nil, locale: Locale? = nil) -> Double?
     {
-        NumericFieldStepping.parse(text, current: current, integral: integral, locale: locale ?? en)
+        NumericFieldStepping.parse(text, current: current, integral: integral, unit: unit,
+                                   locale: locale ?? en)
     }
 
     @Test("A number is a number, in the locale or with a plain decimal point")
@@ -140,6 +141,17 @@ struct NumericFieldEntryTests
     func expressionInACommaLocale()
     {
         #expect(parse("1,5 * x", current: 2, locale: de) == 3)
+    }
+
+    @Test("A field's unit is taken as a suffix, and only its own")
+    func unitSuffix()
+    {
+        #expect(parse("72px", unit: "px") == 72)
+        #expect(parse("72 px", unit: "px") == 72)
+        #expect(parse("90°", unit: "°") == 90)
+        #expect(parse("72px") == nil)
+        #expect(parse("72px", unit: "°") == nil)
+        #expect(parse("px", unit: "px") == nil)
     }
 
     @Test("An integer field rounds the result")
