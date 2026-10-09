@@ -413,6 +413,12 @@ extension Graph
             throw recoverableGraphError(.notACloneMember, message: "\(node) is not in a clone set.")
         }
 
+        // Edits still waiting on the debounce belong to the set the node is
+        // leaving: once it has left, the sync can no longer find it as that
+        // set's source and the edit would reach none of its former siblings.
+        // The nested members are read after, a sync having replaced trees.
+        self.flushPendingCloneSync()
+
         let nestedMembers = node.subGraph.subgraphNodesRecursive().filter { $0.cloneSetID != nil }
         let nestedSetIDs = Set(nestedMembers.compactMap(\.cloneSetID))
         var claimedNames = Set<String>()

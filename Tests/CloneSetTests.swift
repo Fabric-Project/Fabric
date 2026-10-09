@@ -1061,6 +1061,24 @@ extension CloneSetTests
         #expect(decoded.cloneSetMembers(of: nestedSetID).count == 4)
     }
 
+    @Test("An edit still on the debounce reaches the siblings when its member leaves the set")
+    @MainActor
+    func unlinkCarriesThePendingEdit() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+
+        // An edit left waiting on the debounce, as leaving by the menu would.
+        pair.source.addNode(NumberBinaryOperator(context: context))
+        #expect(pair.graph.cloneSetCoordinator.hasPendingSync)
+
+        try pair.graph.unlinkClone(pair.member.member)
+        pair.graph.cloneSetCoordinator.flush()
+
+        #expect(pair.target.nodes.count == 4)
+        #expect(pair.member.member.cloneSetID == nil)
+    }
+
     @Test("A member exposing a nested sub graph's knob saves and loads, each member's value its own")
     @MainActor
     func nestedPublishedProxySurvivesCompactSave() throws
