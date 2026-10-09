@@ -26,7 +26,10 @@ struct CloneSetContextMenu: View
 
     var body: some View
     {
+        // Siblings of this set anywhere in the document, and those on the
+        // canvas this menu belongs to, which are the ones it can select.
         let siblings = currentGraph.cloneSiblings(of: subgraphNode)
+        let siblingsHere = siblings.filter { $0.graph === currentGraph }
 
         Divider()
 
@@ -46,11 +49,11 @@ struct CloneSetContextMenu: View
             }
         }
 
-        if !siblings.isEmpty
+        if !siblingsHere.isEmpty
         {
             Button {
                 currentGraph.deselectAllNodes()
-                for sibling in siblings where sibling.graph === currentGraph
+                for sibling in siblingsHere
                 {
                     currentGraph.selectNode(node: sibling, expandSelection: true)
                 }
