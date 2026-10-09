@@ -68,8 +68,9 @@ extension Graph
         }
 
         let coordinator = self.cloneSetCoordinator
+        let wasSyncing = coordinator.isSyncing
         coordinator.isSyncing = true
-        defer { coordinator.isSyncing = false }
+        defer { coordinator.isSyncing = wasSyncing }
 
         try self.refreshCloneSetGraph(from: source)
         try target.reinstantiateSubGraph()
