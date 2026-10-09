@@ -103,6 +103,7 @@ public class DeferredSubgraphNode: SubgraphNode
         {
             guard oldValue != deferredMRTEnabled else { return }
             self.synchronizeDeferredConfiguration()
+            self.settingsDidChange()
         }
     }
 
@@ -168,6 +169,12 @@ public class DeferredSubgraphNode: SubgraphNode
         
         self.graphRenderer.resize(size: (Float(self.inputWidth.value ?? 1920), Float(self.inputHeight.value ?? 1080 )), scaleFactor: 1.0)
         self.rendererNeedsSetup = false
+    }
+
+    /// A re-instantiated sub graph gets a renderer of its own, like the first.
+    override func subGraphDidChange()
+    {
+        self.synchronizeDeferredConfiguration()
     }
 
     private func synchronizeDeferredConfiguration()

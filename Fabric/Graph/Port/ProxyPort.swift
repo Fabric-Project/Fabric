@@ -17,6 +17,7 @@ protocol ProxyPortProtocol
     /// replaced under the same id is not.
     func wraps(_ port: Port) -> Bool
     func forwardFromInner(force:Bool)
+    func rebindInnerPort(to port: Port) -> Bool
 }
 
 /// A port that wraps an inner port from a sub graph, presenting it as
@@ -35,7 +36,7 @@ protocol ProxyPortProtocol
 ///   to the proxy's parent graph connections.
 public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPortProtocol
 {
-    private let innerPort: NodePort<Value>
+    private var innerPort: NodePort<Value>
     private let declaredPortType: PortType?
 
     public var innerPortID: UUID { innerPort.id }
@@ -49,28 +50,47 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
     /// reflects sub-graph level renames).
     override public var displayName: String { publishedName ?? innerPort.displayName }
 
+    /// A proxy takes its inner port's id unless given one: a clone set
+    /// member's proxies carry ids of their own, since its siblings wrap inner
+    /// ports under the same ids in the same parent graph.
     public init(
         wrapping innerPort: NodePort<Value>,
         published: Bool = false,
-        publishedName: String? = nil
+        publishedName: String? = nil,
+        id: UUID? = nil
     )
     {
         self.innerPort = innerPort
         self.declaredPortType = innerPort.portType
 
-        // Own UUID, own connections, same kind/name/type as inner port.
+        // Own connections, same kind/name/type as inner port.
         // Published defaults to false — the parent graph independently
         // decides whether to publish this port further.
         super.init(name: innerPort.name,
                    kind: innerPort.kind,
                    description: innerPort.portDescription,
-                   id: innerPort.id)
+                   id: id ?? innerPort.id)
         
         // ensure we proxy other values
         self.parameter = innerPort.parameter
         self.value = innerPort.value
         self.published = published
         self.publishedName = publishedName
+    }
+
+    /// Points the proxy at `port` instead: the same port, by id and type, in
+    /// another instance of the sub graph, as when a clone set member is
+    /// re-instantiated. The proxy keeps its id, its published state and the
+    /// parent graph's wires onto it. False where `port` is not of this
+    /// proxy's type, in which case the proxy is for another port now and has
+    /// to be remade.
+    func rebindInnerPort(to port: Port) -> Bool
+    {
+        guard let typedPort = port as? NodePort<Value> else { return false }
+        self.innerPort = typedPort
+        self.parameter = typedPort.parameter
+        super.value = typedPort.value
+        return true
     }
 
     required public init(from decoder: any Decoder) throws

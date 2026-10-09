@@ -14,19 +14,23 @@ import Foundation
 /// another meaning asks for a case, so every node then says it the same way.
 ///
 /// Statuses order by severity, so a node reporting several shows the glyph
-/// of the most severe, an error over a warning, and lists them all on hover.
+/// of the most severe, an error over a warning over a link, and lists them
+/// all on hover.
 public enum NodeStatus: Sendable, Equatable, Comparable, CustomStringConvertible
 {
     /// The node cannot run: a parse failure, later an execution failure.
     case error(String)
     /// The node runs, but something wants looking at.
     case warning(String)
+    /// The node belongs to something beyond itself that edits here reach:
+    /// a clone set, later a shared template.
+    case linked(String)
 
     public var message: String
     {
         switch self
         {
-        case .error(let message), .warning(let message): message
+        case .error(let message), .warning(let message), .linked(let message): message
         }
     }
 
@@ -37,6 +41,7 @@ public enum NodeStatus: Sendable, Equatable, Comparable, CustomStringConvertible
         {
         case .error: "Error"
         case .warning: "Warning"
+        case .linked: "Linked"
         }
     }
 
@@ -47,6 +52,7 @@ public enum NodeStatus: Sendable, Equatable, Comparable, CustomStringConvertible
     {
         switch self
         {
+        case .linked: 0
         case .warning: 1
         case .error: 2
         }
