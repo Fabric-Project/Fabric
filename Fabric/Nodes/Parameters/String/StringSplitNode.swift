@@ -94,8 +94,12 @@ public class StringSplitNode: StrategyNode
         try super.encode(to: encoder)
 
         var container = encoder.container(keyedBy: CodingKeys.self)
-        // The live inlet is the truth while Custom is selected.
-        try container.encode(inputSeparator?.value ?? customSeparator, forKey: .customSeparator)
+        // The live inlet is the truth while Custom is selected and nothing is
+        // driving it, the value then being what the user typed. A driven
+        // inlet's value is upstream's and moves frame to frame: saving it
+        // would write a passing value into the document as the node's own.
+        let typedSeparator = inputSeparator.flatMap { $0.connections.isEmpty ? $0.value : nil }
+        try container.encode(typedSeparator ?? customSeparator, forKey: .customSeparator)
     }
 
     // Settings pane: the strategy picker plus usage guidance for the selected mode.

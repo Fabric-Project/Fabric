@@ -58,6 +58,37 @@ struct StringSplitNodeTests
         #expect(node.inputSeparator?.value == #"\t"#)
     }
 
+    @Test("A wire's value on the Separator inlet is not saved as the node's separator")
+    func wiredSeparatorIsNotSavedAsDesign() throws
+    {
+        guard let harness = GraphExecutionTestHarness(renderWidth: 64, renderHeight: 64) else { return }
+
+        let graph = Graph(context: harness.context)
+        let node = StringSplitNode(context: harness.context, strategy: StringSplitMode.custom)
+        let upstream = StringCaseNode(context: harness.context)
+        graph.addNode(node)
+        graph.addNode(upstream)
+
+        // What the user typed, parked by a trip through another mode.
+        try #require(node.inputSeparator).value = #"\t"#
+        node.strategy = StringSplitMode.comma.rawValue
+        node.strategy = StringSplitMode.custom.rawValue
+
+        let separator = try #require(node.inputSeparator)
+        _ = try #require(graph.connect(upstream.outputPort, to: separator))
+        separator.value = ";"
+
+        let wired = try #require(JSONSerialization.jsonObject(with: try JSONEncoder().encode(node)) as? [String: Any])
+        #expect(wired["customSeparator"] as? String == #"\t"#)
+
+        // Unwired, the inlet's value is the user's own and is saved as before.
+        graph.disconnectAll(from: separator)
+        separator.value = "::"
+
+        let unwired = try #require(JSONSerialization.jsonObject(with: try JSONEncoder().encode(node)) as? [String: Any])
+        #expect(unwired["customSeparator"] as? String == "::")
+    }
+
     @Test("Escaped newline separates file contents into lines")
     func escapedNewlineSeparator()
     {
