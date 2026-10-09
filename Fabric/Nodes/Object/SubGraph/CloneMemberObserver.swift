@@ -129,9 +129,13 @@ final class CloneMemberObserver
             _ = port.published
             _ = port.publishedName
         } onChange: { [weak self, weak port] in
+            // A change consumes the registration whatever thread it came
+            // from, so the watch is renewed before the edit is judged: a
+            // decode, which runs off the main thread, would otherwise leave
+            // this port unwatched for the rest of the member's life.
+            if let self, let port { self.watchPublishedState(of: port, generation: generation) }
             guard Thread.isMainThread, let self, self.active, generation == self.generation else { return }
             self.noteEdit()
-            if let port { self.watchPublishedState(of: port, generation: generation) }
         }
     }
 
