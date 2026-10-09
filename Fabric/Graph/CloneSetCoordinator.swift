@@ -23,7 +23,10 @@ final class CloneSetCoordinator
     var debounceInterval: Duration = .milliseconds(100)
 
     private(set) weak var rootGraph: Graph?
-    private var pendingGraphs: [Graph] = []
+
+    /// The graph to sync each set from, by set id: the last graph edited
+    /// inside one of its members.
+    private var pendingSources: [UUID: Graph] = [:]
     private var debounceTask: Task<Void, Never>?
 
     init(rootGraph: Graph)
@@ -34,34 +37,22 @@ final class CloneSetCoordinator
     /// True between an edit inside a member and the sync that follows it.
     var hasPendingSync: Bool
     {
-        !pendingGraphs.isEmpty
+        !pendingSources.isEmpty
     }
 
     /// An edit landed in `graph`. Coalesces with other edits until they pause.
-    /// The last graph edited in a set is that set's source: an earlier
-    /// pending graph in any of the same sets is dropped, since syncing from
-    /// it would overwrite the newer edit.
+    /// Every set around the graph takes it as its source, replacing an
+    /// earlier editor of the same set, since syncing from that one would
+    /// overwrite the newer edit.
     func noteContentChanged(in graph: Graph)
     {
         dispatchPrecondition(condition: .onQueue(.main))
 
-        // A pending graph nested inside this one already covers every set
-        // around this one, and syncs them from the same members: an edit in a
-        // nested member is noted by the outer member's observer as well.
-        guard !pendingGraphs.contains(where: { $0 === graph || $0.isDescendant(of: graph) }) else
+        for member in graph.enclosingCloneMembers
         {
-            restartDebounce()
-            return
+            guard let setID = member.cloneSetID else { continue }
+            pendingSources[setID] = graph
         }
-
-        // Otherwise this graph is the later editor of its sets: drop pending
-        // graphs whose sets it covers entirely, keep those with sets of their
-        // own to sync.
-        let setIDs = Set(graph.enclosingCloneMembers.compactMap(\.cloneSetID))
-        pendingGraphs.removeAll { pending in
-            Set(pending.enclosingCloneMembers.compactMap(\.cloneSetID)).isSubset(of: setIDs)
-        }
-        pendingGraphs.append(graph)
         restartDebounce()
     }
 
@@ -76,9 +67,12 @@ final class CloneSetCoordinator
         }
     }
 
-    /// Runs every pending sync now. Each edited graph is the source for the
-    /// sets around it. The members involved then re-subscribe to their node
-    /// trees, which the sync replaced. No-op while a sync is already running.
+    /// Runs every pending sync now, each set from the member of it that
+    /// encloses the set's source. Nested sets go first, so an outer member
+    /// is stored with its nested members already in step, and an outer sync
+    /// never retires a source before that source has been synced from. The
+    /// members involved then re-subscribe to their node trees, which the
+    /// sync replaced. No-op while a sync is already running.
     func flush()
     {
         dispatchPrecondition(condition: .onQueue(.main))
@@ -86,17 +80,20 @@ final class CloneSetCoordinator
 
         debounceTask?.cancel()
         debounceTask = nil
-        let graphs = pendingGraphs
-        pendingGraphs.removeAll()
+        let sources = pendingSources
+        pendingSources.removeAll()
 
-        var touchedSetIDs = Set<UUID>()
-        for graph in graphs
+        let syncs: [(member: SubgraphNode, depth: Int)] = sources.compactMap { setID, graph in
+            let members = graph.enclosingCloneMembers
+            guard let index = members.firstIndex(where: { $0.cloneSetID == setID }) else { return nil }
+            return (members[index], members.count - index)
+        }
+        for sync in syncs.sorted(by: { $0.depth > $1.depth })
         {
-            rootGraph.syncCloneSets(enclosing: graph)
-            touchedSetIDs.formUnion(graph.enclosingCloneMembers.compactMap(\.cloneSetID))
+            sync.member.graph?.reinstantiateCloneSiblings(of: sync.member)
         }
 
-        for setID in touchedSetIDs
+        for setID in sources.keys
         {
             for member in rootGraph.cloneSetMembers(of: setID)
             {
@@ -112,7 +109,7 @@ final class CloneSetCoordinator
         dispatchPrecondition(condition: .onQueue(.main))
         debounceTask?.cancel()
         debounceTask = nil
-        pendingGraphs.removeAll()
+        pendingSources.removeAll()
     }
 
     /// Waits for a pending debounce to run its sync, for callers that need

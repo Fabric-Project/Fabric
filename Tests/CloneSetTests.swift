@@ -874,6 +874,29 @@ extension CloneSetTests
         #expect(pair.counterpart(of: pair.member.first)?.inputNumber2.value == 2)
     }
 
+    @Test("Edits in a nested member of one sibling and in the other sibling before a sync both survive")
+    @MainActor
+    func nestedAndOuterEditsBothSurvive() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let coordinator = pair.graph.cloneSetCoordinator
+        _ = try pair.source.duplicateAsClone(pair.member.nested)
+        coordinator.flush()
+        let nestedSetID = try #require(pair.member.nested.cloneSetID)
+
+        // An edit inside a nested member of B, then an edit in A.
+        let nestedInB = try #require(pair.counterpart(of: pair.member.nested))
+        nestedInB.subGraph.addNode(NumberBinaryOperator(context: context))
+        pair.source.addNode(NumberBinaryOperator(context: context))
+        coordinator.flush()
+
+        #expect(pair.source.nodes.count == 5)
+        #expect(pair.target.nodes.count == 5)
+        #expect(pair.graph.cloneSetMembers(of: nestedSetID).count == 4)
+        #expect(pair.graph.cloneSetMembers(of: nestedSetID).allSatisfy { $0.subGraph.nodes.count == 2 })
+    }
+
     @Test("Undoing an edit on the source syncs the siblings back")
     @MainActor
     func undoSyncsBack() throws

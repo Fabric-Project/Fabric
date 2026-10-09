@@ -300,7 +300,7 @@ extension Graph
     /// duplicate, a clone set member instantiating its sub graph.
     internal func makeDecoderContext() -> DecoderContext
     {
-        let context = DecoderContext(documentContext: self.context)
+        let context = DecoderContext(documentContext: self.context, fileReferenceBaseURL: self.fileReferenceBaseURL)
         context.cloneSets = self.rootGraph.cloneSets
         return context
     }

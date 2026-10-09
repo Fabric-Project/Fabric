@@ -90,10 +90,4 @@ extension Graph
             DispatchQueue.main.sync { self.cloneSetCoordinator.flush() }
         }
     }
-
-    /// True when this graph is `ancestor` or sits anywhere inside it.
-    internal func isDescendant(of ancestor: Graph) -> Bool
-    {
-        ancestors.contains { $0 === ancestor }
-    }
 }
