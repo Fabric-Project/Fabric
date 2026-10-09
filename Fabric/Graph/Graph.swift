@@ -253,7 +253,9 @@ internal import AnyCodable
     }
 
     /// Drops wires whose ports no longer resolve in this graph, e.g. to a
-    /// proxy that disappeared when its inner port was unpublished.
+    /// proxy that disappeared when its inner port was unpublished. One end
+    /// is gone, so `disconnect` refuses the wire, but the end that survives
+    /// still holds it and needs the same teardown.
     internal func pruneDanglingConnections() -> Int
     {
         let portIDs = Set(nodes.flatMap { $0.ports.map(\.id) })
@@ -264,9 +266,22 @@ internal import AnyCodable
 
         for connection in dangling
         {
+            let outlet = connection.outletPort
+            let inlet = connection.inletPort
+
+            inlet?.sendBoxed(nil, force: true)
+            outlet?.connections.removeAll { $0 === connection }
+            inlet?.connections.removeAll { $0 === connection }
+
             connection.graph = nil
             connection.outletPortReference = nil
             connection.inletPortReference = nil
+
+            for node in [outlet?.node, inlet?.node].compactMap({ $0 })
+            {
+                node.updateConnectionTopology()
+                markNodeForLifecycleReview(node)
+            }
         }
         connections.removeAll { connection in dangling.contains { $0 === connection } }
         markConnectionTopologyChanged()
