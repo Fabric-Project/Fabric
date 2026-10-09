@@ -25,15 +25,8 @@ public final class DictionaryHasKeyNode: DictionaryTypeAgnosticNode
     {
         super.rebuildPorts(forStrategy: strategy)
 
-        if let existing: Port = findPort(named: "inputDictionary"), existing.portType != dictionaryType { removePort(existing) }
-        if findPort(named: "inputDictionary") == nil
-        {
-            addDynamicPort(dictionaryType.makeFreshPort(name: "Dictionary", kind: .Inlet, description: "Dictionary to test"), name: "inputDictionary")
-        }
-        if findPort(named: "outputContainsKey") == nil
-        {
-            addDynamicPort(PortType.Bool.makeFreshPort(name: "Contains Key", kind: .Outlet, description: "Whether the key exists"), name: "outputContainsKey")
-        }
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputDictionary",   displayName: "Dictionary",   portType: dictionaryType, kind: .Inlet,  description: "Dictionary to test")
+        addOrReplaceDynamicPortPreservingIdentity(name: "outputContainsKey", displayName: "Contains Key", portType: .Bool,          kind: .Outlet, description: "Whether the key exists")
 
         reorderPorts(named: ["inputDictionary", "inputKey", "outputContainsKey"])
     }

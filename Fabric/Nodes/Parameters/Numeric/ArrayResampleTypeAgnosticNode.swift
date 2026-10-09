@@ -28,8 +28,8 @@ public final class ArrayResampleTypeAgnosticNode: NumericTypeAgnosticNode
     {
         super.rebuildPorts(forStrategy: strategy)
         let portType = selectedNumericPortType
-        addOrReplaceDynamicPort(name: "inputArray", displayName: "Array", portType: portType, kind: .Inlet, description: "Source array")
-        addOrReplaceDynamicPort(name: "outputArray", displayName: "Array", portType: portType, kind: .Outlet, description: "Resampled array")
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputArray", displayName: "Array", portType: portType, kind: .Inlet, description: "Source array")
+        addOrReplaceDynamicPortPreservingIdentity(name: "outputArray", displayName: "Array", portType: portType, kind: .Outlet, description: "Resampled array")
         reorderPorts(named: ["inputArray", "inputCount", "outputArray"])
     }
 

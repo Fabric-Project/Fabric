@@ -48,19 +48,7 @@ public class ComposeVectorNode: StrategyNode
             }
         }
 
-        // Replace output port only when the vector type changes
-        if let existing: Port = findPort(named: "outputVector"), existing.portType != vt.portType {
-            removePort(existing)
-        }
-        if findPort(named: "outputVector") == nil {
-            let outputPort: Port
-            switch vt {
-            case .float2: outputPort = NodePort<simd_float2>(name: vt.portType.rawValue, kind: .Outlet, description: "Combined \(vt.portType.rawValue)")
-            case .float3: outputPort = NodePort<simd_float3>(name: vt.portType.rawValue, kind: .Outlet, description: "Combined \(vt.portType.rawValue)")
-            case .float4: outputPort = NodePort<simd_float4>(name: vt.portType.rawValue, kind: .Outlet, description: "Combined \(vt.portType.rawValue)")
-            }
-            addDynamicPort(outputPort, name: "outputVector")
-        }
+        addOrReplaceDynamicPortPreservingIdentity(name: "outputVector", displayName: vt.portType.rawValue, portType: vt.portType, kind: .Outlet, description: "Combined \(vt.portType.rawValue)")
     }
 
     override public func execute(renderer: GraphRenderer,

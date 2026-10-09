@@ -16,15 +16,8 @@ public final class DictionaryCountNode: DictionaryTypeAgnosticNode
     {
         super.rebuildPorts(forStrategy: strategy)
 
-        if let existing: Port = findPort(named: "inputDictionary"), existing.portType != dictionaryType { removePort(existing) }
-        if findPort(named: "inputDictionary") == nil
-        {
-            addDynamicPort(dictionaryType.makeFreshPort(name: "Dictionary", kind: .Inlet, description: "Dictionary to count"), name: "inputDictionary")
-        }
-        if findPort(named: "outputCount") == nil
-        {
-            addDynamicPort(PortType.Int.makeFreshPort(name: "Count", kind: .Outlet, description: "Dictionary count"), name: "outputCount")
-        }
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputDictionary", displayName: "Dictionary", portType: dictionaryType, kind: .Inlet,  description: "Dictionary to count")
+        addOrReplaceDynamicPortPreservingIdentity(name: "outputCount",     displayName: "Count",      portType: .Int,           kind: .Outlet, description: "Dictionary count")
 
         reorderPorts(named: ["inputDictionary", "outputCount"])
     }

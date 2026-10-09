@@ -90,7 +90,7 @@ private struct SelectedNodeCard: View
                         .padding(.horizontal, 5)
                 }
 
-                if !nodeViewModel.parameterGroup.params.isEmpty {
+                if nodeViewModel.parameterGroup.params.contains(where: ParameterGroupView.hasEditor) {
 
                     Divider()
 

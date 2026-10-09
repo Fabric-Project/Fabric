@@ -62,6 +62,14 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
         }
     }
 
+    /// A port takes its id from its parameter, so a port rebuilt in place of
+    /// another keys the parameter to the id it is taking over.
+    public convenience init(parameter: GenericParameter<ParamValue>, id: UUID)
+    {
+        parameter.id = id
+        self.init(parameter: parameter)
+    }
+
     public init(parameter: GenericParameter<ParamValue>)
     {
         self._parameter = parameter
@@ -78,10 +86,26 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
     {
         case parameter
     }
+
+    /// AnyParameter's own key for the parameter's type.
+    private enum EncodedParameterTypeKey : String, CodingKey
+    {
+        case type
+    }
     
     required public init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        // A parameter Satin has no type for, a quaternion's say, encodes as
+        // .generic, and Satin's decoder traps on it. Throwing first lets the
+        // port envelope re-read the port as a plain one (see AnyPort).
+        if let typeContainer = try? container.nestedContainer(keyedBy: EncodedParameterTypeKey.self, forKey: .parameter),
+           try typeContainer.decodeIfPresent(ParameterType.self, forKey: .type) == .generic
+        {
+            throw DecodingError.dataCorruptedError(forKey: .parameter, in: container,
+                                                   debugDescription: "A .generic parameter cannot be decoded")
+        }
 
         // backwards compat for port update
         if let anyparam = try container.decodeIfPresent(AnyParameter.self, forKey: .parameter),

@@ -36,20 +36,7 @@ public class DecomposeVectorArrayNode: StrategyNode
     {
         guard let vt: VectorType = Self.strategyOption(matching: strategy) else { return }
 
-        // Replace input port only when the vector type changes
-        let arrayPortType = PortType.Array(portType: vt.portType)
-        if let existing: Port = findPort(named: "inputArray"), existing.portType != arrayPortType {
-            removePort(existing)
-        }
-        if findPort(named: "inputArray") == nil {
-            let inputPort: Port
-            switch vt {
-            case .float2: inputPort = NodePort<ContiguousArray<simd_float2>>(name: "\(vt.portType.rawValue) Array", kind: .Inlet, description: "Array of \(vt.portType.rawValue) values to decompose")
-            case .float3: inputPort = NodePort<ContiguousArray<simd_float3>>(name: "\(vt.portType.rawValue) Array", kind: .Inlet, description: "Array of \(vt.portType.rawValue) values to decompose")
-            case .float4: inputPort = NodePort<ContiguousArray<simd_float4>>(name: "\(vt.portType.rawValue) Array", kind: .Inlet, description: "Array of \(vt.portType.rawValue) values to decompose")
-            }
-            addDynamicPort(inputPort, name: "inputArray")
-        }
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputArray", displayName: "\(vt.portType.rawValue) Array", portType: .Array(portType: vt.portType), kind: .Inlet, description: "Array of \(vt.portType.rawValue) values to decompose")
 
         // Remove component output ports beyond the needed count
         for i in vt.componentLabels.count..<4 {

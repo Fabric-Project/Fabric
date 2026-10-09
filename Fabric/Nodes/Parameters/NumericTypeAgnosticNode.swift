@@ -103,85 +103,9 @@ public class NumericTypeAgnosticNode: StrategyNode
         return true
     }
 
-    public func addOrReplaceDynamicPort(name registryName: String,
-                                        displayName: String,
-                                        portType: PortType,
-                                        kind: PortKind,
-                                        description: String,
-                                        editable: Bool = false)
-    {
-        if let existing: Port = findPort(named: registryName), existing.portType != portType
-        {
-            let oldConnections = existing.connectedPorts
-            removePort(existing)
-            let replacement = Self.makeFreshPort(
-                portType: portType,
-                name: displayName,
-                kind: kind,
-                description: description,
-                editable: editable
-            )
-            addDynamicPort(replacement, name: registryName)
-            for connected in oldConnections where replacement.canConnect(to: connected)
-            {
-                if replacement.kind == .Outlet {
-                    self.graph?.connect(replacement, to: connected)
-                } else {
-                    self.graph?.connect(connected, to: replacement)
-                }
-            }
-        }
-
-        if findPort(named: registryName) == nil
-        {
-            addDynamicPort(
-                Self.makeFreshPort(
-                    portType: portType,
-                    name: displayName,
-                    kind: kind,
-                    description: description,
-                    editable: editable
-                ),
-                name: registryName
-            )
-        }
-    }
-
     public func reorderPorts(named names: [String])
     {
         let reordered: [Port] = names.compactMap { name in let p: Port? = findPort(named: name); return p }
         if reordered.count == self.ports.count { reorderPorts(reordered) }
-    }
-
-    private static func makeFreshPort(portType: PortType,
-                                      name: String,
-                                      kind: PortKind,
-                                      description: String,
-                                      editable: Bool) -> Port
-    {
-        guard editable, kind == .Inlet else
-        {
-            return portType.makeFreshPort(name: name, kind: kind, description: description)
-        }
-
-        switch portType
-        {
-        case .Int:
-            return ParameterPort(parameter: IntParameter(name, 0, .inputfield, description))
-        case .Float:
-            return ParameterPort(parameter: FloatParameter(name, 0, .inputfield, description))
-        case .Vector2:
-            return ParameterPort(parameter: Float2Parameter(name, .zero, .inputfield, description))
-        case .Vector3:
-            return ParameterPort(parameter: Float3Parameter(name, .zero, .inputfield, description))
-        case .Vector4:
-            return ParameterPort(parameter: Float4Parameter(name, .zero, .inputfield, description))
-        case .Color:
-            return ParameterPort(parameter: Float4Parameter(name, simd_float4(0, 0, 0, 1), .colorpicker, description))
-        case .Transform:
-            return ParameterPort(parameter: Float4x4Parameter(name, matrix_identity_float4x4, .inputfield, description))
-        default:
-            return portType.makeFreshPort(name: name, kind: kind, description: description)
-        }
     }
 }

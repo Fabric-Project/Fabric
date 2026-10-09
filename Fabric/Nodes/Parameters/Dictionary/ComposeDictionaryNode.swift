@@ -16,29 +16,9 @@ public final class ComposeDictionaryNode: DictionaryTypeAgnosticNode
     {
         super.rebuildPorts(forStrategy: strategy)
 
-        let requiredTypes: [(String, PortType)] = [
-            ("inputKeys", .Array(portType: .String)),
-            ("inputValues", valuesArrayType),
-            ("outputDictionary", dictionaryType),
-        ]
-
-        for (name, type) in requiredTypes
-        {
-            if let existing: Port = findPort(named: name), existing.portType != type { removePort(existing) }
-        }
-
-        if findPort(named: "inputKeys") == nil
-        {
-            addDynamicPort(PortType.Array(portType: .String).makeFreshPort(name: "Keys", kind: .Inlet, description: "String keys"), name: "inputKeys")
-        }
-        if findPort(named: "inputValues") == nil
-        {
-            addDynamicPort(valuesArrayType.makeFreshPort(name: "Values", kind: .Inlet, description: "Values matching the keys"), name: "inputValues")
-        }
-        if findPort(named: "outputDictionary") == nil
-        {
-            addDynamicPort(dictionaryType.makeFreshPort(name: "Dictionary", kind: .Outlet, description: "Dictionary built from keys and values"), name: "outputDictionary")
-        }
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputKeys",        displayName: "Keys",       portType: .Array(portType: .String), kind: .Inlet,  description: "String keys")
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputValues",      displayName: "Values",     portType: valuesArrayType,           kind: .Inlet,  description: "Values matching the keys")
+        addOrReplaceDynamicPortPreservingIdentity(name: "outputDictionary", displayName: "Dictionary", portType: dictionaryType,            kind: .Outlet, description: "Dictionary built from keys and values")
 
         reorderPorts(named: ["inputKeys", "inputValues", "outputDictionary"])
     }

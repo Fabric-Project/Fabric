@@ -37,7 +37,7 @@ public class GeometryToTransformArrayNode : StrategyNode
         return ports +
         [
             ("inputPort", NodePort<Geometry>(name: "Geometry", kind: .Inlet, description: "Source geometry to extract vertex positions and normals from")),
-            ("inputTransform", NodePort<simd_float4x4>(name: "Transform", kind: .Inlet, description: "Transform to apply to each point")),
+            ("inputTransform", PortType.Transform.makeFreshPort(name: "Transform", kind: .Inlet, description: "Transform to apply to each point")),
         ]
     }
 

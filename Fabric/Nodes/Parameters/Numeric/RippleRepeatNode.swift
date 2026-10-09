@@ -38,8 +38,8 @@ public final class RippleRepeatNode: NumericTypeAgnosticNode
         super.rebuildPorts(forStrategy: strategy)
         let valueType = selectedNumericPortType
         let arrayType: PortType = valueType == .NumericVirtual ? .NumericVirtual : .Array(portType: valueType)
-        addOrReplaceDynamicPort(name: "inputValue", displayName: "Value", portType: valueType, kind: .Inlet, description: "Animated value to stagger", editable: true)
-        addOrReplaceDynamicPort(name: "outputArray", displayName: "Array", portType: arrayType, kind: .Outlet, description: "Rippled repeated values")
+        addOrReplaceDynamicPortPreservingIdentity(name: "inputValue", displayName: "Value", portType: valueType, kind: .Inlet, description: "Animated value to stagger")
+        addOrReplaceDynamicPortPreservingIdentity(name: "outputArray", displayName: "Array", portType: arrayType, kind: .Outlet, description: "Rippled repeated values")
         reorderPorts(named: ["inputValue", "inputCount", "inputDelaySecs", "outputArray"])
         history.removeAll()
         oldest = nil

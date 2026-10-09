@@ -87,6 +87,7 @@ final class PortRegistry
     }
     
     func port(named name: String) -> Port? { self.byName[name] }
+    func name(of port: Port) -> String? { self.byName.first { $0.value.id == port.id }?.key }
     func all() -> [Port] { self.ordered }
 
     /// A port's persisted form: registry key plus the encoded port object.

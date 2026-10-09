@@ -8,7 +8,7 @@ import Satin
 import simd
 import Metal
 
-public class ArrayFromRippledValueNode<Value : PortValueRepresentable & DefaultParameterProviding> : Node
+public class ArrayFromRippledValueNode<Value : PortValueRepresentable & ParameterValueType> : Node
 {
     public override class var name: String { "\(Value.portType.rawValue) Ripple Repeat Value" }
     public override class var nodeType: Node.NodeType { .Parameter(parameterType: .Array) }

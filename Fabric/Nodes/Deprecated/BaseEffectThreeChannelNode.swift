@@ -66,9 +66,9 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
         
         for param in self.postMaterial.parameters.params {
 
-            if let p = PortType.portForType(from:param)
+            if let port = PortType.port(for: param)
             {
-                self.addDynamicPort(p)
+                self.addDynamicPort(port)
             }
         }
     }
@@ -91,9 +91,9 @@ class BaseEffectThreeChannelNode: Node, NodeFileLoadingProtocol
         
         for param in self.postMaterial.parameters.params {
 
-            if let p = PortType.portForType(from:param)
+            if let port = PortType.port(for: param)
             {
-                self.addDynamicPort(p)
+                self.addDynamicPort(port)
             }
         }
     }

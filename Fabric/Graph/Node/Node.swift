@@ -413,6 +413,13 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         self.portsChangedSubject.send()
     }
 
+    /// The key the port is registered under: the declared or dynamic name, where
+    /// the port's own `name` is what it displays.
+    internal func registryKey(of port: Port) -> String?
+    {
+        self.registry.name(of: port)
+    }
+
     public func removePort(_ p: Port)
     {
         self.portHydrationSession?.relinquish(p)
@@ -426,6 +433,31 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
         self.graph?.markConnectionsChanged()
         self.portsChangedSubject.send()
+    }
+
+    /// Puts `replacement` where `existing` was, under the same registry key,
+    /// carrying the published state across and reconnecting every wire the new
+    /// port still accepts. The caller builds `replacement` on `existing.id`, so
+    /// proxies and views follow it. The old port's value does not carry: it
+    /// cannot convert across types, and the replacement rests at its own default.
+    public func replacePort(_ existing: Port, with replacement: Port)
+    {
+        let registryName = self.registryKey(of: existing) ?? existing.name
+        let oldConnections = existing.connectedPorts
+        replacement.published = existing.published
+        replacement.publishedName = existing.publishedName
+
+        self.removePort(existing)
+        self.addDynamicPort(replacement, name: registryName)
+
+        for connected in oldConnections where replacement.canConnect(to: connected)
+        {
+            if replacement.kind == .Outlet {
+                self.graph?.connect(replacement, to: connected)
+            } else {
+                self.graph?.connect(connected, to: replacement)
+            }
+        }
     }
 
     internal func replaceParameterOfPort(_ port:Port, withParam param:(any Parameter))
@@ -652,103 +684,6 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         return CGSize(width: max(width, 150), height: max(height, 60) )
     }
 
-    // Mark - Private helper
-
-    private func parametersGroupToPorts(_ parameters:[(any Parameter)]) -> [Port]
-    {
-        return parameters.compactMap( {
-            self.parameterToPort(parameter:$0) })
-    }
-
-    private func parameterToPort(parameter:(any Parameter)) -> Port?
-    {
-        switch parameter.type
-        {
-
-        case .generic:
-
-            if let genericParam = parameter as? GenericParameter<Float>
-            {
-                return ParameterPort(parameter: genericParam)
-            }
-
-            if let genericParam = parameter as? GenericParameter<simd_float3>
-            {
-                return ParameterPort(parameter: genericParam)
-            }
-
-            if let genericParam = parameter as? GenericParameter<simd_float4>
-            {
-                return ParameterPort(parameter: genericParam)
-            }
-
-            if let genericParam = parameter as? GenericParameter<simd_quatf>
-            {
-                return ParameterPort(parameter: genericParam)
-            }
-
-        case .string:
-
-            if let genericParam = parameter as? StringParameter
-            {
-                return ParameterPort(parameter: genericParam)
-            }
-
-        case .bool:
-
-            if let genericParam = parameter as? BoolParameter
-            {
-                return ParameterPort(parameter: genericParam)
-            }
-
-        case .float:
-
-            if let genericParam = parameter as? FloatParameter
-            {
-                return ParameterPort(parameter: genericParam)
-            }
-
-            else if let genericParam = parameter as? GenericParameter<Float>
-            {
-                return ParameterPort(parameter: genericParam)
-            }
-
-        case .float2:
-            if let genericParam = parameter as? Float2Parameter
-            {
-                return ParameterPort(parameter: genericParam)
-            }
-
-        case .float3:
-            if let genericParam = parameter as? Float3Parameter
-            {
-                return ParameterPort(parameter: genericParam)
-            }
-
-        case .float4:
-            if let genericParam = parameter as? Float4Parameter
-            {
-                return ParameterPort(parameter: genericParam)
-            }
-
-            else if let genericParam = parameter as? GenericParameter<simd_float4>
-            {
-                return ParameterPort(parameter: genericParam)
-            }
-
-        case .float4x4:
-            if let genericParam = parameter as? Float4x4Parameter
-            {
-                return ParameterPort(parameter: genericParam)
-            }
-
-        default:
-            return nil
-
-        }
-
-        return nil
-    }
 }
 
 /// Nodes that are constructed from a file (e.g. Metal shader effect nodes),
