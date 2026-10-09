@@ -611,6 +611,7 @@ public class HIDNode: Node
     {
         didSet
         {
+            settingsDidChange()
             if let oldValue
             {
                 hidManager?.stopMonitoring(deviceID: oldValue)

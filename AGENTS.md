@@ -215,6 +215,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 - [ ] If we have a Settings View editing state of the node's own, it is written in `encodeSettings(to:)` and put back in `restoreSettings(from:)` (`SettingsUndoTests` checks the pair, and that every core node takes back its own settings unchanged)
 - [ ] If the Node overrides `deriveSubtitle()`, every mutation of the state it derives from fires `subtitleSubject.send()` (StrategyNode’s `strategy` already does)
 - [ ] New Nodes should live in an appropriate spot in the NodeRegistry
+- [ ] If the Node encodes state that is not a port (a script, an expression, a strategy, a device selection), every mutation of it calls `settingsDidChange()`; port changes report themselves
 
 ---
 

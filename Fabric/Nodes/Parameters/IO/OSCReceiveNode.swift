@@ -256,6 +256,7 @@ public class OSCReceiveNode: Node
                 try? startListening()
             }
             _settingsModelStorage?.listenPort = listenPort
+            settingsDidChange()
         }
     }
 
@@ -265,6 +266,7 @@ public class OSCReceiveNode: Node
         {
             self.rebuildPorts()
             _settingsModelStorage?.addressBindings = addressBindings
+            settingsDidChange()
         }
     }
 

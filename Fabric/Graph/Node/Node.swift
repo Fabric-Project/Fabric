@@ -200,6 +200,20 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     /// NodeViewModel subscribes and refreshes its observable title row mirrors.
     internal let subtitleSubject = PassthroughSubject<Void, Never>()
 
+    /// Fires whenever encoded state that is not a port changes: a script, an
+    /// expression, a strategy, a timeline, a device selection. Sent through
+    /// `settingsDidChange()` by the node that owns the state.
+    internal let settingsDidChangeSubject = PassthroughSubject<Void, Never>()
+
+    /// A node calls this after changing any encoded state that is not a
+    /// port, so that whatever tracks the node's design (clone sets, for one)
+    /// learns of edits its ports do not show. Port changes need no call:
+    /// the port registry reports those itself.
+    public func settingsDidChange()
+    {
+        self.settingsDidChangeSubject.send()
+    }
+
     // Dirty Handling
     private(set) public var isDirty: Bool = true
 
