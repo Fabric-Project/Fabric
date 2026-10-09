@@ -14,6 +14,8 @@ import IOKit
 import IOKit.hid
 import Satin
 import simd
+import Synchronization
+import os
 
 // MARK: - HID Device Info
 
@@ -226,6 +228,8 @@ struct HIDUsageNames
 class HIDManager
 {
     private var manager: IOHIDManager?
+    /// False when the manager could not open, usually for want of Input Monitoring permission.
+    private(set) var isOpen = false
     private var connectedDevices: [String: IOHIDDevice] = [:]
     private var deviceInfoCache: [String: HIDDeviceInfo] = [:]
 
@@ -239,8 +243,18 @@ class HIDManager
 
     deinit
     {
+        // Every callback holds an unretained pointer to self, so each is
+        // unregistered before self is gone; closing alone does not do that.
+        for device in connectedDevices.values
+        {
+            IOHIDDeviceRegisterInputValueCallback(device, nil, nil)
+        }
+
         if let manager = manager
         {
+            IOHIDManagerRegisterDeviceMatchingCallback(manager, nil, nil)
+            IOHIDManagerRegisterDeviceRemovalCallback(manager, nil, nil)
+            IOHIDManagerUnscheduleFromRunLoop(manager, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
             IOHIDManagerClose(manager, IOOptionBits(kIOHIDOptionsTypeNone))
         }
     }
@@ -281,7 +295,8 @@ class HIDManager
 
         let openResult = IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
 
-        if openResult == kIOReturnSuccess
+        isOpen = openResult == kIOReturnSuccess
+        if isOpen
         {
             print("[HIDManager] IOHIDManager opened successfully")
         }
@@ -399,9 +414,11 @@ class HIDManager
         return result.sorted { $0.displayName < $1.displayName }
     }
 
-    func startMonitoring(deviceID: String, elements: [HIDElementInfo])
+    /// False when the device is not connected.
+    @discardableResult
+    func startMonitoring(deviceID: String, elements: [HIDElementInfo]) -> Bool
     {
-        guard let device = connectedDevices[deviceID] else { return }
+        guard let device = connectedDevices[deviceID] else { return false }
 
         let context = Unmanaged.passUnretained(self).toOpaque()
 
@@ -410,6 +427,7 @@ class HIDManager
             let this = Unmanaged<HIDManager>.fromOpaque(context).takeUnretainedValue()
             this.handleInputValue(value)
         }, context)
+        return true
     }
 
     func stopMonitoring(deviceID: String)
@@ -494,6 +512,11 @@ struct HIDNodeView: View
                 .controlSize(.small)
             }
 
+            if let deviceStatus = model.deviceStatus
+            {
+                NodeStatusMessageView(status: deviceStatus)
+            }
+
             if let _ = model.selectedDeviceID,
                !model.deviceElements.isEmpty
             {
@@ -534,6 +557,8 @@ struct HIDNodeView: View
 
 public class HIDNode: Node
 {
+    fileprivate static let log = Logger(subsystem: "graphics.fabric", category: "HIDNode")
+
     override public static var name: String { "HID Device" }
     override public static var nodeType: Node.NodeType { .Parameter(parameterType: .IO) }
     override public class var nodeExecutionMode: Node.ExecutionMode { .Provider }
@@ -571,11 +596,8 @@ public class HIDNode: Node
         try container.encodeIfPresent(self.selectedDeviceID, forKey: .selectedDeviceID)
 
         // Save device info so we can try to reconnect later
-        if let deviceID = selectedDeviceID,
-           let deviceInfo = availableDevices.first(where: { $0.id == deviceID })
-        {
-            try container.encode(deviceInfo, forKey: .selectedDeviceInfo)
-        }
+        // Saving with the device unplugged must not forget it.
+        try container.encodeIfPresent(self.liveDeviceInfo() ?? self.savedDeviceInfo, forKey: .selectedDeviceInfo)
 
         try container.encode(self.deviceElements, forKey: .deviceElements)
     }
@@ -587,39 +609,100 @@ public class HIDNode: Node
 
     // MARK: - Properties
 
+    // The manager and monitoring are main-thread state: the manager's callbacks
+    // run on the main run loop, and the settings view selects the device.
+    // Lifecycle calls, which can run on the render thread, hand over to main;
+    // the main queue keeps them in order.
     private var hidManager: HIDManager?
     private var savedDeviceInfo: HIDDeviceInfo?
+    /// Whether the node is started. It monitors its device only while started.
+    private var isRunning = false
+    private var monitoredDeviceID: String?
+
+    /// The selected device, as last seen connected; reconnects match it.
+    private func liveDeviceInfo() -> HIDDeviceInfo?
+    {
+        guard let deviceID = selectedDeviceID else { return nil }
+        return availableDevices.first { $0.id == deviceID }
+    }
 
     fileprivate var selectedDeviceID: String?
     {
+        didSet { applySelectedDevice() }
+    }
+
+    private func applySelectedDevice()
+    {
+        if let deviceID = selectedDeviceID
+        {
+            deviceElements = hidManager?.getElements(for: deviceID) ?? []
+        }
+        else
+        {
+            deviceElements = []
+        }
+        // Choosing none forgets the device, so a device appearing does not bring it back.
+        savedDeviceInfo = selectedDeviceID == nil ? nil : liveDeviceInfo() ?? savedDeviceInfo
+        rebuildPorts()
+        updateMonitoring()
+        updateDeviceStatus()
+
+        _settingsModelStorage?.selectedDeviceID = selectedDeviceID
+        _settingsModelStorage?.deviceElements = deviceElements
+    }
+
+    // MARK: - Device Status
+
+    /// Set while the node is started but cannot read its device. Main thread
+    /// only. Worded once, in updateDeviceStatus(), so the glyph, the settings
+    /// view and the log agree.
+    private var deviceStatus: NodeStatus?
+    {
         didSet
         {
-            if let oldValue
+            guard deviceStatus != oldValue else { return }
+            if let deviceStatus
             {
-                hidManager?.stopMonitoring(deviceID: oldValue)
+                Self.log.error("\(deviceStatus.message, privacy: .public)")
             }
+            _settingsModelStorage?.deviceStatus = deviceStatus
+            self.subtitleSubject.send()
+        }
+    }
 
-            if let deviceID = selectedDeviceID
-            {
-                deviceElements = hidManager?.getElements(for: deviceID) ?? []
-                rebuildPorts()
-                hidManager?.startMonitoring(deviceID: deviceID, elements: deviceElements)
-            }
-            else
-            {
-                deviceElements = []
-                rebuildPorts()
-            }
+    override public func deriveStatuses() -> [NodeStatus] { deviceStatus.map { [$0] } ?? [] }
 
-            _settingsModelStorage?.selectedDeviceID = selectedDeviceID
-            _settingsModelStorage?.deviceElements = deviceElements
+    // No Retry: an Input Monitoring permission granted in System Settings only
+    // takes effect after a relaunch, and a device returning reconnects itself.
+    private func updateDeviceStatus()
+    {
+        if !isRunning || hidManager == nil
+        {
+            deviceStatus = nil
+        }
+        else if hidManager?.isOpen == false
+        {
+            deviceStatus = .error("Cannot read HID devices. Allow Input Monitoring for this app in System Settings › Privacy & Security, then relaunch.")
+        }
+        else if selectedDeviceID == nil
+        {
+            deviceStatus = .warning("No HID device is selected.")
+        }
+        else if liveDeviceInfo() == nil
+        {
+            deviceStatus = .warning("\(savedDeviceInfo?.displayName ?? "The selected HID device") is not connected.")
+        }
+        else
+        {
+            deviceStatus = nil
         }
     }
 
     fileprivate var availableDevices: [HIDDeviceInfo] = []
     fileprivate var deviceElements: [HIDElementInfo] = []
 
-    private var latestValues: [String: Int] = [:]
+    // Written on the main run loop, read by execute on the render thread.
+    private let latestValues = Mutex<[String: Int]>([:])
 
     // MARK: - Settings View
 
@@ -647,6 +730,8 @@ public class HIDNode: Node
         }
         var availableDevices: [HIDDeviceInfo] = []
         var deviceElements: [HIDElementInfo] = []
+        /// Why the node cannot read its device although it is started, or nil.
+        var deviceStatus: NodeStatus?
 
         private weak var node: HIDNode?
 
@@ -656,6 +741,7 @@ public class HIDNode: Node
             self.selectedDeviceID = node.selectedDeviceID
             self.availableDevices = node.availableDevices
             self.deviceElements = node.deviceElements
+            self.deviceStatus = node.deviceStatus
         }
 
         func refreshDevices() { node?.refreshDevices() }
@@ -665,22 +751,63 @@ public class HIDNode: Node
 
     // MARK: - Lifecycle
 
+    // Enabled, the node lists devices and has the selected device's ports;
+    // started, it monitors the device.
     public override func enableExecution(renderer:GraphRenderer)
     throws
     {
-        setupHIDManager()
+        DispatchQueue.main.async { [weak self] in self?.setupHIDManager() }
         try super.enableExecution(renderer: renderer)
+    }
+
+    public override func startExecution(renderer:GraphRenderer)
+    throws
+    {
+        DispatchQueue.main.async { [weak self] in
+            self?.isRunning = true
+            self?.updateMonitoring()
+            self?.updateDeviceStatus()
+        }
+        try super.startExecution(renderer: renderer)
+    }
+
+    public override func stopExecution(renderer:GraphRenderer)
+    throws
+    {
+        // Holds the node, as disable does.
+        DispatchQueue.main.async {
+            self.isRunning = false
+            self.updateMonitoring()
+            self.updateDeviceStatus()
+        }
+        try super.stopExecution(renderer: renderer)
     }
 
     public override func disableExecution(renderer:GraphRenderer)
     throws
     {
-        if let deviceID = selectedDeviceID
-        {
-            hidManager?.stopMonitoring(deviceID: deviceID)
+        // Freed on main, never mid-callback; its deinit unregisters the callbacks.
+        // Holds the node: a deleted node can be freed before this runs, which
+        // would free the manager with it, on this thread.
+        DispatchQueue.main.async {
+            self.hidManager = nil
+            self.monitoredDeviceID = nil
         }
-        hidManager = nil
         try super.disableExecution(renderer: renderer)
+    }
+
+    private func updateMonitoring()
+    {
+        let wantedDeviceID = isRunning ? selectedDeviceID : nil
+        guard wantedDeviceID != monitoredDeviceID else { return }
+
+        if let monitoredDeviceID
+        {
+            hidManager?.stopMonitoring(deviceID: monitoredDeviceID)
+        }
+        // A device that is not connected is not monitored; refreshDevices() retries when it is.
+        let isMonitoring = wantedDeviceID.map { hidManager?.startMonitoring(deviceID: $0, elements: deviceElements) ?? false } ?? false
+        monitoredDeviceID = isMonitoring ? wantedDeviceID : nil
     }
 
     private func setupHIDManager()
@@ -717,13 +844,35 @@ public class HIDNode: Node
     {
         availableDevices = hidManager?.getAvailableDevices() ?? []
         _settingsModelStorage?.availableDevices = availableDevices
+
+        if liveDeviceInfo() == nil
+        {
+            // Its monitoring, if any, went with it.
+            monitoredDeviceID = nil
+
+            // It may be back at a new location, so with a new id: match it as enable does.
+            if let savedInfo = savedDeviceInfo,
+               let matchingDevice = availableDevices.first(where: {
+                   $0.vendorID == savedInfo.vendorID && $0.productID == savedInfo.productID
+               })
+            {
+                selectedDeviceID = matchingDevice.id
+            }
+        }
+        else if deviceElements.isEmpty || (isRunning && monitoredDeviceID == nil)
+        {
+            // Back at the same location: it was absent when selected or started.
+            applySelectedDevice()
+        }
+
+        updateDeviceStatus()
     }
 
     private func handleValueChange(deviceID: String, element: HIDElementInfo, value: Int)
     {
         guard deviceID == selectedDeviceID else { return }
 
-        latestValues[element.id] = value
+        latestValues.withLock { $0[element.id] = value }
         self.markDirty()
     }
 
@@ -735,10 +884,12 @@ public class HIDNode: Node
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
+        let currentValues = latestValues.withLock { $0 }
+
         for element in deviceElements
         {
             guard let portName = portNameForElement(element),
-                  let value = latestValues[element.id] else { continue }
+                  let value = currentValues[element.id] else { continue }
 
             if element.isButton
             {
