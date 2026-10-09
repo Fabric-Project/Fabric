@@ -214,6 +214,10 @@ class FabricDocument: FileDocument
                 savedGraph.rewriteFileReferences(relativeTo: directoryURL)
                 let encoder = JSONEncoder()
                 encoder.outputFormatting = [.prettyPrinted]
+                // Written as the save wrote it: without this the rebase puts
+                // every clone set member back in full, undoing the compaction
+                // on the very save that gives the document its URL.
+                encoder.userInfo[Graph.compactCloneMembersKey] = true
                 let rebasedData = try encoder.encode(savedGraph)
 
                 // Coordinate the follow-up write and never overwrite contents
