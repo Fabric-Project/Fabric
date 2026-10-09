@@ -480,6 +480,11 @@ open class SubgraphNode: BaseObjectNode
         self.rebindProxyPorts()
         parent?.nodeObjectDidChange(self)
         parent?.updateCameraSelection()
+
+        // The watcher's subscriptions were to the tree just retired, so it
+        // re-subscribes here rather than at the one caller that remembered to.
+        self.cloneObserver?.refresh()
+
         self.markDirty()
     }
 

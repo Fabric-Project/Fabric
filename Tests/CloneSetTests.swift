@@ -1079,6 +1079,31 @@ extension CloneSetTests
         #expect(pair.member.member.cloneSetID == nil)
     }
 
+    @Test("A re-instantiated member watches the tree it has now")
+    @MainActor
+    func reinstantiatedMemberIsStillWatched() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+
+        // A sync replaces the sibling's whole tree.
+        pair.source.addNode(NumberBinaryOperator(context: context))
+        pair.sync()
+
+        // An edit of the sibling's design, on the tree it holds now, reaching
+        // the set only through the sibling's own watcher.
+        let siblingSecond = try #require(pair.counterpart(of: pair.member.second))
+        siblingSecond.inputNumber2.value = 7
+        #expect(pair.graph.cloneSetCoordinator.hasPendingSync)
+
+        pair.graph.cloneSetCoordinator.flush()
+
+        // The sibling was the last edited, so it is the source: the other
+        // member is the one re-instantiated, under the same ids.
+        let syncedSecond = try #require(pair.source.nodesRecursive().first { $0.id == pair.member.second.id } as? NumberBinaryOperator)
+        #expect(syncedSecond.inputNumber2.value == 7)
+    }
+
     @Test("A member exposing a nested sub graph's knob saves and loads, each member's value its own")
     @MainActor
     func nestedPublishedProxySurvivesCompactSave() throws
