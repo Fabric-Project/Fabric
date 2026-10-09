@@ -321,10 +321,15 @@ extension Graph
     }
 
     /// Published inlets in this graph and, depth first, in nested sub graphs:
-    /// the ports whose values are each member's own.
+    /// the ports whose values are each member's own. A proxy is left out: it
+    /// forwards its inner port's value and carries that port's id, so a
+    /// nested sub graph's knob published on through this one would otherwise
+    /// be named twice, once by the proxy and once by the port it stands for.
     internal func publishedInletsRecursive() -> [Port]
     {
-        self.nodesRecursive().flatMap { node in node.ports.filter { $0.kind == .Inlet && $0.published } }
+        self.nodesRecursive().flatMap { node in
+            node.ports.filter { $0.kind == .Inlet && $0.published && !($0 is any ProxyPortProtocol) }
+        }
     }
 
     /// Subgraph nodes in this graph and, depth first, in their sub graphs.

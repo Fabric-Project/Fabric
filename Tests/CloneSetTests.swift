@@ -1061,6 +1061,46 @@ extension CloneSetTests
         #expect(decoded.cloneSetMembers(of: nestedSetID).count == 4)
     }
 
+    @Test("A member exposing a nested sub graph's knob saves and loads, each member's value its own")
+    @MainActor
+    func nestedPublishedProxySurvivesCompactSave() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let setID = try #require(pair.member.member.cloneSetID)
+
+        // Publish an inlet inside the nested sub graph, then publish the
+        // proxy that gives the nested node on through the member: the
+        // ordinary way a knob is brought up to the top.
+        pair.member.nestedInner.inputNumber1.published = true
+        pair.member.nestedInner.inputNumber1.publishedName = "Nested Amount"
+        pair.member.nested.subGraph.rebuildPublishedParameterGroup()
+        let nestedProxy = try #require(pair.member.nested.ports.first { $0.kind == .Inlet && $0.displayName == "Nested Amount" })
+        nestedProxy.published = true
+        pair.source.rebuildPublishedParameterGroup()
+        pair.sync()
+
+        // The published inlet's value is each member's own.
+        let siblingNestedInner = try #require(pair.counterpart(of: pair.member.nestedInner))
+        pair.member.nestedInner.inputNumber1.value = 3
+        siblingNestedInner.inputNumber1.value = 9
+
+        let data = try saveCompactly(pair.graph)
+        let decoded = try decode(data, context: context)
+
+        #expect(decoded.cloneSetMembers(of: setID).count == 2)
+        #expect(decoded.missingNodeDiagnostics.isEmpty)
+
+        // Every instance of a stored graph names its nodes alike, so each
+        // member is asked for the id within its own sub graph.
+        let nestedID = pair.member.nestedInner.id
+        let members = decoded.cloneSetMembers(of: setID)
+        let source = try #require(members.first?.subGraph.nodesRecursive().first { $0.id == nestedID } as? NumberBinaryOperator)
+        let sibling = try #require(members.last?.subGraph.nodesRecursive().first { $0.id == nestedID } as? NumberBinaryOperator)
+        #expect(source.inputNumber1.value == 3)
+        #expect(sibling.inputNumber1.value == 9)
+    }
+
     @Test("A member whose design has drifted from its set is saved in full, so nothing is lost")
     @MainActor
     func driftedMembersSaveInFull() throws
