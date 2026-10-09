@@ -68,6 +68,11 @@ open class SubgraphNode: BaseObjectNode
         self.synchronizeParameters()
 
         self.invalidatePortCaches()
+
+        // A proxy dropped and rebuilt is a new object under the same id, so
+        // the containing graph's wires onto it have to be bound to it again.
+        self.graph?.reattachConnections(to: self.proxyPorts)
+
         self.graph?.markConnectionsChanged()
         self.portsChangedSubject.send()
     }

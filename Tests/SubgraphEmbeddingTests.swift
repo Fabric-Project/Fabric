@@ -287,4 +287,34 @@ struct SubgraphEmbeddingTests
             encodedGraph = try JSONEncoder().encode(decodedGraph)
         }
     }
+
+    @Test("A republished port's proxy takes the parent's wire back", arguments: ContainerKind.allCases)
+    func republishedPortTakesParentWireBack(kind: ContainerKind) throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = try makeFixture(context: context)
+        let container = try embed(fixture, as: kind)
+
+        let innerPort = fixture.firstMovedNode.inputNumber1
+        // Held across the republish, which keeps the dropped proxy alive: the
+        // wire is then left on a live object that no longer belongs to the
+        // node, the case a weak reference going nil would not catch.
+        let originalProxy = try #require(container.ports.first { $0.id == innerPort.id })
+        #expect(fixture.incomingConnection.inletPort === originalProxy)
+
+        innerPort.published = false
+        container.subGraph.rebuildPublishedParameterGroup()
+        #expect(!container.ports.contains { $0.id == innerPort.id })
+
+        innerPort.published = true
+        container.subGraph.rebuildPublishedParameterGroup()
+
+        let rebuiltProxy = try #require(container.ports.first { $0.id == innerPort.id })
+        #expect(rebuiltProxy !== originalProxy)
+        #expect(fixture.incomingConnection.inletPort === rebuiltProxy)
+        #expect(rebuiltProxy.connections == [fixture.incomingConnection])
+        #expect(originalProxy.connections.isEmpty)
+        #expect(fixture.graph.connections.filter { $0 === fixture.incomingConnection }.count == 1)
+        #expect(fixture.graph.disconnect(fixture.incomingConnection))
+    }
 }

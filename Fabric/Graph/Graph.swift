@@ -917,7 +917,11 @@ internal import AnyCodable
         connection.graph = self
         connection.outletPortReference = outlet
         connection.inletPortReference = inlet
-        connections.append(connection)
+
+        if !connections.contains(where: { $0 === connection })
+        {
+            connections.append(connection)
+        }
 
         if !outlet.connections.contains(where: { $0.id == connection.id })
         {
@@ -938,6 +942,39 @@ internal import AnyCodable
             inletNode.updateConnectionTopology()
             markNodeForLifecycleReview(outletNode)
             markNodeForLifecycleReview(inletNode)
+        }
+    }
+
+    /// Re-binds this graph's wires onto `ports`, for a port that went away and
+    /// came back under the same id, as a sub graph node's proxy does when its
+    /// inner port is republished. Nothing else recovers such a wire: the id
+    /// still resolves so it reads as live, while the port it points at is the
+    /// old object, and `disconnect` refuses it once that object has gone.
+    /// Identity, not nil-ness, is the test: whoever still holds the old port
+    /// decides only when it dies, never whether the wire was left behind.
+    internal func reattachConnections(to ports: [Port])
+    {
+        guard !ports.isEmpty, !connections.isEmpty else { return }
+
+        let portsByID = Dictionary(ports.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+
+        for connection in connections
+        {
+            let currentOutlet = portsByID[connection.outletPortID]
+            let currentInlet = portsByID[connection.inletPortID]
+            let outletIsStale = currentOutlet != nil && connection.outletPortReference !== currentOutlet
+            let inletIsStale = currentInlet != nil && connection.inletPortReference !== currentInlet
+
+            guard outletIsStale || inletIsStale,
+                  let outlet = currentOutlet ?? connection.outletPortReference,
+                  let inlet = currentInlet ?? connection.inletPortReference
+            else { continue }
+
+            if outletIsStale { connection.outletPortReference?.connections.removeAll { $0 === connection } }
+            if inletIsStale { connection.inletPortReference?.connections.removeAll { $0 === connection } }
+
+            attachConnection(connection, outlet: outlet, inlet: inlet)
+            outlet.sendBoxed(outlet.snapshotValue(), force: true)
         }
     }
     
