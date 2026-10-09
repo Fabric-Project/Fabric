@@ -57,7 +57,12 @@ struct CloneSetContextMenu: View
             } label: {
                 Text("Select Sibling Clones")
             }
+        }
 
+        // A set of one is a set still: its last member keeps the badge, the
+        // name and the stored graph, so it needs the way out the others had.
+        if subgraphNode.cloneSetID != nil
+        {
             Button {
                 do { try currentGraph.unlinkClone(subgraphNode) }
                 catch { print("Unlink from Clones failed: \(error.localizedDescription)") }
