@@ -782,6 +782,7 @@ public class TimelineNode: Node
             }
             _settingsModelStorage?.duration = duration
             _settingsModelStorage?.tracks = tracks
+            settingsDidChange()
         }
     }
 
@@ -790,6 +791,7 @@ public class TimelineNode: Node
         didSet
         {
             _settingsModelStorage?.tracks = tracks
+            settingsDidChange()
         }
     }
 

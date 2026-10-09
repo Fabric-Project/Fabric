@@ -25,6 +25,11 @@ public class DecoderContext
     public var fileReferenceBaseURL: URL?
     
     public var currentGraph:Graph?
+
+    /// The document's clone sets, put here by the root graph as it decodes
+    /// so a member saved as its record alone can be materialised from its
+    /// set's template.
+    public var cloneSets: [CloneSet] = []
     
     public init(documentContext: Context,
                 currentGraph: Graph? = nil,

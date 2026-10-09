@@ -198,11 +198,14 @@ public class GraphCanvasContext
         syncUndoManager()
     }
 
+    /// Leaving a canvas is the point where edits made there are known to be
+    /// complete, so any clone sync still waiting on the debounce runs now.
     public func pop()
     {
         guard !entries.isEmpty else { return }
         entries.removeLast()
         syncUndoManager()
+        rootGraph.flushPendingCloneSync()
     }
 
     public func popTo(_ node: SubgraphNode)
@@ -210,12 +213,14 @@ public class GraphCanvasContext
         guard let index = entries.firstIndex(where: { $0.id == node.id }) else { return }
         entries = Array(entries.prefix(through: index))
         syncUndoManager()
+        rootGraph.flushPendingCloneSync()
     }
 
     public func popToRoot()
     {
         entries.removeAll()
         syncUndoManager()
+        rootGraph.flushPendingCloneSync()
     }
 
     // MARK: - Interactive Node Addition

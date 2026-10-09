@@ -144,7 +144,7 @@ class SuperShapeGeometryNode : BaseGeometryNode
             ("m1Param",  ParameterPort(parameter:FloatParameter("M1", 10, 0, 20, .slider, "Rotational symmetry count for the first supershape"))),
             ("n11Param", ParameterPort(parameter:FloatParameter("N11", 1.087265, 0.0, 100.0, .slider, "First shape exponent n1 for the first supershape"))),
             ("n21Param", ParameterPort(parameter:FloatParameter("N21", 0.938007, 0.0, 100.0, .slider, "Second shape exponent n2 for the first supershape"))),
-            ("n31Param", ParameterPort(parameter:FloatParameter("N31", -0.615898, 0.0, 100.0, .slider, "Third shape exponent n3 for the first supershape"))),
+            ("n31Param", ParameterPort(parameter:FloatParameter("N31", -0.615898, -100.0, 100.0, .slider, "Third shape exponent n3 for the first supershape"))),
             ("r2Param",  ParameterPort(parameter:FloatParameter("R2", 0.984062, 0, 2, .slider, "Radial scale factor for the second supershape formula"))),
             ("a2Param",  ParameterPort(parameter:FloatParameter("A2", 1.513944, 0.0, 5.0, .slider, "Horizontal stretch factor for the second supershape"))),
             ("b2Param",  ParameterPort(parameter:FloatParameter("B2", 0.642890, 0.0, 5.0, .slider, "Vertical stretch factor for the second supershape"))),

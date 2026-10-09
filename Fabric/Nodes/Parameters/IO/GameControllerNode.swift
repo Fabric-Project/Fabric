@@ -176,6 +176,7 @@ public class GameControllerNode: Node
             _settingsModelStorage?.outputPortCount = outputPorts().count
             // `subtitle` is derived from the selected controller; notify so the title refreshes.
             self.subtitleSubject.send()
+            self.settingsDidChange()
         }
     }
 

@@ -173,6 +173,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 ### 3.4  Subgraph Behavior
 - Iterator applies per-iteration params before subgraph execute.
 - Render-to-Image-with-Depth sizes to inputs, attaches depth, outputs typed textures.
+- Clone sets (`CloneSet`, `Graph+CloneSet.swift`, `Graph+CloneReconcile.swift`): what a node encodes is its design and replicates across members; what it does not encode is runtime and stays per member. Published inlet values are the one encoded exception. Identity across members is the member's `cloneRecord` (template id → local id), never a field on Node; a settings change that rebuilds ports replaces the sibling's node under the ids it recorded, everything else reconciles in place. Edits reach siblings through `Graph.noteContentChanged()`: the Graph mutation API bumps it, and a member's `CloneMemberObserver` bumps it for the signals nodes, ports and parameters already publish. Nothing clone-specific belongs on Node or Port.
 
 ---
 
@@ -211,6 +212,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 - [ ] If we have a Settings View, we should have a custom initializer so procedural graph creation has an entry to settings.
 - [ ] If we have a Settings View and a custom initializer, use a custom struct or enum for the settings
 - [ ] If the Node overrides `deriveSubtitle()`, every mutation of the state it derives from fires `subtitleSubject.send()` (StrategyNode’s `strategy` already does)
+- [ ] If the Node encodes state that is not a port (a script, an expression, a strategy, a device selection), every mutation of it calls `settingsDidChange()`; port changes report themselves
 - [ ] New Nodes should live in an appropriate spot in the NodeRegistry
 
 ---

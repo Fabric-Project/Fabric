@@ -383,6 +383,7 @@ public class MIDIInputNode: Node
             _settingsModelStorage?.selectedInputID = selectedInputID
             // `subtitle` is derived from the selected input; notify so the title refreshes.
             self.subtitleSubject.send()
+            self.settingsDidChange()
         }
     }
 

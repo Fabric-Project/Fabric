@@ -20,6 +20,77 @@ open class SubgraphNode: BaseObjectNode
 
     public private(set) var subGraph:Graph
 
+    /// The clone set this node belongs to, nil outside any set. Members of a
+    /// set keep their sub graphs identical in design (node set, wiring,
+    /// published ports, unpublished values, layout) to the set's template
+    /// while each executes on its own. Published inlet values are the
+    /// per-member exception: the parent graph sets them through the proxy.
+    /// Mutate through Graph.duplicateAsClone / unlinkClone so the change is
+    /// undoable. See CloneSet.
+    public internal(set) var cloneSetID: UUID?
+    {
+        didSet { if oldValue != cloneSetID { self.cloneMembershipDidChange() } }
+    }
+
+    /// Watches the sub graph for edits while this node is a member; see
+    /// CloneMemberObserver.
+    internal private(set) var cloneObserver: CloneMemberObserver?
+
+    private func cloneMembershipDidChange()
+    {
+        self.cloneObserver?.stop()
+        self.cloneObserver = self.cloneSetID == nil ? nil : CloneMemberObserver(member: self)
+    }
+
+    /// The one place membership is written: set and record together, the
+    /// badge refreshed, and the change reported as the design change it is.
+    /// Not undoable; Graph.setCloneMembership wraps it with undo.
+    internal func setCloneMembership(setID: UUID?, record: [String: String])
+    {
+        self.cloneSetID = setID
+        self.cloneRecord = record
+        self.subtitleSubject.send()
+        self.settingsDidChange()
+    }
+
+    /// The member's record: every id in the set's template mapped to this
+    /// member's own id for the same node, port, wire or nested graph. Keys are
+    /// template ids, values local ids, both as UUID strings so the record is
+    /// rewritten correctly whenever the node is duplicated. Empty outside a
+    /// set. Grows as edits here add ids the template did not have.
+    public internal(set) var cloneRecord: [String: String] = [:]
+
+    /// The template id this member records for one of its own ids.
+    public func templateID(forLocal localID: UUID) -> UUID?
+    {
+        self.cloneRecord.inverted[localID.uuidString].flatMap(UUID.init(uuidString:))
+    }
+
+    /// This member's id for a template id, nil where the template has
+    /// something this member does not yet.
+    public func localID(forTemplate templateID: UUID) -> UUID?
+    {
+        self.cloneRecord[templateID.uuidString].flatMap(UUID.init(uuidString:))
+    }
+
+    /// The set as seen from this member, nil outside a set. Refreshed through
+    /// subtitleSubject whenever membership or the name changes.
+    public var cloneSetInfo: CloneSetInfo?
+    {
+        guard let graph = self.graph, let setID = self.cloneSetID, let set = graph.cloneSet(for: setID)
+        else { return nil }
+        return CloneSetInfo(setID: setID,
+                            name: set.name,
+                            memberCount: graph.cloneSiblings(of: self).count + 1)
+    }
+
+    /// A member describes itself by its set's name, the way a Strategy node
+    /// shows its strategy. The member count lives in the status's message.
+    override open func deriveSubtitle() -> String? { self.cloneSetInfo?.name }
+
+    /// A member reports itself linked to its set.
+    override open func deriveStatuses() -> [NodeStatus] { self.cloneSetInfo.map { [$0.status] } ?? [] }
+
     /// ProxyPorts wrapping the sub graph's published ports.
     /// Each proxy has node = self (the SubgraphNode) and published = false.
     /// The parent graph independently decides whether to publish them further.
@@ -194,24 +265,73 @@ open class SubgraphNode: BaseObjectNode
     {
         case subGraph
         case proxyPorts
+        case cloneSetID
+        case cloneRecord
+        case memberValues
     }
     
     open override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.subGraph, forKey: .subGraph)
+
+        try container.encodeIfPresent(self.cloneSetID, forKey: .cloneSetID)
+        if !self.cloneRecord.isEmpty
+        {
+            try container.encode(self.cloneRecord, forKey: .cloneRecord)
+        }
+
+        // A member that matches its set's template is written as its record
+        // and the values that are its own; the template holds the rest once.
+        // The proxies are the member's face in the parent graph, published
+        // and named there per member, so they are written either way.
         try container.encode(self.proxyPorts.map(AnyPort.init), forKey: .proxyPorts)
-        
+        if encoder.userInfo[Graph.compactCloneMembersKey] as? Bool == true,
+           let memberValues = self.compactMemberValues()
+        {
+            try container.encode(memberValues, forKey: .memberValues)
+        }
+        else
+        {
+            try container.encode(self.subGraph, forKey: .subGraph)
+        }
+
         try super.encode(to: encoder)
+    }
+
+    /// The per-member values, the resting values of every published inlet
+    /// at any depth (the design comparison leaves those out at every depth
+    /// too), when this member's design matches its set's template; nil
+    /// otherwise, so a member the template has not caught up with is saved
+    /// in full.
+    private func compactMemberValues() -> [String: AnyPort]?
+    {
+        guard let graph = self.graph, let setID = self.cloneSetID, let set = graph.cloneSet(for: setID),
+              !self.cloneRecord.isEmpty,
+              let design = graph.cloneTemplateJSON(from: self),
+              Graph.designComparableJSON(design) == set.comparableTemplateJSON
+        else { return nil }
+
+        return Dictionary(uniqueKeysWithValues: self.subGraph.publishedInletsRecursive().map {
+            ($0.id.uuidString, AnyPort($0))
+        })
     }
     
     public required init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
-        self.subGraph = try container.decode(Graph.self, forKey: .subGraph)
-        
+        self.cloneSetID = try container.decodeIfPresent(UUID.self, forKey: .cloneSetID)
+        self.cloneRecord = try container.decodeIfPresent([String: String].self, forKey: .cloneRecord) ?? [:]
+
+        if container.contains(.subGraph)
+        {
+            self.subGraph = try container.decode(Graph.self, forKey: .subGraph)
+        }
+        else
+        {
+            self.subGraph = try Self.materialiseSubGraph(from: container, decoder: decoder)
+        }
+
         // We set the current graph to the subgraph
         // to allow proxy ports and any other decode contexts to work correctly
         
@@ -227,6 +347,7 @@ open class SubgraphNode: BaseObjectNode
             }
 
             self.proxyPorts = Self.decodeProxyPortsIfPossible(from: container, forKey: .proxyPorts)
+            try Self.applyMemberValues(from: container, to: self.subGraph)
         }
         else
         {
@@ -237,6 +358,47 @@ open class SubgraphNode: BaseObjectNode
         self.wireSubGraphCallback()
         self.proxyPorts.forEach { $0.node = self }
         self.rebuildProxyPorts()
+        // didSet does not fire in init; a decoded member starts watching here.
+        self.cloneMembershipDidChange()
+    }
+
+    /// A member saved as its record alone: its sub graph is the set's
+    /// template with every id rewritten to the id the record holds for it,
+    /// decoded the way a document is.
+    private static func materialiseSubGraph(from container: KeyedDecodingContainer<CodingKeys>,
+                                            decoder: any Decoder) throws -> Graph
+    {
+        let setID = try container.decodeIfPresent(UUID.self, forKey: .cloneSetID)
+        let record = try container.decodeIfPresent([String: String].self, forKey: .cloneRecord) ?? [:]
+        guard let decodeContext = decoder.context,
+              let setID, !record.isEmpty,
+              let set = decodeContext.cloneSets.first(where: { $0.id == setID })
+        else
+        {
+            throw DecodingError.dataCorruptedError(forKey: .subGraph, in: container,
+                                                   debugDescription: "A clone set member saved without its sub graph needs its set and record to be rebuilt.")
+        }
+
+        let object = Graph.remapUUIDs(in: set.templateObject, remap: record, preservingKeys: [Graph.cloneSetIDKey])
+        let data = try JSONSerialization.data(withJSONObject: object)
+        let graphDecoder = JSONDecoder()
+        graphDecoder.context = decodeContext
+        return try graphDecoder.decode(Graph.self, from: data)
+    }
+
+    /// The per-member values a compact save recorded, put back on the ports
+    /// the record maps them to.
+    private static func applyMemberValues(from container: KeyedDecodingContainer<CodingKeys>,
+                                          to subGraph: Graph) throws
+    {
+        guard let values = try container.decodeIfPresent([String: AnyPort].self, forKey: .memberValues) else { return }
+        let portsByID = Dictionary(subGraph.publishedInletsRecursive().map { ($0.id.uuidString, $0) },
+                                   uniquingKeysWith: { first, _ in first })
+        for (portID, saved) in values
+        {
+            guard let port = portsByID[portID], port.portType == saved.base.portType else { continue }
+            port.restoreValue(from: saved.base.snapshotValue())
+        }
     }
 
     private static func decodeProxyPortsIfPossible(from container: KeyedDecodingContainer<CodingKeys>,
@@ -255,6 +417,7 @@ open class SubgraphNode: BaseObjectNode
 
     private func wireSubGraphCallback()
     {
+        self.subGraph.ownerNode = self
         self.subGraph.onPublishedPortsChanged = { [weak self] in
             self?.rebuildProxyPorts()
         }
