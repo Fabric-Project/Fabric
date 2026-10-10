@@ -81,12 +81,17 @@ extension Node
 {
     /// A node's settings as encodeSettings(to:) writes them, with what a
     /// settings change can take from the node's ports: each port's state, for
-    /// a port the change removes to come back as it was, and the wires on them.
+    /// a port the change removes to come back as it was, the wires on them,
+    /// and for a published port what the proxies standing for it hold up the
+    /// chain (see Graph.ProxyChainState).
     struct SettingsSnapshot
     {
         let settings: Data
         let ports: [PortRegistry.Snapshot]
         let connections: [Graph.Wire]
+        /// What the proxies standing for each published port hold further
+        /// up, by the port's id.
+        let proxyChains: [UUID: Graph.ProxyChainState]
     }
 
     /// nil for a node with no settings.
@@ -100,7 +105,15 @@ extension Node
         let connections = self.graph?.connections.filter {
             portIDs.contains($0.outletPortID) || portIDs.contains($0.inletPortID)
         }.map(Graph.Wire.init) ?? []
-        return SettingsSnapshot(settings: settings, ports: self.portSnapshots(), connections: connections)
+        var proxyChains: [UUID: Graph.ProxyChainState] = [:]
+        if let graph = self.graph
+        {
+            for port in self.ports where port.published
+            {
+                proxyChains[port.id] = graph.proxyChainState(standingFor: port)
+            }
+        }
+        return SettingsSnapshot(settings: settings, ports: self.portSnapshots(), connections: connections, proxyChains: proxyChains)
     }
 
     /// Puts the node's settings back as `snapshot` holds them, its ports and
@@ -114,11 +127,17 @@ extension Node
             _ = try decoder.decode(SettingsReader.self, from: snapshot.settings)
         }
         defer { self.settingsRestoredSubject.send() }
-        // A port the change replaced may have kept its wire.
         guard let graph = self.graph else { return }
+        // A port the change replaced may have kept its wire.
         for wire in snapshot.connections
         {
             graph.restore(wire)
+        }
+
+        for (portID, chain) in snapshot.proxyChains
+        {
+            guard let port = self.ports.first(where: { $0.id == portID }), port.published else { continue }
+            graph.restoreProxyChain(standingFor: port, to: chain)
         }
     }
 }

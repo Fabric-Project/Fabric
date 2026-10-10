@@ -184,6 +184,40 @@ struct SettingsUndoTests
         #expect(fixture.graph.connections.isEmpty)
     }
 
+    @Test("Undo brings back a published port a settings change removed, with the wire onto its proxy in the graph around")
+    func undoRestoresTheWireOntoAProxy() throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = makeFixture(context: context)
+        let subgraph = SubgraphNode(context: context)
+        let node = MathExpressionNode(context: context, expression: "x")
+        step(fixture.undoManager) {
+            fixture.graph.addNode(subgraph)
+            subgraph.subGraph.undoManager = fixture.undoManager
+            subgraph.subGraph.addNode(node)
+        }
+        let x = try #require(inlet("x", of: node))
+        step(fixture.undoManager) { subgraph.subGraph.setPublished(true, on: x) }
+        let proxy = try #require(subgraph.ports.first { $0.id == x.id })
+        step(fixture.undoManager) { fixture.graph.connect(fixture.upstream.outputNumber, to: proxy) }
+
+        let session = NodeSettingsSession(node: node)
+        node.stringExpression = "y"
+        session.end()
+        #expect(!subgraph.ports.contains { $0.id == x.id })
+        #expect(fixture.graph.connections.isEmpty)
+
+        fixture.undoManager.undo()
+        let restored = try #require(subgraph.ports.first { $0.id == x.id })
+        let outletID = fixture.upstream.outputNumber.id
+        #expect(fixture.graph.connections.count == 1)
+        #expect(fixture.upstream.outputNumber.connections.first?.inletPort === restored)
+        #expect(fixture.graph.connections.first?.outletPortID == outletID)
+
+        fixture.undoManager.redo()
+        #expect(fixture.graph.connections.isEmpty)
+    }
+
     @Test("A format string typed in the settings view is one step")
     func formatStringIsOneStep()
     {
