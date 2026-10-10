@@ -92,9 +92,11 @@ internal import AnyCodable
 
     /// Nodes whose membership, connections or published ports changed since
     /// GraphRenderer last reviewed their lifecycle. Holding them strongly keeps
-    /// removed nodes alive until the renderer retires them.
-    @ObservationIgnored private var nodesAwaitingLifecycleReview: Set<Node> = []
-    @ObservationIgnored private var nodesWithPublishedPortsAtLastReview: Set<Node> = []
+    /// removed nodes alive until the renderer retires them. Both are keyed by
+    /// the node object, not its id, which Node's equality uses: a node put in
+    /// place of another under the same id is a different node to start and stop.
+    @ObservationIgnored private var nodesAwaitingLifecycleReview: [ObjectIdentifier: Node] = [:]
+    @ObservationIgnored private var nodesWithPublishedPortsAtLastReview: [ObjectIdentifier: Node] = [:]
     @ObservationIgnored internal private(set) var subgraphNodes: [SubgraphNode] = []
 
     /// Populated once at decode; empty for graphs built programmatically.
@@ -143,12 +145,12 @@ internal import AnyCodable
 
     internal func markNodeForLifecycleReview(_ node: Node)
     {
-        nodesAwaitingLifecycleReview.insert(node)
+        nodesAwaitingLifecycleReview[ObjectIdentifier(node)] = node
     }
 
-    internal func takeNodesAwaitingLifecycleReview() -> Set<Node>
+    internal func takeNodesAwaitingLifecycleReview() -> [Node]
     {
-        let reviewedNodes = nodesAwaitingLifecycleReview
+        let reviewedNodes = Array(nodesAwaitingLifecycleReview.values)
         nodesAwaitingLifecycleReview.removeAll(keepingCapacity: true)
         return reviewedNodes
     }
@@ -1055,8 +1057,13 @@ internal import AnyCodable
         self.publishedParameterGroup.append( publishedParams )
 
         // A published port connects its node through the enclosing subgraph node.
-        let nodesWithPublishedPorts = Set(self.nodesWithPublishedPorts())
-        for node in nodesWithPublishedPorts.symmetricDifference(self.nodesWithPublishedPortsAtLastReview)
+        let nodesWithPublishedPorts = Dictionary(self.nodesWithPublishedPorts().map { (ObjectIdentifier($0), $0) },
+                                                 uniquingKeysWith: { first, _ in first })
+        for (key, node) in nodesWithPublishedPorts where self.nodesWithPublishedPortsAtLastReview[key] == nil
+        {
+            self.markNodeForLifecycleReview(node)
+        }
+        for (key, node) in self.nodesWithPublishedPortsAtLastReview where nodesWithPublishedPorts[key] == nil
         {
             self.markNodeForLifecycleReview(node)
         }

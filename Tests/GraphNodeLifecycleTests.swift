@@ -144,6 +144,29 @@ struct GraphNodeLifecycleTests
         #expect(node.lifecycleCalls == ["enable", "start", "stop", "disable", "enable", "start"])
     }
 
+    @Test("A node put in place of a deleted one under the same id, before the renderer reviews either, starts")
+    func nodeReplacedUnderTheSameIDStarts() throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let graph = Graph(context: harness.context)
+        let renderer = harness.graphRenderer(for: graph)
+        let node = ConsumerLifecycleRecordingNode(context: harness.context)
+        graph.addNode(node)
+        try renderer.startExecution()
+
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: harness.context)
+        let replacement = try decoder.decode(ConsumerLifecycleRecordingNode.self, from: JSONEncoder().encode(node))
+        #expect(replacement.id == node.id)
+
+        graph.delete(node: node)
+        graph.addNode(replacement)
+        try renderer.synchronizeLifecycle()
+
+        #expect(node.lifecycleCalls == ["enable", "start", "stop", "disable"])
+        #expect(replacement.lifecycleCalls == ["enable", "start"])
+    }
+
     @Test("Duplicated connected nodes start")
     func duplicatedConnectedNodesStart() throws
     {
