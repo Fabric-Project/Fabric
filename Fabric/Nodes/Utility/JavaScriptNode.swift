@@ -624,7 +624,6 @@ public final class JavaScriptNode: Node
     {
         self.scriptSource = source
         self.compileAndSynchronizePorts()
-        self.settingsDidChange()
     }
 
     /// The execution mode has no setter: it is read off the ports. The time
@@ -635,7 +634,6 @@ public final class JavaScriptNode: Node
         guard self.selectedTimeMode != timeMode else { return }
         self.selectedTimeMode = timeMode
         self.markDirty()
-        self.settingsDidChange()
     }
 
     override public func execute(renderer: GraphRenderer,

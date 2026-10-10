@@ -276,7 +276,6 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
         syncVariablePorts()
         _expressionsDirty = true
         subtitleSubject.send()
-        settingsDidChange()
     }
 
     /// Blank everywhere is a node not yet written rather than one that fails,

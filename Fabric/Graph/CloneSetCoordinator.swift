@@ -2,120 +2,96 @@
 //  CloneSetCoordinator.swift
 //  Fabric
 //
-//  Created by Claude on 10/9/26.
+//  Created by Claude on 9/10/26.
 //
 
 import Foundation
 
-/// Per-document clone set state, owned by the root graph: the sync
-/// re-entrancy flag and the debounced sync that follows edits inside a
-/// member. See Graph+CloneSync.
-///
-/// Main thread only, like every other edit of a graph. Graph hands an edit
-/// made elsewhere to the main actor before it reaches here.
+/// Keeps a document's clone sets in step; owned by the root graph. Edits are
+/// marked by the document's undo manager: when an undo group closes, and
+/// after an undo or redo, each set is synced from the member of it whose
+/// design is no longer the set's. An edit that registers no undo is caught by
+/// the next one that does, and by the explicit syncs: leaving a canvas,
+/// closing a node's settings, deleting a member.
 final class CloneSetCoordinator
 {
-    /// Set while siblings are being re-instantiated, so the writes that
-    /// makes are never mistaken for edits of their own.
+    /// Set while a sync runs, so the writes it makes are never taken for edits.
     var isSyncing = false
 
-    /// How long edits must pause before pending syncs run.
-    var debounceInterval: Duration = .milliseconds(100)
-
     private(set) weak var rootGraph: Graph?
-
-    /// The graph to sync each set from, by set id: the last graph edited
-    /// inside one of its members.
-    private var pendingSources: [UUID: Graph] = [:]
-    private var debounceTask: Task<Void, Never>?
+    private var observations: [NSObjectProtocol] = []
 
     init(rootGraph: Graph)
     {
         self.rootGraph = rootGraph
     }
 
-    /// True between an edit inside a member and the sync that follows it.
-    var hasPendingSync: Bool
+    deinit
     {
-        !pendingSources.isEmpty
+        observations.forEach(NotificationCenter.default.removeObserver)
     }
 
-    /// An edit landed in `graph`. Coalesces with other edits until they pause.
-    /// Every set around the graph takes it as its source, replacing an
-    /// earlier editor of the same set, since syncing from that one would
-    /// overwrite the newer edit.
-    func noteContentChanged(in graph: Graph)
+    /// Follows `undoManager`'s edits, in place of any it followed before.
+    func attach(to undoManager: UndoManager?)
     {
-        dispatchPrecondition(condition: .onQueue(.main))
+        observations.forEach(NotificationCenter.default.removeObserver)
+        observations = []
+        guard let undoManager else { return }
 
-        for member in graph.enclosingCloneMembers
+        let center = NotificationCenter.default
+        let syncAfterEdit: (Notification) -> Void = { [weak self, weak undoManager] _ in
+            // A nested group closes partway through an edit; undo and redo
+            // report themselves.
+            guard let undoManager, undoManager.groupingLevel == 0,
+                  !undoManager.isUndoing, !undoManager.isRedoing
+            else { return }
+            self?.sync()
+        }
+        let syncAfterUndo: (Notification) -> Void = { [weak self] _ in self?.sync() }
+        observations = [
+            center.addObserver(forName: .NSUndoManagerDidCloseUndoGroup, object: undoManager, queue: nil, using: syncAfterEdit),
+            center.addObserver(forName: .NSUndoManagerDidUndoChange, object: undoManager, queue: nil, using: syncAfterUndo),
+            center.addObserver(forName: .NSUndoManagerDidRedoChange, object: undoManager, queue: nil, using: syncAfterUndo),
+        ]
+    }
+
+    /// Syncs each set from its first member found out of step, innermost
+    /// members first, so an outer member is compared with the members nested
+    /// in it already in step. No-op while a sync is running, and off the main
+    /// thread: a graph changed elsewhere is being built or decoded, not
+    /// edited, and syncs once it is edited.
+    func sync()
+    {
+        guard Thread.isMainThread, !isSyncing, let rootGraph, !rootGraph.cloneSets.isEmpty else { return }
+
+        let members = rootGraph.subgraphNodesRecursive()
+            .filter { $0.cloneSetID != nil }
+            .map { (member: $0, depth: $0.subGraph.enclosingCloneMembers.count) }
+            .sorted { $0.depth > $1.depth }
+
+        var syncedSetIDs = Set<UUID>()
+        for (member, _) in members
         {
-            guard let setID = member.cloneSetID else { continue }
-            pendingSources[setID] = graph
-        }
-        restartDebounce()
-    }
+            // A sync can retire what an earlier one in this pass held.
+            guard let setID = member.cloneSetID, !syncedSetIDs.contains(setID),
+                  let graph = member.graph, graph.rootGraph === rootGraph,
+                  !graph.isCloneMemberInStep(member)
+            else { continue }
 
-    private func restartDebounce()
-    {
-        debounceTask?.cancel()
-        let interval = self.debounceInterval
-        debounceTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: interval)
-            guard !Task.isCancelled else { return }
-            self?.flush()
+            syncedSetIDs.insert(setID)
+            graph.syncCloneSiblings(of: member)
         }
     }
+}
 
-    /// Runs every pending sync now, each set from the member of it that
-    /// encloses the set's source. Nested sets go first, so an outer member
-    /// is stored with its nested members already in step, and an outer sync
-    /// never retires a source before that source has been synced from. The
-    /// members involved then re-subscribe to their node trees, which the
-    /// sync replaced. No-op while a sync is already running.
-    func flush()
+extension Graph
+{
+    /// Brings every clone set in the document in step now, each from the
+    /// member of it that has moved on. The editor's undo groups do this as
+    /// edits are made; edits made through the API outside an undo group call
+    /// it themselves.
+    public func syncCloneSets()
     {
-        dispatchPrecondition(condition: .onQueue(.main))
-        guard !isSyncing, let rootGraph else { return }
-
-        debounceTask?.cancel()
-        debounceTask = nil
-        let sources = pendingSources
-        pendingSources.removeAll()
-
-        let syncs: [(member: SubgraphNode, depth: Int)] = sources.compactMap { setID, graph in
-            let members = graph.enclosingCloneMembers
-            guard let index = members.firstIndex(where: { $0.cloneSetID == setID }) else { return nil }
-            return (members[index], members.count - index)
-        }
-        for sync in syncs.sorted(by: { $0.depth > $1.depth })
-        {
-            sync.member.graph?.reinstantiateCloneSiblings(of: sync.member)
-        }
-
-        for setID in sources.keys
-        {
-            for member in rootGraph.cloneSetMembers(of: setID)
-            {
-                member.cloneObserver?.refresh()
-            }
-        }
-    }
-
-    /// Drops any pending sync without running it. For tests that want a
-    /// member's edit left unseen by its set.
-    func discardPendingSync()
-    {
-        dispatchPrecondition(condition: .onQueue(.main))
-        debounceTask?.cancel()
-        debounceTask = nil
-        pendingSources.removeAll()
-    }
-
-    /// Waits for a pending debounce to run its sync, for callers that need
-    /// the siblings in step now rather than after the pause.
-    func settle() async
-    {
-        await debounceTask?.value
+        self.cloneSetCoordinator.sync()
     }
 }

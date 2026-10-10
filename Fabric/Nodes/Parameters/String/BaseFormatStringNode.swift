@@ -78,7 +78,6 @@ public class BaseFormatStringNode: Node {
         didSet {
             self.updatePorts()
             self.subtitleSubject.send()
-            self.settingsDidChange()
         }
     }
 

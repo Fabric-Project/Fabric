@@ -174,6 +174,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 ### 3.4  Subgraph Behavior
 - Iterator applies per-iteration params before subgraph execute.
 - Render-to-Image-with-Depth sizes to inputs, attaches depth, outputs typed textures.
+- Clone sets (`CloneSet`, `Graph+CloneSet.swift`, `Graph+CloneSync.swift`): a set holds one stored graph, and its members are instances of it under the same inner ids. A sync re-instantiates each sibling from the member whose design moved on; published inlet values are the one per-member exception. Sets sync when the document's undo groups close, after undo and redo, and at a few fixed points (leaving a canvas, closing a node's settings, deleting a member); see `CloneSetCoordinator`. An edit that registers no undo is caught at the next of these. Nothing clone-specific belongs on Node.
 
 ---
 
@@ -215,7 +216,6 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 - [ ] If we have a Settings View editing state of the node's own, it is written in `encodeSettings(to:)` and put back in `restoreSettings(from:)` (`SettingsUndoTests` checks the pair, and that every core node takes back its own settings unchanged)
 - [ ] If the Node overrides `deriveSubtitle()`, every mutation of the state it derives from fires `subtitleSubject.send()` (StrategyNode’s `strategy` already does)
 - [ ] New Nodes should live in an appropriate spot in the NodeRegistry
-- [ ] If the Node encodes state that is not a port (a script, an expression, a strategy, a device selection), every mutation of it calls `settingsDidChange()`; port changes report themselves
 
 ---
 

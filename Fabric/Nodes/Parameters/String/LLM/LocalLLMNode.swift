@@ -289,7 +289,6 @@ struct LocalLLMNodeSettingsView: View {
 
     private func didUpdateModelSettings() {
         guard self.suppressSettingSideEffects == false else { return }
-        self.settingsDidChange()
         self.llmEvaluator.resetSessionState()
         self.applyEvaluatorConfiguration()
         self.observeSelectedModelState()
@@ -297,7 +296,6 @@ struct LocalLLMNodeSettingsView: View {
 
     private func didUpdateInferenceSettings() {
         guard self.suppressSettingSideEffects == false else { return }
-        self.settingsDidChange()
         self.applyEvaluatorConfiguration()
         self.llmEvaluator.clearConversation()
     }

@@ -393,9 +393,9 @@ class FabricDocument: FileDocument
 
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted]
+        // Clone sets sync as edits are made, on the main thread; a member an
+        // edit has not reached yet is written in full, so nothing is lost.
         encoder.userInfo[Graph.compactCloneMembersKey] = true
-
-        self.editingContext.rootGraph.flushPendingCloneSync()
         let data = try encoder.encode(self.editingContext.rootGraph)
         self.lastWrittenGraph = (data, self.editingContext.rootGraph.fileReferenceBaseURL)
 

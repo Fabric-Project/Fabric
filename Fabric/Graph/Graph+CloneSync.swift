@@ -17,14 +17,16 @@ import Foundation
 /// buffer, starts over. See SubgraphNode.replaceSubGraph.
 extension Graph
 {
-    /// Syncs every set that `graph` sits inside, innermost first, taking the
-    /// enclosing member as the source each time.
-    public func syncCloneSets(enclosing graph: Graph)
+    /// The coordinator's two questions of the model: whether `member`'s
+    /// design is its set's stored graph, and how its siblings come to match it.
+    internal func isCloneMemberInStep(_ member: SubgraphNode) -> Bool
     {
-        for member in graph.enclosingCloneMembers
-        {
-            member.graph?.reinstantiateCloneSiblings(of: member)
-        }
+        member.isInStepWithCloneSet
+    }
+
+    internal func syncCloneSiblings(of member: SubgraphNode)
+    {
+        self.reinstantiateCloneSiblings(of: member)
     }
 
     /// Stores `member`'s sub graph as its set's graph and, where that changed
@@ -80,21 +82,5 @@ extension Graph
 
         try self.refreshCloneSetGraph(from: source)
         try target.reinstantiateSubGraph()
-    }
-
-    /// Runs any sync still waiting on the debounce, so a document is saved
-    /// with every set in step. The sync is a graph edit and runs on the main
-    /// thread; a save asks from a background queue and waits for it, since
-    /// it would otherwise encode stale members.
-    public func flushPendingCloneSync()
-    {
-        if Thread.isMainThread
-        {
-            self.cloneSetCoordinator.flush()
-        }
-        else
-        {
-            DispatchQueue.main.sync { self.cloneSetCoordinator.flush() }
-        }
     }
 }

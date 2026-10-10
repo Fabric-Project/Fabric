@@ -235,7 +235,6 @@ public class KeyboardNode : Node
         didSet
         {
             self.rebuildPorts()
-            self.settingsDidChange()
         }
     }
 

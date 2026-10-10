@@ -63,6 +63,9 @@ struct GraphNodeSettingsView: View
                         // focus alone.
                         .onDisappear {
                             restoreCanvasFocusIfDangling()
+                            // Settings edits register no undo; closing the
+                            // panel is when a clone set learns of them.
+                            nodeViewModel.node.graph?.rootGraph.syncCloneSets()
                         }
                 }
                 .onChange(of: isPresented) { _, newValue in

@@ -36,6 +36,10 @@ internal import AnyCodable
     public let version: Graph.Version
     @ObservationIgnored public let context:Context
     @ObservationIgnored public weak var undoManager: UndoManager?
+    {
+        // A document's undo groups are when its clone sets sync.
+        didSet { if ownerNode == nil, undoManager !== oldValue { cloneSetCoordinator.attach(to: undoManager) } }
+    }
     /// This graph, then each graph it sits inside, ending at the document's root.
     internal var ancestors: some Sequence<Graph>
     {
@@ -141,34 +145,6 @@ internal import AnyCodable
         connectionRevision += 1
         pendingConnectionSceneSync = true
         connectionTopologyGeneration += 1
-        noteContentChanged()
-    }
-
-    /// Bumped by every edit of the graph's design: topology, layout, renames,
-    /// published state, unwired parameter values, notes. Runtime traffic
-    /// (values arriving on wired or published inlets) does not count. The
-    /// graph's own mutation API bumps it; a clone set member's observer bumps
-    /// it for the edits nodes and ports publish.
-    @ObservationIgnored public private(set) var contentRevision = 0
-
-    /// Records an edit and, when this graph sits inside a clone set, asks the
-    /// coordinator to sync the set once edits pause. Writes made while a
-    /// member is being reconciled are not edits and schedule nothing.
-    public func noteContentChanged()
-    {
-        contentRevision += 1
-        self.scheduleCloneSyncIfNeeded()
-    }
-
-    /// The coordinator and its flag are main-thread state, as is every edit
-    /// a user makes. A change made elsewhere is a decode, not an edit.
-    private func scheduleCloneSyncIfNeeded()
-    {
-        guard Thread.isMainThread else { return }
-
-        let coordinator = self.cloneSetCoordinator
-        guard !coordinator.isSyncing, !self.enclosingCloneMembers.isEmpty else { return }
-        coordinator.noteContentChanged(in: self)
     }
 
     /// A set cannot contain itself. A member of a set arriving in this graph
@@ -938,9 +914,9 @@ internal import AnyCodable
         // A settings edit still open on the node goes under the delete's
         // step, for undo to find the node when it puts the settings back.
         self.recordOpenSettingsChange(of: node)
-        // A member leaving takes no sync with it, so an edit in it still
-        // waiting on the debounce reaches its siblings first.
-        if !Self.cloneMembers(in: node).isEmpty { self.flushPendingCloneSync() }
+        // A member leaving takes no sync with it, so an edit in it that
+        // registered no undo reaches its siblings first.
+        if !Self.cloneMembers(in: node).isEmpty { self.syncCloneSets() }
 
         let savedOffset = node.offset
         // The proxies standing for its published ports go with it, and the
@@ -1170,7 +1146,6 @@ internal import AnyCodable
         guard connection.active != active else { return true }
         let previousActive = connection.active
         connection.active = active
-        noteContentChanged()
 
         let wire = Wire(connection)
         self.registerUndo { graph in

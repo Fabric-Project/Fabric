@@ -453,7 +453,6 @@ public class MathExpressionNode: Node
         }
         self._settingsModel.diagnostics = result.diagnostics
         self.subtitleSubject.send()
-        self.settingsDidChange()
     }
 
     /// Diff the compiled interface against the current dynamic ports, adding,

@@ -28,28 +28,13 @@ open class SubgraphNode: BaseObjectNode
     /// sets them through the proxy. Mutate through Graph.duplicateAsClone /
     /// unlinkClone so the change is undoable. See CloneSet.
     public internal(set) var cloneSetID: UUID?
-    {
-        didSet { if oldValue != cloneSetID { self.cloneMembershipDidChange() } }
-    }
 
-    /// Watches the sub graph for edits while this node is a member; see
-    /// CloneMemberObserver.
-    internal private(set) var cloneObserver: CloneMemberObserver?
-
-    private func cloneMembershipDidChange()
-    {
-        self.cloneObserver?.stop()
-        self.cloneObserver = self.cloneSetID == nil ? nil : CloneMemberObserver(member: self)
-    }
-
-    /// The one place membership is written: the badge refreshed, and the
-    /// change reported as the design change it is. Not undoable;
-    /// Graph.setCloneMembership wraps it with undo.
+    /// The one place membership is written, with the badge refreshed. Not
+    /// undoable; Graph.setCloneMembership wraps it with undo.
     internal func setCloneMembership(setID: UUID?)
     {
         self.cloneSetID = setID
         self.subtitleSubject.send()
-        self.settingsDidChange()
     }
 
     /// The set as seen from this member, nil outside a set. Refreshed through
@@ -405,8 +390,6 @@ open class SubgraphNode: BaseObjectNode
         self.wireSubGraphCallback()
         self.proxyPorts.forEach { $0.node = self }
         self.rebuildProxyPorts()
-        // didSet does not fire in init; a decoded member starts watching here.
-        self.cloneMembershipDidChange()
     }
 
     /// The per-member values a reference wrote, put back on the ports they
@@ -477,10 +460,6 @@ open class SubgraphNode: BaseObjectNode
         self.rebindProxyPorts()
         parent?.nodeObjectDidChange(self)
         parent?.updateCameraSelection()
-
-        // The watcher's subscriptions were to the tree just retired, so it
-        // re-subscribes here rather than at the one caller that remembered to.
-        self.cloneObserver?.refresh()
 
         self.markDirty()
     }
