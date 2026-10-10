@@ -599,6 +599,34 @@ extension Graph
         }
     }
 
+    /// `node` arrived in this graph or left it: a member arriving inside its
+    /// own set is unlinked, then the sets of every member it took along are
+    /// refreshed.
+    internal func updateCloneSets(around node: Node)
+    {
+        if node.graph === self { self.unlinkMembersNestedInTheirOwnSet(in: node) }
+        self.cloneSetMembershipChanged(around: node)
+    }
+
+    /// A set cannot contain itself. A member of a set arriving in this graph
+    /// while this graph already sits inside a member of the same set is
+    /// unlinked, and so is any such member nested in what arrived.
+    private func unlinkMembersNestedInTheirOwnSet(in node: Node)
+    {
+        let enclosingSetIDs = Set(self.enclosingCloneMembers.compactMap(\.cloneSetID))
+        guard !enclosingSetIDs.isEmpty else { return }
+
+        let arriving = ([node] + ((node as? SubgraphNode)?.subGraph.nodesRecursive() ?? []))
+            .compactMap { $0 as? SubgraphNode }
+        for member in arriving
+        {
+            guard let setID = member.cloneSetID, enclosingSetIDs.contains(setID) else { continue }
+            print("Graph: unlinking \(member) — a clone set cannot contain one of its own members")
+            member.setCloneMembership(setID: nil)
+            self.cloneSetMembershipChanged(setID: setID)
+        }
+    }
+
     /// `node`, where it is a member, and every member nested in it.
     internal static func cloneMembers(in node: Node) -> [SubgraphNode]
     {

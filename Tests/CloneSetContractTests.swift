@@ -53,6 +53,20 @@ struct CloneSetContractTests
         CloneSetModel.isInStep(pair.member.member) && CloneSetModel.isInStep(pair.sibling)
     }
 
+    private static func isLinked(_ status: NodeStatus) -> Bool
+    {
+        if case .linked = status { return true }
+        return false
+    }
+
+    /// Returns once the main queue has run what is already on it, as a node's
+    /// view model takes its node's status changes from there.
+    @MainActor
+    private func mainQueueDrained() async
+    {
+        await withCheckedContinuation { continuation in DispatchQueue.main.async { continuation.resume() } }
+    }
+
     private func memberEntries(in data: Data) throws -> [[String: Any]]
     {
         let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
@@ -436,8 +450,9 @@ extension CloneSetContractTests
         #expect(decoded.cloneSets.isEmpty)
     }
 
-    @Test("A member moved inside a member of its own set is unlinked")
-    func selfNestingUnlinks() throws
+    @Test("A member moved inside a member of its own set is unlinked, and shows as unlinked")
+    @MainActor
+    func selfNestingUnlinks() async throws
     {
         guard let context = makeContext() else { return }
         let pair = try makePair(context: context)
@@ -448,10 +463,34 @@ extension CloneSetContractTests
 
         #expect(pair.sibling.cloneSetID == nil)
         #expect(pair.graph.cloneSetMembers(of: setID).map(\.id) == [pair.member.member.id])
+        await mainQueueDrained()
+        #expect(!pair.source.viewModel(for: pair.sibling).statuses.contains(where: Self.isLinked))
 
         pair.source.addNode(NumberBinaryOperator(context: context))
         pair.sync()
         #expect(pair.target.nodes.count == 3)
+    }
+
+    @Test("A member pasted into its own sibling arrives as an ordinary subgraph, and reaches the other member as one")
+    @MainActor
+    func pasteIntoOwnSiblingIsPlain() async throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let setID = try #require(pair.member.member.cloneSetID)
+
+        let sourceNodeIDs = Set(pair.source.nodes.map(\.id))
+        pair.graph.copyNodesToPasteboard([pair.member.member])
+        let pasted = try #require(pair.edit { pair.target.pasteNodesFromPasteboard() }.first as? SubgraphNode)
+
+        #expect(pasted.cloneSetID == nil)
+        #expect(pair.graph.cloneSetMembers(of: setID).map(\.id) == [pair.member.member.id, pair.sibling.id])
+        #expect(pair.source.nodes.count == 4)
+        let arrived = try #require(pair.source.nodes.first { !sourceNodeIDs.contains($0.id) } as? SubgraphNode)
+        #expect(arrived.cloneSetID == nil)
+        #expect(membersAreInStep(pair))
+        await mainQueueDrained()
+        #expect(!pair.target.viewModel(for: pasted).statuses.contains(where: Self.isLinked))
     }
 
     @Test("The clone APIs throw typed errors rather than doing nothing")
