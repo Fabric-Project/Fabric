@@ -63,12 +63,6 @@ struct GraphNodeSettingsView: View
                         // focus alone.
                         .onDisappear {
                             restoreCanvasFocusIfDangling()
-                            // Settings edits register no undo; closing the
-                            // panel is when a clone set learns of them.
-                            if let graph = nodeViewModel.node.graph
-                            {
-                                graph.rootGraph.syncCloneSets(editedIn: graph)
-                            }
                         }
                 }
                 .onChange(of: isPresented) { _, newValue in

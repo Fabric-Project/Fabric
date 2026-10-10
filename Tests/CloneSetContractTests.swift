@@ -1257,7 +1257,7 @@ extension CloneSetContractTests
         #expect(pair.source.nodes.count == 3)
     }
 
-    @Test("A settings change that keeps the ports reaches the sibling")
+    @Test("A settings change made in the settings view reaches the sibling, and undo takes it back from both")
     @MainActor
     func settingsChangeWithoutPortChangeSyncs() throws
     {
@@ -1265,13 +1265,20 @@ extension CloneSetContractTests
         let pair = try makePair(context: context)
 
         let expression = MathExpressionNode(context: context, expression: "sin(x) + y")
-        pair.source.addNode(expression)
-        pair.graph.syncCloneSets()
+        pair.edit { pair.source.addNode(expression) }
         #expect(pair.counterpart(of: expression)?.stringExpression == "sin(x) + y")
 
-        try #require(pair.current(expression)).stringExpression = "cos(x) + y"
-        pair.graph.syncCloneSets(editedIn: pair.source)
+        let session = NodeSettingsSession(node: expression)
+        expression.stringExpression = "cos(x) + y"
+        // Closing the view records the step, its group's close syncing it.
+        session.end()
+        #expect(pair.counterpart(of: expression)?.stringExpression == "cos(x) + y")
 
+        pair.undoManager.undo()
+        #expect(pair.current(expression)?.stringExpression == "sin(x) + y")
+        #expect(pair.counterpart(of: expression)?.stringExpression == "sin(x) + y")
+
+        pair.undoManager.redo()
         #expect(pair.counterpart(of: expression)?.stringExpression == "cos(x) + y")
     }
 
@@ -2012,46 +2019,49 @@ extension CloneSetContractTests
         #expect(repaired.cloneSetMembers(of: setID).count == 2)
     }
 
-    @Test("A member brought back by undo is in step with its set, so its next edit cannot undo the others'")
+    @Test("A member brought back by undo is in step with its set, the edits made while it was gone undone first")
     @MainActor
     func restoredMemberIsInStep() throws
     {
         guard let context = makeContext() else { return }
         let pair = try makePair(context: context)
+        let setID = try #require(pair.member.member.cloneSetID)
         pair.edit { pair.graph.delete(node: pair.sibling) }
-
-        // An edit the set sees while the sibling is gone, and that registers no undo.
-        pair.member.second.outputNumber.published = true
-        pair.source.rebuildPublishedParameterGroup()
-        pair.graph.syncCloneSets(editedIn: pair.source)
+        pair.edit { pair.source.setPublished(true, on: pair.member.second.outputNumber) }
 
         pair.undoManager.undo()
-        #expect(pair.graph.cloneSetMembers(of: try #require(pair.member.member.cloneSetID)).count == 2)
+        pair.undoManager.undo()
+        #expect(pair.graph.cloneSetMembers(of: setID).count == 2)
+        #expect(membersAreInStep(pair))
+        #expect(pair.counterpart(of: pair.member.second)?.outputNumber.published == false)
 
-        // An edit in the restored sibling.
-        try #require(pair.counterpart(of: pair.member.first)).offset = CGSize(width: 30, height: 30)
+        // An edit in the restored sibling reaches the member and takes nothing back.
+        pair.edit { try? #require(pair.counterpart(of: pair.member.first)).offset = CGSize(width: 30, height: 30) }
         pair.graph.syncCloneSets(editedIn: pair.target)
-
-        #expect(pair.current(pair.member.second)?.outputNumber.published == true)
-        #expect(pair.counterpart(of: pair.member.second)?.outputNumber.published == true)
+        #expect(pair.current(pair.member.first)?.offset == CGSize(width: 30, height: 30))
+        #expect(pair.current(pair.member.second)?.outputNumber.published == false)
     }
 
-    @Test("An edit not yet synced reaches the others when its member is deleted, and is there when it comes back")
+    @Test("An edit in a member and the member's deletion, undone in turn, leave the members in step")
     @MainActor
     func deletedMemberTakesNoPendingEditWithIt() throws
     {
         guard let context = makeContext() else { return }
         let pair = try makePair(context: context)
-        let moved = CGSize(width: 40, height: 40)
+        let inner = try #require(pair.counterpart(of: pair.member.second))
 
-        try #require(pair.counterpart(of: pair.member.first)).offset = moved   // no undo step
-
+        pair.edit { pair.target.setPublished(true, on: inner.outputNumber) }
+        #expect(pair.current(pair.member.second)?.outputNumber.published == true)
         pair.edit { pair.graph.delete(node: pair.sibling) }
-        #expect(pair.current(pair.member.first)?.offset == moved)
 
         pair.undoManager.undo()
-        #expect(pair.counterpart(of: pair.member.first)?.offset == moved)
-        #expect(pair.current(pair.member.first)?.offset == moved)
+        #expect(membersAreInStep(pair))
+        #expect(pair.counterpart(of: pair.member.second)?.outputNumber.published == true)
+
+        pair.undoManager.undo()
+        #expect(membersAreInStep(pair))
+        #expect(pair.current(pair.member.second)?.outputNumber.published == false)
+        #expect(pair.counterpart(of: pair.member.second)?.outputNumber.published == false)
     }
 
     @Test("A copy brought back by redo is in step with the member it was copied from")
@@ -2068,17 +2078,19 @@ extension CloneSetContractTests
         undoManager.beginUndoGrouping()
         let copy = try fixture.graph.duplicateAsClone(fixture.member)
         undoManager.endUndoGrouping()
+        undoManager.beginUndoGrouping()
+        fixture.member.subGraph.setPublished(true, on: fixture.second.outputNumber)
+        undoManager.endUndoGrouping()
+
         undoManager.undo()
-
-        // An edit made while the set is undone, and that registers no undo.
-        fixture.second.outputNumber.published = true
-        fixture.member.subGraph.rebuildPublishedParameterGroup()
-
+        undoManager.undo()
+        undoManager.redo()
         undoManager.redo()
 
         let copied = try #require(CloneSetModel.counterpart(of: fixture.second, from: fixture.member, in: copy))
         #expect(copied.outputNumber.published)
         #expect(fixture.second.outputNumber.published)
+        #expect(CloneSetModel.isInStep(copy))
     }
 
     @Test("A canvas standing inside a sibling keeps editing the live sibling after a sync")

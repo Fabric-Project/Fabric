@@ -9,10 +9,9 @@ import Foundation
 /// registers its undo step through the graph it was made in (see
 /// Graph.registerUndo), and that graph is noted here. When the document's
 /// undo group closes, and after an undo or redo, each set around a noted
-/// graph is synced from its member there, innermost sets first. An edit that
-/// registers no undo, a node's settings for one, is synced where the editor
-/// knows it is done: leaving a canvas, closing a node's settings, deleting a
-/// member.
+/// graph is synced from its member there, innermost sets first. Undo and redo
+/// run in order, so a member they bring back finds its set as it left it.
+/// Leaving a canvas syncs too, for an edit made there that registered no undo.
 final class CloneSetCoordinator
 {
     /// Set while a sync runs, so the writes it makes are never taken for edits.
@@ -119,8 +118,7 @@ extension Graph
     }
 
     /// Syncs the clone sets around `graph` from the members around it, for an
-    /// edit made there that registered no undo: a node's settings, or an
-    /// edit through the API outside an undo group.
+    /// edit made there through the API that registered no undo.
     public func syncCloneSets(editedIn graph: Graph)
     {
         self.cloneSetCoordinator.noteEdit(in: graph)
