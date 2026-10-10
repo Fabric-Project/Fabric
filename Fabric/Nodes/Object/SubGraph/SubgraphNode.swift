@@ -38,6 +38,12 @@ open class SubgraphNode: BaseObjectNode
     /// which end the proxy was. Held for the session, not saved.
     private var wiresOffProxies: [UUID: [(otherEndID: UUID, proxyIsInlet: Bool, active: Bool)]] = [:]
 
+    /// This member's own values for inlets a sync made design again, as an
+    /// unpublish in a sibling does, by path: put back when undoing it makes
+    /// them its own again, as wiresOffProxies are. Held for the session, not
+    /// saved.
+    private var valuesOffProxies: [String: (portType: PortType, value: PortValue?)] = [:]
+
     /// The inner port each of this member's proxies stands for, by proxy id.
     internal var proxyInnerPortIDs: [UUID: UUID]
     {
@@ -546,7 +552,12 @@ open class SubgraphNode: BaseObjectNode
             nested.subGraph.undoManager = old.undoManager
         }
         self.subGraphDidChange()
-        Self.restore(values: values, in: newGraph)
+        let ownNow = newGraph.memberOwnInlets()
+        for (path, value) in values where ownNow[path] == nil { self.valuesOffProxies[path] = value }
+        let returning = self.valuesOffProxies.filter { ownNow[$0.key] != nil }
+        for path in returning.keys { self.valuesOffProxies[path] = nil }
+        let restoring = parent?.cloneSetCoordinator.isSyncingUndoOrRedo == true
+        Self.restore(values: restoring ? values.merging(returning) { current, _ in current } : values, in: newGraph)
 
         self.rebindProxyPorts()
         parent?.nodeObjectDidChange(self)
