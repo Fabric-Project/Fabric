@@ -22,7 +22,7 @@ struct ButtonParameterView: View, Equatable {
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
                                            graph: graph,
-                                           undoTarget: param.controlType == .button ? nil : param)
+                                           undoParameter: param.controlType == .button ? nil : param)
     }
     
     var body: some View

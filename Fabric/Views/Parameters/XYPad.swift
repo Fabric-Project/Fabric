@@ -25,7 +25,7 @@ struct XYPad: View, Equatable {
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
                                            graph: graph,
-                                           undoTarget: param)
+                                           undoParameter: param)
 
         self.vmMin = ParameterObservableModel(label: param.label,
                                            get: { param.min },

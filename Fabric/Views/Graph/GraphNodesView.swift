@@ -158,11 +158,7 @@ struct GraphNodesView: View
         {
             if let offset = initialOffsets[node.id]
             {
-                currentGraph.registerUndo(withTarget: node) {
-                    let cachedOffset = $0.offset
-                    currentGraph.registerUndo(withTarget: node) { $0.offset = cachedOffset }
-                    $0.offset = offset
-                }
+                currentGraph.registerOffsetChange(of: node, from: offset)
             }
         }
 

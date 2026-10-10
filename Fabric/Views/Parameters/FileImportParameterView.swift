@@ -26,7 +26,7 @@ struct FileImportParameterView: View, Equatable
                                            set: { parameter.value = $0 },
                                            publisher: parameter.valuePublisher,
                                            graph: graph,
-                                           undoTarget: parameter)
+                                           undoParameter: parameter)
         self.allowedContentTypes = allowedContentTypes
     }
 

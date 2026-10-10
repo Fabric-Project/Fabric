@@ -26,7 +26,7 @@ struct StringMenu: View
                                            set: { parameter.value = $0 },
                                            publisher: parameter.valuePublisher,
                                            graph: graph,
-                                           undoTarget: parameter)
+                                           undoParameter: parameter)
         
         self.optionsVm = ParameterObservableModel(label: parameter.label,
                                            get: { parameter.options },

@@ -125,7 +125,7 @@ public class NumberTriggerNode : Node
             guard let node else { return }
             let previousTrigger = node.inputTriggerThreshold.value ?? 0.8
             let previousRelease = node.inputReleaseThreshold.value ?? 0.5
-            node.graph?.registerUndo(withTarget: node) { node in
+            node.graph?.registerUndo(on: node) { node in
                 node.restoreThresholds(trigger: previousTrigger, release: previousRelease)
             }
             node.graph?.undoManager?.setActionName("Set Trigger Thresholds")
@@ -137,7 +137,7 @@ public class NumberTriggerNode : Node
     func restoreThresholds(trigger: Float, release: Float) {
         let replacedTrigger = self.inputTriggerThreshold.value ?? 0.8
         let replacedRelease = self.inputReleaseThreshold.value ?? 0.5
-        self.graph?.registerUndo(withTarget: self) { node in
+        self.graph?.registerUndo(on: self) { node in
             node.restoreThresholds(trigger: replacedTrigger, release: replacedRelease)
         }
         self.graph?.undoManager?.setActionName("Set Trigger Thresholds")

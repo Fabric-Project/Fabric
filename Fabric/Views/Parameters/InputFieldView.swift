@@ -82,7 +82,7 @@ struct InputFieldView: View
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
                                            graph: graph,
-                                           undoTarget: param)
+                                           undoParameter: param)
     }
     
     var body: some View
@@ -112,7 +112,7 @@ struct FloatInputFieldView: View
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
                                            graph: graph,
-                                           undoTarget: param)
+                                           undoParameter: param)
         
         self.decimalFormatter = NumberFormatter()
         self.decimalFormatter.numberStyle = .decimal
@@ -148,7 +148,7 @@ struct Float2InputFieldView: View
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
                                            graph: graph,
-                                           undoTarget: param)
+                                           undoParameter: param)
         self.decimalFormatter = NumberFormatter()
         decimalFormatter.numberStyle = .decimal
         decimalFormatter.maximumFractionDigits = 5
@@ -200,7 +200,7 @@ struct Float3InputFieldView: View
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
                                            graph: graph,
-                                           undoTarget: param)
+                                           undoParameter: param)
         self.decimalFormatter = NumberFormatter()
         decimalFormatter.numberStyle = .decimal
         decimalFormatter.maximumFractionDigits = 5
@@ -262,7 +262,7 @@ struct Float4InputFieldView: View
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
                                            graph: graph,
-                                           undoTarget: param)
+                                           undoParameter: param)
         self.decimalFormatter = NumberFormatter()
         decimalFormatter.numberStyle = .decimal
         decimalFormatter.maximumFractionDigits = 5
@@ -334,7 +334,7 @@ struct IntInputFieldView: View
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
                                            graph: graph,
-                                           undoTarget: param)
+                                           undoParameter: param)
         
         self.decimalFormatter = NumberFormatter()
         decimalFormatter.numberStyle = .none
@@ -372,7 +372,7 @@ struct Int2InputFieldView: View
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
                                            graph: graph,
-                                           undoTarget: param)
+                                           undoParameter: param)
         
         self.decimalFormatter = NumberFormatter()
         decimalFormatter.numberStyle = .none
@@ -427,7 +427,7 @@ struct Int3InputFieldView: View
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
                                            graph: graph,
-                                           undoTarget: param)
+                                           undoParameter: param)
         
         self.decimalFormatter = NumberFormatter()
         decimalFormatter.numberStyle = .none
@@ -491,7 +491,7 @@ struct Int4InputFieldView: View
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
                                            graph: graph,
-                                           undoTarget: param)
+                                           undoParameter: param)
         
         self.decimalFormatter = NumberFormatter()
         decimalFormatter.numberStyle = .none

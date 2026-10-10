@@ -8,6 +8,7 @@
 import Foundation
 import Combine
 import Observation
+import Satin
 
 /// When a change made through the control becomes an undo step.
 enum ParameterEditCommit
@@ -22,8 +23,9 @@ enum ParameterEditCommit
     case afterPause
 }
 
+@MainActor
 @Observable
-final class ParameterObservableModel<Value: Equatable>
+final class ParameterObservableModel<Value: Codable & Equatable>
 {
     var uiValue: Value
     {
@@ -50,13 +52,14 @@ final class ParameterObservableModel<Value: Equatable>
     @ObservationIgnored private var applyingEngine = false
     @ObservationIgnored private var applyingUI = false
 
-    /// The graph whose node the parameter belongs to, which records the edit
+    /// The graph the control shows the parameter in, which records the edit
     /// with the document's undo manager. Without one edits are made but not
     /// recorded.
     @ObservationIgnored private weak var graph: Graph?
-    /// What undo steps are registered against, the parameter itself; nil for
-    /// a control whose changes are not edits, such as a momentary button.
-    @ObservationIgnored private weak var undoTarget: AnyObject?
+    /// The parameter whose value the control edits, for an undo step to find
+    /// again; nil for a control whose changes are not edits, such as a
+    /// momentary button.
+    @ObservationIgnored private weak var undoParameter: GenericParameter<Value>?
     @ObservationIgnored private let commit: ParameterEditCommit
     @ObservationIgnored private var editStart: Value?
     @ObservationIgnored private var isEditing = false
@@ -67,7 +70,7 @@ final class ParameterObservableModel<Value: Equatable>
          set: @escaping (Value) -> Void,
     publisher: PassthroughSubject<Value, Never>,
          graph: Graph? = nil,
-         undoTarget: AnyObject? = nil,
+         undoParameter: GenericParameter<Value>? = nil,
          commit: ParameterEditCommit = .eachChange)
     {
         self.label = label
@@ -76,7 +79,7 @@ final class ParameterObservableModel<Value: Equatable>
         self.uiValue = get()
         self.publisher = publisher
         self.graph = graph
-        self.undoTarget = undoTarget
+        self.undoParameter = undoParameter
         self.commit = commit
         
         self.attach()
@@ -139,23 +142,7 @@ final class ParameterObservableModel<Value: Equatable>
         pendingCommit = nil
         guard let start = editStart else { return }
         editStart = nil
-        guard start != getValue(), let graph, let undoTarget else { return }
-        Self.registerUndo(in: graph, target: undoTarget, label: label,
-                          restoring: start, get: getValue, set: setValue)
-    }
-
-    /// The step outlives the control: it holds the parameter's accessors,
-    /// not the model.
-    private static func registerUndo(in graph: Graph, target: AnyObject, label: String,
-                                     restoring value: Value,
-                                     get: @escaping () -> Value, set: @escaping (Value) -> Void)
-    {
-        graph.registerUndo(withTarget: target) { [weak graph] target in
-            let current = get()
-            set(value)
-            guard let graph else { return }
-            Self.registerUndo(in: graph, target: target, label: label, restoring: current, get: get, set: set)
-        }
-        graph.undoManager?.setActionName("Change \(label)")
+        guard start != getValue(), let graph, let undoParameter else { return }
+        graph.registerValueChange(of: undoParameter, from: start, label: label)
     }
 }

@@ -44,7 +44,7 @@ struct UndoRegistrationTests
     /// called: from its declaration to the brace that closes it.
     private static func funnelLines(in lines: [Substring]) -> Range<Int>
     {
-        guard let start = lines.firstIndex(where: { $0.contains("public func registerUndo<") }) else { return 0..<0 }
+        guard let start = lines.firstIndex(where: { $0.contains("public func registerUndo(_ handler") }) else { return 0..<0 }
         var depth = 0
         var opened = false
         for index in start..<lines.count

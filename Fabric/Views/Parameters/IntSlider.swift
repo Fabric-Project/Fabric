@@ -94,7 +94,7 @@ struct IntSlider: View, Equatable
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
                                            graph: graph,
-                                           undoTarget: param)
+                                           undoParameter: param)
         
         self.vmMin = ParameterObservableModel(label: param.label,
                                               get: { param.min },
@@ -129,7 +129,7 @@ struct Int2Slider: View, Equatable
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
                                            graph: graph,
-                                           undoTarget: param)
+                                           undoParameter: param)
         
         self.vmMin = ParameterObservableModel(label: param.label,
                                               get: { param.min },
@@ -170,7 +170,7 @@ struct Int3Slider: View, Equatable
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
                                            graph: graph,
-                                           undoTarget: param)
+                                           undoParameter: param)
         
         self.vmMin = ParameterObservableModel(label: param.label,
                                               get: { param.min },
@@ -210,7 +210,7 @@ struct Int4Slider: View, Equatable
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
                                            graph: graph,
-                                           undoTarget: param)
+                                           undoParameter: param)
         
         self.vmMin = ParameterObservableModel(label: param.label,
                                               get: { param.min },

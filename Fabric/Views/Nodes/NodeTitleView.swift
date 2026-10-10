@@ -137,9 +137,9 @@ struct NodeTitleView: View
             return
         }
 
-        nodeViewModel.node.graph?.registerUndo(withTarget: nodeViewModel)
-        { nodeViewModel in
-            nodeViewModel.userName = oldUserName
+        nodeViewModel.node.graph?.registerUndo(on: nodeViewModel.node)
+        { node in
+            node.graph?.viewModelIfPresent(for: node)?.userName = oldUserName
         }
         nodeViewModel.node.graph?.undoManager?.setActionName("Rename Node")
 

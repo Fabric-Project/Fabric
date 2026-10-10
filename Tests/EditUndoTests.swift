@@ -142,20 +142,24 @@ struct EditUndoTests
 
     @Test("A parameter set through its control is one undo step per change, or per edit while one is in progress")
     @MainActor
-    func parameterEditsUndo()
+    func parameterEditsUndo() throws
     {
-        let parameter = FloatParameter("Amount", 1, 0, 10, .slider, "")
         let undoManager = UndoManager()
         undoManager.groupsByEvent = false
         guard let context = makeContext() else { return }
         let graph = Graph(context: context)
+        let node = NumberBinaryOperator(context: context)
+        graph.addNode(node)
         graph.undoManager = undoManager
+        let parameter = try #require(node.inputNumber1.parameter as? FloatParameter)
+        parameter.label = "Amount"
+        parameter.value = 1
         let model = ParameterObservableModel(label: parameter.label,
                                              get: { parameter.value },
                                              set: { parameter.value = $0 },
                                              publisher: parameter.valuePublisher,
                                              graph: graph,
-                                             undoTarget: parameter)
+                                             undoParameter: parameter)
 
         // A discrete change.
         step(undoManager) { model.uiValue = 2 }

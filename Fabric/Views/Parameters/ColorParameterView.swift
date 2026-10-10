@@ -25,7 +25,7 @@ struct Color4ParameterView: View, Equatable
                                            set: { parameter.value = $0 },
                                            publisher:parameter.valuePublisher,
                                            graph: graph,
-                                           undoTarget: parameter,
+                                           undoParameter: parameter,
                                            commit: .afterPause)
     
     }
@@ -71,7 +71,7 @@ struct Color3ParameterView: View, Equatable
                                            set: { parameter.value = $0 },
                                            publisher:parameter.valuePublisher,
                                            graph: graph,
-                                           undoTarget: parameter,
+                                           undoParameter: parameter,
                                            commit: .afterPause)
     }
     

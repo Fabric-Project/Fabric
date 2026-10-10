@@ -26,17 +26,22 @@ extension Graph {
         undoManager?.beginUndoGrouping()
 
         for (node, newOffset) in layout {
-            let oldOffset = node.offset
-            self.registerUndo(withTarget: node) { n in
-                let redoOffset = n.offset
-                self.registerUndo(withTarget: n) { $0.offset = redoOffset }
-                n.offset = oldOffset
-            }
+            self.registerOffsetChange(of: node, from: node.offset)
             node.offset = newOffset
         }
 
         undoManager?.endUndoGrouping()
         undoManager?.setActionName("Auto Layout")
+    }
+
+    /// Records a move of `node`, a node in this graph, from `offset`, made
+    /// or about to be made, as an undo step that moves it back.
+    public func registerOffsetChange(of node: Node, from offset: CGSize)
+    {
+        self.registerUndo(on: node) { node in
+            node.graph?.registerOffsetChange(of: node, from: node.offset)
+            node.offset = offset
+        }
     }
 }
 
