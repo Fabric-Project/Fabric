@@ -296,4 +296,21 @@ struct UndoTargetTests
         levels.outer.subGraph.setPublished(false, on: middle)
         #expect(port.parameter?.label == "Amount")
     }
+
+    @Test("Suspending registration in a graph with no undo manager of its own suspends the root's it records on")
+    func withoutUndoRegistrationSuspendsTheRootsManager() throws
+    {
+        guard let context = makeContext() else { return }
+        let undoManager = makeUndoManager()
+        let graph = Graph(context: context)
+        let subgraph = SubgraphNode(context: context)
+        graph.addNode(subgraph)
+        graph.undoManager = undoManager
+
+        // No group is open: a step registered here would raise.
+        subgraph.subGraph.withoutUndoRegistration {
+            subgraph.subGraph.addNode(NumberBinaryOperator(context: context))
+        }
+        #expect(!undoManager.canUndo)
+    }
 }

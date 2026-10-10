@@ -494,17 +494,24 @@ internal import AnyCodable
     /// id. What it brings back from outside the graph, a deleted node, it
     /// holds.
     ///
-    /// A graph inside another takes the document's undo manager from the root
-    /// until the canvas gives it its own.
+    /// Steps record on effectiveUndoManager.
     public func registerUndo(_ handler: @escaping (Graph) -> Void)
     {
+        guard let undoManager = self.effectiveUndoManager else { return }
         let location = UndoLocation(of: self)
-        guard let undoManager = self.undoManager ?? location.root?.undoManager else { return }
         // The step holds the location: an undo manager does not keep its targets.
         undoManager.registerUndo(withTarget: location) { [location] _ in
             guard let graph = location.graph else { return }
             handler(graph)
         }
+    }
+
+    /// The undo manager edits made in this graph record on: its own, or the
+    /// root's until the canvas gives it its own. withoutUndoRegistration(_:)
+    /// suspends this one.
+    internal var effectiveUndoManager: UndoManager?
+    {
+        self.undoManager ?? UndoLocation(of: self).root?.undoManager
     }
 
     /// Registers an undo step acting on `node`, a node in this graph, found
@@ -1846,6 +1853,7 @@ internal import AnyCodable
 
     internal func withoutUndoRegistration(_ operation: () -> Void)
     {
+        let undoManager = self.effectiveUndoManager
         let shouldRestoreUndoRegistration = undoManager?.isUndoRegistrationEnabled == true
         if shouldRestoreUndoRegistration { undoManager?.disableUndoRegistration() }
         defer {
