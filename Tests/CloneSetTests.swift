@@ -269,6 +269,27 @@ extension CloneSetTests
         return PairFixture(member: member, sibling: sibling, undoManager: undoManager)
     }
 
+    @Test("A proxy a nested member makes has the same id in every instance of it, so the members around it stay in step")
+    @MainActor
+    func nestedMemberProxyIDsAgree() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        _ = try pair.source.duplicateAsClone(pair.member.nested)
+        pair.graph.syncCloneSets()
+
+        pair.member.nested.subGraph.setPublished(true, on: pair.member.nestedInner.inputNumber2)
+        pair.graph.syncCloneSets()
+
+        let sourceProxy = try #require(pair.member.nested.ports.first { ($0 as? any ProxyPortProtocol)?.innerPortID == pair.member.nestedInner.inputNumber2.id })
+        let siblingNested = try #require(pair.counterpart(of: pair.member.nested))
+        let siblingProxy = try #require(siblingNested.ports.first { ($0 as? any ProxyPortProtocol)?.innerPortID == pair.member.nestedInner.inputNumber2.id })
+        #expect(siblingProxy !== sourceProxy)
+        #expect(siblingProxy.id == sourceProxy.id)
+        #expect(pair.member.member.isInStepWithCloneSet)
+        #expect(pair.sibling.isInStepWithCloneSet)
+    }
+
     @Test("Adding and wiring a node in one member appears in the sibling as a new instance of the whole sub graph")
     func addedNodeAppearsInSibling() throws
     {

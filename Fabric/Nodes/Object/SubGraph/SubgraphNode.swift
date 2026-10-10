@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CryptoKit
 import Satin
 import simd
 import Metal
@@ -118,7 +119,7 @@ open class SubgraphNode: BaseObjectNode
         for innerPort in innerPorts where !existingInnerIDs.contains(innerPort.id)
         {
             let identity = self.reusableProxyIdentities[innerPort.id]
-            let proxyID = identity?.id ?? (self.cloneSetID == nil ? nil : UUID())
+            let proxyID = identity?.id ?? (self.cloneSetID == nil ? nil : self.memberProxyID(for: innerPort.id))
             if let proxy = Self.makeProxy(for: innerPort, id: proxyID)
             {
                 proxy.node = self
@@ -172,6 +173,22 @@ open class SubgraphNode: BaseObjectNode
         // and a dropped one published there a removed one.
         if (replacements + dropped).contains(where: \.published) { self.graph?.rebuildPublishedParameterGroup() }
         self.portsChangedSubject.send()
+    }
+
+    /// The id a member gives a proxy it makes: derived from its own id and the
+    /// inner port's, so the same every time it is made. Instances of a nested
+    /// member share both and so agree, keeping the members around them in
+    /// step; members side by side in one graph have ids of their own and so
+    /// differ.
+    private func memberProxyID(for innerPortID: UUID) -> UUID
+    {
+        var hash = SHA256()
+        hash.update(data: Data(self.id.uuidString.utf8))
+        hash.update(data: Data(innerPortID.uuidString.utf8))
+        var bytes = Array(hash.finalize().prefix(16))
+        bytes[6] = (bytes[6] & 0x0F) | 0x80     // version 8: custom
+        bytes[8] = (bytes[8] & 0x3F) | 0x80     // RFC 4122 variant
+        return bytes.withUnsafeBytes { UUID(uuid: $0.load(as: uuid_t.self)) }
     }
 
     /// Type-erase proxy creation — matches the inner port's generic type.

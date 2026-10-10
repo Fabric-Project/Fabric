@@ -825,6 +825,30 @@ extension CloneSetContractTests
         #expect(rebuilt.connections.isEmpty)
     }
 
+    @Test("Undoing an unpublish inside a member puts the parent's wire back onto its proxy")
+    @MainActor
+    func undoingAnUnpublishInsideAMemberRestoresTheWire() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+
+        let siblingProxy = try #require(pair.sibling.ports.first { $0.kind == .Inlet && $0.displayName == "Amount" })
+        let upstream = NumberBinaryOperator(context: context)
+        pair.graph.addNode(upstream)
+        _ = try #require(pair.graph.connect(upstream.outputNumber, to: siblingProxy))
+        let inner = try #require(pair.counterpart(of: pair.member.first))
+
+        pair.edit { pair.target.setPublished(false, on: inner.inputNumber1) }
+        #expect(upstream.outputNumber.connections.isEmpty)
+
+        pair.undoManager.undo()
+        let innerNow = try #require(pair.counterpart(of: pair.member.first))
+        let restored = try #require(proxy(in: pair.sibling, over: innerNow.inputNumber1))
+        #expect(upstream.outputNumber.connections.count == 1)
+        #expect(upstream.outputNumber.connections.first?.inletPort === restored)
+        #expect(pair.current(pair.member.first)?.inputNumber1.published == true)
+    }
+
     @Test("After a sync the renderer runs the sibling's wired nodes, and any node the sibling no longer holds is stopped")
     func siblingNodesRunAfterSync() throws
     {
