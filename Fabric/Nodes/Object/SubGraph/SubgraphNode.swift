@@ -530,10 +530,10 @@ open class SubgraphNode: BaseObjectNode
     /// its published inlet values, and its proxies, which follow their ports
     /// into the new instance so the parent's wires onto them, and any proxy
     /// wrapping them further up, stay as they are. The old graph is retired:
-    /// its nodes are stopped through the renderer they ran under, and the
-    /// edits made in it can no longer be undone, since they would act on
-    /// nodes no longer in the document. Everything else the old graph held at
-    /// runtime goes with it. The new graph's nodes start at the renderer's
+    /// its nodes are stopped through the renderer they ran under. Edits made
+    /// in it can still be undone: each step finds what it acts on again by
+    /// id in the new instance (see CloneUndoLocation). Everything else the
+    /// old graph held at runtime goes with it. The new graph's nodes start at the renderer's
     /// next lifecycle review, as nodes added to any graph do.
     internal func replaceSubGraph(with newGraph: Graph)
     {
@@ -542,8 +542,8 @@ open class SubgraphNode: BaseObjectNode
         let values = old.memberOwnInlets().mapValues { (portType: $0.portType, value: $0.snapshotValue()) }
 
         parent?.nodeObjectWillChange(self)
-        self.forgetUndo(for: old)
         old.ownerNode = nil
+        old.replacement = newGraph
         old.onPublishedPortsChanged = nil
         old.onCameraSelectionChanged = nil
         if let renderer = self.childGraphRenderer ?? self.lifecycleRenderer
@@ -615,31 +615,6 @@ open class SubgraphNode: BaseObjectNode
     /// The sub graph was swapped for another instance; a subclass that holds
     /// something per graph, a renderer or a scene, remakes it here.
     internal func subGraphDidChange() { }
-
-    /// Drops every undo step that would act on `graph` or what is in it.
-    private func forgetUndo(for graph: Graph)
-    {
-        guard let undoManager = graph.undoManager ?? self.graph?.undoManager else { return }
-        undoManager.removeAllActions(withTarget: graph)
-        for node in graph.nodes
-        {
-            undoManager.removeAllActions(withTarget: node)
-            // A value set through its control is undone against its parameter.
-            for parameter in node.ports.compactMap(\.parameter)
-            {
-                undoManager.removeAllActions(withTarget: parameter)
-            }
-            if let viewModel = graph.viewModelIfPresent(for: node)
-            {
-                undoManager.removeAllActions(withTarget: viewModel)
-            }
-            if let subgraphNode = node as? SubgraphNode
-            {
-                self.forgetUndo(for: subgraphNode.subGraph)
-            }
-        }
-    }
-
 
     /// The saved per-member values, each read on its own, so one that cannot
     /// be read, of a plugin's port type that is not loaded say, costs only

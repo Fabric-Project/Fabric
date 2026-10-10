@@ -7,7 +7,7 @@ enum CloneSetModel
 {
     static let name = "Decode model"
 
-    static let divergences: Set<CloneSetDivergence> = [.siblingNodesAreReplaced, .siblingUndoIsForgotten]
+    static let divergences: Set<CloneSetDivergence> = [.siblingNodesAreReplaced]
 
     static func counterpart<T: Node>(of node: T, from source: SubgraphNode, in member: SubgraphNode) -> T?
     {

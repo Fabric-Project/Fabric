@@ -203,9 +203,6 @@ enum CloneSetDivergence: String, Hashable, CustomStringConvertible
     /// runtime starts over.
     case siblingNodesAreReplaced
 
-    /// A sync forgets the undo history of edits made in the sibling.
-    case siblingUndoIsForgotten
-
     var description: String { rawValue }
 }
 
@@ -1775,12 +1772,36 @@ extension CloneSetContractTests
         #expect(pair.source.nodes.count == 4)
         #expect(pair.target.nodes.count == 4)
 
-        expecting(.siblingUndoIsForgotten) {
-            #expect(pair.undoManager.canUndo)
-            pair.undoManager.undo()                                                  // B's edit
-            #expect(pair.source.nodes.count == 3)
-            #expect(pair.target.nodes.count == 3)
-        }
+        #expect(pair.undoManager.canUndo)
+        pair.undoManager.undo()                                                  // B's edit
+        #expect(pair.source.nodes.count == 3)
+        #expect(pair.target.nodes.count == 3)
+    }
+
+    @Test("A value set through its control in a sibling can still be undone after another member's edit has synced into it")
+    @MainActor
+    func siblingValueUndoSurvivesSync() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let secondInB = try #require(pair.counterpart(of: pair.member.second))
+        let parameter = try #require(secondInB.inputNumber2.parameter as? FloatParameter)
+        let control = ParameterObservableModel(label: parameter.label,
+                                               get: { parameter.value },
+                                               set: { parameter.value = $0 },
+                                               publisher: parameter.valuePublisher,
+                                               graph: pair.target,
+                                               undoTarget: parameter)
+        let before = secondInB.inputNumber2.value
+
+        pair.edit { control.uiValue = 0.7 }                                            // in B
+        pair.edit { pair.source.addNode(NumberBinaryOperator(context: context)) }     // then in A
+        #expect(pair.current(pair.member.second)?.inputNumber2.value == 0.7)
+
+        pair.undoManager.undo()                                                        // A's edit
+        pair.undoManager.undo()                                                        // B's value
+        #expect(pair.counterpart(of: pair.member.second)?.inputNumber2.value == before)
+        #expect(pair.current(pair.member.second)?.inputNumber2.value == before)
     }
 
     @Test("An edit in a sibling can still be undone after a deletion that synced into it is undone")
@@ -1800,11 +1821,9 @@ extension CloneSetContractTests
         #expect(pair.source.nodes.count == 4)
         #expect(pair.target.nodes.count == 4)
 
-        expecting(.siblingUndoIsForgotten) {
-            pair.undoManager.undo()                                                        // B's addition
-            #expect(pair.target.nodes.count == 3)
-            #expect(pair.source.nodes.count == 3)
-        }
+        pair.undoManager.undo()                                                        // B's addition
+        #expect(pair.target.nodes.count == 3)
+        #expect(pair.source.nodes.count == 3)
     }
 }
 
