@@ -100,6 +100,7 @@ For all development:
   - Nodes may opt into a QC like ’Settings View’
   - Any Node whose execution logic would change the  type, or number of ports should have only have that logic fire via changing a Setting, NOT at runtime
   - Settings should have a custom Init override, and be exposed as a enum or struct that can be set via the procedural Node / Graph API. This avoids UI only configuration.
+  - A node with settings of its own, state its ports do not hold, writes them in `encodeSettings(to:)` and puts them back in place in `restoreSettings(from:)`, through the setters its settings view uses. That is what makes a settings change undoable: `NodeSettingView` records one undo step per pass of editing (see `NodeSettingsSession`), and undo puts the settings back with the ports and wires they decide. State saved with the node that the settings view does not edit, such as a device's reconnect record, stays in `encode(to:)`.
 
 - Important Node subclasses
   - StrategyNode / TypeAgnosticNode - useful for Nodes that can change their port type on demand

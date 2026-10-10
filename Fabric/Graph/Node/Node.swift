@@ -278,6 +278,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         try container.encode(self.offset, forKey: .nodeOffset)
         try container.encode(self.registry.encode(), forKey: .ports)
         try container.encodeIfPresent(self.userName, forKey: .userName)
+        try self.encodeSettings(to: encoder)
     }
 
     public required init(context:Context)
@@ -393,6 +394,19 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         let droppedKeys = self.droppedPortStateKeys
         self.portHydrationSession = nil
         return droppedKeys
+    }
+
+    /// Each port's state under its registry key, as the document writes it.
+    internal func portSnapshots() -> [PortRegistry.Snapshot] { self.registry.encode() }
+
+    /// Runs `body` with `snapshots` as the port state a port added during it
+    /// takes back, as decode does.
+    internal func withPortHydration(from snapshots: [PortRegistry.Snapshot], _ body: () throws -> Void) rethrows
+    {
+        let previous = self.portHydrationSession
+        self.portHydrationSession = PortHydrationSession(snapshots: snapshots)
+        defer { self.portHydrationSession = previous }
+        try body()
     }
 
     // Dynamic add/remove (kept by serialization automatically)
@@ -672,6 +686,29 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     }
 
     open var settingsSize:SettingsViewSize { .Small }
+
+    /// Writes the node's settings: the state its settings view edits that its
+    /// ports do not hold, under the node's own coding keys. They are saved with
+    /// the node, and are what a settings change records for undo (see
+    /// NodeSettingsSession). A node that overrides this overrides
+    /// restoreSettings(from:) to match, and calls super in both.
+    open func encodeSettings(to encoder: Encoder) throws { }
+
+    /// Puts settings written by encodeSettings(to:) back on this node in place,
+    /// through the same setters the settings view uses, so the node rebuilds
+    /// whatever ports they decide and its settings view shows them. A port
+    /// the rebuild adds takes back the id, value and published state it had
+    /// when the settings were written.
+    open func restoreSettings(from decoder: Decoder) throws { }
+
+    /// The settings last recorded for undo while the node's settings are
+    /// being edited, nil otherwise. See NodeSettingsSession.
+    internal var recordedSettings: SettingsSnapshot?
+    internal var settingsSessionCount = 0
+
+    /// Sent when undo or redo puts the node's settings back, so a settings
+    /// view holding its own copy of them, a draft being typed, starts over.
+    internal let settingsRestoredSubject = PassthroughSubject<Void, Never>()
 
     // MARK: - Helpers
 

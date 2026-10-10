@@ -135,30 +135,38 @@ public class StrategyNode: Node
 
     var strategy: String
     {
+        willSet
+        {
+            // A strategy also changes as a wire specialises the node, outside
+            // its settings view, so the node records the change itself.
+            let recordsUndo = newValue != strategy && graph?.undoManager?.isUndoRegistrationEnabled == true
+            self.settingsBeforeStrategyChange = recordsUndo ? self.settingsSnapshot() : nil
+        }
         didSet
         {
             guard oldValue != strategy else { return }
-            let previousStrategy = oldValue
+            let before = self.settingsBeforeStrategyChange
+            self.settingsBeforeStrategyChange = nil
 
             if let graph
             {
                 graph.withoutUndoRegistration {
                     self.rebuildPorts(forStrategy: strategy)
                 }
-                graph.registerUndo(on: self) { node in
-                    node.strategy = previousStrategy
-                }
-                graph.undoManager?.setActionName("Change Node Strategy")
+                if let before { graph.registerSettingsChange(of: self, from: before) }
             }
             else
             {
                 self.rebuildPorts(forStrategy: strategy)
             }
+            self._settingsModel.strategy = strategy
 
             // `subtitle` is derived from `strategy`; notify so the title refreshes.
             self.subtitleSubject.send()
         }
     }
+
+    private var settingsBeforeStrategyChange: SettingsSnapshot?
 
     private enum StrategyCodingKeys: String, CodingKey
     {
@@ -181,12 +189,18 @@ public class StrategyNode: Node
         self.rebuildPorts(forStrategy: self.strategy)
     }
 
-    public override func encode(to encoder: Encoder) throws
+    public override func encodeSettings(to encoder: Encoder) throws
     {
-        try super.encode(to: encoder)
-
+        try super.encodeSettings(to: encoder)
         var container = encoder.container(keyedBy: StrategyCodingKeys.self)
         try container.encode(self.strategy, forKey: .strategy)
+    }
+
+    public override func restoreSettings(from decoder: Decoder) throws
+    {
+        try super.restoreSettings(from: decoder)
+        let container = try decoder.container(keyedBy: StrategyCodingKeys.self)
+        if let strategy = try container.decodeIfPresent(String.self, forKey: .strategy) { self.strategy = strategy }
     }
 
     public required init(context: Context)

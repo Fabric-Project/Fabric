@@ -337,11 +337,18 @@ public class MathExpressionNode: Node
         self.compileAndSync()
     }
 
-    public override func encode(to encoder: Encoder) throws
+    public override func encodeSettings(to encoder: Encoder) throws
     {
-        try super.encode(to: encoder)
+        try super.encodeSettings(to: encoder)
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.stringExpression, forKey: .stringExpression)
+    }
+
+    public override func restoreSettings(from decoder: Decoder) throws
+    {
+        try super.restoreSettings(from: decoder)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.stringExpression = try container.decodeIfPresent(String.self, forKey: .stringExpression) ?? Self.defaultExpression
     }
 
     public required init(context: Context)

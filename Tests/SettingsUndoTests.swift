@@ -1,0 +1,175 @@
+import Foundation
+import Metal
+import Testing
+@testable import Fabric
+import Satin
+
+/// A node's settings, edited in its settings view or changed by the node
+/// itself, are undone and redone with the ports and wires they decide.
+@Suite("Settings Undo")
+@MainActor
+struct SettingsUndoTests
+{
+    private func makeContext() -> Context?
+    {
+        guard let device = MTLCreateSystemDefaultDevice() else { return nil }
+        return Context(device: device,
+                       sampleCount: 1,
+                       colorPixelFormat: .bgra8Unorm,
+                       depthPixelFormat: .depth32Float,
+                       stencilPixelFormat: .invalid)
+    }
+
+    private struct Fixture
+    {
+        let graph: Graph
+        let upstream: NumberBinaryOperator
+        let undoManager: UndoManager
+    }
+
+    private func makeFixture(context: Context) -> Fixture
+    {
+        let graph = Graph(context: context)
+        let upstream = NumberBinaryOperator(context: context)
+        graph.addNode(upstream)
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        graph.undoManager = undoManager
+        return Fixture(graph: graph, upstream: upstream, undoManager: undoManager)
+    }
+
+    /// One edit per group, as the editor's event loop makes them.
+    private func step(_ undoManager: UndoManager, _ edit: () -> Void)
+    {
+        undoManager.beginUndoGrouping()
+        edit()
+        undoManager.endUndoGrouping()
+    }
+
+    private func inlet(_ name: String, of node: Node) -> Fabric.Port?
+    {
+        node.inputPorts().first { $0.name == name }
+    }
+
+    @Test("Editing settings in the settings view is one undo step, taking back the ports and wires they removed")
+    func sessionIsOneStep() throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = makeFixture(context: context)
+        let node = MathExpressionNode(context: context, expression: "x + y")
+        step(fixture.undoManager) { fixture.graph.addNode(node) }
+        let y = try #require(inlet("y", of: node))
+        step(fixture.undoManager) { fixture.graph.connect(fixture.upstream.outputNumber, to: y) }
+
+        let session = NodeSettingsSession(node: node)
+        node.stringExpression = "x + "
+        node.stringExpression = "x"
+        session.end()
+
+        #expect(inlet("y", of: node) == nil)
+        #expect(fixture.graph.connections.isEmpty)
+
+        fixture.undoManager.undo()
+        #expect(node.stringExpression == "x + y")
+        let restored = try #require(inlet("y", of: node))
+        #expect(restored.id == y.id)
+        let outletID = fixture.upstream.outputNumber.id
+        let rewired = fixture.graph.connections.contains { $0.inletPortID == y.id && $0.outletPortID == outletID }
+        #expect(rewired)
+
+        fixture.undoManager.redo()
+        #expect(node.stringExpression == "x")
+        #expect(fixture.graph.connections.isEmpty)
+
+        fixture.undoManager.undo()
+        fixture.undoManager.undo()
+        #expect(fixture.graph.connections.isEmpty)
+        #expect(node.stringExpression == "x + y")
+    }
+
+    @Test("Undo while the settings view is open first takes back what it has edited so far")
+    func undoWhileOpenTakesBackTheEditFirst()
+    {
+        guard let context = makeContext() else { return }
+        let fixture = makeFixture(context: context)
+        let node = MathExpressionNode(context: context, expression: "x + y")
+        step(fixture.undoManager) { fixture.graph.addNode(node) }
+
+        let session = NodeSettingsSession(node: node)
+        node.stringExpression = "x * y"
+
+        fixture.undoManager.undo()
+        #expect(node.stringExpression == "x + y")
+        #expect(fixture.graph.nodes.contains { $0 === node })
+
+        fixture.undoManager.redo()
+        #expect(node.stringExpression == "x * y")
+
+        // What undo and redo put back is not an edit of the view's.
+        session.end()
+        fixture.undoManager.undo()
+        #expect(node.stringExpression == "x + y")
+        #expect(fixture.graph.nodes.contains { $0 === node })
+    }
+
+    @Test("A settings view closed with nothing changed records nothing")
+    func unchangedSessionRecordsNothing()
+    {
+        guard let context = makeContext() else { return }
+        let fixture = makeFixture(context: context)
+        let node = MathExpressionNode(context: context, expression: "x + y")
+        step(fixture.undoManager) { fixture.graph.addNode(node) }
+        fixture.undoManager.removeAllActions()
+
+        let session = NodeSettingsSession(node: node)
+        node.stringExpression = "x"
+        node.stringExpression = "x + y"
+        session.end()
+        #expect(!fixture.undoManager.canUndo)
+    }
+
+    @Test("A strategy change records itself once, in the settings view or out of it, and undo takes back the wire it dropped")
+    func strategyChangeIsOneStep() throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = makeFixture(context: context)
+        let node = SampleAndHoldNode(context: context, initialStrategy: PortType.Float.rawValue)
+        step(fixture.undoManager) { fixture.graph.addNode(node) }
+        let value = try #require(node.findPort(named: "inputValue") as Fabric.Port?)
+        step(fixture.undoManager) { fixture.graph.connect(fixture.upstream.outputNumber, to: value) }
+
+        let session = NodeSettingsSession(node: node)
+        step(fixture.undoManager) { node.strategy = PortType.Geometry.rawValue }
+        session.end()
+        #expect(fixture.graph.connections.isEmpty)
+
+        fixture.undoManager.undo()
+        #expect(node.strategy == PortType.Float.rawValue)
+        #expect((node.findPort(named: "inputValue") as Fabric.Port?)?.id == value.id)
+        #expect(fixture.graph.connections.count == 1)
+
+        fixture.undoManager.undo()
+        #expect(fixture.graph.connections.isEmpty)
+        #expect(node.strategy == PortType.Float.rawValue)
+
+        fixture.undoManager.redo()
+        fixture.undoManager.redo()
+        #expect(node.strategy == PortType.Geometry.rawValue)
+        #expect(fixture.graph.connections.isEmpty)
+    }
+
+    @Test("Settings a node writes are saved and opened as before")
+    func settingsStillSave() throws
+    {
+        guard let context = makeContext() else { return }
+        let graph = Graph(context: context)
+        graph.addNode(MathExpressionNode(context: context, expression: "x * 2"))
+        graph.addNode(SampleAndHoldNode(context: context, initialStrategy: PortType.String.rawValue))
+
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decoded = try decoder.decode(Graph.self, from: JSONEncoder().encode(graph))
+        #expect(decoded.nodes.compactMap { $0 as? MathExpressionNode }.first?.stringExpression == "x * 2")
+        #expect(decoded.nodes.compactMap { $0 as? SampleAndHoldNode }.first?.strategy == PortType.String.rawValue)
+    }
+}

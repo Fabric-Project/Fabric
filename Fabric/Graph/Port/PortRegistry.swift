@@ -48,8 +48,10 @@ final class PortRegistry
 
     func remove(_ p: Port)
     {
+        // A port goes because of another edit, a settings change or an
+        // unpublish, which records its wires; its going is not an edit too.
         if let graph = p.node?.graph {
-            graph.disconnectAll(from: p)
+            graph.withoutUndoRegistration { graph.disconnectAll(from: p) }
         }
         self.byID[p.id] = nil
         if let i = ordered.firstIndex(where: { $0.id == p.id }) { self.ordered.remove(at: i) }
