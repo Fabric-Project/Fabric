@@ -1104,6 +1104,38 @@ extension CloneSetTests
         #expect(syncedSecond.inputNumber2.value == 7)
     }
 
+    @Test("Unpublishing inside a member takes the parent's wire onto its proxy with it")
+    @MainActor
+    func unpublishingInsideMemberTakesTheParentWire() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+
+        let proxy = try #require(pair.sibling.ports.first { $0.kind == .Inlet && $0.displayName == "Amount" })
+        let upstream = NumberBinaryOperator(context: context)
+        pair.graph.addNode(upstream)
+        let wire = try #require(pair.graph.connect(upstream.outputNumber, to: proxy))
+
+        let inner = try #require(pair.target.nodesRecursive()
+            .compactMap { $0 as? NumberBinaryOperator }
+            .first { $0.inputNumber1.published })
+
+        pair.target.setPublished(false, on: inner.inputNumber1)
+
+        #expect(!pair.sibling.ports.contains { $0.id == proxy.id })
+        #expect(!pair.graph.connections.contains { $0 === wire })
+        #expect(upstream.outputNumber.connections.isEmpty)
+
+        // A member's proxies carry ids of their own, so the one that comes
+        // back could never have been bound to the wire that named the old.
+        pair.target.setPublished(true, on: inner.inputNumber1)
+        let rebuilt = try #require(pair.sibling.ports.first {
+            ($0 as? any ProxyPortProtocol)?.innerPortID == inner.inputNumber1.id
+        })
+        #expect(rebuilt.id != proxy.id)
+        #expect(rebuilt.connections.isEmpty)
+    }
+
     @Test("A member exposing a nested sub graph's knob saves and loads, each member's value its own")
     @MainActor
     func nestedPublishedProxySurvivesCompactSave() throws
