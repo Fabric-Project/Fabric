@@ -321,15 +321,28 @@ extension Graph
     }
 
     /// Published inlets in this graph and, depth first, in nested sub graphs:
-    /// the ports whose values are each member's own. A proxy is left out: it
-    /// forwards its inner port's value and carries that port's id, so a
-    /// nested sub graph's knob published on through this one would otherwise
-    /// be named twice, once by the proxy and once by the port it stands for.
-    internal func publishedInletsRecursive() -> [Port]
+    /// the ports whose values are each member's own. Each is keyed by its id,
+    /// prefixed by the ids of the subgraph nodes it sits inside: two instances
+    /// of a nested set hold their inner ports under the same ids, and are told
+    /// apart only by the node each sits in. A proxy is left out: it forwards
+    /// its inner port's value, so a nested sub graph's knob published on
+    /// through this one would otherwise be named twice.
+    internal func publishedInletsByPath(prefix: String = "") -> [String: Port]
     {
-        self.nodesRecursive().flatMap { node in
-            node.ports.filter { $0.kind == .Inlet && $0.published && !($0 is any ProxyPortProtocol) }
+        var ports: [String: Port] = [:]
+        for node in self.nodes
+        {
+            for port in node.ports where port.kind == .Inlet && port.published && !(port is any ProxyPortProtocol)
+            {
+                ports[prefix + port.id.uuidString] = port
+            }
+            if let subgraphNode = node as? SubgraphNode
+            {
+                ports.merge(subgraphNode.subGraph.publishedInletsByPath(prefix: prefix + node.id.uuidString + "/"),
+                            uniquingKeysWith: { first, _ in first })
+            }
         }
+        return ports
     }
 
     /// Subgraph nodes in this graph and, depth first, in their sub graphs.

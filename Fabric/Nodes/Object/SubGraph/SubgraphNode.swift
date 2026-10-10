@@ -338,12 +338,11 @@ open class SubgraphNode: BaseObjectNode
         try super.encode(to: encoder)
     }
 
-    /// The values of every published inlet at any depth, by port id: what a
+    /// The values of every published inlet at any depth, by path: what a
     /// member keeps as its own when it is written as a reference to its set.
     private var memberValues: [String: AnyPort]
     {
-        Dictionary(self.subGraph.publishedInletsRecursive().map { ($0.id.uuidString, AnyPort($0)) },
-                   uniquingKeysWith: { first, _ in first })
+        self.subGraph.publishedInletsByPath().mapValues(AnyPort.init)
     }
 
     /// True when the sub graph encodes to the set's stored graph, the state
@@ -411,7 +410,7 @@ open class SubgraphNode: BaseObjectNode
     }
 
     /// The per-member values a reference wrote, put back on the ports they
-    /// name: the same ids in every instance of the stored graph.
+    /// name: the same paths in every instance of the stored graph.
     private static func applyMemberValues(from container: KeyedDecodingContainer<CodingKeys>,
                                           to subGraph: Graph) throws
     {
@@ -421,11 +420,10 @@ open class SubgraphNode: BaseObjectNode
 
     private static func restore(values: [String: (portType: PortType, value: PortValue?)], in subGraph: Graph)
     {
-        let portsByID = Dictionary(subGraph.publishedInletsRecursive().map { ($0.id.uuidString, $0) },
-                                   uniquingKeysWith: { first, _ in first })
-        for (portID, saved) in values
+        let portsByPath = subGraph.publishedInletsByPath()
+        for (path, saved) in values
         {
-            guard let port = portsByID[portID], port.portType == saved.portType else { continue }
+            guard let port = portsByPath[path], port.portType == saved.portType else { continue }
             port.restoreValue(from: saved.value)
         }
     }
@@ -457,8 +455,7 @@ open class SubgraphNode: BaseObjectNode
     {
         let old = self.subGraph
         let parent = self.graph
-        let values = Dictionary(old.publishedInletsRecursive().map { ($0.id.uuidString, (portType: $0.portType, value: $0.snapshotValue())) },
-                                uniquingKeysWith: { first, _ in first })
+        let values = old.publishedInletsByPath().mapValues { (portType: $0.portType, value: $0.snapshotValue()) }
 
         parent?.nodeObjectWillChange(self)
         self.forgetUndo(for: old)
