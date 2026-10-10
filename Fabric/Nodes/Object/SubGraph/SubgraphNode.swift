@@ -532,6 +532,11 @@ open class SubgraphNode: BaseObjectNode
         for node in graph.nodes
         {
             undoManager.removeAllActions(withTarget: node)
+            // A value set through its control is undone against its parameter.
+            for parameter in node.ports.compactMap(\.parameter)
+            {
+                undoManager.removeAllActions(withTarget: parameter)
+            }
             if let viewModel = graph.viewModelIfPresent(for: node)
             {
                 undoManager.removeAllActions(withTarget: viewModel)
