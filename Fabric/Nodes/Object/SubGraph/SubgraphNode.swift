@@ -39,21 +39,32 @@ open class SubgraphNode: BaseObjectNode
 
         // Remove proxies whose inner port is no longer published, or was
         // replaced under its id: the proxy forwards to the port it was made
-        // over, so it is made again over the replacement.
+        // over, so it is made again over the replacement, published as it was
+        // in the graph around, as the replacement is in its own.
+        var replaced: [UUID: (published: Bool, publishedName: String?)] = [:]
         self.proxyPorts.removeAll { proxy in
-            guard let proxy = proxy as? any ProxyPortProtocol,
-                  let innerPort = publishedByID[proxy.innerPortID]
+            guard let typed = proxy as? any ProxyPortProtocol,
+                  let innerPort = publishedByID[typed.innerPortID]
             else { return true }
-            return !proxy.wraps(innerPort)
+            guard !typed.wraps(innerPort) else { return false }
+            replaced[typed.innerPortID] = (proxy.published, proxy.publishedName)
+            return true
         }
 
         // Add proxies for newly published ports
         let existingInnerIDs = Set(self.proxyPorts.compactMap { ($0 as? any ProxyPortProtocol)?.innerPortID })
+        var replacements: [Port] = []
         for innerPort in innerPorts where !existingInnerIDs.contains(innerPort.id)
         {
             if let proxy = Self.makeProxy(for: innerPort)
             {
                 proxy.node = self
+                if let state = replaced[innerPort.id]
+                {
+                    proxy.published = state.published
+                    proxy.publishedName = state.publishedName
+                    replacements.append(proxy)
+                }
                 self.proxyPorts.append(proxy)
             }
         }
@@ -74,10 +85,23 @@ open class SubgraphNode: BaseObjectNode
         self.invalidatePortCaches()
 
         // A proxy dropped and rebuilt is a new object under the same id, so
-        // the containing graph's wires onto it have to be bound to it again.
-        self.graph?.reattachConnections(to: self.proxyPorts)
+        // the containing graph's wires onto it have to be bound to it again,
+        // but for those a replacement of another type cannot take.
+        if let graph = self.graph
+        {
+            graph.reattachConnections(to: self.proxyPorts)
+            let incompatible = replacements.flatMap(\.connections).filter { connection in
+                guard let outlet = connection.outletPort, let inlet = connection.inletPort else { return true }
+                return !outlet.canConnect(to: inlet)
+            }
+            graph.withoutUndoRegistration {
+                for connection in incompatible { _ = graph.disconnect(connection) }
+            }
+        }
 
         self.graph?.markConnectionsChanged()
+        // A replacement published further up is a replaced port there too.
+        if replacements.contains(where: \.published) { self.graph?.rebuildPublishedParameterGroup() }
         self.portsChangedSubject.send()
     }
 

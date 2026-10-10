@@ -98,4 +98,42 @@ struct ProxyPortReplacementTests
         #expect(graph.connections.isEmpty)
         #expect(upstream.outputNumber.connections.isEmpty)
     }
+
+    @Test("A published port replaced under its id keeps its proxy's publishing further up, and every level follows the replacement", arguments: [PortType.Int, PortType.Geometry])
+    func replacementFollowsUpEveryLevel(to type: PortType) throws
+    {
+        guard let context = makeContext() else { return }
+        let graph = Graph(context: context)
+        let outer = SubgraphNode(context: context)
+        graph.addNode(outer)
+        let inner = SubgraphNode(context: context)
+        outer.subGraph.addNode(inner)
+        let node = SampleAndHoldNode(context: context, initialStrategy: PortType.Float.rawValue)
+        inner.subGraph.addNode(node)
+        let value = try #require(node.findPort(named: "inputValue") as Fabric.Port?)
+        inner.subGraph.setPublished(true, on: value)
+        let innerProxy = try #require(inner.ports.first { $0.id == value.id })
+        outer.subGraph.setPublished(true, on: innerProxy)
+        outer.subGraph.setPublishedName("Held", on: innerProxy)
+        let upstream = NumberBinaryOperator(context: context)
+        graph.addNode(upstream)
+        let outerProxy = try #require(outer.ports.first { $0.id == value.id })
+        #expect(graph.connect(upstream.outputNumber, to: outerProxy) != nil)
+
+        node.strategy = type.rawValue
+
+        let innerNow = try #require(inner.ports.first { $0.id == value.id })
+        #expect(innerNow.published)
+        #expect(innerNow.publishedName == "Held")
+        #expect(innerNow.portType == type)
+        let outerNow = try #require(proxy(over: value.id, in: outer))
+        #expect(outerNow.wraps(innerNow))
+        #expect(outer.ports.first { $0.id == value.id }?.portType == type)
+
+        // A Float outlet feeds an Int inlet, not a Geometry one.
+        let kept = type == .Int
+        #expect(upstream.outputNumber.connections.count == (kept ? 1 : 0))
+        #expect(graph.connections.count == (kept ? 1 : 0))
+        if kept { #expect(upstream.outputNumber.connections.first?.inletPort === outer.ports.first { $0.id == value.id }) }
+    }
 }

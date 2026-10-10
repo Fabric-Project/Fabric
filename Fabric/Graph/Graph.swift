@@ -1135,20 +1135,6 @@ internal import AnyCodable
         parent.withoutUndoRegistration { parent.disconnectAll(from: proxy) }
     }
 
-    /// Takes off the proxy standing for `port` each containing-graph wire it
-    /// no longer accepts, as after `port` was replaced with another type.
-    internal func disconnectIncompatibleProxyWires(standingFor port: Port)
-    {
-        guard let (proxy, parent) = self.proxy(standingFor: port) else { return }
-        let incompatible = proxy.connections.filter { connection in
-            guard let outlet = connection.outletPort, let inlet = connection.inletPort else { return true }
-            return !outlet.canConnect(to: inlet)
-        }
-        parent.withoutUndoRegistration {
-            for connection in incompatible { _ = parent.disconnect(connection) }
-        }
-    }
-
     private func takeDownProxy(standingFor port: Port) -> ProxyState?
     {
         guard let (proxy, parent) = self.proxy(standingFor: port) else { return nil }
