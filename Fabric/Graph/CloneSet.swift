@@ -76,3 +76,20 @@ public final class CloneSet: Codable, Identifiable
         try container.encode(AnyCodable(self.graphObject), forKey: .graph)
     }
 }
+
+/// A clone set as decoded from a document: nil where the entry cannot be
+/// read, so one bad set costs its members' links rather than the document.
+struct LossyCloneSet: Decodable
+{
+    let set: CloneSet?
+
+    init(from decoder: any Decoder) throws
+    {
+        do { self.set = try CloneSet(from: decoder) }
+        catch
+        {
+            print("Graph: dropping a clone set that cannot be read: \(error.localizedDescription)")
+            self.set = nil
+        }
+    }
+}

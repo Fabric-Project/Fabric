@@ -160,15 +160,11 @@ internal import AnyCodable
         self.scheduleCloneSyncIfNeeded()
     }
 
-    /// The coordinator and its flag are main-thread state; an edit made
-    /// elsewhere is handed to the main actor to schedule.
+    /// The coordinator and its flag are main-thread state, as is every edit
+    /// a user makes. A change made elsewhere is a decode, not an edit.
     private func scheduleCloneSyncIfNeeded()
     {
-        guard Thread.isMainThread else
-        {
-            Task { @MainActor [weak self] in self?.scheduleCloneSyncIfNeeded() }
-            return
-        }
+        guard Thread.isMainThread else { return }
 
         let coordinator = self.cloneSetCoordinator
         guard !coordinator.isSyncing, !self.enclosingCloneMembers.isEmpty else { return }
@@ -383,7 +379,7 @@ internal import AnyCodable
         self.scene = Object(context: context)
 
         self.notes = try container.decodeIfPresent([Note].self, forKey: .notes) ?? []
-        self.cloneSets = try container.decodeIfPresent([CloneSet].self, forKey: .cloneSets) ?? []
+        self.cloneSets = (try container.decodeIfPresent([LossyCloneSet].self, forKey: .cloneSets) ?? []).compactMap(\.set)
         if !self.cloneSets.isEmpty, decodeContext.cloneSets.isEmpty
         {
             decodeContext.cloneSets = self.cloneSets
