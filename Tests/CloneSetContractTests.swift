@@ -1392,6 +1392,107 @@ extension CloneSetContractTests
         #expect(readers.map(\.outputNumber.value) == [2, 2])
     }
 
+    /// A member holding `node`, with `publish` of its ports published, set
+    /// up as a clone set of two with one upstream wired into each member's
+    /// proxy over `wired`. Every step is its own undo group.
+    private struct WiredPair
+    {
+        let graph: Graph
+        let undoManager: UndoManager
+        let members: [SubgraphNode]
+        let upstream: NumberBinaryOperator
+
+        func step(_ body: () throws -> Void) rethrows
+        {
+            undoManager.beginUndoGrouping()
+            defer { undoManager.endUndoGrouping() }
+            try body()
+        }
+
+        /// The wires from the upstream onto each member, in member order.
+        var wiresOntoMembers: [Int]
+        {
+            members.map { member in
+                let ids = Set(member.ports.map(\.id))
+                return graph.connections.filter { ids.contains($0.inletPortID) && $0.outletPortID == upstream.outputNumber.id }.count
+            }
+        }
+    }
+
+    @MainActor
+    private func makeWiredPair(context: Context, node: Node, wired: (Node) throws -> Fabric.Port) throws -> WiredPair
+    {
+        let graph = Graph(context: context)
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        graph.undoManager = undoManager
+        let member = SubgraphNode(context: context)
+        let upstream = NumberBinaryOperator(context: context)
+        let pair0 = WiredPair(graph: graph, undoManager: undoManager, members: [], upstream: upstream)
+        try pair0.step {
+            graph.addNode(member)
+            member.subGraph.undoManager = undoManager
+            member.subGraph.addNode(node)
+            member.subGraph.setPublished(true, on: try wired(node))
+            graph.addNode(upstream)
+        }
+        var sibling: SubgraphNode?
+        try pair0.step { sibling = try graph.duplicateAsClone(member) }
+        let pair = WiredPair(graph: graph, undoManager: undoManager, members: [member, try #require(sibling)], upstream: upstream)
+        try pair.step {
+            for member in pair.members
+            {
+                let proxy = try #require(member.inputPorts().first)
+                _ = try #require(graph.connect(upstream.outputNumber, to: proxy))
+            }
+        }
+        #expect(pair.wiresOntoMembers == [1, 1])
+        return pair
+    }
+
+    @Test("A settings change that removes a published inlet takes the parent's wires off every member, and undo puts them back on each")
+    @MainActor
+    func removedPublishedInletTakesEveryMembersWire() throws
+    {
+        guard let context = makeContext() else { return }
+        let expression = MathExpressionNode(context: context, expression: "x")
+        let pair = try makeWiredPair(context: context, node: expression) { node in
+            try #require(node.inputPorts().first { $0.name == "x" })
+        }
+
+        let session = NodeSettingsSession(node: expression)
+        expression.stringExpression = "y"
+        session.end()
+        #expect(pair.wiresOntoMembers == [0, 0])
+        #expect(pair.graph.connections.isEmpty)
+
+        pair.undoManager.undo()
+        #expect(pair.wiresOntoMembers == [1, 1])
+
+        pair.undoManager.redo()
+        #expect(pair.wiresOntoMembers == [0, 0])
+        #expect(pair.graph.connections.isEmpty)
+    }
+
+    @Test("A published port retyped in one member keeps the parent's wire on every member that can still take it")
+    @MainActor
+    func retypedPublishedPortKeepsEveryMembersWire() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = SampleAndHoldNode(context: context, initialStrategy: PortType.Float.rawValue)
+        let pair = try makeWiredPair(context: context, node: node) { node in
+            try #require(node.findPort(named: "inputValue") as Fabric.Port?)
+        }
+
+        pair.step { node.strategy = PortType.Int.rawValue }
+        #expect(pair.members.allSatisfy { $0.inputPorts().first?.portType == .Int })
+        #expect(pair.wiresOntoMembers == [1, 1])
+
+        pair.undoManager.undo()
+        #expect(pair.members.allSatisfy { $0.inputPorts().first?.portType == .Float })
+        #expect(pair.wiresOntoMembers == [1, 1])
+    }
+
     @Test("Unlinking a member nested inside a member reaches the siblings")
     @MainActor
     func nestedMembershipChangeSyncs() throws
