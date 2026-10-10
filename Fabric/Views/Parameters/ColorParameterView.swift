@@ -17,14 +17,14 @@ struct Color4ParameterView: View, Equatable
 
     @State var color = Color.white
     
-    init(parameter: Float4Parameter, undoManager: UndoManager? = nil)
+    init(parameter: Float4Parameter, graph: Graph? = nil)
     {
         
         self.vm = ParameterObservableModel(label: parameter.label,
                                            get: { parameter.value },
                                            set: { parameter.value = $0 },
                                            publisher:parameter.valuePublisher,
-                                           undoManager: undoManager,
+                                           graph: graph,
                                            undoTarget: parameter,
                                            commit: .afterPause)
     
@@ -64,13 +64,13 @@ struct Color3ParameterView: View, Equatable
     
     @Bindable var vm: ParameterObservableModel<simd_float3>
 
-    init(parameter: Float3Parameter, undoManager: UndoManager? = nil)
+    init(parameter: Float3Parameter, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: parameter.label,
                                            get: { parameter.value },
                                            set: { parameter.value = $0 },
                                            publisher:parameter.valuePublisher,
-                                           undoManager: undoManager,
+                                           graph: graph,
                                            undoTarget: parameter,
                                            commit: .afterPause)
     }

@@ -137,7 +137,7 @@ struct NodeTitleView: View
             return
         }
 
-        nodeViewModel.node.graph?.undoManager?.registerUndo(withTarget: nodeViewModel)
+        nodeViewModel.node.graph?.registerUndo(withTarget: nodeViewModel)
         { nodeViewModel in
             nodeViewModel.userName = oldUserName
         }

@@ -27,9 +27,9 @@ extension Graph {
 
         for (node, newOffset) in layout {
             let oldOffset = node.offset
-            undoManager?.registerUndo(withTarget: node) { n in
+            self.registerUndo(withTarget: node) { n in
                 let redoOffset = n.offset
-                self.undoManager?.registerUndo(withTarget: n) { $0.offset = redoOffset }
+                self.registerUndo(withTarget: n) { $0.offset = redoOffset }
                 n.offset = oldOffset
             }
             node.offset = newOffset

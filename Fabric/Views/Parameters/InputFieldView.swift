@@ -72,7 +72,7 @@ struct InputFieldView: View
 
     @Bindable var vm: ParameterObservableModel<String>
 
-    init(param:StringParameter, undoManager: UndoManager? = nil)
+    init(param:StringParameter, graph: Graph? = nil)
     {
         // The whole value, however much of it the field can show. This read is
         // what an edit is compared and written back against, so shortening it
@@ -81,7 +81,7 @@ struct InputFieldView: View
                                            get: { param.value },
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
-                                           undoManager: undoManager,
+                                           graph: graph,
                                            undoTarget: param)
     }
     
@@ -105,13 +105,13 @@ struct FloatInputFieldView: View
     @Bindable var vm: ParameterObservableModel<Float>
     let decimalFormatter:NumberFormatter
     
-    init(param:GenericParameter<Float>, undoManager: UndoManager? = nil)
+    init(param:GenericParameter<Float>, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
-                                           undoManager: undoManager,
+                                           graph: graph,
                                            undoTarget: param)
         
         self.decimalFormatter = NumberFormatter()
@@ -141,13 +141,13 @@ struct Float2InputFieldView: View
 
     let decimalFormatter:NumberFormatter
     
-    init(param:GenericParameter<simd_float2>, undoManager: UndoManager? = nil)
+    init(param:GenericParameter<simd_float2>, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
-                                           undoManager: undoManager,
+                                           graph: graph,
                                            undoTarget: param)
         self.decimalFormatter = NumberFormatter()
         decimalFormatter.numberStyle = .decimal
@@ -193,13 +193,13 @@ struct Float3InputFieldView: View
 
     let decimalFormatter:NumberFormatter
     
-    init(param:GenericParameter<simd_float3>, undoManager: UndoManager? = nil)
+    init(param:GenericParameter<simd_float3>, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
-                                           undoManager: undoManager,
+                                           graph: graph,
                                            undoTarget: param)
         self.decimalFormatter = NumberFormatter()
         decimalFormatter.numberStyle = .decimal
@@ -255,13 +255,13 @@ struct Float4InputFieldView: View
 
     let decimalFormatter:NumberFormatter
     
-    init(param:GenericParameter<simd_float4>, undoManager: UndoManager? = nil)
+    init(param:GenericParameter<simd_float4>, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
-                                           undoManager: undoManager,
+                                           graph: graph,
                                            undoTarget: param)
         self.decimalFormatter = NumberFormatter()
         decimalFormatter.numberStyle = .decimal
@@ -327,13 +327,13 @@ struct IntInputFieldView: View
 
     let decimalFormatter:NumberFormatter
     
-    init(param:GenericParameter<Int>, undoManager: UndoManager? = nil)
+    init(param:GenericParameter<Int>, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
-                                           undoManager: undoManager,
+                                           graph: graph,
                                            undoTarget: param)
         
         self.decimalFormatter = NumberFormatter()
@@ -365,13 +365,13 @@ struct Int2InputFieldView: View
 
     let decimalFormatter:NumberFormatter
     
-    init(param:GenericParameter<simd_int2>, undoManager: UndoManager? = nil)
+    init(param:GenericParameter<simd_int2>, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
-                                           undoManager: undoManager,
+                                           graph: graph,
                                            undoTarget: param)
         
         self.decimalFormatter = NumberFormatter()
@@ -420,13 +420,13 @@ struct Int3InputFieldView: View
 
     let decimalFormatter:NumberFormatter
     
-    init(param:GenericParameter<simd_int3>, undoManager: UndoManager? = nil)
+    init(param:GenericParameter<simd_int3>, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
-                                           undoManager: undoManager,
+                                           graph: graph,
                                            undoTarget: param)
         
         self.decimalFormatter = NumberFormatter()
@@ -484,13 +484,13 @@ struct Int4InputFieldView: View
 
     let decimalFormatter:NumberFormatter
     
-    init(param:GenericParameter<simd_int4>, undoManager: UndoManager? = nil)
+    init(param:GenericParameter<simd_int4>, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
-                                           undoManager: undoManager,
+                                           graph: graph,
                                            undoTarget: param)
         
         self.decimalFormatter = NumberFormatter()

@@ -145,7 +145,7 @@ public class StrategyNode: Node
                 graph.withoutUndoRegistration {
                     self.rebuildPorts(forStrategy: strategy)
                 }
-                graph.undoManager?.registerUndo(withTarget: self) { node in
+                graph.registerUndo(withTarget: self) { node in
                     node.strategy = previousStrategy
                 }
                 graph.undoManager?.setActionName("Change Node Strategy")

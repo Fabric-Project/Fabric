@@ -147,11 +147,14 @@ struct EditUndoTests
         let parameter = FloatParameter("Amount", 1, 0, 10, .slider, "")
         let undoManager = UndoManager()
         undoManager.groupsByEvent = false
+        guard let context = makeContext() else { return }
+        let graph = Graph(context: context)
+        graph.undoManager = undoManager
         let model = ParameterObservableModel(label: parameter.label,
                                              get: { parameter.value },
                                              set: { parameter.value = $0 },
                                              publisher: parameter.valuePublisher,
-                                             undoManager: undoManager,
+                                             graph: graph,
                                              undoTarget: parameter)
 
         // A discrete change.
@@ -184,11 +187,14 @@ struct EditUndoTests
         let parameter = BoolParameter("Fire", false, .button, "")
         let undoManager = UndoManager()
         undoManager.groupsByEvent = false
+        guard let context = makeContext() else { return }
+        let graph = Graph(context: context)
+        graph.undoManager = undoManager
         let model = ParameterObservableModel(label: parameter.label,
                                              get: { parameter.value },
                                              set: { parameter.value = $0 },
                                              publisher: parameter.valuePublisher,
-                                             undoManager: undoManager)
+                                             graph: graph)
 
         step(undoManager) { model.uiValue = true }
         undoManager.undo()

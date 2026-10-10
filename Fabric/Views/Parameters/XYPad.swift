@@ -18,13 +18,13 @@ struct XYPad: View, Equatable {
     @Bindable var vmMax: ParameterObservableModel<simd_float2>
 
 
-    init(param:Float2Parameter, undoManager: UndoManager? = nil)
+    init(param:Float2Parameter, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
-                                           undoManager: undoManager,
+                                           graph: graph,
                                            undoTarget: param)
 
         self.vmMin = ParameterObservableModel(label: param.label,

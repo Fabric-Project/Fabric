@@ -482,6 +482,14 @@ internal import AnyCodable
  
     //MARK: - Notes API -
     
+    /// Registers the undo step for an edit made in this graph. Every edit
+    /// registers through here, so it is the one place that sees an edit made
+    /// in a graph, wherever in the editor it was made.
+    public func registerUndo<Target: AnyObject>(withTarget target: Target, handler: @escaping (Target) -> Void)
+    {
+        self.undoManager?.registerUndo(withTarget: target, handler: handler)
+    }
+
     public func addNote(_ note: Note)
     {
         self.insertNote(note, at: self.notes.endIndex)
@@ -493,7 +501,7 @@ internal import AnyCodable
         guard let index = self.notes.firstIndex(where: { $0.id == note.id }) else { return }
         self.notes.remove(at: index)
 
-        undoManager?.registerUndo(withTarget: self) { graph in
+        self.registerUndo(withTarget: self) { graph in
             graph.insertNote(note, at: index)
             graph.undoManager?.setActionName("Delete Note")
         }
@@ -503,7 +511,7 @@ internal import AnyCodable
     private func insertNote(_ note: Note, at index: Int)
     {
         self.notes.insert(note, at: min(index, self.notes.endIndex))
-        undoManager?.registerUndo(withTarget: self) { $0.deleteNote(note) }
+        self.registerUndo(withTarget: self) { $0.deleteNote(note) }
     }
 
     /// Records an edit already made to `note`'s text or frame, from the text
@@ -514,7 +522,7 @@ internal import AnyCodable
         let rect = note.rect
         guard text != previousText || rect != previousRect else { return }
 
-        undoManager?.registerUndo(withTarget: self) { graph in
+        self.registerUndo(withTarget: self) { graph in
             note.note = previousText
             note.rect = previousRect
             graph.registerNoteEdit(note, previousText: text, previousRect: rect)
@@ -554,7 +562,7 @@ internal import AnyCodable
             subgraphNode.subGraph.updateFileReferenceBaseURL(self.fileReferenceBaseURL)
         }
 
-        self.undoManager?.registerUndo(withTarget: self) { graph in
+        self.registerUndo(withTarget: self) { graph in
             graph.delete(node: node)
         }
 
@@ -668,7 +676,7 @@ internal import AnyCodable
             self.nodeViewModels[node.id] = nil
         }
 
-        self.undoManager?.registerUndo(withTarget: self) { graph in
+        self.registerUndo(withTarget: self) { graph in
             graph.restoreDeletedNode(node,
                                      offset: savedOffset,
                                      connections: savedConnections)
@@ -704,7 +712,7 @@ internal import AnyCodable
             markConnectionsChanged()
         }
 
-        undoManager?.registerUndo(withTarget: self) { graph in
+        self.registerUndo(withTarget: self) { graph in
             graph.delete(node: node)
         }
         undoManager?.setActionName("Delete Node")
@@ -783,7 +791,7 @@ internal import AnyCodable
         markConnectionTopologyChanged()
         outlet.sendBoxed(outlet.snapshotValue(), force: true)
 
-        undoManager?.registerUndo(withTarget: self) { graph in
+        self.registerUndo(withTarget: self) { graph in
             graph.disconnect(connection)
         }
         undoManager?.setActionName("Connect Ports")
@@ -819,7 +827,7 @@ internal import AnyCodable
         detachConnection(connection, outlet: outlet, inlet: inlet)
         markConnectionTopologyChanged()
 
-        undoManager?.registerUndo(withTarget: self) { graph in
+        self.registerUndo(withTarget: self) { graph in
             graph.restore(connection)
         }
         undoManager?.setActionName("Disconnect Ports")
@@ -850,7 +858,7 @@ internal import AnyCodable
         let previousActive = connection.active
         connection.active = active
 
-        undoManager?.registerUndo(withTarget: self) { graph in
+        self.registerUndo(withTarget: self) { graph in
             graph.setConnection(connection, active: previousActive)
         }
         undoManager?.setActionName(active ? "Enable Connection" : "Disable Connection")
@@ -880,7 +888,7 @@ internal import AnyCodable
         markConnectionTopologyChanged()
         outlet.sendBoxed(outlet.snapshotValue(), force: true)
 
-        undoManager?.registerUndo(withTarget: self) { graph in
+        self.registerUndo(withTarget: self) { graph in
             graph.disconnect(connection)
         }
         return true
@@ -1067,7 +1075,7 @@ internal import AnyCodable
         port.published = published
         self.rebuildPublishedParameterGroup()
 
-        undoManager?.registerUndo(withTarget: self) { graph in
+        self.registerUndo(withTarget: self) { graph in
             graph.setPublished(!published, on: port)
             if let proxyState
             {
@@ -1091,7 +1099,7 @@ internal import AnyCodable
         self.rebuildPublishedParameterGroup()
         self.markConnectionsChanged()
 
-        undoManager?.registerUndo(withTarget: self) { graph in
+        self.registerUndo(withTarget: self) { graph in
             graph.setPublishedName(previousName, on: port)
         }
         undoManager?.setActionName("Rename Port")
@@ -1512,7 +1520,7 @@ internal import AnyCodable
                                           publishedPortStates: publishedPortStates)
 
         applyEmbedding(embedding)
-        undoManager?.registerUndo(withTarget: self) { graph in
+        self.registerUndo(withTarget: self) { graph in
             graph.revertEmbedding(embedding)
         }
         undoManager?.setActionName("Create Subgraph")
@@ -1617,7 +1625,7 @@ internal import AnyCodable
             }
         }
 
-        undoManager?.registerUndo(withTarget: self) { graph in
+        self.registerUndo(withTarget: self) { graph in
             graph.applyEmbedding(embedding)
         }
         undoManager?.setActionName("Create Subgraph")

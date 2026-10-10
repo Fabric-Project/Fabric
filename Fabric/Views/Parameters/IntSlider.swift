@@ -87,13 +87,13 @@ struct IntSlider: View, Equatable
     @Bindable var vmMin: ParameterObservableModel<Int>
     @Bindable var vmMax: ParameterObservableModel<Int>
 
-    init(param: IntParameter, undoManager: UndoManager? = nil)
+    init(param: IntParameter, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
-                                           undoManager: undoManager,
+                                           graph: graph,
                                            undoTarget: param)
         
         self.vmMin = ParameterObservableModel(label: param.label,
@@ -122,13 +122,13 @@ struct Int2Slider: View, Equatable
     @Bindable var vmMin: ParameterObservableModel<simd_int2>
     @Bindable var vmMax: ParameterObservableModel<simd_int2>
 
-    init(param: Int2Parameter, undoManager: UndoManager? = nil)
+    init(param: Int2Parameter, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
-                                           undoManager: undoManager,
+                                           graph: graph,
                                            undoTarget: param)
         
         self.vmMin = ParameterObservableModel(label: param.label,
@@ -163,13 +163,13 @@ struct Int3Slider: View, Equatable
     @Bindable var vmMin: ParameterObservableModel<simd_int3>
     @Bindable var vmMax: ParameterObservableModel<simd_int3>
 
-    init(param: Int3Parameter, undoManager: UndoManager? = nil)
+    init(param: Int3Parameter, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
-                                           undoManager: undoManager,
+                                           graph: graph,
                                            undoTarget: param)
         
         self.vmMin = ParameterObservableModel(label: param.label,
@@ -203,13 +203,13 @@ struct Int4Slider: View, Equatable
     @Bindable var vmMin: ParameterObservableModel<simd_int4>
     @Bindable var vmMax: ParameterObservableModel<simd_int4>
 
-    init(param: Int4Parameter, undoManager: UndoManager? = nil)
+    init(param: Int4Parameter, graph: Graph? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
                                            publisher:param.valuePublisher,
-                                           undoManager: undoManager,
+                                           graph: graph,
                                            undoTarget: param)
         
         self.vmMin = ParameterObservableModel(label: param.label,

@@ -50,10 +50,10 @@ final class ParameterObservableModel<Value: Equatable>
     @ObservationIgnored private var applyingEngine = false
     @ObservationIgnored private var applyingUI = false
 
-    /// The document's undo manager, which ParameterGroupView reads from its
-    /// environment and hands to each control. Without one edits are made but
-    /// not recorded.
-    @ObservationIgnored private weak var undoManager: UndoManager?
+    /// The graph whose node the parameter belongs to, which records the edit
+    /// with the document's undo manager. Without one edits are made but not
+    /// recorded.
+    @ObservationIgnored private weak var graph: Graph?
     /// What undo steps are registered against, the parameter itself; nil for
     /// a control whose changes are not edits, such as a momentary button.
     @ObservationIgnored private weak var undoTarget: AnyObject?
@@ -66,7 +66,7 @@ final class ParameterObservableModel<Value: Equatable>
          get: @escaping () -> Value,
          set: @escaping (Value) -> Void,
     publisher: PassthroughSubject<Value, Never>,
-         undoManager: UndoManager? = nil,
+         graph: Graph? = nil,
          undoTarget: AnyObject? = nil,
          commit: ParameterEditCommit = .eachChange)
     {
@@ -75,7 +75,7 @@ final class ParameterObservableModel<Value: Equatable>
         self.setValue = set
         self.uiValue = get()
         self.publisher = publisher
-        self.undoManager = undoManager
+        self.graph = graph
         self.undoTarget = undoTarget
         self.commit = commit
         
@@ -139,23 +139,23 @@ final class ParameterObservableModel<Value: Equatable>
         pendingCommit = nil
         guard let start = editStart else { return }
         editStart = nil
-        guard start != getValue(), let undoManager, let undoTarget else { return }
-        Self.registerUndo(on: undoManager, target: undoTarget, label: label,
+        guard start != getValue(), let graph, let undoTarget else { return }
+        Self.registerUndo(in: graph, target: undoTarget, label: label,
                           restoring: start, get: getValue, set: setValue)
     }
 
     /// The step outlives the control: it holds the parameter's accessors,
     /// not the model.
-    private static func registerUndo(on undoManager: UndoManager, target: AnyObject, label: String,
+    private static func registerUndo(in graph: Graph, target: AnyObject, label: String,
                                      restoring value: Value,
                                      get: @escaping () -> Value, set: @escaping (Value) -> Void)
     {
-        undoManager.registerUndo(withTarget: target) { [weak undoManager] target in
+        graph.registerUndo(withTarget: target) { [weak graph] target in
             let current = get()
             set(value)
-            guard let undoManager else { return }
-            Self.registerUndo(on: undoManager, target: target, label: label, restoring: current, get: get, set: set)
+            guard let graph else { return }
+            Self.registerUndo(in: graph, target: target, label: label, restoring: current, get: get, set: set)
         }
-        undoManager.setActionName("Change \(label)")
+        graph.undoManager?.setActionName("Change \(label)")
     }
 }
