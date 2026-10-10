@@ -23,4 +23,10 @@ enum CloneSetModel
     {
         try source.graph?.reinstantiateCloneMember(target, from: source)
     }
+
+    /// Whether `member`'s sub graph encodes to its set's stored graph.
+    static func isInStep(_ member: SubgraphNode) -> Bool
+    {
+        member.isInStepWithCloneSet
+    }
 }

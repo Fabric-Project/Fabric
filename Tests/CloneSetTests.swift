@@ -31,15 +31,6 @@ struct CloneSetTests
         try decode(JSONEncoder().encode(graph), context: context)
     }
 
-    /// Encodes the way the editor saves a document: members in step with
-    /// their set are written as a reference to it and per-member values only.
-    private func saveCompactly(_ graph: Graph) throws -> Data
-    {
-        let encoder = JSONEncoder()
-        encoder.userInfo[Graph.compactCloneMembersKey] = true
-        return try encoder.encode(graph)
-    }
-
     private func decode(_ data: Data, context: Context) throws -> Graph
     {
         let decoder = JSONDecoder()
@@ -400,7 +391,7 @@ extension CloneSetTests
         #expect(rebuilt.connections.isEmpty)
     }
 
-    @Test("A set that would contain one of its own members keeps that member as saved, reporting why, rather than decoding without end")
+    @Test("A set that would contain one of its own members drops that member with a diagnostic rather than decoding without end")
     func selfContainingSetIsRefused() throws
     {
         guard let context = makeContext() else { return }
@@ -410,9 +401,9 @@ extension CloneSetTests
         let set = try #require(fixture.graph.cloneSet(for: setID))
 
         // Forge a stored graph whose nodes include a member of the set itself:
-        // the sibling, encoded as a reference the way a document writes one.
+        // the sibling, encoded as a reference the way a stored graph writes one.
         let encoder = JSONEncoder()
-        encoder.userInfo[Graph.compactCloneMembersKey] = true
+        encoder.userInfo[Graph.cloneSetReferencesKey] = true
         let nodeType = try fixture.graph.qualifiedNodeID(for: SubgraphNode.self).description
         let value = try #require(CloneSet.jsonObject(from: try encoder.encode(sibling)))
         var object = set.graphObject
@@ -422,9 +413,9 @@ extension CloneSetTests
         set.graphJSON = CloneSet.canonicalJSON(object)
 
         try sibling.reinstantiateSubGraph()
-        let standIn = try #require(sibling.subGraph.nodes.compactMap { $0 as? SubgraphNode }.first { $0.id == sibling.id })
-        #expect(standIn.cloneSetID == nil)
-        #expect(standIn.status?.message.contains("contains one of its own members") == true)
+        #expect(sibling.subGraph.nodes.count == 3)
+        #expect(sibling.subGraph.missingNodeDiagnostics.count == 1)
+        #expect(sibling.subGraph.missingNodeDiagnostics.first?.summary.contains("contains one of its own members") == true)
     }
 }
 

@@ -10,7 +10,6 @@ import CryptoKit
 import Satin
 import simd
 import Metal
-internal import AnyCodable
 
 open class SubgraphNode: BaseObjectNode
 {
@@ -30,14 +29,6 @@ open class SubgraphNode: BaseObjectNode
     /// sets them through the proxy. Mutate through Graph.duplicateAsClone /
     /// unlinkClone so the change is undoable. See CloneSet.
     public internal(set) var cloneSetID: UUID?
-
-    /// A member saved as a reference to a set that could not be read, or
-    /// could not make it: the entry as saved, written back unchanged on save,
-    /// with the set's id. The node stands in for it, empty and in no set,
-    /// until a document with its set readable is opened.
-    internal private(set) var unreadableMember: AnyCodable?
-    internal private(set) var unreadableCloneSetID: UUID?
-    private var unreadableReason = ""
 
     /// The containing graph's wires onto proxies a sync took from this member,
     /// by the inner port each proxy stood for, put back when undoing the
@@ -115,14 +106,7 @@ open class SubgraphNode: BaseObjectNode
     override open func deriveSubtitle() -> String? { self.cloneSetInfo?.name }
 
     /// A member reports itself linked to its set.
-    override open func deriveStatuses() -> [NodeStatus]
-    {
-        if self.unreadableMember != nil
-        {
-            return [.error("This member could not be made from its clone set: \(self.unreadableReason) It is kept as it was saved, and changes made inside it are not saved.")]
-        }
-        return self.cloneSetInfo.map { [$0.status] } ?? []
-    }
+    override open func deriveStatuses() -> [NodeStatus] { self.cloneSetInfo.map { [$0.status] } ?? [] }
 
     /// What a proxy keeps across its member re-instantiating: its id in the
     /// parent graph, and whether and as what the parent publishes it on.
@@ -387,23 +371,17 @@ open class SubgraphNode: BaseObjectNode
     
     open override func encode(to encoder:Encoder) throws
     {
-        if let unreadableMember
-        {
-            var entry = encoder.singleValueContainer()
-            try entry.encode(unreadableMember)
-            return
-        }
-
         var container = encoder.container(keyedBy: CodingKeys.self)
 
         try container.encodeIfPresent(self.cloneSetID, forKey: .cloneSetID)
 
-        // A member in step with its set is written as a reference to it and
-        // the values that are its own; the set holds the graph once. The
+        // In a set's stored graph, or on its way to being instantiated, a
+        // member in step with its set is written as a reference to it and
+        // the values that are its own; see Graph.cloneSetReferencesKey. The
         // proxies are the member's face in the parent graph, published and
         // named there per member, so they are written either way.
         try container.encode(self.proxyPorts.map(AnyPort.init), forKey: .proxyPorts)
-        if encoder.userInfo[Graph.compactCloneMembersKey] as? Bool == true, self.isInStepWithCloneSet
+        if encoder.userInfo[Graph.cloneSetReferencesKey] as? Bool == true, self.isInStepWithCloneSet
         {
             try container.encode(self.memberValues, forKey: .memberValues)
         }
@@ -452,16 +430,7 @@ open class SubgraphNode: BaseObjectNode
                 throw DecodingError.dataCorruptedError(forKey: .subGraph, in: container,
                                                        debugDescription: "A clone set member saved without its sub graph needs its set to be instantiated.")
             }
-            do { self.subGraph = try Graph.instantiateCloneSetGraph(of: setID, decodeContext: decodeContext) }
-            catch
-            {
-                self.subGraph = Graph(context: decodeContext.documentContext)
-                print("SubgraphNode: a clone set member could not be made from its set, kept as saved: \(error.localizedDescription)")
-                self.unreadableMember = try? AnyCodable(from: decoder)
-                self.unreadableReason = error.localizedDescription
-                self.unreadableCloneSetID = self.cloneSetID
-                self.cloneSetID = nil
-            }
+            self.subGraph = try Graph.instantiateCloneSetGraph(of: setID, decodeContext: decodeContext)
         }
         
         // We set the current graph to the subgraph

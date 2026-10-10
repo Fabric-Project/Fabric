@@ -308,13 +308,11 @@ internal import AnyCodable
 
     // MARK: - Clone sets
 
-    /// Set to true in an encoder's userInfo to write clone set members that
-    /// match their set's template as their record and per-member values only,
-    /// the way a document is saved. Members that have drifted from the
-    /// template are written in full regardless, so nothing is lost. Left
-    /// unset, as for duplication, the clipboard and templates themselves,
-    /// every member is written in full.
-    public static let compactCloneMembersKey = CodingUserInfoKey(rawValue: "graphics.fabric.compactCloneMembers")!
+    /// Set in an encoder's userInfo when encoding a set's stored graph, or a
+    /// member to be instantiated from its set: a member in step with its set
+    /// is then written as a reference to it and the values that are its own.
+    /// A document is never written this way; every member in it is whole.
+    internal static let cloneSetReferencesKey = CodingUserInfoKey(rawValue: "graphics.fabric.cloneSetReferences")!
 
     public func cloneSet(for setID: UUID) -> CloneSet?
     {
@@ -376,10 +374,6 @@ internal import AnyCodable
         let decodedSets = try container.decodeIfPresent([LossyCloneSet].self, forKey: .cloneSets) ?? []
         self.cloneSets = decodedSets.compactMap(\.set)
         self.unreadableCloneSets = decodedSets.compactMap(\.unreadable)
-        if !self.cloneSets.isEmpty, decodeContext.cloneSets.isEmpty
-        {
-            decodeContext.cloneSets = self.cloneSets
-        }
         let requiredPlugins = try container.decodeIfPresent([PluginRequirement].self, forKey: .requiredPlugins) ?? []
         let nodeRegistry = try NodeRegistry.shared
         try nodeRegistry.validatePluginRequirements(requiredPlugins)
@@ -630,7 +624,7 @@ internal import AnyCodable
         
         try container.encode(self.notes, forKey: .notes)
 
-        let liveSetIDs = Set(self.subgraphNodesRecursive().compactMap { $0.cloneSetID ?? $0.unreadableCloneSetID })
+        let liveSetIDs = Set(self.subgraphNodesRecursive().compactMap(\.cloneSetID))
         let liveSets = self.cloneSets.filter { liveSetIDs.contains($0.id) }
         if !liveSets.isEmpty || !self.unreadableCloneSets.isEmpty
         {

@@ -26,9 +26,9 @@ public class DecoderContext
     
     public var currentGraph:Graph?
 
-    /// The document's clone sets, put here by the root graph as it decodes
-    /// so a member saved as a reference to its set can be instantiated from
-    /// the set's stored graph.
+    /// The document's clone sets, so a member written as a reference to its
+    /// set, in a stored graph or on its way to a sibling, can be instantiated
+    /// from the set's stored graph.
     public var cloneSets: [CloneSet] = []
 
     /// The sets whose stored graphs are being decoded right now, so a set

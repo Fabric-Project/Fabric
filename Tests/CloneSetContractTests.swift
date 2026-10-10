@@ -39,14 +39,18 @@ struct CloneSetContractTests
         try decode(JSONEncoder().encode(graph), context: context)
     }
 
-    /// Saves the way the editor does, once its edits have synced: members in
-    /// step with their set written compactly.
-    private func saveCompactly(_ graph: Graph) throws -> Data
+    /// Saves the way the editor does, once its edits have synced.
+    private func save(_ graph: Graph) throws -> Data
     {
         graph.syncCloneSets()
-        let encoder = JSONEncoder()
-        encoder.userInfo[Graph.compactCloneMembersKey] = true
-        return try encoder.encode(graph)
+        return try JSONEncoder().encode(graph)
+    }
+
+    /// Every member of the pair's set matches it, as each does once the edits
+    /// made in any of them have synced.
+    private func membersAreInStep(_ pair: PairFixture) -> Bool
+    {
+        CloneSetModel.isInStep(pair.member.member) && CloneSetModel.isInStep(pair.sibling)
     }
 
     private func memberEntries(in data: Data) throws -> [[String: Any]]
@@ -1177,9 +1181,9 @@ extension CloneSetContractTests
         #expect(pair.source.nodes.count == 4)
     }
 
-    @Test("A wire and a note a sync adds leave the member in step, so both members still save compactly")
+    @Test("A wire and a note a sync adds leave the member in step with its set")
     @MainActor
-    func syncedWiresAndNotesKeepMembersCompact() throws
+    func syncedWiresAndNotesKeepMembersInStep() throws
     {
         guard let context = makeContext() else { return }
         let pair = try makePair(context: context)
@@ -1190,9 +1194,8 @@ extension CloneSetContractTests
         pair.edit { pair.target.addNote(Note(note: "Shared", rect: .zero)) }
         #expect(pair.source.notes.count == 1)
 
-        let entries = try memberEntries(in: try saveCompactly(pair.graph))
-        #expect(entries.count == 2)
-        #expect(entries.allSatisfy { $0["subGraph"] == nil })
+        pair.graph.syncCloneSets()
+        #expect(membersAreInStep(pair))
     }
 
     @Test("Edits in a nested member of one sibling and in the other sibling both survive")
@@ -1379,9 +1382,7 @@ extension CloneSetContractTests
 
         // FileDocument.fileWrapper(configuration:) runs off the main thread.
         let data = try await Task.detached {
-            let encoder = JSONEncoder()
-            encoder.userInfo[Graph.compactCloneMembersKey] = true
-            return try encoder.encode(pair.graph)
+            try JSONEncoder().encode(pair.graph)
         }.value
 
         #expect(try snapshot(pair.sibling) == edited.1)
@@ -1395,9 +1396,9 @@ extension CloneSetContractTests
 
 extension CloneSetContractTests
 {
-    @Test("A saved document holds each member as its own values only, and loads it back whole")
+    @Test("A saved document holds each member whole, its own values with it, and loads it back")
     @MainActor
-    func membersSaveCompactly() throws
+    func membersSaveAndLoad() throws
     {
         guard let context = makeContext() else { return }
         let pair = try makePair(context: context)
@@ -1415,10 +1416,8 @@ extension CloneSetContractTests
         try #require(pair.current(pair.member.first)).inputNumber1.value = 1
         firstCopy.inputNumber1.value = 5
 
-        let data = try saveCompactly(pair.graph)
-        let entries = try memberEntries(in: data)
-        #expect(entries.count == 2)
-        #expect(entries.allSatisfy { $0["subGraph"] == nil && $0["memberValues"] != nil })
+        let data = try save(pair.graph)
+        #expect(try memberEntries(in: data).count == 2)
 
         let decoded = try decode(data, context: context)
         #expect(decoded.missingNodeDiagnostics.isEmpty)
@@ -1449,7 +1448,7 @@ extension CloneSetContractTests
         try #require(pair.current(pair.member.first)).inputNumber1.value = 2
         try #require(pair.counterpart(of: pair.member.first)).inputNumber1.value = 6
 
-        let decoded = try decode(try saveCompactly(pair.graph), context: context)
+        let decoded = try decode(try save(pair.graph), context: context)
         let members = decoded.cloneSetMembers(of: setID)
         try #require(members.count == 2)
 
@@ -1458,8 +1457,8 @@ extension CloneSetContractTests
         #expect(try snapshot(members[1]) == loaded)
     }
 
-    @Test("A save from another queue writes members compactly and keeps their values")
-    func backgroundSaveWritesMembersCompactly() async throws
+    @Test("A save from another queue writes the members and keeps their values")
+    func backgroundSaveKeepsValues() async throws
     {
         guard let context = makeContext() else { return }
         let pair = try makePair(context: context)
@@ -1474,11 +1473,9 @@ extension CloneSetContractTests
         }
 
         // FileDocument.fileWrapper(configuration:) runs off the main thread.
-        let data = try await Task.detached { try saveCompactly(pair.graph) }.value
+        let data = try await Task.detached { try save(pair.graph) }.value
 
-        let entries = try memberEntries(in: data)
-        #expect(entries.count == 2)
-        #expect(entries.allSatisfy { $0["subGraph"] == nil && $0["memberValues"] != nil })
+        #expect(try memberEntries(in: data).count == 2)
 
         // Held, not a temporary: a graph released tears down its nodes' ports.
         let decoded = try decode(data, context: context)
@@ -1492,7 +1489,7 @@ extension CloneSetContractTests
 
     @Test("A member exposing a nested sub graph's knob saves and loads, each member's value its own")
     @MainActor
-    func nestedPublishedProxySurvivesCompactSave() throws
+    func nestedPublishedProxySurvivesASave() throws
     {
         guard let context = makeContext() else { return }
         let pair = try makePair(context: context)
@@ -1513,7 +1510,7 @@ extension CloneSetContractTests
         try #require(pair.current(pair.member.nestedInner)).inputNumber1.value = 3
         siblingNestedInner.inputNumber1.value = 9
 
-        let decoded = try decode(try saveCompactly(pair.graph), context: context)
+        let decoded = try decode(try save(pair.graph), context: context)
 
         #expect(decoded.missingNodeDiagnostics.isEmpty)
         let members = decoded.cloneSetMembers(of: setID)
@@ -1543,9 +1540,9 @@ extension CloneSetContractTests
         #expect(pair.counterpart(of: pair.member.nestedInner)?.inputNumber1.value == 3)
     }
 
-    @Test("A compact save keeps a member's own proxy state and nested per-member values")
+    @Test("A save keeps a member's own proxy state and nested per-member values")
     @MainActor
-    func compactSaveKeepsProxyStateAndNestedValues() throws
+    func saveKeepsProxyStateAndNestedValues() throws
     {
         guard let context = makeContext() else { return }
         let pair = try makePair(context: context)
@@ -1572,8 +1569,8 @@ extension CloneSetContractTests
         nestedInnerCopy.inputNumber1.value = 5
         pair.graph.syncCloneSets()
 
-        let data = try saveCompactly(pair.graph)
-        #expect(try memberEntries(in: data).allSatisfy { $0["subGraph"] == nil })
+        let data = try save(pair.graph)
+        #expect(membersAreInStep(pair))
         let decoded = try decode(data, context: context)
 
         let decodedSibling = try #require(decoded.cloneSetMembers(of: setID).first { $0.id == pair.sibling.id })
@@ -1587,9 +1584,9 @@ extension CloneSetContractTests
         #expect(node(withID: pair.member.nestedInner.id, in: decodedMember, as: NumberBinaryOperator.self)?.inputNumber1.value == 7)
     }
 
-    @Test("A member whose design has drifted from its set is saved in full, so nothing is lost")
+    @Test("A member whose design has drifted from its set keeps its drift through a save")
     @MainActor
-    func driftedMemberSavesInFull() throws
+    func driftedMemberKeepsItsDrift() throws
     {
         guard let context = makeContext() else { return }
         let pair = try makePair(context: context)
@@ -1599,14 +1596,7 @@ extension CloneSetContractTests
         let added = NumberBinaryOperator(context: context)
         pair.target.addNode(added)
 
-        let encoder = JSONEncoder()
-        encoder.userInfo[Graph.compactCloneMembersKey] = true
-        let data = try encoder.encode(pair.graph)
-        let entries = try memberEntries(in: data)
-        #expect(entries.count == 2)
-        #expect(entries.filter { $0["subGraph"] != nil }.count == 1)
-
-        let decoded = try decode(data, context: context)
+        let decoded = try decode(try JSONEncoder().encode(pair.graph), context: context)
         let decodedSibling = try #require(decoded.node(forID: pair.sibling.id) as? SubgraphNode)
         #expect(decodedSibling.subGraph.nodes.count == 4)
         #expect(decodedSibling.subGraph.node(forID: added.id) != nil)
@@ -1627,8 +1617,8 @@ extension CloneSetContractTests
         pair.graph.syncCloneSets(editedIn: pair.source)
 
         #expect(pair.counterpart(of: pair.member.second)?.inputNumber1.value == 0.5)
-        let entries = try memberEntries(in: try saveCompactly(pair.graph))
-        #expect(entries.allSatisfy { $0["subGraph"] == nil })
+        pair.graph.syncCloneSets()
+        #expect(membersAreInStep(pair))
     }
 
     @Test("The design rule finds a member's own and driven inlets in its encoding, so a change to how ports encode fails here")
@@ -1653,9 +1643,9 @@ extension CloneSetContractTests
             == [fixture.first.inputNumber1.id, fixture.nestedInner.inputNumber1.id])
     }
 
-    @Test("Values arriving over wires inside a member are not design, so members whose wired values differ still save compactly")
+    @Test("Values arriving over wires inside a member are not design, so members whose wired values differ stay in step")
     @MainActor
-    func wiredValuesDoNotStopCompaction() throws
+    func wiredValuesKeepMembersInStep() throws
     {
         guard let context = makeContext() else { return }
         let pair = try makePair(context: context)
@@ -1665,42 +1655,10 @@ extension CloneSetContractTests
         try #require(pair.current(pair.member.second)).inputNumber1.value = 1
         try #require(pair.counterpart(of: pair.member.second)).inputNumber1.value = 2
 
-        let entries = try memberEntries(in: try saveCompactly(pair.graph))
-        #expect(entries.count == 2)
-        #expect(entries.allSatisfy { $0["subGraph"] == nil })
+        pair.graph.syncCloneSets()
+        #expect(membersAreInStep(pair))
     }
 
-    @Test("A member's own value that cannot be read costs that value, not the member")
-    @MainActor
-    func unreadableMemberValueCostsOnlyItself() throws
-    {
-        guard let context = makeContext() else { return }
-        let pair = try makePair(context: context)
-        let setID = try #require(pair.member.member.cloneSetID)
-        pair.member.second.inputNumber2.published = true
-        pair.source.rebuildPublishedParameterGroup()
-        pair.graph.syncCloneSets(editedIn: pair.source)
-        let firstCopy = try #require(pair.counterpart(of: pair.member.first))
-        firstCopy.inputNumber1.value = 5
-
-        var object = try #require(JSONSerialization.jsonObject(with: try saveCompactly(pair.graph)) as? [String: Any])
-        var nodeMap = try #require(object["nodeMap"] as? [[String: Any]])
-        let index = try #require(nodeMap.firstIndex { ($0["value"] as? [String: Any])?["id"] as? String == pair.sibling.id.uuidString })
-        var entry = nodeMap[index]
-        var value = try #require(entry["value"] as? [String: Any])
-        var memberValues = try #require(value["memberValues"] as? [String: Any])
-        #expect(memberValues.count == 2)
-        let unreadable = try #require(memberValues.keys.first { !$0.hasSuffix(firstCopy.inputNumber1.id.uuidString) })
-        memberValues[unreadable] = ["unreadable": true]
-        value["memberValues"] = memberValues
-        entry["value"] = value
-        nodeMap[index] = entry
-        object["nodeMap"] = nodeMap
-
-        let decoded = try decode(try JSONSerialization.data(withJSONObject: object), context: context)
-        let decodedSibling = try #require(decoded.cloneSetMembers(of: setID).first { $0.id == pair.sibling.id })
-        #expect(node(withID: firstCopy.id, in: decodedSibling, as: NumberBinaryOperator.self)?.inputNumber1.value == 5)
-    }
 }
 
 // MARK: - Fidelity
@@ -1944,14 +1902,14 @@ extension CloneSetContractTests
         }
         #expect(values(in: pair.sibling) == [4, 5])
 
-        let decoded = try decode(try saveCompactly(pair.graph), context: context)
+        let decoded = try decode(try save(pair.graph), context: context)
         let decodedSibling = try #require(decoded.cloneSetMembers(of: setID).last)
         #expect(values(in: decodedSibling) == [4, 5])
     }
 
-    @Test("Publishing inside a nested set leaves the outer members in step, so they still save compactly")
+    @Test("Publishing inside a nested set leaves the outer members in step")
     @MainActor
-    func nestedPublishKeepsOuterMembersCompact() throws
+    func nestedPublishKeepsOuterMembersInStep() throws
     {
         guard let context = makeContext() else { return }
         let pair = try makePair(context: context)
@@ -1963,9 +1921,8 @@ extension CloneSetContractTests
         nested.subGraph.setPublished(true, on: nestedInner.inputNumber2)
         pair.graph.syncCloneSets()
 
-        let entries = try memberEntries(in: try saveCompactly(pair.graph))
-        #expect(entries.count == 2)
-        #expect(entries.allSatisfy { $0["subGraph"] == nil }, "outer members saved in full")
+        pair.graph.syncCloneSets()
+        #expect(membersAreInStep(pair))
     }
 
     @Test("Opening a document is not an edit: its members are left as they were saved")
@@ -2017,13 +1974,13 @@ extension CloneSetContractTests
 
         pair.graph.rewriteFileReferences(relativeTo: oldDirectory.appending(path: "Versions", directoryHint: .isDirectory))
         #expect(pair.counterpart(of: loader)?.inputFilePathParam.value == "../Assets/source.txt")
-        let entries = try memberEntries(in: try saveCompactly(pair.graph))
-        #expect(entries.allSatisfy { $0["subGraph"] == nil })
+        pair.graph.syncCloneSets()
+        #expect(membersAreInStep(pair))
     }
 
-    @Test("Members saved as references to a set that cannot be read are kept as saved, and load whole once it can be")
+    @Test("A set that cannot be read is written back as it was saved, and its members open whole")
     @MainActor
-    func membersOfAnUnreadableSetAreKept() throws
+    func unreadableSetIsKeptAndItsMembersOpen() throws
     {
         guard let context = makeContext() else { return }
         let pair = try makePair(context: context)
@@ -2032,31 +1989,27 @@ extension CloneSetContractTests
         firstCopy.inputNumber1.value = 5
 
         // The set's entry loses a key it cannot be read without.
-        var object = try #require(JSONSerialization.jsonObject(with: try saveCompactly(pair.graph)) as? [String: Any])
+        var object = try #require(JSONSerialization.jsonObject(with: try save(pair.graph)) as? [String: Any])
         var sets = try #require(object["cloneSets"] as? [[String: Any]])
         let name = try #require(sets[0]["name"])
         sets[0]["name"] = nil
         object["cloneSets"] = sets
 
         let opened = try decode(try JSONSerialization.data(withJSONObject: object), context: context)
-        let placeholder = try #require(opened.node(forID: pair.sibling.id) as? SubgraphNode)
-        #expect(placeholder.cloneSetID == nil)
-        #expect(placeholder.status?.kind == "Error")
+        let openedSibling = try #require(opened.node(forID: pair.sibling.id) as? SubgraphNode)
+        #expect(openedSibling.subGraph.nodes.count == 3)
+        #expect(node(withID: firstCopy.id, in: openedSibling, as: NumberBinaryOperator.self)?.inputNumber1.value == 5)
 
-        // Saved again as it was, and repaired, everything comes back.
-        let encoder = JSONEncoder()
-        encoder.userInfo[Graph.compactCloneMembersKey] = true
-        var resaved = try #require(JSONSerialization.jsonObject(with: try encoder.encode(opened)) as? [String: Any])
+        // Saved again, the set is as it was; repaired, it reads.
+        var resaved = try #require(JSONSerialization.jsonObject(with: try JSONEncoder().encode(opened)) as? [String: Any])
         var resavedSets = try #require(resaved["cloneSets"] as? [[String: Any]])
         #expect(resavedSets.count == 1)
         resavedSets[0]["name"] = name
         resaved["cloneSets"] = resavedSets
 
         let repaired = try decode(try JSONSerialization.data(withJSONObject: resaved), context: context)
-        let members = repaired.cloneSetMembers(of: setID)
-        #expect(members.count == 2)
-        let repairedSibling = try #require(members.first { $0.id == pair.sibling.id })
-        #expect(node(withID: firstCopy.id, in: repairedSibling, as: NumberBinaryOperator.self)?.inputNumber1.value == 5)
+        #expect(repaired.cloneSet(for: setID) != nil)
+        #expect(repaired.cloneSetMembers(of: setID).count == 2)
     }
 
     @Test("A member brought back by undo is in step with its set, so its next edit cannot undo the others'")

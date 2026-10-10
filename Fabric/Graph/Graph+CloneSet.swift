@@ -101,7 +101,7 @@ extension Graph
     {
         let nodeType = try self.qualifiedNodeID(for: type(of: node)).description
         let encoder = JSONEncoder()
-        encoder.userInfo[Self.compactCloneMembersKey] = true
+        encoder.userInfo[Self.cloneSetReferencesKey] = true
         let data = try encoder.encode(AnyCodableMap(type: nodeType, value: AnyCodable(node)))
 
         // Every id in the node's own encoding is fresh: its own, its proxies'.
@@ -305,7 +305,7 @@ extension Graph
     internal static func cloneSetJSON(of graph: Graph) throws -> Data
     {
         let encoder = JSONEncoder()
-        encoder.userInfo[Self.compactCloneMembersKey] = true
+        encoder.userInfo[Self.cloneSetReferencesKey] = true
         let data = try encoder.encode(graph)
         guard let object = CloneSet.jsonObject(from: data) else
         {
