@@ -72,4 +72,18 @@ struct EditUndoTests
         #expect(copy.inputPort.id != node.inputPort.id)
         #expect(copy.inputPort.value == text)
     }
+
+    @Test("A note keeps its id across a save")
+    func noteIDSurvivesASave() throws
+    {
+        guard let context = makeContext() else { return }
+        let graph = Graph(context: context)
+        let note = Note(note: "Kept", rect: CGRect(x: 1, y: 2, width: 3, height: 4))
+        graph.addNote(note)
+
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: context)
+        let decoded = try decoder.decode(Graph.self, from: try JSONEncoder().encode(graph))
+        #expect(decoded.notes.map(\.id) == [note.id])
+    }
 }
