@@ -1060,6 +1060,8 @@ internal import AnyCodable
         {
             proxyState = self.takeDownProxy(standingFor: port)
             port.publishedName = nil
+            // Publishing named the parameter after the port's published name.
+            port.parameter?.label = port.name
         }
 
         port.published = published

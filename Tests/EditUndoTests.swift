@@ -66,9 +66,12 @@ struct EditUndoTests
         proxy.published = true
         proxy.publishedName = "Speed"
         fixture.inner.inputNumber1.publishedName = "Amount"
+        fixture.container.subGraph.rebuildPublishedParameterGroup()
+        #expect(fixture.inner.inputNumber1.parameter?.label == "Amount")
 
         step(fixture.undoManager) { fixture.container.subGraph.setPublished(false, on: fixture.inner.inputNumber1) }
         #expect(fixture.graph.connections.isEmpty)
+        #expect(fixture.inner.inputNumber1.parameter?.label == fixture.inner.inputNumber1.name, "the parameter is named for the port again")
         #expect(fixture.undoManager.undoActionName == "Unpublish Port")
 
         fixture.undoManager.undo()
