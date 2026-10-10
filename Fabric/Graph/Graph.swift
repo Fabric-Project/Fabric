@@ -1116,11 +1116,42 @@ internal import AnyCodable
 
     /// Takes down the containing graph's wires onto this graph's owner's
     /// proxy for `port`, with the teardown every disconnection gets.
-    private func takeDownProxy(standingFor port: Port) -> ProxyState?
+    /// The proxy standing for `port`, a port of a node in this graph, on the
+    /// subgraph node around it, with the graph that subgraph node is in.
+    private func proxy(standingFor port: Port) -> (proxy: Port, parent: Graph)?
     {
         guard let owner = self.ownerNode, let parent = owner.graph,
               let proxy = owner.ports.first(where: { ($0 as? any ProxyPortProtocol)?.innerPortID == port.id })
         else { return nil }
+        return (proxy, parent)
+    }
+
+    /// Takes the containing graph's wires off the proxy standing for `port`,
+    /// as a node removing a published port takes the port's own wires: with no
+    /// undo, an undo of what removed it being the step that puts them back.
+    internal func disconnectProxyWires(standingFor port: Port)
+    {
+        guard let (proxy, parent) = self.proxy(standingFor: port) else { return }
+        parent.withoutUndoRegistration { parent.disconnectAll(from: proxy) }
+    }
+
+    /// Takes off the proxy standing for `port` each containing-graph wire it
+    /// no longer accepts, as after `port` was replaced with another type.
+    internal func disconnectIncompatibleProxyWires(standingFor port: Port)
+    {
+        guard let (proxy, parent) = self.proxy(standingFor: port) else { return }
+        let incompatible = proxy.connections.filter { connection in
+            guard let outlet = connection.outletPort, let inlet = connection.inletPort else { return true }
+            return !outlet.canConnect(to: inlet)
+        }
+        parent.withoutUndoRegistration {
+            for connection in incompatible { _ = parent.disconnect(connection) }
+        }
+    }
+
+    private func takeDownProxy(standingFor port: Port) -> ProxyState?
+    {
+        guard let (proxy, parent) = self.proxy(standingFor: port) else { return nil }
 
         let state = ProxyState(wires: proxy.connections.map { ($0.outletPortID, $0.inletPortID, $0.active) },
                                published: proxy.published,
@@ -1131,9 +1162,7 @@ internal import AnyCodable
 
     private func restoreProxy(standingFor port: Port, to state: ProxyState)
     {
-        guard let owner = self.ownerNode, let parent = owner.graph,
-              let proxy = owner.ports.first(where: { ($0 as? any ProxyPortProtocol)?.innerPortID == port.id })
-        else { return }
+        guard let (proxy, parent) = self.proxy(standingFor: port) else { return }
 
         proxy.published = state.published
         proxy.publishedName = state.publishedName

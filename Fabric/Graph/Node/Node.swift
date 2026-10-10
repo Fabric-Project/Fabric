@@ -424,6 +424,14 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     public func removePort(_ p: Port)
     {
+        self.removePort(p, keepingProxyWires: false)
+    }
+
+    /// A published port's proxy goes with it, and so do the containing graph's
+    /// wires on the proxy, unless a replacement under the same id is to take them.
+    private func removePort(_ p: Port, keepingProxyWires: Bool)
+    {
+        if p.published, !keepingProxyWires { self.graph?.disconnectProxyWires(standingFor: p) }
         self.portHydrationSession?.relinquish(p)
 
         self.registry.remove(p)
@@ -440,8 +448,8 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
 
     /// Puts `replacement` where `existing` was, under the same registry key,
     /// carrying the published state across and reconnecting every wire the new
-    /// port still accepts. The caller builds `replacement` on `existing.id`, so
-    /// proxies and views follow it. The old port's value does not carry: it
+    /// port still accepts, its proxy's included. The caller builds `replacement`
+    /// on `existing.id`, so proxies and views follow it. The old port's value does not carry: it
     /// cannot convert across types, and the replacement rests at its own default.
     public func replacePort(_ existing: Port, with replacement: Port)
     {
@@ -450,8 +458,9 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         replacement.published = existing.published
         replacement.publishedName = existing.publishedName
 
-        self.removePort(existing)
+        self.removePort(existing, keepingProxyWires: true)
         self.addDynamicPort(replacement, name: registryName)
+        if replacement.published { self.graph?.disconnectIncompatibleProxyWires(standingFor: replacement) }
 
         for connected in oldConnections where replacement.canConnect(to: connected)
         {

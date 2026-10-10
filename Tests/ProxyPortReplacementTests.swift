@@ -55,7 +55,7 @@ struct ProxyPortReplacementTests
         #expect(upstream.outputNumber.connections.first?.inletPort === liveProxy)
     }
 
-    @Test("A published port a node removes takes its proxy with it")
+    @Test("A published port a node removes takes its proxy with it, and the parent's wire on the proxy")
     func removedPortTakesItsProxy() throws
     {
         guard let context = makeContext() else { return }
@@ -66,9 +66,36 @@ struct ProxyPortReplacementTests
         subgraph.subGraph.addNode(node)
         let x = try #require(node.inputPorts().first { $0.name == "x" })
         subgraph.subGraph.setPublished(true, on: x)
-        #expect(proxy(over: x.id, in: subgraph) != nil)
+        let upstream = NumberBinaryOperator(context: context)
+        graph.addNode(upstream)
+        let proxyPort = try #require(subgraph.ports.first { $0.id == x.id })
+        #expect(graph.connect(upstream.outputNumber, to: proxyPort) != nil)
 
         node.stringExpression = "y"
         #expect(proxy(over: x.id, in: subgraph) == nil)
+        #expect(graph.connections.isEmpty)
+        #expect(upstream.outputNumber.connections.isEmpty)
+    }
+
+    @Test("A published port replaced with a type the parent's wire cannot take drops that wire")
+    func replacementDropsAWireItCannotTake() throws
+    {
+        guard let context = makeContext() else { return }
+        let graph = Graph(context: context)
+        let subgraph = SubgraphNode(context: context)
+        graph.addNode(subgraph)
+        let node = SampleAndHoldNode(context: context, initialStrategy: PortType.Float.rawValue)
+        subgraph.subGraph.addNode(node)
+        let value = try #require(node.findPort(named: "inputValue") as Fabric.Port?)
+        subgraph.subGraph.setPublished(true, on: value)
+        let upstream = NumberBinaryOperator(context: context)
+        graph.addNode(upstream)
+        let proxyPort = try #require(subgraph.ports.first { $0.id == value.id })
+        #expect(graph.connect(upstream.outputNumber, to: proxyPort) != nil)
+
+        node.strategy = PortType.Geometry.rawValue
+        #expect(subgraph.ports.first { $0.id == value.id }?.portType == .Geometry)
+        #expect(graph.connections.isEmpty)
+        #expect(upstream.outputNumber.connections.isEmpty)
     }
 }
