@@ -1696,6 +1696,30 @@ extension CloneSetContractTests
             #expect(pair.target.nodes.count == 3)
         }
     }
+
+    @Test("An edit in a sibling can still be undone after a deletion that synced into it is undone")
+    @MainActor
+    func siblingUndoSurvivesADeletionUndone() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let originalIDs = Set(pair.source.nodes.map(\.id))
+
+        pair.edit { pair.target.addNode(NumberBinaryOperator(context: context)) }          // added in B
+        let addedInA = try #require(pair.source.nodes.first { !originalIDs.contains($0.id) })
+        pair.edit { pair.source.delete(node: addedInA) }                                   // deleted in A
+        #expect(pair.target.nodes.count == 3)
+
+        pair.undoManager.undo()                                                            // the deletion
+        #expect(pair.source.nodes.count == 4)
+        #expect(pair.target.nodes.count == 4)
+
+        expecting(.siblingUndoIsForgotten) {
+            pair.undoManager.undo()                                                        // B's addition
+            #expect(pair.target.nodes.count == 3)
+            #expect(pair.source.nodes.count == 3)
+        }
+    }
 }
 
 // MARK: - Review findings
