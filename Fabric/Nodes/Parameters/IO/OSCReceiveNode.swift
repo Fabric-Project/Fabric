@@ -224,7 +224,9 @@ public class OSCReceiveNode: Node
     {
         try super.restoreSettings(from: decoder)
         let container = try decoder.container(keyedBy: OSCReceiveCodingKeys.self)
-        self.listenPort = try container.decodeIfPresent(UInt16.self, forKey: .listenPort) ?? 9000
+        // Setting the port restarts a running listener.
+        let listenPort = try container.decodeIfPresent(UInt16.self, forKey: .listenPort) ?? 9000
+        if listenPort != self.listenPort { self.listenPort = listenPort }
         self.addressBindings = try container.decodeIfPresent([OSCAddressBinding].self, forKey: .addressBindings) ?? []
     }
 

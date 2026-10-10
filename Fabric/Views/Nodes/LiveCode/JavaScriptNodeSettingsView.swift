@@ -19,12 +19,19 @@ import LanguageSupport
 
     private weak var node: JavaScriptNode?
     private var saveTimer: Timer?
+    /// The node's script and time mode as the draft was taken from them. The
+    /// draft is written only over those: one put back underneath it, as undo
+    /// does, is newer than the draft.
+    private var draftedFromSource: String
+    private var draftedFromTimeMode: Node.TimeMode
 
     init(node: JavaScriptNode)
     {
         self.node = node
         self.content = node.scriptSource
         self.selectedTimeMode = node.selectedTimeMode
+        self.draftedFromSource = node.scriptSource
+        self.draftedFromTimeMode = node.selectedTimeMode
         self.languageService = JavaScriptLanguageService()
         self.refreshMessages()
     }
@@ -52,9 +59,16 @@ import LanguageSupport
 
     func flush()
     {
-        guard let node else { return }
+        self.saveTimer?.invalidate()
+        guard let node,
+              node.scriptSource == self.draftedFromSource,
+              node.selectedTimeMode == self.draftedFromTimeMode,
+              self.content != self.draftedFromSource || self.selectedTimeMode != self.draftedFromTimeMode
+        else { return }
         node.updateScriptSource(self.content)
         node.updateTimeMode(self.selectedTimeMode)
+        self.draftedFromSource = node.scriptSource
+        self.draftedFromTimeMode = node.selectedTimeMode
 
         // A script written in the annotated form is kept as the TypeScript it
         // was read as. Taking that back is what puts the rewrite in front of the

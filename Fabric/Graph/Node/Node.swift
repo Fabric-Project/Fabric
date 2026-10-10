@@ -375,13 +375,17 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     /// state, so a later successful rebuild reconciles against them by name
     /// and keeps the wires whose names and types still agree.
     ///
-    /// Only ever does anything mid-decode, and must run inside the node's init
-    /// path so Graph still sees the keys as adopted rather than dropped.
+    /// Only ever does anything mid-decode or mid-restore (see
+    /// withPortHydration(from:_:)), and must run inside the node's init path
+    /// so Graph still sees the keys as adopted rather than dropped. A port the
+    /// node still has is not adopted again: a restore hydrates from every
+    /// port's state, and the ports a rebuild left alone take none of it.
     internal func adoptRemainingSnapshotPortsAsFallback()
     {
         guard let session = self.portHydrationSession else { return }
 
         for (registryKey, port) in session.drainPendingSnapshots()
+            where self.registry.port(named: registryKey) == nil && !self.ports.contains(where: { $0.id == port.id })
         {
             self.addDynamicPort(port, name: registryKey)
         }

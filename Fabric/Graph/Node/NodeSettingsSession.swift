@@ -15,45 +15,70 @@ import Foundation
 public final class NodeSettingsSession
 {
     private let node: Node
-    private var observation: NSObjectProtocol?
+    /// The graph the node was in as the session began: a change made before
+    /// the node was taken out of it, as a delete does, is still its step.
+    private weak var graph: Graph?
+    private var observations: [NSObjectProtocol] = []
     private var hasEnded = false
+    private var hasFinished = false
     private var isRecording = false
+    /// An ended session holds itself until the next checkpoint, and records
+    /// then what a control wrote as it went away after the view ended it, as
+    /// a code editor writes the text it holds.
+    private var lingering: NodeSettingsSession?
 
     public init(node: Node)
     {
         self.node = node
+        self.graph = node.graph
         node.settingsSessionCount += 1
         if node.settingsSessionCount == 1 { node.recordedSettings = node.settingsSnapshot() }
 
-        // Undo and redo, and every group that closes, check in here first.
+        // Undo and redo, and every group that opens, check in here first,
+        // and every edit, undo and redo once done, so the next step starts
+        // from the ports and wires that edit left.
         guard let undoManager = node.graph?.undoManager else { return }
-        self.observation = NotificationCenter.default.addObserver(forName: .NSUndoManagerCheckpoint,
-                                                                  object: undoManager,
-                                                                  queue: nil) { [weak self, weak undoManager] _ in
-            // A group closing inside an edit, with registration off, is
-            // part of something else.
-            guard let undoManager, undoManager.groupingLevel == 0,
-                  undoManager.isUndoRegistrationEnabled,
-                  !undoManager.isUndoing, !undoManager.isRedoing
-            else { return }
-            self?.record()
+        let names: [Notification.Name] = [.NSUndoManagerCheckpoint, .NSUndoManagerDidCloseUndoGroup,
+                                          .NSUndoManagerDidUndoChange, .NSUndoManagerDidRedoChange]
+        self.observations = names.map { name in
+            NotificationCenter.default.addObserver(forName: name, object: undoManager, queue: nil) { [weak self, weak undoManager] _ in
+                // A group closing inside an edit, with registration off, is
+                // part of something else; the group a step opens is its own.
+                guard let self, !self.isRecording, let undoManager, undoManager.groupingLevel == 0,
+                      undoManager.isUndoRegistrationEnabled,
+                      !undoManager.isUndoing, !undoManager.isRedoing
+                else { return }
+                self.record()
+                if self.hasEnded { self.finish() }
+            }
         }
     }
 
     deinit
     {
-        self.end()
+        if !hasEnded
+        {
+            hasEnded = true
+            self.record()
+        }
+        self.finish()
     }
 
     /// Records the settings edited since the last step, if they changed.
+    /// Otherwise takes what is there now as where the next step starts from,
+    /// since the ports and wires around the settings may have changed in edits
+    /// of their own.
     public func record()
     {
-        guard !isRecording,
-              let graph = node.graph,
+        guard let graph = node.graph ?? self.graph,
               let before = node.recordedSettings,
-              let now = node.settingsSnapshot(),
-              now.settings != before.settings
+              let now = node.settingsSnapshot()
         else { return }
+        guard now.settings != before.settings else
+        {
+            node.recordedSettings = now
+            return
+        }
 
         // Opening the group checks in here again.
         isRecording = true
@@ -65,15 +90,25 @@ public final class NodeSettingsSession
         if opensGroup { undoManager?.endUndoGrouping() }
     }
 
-    /// Records what is left and stops following the node's edits.
+    /// Records what is left, and stops following the node's edits at the
+    /// next checkpoint.
     public func end()
     {
         guard !hasEnded else { return }
         hasEnded = true
         self.record()
-        if let observation { NotificationCenter.default.removeObserver(observation) }
+        if self.observations.isEmpty { self.finish() } else { self.lingering = self }
+    }
+
+    private func finish()
+    {
+        guard !hasFinished else { return }
+        hasFinished = true
+        self.observations.forEach(NotificationCenter.default.removeObserver)
+        self.observations = []
         node.settingsSessionCount -= 1
         if node.settingsSessionCount == 0 { node.recordedSettings = nil }
+        self.lingering = nil
     }
 }
 

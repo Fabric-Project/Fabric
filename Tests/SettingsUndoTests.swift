@@ -305,4 +305,141 @@ struct SettingsUndoTests
         #expect(decoded.nodes.compactMap { $0 as? MathExpressionNode }.first?.stringExpression == "x * 2")
         #expect(decoded.nodes.compactMap { $0 as? SampleAndHoldNode }.first?.strategy == PortType.String.rawValue)
     }
+
+    @Test("A wire edited while the settings view is open stays as edited when the settings change is undone")
+    func wireEditedWhileOpenSurvivesTheSettingsUndo() throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = makeFixture(context: context)
+        let node = MathExpressionNode(context: context, expression: "x + y")
+        step(fixture.undoManager) { fixture.graph.addNode(node) }
+        let x = try #require(inlet("x", of: node))
+        step(fixture.undoManager) { fixture.graph.connect(fixture.upstream.outputNumber, to: x) }
+
+        let session = NodeSettingsSession(node: node)
+        step(fixture.undoManager) { fixture.graph.disconnectAll(from: x) }
+        node.stringExpression = "x * y"
+        session.end()
+
+        fixture.undoManager.undo()
+        #expect(node.stringExpression == "x + y")
+        #expect(fixture.graph.connections.isEmpty,
+                "the wires the view's step started from are those there when the step was taken")
+
+        fixture.undoManager.undo()
+        #expect(fixture.graph.connections.filter { $0.inletPortID == x.id }.map(\.outletPortID) == [fixture.upstream.outputNumber.id])
+    }
+
+    @Test("Undo brings back a port published two levels up, with the wires and publishing at each level")
+    func undoRestoresAPortPublishedTwoLevelsUp() throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = makeFixture(context: context)
+        let outer = SubgraphNode(context: context)
+        let inner = SubgraphNode(context: context)
+        let node = MathExpressionNode(context: context, expression: "x")
+        step(fixture.undoManager) {
+            fixture.graph.addNode(outer)
+            outer.subGraph.addNode(inner)
+            inner.subGraph.addNode(node)
+        }
+        inner.subGraph.undoManager = fixture.undoManager
+        let x = try #require(inlet("x", of: node))
+        step(fixture.undoManager) { inner.subGraph.setPublished(true, on: x) }
+        let middle = try #require(inner.ports.first { $0.id == x.id })
+        step(fixture.undoManager) {
+            outer.subGraph.setPublished(true, on: middle)
+            outer.subGraph.setPublishedName("Gain", on: middle)
+        }
+        let top = try #require(outer.ports.first { $0.id == x.id })
+        step(fixture.undoManager) { fixture.graph.connect(fixture.upstream.outputNumber, to: top) }
+
+        let session = NodeSettingsSession(node: node)
+        node.stringExpression = "y"
+        session.end()
+        #expect(!outer.ports.contains { $0.id == x.id })
+        #expect(fixture.graph.connections.isEmpty)
+
+        fixture.undoManager.undo()
+        let restoredMiddle = try #require(inner.ports.first { $0.id == x.id })
+        #expect(restoredMiddle.published)
+        #expect(restoredMiddle.publishedName == "Gain")
+        let restoredTop = try #require(outer.ports.first { $0.id == x.id })
+        #expect(fixture.upstream.outputNumber.connections.first?.inletPort === restoredTop)
+    }
+
+    @Test("A change written as the settings view goes away is recorded before the next step")
+    func changeWrittenAfterTheViewEndsIsRecorded() throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = makeFixture(context: context)
+        let node = MathExpressionNode(context: context, expression: "x + y")
+        step(fixture.undoManager) { fixture.graph.addNode(node) }
+
+        let session = NodeSettingsSession(node: node)
+        node.stringExpression = "x - y"
+        session.end()
+        // A control in the view writing what it holds as it goes away.
+        node.stringExpression = "x * y"
+        step(fixture.undoManager) {
+            fixture.graph.registerOffsetChange(of: fixture.upstream, from: fixture.upstream.offset)
+            fixture.upstream.offset = CGSize(width: 10, height: 0)
+        }
+
+        fixture.undoManager.undo()
+        fixture.undoManager.undo()
+        #expect(node.stringExpression == "x - y")
+        fixture.undoManager.undo()
+        #expect(node.stringExpression == "x + y")
+        #expect(fixture.graph.nodes.contains { $0 === node })
+    }
+
+    @Test("Undo and redo across a script that does not compile leave one of each port")
+    func undoToAnUncompilableScriptKeepsOneOfEachPort() throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = makeFixture(context: context)
+        let node = JavaScriptNode(context: context)
+        node.updateScriptSource("""
+        function main(value: Number): { doubled: Number }
+        {
+            return { doubled: value * 2 }
+        }
+        """)
+        step(fixture.undoManager) { fixture.graph.addNode(node) }
+        let portIDs = node.ports.map(\.id)
+
+        let session = NodeSettingsSession(node: node)
+        node.updateScriptSource("""
+        function main(value: Number  {
+            return { doubled: value * 2 }
+        }
+        """)
+        session.end()
+        #expect(node.ports.map(\.id) == portIDs, "a script that does not parse leaves the ports where they are")
+
+        fixture.undoManager.undo()
+        #expect(node.ports.map(\.id) == portIDs)
+        fixture.undoManager.redo()
+        #expect(node.ports.map(\.id) == portIDs)
+        #expect(Set(node.ports.map(\.id)).count == node.ports.count)
+    }
+
+    @Test("A code editor's draft is not written over a script put back underneath it")
+    func editorDraftLeavesARestoredScript() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = JavaScriptNode(context: context)
+        let original = node.scriptSource
+        let model = JavaScriptNodeEditorModel(node: node)
+        model.content = original + "\n// edited"
+        model.flush()
+        #expect(node.scriptSource == original + "\n// edited")
+
+        // Undo puts the script back; the view is rebuilt, and the old editor
+        // writes what it holds as it goes away.
+        node.updateScriptSource(original)
+        model.flush()
+        #expect(node.scriptSource == original)
+    }
 }

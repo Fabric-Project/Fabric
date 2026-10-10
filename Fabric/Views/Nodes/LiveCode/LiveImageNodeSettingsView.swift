@@ -23,12 +23,17 @@ import LanguageSupport
     var content: String
     private weak var node: LiveImageNode?
     private var saveTimer: Timer?
+    /// The node's shader as the draft was taken from it. The draft is written
+    /// only over that: one put back underneath it, as undo does, is newer
+    /// than the draft.
+    private var draftedFromSource: String
     var messages: Set<TextLocated<Message>> = Set()
     var diagnostics: [ShaderDiagnostic] = []
 
     init(node: LiveImageNode) {
         self.node = node
         self.content = node.shaderSource
+        self.draftedFromSource = node.shaderSource
     }
 
     func scheduleSave() {
@@ -42,8 +47,13 @@ import LanguageSupport
     }
 
     func flush() {
-        guard let node else { return }
+        self.saveTimer?.invalidate()
+        guard let node,
+              node.shaderSource == self.draftedFromSource,
+              self.content != self.draftedFromSource
+        else { return }
         node.updateShaderSource(self.content)
+        self.draftedFromSource = node.shaderSource
         self.refreshErrorMessagesIfPossible()
     }
 
