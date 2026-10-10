@@ -323,11 +323,11 @@ open class SubgraphNode: BaseObjectNode
         try super.encode(to: encoder)
     }
 
-    /// The values of every published inlet at any depth, by path: what a
-    /// member keeps as its own when it is written as a reference to its set.
+    /// The values that are this member's own, by path: what it keeps when it
+    /// is written as a reference to its set. See Graph.memberOwnInlets.
     private var memberValues: [String: AnyPort]
     {
-        self.subGraph.publishedInletsByPath().mapValues(AnyPort.init)
+        self.subGraph.memberOwnInlets().mapValues(AnyPort.init)
     }
 
     /// True when the sub graph encodes to the set's stored graph, the state
@@ -384,7 +384,7 @@ open class SubgraphNode: BaseObjectNode
             self.proxyPorts = Self.decodeProxyPortsIfPossible(from: container, forKey: .proxyPorts)
         }
 
-        try Self.applyMemberValues(from: container, to: self.subGraph)
+        Self.applyMemberValues(from: container, to: self.subGraph)
 
         try super.init(from: decoder)
         self.wireSubGraphCallback()
@@ -395,15 +395,15 @@ open class SubgraphNode: BaseObjectNode
     /// The per-member values a reference wrote, put back on the ports they
     /// name: the same paths in every instance of the stored graph.
     private static func applyMemberValues(from container: KeyedDecodingContainer<CodingKeys>,
-                                          to subGraph: Graph) throws
+                                          to subGraph: Graph)
     {
-        guard let values = try container.decodeIfPresent([String: AnyPort].self, forKey: .memberValues) else { return }
+        guard let values = Self.decodeMemberValues(from: container) else { return }
         Self.restore(values: values.mapValues { ($0.base.portType, $0.base.snapshotValue()) }, in: subGraph)
     }
 
     private static func restore(values: [String: (portType: PortType, value: PortValue?)], in subGraph: Graph)
     {
-        let portsByPath = subGraph.publishedInletsByPath()
+        let portsByPath = subGraph.memberOwnInlets()
         for (path, saved) in values
         {
             guard let port = portsByPath[path], port.portType == saved.portType else { continue }
@@ -438,7 +438,7 @@ open class SubgraphNode: BaseObjectNode
     {
         let old = self.subGraph
         let parent = self.graph
-        let values = old.publishedInletsByPath().mapValues { (portType: $0.portType, value: $0.snapshotValue()) }
+        let values = old.memberOwnInlets().mapValues { (portType: $0.portType, value: $0.snapshotValue()) }
 
         parent?.nodeObjectWillChange(self)
         self.forgetUndo(for: old)
@@ -526,6 +526,29 @@ open class SubgraphNode: BaseObjectNode
         }
     }
 
+
+    /// The saved per-member values, each read on its own, so one that cannot
+    /// be read, of a plugin's port type that is not loaded say, costs only
+    /// itself.
+    private static func decodeMemberValues(from container: KeyedDecodingContainer<CodingKeys>) -> [String: AnyPort]?
+    {
+        guard let values = try? container.nestedContainer(keyedBy: MemberValueKey.self, forKey: .memberValues) else { return nil }
+        var decoded: [String: AnyPort] = [:]
+        for key in values.allKeys
+        {
+            do { decoded[key.stringValue] = try values.decode(AnyPort.self, forKey: key) }
+            catch { print("SubgraphNode: member value \(key.stringValue) not read: \(error)") }
+        }
+        return decoded
+    }
+
+    private struct MemberValueKey: CodingKey
+    {
+        let stringValue: String
+        init(stringValue: String) { self.stringValue = stringValue }
+        var intValue: Int? { nil }
+        init?(intValue: Int) { nil }
+    }
 
     private static func decodeProxyPortsIfPossible(from container: KeyedDecodingContainer<CodingKeys>,
                                                    forKey key: CodingKeys) -> [Port]

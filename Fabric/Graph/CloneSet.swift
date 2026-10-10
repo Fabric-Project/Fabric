@@ -23,6 +23,9 @@ public final class CloneSet: Codable, Identifiable
     /// the same design compare equal byte for byte. Nested members inside it
     /// are written as references to their own sets, the way a document is.
     public internal(set) var graphJSON: Data
+    {
+        didSet { comparableGraph = nil }
+    }
 
     init(id: UUID = UUID(), name: String, graphJSON: Data)
     {
@@ -34,9 +37,17 @@ public final class CloneSet: Codable, Identifiable
     /// The stored graph as a JSON object, for rewriting ids.
     var graphObject: [String: Any] { Self.jsonObject(from: graphJSON) ?? [:] }
 
-    /// The stored graph with every published inlet's value left out, the form
-    /// a member's design is compared against; see Graph.designComparableJSON.
-    var comparableGraphJSON: Data { Graph.designComparableJSON(graphJSON) }
+    /// The stored graph with every value that is not design left out, the
+    /// form a member's design is compared against on every sync and save;
+    /// see Graph.designComparableJSON. Made once per stored graph.
+    var comparableGraphJSON: Data
+    {
+        if let comparableGraph { return comparableGraph }
+        let comparable = Graph.designComparableJSON(graphJSON)
+        comparableGraph = comparable
+        return comparable
+    }
+    private var comparableGraph: Data?
 
     static func canonicalJSON(_ object: [String: Any]) -> Data
     {

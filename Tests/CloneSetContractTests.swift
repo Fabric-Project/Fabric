@@ -1432,6 +1432,27 @@ extension CloneSetContractTests
         #expect(node(withID: siblingNestedInner.id, in: members[1], as: NumberBinaryOperator.self)?.inputNumber1.value == 9)
     }
 
+    @Test("A knob a plain nested sub graph publishes but the member does not is design, and reaches the siblings")
+    @MainActor
+    func nestedKnobNotPublishedOnIsDesign() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+
+        let nested = try #require(pair.current(pair.member.nested))
+        let nestedInner = try #require(pair.current(pair.member.nestedInner))
+        nestedInner.inputNumber1.published = true
+        nested.subGraph.rebuildPublishedParameterGroup()
+        pair.graph.syncCloneSets()
+
+        // Set where the member's own canvas shows it, on the nested node's proxy.
+        try #require(proxy(in: nested, over: nestedInner.inputNumber1) as? NodePort<Float>).value = 3
+        try #require(pair.current(pair.member.nestedInner)).inputNumber1.value = 3
+        pair.graph.syncCloneSets()
+
+        #expect(pair.counterpart(of: pair.member.nestedInner)?.inputNumber1.value == 3)
+    }
+
     @Test("A compact save keeps a member's own proxy state and nested per-member values")
     @MainActor
     func compactSaveKeepsProxyStateAndNestedValues() throws
@@ -1447,9 +1468,14 @@ extension CloneSetContractTests
         siblingProxy.publishedName = "Root Amount"
         pair.graph.rebuildPublishedParameterGroup()
 
-        // A published inlet two levels down, with a value of its own per member.
-        try #require(pair.current(pair.member.nestedInner)).inputNumber1.published = true
-        try #require(pair.current(pair.member.nested)).subGraph.rebuildPublishedParameterGroup()
+        // A published inlet two levels down, published on to the member's
+        // edge, so its value is each member's own.
+        let nested = try #require(pair.current(pair.member.nested))
+        let nestedInner = try #require(pair.current(pair.member.nestedInner))
+        nestedInner.inputNumber1.published = true
+        nested.subGraph.rebuildPublishedParameterGroup()
+        try #require(proxy(in: nested, over: nestedInner.inputNumber1)).published = true
+        pair.source.rebuildPublishedParameterGroup()
         pair.graph.syncCloneSets()
         let nestedInnerCopy = try #require(pair.counterpart(of: pair.member.nestedInner))
         try #require(pair.current(pair.member.nestedInner)).inputNumber1.value = 7
@@ -1496,6 +1522,55 @@ extension CloneSetContractTests
         #expect(decodedSibling.subGraph.node(forID: added.id) != nil)
         let decodedMember = try #require(decoded.node(forID: pair.member.member.id) as? SubgraphNode)
         #expect(decodedMember.subGraph.nodes.count == 3)
+    }
+
+    @Test("Values arriving over wires inside a member are not design, so members whose wired values differ still save compactly")
+    @MainActor
+    func wiredValuesDoNotStopCompaction() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        pair.graph.syncCloneSets()
+
+        // second.inputNumber1 is wired from first; each member's has arrived at its own value.
+        try #require(pair.current(pair.member.second)).inputNumber1.value = 1
+        try #require(pair.counterpart(of: pair.member.second)).inputNumber1.value = 2
+
+        let entries = try memberEntries(in: try saveCompactly(pair.graph))
+        #expect(entries.count == 2)
+        #expect(entries.allSatisfy { $0["subGraph"] == nil })
+    }
+
+    @Test("A member's own value that cannot be read costs that value, not the member")
+    @MainActor
+    func unreadableMemberValueCostsOnlyItself() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let setID = try #require(pair.member.member.cloneSetID)
+        pair.member.second.inputNumber2.published = true
+        pair.source.rebuildPublishedParameterGroup()
+        pair.graph.syncCloneSets()
+        let firstCopy = try #require(pair.counterpart(of: pair.member.first))
+        firstCopy.inputNumber1.value = 5
+
+        var object = try #require(JSONSerialization.jsonObject(with: try saveCompactly(pair.graph)) as? [String: Any])
+        var nodeMap = try #require(object["nodeMap"] as? [[String: Any]])
+        let index = try #require(nodeMap.firstIndex { ($0["value"] as? [String: Any])?["id"] as? String == pair.sibling.id.uuidString })
+        var entry = nodeMap[index]
+        var value = try #require(entry["value"] as? [String: Any])
+        var memberValues = try #require(value["memberValues"] as? [String: Any])
+        #expect(memberValues.count == 2)
+        let unreadable = try #require(memberValues.keys.first { !$0.hasSuffix(firstCopy.inputNumber1.id.uuidString) })
+        memberValues[unreadable] = ["unreadable": true]
+        value["memberValues"] = memberValues
+        entry["value"] = value
+        nodeMap[index] = entry
+        object["nodeMap"] = nodeMap
+
+        let decoded = try decode(try JSONSerialization.data(withJSONObject: object), context: context)
+        let decodedSibling = try #require(decoded.cloneSetMembers(of: setID).first { $0.id == pair.sibling.id })
+        #expect(node(withID: firstCopy.id, in: decodedSibling, as: NumberBinaryOperator.self)?.inputNumber1.value == 5)
     }
 }
 

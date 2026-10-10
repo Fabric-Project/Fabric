@@ -181,42 +181,76 @@ extension Graph
         return true
     }
 
-    /// A stored graph with every published inlet's value removed, at any
-    /// depth: the form in which two members' designs compare, since those
-    /// values are each member's own. The stored graph keeps them so a member
-    /// made from it alone still decodes.
+    /// A sub graph's encoding with every inlet value that is not design
+    /// removed, at any depth: the form in which members' designs compare.
+    /// The stored form keeps the values, so a member made from it alone still
+    /// decodes. See `isMemberOwnOrDriven` for which values those are.
     internal static func designComparableJSON(_ graphJSON: Data) -> Data
     {
         guard let object = CloneSet.jsonObject(from: graphJSON) else { return graphJSON }
-        return CloneSet.canonicalJSON(stripPublishedInletValues(in: object) as? [String: Any] ?? object)
+        return CloneSet.canonicalJSON(withoutNonDesignValues(inGraph: object, atMemberEdge: true, ownFromAbove: []))
     }
 
-    private static func stripPublishedInletValues(in object: Any) -> Any
+    /// An inlet's value is not design when it is a member's own or when it is
+    /// driven. A member's own values are its published inlets: those at its
+    /// edge, and those further in that are published onward, proxy by proxy,
+    /// to that edge. A nested member's edge is its own, whatever the outer
+    /// member publishes. A knob a plain nested sub graph publishes but the
+    /// member does not is design, set on the proxy like any other value. A
+    /// driven value arrives over a wire, inside the graph or onto the proxy
+    /// that forwards it.
+    private static func withoutNonDesignValues(inGraph graph: [String: Any], atMemberEdge: Bool,
+                                               ownFromAbove: Set<String>) -> [String: Any]
     {
-        switch object
+        var graph = graph
+        let wiredInletIDs = Set((graph["connections"] as? [[String: Any]] ?? []).compactMap { $0["inletPortID"] as? String })
+        func isMemberOwnOrDriven(_ port: [String: Any]) -> Bool
         {
-        case let array as [Any]:
-            return array.map { stripPublishedInletValues(in: $0) }
-
-        case var dict as [String: Any]:
-            if dict["kind"] as? String == PortKind.Inlet.rawValue,
-               dict["published"] as? Bool == true,
-               var parameter = dict["parameter"] as? [String: Any],
-               var base = parameter["base"] as? [String: Any]
-            {
-                base["value"] = nil
-                parameter["base"] = base
-                dict["parameter"] = parameter
-            }
-            for (key, value) in dict
-            {
-                dict[key] = stripPublishedInletValues(in: value)
-            }
-            return dict
-
-        default:
-            return object
+            guard port["kind"] as? String == PortKind.Inlet.rawValue, let id = port["id"] as? String else { return false }
+            if wiredInletIDs.contains(id) { return true }
+            return port["published"] as? Bool == true && (atMemberEdge || ownFromAbove.contains(id))
         }
+
+        graph["nodeMap"] = (graph["nodeMap"] as? [[String: Any]])?.map { entry in
+            guard var node = entry["value"] as? [String: Any] else { return entry }
+
+            node["ports"] = (node["ports"] as? [[String: Any]])?.map { port in
+                guard var payload = port["payload"] as? [String: Any],
+                      var base = payload["base"] as? [String: Any],
+                      isMemberOwnOrDriven(base)
+                else { return port }
+                base["value"] = nil
+                if var parameter = base["parameter"] as? [String: Any], var parameterBase = parameter["base"] as? [String: Any]
+                {
+                    parameterBase["value"] = nil
+                    parameter["base"] = parameterBase
+                    base["parameter"] = parameter
+                }
+                payload["base"] = base
+                var port = port
+                port["payload"] = payload
+                return port
+            }
+
+            // A nested member written as a reference to its set: its values are its own.
+            node["memberValues"] = nil
+
+            if let subGraph = node["subGraph"] as? [String: Any]
+            {
+                let innerIDs = (node["proxyPorts"] as? [[String: Any]] ?? []).compactMap { proxy -> String? in
+                    guard let base = proxy["base"] as? [String: Any], isMemberOwnOrDriven(base) else { return nil }
+                    return base["innerPortID"] as? String
+                }
+                node["subGraph"] = withoutNonDesignValues(inGraph: subGraph,
+                                                          atMemberEdge: node[Self.cloneSetIDKey] != nil,
+                                                          ownFromAbove: Set(innerIDs))
+            }
+
+            var entry = entry
+            entry["value"] = node
+            return entry
+        }
+        return graph
     }
 
     /// A sub graph encoded the way a set stores one: nested members as
@@ -323,27 +357,33 @@ extension Graph
         return self.cloneSetMembers(of: setID).filter { $0 !== node }
     }
 
-    /// Published inlets in this graph and, depth first, in nested sub graphs:
-    /// the ports whose values are each member's own. Each is keyed by its id,
-    /// prefixed by the ids of the subgraph nodes it sits inside: two instances
-    /// of a nested set hold their inner ports under the same ids, and are told
-    /// apart only by the node each sits in. A proxy is left out: it forwards
-    /// its inner port's value, so a nested sub graph's knob published on
-    /// through this one would otherwise be named twice.
-    internal func publishedInletsByPath(prefix: String = "") -> [String: Port]
+    /// This graph's member-own inlets, the ones whose values are each
+    /// member's own (see `withoutNonDesignValues`), keyed by path: the port's
+    /// id, prefixed by the ids of the subgraph nodes it sits inside. Two
+    /// instances of a nested set may hold their inner ports under the same
+    /// ids and are told apart by the node each sits in. A proxy forwards its
+    /// inner port's value, so the inner port stands for both.
+    internal func memberOwnInlets(atMemberEdge: Bool = true, ownFromAbove: Set<UUID> = [],
+                                  prefix: String = "") -> [String: Port]
     {
         var ports: [String: Port] = [:]
         for node in self.nodes
         {
             for port in node.ports where port.kind == .Inlet && port.published && !(port is any ProxyPortProtocol)
+                && (atMemberEdge || ownFromAbove.contains(port.id))
             {
                 ports[prefix + port.id.uuidString] = port
             }
-            if let subgraphNode = node as? SubgraphNode
-            {
-                ports.merge(subgraphNode.subGraph.publishedInletsByPath(prefix: prefix + node.id.uuidString + "/"),
-                            uniquingKeysWith: { first, _ in first })
+            guard let subgraphNode = node as? SubgraphNode else { continue }
+
+            let innerIDs = subgraphNode.ports.compactMap { proxy -> UUID? in
+                guard proxy.kind == .Inlet, proxy.published, atMemberEdge || ownFromAbove.contains(proxy.id) else { return nil }
+                return (proxy as? any ProxyPortProtocol)?.innerPortID
             }
+            ports.merge(subgraphNode.subGraph.memberOwnInlets(atMemberEdge: subgraphNode.cloneSetID != nil,
+                                                               ownFromAbove: Set(innerIDs),
+                                                               prefix: prefix + node.id.uuidString + "/"),
+                        uniquingKeysWith: { first, _ in first })
         }
         return ports
     }
