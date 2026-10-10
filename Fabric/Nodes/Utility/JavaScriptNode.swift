@@ -582,14 +582,26 @@ public final class JavaScriptNode: Node
         self.compileAndSynchronizePorts()
     }
 
-    override public func encode(to encoder: any Encoder) throws
+    public override func encodeSettings(to encoder: Encoder) throws
     {
-        try super.encode(to: encoder)
-
+        try super.encodeSettings(to: encoder)
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.scriptSource, forKey: .scriptSource)
         try container.encode(self.selectedTimeMode, forKey: .selectedTimeMode)
         try container.encode(Self.scriptSchemaVersion, forKey: .scriptSchemaVersion)
+    }
+
+    public override func restoreSettings(from decoder: Decoder) throws
+    {
+        try super.restoreSettings(from: decoder)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let source = try container.decodeIfPresent(String.self, forKey: .scriptSource) ?? JavaScriptNode.defaultScriptSource()
+        let timeMode = try container.decodeIfPresent(Node.TimeMode.self, forKey: .selectedTimeMode) ?? .None
+        // Settings are restored by undo, on the main thread.
+        MainActor.assumeIsolated {
+            self.updateScriptSource(source)
+            self.updateTimeMode(timeMode)
+        }
     }
 
     override public func providesSettingsView() -> Bool

@@ -733,13 +733,23 @@ public class TimelineNode: Node
         syncPortsToTracks()
     }
 
-    public override func encode(to encoder: Encoder) throws
+    public override func encodeSettings(to encoder: Encoder) throws
     {
-        try super.encode(to: encoder)
-
+        try super.encodeSettings(to: encoder)
         var container = encoder.container(keyedBy: TimelineCodingKeys.self)
         try container.encode(self.duration, forKey: .duration)
         try container.encode(self.tracks, forKey: .tracks)
+    }
+
+    public override func restoreSettings(from decoder: Decoder) throws
+    {
+        try super.restoreSettings(from: decoder)
+        let container = try decoder.container(keyedBy: TimelineCodingKeys.self)
+        // Duration first: setting it moves each track's last keyframe, which the
+        // saved tracks then put back as they were.
+        self.duration = try container.decodeIfPresent(Float.self, forKey: .duration) ?? 1.0
+        self.tracks = try container.decodeIfPresent([TimelineTrack].self, forKey: .tracks) ?? []
+        self.syncPortsToTracks()
     }
 
     public required init(context: Context)

@@ -144,13 +144,22 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
         parseExpressions()
     }
 
-    public override func encode(to encoder: any Encoder) throws
+    public override func encodeSettings(to encoder: Encoder) throws
     {
-        try super.encode(to: encoder)
+        try super.encodeSettings(to: encoder)
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(expressionX, forKey: .expressionX)
         try container.encode(expressionY, forKey: .expressionY)
         try container.encode(expressionZ, forKey: .expressionZ)
+    }
+
+    public override func restoreSettings(from decoder: Decoder) throws
+    {
+        try super.restoreSettings(from: decoder)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.expressionX = try container.decodeIfPresent(String.self, forKey: .expressionX) ?? Self.defaultExpressionX
+        self.expressionY = try container.decodeIfPresent(String.self, forKey: .expressionY) ?? Self.defaultExpressionY
+        self.expressionZ = try container.decodeIfPresent(String.self, forKey: .expressionZ) ?? Self.defaultExpressionZ
     }
 
     public required init(context: Context)

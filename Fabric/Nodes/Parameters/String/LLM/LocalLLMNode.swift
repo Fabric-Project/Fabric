@@ -166,9 +166,9 @@ struct LocalLLMNodeSettingsView: View {
         self.modelStateObservationTask?.cancel()
     }
 
-    public override func encode(to encoder: Encoder) throws {
-        try super.encode(to: encoder)
-
+    public override func encodeSettings(to encoder: Encoder) throws
+    {
+        try super.encodeSettings(to: encoder)
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.selectedModelID, forKey: .selectedModelID)
         try container.encode(self.temperature, forKey: .temperature)
@@ -176,6 +176,25 @@ struct LocalLLMNodeSettingsView: View {
         try container.encode(self.systemPromptOverride, forKey: .systemPromptOverride)
         try container.encode(self.chatModeEnabled, forKey: .chatModeEnabled)
         try container.encode(self.desiredMaxContextTokens, forKey: .desiredMaxContextTokens)
+    }
+
+    public override func restoreSettings(from decoder: Decoder) throws
+    {
+        try super.restoreSettings(from: decoder)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        // Each through its own setter, and only where it changed: a model change reloads.
+        let selectedModelID = try container.decodeIfPresent(String.self, forKey: .selectedModelID) ?? LLMRegistry.qwen3_1_7b_4bit.name
+        let temperature = try container.decodeIfPresent(Float.self, forKey: .temperature) ?? 0.6
+        let updateIntervalSeconds = try container.decodeIfPresent(Float.self, forKey: .updateIntervalSeconds) ?? 0.25
+        let systemPromptOverride = try container.decodeIfPresent(String.self, forKey: .systemPromptOverride) ?? ""
+        let chatModeEnabled = try container.decodeIfPresent(Bool.self, forKey: .chatModeEnabled) ?? true
+        let desiredMaxContextTokens = try container.decodeIfPresent(Int.self, forKey: .desiredMaxContextTokens) ?? 4_096
+        if self.selectedModelID != selectedModelID { self.selectedModelID = selectedModelID }
+        if self.temperature != temperature { self.temperature = temperature }
+        if self.updateIntervalSeconds != updateIntervalSeconds { self.updateIntervalSeconds = updateIntervalSeconds }
+        if self.systemPromptOverride != systemPromptOverride { self.systemPromptOverride = systemPromptOverride }
+        if self.chatModeEnabled != chatModeEnabled { self.chatModeEnabled = chatModeEnabled }
+        if self.desiredMaxContextTokens != desiredMaxContextTokens { self.desiredMaxContextTokens = desiredMaxContextTokens }
     }
 
     override public func providesSettingsView() -> Bool { true }

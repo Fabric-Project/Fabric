@@ -568,7 +568,6 @@ public class HIDNode: Node
         try super.encode(to: encoder)
 
         var container = encoder.container(keyedBy: HIDCodingKeys.self)
-        try container.encodeIfPresent(self.selectedDeviceID, forKey: .selectedDeviceID)
 
         // Save device info so we can try to reconnect later
         if let deviceID = selectedDeviceID,
@@ -576,8 +575,26 @@ public class HIDNode: Node
         {
             try container.encode(deviceInfo, forKey: .selectedDeviceInfo)
         }
+    }
 
+    public override func encodeSettings(to encoder: Encoder) throws
+    {
+        try super.encodeSettings(to: encoder)
+        var container = encoder.container(keyedBy: HIDCodingKeys.self)
+        try container.encodeIfPresent(self.selectedDeviceID, forKey: .selectedDeviceID)
         try container.encode(self.deviceElements, forKey: .deviceElements)
+    }
+
+    public override func restoreSettings(from decoder: Decoder) throws
+    {
+        try super.restoreSettings(from: decoder)
+        let container = try decoder.container(keyedBy: HIDCodingKeys.self)
+        let selectedDeviceID = try container.decodeIfPresent(String.self, forKey: .selectedDeviceID)
+        if self.selectedDeviceID != selectedDeviceID { self.selectedDeviceID = selectedDeviceID }
+        // The device may be unplugged: the saved elements stand for it.
+        self.deviceElements = try container.decodeIfPresent([HIDElementInfo].self, forKey: .deviceElements) ?? []
+        self.rebuildPorts()
+        _settingsModelStorage?.deviceElements = deviceElements
     }
 
     public required init(context: Context)

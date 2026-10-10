@@ -54,12 +54,18 @@ public class RoutingNodeBase: TypeAgnosticNode
         try super.init(from: decoder)
     }
 
-    public override func encode(to encoder: Encoder) throws
+    public override func encodeSettings(to encoder: Encoder) throws
     {
-        try super.encode(to: encoder)
-
+        try super.encodeSettings(to: encoder)
         var container = encoder.container(keyedBy: RoutingCodingKeys.self)
         try container.encode(routeCount, forKey: .routeCount)
+    }
+
+    public override func restoreSettings(from decoder: Decoder) throws
+    {
+        let container = try decoder.container(keyedBy: RoutingCodingKeys.self)
+        self.setRouteCount(try container.decodeIfPresent(Int.self, forKey: .routeCount) ?? routingNodeMinimumRouteCount)
+        try super.restoreSettings(from: decoder)
     }
 
     public func setRouteCount(_ count: Int)

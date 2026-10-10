@@ -173,12 +173,19 @@ public class KeyboardNode : Node
         self.rebuildPorts()
     }
 
-    public override func encode(to encoder: Encoder) throws
+    public override func encodeSettings(to encoder: Encoder) throws
     {
-        try super.encode(to: encoder)
-
+        try super.encodeSettings(to: encoder)
         var container = encoder.container(keyedBy: KeyboardCodingKeys.self)
         try container.encode(self.keyBindings, forKey: .keyBindings)
+    }
+
+    public override func restoreSettings(from decoder: Decoder) throws
+    {
+        try super.restoreSettings(from: decoder)
+        let container = try decoder.container(keyedBy: KeyboardCodingKeys.self)
+        self.keyBindings = try container.decodeIfPresent([KeyBinding?].self, forKey: .keyBindings) ?? [nil]
+        self._settingsModel.keyBindings = self.keyBindings
     }
 
     public required init(context: Context)

@@ -127,12 +127,19 @@ public class DeferredSubgraphNode: SubgraphNode
         self.synchronizeDeferredConfiguration()
     }
 
-    public override func encode(to encoder: Encoder) throws
+    public override func encodeSettings(to encoder: Encoder) throws
     {
-        try super.encode(to: encoder)
-
+        try super.encodeSettings(to: encoder)
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.deferredMRTEnabled, forKey: .deferredMRTEnabled)
+    }
+
+    public override func restoreSettings(from decoder: Decoder) throws
+    {
+        try super.restoreSettings(from: decoder)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.deferredMRTEnabled = try container.decodeIfPresent(Bool.self, forKey: .deferredMRTEnabled) ?? false
+        self._settingsModel.deferredMRTEnabled = self.deferredMRTEnabled
     }
     
     private func setupRenderer()

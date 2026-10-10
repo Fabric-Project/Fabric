@@ -212,6 +212,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 - [ ] If Node dynamically changes port count or type, we should only trigger via Setting in Settings View, not within the graph
 - [ ] If we have a Settings View, we should have a custom initializer so procedural graph creation has an entry to settings.
 - [ ] If we have a Settings View and a custom initializer, use a custom struct or enum for the settings
+- [ ] If we have a Settings View editing state of the node's own, it is written in `encodeSettings(to:)` and put back in `restoreSettings(from:)` (`SettingsUndoTests` checks the pair, and that every core node takes back its own settings unchanged)
 - [ ] If the Node overrides `deriveSubtitle()`, every mutation of the state it derives from fires `subtitleSubject.send()` (StrategyNode’s `strategy` already does)
 - [ ] New Nodes should live in an appropriate spot in the NodeRegistry
 

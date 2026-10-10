@@ -354,15 +354,30 @@ public class MIDIInputNode: Node
         try super.encode(to: encoder)
 
         var container = encoder.container(keyedBy: MIDICodingKeys.self)
-        try container.encodeIfPresent(self.selectedInputID, forKey: .selectedInputID)
 
         if let inputID = selectedInputID,
            let info = availableInputs.first(where: { $0.id == inputID })
         {
             try container.encode(info, forKey: .savedInputInfo)
         }
+    }
 
+    public override func encodeSettings(to encoder: Encoder) throws
+    {
+        try super.encodeSettings(to: encoder)
+        var container = encoder.container(keyedBy: MIDICodingKeys.self)
+        try container.encodeIfPresent(self.selectedInputID, forKey: .selectedInputID)
         try container.encode(self.configuredInputs, forKey: .configuredInputs)
+    }
+
+    public override func restoreSettings(from decoder: Decoder) throws
+    {
+        try super.restoreSettings(from: decoder)
+        let container = try decoder.container(keyedBy: MIDICodingKeys.self)
+        let selectedInputID = try container.decodeIfPresent(String.self, forKey: .selectedInputID)
+        if self.selectedInputID != selectedInputID { self.selectedInputID = selectedInputID }
+        let configuredInputs = try container.decodeIfPresent([DetectedMIDIInput].self, forKey: .configuredInputs) ?? []
+        if self.configuredInputs != configuredInputs { self.configuredInputs = configuredInputs }
     }
 
     public required init(context: Context)

@@ -93,13 +93,21 @@ public class LiveImageNode: BaseImageNode
         self.cleanupWorkspace()
     }
 
-    override public func encode(to encoder: Encoder) throws {
+    override public func encodeSettings(to encoder: Encoder) throws {
+        try super.encodeSettings(to: encoder)
+        // The shader can be edited on disk as well as in the settings view.
         try self.captureShaderSourceFromDiskIfAvailable()
-        try super.encode(to: encoder)
-
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.shaderSource, forKey: .shaderSource)
         try container.encode(Self.shaderSchemaVersion, forKey: .shaderSchemaVersion)
+    }
+
+    override public func restoreSettings(from decoder: Decoder) throws {
+        try super.restoreSettings(from: decoder)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let source = try container.decodeIfPresent(String.self, forKey: .shaderSource) ?? LiveImageNode.defaultShaderSource()
+        // Settings are restored by undo, on the main thread.
+        MainActor.assumeIsolated { self.updateShaderSource(source) }
     }
 
     override public func providesSettingsView() -> Bool {

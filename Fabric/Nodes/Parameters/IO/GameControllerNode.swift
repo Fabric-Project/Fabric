@@ -147,14 +147,30 @@ public class GameControllerNode: Node
         try super.encode(to: encoder)
 
         var container = encoder.container(keyedBy: GameControllerCodingKeys.self)
-        try container.encodeIfPresent(self.selectedControllerID, forKey: .selectedControllerID)
-        try container.encode(self.currentPortDescriptors(), forKey: .portDescriptors)
-
         // The reconnect record has to outlive the hardware: saving with the
         // controller unplugged — or before enableExecution has ever discovered
         // one — must not erase what the document already knew.
         try container.encodeIfPresent(self.liveControllerInfo() ?? self.savedControllerInfo,
                                       forKey: .savedControllerInfo)
+    }
+
+    public override func encodeSettings(to encoder: Encoder) throws
+    {
+        try super.encodeSettings(to: encoder)
+        var container = encoder.container(keyedBy: GameControllerCodingKeys.self)
+        try container.encodeIfPresent(self.selectedControllerID, forKey: .selectedControllerID)
+        try container.encode(self.currentPortDescriptors(), forKey: .portDescriptors)
+    }
+
+    public override func restoreSettings(from decoder: Decoder) throws
+    {
+        try super.restoreSettings(from: decoder)
+        let container = try decoder.container(keyedBy: GameControllerCodingKeys.self)
+        let selectedControllerID = try container.decodeIfPresent(String.self, forKey: .selectedControllerID)
+        if self.selectedControllerID != selectedControllerID { self.selectedControllerID = selectedControllerID }
+        // The controller may be unplugged: the saved port set stands for it.
+        self.synchronizePorts(to: try container.decodeIfPresent([DeviceOutputPortDescriptor].self, forKey: .portDescriptors) ?? [])
+        _settingsModelStorage?.outputPortCount = outputPorts().count
     }
 
     public required init(context: Context)

@@ -158,6 +158,105 @@ struct SettingsUndoTests
         #expect(fixture.graph.connections.isEmpty)
     }
 
+    @Test("A route count and type changed in one pass are one step, and undo brings back the routes with their ids and wires")
+    func routingChangeIsOneStep() throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = makeFixture(context: context)
+        let node = SwitchNode(context: context, routeCount: 4, portType: .Float)
+        step(fixture.undoManager) { fixture.graph.addNode(node) }
+        let fourth = try #require(node.findPort(named: "input3") as Fabric.Port?)
+        step(fixture.undoManager) { fixture.graph.connect(fixture.upstream.outputNumber, to: fourth) }
+
+        let session = NodeSettingsSession(node: node)
+        node.setRouteCount(2)
+        session.end()
+        #expect(node.findPort(named: "input3") as Fabric.Port? == nil)
+        #expect(fixture.graph.connections.isEmpty)
+
+        fixture.undoManager.undo()
+        #expect(node.routeCount == 4)
+        #expect((node.findPort(named: "input3") as Fabric.Port?)?.id == fourth.id)
+        #expect(fixture.graph.connections.count == 1)
+
+        fixture.undoManager.redo()
+        #expect(node.routeCount == 2)
+        #expect(fixture.graph.connections.isEmpty)
+    }
+
+    @Test("A format string typed in the settings view is one step")
+    func formatStringIsOneStep()
+    {
+        guard let context = makeContext() else { return }
+        let fixture = makeFixture(context: context)
+        let node = StringFormatterNode(context: context, formatString: "{a}")
+        step(fixture.undoManager) { fixture.graph.addNode(node) }
+        let portCount = node.ports.count
+
+        let session = NodeSettingsSession(node: node)
+        node.setFormatString("{a} {b}")
+        node.setFormatString("{a} {b} {c}")
+        session.end()
+        #expect(node.ports.count == portCount + 2)
+
+        fixture.undoManager.undo()
+        #expect(node.formatString == "{a}")
+        #expect(node.ports.count == portCount)
+    }
+
+    @Test("Every core node type takes back its own settings unchanged, ports and all")
+    func everyNodeTypeRestoresItsOwnSettings() throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = makeFixture(context: context)
+        var failures: [String] = []
+        for wrapper in try NodeRegistry.shared.availableNodes
+        {
+            guard let node = try? wrapper.initializeNode(context: context), node.providesSettingsView() else { continue }
+            step(fixture.undoManager) { fixture.graph.addNode(node) }
+            guard let snapshot = node.settingsSnapshot() else { continue }
+            let portIDs = node.ports.map(\.id)
+
+            do { try node.restore(snapshot) }
+            catch { failures.append("\(wrapper.nodeClass.name): \(error)"); continue }
+
+            if node.settingsSnapshot()?.settings != snapshot.settings { failures.append("\(wrapper.nodeClass.name): settings changed") }
+            if node.ports.map(\.id) != portIDs { failures.append("\(wrapper.nodeClass.name): ports changed") }
+        }
+        #expect(failures.isEmpty, "\(failures.joined(separator: "\n"))")
+    }
+
+    /// Nodes whose settings view edits nothing the node encodes beyond its
+    /// ports: what they encode besides is not a setting.
+    private static let encodesNoSettings: Set<String> = [
+        "StringSplitNode.swift",    // the custom separator is the Separator inlet's value
+        "VisualizeNode.swift",      // its one inlet
+    ]
+
+    @Test("A node that writes settings puts them back, and one with a settings view and state of its own writes it as settings")
+    func settingsAreWrittenAndPutBack() throws
+    {
+        let root = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "Fabric", directoryHint: .isDirectory)
+        let files = try #require(FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil))
+        var offenders: [String] = []
+        for case let file as URL in files where file.pathExtension == "swift"
+        {
+            let source = try String(contentsOf: file, encoding: .utf8)
+            let writes = source.contains("override func encodeSettings(")
+            let restores = source.contains("override func restoreSettings(")
+            if writes != restores { offenders.append("\(file.lastPathComponent): encodeSettings and restoreSettings come as a pair") }
+
+            let hasSettingsView = source.contains("func settingsView(")
+            let encodesState = source.contains("override func encode(to")
+            if hasSettingsView, encodesState, !writes, !Self.encodesNoSettings.contains(file.lastPathComponent)
+            {
+                offenders.append("\(file.lastPathComponent): has a settings view and encodes state, but writes no settings")
+            }
+        }
+        #expect(offenders.isEmpty, "\(offenders.joined(separator: "\n"))")
+    }
+
     @Test("Settings a node writes are saved and opened as before")
     func settingsStillSave() throws
     {

@@ -130,11 +130,19 @@ public class BaseFormatStringNode: Node {
         self.updatePorts()
     }
 
-    public override func encode(to encoder: Encoder) throws {
-        try super.encode(to: encoder)
-
+    public override func encodeSettings(to encoder: Encoder) throws
+    {
+        try super.encodeSettings(to: encoder)
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.formatString, forKey: .formatString)
+    }
+
+    public override func restoreSettings(from decoder: Decoder) throws
+    {
+        try super.restoreSettings(from: decoder)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.setFormatString(try container.decodeIfPresent(String.self, forKey: .formatString) ?? Self.defaultFormatString)
+        self._settingsModel.formatString = self.formatString
     }
 
     // MARK: - Settings

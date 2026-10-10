@@ -212,13 +212,20 @@ public class OSCReceiveNode: Node
         self.rebuildPorts()
     }
 
-    public override func encode(to encoder: Encoder) throws
+    public override func encodeSettings(to encoder: Encoder) throws
     {
-        try super.encode(to: encoder)
-
+        try super.encodeSettings(to: encoder)
         var container = encoder.container(keyedBy: OSCReceiveCodingKeys.self)
         try container.encode(self.listenPort, forKey: .listenPort)
         try container.encode(self.addressBindings, forKey: .addressBindings)
+    }
+
+    public override func restoreSettings(from decoder: Decoder) throws
+    {
+        try super.restoreSettings(from: decoder)
+        let container = try decoder.container(keyedBy: OSCReceiveCodingKeys.self)
+        self.listenPort = try container.decodeIfPresent(UInt16.self, forKey: .listenPort) ?? 9000
+        self.addressBindings = try container.decodeIfPresent([OSCAddressBinding].self, forKey: .addressBindings) ?? []
     }
 
     public required init(context: Context)
