@@ -2441,8 +2441,9 @@ extension CloneSetContractTests
             pair.target.registerOffsetChange(of: expressionInB, from: before)
             expressionInB.offset = CGSize(width: 50, height: 50)
         }
-        let session = NodeSettingsSession(node: expression)                                    // then in A
-        expression.stringExpression = "x"
+        let liveExpression = try #require(pair.current(expression))                            // then in A
+        let session = NodeSettingsSession(node: liveExpression)
+        liveExpression.stringExpression = "x"
         session.end()
         #expect(pair.counterpart(of: expression)?.inputPorts().contains { $0.name == "y" } == false)
 
