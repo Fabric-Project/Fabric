@@ -201,6 +201,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 - [ ] Node metadata present and stable  
 - [ ] `registerPorts(context:)` calls `super`, order intentional  
 - [ ] Lifecycle overrides call `super` after their own work; editing code never calls them
+- [ ] Undo steps register through `Graph.registerUndo(withTarget:handler:)` on the graph the edit was made in, never on the undo manager directly: the graph is the one place that sees every edit (`UndoRegistrationTests` checks core code)
 - [ ] ParameterPorts seed and subscribe once  
 - [ ] `execute` idempotent per frame, no allocations  
 - [ ] Outputs use `send(force:true)` appropriately  
