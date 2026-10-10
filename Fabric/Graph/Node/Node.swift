@@ -410,6 +410,8 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         }
 
         self.graph?.markConnectionsChanged()
+        // A published port is a proxy on the subgraph node around this graph.
+        if p.published { self.graph?.rebuildPublishedParameterGroup() }
         self.portsChangedSubject.send()
     }
 
@@ -432,6 +434,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         }
 
         self.graph?.markConnectionsChanged()
+        if p.published { self.graph?.rebuildPublishedParameterGroup() }
         self.portsChangedSubject.send()
     }
 

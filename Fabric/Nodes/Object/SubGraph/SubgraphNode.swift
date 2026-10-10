@@ -47,12 +47,16 @@ open class SubgraphNode: BaseObjectNode
         self.invalidatePortCaches()
 
         let innerPorts = self.subGraph.getPublishedPorts()
-        let publishedIDs = Set(innerPorts.map(\.id))
+        let publishedByID = Dictionary(innerPorts.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
 
-        // Remove proxies whose inner port is no longer published
+        // Remove proxies whose inner port is no longer published, or was
+        // replaced under its id: the proxy forwards to the port it was made
+        // over, so it is made again over the replacement.
         self.proxyPorts.removeAll { proxy in
-            guard let proxy = proxy as? any ProxyPortProtocol else { return true }
-            return !publishedIDs.contains(proxy.innerPortID)
+            guard let proxy = proxy as? any ProxyPortProtocol,
+                  let innerPort = publishedByID[proxy.innerPortID]
+            else { return true }
+            return !proxy.wraps(innerPort)
         }
 
         // Add proxies for newly published ports

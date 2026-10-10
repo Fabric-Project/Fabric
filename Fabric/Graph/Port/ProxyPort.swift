@@ -13,6 +13,9 @@ import Satin
 protocol ProxyPortProtocol
 {
     var innerPortID: UUID { get }
+    /// Whether `port` is the very port this proxy forwards to. A port
+    /// replaced under the same id is not.
+    func wraps(_ port: Port) -> Bool
     func forwardFromInner(force:Bool)
 }
 
@@ -36,6 +39,8 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
     private let declaredPortType: PortType?
 
     public var innerPortID: UUID { innerPort.id }
+
+    func wraps(_ port: Port) -> Bool { port === innerPort }
 
     @ObservationIgnored override public var portType: PortType { declaredPortType ?? super.portType }
 
