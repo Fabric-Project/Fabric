@@ -513,10 +513,11 @@ open class SubgraphNode: BaseObjectNode
     /// into the new instance so the parent's wires onto them, and any proxy
     /// wrapping them further up, stay as they are. The old graph is retired:
     /// its nodes are stopped through the renderer they ran under. Edits made
-    /// in it can still be undone: each step finds what it acts on again by
-    /// id in the new instance (see CloneUndoLocation). Everything else the
-    /// old graph held at runtime goes with it. The new graph's nodes start at the renderer's
-    /// next lifecycle review, as nodes added to any graph do.
+    /// in it can still be undone: each step finds what it acts on by id in
+    /// the graph the document holds then (see Graph.registerUndo(_:)).
+    /// Everything else the old graph held at runtime goes with it. The new
+    /// graph's nodes start at the renderer's next lifecycle review, as nodes
+    /// added to any graph do.
     internal func replaceSubGraph(with newGraph: Graph)
     {
         let old = self.subGraph
@@ -525,7 +526,6 @@ open class SubgraphNode: BaseObjectNode
 
         parent?.nodeObjectWillChange(self)
         old.ownerNode = nil
-        old.replacement = newGraph
         old.onPublishedPortsChanged = nil
         old.onCameraSelectionChanged = nil
         if let renderer = self.childGraphRenderer ?? self.lifecycleRenderer

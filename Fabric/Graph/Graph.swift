@@ -40,16 +40,6 @@ internal import AnyCodable
         // A document's undo groups are when its clone sets sync.
         didSet { if ownerNode == nil, undoManager !== oldValue { cloneSetCoordinator.attach(to: undoManager) } }
     }
-    /// The instance that took this graph's place when a clone set sync
-    /// re-instantiated it; nil while it is the document's own.
-    @ObservationIgnored internal weak var replacement: Graph?
-    /// This graph, or the instance now in its place.
-    internal var liveReplacement: Graph?
-    {
-        var graph: Graph? = self.replacement
-        while let next = graph?.replacement { graph = next }
-        return graph
-    }
     /// This graph, then each graph it sits inside, ending at the document's root.
     internal var ancestors: some Sequence<Graph>
     {
@@ -912,11 +902,7 @@ internal import AnyCodable
     
     public func delete(node:Node, disconnect:Bool = true)
     {
-        // An undo step made before a sync re-instantiated this graph holds
-        // the node it had, under the id the node here has now.
-        guard let node = nodes.first(where: { $0 === node }) ?? nodes.first(where: { $0.id == node.id }),
-              let savedIndex = nodes.firstIndex(where: { $0 === node })
-        else { return }
+        guard let savedIndex = nodes.firstIndex(where: { $0 === node }) else { return }
 
         // A settings edit still open on the node goes under the delete's
         // step, for undo to find the node when it puts the settings back.
@@ -1102,8 +1088,7 @@ internal import AnyCodable
     @discardableResult
     public func disconnect(_ connection: Connection) -> Bool
     {
-        guard let connection = self.current(connection),
-              connections.contains(where: { $0 === connection }),
+        guard connections.contains(where: { $0 === connection }),
               connection.graph === self,
               connection.outletPort?.node?.graph === self,
               connection.inletPort?.node?.graph === self,
@@ -1141,8 +1126,7 @@ internal import AnyCodable
     @discardableResult
     public func setConnection(_ connection: Connection, active: Bool) -> Bool
     {
-        guard let connection = self.current(connection),
-              connections.contains(where: { $0 === connection }), connection.graph === self else { return false }
+        guard connections.contains(where: { $0 === connection }), connection.graph === self else { return false }
 
         guard connection.active != active else { return true }
         let previousActive = connection.active
@@ -1385,7 +1369,6 @@ internal import AnyCodable
     /// proxy state and wires back.
     public func setPublished(_ published: Bool, on port: Port)
     {
-        let port = self.nodePort(forID: port.id) ?? port
         guard port.published != published else { return }
 
         let previousName = port.publishedName
@@ -1421,7 +1404,6 @@ internal import AnyCodable
     /// Undoable.
     public func setPublishedName(_ name: String?, on port: Port)
     {
-        let port = self.nodePort(forID: port.id) ?? port
         let previousName = port.publishedName
         guard previousName != name else { return }
 

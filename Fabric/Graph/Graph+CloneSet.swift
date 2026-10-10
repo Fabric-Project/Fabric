@@ -130,10 +130,15 @@ extension Graph
     private func registerDuplicateAsCloneUndo(copy: SubgraphNode, source: SubgraphNode, startedSet: CloneSet?,
                                               previousSetID: UUID?)
     {
+        let copyID = copy.id
+        let sourceID = source.id
         let currentSetID = source.cloneSetID
-        let copyOffset = copy.offset
 
-        self.registerUndo(withTarget: self) { graph in
+        self.registerUndo { graph in
+            guard let copy = graph.node(forID: copyID) as? SubgraphNode,
+                  let source = graph.node(forID: sourceID) as? SubgraphNode
+            else { return }
+            let copyOffset = copy.offset
             graph.withoutUndoRegistration {
                 graph.delete(node: copy)
                 source.setCloneMembership(setID: previousSetID)
@@ -141,7 +146,9 @@ extension Graph
             }
             graph.cloneSetMembershipChanged(around: source)
 
-            graph.registerUndo(withTarget: graph) { graph in
+            // The copy is out of the graph now: redo puts this object back.
+            graph.registerUndo { graph in
+                guard let source = graph.node(forID: sourceID) as? SubgraphNode else { return }
                 graph.withoutUndoRegistration {
                     if let startedSet { graph.addCloneSet(startedSet) }
                     source.setCloneMembership(setID: currentSetID)
@@ -460,7 +467,7 @@ extension Graph
         set.name = trimmed
         self.cloneSetMembershipChanged(setID: setID)
 
-        self.registerUndo(withTarget: self) { graph in
+        self.registerUndo { graph in
             try? graph.renameCloneSet(setID, to: previous)
         }
         undoManager?.setActionName("Rename Clone Set")
@@ -550,7 +557,7 @@ extension Graph
     internal func addCloneSetUndoably(_ set: CloneSet)
     {
         self.addCloneSet(set)
-        self.registerUndo(withTarget: self) { graph in
+        self.registerUndo { graph in
             graph.removeCloneSetUndoably(set)
         }
     }
@@ -558,7 +565,7 @@ extension Graph
     internal func removeCloneSetUndoably(_ set: CloneSet)
     {
         self.removeCloneSet(set)
-        self.registerUndo(withTarget: self) { graph in
+        self.registerUndo { graph in
             graph.addCloneSetUndoably(set)
         }
     }
@@ -572,7 +579,8 @@ extension Graph
 
         node.setCloneMembership(setID: setID)
 
-        self.registerUndo(withTarget: self) { graph in
+        self.registerUndo(on: node) { node in
+            guard let graph = node.graph else { return }
             graph.setCloneMembership(setID: previousID, on: node)
             graph.cloneSetMembershipChanged(setID: previousID)
             graph.cloneSetMembershipChanged(setID: setID)
