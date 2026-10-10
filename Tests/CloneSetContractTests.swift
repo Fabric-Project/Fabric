@@ -132,20 +132,6 @@ struct CloneSetContractTests
                              nested: nested, nestedInner: nestedInner)
     }
 
-    /// Runs `body` as a known issue where the model under test has `bug`
-    /// open, and as an ordinary test everywhere else.
-    private func expecting(_ bug: CloneSetKnownBug, _ body: () throws -> Void) rethrows
-    {
-        if CloneSetModel.knownBugs.contains(bug)
-        {
-            withKnownIssue("\(CloneSetModel.name) has this open: \(bug)") { try body() }
-        }
-        else
-        {
-            try body()
-        }
-    }
-
     /// A two-member set plus an undo manager on every graph involved.
     private struct PairFixture
     {
@@ -206,28 +192,6 @@ enum CloneSetDivergence: String, Hashable, CustomStringConvertible
 
     /// A sync forgets the undo history of edits made in the sibling.
     case siblingUndoIsForgotten
-
-    var description: String { rawValue }
-}
-
-/// Contract failures found in review and not yet fixed. Each model lists its
-/// own in `CloneSetModel.knownBugs`; delisting one is part of fixing it.
-enum CloneSetKnownBug: String, Hashable, CustomStringConvertible
-{
-    /// A node rebuilt in a sibling by a settings change takes the source's
-    /// published values and drops the parent's state on its proxies.
-    case rebuiltNodeLosesSiblingState
-
-    /// Two instances of a nested set inside one member share one set of
-    /// per-member values.
-    case nestedInstancesShareValues
-
-    /// A canvas standing inside a sibling is left on a retired graph by a sync.
-    case canvasLeftOnRetiredGraph
-
-    /// A member brought back by undo keeps the design it left with, and its
-    /// next edit pushes that onto the others.
-    case restoredMemberIsStale
 
     var description: String { rawValue }
 }
@@ -1815,35 +1779,33 @@ extension CloneSetContractTests
     func rebuiltNodeKeepsSiblingState() throws
     {
         guard let context = makeContext() else { return }
-        try expecting(.rebuiltNodeLosesSiblingState) {
-            let pair = try makePair(context: context)
-            let expression = MathExpressionNode(context: context, expression: "x + y")
-            pair.source.addNode(expression)
-            let inletX = try #require(expression.findPort(named: "x", as: Fabric.Port.self))
-            pair.source.setPublished(true, on: inletX)
-            pair.sync()
+        let pair = try makePair(context: context)
+        let expression = MathExpressionNode(context: context, expression: "x + y")
+        pair.source.addNode(expression)
+        let inletX = try #require(expression.findPort(named: "x", as: Fabric.Port.self))
+        pair.source.setPublished(true, on: inletX)
+        pair.sync()
 
-            // The sibling's own value, and its parent's rename and onward publish of the proxy.
-            let siblingExpression = try #require(pair.counterpart(of: expression))
-            let siblingX = try #require(siblingExpression.findPort(named: "x", as: Fabric.Port.self) as? NodePort<Float>)
-            siblingX.value = 5
-            let siblingProxy = try #require(proxy(in: pair.sibling, over: siblingX))
-            siblingProxy.publishedName = "Speed"
-            siblingProxy.published = true
-            pair.graph.rebuildPublishedParameterGroup()
+        // The sibling's own value, and its parent's rename and onward publish of the proxy.
+        let siblingExpression = try #require(pair.counterpart(of: expression))
+        let siblingX = try #require(siblingExpression.findPort(named: "x", as: Fabric.Port.self) as? NodePort<Float>)
+        siblingX.value = 5
+        let siblingProxy = try #require(proxy(in: pair.sibling, over: siblingX))
+        siblingProxy.publishedName = "Speed"
+        siblingProxy.published = true
+        pair.graph.rebuildPublishedParameterGroup()
 
-            expression.stringExpression = "x * y"
-            pair.sync()
+        expression.stringExpression = "x * y"
+        pair.sync()
 
-            let rebuilt = try #require(pair.counterpart(of: expression))
-            #expect(rebuilt.stringExpression == "x * y")
-            let rebuiltX = try #require(rebuilt.findPort(named: "x", as: Fabric.Port.self) as? NodePort<Float>)
-            #expect(rebuiltX.value == 5)
-            let rebuiltProxy = try #require(proxy(in: pair.sibling, over: rebuiltX))
-            #expect(rebuiltProxy.publishedName == "Speed")
-            #expect(rebuiltProxy.published)
-            #expect(pair.graph.publishedInputPorts().contains { $0 === rebuiltProxy })
-        }
+        let rebuilt = try #require(pair.counterpart(of: expression))
+        #expect(rebuilt.stringExpression == "x * y")
+        let rebuiltX = try #require(rebuilt.findPort(named: "x", as: Fabric.Port.self) as? NodePort<Float>)
+        #expect(rebuiltX.value == 5)
+        let rebuiltProxy = try #require(proxy(in: pair.sibling, over: rebuiltX))
+        #expect(rebuiltProxy.publishedName == "Speed")
+        #expect(rebuiltProxy.published)
+        #expect(pair.graph.publishedInputPorts().contains { $0 === rebuiltProxy })
     }
 
     @Test("Two instances of a nested set inside one member keep their own values through the outer sync and a save")
@@ -1851,37 +1813,35 @@ extension CloneSetContractTests
     func nestedInstancesInOneMemberKeepTheirValues() throws
     {
         guard let context = makeContext() else { return }
-        try expecting(.nestedInstancesShareValues) {
-            let pair = try makePair(context: context)
-            let setID = try #require(pair.member.member.cloneSetID)
-            pair.member.nestedInner.inputNumber1.published = true
-            pair.member.nested.subGraph.rebuildPublishedParameterGroup()
-            let nestedSibling = try pair.source.duplicateAsClone(pair.member.nested)
-            pair.graph.cloneSetCoordinator.flush()
+        let pair = try makePair(context: context)
+        let setID = try #require(pair.member.member.cloneSetID)
+        pair.member.nestedInner.inputNumber1.published = true
+        pair.member.nested.subGraph.rebuildPublishedParameterGroup()
+        let nestedSibling = try pair.source.duplicateAsClone(pair.member.nested)
+        pair.graph.cloneSetCoordinator.flush()
 
-            // Both nested instances inside the outer sibling, each with a value of its own.
-            let siblingNested = try #require(pair.counterpart(of: pair.member.nested))
-            let siblingNestedSibling = try #require(pair.counterpart(of: nestedSibling))
-            let innerOne = try #require(CloneSetModel.counterpart(of: pair.member.nestedInner, from: pair.member.nested, in: siblingNested))
-            let innerTwo = try #require(CloneSetModel.counterpart(of: pair.member.nestedInner, from: pair.member.nested, in: siblingNestedSibling))
-            innerOne.inputNumber1.value = 4
-            innerTwo.inputNumber1.value = 5
+        // Both nested instances inside the outer sibling, each with a value of its own.
+        let siblingNested = try #require(pair.counterpart(of: pair.member.nested))
+        let siblingNestedSibling = try #require(pair.counterpart(of: nestedSibling))
+        let innerOne = try #require(CloneSetModel.counterpart(of: pair.member.nestedInner, from: pair.member.nested, in: siblingNested))
+        let innerTwo = try #require(CloneSetModel.counterpart(of: pair.member.nestedInner, from: pair.member.nested, in: siblingNestedSibling))
+        innerOne.inputNumber1.value = 4
+        innerTwo.inputNumber1.value = 5
 
-            try #require(pair.current(pair.member.second)).inputNumber2.value = 1   // an outer edit in the source
-            pair.graph.cloneSetCoordinator.flush()
+        try #require(pair.current(pair.member.second)).inputNumber2.value = 1   // an outer edit in the source
+        pair.graph.cloneSetCoordinator.flush()
 
-            func values(in outer: SubgraphNode) -> [Float?]
-            {
-                outer.subGraph.nodes.compactMap { $0 as? SubgraphNode }
-                    .compactMap { $0.subGraph.nodes.first as? NumberBinaryOperator }
-                    .map(\.inputNumber1.value)
-            }
-            #expect(values(in: pair.sibling) == [4, 5])
-
-            let decoded = try decode(try saveCompactly(pair.graph), context: context)
-            let decodedSibling = try #require(decoded.cloneSetMembers(of: setID).last)
-            #expect(values(in: decodedSibling) == [4, 5])
+        func values(in outer: SubgraphNode) -> [Float?]
+        {
+            outer.subGraph.nodes.compactMap { $0 as? SubgraphNode }
+                .compactMap { $0.subGraph.nodes.first as? NumberBinaryOperator }
+                .map(\.inputNumber1.value)
         }
+        #expect(values(in: pair.sibling) == [4, 5])
+
+        let decoded = try decode(try saveCompactly(pair.graph), context: context)
+        let decodedSibling = try #require(decoded.cloneSetMembers(of: setID).last)
+        #expect(values(in: decodedSibling) == [4, 5])
     }
 
     @Test("Publishing inside a nested set leaves the outer members in step, so they still save compactly")
@@ -1940,30 +1900,81 @@ extension CloneSetContractTests
     func restoredMemberIsInStep() throws
     {
         guard let context = makeContext() else { return }
-        try expecting(.restoredMemberIsStale) {
-            let pair = try makePair(context: context)
-            let coordinator = pair.graph.cloneSetCoordinator
-            pair.undoManager.groupsByEvent = false
+        let pair = try makePair(context: context)
+        let coordinator = pair.graph.cloneSetCoordinator
+        pair.undoManager.groupsByEvent = false
 
-            pair.undoManager.beginUndoGrouping()
-            pair.graph.delete(node: pair.sibling)
-            pair.undoManager.endUndoGrouping()
+        pair.undoManager.beginUndoGrouping()
+        pair.graph.delete(node: pair.sibling)
+        pair.undoManager.endUndoGrouping()
 
-            // An edit the set sees while the sibling is gone, and that registers no undo.
-            pair.source.setPublished(true, on: pair.member.second.outputNumber)
-            coordinator.flush()
+        // An edit the set sees while the sibling is gone, and that registers no undo.
+        pair.source.setPublished(true, on: pair.member.second.outputNumber)
+        coordinator.flush()
 
-            pair.undoManager.undo()
-            coordinator.flush()
-            #expect(pair.graph.cloneSetMembers(of: try #require(pair.member.member.cloneSetID)).count == 2)
+        pair.undoManager.undo()
+        coordinator.flush()
+        #expect(pair.graph.cloneSetMembers(of: try #require(pair.member.member.cloneSetID)).count == 2)
 
-            // An edit in the restored sibling.
-            try #require(pair.counterpart(of: pair.member.first)).offset = CGSize(width: 30, height: 30)
-            coordinator.flush()
+        // An edit in the restored sibling.
+        try #require(pair.counterpart(of: pair.member.first)).offset = CGSize(width: 30, height: 30)
+        coordinator.flush()
 
-            #expect(pair.current(pair.member.second)?.outputNumber.published == true)
-            #expect(pair.counterpart(of: pair.member.second)?.outputNumber.published == true)
-        }
+        #expect(pair.current(pair.member.second)?.outputNumber.published == true)
+        #expect(pair.counterpart(of: pair.member.second)?.outputNumber.published == true)
+    }
+
+    @Test("An edit still waiting on the debounce reaches the others when its member is deleted, and is there when it comes back")
+    @MainActor
+    func deletedMemberTakesNoPendingEditWithIt() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let coordinator = pair.graph.cloneSetCoordinator
+        pair.undoManager.groupsByEvent = false
+        let moved = CGSize(width: 40, height: 40)
+
+        pair.undoManager.beginUndoGrouping()
+        try #require(pair.counterpart(of: pair.member.first)).offset = moved
+        pair.undoManager.endUndoGrouping()
+        #expect(coordinator.hasPendingSync)
+
+        pair.undoManager.beginUndoGrouping()
+        pair.graph.delete(node: pair.sibling)
+        pair.undoManager.endUndoGrouping()
+        #expect(pair.current(pair.member.first)?.offset == moved)
+
+        pair.undoManager.undo()
+        coordinator.flush()
+        #expect(pair.counterpart(of: pair.member.first)?.offset == moved)
+        #expect(pair.current(pair.member.first)?.offset == moved)
+    }
+
+    @Test("A copy brought back by redo is in step with the member it was copied from")
+    @MainActor
+    func redoneCopyIsInStep() throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = try makeMemberFixture(context: context)
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        fixture.graph.undoManager = undoManager
+        fixture.member.subGraph.undoManager = undoManager
+
+        undoManager.beginUndoGrouping()
+        let copy = try fixture.graph.duplicateAsClone(fixture.member)
+        undoManager.endUndoGrouping()
+        undoManager.undo()
+
+        // An edit made while the set is undone, and that registers no undo.
+        fixture.member.subGraph.setPublished(true, on: fixture.second.outputNumber)
+
+        undoManager.redo()
+        fixture.graph.cloneSetCoordinator.flush()
+
+        let copied = try #require(CloneSetModel.counterpart(of: fixture.second, from: fixture.member, in: copy))
+        #expect(copied.outputNumber.published)
+        #expect(fixture.second.outputNumber.published)
     }
 
     @Test("A canvas standing inside a sibling keeps editing the live sibling after a sync")
@@ -1971,26 +1982,24 @@ extension CloneSetContractTests
     func canvasInsideSiblingFollowsSync() throws
     {
         guard let context = makeContext() else { return }
-        try expecting(.canvasLeftOnRetiredGraph) {
-            let pair = try makePair(context: context)
+        let pair = try makePair(context: context)
 
-            let canvas = GraphCanvasContext(rootGraph: pair.graph)
-            canvas.enter(pair.sibling)
-            if let siblingNested = pair.counterpart(of: pair.member.nested)
-            {
-                canvas.enter(siblingNested)
-            }
-
-            pair.source.addNode(NumberBinaryOperator(context: context))
-            pair.graph.cloneSetCoordinator.flush()
-
-            let liveNested = pair.counterpart(of: pair.member.nested)
-            #expect(canvas.currentGraph === liveNested?.subGraph)
-
-            // An edit made there now reaches the source.
-            canvas.currentGraph.addNode(NumberBinaryOperator(context: context))
-            pair.graph.cloneSetCoordinator.flush()
-            #expect(pair.current(pair.member.nested)?.subGraph.nodes.count == 2)
+        let canvas = GraphCanvasContext(rootGraph: pair.graph)
+        canvas.enter(pair.sibling)
+        if let siblingNested = pair.counterpart(of: pair.member.nested)
+        {
+            canvas.enter(siblingNested)
         }
+
+        pair.source.addNode(NumberBinaryOperator(context: context))
+        pair.graph.cloneSetCoordinator.flush()
+
+        let liveNested = pair.counterpart(of: pair.member.nested)
+        #expect(canvas.currentGraph === liveNested?.subGraph)
+
+        // An edit made there now reaches the source.
+        canvas.currentGraph.addNode(NumberBinaryOperator(context: context))
+        pair.graph.cloneSetCoordinator.flush()
+        #expect(pair.current(pair.member.nested)?.subGraph.nodes.count == 2)
     }
 }
