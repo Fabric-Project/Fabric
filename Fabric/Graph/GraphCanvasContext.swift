@@ -40,11 +40,13 @@ public class GraphCanvasContext
     private var path: [SubgraphNode] = []
 
     /// The subgraph nodes entered, outermost first. Each is looked up by id
-    /// in the graph it was entered from, so a clone set sync that replaces a
-    /// sibling's sub graph leaves the canvas standing in the instance that
-    /// replaced it rather than in the retired one.
+    /// in the graph it was entered from, so a clone set sync that replaces
+    /// what the canvas stands in, under the same ids, leaves it standing in
+    /// what replaced it rather than in what was retired.
     public var entries: [SubgraphNode]
     {
+        // Read so a view showing the entries follows a sync that replaced one.
+        _ = rootGraph.cloneSyncCount
         var graph = rootGraph
         return path.map { entered in
             let live = graph.nodes.first { $0.id == entered.id } as? SubgraphNode ?? entered

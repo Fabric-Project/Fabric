@@ -553,8 +553,16 @@ open class SubgraphNode: BaseObjectNode
         }
 
         self.subGraph = newGraph
-        newGraph.undoManager = old.undoManager
+        // The owner first: a graph handed an undo manager with no owner takes
+        // itself for a document's root.
         self.wireSubGraphCallback()
+        // A canvas may stand anywhere inside, so every graph in the instance
+        // takes the undo manager, and an edit made there is recorded.
+        newGraph.undoManager = old.undoManager
+        for nested in newGraph.subgraphNodesRecursive()
+        {
+            nested.subGraph.undoManager = old.undoManager
+        }
         self.subGraphDidChange()
         Self.restore(values: values, in: newGraph)
 

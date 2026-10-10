@@ -484,4 +484,23 @@ extension CloneSetTests
         let set = try #require(graph.cloneSet(for: setID))
         #expect(try Graph.cloneSetJSON(of: sibling.subGraph) == set.graphJSON)
     }
+
+    @Test("A canvas standing inside a sibling is told when a sync replaces what it shows, and edits there are recorded")
+    @MainActor
+    func canvasInsideSiblingIsToldOfTheSync() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let canvas = GraphCanvasContext(rootGraph: pair.graph)
+        canvas.enter(pair.sibling)
+        canvas.enter(try #require(pair.counterpart(of: pair.member.nested)))
+
+        var told = false
+        withObservationTracking { _ = canvas.currentGraph } onChange: { told = true }
+        pair.source.addNode(NumberBinaryOperator(context: context))
+        pair.graph.syncCloneSets()
+
+        #expect(told)
+        #expect(canvas.currentGraph.undoManager === pair.undoManager)
+    }
 }
