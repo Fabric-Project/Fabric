@@ -11,7 +11,7 @@ import Foundation
 /// undo group closes, and after an undo or redo, each set around a noted
 /// graph is synced from its member there, innermost sets first. Undo and redo
 /// run in order, so a member they bring back finds its set as it left it.
-/// Leaving a canvas syncs too, for an edit made there that registered no undo.
+/// An edit that registers no undo is synced by syncCloneSets(editedIn:).
 final class CloneSetCoordinator
 {
     /// Set while a sync runs, so the writes it makes are never taken for edits.

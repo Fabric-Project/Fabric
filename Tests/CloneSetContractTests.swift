@@ -153,13 +153,14 @@ struct CloneSetContractTests
         /// does, closing it with the sync that follows. Without a run loop,
         /// edits would otherwise share one group that never closes; one an
         /// earlier edit left open is closed first, as its event's end would.
-        func edit(_ body: () throws -> Void) rethrows
+        @discardableResult
+        func edit<T>(_ body: () throws -> T) rethrows -> T
         {
             undoManager.groupsByEvent = false
             while undoManager.groupingLevel > 0 { undoManager.endUndoGrouping() }
             undoManager.beginUndoGrouping()
             defer { undoManager.endUndoGrouping() }
-            try body()
+            return try body()
         }
 
         /// Syncs with a fresh undo manager on every graph, so any undo step
@@ -1299,81 +1300,44 @@ extension CloneSetContractTests
         #expect(pair.counterpart(of: nestedSibling)?.cloneSetID != nil)
     }
 
-    @Test("An edit not yet synced reaches the siblings when its member leaves the set")
+    @Test("An edit made before its member leaves the set stays with the siblings, and both undo in turn")
     @MainActor
-    func unlinkCarriesTheUnsyncedEdit() throws
+    func unlinkAfterAnEdit() throws
     {
         guard let context = makeContext() else { return }
         let pair = try makePair(context: context)
 
-        pair.source.addNode(NumberBinaryOperator(context: context))         // its undo group still open
-        try pair.graph.unlinkClone(pair.member.member)
-        pair.graph.syncCloneSets()
-
+        pair.edit { pair.source.addNode(NumberBinaryOperator(context: context)) }
+        try pair.edit { try pair.graph.unlinkClone(pair.member.member) }
         #expect(pair.target.nodes.count == 4)
         #expect(pair.member.member.cloneSetID == nil)
+
+        pair.undoManager.undo()
+        #expect(pair.member.member.cloneSetID != nil)
+        pair.undoManager.undo()
+        #expect(pair.source.nodes.count == 3)
+        #expect(pair.target.nodes.count == 3)
     }
 
-    @Test("An edit not yet synced in one member reaches the copy Duplicate as Clone makes of another")
+    @Test("An edit made in one member reaches the copy Duplicate as Clone then makes of another")
     @MainActor
-    func duplicateCarriesTheUnsyncedEdit() throws
+    func duplicateAfterAnEdit() throws
     {
         guard let context = makeContext() else { return }
         let pair = try makePair(context: context)
 
-        pair.target.addNode(NumberBinaryOperator(context: context))         // an edit in B, its undo group still open
-
-        let third = try pair.graph.duplicateAsClone(pair.member.member)     // copied from A
-        pair.graph.syncCloneSets()
+        pair.edit { pair.target.addNode(NumberBinaryOperator(context: context)) }      // an edit in B
+        let third = try pair.edit { try pair.graph.duplicateAsClone(pair.member.member) }   // copied from A
 
         #expect(pair.source.nodes.count == 4)
         #expect(third.subGraph.nodes.count == 4)
     }
 }
 
-// MARK: - Editor triggers
+// MARK: - Background save
 
 extension CloneSetContractTests
 {
-    // Canvas navigation is a main-thread affair, like the edits it syncs;
-    // the fixtures are built off it so the run's other main-queue work is not
-    // held up.
-    @Test("Leaving a member's canvas syncs its siblings")
-    func leavingMemberSyncs() async throws
-    {
-        guard let context = makeContext() else { return }
-        let pair = try makePair(context: context)
-
-        await MainActor.run {
-            let canvas = GraphCanvasContext(rootGraph: pair.graph)
-            canvas.enter(pair.member.member)
-            try? #require(pair.current(pair.member.second)).inputNumber2.value = 12   // no undo step
-            #expect(pair.counterpart(of: pair.member.second)?.inputNumber2.value != 12)
-
-            canvas.pop()
-        }
-
-        #expect(pair.counterpart(of: pair.member.second)?.inputNumber2.value == 12)
-    }
-
-    @Test("Leaving a nested member syncs every enclosing set")
-    func leavingNestedMemberSyncsEnclosingSets() async throws
-    {
-        guard let context = makeContext() else { return }
-        let pair = try makePair(context: context)
-
-        await MainActor.run {
-            let canvas = GraphCanvasContext(rootGraph: pair.graph)
-            canvas.enter(pair.member.member)
-            canvas.enter(pair.member.nested)
-            canvas.currentGraph.addNode(NumberBinaryOperator(context: context))
-
-            canvas.popToRoot()
-        }
-
-        #expect(pair.counterpart(of: pair.member.nested)?.subGraph.nodes.count == 2)
-    }
-
     @Test("A save on a background queue writes the members as they are, and syncs nothing")
     func backgroundSaveSyncsNothing() async throws
     {

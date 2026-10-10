@@ -56,9 +56,6 @@ extension Graph
             throw recoverableGraphError(.nodeNotInGraph, message: "Node \(node.id) does not belong to this graph.")
         }
 
-        // Edits not yet synced belong in the graph the copy is made from.
-        self.syncCloneSets()
-
         let previousSetID = node.cloneSetID
         var startedSet: CloneSet?
 
@@ -150,8 +147,6 @@ extension Graph
                     source.setCloneMembership(setID: currentSetID)
                     copy.offset = copyOffset
                     graph.addNode(copy)
-                    // The source may have been edited while it was out of the set.
-                    _ = try? graph.refreshCloneSetGraph(from: source)
                 }
                 graph.registerDuplicateAsCloneUndo(copy: copy, source: source, startedSet: startedSet,
                                                    previousSetID: previousSetID)
@@ -517,11 +512,6 @@ extension Graph
         {
             throw recoverableGraphError(.notACloneMember, message: "\(node) is not in a clone set.")
         }
-
-        // An edit not yet synced belongs to the set the node is leaving: once
-        // it has left, the edit would reach none of its former siblings. The
-        // nested members are read after, a sync having replaced trees.
-        self.syncCloneSets()
 
         let nestedMembers = node.subGraph.subgraphNodesRecursive().filter { $0.cloneSetID != nil }
         let nestedSetIDs = Set(nestedMembers.compactMap(\.cloneSetID))

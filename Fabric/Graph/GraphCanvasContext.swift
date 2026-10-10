@@ -214,33 +214,24 @@ public class GraphCanvasContext
         syncUndoManager()
     }
 
-    /// Leaving a canvas is the point where edits made there are known to be
-    /// complete, so the clone sets around the graph left sync from it now,
-    /// including any edit made there that registered no undo.
     public func pop()
     {
         guard !path.isEmpty else { return }
-        let left = currentGraph
         path.removeLast()
         syncUndoManager()
-        rootGraph.syncCloneSets(editedIn: left)
     }
 
     public func popTo(_ node: SubgraphNode)
     {
         guard let index = path.firstIndex(where: { $0.id == node.id }) else { return }
-        let left = currentGraph
         path = Array(path.prefix(through: index))
         syncUndoManager()
-        rootGraph.syncCloneSets(editedIn: left)
     }
 
     public func popToRoot()
     {
-        let left = currentGraph
         path.removeAll()
         syncUndoManager()
-        rootGraph.syncCloneSets(editedIn: left)
     }
 
     // MARK: - Interactive Node Addition
