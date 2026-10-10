@@ -17,9 +17,15 @@ import Satin
 @Suite("Clone Set Contract")
 struct CloneSetContractTests
 {
+    /// Nil with an issue recorded, so a host with no Metal device fails the
+    /// suite rather than passing it having checked nothing.
     private func makeContext() -> Context?
     {
-        guard let device = MTLCreateSystemDefaultDevice() else { return nil }
+        guard let device = MTLCreateSystemDefaultDevice() else
+        {
+            Issue.record("No Metal device: the clone set contract was not checked")
+            return nil
+        }
         return Context(device: device,
                        sampleCount: 1,
                        colorPixelFormat: .bgra8Unorm,
@@ -1996,7 +2002,7 @@ extension CloneSetContractTests
                                                set: { parameter.value = $0 },
                                                publisher: parameter.valuePublisher,
                                                graph: pair.target,
-                                               undoTarget: parameter)
+                                               undoParameter: parameter)
         let before = secondInB.inputNumber2.value
 
         pair.edit { control.uiValue = 0.7 }                                            // in B
@@ -2335,5 +2341,201 @@ extension CloneSetContractTests
         canvas.currentGraph.addNode(NumberBinaryOperator(context: context))
         pair.graph.syncCloneSets()
         #expect(pair.current(pair.member.nested)?.subGraph.nodes.count == 2)
+    }
+}
+
+// MARK: - Undo across syncs
+
+/// A sync may put new objects in place of a sibling's nodes, wires and notes
+/// under the ids they had; every undo step made in that sibling still acts on
+/// what stands under them, redo as well as undo.
+extension CloneSetContractTests
+{
+    @Test("A wire made in a sibling can be undone and redone after another member's edit has synced into it")
+    @MainActor
+    func siblingWireUndoSurvivesSync() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let added = NumberBinaryOperator(context: context)
+        pair.edit { pair.source.addNode(added) }
+        let addedInB = try #require(pair.counterpart(of: added))
+        let secondInB = try #require(pair.counterpart(of: pair.member.second))
+
+        pair.edit { pair.target.connect(secondInB.outputNumber, to: addedInB.inputNumber1) }   // in B
+        pair.edit { pair.source.addNode(NumberBinaryOperator(context: context)) }              // then in A
+        #expect(pair.current(added)?.inputNumber1.connections.count == 1)
+
+        pair.undoManager.undo()                                                                // A's edit
+        pair.undoManager.undo()                                                                // B's wire
+        #expect(pair.current(added)?.inputNumber1.connections.isEmpty == true)
+        #expect(pair.counterpart(of: added)?.inputNumber1.connections.isEmpty == true)
+
+        pair.undoManager.redo()
+        #expect(pair.current(added)?.inputNumber1.connections.count == 1)
+        #expect(pair.counterpart(of: added)?.inputNumber1.connections.count == 1)
+        #expect(membersAreInStep(pair))
+    }
+
+    @Test("A note edited in a sibling can be undone after another member's note has synced into it")
+    @MainActor
+    func siblingNoteUndoSurvivesSync() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let rect = CGRect(x: 0, y: 0, width: 200, height: 100)
+        pair.edit { pair.source.addNote(Note(note: "Draft", rect: rect)) }
+        let noteInB = try #require(pair.target.notes.first)
+
+        pair.edit {                                                                            // in B
+            noteInB.note = "Final"
+            pair.target.registerNoteEdit(noteInB, previousText: "Draft", previousRect: rect)
+        }
+        pair.edit { pair.source.addNote(Note(note: "Another", rect: rect)) }                  // then in A
+        #expect(pair.source.notes.map(\.note).contains("Final"))
+
+        pair.undoManager.undo()                                                                // A's note
+        pair.undoManager.undo()                                                                // B's edit
+        #expect(pair.source.notes.map(\.note) == ["Draft"])
+        #expect(pair.target.notes.map(\.note) == ["Draft"])
+    }
+
+    @Test("Create Subgraph in a sibling can be undone and redone after another member's edit has synced into it")
+    @MainActor
+    func siblingCreateSubgraphUndoSurvivesSync() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let secondInB = try #require(pair.counterpart(of: pair.member.second))
+        let topLevel = pair.source.nodes.count
+
+        try pair.edit {                                                                        // in B
+            _ = try pair.target.createSubgraph(from: [secondInB], centeredOn: secondInB, usingClass: SubgraphNode.self)
+        }
+        pair.edit { pair.source.addNode(NumberBinaryOperator(context: context)) }              // then in A
+
+        pair.undoManager.undo()                                                                // A's edit
+        pair.undoManager.undo()                                                                // B's Create Subgraph
+        #expect(pair.source.nodes.count == topLevel)
+        #expect(pair.target.nodes.count == topLevel)
+        #expect(pair.current(pair.member.second)?.graph === pair.source)
+
+        pair.undoManager.redo()
+        #expect(pair.source.nodes.count == topLevel)
+        #expect(pair.current(pair.member.second)?.graph !== pair.source, "the node is inside the new subgraph again")
+        #expect(membersAreInStep(pair))
+    }
+
+    @Test("A move in a sibling can be undone after a settings change in another member has rebuilt the node it moved")
+    @MainActor
+    func siblingUndoSurvivesARebuiltNode() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let expression = MathExpressionNode(context: context, expression: "x + y")
+        pair.edit { pair.source.addNode(expression) }
+        let expressionInB = try #require(pair.counterpart(of: expression))
+        let before = expressionInB.offset
+
+        pair.edit {                                                                            // in B
+            pair.target.registerOffsetChange(of: expressionInB, from: before)
+            expressionInB.offset = CGSize(width: 50, height: 50)
+        }
+        let session = NodeSettingsSession(node: expression)                                    // then in A
+        expression.stringExpression = "x"
+        session.end()
+        #expect(pair.counterpart(of: expression)?.inputPorts().contains { $0.name == "y" } == false)
+
+        pair.undoManager.undo()                                                                // A's settings
+        pair.undoManager.undo()                                                                // B's move
+        #expect(pair.counterpart(of: expression)?.offset == before)
+        #expect(pair.current(expression)?.offset == before)
+    }
+
+    @Test("Undo and redo of a sibling's edit both reach every member after another member's edit has synced")
+    @MainActor
+    func siblingRedoSurvivesSync() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let topLevel = pair.source.nodes.count
+
+        pair.edit { pair.target.addNode(NumberBinaryOperator(context: context)) }              // in B
+        pair.edit { pair.source.addNode(NumberBinaryOperator(context: context)) }              // then in A
+        pair.undoManager.undo()
+        pair.undoManager.undo()
+        #expect(pair.source.nodes.count == topLevel)
+
+        pair.undoManager.redo()                                                                // B's edit
+        #expect(pair.source.nodes.count == topLevel + 1)
+        #expect(pair.target.nodes.count == topLevel + 1)
+        pair.undoManager.redo()                                                                // A's edit
+        #expect(pair.source.nodes.count == topLevel + 2)
+        #expect(pair.target.nodes.count == topLevel + 2)
+        #expect(membersAreInStep(pair))
+    }
+
+    @Test("Undoing an unpublish gives every member its own published value back")
+    @MainActor
+    func undoingAnUnpublishRestoresEachMembersValue() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        pair.member.first.inputNumber1.value = 1
+        try #require(pair.counterpart(of: pair.member.first)).inputNumber1.value = 5
+
+        pair.edit { pair.source.setPublished(false, on: pair.member.first.inputNumber1) }
+        #expect(pair.counterpart(of: pair.member.first)?.inputNumber1.value == 1)
+
+        pair.undoManager.undo()
+        #expect(pair.current(pair.member.first)?.inputNumber1.value == 1)
+        #expect(pair.counterpart(of: pair.member.first)?.inputNumber1.value == 5)
+    }
+
+    @Test("A canvas standing inside a sibling keeps the document's undo manager after an edit syncs into it")
+    @MainActor
+    func canvasInsideSiblingKeepsTheUndoManager() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let canvas = GraphCanvasContext(rootGraph: pair.graph)
+        canvas.enter(pair.sibling)
+        if let siblingNested = pair.counterpart(of: pair.member.nested) { canvas.enter(siblingNested) }
+
+        pair.edit { pair.source.addNode(NumberBinaryOperator(context: context)) }
+        #expect(canvas.currentGraph === pair.counterpart(of: pair.member.nested)?.subGraph)
+        #expect(canvas.currentGraph.undoManager === pair.undoManager)
+    }
+
+    @Test("An edit to a nested set from a member outside the outer set leaves the outer members in step, their nested nodes in place")
+    @MainActor
+    func nestedSetEditedFromOutsideLeavesTheOuterSetInStep() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+
+        // A set with one member at the root and one moved inside A.
+        let outside = SubgraphNode(context: context)
+        outside.subGraph.addNode(NumberBinaryOperator(context: context))
+        pair.graph.addNode(outside)
+        let inside = try pair.graph.duplicateAsClone(outside)
+        pair.graph.delete(node: inside)
+        pair.source.addNode(inside)
+        pair.sync()
+        let insideInB = try #require(pair.counterpart(of: inside))
+        let insideInBNodes = insideInB.subGraph.nodes.map(ObjectIdentifier.init)
+
+        pair.edit { outside.subGraph.addNode(NumberBinaryOperator(context: context)) }
+        #expect(pair.current(inside)?.subGraph.nodes.count == 2)
+        #expect(pair.counterpart(of: inside)?.subGraph.nodes.count == 2)
+        #expect(membersAreInStep(pair))
+
+        // An edit to the outer set after it leaves the nested nodes it already has.
+        let untouched = try #require(pair.counterpart(of: inside)?.subGraph.nodes.first).id
+        pair.edit { pair.source.addNode(NumberBinaryOperator(context: context)) }
+        expecting(.siblingNodesAreReplaced) {
+            let nodes = pair.counterpart(of: inside)?.subGraph.nodes ?? []
+            #expect(nodes.contains { $0.id == untouched && insideInBNodes.contains(ObjectIdentifier($0)) })
+        }
     }
 }
