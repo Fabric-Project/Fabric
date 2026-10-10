@@ -10,6 +10,7 @@ import CryptoKit
 import Satin
 import simd
 import Metal
+internal import AnyCodable
 
 open class SubgraphNode: BaseObjectNode
 {
@@ -29,6 +30,66 @@ open class SubgraphNode: BaseObjectNode
     /// sets them through the proxy. Mutate through Graph.duplicateAsClone /
     /// unlinkClone so the change is undoable. See CloneSet.
     public internal(set) var cloneSetID: UUID?
+
+    /// A member saved as a reference to a set that could not be read, or
+    /// could not make it: the entry as saved, written back unchanged on save,
+    /// with the set's id. The node stands in for it, empty and in no set,
+    /// until a document with its set readable is opened.
+    internal private(set) var unreadableMember: AnyCodable?
+    internal private(set) var unreadableCloneSetID: UUID?
+    private var unreadableReason = ""
+
+    /// The containing graph's wires onto proxies a sync took from this member,
+    /// by the inner port each proxy stood for, put back when undoing the
+    /// unpublish brings a proxy for that port back, as undo puts back the
+    /// edited member's own. A proxy published afresh comes back unwired, as
+    /// it does in the member edited. Each keeps the wire's other end and
+    /// which end the proxy was. Held for the session, not saved.
+    private var wiresOffProxies: [UUID: [(otherEndID: UUID, proxyIsInlet: Bool, active: Bool)]] = [:]
+
+    /// The inner port each of this member's proxies stands for, by proxy id.
+    internal var proxyInnerPortIDs: [UUID: UUID]
+    {
+        Dictionary(self.proxyPorts.compactMap { proxy in (proxy as? any ProxyPortProtocol).map { (proxy.id, $0.innerPortID) } },
+                   uniquingKeysWith: { first, _ in first })
+    }
+
+    /// Keeps the wires a sync dropped that were onto proxies this member had
+    /// before it, `innerByProxyID`, and settles any kept for a proxy that is
+    /// here again: put back during an undo or redo, let go otherwise.
+    internal func keepWires(_ dropped: [(outletID: UUID, inletID: UUID, active: Bool)], offProxies innerByProxyID: [UUID: UUID])
+    {
+        for wire in dropped
+        {
+            if let innerID = innerByProxyID[wire.inletID]
+            {
+                self.wiresOffProxies[innerID, default: []].append((wire.outletID, true, wire.active))
+            }
+            else if let innerID = innerByProxyID[wire.outletID]
+            {
+                self.wiresOffProxies[innerID, default: []].append((wire.inletID, false, wire.active))
+            }
+        }
+
+        guard let parent = self.graph, !self.wiresOffProxies.isEmpty else { return }
+        let proxyByInnerID = Dictionary(self.proxyInnerPortIDs.map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
+        let restoring = parent.cloneSetCoordinator.isSyncingUndoOrRedo
+        parent.withoutUndoRegistration {
+            for (innerID, wires) in self.wiresOffProxies
+            {
+                guard let proxyID = proxyByInnerID[innerID], let proxy = parent.nodePort(forID: proxyID) else { continue }
+                self.wiresOffProxies[innerID] = nil
+                guard restoring else { continue }
+                for wire in wires
+                {
+                    guard let otherEnd = parent.nodePort(forID: wire.otherEndID),
+                          let connection = wire.proxyIsInlet ? parent.connect(otherEnd, to: proxy) : parent.connect(proxy, to: otherEnd)
+                    else { continue }
+                    if !wire.active { _ = parent.setConnection(connection, active: false) }
+                }
+            }
+        }
+    }
 
     /// The one place membership is written, with the badge refreshed. Not
     /// undoable; Graph.setCloneMembership wraps it with undo.
@@ -54,7 +115,14 @@ open class SubgraphNode: BaseObjectNode
     override open func deriveSubtitle() -> String? { self.cloneSetInfo?.name }
 
     /// A member reports itself linked to its set.
-    override open func deriveStatuses() -> [NodeStatus] { self.cloneSetInfo.map { [$0.status] } ?? [] }
+    override open func deriveStatuses() -> [NodeStatus]
+    {
+        if self.unreadableMember != nil
+        {
+            return [.error("This member could not be made from its clone set: \(self.unreadableReason) It is kept as it was saved, and changes made inside it are not saved.")]
+        }
+        return self.cloneSetInfo.map { [$0.status] } ?? []
+    }
 
     /// What a proxy keeps across its member re-instantiating: its id in the
     /// parent graph, and whether and as what the parent publishes it on.
@@ -319,6 +387,13 @@ open class SubgraphNode: BaseObjectNode
     
     open override func encode(to encoder:Encoder) throws
     {
+        if let unreadableMember
+        {
+            var entry = encoder.singleValueContainer()
+            try entry.encode(unreadableMember)
+            return
+        }
+
         var container = encoder.container(keyedBy: CodingKeys.self)
 
         try container.encodeIfPresent(self.cloneSetID, forKey: .cloneSetID)
@@ -377,7 +452,16 @@ open class SubgraphNode: BaseObjectNode
                 throw DecodingError.dataCorruptedError(forKey: .subGraph, in: container,
                                                        debugDescription: "A clone set member saved without its sub graph needs its set to be instantiated.")
             }
-            self.subGraph = try Graph.instantiateCloneSetGraph(of: setID, decodeContext: decodeContext)
+            do { self.subGraph = try Graph.instantiateCloneSetGraph(of: setID, decodeContext: decodeContext) }
+            catch
+            {
+                self.subGraph = Graph(context: decodeContext.documentContext)
+                print("SubgraphNode: a clone set member could not be made from its set, kept as saved: \(error.localizedDescription)")
+                self.unreadableMember = try? AnyCodable(from: decoder)
+                self.unreadableReason = error.localizedDescription
+                self.unreadableCloneSetID = self.cloneSetID
+                self.cloneSetID = nil
+            }
         }
         
         // We set the current graph to the subgraph

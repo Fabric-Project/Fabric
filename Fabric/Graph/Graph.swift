@@ -235,13 +235,14 @@ internal import AnyCodable
     /// proxy that disappeared when its inner port was unpublished. One end
     /// is gone, so `disconnect` refuses the wire, but the end that survives
     /// still holds it and needs the same teardown.
-    internal func pruneDanglingConnections() -> Int
+    @discardableResult
+    internal func pruneDanglingConnections() -> [(outletID: UUID, inletID: UUID, active: Bool)]
     {
         let portIDs = Set(nodes.flatMap { $0.ports.map(\.id) })
         let dangling = connections.filter {
             !portIDs.contains($0.outletPortID) || !portIDs.contains($0.inletPortID)
         }
-        guard !dangling.isEmpty else { return 0 }
+        guard !dangling.isEmpty else { return [] }
 
         for connection in dangling
         {
@@ -264,7 +265,7 @@ internal import AnyCodable
         }
         connections.removeAll { connection in dangling.contains { $0 === connection } }
         markConnectionTopologyChanged()
-        return dangling.count
+        return dangling.map { ($0.outletPortID, $0.inletPortID, $0.active) }
     }
 
     public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
@@ -362,7 +363,9 @@ internal import AnyCodable
         self.scene = Object(context: context)
 
         self.notes = try container.decodeIfPresent([Note].self, forKey: .notes) ?? []
-        self.cloneSets = (try container.decodeIfPresent([LossyCloneSet].self, forKey: .cloneSets) ?? []).compactMap(\.set)
+        let decodedSets = try container.decodeIfPresent([LossyCloneSet].self, forKey: .cloneSets) ?? []
+        self.cloneSets = decodedSets.compactMap(\.set)
+        self.unreadableCloneSets = decodedSets.compactMap(\.unreadable)
         if !self.cloneSets.isEmpty, decodeContext.cloneSets.isEmpty
         {
             decodeContext.cloneSets = self.cloneSets
@@ -617,14 +620,13 @@ internal import AnyCodable
         
         try container.encode(self.notes, forKey: .notes)
 
-        if !self.cloneSets.isEmpty
+        let liveSetIDs = Set(self.subgraphNodesRecursive().compactMap { $0.cloneSetID ?? $0.unreadableCloneSetID })
+        let liveSets = self.cloneSets.filter { liveSetIDs.contains($0.id) }
+        if !liveSets.isEmpty || !self.unreadableCloneSets.isEmpty
         {
-            let liveSetIDs = Set(self.subgraphNodesRecursive().compactMap(\.cloneSetID))
-            let liveSets = self.cloneSets.filter { liveSetIDs.contains($0.id) }
-            if !liveSets.isEmpty
-            {
-                try container.encode(liveSets, forKey: .cloneSets)
-            }
+            var sets = container.nestedUnkeyedContainer(forKey: .cloneSets)
+            for set in liveSets { try sets.encode(set) }
+            for set in self.unreadableCloneSets { try sets.encode(set) }
         }
 
         try container.encode( nodeMap, forKey: .nodeMap)
@@ -874,8 +876,10 @@ internal import AnyCodable
 
     /// Rewrites static file references at save time, preserving their targets
     /// when the document acquires a location or is saved to a different directory.
-    public func rewriteFileReferences(relativeTo directoryURL: URL?)
+    @discardableResult
+    public func rewriteFileReferences(relativeTo directoryURL: URL?) -> Bool
     {
+        var rewroteAny = false
         for node in self.nodes
         {
             // File-picker metadata also covers directory and model loaders.
@@ -892,16 +896,22 @@ internal import AnyCodable
                 if rewrittenReference != reference
                 {
                     filePort.value = rewrittenReference
+                    rewroteAny = true
                 }
             }
 
-            if let subgraphNode = node as? SubgraphNode
+            if let subgraphNode = node as? SubgraphNode,
+               subgraphNode.subGraph.rewriteFileReferences(relativeTo: directoryURL)
             {
-                subgraphNode.subGraph.rewriteFileReferences(relativeTo: directoryURL)
+                rewroteAny = true
             }
         }
 
         self.updateFileReferenceBaseURL(directoryURL)
+
+        // A set's stored design holds the references its members held.
+        if rewroteAny, self.ownerNode == nil { self.storeCloneSetDesigns() }
+        return rewroteAny
     }
 
     /// Resolves an absolute file URL, absolute filesystem path, or path relative

@@ -825,6 +825,42 @@ extension CloneSetContractTests
         #expect(rebuilt.connections.isEmpty)
     }
 
+    @Test("Undoing an unpublish that reached a sibling puts the parent's wire back onto the sibling's proxy")
+    @MainActor
+    func undoingASyncedUnpublishRestoresTheSiblingWire() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let siblingProxy = try #require(pair.sibling.ports.first { $0.kind == .Inlet && $0.displayName == "Amount" })
+        let upstream = NumberBinaryOperator(context: context)
+        pair.graph.addNode(upstream)
+        _ = try #require(pair.graph.connect(upstream.outputNumber, to: siblingProxy))
+
+        pair.edit { pair.source.setPublished(false, on: pair.member.first.inputNumber1) }
+        #expect(upstream.outputNumber.connections.isEmpty)
+
+        pair.undoManager.undo()
+        let firstCopy = try #require(pair.counterpart(of: pair.member.first))
+        let restored = try #require(proxy(in: pair.sibling, over: firstCopy.inputNumber1))
+        #expect(upstream.outputNumber.connections.count == 1)
+        #expect(upstream.outputNumber.connections.first?.inletPort === restored)
+    }
+
+    @Test("Unpublishing a port in one member makes its value design again, the edited member's for every member")
+    @MainActor
+    func unpublishedValueIsDesign() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        pair.member.first.inputNumber1.value = 1
+        try #require(pair.counterpart(of: pair.member.first)).inputNumber1.value = 9
+
+        pair.edit { pair.source.setPublished(false, on: pair.member.first.inputNumber1) }
+
+        #expect(pair.current(pair.member.first)?.inputNumber1.value == 1)
+        #expect(pair.counterpart(of: pair.member.first)?.inputNumber1.value == 1)
+    }
+
     @Test("Undoing an unpublish inside a member puts the parent's wire back onto its proxy")
     @MainActor
     func undoingAnUnpublishInsideAMemberRestoresTheWire() throws
@@ -1581,6 +1617,23 @@ extension CloneSetContractTests
         #expect(decodedMember.subGraph.nodes.count == 3)
     }
 
+    @Test("A value set by hand on an inlet whose only wire is switched off is design, and reaches the siblings")
+    @MainActor
+    func valueBehindASwitchedOffWireIsDesign() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let wire = try #require(pair.source.connections.first)
+
+        pair.edit { _ = pair.source.setConnection(wire, active: false) }
+        pair.member.second.inputNumber1.value = 0.5
+        pair.graph.syncCloneSets(editedIn: pair.source)
+
+        #expect(pair.counterpart(of: pair.member.second)?.inputNumber1.value == 0.5)
+        let entries = try memberEntries(in: try saveCompactly(pair.graph))
+        #expect(entries.allSatisfy { $0["subGraph"] == nil })
+    }
+
     @Test("Values arriving over wires inside a member are not design, so members whose wired values differ still save compactly")
     @MainActor
     func wiredValuesDoNotStopCompaction() throws
@@ -1906,6 +1959,63 @@ extension CloneSetContractTests
 
         #expect(decoded.cloneSet(for: setID) != nil)
         #expect(decoded.cloneSetMembers(of: setID).count == 2)
+    }
+
+    @Test("A new document location rewrites the set's design with its members, so they stay in step")
+    @MainActor
+    func fileReferenceRewriteKeepsMembersInStep() throws
+    {
+        guard let context = makeContext() else { return }
+        let oldDirectory = URL(filePath: "/tmp/Project", directoryHint: .isDirectory)
+        let pair = try makePair(context: context)
+        pair.graph.updateFileReferenceBaseURL(oldDirectory)
+        let loader = TextFileLoaderNode(context: context)
+        loader.setFileURL(oldDirectory.appending(path: "Assets/source.txt"))
+        pair.edit { pair.source.addNode(loader) }
+        pair.graph.rewriteFileReferences(relativeTo: oldDirectory)
+
+        pair.graph.rewriteFileReferences(relativeTo: oldDirectory.appending(path: "Versions", directoryHint: .isDirectory))
+        #expect(pair.counterpart(of: loader)?.inputFilePathParam.value == "../Assets/source.txt")
+        let entries = try memberEntries(in: try saveCompactly(pair.graph))
+        #expect(entries.allSatisfy { $0["subGraph"] == nil })
+    }
+
+    @Test("Members saved as references to a set that cannot be read are kept as saved, and load whole once it can be")
+    @MainActor
+    func membersOfAnUnreadableSetAreKept() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let setID = try #require(pair.member.member.cloneSetID)
+        let firstCopy = try #require(pair.counterpart(of: pair.member.first))
+        firstCopy.inputNumber1.value = 5
+
+        // The set's entry loses a key it cannot be read without.
+        var object = try #require(JSONSerialization.jsonObject(with: try saveCompactly(pair.graph)) as? [String: Any])
+        var sets = try #require(object["cloneSets"] as? [[String: Any]])
+        let name = try #require(sets[0]["name"])
+        sets[0]["name"] = nil
+        object["cloneSets"] = sets
+
+        let opened = try decode(try JSONSerialization.data(withJSONObject: object), context: context)
+        let placeholder = try #require(opened.node(forID: pair.sibling.id) as? SubgraphNode)
+        #expect(placeholder.cloneSetID == nil)
+        #expect(placeholder.status?.kind == "Error")
+
+        // Saved again as it was, and repaired, everything comes back.
+        let encoder = JSONEncoder()
+        encoder.userInfo[Graph.compactCloneMembersKey] = true
+        var resaved = try #require(JSONSerialization.jsonObject(with: try encoder.encode(opened)) as? [String: Any])
+        var resavedSets = try #require(resaved["cloneSets"] as? [[String: Any]])
+        #expect(resavedSets.count == 1)
+        resavedSets[0]["name"] = name
+        resaved["cloneSets"] = resavedSets
+
+        let repaired = try decode(try JSONSerialization.data(withJSONObject: resaved), context: context)
+        let members = repaired.cloneSetMembers(of: setID)
+        #expect(members.count == 2)
+        let repairedSibling = try #require(members.first { $0.id == pair.sibling.id })
+        #expect(node(withID: firstCopy.id, in: repairedSibling, as: NumberBinaryOperator.self)?.inputNumber1.value == 5)
     }
 
     @Test("A member brought back by undo is in step with its set, so its next edit cannot undo the others'")

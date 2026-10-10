@@ -400,7 +400,7 @@ extension CloneSetTests
         #expect(rebuilt.connections.isEmpty)
     }
 
-    @Test("A set that would contain one of its own members drops that member with a diagnostic rather than decoding without end")
+    @Test("A set that would contain one of its own members keeps that member as saved, reporting why, rather than decoding without end")
     func selfContainingSetIsRefused() throws
     {
         guard let context = makeContext() else { return }
@@ -422,9 +422,9 @@ extension CloneSetTests
         set.graphJSON = CloneSet.canonicalJSON(object)
 
         try sibling.reinstantiateSubGraph()
-        #expect(sibling.subGraph.nodes.count == 3)
-        #expect(sibling.subGraph.missingNodeDiagnostics.count == 1)
-        #expect(sibling.subGraph.missingNodeDiagnostics.first?.summary.contains("contains one of its own members") == true)
+        let standIn = try #require(sibling.subGraph.nodes.compactMap { $0 as? SubgraphNode }.first { $0.id == sibling.id })
+        #expect(standIn.cloneSetID == nil)
+        #expect(standIn.status?.message.contains("contains one of its own members") == true)
     }
 }
 

@@ -24,7 +24,7 @@ public final class CloneSet: Codable, Identifiable
     /// are written as references to their own sets, the way a document is.
     public internal(set) var graphJSON: Data
     {
-        didSet { comparableGraph = nil }
+        didSet { comparableGraphJSON = Graph.designComparableJSON(graphJSON) }
     }
 
     init(id: UUID = UUID(), name: String, graphJSON: Data)
@@ -32,22 +32,17 @@ public final class CloneSet: Codable, Identifiable
         self.id = id
         self.name = name
         self.graphJSON = graphJSON
+        self.comparableGraphJSON = Graph.designComparableJSON(graphJSON)
     }
 
     /// The stored graph as a JSON object, for rewriting ids.
     var graphObject: [String: Any] { Self.jsonObject(from: graphJSON) ?? [:] }
 
-    /// The stored graph with every value that is not design left out, the
-    /// form a member's design is compared against on every sync and save;
-    /// see Graph.designComparableJSON. Made once per stored graph.
-    var comparableGraphJSON: Data
-    {
-        if let comparableGraph { return comparableGraph }
-        let comparable = Graph.designComparableJSON(graphJSON)
-        comparableGraph = comparable
-        return comparable
-    }
-    private var comparableGraph: Data?
+    /// The stored graph with every value that is not design left out, the form a
+    /// member's design is compared against; see Graph.designComparableJSON.
+    /// Made whenever the stored graph is, on the thread that sets it, so a save on
+    /// another thread only reads it.
+    private(set) var comparableGraphJSON: Data
 
     static func canonicalJSON(_ object: [String: Any]) -> Data
     {
@@ -77,6 +72,7 @@ public final class CloneSet: Codable, Identifiable
         self.name = try container.decode(String.self, forKey: .name)
         let graph = try container.decode(AnyCodable.self, forKey: .graph).value as? [String: Any] ?? [:]
         self.graphJSON = Self.canonicalJSON(graph)
+        self.comparableGraphJSON = Graph.designComparableJSON(self.graphJSON)
     }
 
     public func encode(to encoder: any Encoder) throws
@@ -89,18 +85,26 @@ public final class CloneSet: Codable, Identifiable
 }
 
 /// A clone set as decoded from a document: nil where the entry cannot be
-/// read, so one bad set costs its members' links rather than the document.
+/// read, so one bad set does not stop the document opening.
 struct LossyCloneSet: Decodable
 {
     let set: CloneSet?
+    /// The entry as saved, where it cannot be read, so a save writes it back
+    /// unchanged; see SubgraphNode's unreadable members.
+    let unreadable: AnyCodable?
 
     init(from decoder: any Decoder) throws
     {
-        do { self.set = try CloneSet(from: decoder) }
+        do
+        {
+            self.set = try CloneSet(from: decoder)
+            self.unreadable = nil
+        }
         catch
         {
-            print("Graph: dropping a clone set that cannot be read: \(error.localizedDescription)")
+            print("Graph: keeping a clone set that cannot be read as it was saved: \(error.localizedDescription)")
             self.set = nil
+            self.unreadable = try? AnyCodable(from: decoder)
         }
     }
 }

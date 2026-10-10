@@ -50,10 +50,13 @@ extension Graph
         {
             do
             {
+                let proxiesBefore = sibling.proxyInnerPortIDs
                 try sibling.reinstantiateSubGraph()
                 // An unpublish takes the proxy from the sibling, but not the
-                // parent's wires onto it.
-                _ = sibling.graph?.pruneDanglingConnections()
+                // parent's wires onto it; the sibling keeps them for the proxy's
+                // return.
+                let dropped = sibling.graph?.pruneDanglingConnections() ?? []
+                sibling.keepWires(dropped, offProxies: proxiesBefore)
             }
             catch { print("Clone set sync: \(sibling) not re-instantiated from \(member): \(error.localizedDescription)") }
         }

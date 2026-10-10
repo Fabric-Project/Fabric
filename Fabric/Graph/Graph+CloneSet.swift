@@ -197,13 +197,17 @@ extension Graph
     /// to that edge. A nested member's edge is its own, whatever the outer
     /// member publishes. A knob a plain nested sub graph publishes but the
     /// member does not is design, set on the proxy like any other value. A
-    /// driven value arrives over a wire, inside the graph or onto the proxy
-    /// that forwards it.
+    /// driven value arrives over a wire that is on, inside the graph or onto
+    /// the proxy that forwards it.
     private static func withoutNonDesignValues(inGraph graph: [String: Any], atMemberEdge: Bool,
                                                ownFromAbove: Set<String>) -> [String: Any]
     {
         var graph = graph
-        let wiredInletIDs = Set((graph["connections"] as? [[String: Any]] ?? []).compactMap { $0["inletPortID"] as? String })
+        // Only a wire that is on drives its inlet; one switched off leaves the
+        // inlet holding a value set by hand.
+        let wiredInletIDs = Set((graph["connections"] as? [[String: Any]] ?? [])
+            .filter { $0["active"] as? Bool != false }
+            .compactMap { $0["inletPortID"] as? String })
         func isMemberOwnOrDriven(_ port: [String: Any]) -> Bool
         {
             guard port["kind"] as? String == PortKind.Inlet.rawValue, let id = port["id"] as? String else { return false }
@@ -392,6 +396,18 @@ extension Graph
     internal func subgraphNodesRecursive() -> [SubgraphNode]
     {
         self.nodesRecursive().compactMap { $0 as? SubgraphNode }
+    }
+
+    /// Stores each set's design again from one of its members, as after a
+    /// change every member made alike: file references rewritten for a new
+    /// document location.
+    internal func storeCloneSetDesigns()
+    {
+        for set in self.rootGraph.cloneSets
+        {
+            guard let member = self.rootGraph.cloneSetMembers(of: set.id).first else { continue }
+            _ = try? self.refreshCloneSetGraph(from: member)
+        }
     }
 
     // MARK: - Names
