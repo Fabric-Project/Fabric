@@ -1576,13 +1576,17 @@ internal import AnyCodable
         return string.count == 36 && UUID(uuidString: string) != nil
     }
 
-    /// Recursively collects all UUID-formatted string values from a JSON object
-    private static func collectUUIDs(from object: Any, into uuids: inout Set<String>)
+    /// Recursively collects the ids in a JSON object: UUID-formatted strings
+    /// under a key that names an id, `id` or one ending in `ID`, as every
+    /// encoded node, port, connection and proxy names its ids. A UUID-shaped
+    /// string elsewhere is a value, such as text a user typed, and is left as
+    /// it is.
+    private static func collectUUIDs(from object: Any, into uuids: inout Set<String>, underIDKey: Bool = false)
     {
         switch object
         {
         case let string as String:
-            if isUUIDString(string)
+            if underIDKey, isUUIDString(string)
             {
                 uuids.insert(string)
             }
@@ -1590,18 +1594,23 @@ internal import AnyCodable
         case let array as [Any]:
             for element in array
             {
-                collectUUIDs(from: element, into: &uuids)
+                collectUUIDs(from: element, into: &uuids, underIDKey: underIDKey)
             }
 
         case let dict as [String: Any]:
-            for (_, value) in dict
+            for (key, value) in dict
             {
-                collectUUIDs(from: value, into: &uuids)
+                collectUUIDs(from: value, into: &uuids, underIDKey: isIDKey(key))
             }
 
         default:
             break
         }
+    }
+
+    private static func isIDKey(_ key: String) -> Bool
+    {
+        key == "id" || key.hasSuffix("ID") || key.hasSuffix("IDs")
     }
 
     private func qualifiedNodeID(for nodeClass: Node.Type) throws -> PluginQualifiedNodeID
@@ -1658,7 +1667,7 @@ internal import AnyCodable
                                      nodeID: String(serializedType[separatorRange.upperBound...]))
     }
 
-    /// Finds all UUID-formatted strings in JSON data by traversing the parsed structure
+    /// Finds the ids in JSON data; see `collectUUIDs`.
     private static func findAllUUIDs(in jsonData: Data) -> Set<String>
     {
         guard let object = try? JSONSerialization.jsonObject(with: jsonData) else { return [] }
