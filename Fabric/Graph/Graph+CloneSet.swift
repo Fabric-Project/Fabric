@@ -136,7 +136,7 @@ extension Graph
         let currentSetID = source.cloneSetID
         let copyOffset = copy.offset
 
-        undoManager?.registerUndo(withTarget: self) { graph in
+        self.registerUndo(withTarget: self) { graph in
             graph.withoutUndoRegistration {
                 graph.delete(node: copy)
                 source.setCloneMembership(setID: previousSetID)
@@ -144,7 +144,7 @@ extension Graph
             }
             graph.cloneSetMembershipChanged(around: source)
 
-            graph.undoManager?.registerUndo(withTarget: graph) { graph in
+            graph.registerUndo(withTarget: graph) { graph in
                 graph.withoutUndoRegistration {
                     if let startedSet { graph.addCloneSet(startedSet) }
                     source.setCloneMembership(setID: currentSetID)
@@ -416,7 +416,7 @@ extension Graph
         set.name = trimmed
         self.cloneSetMembershipChanged(setID: setID)
 
-        undoManager?.registerUndo(withTarget: self) { graph in
+        self.registerUndo(withTarget: self) { graph in
             try? graph.renameCloneSet(setID, to: previous)
         }
         undoManager?.setActionName("Rename Clone Set")
@@ -511,7 +511,7 @@ extension Graph
     internal func addCloneSetUndoably(_ set: CloneSet)
     {
         self.addCloneSet(set)
-        undoManager?.registerUndo(withTarget: self) { graph in
+        self.registerUndo(withTarget: self) { graph in
             graph.removeCloneSetUndoably(set)
         }
     }
@@ -519,7 +519,7 @@ extension Graph
     internal func removeCloneSetUndoably(_ set: CloneSet)
     {
         self.removeCloneSet(set)
-        undoManager?.registerUndo(withTarget: self) { graph in
+        self.registerUndo(withTarget: self) { graph in
             graph.addCloneSetUndoably(set)
         }
     }
@@ -533,7 +533,7 @@ extension Graph
 
         node.setCloneMembership(setID: setID)
 
-        undoManager?.registerUndo(withTarget: self) { graph in
+        self.registerUndo(withTarget: self) { graph in
             graph.setCloneMembership(setID: previousID, on: node)
             graph.cloneSetMembershipChanged(setID: previousID)
             graph.cloneSetMembershipChanged(setID: setID)

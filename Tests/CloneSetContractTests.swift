@@ -1088,22 +1088,23 @@ extension CloneSetContractTests
 
         pair.member.first.inputNumber1.value = 3       // published: per member
         pair.member.second.inputNumber1.value = 4      // wired: driven
-        pair.graph.syncCloneSets()
+        pair.graph.syncCloneSets(editedIn: pair.source)
 
         #expect(try snapshot(pair.sibling) == before)
     }
 
-    @Test("An edit that registers no undo reaches the siblings with the next one that does")
+    @Test("An edit that registers no undo reaches the siblings when synced where it was made, not with another member's edit")
     @MainActor
-    func unrecordedEditsSyncWithTheNextEdit() throws
+    func unrecordedEditsSyncWhereTheyWereMade() throws
     {
         guard let context = makeContext() else { return }
         let pair = try makePair(context: context)
 
         pair.member.second.inputNumber2.value = 42                          // no undo step
+        pair.edit { pair.graph.addNode(NumberBinaryOperator(context: context)) }   // outside the set
         #expect(pair.counterpart(of: pair.member.second)?.inputNumber2.value != 42)
 
-        pair.edit { pair.graph.addNode(NumberBinaryOperator(context: context)) }   // outside the set
+        pair.graph.syncCloneSets(editedIn: pair.source)
         #expect(pair.counterpart(of: pair.member.second)?.inputNumber2.value == 42)
     }
 
@@ -1122,8 +1123,43 @@ extension CloneSetContractTests
         // A node a sync added is edited like any other.
         let added = try #require(pair.target.nodes.last as? NumberBinaryOperator)
         added.inputNumber2.value = 9
-        pair.graph.syncCloneSets()
+        pair.graph.syncCloneSets(editedIn: pair.target)
         #expect(pair.source.nodes.compactMap { $0 as? NumberBinaryOperator }.contains { $0.inputNumber2.value == 9 })
+    }
+
+    @Test("After a wire made in one member syncs into the other, an edit in the first is kept")
+    @MainActor
+    func editAfterASyncedWireIsKept() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let secondInB = try #require(pair.counterpart(of: pair.member.second))
+        let firstInB = try #require(pair.counterpart(of: pair.member.first))
+
+        pair.edit { _ = pair.target.connect(secondInB.outputNumber, to: firstInB.inputNumber2) }
+        #expect(pair.source.connections.count == 2)
+
+        pair.edit { pair.target.addNode(NumberBinaryOperator(context: context)) }
+        #expect(pair.target.nodes.count == 4)
+        #expect(pair.source.nodes.count == 4)
+    }
+
+    @Test("A wire and a note a sync adds leave the member in step, so both members still save compactly")
+    @MainActor
+    func syncedWiresAndNotesKeepMembersCompact() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let secondInB = try #require(pair.counterpart(of: pair.member.second))
+        let firstInB = try #require(pair.counterpart(of: pair.member.first))
+
+        pair.edit { _ = pair.target.connect(secondInB.outputNumber, to: firstInB.inputNumber2) }
+        pair.edit { pair.target.addNote(Note(note: "Shared", rect: .zero)) }
+        #expect(pair.source.notes.count == 1)
+
+        let entries = try memberEntries(in: try saveCompactly(pair.graph))
+        #expect(entries.count == 2)
+        #expect(entries.allSatisfy { $0["subGraph"] == nil })
     }
 
     @Test("Edits in a nested member of one sibling and in the other sibling both survive")
@@ -1159,7 +1195,7 @@ extension CloneSetContractTests
         let nested = try #require(pair.current(pair.member.nested))
         let nestedInner = try #require(pair.current(pair.member.nestedInner))
         nestedInner.offset = CGSize(width: 99, height: 99)
-        pair.graph.syncCloneSets()
+        pair.graph.syncCloneSets(editedIn: nested.subGraph)
 
         let currentNestedSibling = try #require(pair.current(nestedSibling))
         let nestedSiblingInner = try #require(CloneSetModel.counterpart(of: nestedInner, from: nested, in: currentNestedSibling))
@@ -1198,7 +1234,7 @@ extension CloneSetContractTests
         #expect(pair.counterpart(of: expression)?.stringExpression == "sin(x) + y")
 
         try #require(pair.current(expression)).stringExpression = "cos(x) + y"
-        pair.graph.syncCloneSets()
+        pair.graph.syncCloneSets(editedIn: pair.source)
 
         #expect(pair.counterpart(of: expression)?.stringExpression == "cos(x) + y")
     }
@@ -1227,12 +1263,11 @@ extension CloneSetContractTests
         guard let context = makeContext() else { return }
         let pair = try makePair(context: context)
 
-        pair.member.second.inputNumber2.value = 6
+        pair.source.addNode(NumberBinaryOperator(context: context))         // its undo group still open
         try pair.graph.unlinkClone(pair.member.member)
         pair.graph.syncCloneSets()
 
-        #expect(pair.counterpart(of: pair.member.second)?.inputNumber2.value == 6
-            || pair.target.nodes.compactMap { $0 as? NumberBinaryOperator }.contains { $0.inputNumber2.value == 6 })
+        #expect(pair.target.nodes.count == 4)
         #expect(pair.member.member.cloneSetID == nil)
     }
 
@@ -1243,14 +1278,13 @@ extension CloneSetContractTests
         guard let context = makeContext() else { return }
         let pair = try makePair(context: context)
 
-        let secondInB = try #require(pair.counterpart(of: pair.member.second))
-        secondInB.inputNumber2.value = 6                                    // an edit in B, not yet synced
+        pair.target.addNode(NumberBinaryOperator(context: context))         // an edit in B, its undo group still open
 
         let third = try pair.graph.duplicateAsClone(pair.member.member)     // copied from A
         pair.graph.syncCloneSets()
 
-        #expect(pair.current(pair.member.second)?.inputNumber2.value == 6)
-        #expect(CloneSetModel.counterpart(of: pair.member.second, from: pair.member.member, in: third)?.inputNumber2.value == 6)
+        #expect(pair.source.nodes.count == 4)
+        #expect(third.subGraph.nodes.count == 4)
     }
 }
 
@@ -1304,8 +1338,9 @@ extension CloneSetContractTests
         let pair = try makePair(context: context)
         let setID = try #require(pair.member.member.cloneSetID)
         let edited = try await MainActor.run {
+            // An edit that registers no undo, so no undo group syncs it.
             let node = NumberBinaryOperator(context: context)
-            pair.source.addNode(node)                                    // not yet synced
+            pair.graph.withoutUndoRegistration { pair.source.addNode(node) }
             return (node.id, try snapshot(pair.sibling))
         }
 
@@ -1398,9 +1433,6 @@ extension CloneSetContractTests
         let setID = try #require(pair.member.member.cloneSetID)
 
         await MainActor.run { pair.graph.syncCloneSets() }
-        // Let the main-queue deliveries from building the pair land first:
-        // a value set before them is intermittently lost from the save.
-        try await Task.sleep(for: .milliseconds(50))
         let firstCopyID: UUID = try await MainActor.run {
             let copy = try #require(pair.counterpart(of: pair.member.first))
             try #require(pair.current(pair.member.first)).inputNumber1.value = 2
@@ -1408,15 +1440,16 @@ extension CloneSetContractTests
             return copy.id
         }
 
-        // FileDocument.fileWrapper(configuration:) runs off the main thread:
-        // the flush hops to the main thread, the encode stays where it is.
+        // FileDocument.fileWrapper(configuration:) runs off the main thread.
         let data = try await Task.detached { try saveCompactly(pair.graph) }.value
 
         let entries = try memberEntries(in: data)
         #expect(entries.count == 2)
         #expect(entries.allSatisfy { $0["subGraph"] == nil && $0["memberValues"] != nil })
 
-        let members = try decode(data, context: context).cloneSetMembers(of: setID)
+        // Held, not a temporary: a graph released tears down its nodes' ports.
+        let decoded = try decode(data, context: context)
+        let members = decoded.cloneSetMembers(of: setID)
         try #require(members.count == 2)
         let decodedCopy = try #require(node(withID: firstCopyID, in: members[1], as: NumberBinaryOperator.self))
         let decodedFirst = try #require(node(withID: pair.member.first.id, in: members[0], as: NumberBinaryOperator.self))
@@ -1467,12 +1500,12 @@ extension CloneSetContractTests
         let nestedInner = try #require(pair.current(pair.member.nestedInner))
         nestedInner.inputNumber1.published = true
         nested.subGraph.rebuildPublishedParameterGroup()
-        pair.graph.syncCloneSets()
+        pair.graph.syncCloneSets(editedIn: nested.subGraph)
 
         // Set where the member's own canvas shows it, on the nested node's proxy.
         try #require(proxy(in: nested, over: nestedInner.inputNumber1) as? NodePort<Float>).value = 3
         try #require(pair.current(pair.member.nestedInner)).inputNumber1.value = 3
-        pair.graph.syncCloneSets()
+        pair.graph.syncCloneSets(editedIn: pair.source)
 
         #expect(pair.counterpart(of: pair.member.nestedInner)?.inputNumber1.value == 3)
     }
@@ -1500,7 +1533,7 @@ extension CloneSetContractTests
         nested.subGraph.rebuildPublishedParameterGroup()
         try #require(proxy(in: nested, over: nestedInner.inputNumber1)).published = true
         pair.source.rebuildPublishedParameterGroup()
-        pair.graph.syncCloneSets()
+        pair.graph.syncCloneSets(editedIn: nested.subGraph)
         let nestedInnerCopy = try #require(pair.counterpart(of: pair.member.nestedInner))
         try #require(pair.current(pair.member.nestedInner)).inputNumber1.value = 7
         nestedInnerCopy.inputNumber1.value = 5
@@ -1574,7 +1607,7 @@ extension CloneSetContractTests
         let setID = try #require(pair.member.member.cloneSetID)
         pair.member.second.inputNumber2.published = true
         pair.source.rebuildPublishedParameterGroup()
-        pair.graph.syncCloneSets()
+        pair.graph.syncCloneSets(editedIn: pair.source)
         let firstCopy = try #require(pair.counterpart(of: pair.member.first))
         firstCopy.inputNumber1.value = 5
 
@@ -1886,14 +1919,14 @@ extension CloneSetContractTests
         // An edit the set sees while the sibling is gone, and that registers no undo.
         pair.member.second.outputNumber.published = true
         pair.source.rebuildPublishedParameterGroup()
-        pair.graph.syncCloneSets()
+        pair.graph.syncCloneSets(editedIn: pair.source)
 
         pair.undoManager.undo()
         #expect(pair.graph.cloneSetMembers(of: try #require(pair.member.member.cloneSetID)).count == 2)
 
         // An edit in the restored sibling.
         try #require(pair.counterpart(of: pair.member.first)).offset = CGSize(width: 30, height: 30)
-        pair.graph.syncCloneSets()
+        pair.graph.syncCloneSets(editedIn: pair.target)
 
         #expect(pair.current(pair.member.second)?.outputNumber.published == true)
         #expect(pair.counterpart(of: pair.member.second)?.outputNumber.published == true)

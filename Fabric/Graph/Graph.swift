@@ -57,6 +57,13 @@ internal import AnyCodable
     /// Members refer to a set by SubgraphNode.cloneSetID. A set no member
     /// refers to any more is dropped on save.
     public private(set) var cloneSets: [CloneSet] = []
+    /// Counts the clone set syncs the root graph has run, observably: a view
+    /// standing inside a member reads it, since a sync can change what is
+    /// there without any property the view already reads changing.
+    public internal(set) var cloneSyncCount = 0
+    /// Clone sets the document holds that could not be read, kept as saved
+    /// and written back with the others.
+    @ObservationIgnored private var unreadableCloneSets: [AnyCodable] = []
 
     /// Directory against which scheme-less file-picker values resolve.
     @ObservationIgnored public private(set) var fileReferenceBaseURL: URL?
@@ -651,6 +658,8 @@ internal import AnyCodable
             guard let graph = location.graph else { return }
             handler(graph)
         }
+        // Edits inside a clone set member reach its siblings; see CloneSetCoordinator.
+        self.cloneSetCoordinator.noteEdit(in: self)
     }
 
     /// The undo manager edits made in this graph record on: its own, or the
@@ -916,7 +925,12 @@ internal import AnyCodable
         self.recordOpenSettingsChange(of: node)
         // A member leaving takes no sync with it, so an edit in it that
         // registered no undo reaches its siblings first.
-        if !Self.cloneMembers(in: node).isEmpty { self.syncCloneSets() }
+        let leavingMembers = Self.cloneMembers(in: node)
+        if !leavingMembers.isEmpty
+        {
+            for member in leavingMembers { self.cloneSetCoordinator.noteEdit(in: member.subGraph) }
+            self.syncCloneSets()
+        }
 
         let savedOffset = node.offset
         // The proxies standing for its published ports go with it, and the

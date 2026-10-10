@@ -17,13 +17,7 @@ import Foundation
 /// buffer, starts over. See SubgraphNode.replaceSubGraph.
 extension Graph
 {
-    /// The coordinator's two questions of the model: whether `member`'s
-    /// design is its set's stored graph, and how its siblings come to match it.
-    internal func isCloneMemberInStep(_ member: SubgraphNode) -> Bool
-    {
-        member.isInStepWithCloneSet
-    }
-
+    /// How the coordinator brings a member's siblings in line with it.
     internal func syncCloneSiblings(of member: SubgraphNode)
     {
         self.reinstantiateCloneSiblings(of: member)
