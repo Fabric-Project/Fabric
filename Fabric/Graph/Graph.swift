@@ -938,6 +938,9 @@ internal import AnyCodable
         // A settings edit still open on the node goes under the delete's
         // step, for undo to find the node when it puts the settings back.
         self.recordOpenSettingsChange(of: node)
+        // A member leaving takes no sync with it, so an edit in it still
+        // waiting on the debounce reaches its siblings first.
+        if !Self.cloneMembers(in: node).isEmpty { self.flushPendingCloneSync() }
 
         let savedOffset = node.offset
         // The proxies standing for its published ports go with it, and the
@@ -1017,6 +1020,7 @@ internal import AnyCodable
             syncNodesToScene()
             markConnectionsChanged()
             cloneSetMembershipChanged(around: node)
+            bringArrivingCloneMembersInStep(in: node)
         }
 
         self.registerUndo(on: node) { node in

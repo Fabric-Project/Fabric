@@ -348,7 +348,7 @@ open class SubgraphNode: BaseObjectNode
     /// True when the sub graph encodes to the set's stored graph, the state
     /// every member is in once syncs have run. A member that does not is
     /// written in full, so nothing is lost.
-    private var isInStepWithCloneSet: Bool
+    internal var isInStepWithCloneSet: Bool
     {
         guard let graph = self.graph, let setID = self.cloneSetID, let set = graph.cloneSet(for: setID),
               let json = try? Graph.cloneSetJSON(of: self.subGraph)

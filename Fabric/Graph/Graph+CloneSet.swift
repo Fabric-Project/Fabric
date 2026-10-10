@@ -150,6 +150,9 @@ extension Graph
                     source.setCloneMembership(setID: currentSetID)
                     copy.offset = copyOffset
                     graph.addNode(copy)
+                    // The source may have been edited while it was out of the set.
+                    _ = try? graph.refreshCloneSetGraph(from: source)
+                    graph.bringArrivingCloneMembersInStep(in: copy)
                 }
                 graph.registerDuplicateAsCloneUndo(copy: copy, source: source, startedSet: startedSet,
                                                    previousSetID: previousSetID)
@@ -512,11 +515,44 @@ extension Graph
     /// refresh every set any of them belongs to.
     internal func cloneSetMembershipChanged(around node: Node)
     {
-        let members = ([node] + ((node as? SubgraphNode)?.subGraph.nodesRecursive() ?? []))
-            .compactMap { $0 as? SubgraphNode }
-        for setID in Set(members.compactMap(\.cloneSetID))
+        for setID in Set(Self.cloneMembers(in: node).compactMap(\.cloneSetID))
         {
             self.cloneSetMembershipChanged(setID: setID)
+        }
+    }
+
+    /// `node`, where it is a member, and every member nested in it.
+    internal static func cloneMembers(in node: Node) -> [SubgraphNode]
+    {
+        ([node] + ((node as? SubgraphNode)?.subGraph.nodesRecursive() ?? []))
+            .compactMap { $0 as? SubgraphNode }
+            .filter { $0.cloneSetID != nil }
+    }
+
+    /// A member arriving, as undo brings back a deletion or redo a copy, may
+    /// have been away while its set changed. A document opening is not an
+    /// arrival: a member it holds in full has drifted, and keeps its drift. It is re-instantiated from the
+    /// set's stored graph before an edit in it can push the design it left
+    /// with onto the others. Members nested in it are seen to in turn.
+    internal func bringArrivingCloneMembersInStep(in node: Node)
+    {
+        let coordinator = self.cloneSetCoordinator
+        guard let member = node as? SubgraphNode, !coordinator.isSyncing else { return }
+
+        if member.cloneSetID != nil, !member.isInStepWithCloneSet
+        {
+            coordinator.isSyncing = true
+            defer { coordinator.isSyncing = false }
+            do { try member.reinstantiateSubGraph() }
+            catch
+            {
+                print("Clone set sync: \(member) not brought in step with its set: \(error.localizedDescription)")
+            }
+        }
+
+        for inner in member.subGraph.nodes
+        {
+            member.subGraph.bringArrivingCloneMembersInStep(in: inner)
         }
     }
 
