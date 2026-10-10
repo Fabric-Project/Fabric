@@ -40,7 +40,13 @@ open class SubgraphNode: BaseObjectNode
         // Remove proxies whose inner port is no longer published, or was
         // replaced under its id: the proxy forwards to the port it was made
         // over, so it is made again over the replacement, published as it was
-        // in the graph around, as the replacement is in its own.
+        // in the graph around, as the replacement is in its own. Where a
+        // proxy that goes was published there too, the proxy over it a level
+        // up goes the same way.
+        let dropped = self.proxyPorts.filter { proxy in
+            guard let typed = proxy as? any ProxyPortProtocol else { return true }
+            return publishedByID[typed.innerPortID] == nil
+        }
         var replaced: [UUID: (published: Bool, publishedName: String?)] = [:]
         self.proxyPorts.removeAll { proxy in
             guard let typed = proxy as? any ProxyPortProtocol,
@@ -100,8 +106,9 @@ open class SubgraphNode: BaseObjectNode
         }
 
         self.graph?.markConnectionsChanged()
-        // A replacement published further up is a replaced port there too.
-        if replacements.contains(where: \.published) { self.graph?.rebuildPublishedParameterGroup() }
+        // A replacement published further up is a replaced port there too,
+        // and a dropped one published there a removed one.
+        if (replacements + dropped).contains(where: \.published) { self.graph?.rebuildPublishedParameterGroup() }
         self.portsChangedSubject.send()
     }
 

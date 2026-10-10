@@ -991,10 +991,18 @@ internal import AnyCodable
 
         init(_ connection: Connection)
         {
-            self.id = connection.id
-            self.outletPortID = connection.outletPortID
-            self.inletPortID = connection.inletPortID
-            self.active = connection.active
+            self.init(id: connection.id,
+                      outletPortID: connection.outletPortID,
+                      inletPortID: connection.inletPortID,
+                      active: connection.active)
+        }
+
+        init(id: UUID, outletPortID: UUID, inletPortID: UUID, active: Bool)
+        {
+            self.id = id
+            self.outletPortID = outletPortID
+            self.inletPortID = inletPortID
+            self.active = active
         }
     }
 
@@ -1184,25 +1192,24 @@ internal import AnyCodable
     /// deliberate act rather than the rebuild that follows one. Undoable.
     ///
     /// Unpublishing takes the proxy that stood for the port in the containing
-    /// graph with it, so the wires onto that proxy are taken down here. Left
-    /// alone they name a port that has gone: the port at the other end still
-    /// reports itself wired, and a republish gives the proxy that comes back
-    /// no way to recognise them. A rebuild that drops and remakes a proxy
-    /// within one operation goes the other way, binding the wires to the
-    /// proxy that replaces it; see `reattachConnections`. Undoing the
-    /// unpublish puts the wires and the proxy's own state back.
+    /// graph with it, with the wires onto it, and so on up for as far as each
+    /// proxy was published. Left alone the wires name a port that has gone:
+    /// the port at the other end still reports itself wired, and a republish
+    /// would bring them back with it. Undoing the unpublish puts each level's
+    /// proxy state and wires back.
     public func setPublished(_ published: Bool, on port: Port)
     {
         guard port.published != published else { return }
 
         let previousName = port.publishedName
-        var proxyState: ProxyState?
+        var proxyChain: ProxyChainState?
         if !published
         {
-            proxyState = self.takeDownProxy(standingFor: port)
+            proxyChain = self.proxyChainState(standingFor: port)
+            self.disconnectProxyChain(standingFor: port)
             port.publishedName = nil
             // Publishing named the parameter after the port's published name.
-            port.parameter?.label = port.name
+            port.parameter?.label = port.displayName
         }
 
         port.published = published
@@ -1212,11 +1219,11 @@ internal import AnyCodable
         self.registerUndo { graph in
             guard let port = graph.nodePort(forID: portID) else { return }
             graph.setPublished(!published, on: port)
-            if let proxyState
+            if let proxyChain
             {
                 port.publishedName = previousName
                 graph.rebuildPublishedParameterGroup()
-                graph.restoreProxy(standingFor: port, to: proxyState)
+                graph.restoreProxyChain(standingFor: port, to: proxyChain)
             }
         }
         undoManager?.setActionName(published ? "Publish Port" : "Unpublish Port")
@@ -1241,13 +1248,46 @@ internal import AnyCodable
         undoManager?.setActionName("Rename Port")
     }
 
-    /// What an unpublish takes from the containing graph: the wires onto the
-    /// proxy, and the proxy's own publishing there.
-    private struct ProxyState
+    /// What the proxies standing for a published port hold in the graphs
+    /// above: at each level, the wires onto the proxy there and the proxy's
+    /// own publishing, for as far up as it is published. What a port taking
+    /// its proxies with it, unpublished or removed, has an undo put back.
+    internal struct ProxyChainState
     {
-        var wires: [Wire]
-        var published: Bool
-        var publishedName: String?
+        struct Level
+        {
+            let wires: [ProxyWire]
+            let published: Bool
+            let publishedName: String?
+        }
+
+        let levels: [Level]
+    }
+
+    /// A wire onto a proxy, by the port at its other end: the proxy that
+    /// comes back stands under the id the proxy over the same port has then.
+    internal struct ProxyWire
+    {
+        let id: UUID
+        let otherEndID: UUID
+        let proxyIsInlet: Bool
+        let active: Bool
+
+        init(_ connection: Connection, onProxy proxy: Port)
+        {
+            self.id = connection.id
+            self.proxyIsInlet = connection.inletPortID == proxy.id
+            self.otherEndID = self.proxyIsInlet ? connection.outletPortID : connection.inletPortID
+            self.active = connection.active
+        }
+
+        func wire(onProxy proxy: Port) -> Wire
+        {
+            Wire(id: id,
+                 outletPortID: proxyIsInlet ? otherEndID : proxy.id,
+                 inletPortID: proxyIsInlet ? proxy.id : otherEndID,
+                 active: active)
+        }
     }
 
     /// The proxy standing for `port`, a port of a node in this graph, on the
@@ -1260,37 +1300,59 @@ internal import AnyCodable
         return (proxy, parent)
     }
 
-    /// Takes the containing graph's wires off the proxy standing for `port`,
-    /// as a node removing a published port takes the port's own wires: with no
-    /// undo, an undo of what removed it being the step that puts them back.
-    internal func disconnectProxyWires(standingFor port: Port)
+    /// See ProxyChainState. `port` is a port of a node in this graph.
+    internal func proxyChainState(standingFor port: Port) -> ProxyChainState
     {
-        guard let (proxy, parent) = self.proxy(standingFor: port) else { return }
-        parent.withoutUndoRegistration { parent.disconnectAll(from: proxy) }
+        var levels: [ProxyChainState.Level] = []
+        var graph = self
+        var standingFor = port
+        while let (proxy, parent) = graph.proxy(standingFor: standingFor)
+        {
+            levels.append(.init(wires: proxy.connections.map { ProxyWire($0, onProxy: proxy) },
+                                published: proxy.published,
+                                publishedName: proxy.publishedName))
+            guard proxy.published else { break }
+            graph = parent
+            standingFor = proxy
+        }
+        return ProxyChainState(levels: levels)
     }
 
-    /// Takes down the containing graph's wires onto this graph's owner's
-    /// proxy for `port`, with the teardown every disconnection gets.
-    private func takeDownProxy(standingFor port: Port) -> ProxyState?
+    /// Takes the wires off the proxy standing for `port`, a port of a node in
+    /// this graph, and off each proxy above it published in turn, with no
+    /// undo: an undo of what took them is the step that puts them back.
+    internal func disconnectProxyChain(standingFor port: Port)
     {
-        guard let (proxy, parent) = self.proxy(standingFor: port) else { return nil }
-
-        let state = ProxyState(wires: proxy.connections.map(Wire.init),
-                               published: proxy.published,
-                               publishedName: proxy.publishedName)
-        parent.withoutUndoRegistration { parent.disconnectAll(from: proxy) }
-        return state
+        var graph = self
+        var standingFor = port
+        while let (proxy, parent) = graph.proxy(standingFor: standingFor)
+        {
+            parent.withoutUndoRegistration {
+                for connection in proxy.connections { _ = parent.disconnect(connection) }
+            }
+            guard proxy.published else { return }
+            graph = parent
+            standingFor = proxy
+        }
     }
 
-    private func restoreProxy(standingFor port: Port, to state: ProxyState)
+    /// Puts back what `state` holds for `port`, published again, level by
+    /// level, each proxy's publishing bringing the proxy above it back.
+    internal func restoreProxyChain(standingFor port: Port, to state: ProxyChainState)
     {
-        guard let (proxy, parent) = self.proxy(standingFor: port) else { return }
-
-        proxy.published = state.published
-        proxy.publishedName = state.publishedName
-        parent.rebuildPublishedParameterGroup()
-        parent.withoutUndoRegistration {
-            for wire in state.wires { parent.restore(wire) }
+        var graph = self
+        var standingFor = port
+        for level in state.levels
+        {
+            guard let (proxy, parent) = graph.proxy(standingFor: standingFor) else { return }
+            proxy.published = level.published
+            proxy.publishedName = level.publishedName
+            parent.rebuildPublishedParameterGroup()
+            parent.withoutUndoRegistration {
+                for wire in level.wires { parent.restore(wire.wire(onProxy: proxy)) }
+            }
+            graph = parent
+            standingFor = proxy
         }
     }
 

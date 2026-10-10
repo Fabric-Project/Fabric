@@ -427,13 +427,14 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         self.removePort(p, replacing: false)
     }
 
-    /// A published port's proxy goes with it, and so do the containing graph's
-    /// wires on the proxy, unless a replacement under the same id is to take
-    /// them: then the proxies are rebuilt once, as the replacement is added,
-    /// so the rebuild sees the port replaced rather than gone.
+    /// A published port's proxy goes with it, and so do the wires on it and on
+    /// each proxy above it published in turn, unless a replacement under the
+    /// same id is to take them: then the proxies are rebuilt once, as the
+    /// replacement is added, so the rebuild sees the port replaced rather
+    /// than gone.
     private func removePort(_ p: Port, replacing: Bool)
     {
-        if p.published, !replacing { self.graph?.disconnectProxyWires(standingFor: p) }
+        if p.published, !replacing { self.graph?.disconnectProxyChain(standingFor: p) }
         self.portHydrationSession?.relinquish(p)
 
         self.registry.remove(p)
