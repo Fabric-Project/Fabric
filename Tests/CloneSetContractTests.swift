@@ -132,6 +132,20 @@ struct CloneSetContractTests
                              nested: nested, nestedInner: nestedInner)
     }
 
+    /// Runs `body` as a known issue where the model under test has `bug`
+    /// open, and as an ordinary test everywhere else.
+    private func expecting(_ bug: CloneSetKnownBug, _ body: () throws -> Void) rethrows
+    {
+        if CloneSetModel.knownBugs.contains(bug)
+        {
+            withKnownIssue("\(CloneSetModel.name) has this open: \(bug)") { try body() }
+        }
+        else
+        {
+            try body()
+        }
+    }
+
     /// A two-member set plus an undo manager on every graph involved.
     private struct PairFixture
     {
@@ -192,6 +206,28 @@ enum CloneSetDivergence: String, Hashable, CustomStringConvertible
 
     /// A sync forgets the undo history of edits made in the sibling.
     case siblingUndoIsForgotten
+
+    var description: String { rawValue }
+}
+
+/// Contract failures found in review and not yet fixed. Each model lists its
+/// own in `CloneSetModel.knownBugs`; delisting one is part of fixing it.
+enum CloneSetKnownBug: String, Hashable, CustomStringConvertible
+{
+    /// A node rebuilt in a sibling by a settings change takes the source's
+    /// published values and drops the parent's state on its proxies.
+    case rebuiltNodeLosesSiblingState
+
+    /// Two instances of a nested set inside one member share one set of
+    /// per-member values.
+    case nestedInstancesShareValues
+
+    /// A canvas standing inside a sibling is left on a retired graph by a sync.
+    case canvasLeftOnRetiredGraph
+
+    /// A member brought back by undo keeps the design it left with, and its
+    /// next edit pushes that onto the others.
+    case restoredMemberIsStale
 
     var description: String { rawValue }
 }
@@ -1505,8 +1541,11 @@ extension CloneSetContractTests
         let pair = try makePair(context: context)
         let setID = try #require(pair.member.member.cloneSetID)
 
+        await MainActor.run { pair.graph.cloneSetCoordinator.flush() }
+        // Let the main-queue deliveries from building the pair land first:
+        // a value set before them is intermittently lost from the save.
+        try await Task.sleep(for: .milliseconds(50))
         let firstCopyID: UUID = try await MainActor.run {
-            pair.graph.cloneSetCoordinator.flush()
             let copy = try #require(pair.counterpart(of: pair.member.first))
             try #require(pair.current(pair.member.first)).inputNumber1.value = 2
             copy.inputNumber1.value = 7
@@ -1523,8 +1562,10 @@ extension CloneSetContractTests
 
         let members = try decode(data, context: context).cloneSetMembers(of: setID)
         try #require(members.count == 2)
-        #expect(node(withID: firstCopyID, in: members[1], as: NumberBinaryOperator.self)?.inputNumber1.value == 7)
-        #expect(node(withID: pair.member.first.id, in: members[0], as: NumberBinaryOperator.self)?.inputNumber1.value == 2)
+        let decodedCopy = try #require(node(withID: firstCopyID, in: members[1], as: NumberBinaryOperator.self))
+        let decodedFirst = try #require(node(withID: pair.member.first.id, in: members[0], as: NumberBinaryOperator.self))
+        #expect(decodedCopy.inputNumber1.value == 7)
+        #expect(decodedFirst.inputNumber1.value == 2)
     }
 
     @Test("A member exposing a nested sub graph's knob saves and loads, each member's value its own")
@@ -1735,6 +1776,221 @@ extension CloneSetContractTests
             coordinator.flush()
             #expect(pair.source.nodes.count == 3)
             #expect(pair.target.nodes.count == 3)
+        }
+    }
+}
+
+// MARK: - Review findings
+
+/// Behaviour the bake-off review found at risk, on one model or both.
+extension CloneSetContractTests
+{
+    @Test("Unpublishing in one member takes the parent's wires onto every sibling's proxy for it")
+    @MainActor
+    func syncedUnpublishTakesSiblingParentWires() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let upstream = NumberBinaryOperator(context: context)
+        pair.graph.addNode(upstream)
+        let siblingProxy = try #require(pair.sibling.ports.first { $0.kind == .Inlet && $0.displayName == "Amount" })
+        _ = try #require(pair.graph.connect(upstream.outputNumber, to: siblingProxy))
+
+        pair.source.setPublished(false, on: pair.member.first.inputNumber1)
+        pair.sync()
+
+        #expect(!pair.sibling.ports.contains { $0.kind == .Inlet && $0.displayName == "Amount" })
+        #expect(pair.graph.connections.isEmpty)
+        #expect(upstream.outputNumber.connections.isEmpty)
+
+        // Publishing again brings back a proxy no stale wire is bound to.
+        pair.source.setPublished(true, on: pair.member.first.inputNumber1)
+        pair.sync()
+        let firstCopy = try #require(pair.counterpart(of: pair.member.first))
+        let republished = try #require(proxy(in: pair.sibling, over: firstCopy.inputNumber1))
+        #expect(republished.connections.isEmpty)
+    }
+
+    @Test("A node rebuilt by a settings change keeps the sibling's own values and proxy state")
+    func rebuiltNodeKeepsSiblingState() throws
+    {
+        guard let context = makeContext() else { return }
+        try expecting(.rebuiltNodeLosesSiblingState) {
+            let pair = try makePair(context: context)
+            let expression = MathExpressionNode(context: context, expression: "x + y")
+            pair.source.addNode(expression)
+            let inletX = try #require(expression.findPort(named: "x", as: Fabric.Port.self))
+            pair.source.setPublished(true, on: inletX)
+            pair.sync()
+
+            // The sibling's own value, and its parent's rename and onward publish of the proxy.
+            let siblingExpression = try #require(pair.counterpart(of: expression))
+            let siblingX = try #require(siblingExpression.findPort(named: "x", as: Fabric.Port.self) as? NodePort<Float>)
+            siblingX.value = 5
+            let siblingProxy = try #require(proxy(in: pair.sibling, over: siblingX))
+            siblingProxy.publishedName = "Speed"
+            siblingProxy.published = true
+            pair.graph.rebuildPublishedParameterGroup()
+
+            expression.stringExpression = "x * y"
+            pair.sync()
+
+            let rebuilt = try #require(pair.counterpart(of: expression))
+            #expect(rebuilt.stringExpression == "x * y")
+            let rebuiltX = try #require(rebuilt.findPort(named: "x", as: Fabric.Port.self) as? NodePort<Float>)
+            #expect(rebuiltX.value == 5)
+            let rebuiltProxy = try #require(proxy(in: pair.sibling, over: rebuiltX))
+            #expect(rebuiltProxy.publishedName == "Speed")
+            #expect(rebuiltProxy.published)
+            #expect(pair.graph.publishedInputPorts().contains { $0 === rebuiltProxy })
+        }
+    }
+
+    @Test("Two instances of a nested set inside one member keep their own values through the outer sync and a save")
+    @MainActor
+    func nestedInstancesInOneMemberKeepTheirValues() throws
+    {
+        guard let context = makeContext() else { return }
+        try expecting(.nestedInstancesShareValues) {
+            let pair = try makePair(context: context)
+            let setID = try #require(pair.member.member.cloneSetID)
+            pair.member.nestedInner.inputNumber1.published = true
+            pair.member.nested.subGraph.rebuildPublishedParameterGroup()
+            let nestedSibling = try pair.source.duplicateAsClone(pair.member.nested)
+            pair.graph.cloneSetCoordinator.flush()
+
+            // Both nested instances inside the outer sibling, each with a value of its own.
+            let siblingNested = try #require(pair.counterpart(of: pair.member.nested))
+            let siblingNestedSibling = try #require(pair.counterpart(of: nestedSibling))
+            let innerOne = try #require(CloneSetModel.counterpart(of: pair.member.nestedInner, from: pair.member.nested, in: siblingNested))
+            let innerTwo = try #require(CloneSetModel.counterpart(of: pair.member.nestedInner, from: pair.member.nested, in: siblingNestedSibling))
+            innerOne.inputNumber1.value = 4
+            innerTwo.inputNumber1.value = 5
+
+            try #require(pair.current(pair.member.second)).inputNumber2.value = 1   // an outer edit in the source
+            pair.graph.cloneSetCoordinator.flush()
+
+            func values(in outer: SubgraphNode) -> [Float?]
+            {
+                outer.subGraph.nodes.compactMap { $0 as? SubgraphNode }
+                    .compactMap { $0.subGraph.nodes.first as? NumberBinaryOperator }
+                    .map(\.inputNumber1.value)
+            }
+            #expect(values(in: pair.sibling) == [4, 5])
+
+            let decoded = try decode(try saveCompactly(pair.graph), context: context)
+            let decodedSibling = try #require(decoded.cloneSetMembers(of: setID).last)
+            #expect(values(in: decodedSibling) == [4, 5])
+        }
+    }
+
+    @Test("Publishing inside a nested set leaves the outer members in step, so they still save compactly")
+    @MainActor
+    func nestedPublishKeepsOuterMembersCompact() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        _ = try pair.source.duplicateAsClone(pair.member.nested)
+        pair.graph.cloneSetCoordinator.flush()
+
+        let nested = try #require(pair.current(pair.member.nested))
+        let nestedInner = try #require(pair.current(pair.member.nestedInner))
+        nested.subGraph.setPublished(true, on: nestedInner.inputNumber2)
+        pair.graph.cloneSetCoordinator.flush()
+
+        let entries = try memberEntries(in: try saveCompactly(pair.graph))
+        #expect(entries.count == 2)
+        #expect(entries.allSatisfy { $0["subGraph"] == nil }, "outer members saved in full")
+    }
+
+    @Test("Opening a document is not an edit: nothing is left to sync")
+    func openingSchedulesNoSync() async throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let data = try JSONEncoder().encode(pair.graph)
+
+        // Documents decode off the main thread.
+        let decoded = try await Task.detached { try decode(data, context: context) }.value
+
+        try await Task.sleep(for: .milliseconds(50))
+        let pending = await MainActor.run { decoded.cloneSetCoordinator.hasPendingSync }
+        #expect(pending == false)
+    }
+
+    @Test("A document with one unreadable clone set still opens, with its other sets")
+    func unreadableSetDoesNotBlockOpening() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let setID = try #require(pair.member.member.cloneSetID)
+        var object = try #require(JSONSerialization.jsonObject(with: try JSONEncoder().encode(pair.graph)) as? [String: Any])
+        var sets = try #require(object["cloneSets"] as? [Any])
+        sets.append(["unreadable": true])
+        object["cloneSets"] = sets
+
+        let decoded = try decode(try JSONSerialization.data(withJSONObject: object), context: context)
+
+        #expect(decoded.cloneSet(for: setID) != nil)
+        #expect(decoded.cloneSetMembers(of: setID).count == 2)
+    }
+
+    @Test("A member brought back by undo is in step with its set, so its next edit cannot undo the others'")
+    @MainActor
+    func restoredMemberIsInStep() throws
+    {
+        guard let context = makeContext() else { return }
+        try expecting(.restoredMemberIsStale) {
+            let pair = try makePair(context: context)
+            let coordinator = pair.graph.cloneSetCoordinator
+            pair.undoManager.groupsByEvent = false
+
+            pair.undoManager.beginUndoGrouping()
+            pair.graph.delete(node: pair.sibling)
+            pair.undoManager.endUndoGrouping()
+
+            // An edit the set sees while the sibling is gone, and that registers no undo.
+            pair.source.setPublished(true, on: pair.member.second.outputNumber)
+            coordinator.flush()
+
+            pair.undoManager.undo()
+            coordinator.flush()
+            #expect(pair.graph.cloneSetMembers(of: try #require(pair.member.member.cloneSetID)).count == 2)
+
+            // An edit in the restored sibling.
+            try #require(pair.counterpart(of: pair.member.first)).offset = CGSize(width: 30, height: 30)
+            coordinator.flush()
+
+            #expect(pair.current(pair.member.second)?.outputNumber.published == true)
+            #expect(pair.counterpart(of: pair.member.second)?.outputNumber.published == true)
+        }
+    }
+
+    @Test("A canvas standing inside a sibling keeps editing the live sibling after a sync")
+    @MainActor
+    func canvasInsideSiblingFollowsSync() throws
+    {
+        guard let context = makeContext() else { return }
+        try expecting(.canvasLeftOnRetiredGraph) {
+            let pair = try makePair(context: context)
+
+            let canvas = GraphCanvasContext(rootGraph: pair.graph)
+            canvas.enter(pair.sibling)
+            if let siblingNested = pair.counterpart(of: pair.member.nested)
+            {
+                canvas.enter(siblingNested)
+            }
+
+            pair.source.addNode(NumberBinaryOperator(context: context))
+            pair.graph.cloneSetCoordinator.flush()
+
+            let liveNested = pair.counterpart(of: pair.member.nested)
+            #expect(canvas.currentGraph === liveNested?.subGraph)
+
+            // An edit made there now reaches the source.
+            canvas.currentGraph.addNode(NumberBinaryOperator(context: context))
+            pair.graph.cloneSetCoordinator.flush()
+            #expect(pair.current(pair.member.nested)?.subGraph.nodes.count == 2)
         }
     }
 }

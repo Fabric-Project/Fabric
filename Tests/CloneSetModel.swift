@@ -9,6 +9,8 @@ enum CloneSetModel
 
     static let divergences: Set<CloneSetDivergence> = [.siblingNodesAreReplaced, .siblingUndoIsForgotten]
 
+    static let knownBugs: Set<CloneSetKnownBug> = [.nestedInstancesShareValues, .canvasLeftOnRetiredGraph, .restoredMemberIsStale]
+
     static func counterpart<T: Node>(of node: T, from source: SubgraphNode, in member: SubgraphNode) -> T?
     {
         member.subGraph.nodesRecursive().first { $0.id == node.id } as? T
