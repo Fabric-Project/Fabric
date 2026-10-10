@@ -174,7 +174,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 ### 3.4  Subgraph Behavior
 - Iterator applies per-iteration params before subgraph execute.
 - Render-to-Image-with-Depth sizes to inputs, attaches depth, outputs typed textures.
-- Clone sets (`CloneSet`, `Graph+CloneSet.swift`, `Graph+CloneSync.swift`): a set holds one stored graph, and its members are instances of it under the same inner ids. A sync re-instantiates each sibling from the member whose design moved on; published inlet values are the one per-member exception. Sets sync when the document's undo groups close and after undo and redo; see `CloneSetCoordinator`. An edit that registers no undo syncs only when `syncCloneSets(editedIn:)` is called for it. Nothing clone-specific belongs on Node.
+- Clone sets (`CloneSet`, `Graph+CloneSet.swift`, `Graph+CloneSync.swift`): a set holds one stored graph, and its members are instances of it under the same inner ids. A sync re-instantiates each sibling from the member whose design moved on; published inlet values are the one per-member exception. Sets sync when the document's undo groups close and after undo and redo; see `CloneSetCoordinator`. An edit that registers no undo syncs only when `syncCloneSets(editedIn:)` is called for it. Nothing clone-specific belongs on Node. ProxyPort carries clone-specific code: a member's proxies take ids of their own, since its siblings wrap inner ports under the same ids in one parent graph, and a re-instantiation re-points each proxy at its port in the new instance (`rebindInnerPort`).
 
 ---
 

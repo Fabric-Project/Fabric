@@ -40,8 +40,7 @@ public final class CloneSet: Codable, Identifiable
 
     /// The stored graph with every value that is not design left out, the form a
     /// member's design is compared against; see Graph.designComparableJSON.
-    /// Made whenever the stored graph is, on the thread that sets it, so a save on
-    /// another thread only reads it.
+    /// Made whenever the stored graph is, so a comparison only reads it.
     private(set) var comparableGraphJSON: Data
 
     static func canonicalJSON(_ object: [String: Any]) -> Data

@@ -124,6 +124,9 @@ A Port on a Node inside a Subgraph that is marked `published = true`, exposing i
 ### Deferred Subgraph
 A SubgraphNode variant that renders its content to textures (colour + depth) rather than contributing objects to the parent scene. Useful for post-processing pipelines.
 
+### Clone Set
+A `CloneSet` on the document's root graph: a name and a stored graph, the encoded form of a member's sub graph, held as data. Its members are SubgraphNodes with that `cloneSetID`, each an instance decoded from the stored graph: the same nodes, ports and wires under the same ids, each executing on its own. Members are peers to edit: the member you edit is encoded as the stored graph and its siblings are decoded from it afresh, keeping only what is theirs in the parent graph, their proxies' ids and the parent's wires onto them, and their published inlet values. Everything a sibling held at runtime starts over. A member reports a `linked` status, drawn as the `square.on.square` glyph on the canvas and in the breadcrumb, shows the set name as its subtitle, and gives the member count on hover. A document saves the stored graph once and every member in full. See `CloneSet.swift`, `Graph+CloneSet.swift` and `Graph+CloneSync.swift`.
+
 ### Iterator
 A SubgraphNode variant that executes its contained Graph multiple times per frame, providing iteration index, progress, and count via an Iterator Info Node.
 
@@ -260,6 +263,3 @@ When no Camera Node is present, the GraphRenderer uses a default camera at `(0, 
 
 ### Managed vs unmanaged image lifetime
 `FabricImage` instances are either vended by the Texture Cache (managed — automatically recycled) or created directly (unmanaged — caller-owned). The distinction is important for performance but is not surfaced as a named concept in documentation.
-
-### Clone Set
-A `CloneSet` on the document's root graph: a name and a stored graph, the encoded form of a member's sub graph, held as data. Its members are SubgraphNodes with that `cloneSetID`, each an instance decoded from the stored graph: the same nodes, ports and wires under the same ids, each executing on its own. Members are peers to edit: the member you edit is encoded as the stored graph and its siblings are decoded from it afresh, keeping only what is theirs in the parent graph, their proxies' ids and the parent's wires onto them, and their published inlet values. Everything a sibling held at runtime starts over. A member reports a `linked` status, drawn as the `square.on.square` glyph on the canvas and in the breadcrumb, shows the set name as its subtitle, and gives the member count on hover. A document saves the stored graph once and every member in full. See `CloneSet.swift`, `Graph+CloneSet.swift` and `Graph+CloneSync.swift`.

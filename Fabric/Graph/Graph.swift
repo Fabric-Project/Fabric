@@ -2276,8 +2276,7 @@ internal import AnyCodable
 
     /// Recursively replaces UUID strings in a JSON object using a remap table.
     /// Values under `preservingKeys` are left as they are, at any depth.
-    /// Dictionary keys are never rewritten: a clone record's keys are template
-    /// ids and stay valid through every rewrite of the record's values.
+    /// Dictionary keys are never rewritten.
     internal static func remapUUIDs(in object: Any, remap: [String: String], preservingKeys: Set<String> = []) -> Any
     {
         switch object

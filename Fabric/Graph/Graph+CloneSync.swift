@@ -66,7 +66,7 @@ extension Graph
     /// Makes `target` an instance of `source`'s sub graph now, whether or not
     /// the stored graph changed. Throws where the two are not members of one
     /// set.
-    public func reinstantiateCloneMember(_ target: SubgraphNode, from source: SubgraphNode) throws
+    internal func reinstantiateCloneMember(_ target: SubgraphNode, from source: SubgraphNode) throws
     {
         guard let setID = source.cloneSetID, target.cloneSetID == setID, target !== source else
         {
