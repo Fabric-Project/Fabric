@@ -484,12 +484,42 @@ internal import AnyCodable
     
     public func addNote(_ note: Note)
     {
-        self.notes.append(note)
+        self.insertNote(note, at: self.notes.endIndex)
+        undoManager?.setActionName("Add Note")
     }
     
     public func deleteNote(_ note:Note)
     {
-        self.notes.removeAll(where: { $0.id == note.id })
+        guard let index = self.notes.firstIndex(where: { $0.id == note.id }) else { return }
+        self.notes.remove(at: index)
+
+        undoManager?.registerUndo(withTarget: self) { graph in
+            graph.insertNote(note, at: index)
+            graph.undoManager?.setActionName("Delete Note")
+        }
+        undoManager?.setActionName("Delete Note")
+    }
+
+    private func insertNote(_ note: Note, at index: Int)
+    {
+        self.notes.insert(note, at: min(index, self.notes.endIndex))
+        undoManager?.registerUndo(withTarget: self) { $0.deleteNote(note) }
+    }
+
+    /// Records an edit already made to `note`'s text or frame, from the text
+    /// and frame it had before, as one undo step.
+    public func registerNoteEdit(_ note: Note, previousText: String, previousRect: CGRect)
+    {
+        let text = note.note
+        let rect = note.rect
+        guard text != previousText || rect != previousRect else { return }
+
+        undoManager?.registerUndo(withTarget: self) { graph in
+            note.note = previousText
+            note.rect = previousRect
+            graph.registerNoteEdit(note, previousText: text, previousRect: rect)
+        }
+        undoManager?.setActionName("Edit Note")
     }
     
     //MARK: - Nodes API -

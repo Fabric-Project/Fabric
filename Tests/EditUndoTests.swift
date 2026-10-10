@@ -104,6 +104,39 @@ struct EditUndoTests
         #expect(!fixture.container.ports.contains { $0.id == port.id })
     }
 
+    @Test("Adding, editing and deleting a note are undo steps")
+    func noteEditsUndo()
+    {
+        guard let context = makeContext() else { return }
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        let graph = Graph(context: context)
+        graph.undoManager = undoManager
+        let first = Note(note: "First", rect: .zero)
+        let note = Note(note: "Draft", rect: CGRect(x: 0, y: 0, width: 200, height: 100))
+
+        step(undoManager) { graph.addNote(first) }
+        step(undoManager) { graph.addNote(note) }
+        step(undoManager) {
+            note.note = "Final"
+            note.rect.origin = CGPoint(x: 40, y: 40)
+            graph.registerNoteEdit(note, previousText: "Draft", previousRect: CGRect(x: 0, y: 0, width: 200, height: 100))
+        }
+        step(undoManager) { graph.deleteNote(first) }
+        #expect(graph.notes.map(\.id) == [note.id])
+
+        undoManager.undo()
+        #expect(graph.notes.map(\.id) == [first.id, note.id], "a deleted note comes back where it was")
+        undoManager.undo()
+        #expect(note.note == "Draft")
+        #expect(note.rect.origin == .zero)
+        undoManager.redo()
+        #expect(note.note == "Final")
+        undoManager.undo()
+        undoManager.undo()
+        #expect(graph.notes.map(\.id) == [first.id])
+    }
+
     @Test("Duplicating a node leaves a UUID-shaped string value as it is")
     func duplicateKeepsUUIDShapedValues() throws
     {
