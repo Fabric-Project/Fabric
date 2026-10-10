@@ -137,6 +137,61 @@ struct EditUndoTests
         #expect(graph.notes.map(\.id) == [first.id])
     }
 
+    @Test("A parameter set through its control is one undo step per change, or per edit while one is in progress")
+    @MainActor
+    func parameterEditsUndo()
+    {
+        let parameter = FloatParameter("Amount", 1, 0, 10, .slider, "")
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        let model = ParameterObservableModel(label: parameter.label,
+                                             get: { parameter.value },
+                                             set: { parameter.value = $0 },
+                                             publisher: parameter.valuePublisher,
+                                             undoManager: undoManager,
+                                             undoTarget: parameter)
+
+        // A discrete change.
+        step(undoManager) { model.uiValue = 2 }
+        #expect(undoManager.undoActionName == "Change Amount")
+
+        // A drag: many changes, one step.
+        step(undoManager) {
+            model.setEditing(true)
+            model.uiValue = 3
+            model.uiValue = 4
+            model.uiValue = 5
+            model.setEditing(false)
+        }
+
+        undoManager.undo()
+        #expect(parameter.value == 2)
+        undoManager.undo()
+        #expect(parameter.value == 1)
+        #expect(!undoManager.canUndo)
+        undoManager.redo()
+        undoManager.redo()
+        #expect(parameter.value == 5)
+    }
+
+    @Test("A momentary control's changes are not undo steps")
+    @MainActor
+    func untargetedParameterEditsRegisterNothing()
+    {
+        let parameter = BoolParameter("Fire", false, .button, "")
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        let model = ParameterObservableModel(label: parameter.label,
+                                             get: { parameter.value },
+                                             set: { parameter.value = $0 },
+                                             publisher: parameter.valuePublisher,
+                                             undoManager: undoManager)
+
+        step(undoManager) { model.uiValue = true }
+        undoManager.undo()
+        #expect(parameter.value)
+    }
+
     @Test("Duplicating a node leaves a UUID-shaped string value as it is")
     func duplicateKeepsUUIDShapedValues() throws
     {

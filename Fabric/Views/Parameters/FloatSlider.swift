@@ -15,6 +15,8 @@ fileprivate struct SimpleFloatSlider: View
     @Binding var value:Float
     @Binding var min:Float
     @Binding var max:Float
+    /// True as a drag starts, false as it ends.
+    var onEditingChanged: (Bool) -> Void = { _ in }
     
     @State var sliderForegroundColor:Color = .black.opacity(0.25)
     @State var recorderForegroundColor:Color = .orange
@@ -59,6 +61,7 @@ fileprivate struct SimpleFloatSlider: View
                 .frame(width: sliderWidth, height: Self.sliderHeight)
                 .gesture(DragGesture(minimumDistance: 0)
                     .onChanged({ v in
+                        self.onEditingChanged(true)
                         let normalizedValue = Swift.min(Swift.max(0.0, Float(v.location.x / sliderWidth )), 1.0)
                         
                         self.value = remap(normalizedValue,
@@ -67,7 +70,9 @@ fileprivate struct SimpleFloatSlider: View
                                            self.min,
                                            self.max)
                     })
+                    .onEnded({ _ in self.onEditingChanged(false) })
                 )
+                .onDisappear { self.onEditingChanged(false) }
             }
             .cornerRadius(cornerRadius)
         }
@@ -82,12 +87,14 @@ struct FloatSlider: View, Equatable
     @Bindable var vmMin: ParameterObservableModel<Float>
     @Bindable var vmMax: ParameterObservableModel<Float>
 
-    init(param: FloatParameter)
+    init(param: FloatParameter, undoManager: UndoManager? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
-                                           publisher:param.valuePublisher )
+                                           publisher:param.valuePublisher,
+                                           undoManager: undoManager,
+                                           undoTarget: param)
         
         self.vmMin = ParameterObservableModel(label: param.label,
                                               get: { param.min },
@@ -102,7 +109,7 @@ struct FloatSlider: View, Equatable
     
     var body: some View
     {
-        SimpleFloatSlider(label: self.vm.label, value: self.$vm.uiValue, min: self.$vmMin.uiValue, max: self.$vmMax.uiValue)
+        SimpleFloatSlider(label: self.vm.label, value: self.$vm.uiValue, min: self.$vmMin.uiValue, max: self.$vmMax.uiValue, onEditingChanged: self.vm.setEditing)
     }
 }
 
@@ -115,12 +122,14 @@ struct Float2Slider: View, Equatable
     @Bindable var vmMin: ParameterObservableModel<simd_float2>
     @Bindable var vmMax: ParameterObservableModel<simd_float2>
 
-    init(param: Float2Parameter)
+    init(param: Float2Parameter, undoManager: UndoManager? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
-                                           publisher:param.valuePublisher )
+                                           publisher:param.valuePublisher,
+                                           undoManager: undoManager,
+                                           undoTarget: param)
         
         self.vmMin = ParameterObservableModel(label: param.label,
                                               get: { param.min },
@@ -138,8 +147,8 @@ struct Float2Slider: View, Equatable
        
         VStack
         {
-            SimpleFloatSlider(label: self.vm.label + "X", value: self.$vm.uiValue.x, min: self.$vmMin.uiValue.x, max: self.$vmMax.uiValue.x)
-            SimpleFloatSlider(label: self.vm.label + "Y", value: self.$vm.uiValue.y, min: self.$vmMin.uiValue.y, max: self.$vmMax.uiValue.y)
+            SimpleFloatSlider(label: self.vm.label + "X", value: self.$vm.uiValue.x, min: self.$vmMin.uiValue.x, max: self.$vmMax.uiValue.x, onEditingChanged: self.vm.setEditing)
+            SimpleFloatSlider(label: self.vm.label + "Y", value: self.$vm.uiValue.y, min: self.$vmMin.uiValue.y, max: self.$vmMax.uiValue.y, onEditingChanged: self.vm.setEditing)
 
         }
         .frame(height:50)
@@ -154,12 +163,14 @@ struct Float3Slider: View, Equatable
     @Bindable var vmMin: ParameterObservableModel<simd_float3>
     @Bindable var vmMax: ParameterObservableModel<simd_float3>
 
-    init(param: Float3Parameter)
+    init(param: Float3Parameter, undoManager: UndoManager? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
-                                           publisher:param.valuePublisher )
+                                           publisher:param.valuePublisher,
+                                           undoManager: undoManager,
+                                           undoTarget: param)
         
         self.vmMin = ParameterObservableModel(label: param.label,
                                               get: { param.min },
@@ -176,9 +187,9 @@ struct Float3Slider: View, Equatable
     {
         VStack
         {
-            SimpleFloatSlider(label: self.vm.label + "X", value: self.$vm.uiValue.x, min: self.$vmMin.uiValue.x, max: self.$vmMax.uiValue.x)
-            SimpleFloatSlider(label: self.vm.label + "Y", value: self.$vm.uiValue.y, min: self.$vmMin.uiValue.y, max: self.$vmMax.uiValue.y)
-            SimpleFloatSlider(label: self.vm.label + "Z", value: self.$vm.uiValue.z, min: self.$vmMin.uiValue.z, max: self.$vmMax.uiValue.z)
+            SimpleFloatSlider(label: self.vm.label + "X", value: self.$vm.uiValue.x, min: self.$vmMin.uiValue.x, max: self.$vmMax.uiValue.x, onEditingChanged: self.vm.setEditing)
+            SimpleFloatSlider(label: self.vm.label + "Y", value: self.$vm.uiValue.y, min: self.$vmMin.uiValue.y, max: self.$vmMax.uiValue.y, onEditingChanged: self.vm.setEditing)
+            SimpleFloatSlider(label: self.vm.label + "Z", value: self.$vm.uiValue.z, min: self.$vmMin.uiValue.z, max: self.$vmMax.uiValue.z, onEditingChanged: self.vm.setEditing)
         }
         .frame(height:80)
     }
@@ -192,12 +203,14 @@ struct Float4Slider: View, Equatable
     @Bindable var vmMin: ParameterObservableModel<simd_float4>
     @Bindable var vmMax: ParameterObservableModel<simd_float4>
 
-    init(param: Float4Parameter)
+    init(param: Float4Parameter, undoManager: UndoManager? = nil)
     {
         self.vm = ParameterObservableModel(label: param.label,
                                            get: { param.value },
                                            set: { param.value = $0 },
-                                           publisher:param.valuePublisher )
+                                           publisher:param.valuePublisher,
+                                           undoManager: undoManager,
+                                           undoTarget: param)
         
         self.vmMin = ParameterObservableModel(label: param.label,
                                               get: { param.min },
@@ -214,10 +227,10 @@ struct Float4Slider: View, Equatable
     {
         VStack
         {
-            SimpleFloatSlider(label: self.vm.label + "X", value: self.$vm.uiValue.x, min: self.$vmMin.uiValue.x, max: self.$vmMax.uiValue.x)
-            SimpleFloatSlider(label: self.vm.label + "Y", value: self.$vm.uiValue.y, min: self.$vmMin.uiValue.y, max: self.$vmMax.uiValue.y)
-            SimpleFloatSlider(label: self.vm.label + "Z", value: self.$vm.uiValue.z, min: self.$vmMin.uiValue.z, max: self.$vmMax.uiValue.z)
-            SimpleFloatSlider(label: self.vm.label + "W", value: self.$vm.uiValue.w, min: self.$vmMin.uiValue.w, max: self.$vmMax.uiValue.w)
+            SimpleFloatSlider(label: self.vm.label + "X", value: self.$vm.uiValue.x, min: self.$vmMin.uiValue.x, max: self.$vmMax.uiValue.x, onEditingChanged: self.vm.setEditing)
+            SimpleFloatSlider(label: self.vm.label + "Y", value: self.$vm.uiValue.y, min: self.$vmMin.uiValue.y, max: self.$vmMax.uiValue.y, onEditingChanged: self.vm.setEditing)
+            SimpleFloatSlider(label: self.vm.label + "Z", value: self.$vm.uiValue.z, min: self.$vmMin.uiValue.z, max: self.$vmMax.uiValue.z, onEditingChanged: self.vm.setEditing)
+            SimpleFloatSlider(label: self.vm.label + "W", value: self.$vm.uiValue.w, min: self.$vmMin.uiValue.w, max: self.$vmMax.uiValue.w, onEditingChanged: self.vm.setEditing)
         }
         .frame(height:100)
     }

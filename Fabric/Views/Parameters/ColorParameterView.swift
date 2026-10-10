@@ -17,13 +17,16 @@ struct Color4ParameterView: View, Equatable
 
     @State var color = Color.white
     
-    init(parameter: Float4Parameter)
+    init(parameter: Float4Parameter, undoManager: UndoManager? = nil)
     {
         
         self.vm = ParameterObservableModel(label: parameter.label,
                                            get: { parameter.value },
                                            set: { parameter.value = $0 },
-                                           publisher:parameter.valuePublisher )
+                                           publisher:parameter.valuePublisher,
+                                           undoManager: undoManager,
+                                           undoTarget: parameter,
+                                           commit: .afterPause)
     
     }
     
@@ -48,6 +51,8 @@ struct Color4ParameterView: View, Equatable
             ColorPicker(selection: binding, supportsOpacity: true) {
             }
             .labelsHidden()
+            // A pause not yet over when the panel goes ends the edit there.
+            .onDisappear { vm.setEditing(false) }
             .frame(width: ParameterConfig.paramWidth, alignment: .leading)
         }
     }
@@ -59,12 +64,15 @@ struct Color3ParameterView: View, Equatable
     
     @Bindable var vm: ParameterObservableModel<simd_float3>
 
-    init(parameter: Float3Parameter)
+    init(parameter: Float3Parameter, undoManager: UndoManager? = nil)
     {
         self.vm = ParameterObservableModel(label: parameter.label,
                                            get: { parameter.value },
                                            set: { parameter.value = $0 },
-                                           publisher:parameter.valuePublisher )
+                                           publisher:parameter.valuePublisher,
+                                           undoManager: undoManager,
+                                           undoTarget: parameter,
+                                           commit: .afterPause)
     }
     
     var body: some View {
@@ -88,6 +96,8 @@ struct Color3ParameterView: View, Equatable
             ColorPicker(selection: binding, supportsOpacity: false) {
             }
             .labelsHidden()
+            // A pause not yet over when the panel goes ends the edit there.
+            .onDisappear { vm.setEditing(false) }
             .frame(width: ParameterConfig.paramWidth, alignment: .leading)
         }
     }
