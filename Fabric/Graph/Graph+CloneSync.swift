@@ -52,7 +52,13 @@ extension Graph
 
         for sibling in self.cloneSiblings(of: member)
         {
-            do { try sibling.reinstantiateSubGraph() }
+            do
+            {
+                try sibling.reinstantiateSubGraph()
+                // An unpublish takes the proxy from the sibling, but not the
+                // parent's wires onto it.
+                _ = sibling.graph?.pruneDanglingConnections()
+            }
             catch { print("Clone set sync: \(sibling) not re-instantiated from \(member): \(error.localizedDescription)") }
         }
     }
