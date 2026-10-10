@@ -381,14 +381,15 @@ extension CloneSetTests
         #expect(!pair.graph.connections.contains { $0 === wire })
         #expect(upstream.outputNumber.connections.isEmpty)
 
-        // A member's proxies carry ids of their own, so the one that comes
-        // back could never have been bound to the wire that named the old.
+        // The proxy that comes back keeps its id, but not the wire, which
+        // unpublishing took.
         pair.target.setPublished(true, on: inner.inputNumber1)
         let rebuilt = try #require(pair.sibling.ports.first {
             ($0 as? any ProxyPortProtocol)?.innerPortID == inner.inputNumber1.id
         })
-        #expect(rebuilt.id != proxy.id)
+        #expect(rebuilt.id == proxy.id)
         #expect(rebuilt.connections.isEmpty)
+        #expect(upstream.outputNumber.connections.isEmpty)
     }
 
     @Test("A set that would contain one of its own members drops that member with a diagnostic rather than decoding without end")

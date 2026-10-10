@@ -121,6 +121,13 @@ open class SubgraphNode: BaseObjectNode
     /// around a rebuild that replaces every proxy. See replaceSubGraph.
     private var reusableProxyIdentities: [UUID: ProxyIdentity] = [:]
 
+    /// The id each proxy this node has made had, by inner port id. A proxy
+    /// made again over the same port, as when the port is replaced or undo
+    /// brings it back, takes it, so the parent's wires find it by id: a
+    /// member's proxies made before it joined its set have their inner
+    /// ports' ids, not the ids it would give them now.
+    private var proxyIDsByInnerPortID: [UUID: UUID] = [:]
+
     /// The renderer this node last started or enabled under, so a sub graph
     /// it retires can be stopped through it before it is released.
     private weak var lifecycleRenderer: GraphRenderer?
@@ -141,6 +148,11 @@ open class SubgraphNode: BaseObjectNode
 
         let innerPorts = self.subGraph.getPublishedPorts()
         let publishedByID = Dictionary(innerPorts.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        for proxy in self.proxyPorts
+        {
+            guard let typed = proxy as? any ProxyPortProtocol else { continue }
+            self.proxyIDsByInnerPortID[typed.innerPortID] = proxy.id
+        }
 
         // Remove proxies whose inner port is no longer published, or was
         // replaced under its id: the proxy forwards to the port it was made
@@ -171,7 +183,8 @@ open class SubgraphNode: BaseObjectNode
         for innerPort in innerPorts where !existingInnerIDs.contains(innerPort.id)
         {
             let identity = self.reusableProxyIdentities[innerPort.id]
-            let proxyID = identity?.id ?? (self.cloneSetID == nil ? nil : self.memberProxyID(for: innerPort.id))
+            let proxyID = identity?.id ?? self.proxyIDsByInnerPortID[innerPort.id]
+                ?? (self.cloneSetID == nil ? nil : self.memberProxyID(for: innerPort.id))
             if let proxy = Self.makeProxy(for: innerPort, id: proxyID)
             {
                 proxy.node = self
