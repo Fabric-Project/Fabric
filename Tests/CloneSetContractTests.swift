@@ -1322,6 +1322,76 @@ extension CloneSetContractTests
         #expect(pair.counterpart(of: expression)?.stringExpression == "cos(x) + y")
     }
 
+    @Test("A settings change in one member changes what its sibling computes, through the sibling's own ports")
+    @MainActor
+    func settingsChangeReachesWhatTheSiblingComputes() throws
+    {
+        guard let context = makeContext() else { return }
+        let graph = Graph(context: context)
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        graph.undoManager = undoManager
+        func step(_ body: () throws -> Void) rethrows
+        {
+            undoManager.beginUndoGrouping()
+            defer { undoManager.endUndoGrouping() }
+            try body()
+        }
+
+        // Each member computes x from the same upstream, published both ways.
+        let member = SubgraphNode(context: context)
+        let expression = MathExpressionNode(context: context, expression: "x")
+        try step {
+            graph.addNode(member)
+            member.subGraph.undoManager = undoManager
+            member.subGraph.addNode(expression)
+            member.subGraph.setPublished(true, on: try #require(expression.inputPorts().first))
+            member.subGraph.setPublished(true, on: try #require(expression.outputPorts().first))
+        }
+        var sibling: SubgraphNode?
+        try step { sibling = try graph.duplicateAsClone(member) }
+        let members = [member, try #require(sibling)]
+
+        let upstream = NumberBinaryOperator(context: context)
+        let readers = members.map { _ in NumberBinaryOperator(context: context) }
+        try step {
+            graph.addNode(upstream)
+            for (member, reader) in zip(members, readers)
+            {
+                graph.addNode(reader)
+                let inlet = try #require(member.inputPorts().first)
+                let outlet = try #require(member.outputPorts().first)
+                #expect(graph.connect(upstream.outputNumber, to: inlet) != nil)
+                #expect(graph.connect(outlet, to: reader.inputNumber1) != nil)
+            }
+        }
+        upstream.inputNumber1.value = 2
+
+        let renderer = GraphRenderer(context: context, graph: graph)
+        try renderer.startExecution()
+        defer { try? renderer.stopExecution() }
+        func frame(_ number: Int) throws
+        {
+            let info = GraphExecutionInfo(timing: GraphExecutionTiming(time: Double(number) / 60, deltaTime: 1.0 / 60.0, displayTime: 0,
+                                                                       systemTime: 0, hostMediaTime: 0, frameNumber: number))
+            let commandBuffer = try #require(renderer.commandQueue.makeCommandBuffer())
+            try renderer.execute(graph: graph, executionInfo: info, renderPassDescriptor: MTLRenderPassDescriptor(),
+                                 commandBuffer: commandBuffer, forceEvaluationForTheseNodes: readers)
+        }
+        try frame(1)
+        #expect(readers.map(\.outputNumber.value) == [2, 2])
+
+        let session = NodeSettingsSession(node: expression)
+        expression.stringExpression = "x * 0.5"
+        session.end()
+        try frame(2)
+        #expect(readers.map(\.outputNumber.value) == [1, 1])
+
+        upstream.inputNumber1.value = 4
+        try frame(3)
+        #expect(readers.map(\.outputNumber.value) == [2, 2])
+    }
+
     @Test("Unlinking a member nested inside a member reaches the siblings")
     @MainActor
     func nestedMembershipChangeSyncs() throws
