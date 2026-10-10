@@ -495,4 +495,154 @@ extension CloneSetTests
         #expect(told)
         #expect(canvas.currentGraph.undoManager === pair.undoManager)
     }
+
+    // MARK: - Undo across re-instantiation
+
+    /// Makes `body` one undo group of its own, as the editor's event loop
+    /// does, the group's close syncing the sets around the edit.
+    private func edit(_ undoManager: UndoManager, _ body: () throws -> Void) rethrows
+    {
+        undoManager.groupsByEvent = false
+        while undoManager.groupingLevel > 0 { undoManager.endUndoGrouping() }
+        undoManager.beginUndoGrouping()
+        defer { undoManager.endUndoGrouping() }
+        try body()
+    }
+
+    /// Every member in the document names a set the document holds.
+    private func everyMemberHasItsSet(_ graph: Graph) -> Bool
+    {
+        graph.subgraphNodesRecursive().allSatisfy { member in
+            member.cloneSetID.map { graph.cloneSet(for: $0) != nil } ?? true
+        }
+    }
+
+    @Test("A value set in the inspector on a nested member's published inlet undoes after a sync has re-instantiated the member around it")
+    @MainActor
+    func nestedMemberValueUndoSurvivesReinstantiation() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        edit(pair.undoManager) { _ = try? pair.source.duplicateAsClone(pair.member.nested) }
+        let nested = try #require(pair.member.member.subGraph.node(forID: pair.member.nested.id) as? SubgraphNode)
+        let inner = try #require(nested.subGraph.node(forID: pair.member.nestedInner.id) as? NumberBinaryOperator)
+        edit(pair.undoManager) { nested.subGraph.setPublished(true, on: inner.inputNumber2) }
+
+        // The inspector of the outer member's graph shows the nested member's knob.
+        let liveNested = try #require(pair.member.member.subGraph.node(forID: pair.member.nested.id) as? SubgraphNode)
+        let proxy = try #require(liveNested.ports.first { ($0 as? any ProxyPortProtocol)?.innerPortID == inner.inputNumber2.id })
+        let parameter = try #require(proxy.parameter as? GenericParameter<Float>)
+        let before = parameter.value
+        edit(pair.undoManager) {
+            parameter.value = 0.25
+            pair.member.member.subGraph.registerValueChange(of: parameter, from: before, label: "Number B")
+        }
+        edit(pair.undoManager) { pair.target.addNode(NumberBinaryOperator(context: context)) }   // re-instantiates A
+
+        pair.undoManager.undo()
+        pair.undoManager.undo()
+        let liveInner = try #require(pair.member.member.subGraph.nodesRecursive().first { $0.id == inner.id } as? NumberBinaryOperator)
+        #expect(liveInner.inputNumber2.value == before)
+    }
+
+    @Test("Undoing Duplicate as Clone nested inside a member, after a sync has re-instantiated it, unlinks the live source and leaves no member without its set")
+    @MainActor
+    func nestedDuplicateUndoSurvivesReinstantiation() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let nestedID = pair.member.nested.id
+        edit(pair.undoManager) { _ = try? pair.source.duplicateAsClone(pair.member.nested) }
+        edit(pair.undoManager) { pair.target.addNode(NumberBinaryOperator(context: context)) }   // re-instantiates A
+
+        pair.undoManager.undo()                                                                   // B's edit
+        pair.undoManager.undo()                                                                   // the duplicate
+        let liveNested = try #require(pair.member.member.subGraph.node(forID: nestedID) as? SubgraphNode)
+        #expect(liveNested.cloneSetID == nil)
+        #expect(pair.member.member.subGraph.nodes.count == 3)
+        #expect(everyMemberHasItsSet(pair.graph))
+
+        pair.undoManager.redo()
+        #expect(pair.member.member.subGraph.nodes.count == 4)
+        #expect(everyMemberHasItsSet(pair.graph))
+    }
+
+    @Test("A member's own published value set from the parent's inspector undoes after a sync has re-instantiated the member")
+    @MainActor
+    func ownValueFromParentUndoSurvivesReinstantiation() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let firstID = pair.member.first.id
+        let proxy = try #require(pair.member.member.ports.first { ($0 as? any ProxyPortProtocol)?.innerPortID == pair.member.first.inputNumber1.id })
+        let parameter = try #require(proxy.parameter as? GenericParameter<Float>)
+        let before = parameter.value
+
+        edit(pair.undoManager) {
+            parameter.value = 5
+            pair.graph.registerValueChange(of: parameter, from: before, label: "Amount")
+        }
+        edit(pair.undoManager) { pair.target.addNode(NumberBinaryOperator(context: context)) }   // re-instantiates A
+        let reinstantiated = try #require(pair.member.member.subGraph.node(forID: firstID) as? NumberBinaryOperator)
+        #expect(reinstantiated.inputNumber1.value == 5, "the member keeps its own value through the sync")
+
+        pair.undoManager.undo()
+        pair.undoManager.undo()
+        let live = try #require(pair.member.member.subGraph.node(forID: firstID) as? NumberBinaryOperator)
+        #expect(live.inputNumber1.value == before)
+    }
+
+    @Test("A step made in a sub graph before it joined a set acts on the live instance after a sync has re-instantiated it")
+    @MainActor
+    func stepFromBeforeMembershipActsOnTheLiveInstance() throws
+    {
+        guard let context = makeContext() else { return }
+        let graph = Graph(context: context)
+        let plain = SubgraphNode(context: context)
+        graph.addNode(plain)
+        let undoManager = UndoManager()
+        graph.undoManager = undoManager
+        plain.subGraph.undoManager = undoManager
+
+        let added = NumberBinaryOperator(context: context)
+        edit(undoManager) { plain.subGraph.addNode(added) }
+        var copy: SubgraphNode?
+        edit(undoManager) { copy = try? graph.duplicateAsClone(plain) }
+        let sibling = try #require(copy)
+        edit(undoManager) { sibling.subGraph.addNode(NumberBinaryOperator(context: context)) }   // re-instantiates the source
+
+        undoManager.undo()
+        undoManager.undo()
+        undoManager.undo()
+        let live = try #require(graph.node(forID: plain.id) as? SubgraphNode)
+        #expect(!live.subGraph.nodes.contains { $0.id == added.id })
+        #expect(live.subGraph.nodes.isEmpty)
+    }
+
+    @Test("A sub graph a sync retires is released, with its nodes, once the renderer next plans")
+    @MainActor
+    func retiredSubGraphIsReleased() throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let pair = try makePair(context: harness.context)
+        try harness.graphRenderer(for: pair.graph).startExecution()
+        try harness.execute(pair.graph, frameNumber: 0)
+        try harness.execute(pair.graph, frameNumber: 1)
+
+        weak var retiredGraph: Graph?
+        weak var retiredNode: Node?
+        do
+        {
+            retiredGraph = pair.sibling.subGraph
+            retiredNode = pair.sibling.subGraph.nodes.first
+            pair.source.addNode(NumberBinaryOperator(context: harness.context))
+            pair.graph.syncCloneSets(editedIn: pair.source)
+        }
+        for frame in 2..<5 { try harness.execute(pair.graph, frameNumber: frame) }
+        pair.graph.addNode(NumberBinaryOperator(context: harness.context))
+        try harness.execute(pair.graph, frameNumber: 5)
+
+        #expect(retiredGraph == nil)
+        #expect(retiredNode == nil)
+    }
 }
