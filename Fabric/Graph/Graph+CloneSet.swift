@@ -579,7 +579,8 @@ extension Graph
 
         node.setCloneMembership(setID: setID)
 
-        self.registerUndo(on: node) { node in
+        // The step is the node's graph's: a nested member is found there.
+        (node.graph ?? self).registerUndo(on: node) { node in
             guard let graph = node.graph else { return }
             graph.setCloneMembership(setID: previousID, on: node)
             graph.cloneSetMembershipChanged(setID: previousID)
