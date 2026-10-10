@@ -1406,6 +1406,50 @@ extension CloneSetContractTests
 
 extension CloneSetContractTests
 {
+    @Test("A document saved with a member inside a member of its own set opens with the inner one unlinked")
+    @MainActor
+    func selfNestedDocumentOpensUnlinked() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let setID = try #require(pair.member.member.cloneSetID)
+        let nestedID = pair.member.nested.id
+
+        // No edit can make such a document now, so write one: the member's
+        // plain nested subgraph, wherever the document holds it, saved as a
+        // member of the member's own set.
+        var object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(pair.graph))
+        var marked = 0
+        func mark(_ value: inout Any)
+        {
+            if var dictionary = value as? [String: Any]
+            {
+                if dictionary["id"] as? String == nestedID.uuidString, dictionary["nodeOffset"] != nil
+                {
+                    dictionary["cloneSetID"] = setID.uuidString
+                    marked += 1
+                }
+                for key in dictionary.keys { mark(&dictionary[key]!) }
+                value = dictionary
+            }
+            else if var array = value as? [Any]
+            {
+                for index in array.indices { mark(&array[index]) }
+                value = array
+            }
+        }
+        mark(&object)
+        #expect(marked >= 1)
+
+        let opened = try decode(JSONSerialization.data(withJSONObject: object), context: context)
+        let members = opened.cloneSetMembers(of: setID)
+        #expect(members.map(\.id) == [pair.member.member.id, pair.sibling.id])
+        for member in members
+        {
+            #expect(member.subGraph.subgraphNodesRecursive().allSatisfy { $0.cloneSetID == nil })
+        }
+    }
+
     @Test("A saved document holds each member whole, its own values with it, and loads it back")
     @MainActor
     func membersSaveAndLoad() throws

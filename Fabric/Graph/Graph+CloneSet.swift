@@ -608,23 +608,35 @@ extension Graph
         self.cloneSetMembershipChanged(around: node)
     }
 
-    /// A set cannot contain itself. A member of a set arriving in this graph
-    /// while this graph already sits inside a member of the same set is
-    /// unlinked, and so is any such member nested in what arrived.
+    /// A set cannot contain itself. A member arriving in this graph is
+    /// unlinked where a member of the same set encloses it, whether around
+    /// this graph or in what arrived with it, and so is every member nested in
+    /// what arrived that the same holds for. A document opening is caught here
+    /// too: each graph is decoded before the member around it, so the members
+    /// around a graph are checked as that member arrives.
     private func unlinkMembersNestedInTheirOwnSet(in node: Node)
     {
-        let enclosingSetIDs = Set(self.enclosingCloneMembers.compactMap(\.cloneSetID))
-        guard !enclosingSetIDs.isEmpty else { return }
+        self.unlinkMembers(in: node, enclosedBy: Set(self.enclosingCloneMembers.compactMap(\.cloneSetID)))
+    }
 
-        let arriving = ([node] + ((node as? SubgraphNode)?.subGraph.nodesRecursive() ?? []))
-            .compactMap { $0 as? SubgraphNode }
-        for member in arriving
+    private func unlinkMembers(in node: Node, enclosedBy enclosingSetIDs: Set<UUID>)
+    {
+        guard let member = node as? SubgraphNode else { return }
+        var enclosingSetIDs = enclosingSetIDs
+        if let setID = member.cloneSetID
         {
-            guard let setID = member.cloneSetID, enclosingSetIDs.contains(setID) else { continue }
-            print("Graph: unlinking \(member) — a clone set cannot contain one of its own members")
+            if enclosingSetIDs.contains(setID)
+            {
+                print("Graph: unlinking \(member) — a clone set cannot contain one of its own members")
             member.setCloneMembership(setID: nil)
-            self.cloneSetMembershipChanged(setID: setID)
+                self.cloneSetMembershipChanged(setID: setID)
+            }
+            else
+            {
+                enclosingSetIDs.insert(setID)
+            }
         }
+        for inner in member.subGraph.nodes { self.unlinkMembers(in: inner, enclosedBy: enclosingSetIDs) }
     }
 
     /// `node`, where it is a member, and every member nested in it.
