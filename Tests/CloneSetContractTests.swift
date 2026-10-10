@@ -1631,6 +1631,28 @@ extension CloneSetContractTests
         #expect(entries.allSatisfy { $0["subGraph"] == nil })
     }
 
+    @Test("The design rule finds a member's own and driven inlets in its encoding, so a change to how ports encode fails here")
+    @MainActor
+    func designRuleReadsTheEncoding() throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = try makeMemberFixture(context: context)
+        // A knob two levels down, published on to the member's edge.
+        fixture.nestedInner.inputNumber1.published = true
+        fixture.nested.subGraph.rebuildPublishedParameterGroup()
+        try #require(proxy(in: fixture.nested, over: fixture.nestedInner.inputNumber1)).published = true
+        fixture.member.subGraph.rebuildPublishedParameterGroup()
+
+        let object = try #require(CloneSet.jsonObject(from: try JSONEncoder().encode(fixture.member.subGraph)))
+        let inlets = Graph.nonDesignInlets(inGraph: object).inlets
+        #expect(inlets[fixture.first.inputNumber1.id.uuidString] == .memberOwn)
+        #expect(inlets[fixture.second.inputNumber1.id.uuidString] == .driven)
+        #expect(inlets[fixture.nested.id.uuidString + "/" + fixture.nestedInner.inputNumber1.id.uuidString] == .memberOwn)
+        #expect(inlets.count == 3)
+        #expect(Set(fixture.member.subGraph.memberOwnInlets().values.map(\.id))
+            == [fixture.first.inputNumber1.id, fixture.nestedInner.inputNumber1.id])
+    }
+
     @Test("Values arriving over wires inside a member are not design, so members whose wired values differ still save compactly")
     @MainActor
     func wiredValuesDoNotStopCompaction() throws
