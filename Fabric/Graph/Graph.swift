@@ -760,7 +760,8 @@ internal import AnyCodable
         guard let savedIndex = nodes.firstIndex(where: { $0 === node }) else { return }
 
         let savedOffset = node.offset
-        // The proxies standing for its published ports go with it.
+        // The proxies standing for its published ports go with it, and the
+        // wires onto them up the chain, as when a port is unpublished.
         let savedChains = node.ports.filter(\.published).map { ($0.id, self.proxyChainState(standingFor: $0)) }
         let nodePortIDs = Set(node.ports.map(\.id))
         let savedConnections = connections.filter {
@@ -773,6 +774,9 @@ internal import AnyCodable
             {
                 for connection in savedConnections {
                     self.disconnect(connection)
+                }
+                for (portID, _) in savedChains {
+                    node.ports.first { $0.id == portID }.map(self.disconnectProxyChain(standingFor:))
                 }
             }
 

@@ -299,7 +299,7 @@ struct UndoTargetTests
         #expect(graph.nodes.map(\.id) == nodes.map(\.id))
     }
 
-    @Test("Undoing a delete puts back the publishing and wires at every level its ports were published up to")
+    @Test("Deleting a node takes the wires at every level its ports are published up to, and undo puts each level back")
     func deleteUndoRestoresTheWholeChain() throws
     {
         guard let context = makeContext() else { return }
@@ -310,6 +310,7 @@ struct UndoTargetTests
 
         step(undoManager) { levels.inner.subGraph.delete(node: levels.node) }
         #expect(!levels.outer.ports.contains { $0.id == port.id })
+        #expect(levels.graph.connections.isEmpty, "no wire is left naming the proxy that went")
 
         undoManager.undo()
         let middle = try #require(levels.inner.ports.first { $0.id == port.id })
