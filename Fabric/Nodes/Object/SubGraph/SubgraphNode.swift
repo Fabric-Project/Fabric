@@ -500,6 +500,7 @@ open class SubgraphNode: BaseObjectNode
         self.rebindProxyPorts()
         parent?.nodeObjectDidChange(self)
         parent?.updateCameraSelection()
+        parent?.rootGraph.subGraphReplacementCount += 1
 
         self.markDirty()
     }

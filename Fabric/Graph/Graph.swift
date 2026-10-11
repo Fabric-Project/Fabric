@@ -57,10 +57,10 @@ internal import AnyCodable
     /// Members refer to a set by SubgraphNode.cloneSetID. A set no member
     /// refers to any more is dropped on save.
     public private(set) var cloneSets: [CloneSet] = []
-    /// Counts the clone set syncs the root graph has run, observably: a view
-    /// standing inside a member reads it, since a sync can change what is
-    /// there without any property the view already reads changing.
-    public internal(set) var cloneSyncCount = 0
+    /// Counts the sub graphs replaced anywhere in the document, observably:
+    /// SubgraphNode.subGraph is not, so a view standing inside a member reads
+    /// this to follow a sync, or an undo of one, that replaced what it shows.
+    public internal(set) var subGraphReplacementCount = 0
     /// Clone sets the document holds that could not be read, kept as saved
     /// and written back with the others.
     @ObservationIgnored private var unreadableCloneSets: [AnyCodable] = []

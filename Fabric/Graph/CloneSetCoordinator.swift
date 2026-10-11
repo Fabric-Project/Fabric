@@ -97,7 +97,6 @@ final class CloneSetCoordinator
             guard let graph = source.member.graph, graph.rootGraph === rootGraph else { continue }
             graph.syncCloneSiblings(of: source.member)
         }
-        if !sourceBySetID.isEmpty { rootGraph.cloneSyncCount += 1 }
     }
 }
 

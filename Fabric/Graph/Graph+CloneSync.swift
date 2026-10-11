@@ -168,9 +168,6 @@ extension Graph
             guard let port = instance.nodePort(forID: innerPortID) else { continue }
             instance.restoreProxyChain(standingFor: port, to: chain)
         }
-
-        // As a sync does: a canvas inside the member follows the replacement.
-        self.rootGraph.cloneSyncCount += 1
     }
 
     /// Drops dangling wires in this graph and every graph around it.
