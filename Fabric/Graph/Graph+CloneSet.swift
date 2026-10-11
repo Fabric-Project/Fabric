@@ -527,8 +527,12 @@ extension Graph
             throw recoverableGraphError(.notACloneMember, message: "\(node) is not in a clone set.")
         }
 
+        // A nested set parts with this member only where its other members
+        // are inside the siblings left: linked through the set left, they
+        // part with it. One with members elsewhere, or none, keeps its links.
         let nestedMembers = node.subGraph.subgraphNodesRecursive().filter { $0.cloneSetID != nil }
-        let nestedSetIDs = Set(nestedMembers.compactMap(\.cloneSetID))
+        let siblingSetIDs = Set(self.cloneSiblings(of: node).flatMap { $0.subGraph.subgraphNodesRecursive() }.compactMap(\.cloneSetID))
+        let nestedSetIDs = Set(nestedMembers.compactMap(\.cloneSetID)).intersection(siblingSetIDs)
         var claimedNames = Set<String>()
         var detachedSets: [UUID: CloneSet] = [:]
         for nestedSetID in nestedSetIDs.sorted(by: { $0.uuidString < $1.uuidString })
@@ -599,8 +603,10 @@ extension Graph
     internal func cloneSetMembershipChanged(setID: UUID?)
     {
         guard let setID else { return }
-        for member in self.cloneSetMembers(of: setID)
+        let members = self.cloneSetMembers(of: setID)
+        for member in members
         {
+            member.cloneMemberCount = members.count
             member.subtitleSubject.send()
         }
     }

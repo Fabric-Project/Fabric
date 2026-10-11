@@ -69,7 +69,10 @@ public final class CloneSet: Codable, Identifiable
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decode(UUID.self, forKey: .id)
         self.name = try container.decode(String.self, forKey: .name)
-        let graph = try container.decode(AnyCodable.self, forKey: .graph).value as? [String: Any] ?? [:]
+        guard let graph = try container.decode(AnyCodable.self, forKey: .graph).value as? [String: Any] else
+        {
+            throw DecodingError.dataCorruptedError(forKey: .graph, in: container, debugDescription: "The stored graph is not an object.")
+        }
         self.graphJSON = Self.canonicalJSON(graph)
         self.comparableGraphJSON = Graph.designComparableJSON(self.graphJSON)
     }

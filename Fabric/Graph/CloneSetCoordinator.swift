@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import os
 
 /// Keeps a document's clone sets in step; owned by the root graph. Every edit
 /// registers its undo step through the graph it was made in (see
@@ -16,6 +17,8 @@ import Foundation
 /// nothing.
 final class CloneSetCoordinator
 {
+    private static let logger = Logger(subsystem: "graphics.fabric", category: "CloneSetCoordinator")
+
     /// Set while a sync runs, so the writes it makes are never taken for edits.
     var isSyncing = false
 
@@ -58,14 +61,19 @@ final class CloneSetCoordinator
     }
 
     /// An edit was made in `graph`. Only one inside a member can need a sync,
-    /// and none made by a sync or replayed by undo or redo, or off the main
-    /// thread, where a graph is being built or decoded rather than edited.
+    /// and none made by a sync or replayed by undo or redo. Sets sync on the
+    /// main thread alone; an edit made off it is noted in the log, not here.
     func noteEdit(in graph: Graph)
     {
-        guard Thread.isMainThread, !isSyncing,
+        guard !isSyncing,
               undoManager?.isUndoing != true, undoManager?.isRedoing != true,
               !graph.enclosingCloneMembers.isEmpty
         else { return }
+        guard Thread.isMainThread else
+        {
+            Self.logger.notice("An edit in a clone member made off the main thread reaches no sibling; sync it from the main thread with syncCloneSets(editedIn:).")
+            return
+        }
         editedGraphs.removeAll { $0 === graph }
         editedGraphs.append(graph)
     }
@@ -76,7 +84,12 @@ final class CloneSetCoordinator
     /// takes the later edit.
     func sync()
     {
-        guard Thread.isMainThread, !isSyncing, let rootGraph else { return }
+        guard Thread.isMainThread else
+        {
+            Self.logger.notice("Clone sets sync on the main thread alone; a sync asked for off it does nothing.")
+            return
+        }
+        guard !isSyncing, let rootGraph else { return }
         let edited = editedGraphs
         editedGraphs.removeAll()
 

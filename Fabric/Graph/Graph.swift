@@ -2101,9 +2101,14 @@ internal import AnyCodable
     /// through `remap`: the copy step duplication, paste and clone syncs share.
     internal func decodeNode(from data: Data, remap: [String: String], preservingKeys: Set<String> = []) -> Node?
     {
-        guard let rewritten = Self.rewriteUUIDs(in: data, remap: remap, preservingKeys: preservingKeys),
-              let map = try? JSONDecoder().decode(AnyCodableMap.self, from: rewritten)
-        else { return nil }
+        guard let rewritten = Self.rewriteUUIDs(in: data, remap: remap, preservingKeys: preservingKeys) else { return nil }
+        let map: AnyCodableMap
+        do { map = try JSONDecoder().decode(AnyCodableMap.self, from: rewritten) }
+        catch
+        {
+            print("Graph: a rewritten node could not be read: \(error)")
+            return nil
+        }
         return self.decodeNode(from: map)
     }
 

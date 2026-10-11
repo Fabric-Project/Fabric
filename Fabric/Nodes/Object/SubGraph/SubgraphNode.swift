@@ -45,8 +45,13 @@ open class SubgraphNode: BaseObjectNode
         else { return nil }
         return CloneSetInfo(setID: setID,
                             name: set.name,
-                            memberCount: graph.cloneSiblings(of: self).count + 1)
+                            memberCount: self.cloneMemberCount)
     }
+
+    /// How many members the set has, as of the last membership change
+    /// (Graph.cloneSetMembershipChanged): the badge and status read the
+    /// count on every refresh, and counting is a walk of the document.
+    internal var cloneMemberCount = 1
 
     /// A member describes itself by its set's name, the way a Strategy node
     /// shows its strategy. The member count lives in the status's message.
@@ -485,6 +490,9 @@ open class SubgraphNode: BaseObjectNode
         self.rebindProxyPorts()
         parent?.nodeObjectDidChange(self)
         parent?.updateCameraSelection()
+        // The instance's nested members arrived outside the document, where
+        // their sets looked like sets of one.
+        parent?.cloneSetMembershipChanged(around: self)
         parent?.rootGraph.subGraphReplacementCount += 1
 
         self.markDirty()

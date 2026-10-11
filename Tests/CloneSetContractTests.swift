@@ -440,6 +440,29 @@ extension CloneSetContractTests
         #expect(fixture.graph.cloneSet(for: detachedSetID) != nil)
     }
 
+    @Test("Unlinking the last member of a set leaves the nested sets inside it linked")
+    func unlinkKeepsNestedSetsLinkedElsewhere() throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = try makeMemberFixture(context: context)
+        let nestedSibling = try fixture.member.subGraph.duplicateAsClone(fixture.nested)
+        let nestedSetID = try #require(fixture.nested.cloneSetID)
+        let sibling = try fixture.graph.duplicateAsClone(fixture.member)
+        #expect(fixture.graph.cloneSetMembers(of: nestedSetID).count == 4)
+
+        // The sibling's nested members part with the set, linked to the
+        // member's through the set left; the member's keep theirs, once no
+        // sibling holds a counterpart of them.
+        try fixture.graph.unlinkClone(sibling)
+        let setCount = fixture.graph.cloneSets.count
+        try fixture.graph.unlinkClone(fixture.member)
+
+        #expect(fixture.member.cloneSetID == nil)
+        #expect(fixture.graph.cloneSets.count == setCount)
+        #expect(Set(fixture.graph.cloneSetMembers(of: nestedSetID).map(\.id)) == [fixture.nested.id, nestedSibling.id])
+        #expect(fixture.nested.cloneSetID == nestedSetID)
+    }
+
     @Test("A set with no members left is dropped on save")
     func emptySetsAreDropped() throws
     {
@@ -2269,6 +2292,31 @@ extension CloneSetContractTests
         let repaired = try decode(try JSONSerialization.data(withJSONObject: resaved), context: context)
         #expect(repaired.cloneSet(for: setID) != nil)
         #expect(repaired.cloneSetMembers(of: setID).count == 2)
+    }
+
+    @Test("A set whose stored design is not an object cannot be read, and is written back as it was saved")
+    @MainActor
+    func nonObjectDesignIsUnreadable() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let setID = try #require(pair.member.member.cloneSetID)
+        var object = try #require(JSONSerialization.jsonObject(with: try save(pair.graph)) as? [String: Any])
+        var sets = try #require(object["cloneSets"] as? [[String: Any]])
+        // The design's key is the model's own.
+        let designKey = try #require(["graph", "template"].first { sets[0][$0] != nil })
+        sets[0][designKey] = "not a design"
+        object["cloneSets"] = sets
+
+        let opened = try decode(try JSONSerialization.data(withJSONObject: object), context: context)
+        #expect(opened.cloneSet(for: setID) == nil)
+        let openedSibling = try #require(opened.node(forID: pair.sibling.id) as? SubgraphNode)
+        #expect(openedSibling.subGraph.nodes.count == 3)
+
+        let resaved = try #require(JSONSerialization.jsonObject(with: try JSONEncoder().encode(opened)) as? [String: Any])
+        let resavedSets = try #require(resaved["cloneSets"] as? [[String: Any]])
+        #expect(resavedSets.count == 1)
+        #expect(resavedSets.first?[designKey] as? String == "not a design")
     }
 
     @Test("A member brought back by undo is in step with its set, the edits made while it was gone undone first")
