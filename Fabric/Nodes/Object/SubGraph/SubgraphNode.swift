@@ -75,6 +75,27 @@ open class SubgraphNode: BaseObjectNode
 
     override open var ports:[Port] { self.proxyPorts + super.ports }
 
+    /// Makes the proxies over the inner ports `ids` names again under the
+    /// ids it gives, where they stand under others: a clone set member's
+    /// proxies take ids of their own, and every instance of the member holds
+    /// them under the same ones, those its set's stored graph has. The
+    /// parent's wires onto a proxy made again are the parent's to bind.
+    internal func remakeProxies(withIDs ids: [UUID: UUID])
+    {
+        let stale = self.proxyPorts.filter { proxy in
+            guard let typed = proxy as? any ProxyPortProtocol, let id = ids[typed.innerPortID] else { return false }
+            return proxy.id != id
+        }
+        guard !stale.isEmpty else { return }
+        for proxy in stale
+        {
+            guard let typed = proxy as? any ProxyPortProtocol else { continue }
+            self.proxyIDsByInnerPortID[typed.innerPortID] = ids[typed.innerPortID]
+            self.proxyPorts.removeAll { $0 === proxy }
+        }
+        self.rebuildProxyPorts()
+    }
+
     /// Rebuild proxy ports from the sub graph's current published ports.
     /// Called via callback when the sub graph's published ports change.
     open func rebuildProxyPorts()

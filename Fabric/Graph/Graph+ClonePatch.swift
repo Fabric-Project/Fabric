@@ -14,11 +14,14 @@ internal import AnyCodable
 /// node entry by node entry, wire by wire, note by note, with the values that
 /// are not design left out of the comparison (see Graph.nonDesignInlets).
 /// What differs is changed on the live sibling; what matches is left alone,
-/// the node objects and whatever they hold at runtime with them. A node whose
-/// entry differs is decoded from the stored entry and put in place of the
-/// old one under its ids, as a document load would make it; a node moved or
-/// renamed is moved or renamed; a plain sub graph nested in a member is
-/// patched the same way inside. The sibling's own values, its published
+/// the node objects and whatever they hold at runtime with them. A node
+/// moved or renamed is moved or renamed; a port published, named or given a
+/// value is published, named or given it; a sub graph nested in a member is
+/// patched the same way inside, its proxies published as the stored graph
+/// has them. A node whose entry differs in anything else, its settings, is
+/// decoded from the stored entry and put in place of the old one under its
+/// ids, as a document load would make it, the inlets it feeds holding what
+/// they have until it sends. The sibling's own values, its published
 /// inlets', are kept through a replacement.
 ///
 /// A patch is planned before anything is changed, every node it needs
@@ -180,7 +183,131 @@ extension Graph
         var placements: [(node: Node, value: [String: Any])] = []
         var replacements: [(existing: Node, replacement: Node)] = []
         var nested: [(graph: Graph, patch: GraphPatch)] = []
+        /// Each proxy's id and publishing in this graph, by its inner port's id.
+        var proxyStates: [(node: SubgraphNode, states: [UUID: ProxyEntry])] = []
+        var portStates: [(node: Node, states: [UUID: PortState])] = []
         var order: [UUID] = []
+    }
+
+    private struct PublishedState: Equatable
+    {
+        let published: Bool
+        let publishedName: String?
+
+        init?(_ base: [String: Any])
+        {
+            guard let published = base["published"] as? Bool else { return nil }
+            self.published = published
+            self.publishedName = base["publishedName"] as? String
+        }
+    }
+
+    private struct ProxyEntry
+    {
+        let id: UUID
+        let publishing: PublishedState
+    }
+
+    /// What a port takes in place: its publishing, and the value it holds
+    /// where that is design (see Graph.nonDesignInlets).
+    private struct PortState
+    {
+        let publishing: PublishedState
+        let value: PortValue??
+    }
+
+    /// The keys a port entry changes without its node being made again.
+    private static let portStateKeys: Set<String> = ["published", "publishedName", "value"]
+
+    /// A port entry's bytes without its state, for telling a change in its
+    /// state from one in what it is. A parameter's label follows the port's
+    /// published name (see rebuildPublishedParameterGroup), so it is state.
+    private static func comparable(ofPort entry: [String: Any], withoutState: Bool) -> Data
+    {
+        guard withoutState,
+              var payload = entry["payload"] as? [String: Any],
+              var base = payload["base"] as? [String: Any]
+        else { return CloneSet.canonicalJSON(entry) }
+        for key in portStateKeys { base[key] = nil }
+        if var parameter = base["parameter"] as? [String: Any], var parameterBase = parameter["base"] as? [String: Any]
+        {
+            parameterBase["value"] = nil
+            parameterBase["label"] = nil
+            parameter["base"] = parameterBase
+            base["parameter"] = parameter
+        }
+        payload["base"] = base
+        var entry = entry
+        entry["payload"] = payload
+        return CloneSet.canonicalJSON(entry)
+    }
+
+    /// The value a port's entry holds, on the port or in its parameter.
+    private static func encodedValue(in base: [String: Any]?) -> Data
+    {
+        let value = base?["value"] ?? ((base?["parameter"] as? [String: Any])?["base"] as? [String: Any])?["value"]
+        return CloneSet.canonicalJSON(["value": value ?? NSNull()])
+    }
+
+    private static func portEntries(in value: [String: Any]) -> [UUID: [String: Any]]
+    {
+        var entries: [UUID: [String: Any]] = [:]
+        for entry in value["ports"] as? [[String: Any]] ?? []
+        {
+            guard let base = (entry["payload"] as? [String: Any])?["base"] as? [String: Any],
+                  let id = (base["id"] as? String).flatMap(UUID.init(uuidString:))
+            else { continue }
+            entries[id] = entry
+        }
+        return entries
+    }
+
+    /// The states `node`'s ports take to match `entry`'s, nil where a port
+    /// differs in more than its state, or the port set differs.
+    private static func portStates(of node: Node, from before: NodeEntry, to entry: NodeEntry) -> [UUID: PortState]?
+    {
+        let fromPorts = portEntries(in: before.value)
+        let toPorts = portEntries(in: entry.value)
+        guard Set(fromPorts.keys) == Set(toPorts.keys) else { return nil }
+
+        var states: [UUID: PortState] = [:]
+        for (id, toPort) in toPorts
+        {
+            guard let fromPort = fromPorts[id], CloneSet.canonicalJSON(fromPort) != CloneSet.canonicalJSON(toPort) else { continue }
+            guard comparable(ofPort: fromPort, withoutState: true) == comparable(ofPort: toPort, withoutState: true),
+                  let payload = toPort["payload"] as? [String: Any],
+                  let base = payload["base"] as? [String: Any],
+                  let publishing = PublishedState(base),
+                  node.ports.contains(where: { $0.id == id })
+            else { return nil }
+
+            var value: PortValue?? = nil
+            let fromBase = (fromPort["payload"] as? [String: Any])?["base"] as? [String: Any]
+            if Self.encodedValue(in: base) != Self.encodedValue(in: fromBase)
+            {
+                guard let data = try? JSONSerialization.data(withJSONObject: payload),
+                      let port = try? JSONDecoder().decode(AnyPort.self, from: data)
+                else { return nil }
+                value = .some(port.base.snapshotValue())
+            }
+            states[id] = PortState(publishing: publishing, value: value)
+        }
+        return states
+    }
+
+    private static func proxyStates(in value: [String: Any]) -> [UUID: ProxyEntry]
+    {
+        var states: [UUID: ProxyEntry] = [:]
+        for entry in value["proxyPorts"] as? [[String: Any]] ?? []
+        {
+            guard let base = entry["base"] as? [String: Any],
+                  let id = (base["id"] as? String).flatMap(UUID.init(uuidString:)),
+                  let innerPortID = (base["innerPortID"] as? String).flatMap(UUID.init(uuidString:)),
+                  let publishing = PublishedState(base)
+            else { continue }
+            states[innerPortID] = ProxyEntry(id: id, publishing: publishing)
+        }
+        return states
     }
 
     /// A node's entry in an encoded graph: the id it is compared under and
@@ -254,17 +381,32 @@ extension Graph
                 continue
             }
 
-            // A plain sub graph nested in the member is patched inside, where
-            // what differs is inside it alone.
-            let subGraphKeys = Self.placementKeys.union(["subGraph"])
-            if let nested = node as? SubgraphNode, nested.cloneSetID == nil,
-               let fromSubGraph = before.value["subGraph"] as? [String: Any],
-               let toSubGraph = entry.value["subGraph"] as? [String: Any],
-               let storedSubGraph = storedEntry.value["subGraph"] as? [String: Any],
+            // A sub graph nested in the member is patched inside, where what
+            // differs is inside it, or in how its proxies are published here.
+            // A nested member's inside is its own set's; only its proxies are.
+            let subGraphKeys = Self.placementKeys.union(["subGraph", "proxyPorts"])
+            if let nested = node as? SubgraphNode,
                before.comparable(without: subGraphKeys) == entry.comparable(without: subGraphKeys)
             {
                 patch.placements.append((node, entry.value))
-                patch.nested.append((nested.subGraph, try nested.subGraph.plan(from: fromSubGraph, to: toSubGraph, stored: storedSubGraph)))
+                if nested.cloneSetID == nil,
+                   let fromSubGraph = before.value["subGraph"] as? [String: Any],
+                   let toSubGraph = entry.value["subGraph"] as? [String: Any],
+                   let storedSubGraph = storedEntry.value["subGraph"] as? [String: Any]
+                {
+                    patch.nested.append((nested.subGraph, try nested.subGraph.plan(from: fromSubGraph, to: toSubGraph, stored: storedSubGraph)))
+                }
+                patch.proxyStates.append((nested, Self.proxyStates(in: entry.value)))
+                continue
+            }
+
+            // A port published, named or given a value takes it in place.
+            let portKeys = Self.placementKeys.union(["ports"])
+            if before.comparable(without: portKeys) == entry.comparable(without: portKeys),
+               let states = Self.portStates(of: node, from: before, to: entry)
+            {
+                patch.placements.append((node, entry.value))
+                patch.portStates.append((node, states))
                 continue
             }
 
@@ -298,9 +440,53 @@ extension Graph
         for (node, value) in patch.placements { self.place(node, as: value) }
         for (existing, replacement) in patch.replacements { self.replace(existing, with: replacement) }
         for (graph, nested) in patch.nested { graph.apply(nested) }
+        for (node, states) in patch.proxyStates { self.publishProxies(of: node, as: states) }
+        for (node, states) in patch.portStates { self.setPorts(of: node, to: states) }
         self.reorderNodes(toMatch: patch.order)
         self.patchWires(to: patch.to)
         self.patchNotes(to: patch.to)
+    }
+
+    /// Puts `node`'s proxies in this graph under the ids `states` has for
+    /// them and publishes them as it has them, by inner port id: the proxies
+    /// stand after the inside is patched. A nested member's proxies take ids
+    /// of their own, and every instance of it holds them under the same ones.
+    private func publishProxies(of node: SubgraphNode, as states: [UUID: ProxyEntry])
+    {
+        node.remakeProxies(withIDs: states.mapValues(\.id))
+        for proxy in node.ports
+        {
+            guard let innerPortID = (proxy as? any ProxyPortProtocol)?.innerPortID, let state = states[innerPortID] else { continue }
+            self.publish(proxy, as: state.publishing)
+        }
+    }
+
+    private func setPorts(of node: Node, to states: [UUID: PortState])
+    {
+        for port in node.ports
+        {
+            guard let state = states[port.id] else { continue }
+            if case .some(let value) = state.value { self.setValue(value, of: port) }
+            self.publish(port, as: state.publishing)
+        }
+    }
+
+    private func publish(_ port: Port, as state: PublishedState)
+    {
+        if port.published != state.published { self.setPublished(state.published, on: port) }
+        if port.publishedName != state.publishedName { self.setPublishedName(state.publishedName, on: port) }
+    }
+
+    /// `port`'s value, set as a sync sets it: a port of a node in this graph.
+    private func setValue(_ value: PortValue?, of port: Port)
+    {
+        let previous = port.snapshotValue()
+        port.restoreValue(from: value)
+
+        let portID = port.id
+        self.registerUndo { graph in
+            graph.nodePort(forID: portID).map { graph.setValue(previous, of: $0) }
+        }
     }
 
     /// Moves and renames `node` as `value`, its entry, has it, undoably.
@@ -337,18 +523,16 @@ extension Graph
     }
 
     /// Puts `replacement`, a node made under `existing`'s ids, in its place,
-    /// where `existing` stood, carrying over each wire on `existing` and what
-    /// the proxies standing for its published ports hold up the chain (see
-    /// ProxyChainState) where the replacement can take them. One undo step,
-    /// which holds `existing` and puts it back the same way with what it
-    /// held: a deletion and an addition as two steps would lose the proxies'
-    /// publishing between them.
-    private func replace(_ existing: Node, with replacement: Node,
-                         wires carried: [Wire]? = nil, proxyChains carriedChains: [UUID: ProxyChainState]? = nil)
+    /// where `existing` stood. The wires on `existing` stay, bound to the
+    /// replacement's ports where it has them and dropped where it does not,
+    /// and the inlets it fed keep what they hold until the replacement
+    /// sends; what the proxies standing for its published ports hold up the
+    /// chain (see ProxyChainState) is put back where the replacement can
+    /// take it. One undo step, which holds `existing` and puts it back the
+    /// same way with what it held.
+    private func replace(_ existing: Node, with replacement: Node, proxyChains carriedChains: [UUID: ProxyChainState]? = nil)
     {
         let order = self.nodes.map(\.id)
-        let portIDs = Set(existing.ports.map(\.id))
-        let wires = self.connections.filter { portIDs.contains($0.outletPortID) || portIDs.contains($0.inletPortID) }.map(Wire.init)
         var proxyChains: [UUID: ProxyChainState] = [:]
         for port in existing.ports where port.published
         {
@@ -356,21 +540,24 @@ extension Graph
         }
 
         self.withoutUndoRegistration {
-            self.delete(node: existing)
+            self.delete(node: existing, disconnect: false)
             self.addNode(replacement)
             self.reorderNodes(toMatch: order)
-            for wire in carried ?? wires { self.restore(wire) }
+            self.reattachConnections(to: replacement.ports, sending: false)
+            self.pruneDanglingConnections()
             for (portID, chain) in carriedChains ?? proxyChains
             {
                 guard let port = replacement.ports.first(where: { $0.id == portID }), port.published else { continue }
                 self.restoreProxyChain(standingFor: port, to: chain)
             }
+            // Onto a proxy a port the replacement does not have had, up the chain.
+            for graph in self.ancestors { graph.pruneDanglingConnections() }
         }
 
         let id = existing.id
         self.registerUndo { graph in
             guard let current = graph.node(forID: id) else { return }
-            graph.replace(current, with: existing, wires: wires, proxyChains: proxyChains)
+            graph.replace(current, with: existing, proxyChains: proxyChains)
         }
     }
 

@@ -1302,7 +1302,10 @@ internal import AnyCodable
     /// old object, and `disconnect` refuses it once that object has gone.
     /// Identity, not nil-ness, is the test: whoever still holds the old port
     /// decides only when it dies, never whether the wire was left behind.
-    internal func reattachConnections(to ports: [Port])
+    /// Binds the wires on ports replaced under their ids to `ports`, the
+    /// replacements, and sends each outlet's value on unless `sending` is
+    /// false, for a replacement that has nothing to send yet.
+    internal func reattachConnections(to ports: [Port], sending: Bool = true)
     {
         guard !ports.isEmpty, !connections.isEmpty else { return }
 
@@ -1324,8 +1327,43 @@ internal import AnyCodable
             if inletIsStale { connection.inletPortReference?.connections.removeAll { $0 === connection } }
 
             attachConnection(connection, outlet: outlet, inlet: inlet)
-            outlet.sendBoxed(outlet.snapshotValue(), force: true)
+            if sending { outlet.sendBoxed(outlet.snapshotValue(), force: true) }
         }
+    }
+
+    /// Drops wires whose ports no longer resolve in this graph, as onto a
+    /// port a node made again does not have. One end is gone, so
+    /// `disconnect` refuses the wire, but the end that survives still holds
+    /// it and needs the same teardown. Registers nothing.
+    internal func pruneDanglingConnections()
+    {
+        let portIDs = Set(nodes.flatMap { $0.ports.map(\.id) })
+        let dangling = connections.filter {
+            !portIDs.contains($0.outletPortID) || !portIDs.contains($0.inletPortID)
+        }
+        guard !dangling.isEmpty else { return }
+
+        for connection in dangling
+        {
+            let outlet = connection.outletPort
+            let inlet = connection.inletPort
+
+            inlet?.sendBoxed(nil, force: true)
+            outlet?.connections.removeAll { $0 === connection }
+            inlet?.connections.removeAll { $0 === connection }
+
+            connection.graph = nil
+            connection.outletPortReference = nil
+            connection.inletPortReference = nil
+
+            for node in [outlet?.node, inlet?.node].compactMap({ $0 })
+            {
+                node.updateConnectionTopology()
+                markNodeForLifecycleReview(node)
+            }
+        }
+        connections.removeAll { connection in dangling.contains { $0 === connection } }
+        markConnectionTopologyChanged()
     }
     
     // MARK: - Publish Port API -

@@ -740,16 +740,18 @@ extension CloneSetTests
         try harness.execute(pair.graph, frameNumber: 0)
         try harness.execute(pair.graph, frameNumber: 1)
 
-        // Publishing another inlet of the node changes its entry: the
-        // sibling's node is made again under its ids.
+        // A settings change: the sibling's node is made again under its ids.
+        let expression = MathExpressionNode(context: harness.context, expression: "x + y")
+        pair.source.addNode(expression)
+        pair.graph.syncCloneSets(editedIn: pair.source)
         weak var retiredNode: Node?
         do
         {
-            retiredNode = pair.counterpart(of: pair.member.second)
-            pair.source.setPublished(true, on: pair.member.second.inputNumber2)
+            retiredNode = pair.counterpart(of: expression)
+            expression.stringExpression = "x * y"
             pair.graph.syncCloneSets(editedIn: pair.source)
         }
-        #expect(pair.counterpart(of: pair.member.second) !== retiredNode)
+        #expect(pair.counterpart(of: expression) !== retiredNode)
         // The step that would put the node back holds it, and it waits in its
         // graph's review, as any node taken out of a graph does, until the
         // renderer next reviews that graph.
@@ -775,9 +777,10 @@ extension CloneSetTests
         root.addNode(outer)
         let member = SubgraphNode(context: context)
         outer.subGraph.addNode(member)
-        let first = NumberBinaryOperator(context: context)
-        member.subGraph.addNode(first)
-        member.subGraph.setPublished(true, on: first.inputNumber1)
+        let expression = MathExpressionNode(context: context, expression: "x + y")
+        member.subGraph.addNode(expression)
+        let x = try #require(expression.inputPorts().first { $0.name == "x" })
+        member.subGraph.setPublished(true, on: x)
 
         // The sibling's proxy is published up to the root.
         let sibling = try outer.subGraph.duplicateAsClone(member)
@@ -786,15 +789,15 @@ extension CloneSetTests
         let outerProxyID = try #require(outer.ports.first { $0.kind == .Inlet }).id
         root.setPublished(true, on: try #require(root.nodePort(forID: outerProxyID)))
 
-        // Publishing another of the node's inlets changes its entry: the
-        // sibling's node is made again under its ids.
-        let before = try #require(counterpart(of: first, in: sibling))
-        member.subGraph.setPublished(true, on: first.inputNumber2)
+        // A settings change: the sibling's node is made again under its ids.
+        let before = try #require(counterpart(of: expression, in: sibling))
+        expression.stringExpression = "x * y"
         CloneSetModel.syncSiblings(of: member)
 
-        let copy = try #require(counterpart(of: first, in: sibling))
+        let copy = try #require(counterpart(of: expression, in: sibling))
         #expect(copy !== before)
-        let parameter = try #require(copy.inputNumber1.parameter as AnyObject?)
+        let copyX = try #require(copy.inputPorts().first { $0.name == "x" })
+        let parameter = try #require(copyX.parameter as AnyObject?)
         let siblingProxy = try #require(outer.subGraph.nodePort(forID: siblingProxyID))
         let outerProxy = try #require(root.nodePort(forID: outerProxyID))
         #expect(siblingProxy.published && outerProxy.published)
@@ -802,5 +805,120 @@ extension CloneSetTests
         #expect(outer.subGraph.publishedParameterGroup.params.contains { ($0 as AnyObject) === parameter })
         #expect((outerProxy.parameter as AnyObject?) === parameter)
         #expect(root.publishedParameterGroup.params.contains { ($0 as AnyObject) === parameter })
+    }
+}
+
+// MARK: - In place
+
+extension CloneSetTests
+{
+    @Test("A port published and named, and an unpublished inlet given a value, take it in the sibling in place, undoably")
+    @MainActor
+    func portStateIsTakenInPlace() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let firstCopy = try #require(pair.counterpart(of: pair.member.first))
+        let secondCopy = try #require(pair.counterpart(of: pair.member.second))
+
+        edit(pair.undoManager) {
+            pair.source.setPublished(true, on: pair.member.second.inputNumber2)
+            pair.source.setPublishedName("Offset", on: pair.member.second.inputNumber2)
+            pair.member.first.inputNumber2.value = 4
+        }
+
+        #expect(pair.counterpart(of: pair.member.second) === secondCopy)
+        #expect(pair.counterpart(of: pair.member.first) === firstCopy)
+        #expect(secondCopy.inputNumber2.published)
+        #expect(secondCopy.inputNumber2.publishedName == "Offset")
+        #expect(firstCopy.inputNumber2.value == 4)
+        #expect(pair.sibling.ports.contains { ($0 as? any ProxyPortProtocol)?.innerPortID == pair.member.second.inputNumber2.id })
+
+        pair.undoManager.undo()
+        #expect(pair.counterpart(of: pair.member.second) === secondCopy)
+        #expect(!secondCopy.inputNumber2.published)
+        #expect(firstCopy.inputNumber2.value == 0)
+        #expect(!pair.sibling.ports.contains { ($0 as? any ProxyPortProtocol)?.innerPortID == pair.member.second.inputNumber2.id })
+    }
+
+    @Test("Publishing a port inside a plain nested sub graph patches inside it, the nested node and its other nodes left in place")
+    @MainActor
+    func nestedPublishPatchesInside() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let nestedCopy = try #require(pair.counterpart(of: pair.member.nested))
+        let innerCopy = try #require(pair.counterpart(of: pair.member.nestedInner))
+        let other = NumberBinaryOperator(context: context)
+        pair.member.nested.subGraph.addNode(other)
+        pair.sync()
+        let otherCopy = try #require(pair.counterpart(of: other))
+
+        edit(pair.undoManager) { pair.member.nested.subGraph.setPublished(true, on: pair.member.nestedInner.inputNumber1) }
+
+        #expect(pair.counterpart(of: pair.member.nested) === nestedCopy)
+        #expect(pair.counterpart(of: pair.member.nestedInner) === innerCopy)
+        #expect(pair.counterpart(of: other) === otherCopy)
+        #expect(innerCopy.inputNumber1.published)
+        #expect(nestedCopy.ports.contains { ($0 as? any ProxyPortProtocol)?.innerPortID == pair.member.nestedInner.inputNumber1.id })
+
+        // And its proxy published on, up to the member's edge.
+        let proxy = try #require(pair.member.nested.ports.first { ($0 as? any ProxyPortProtocol)?.innerPortID == pair.member.nestedInner.inputNumber1.id })
+        edit(pair.undoManager) { pair.source.setPublished(true, on: proxy) }
+        #expect(pair.counterpart(of: pair.member.nested) === nestedCopy)
+        let copyProxy = try #require(nestedCopy.ports.first { ($0 as? any ProxyPortProtocol)?.innerPortID == pair.member.nestedInner.inputNumber1.id })
+        #expect(copyProxy.published)
+        #expect(pair.sibling.ports.contains { ($0 as? any ProxyPortProtocol)?.innerPortID == copyProxy.id })
+    }
+
+    @Test("A node made again leaves the inlet it feeds holding what it has until the replacement sends")
+    @MainActor
+    func replacementLeavesTheFedInletAlone() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let expression = MathExpressionNode(context: context, expression: "x + y")
+        pair.source.addNode(expression)
+        let fed = NumberBinaryOperator(context: context)
+        pair.source.addNode(fed)
+        let output = try #require(expression.outputPorts().first)
+        _ = try #require(pair.source.connect(output, to: fed.inputNumber1))
+        pair.sync()
+
+        let fedCopy = try #require(pair.counterpart(of: fed))
+        fedCopy.inputNumber1.value = 9
+        let before = try #require(pair.counterpart(of: expression))
+        expression.stringExpression = "x * y"
+        pair.sync()
+
+        #expect(pair.counterpart(of: expression) !== before)
+        #expect(pair.counterpart(of: fed) === fedCopy)
+        #expect(fedCopy.inputNumber1.value == 9)
+        #expect(pair.target.connections.count == 2)
+        #expect(pair.target.connections.contains { $0.outletPort === pair.counterpart(of: expression)?.outputPorts().first && $0.inletPort === fedCopy.inputNumber1 })
+    }
+
+    @Test("A canvas standing inside a sibling's nested sub graph follows it through a sync that takes it and the undo that brings it back")
+    @MainActor
+    func canvasInsideNestedFollowsUndo() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let nestedCopy = try #require(pair.counterpart(of: pair.member.nested))
+        let canvas = GraphCanvasContext(rootGraph: pair.graph)
+        canvas.enter(pair.sibling)
+        canvas.enter(nestedCopy)
+        #expect(canvas.currentGraph === nestedCopy.subGraph)
+
+        edit(pair.undoManager) { pair.source.delete(node: pair.member.nested) }
+        #expect(pair.counterpart(of: pair.member.nested) == nil)
+
+        pair.undoManager.undo()
+        let restored = try #require(pair.counterpart(of: pair.member.nested))
+        #expect(canvas.entries.last === restored)
+        #expect(canvas.currentGraph === restored.subGraph)
+
+        pair.undoManager.redo()
+        #expect(pair.counterpart(of: pair.member.nested) == nil)
     }
 }
