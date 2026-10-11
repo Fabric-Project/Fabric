@@ -619,6 +619,119 @@ extension CloneSetTests
         #expect(live.subGraph.nodes.isEmpty)
     }
 
+    @Test("A canvas standing inside a sibling is told when undo and redo put back what it shows")
+    @MainActor
+    func canvasInsideSiblingIsToldOfUndo() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let canvas = GraphCanvasContext(rootGraph: pair.graph)
+        canvas.enter(pair.sibling)
+        edit(pair.undoManager) { pair.source.addNode(NumberBinaryOperator(context: context)) }
+
+        var told = false
+        withObservationTracking { _ = canvas.currentGraph } onChange: { told = true }
+        pair.undoManager.undo()
+        #expect(told)
+        #expect(canvas.currentGraph === pair.sibling.subGraph)
+        #expect(pair.sibling.subGraph.nodes.count == 3)
+
+        told = false
+        withObservationTracking { _ = canvas.currentGraph } onChange: { told = true }
+        pair.undoManager.redo()
+        #expect(told)
+        #expect(canvas.currentGraph === pair.sibling.subGraph)
+        #expect(pair.sibling.subGraph.nodes.count == 4)
+    }
+
+    @Test("Undoing an edit puts the stored graph back, so making the same edit again syncs the siblings")
+    @MainActor
+    func undoPutsTheStoredGraphBack() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let set = try #require(pair.member.member.cloneSetID.flatMap(pair.graph.cloneSet(for:)))
+        let storedBefore = set.graphJSON
+        let parameter = try #require(pair.member.second.inputNumber2.parameter as? GenericParameter<Float>)
+        let before = parameter.value
+
+        func setDesignValue()
+        {
+            edit(pair.undoManager) {
+                parameter.value = 3
+                pair.source.registerValueChange(of: parameter, from: before, label: "Number B")
+            }
+        }
+
+        setDesignValue()
+        #expect(pair.counterpart(of: pair.member.second)?.inputNumber2.value == 3)
+        pair.undoManager.undo()
+        #expect(set.graphJSON == storedBefore)
+        #expect(pair.counterpart(of: pair.member.second)?.inputNumber2.value == before)
+
+        setDesignValue()
+        #expect(pair.counterpart(of: pair.member.second)?.inputNumber2.value == 3)
+    }
+
+    @Test("Undoing an unpublish puts back a sibling's proxy published up a level, the wire onto the proxy over it, and its own value")
+    @MainActor
+    func undoPutsBackASiblingsProxyChain() throws
+    {
+        guard let context = makeContext() else { return }
+        let root = Graph(context: context)
+        let outer = SubgraphNode(context: context)
+        root.addNode(outer)
+        let graph = outer.subGraph
+        let member = SubgraphNode(context: context)
+        graph.addNode(member)
+        let first = NumberBinaryOperator(context: context)
+        member.subGraph.addNode(first)
+        member.subGraph.setPublished(true, on: first.inputNumber1)
+        let sibling = try graph.duplicateAsClone(member)
+
+        // The sibling's proxy is published on through the outer node, and wired there.
+        let siblingProxy = try #require(sibling.ports.first { ($0 as? any ProxyPortProtocol)?.innerPortID == first.inputNumber1.id })
+        graph.setPublished(true, on: siblingProxy)
+        let outerProxy = try #require(outer.ports.first { ($0 as? any ProxyPortProtocol)?.innerPortID == siblingProxy.id })
+        let upstream = NumberBinaryOperator(context: context)
+        root.addNode(upstream)
+        _ = try #require(root.connect(upstream.outputNumber, to: outerProxy))
+        try #require(sibling.subGraph.node(forID: first.id) as? NumberBinaryOperator).inputNumber1.value = 7
+
+        let undoManager = UndoManager()
+        root.undoManager = undoManager
+        graph.undoManager = undoManager
+        member.subGraph.undoManager = undoManager
+        sibling.subGraph.undoManager = undoManager
+        edit(undoManager) { member.subGraph.setPublished(false, on: first.inputNumber1) }
+
+        #expect(!sibling.ports.contains { $0.id == siblingProxy.id })
+        #expect(!outer.ports.contains { $0.id == outerProxy.id })
+        #expect(upstream.outputNumber.connections.isEmpty)
+        #expect(root.connections.isEmpty)
+
+        func expectPutBack(sourceLocation: SourceLocation = #_sourceLocation) throws
+        {
+            let proxy = try #require(sibling.ports.first { $0.id == siblingProxy.id }, sourceLocation: sourceLocation)
+            #expect(proxy.published, sourceLocation: sourceLocation)
+            let over = try #require(outer.ports.first { $0.id == outerProxy.id }, sourceLocation: sourceLocation)
+            #expect(over.connections.count == 1, sourceLocation: sourceLocation)
+            #expect(upstream.outputNumber.connections.count == 1, sourceLocation: sourceLocation)
+            let inner = sibling.subGraph.node(forID: first.id) as? NumberBinaryOperator
+            #expect(inner?.inputNumber1.value == 7, sourceLocation: sourceLocation)
+        }
+
+        undoManager.undo()
+        try expectPutBack()
+
+        undoManager.redo()
+        #expect(!outer.ports.contains { $0.id == outerProxy.id })
+        #expect(upstream.outputNumber.connections.isEmpty)
+
+        undoManager.undo()
+        try expectPutBack()
+    }
+
     @Test("A sub graph a sync retires is released, with its nodes, once the renderer next plans")
     @MainActor
     func retiredSubGraphIsReleased() throws

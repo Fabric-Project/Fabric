@@ -30,64 +30,6 @@ open class SubgraphNode: BaseObjectNode
     /// unlinkClone so the change is undoable. See CloneSet.
     public internal(set) var cloneSetID: UUID?
 
-    /// The containing graph's wires onto proxies a sync took from this member,
-    /// by the inner port each proxy stood for, put back when undoing the
-    /// unpublish brings a proxy for that port back, as undo puts back the
-    /// edited member's own. A proxy published afresh comes back unwired, as
-    /// it does in the member edited. Each keeps the wire's other end and
-    /// which end the proxy was. Held for the session, not saved.
-    private var wiresOffProxies: [UUID: [(otherEndID: UUID, proxyIsInlet: Bool, active: Bool)]] = [:]
-
-    /// This member's own values for inlets a sync made design again, as an
-    /// unpublish in a sibling does, by path: put back when undoing it makes
-    /// them its own again, as wiresOffProxies are. Held for the session, not
-    /// saved.
-    private var valuesOffProxies: [String: (portType: PortType, value: PortValue?)] = [:]
-
-    /// The inner port each of this member's proxies stands for, by proxy id.
-    internal var proxyInnerPortIDs: [UUID: UUID]
-    {
-        Dictionary(self.proxyPorts.compactMap { proxy in (proxy as? any ProxyPortProtocol).map { (proxy.id, $0.innerPortID) } },
-                   uniquingKeysWith: { first, _ in first })
-    }
-
-    /// Keeps the wires a sync dropped that were onto proxies this member had
-    /// before it, `innerByProxyID`, and settles any kept for a proxy that is
-    /// here again: put back during an undo or redo, let go otherwise.
-    internal func keepWires(_ dropped: [(outletID: UUID, inletID: UUID, active: Bool)], offProxies innerByProxyID: [UUID: UUID])
-    {
-        for wire in dropped
-        {
-            if let innerID = innerByProxyID[wire.inletID]
-            {
-                self.wiresOffProxies[innerID, default: []].append((wire.outletID, true, wire.active))
-            }
-            else if let innerID = innerByProxyID[wire.outletID]
-            {
-                self.wiresOffProxies[innerID, default: []].append((wire.inletID, false, wire.active))
-            }
-        }
-
-        guard let parent = self.graph, !self.wiresOffProxies.isEmpty else { return }
-        let proxyByInnerID = Dictionary(self.proxyInnerPortIDs.map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
-        let restoring = parent.cloneSetCoordinator.isSyncingUndoOrRedo
-        parent.withoutUndoRegistration {
-            for (innerID, wires) in self.wiresOffProxies
-            {
-                guard let proxyID = proxyByInnerID[innerID], let proxy = parent.nodePort(forID: proxyID) else { continue }
-                self.wiresOffProxies[innerID] = nil
-                guard restoring else { continue }
-                for wire in wires
-                {
-                    guard let otherEnd = parent.nodePort(forID: wire.otherEndID),
-                          let connection = wire.proxyIsInlet ? parent.connect(otherEnd, to: proxy) : parent.connect(proxy, to: otherEnd)
-                    else { continue }
-                    if !wire.active { _ = parent.setConnection(connection, active: false) }
-                }
-            }
-        }
-    }
-
     /// The one place membership is written, with the badge refreshed. Not
     /// undoable; Graph.setCloneMembership wraps it with undo.
     internal func setCloneMembership(setID: UUID?)
@@ -515,20 +457,21 @@ open class SubgraphNode: BaseObjectNode
     }
 
     /// Swaps the sub graph for `newGraph`, keeping what is this node's own:
-    /// its published inlet values, and its proxies, which follow their ports
-    /// into the new instance so the parent's wires onto them, and any proxy
-    /// wrapping them further up, stay as they are. The old graph is retired:
-    /// its nodes are stopped through the renderer they ran under. Edits made
-    /// in it can still be undone: each step finds what it acts on by id in
-    /// the graph the document holds then (see Graph.registerUndo(_:)).
-    /// Everything else the old graph held at runtime goes with it. The new
-    /// graph's nodes start at the renderer's next lifecycle review, as nodes
-    /// added to any graph do.
-    internal func replaceSubGraph(with newGraph: Graph)
+    /// its published inlet values, unless `keepingOwnValues` is false, for a
+    /// graph that holds them already, and its proxies, which follow their
+    /// ports into the new instance so the parent's wires onto them, and any
+    /// proxy wrapping them further up, stay as they are. The old graph is
+    /// retired: its nodes are stopped through the renderer they ran under.
+    /// Edits made in it can still be undone: each step finds what it acts on
+    /// by id in the graph the document holds then (see
+    /// Graph.registerUndo(_:)). Everything else the old graph held at runtime
+    /// goes with it. The new graph's nodes start at the renderer's next
+    /// lifecycle review, as nodes added to any graph do.
+    internal func replaceSubGraph(with newGraph: Graph, keepingOwnValues: Bool = true)
     {
         let old = self.subGraph
         let parent = self.graph
-        let values = old.memberOwnInlets().mapValues { (portType: $0.portType, value: $0.snapshotValue()) }
+        let values = keepingOwnValues ? old.memberOwnInlets().mapValues { (portType: $0.portType, value: $0.snapshotValue()) } : [:]
 
         parent?.nodeObjectWillChange(self)
         old.ownerNode = nil
@@ -552,12 +495,7 @@ open class SubgraphNode: BaseObjectNode
             nested.subGraph.undoManager = old.undoManager
         }
         self.subGraphDidChange()
-        let ownNow = newGraph.memberOwnInlets()
-        for (path, value) in values where ownNow[path] == nil { self.valuesOffProxies[path] = value }
-        let returning = self.valuesOffProxies.filter { ownNow[$0.key] != nil }
-        for path in returning.keys { self.valuesOffProxies[path] = nil }
-        let restoring = parent?.cloneSetCoordinator.isSyncingUndoOrRedo == true
-        Self.restore(values: restoring ? values.merging(returning) { current, _ in current } : values, in: newGraph)
+        Self.restore(values: values, in: newGraph)
 
         self.rebindProxyPorts()
         parent?.nodeObjectDidChange(self)

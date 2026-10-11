@@ -7,21 +7,20 @@ import Foundation
 
 /// Keeps a document's clone sets in step; owned by the root graph. Every edit
 /// registers its undo step through the graph it was made in (see
-/// Graph.registerUndo), and that graph is noted here. When the document's
-/// undo group closes, and after an undo or redo, each set around a noted
-/// graph is synced from its member there, innermost sets first. Undo and redo
-/// run in order, so a member they bring back finds its set as it left it.
-/// An edit that registers no undo is synced by syncCloneSets(editedIn:).
+/// Graph.registerUndo), and that graph is noted here. As the document's undo
+/// group closes, each set around a noted graph is synced from its member
+/// there, innermost sets first, and the sync registers its own steps into
+/// that group: undo and redo put the siblings back with the edit, and sync
+/// nothing themselves. An edit that registers no undo is synced by
+/// syncCloneSets(editedIn:); a sync with no undo group open registers
+/// nothing.
 final class CloneSetCoordinator
 {
     /// Set while a sync runs, so the writes it makes are never taken for edits.
     var isSyncing = false
 
-    /// Set while the sync after an undo or redo runs, which puts back what a
-    /// sync took from a sibling along with the edit being reversed.
-    private(set) var isSyncingUndoOrRedo = false
-
     private(set) weak var rootGraph: Graph?
+    private weak var undoManager: UndoManager?
     private var observations: [NSObjectProtocol] = []
 
     /// The graphs inside members that edits were made in since the last
@@ -43,36 +42,30 @@ final class CloneSetCoordinator
     {
         observations.forEach(NotificationCenter.default.removeObserver)
         observations = []
+        self.undoManager = undoManager
         guard let undoManager else { return }
 
-        let center = NotificationCenter.default
-        let syncAfterEdit: (Notification) -> Void = { [weak self, weak undoManager] _ in
-            // A nested group closes partway through an edit; undo and redo
-            // report themselves.
-            guard let undoManager, undoManager.groupingLevel == 0,
-                  !undoManager.isUndoing, !undoManager.isRedoing
-            else { return }
-            self?.sync()
-        }
-        let syncAfterUndo: (Notification) -> Void = { [weak self] _ in
-            guard let self else { return }
-            self.isSyncingUndoOrRedo = true
-            defer { self.isSyncingUndoOrRedo = false }
-            self.sync()
-        }
+        // A nested group closes partway through an edit, and undo and redo
+        // replay the steps the sync registered.
         observations = [
-            center.addObserver(forName: .NSUndoManagerDidCloseUndoGroup, object: undoManager, queue: nil, using: syncAfterEdit),
-            center.addObserver(forName: .NSUndoManagerDidUndoChange, object: undoManager, queue: nil, using: syncAfterUndo),
-            center.addObserver(forName: .NSUndoManagerDidRedoChange, object: undoManager, queue: nil, using: syncAfterUndo),
+            NotificationCenter.default.addObserver(forName: .NSUndoManagerWillCloseUndoGroup, object: undoManager, queue: nil) { [weak self, weak undoManager] _ in
+                guard let undoManager, undoManager.groupingLevel == 1,
+                      !undoManager.isUndoing, !undoManager.isRedoing
+                else { return }
+                self?.sync()
+            },
         ]
     }
 
     /// An edit was made in `graph`. Only one inside a member can need a sync,
-    /// and none made by a sync, or off the main thread, where a graph is being
-    /// built or decoded rather than edited.
+    /// and none made by a sync or replayed by undo or redo, or off the main
+    /// thread, where a graph is being built or decoded rather than edited.
     func noteEdit(in graph: Graph)
     {
-        guard Thread.isMainThread, !isSyncing, !graph.enclosingCloneMembers.isEmpty else { return }
+        guard Thread.isMainThread, !isSyncing,
+              undoManager?.isUndoing != true, undoManager?.isRedoing != true,
+              !graph.enclosingCloneMembers.isEmpty
+        else { return }
         editedGraphs.removeAll { $0 === graph }
         editedGraphs.append(graph)
     }

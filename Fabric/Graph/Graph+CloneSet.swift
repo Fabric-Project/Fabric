@@ -345,7 +345,14 @@ extension Graph
         decodeContext.instantiatingCloneSetIDs.insert(setID)
         defer { decodeContext.instantiatingCloneSetIDs.remove(setID) }
 
-        let object = Self.withGraphIDs(in: set.graphObject) { UUID().uuidString }
+        return try Self.decodeCloneInstance(of: set.graphObject, decodeContext: decodeContext)
+    }
+
+    /// An encoded sub graph decoded as a new instance, every graph in it
+    /// under a fresh id; see instantiateCloneSetGraph.
+    internal static func decodeCloneInstance(of graphObject: [String: Any], decodeContext: DecoderContext) throws -> Graph
+    {
+        let object = Self.withGraphIDs(in: graphObject) { UUID().uuidString }
         let data = try JSONSerialization.data(withJSONObject: object)
         let decoder = JSONDecoder()
         decoder.context = decodeContext

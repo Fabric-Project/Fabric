@@ -1126,7 +1126,7 @@ extension CloneSetContractTests
 
 extension CloneSetContractTests
 {
-    @Test("Closing the undo group an edit was made in syncs the siblings, and undo and redo sync them again")
+    @Test("Closing the undo group an edit was made in syncs the siblings, and undo and redo put them back with the edit")
     @MainActor
     func undoGroupsSync() throws
     {
@@ -1143,6 +1143,34 @@ extension CloneSetContractTests
         pair.undoManager.redo()
         #expect(pair.source.nodes.count == 4)
         #expect(pair.target.nodes.count == 4)
+    }
+
+    @Test("The sync is part of the edit's undo step, so undo and redo put the siblings back without syncing again")
+    @MainActor
+    func undoReplaysTheSync() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let added = NumberBinaryOperator(context: context)
+        pair.edit { pair.source.addNode(added) }
+        let addedInB = try #require(pair.counterpart(of: added))
+        let secondInB = try #require(pair.counterpart(of: pair.member.second))
+        pair.edit { pair.target.connect(secondInB.outputNumber, to: addedInB.inputNumber1) }  // in B, synced into A
+        pair.graph.cloneSetCoordinator.attach(to: nil)                                         // nothing syncs from here
+
+        pair.undoManager.undo()
+        #expect(pair.current(added)?.inputNumber1.connections.isEmpty == true)
+        #expect(pair.counterpart(of: added)?.inputNumber1.connections.isEmpty == true)
+        pair.undoManager.undo()
+        #expect(pair.source.nodes.count == 3)
+        #expect(pair.target.nodes.count == 3)
+        #expect(membersAreInStep(pair))
+
+        pair.undoManager.redo()
+        pair.undoManager.redo()
+        #expect(pair.current(added)?.inputNumber1.connections.count == 1)
+        #expect(pair.counterpart(of: added)?.inputNumber1.connections.count == 1)
+        #expect(membersAreInStep(pair))
     }
 
     @Test("A group closing inside an edit does not sync partway through it")
