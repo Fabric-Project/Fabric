@@ -625,7 +625,10 @@ internal import AnyCodable
         let id = note.id
         let text = note.note
         let rect = note.rect
-        guard text != previousText || rect != previousRect else { return }
+        // A note deleted while its edit was open went with what it held.
+        guard text != previousText || rect != previousRect,
+              self.notes.contains(where: { $0.id == id })
+        else { return }
 
         self.registerUndo { graph in
             guard let note = graph.notes.first(where: { $0.id == id }) else { return }

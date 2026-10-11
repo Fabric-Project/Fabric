@@ -140,6 +140,28 @@ struct EditUndoTests
         #expect(graph.notes.map(\.id) == [first.id])
     }
 
+    @Test("An edit recorded for a note after its delete is not a step")
+    func noteEditAfterDeleteRegistersNothing()
+    {
+        guard let context = makeContext() else { return }
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        let graph = Graph(context: context)
+        graph.undoManager = undoManager
+        let note = Note(note: "Draft", rect: .zero)
+        step(undoManager) { graph.addNote(note) }
+
+        note.note = "Typed"
+        step(undoManager) { graph.deleteNote(note) }
+        // The view going away ends the edit after the delete took the note.
+        graph.registerNoteEdit(note, previousText: "Draft", previousRect: .zero)
+        #expect(undoManager.undoActionName == "Delete Note")
+
+        undoManager.undo()
+        #expect(graph.notes.map(\.id) == [note.id])
+        #expect(note.note == "Typed")
+    }
+
     @Test("A parameter set through its control is one undo step per change, or per edit while one is in progress")
     @MainActor
     func parameterEditsUndo() throws
