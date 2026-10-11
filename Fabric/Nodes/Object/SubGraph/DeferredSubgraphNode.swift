@@ -170,12 +170,6 @@ public class DeferredSubgraphNode: SubgraphNode
         self.rendererNeedsSetup = false
     }
 
-    /// A re-instantiated sub graph gets a renderer of its own, like the first.
-    override func subGraphDidChange()
-    {
-        self.synchronizeDeferredConfiguration()
-    }
-
     private func synchronizeDeferredConfiguration()
     {
         self.syncAuxiliaryOutputPorts()

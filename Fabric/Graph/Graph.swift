@@ -57,10 +57,6 @@ internal import AnyCodable
     /// Members refer to a set by SubgraphNode.cloneSetID. A set no member
     /// refers to any more is dropped on save.
     public private(set) var cloneSets: [CloneSet] = []
-    /// Counts the sub graphs replaced anywhere in the document, observably:
-    /// SubgraphNode.subGraph is not, so a view standing inside a member reads
-    /// this to follow a sync, or an undo of one, that replaced what it shows.
-    public internal(set) var subGraphReplacementCount = 0
     /// Clone sets the document holds that could not be read, kept as saved
     /// and written back with the others.
     @ObservationIgnored private var unreadableCloneSets: [AnyCodable] = []
@@ -211,42 +207,6 @@ internal import AnyCodable
         let coordinator = CloneSetCoordinator(rootGraph: self)
         self.rootCloneSetCoordinator = coordinator
         return coordinator
-    }
-
-    /// Drops wires whose ports no longer resolve in this graph, e.g. to a
-    /// proxy that disappeared when its inner port was unpublished. One end
-    /// is gone, so `disconnect` refuses the wire, but the end that survives
-    /// still holds it and needs the same teardown.
-    @discardableResult
-    internal func pruneDanglingConnections()
-    {
-        let portIDs = Set(nodes.flatMap { $0.ports.map(\.id) })
-        let dangling = connections.filter {
-            !portIDs.contains($0.outletPortID) || !portIDs.contains($0.inletPortID)
-        }
-        guard !dangling.isEmpty else { return }
-
-        for connection in dangling
-        {
-            let outlet = connection.outletPort
-            let inlet = connection.inletPort
-
-            inlet?.sendBoxed(nil, force: true)
-            outlet?.connections.removeAll { $0 === connection }
-            inlet?.connections.removeAll { $0 === connection }
-
-            connection.graph = nil
-            connection.outletPortReference = nil
-            connection.inletPortReference = nil
-
-            for node in [outlet?.node, inlet?.node].compactMap({ $0 })
-            {
-                node.updateConnectionTopology()
-                markNodeForLifecycleReview(node)
-            }
-        }
-        connections.removeAll { connection in dangling.contains { $0 === connection } }
-        markConnectionTopologyChanged()
     }
 
     public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
@@ -998,6 +958,35 @@ internal import AnyCodable
     public func node(forID:UUID) -> Node?
     {
         return self.nodes.first(where: { $0.id == forID })
+    }
+
+    /// Puts the nodes in the order `ids` lists them, any not listed after,
+    /// undoably. A clone set member's nodes stand in its stored graph's order.
+    internal func reorderNodes(toMatch ids: [UUID])
+    {
+        let previous = self.nodes.map(\.id)
+        let ordered = Self.ordered(self.nodes, by: \.id, toMatch: ids)
+        guard ordered.map(\.id) != previous else { return }
+        self.nodes = ordered
+        self.registerUndo { $0.reorderNodes(toMatch: previous) }
+    }
+
+    /// As reorderNodes(toMatch:), for the notes.
+    internal func reorderNotes(toMatch ids: [UUID])
+    {
+        let previous = self.notes.map(\.id)
+        let ordered = Self.ordered(self.notes, by: \.id, toMatch: ids)
+        guard ordered.map(\.id) != previous else { return }
+        self.notes = ordered
+        self.registerUndo { $0.reorderNotes(toMatch: previous) }
+    }
+
+    private static func ordered<Element>(_ elements: [Element], by id: KeyPath<Element, UUID>, toMatch ids: [UUID]) -> [Element]
+    {
+        let rank = Dictionary(ids.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
+        return elements.enumerated()
+            .sorted { (rank[$0.element[keyPath: id]] ?? Int.max, $0.offset) < (rank[$1.element[keyPath: id]] ?? Int.max, $1.offset) }
+            .map(\.element)
     }
     
     // MARK: - Node View API -
@@ -2062,20 +2051,6 @@ internal import AnyCodable
         }
     }
     
-    /// A node's object is being replaced, as when a clone set member
-    /// re-instantiates its sub graph: the scene drops the old object now and
-    /// takes the new one after.
-    internal func nodeObjectWillChange(_ node: Node)
-    {
-        self.maybeDeleteNodeFromScene(node)
-    }
-
-    internal func nodeObjectDidChange(_ node: Node)
-    {
-        self.maybeAddNodeToScene(node)
-        self.markConnectionsChanged()
-    }
-
     private func maybeDeleteNodeFromScene(_ node:Node)
     {
         if let objectNode = node as? BaseObjectNode,

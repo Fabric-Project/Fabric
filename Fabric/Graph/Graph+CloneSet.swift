@@ -35,9 +35,8 @@ public struct CloneSetInfo: Equatable
 /// Clone sets: groups of SubgraphNodes that are instances of one stored
 /// graph, kept identical in design while each executes on its own. Members
 /// are peers to edit: the member you edit is encoded as the stored graph and
-/// its siblings are decoded from it afresh, holding the same nodes under the
-/// same ids. See CloneSet for the stored graph and Graph+CloneSync for the
-/// sync.
+/// its siblings are patched to it, holding the same nodes under the same
+/// ids. See CloneSet for the stored graph and Graph+ClonePatch for the sync.
 extension Graph
 {
     // MARK: - Creation
@@ -361,7 +360,7 @@ extension Graph
 
     /// The object with every graph's id, at any depth, replaced by what
     /// `replacement` gives. A graph is the object that carries a node map.
-    private static func withGraphIDs(in object: Any, replacement: () -> String) -> Any
+    internal static func withGraphIDs(in object: Any, replacement: () -> String) -> Any
     {
         switch object
         {

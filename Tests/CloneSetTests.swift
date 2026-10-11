@@ -224,10 +224,10 @@ extension CloneSetTests
 
         var graph: Graph { member.graph }
         var source: Graph { member.member.subGraph }
-        /// The sibling's current sub graph: another instance after every sync.
+        /// The sibling's sub graph: the same graph through every sync.
         var target: Graph { sibling.subGraph }
 
-        func sync() { graph.reinstantiateCloneSiblings(of: member.member) }
+        func sync() { graph.patchCloneSiblings(of: member.member) }
 
         /// Syncs with a fresh undo manager on every graph, so any undo step
         /// left behind can only have come from the sync itself.
@@ -281,13 +281,14 @@ extension CloneSetTests
         #expect(pair.sibling.isInStepWithCloneSet)
     }
 
-    @Test("Adding and wiring a node in one member appears in the sibling as a new instance of the whole sub graph")
+    @Test("Adding and wiring a node in one member adds the node and the wire to the sibling, its other nodes left in place")
     func addedNodeAppearsInSibling() throws
     {
         guard let context = makeContext() else { return }
         let pair = try makePair(context: context)
         let before = pair.target
         let beforeFirst = try #require(pair.counterpart(of: pair.member.first))
+        let beforeSecond = try #require(pair.counterpart(of: pair.member.second))
 
         let added = NumberBinaryOperator(context: context)
         added.offset = CGSize(width: 300, height: 40)
@@ -296,19 +297,17 @@ extension CloneSetTests
 
         pair.syncExpectingNoUndo()
 
-        #expect(pair.target !== before)
-        #expect(pair.target.ownerNode === pair.sibling)
-        #expect(before.ownerNode == nil)
+        #expect(pair.target === before)
         let addedCopy = try #require(pair.counterpart(of: added))
-        let secondCopy = try #require(pair.counterpart(of: pair.member.second))
-        let firstCopy = try #require(pair.counterpart(of: pair.member.first))
         #expect(addedCopy !== added)
-        #expect(firstCopy !== beforeFirst)
+        #expect(pair.counterpart(of: pair.member.first) === beforeFirst)
+        #expect(pair.counterpart(of: pair.member.second) === beforeSecond)
         #expect(addedCopy.offset == added.offset)
         #expect(pair.target.nodes.count == 4)
+        #expect(pair.target.nodes.map(\.id) == pair.source.nodes.map(\.id), "the sibling's nodes stand in the stored graph's order")
         #expect(pair.target.connections.count == 2)
         #expect(pair.target.connections.contains {
-            $0.outletPort === secondCopy.outputNumber && $0.inletPort === addedCopy.inputNumber2
+            $0.outletPort === beforeSecond.outputNumber && $0.inletPort === addedCopy.inputNumber2
         })
     }
 
@@ -330,27 +329,34 @@ extension CloneSetTests
         #expect(pair.graph.nodePort(forID: siblingProxy.id) === siblingProxy)
     }
 
-    @Test("A retired sub graph's nodes are stopped through the renderer, and the new instance's start at its next review")
-    func retiredNodesAreStopped() throws
+    @Test("A node a sync puts another in place of is stopped, its replacement starts at the next review, and nodes left alone keep running")
+    func replacedNodeIsStoppedAndItsReplacementStarts() throws
     {
         guard let context = makeContext() else { return }
         let pair = try makePair(context: context)
-        let renderer = GraphRenderer(context: context, graph: pair.graph)
-        try renderer.startExecution()
-        let oldNodes = pair.target.nodes
-        let oldWired = oldNodes.filter { !$0.inputNodes.isEmpty || !$0.outputNodes.isEmpty }
-        #expect(oldWired.count == 2)
-        #expect(oldWired.allSatisfy { $0.executionState == .started })
-
-        pair.source.addNode(NumberBinaryOperator(context: context))
+        let expression = MathExpressionNode(context: context, expression: "x + y")
+        pair.source.addNode(expression)
+        let x = try #require(expression.inputPorts().first { $0.name == "x" })
+        _ = try #require(pair.source.connect(pair.member.second.outputNumber, to: x))
         pair.sync()
 
-        #expect(oldNodes.allSatisfy { $0.executionState == .disabled })
-        #expect(pair.target.nodes.allSatisfy { $0.executionState == .disabled })
+        let renderer = GraphRenderer(context: context, graph: pair.graph)
+        try renderer.startExecution()
+        let secondCopy = try #require(pair.counterpart(of: pair.member.second))
+        let oldExpression = try #require(pair.counterpart(of: expression))
+        #expect(secondCopy.executionState == .started)
+        #expect(oldExpression.executionState == .started)
+
+        expression.stringExpression = "x * y"
+        pair.sync()
+
+        let newExpression = try #require(pair.counterpart(of: expression))
+        #expect(newExpression !== oldExpression)
+        #expect(secondCopy.executionState == .started, "a node the sync left alone keeps running")
         try renderer.synchronizeLifecycle()
-        let newWired = pair.target.nodes.filter { !$0.inputNodes.isEmpty || !$0.outputNodes.isEmpty }
-        #expect(newWired.count == 2)
-        #expect(newWired.allSatisfy { $0.executionState == .started })
+        #expect(oldExpression.executionState == .disabled, "the node put aside is reviewed like any node taken out")
+        #expect(newExpression.executionState == .started)
+        #expect(secondCopy.executionState == .started)
         try renderer.stopExecution()
     }
 }
@@ -413,10 +419,10 @@ extension CloneSetTests
         object["nodeMap"] = nodeMap
         set.graphJSON = CloneSet.canonicalJSON(object)
 
-        try sibling.reinstantiateSubGraph()
-        #expect(sibling.subGraph.nodes.count == 3)
-        #expect(sibling.subGraph.missingNodeDiagnostics.count == 1)
-        #expect(sibling.subGraph.missingNodeDiagnostics.first?.summary.contains("contains one of its own members") == true)
+        let instance = try Graph.instantiateCloneSetGraph(of: setID, decodeContext: fixture.graph.makeDecoderContext())
+        #expect(instance.nodes.count == 3)
+        #expect(instance.missingNodeDiagnostics.count == 1)
+        #expect(instance.missingNodeDiagnostics.first?.summary.contains("contains one of its own members") == true)
     }
 }
 
@@ -477,7 +483,7 @@ extension CloneSetTests
         #expect(try Graph.cloneSetJSON(of: sibling.subGraph) == set.graphJSON)
     }
 
-    @Test("A canvas standing inside a sibling is told when a sync replaces what it shows, and edits there are recorded")
+    @Test("A canvas standing inside a sibling is told when a sync changes what it shows, and edits there are recorded")
     @MainActor
     func canvasInsideSiblingIsToldOfTheSync() throws
     {
@@ -496,7 +502,7 @@ extension CloneSetTests
         #expect(canvas.currentGraph.undoManager === pair.undoManager)
     }
 
-    // MARK: - Undo across re-instantiation
+    // MARK: - Undo across syncs
 
     /// Makes `body` one undo group of its own, as the editor's event loop
     /// does, the group's close syncing the sets around the edit.
@@ -517,7 +523,7 @@ extension CloneSetTests
         }
     }
 
-    @Test("A value set in the inspector on a nested member's published inlet undoes after a sync has re-instantiated the member around it")
+    @Test("A value set in the inspector on a nested member's published inlet undoes after a sync has patched the member around it")
     @MainActor
     func nestedMemberValueUndoSurvivesReinstantiation() throws
     {
@@ -537,7 +543,7 @@ extension CloneSetTests
             parameter.value = 0.25
             pair.member.member.subGraph.registerValueChange(of: parameter, from: before, label: "Number B")
         }
-        edit(pair.undoManager) { pair.target.addNode(NumberBinaryOperator(context: context)) }   // re-instantiates A
+        edit(pair.undoManager) { pair.target.addNode(NumberBinaryOperator(context: context)) }   // syncs into A
 
         pair.undoManager.undo()
         pair.undoManager.undo()
@@ -545,7 +551,7 @@ extension CloneSetTests
         #expect(liveInner.inputNumber2.value == before)
     }
 
-    @Test("Undoing Duplicate as Clone nested inside a member, after a sync has re-instantiated it, unlinks the live source and leaves no member without its set")
+    @Test("Undoing Duplicate as Clone nested inside a member, after a sync has patched it, unlinks the live source and leaves no member without its set")
     @MainActor
     func nestedDuplicateUndoSurvivesReinstantiation() throws
     {
@@ -553,7 +559,7 @@ extension CloneSetTests
         let pair = try makePair(context: context)
         let nestedID = pair.member.nested.id
         edit(pair.undoManager) { _ = try? pair.source.duplicateAsClone(pair.member.nested) }
-        edit(pair.undoManager) { pair.target.addNode(NumberBinaryOperator(context: context)) }   // re-instantiates A
+        edit(pair.undoManager) { pair.target.addNode(NumberBinaryOperator(context: context)) }   // syncs into A
 
         pair.undoManager.undo()                                                                   // B's edit
         pair.undoManager.undo()                                                                   // the duplicate
@@ -567,7 +573,7 @@ extension CloneSetTests
         #expect(everyMemberHasItsSet(pair.graph))
     }
 
-    @Test("A member's own published value set from the parent's inspector undoes after a sync has re-instantiated the member")
+    @Test("A member's own published value set from the parent's inspector undoes after a sync has patched the member")
     @MainActor
     func ownValueFromParentUndoSurvivesReinstantiation() throws
     {
@@ -582,9 +588,9 @@ extension CloneSetTests
             parameter.value = 5
             pair.graph.registerValueChange(of: parameter, from: before, label: "Amount")
         }
-        edit(pair.undoManager) { pair.target.addNode(NumberBinaryOperator(context: context)) }   // re-instantiates A
-        let reinstantiated = try #require(pair.member.member.subGraph.node(forID: firstID) as? NumberBinaryOperator)
-        #expect(reinstantiated.inputNumber1.value == 5, "the member keeps its own value through the sync")
+        edit(pair.undoManager) { pair.target.addNode(NumberBinaryOperator(context: context)) }   // syncs into A
+        let patched = try #require(pair.member.member.subGraph.node(forID: firstID) as? NumberBinaryOperator)
+        #expect(patched.inputNumber1.value == 5, "the member keeps its own value through the sync")
 
         pair.undoManager.undo()
         pair.undoManager.undo()
@@ -592,7 +598,7 @@ extension CloneSetTests
         #expect(live.inputNumber1.value == before)
     }
 
-    @Test("A step made in a sub graph before it joined a set acts on the live instance after a sync has re-instantiated it")
+    @Test("A step made in a sub graph before it joined a set acts on the live node after a sync has patched its member")
     @MainActor
     func stepFromBeforeMembershipActsOnTheLiveInstance() throws
     {
@@ -609,7 +615,7 @@ extension CloneSetTests
         var copy: SubgraphNode?
         edit(undoManager) { copy = try? graph.duplicateAsClone(plain) }
         let sibling = try #require(copy)
-        edit(undoManager) { sibling.subGraph.addNode(NumberBinaryOperator(context: context)) }   // re-instantiates the source
+        edit(undoManager) { sibling.subGraph.addNode(NumberBinaryOperator(context: context)) }   // syncs into the source
 
         undoManager.undo()
         undoManager.undo()
@@ -617,31 +623,6 @@ extension CloneSetTests
         let live = try #require(graph.node(forID: plain.id) as? SubgraphNode)
         #expect(!live.subGraph.nodes.contains { $0.id == added.id })
         #expect(live.subGraph.nodes.isEmpty)
-    }
-
-    @Test("A canvas standing inside a sibling is told when undo and redo put back what it shows")
-    @MainActor
-    func canvasInsideSiblingIsToldOfUndo() throws
-    {
-        guard let context = makeContext() else { return }
-        let pair = try makePair(context: context)
-        let canvas = GraphCanvasContext(rootGraph: pair.graph)
-        canvas.enter(pair.sibling)
-        edit(pair.undoManager) { pair.source.addNode(NumberBinaryOperator(context: context)) }
-
-        var told = false
-        withObservationTracking { _ = canvas.currentGraph } onChange: { told = true }
-        pair.undoManager.undo()
-        #expect(told)
-        #expect(canvas.currentGraph === pair.sibling.subGraph)
-        #expect(pair.sibling.subGraph.nodes.count == 3)
-
-        told = false
-        withObservationTracking { _ = canvas.currentGraph } onChange: { told = true }
-        pair.undoManager.redo()
-        #expect(told)
-        #expect(canvas.currentGraph === pair.sibling.subGraph)
-        #expect(pair.sibling.subGraph.nodes.count == 4)
     }
 
     @Test("Undoing an edit puts the stored graph back, so making the same edit again syncs the siblings")
@@ -732,9 +713,9 @@ extension CloneSetTests
         try expectPutBack()
     }
 
-    @Test("A sub graph a sync retires is released, with its nodes, once the renderer next plans")
+    @Test("A node a sync puts another in place of is released once its undo step is gone and its graph's lifecycle review is taken")
     @MainActor
-    func retiredSubGraphIsReleased() throws
+    func replacedNodeIsReleased() throws
     {
         guard let harness = GraphExecutionTestHarness() else { return }
         let pair = try makePair(context: harness.context)
@@ -742,20 +723,23 @@ extension CloneSetTests
         try harness.execute(pair.graph, frameNumber: 0)
         try harness.execute(pair.graph, frameNumber: 1)
 
-        weak var retiredGraph: Graph?
+        // Publishing another inlet of the node changes its entry: the
+        // sibling's node is made again under its ids.
         weak var retiredNode: Node?
         do
         {
-            retiredGraph = pair.sibling.subGraph
-            retiredNode = pair.sibling.subGraph.nodes.first
-            pair.source.addNode(NumberBinaryOperator(context: harness.context))
+            retiredNode = pair.counterpart(of: pair.member.second)
+            pair.source.setPublished(true, on: pair.member.second.inputNumber2)
             pair.graph.syncCloneSets(editedIn: pair.source)
         }
+        #expect(pair.counterpart(of: pair.member.second) !== retiredNode)
+        // The step that would put the node back holds it, and it waits in its
+        // graph's review, as any node taken out of a graph does, until the
+        // renderer next reviews that graph.
+        pair.undoManager.removeAllActions()
+        _ = pair.target.takeNodesAwaitingLifecycleReview()
         for frame in 2..<5 { try harness.execute(pair.graph, frameNumber: frame) }
-        pair.graph.addNode(NumberBinaryOperator(context: harness.context))
-        try harness.execute(pair.graph, frameNumber: 5)
 
-        #expect(retiredGraph == nil)
         #expect(retiredNode == nil)
     }
 }
@@ -764,7 +748,7 @@ extension CloneSetTests
 
 extension CloneSetTests
 {
-    @Test("A published slider at every level above writes a sibling's live inner port after a sync")
+    @Test("A published slider at every level above writes a sibling's live inner port after a sync put another node under its proxy")
     @MainActor
     func publishedGroupsFollowASync() throws
     {
@@ -780,16 +764,23 @@ extension CloneSetTests
 
         // The sibling's proxy is published up to the root.
         let sibling = try outer.subGraph.duplicateAsClone(member)
-        let siblingProxy = try #require(sibling.ports.first { $0.kind == .Inlet })
-        outer.subGraph.setPublished(true, on: siblingProxy)
-        let outerProxy = try #require(outer.ports.first { $0.kind == .Inlet })
-        root.setPublished(true, on: outerProxy)
+        let siblingProxyID = try #require(sibling.ports.first { $0.kind == .Inlet }).id
+        outer.subGraph.setPublished(true, on: try #require(outer.subGraph.nodePort(forID: siblingProxyID)))
+        let outerProxyID = try #require(outer.ports.first { $0.kind == .Inlet }).id
+        root.setPublished(true, on: try #require(root.nodePort(forID: outerProxyID)))
 
-        member.subGraph.addNode(NumberBinaryOperator(context: context))
+        // Publishing another of the node's inlets changes its entry: the
+        // sibling's node is made again under its ids.
+        let before = try #require(counterpart(of: first, in: sibling))
+        member.subGraph.setPublished(true, on: first.inputNumber2)
         CloneSetModel.syncSiblings(of: member)
 
         let copy = try #require(counterpart(of: first, in: sibling))
+        #expect(copy !== before)
         let parameter = try #require(copy.inputNumber1.parameter as AnyObject?)
+        let siblingProxy = try #require(outer.subGraph.nodePort(forID: siblingProxyID))
+        let outerProxy = try #require(root.nodePort(forID: outerProxyID))
+        #expect(siblingProxy.published && outerProxy.published)
         #expect((siblingProxy.parameter as AnyObject?) === parameter)
         #expect(outer.subGraph.publishedParameterGroup.params.contains { ($0 as AnyObject) === parameter })
         #expect((outerProxy.parameter as AnyObject?) === parameter)

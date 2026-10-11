@@ -52,16 +52,6 @@ public class EnvironmentNode: SubgraphNode
         self.subGraph.scene = IBLScene(context: context)
     }
     
-    /// A re-instantiated sub graph renders through an IBL scene, like the
-    /// first, and the new scene takes the environment the old one had: the
-    /// inputs apply only when they change.
-    override func subGraphDidChange()
-    {
-        self.subGraph.scene = IBLScene(context: self.context)
-        self.inputEnvironmentTexture.valueDidChange = true
-        self.inputEnvironmentIntensity.valueDidChange = true
-    }
-
     override public func execute(renderer:GraphRenderer,
                                  executionInfo:GraphExecutionInfo,
                                  renderPassDescriptor: MTLRenderPassDescriptor,

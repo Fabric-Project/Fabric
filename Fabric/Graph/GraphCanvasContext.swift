@@ -45,8 +45,6 @@ public class GraphCanvasContext
     /// what replaced it rather than in what was retired.
     public var entries: [SubgraphNode]
     {
-        // Read so a view showing the entries follows a replaced sub graph.
-        _ = rootGraph.subGraphReplacementCount
         var graph = rootGraph
         return path.map { entered in
             let live = graph.nodes.first { $0.id == entered.id } as? SubgraphNode ?? entered

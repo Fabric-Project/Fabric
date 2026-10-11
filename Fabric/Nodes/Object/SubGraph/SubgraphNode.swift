@@ -23,7 +23,7 @@ open class SubgraphNode: BaseObjectNode
     /// The clone set this node belongs to, nil outside any set. Members of a
     /// set are instances of one stored graph: the same nodes, ports and wires
     /// under the same ids, each executing on its own. The member edited last
-    /// becomes the stored graph and its siblings are decoded from it afresh.
+    /// becomes the stored graph and its siblings are patched to it.
     /// Published inlet values are the per-member exception: the parent graph
     /// sets them through the proxy. Mutate through Graph.duplicateAsClone /
     /// unlinkClone so the change is undoable. See CloneSet.
@@ -60,29 +60,12 @@ open class SubgraphNode: BaseObjectNode
     /// A member reports itself linked to its set.
     override open func deriveStatuses() -> [NodeStatus] { self.cloneSetInfo.map { [$0.status] } ?? [] }
 
-    /// What a proxy keeps across its member re-instantiating: its id in the
-    /// parent graph, and whether and as what the parent publishes it on.
-    private struct ProxyIdentity
-    {
-        let id: UUID
-        let published: Bool
-        let publishedName: String?
-    }
-
-    /// Identities to give proxies as they are rebuilt, by inner port id; set
-    /// around a rebuild that replaces every proxy. See replaceSubGraph.
-    private var reusableProxyIdentities: [UUID: ProxyIdentity] = [:]
-
     /// The id each proxy this node has made had, by inner port id. A proxy
     /// made again over the same port, as when the port is replaced or undo
     /// brings it back, takes it, so the parent's wires find it by id: a
     /// member's proxies made before it joined its set have their inner
     /// ports' ids, not the ids it would give them now.
     private var proxyIDsByInnerPortID: [UUID: UUID] = [:]
-
-    /// The renderer this node last started or enabled under, so a sub graph
-    /// it retires can be stopped through it before it is released.
-    private weak var lifecycleRenderer: GraphRenderer?
 
     /// ProxyPorts wrapping the sub graph's published ports.
     /// Each proxy has node = self (the SubgraphNode) and published = false.
@@ -130,24 +113,16 @@ open class SubgraphNode: BaseObjectNode
         let existingInnerIDs = Set(self.proxyPorts.compactMap { ($0 as? any ProxyPortProtocol)?.innerPortID })
         var replacements: [Port] = []
         // A member's proxies carry ids of their own: its siblings wrap inner
-        // ports under the same ids in the same parent graph. A proxy that is
-        // being rebuilt keeps the id and published state it had, and one made
+        // ports under the same ids in the same parent graph. A proxy made
         // afresh keeps its id from then on, encoded with the member, so every
         // instance decoded from it agrees.
         for innerPort in innerPorts where !existingInnerIDs.contains(innerPort.id)
         {
-            let identity = self.reusableProxyIdentities[innerPort.id]
-            let proxyID = identity?.id ?? self.proxyIDsByInnerPortID[innerPort.id]
-                ?? (self.cloneSetID == nil ? nil : UUID())
+            let proxyID = self.proxyIDsByInnerPortID[innerPort.id] ?? (self.cloneSetID == nil ? nil : UUID())
             if let proxy = Self.makeProxy(for: innerPort, id: proxyID)
             {
                 proxy.node = self
-                if let identity
-                {
-                    proxy.published = identity.published
-                    proxy.publishedName = identity.publishedName
-                }
-                else if let state = replaced[innerPort.id]
+                if let state = replaced[innerPort.id]
                 {
                     proxy.published = state.published
                     proxy.publishedName = state.publishedName
@@ -422,7 +397,7 @@ open class SubgraphNode: BaseObjectNode
         Self.restore(values: values.mapValues { ($0.base.portType, $0.base.snapshotValue()) }, in: subGraph)
     }
 
-    private static func restore(values: [String: (portType: PortType, value: PortValue?)], in subGraph: Graph)
+    internal static func restore(values: [String: (portType: PortType, value: PortValue?)], in subGraph: Graph)
     {
         let portsByPath = subGraph.memberOwnInlets()
         for (path, saved) in values
@@ -433,143 +408,6 @@ open class SubgraphNode: BaseObjectNode
     }
 
     // MARK: - Clone set sync
-
-    /// Replaces the sub graph with a fresh instance of the set's stored
-    /// graph. See replaceSubGraph.
-    internal func reinstantiateSubGraph() throws
-    {
-        guard let graph = self.graph, let setID = self.cloneSetID else
-        {
-            throw FabricError(.graph(.notACloneMember), severity: .recoverable, message: "\(self) is not in a clone set.")
-        }
-        let instance = try Graph.instantiateCloneSetGraph(of: setID, decodeContext: graph.makeDecoderContext())
-        self.replaceSubGraph(with: instance)
-    }
-
-    /// Swaps the sub graph for `newGraph`, keeping what is this node's own:
-    /// its published inlet values, unless `keepingOwnValues` is false, for a
-    /// graph that holds them already, and its proxies, which follow their
-    /// ports into the new instance so the parent's wires onto them, and any
-    /// proxy wrapping them further up, stay as they are. The old graph is
-    /// retired: its nodes are stopped through the renderer they ran under.
-    /// Edits made in it can still be undone: each step finds what it acts on
-    /// by id in the graph the document holds then (see
-    /// Graph.registerUndo(_:)). Everything else the old graph held at runtime
-    /// goes with it. The new graph's nodes start at the renderer's next
-    /// lifecycle review, as nodes added to any graph do.
-    internal func replaceSubGraph(with newGraph: Graph, keepingOwnValues: Bool = true)
-    {
-        let old = self.subGraph
-        let parent = self.graph
-        let values = keepingOwnValues ? old.memberOwnInlets().mapValues { (portType: $0.portType, value: $0.snapshotValue()) } : [:]
-
-        parent?.nodeObjectWillChange(self)
-        old.ownerNode = nil
-        old.onPublishedPortsChanged = nil
-        old.onCameraSelectionChanged = nil
-        if let renderer = self.childGraphRenderer ?? self.lifecycleRenderer
-        {
-            do { try renderer.reconcileAllNodes(in: old, ceiling: .disabled, startsAllNodes: false) }
-            catch { print("Graph lifecycle: \(self): \(error)") }
-        }
-
-        self.subGraph = newGraph
-        // The owner first: a graph handed an undo manager with no owner takes
-        // itself for a document's root.
-        self.wireSubGraphCallback()
-        // A canvas may stand anywhere inside, so every graph in the instance
-        // takes the undo manager, and an edit made there is recorded.
-        newGraph.undoManager = old.undoManager
-        for nested in newGraph.subgraphNodesRecursive()
-        {
-            nested.subGraph.undoManager = old.undoManager
-        }
-        self.subGraphDidChange()
-        Self.restore(values: values, in: newGraph)
-
-        self.rebindProxyPorts()
-        parent?.nodeObjectDidChange(self)
-        parent?.updateCameraSelection()
-        // The instance's nested members arrived outside the document, where
-        // their sets looked like sets of one.
-        parent?.cloneSetMembershipChanged(around: self)
-        parent?.rootGraph.subGraphReplacementCount += 1
-
-        self.markDirty()
-    }
-
-    /// Points every proxy at its port in the current sub graph. A proxy whose
-    /// port is gone, or is of another type now, is remade by the rebuild that
-    /// follows; a retyped one keeps its id and published state, though the
-    /// parent's wires onto it are re-made only where its new type allows.
-    /// A proxy rebound in place carries the new instance's parameter; the
-    /// parent's published group holds the retired one, as do the proxies
-    /// standing for the proxy further up. Each level above is rebound before
-    /// its group is pointed at the parameters its ports hold now.
-    private func rebindAbove(_ rebound: [Port])
-    {
-        guard let parent = self.graph else { return }
-        let published = rebound.filter(\.published)
-        guard !published.isEmpty else { return }
-        let reboundAbove = parent.ownerNode?.rebindProxies(over: published) ?? []
-        parent.repointPublishedParameterGroup()
-        parent.ownerNode?.rebindAbove(reboundAbove)
-    }
-
-    /// Rebinds the proxies standing for `innerPorts`, and returns them.
-    private func rebindProxies(over innerPorts: [Port]) -> [Port]
-    {
-        let innerByID = Dictionary(innerPorts.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        return self.proxyPorts.filter { proxy in
-            guard let typed = proxy as? any ProxyPortProtocol, let inner = innerByID[typed.innerPortID] else { return false }
-            return typed.rebindInnerPort(to: inner)
-        }
-    }
-
-    private func rebindProxyPorts()
-    {
-        let parent = self.graph
-        let innerByID = Dictionary(self.subGraph.getPublishedPorts().map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        var retyped: [(identity: ProxyIdentity, wires: [(outletID: UUID, inletID: UUID, active: Bool)])] = []
-        var rebound: [Port] = []
-
-        for proxy in self.proxyPorts
-        {
-            guard let typed = proxy as? any ProxyPortProtocol, let inner = innerByID[typed.innerPortID] else { continue }
-            if typed.rebindInnerPort(to: inner)
-            {
-                rebound.append(proxy)
-                continue
-            }
-
-            let wires = (parent?.connections ?? []).filter { $0.outletPortID == proxy.id || $0.inletPortID == proxy.id }
-            retyped.append((ProxyIdentity(id: proxy.id, published: proxy.published, publishedName: proxy.publishedName),
-                            wires.map { (outletID: $0.outletPortID, inletID: $0.inletPortID, active: $0.active) }))
-            parent?.withoutUndoRegistration { for wire in wires { _ = parent?.disconnect(wire) } }
-            self.reusableProxyIdentities[typed.innerPortID] = retyped.last?.identity
-            self.proxyPorts.removeAll { $0 === proxy }
-        }
-
-        self.rebuildProxyPorts()
-        self.reusableProxyIdentities = [:]
-        self.rebindAbove(rebound)
-
-        guard let parent, !retyped.isEmpty else { return }
-        parent.withoutUndoRegistration {
-            for wire in retyped.flatMap(\.wires)
-            {
-                guard let outlet = parent.nodePort(forID: wire.outletID),
-                      let inlet = parent.nodePort(forID: wire.inletID),
-                      let connection = parent.connect(outlet, to: inlet)
-                else { continue }
-                _ = parent.setConnection(connection, active: wire.active)
-            }
-        }
-    }
-
-    /// The sub graph was swapped for another instance; a subclass that holds
-    /// something per graph, a renderer or a scene, remakes it here.
-    internal func subGraphDidChange() { }
 
     /// The saved per-member values, each read on its own, so one that cannot
     /// be read, of a plugin's port type that is not loaded say, costs only
@@ -654,7 +492,6 @@ open class SubgraphNode: BaseObjectNode
 
     override open func startExecution(renderer:GraphRenderer) throws
     {
-        self.lifecycleRenderer = renderer
         self.transitionSubgraph(to: .started, renderer: renderer)
         try super.startExecution(renderer: renderer)
     }
@@ -667,7 +504,6 @@ open class SubgraphNode: BaseObjectNode
 
     override open func enableExecution(renderer:GraphRenderer) throws
     {
-        self.lifecycleRenderer = renderer
         self.transitionSubgraph(to: .enabled, renderer: renderer)
         try super.enableExecution(renderer: renderer)
     }

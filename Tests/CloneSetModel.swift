@@ -1,13 +1,13 @@
 import Foundation
 @testable import Fabric
 
-/// The decode model, as CloneSetContractTests needs it: every member is an
+/// The patch model, as CloneSetContractTests needs it: every member is an
 /// instance of one stored graph, so a node's counterpart has its id.
 enum CloneSetModel
 {
-    static let name = "Decode model"
+    static let name = "Patch model"
 
-    static let divergences: Set<CloneSetDivergence> = [.siblingNodesAreReplaced]
+    static let divergences: Set<CloneSetDivergence> = []
 
     static func counterpart<T: Node>(of node: T, from source: SubgraphNode, in member: SubgraphNode) -> T?
     {
@@ -16,12 +16,12 @@ enum CloneSetModel
 
     static func syncSiblings(of member: SubgraphNode)
     {
-        member.graph?.reinstantiateCloneSiblings(of: member)
+        member.graph?.patchCloneSiblings(of: member)
     }
 
     static func syncMember(_ target: SubgraphNode, from source: SubgraphNode) throws
     {
-        try source.graph?.reinstantiateCloneMember(target, from: source)
+        try source.graph?.patchCloneMember(target, from: source)
     }
 
     /// Whether `member`'s sub graph encodes to its set's stored graph.
