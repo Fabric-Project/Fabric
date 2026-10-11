@@ -22,8 +22,8 @@ public enum NodeStatus: Sendable, Equatable, Comparable, CustomStringConvertible
     case error(String)
     /// The node runs, but something wants looking at.
     case warning(String)
-    /// The node belongs to something beyond itself that edits here reach:
-    /// a clone set, later a shared template.
+    /// The node belongs to a clone set, and edits made here reach its other
+    /// members.
     case linked(String)
 
     public var message: String
