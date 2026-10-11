@@ -52,9 +52,7 @@ struct PortContextMenu: View
 
     private func publish()
     {
-        port.published.toggle()
-        if !port.published { port.publishedName = nil }
-        graph.rebuildPublishedParameterGroup()
+        graph.setPublished(!port.published, on: port)
     }
 
     private func rename()

@@ -317,4 +317,31 @@ struct SubgraphEmbeddingTests
         #expect(fixture.graph.connections.filter { $0 === fixture.incomingConnection }.count == 1)
         #expect(fixture.graph.disconnect(fixture.incomingConnection))
     }
+
+    @Test("Unpublishing a port takes the parent's wires onto its proxy with it", arguments: ContainerKind.allCases)
+    func unpublishingTakesTheParentWires(kind: ContainerKind) throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = try makeFixture(context: context)
+        let container = try embed(fixture, as: kind)
+
+        let innerPort = fixture.firstMovedNode.inputNumber1
+        let proxy = try #require(container.ports.first { $0.id == innerPort.id })
+        #expect(fixture.incomingConnection.inletPort === proxy)
+
+        container.subGraph.setPublished(false, on: innerPort)
+
+        // The proxy has gone, and so has the wire that named it: not left in
+        // the graph, not left on the port at the other end.
+        #expect(!container.ports.contains { $0.id == innerPort.id })
+        #expect(!fixture.graph.connections.contains { $0 === fixture.incomingConnection })
+        #expect(fixture.upstream.outputNumber.connections.isEmpty)
+        #expect(innerPort.published == false)
+        #expect(innerPort.publishedName == nil)
+
+        // Publishing again brings a proxy back, with nothing wired to it.
+        container.subGraph.setPublished(true, on: innerPort)
+        let rebuilt = try #require(container.ports.first { $0.id == innerPort.id })
+        #expect(rebuilt.connections.isEmpty)
+    }
 }

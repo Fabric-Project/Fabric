@@ -28,6 +28,18 @@ open class SubgraphNode: BaseObjectNode
 
     override open var ports:[Port] { self.proxyPorts + super.ports }
 
+    /// Takes the containing graph's wires off the proxy standing for `port`,
+    /// a port of the sub graph being unpublished, with the teardown every
+    /// disconnection gets.
+    private func disconnectProxy(standingFor port: Port)
+    {
+        guard let graph = self.graph,
+              let proxy = self.proxyPorts.first(where: { ($0 as? any ProxyPortProtocol)?.innerPortID == port.id })
+        else { return }
+
+        graph.withoutUndoRegistration { graph.disconnectAll(from: proxy) }
+    }
+
     /// Rebuild proxy ports from the sub graph's current published ports.
     /// Called via callback when the sub graph's published ports change.
     open func rebuildProxyPorts()
@@ -260,6 +272,10 @@ open class SubgraphNode: BaseObjectNode
 
     private func wireSubGraphCallback()
     {
+        self.subGraph.onPortUnpublished = { [weak self] port in
+            self?.disconnectProxy(standingFor: port)
+        }
+
         self.subGraph.onPublishedPortsChanged = { [weak self] in
             self?.rebuildProxyPorts()
         }

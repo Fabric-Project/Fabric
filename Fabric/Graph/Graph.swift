@@ -169,6 +169,11 @@ internal import AnyCodable
     /// this to rebuild its proxy ports without polling.
     @ObservationIgnored var onPublishedPortsChanged: (() -> Void)?
 
+    /// Called as a port of a node in this graph is unpublished, as a
+    /// deliberate act, before the proxy standing for it goes. SubgraphNode
+    /// uses this to take the containing graph's wires off that proxy.
+    @ObservationIgnored var onPortUnpublished: ((Port) -> Void)?
+
     /// Called when this graph resolves to a different scene camera. A
     /// SubgraphNode propagates the change to its containing graph so camera
     /// selection remains cached across the complete nested graph hierarchy.
@@ -1000,6 +1005,33 @@ internal import AnyCodable
         cachedPublishedOutputPortsRevision = connectionRevision
 
         return cachedPublishedOutputPorts
+    }
+
+    /// Publishes or unpublishes `port`, a port of a node in this graph, as a
+    /// deliberate act rather than the rebuild that follows one.
+    ///
+    /// Unpublishing takes the proxy that stood for the port in the containing
+    /// graph with it, so the wires onto that proxy are taken down first,
+    /// through `onPortUnpublished`. Left alone they name a port that has
+    /// gone: the port at the other end still reports itself wired, and a
+    /// republish gives the proxy that comes back no way to recognise them. A
+    /// rebuild that drops and remakes a proxy within one operation goes the
+    /// other way, binding the wires to the proxy that replaces it; see
+    /// `reattachConnections`.
+    ///
+    /// Publishing registers no undo step, so neither does this.
+    public func setPublished(_ published: Bool, on port: Port)
+    {
+        guard port.published != published else { return }
+
+        if !published
+        {
+            self.onPortUnpublished?(port)
+            port.publishedName = nil
+        }
+
+        port.published = published
+        self.rebuildPublishedParameterGroup()
     }
 
     public func rebuildPublishedParameterGroup()
