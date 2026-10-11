@@ -197,3 +197,16 @@ extension SubgraphNode
                                 proxyChains: Dictionary(chains, uniquingKeysWith: { first, _ in first }))
     }
 }
+
+extension Graph
+{
+    /// Points the published group at the parameters the published ports hold
+    /// now, where a parameter object was exchanged under a port, as a sync
+    /// does beneath a proxy. Nothing was published or unpublished, so labels
+    /// and the lifecycle review are left as they are.
+    internal func repointPublishedParameterGroup()
+    {
+        self.publishedParameterGroup.clear()
+        self.publishedParameterGroup.append(self.getPublishedPorts().compactMap(\.parameter))
+    }
+}

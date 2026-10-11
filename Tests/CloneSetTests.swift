@@ -759,3 +759,40 @@ extension CloneSetTests
         #expect(retiredNode == nil)
     }
 }
+
+// MARK: - Published groups
+
+extension CloneSetTests
+{
+    @Test("A published slider at every level above writes a sibling's live inner port after a sync")
+    @MainActor
+    func publishedGroupsFollowASync() throws
+    {
+        guard let context = makeContext() else { return }
+        let root = Graph(context: context)
+        let outer = SubgraphNode(context: context)
+        root.addNode(outer)
+        let member = SubgraphNode(context: context)
+        outer.subGraph.addNode(member)
+        let first = NumberBinaryOperator(context: context)
+        member.subGraph.addNode(first)
+        member.subGraph.setPublished(true, on: first.inputNumber1)
+
+        // The sibling's proxy is published up to the root.
+        let sibling = try outer.subGraph.duplicateAsClone(member)
+        let siblingProxy = try #require(sibling.ports.first { $0.kind == .Inlet })
+        outer.subGraph.setPublished(true, on: siblingProxy)
+        let outerProxy = try #require(outer.ports.first { $0.kind == .Inlet })
+        root.setPublished(true, on: outerProxy)
+
+        member.subGraph.addNode(NumberBinaryOperator(context: context))
+        CloneSetModel.syncSiblings(of: member)
+
+        let copy = try #require(counterpart(of: first, in: sibling))
+        let parameter = try #require(copy.inputNumber1.parameter as AnyObject?)
+        #expect((siblingProxy.parameter as AnyObject?) === parameter)
+        #expect(outer.subGraph.publishedParameterGroup.params.contains { ($0 as AnyObject) === parameter })
+        #expect((outerProxy.parameter as AnyObject?) === parameter)
+        #expect(root.publishedParameterGroup.params.contains { ($0 as AnyObject) === parameter })
+    }
+}

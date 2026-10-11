@@ -502,16 +502,45 @@ open class SubgraphNode: BaseObjectNode
     /// port is gone, or is of another type now, is remade by the rebuild that
     /// follows; a retyped one keeps its id and published state, though the
     /// parent's wires onto it are re-made only where its new type allows.
+    /// A proxy rebound in place carries the new instance's parameter; the
+    /// parent's published group holds the retired one, as do the proxies
+    /// standing for the proxy further up. Each level above is rebound before
+    /// its group is pointed at the parameters its ports hold now.
+    private func rebindAbove(_ rebound: [Port])
+    {
+        guard let parent = self.graph else { return }
+        let published = rebound.filter(\.published)
+        guard !published.isEmpty else { return }
+        let reboundAbove = parent.ownerNode?.rebindProxies(over: published) ?? []
+        parent.repointPublishedParameterGroup()
+        parent.ownerNode?.rebindAbove(reboundAbove)
+    }
+
+    /// Rebinds the proxies standing for `innerPorts`, and returns them.
+    private func rebindProxies(over innerPorts: [Port]) -> [Port]
+    {
+        let innerByID = Dictionary(innerPorts.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return self.proxyPorts.filter { proxy in
+            guard let typed = proxy as? any ProxyPortProtocol, let inner = innerByID[typed.innerPortID] else { return false }
+            return typed.rebindInnerPort(to: inner)
+        }
+    }
+
     private func rebindProxyPorts()
     {
         let parent = self.graph
         let innerByID = Dictionary(self.subGraph.getPublishedPorts().map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         var retyped: [(identity: ProxyIdentity, wires: [(outletID: UUID, inletID: UUID, active: Bool)])] = []
+        var rebound: [Port] = []
 
         for proxy in self.proxyPorts
         {
             guard let typed = proxy as? any ProxyPortProtocol, let inner = innerByID[typed.innerPortID] else { continue }
-            if typed.rebindInnerPort(to: inner) { continue }
+            if typed.rebindInnerPort(to: inner)
+            {
+                rebound.append(proxy)
+                continue
+            }
 
             let wires = (parent?.connections ?? []).filter { $0.outletPortID == proxy.id || $0.inletPortID == proxy.id }
             retyped.append((ProxyIdentity(id: proxy.id, published: proxy.published, publishedName: proxy.publishedName),
@@ -523,6 +552,7 @@ open class SubgraphNode: BaseObjectNode
 
         self.rebuildProxyPorts()
         self.reusableProxyIdentities = [:]
+        self.rebindAbove(rebound)
 
         guard let parent, !retyped.isEmpty else { return }
         parent.withoutUndoRegistration {

@@ -218,13 +218,13 @@ internal import AnyCodable
     /// is gone, so `disconnect` refuses the wire, but the end that survives
     /// still holds it and needs the same teardown.
     @discardableResult
-    internal func pruneDanglingConnections() -> [(outletID: UUID, inletID: UUID, active: Bool)]
+    internal func pruneDanglingConnections()
     {
         let portIDs = Set(nodes.flatMap { $0.ports.map(\.id) })
         let dangling = connections.filter {
             !portIDs.contains($0.outletPortID) || !portIDs.contains($0.inletPortID)
         }
-        guard !dangling.isEmpty else { return [] }
+        guard !dangling.isEmpty else { return }
 
         for connection in dangling
         {
@@ -247,7 +247,6 @@ internal import AnyCodable
         }
         connections.removeAll { connection in dangling.contains { $0 === connection } }
         markConnectionTopologyChanged()
-        return dangling.map { ($0.outletPortID, $0.inletPortID, $0.active) }
     }
 
     public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
@@ -2324,12 +2323,6 @@ internal import AnyCodable
     }
 
     /// Collects every UUID-formatted string in a JSON object.
-    internal static func findAllUUIDs(in object: Any) -> Set<String>
-    {
-        var uuids = Set<String>()
-        collectUUIDs(from: object, into: &uuids)
-        return uuids
-    }
 
     /// Builds a connection map containing only connections where both ports belong to nodes in the given set
     private func buildInternalConnectionMap(for nodes: [Node]) -> [UUID: [UUID]]
