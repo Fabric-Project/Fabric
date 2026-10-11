@@ -883,8 +883,14 @@ internal import AnyCodable
 
         self.updateFileReferenceBaseURL(directoryURL)
 
-        // A set's stored design holds the references its members held.
-        if rewroteAny, self.ownerNode == nil { self.storeCloneSetDesigns() }
+        // A set's stored design holds the references its members held. A save
+        // can rewrite off the main thread, and designs change only on it: the
+        // file written then keeps the design as it was, its paths absolute.
+        if rewroteAny, self.ownerNode == nil
+        {
+            if Thread.isMainThread { self.storeCloneSetDesigns() }
+            else { DispatchQueue.main.async { self.storeCloneSetDesigns() } }
+        }
         return rewroteAny
     }
 
