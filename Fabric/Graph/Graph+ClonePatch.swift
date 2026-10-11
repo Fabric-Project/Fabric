@@ -21,6 +21,8 @@ internal import AnyCodable
 /// patched the same way inside. The sibling's own values, its published
 /// inlets', are kept through a replacement.
 ///
+/// A patch is planned before anything is changed, every node it needs
+/// decoded first, so a sibling that cannot be patched is left as it was.
 /// Every change registers its own undo step into the edit's open group, so
 /// undo and redo put the siblings back with the edit and sync nothing. With
 /// no undo group open, a sync registers nothing.
@@ -41,9 +43,11 @@ extension Graph
         guard member.cloneSetID != nil, !self.cloneSetCoordinator.isSyncing else { return }
 
         self.whileSyncingClones {
+            let stored: StoredGraph
             do
             {
                 guard try self.refreshCloneSetGraphUndoably(from: member) else { return }
+                stored = try self.storedGraph(of: member)
             }
             catch
             {
@@ -53,7 +57,7 @@ extension Graph
 
             for sibling in self.cloneSiblings(of: member)
             {
-                do { try sibling.graph?.patchCloneMember(sibling) }
+                do { try sibling.graph?.patchCloneMember(sibling, to: stored) }
                 catch { print("Clone set sync: \(sibling) not patched from \(member): \(error.localizedDescription)") }
             }
         }
@@ -71,7 +75,7 @@ extension Graph
 
         try self.whileSyncingClones {
             try self.refreshCloneSetGraphUndoably(from: source)
-            try target.graph?.patchCloneMember(target)
+            try target.graph?.patchCloneMember(target, to: try self.storedGraph(of: source))
         }
     }
 
@@ -121,39 +125,63 @@ extension Graph
 
     // MARK: - Patching a member
 
-    /// Patches `member`, a node in this graph, to its set's stored graph.
-    private func patchCloneMember(_ member: SubgraphNode) throws
+    /// A set's stored graph read once for every sibling patched to it: the
+    /// graph as stored, which nodes are decoded from, and the form it is
+    /// compared in.
+    private struct StoredGraph
+    {
+        let graph: [String: Any]
+        let comparable: [String: Any]
+    }
+
+    private func storedGraph(of member: SubgraphNode) throws -> StoredGraph
     {
         guard let setID = member.cloneSetID, let set = self.cloneSet(for: setID) else
         {
             throw recoverableGraphError(.notACloneMember, message: "\(member) is not in a clone set.")
         }
+        let graph = set.graphObject
+        return StoredGraph(graph: graph, comparable: Self.nonDesignInlets(inGraph: graph).graph)
+    }
+
+    /// Patches `member`, a node in this graph, to `stored`, its set's graph.
+    private func patchCloneMember(_ member: SubgraphNode, to stored: StoredGraph) throws
+    {
         guard let live = CloneSet.jsonObject(from: try Self.cloneSetJSON(of: member.subGraph)) else
         {
             throw recoverableGraphError(.cloneOperationFailed, message: "\(member)'s sub graph could not be encoded for its clone set.")
         }
-        let stored = set.graphObject
+        let patch = try member.subGraph.plan(from: Self.nonDesignInlets(inGraph: live).graph,
+                                             to: stored.comparable,
+                                             stored: stored.graph)
 
-        // A node put in its place decodes with the source's values; the
-        // member's own go back on afterwards.
-        let ownValues = member.subGraph.memberOwnInlets().mapValues { (portType: $0.portType, value: $0.snapshotValue()) }
-        try member.subGraph.patch(from: Self.nonDesignInlets(inGraph: live).graph,
-                                  to: Self.nonDesignInlets(inGraph: stored).graph,
-                                  stored: stored)
-        SubgraphNode.restore(values: ownValues, in: member.subGraph)
+        // A node put in another's place decodes with the source's values on
+        // the inlets that are the member's own; those go back on, on the
+        // ports made again and nowhere else.
+        let ownInlets = member.subGraph.memberOwnInlets()
+        let ownValues = ownInlets.mapValues { (portType: $0.portType, value: $0.snapshotValue()) }
+        member.subGraph.apply(patch)
+        for (path, port) in member.subGraph.memberOwnInlets() where ownInlets[path] !== port
+        {
+            guard let saved = ownValues[path], saved.portType == port.portType else { continue }
+            port.restoreValue(from: saved.value)
+        }
     }
 
-    /// Changes this graph from `from`, its encoding as a set stores one, to
-    /// `to`, both with the values that are not design left out. `stored` is
-    /// `to` with them in, which a node is decoded from.
-    private func patch(from: [String: Any], to: [String: Any], stored: [String: Any]) throws
+    // MARK: Planning
+
+    /// What brings one graph to its stored form, decided and decoded before
+    /// anything is changed.
+    private struct GraphPatch
     {
-        try self.patchNodes(from: from, to: to, stored: stored)
-        self.patchWires(to: to)
-        self.patchNotes(from: from, to: to)
+        let to: [String: Any]
+        var deletions: [Node] = []
+        var additions: [Node] = []
+        var placements: [(node: Node, value: [String: Any])] = []
+        var replacements: [(existing: Node, replacement: Node)] = []
+        var nested: [(graph: Graph, patch: GraphPatch)] = []
+        var order: [UUID] = []
     }
-
-    // MARK: Nodes
 
     /// A node's entry in an encoded graph: the id it is compared under and
     /// the bytes it is compared by.
@@ -193,8 +221,12 @@ extension Graph
     /// The keys a node entry changes without the node being made again.
     private static let placementKeys: Set<String> = ["nodeOffset", "userName"]
 
-    private func patchNodes(from: [String: Any], to: [String: Any], stored: [String: Any]) throws
+    /// Plans the patch that brings this graph from `from`, its encoding as a
+    /// set stores one, to `to`, both with the values that are not design
+    /// left out. `stored` is `to` with them in, which a node is decoded from.
+    private func plan(from: [String: Any], to: [String: Any], stored: [String: Any]) throws -> GraphPatch
     {
+        var patch = GraphPatch(to: to)
         let fromEntries = Self.nodeEntries(in: from)
         let toEntries = Self.nodeEntries(in: to)
         let fromByID = Dictionary(fromEntries.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
@@ -203,8 +235,7 @@ extension Graph
 
         for entry in fromEntries where !toIDs.contains(entry.id)
         {
-            guard let node = self.node(forID: entry.id) else { continue }
-            self.delete(node: node)
+            self.node(forID: entry.id).map { patch.deletions.append($0) }
         }
 
         for entry in toEntries
@@ -212,13 +243,16 @@ extension Graph
             guard let storedEntry = storedByID[entry.id] else { continue }
             guard let before = fromByID[entry.id], let node = self.node(forID: entry.id) else
             {
-                self.addNode(try self.decodeStoredNode(storedEntry))
+                patch.additions.append(try self.decodeStoredNode(storedEntry))
                 continue
             }
             guard before.comparable != entry.comparable else { continue }
 
-            self.place(node, as: entry.value)
-            if before.comparable(without: Self.placementKeys) == entry.comparable(without: Self.placementKeys) { continue }
+            if before.comparable(without: Self.placementKeys) == entry.comparable(without: Self.placementKeys)
+            {
+                patch.placements.append((node, entry.value))
+                continue
+            }
 
             // A plain sub graph nested in the member is patched inside, where
             // what differs is inside it alone.
@@ -229,14 +263,16 @@ extension Graph
                let storedSubGraph = storedEntry.value["subGraph"] as? [String: Any],
                before.comparable(without: subGraphKeys) == entry.comparable(without: subGraphKeys)
             {
-                try nested.subGraph.patch(from: fromSubGraph, to: toSubGraph, stored: storedSubGraph)
+                patch.placements.append((node, entry.value))
+                patch.nested.append((nested.subGraph, try nested.subGraph.plan(from: fromSubGraph, to: toSubGraph, stored: storedSubGraph)))
                 continue
             }
 
-            self.replace(node, with: try self.decodeStoredNode(storedEntry))
+            patch.replacements.append((node, try self.decodeStoredNode(storedEntry)))
         }
 
-        self.reorderNodes(toMatch: toEntries.map(\.id))
+        patch.order = toEntries.map(\.id)
+        return patch
     }
 
     /// A node decoded from its stored entry, as a document would decode it,
@@ -251,6 +287,20 @@ extension Graph
             throw recoverableGraphError(.cloneOperationFailed, message: "A \(entry.type) in the stored graph could not be decoded.")
         }
         return node
+    }
+
+    // MARK: Applying
+
+    private func apply(_ patch: GraphPatch)
+    {
+        for node in patch.deletions { self.delete(node: node) }
+        for node in patch.additions { self.addNode(node) }
+        for (node, value) in patch.placements { self.place(node, as: value) }
+        for (existing, replacement) in patch.replacements { self.replace(existing, with: replacement) }
+        for (graph, nested) in patch.nested { graph.apply(nested) }
+        self.reorderNodes(toMatch: patch.order)
+        self.patchWires(to: patch.to)
+        self.patchNotes(to: patch.to)
     }
 
     /// Moves and renames `node` as `value`, its entry, has it, undoably.
@@ -386,13 +436,13 @@ extension Graph
         }
     }
 
-    private func patchNotes(from: [String: Any], to: [String: Any])
+    private func patchNotes(to: [String: Any])
     {
         let toNotes = Self.notes(in: to)
         let toIDs = Set(toNotes.map(\.id))
-        for note in Self.notes(in: from) where !toIDs.contains(note.id)
+        for note in self.notes where !toIDs.contains(note.id)
         {
-            self.notes.first { $0.id == note.id }.map(self.deleteNote)
+            self.deleteNote(note)
         }
         for note in toNotes
         {

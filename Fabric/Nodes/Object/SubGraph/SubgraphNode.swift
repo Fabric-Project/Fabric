@@ -397,7 +397,7 @@ open class SubgraphNode: BaseObjectNode
         Self.restore(values: values.mapValues { ($0.base.portType, $0.base.snapshotValue()) }, in: subGraph)
     }
 
-    internal static func restore(values: [String: (portType: PortType, value: PortValue?)], in subGraph: Graph)
+    private static func restore(values: [String: (portType: PortType, value: PortValue?)], in subGraph: Graph)
     {
         let portsByPath = subGraph.memberOwnInlets()
         for (path, saved) in values

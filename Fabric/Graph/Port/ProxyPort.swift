@@ -17,7 +17,6 @@ protocol ProxyPortProtocol
     /// replaced under the same id is not.
     func wraps(_ port: Port) -> Bool
     func forwardFromInner(force:Bool)
-    func rebindInnerPort(to port: Port) -> Bool
 }
 
 /// A port that wraps an inner port from a sub graph, presenting it as
@@ -76,21 +75,6 @@ public class ProxyPort<Value: PortValueRepresentable>: NodePort<Value>, ProxyPor
         self.value = innerPort.value
         self.published = published
         self.publishedName = publishedName
-    }
-
-    /// Points the proxy at `port` instead: the same port, by id and type, in
-    /// another instance of the sub graph, as when a clone set member is
-    /// re-instantiated. The proxy keeps its id, its published state and the
-    /// parent graph's wires onto it. False where `port` is not of this
-    /// proxy's type, in which case the proxy is for another port now and has
-    /// to be remade.
-    func rebindInnerPort(to port: Port) -> Bool
-    {
-        guard let typedPort = port as? NodePort<Value> else { return false }
-        self.innerPort = typedPort
-        self.parameter = typedPort.parameter
-        super.value = typedPort.value
-        return true
     }
 
     required public init(from decoder: any Decoder) throws

@@ -311,6 +311,23 @@ extension CloneSetTests
         })
     }
 
+    @Test("A sync that leaves a node alone leaves it clean, its own values untouched")
+    func untouchedNodeStaysClean() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let firstCopy = try #require(pair.counterpart(of: pair.member.first))
+        firstCopy.inputNumber1.value = 7
+        for node in pair.target.nodes { node.markClean() }
+
+        pair.member.second.offset = CGSize(width: 80, height: 80)
+        pair.sync()
+
+        #expect(pair.counterpart(of: pair.member.second)?.offset == CGSize(width: 80, height: 80))
+        #expect(!firstCopy.isDirty, "a node the sync left alone was not written to")
+        #expect(firstCopy.inputNumber1.value == 7)
+    }
+
     @Test("A newly published port gets a proxy of its own id on every member")
     func newProxiesHaveTheirOwnIDs() throws
     {

@@ -13,7 +13,7 @@ internal import AnyCodable
 /// with this set's id; each one's sub graph is an instance decoded from the
 /// stored graph, so every member holds the same nodes under the same ids,
 /// and the member edited last is the one the stored graph was encoded from.
-/// See SubgraphNode.cloneSetID and Graph.reinstantiateCloneSiblings.
+/// See SubgraphNode.cloneSetID and Graph.patchCloneSiblings.
 public final class CloneSet: Codable, Identifiable
 {
     public let id: UUID
