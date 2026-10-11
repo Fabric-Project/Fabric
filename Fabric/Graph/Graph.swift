@@ -759,6 +759,10 @@ internal import AnyCodable
     {
         guard let savedIndex = nodes.firstIndex(where: { $0 === node }) else { return }
 
+        // A settings edit still open on the node goes under the delete's
+        // step, for undo to find the node when it puts the settings back.
+        self.recordOpenSettingsChange(of: node)
+
         let savedOffset = node.offset
         // The proxies standing for its published ports go with it, and the
         // wires onto them up the chain, as when a port is unpublished.

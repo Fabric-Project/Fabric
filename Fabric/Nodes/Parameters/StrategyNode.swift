@@ -139,7 +139,7 @@ public class StrategyNode: Node
         {
             // A strategy also changes as a wire specialises the node, outside
             // its settings view, so the node records the change itself.
-            let recordsUndo = newValue != strategy && graph?.undoManager?.isUndoRegistrationEnabled == true
+            let recordsUndo = newValue != strategy && graph?.effectiveUndoManager?.isUndoRegistrationEnabled == true
             self.settingsBeforeStrategyChange = recordsUndo ? self.settingsSnapshot() : nil
         }
         didSet

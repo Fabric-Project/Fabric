@@ -37,7 +37,7 @@ public final class NodeSettingsSession
         // Undo and redo, and every group that opens, check in here first,
         // and every edit, undo and redo once done, so the next step starts
         // from the ports and wires that edit left.
-        guard let undoManager = node.graph?.undoManager else { return }
+        guard let undoManager = node.graph?.effectiveUndoManager else { return }
         let names: [Notification.Name] = [.NSUndoManagerCheckpoint, .NSUndoManagerDidCloseUndoGroup,
                                           .NSUndoManagerDidUndoChange, .NSUndoManagerDidRedoChange]
         self.observations = names.map { name in
@@ -83,7 +83,7 @@ public final class NodeSettingsSession
         // Opening the group checks in here again.
         isRecording = true
         defer { isRecording = false }
-        let undoManager = graph.undoManager
+        let undoManager = graph.effectiveUndoManager
         let opensGroup = undoManager?.groupingLevel == 0
         if opensGroup { undoManager?.beginUndoGrouping() }
         graph.registerSettingsChange(of: node, from: before)
@@ -207,7 +207,21 @@ extension Graph
         self.registerUndo(on: node) { node in
             node.graph?.restoreSettings(of: node, to: before)
         }
-        self.undoManager?.setActionName("Change Settings")
+        self.effectiveUndoManager?.setActionName("Change Settings")
+    }
+
+    /// Records the settings edit open in `node`'s settings view, if any. An
+    /// edit that takes the node out of the graph records this first: a step
+    /// registered after the node left finds no node to put the settings back
+    /// on.
+    internal func recordOpenSettingsChange(of node: Node)
+    {
+        guard node.settingsSessionCount > 0,
+              let before = node.recordedSettings,
+              let now = node.settingsSnapshot(),
+              now.settings != before.settings
+        else { return }
+        self.registerSettingsChange(of: node, from: before)
     }
 
     private func restoreSettings(of node: Node, to snapshot: Node.SettingsSnapshot)

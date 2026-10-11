@@ -394,6 +394,62 @@ struct SettingsUndoTests
         #expect(fixture.graph.nodes.contains { $0 === node })
     }
 
+    @Test("Deleting a node with its settings view open: undo brings it back as it was before the edit")
+    func settingsEditedWhenDeletedComesBackUnedited() async throws
+    {
+        guard let context = makeContext() else { return }
+        let graph = Graph(context: context)
+        // The editor's event groups: an edit opens one with no checkpoint,
+        // and the run loop closes it.
+        let undoManager = UndoManager()
+        graph.undoManager = undoManager
+        let node = MathExpressionNode(context: context, expression: "x + y")
+        graph.addNode(node)
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(undoManager.groupingLevel == 0)
+
+        let session = NodeSettingsSession(node: node)
+        node.stringExpression = "x"
+        graph.delete(node: node)
+        #expect(undoManager.groupingLevel == 1, "the delete opened the event's group")
+        try await Task.sleep(for: .milliseconds(50))
+        session.end()
+        #expect(undoManager.groupingLevel == 0)
+        #expect(graph.node(forID: node.id) == nil)
+
+        undoManager.undo()
+        #expect(graph.node(forID: node.id) === node)
+        #expect(node.stringExpression == "x + y")
+        #expect(inlet("y", of: node) != nil)
+
+        undoManager.redo()
+        #expect(graph.node(forID: node.id) == nil)
+        undoManager.undo()
+        #expect(node.stringExpression == "x + y")
+    }
+
+    @Test("A strategy change in a sub graph the canvas has not entered records on the root's undo manager")
+    func strategyChangeInAnUnenteredSubGraphIsAStep() throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = makeFixture(context: context)
+        let container = SubgraphNode(context: context)
+        let node = SampleAndHoldNode(context: context, initialStrategy: PortType.Float.rawValue)
+        step(fixture.undoManager) {
+            fixture.graph.addNode(container)
+            container.subGraph.addNode(node)
+        }
+        #expect(container.subGraph.undoManager == nil)
+
+        step(fixture.undoManager) { node.strategy = PortType.Geometry.rawValue }
+        #expect(fixture.undoManager.undoActionName == "Change Settings")
+
+        fixture.undoManager.undo()
+        #expect(node.strategy == PortType.Float.rawValue)
+        fixture.undoManager.redo()
+        #expect(node.strategy == PortType.Geometry.rawValue)
+    }
+
     @Test("Undo and redo across a script that does not compile leave one of each port")
     func undoToAnUncompilableScriptKeepsOneOfEachPort() throws
     {
