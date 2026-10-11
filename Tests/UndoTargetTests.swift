@@ -284,6 +284,48 @@ struct UndoTargetTests
         #expect(upstream.outputNumber.connections.isEmpty)
     }
 
+    @Test("Undoing a delete puts the node back where it stood among the graph's nodes")
+    func deleteUndoKeepsNodeOrder() throws
+    {
+        guard let context = makeContext() else { return }
+        let undoManager = makeUndoManager()
+        let graph = Graph(context: context)
+        let nodes = (0..<3).map { _ in NumberBinaryOperator(context: context) }
+        nodes.forEach(graph.addNode)
+        graph.undoManager = undoManager
+
+        step(undoManager) { graph.delete(node: nodes[1]) }
+        undoManager.undo()
+        #expect(graph.nodes.map(\.id) == nodes.map(\.id))
+    }
+
+    @Test("Undoing a delete puts back the publishing and wires at every level its ports were published up to")
+    func deleteUndoRestoresTheWholeChain() throws
+    {
+        guard let context = makeContext() else { return }
+        let undoManager = makeUndoManager()
+        let levels = try makeTwoLevels(context: context)
+        levels.graph.undoManager = undoManager
+        let port = levels.node.inputNumber1
+
+        step(undoManager) { levels.inner.subGraph.delete(node: levels.node) }
+        #expect(!levels.outer.ports.contains { $0.id == port.id })
+
+        undoManager.undo()
+        let middle = try #require(levels.inner.ports.first { $0.id == port.id })
+        #expect(middle.published)
+        #expect(middle.publishedName == "Gain")
+        let top = try #require(levels.outer.ports.first { $0.id == port.id })
+        #expect(levels.graph.connections.map(\.id) == [levels.wire.id])
+        #expect(levels.upstream.outputNumber.connections.first?.inletPort === top)
+
+        undoManager.redo()
+        #expect(!levels.outer.ports.contains { $0.id == port.id })
+        undoManager.undo()
+        #expect(levels.inner.ports.first { $0.id == port.id }?.published == true)
+        #expect(levels.upstream.outputNumber.connections.first?.inletPort === levels.outer.ports.first { $0.id == port.id })
+    }
+
     @Test("Unpublishing a proxy leaves the parameter it shares named as the port it stands for")
     func unpublishedProxyKeepsTheInnerLabel() throws
     {

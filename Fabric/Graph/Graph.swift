@@ -757,9 +757,11 @@ internal import AnyCodable
     
     public func delete(node:Node, disconnect:Bool = true)
     {
-        guard nodes.contains(where: { $0 === node }) else { return }
+        guard let savedIndex = nodes.firstIndex(where: { $0 === node }) else { return }
 
         let savedOffset = node.offset
+        // The proxies standing for its published ports go with it.
+        let savedChains = node.ports.filter(\.published).map { ($0.id, self.proxyChainState(standingFor: $0)) }
         let nodePortIDs = Set(node.ports.map(\.id))
         let savedConnections = connections.filter {
             nodePortIDs.contains($0.outletPortID) || nodePortIDs.contains($0.inletPortID)
@@ -785,8 +787,10 @@ internal import AnyCodable
 
         self.registerUndo { graph in
             graph.restoreDeletedNode(node,
+                                     at: savedIndex,
                                      offset: savedOffset,
-                                     wires: savedWires)
+                                     wires: savedWires,
+                                     proxyChains: savedChains)
         }
 
         self.undoManager?.setActionName("Delete Node")
@@ -797,15 +801,17 @@ internal import AnyCodable
     }
 
     private func restoreDeletedNode(_ node: Node,
+                                    at index: Int,
                                     offset: CGSize,
-                                    wires: [Wire])
+                                    wires: [Wire],
+                                    proxyChains: [(portID: UUID, state: ProxyChainState)])
     {
         guard self.node(forID: node.id) == nil else { return }
 
         withoutUndoRegistration {
             node.offset = offset
             nodeViewModels[node.id] = NodeViewModel(node: node)
-            nodes.append(node)
+            nodes.insert(node, at: min(index, nodes.count))
             node.graph = self
             nodeMembershipDidChange(node)
             maybeAddNodeToScene(node)
@@ -816,7 +822,12 @@ internal import AnyCodable
 
             node.markDirty()
             updateCameraSelection(afterAdding: node)
+            // Brings the proxies back, for their chains to be put back on.
             rebuildPublishedParameterGroup()
+            for chain in proxyChains {
+                guard let port = node.ports.first(where: { $0.id == chain.portID }) else { continue }
+                restoreProxyChain(standingFor: port, to: chain.state)
+            }
             syncNodesToScene()
             markConnectionsChanged()
         }
