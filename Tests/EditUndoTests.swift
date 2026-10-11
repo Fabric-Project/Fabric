@@ -57,6 +57,53 @@ struct EditUndoTests
         return Fixture(graph: graph, container: container, inner: inner, upstream: upstream, undoManager: undoManager)
     }
 
+    @Test("Undoing an unpublish brings back the proxy, its name and publish in the parent, and the parent's wire")
+    func unpublishUndoes() throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = try makeFixture(context: context)
+        let proxy = try #require(fixture.container.ports.first { $0.id == fixture.inner.inputNumber1.id })
+        proxy.published = true
+        proxy.publishedName = "Speed"
+        fixture.inner.inputNumber1.publishedName = "Amount"
+
+        step(fixture.undoManager) { fixture.container.subGraph.setPublished(false, on: fixture.inner.inputNumber1) }
+        #expect(fixture.graph.connections.isEmpty)
+        #expect(fixture.undoManager.undoActionName == "Unpublish Port")
+
+        fixture.undoManager.undo()
+        #expect(fixture.inner.inputNumber1.published)
+        #expect(fixture.inner.inputNumber1.publishedName == "Amount")
+        let restored = try #require(fixture.container.ports.first { $0.id == fixture.inner.inputNumber1.id })
+        #expect(restored.published)
+        #expect(restored.publishedName == "Speed")
+        #expect(fixture.graph.connections.count == 1)
+        #expect(fixture.upstream.outputNumber.connections.first?.inletPort === restored)
+
+        fixture.undoManager.redo()
+        #expect(!fixture.inner.inputNumber1.published)
+        #expect(fixture.graph.connections.isEmpty)
+    }
+
+    @Test("Publishing and naming a published port are undo steps")
+    func publishAndRenameUndo() throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = try makeFixture(context: context)
+        let port = fixture.inner.inputNumber2
+
+        step(fixture.undoManager) { fixture.container.subGraph.setPublished(true, on: port) }
+        step(fixture.undoManager) { fixture.container.subGraph.setPublishedName("Gain", on: port) }
+        #expect(fixture.container.ports.contains { $0.id == port.id && $0.displayName == "Gain" })
+        #expect(fixture.undoManager.undoActionName == "Rename Port")
+
+        fixture.undoManager.undo()
+        #expect(port.publishedName == nil)
+        fixture.undoManager.undo()
+        #expect(!port.published)
+        #expect(!fixture.container.ports.contains { $0.id == port.id })
+    }
+
     @Test("Duplicating a node leaves a UUID-shaped string value as it is")
     func duplicateKeepsUUIDShapedValues() throws
     {

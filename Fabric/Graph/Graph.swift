@@ -167,14 +167,14 @@ internal import AnyCodable
 
     public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
 
+    /// The SubgraphNode whose sub graph this is; nil for a document's root
+    /// graph. What an undo step puts back in the containing graph, the wires
+    /// onto a proxy and the proxy's own publishing, is reached through it.
+    @ObservationIgnored public internal(set) weak var ownerNode: SubgraphNode?
+
     /// Called when the set of published ports changes. SubgraphNode uses
     /// this to rebuild its proxy ports without polling.
     @ObservationIgnored var onPublishedPortsChanged: (() -> Void)?
-
-    /// Called as a port of a node in this graph is unpublished, as a
-    /// deliberate act, before the proxy standing for it goes. SubgraphNode
-    /// uses this to take the containing graph's wires off that proxy.
-    @ObservationIgnored var onPortUnpublished: ((Port) -> Void)?
 
     /// Called when this graph resolves to a different scene camera. A
     /// SubgraphNode propagates the change to its containing graph so camera
@@ -1010,30 +1010,104 @@ internal import AnyCodable
     }
 
     /// Publishes or unpublishes `port`, a port of a node in this graph, as a
-    /// deliberate act rather than the rebuild that follows one.
+    /// deliberate act rather than the rebuild that follows one. Undoable.
     ///
     /// Unpublishing takes the proxy that stood for the port in the containing
-    /// graph with it, so the wires onto that proxy are taken down first,
-    /// through `onPortUnpublished`. Left alone they name a port that has
-    /// gone: the port at the other end still reports itself wired, and a
-    /// republish gives the proxy that comes back no way to recognise them. A
-    /// rebuild that drops and remakes a proxy within one operation goes the
-    /// other way, binding the wires to the proxy that replaces it; see
-    /// `reattachConnections`.
-    ///
-    /// Publishing registers no undo step, so neither does this.
+    /// graph with it, so the wires onto that proxy are taken down here. Left
+    /// alone they name a port that has gone: the port at the other end still
+    /// reports itself wired, and a republish gives the proxy that comes back
+    /// no way to recognise them. A rebuild that drops and remakes a proxy
+    /// within one operation goes the other way, binding the wires to the
+    /// proxy that replaces it; see `reattachConnections`. Undoing the
+    /// unpublish puts the wires and the proxy's own state back.
     public func setPublished(_ published: Bool, on port: Port)
     {
         guard port.published != published else { return }
 
+        let previousName = port.publishedName
+        var proxyState: ProxyState?
         if !published
         {
-            self.onPortUnpublished?(port)
+            proxyState = self.takeDownProxy(standingFor: port)
             port.publishedName = nil
         }
 
         port.published = published
         self.rebuildPublishedParameterGroup()
+
+        undoManager?.registerUndo(withTarget: self) { graph in
+            graph.setPublished(!published, on: port)
+            if let proxyState
+            {
+                port.publishedName = previousName
+                graph.rebuildPublishedParameterGroup()
+                graph.restoreProxy(standingFor: port, to: proxyState)
+            }
+        }
+        undoManager?.setActionName(published ? "Publish Port" : "Unpublish Port")
+    }
+
+    /// Names `port`, a published port of a node in this graph, as the
+    /// containing graph shows it; nil goes back to the port's own name.
+    /// Undoable.
+    public func setPublishedName(_ name: String?, on port: Port)
+    {
+        let previousName = port.publishedName
+        guard previousName != name else { return }
+
+        port.publishedName = name
+        self.rebuildPublishedParameterGroup()
+        self.markConnectionsChanged()
+
+        undoManager?.registerUndo(withTarget: self) { graph in
+            graph.setPublishedName(previousName, on: port)
+        }
+        undoManager?.setActionName("Rename Port")
+    }
+
+    /// What an unpublish takes from the containing graph: the wires onto the
+    /// proxy, and the proxy's own publishing there.
+    private struct ProxyState
+    {
+        var wires: [(outletID: UUID, inletID: UUID, active: Bool)]
+        var published: Bool
+        var publishedName: String?
+    }
+
+    /// Takes down the containing graph's wires onto this graph's owner's
+    /// proxy for `port`, with the teardown every disconnection gets.
+    private func takeDownProxy(standingFor port: Port) -> ProxyState?
+    {
+        guard let owner = self.ownerNode, let parent = owner.graph,
+              let proxy = owner.ports.first(where: { ($0 as? any ProxyPortProtocol)?.innerPortID == port.id })
+        else { return nil }
+
+        let state = ProxyState(wires: proxy.connections.map { ($0.outletPortID, $0.inletPortID, $0.active) },
+                               published: proxy.published,
+                               publishedName: proxy.publishedName)
+        parent.withoutUndoRegistration { parent.disconnectAll(from: proxy) }
+        return state
+    }
+
+    private func restoreProxy(standingFor port: Port, to state: ProxyState)
+    {
+        guard let owner = self.ownerNode, let parent = owner.graph,
+              let proxy = owner.ports.first(where: { ($0 as? any ProxyPortProtocol)?.innerPortID == port.id })
+        else { return }
+
+        proxy.published = state.published
+        proxy.publishedName = state.publishedName
+        parent.rebuildPublishedParameterGroup()
+        parent.withoutUndoRegistration {
+            for wire in state.wires
+            {
+                guard let outlet = parent.nodePort(forID: wire.outletID),
+                      let inlet = parent.nodePort(forID: wire.inletID),
+                      let connection = parent.connect(outlet, to: inlet)
+                else { continue }
+                if !wire.active { _ = parent.setConnection(connection, active: false) }
+            }
+        }
     }
 
     public func rebuildPublishedParameterGroup()
