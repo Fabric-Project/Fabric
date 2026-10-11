@@ -427,6 +427,8 @@ HDR -> SDR conversion
 - [x] Decompose Transform
 - [x] Transform Array Compose
 - [x] Transform Array Decompose
+- [x] Transform Array Multiply
+- [x] Transform Array Blend
 - [x] Geometry to Transform Array
 
 ### String

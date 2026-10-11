@@ -282,6 +282,8 @@ public final class FabricCoreNodesPlugin: NSObject, FabricPlugin
         InvertTransformNode.self,
         ComposeTransformArrayNode.self,
         DecomposeTransformArrayNode.self,
+        TransformArrayMultiplyNode.self,
+        TransformArrayBlendNode.self,
         GeometryToTransformArrayNode.self,
         ColorPassThroughNode.self,
         MakeColorNode.self,
