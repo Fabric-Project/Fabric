@@ -450,6 +450,23 @@ struct SettingsUndoTests
         #expect(node.strategy == PortType.Geometry.rawValue)
     }
 
+    @Test("A settings snapshot takes the shader source held, not what is on disk; a save takes the disk")
+    func liveImageSnapshotLeavesTheDiskAlone() throws
+    {
+        guard let context = makeContext() else { return }
+        let node = LiveImageNode(context: context)
+        guard let fileURL = node.shaderFileURL else { return }
+        let held = node.shaderSource
+        let edited = held + "\n// edited on disk\n"
+        try edited.write(to: fileURL, atomically: false, encoding: .utf8)
+
+        _ = node.settingsSnapshot()
+        #expect(node.shaderSource == held)
+
+        _ = try JSONEncoder().encode(node)
+        #expect(node.shaderSource == edited)
+    }
+
     @Test("Undo and redo across a script that does not compile leave one of each port")
     func undoToAnUncompilableScriptKeepsOneOfEachPort() throws
     {

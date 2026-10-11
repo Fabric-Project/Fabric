@@ -42,7 +42,7 @@ public class LiveImageNode: BaseImageNode
     private let workspaceInstanceID = UUID()
 
     private var workspaceURL: URL?
-    private var shaderFileURL: URL?
+    private(set) var shaderFileURL: URL?
     private var workspaceError: (any Error)?
     {
         didSet { self.subtitleSubject.send() }
@@ -93,10 +93,15 @@ public class LiveImageNode: BaseImageNode
         self.cleanupWorkspace()
     }
 
+    override public func encode(to encoder: Encoder) throws {
+        // The shader can be edited on disk as well as in the settings view;
+        // a save takes what is there. A settings step takes the source held.
+        try self.captureShaderSourceFromDiskIfAvailable()
+        try super.encode(to: encoder)
+    }
+
     override public func encodeSettings(to encoder: Encoder) throws {
         try super.encodeSettings(to: encoder)
-        // The shader can be edited on disk as well as in the settings view.
-        try self.captureShaderSourceFromDiskIfAvailable()
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.shaderSource, forKey: .shaderSource)
         try container.encode(Self.shaderSchemaVersion, forKey: .shaderSchemaVersion)
