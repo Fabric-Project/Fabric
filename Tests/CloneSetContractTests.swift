@@ -2418,6 +2418,91 @@ extension CloneSetContractTests
         pair.graph.syncCloneSets()
         #expect(pair.current(pair.member.nested)?.subGraph.nodes.count == 2)
     }
+
+    @Test("Undoing an edit that synced a node into a sibling in place of one with an inlet it lacks puts back the sibling's wire into that inlet")
+    @MainActor
+    func undoneReplacementPutsBackSiblingWire() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let expression = MathExpressionNode(context: context, expression: "x + y")
+        try pair.edit {
+            pair.source.addNode(expression)
+            let x = try #require(expression.findPort(named: "x", as: Fabric.Port.self))
+            let y = try #require(expression.findPort(named: "y", as: Fabric.Port.self))
+            _ = try #require(pair.source.connect(pair.member.first.outputNumber, to: x))
+            _ = try #require(pair.source.connect(pair.member.second.outputNumber, to: y))
+        }
+        let yID = try #require(expression.findPort(named: "y", as: Fabric.Port.self)).id
+        #expect(pair.target.connections.contains { $0.inletPortID == yID })
+
+        pair.edit {
+            let session = NodeSettingsSession(node: expression)
+            expression.stringExpression = "x"
+            session.end()
+        }
+        #expect(!pair.target.connections.contains { $0.inletPortID == yID })
+
+        pair.undoManager.undo()
+
+        let restored = try #require(pair.counterpart(of: expression))
+        let y = try #require(restored.findPort(named: "y", as: Fabric.Port.self))
+        #expect(y.id == yID)
+        #expect(y.connections.count == 1)
+        #expect(pair.target.connections.contains { $0.inletPort === y })
+        #expect(CloneSetModel.isInStep(pair.sibling))
+        withKnownIssue("Math Expression adds an inlet it takes back after its outlet, so the source member's port order no longer matches its set's")
+        {
+            #expect(CloneSetModel.isInStep(pair.member.member))
+        }
+    }
+
+    @Test("A node a sync puts in place of another takes the values its sibling's upstream holds, not the source member's")
+    func replacementTakesSiblingUpstreamValues() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        let expression = MathExpressionNode(context: context, expression: "x")
+        pair.source.addNode(expression)
+        let x = try #require(expression.findPort(named: "x", as: Fabric.Port.self))
+        _ = try #require(pair.source.connect(pair.member.first.outputNumber, to: x))
+        pair.sync()
+
+        // Each member's upstream holds its own value, sent before the edit
+        // and not again: a clean node does not resend.
+        let firstCopy = try #require(pair.counterpart(of: pair.member.first))
+        pair.member.first.outputNumber.send(2)
+        firstCopy.outputNumber.send(7)
+        let siblingExpression = try #require(pair.counterpart(of: expression))
+        #expect((siblingExpression.findPort(named: "x", as: Fabric.Port.self) as? NodePort<Float>)?.value == 7)
+
+        expression.stringExpression = "x * 1"
+        pair.sync()
+
+        let rebuilt = try #require(pair.counterpart(of: expression))
+        #expect(rebuilt.stringExpression == "x * 1")
+        let rebuiltX = try #require(rebuilt.findPort(named: "x", as: Fabric.Port.self) as? NodePort<Float>)
+        #expect(rebuiltX.value == 7)
+    }
+
+    @Test("A graph showing the same published parameter from two members gives each its own place in the inspector")
+    func inspectorEntriesAreDistinctAcrossMembers() throws
+    {
+        guard let context = makeContext() else { return }
+        let pair = try makePair(context: context)
+        for member in [pair.member.member, pair.sibling]
+        {
+            let amount = try #require(proxy(in: member, over: pair.member.first.inputNumber1))
+            pair.graph.setPublished(true, on: amount)
+        }
+
+        let params = pair.graph.publishedParameterGroup.params
+        #expect(params.count == 2)
+        #expect(Set(params.map(\.id)).count == 1, "members' inner parameters share their id")
+        let entries = ParameterGroupView.entries(of: pair.graph.publishedParameterGroup)
+        #expect(entries.count == 2)
+        #expect(Set(entries.map(\.identity)).count == 2)
+    }
 }
 
 // MARK: - Undo across syncs

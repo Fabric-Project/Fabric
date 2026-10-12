@@ -524,15 +524,23 @@ extension Graph
 
     /// Puts `replacement`, a node made under `existing`'s ids, in its place,
     /// where `existing` stood. The wires on `existing` stay, bound to the
-    /// replacement's ports where it has them and dropped where it does not,
-    /// and the inlets it fed keep what they hold until the replacement
-    /// sends; what the proxies standing for its published ports hold up the
-    /// chain (see ProxyChainState) is put back where the replacement can
-    /// take it. One undo step, which holds `existing` and puts it back the
-    /// same way with what it held.
-    private func replace(_ existing: Node, with replacement: Node, proxyChains carriedChains: [UUID: ProxyChainState]? = nil)
+    /// replacement's ports where it has them and dropped where it does not;
+    /// its inlets take what the outlets feeding them hold, and the inlets it
+    /// fed keep what they hold until the replacement sends; what the proxies
+    /// standing for its published ports hold up the chain (see
+    /// ProxyChainState) is put back where the replacement can take it. One undo step, which holds `existing` and puts it back the
+    /// same way with what it held, the wires onto ports the replacement
+    /// does not have included.
+    private func replace(_ existing: Node,
+                         with replacement: Node,
+                         proxyChains carriedChains: [UUID: ProxyChainState]? = nil,
+                         wires carriedWires: [Wire] = [])
     {
         let order = self.nodes.map(\.id)
+        let droppedPortIDs = Set(existing.ports.map(\.id)).subtracting(replacement.ports.map(\.id))
+        let droppedWires = self.connections
+            .filter { droppedPortIDs.contains($0.outletPortID) || droppedPortIDs.contains($0.inletPortID) }
+            .map(Wire.init)
         var proxyChains: [UUID: ProxyChainState] = [:]
         for port in existing.ports where port.published
         {
@@ -543,8 +551,9 @@ extension Graph
             self.delete(node: existing, disconnect: false)
             self.addNode(replacement)
             self.reorderNodes(toMatch: order)
-            self.reattachConnections(to: replacement.ports, sending: false)
+            self.reattachConnections(to: replacement.ports, replacementsSend: false)
             self.pruneDanglingConnections()
+            for wire in carriedWires { self.restore(wire) }
             for (portID, chain) in carriedChains ?? proxyChains
             {
                 guard let port = replacement.ports.first(where: { $0.id == portID }), port.published else { continue }
@@ -557,7 +566,7 @@ extension Graph
         let id = existing.id
         self.registerUndo { graph in
             guard let current = graph.node(forID: id) else { return }
-            graph.replace(current, with: existing, proxyChains: proxyChains)
+            graph.replace(current, with: existing, proxyChains: proxyChains, wires: droppedWires)
         }
     }
 

@@ -1303,9 +1303,11 @@ internal import AnyCodable
     /// Identity, not nil-ness, is the test: whoever still holds the old port
     /// decides only when it dies, never whether the wire was left behind.
     /// Binds the wires on ports replaced under their ids to `ports`, the
-    /// replacements, and sends each outlet's value on unless `sending` is
-    /// false, for a replacement that has nothing to send yet.
-    internal func reattachConnections(to ports: [Port], sending: Bool = true)
+    /// replacements, and sends each outlet's value on. With
+    /// `replacementsSend` false, a replaced outlet sends nothing, having
+    /// nothing to send yet, while a replaced inlet still takes what the
+    /// outlet feeding it holds.
+    internal func reattachConnections(to ports: [Port], replacementsSend: Bool = true)
     {
         guard !ports.isEmpty, !connections.isEmpty else { return }
 
@@ -1327,7 +1329,7 @@ internal import AnyCodable
             if inletIsStale { connection.inletPortReference?.connections.removeAll { $0 === connection } }
 
             attachConnection(connection, outlet: outlet, inlet: inlet)
-            if sending { outlet.sendBoxed(outlet.snapshotValue(), force: true) }
+            if replacementsSend || !outletIsStale { outlet.sendBoxed(outlet.snapshotValue(), force: true) }
         }
     }
 
