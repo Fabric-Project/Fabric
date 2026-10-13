@@ -63,23 +63,15 @@ public class InstancedModelMeshNode : InstancedMeshNode
         var shouldOutput = super.evaluate(object: object, atTime: atTime)
         
         if self.inputCastsShadow.valueDidChange
+            || self.inputCullingMode.valueDidChange
+            || self.inputDoubleSided.valueDidChange
         {
-            self.updateLightingOnSubmeshes()
-            shouldOutput = true
-        }
-        
-        if self.inputCullingMode.valueDidChange
-        {
-            self.updateCullingOnSubmeshes()
+            object?.setModelMeshState(castsShadow: self.inputCastsShadow.value ?? true,
+                                      cullMode: self.cullMode(),
+                                      doubleSided: self.inputDoubleSided.value ?? false)
             shouldOutput = true
         }
 
-        if self.inputDoubleSided.valueDidChange
-        {
-            self.updateDoubleSidedOnSubmeshes()
-            shouldOutput = true
-        }
-        
         return shouldOutput
     }
     
@@ -161,46 +153,4 @@ public class InstancedModelMeshNode : InstancedMeshNode
             if let error { throw error }
         }
     }
-
-    private func updateLightingOnSubmeshes()
-    {
-        self.model?.getChildren(true).forEach { child in
-            
-            if let subMesh = child as? Mesh,
-               let castShadow = self.inputCastsShadow.value,
-               let receiveShadow = self.inputCastsShadow.value
-            {
-                subMesh.material?.lighting = true
-                subMesh.castShadow = castShadow
-                subMesh.receiveShadow = receiveShadow
-            }
-        }
-    }
-    
-    private func updateCullingOnSubmeshes()
-    {
-        let cullMode = self.cullMode()
-        
-        self.model?.getChildren(true).forEach { child in
-            
-            if let subMesh = child as? Mesh
-            {
-                subMesh.cullMode = cullMode
-            }
-        }
-    }
-
-    private func updateDoubleSidedOnSubmeshes()
-    {
-        let doubleSided = self.inputDoubleSided.value ?? false
-
-        self.model?.getChildren(true).forEach { child in
-
-            if let subMesh = child as? Mesh
-            {
-                subMesh.doubleSided = doubleSided
-            }
-        }
-    }
-
 }
