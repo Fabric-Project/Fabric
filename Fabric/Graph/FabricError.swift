@@ -94,5 +94,6 @@ public enum FabricErrorKind: Sendable, Codable, Equatable
     {
         case emptyNodeSelection
         case nodeNotInGraph
+        case portCannotBeProxied
     }
 }

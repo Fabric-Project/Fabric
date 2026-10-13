@@ -178,6 +178,12 @@ open class SubgraphNode: BaseObjectNode
         self.portsChangedSubject.send()
     }
 
+    /// Whether a proxy can stand for `port`, published in a sub graph.
+    internal static func canProxy(_ port: Port) -> Bool
+    {
+        self.makeProxy(for: port, id: port.id) != nil
+    }
+
     /// Type-erase proxy creation — matches the inner port's generic type.
     private static func makeProxy(for port: Port, id: UUID) -> Port?
     {

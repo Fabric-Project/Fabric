@@ -185,6 +185,21 @@ struct UndoActionNameTests
         #expect(fixture.graph.nodes.count == 3)
     }
 
+    @Test("Creating a subgraph from wired nodes")
+    func createSubgraph()
+    {
+        guard let context = makeContext() else { return }
+        let fixture = makeFixture(context: context)
+        step(fixture.undoManager) { fixture.graph.connect(fixture.upstream.outputNumber, to: fixture.downstream.inputNumber1) }
+
+        expectNamed("Create Subgraph", fixture.undoManager) {
+            _ = try? fixture.graph.createSubgraph(from: [fixture.downstream],
+                                                  centeredOn: fixture.downstream,
+                                                  usingClass: SubgraphNode.self)
+        }
+        #expect(fixture.graph.nodes.count == 2)
+    }
+
     @Test("Duplicating wired nodes")
     func duplicateNodes()
     {

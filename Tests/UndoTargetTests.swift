@@ -157,6 +157,98 @@ struct UndoTargetTests
         #expect(live.value == 0)
     }
 
+    @Test("Create Subgraph undoes and redoes, and undoes again after a redo")
+    func createSubgraphUndoRedoUndo() throws
+    {
+        guard let context = makeContext() else { return }
+        let undoManager = makeUndoManager()
+        let graph = Graph(context: context)
+        let first = NumberBinaryOperator(context: context)
+        let second = NumberBinaryOperator(context: context)
+        graph.addNode(first)
+        graph.addNode(second)
+        graph.connect(first.outputNumber, to: second.inputNumber1)
+        graph.undoManager = undoManager
+
+        step(undoManager) {
+            _ = try? graph.createSubgraph(from: [first, second], centeredOn: first, usingClass: SubgraphNode.self)
+        }
+        #expect(graph.nodes.count == 1)
+
+        undoManager.undo()
+        #expect(Set(graph.nodes.map(\.id)) == [first.id, second.id])
+        #expect(graph.connections.count == 1)
+        undoManager.redo()
+        #expect(graph.nodes.count == 1)
+        undoManager.undo()
+        #expect(Set(graph.nodes.map(\.id)) == [first.id, second.id], "the redone embedding undoes")
+        #expect(graph.connections.count == 1)
+    }
+
+    @Test("Create Subgraph in a graph with no undo manager of its own is one step on the document's, and undoes cleanly")
+    func nestedCreateSubgraphIsOneStepOnTheRoots() throws
+    {
+        guard let context = makeContext() else { return }
+        let undoManager = makeUndoManager()
+        let graph = Graph(context: context)
+        let outer = SubgraphNode(context: context)
+        graph.addNode(outer)
+        let inner = outer.subGraph
+        let upstream = NumberBinaryOperator(context: context)
+        let first = NumberBinaryOperator(context: context)
+        let second = NumberBinaryOperator(context: context)
+        let downstream = NumberBinaryOperator(context: context)
+        for node in [upstream, first, second, downstream] { inner.addNode(node) }
+        inner.connect(upstream.outputNumber, to: first.inputNumber1)
+        inner.connect(first.outputNumber, to: second.inputNumber1)
+        inner.connect(second.outputNumber, to: downstream.inputNumber1)
+        // Published where the nodes stand: leaves with them, and comes back on undo.
+        inner.setPublished(true, on: first.inputNumber2)
+        inner.setPublishedName("Amount", on: first.inputNumber2)
+        graph.undoManager = undoManager
+        #expect(inner.undoManager == nil)
+        let nodeIDs = Set(inner.nodes.map(\.id))
+        let connectionIDs = Set(inner.connections.map(\.id))
+
+        func expectUnembedded(_ comment: Comment)
+        {
+            #expect(Set(inner.nodes.map(\.id)) == nodeIDs, comment)
+            #expect(Set(inner.connections.map(\.id)) == connectionIDs, comment)
+            #expect(first.graph === inner && second.graph === inner, comment)
+            #expect(first.inputNumber2.published && first.inputNumber2.publishedName == "Amount", comment)
+            #expect(outer.ports.contains { $0.id == first.inputNumber2.id }, comment)
+            #expect(!first.inputNumber1.published && !second.outputNumber.published, comment)
+        }
+
+        func expectEmbedded(_ comment: Comment) throws
+        {
+            let created = try #require(inner.nodes.first { $0 is SubgraphNode } as? SubgraphNode, comment)
+            #expect(inner.nodes.count == 3, comment)
+            #expect(created.subGraph.nodes.count == 2, comment)
+            #expect(created.subGraph.connections.count == 1, comment)
+            #expect(inner.connections.count == 2, comment)
+            #expect(inner.connections.allSatisfy { $0.outletPort?.node === created || $0.inletPort?.node === created }, comment)
+            #expect(!first.inputNumber2.published, comment)
+            #expect(!outer.ports.contains { $0.id == first.inputNumber2.id }, comment)
+        }
+
+        step(undoManager) {
+            _ = try? inner.createSubgraph(from: [first, second], centeredOn: first, usingClass: SubgraphNode.self)
+        }
+        try expectEmbedded("created")
+        #expect(undoManager.undoActionName == "Create Subgraph")
+
+        undoManager.undo()
+        expectUnembedded("undone")
+        #expect(!undoManager.canUndo, "one step")
+        #expect(undoManager.redoActionName == "Create Subgraph")
+
+        undoManager.redo()
+        try expectEmbedded("redone")
+        undoManager.undo()
+        expectUnembedded("undone after a redo")
+    }
+
     @Test("A compound edit in a graph with no undo manager of its own groups and names its steps on the document's")
     func nestedCompoundEditsGroupOnTheRootsUndoManager() throws
     {
