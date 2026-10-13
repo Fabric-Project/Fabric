@@ -73,6 +73,43 @@ struct UndoTargetTests
         #expect(graph.nodes.map(\.id) == [node.id])
     }
 
+    @Test("A compound edit in a graph with no undo manager of its own groups and names its steps on the document's")
+    func nestedCompoundEditsGroupOnTheRootsUndoManager() throws
+    {
+        guard let context = makeContext() else { return }
+        let undoManager = makeUndoManager()
+        let graph = Graph(context: context)
+        let subgraph = SubgraphNode(context: context)
+        graph.addNode(subgraph)
+        let inner = subgraph.subGraph
+        let source = NumberBinaryOperator(context: context)
+        let first = NumberBinaryOperator(context: context)
+        let second = NumberBinaryOperator(context: context)
+        for node in [source, first, second] { inner.addNode(node) }
+        inner.connect(source.outputNumber, to: first.inputNumber1)
+        inner.connect(source.outputNumber, to: second.inputNumber1)
+        graph.undoManager = undoManager
+        #expect(inner.undoManager == nil)
+        let nodeIDs = Set(inner.nodes.map(\.id))
+        let connectionIDs = Set(inner.connections.map(\.id))
+
+        // No group is open: each edit must open its own, or registering throws.
+        inner.insertParameterNode(for: first.inputNumber2)
+        #expect(inner.nodes.count == 4)
+        #expect(undoManager.undoActionName == "Insert Parameter Node")
+        undoManager.undo()
+        #expect(!undoManager.canUndo, "one step")
+        #expect(Set(inner.nodes.map(\.id)) == nodeIDs)
+        #expect(Set(inner.connections.map(\.id)) == connectionIDs)
+
+        inner.disconnectAll(from: source.outputNumber)
+        #expect(inner.connections.isEmpty)
+        #expect(undoManager.undoActionName == "Disconnect Ports")
+        undoManager.undo()
+        #expect(undoManager.canRedo && !undoManager.canUndo, "one step")
+        #expect(Set(inner.connections.map(\.id)) == connectionIDs)
+    }
+
     @Test("An edit in a graph the canvas has not given an undo manager records on the document's")
     func nestedGraphRecordsOnTheRootsUndoManager() throws
     {
