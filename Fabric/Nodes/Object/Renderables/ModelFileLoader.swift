@@ -17,13 +17,13 @@ final class ModelFileLoader
 {
     enum Outcome
     {
-        /// No path, or the file the node's model already came from.
+        /// The file the node's model already came from.
         case unchanged
         /// The file's model: flattened when still; when animated, with its
         /// hierarchy and the animation that moves it.
         case loaded(Object, animation: AssetAnimation?)
-        /// The file gave no model. The error is the node's to throw; nil when
-        /// the status is a warning.
+        /// No file is named, or the file gave no model. The error is the
+        /// node's to throw; nil when there is none to throw.
         case noModel(throwing: FabricError?)
     }
 
@@ -60,8 +60,9 @@ final class ModelFileLoader
     {
         guard let path, path.isEmpty == false else
         {
+            self.loadedURL = nil
             self.status = nil
-            return .unchanged
+            return .noModel(throwing: nil)
         }
 
         guard let url = node.graph?.resolveFileReference(path)

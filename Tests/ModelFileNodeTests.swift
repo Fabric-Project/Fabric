@@ -153,6 +153,22 @@ struct ModelMeshNodeStatusTests
         #expect(node.deriveStatuses().isEmpty)
     }
 
+    @Test("Clearing the path removes the model and reports nothing", arguments: ModelFileNodeKind.allCases)
+    func clearingThePathRemovesTheModel(kind: ModelFileNodeKind) throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let node = kind.makeNode(context: harness.context)
+
+        load(try modelFile(named: "triangle.obj", contents: triangleOBJ), into: node)
+        #expect(node.getObject() != nil)
+
+        node.inputFilePathParam.value = ""
+        _ = try? node.loadModelFromInputValue()
+
+        #expect(node.getObject() == nil)
+        #expect(node.deriveStatuses().isEmpty)
+    }
+
     @Test("Naming the same file again after it failed retries the load", arguments: ModelFileNodeKind.allCases)
     func aFailedFileIsRetried(kind: ModelFileNodeKind) throws
     {
