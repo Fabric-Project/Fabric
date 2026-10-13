@@ -280,6 +280,21 @@ extension UTType
         }
     }
 
+    /// Takes everything `state` holds onto a port about to register, id first:
+    /// the registry indexes by id. The value only where the types agree, as
+    /// hydrate(from:) has it.
+    internal func take(_ state: PortState)
+    {
+        self.id = state.id
+        self.published = state.published
+        self.publishedName = state.publishedName
+
+        if state.portType == self.portType, let value = state.value
+        {
+            self.restoreValue(from: value)
+        }
+    }
+
     public func canConnect(to other:Port) -> Bool
     {
         if self.kind == .Inlet, self.portType == .Virtual { return true }

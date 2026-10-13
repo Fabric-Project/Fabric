@@ -143,7 +143,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     // Method to register ports
     open class func registerPorts(context: Context) -> [(name: String, port: Port)] { [] }
     // All port serilization, adding, removing and key value access goes through the port registry
-    private let registry = PortRegistry()
+    internal let registry = PortRegistry()
 
     // Sadly this needs to be observed
     public let parameterGroup:ParameterGroup = ParameterGroup("Parameters", [])
@@ -278,6 +278,7 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
         try container.encode(self.offset, forKey: .nodeOffset)
         try container.encode(self.registry.encode(), forKey: .ports)
         try container.encodeIfPresent(self.userName, forKey: .userName)
+        try self.settings?.encode(to: encoder)
     }
 
     public required init(context:Context)
@@ -660,6 +661,23 @@ open class Node : Codable, Equatable, Identifiable, Hashable, Copyable, CustomDe
     }
 
     open var settingsSize:SettingsViewSize { .Small }
+
+    /// The node's settings, nil for a node without. See NodeSettings.
+    open var settings: (any NodeSettings)? { nil }
+
+    /// Brings the node, its ports included, to `settings`: from a settings view
+    /// through Graph.setSettings(_:on:), from the procedural API, and from undo.
+    /// A port whose registry key survives the change keeps its identity. A
+    /// subclass takes its own type out of the existential and calls super with
+    /// the same value.
+    open func apply(_ settings: any NodeSettings)
+    {
+    }
+
+    /// Sent when the node's settings change: as an edit, undo and redo
+    /// included, or as a device the node reconnects to sets them. A settings
+    /// view holding a draft takes the node's value.
+    internal let settingsChangedSubject = PassthroughSubject<Void, Never>()
 
     // MARK: - Helpers
 

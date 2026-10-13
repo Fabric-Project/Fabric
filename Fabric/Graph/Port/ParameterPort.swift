@@ -167,6 +167,12 @@ public class ParameterPort<ParamValue : PortValueRepresentable & Codable & Hasha
         }
     }
 
+    override internal func take(_ state: PortState)
+    {
+        super.take(state)
+        self._parameter.id = self.id
+    }
+
     private static func clampedComparable(_ value: ParamValue, min minValue: ParamValue, max maxValue: ParamValue) -> ParamValue?
     {
         func clamp<C: Comparable>(_ candidate: C, _ lower: C, _ upper: C) -> C
