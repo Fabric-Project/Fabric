@@ -36,6 +36,30 @@ internal import AnyCodable
     public let version: Graph.Version
     @ObservationIgnored public let context:Context
     @ObservationIgnored public weak var undoManager: UndoManager?
+    {
+        // A document's undo groups are when its clone sets sync.
+        didSet { if ownerNode == nil, undoManager !== oldValue { cloneSetCoordinator.attach(to: undoManager) } }
+    }
+    /// This graph, then each graph it sits inside, ending at the document's root.
+    internal var ancestors: some Sequence<Graph>
+    {
+        sequence(first: self) { $0.ownerNode?.graph }
+    }
+
+    /// The document's root graph.
+    public var rootGraph: Graph
+    {
+        var root = self
+        for graph in ancestors { root = graph }
+        return root
+    }
+    /// The document's clone sets, held by the root graph and empty elsewhere.
+    /// Members refer to a set by SubgraphNode.cloneSetID. A set no member
+    /// refers to any more is dropped on save.
+    public private(set) var cloneSets: [CloneSet] = []
+    /// Clone sets the document holds that could not be read, kept as saved
+    /// and written back with the others.
+    @ObservationIgnored private var unreadableCloneSets: [AnyCodable] = []
 
     /// Directory against which scheme-less file-picker values resolve.
     @ObservationIgnored public private(set) var fileReferenceBaseURL: URL?
@@ -115,6 +139,12 @@ internal import AnyCodable
         connectionTopologyGeneration += 1
     }
 
+    /// The clone set members this graph sits inside, innermost first.
+    internal var enclosingCloneMembers: [SubgraphNode]
+    {
+        ancestors.compactMap(\.ownerNode).filter { $0.cloneSetID != nil }
+    }
+
     public func markExecutionTopologyChanged()
     {
         executionTopologyGeneration += 1
@@ -152,6 +182,20 @@ internal import AnyCodable
             if subgraphNode.graph === self { subgraphNodes.append(subgraphNode) }
         }
         markNodeForLifecycleReview(node)
+        updateCloneSets(around: node)
+    }
+
+    /// Clone set bookkeeping lives on the document's root graph; every graph
+    /// in the document reaches the same coordinator.
+    @ObservationIgnored private var rootCloneSetCoordinator: CloneSetCoordinator?
+    internal var cloneSetCoordinator: CloneSetCoordinator
+    {
+        let root = self.rootGraph
+        guard root === self else { return root.cloneSetCoordinator }
+        if let rootCloneSetCoordinator { return rootCloneSetCoordinator }
+        let coordinator = CloneSetCoordinator(rootGraph: self)
+        self.rootCloneSetCoordinator = coordinator
+        return coordinator
     }
 
     public let publishedParameterGroup:ParameterGroup = ParameterGroup("Published")
@@ -175,6 +219,41 @@ internal import AnyCodable
         case portConnectionMap
         case connections
         case notes
+        case cloneSets
+    }
+
+    // MARK: - Clone sets
+
+    /// Set in an encoder's userInfo when encoding a set's stored graph, or a
+    /// member to be instantiated from its set: a member in step with its set
+    /// is then written as a reference to it and the values that are its own.
+    /// A document is never written this way; every member in it is whole.
+    internal static let cloneSetReferencesKey = CodingUserInfoKey(rawValue: "graphics.fabric.cloneSetReferences")!
+
+    public func cloneSet(for setID: UUID) -> CloneSet?
+    {
+        self.rootGraph.cloneSets.first { $0.id == setID }
+    }
+
+    internal func addCloneSet(_ set: CloneSet)
+    {
+        let root = self.rootGraph
+        guard !root.cloneSets.contains(where: { $0.id == set.id }) else { return }
+        root.cloneSets.append(set)
+    }
+
+    internal func removeCloneSet(_ set: CloneSet)
+    {
+        self.rootGraph.cloneSets.removeAll { $0.id == set.id }
+    }
+
+    /// Every node in this graph and, depth first, in nested sub graphs.
+    public func nodesRecursive() -> [Node]
+    {
+        self.nodes.flatMap { node -> [Node] in
+            guard let subgraphNode = node as? SubgraphNode else { return [node] }
+            return [node] + subgraphNode.subGraph.nodesRecursive()
+        }
     }
     
     public init(context:Context, fileReferenceBaseURL: URL? = nil)
@@ -208,6 +287,9 @@ internal import AnyCodable
         self.scene = Object(context: context)
 
         self.notes = try container.decodeIfPresent([Note].self, forKey: .notes) ?? []
+        let decodedSets = try container.decodeIfPresent([LossyCloneSet].self, forKey: .cloneSets) ?? []
+        self.cloneSets = decodedSets.compactMap(\.set)
+        self.unreadableCloneSets = decodedSets.compactMap(\.unreadable)
         let requiredPlugins = try container.decodeIfPresent([PluginRequirement].self, forKey: .requiredPlugins) ?? []
         let nodeRegistry = try NodeRegistry.shared
         try nodeRegistry.validatePluginRequirements(requiredPlugins)
@@ -457,7 +539,16 @@ internal import AnyCodable
         }
         
         try container.encode(self.notes, forKey: .notes)
-        
+
+        let liveSetIDs = Set(self.subgraphNodesRecursive().compactMap(\.cloneSetID))
+        let liveSets = self.cloneSets.filter { liveSetIDs.contains($0.id) }
+        if !liveSets.isEmpty || !self.unreadableCloneSets.isEmpty
+        {
+            var sets = container.nestedUnkeyedContainer(forKey: .cloneSets)
+            for set in liveSets { try sets.encode(set) }
+            for set in self.unreadableCloneSets { try sets.encode(set) }
+        }
+
         try container.encode( nodeMap, forKey: .nodeMap)
         try container.encode(self.connections.filter { connection in
             self.nodePort(forID: connection.outletPortID) != nil &&
@@ -489,6 +580,8 @@ internal import AnyCodable
             guard let graph = location.graph else { return }
             handler(graph)
         }
+        // Edits inside a clone set member reach its siblings; see CloneSetCoordinator.
+        self.cloneSetCoordinator.noteEdit(in: self)
     }
 
     /// Undoes the last step on the undo manager this graph's edits record on.
@@ -772,8 +865,10 @@ internal import AnyCodable
 
     /// Rewrites static file references at save time, preserving their targets
     /// when the document acquires a location or is saved to a different directory.
-    public func rewriteFileReferences(relativeTo directoryURL: URL?)
+    @discardableResult
+    public func rewriteFileReferences(relativeTo directoryURL: URL?) -> Bool
     {
+        var rewroteAny = false
         for node in self.nodes
         {
             // File-picker metadata also covers directory and model loaders.
@@ -790,16 +885,28 @@ internal import AnyCodable
                 if rewrittenReference != reference
                 {
                     filePort.value = rewrittenReference
+                    rewroteAny = true
                 }
             }
 
-            if let subgraphNode = node as? SubgraphNode
+            if let subgraphNode = node as? SubgraphNode,
+               subgraphNode.subGraph.rewriteFileReferences(relativeTo: directoryURL)
             {
-                subgraphNode.subGraph.rewriteFileReferences(relativeTo: directoryURL)
+                rewroteAny = true
             }
         }
 
         self.updateFileReferenceBaseURL(directoryURL)
+
+        // A set's stored design holds the references its members held. A save
+        // can rewrite off the main thread, and designs change only on it: the
+        // file written then keeps the design as it was, its paths absolute.
+        if rewroteAny, self.ownerNode == nil
+        {
+            if Thread.isMainThread { self.storeCloneSetDesigns() }
+            else { DispatchQueue.main.async { self.storeCloneSetDesigns() } }
+        }
+        return rewroteAny
     }
 
     /// Resolves an absolute file URL, absolute filesystem path, or path relative
@@ -890,6 +997,35 @@ internal import AnyCodable
     {
         return self.nodes.first(where: { $0.id == forID })
     }
+
+    /// Puts the nodes in the order `ids` lists them, any not listed after,
+    /// undoably. A clone set member's nodes stand in its stored graph's order.
+    internal func reorderNodes(toMatch ids: [UUID])
+    {
+        let previous = self.nodes.map(\.id)
+        let ordered = Self.ordered(self.nodes, by: \.id, toMatch: ids)
+        guard ordered.map(\.id) != previous else { return }
+        self.nodes = ordered
+        self.registerUndo { $0.reorderNodes(toMatch: previous) }
+    }
+
+    /// As reorderNodes(toMatch:), for the notes.
+    internal func reorderNotes(toMatch ids: [UUID])
+    {
+        let previous = self.notes.map(\.id)
+        let ordered = Self.ordered(self.notes, by: \.id, toMatch: ids)
+        guard ordered.map(\.id) != previous else { return }
+        self.notes = ordered
+        self.registerUndo { $0.reorderNotes(toMatch: previous) }
+    }
+
+    private static func ordered<Element>(_ elements: [Element], by id: KeyPath<Element, UUID>, toMatch ids: [UUID]) -> [Element]
+    {
+        let rank = Dictionary(ids.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
+        return elements.enumerated()
+            .sorted { (rank[$0.element[keyPath: id]] ?? Int.max, $0.offset) < (rank[$1.element[keyPath: id]] ?? Int.max, $1.offset) }
+            .map(\.element)
+    }
     
     // MARK: - Node View API -
 
@@ -913,7 +1049,7 @@ internal import AnyCodable
         return allPorts.first(where: { $0.id == forID })
     }
 
-    private func recoverableGraphError(_ kind: FabricErrorKind.Graph,
+    internal func recoverableGraphError(_ kind: FabricErrorKind.Graph,
                                        message: String) -> FabricError
     {
         FabricError(.graph(kind), severity: .recoverable, message: message)
@@ -1713,7 +1849,7 @@ internal import AnyCodable
         if !wire.active { self.setConnection(connection, active: false) }
     }
 
-    internal func withoutUndoRegistration(_ operation: () -> Void)
+    internal func withoutUndoRegistration<Result>(_ operation: () throws -> Result) rethrows -> Result
     {
         let undoManager = self.effectiveUndoManager
         let shouldRestoreUndoRegistration = undoManager?.isUndoRegistrationEnabled == true
@@ -1721,7 +1857,7 @@ internal import AnyCodable
         defer {
             if shouldRestoreUndoRegistration { undoManager?.enableUndoRegistration() }
         }
-        operation()
+        return try operation()
     }
 
     // Theres a possible race condition here, as a node
@@ -1762,8 +1898,23 @@ internal import AnyCodable
 
     // MARK: - Private Decode API Helpers -
     
+    /// Decodes a node from its encoded map with every UUID in it rewritten
+    /// through `remap`: the copy step duplication, paste and clone syncs share.
+    internal func decodeNode(from data: Data, remap: [String: String], preservingKeys: Set<String> = []) -> Node?
+    {
+        guard let rewritten = Self.rewriteUUIDs(in: data, remap: remap, preservingKeys: preservingKeys) else { return nil }
+        let map: AnyCodableMap
+        do { map = try JSONDecoder().decode(AnyCodableMap.self, from: rewritten) }
+        catch
+        {
+            print("Graph: a rewritten node could not be read: \(error)")
+            return nil
+        }
+        return self.decodeNode(from: map)
+    }
+
     /// Decodes a single node from an AnyCodableMap, replicating the type resolution from Graph.init(from:)
-    private func decodeNode(from map: AnyCodableMap) -> Node?
+    internal func decodeNode(from map: AnyCodableMap) -> Node?
     {
         // Graph.init(from:) closes each node's hydration window once every node
         // is decoded; duplicate and paste come through here instead, so the
@@ -1781,7 +1932,7 @@ internal import AnyCodable
         {
             let encoder = JSONEncoder()
             let decoder = JSONDecoder()
-            decoder.context = DecoderContext(documentContext: self.context)
+            decoder.context = self.makeDecoderContext()
 
             let jsonData = try encoder.encode(map.value)
 
@@ -1835,13 +1986,17 @@ internal import AnyCodable
         return string.count == 36 && UUID(uuidString: string) != nil
     }
 
-    /// Recursively collects all UUID-formatted string values from a JSON object
-    private static func collectUUIDs(from object: Any, into uuids: inout Set<String>)
+    /// Recursively collects the ids in a JSON object: UUID-formatted strings
+    /// under a key that names an id, `id` or one ending in `ID`, as every
+    /// encoded node, port, connection and proxy names its ids. A UUID-shaped
+    /// string elsewhere is a value, such as text a user typed, and is left as
+    /// it is.
+    private static func collectUUIDs(from object: Any, into uuids: inout Set<String>, underIDKey: Bool = false)
     {
         switch object
         {
         case let string as String:
-            if isUUIDString(string)
+            if underIDKey, isUUIDString(string)
             {
                 uuids.insert(string)
             }
@@ -1849,13 +2004,13 @@ internal import AnyCodable
         case let array as [Any]:
             for element in array
             {
-                collectUUIDs(from: element, into: &uuids)
+                collectUUIDs(from: element, into: &uuids, underIDKey: underIDKey)
             }
 
         case let dict as [String: Any]:
-            for (_, value) in dict
+            for (key, value) in dict
             {
-                collectUUIDs(from: value, into: &uuids)
+                collectUUIDs(from: value, into: &uuids, underIDKey: isIDKey(key))
             }
 
         default:
@@ -1863,7 +2018,12 @@ internal import AnyCodable
         }
     }
 
-    private func qualifiedNodeID(for nodeClass: Node.Type) throws -> PluginQualifiedNodeID
+    private static func isIDKey(_ key: String) -> Bool
+    {
+        key == "id" || key.hasSuffix("ID") || key.hasSuffix("IDs")
+    }
+
+    internal func qualifiedNodeID(for nodeClass: Node.Type) throws -> PluginQualifiedNodeID
     {
         let registry = try NodeRegistry.shared
 
@@ -1905,7 +2065,7 @@ internal import AnyCodable
         return requirementsByID.values.sorted { $0.id < $1.id }
     }
 
-    private static func qualifiedNodeID(fromSerializedType serializedType: String) -> PluginQualifiedNodeID
+    internal static func qualifiedNodeID(fromSerializedType serializedType: String) -> PluginQualifiedNodeID
     {
         guard let separatorRange = serializedType.range(of: PluginQualifiedNodeID.separator) else
         {
@@ -1917,8 +2077,8 @@ internal import AnyCodable
                                      nodeID: String(serializedType[separatorRange.upperBound...]))
     }
 
-    /// Finds all UUID-formatted strings in JSON data by traversing the parsed structure
-    private static func findAllUUIDs(in jsonData: Data) -> Set<String>
+    /// Finds the ids in JSON data; see `collectUUIDs`.
+    internal static func findAllUUIDs(in jsonData: Data) -> Set<String>
     {
         guard let object = try? JSONSerialization.jsonObject(with: jsonData) else { return [] }
         var uuids = Set<String>()
@@ -1926,8 +2086,10 @@ internal import AnyCodable
         return uuids
     }
 
-    /// Recursively replaces UUID strings in a JSON object using a remap table
-    private static func remapUUIDs(in object: Any, remap: [String: String]) -> Any
+    /// Recursively replaces UUID strings in a JSON object using a remap table.
+    /// Values under `preservingKeys` are left as they are, at any depth.
+    /// Dictionary keys are never rewritten.
+    internal static func remapUUIDs(in object: Any, remap: [String: String], preservingKeys: Set<String> = []) -> Any
     {
         switch object
         {
@@ -1935,13 +2097,15 @@ internal import AnyCodable
             return remap[string] ?? string
 
         case let array as [Any]:
-            return array.map { remapUUIDs(in: $0, remap: remap) }
+            return array.map { remapUUIDs(in: $0, remap: remap, preservingKeys: preservingKeys) }
 
         case let dict as [String: Any]:
             var newDict = [String: Any]()
             for (key, value) in dict
             {
-                newDict[key] = remapUUIDs(in: value, remap: remap)
+                newDict[key] = preservingKeys.contains(key)
+                    ? value
+                    : remapUUIDs(in: value, remap: remap, preservingKeys: preservingKeys)
             }
             return newDict
 
@@ -1951,12 +2115,16 @@ internal import AnyCodable
     }
 
     /// Rewrites UUID strings in JSON data using a remap table
-    private static func rewriteUUIDs(in jsonData: Data, remap: [String: String]) -> Data?
+    internal static func rewriteUUIDs(in jsonData: Data,
+                                      remap: [String: String],
+                                      preservingKeys: Set<String> = []) -> Data?
     {
         guard let object = try? JSONSerialization.jsonObject(with: jsonData) else { return nil }
-        let remapped = remapUUIDs(in: object, remap: remap)
+        let remapped = remapUUIDs(in: object, remap: remap, preservingKeys: preservingKeys)
         return try? JSONSerialization.data(withJSONObject: remapped)
     }
+
+    /// Collects every UUID-formatted string in a JSON object.
 
     /// Builds a connection map containing only connections where both ports belong to nodes in the given set
     private func buildInternalConnectionMap(for nodes: [Node]) -> [UUID: [UUID]]
@@ -1982,7 +2150,9 @@ internal import AnyCodable
         return connectionMap
     }
 
-    /// Duplicates the given nodes, preserving connections between them, and adds them to the graph
+    /// Duplicates the given nodes, preserving connections between them, and adds them to the graph.
+    /// The copies carry no clone links: a plain duplicate of a clone set member, or of anything
+    /// containing one, is an ordinary subgraph. See `duplicateAsClone`.
     @discardableResult
     public func duplicateNodes(_ nodesToDuplicate: [Node], offset: CGSize = CGSize(width: 20, height: 20)) -> [Node]
     {
@@ -2028,22 +2198,14 @@ internal import AnyCodable
 
         for data in encodedEntries
         {
-            guard let rewrittenData = Graph.rewriteUUIDs(in: data, remap: uuidRemap) else { continue }
-
-            do
+            guard let newNode = self.decodeNode(from: data, remap: uuidRemap) else
             {
-                let rewrittenMap = try JSONDecoder().decode(AnyCodableMap.self, from: rewrittenData)
-
-                if let newNode = self.decodeNode(from: rewrittenMap)
-                {
-                    newNode.offset = newNode.offset + offset
-                    newNodes.append(newNode)
-                }
+                print("duplicateNodes: Failed to decode rewritten node")
+                continue
             }
-            catch
-            {
-                print("duplicateNodes: Failed to decode rewritten node: \(error)")
-            }
+            newNode.offset = newNode.offset + offset
+            Self.clearCloneLinks(in: newNode)
+            newNodes.append(newNode)
         }
 
         // 4. Add all new nodes (grouped undo)
@@ -2197,15 +2359,10 @@ extension Graph
 
             for entryData in encodedEntries
             {
-                guard let rewrittenData = Graph.rewriteUUIDs(in: entryData, remap: uuidRemap) else { continue }
-
-                let rewrittenMap = try JSONDecoder().decode(AnyCodableMap.self, from: rewrittenData)
-
-                if let newNode = self.decodeNode(from: rewrittenMap)
-                {
-                    newNode.offset = newNode.offset + offset
-                    newNodes.append(newNode)
-                }
+                guard let newNode = self.decodeNode(from: entryData, remap: uuidRemap) else { continue }
+                newNode.offset = newNode.offset + offset
+                Self.clearCloneLinks(in: newNode)
+                newNodes.append(newNode)
             }
 
             // Add nodes and restore connections

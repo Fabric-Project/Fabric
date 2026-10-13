@@ -187,6 +187,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 ### 3.4  Subgraph Behavior
 - Iterator applies per-iteration params before subgraph execute.
 - Render-to-Image-with-Depth sizes to inputs, attaches depth, outputs typed textures.
+- Clone sets (`CloneSet`, `Graph+CloneSet.swift`, `Graph+ClonePatch.swift`): a set holds one stored graph, and its members are instances of it under the same inner ids. A sync encodes the member whose design moved on as the stored graph and patches each sibling to it: the two encodings are compared by id, node entry by node entry, wire by wire, note by note, and only what differs is changed, in place: a node whose entry differs in more than placement, port state or a nested sub graph takes its settings from the stored entry through `Graph.setSettings`. Every node keeps what it holds at runtime; published inlet values are the per-member exception the comparison leaves out. Sets sync as the document's undo group closes, and every change the sync makes registers its own step in that group; undo and redo replay them and sync nothing. See `CloneSetCoordinator`. An edit that registers no undo syncs only when `syncCloneSets(editedIn:)` is called for it, and a sync with no undo group open registers nothing. Nothing clone-specific belongs on Node. `SubgraphNode.proxyID(for:)` carries one piece of clone-specific code: a member's proxies take ids of their own, since its siblings wrap inner ports under the same ids in one parent graph.
 
 ---
 

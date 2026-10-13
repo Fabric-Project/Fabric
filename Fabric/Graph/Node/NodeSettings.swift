@@ -35,6 +35,19 @@ extension Graph
         self.applySettings(settings, to: node, reconcilingTo: nil)
     }
 
+    /// setSettings(_:on:), where each port the change adds takes what `states`
+    /// holds under its registry key, its id first: a clone set sibling takes
+    /// its settings from its set's stored graph, whose wires and proxies name
+    /// the ports by the ids the stored graph has for them.
+    internal func setSettings(_ settings: any NodeSettings, on node: Node, addingPortsAs states: [PortState])
+    {
+        guard node.graph === self,
+              let before = node.settings,
+              !before.isEqual(to: settings)
+        else { return }
+        self.applySettings(settings, to: node, reconcilingTo: states)
+    }
+
     /// Undo applies the settings before under the port states before, and redo
     /// the settings after under the states after: a port the change took away
     /// comes back as it was, and a port it added comes back under the id later
