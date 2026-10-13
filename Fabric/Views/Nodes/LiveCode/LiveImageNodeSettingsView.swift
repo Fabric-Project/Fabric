@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 import CodeEditorView
 import LanguageSupport
 
@@ -20,31 +21,36 @@ import LanguageSupport
         let context: String
     }
 
-    var content: String
-    private weak var node: LiveImageNode?
-    private var saveTimer: Timer?
+    let draft: NodeSettingsDraft<LiveImageSettings>
+
+    var content: String {
+        get { draft.value.shaderSource }
+        set { draft.value.shaderSource = newValue }
+    }
+
+    @ObservationIgnored private weak var node: LiveImageNode?
+    @ObservationIgnored private var subscription: AnyCancellable?
     var messages: Set<TextLocated<Message>> = Set()
     var diagnostics: [ShaderDiagnostic] = []
 
+    /// The shader editor's draft, committed after a pause in typing and when
+    /// the editor goes.
     init(node: LiveImageNode) {
+        node.takeShaderSourceFromDisk()
         self.node = node
-        self.content = node.shaderSource
-    }
-
-    func scheduleSave() {
-        self.saveTimer?.invalidate()
-        self.saveTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: false) { [weak self] _ in
-            guard let self else { return }
-            Task { @MainActor in
-                self.flush()
-            }
+        self.draft = NodeSettingsDraft(of: LiveImageSettings(shaderSource: node.shaderSource),
+                                       on: node,
+                                       commit: .afterPause,
+                                       pause: .milliseconds(200))
+        // A commit compiles the shader; what the compile had to say follows.
+        self.subscription = node.settingsChangedSubject.sink { [weak self] in
+            MainActor.assumeIsolated { self?.refreshErrorMessagesIfPossible() }
         }
     }
 
+    /// Commits the draft now.
     func flush() {
-        guard let node else { return }
-        node.updateShaderSource(self.content)
-        self.refreshErrorMessagesIfPossible()
+        self.draft.commit()
     }
 
     private func refreshErrorMessagesIfPossible() {
@@ -187,10 +193,8 @@ struct LiveImageNodeSettingsView: View
                        messages: self.$editorModel.messages,
                        language: .metalShaderLanguage())
             .codeEditorChrome()
+            .withoutTypingUndo()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .onChange(of: self.editorModel.content) { _, _ in
-                self.editorModel.scheduleSave()
-            }
             .onDisappear {
                 self.editorModel.flush()
             }

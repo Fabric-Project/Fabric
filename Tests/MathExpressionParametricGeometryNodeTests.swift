@@ -5,7 +5,7 @@ import simd
 @testable import Fabric
 import Satin
 
-@Suite struct MathExpressionParametricGeometryNodeTests
+@Suite @MainActor struct MathExpressionParametricGeometryNodeTests
 {
     private func makeContext() -> Context?
     {

@@ -386,6 +386,19 @@ class FabricDocument: FileDocument
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper
     {
         let graph = self.editingContext.rootGraph
+
+        // A shader edited on disk reaches the document as an edit, made on
+        // the main thread. A save off it writes what the graph holds, and the
+        // edit, which marks the document changed, is in the next save.
+        if Thread.isMainThread
+        {
+            MainActor.assumeIsolated { graph.takeShaderSourcesFromDisk() }
+        }
+        else
+        {
+            DispatchQueue.main.async { graph.takeShaderSourcesFromDisk() }
+        }
+
         graph.rewriteFileReferences(relativeTo: graph.fileReferenceBaseURL)
 
         let encoder = JSONEncoder()

@@ -6,27 +6,52 @@
 //
 
 import SwiftUI
+import Combine
 import CodeEditorView
 import LanguageSupport
 
+/// The script editor's draft, committed after a pause in typing and when the
+/// editor goes; a time mode is committed as it is picked.
 @MainActor
 @Observable final class JavaScriptNodeEditorModel
 {
+    let draft: NodeSettingsDraft<JavaScriptSettings>
+
     var content: String
+    {
+        get { draft.value.scriptSource }
+        set { draft.value.scriptSource = newValue }
+    }
+
     var selectedTimeMode: Node.TimeMode
+    {
+        get { draft.value.selectedTimeMode }
+        set
+        {
+            draft.value.selectedTimeMode = newValue
+            draft.commit()
+        }
+    }
+
     var messages: Set<TextLocated<Message>> = []
     let languageService: JavaScriptLanguageService
 
-    private weak var node: JavaScriptNode?
-    private var saveTimer: Timer?
+    @ObservationIgnored private weak var node: JavaScriptNode?
+    @ObservationIgnored private var subscription: AnyCancellable?
 
     init(node: JavaScriptNode)
     {
         self.node = node
-        self.content = node.scriptSource
-        self.selectedTimeMode = node.selectedTimeMode
+        self.draft = NodeSettingsDraft(of: JavaScriptSettings(scriptSource: node.scriptSource, selectedTimeMode: node.selectedTimeMode),
+                                       on: node,
+                                       commit: .afterPause,
+                                       pause: .milliseconds(200))
         self.languageService = JavaScriptLanguageService()
         self.refreshMessages()
+        // A commit compiles the script; what the compile had to say follows.
+        self.subscription = node.settingsChangedSubject.sink { [weak self] in
+            MainActor.assumeIsolated { self?.refreshMessages() }
+        }
     }
 
     var diagnostics: [JavaScriptNodeDiagnostic]
@@ -40,32 +65,10 @@ import LanguageSupport
         node?.nodeExecutionMode ?? .Processor
     }
 
-    func scheduleSave()
-    {
-        self.saveTimer?.invalidate()
-        self.saveTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: false) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.flush()
-            }
-        }
-    }
-
+    /// Commits the draft now.
     func flush()
     {
-        guard let node else { return }
-        node.updateScriptSource(self.content)
-        node.updateTimeMode(self.selectedTimeMode)
-
-        // A script written in the annotated form is kept as the TypeScript it
-        // was read as. Taking that back is what puts the rewrite in front of the
-        // author; without it the editor still holds the annotated text and the
-        // next keystroke saves it over the node's canonical form again.
-        if node.scriptSource != self.content
-        {
-            self.content = node.scriptSource
-        }
-
-        self.refreshMessages()
+        draft.commit()
     }
 
     func refreshMessages()
@@ -120,13 +123,8 @@ struct JavaScriptNodeSettingsView: View
                        messages: self.$editorModel.messages,
                        language: .javaScriptLanguage(self.editorModel.languageService))
             .codeEditorChrome()
+            .withoutTypingUndo()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .onChange(of: self.editorModel.content) { _, _ in
-                self.editorModel.scheduleSave()
-            }
-            .onChange(of: self.editorModel.selectedTimeMode) { _, _ in
-                self.editorModel.scheduleSave()
-            }
 
             if self.editorModel.diagnostics.isEmpty == false {
                 GroupBox("Diagnostics")

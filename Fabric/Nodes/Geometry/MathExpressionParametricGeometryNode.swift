@@ -27,11 +27,12 @@ struct MathExpressionParametricView: View
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            expressionRow(label: "X =", text: $model.expressionX, valid: model.statusX)
-            expressionRow(label: "Y =", text: $model.expressionY, valid: model.statusY)
-            expressionRow(label: "Z =", text: $model.expressionZ, valid: model.statusZ)
+            expressionRow(label: "X =", text: Bindable(model.draft).value.expressionX, valid: model.statusX)
+            expressionRow(label: "Y =", text: Bindable(model.draft).value.expressionY, valid: model.statusY)
+            expressionRow(label: "Z =", text: Bindable(model.draft).value.expressionZ, valid: model.statusZ)
         }
         .padding(10)
+        .onDisappear { model.draft.commit() }
     }
 
     @ViewBuilder
@@ -43,10 +44,27 @@ struct MathExpressionParametricView: View
                 .font(.system(size: 11, design: .monospaced))
                 .frame(width: 28, alignment: .trailing)
             TextField("Expression", text: text)
+                .onSubmit { model.draft.commit() }
                 .font(.system(size: 10, design: .monospaced))
                 .textFieldStyle(RoundedBorderTextFieldStyle())
                 .foregroundStyle(valid ? Color.primary : Color.red)
         }
+    }
+}
+
+// MARK: - Settings
+
+public struct ParametricExpressionSettings: NodeSettings
+{
+    public var expressionX: String
+    public var expressionY: String
+    public var expressionZ: String
+
+    public init(expressionX: String, expressionY: String, expressionZ: String)
+    {
+        self.expressionX = expressionX
+        self.expressionY = expressionY
+        self.expressionZ = expressionZ
     }
 }
 
@@ -83,49 +101,26 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
 
     // MARK: - Settings Model
 
+    /// The settings view's draft of the three expressions, committed after a
+    /// pause in typing. Whether each axis compiles is read off the draft, so
+    /// the view marks what is typed before it reaches the node.
+    @MainActor
     @Observable final class SettingsModel
     {
-        var expressionX: String
-        {
-            didSet
-            {
-                guard expressionX != node?.expressionX else { return }
-                node?.expressionX = expressionX
-            }
-        }
-        var expressionY: String
-        {
-            didSet
-            {
-                guard expressionY != node?.expressionY else { return }
-                node?.expressionY = expressionY
-            }
-        }
-        var expressionZ: String
-        {
-            didSet
-            {
-                guard expressionZ != node?.expressionZ else { return }
-                node?.expressionZ = expressionZ
-            }
-        }
+        let draft: NodeSettingsDraft<ParametricExpressionSettings>
 
-        var statusX: Bool = true
-        var statusY: Bool = true
-        var statusZ: Bool = true
-
-        private weak var node: MathExpressionParametricGeometryNode?
+        var statusX: Bool { MathExpressionParametricGeometryNode.axisExpression(from: draft.value.expressionX) != nil }
+        var statusY: Bool { MathExpressionParametricGeometryNode.axisExpression(from: draft.value.expressionY) != nil }
+        var statusZ: Bool { MathExpressionParametricGeometryNode.axisExpression(from: draft.value.expressionZ) != nil }
 
         init(node: MathExpressionParametricGeometryNode)
         {
-            self.node = node
-            self.expressionX = node.expressionX
-            self.expressionY = node.expressionY
-            self.expressionZ = node.expressionZ
+            self.draft = NodeSettingsDraft(of: node.parametricSettings, on: node, commit: .afterPause)
         }
     }
 
-    internal lazy var _settingsModel: SettingsModel = SettingsModel(node: self)
+    // Made for the settings view, on the main thread.
+    internal lazy var _settingsModel: SettingsModel = MainActor.assumeIsolated { SettingsModel(node: self) }
 
     // MARK: - Codable
 
@@ -144,20 +139,42 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
         parseExpressions()
     }
 
-    public override func encode(to encoder: any Encoder) throws
+    fileprivate var parametricSettings: ParametricExpressionSettings
     {
-        try super.encode(to: encoder)
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(expressionX, forKey: .expressionX)
-        try container.encode(expressionY, forKey: .expressionY)
-        try container.encode(expressionZ, forKey: .expressionZ)
+        ParametricExpressionSettings(expressionX: expressionX, expressionY: expressionY, expressionZ: expressionZ)
     }
+
+    override public var settings: (any NodeSettings)? { self.parametricSettings }
+
+    /// Parses once for the three axes.
+    override public func apply(_ settings: any NodeSettings)
+    {
+        guard let settings = settings as? ParametricExpressionSettings else { return }
+        self.isApplyingSettings = true
+        self.expressionX = settings.expressionX
+        self.expressionY = settings.expressionY
+        self.expressionZ = settings.expressionZ
+        self.isApplyingSettings = false
+        self.parseExpressions()
+        super.apply(settings)
+    }
+
+    private var isApplyingSettings = false
 
     public required init(context: Context)
     {
         self.expressionX = Self.defaultExpressionX
         self.expressionY = Self.defaultExpressionY
         self.expressionZ = Self.defaultExpressionZ
+        super.init(context: context)
+        parseExpressions()
+    }
+
+    public init(context: Context, settings: ParametricExpressionSettings)
+    {
+        self.expressionX = settings.expressionX
+        self.expressionY = settings.expressionY
+        self.expressionZ = settings.expressionZ
         super.init(context: context)
         parseExpressions()
     }
@@ -202,7 +219,7 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
     {
         didSet
         {
-            guard oldValue != expressionX else { return }
+            guard oldValue != expressionX, !isApplyingSettings else { return }
             parseExpressions()
         }
     }
@@ -210,7 +227,7 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
     {
         didSet
         {
-            guard oldValue != expressionY else { return }
+            guard oldValue != expressionY, !isApplyingSettings else { return }
             parseExpressions()
         }
     }
@@ -218,7 +235,7 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
     {
         didSet
         {
-            guard oldValue != expressionZ else { return }
+            guard oldValue != expressionZ, !isApplyingSettings else { return }
             parseExpressions()
         }
     }
@@ -248,20 +265,9 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
 
     private func parseExpressions()
     {
-        // Keep the settings model mirroring the node, not just model → node.
-        // Its didSets guard on equality, so this cannot loop.
-        if _settingsModel.expressionX != expressionX { _settingsModel.expressionX = expressionX }
-        if _settingsModel.expressionY != expressionY { _settingsModel.expressionY = expressionY }
-        if _settingsModel.expressionZ != expressionZ { _settingsModel.expressionZ = expressionZ }
-
-        evalX = axisExpression(from: expressionX)
-        _settingsModel.statusX = evalX != nil
-
-        evalY = axisExpression(from: expressionY)
-        _settingsModel.statusY = evalY != nil
-
-        evalZ = axisExpression(from: expressionZ)
-        _settingsModel.statusZ = evalZ != nil
+        evalX = Self.axisExpression(from: expressionX)
+        evalY = Self.axisExpression(from: expressionY)
+        evalZ = Self.axisExpression(from: expressionZ)
 
         updateCompileErrorStatus()
         syncVariablePorts()
@@ -290,7 +296,7 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
         compileErrorStatus = .error("\(axes) expression\(failing.count == 1 ? " does" : "s do") not compile to a single float output.")
     }
 
-    private func axisExpression(from source: String) -> AxisExpression?
+    private static func axisExpression(from source: String) -> AxisExpression?
     {
         let compileResult = compile(source)
         guard compileResult.isValid,

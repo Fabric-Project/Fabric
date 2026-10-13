@@ -198,6 +198,24 @@ struct UndoActionNameTests
         #expect(fixture.graph.nodes.count == 4)
         #expect(fixture.graph.connections.count == 2)
     }
+
+    @Test("A settings change that removes a wired port")
+    func settingsChangeRemovingAWiredPort() throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = makeFixture(context: context)
+        let node = MathExpressionNode(context: context, expression: "x + y")
+        step(fixture.undoManager) { fixture.graph.addNode(node) }
+        let y = try #require(node.inputPorts().first { $0.name == "y" })
+        step(fixture.undoManager) { fixture.graph.connect(fixture.upstream.outputNumber, to: y) }
+
+        expectNamed("Change Settings", fixture.undoManager) {
+            fixture.graph.setSettings(MathExpressionSettings(stringExpression: "x"), on: node)
+        }
+        #expect(node.stringExpression == "x")
+        #expect(fixture.graph.connections.isEmpty)
+    }
+
     @Test("A wire that specialises a numeric node, under the editor's event groups")
     func connectSpecialisingUnderEventGroups() throws
     {

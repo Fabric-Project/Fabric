@@ -9,7 +9,7 @@ import MathExpressionEngine
 /// Node-level behaviour of the engine-backed Math Expression node: dynamic port
 /// derivation, retype, wire-preserving diffing, and diagnostics. Needs a Metal
 /// device to build a `Context`; skipped gracefully where none exists.
-@Suite struct MathExpressionNodeTests
+@Suite @MainActor struct MathExpressionNodeTests
 {
     private func makeContext() -> Context?
     {
