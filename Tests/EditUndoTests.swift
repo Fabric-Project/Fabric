@@ -104,4 +104,59 @@ struct EditUndoTests
         #expect(fixture.undoManager.undoActionName == "Rename Port", "the rename before it is the next step back")
     }
 
+    @Test("Adding, editing and deleting a note are undo steps")
+    func noteEditsUndo()
+    {
+        guard let context = makeContext() else { return }
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        let graph = Graph(context: context)
+        graph.undoManager = undoManager
+        let first = Note(note: "First", rect: .zero)
+        let note = Note(note: "Draft", rect: CGRect(x: 0, y: 0, width: 200, height: 100))
+
+        step(undoManager) { graph.addNote(first) }
+        step(undoManager) { graph.addNote(note) }
+        step(undoManager) {
+            note.note = "Final"
+            note.rect.origin = CGPoint(x: 40, y: 40)
+            graph.registerNoteEdit(note, previousText: "Draft", previousRect: CGRect(x: 0, y: 0, width: 200, height: 100))
+        }
+        step(undoManager) { graph.deleteNote(first) }
+        #expect(graph.notes.map(\.id) == [note.id])
+
+        undoManager.undo()
+        #expect(graph.notes.map(\.id) == [first.id, note.id], "a deleted note comes back where it was")
+        undoManager.undo()
+        #expect(note.note == "Draft")
+        #expect(note.rect.origin == .zero)
+        undoManager.redo()
+        #expect(note.note == "Final")
+        undoManager.undo()
+        undoManager.undo()
+        #expect(graph.notes.map(\.id) == [first.id])
+    }
+
+    @Test("An edit recorded for a note after its delete is not a step")
+    func noteEditAfterDeleteRegistersNothing()
+    {
+        guard let context = makeContext() else { return }
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        let graph = Graph(context: context)
+        graph.undoManager = undoManager
+        let note = Note(note: "Draft", rect: .zero)
+        step(undoManager) { graph.addNote(note) }
+
+        note.note = "Typed"
+        step(undoManager) { graph.deleteNote(note) }
+        // The view going away ends the edit after the delete took the note.
+        graph.registerNoteEdit(note, previousText: "Draft", previousRect: .zero)
+        #expect(undoManager.undoActionName == "Delete Note")
+
+        undoManager.undo()
+        #expect(graph.notes.map(\.id) == [note.id])
+        #expect(note.note == "Typed")
+    }
+
 }
