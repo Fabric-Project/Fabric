@@ -123,10 +123,11 @@ public class DeferredSubgraphNode: SubgraphNode
 
     public required init(from decoder: any Decoder) throws
     {
-        try super.init(from: decoder)
-
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.deferredMRTEnabled = try container.decodeIfPresent(Bool.self, forKey: .deferredMRTEnabled) ?? false
+
+        try super.init(from: decoder)
+
         self.synchronizeDeferredConfiguration()
     }
 
@@ -175,30 +176,22 @@ public class DeferredSubgraphNode: SubgraphNode
 
     private func synchronizeDeferredConfiguration()
     {
-        self.syncAuxiliaryOutputPorts()
+        self.reconcilePorts()
         self.rebuildGraphRenderer()
         self.markDirty()
     }
 
-    private func syncAuxiliaryOutputPorts()
+    /// The deferred render targets follow the registered ports while they are
+    /// enabled.
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        for descriptor in Self.auxiliaryOutputPorts
-        {
-            if deferredMRTEnabled
-            {
-                guard self.findPort(named: descriptor.registryName, as: Port.self) == nil else { continue }
+        guard deferredMRTEnabled else { return super.declaredPorts() }
 
-                let port = NodePort<FabricImage>(
-                    name: descriptor.displayName,
-                    kind: .Outlet,
-                    description: descriptor.description
-                )
-                self.addDynamicPort(port, name: descriptor.registryName)
-            }
-            else if let port = self.findPort(named: descriptor.registryName, as: Port.self)
-            {
-                self.removePort(port)
-            }
+        return super.declaredPorts() + Self.auxiliaryOutputPorts.map { descriptor in
+            PortDeclaration(registryKey: descriptor.registryName,
+                            port: NodePort<FabricImage>(name: descriptor.displayName,
+                                                        kind: .Outlet,
+                                                        description: descriptor.description))
         }
     }
 

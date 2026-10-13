@@ -25,13 +25,15 @@ public final class ArrayResampleTypeAgnosticNode: NumericTypeAgnosticNode
 
     public var inputCount: ParameterPort<Int> { port(named: "inputCount") }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
         let portType = selectedNumericPortType
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputArray", displayName: "Array", portType: portType, kind: .Inlet, description: "Source array")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputArray", displayName: "Array", portType: portType, kind: .Outlet, description: "Resampled array")
-        reorderPorts(named: ["inputArray", "inputCount", "outputArray"])
+
+        return [
+            PortDeclaration(registryKey: "inputArray", portType: portType, kind: .Inlet, name: "Array", description: "Source array"),
+        ] + super.declaredPorts() + [
+            PortDeclaration(registryKey: "outputArray", portType: portType, kind: .Outlet, name: "Array", description: "Resampled array"),
+        ]
     }
 
     override public func execute(renderer: GraphRenderer,

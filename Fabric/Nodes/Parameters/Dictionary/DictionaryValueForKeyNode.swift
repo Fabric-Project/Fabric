@@ -21,14 +21,13 @@ public final class DictionaryValueForKeyNode: DictionaryTypeAgnosticNode
 
     private var inputKey: ParameterPort<String> { port(named: "inputKey") }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
-
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputDictionary", displayName: "Dictionary", portType: dictionaryType, kind: .Inlet,  description: "Dictionary to read")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputValue",     displayName: "Value",      portType: valueType,      kind: .Outlet, description: "Value for the key")
-
-        reorderPorts(named: ["inputDictionary", "inputKey", "outputValue"])
+        return [
+            PortDeclaration(registryKey: "inputDictionary", portType: dictionaryType, kind: .Inlet, name: "Dictionary", description: "Dictionary to read"),
+        ] + super.declaredPorts() + [
+            PortDeclaration(registryKey: "outputValue", portType: valueType, kind: .Outlet, name: "Value", description: "Value for the key"),
+        ]
     }
 
     override public func execute(renderer: GraphRenderer,

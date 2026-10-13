@@ -176,21 +176,20 @@ public class StrategyNode: Node
         self.strategy = decoded ?? Self.defaultStrategy
 
         try super.init(from: decoder)
-
-        // Rebuild from the restored strategy, evicting any dynamic port left
-        // over from whatever strategy the document was saved in.
-        self.rebuildPorts(forStrategy: self.strategy)
+        self.didApplyStrategy()
     }
 
     override public var settings: (any NodeSettings)? { StrategyNodeSettings(strategy: self.strategy) }
 
+    /// Sets the strategy; the base reconciles the ports once, for whatever
+    /// else a subclass's settings decide as well.
     override public func apply(_ settings: any NodeSettings)
     {
         guard let settings = settings as? any StrategySettings else { return }
         let changed = settings.strategy != self.strategy
         self.strategy = settings.strategy
-        self.rebuildPorts(forStrategy: self.strategy)
         super.apply(settings)
+        self.didApplyStrategy()
         if changed { self.subtitleSubject.send() }
     }
 
@@ -213,7 +212,7 @@ public class StrategyNode: Node
     {
         self.strategy = Self.defaultStrategy
         super.init(context: context)
-        self.rebuildPorts(forStrategy: self.strategy)
+        self.didApplyStrategy()
     }
 
     /// Designated init for programmatic construction with a specific initial strategy.
@@ -221,7 +220,7 @@ public class StrategyNode: Node
     {
         self.strategy = initialStrategy
         super.init(context: context)
-        self.rebuildPorts(forStrategy: self.strategy)
+        self.didApplyStrategy()
     }
 
     /// Convenience init for compile-time-checked programmatic construction.
@@ -247,43 +246,11 @@ public class StrategyNode: Node
     /// The model behind the strategy picker.
     var strategySettingsModel: SettingsModel { _settingsModel }
 
-    /// Subclasses: diff current dynamic ports against the wanted set for
-    /// `strategy` (removePort for anything dynamic no longer wanted,
-    /// addDynamicPort for anything wanted not already present) — the same
-    /// name-set-diff pattern MathExpressionNode.syncPorts(to:)
-    /// already uses. Called on creation, on every Settings-view strategy
-    /// change, and once after decode.
-    public func rebuildPorts(forStrategy strategy: String) { }
-
-    /// The rebuild step for one port: a port of the wanted type is left alone;
-    /// one of another type is replaced (see `Node.replacePort`) by a fresh port
-    /// of the wanted type on the same id; a missing port is added.
-    public func addOrReplaceDynamicPortPreservingIdentity(name registryName: String,
-                                                          displayName: String,
-                                                          portType: PortType,
-                                                          kind: PortKind,
-                                                          description: String)
-    {
-        if let existing: Port = findPort(named: registryName), existing.portType != portType
-        {
-            replacePort(existing, with: portType.makeFreshPort(name: displayName,
-                                                                kind: kind,
-                                                                description: description,
-                                                                id: existing.id))
-        }
-
-        if findPort(named: registryName) == nil
-        {
-            addDynamicPort(
-                portType.makeFreshPort(
-                    name: displayName,
-                    kind: kind,
-                    description: description
-                ),
-                name: registryName
-            )
-        }
-    }
+    /// Runs once the ports stand for the strategy: after init, decode and
+    /// every apply. For a subclass's state that follows the strategy, as a
+    /// held value resets when the type it holds changes. Ports come from
+    /// declaredPorts(), which a subclass computes from `strategy`.
+    public func didApplyStrategy() { }
 
     // MARK: - Settings Model
 

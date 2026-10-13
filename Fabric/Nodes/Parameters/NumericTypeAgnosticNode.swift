@@ -123,10 +123,4 @@ public class NumericTypeAgnosticNode: StrategyNode
         setStrategy(connectedType.rawValue)
         return true
     }
-
-    public func reorderPorts(named names: [String])
-    {
-        let reordered: [Port] = names.compactMap { name in let p: Port? = findPort(named: name); return p }
-        if reordered.count == self.ports.count { reorderPorts(reordered) }
-    }
 }

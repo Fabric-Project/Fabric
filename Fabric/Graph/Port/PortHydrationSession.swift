@@ -10,7 +10,7 @@ import Foundation
 /// registers (see Node.init(from:) — declare-then-hydrate).
 ///
 /// The session lives only for the decode pass. Graph finalizes it once node
-/// inits and their dynamic rebuilds are done: whatever remains unconsumed
+/// inits, and the reconciles they make, are done: whatever remains unconsumed
 /// matched nothing the code declares and is reported dropped, and clearing
 /// the session guarantees a port added later — a user action, a reconnecting
 /// device — can never resurrect stale document state.
@@ -62,11 +62,10 @@ internal final class PortHydrationSession
         return take(documentKeyOrder) + take(pendingByRegistryKey.keys.sorted())
     }
 
-    /// Returns `port`'s consumed snapshot to the pending set. A node that
-    /// removes and recreates the same registry key inside one decode — the
-    /// image and matrix port branches of BaseImageNode's material sync do this
-    /// across Live Image's two passes — would otherwise mint a fresh identity
-    /// for the replacement and take the document's wires with it.
+    /// Returns `port`'s consumed snapshot to the pending set. A node whose
+    /// declarations change inside one decode, retiring or retyping a key it
+    /// declared first, would otherwise mint a fresh identity for the port
+    /// made under that key again and take the document's wires with it.
     func relinquish(_ port: Port)
     {
         guard let consumed = consumedByPortID.removeValue(forKey: port.id) else { return }

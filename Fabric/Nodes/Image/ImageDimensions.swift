@@ -60,33 +60,50 @@ public final class ImageDimensions: Node
         case outputResolutionPort
     }
 
+    /// The ports a document from before the registry saved as properties of
+    /// their own, standing in for the declared Image inlet and adding the
+    /// Resolution outlet that document had.
+    private let legacyInputImage: NodePort<FabricImage>?
+    private let legacyResolution: NodePort<simd_float2>?
+
     public required init(context: Context)
     {
+        self.legacyInputImage = nil
+        self.legacyResolution = nil
         super.init(context: context)
     }
 
     public required init(from decoder: any Decoder) throws
     {
         let legacyContainer = try decoder.container(keyedBy: LegacyCodingKeys.self)
-        let legacyInputImage = try legacyContainer.decodeIfPresent(
+        self.legacyInputImage = try legacyContainer.decodeIfPresent(
             NodePort<FabricImage>.self,
             forKey: .inputTexturePort
         )
-        let legacyResolution = try legacyContainer.decodeIfPresent(
+        self.legacyResolution = try legacyContainer.decodeIfPresent(
             NodePort<simd_float2>.self,
             forKey: .outputResolutionPort
         )
 
         try super.init(from: decoder)
+    }
 
-        if let legacyInputImage {
-            self.removePort(self.inputImage)
-            self.addDynamicPort(legacyInputImage, name: "inputImage")
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        var declarations = super.declaredPorts()
+
+        if let legacyInputImage,
+           let index = declarations.firstIndex(where: { $0.registryKey == "inputImage" })
+        {
+            declarations[index] = PortDeclaration(registryKey: "inputImage", port: legacyInputImage)
         }
 
-        if let legacyResolution {
-            self.addDynamicPort(legacyResolution, name: "legacyOutputResolution")
+        if let legacyResolution
+        {
+            declarations.append(PortDeclaration(registryKey: "legacyOutputResolution", port: legacyResolution))
         }
+
+        return declarations
     }
 
     override public func execute(renderer: GraphRenderer,

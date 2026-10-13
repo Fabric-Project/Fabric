@@ -30,73 +30,113 @@ final class PortRegistry
     private(set) var ordered: [Port] = []
     // lookup by friendly name
     private var byName: [String: Port] = [:]
-    // lookup by UUID for connections remap
-    private var byID: [UUID: Port] = [:]
     
-    func register(_ port: Port, name: String, owner: Node)
+    // MARK: - Reconciling to declarations
+
+    /// What reconcile(to:owner:hydrating:) changed. Retired ports, those
+    /// removed and those replaced, still name their node, so the node can take
+    /// their wires and proxies through the graph before it lets them go.
+    struct Reconciliation
     {
-        if let state = self.pendingReconciliation?.removeValue(forKey: name)
+        var added: [Port] = []
+        var removed: [Port] = []
+        var replaced: [(old: Port, new: Port)] = []
+        var reordered = false
+
+        var isEmpty: Bool { added.isEmpty && removed.isEmpty && replaced.isEmpty && !reordered }
+    }
+
+    /// Brings the ports to `declarations`, in their order. A port whose key,
+    /// kind and type match its declaration stays as it is; one whose kind or
+    /// type differ, or that lacks or has a parameter the declaration says it
+    /// has or lacks, is replaced under its id, published as it was; a missing
+    /// key is made, taking the state reconciling(to:_:) or decode holds for
+    /// it; a port no declaration names is removed. The first of two
+    /// declarations under one key counts.
+    func reconcile(to declarations: [PortDeclaration],
+                   owner: Node,
+                   hydrating session: PortHydrationSession?) -> Reconciliation
+    {
+        var reconciliation = Reconciliation()
+        var reconciled: [(key: String, port: Port)] = []
+        var made: [(key: String, port: Port)] = []
+        var declaredKeys = Set<String>()
+
+        for declaration in declarations where declaredKeys.insert(declaration.registryKey).inserted
         {
-            port.take(state)
-            self.reconciledByPortID[port.id] = state
+            let key = declaration.registryKey
+
+            guard let existing = self.byName[key] else
+            {
+                let port = Self.make(declaration, id: nil)
+                made.append((key, port))
+                reconciled.append((key, port))
+                reconciliation.added.append(port)
+                continue
+            }
+
+            if existing.kind == declaration.kind
+                && existing.portType == declaration.portType
+                && declaration.isParameterPort.map({ $0 == (existing.parameter != nil) }) ?? true
+            {
+                reconciled.append((key, existing))
+                continue
+            }
+
+            let replacement = Self.make(declaration, id: existing.id)
+            replacement.setPublishing(existing.published, name: existing.publishedName)
+            self.retire(existing, hydrating: session)
+            made.append((key, replacement))
+            reconciled.append((key, replacement))
+            reconciliation.replaced.append((existing, replacement))
         }
-        port.node = owner
-        self.ordered.append(port)
-        self.byName[name] = port
-        self.byID[port.id] = port
+
+        let keysByPort = Dictionary(self.byName.map { (ObjectIdentifier($0.value), $0.key) }, uniquingKeysWith: { first, _ in first })
+        for port in self.ordered where !declaredKeys.contains(keysByPort[ObjectIdentifier(port)] ?? port.name)
+        {
+            self.retire(port, hydrating: session)
+            reconciliation.removed.append(port)
+        }
+
+        // Every retired port has handed back its state before any port takes
+        // state, so a key retired and made again takes it.
+        for (key, port) in made
+        {
+            session?.hydrate(port, registryKey: key)
+            if let state = self.pendingReconciliation?.removeValue(forKey: key)
+            {
+                port.take(state)
+                self.reconciledByPortID[port.id] = state
+            }
+            port.node = owner
+        }
+
+        reconciliation.reordered = self.ordered.map(\.id) != reconciled.map(\.port.id)
+
+        self.ordered = reconciled.map(\.port)
+        self.byName = Dictionary(reconciled.map { ($0.key, $0.port) }, uniquingKeysWith: { first, _ in first })
+
+        return reconciliation
     }
 
-    func addDynamic(_ port: Port, owner: Node, name: String? = nil)
+    private static func make(_ declaration: PortDeclaration, id: UUID?) -> Port
     {
-        self.register(port, name: name ?? port.name, owner: owner)
+        let port = declaration.makePort(id)
+        if let id, port.id != id { port.adoptID(id) }
+        return port
     }
 
-    func remove(_ p: Port)
+    /// Hands back the state a port took in this reconciliation or decode, for
+    /// a port made again under its key.
+    private func retire(_ port: Port, hydrating session: PortHydrationSession?)
     {
-        if let graph = p.node?.graph {
-            graph.disconnectAll(from: p)
-        }
-        // A port taken away and added again under the same key in one
-        // reconciliation takes its state again.
-        if let state = self.reconciledByPortID.removeValue(forKey: p.id)
+        session?.relinquish(port)
+        if let state = self.reconciledByPortID.removeValue(forKey: port.id)
         {
             self.pendingReconciliation?[state.registryKey] = state
         }
-        self.byID[p.id] = nil
-        if let i = ordered.firstIndex(where: { $0.id == p.id }) { self.ordered.remove(at: i) }
-        for (name, port) in self.byName where port.id == p.id
-        {
-            self.byName[name] = nil
-        }
-        // Dynamic type changes replace a Port instance while preserving its
-        // UUID. Detach the retired instance so a transient SwiftUI view cannot
-        // reconnect that stale object after the replacement is registered.
-        p.node = nil
     }
 
-    func reorder(_ reordered: [Port])
-    {
-        guard reordered.count == self.ordered.count else { return }
-
-        let oldIDs = Set(self.ordered.map(\.id))
-        let newIDs = Set(reordered.map(\.id))
-        guard oldIDs == newIDs else { return }
-
-        let namesByID: [UUID: String] = Dictionary(uniqueKeysWithValues: self.byName.map { (key, value) in
-            (value.id, key)
-        })
-
-        self.ordered = reordered
-        self.byName.removeAll(keepingCapacity: true)
-        self.byID.removeAll(keepingCapacity: true)
-
-        for port in self.ordered {
-            let name = namesByID[port.id] ?? port.name
-            self.byName[name] = port
-            self.byID[port.id] = port
-        }
-    }
-    
     func port(named name: String) -> Port? { self.byName[name] }
     func name(of port: Port) -> String? { self.byName.first { $0.value.id == port.id }?.key }
     func all() -> [Port] { self.ordered }

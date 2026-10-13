@@ -12,14 +12,12 @@ public final class DictionaryCountNode: DictionaryTypeAgnosticNode
     public override class var name: String { "Dictionary Count" }
     override public class var nodeDescription: String { "Outputs the number of key-value pairs in a dictionary. Choose value type in Settings." }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
-
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputDictionary", displayName: "Dictionary", portType: dictionaryType, kind: .Inlet,  description: "Dictionary to count")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputCount",     displayName: "Count",      portType: .Int,           kind: .Outlet, description: "Dictionary count")
-
-        reorderPorts(named: ["inputDictionary", "outputCount"])
+        return [
+            PortDeclaration(registryKey: "inputDictionary", portType: dictionaryType, kind: .Inlet, name: "Dictionary", description: "Dictionary to count"),
+            PortDeclaration(registryKey: "outputCount", portType: .Int, kind: .Outlet, name: "Count", description: "Dictionary count"),
+        ] + super.declaredPorts()
     }
 
     override public func execute(renderer: GraphRenderer,

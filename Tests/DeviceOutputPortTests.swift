@@ -4,7 +4,7 @@ import Metal
 @testable import Fabric
 import Satin
 
-/// The reconcile every device-backed node shares (Node.synchronizeDeviceOutputPorts):
+/// The outlets every device-backed node declares (Node.deviceOutputPortDeclarations):
 /// ports follow the hardware, but wired-up ports must not be churned for nothing.
 @Suite("Device Output Ports")
 struct DeviceOutputPortTests
@@ -21,11 +21,9 @@ struct DeviceOutputPortTests
         )
     }
 
-    private func synchronize(_ node: Node, to descriptors: [DeviceOutputPortDescriptor]) -> [DeviceOutputPortDescriptor]
+    private func synchronize(_ node: GameControllerNode, to descriptors: [DeviceOutputPortDescriptor])
     {
-        node.synchronizeDeviceOutputPorts(to: descriptors,
-                                          buttonDescription: "Button",
-                                          axisDescription: "Axis")
+        node.apply(GameControllerSettings(selectedControllerID: nil, portDescriptors: descriptors))
     }
 
     @Test("Matching ports survive a resync so their wires do")
@@ -37,29 +35,30 @@ struct DeviceOutputPortTests
         let descriptors = [DeviceOutputPortDescriptor(name: "Left Stick X", isButton: false),
                            DeviceOutputPortDescriptor(name: "A", isButton: true)]
 
-        #expect(synchronize(node, to: descriptors).count == 2)
+        synchronize(node, to: descriptors)
+        #expect(node.ports.count == 2)
 
-        let savedIDs = node.ports.map(\.id)
+        let savedPorts = node.ports
 
-        #expect(synchronize(node, to: descriptors).isEmpty)
-        #expect(node.ports.map(\.id) == savedIDs)
+        synchronize(node, to: descriptors)
+        #expect(node.ports.map(ObjectIdentifier.init) == savedPorts.map(ObjectIdentifier.init))
     }
 
-    @Test("A port whose element changed type is replaced, not kept")
+    @Test("A port whose element changed type is replaced under its id, not kept")
     func mistypedPortsAreReplaced() throws
     {
         guard let context = makeContext() else { return }
 
         let node = GameControllerNode(context: context)
         synchronize(node, to: [DeviceOutputPortDescriptor(name: "Trigger", isButton: false)])
-        #expect(node.findPort(named: "Trigger") is NodePort<Float>)
+        let axis = try #require(node.findPort(named: "Trigger") as NodePort<Float>?)
 
         // Name-only matching kept the Float port here, leaving a button's state
         // with nowhere to go.
-        let created = synchronize(node, to: [DeviceOutputPortDescriptor(name: "Trigger", isButton: true)])
+        synchronize(node, to: [DeviceOutputPortDescriptor(name: "Trigger", isButton: true)])
 
-        #expect(created.map(\.name) == ["Trigger"])
-        #expect(node.findPort(named: "Trigger") is NodePort<Bool>)
+        let button = try #require(node.findPort(named: "Trigger") as NodePort<Bool>?)
+        #expect(button.id == axis.id)
         #expect(node.ports.count == 1)
     }
 

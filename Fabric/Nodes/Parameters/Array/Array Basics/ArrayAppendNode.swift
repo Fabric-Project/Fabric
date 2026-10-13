@@ -16,22 +16,17 @@ public class ArrayAppendNode: TypeAgnosticNode
     override public class var nodeDescription: String { "Appends Array B onto the end of Array A, producing a single concatenated array. Choose element type in Settings." }
     override public class var includesArrayTypesInStrategy: Bool { false }
 
-    private static let dynamicPortNames: Set<String> = ["inputArrayA", "inputArrayB", "outputPort"]
-
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
-        guard let elementType = PortType(rawValue: strategy) else { return }
+        guard let elementType = PortType(rawValue: strategy) else { return super.declaredPorts() }
 
         let arrayType: PortType = .Array(portType: elementType)
 
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputArrayA", displayName: "Array A", portType: arrayType, kind: .Inlet, description: "First array")
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputArrayB", displayName: "Array B", portType: arrayType, kind: .Inlet, description: "Second array, appended after Array A")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputPort", displayName: "Array", portType: arrayType, kind: .Outlet, description: "Concatenated array")
-
-        let portOrder = ["inputArrayA", "inputArrayB", "outputPort"]
-        let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }
-        if reordered.count == self.ports.count { reorderPorts(reordered) }
+        return [
+            PortDeclaration(registryKey: "inputArrayA", portType: arrayType, kind: .Inlet, name: "Array A", description: "First array"),
+            PortDeclaration(registryKey: "inputArrayB", portType: arrayType, kind: .Inlet, name: "Array B", description: "Second array, appended after Array A"),
+            PortDeclaration(registryKey: "outputPort", portType: arrayType, kind: .Outlet, name: "Array", description: "Concatenated array"),
+        ] + super.declaredPorts()
     }
 
     override public func execute(renderer: GraphRenderer,

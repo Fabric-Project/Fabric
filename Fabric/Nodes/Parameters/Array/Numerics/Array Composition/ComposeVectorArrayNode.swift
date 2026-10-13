@@ -22,33 +22,21 @@ public class ComposeVectorArrayNode: StrategyNode
     // plain type-name title rather than leading it with the strategy.
     override public func deriveSubtitle() -> String? { nil }
 
-    private static let allDynamicNames: Set<String> = [
-        "inputComponent0", "inputComponent1", "inputComponent2", "inputComponent3",
-        "outputArray",
-    ]
-
     public convenience init(context: Context, vectorType: VectorType)
     {
         self.init(context: context, strategy: vectorType)
     }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        guard let vt: VectorType = Self.strategyOption(matching: strategy) else { return }
+        guard let vt: VectorType = Self.strategyOption(matching: strategy) else { return super.declaredPorts() }
 
-        // Remove component ports beyond the needed count
-        for i in vt.componentLabels.count..<4 {
-            if let p: Port = findPort(named: "inputComponent\(i)") { removePort(p) }
-        }
-        // Add missing component ports
-        for (i, label) in vt.componentLabels.enumerated() {
-            if findPort(named: "inputComponent\(i)") == nil {
-                let p = NodePort<ContiguousArray<Float>>(name: label, kind: .Inlet, description: "\(label) component, one per element")
-                addDynamicPort(p, name: "inputComponent\(i)")
+        return super.declaredPorts()
+            + vt.componentLabels.enumerated().map { index, label in
+                PortDeclaration(registryKey: "inputComponent\(index)",
+                                port: NodePort<ContiguousArray<Float>>(name: label, kind: .Inlet, description: "\(label) component, one per element"))
             }
-        }
-
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputArray", displayName: "\(vt.portType.rawValue) Array", portType: .Array(portType: vt.portType), kind: .Outlet, description: "Array of \(vt.portType.rawValue) values")
+            + [PortDeclaration(registryKey: "outputArray", portType: .Array(portType: vt.portType), kind: .Outlet, name: "\(vt.portType.rawValue) Array", description: "Array of \(vt.portType.rawValue) values")]
     }
 
     override public func execute(renderer: GraphRenderer,

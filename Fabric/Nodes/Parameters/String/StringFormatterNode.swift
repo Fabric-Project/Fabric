@@ -249,9 +249,6 @@ public class StringFormatterNode: BaseFormatStringNode {
 
     override public class var defaultFormatString: String { "Hello {name}" }
 
-    /// Placeholders are the values to substitute, so each builds an inlet.
-    override public class var placeholderPortKind: PortKind { .Inlet }
-
     override public class var settingsGuidance: String {
         "Use `{name}` for String, `{name:s}` String, `{name:d}` or `{name:i}` Int, `{name:b}` Bool, `{name:f}` or `{name:.2f}` Float.\n\nExample: `Position: {x:.2f}, {y:.2f}`\n\nEscapes: `\\n`, `\\r`, `\\t`, `\\\\`, and `\\{` `\\}` for literal braces."
     }

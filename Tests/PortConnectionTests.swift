@@ -499,7 +499,7 @@ struct PortConnectionTests {
             arrayValue.findPort(named: "outputPort", as: NodePort<String>.self)
         )
 
-        arrayValue.rebuildPorts(forStrategy: PortType.Float.rawValue)
+        arrayValue.apply(StrategyNodeSettings(strategy: PortType.Float.rawValue))
 
         #expect(retiredOutput.node == nil)
         #expect(graph.connect(retiredOutput, to: stringSink.input) == nil)

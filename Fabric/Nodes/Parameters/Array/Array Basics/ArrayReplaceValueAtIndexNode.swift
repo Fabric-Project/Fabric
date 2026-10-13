@@ -16,8 +16,6 @@ public class ArrayReplaceValueAtIndexNode: TypeAgnosticNode
     override public class var nodeDescription: String { "Replaces the element at the specified index with a new value. Choose element type in Settings." }
     override public class var includesArrayTypesInStrategy: Bool { false }
 
-    private static let dynamicPortNames: Set<String> = ["inputPort", "inputValue", "outputPort"]
-
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
     {
         super.registerPorts(context: context) + [
@@ -27,20 +25,18 @@ public class ArrayReplaceValueAtIndexNode: TypeAgnosticNode
 
     public var inputIndexParam: ParameterPort<Int> { port(named: "inputIndexParam") }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
-        guard let elementType = PortType(rawValue: strategy) else { return }
+        guard let elementType = PortType(rawValue: strategy) else { return super.declaredPorts() }
 
         let arrayType: PortType = .Array(portType: elementType)
 
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputPort", displayName: "Array", portType: arrayType, kind: .Inlet, description: "Input array to modify")
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputValue", displayName: "Value", portType: elementType, kind: .Inlet, description: "New value to insert at the specified index")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputPort", displayName: "Array", portType: arrayType, kind: .Outlet, description: "Array with the value replaced at the specified index")
-
-        let portOrder = ["inputPort", "inputIndexParam", "inputValue", "outputPort"]
-        let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }
-        if reordered.count == self.ports.count { reorderPorts(reordered) }
+        return [
+            PortDeclaration(registryKey: "inputPort", portType: arrayType, kind: .Inlet, name: "Array", description: "Input array to modify"),
+        ] + super.declaredPorts() + [
+            PortDeclaration(registryKey: "inputValue", portType: elementType, kind: .Inlet, name: "Value", description: "New value to insert at the specified index"),
+            PortDeclaration(registryKey: "outputPort", portType: arrayType, kind: .Outlet, name: "Array", description: "Array with the value replaced at the specified index"),
+        ]
     }
 
     override public func execute(renderer: GraphRenderer,

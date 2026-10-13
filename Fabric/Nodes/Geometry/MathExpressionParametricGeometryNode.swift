@@ -260,9 +260,6 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
     private var evalZ: AxisExpression? = nil
     private var _expressionsDirty: Bool = true
 
-    // Names of dynamically-added variable ports (excludes static ports).
-    private var _dynamicVariablePortNames: Set<String> = []
-
     private func parseExpressions()
     {
         evalX = Self.axisExpression(from: expressionX)
@@ -270,7 +267,8 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
         evalZ = Self.axisExpression(from: expressionZ)
 
         updateCompileErrorStatus()
-        syncVariablePorts()
+        variableNames = computeVariableNames()
+        reconcilePorts()
         _expressionsDirty = true
         subtitleSubject.send()
     }
@@ -311,33 +309,23 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
         return AxisExpression(compileResult: compileResult)
     }
 
-    /// Keeps dynamic input ports in sync with the union of free variables across all
-    /// three expressions, minus u and v which are always resolved by the generator.
-    private func syncVariablePorts()
+    /// The free variables across the three expressions that compile, by name,
+    /// less u and v, which the generator binds. Each has a Float inlet.
+    private var variableNames: [String] = []
+
+    private func computeVariableNames() -> [String]
     {
         var allVars = Set<String>()
         if let ev = evalX { allVars.formUnion(ev.variableNames) }
         if let ev = evalY { allVars.formUnion(ev.variableNames) }
         if let ev = evalZ { allVars.formUnion(ev.variableNames) }
+        return allVars.subtracting(Self.parametricBindings).sorted()
+    }
 
-        let variableNames = allVars.subtracting(Self.parametricBindings)
-
-        for name in _dynamicVariablePortNames.subtracting(variableNames)
-        {
-            if let port: Port = self.findPort(named: name)
-            {
-                self.removePort(port)
-            }
-            _dynamicVariablePortNames.remove(name)
-        }
-
-        for name in variableNames.subtracting(_dynamicVariablePortNames).sorted()
-        {
-            self.addDynamicPort(
-                PortType.Float.makeFreshPort(name: name, kind: .Inlet),
-                name: name
-            )
-            _dynamicVariablePortNames.insert(name)
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + self.variableNames.map { name in
+            PortDeclaration(registryKey: name, portType: .Float, kind: .Inlet, name: name)
         }
     }
 
@@ -383,7 +371,7 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
             || inputRangeUMin.valueDidChange || inputRangeUMax.valueDidChange
             || inputRangeVMin.valueDidChange || inputRangeVMax.valueDidChange
 
-        let anyVarChanged = _dynamicVariablePortNames.contains { name in
+        let anyVarChanged = variableNames.contains { name in
             (self.findPort(named: name) as? ParameterPort<Float>)?.valueDidChange == true
         }
 
@@ -402,7 +390,7 @@ public class MathExpressionParametricGeometryNode: BaseGeometryNode
 
             // Snapshot variable port values so the generator closure is pure.
             var varSnapshot: [String: Float] = [:]
-            for name in _dynamicVariablePortNames
+            for name in variableNames
             {
                 let value = (self.findPort(named: name) as? ParameterPort<Float>)?.value ?? 0
                 varSnapshot[name] = value

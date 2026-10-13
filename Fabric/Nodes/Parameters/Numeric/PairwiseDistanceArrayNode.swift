@@ -27,14 +27,14 @@ public final class PairwiseDistanceArrayNode: NumericTypeAgnosticNode
     public var inputMetric: ParameterPort<String> { port(named: "inputMetric") }
     public var outputDistances: NodePort<ContiguousArray<Float>> { port(named: "outputDistances") }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
         let portType = selectedNumericPortType
 
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputA", displayName: "A", portType: portType, kind: .Inlet, description: "First numeric array")
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputB", displayName: "B", portType: portType, kind: .Inlet, description: "Second numeric array")
-        reorderPorts(named: ["inputA", "inputB", "inputMetric", "outputDistances"])
+        return [
+            PortDeclaration(registryKey: "inputA", portType: portType, kind: .Inlet, name: "A", description: "First numeric array"),
+            PortDeclaration(registryKey: "inputB", portType: portType, kind: .Inlet, name: "B", description: "Second numeric array"),
+        ] + super.declaredPorts()
     }
 
     override public func execute(renderer: GraphRenderer,

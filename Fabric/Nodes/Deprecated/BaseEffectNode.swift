@@ -66,14 +66,6 @@ public class BaseEffectNode: Node, NodeFileLoadingProtocol
         
         
         super.init(context: context)
-        
-        for param in self.postMaterial.parameters.params {
-
-            if let port = PortType.port(for: param)
-            {
-                self.addDynamicPort(port)
-            }
-        }
     }
     
     required init(context:Context)
@@ -99,16 +91,17 @@ public class BaseEffectNode: Node, NodeFileLoadingProtocol
 
         
         super.init(context: context)
-        
-        for param in self.postMaterial.parameters.params {
-
-            if let port = PortType.port(for: param)
-            {
-                self.addDynamicPort(port)
-            }
-        }
     }
     
+    /// The image ports, then a port for each of the shader's uniforms, each
+    /// wrapping the material's parameter.
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + self.postMaterial.parameters.params.compactMap { parameter in
+            PortType.port(for: parameter).map { PortDeclaration(registryKey: $0.name, port: $0) }
+        }
+    }
+
     enum CodingKeys : String, CodingKey
     {
         // Store the last 2 directory components (effects/subfolder) within the bundle
@@ -187,17 +180,6 @@ public class BaseEffectNode: Node, NodeFileLoadingProtocol
         
         try super.init(from:decoder)
         
-        // Assign our deserialized param and map to materials new group
-        for param in self.postMaterial.parameters.params {
-
-            for port in self.ports
-            {
-                if port.name == param.label
-                {
-                    self.replaceParameterOfPort(port, withParam: param)
-                }
-            }
-        }
         
         self.postProcessor.renderer.depthLoadAction = .dontCare
         self.postProcessor.renderer.depthStoreAction = .dontCare

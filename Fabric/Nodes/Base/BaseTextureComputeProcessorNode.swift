@@ -114,13 +114,15 @@ public class BaseTextureComputeProcessorNode: Node, NodeFileLoadingProtocol
         
         self.compute = TextureComputeProcessor(device: context.device,
                                       pipelineURL: url)
-//        
-        for param in self.compute.parameters.params {
+        self.reconcilePorts()
+    }
 
-            if let port = PortType.port(for: param)
-            {
-                self.addDynamicPort(port)
-            }
+    /// The image ports, then a port for each of the compute shader's
+    /// parameters, once the shader has been read.
+    override public func declaredPorts() -> [PortDeclaration] {
+        let parameters = self.compute?.parameters.params ?? []
+        return super.declaredPorts() + parameters.compactMap { parameter in
+            PortType.port(for: parameter).map { PortDeclaration(registryKey: $0.name, port: $0) }
         }
     }
 

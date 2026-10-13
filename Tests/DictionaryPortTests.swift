@@ -53,11 +53,10 @@ struct DictionaryPortTests
         guard let harness = GraphExecutionTestHarness() else { return }
 
         let node = ArrayIndexValueNode(context: harness.context, portType: .Virtual)
-        let currentInput: Fabric.Port = node.port(named: "inputPort")
-        let legacyID = currentInput.id
+        let legacyID = UUID()
 
-        node.removePort(currentInput)
-
+        // The document as saved before Virtual array types: the array inlet a
+        // plain Virtual port.
         let legacyInput = PortType.Virtual.makeFreshPort(
             name: "Array",
             kind: .Inlet,
@@ -65,11 +64,20 @@ struct DictionaryPortTests
             id: legacyID
         )
         legacyInput.setPublishing(true, name: "Legacy Array")
-        node.addDynamicPort(legacyInput, name: "inputPort")
+        var json = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(node)) as? [String: Any])
+        var ports = try #require(json["ports"] as? [[String: Any]])
+        let legacyPayload = try JSONSerialization.jsonObject(with: JSONEncoder().encode(AnyPort(legacyInput)))
+        for index in ports.indices where ports[index]["name"] as? String == "inputPort"
+        {
+            ports[index]["payload"] = legacyPayload
+        }
+        json["ports"] = ports
 
-        node.rebuildPorts(forStrategy: PortType.Virtual.rawValue)
+        let decoder = JSONDecoder()
+        decoder.context = DecoderContext(documentContext: harness.context)
+        let migrated = try decoder.decode(ArrayIndexValueNode.self, from: JSONSerialization.data(withJSONObject: json))
 
-        let migratedInput: Fabric.Port = node.port(named: "inputPort")
+        let migratedInput: Fabric.Port = migrated.port(named: "inputPort")
         #expect(migratedInput.id == legacyID)
         #expect(migratedInput.portType == .Array(portType: .Virtual))
         #expect(migratedInput.published)

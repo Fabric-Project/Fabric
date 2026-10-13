@@ -183,7 +183,7 @@ public class GameControllerNode: Node
 
     override public var settings: (any NodeSettings)?
     {
-        GameControllerSettings(selectedControllerID: selectedControllerID, portDescriptors: currentPortDescriptors())
+        GameControllerSettings(selectedControllerID: selectedControllerID, portDescriptors: portDescriptors)
     }
 
     /// The saved port set stands for a controller that is unplugged.
@@ -271,7 +271,7 @@ public class GameControllerNode: Node
         {
             self.node = node
             self.draft = NodeSettingsDraft(of: GameControllerSettings(selectedControllerID: node.selectedControllerID,
-                                                                      portDescriptors: node.currentPortDescriptors()),
+                                                                      portDescriptors: node.portDescriptors),
                                            on: node,
                                            commit: .eachChange)
             self.availableControllers = node.availableControllers
@@ -524,20 +524,22 @@ public class GameControllerNode: Node
 
     // MARK: - Port Creation
 
-    /// The persisted projection of the port set: encode derives it from the
-    /// live ports rather than storing a parallel list that could drift.
-    fileprivate func currentPortDescriptors() -> [DeviceOutputPortDescriptor]
+    /// The port set: the saved profile while the controller is unplugged,
+    /// its own once it connects.
+    fileprivate private(set) var portDescriptors: [DeviceOutputPortDescriptor] = []
+
+    /// An outlet for each control the profile gives, in its order.
+    override public func declaredPorts() -> [PortDeclaration]
     {
-        outputPorts().map { port in
-            DeviceOutputPortDescriptor(name: port.name, isButton: port is NodePort<Bool>)
-        }
+        super.declaredPorts() + Self.deviceOutputPortDeclarations(for: portDescriptors,
+                                                                  buttonDescription: "Controller button state (true when pressed)",
+                                                                  axisDescription: "Controller axis value normalized from -1 to 1")
     }
 
     private func synchronizePorts(to descriptors: [DeviceOutputPortDescriptor])
     {
-        synchronizeDeviceOutputPorts(to: descriptors,
-                                     buttonDescription: "Controller button state (true when pressed)",
-                                     axisDescription: "Controller axis value normalized from -1 to 1")
+        portDescriptors = descriptors
+        reconcilePorts()
 
         for descriptor in descriptors
         {
