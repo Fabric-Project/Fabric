@@ -95,7 +95,7 @@ public class ModelMeshNode : MeshNode
             try self.loadModelFromInputValue()
         }
 
-        if self.inputTime.valueDidChange || self.inputFilePathParam.valueDidChange
+        if self.inputTime.valueDidChange
         {
             self.poseAnimation()
         }
@@ -118,9 +118,15 @@ public class ModelMeshNode : MeshNode
             self.model = importedModel
             self.outputDuration.send(animation?.timeRange.map { Float($0.upperBound - $0.lowerBound) } ?? 0)
 
-            self.markDirty()
+            // evaluate() applies only the inlets that changed this frame. The
+            // inlets may not have changed, but the model is new, so all of
+            // them apply to it.
+            for port in self.ports where port.kind == .Inlet
+            {
+                port.valueDidChange = true
+            }
 
-            let _ = self.evaluate(object: model, atTime: 0)
+            self.markDirty()
 
         case .noModel(let error):
             self.animation = nil

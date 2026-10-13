@@ -1,5 +1,7 @@
 import Testing
 import Foundation
+import Metal
+import simd
 @testable import Fabric
 import Satin
 
@@ -32,6 +34,8 @@ enum ModelFileNodeKind: CaseIterable, CustomTestStringConvertible
 protocol ModelFileNode: Node
 {
     var inputFilePathParam: ParameterPort<String> { get }
+    var inputPosition: ParameterPort<simd_float3> { get }
+    var inputCullingMode: ParameterPort<String> { get }
     func getObject() -> Object?
     func loadModelFromInputValue() throws
 }
@@ -39,28 +43,28 @@ protocol ModelFileNode: Node
 extension ModelMeshNode: ModelFileNode {}
 extension InstancedModelMeshNode: ModelFileNode {}
 
+private let triangleOBJ = """
+    v 0 0 0
+    v 1 0 0
+    v 0 1 0
+    f 1 2 3
+    """
+
+private func modelFile(named fileName: String, contents: String) throws -> URL
+{
+    let directoryURL = FileManager.default.temporaryDirectory
+        .appending(path: "ModelFileNodeTests-\(UUID().uuidString)", directoryHint: .isDirectory)
+    try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+    let fileURL = directoryURL.appending(path: fileName)
+    try contents.write(to: fileURL, atomically: true, encoding: .utf8)
+    return fileURL
+}
+
 /// Whether the node says on the canvas that its model file did not load.
 @Suite("Model Mesh status")
 @MainActor
 struct ModelMeshNodeStatusTests
 {
-    private static let triangleOBJ = """
-        v 0 0 0
-        v 1 0 0
-        v 0 1 0
-        f 1 2 3
-        """
-
-    private func modelFile(named fileName: String, contents: String) throws -> URL
-    {
-        let directoryURL = FileManager.default.temporaryDirectory
-            .appending(path: "ModelMeshNodeStatusTests-\(UUID().uuidString)", directoryHint: .isDirectory)
-        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
-        let fileURL = directoryURL.appending(path: fileName)
-        try contents.write(to: fileURL, atomically: true, encoding: .utf8)
-        return fileURL
-    }
-
     private func load(_ fileURL: URL, into node: any ModelFileNode)
     {
         node.inputFilePathParam.value = fileURL.path
@@ -73,7 +77,7 @@ struct ModelMeshNodeStatusTests
         guard let harness = GraphExecutionTestHarness() else { return }
         let node = kind.makeNode(context: harness.context)
 
-        load(try modelFile(named: "triangle.obj", contents: Self.triangleOBJ), into: node)
+        load(try modelFile(named: "triangle.obj", contents: triangleOBJ), into: node)
 
         #expect(node.deriveStatuses().isEmpty)
         #expect(node.getObject() != nil)
@@ -86,7 +90,7 @@ struct ModelMeshNodeStatusTests
         guard let harness = GraphExecutionTestHarness() else { return }
         let node = kind.makeNode(context: harness.context)
 
-        load(try modelFile(named: fileName, contents: Self.triangleOBJ), into: node)
+        load(try modelFile(named: fileName, contents: triangleOBJ), into: node)
 
         #expect(node.status.map { if case .error = $0 { true } else { false } } == true)
         #expect(node.getObject() == nil)
@@ -109,7 +113,7 @@ struct ModelMeshNodeStatusTests
     {
         guard let harness = GraphExecutionTestHarness() else { return }
         let node = kind.makeNode(context: harness.context)
-        let fileURL = try modelFile(named: "triangle.obj", contents: Self.triangleOBJ)
+        let fileURL = try modelFile(named: "triangle.obj", contents: triangleOBJ)
 
         load(fileURL.deletingLastPathComponent().appending(path: "absent.obj"), into: node)
         #expect(node.deriveStatuses().isEmpty == false)
@@ -129,8 +133,68 @@ struct ModelMeshNodeStatusTests
         load(fileURL, into: node)
         #expect(node.deriveStatuses().isEmpty == false)
 
-        try Self.triangleOBJ.write(to: fileURL, atomically: true, encoding: .utf8)
+        try triangleOBJ.write(to: fileURL, atomically: true, encoding: .utf8)
         load(fileURL, into: node)
         #expect(node.deriveStatuses().isEmpty)
+    }
+}
+
+/// Whether a model loaded once the node's inlets have settled takes their
+/// values, as one loaded on the node's first frame does.
+@Suite("Model Mesh state")
+@MainActor
+struct ModelFileNodeStateTests
+{
+    private func runFrame(_ node: Node, harness: GraphExecutionTestHarness) throws
+    {
+        let commandBuffer = try #require(harness.context.device.makeCommandQueue()?.makeCommandBuffer())
+        try node.execute(renderer: harness.renderer,
+                         executionInfo: harness.makeExecutionInfo(),
+                         renderPassDescriptor: MTLRenderPassDescriptor(),
+                         commandBuffer: commandBuffer)
+        node.markClean()
+    }
+
+    @Test("A model loaded after the first frame takes the node's settled inlets",
+          arguments: ModelFileNodeKind.allCases)
+    func aLaterModelTakesSettledInlets(kind: ModelFileNodeKind) throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let node = kind.makeNode(context: harness.context)
+        let position = simd_float3(1, 2, 3)
+
+        node.inputPosition.value = position
+        node.inputCullingMode.value = "Front"
+        node.inputFilePathParam.value = try modelFile(named: "first.obj", contents: triangleOBJ).path
+        try runFrame(node, harness: harness)
+
+        node.inputFilePathParam.value = try modelFile(named: "second.obj", contents: triangleOBJ).path
+        try runFrame(node, harness: harness)
+
+        let model = try #require(node.getObject())
+        #expect(model.position == position)
+
+        let meshes = model.getChildren(true).compactMap { $0 as? Mesh }
+        #expect(meshes.isEmpty == false)
+        #expect(meshes.allSatisfy { $0.cullMode == .front })
+    }
+
+    @Test("An instanced model loaded after the first frame takes the settled transforms")
+    func aLaterInstancedModelTakesSettledTransforms() throws
+    {
+        guard let harness = GraphExecutionTestHarness() else { return }
+        let node = InstancedModelMeshNode(context: harness.context)
+        let transforms = ContiguousArray(repeating: matrix_identity_float4x4, count: 3)
+
+        node.inputTransforms.value = transforms
+        node.inputFilePathParam.value = try modelFile(named: "first.obj", contents: triangleOBJ).path
+        try runFrame(node, harness: harness)
+
+        node.inputFilePathParam.value = try modelFile(named: "second.obj", contents: triangleOBJ).path
+        try runFrame(node, harness: harness)
+
+        let meshes = try #require(node.getObject()).getChildren(true).compactMap { $0 as? InstancedMesh }
+        #expect(meshes.isEmpty == false)
+        #expect(meshes.allSatisfy { $0.drawCount == transforms.count })
     }
 }

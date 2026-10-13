@@ -99,7 +99,7 @@ public class InstancedModelMeshNode : InstancedMeshNode
         {
             let _ = self.evaluate(object: model, atTime: executionInfo.timing.time)
 
-            let timeChanged = self.inputTime.valueDidChange || self.inputFilePathParam.valueDidChange
+            let timeChanged = self.inputTime.valueDidChange
             if timeChanged, let animation = self.animation
             {
                 let start = animation.timeRange?.lowerBound ?? 0
@@ -146,11 +146,14 @@ public class InstancedModelMeshNode : InstancedMeshNode
             self.model = object
             self.outputDuration.send(animation?.timeRange.map { Float($0.upperBound - $0.lowerBound) } ?? 0)
 
-            self.placeInstances()
+            // As in ModelMeshNode: every inlet applies to a new model,
+            // Transforms included.
+            for port in self.ports where port.kind == .Inlet
+            {
+                port.valueDidChange = true
+            }
 
-            self.updateLightingOnSubmeshes()
-            self.updateCullingOnSubmeshes()
-            self.updateDoubleSidedOnSubmeshes()
+            self.markDirty()
 
         case .noModel(let error):
             self.animation = nil
