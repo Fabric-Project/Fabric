@@ -14,6 +14,7 @@ public final class ArrayRangeInterpolateNode: NumericTypeAgnosticNode
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Generates an array interpolated from From to To using the selected easing function." }
     public override class var supportedPortTypes: [PortType] { interpolatableSingleTypes }
+    public override class var specializingInletNames: [String] { ["inputFrom", "inputTo"] }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
     {
@@ -43,7 +44,7 @@ public final class ArrayRangeInterpolateNode: NumericTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputFrom") || specializeFromConnectedPort(named: "inputTo") { return }
+        if specializeFromConnectedInlets() { return }
         guard let inputFrom: Port = findPort(named: "inputFrom"),
               let inputTo: Port = findPort(named: "inputTo"),
               let outputArray: Port = findPort(named: "outputArray"),

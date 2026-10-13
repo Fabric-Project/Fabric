@@ -14,6 +14,7 @@ public final class EasingNode: NumericTypeAgnosticNode
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Interpolates between two numeric values using a manually driven easing progress." }
     public override class var supportedPortTypes: [PortType] { interpolatableSingleTypes + interpolatableArrayTypes }
+    public override class var specializingInletNames: [String] { ["inputFrom", "inputTo"] }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
     {
@@ -42,7 +43,7 @@ public final class EasingNode: NumericTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputFrom") || specializeFromConnectedPort(named: "inputTo") { return }
+        if specializeFromConnectedInlets() { return }
         guard let inputFrom: Port = findPort(named: "inputFrom"),
               let inputTo: Port = findPort(named: "inputTo"),
               let outputValue: Port = findPort(named: "outputValue"),

@@ -950,6 +950,8 @@ internal import AnyCodable
             return existing
         }
 
+        // One group for the connect and what it brings about as the wire
+        // lands: a wire replaced, a node specialised to the outlet's type.
         return self.performEdit(named: "Connect Ports", inverse: "Disconnect Ports") {
 
             for existing in inlet.connections where existing.inletPortID == inlet.id && existing.graph === self {

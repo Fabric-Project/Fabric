@@ -106,6 +106,57 @@ struct UndoTargetTests
         #expect(graph.nodes.map(\.id) == [node.id])
     }
 
+    @Test("Undoing a publish unpublishes the port replaced under its id since")
+    func publishUndoFollowsReplacedPort() throws
+    {
+        guard let context = makeContext() else { return }
+        let undoManager = makeUndoManager()
+        let graph = Graph(context: context)
+        let subgraph = SubgraphNode(context: context)
+        graph.addNode(subgraph)
+        let node = SampleAndHoldNode(context: context, initialStrategy: PortType.Float.rawValue)
+        subgraph.subGraph.addNode(node)
+        graph.undoManager = undoManager
+        subgraph.subGraph.undoManager = undoManager
+        let value = try #require(node.findPort(named: "inputValue") as Fabric.Port?)
+
+        step(undoManager) { subgraph.subGraph.setPublished(true, on: value) }
+        step(undoManager) { node.setStrategy(PortType.Int.rawValue) }
+        undoManager.undo()
+        let live = try #require(node.findPort(named: "inputValue") as Fabric.Port?)
+        #expect(live !== value)
+        #expect(live.published)
+
+        undoManager.undo()
+        #expect(!live.published)
+        #expect(!subgraph.ports.contains { $0.id == value.id })
+    }
+
+    @Test("Undoing a value edit sets the parameter of the port replaced under its id since")
+    func valueUndoFollowsReplacedPort() throws
+    {
+        guard let context = makeContext() else { return }
+        let undoManager = makeUndoManager()
+        let graph = Graph(context: context)
+        let node = SampleAndHoldNode(context: context, initialStrategy: PortType.Float.rawValue)
+        graph.addNode(node)
+        graph.undoManager = undoManager
+        let port = try #require(node.findPort(named: "inputValue") as Fabric.Port?)
+        let parameter = try #require(port.parameter as? GenericParameter<Float>)
+
+        step(undoManager) {
+            parameter.value = 3
+            graph.registerValueChange(of: parameter, from: 0, label: "Value")
+        }
+        step(undoManager) { node.setStrategy(PortType.Int.rawValue) }
+        undoManager.undo()
+        let live = try #require(node.findPort(named: "inputValue")?.parameter as? GenericParameter<Float>)
+        #expect(live !== parameter)
+
+        undoManager.undo()
+        #expect(live.value == 0)
+    }
+
     @Test("A compound edit in a graph with no undo manager of its own groups and names its steps on the document's")
     func nestedCompoundEditsGroupOnTheRootsUndoManager() throws
     {

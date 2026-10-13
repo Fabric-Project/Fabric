@@ -14,6 +14,7 @@ public final class PairwiseDistanceArrayNode: NumericTypeAgnosticNode
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Computes one distance per pair of elements from two numeric arrays using zip-shortest." }
     public override class var supportedPortTypes: [PortType] { singleNumericTypes.map { .Array(portType: $0) } }
+    public override class var specializingInletNames: [String] { ["inputA", "inputB"] }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
     {
@@ -42,7 +43,7 @@ public final class PairwiseDistanceArrayNode: NumericTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputA") || specializeFromConnectedPort(named: "inputB") { return }
+        if specializeFromConnectedInlets() { return }
         guard let inputA: Port = findPort(named: "inputA"),
               let inputB: Port = findPort(named: "inputB"),
               inputA.valueDidChange || inputB.valueDidChange || inputMetric.valueDidChange,

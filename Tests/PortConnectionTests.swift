@@ -562,7 +562,7 @@ struct PortConnectionTests {
             let originalInput: Fabric.Port = node.port(named: "inputPort")
             let originalOutput: Fabric.Port = node.port(named: "outputPort")
 
-            node.strategy = PortType.Vector2.rawValue
+            node.setStrategy(PortType.Vector2.rawValue)
 
             let specializedInput: Fabric.Port = node.port(named: "inputPort")
             let specializedOutput: Fabric.Port = node.port(named: "outputPort")

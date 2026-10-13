@@ -15,6 +15,7 @@ public final class RippleRepeatNode: NumericTypeAgnosticNode
     override public class var nodeTimeMode: Node.TimeMode { .TimeBase }
     override public class var nodeDescription: String { "Repeats a value into an array by sampling past values across a delay window." }
     public override class var supportedPortTypes: [PortType] { singleNumericTypes }
+    public override class var specializingInletNames: [String] { ["inputValue"] }
     public override var isDirty: Bool { get { true } set { } }
 
     private struct Record { var time: TimeInterval; var value: PortValue }
@@ -61,7 +62,7 @@ public final class RippleRepeatNode: NumericTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputValue") { return }
+        if specializeFromConnectedInlets() { return }
         guard let inputValue: Port = findPort(named: "inputValue"),
               let outputArray: Port = findPort(named: "outputArray")
         else { return }

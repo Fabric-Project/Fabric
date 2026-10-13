@@ -198,4 +198,22 @@ struct UndoActionNameTests
         #expect(fixture.graph.nodes.count == 4)
         #expect(fixture.graph.connections.count == 2)
     }
+    @Test("A wire that specialises a numeric node, under the editor's event groups")
+    func connectSpecialisingUnderEventGroups() throws
+    {
+        guard let context = makeContext() else { return }
+        let fixture = makeFixture(context: context)
+        let node = DistanceNode(context: context)
+        step(fixture.undoManager) { fixture.graph.addNode(node) }
+        let inlet = try #require(node.findPort(named: "inputA") as Fabric.Port?)
+
+        fixture.undoManager.groupsByEvent = true
+        fixture.graph.connect(fixture.upstream.outputNumber, to: inlet)
+        #expect(node.strategy == PortType.Float.rawValue)
+        // The run loop closes the event's group as the event ends.
+        while fixture.undoManager.groupingLevel > 0 { fixture.undoManager.endUndoGrouping() }
+
+        expectNamedThroughUndoAndRedo("Connect Ports", fixture.undoManager)
+        #expect(node.strategy == PortType.Float.rawValue)
+    }
 }

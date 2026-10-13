@@ -14,6 +14,7 @@ public final class ArrayResampleTypeAgnosticNode: NumericTypeAgnosticNode
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Resamples a numeric array to a new count using type-appropriate interpolation." }
     public override class var supportedPortTypes: [PortType] { interpolatableArrayTypes }
+    public override class var specializingInletNames: [String] { ["inputArray"] }
 
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
     {
@@ -39,7 +40,7 @@ public final class ArrayResampleTypeAgnosticNode: NumericTypeAgnosticNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        if specializeFromConnectedPort(named: "inputArray") { return }
+        if specializeFromConnectedInlets() { return }
         guard let inputArray: Port = findPort(named: "inputArray"),
               let outputArray: Port = findPort(named: "outputArray"),
               inputArray.valueDidChange || inputCount.valueDidChange,
