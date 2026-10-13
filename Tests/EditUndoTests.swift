@@ -104,6 +104,46 @@ struct EditUndoTests
         #expect(fixture.undoManager.undoActionName == "Rename Port", "the rename before it is the next step back")
     }
 
+    @Test("Adding and deleting a node or a note keep their names through undo and redo")
+    func addAndDeleteKeepTheirNames()
+    {
+        guard let context = makeContext() else { return }
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        let graph = Graph(context: context)
+        graph.undoManager = undoManager
+
+        let node = NumberBinaryOperator(context: context)
+        step(undoManager) { graph.addNode(node) }
+        #expect(undoManager.undoActionName == "Add Node")
+        undoManager.undo()
+        #expect(undoManager.redoActionName == "Add Node")
+        undoManager.redo()
+        #expect(undoManager.undoActionName == "Add Node")
+
+        step(undoManager) { graph.delete(node: node) }
+        #expect(undoManager.undoActionName == "Delete Node")
+        undoManager.undo()
+        #expect(undoManager.redoActionName == "Delete Node")
+        undoManager.redo()
+        #expect(undoManager.undoActionName == "Delete Node")
+
+        let note = Note(note: "Note", rect: .zero)
+        step(undoManager) { graph.addNote(note) }
+        #expect(undoManager.undoActionName == "Add Note")
+        undoManager.undo()
+        #expect(undoManager.redoActionName == "Add Note")
+        undoManager.redo()
+        #expect(undoManager.undoActionName == "Add Note")
+
+        step(undoManager) { graph.deleteNote(note) }
+        #expect(undoManager.undoActionName == "Delete Note")
+        undoManager.undo()
+        #expect(undoManager.redoActionName == "Delete Note")
+        undoManager.redo()
+        #expect(undoManager.undoActionName == "Delete Note")
+    }
+
     @Test("Adding, editing and deleting a note are undo steps")
     func noteEditsUndo()
     {
