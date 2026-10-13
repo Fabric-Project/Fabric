@@ -255,6 +255,7 @@ open class SubgraphNode: BaseObjectNode
 
     private func wireSubGraphCallback()
     {
+        self.subGraph.ownerNode = self
         self.subGraph.onPublishedPortsChanged = { [weak self] in
             self?.rebuildProxyPorts()
         }

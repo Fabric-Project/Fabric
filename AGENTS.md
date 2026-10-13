@@ -124,6 +124,7 @@ For all development:
 
 ### 2.4  Graph, Subgraphs & Rendering
 - Graph owns nodes, connections (by port UUID), and published params.
+- A node id names one object in a graph at a time: Node's equality is its id, and the lifecycle review, view models and undo steps find a node by it.
 - **Subgraphs** inherit `BaseObjectNode`, expose an Satin object.
 - `GraphRenderer` handles traversal, caching, single-execute per frame, resize propagation. 
 - `GraphRenderer` handles discovery of cameras (only one supported now), and if none are found, leverages its own cached camera.
@@ -201,6 +202,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 - [ ] Node metadata present and stable  
 - [ ] `registerPorts(context:)` calls `super`, order intentional  
 - [ ] Lifecycle overrides call `super` after their own work; editing code never calls them
+- [ ] Undo steps register through `Graph.registerUndo(_:)` (or `registerUndo(on:_:)` for a node) on the graph the edit was made in, never on the undo manager directly: the graph is the one place that sees every edit (`UndoRegistrationTests` checks core code). A step holds ids and values and finds what it acts on in the graph it is handed, never holding the graph's nodes, ports, wires or notes: something may have put another object under the same id by the time it runs
 - [ ] ParameterPorts seed and subscribe once  
 - [ ] `execute` idempotent per frame, no allocations  
 - [ ] Outputs use `send(force:true)` appropriately  

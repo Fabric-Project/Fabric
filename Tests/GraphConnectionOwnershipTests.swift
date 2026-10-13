@@ -75,15 +75,16 @@ struct GraphConnectionOwnershipTests
         let secondConnection = try #require(graph.connect(secondSource.outputNumber, to: sink.inputNumber1))
         #expect(graph.connections == [secondConnection])
 
+        // A wire undo or redo puts back comes back under its own id.
         undoManager.undo()
         #expect(graph.connections == [firstConnection])
-        #expect(firstConnection.graph === graph)
+        #expect(sink.inputNumber1.connections == [firstConnection])
         #expect(secondConnection.graph == nil)
 
         undoManager.redo()
         #expect(graph.connections == [secondConnection])
-        #expect(firstConnection.graph == nil)
-        #expect(secondConnection.graph === graph)
+        #expect(sink.inputNumber1.connections == [secondConnection])
+        #expect(graph.connections.allSatisfy { $0.graph === graph })
 
         undoManager.undo()
         undoManager.redo()
@@ -117,7 +118,7 @@ struct GraphConnectionOwnershipTests
         undoManager.undo()
         #expect(graph.nodes.count == 2)
         #expect(graph.connections == [originalConnection])
-        #expect(originalConnection.graph === graph)
+        #expect(graph.connections.allSatisfy { $0.graph === graph })
         #expect(source.outputNumber.connectedPorts == [sink.inputNumber1])
 
         undoManager.redo()
