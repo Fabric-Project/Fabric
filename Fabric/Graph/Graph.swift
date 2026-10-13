@@ -729,6 +729,10 @@ internal import AnyCodable
         self.performEdit(named: "Delete Node", inverse: "Add Node") {
 
             let savedOffset = node.offset
+            for port in node.ports where port.published
+            {
+                self.portWillUnpublish(port)
+            }
 
             let nodePortIDs = Set(node.ports.map(\.id))
             for connection in connections where disconnect && (nodePortIDs.contains(connection.outletPortID) || nodePortIDs.contains(connection.inletPortID))
@@ -1106,6 +1110,77 @@ internal import AnyCodable
         cachedPublishedOutputPortsRevision = connectionRevision
 
         return cachedPublishedOutputPorts
+    }
+
+    /// Publishing keeps the port's published name; unpublishing clears it.
+    public func setPublished(_ published: Bool, on port: Port)
+    {
+        self.setPublished(published, on: port, name: published ? port.publishedName : nil)
+    }
+
+    /// `name` is the published name the port is left with. Undo passes the
+    /// one it had before, so that undoing a publish keeps a name the port
+    /// carried unpublished, and no rename step is needed to put it back.
+    private func setPublished(_ published: Bool, on port: Port, name: String?)
+    {
+        guard port.published != published, port.node?.graph === self else { return }
+
+        self.performEdit(named: published ? "Publish Port" : "Unpublish Port",
+                         inverse: published ? "Unpublish Port" : "Publish Port") {
+            let previousName = port.publishedName
+            if published
+            {
+                port.setPublishing(true, name: name)
+                self.portDidPublish(port)
+            }
+            else
+            {
+                self.portWillUnpublish(port)
+                port.setPublishing(false, name: name)
+                // Publishing named the parameter after the port's published name.
+                port.parameter?.label = port.displayName
+                self.rebuildPublishedParameterGroup()
+            }
+
+            let portID = port.id
+            self.registerUndo { graph in
+                graph.nodePort(forID: portID).map { graph.setPublished(!published, on: $0, name: previousName) }
+            }
+        }
+    }
+
+    /// Names `port`, a published port of a node in this graph, as the
+    /// containing graph shows it; nil goes back to the port's own name.
+    /// Undoable.
+    public func setPublishedName(_ name: String?, on port: Port)
+    {
+        let previousName = port.publishedName
+        guard previousName != name else { return }
+
+        port.setPublishing(port.published, name: name)
+        self.portDidRename(port)
+
+        let portID = port.id
+        self.registerUndo { graph in
+            graph.nodePort(forID: portID).map { graph.setPublishedName(previousName, on: $0) }
+        }
+        effectiveUndoManager?.setActionName("Rename Port")
+    }
+
+    internal func portDidPublish(_ port: Port)
+    {
+        if let node = port.node { self.markNodeForLifecycleReview(node) }
+        self.rebuildPublishedParameterGroup()
+    }
+
+    internal func portWillUnpublish(_ port: Port)
+    {
+        if let node = port.node { self.markNodeForLifecycleReview(node) }
+    }
+
+    internal func portDidRename(_ port: Port)
+    {
+        self.rebuildPublishedParameterGroup()
     }
 
     public func rebuildPublishedParameterGroup()
