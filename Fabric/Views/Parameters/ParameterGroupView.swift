@@ -24,13 +24,28 @@ struct ParameterGroupView : View
         {
             Spacer()
             
-            ForEach(self.parameterGroup.params.filter(Self.hasEditor), id:\.self.id) { param in
-                
-                Self.editor(for: param, fileContentTypes: self.fileContentTypes, graph: self.graph)
+            ForEach(Self.entries(of: self.parameterGroup), id: \.identity) { entry in
+
+                Self.editor(for: entry.param, fileContentTypes: self.fileContentTypes, graph: self.graph)
             }
             
             Spacer(minLength: 0)
         }
+    }
+
+    /// A control's place in the view, keyed by the parameter object, not
+    /// its id: clone set members' inner parameters share ids, and a graph
+    /// shows a parameter from each member it publishes ports of.
+    struct Entry
+    {
+        let param: any Parameter
+        var identity: ObjectIdentifier { ObjectIdentifier(param) }
+    }
+
+    /// The group's parameters the view has a control for.
+    static func entries(of group: ParameterGroup) -> [Entry]
+    {
+        group.params.filter(Self.hasEditor).map(Entry.init)
     }
 
     /// Whether the view has a control for the parameter. One it has none for

@@ -25,6 +25,16 @@ public class DecoderContext
     public var fileReferenceBaseURL: URL?
     
     public var currentGraph:Graph?
+
+    /// The document's clone sets, so a member written as a reference to its
+    /// set, in a stored graph or on its way to a sibling, can be instantiated
+    /// from the set's stored graph.
+    public var cloneSets: [CloneSet] = []
+
+    /// The sets whose stored graphs are being decoded right now, so a set
+    /// that somehow contains one of its own members is refused rather than
+    /// decoded without end.
+    internal var instantiatingCloneSetIDs: Set<UUID> = []
     
     public init(documentContext: Context,
                 currentGraph: Graph? = nil,

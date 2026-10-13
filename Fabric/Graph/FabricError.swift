@@ -95,5 +95,8 @@ public enum FabricErrorKind: Sendable, Codable, Equatable
         case emptyNodeSelection
         case nodeNotInGraph
         case portCannotBeProxied
+        case cloneSetNotFound
+        case notACloneMember
+        case cloneOperationFailed
     }
 }

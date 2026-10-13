@@ -20,6 +20,53 @@ open class SubgraphNode: BaseObjectNode
 
     public private(set) var subGraph:Graph
 
+    /// The clone set this node belongs to, nil outside any set. Members of a
+    /// set are instances of one stored graph: the same nodes, ports and wires
+    /// under the same ids, each executing on its own. The member edited last
+    /// becomes the stored graph and its siblings are patched to it.
+    /// Published inlet values are the per-member exception: the parent graph
+    /// sets them through the proxy. Mutate through Graph.duplicateAsClone /
+    /// unlinkClone so the change is undoable. See CloneSet.
+    public internal(set) var cloneSetID: UUID?
+
+    /// The one place membership is written, with the badge refreshed. Not
+    /// undoable; Graph.setCloneMembership wraps it with undo.
+    internal func setCloneMembership(setID: UUID?)
+    {
+        self.cloneSetID = setID
+        self.subtitleSubject.send()
+    }
+
+    /// The set as seen from this member, nil outside a set. Refreshed through
+    /// subtitleSubject whenever membership or the name changes.
+    public var cloneSetInfo: CloneSetInfo?
+    {
+        guard let graph = self.graph, let setID = self.cloneSetID, let set = graph.cloneSet(for: setID)
+        else { return nil }
+        return CloneSetInfo(setID: setID,
+                            name: set.name,
+                            memberCount: self.cloneMemberCount)
+    }
+
+    /// How many members the set has, as of the last membership change
+    /// (Graph.cloneSetMembershipChanged): the badge and status read the
+    /// count on every refresh, and counting is a walk of the document.
+    internal var cloneMemberCount = 1
+
+    /// A member describes itself by its set's name, the way a Strategy node
+    /// shows its strategy. The member count lives in the status's message.
+    override open func deriveSubtitle() -> String? { self.cloneSetInfo?.name }
+
+    /// A member reports itself linked to its set.
+    override open func deriveStatuses() -> [NodeStatus] { self.cloneSetInfo.map { [$0.status] } ?? [] }
+
+    /// The id each proxy this node has made had, by inner port id. A proxy
+    /// made again over the same port, as when undo brings it back, takes it,
+    /// so the parent's wires find it by id: a member's proxies made before it
+    /// joined its set have their inner ports' ids, not the ids it would give
+    /// them now.
+    private var proxyIDsByInnerPortID: [UUID: UUID] = [:]
+
     /// The proxies standing for the sub graph's published ports, one each,
     /// as ports of this node in the graph around. Made as the node is built
     /// (see reconcileProxies()); after that, changed only as the sub graph
@@ -30,9 +77,24 @@ open class SubgraphNode: BaseObjectNode
 
     override var parameterGroupPorts: [Port] { self.ports }
 
+    /// The id a proxy over `port` stands under: the id of the proxy already
+    /// over it, or of the last one this node made over it; otherwise the
+    /// port's own, unless this node is a clone set member. A member's
+    /// siblings wrap inner ports under the same ids in the same graph
+    /// around, so its proxies take ids of their own.
     private func proxyID(for port: Port) -> UUID
     {
-        port.id
+        if let existing = self.proxyPorts.first(where: { ($0 as? any ProxyPortProtocol)?.innerPortID == port.id })
+        {
+            return existing.id
+        }
+        if let remembered = self.proxyIDsByInnerPortID[port.id] { return remembered }
+        guard self.cloneSetID != nil else { return port.id }
+        // Kept once made, and encoded with the proxy, so every instance
+        // decoded from this member agrees.
+        let id = UUID()
+        self.proxyIDsByInnerPortID[port.id] = id
+        return id
     }
 
     private func proxy(over port: Port) -> Port?
@@ -59,7 +121,12 @@ open class SubgraphNode: BaseObjectNode
     internal func innerPortWillUnpublish(_ port: Port)
     {
         guard let proxy = self.proxy(over: port) else { return }
+        self.dropProxy(proxy)
+    }
 
+    private func dropProxy(_ proxy: Port)
+    {
+        if let typed = proxy as? any ProxyPortProtocol { self.proxyIDsByInnerPortID[typed.innerPortID] = proxy.id }
         if let graph = self.graph
         {
             let undoManager = graph.effectiveUndoManager
@@ -160,6 +227,45 @@ open class SubgraphNode: BaseObjectNode
         proxies.forEach { $0.node = self }
         self.proxyPorts = proxies
         self.proxiesDidChange()
+    }
+
+    /// Makes the proxies over the inner ports `ids` names again under the
+    /// ids it gives, where they stand under others: a clone set member's
+    /// proxies take ids of their own, and every instance of the member holds
+    /// them under the same ones, those its set's stored graph has. A wire
+    /// names a proxy by id, so the graph around loses the wires on a proxy
+    /// made again; the caller binds the ones it wants. Undoable: on undo, the
+    /// step puts the ids back before the steps registered ahead of it run,
+    /// which find the proxies by them.
+    internal func remakeProxies(withIDs ids: [UUID: UUID])
+    {
+        var previous: [UUID: UUID] = [:]
+        for proxy in self.proxyPorts
+        {
+            guard let typed = proxy as? any ProxyPortProtocol,
+                  let id = ids[typed.innerPortID], proxy.id != id,
+                  let innerPort = self.subGraph.nodePort(forID: typed.innerPortID),
+                  let remade = Self.makeProxy(for: innerPort, id: id)
+            else { continue }
+
+            if let graph = self.graph
+            {
+                graph.rebindWires(from: proxy, to: remade)
+                graph.setPublished(false, on: proxy)
+            }
+            guard let index = self.proxyPorts.firstIndex(where: { $0 === proxy }) else { continue }
+            previous[typed.innerPortID] = proxy.id
+            self.proxyIDsByInnerPortID[typed.innerPortID] = id
+            remade.node = self
+            self.proxyPorts[index] = remade
+            proxy.node = nil
+        }
+        guard !previous.isEmpty else { return }
+        self.proxiesDidChange()
+
+        self.graph?.registerUndo(on: self) { node in
+            node.remakeProxies(withIDs: previous)
+        }
     }
 
     private func proxiesDidChange()
@@ -299,23 +405,73 @@ open class SubgraphNode: BaseObjectNode
     {
         case subGraph
         case proxyPorts
+        case cloneSetID
+        case memberValues
     }
     
     open override func encode(to encoder:Encoder) throws
     {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        
-        try container.encode(self.subGraph, forKey: .subGraph)
+
+        try container.encodeIfPresent(self.cloneSetID, forKey: .cloneSetID)
+
+        // In a set's stored graph, or on its way to being instantiated, a
+        // member in step with its set is written as a reference to it and
+        // the values that are its own; see Graph.cloneSetReferencesKey. The
+        // proxies are the member's face in the parent graph, published and
+        // named there per member, so they are written either way.
         try container.encode(self.proxyPorts.map(AnyPort.init), forKey: .proxyPorts)
-        
+        if encoder.userInfo[Graph.cloneSetReferencesKey] as? Bool == true, self.isInStepWithCloneSet
+        {
+            try container.encode(self.memberValues, forKey: .memberValues)
+        }
+        else
+        {
+            try container.encode(self.subGraph, forKey: .subGraph)
+        }
+
         try super.encode(to: encoder)
+    }
+
+    /// The values that are this member's own, by path: what it keeps when it
+    /// is written as a reference to its set. See Graph.memberOwnInlets.
+    private var memberValues: [String: AnyPort]
+    {
+        self.subGraph.memberOwnInlets().mapValues(AnyPort.init)
+    }
+
+    /// True when the sub graph encodes to the set's stored graph, the state
+    /// every member is in once syncs have run. A member that does not is
+    /// written in full, so nothing is lost.
+    internal var isInStepWithCloneSet: Bool
+    {
+        guard let graph = self.graph, let setID = self.cloneSetID, let set = graph.cloneSet(for: setID),
+              let json = try? Graph.cloneSetJSON(of: self.subGraph)
+        else { return false }
+        return Graph.designComparableJSON(json) == set.comparableGraphJSON
     }
     
     public required init(from decoder: any Decoder) throws
     {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
-        self.subGraph = try container.decode(Graph.self, forKey: .subGraph)
+        self.cloneSetID = try container.decodeIfPresent(UUID.self, forKey: .cloneSetID)
+
+        if container.contains(.subGraph)
+        {
+            self.subGraph = try container.decode(Graph.self, forKey: .subGraph)
+        }
+        else
+        {
+            // A member written as a reference to its set: an instance of the
+            // set's stored graph.
+            guard let decodeContext = decoder.context, let setID = self.cloneSetID else
+            {
+                throw DecodingError.dataCorruptedError(forKey: .subGraph, in: container,
+                                                       debugDescription: "A clone set member saved without its sub graph needs its set to be instantiated.")
+            }
+            self.subGraph = try Graph.instantiateCloneSetGraph(of: setID, decodeContext: decodeContext)
+        }
         
         // We set the current graph to the subgraph
         // to allow proxy ports and any other decode contexts to work correctly
@@ -338,9 +494,55 @@ open class SubgraphNode: BaseObjectNode
             self.proxyPorts = Self.decodeProxyPortsIfPossible(from: container, forKey: .proxyPorts)
         }
 
+        Self.applyMemberValues(from: container, to: self.subGraph)
+
         try super.init(from: decoder)
         self.wireSubGraphCallback()
         self.reconcileProxies()
+    }
+
+    /// The per-member values a reference wrote, put back on the ports they
+    /// name: the same paths in every instance of the stored graph.
+    private static func applyMemberValues(from container: KeyedDecodingContainer<CodingKeys>,
+                                          to subGraph: Graph)
+    {
+        guard let values = Self.decodeMemberValues(from: container) else { return }
+        Self.restore(values: values.mapValues { ($0.base.portType, $0.base.snapshotValue()) }, in: subGraph)
+    }
+
+    private static func restore(values: [String: (portType: PortType, value: PortValue?)], in subGraph: Graph)
+    {
+        let portsByPath = subGraph.memberOwnInlets()
+        for (path, saved) in values
+        {
+            guard let port = portsByPath[path], port.portType == saved.portType else { continue }
+            port.restoreValue(from: saved.value)
+        }
+    }
+
+    // MARK: - Clone set sync
+
+    /// The saved per-member values, each read on its own, so one that cannot
+    /// be read, of a plugin's port type that is not loaded say, costs only
+    /// itself.
+    private static func decodeMemberValues(from container: KeyedDecodingContainer<CodingKeys>) -> [String: AnyPort]?
+    {
+        guard let values = try? container.nestedContainer(keyedBy: MemberValueKey.self, forKey: .memberValues) else { return nil }
+        var decoded: [String: AnyPort] = [:]
+        for key in values.allKeys
+        {
+            do { decoded[key.stringValue] = try values.decode(AnyPort.self, forKey: key) }
+            catch { print("SubgraphNode: member value \(key.stringValue) not read: \(error)") }
+        }
+        return decoded
+    }
+
+    private struct MemberValueKey: CodingKey
+    {
+        let stringValue: String
+        init(stringValue: String) { self.stringValue = stringValue }
+        var intValue: Int? { nil }
+        init?(intValue: Int) { nil }
     }
 
     private static func decodeProxyPortsIfPossible(from container: KeyedDecodingContainer<CodingKeys>,

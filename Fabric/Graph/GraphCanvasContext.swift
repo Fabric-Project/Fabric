@@ -37,7 +37,20 @@ public class GraphCanvasContext
     // MARK: - Navigation
 
     public let rootGraph: Graph
-    public private(set) var entries: [SubgraphNode] = []
+    private var path: [SubgraphNode] = []
+
+    /// The subgraph nodes entered, outermost first. Each is looked up by id
+    /// in the graph it was entered from, so the canvas stands in what the
+    /// document holds under that id.
+    public var entries: [SubgraphNode]
+    {
+        var graph = rootGraph
+        return path.map { entered in
+            let live = graph.nodes.first { $0.id == entered.id } as? SubgraphNode ?? entered
+            graph = live.subGraph
+            return live
+        }
+    }
 
     /// The graph currently being displayed and edited.
     public var currentGraph: Graph
@@ -194,27 +207,27 @@ public class GraphCanvasContext
     
     public func enter(_ node: SubgraphNode)
     {
-        entries.append(node)
+        path.append(node)
         syncUndoManager()
     }
 
     public func pop()
     {
-        guard !entries.isEmpty else { return }
-        entries.removeLast()
+        guard !path.isEmpty else { return }
+        path.removeLast()
         syncUndoManager()
     }
 
     public func popTo(_ node: SubgraphNode)
     {
-        guard let index = entries.firstIndex(where: { $0.id == node.id }) else { return }
-        entries = Array(entries.prefix(through: index))
+        guard let index = path.firstIndex(where: { $0.id == node.id }) else { return }
+        path = Array(path.prefix(through: index))
         syncUndoManager()
     }
 
     public func popToRoot()
     {
-        entries.removeAll()
+        path.removeAll()
         syncUndoManager()
     }
 
