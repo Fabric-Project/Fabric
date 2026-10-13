@@ -10,6 +10,9 @@ import Combine
 import Observation
 import Satin
 
+/// A control's edits of a parameter, recorded through Graph.registerValueChange.
+/// That is the only undo record of them: a control bound here records no
+/// typing undo on the document's undo manager (see withoutTypingUndo()).
 @MainActor
 @Observable
 final class ParameterObservableModel<Value: Codable & Equatable>

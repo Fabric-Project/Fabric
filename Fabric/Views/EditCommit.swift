@@ -5,6 +5,8 @@
 
 import Foundation
 
+/// When a change made through a control becomes an undo step: a parameter's
+/// value (ParameterObservableModel) or a node's settings (NodeSettingsDraft).
 enum EditCommit
 {
     /// Each change is a step of its own, as a picker, stepper or button makes
