@@ -100,7 +100,10 @@ For all development:
   - Nodes may opt into a QC like ’Settings View’
   - Any Node whose execution logic would change the  type, or number of ports should have only have that logic fire via changing a Setting, NOT at runtime
   - Settings should have a custom Init override, and be exposed as a enum or struct that can be set via the procedural Node / Graph API. This avoids UI only configuration.
+  - A node with settings exposes them as one `NodeSettings` value through `settings` and `apply(_:)`, and offers `init(context:settings:)`. `apply` brings the node, its ports included, to the value; a port whose registry key survives keeps its identity. A subclass takes its own type out of the existential and calls super; a base class reads its part through a protocol on the value, as `StrategySettings` carries the strategy. `Node.encode(to:)` writes the value flattened into the node's own container; `init(from:)` decodes it before `super.init`. State saved with the node that the settings view does not edit, such as a device's reconnect record, stays in `encode(to:)`.
+  - A settings view commits a draft through `Graph.setSettings`: on each change for pickers, steppers and buttons, after a pause and when editing ends for text and code (`NodeSettingsDraft`). The node is not written until the commit. A draft takes the node's value when `settingsChangedSubject` fires.
   - Undo and redo are driven through `Graph.undo()` / `redo()`, which commit pending drafts first; an app provides its Undo and Redo commands on them.
+  - A step holds ids and values and finds what it acts on by id. It does not hold wires, proxies or other steps' work: a settings step holds the settings either side and the states of the ports the change touched, and the wires and proxies those ports take register steps of their own in the same group.
 
 - Important Node subclasses
   - StrategyNode / TypeAgnosticNode - useful for Nodes that can change their port type on demand
@@ -214,7 +217,8 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 - [ ] Serialization via registry + UUID
 - [ ] If Node dynamically changes port count or type, we should only trigger via Setting in Settings View, not within the graph
 - [ ] If we have a Settings View, we should have a custom initializer so procedural graph creation has an entry to settings.
-- [ ] If we have a Settings View and a custom initializer, use a custom struct or enum for the settings
+- [ ] A node with settings exposes them as one `NodeSettings` value through `settings` and `apply(_:)`, and offers `init(context:settings:)` (`SettingsUndoTests` checks that every core node applies and gives back its own value with its ports, and saves and opens it unchanged)
+- [ ] A settings view commits a draft through `Graph.setSettings`, never writing the node as it edits
 - [ ] If the Node overrides `deriveSubtitle()`, every mutation of the state it derives from fires `subtitleSubject.send()` (StrategyNode’s `strategy` already does)
 - [ ] New Nodes should live in an appropriate spot in the NodeRegistry
 
