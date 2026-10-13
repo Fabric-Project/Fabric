@@ -16,21 +16,16 @@ public class ArrayReverseNode: TypeAgnosticNode
     override public class var nodeDescription: String { "Reverses the element order of an array. Choose element type in Settings." }
     override public class var includesArrayTypesInStrategy: Bool { false }
 
-    private static let dynamicPortNames: Set<String> = ["inputPort", "outputPort"]
-
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
-        guard let elementType = PortType(rawValue: strategy) else { return }
+        guard let elementType = PortType(rawValue: strategy) else { return super.declaredPorts() }
 
         let arrayType: PortType = .Array(portType: elementType)
 
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputPort", displayName: "Array", portType: arrayType, kind: .Inlet, description: "Input array")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputPort", displayName: "Array", portType: arrayType, kind: .Outlet, description: "Reversed array")
-
-        let portOrder = ["inputPort", "outputPort"]
-        let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }
-        if reordered.count == self.ports.count { reorderPorts(reordered) }
+        return [
+            PortDeclaration(registryKey: "inputPort", portType: arrayType, kind: .Inlet, name: "Array", description: "Input array"),
+            PortDeclaration(registryKey: "outputPort", portType: arrayType, kind: .Outlet, name: "Array", description: "Reversed array"),
+        ] + super.declaredPorts()
     }
 
     override public func execute(renderer: GraphRenderer,

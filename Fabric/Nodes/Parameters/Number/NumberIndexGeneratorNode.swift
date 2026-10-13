@@ -73,9 +73,6 @@ public class NumberIndexGeneratorNode : StrategyNode
         AnyView(StrategyGuidanceView(model: strategySettingsModel) { IndexGeneratorMode(rawValue: $0)?.usageGuidance ?? "" })
     }
 
-    // Every mode carries Signal, Size, and Index; only the finite modes add Loop.
-    private static let allDynamicNames: Set<String> = ["inputSignal", "inputSize", "inputLoop", "outputIndex"]
-
     private var index: Int = 0
     private var previousSignal: Bool? = nil
     private var hasEmitted: Bool = false
@@ -84,7 +81,7 @@ public class NumberIndexGeneratorNode : StrategyNode
     private var bag: [Int] = []        // remaining draws for Shuffle
     private var finished: Bool = false // finite sequence done, Loop off → hold
 
-    override public func rebuildPorts(forStrategy strategy: String)
+    override public func declaredPorts() -> [PortDeclaration]
     {
         let mode = IndexGeneratorMode(rawValue: strategy) ?? .shuffle
 
@@ -103,16 +100,12 @@ public class NumberIndexGeneratorNode : StrategyNode
 
         wanted.append(("outputIndex", NodePort<Int>(name: "Index", kind: .Outlet, description: "Current index in [0, Size)")))
 
-        let wantedNames = Set(wanted.map(\.name))
-        for name in Self.allDynamicNames.subtracting(wantedNames)
-        {
-            if let p = findPort(named: name) { removePort(p) }
-        }
-        for (name, p) in wanted where findPort(named: name) == nil
-        {
-            addDynamicPort(p, name: name)
-        }
+        return super.declaredPorts() + wanted.map { PortDeclaration(registryKey: $0.name, port: $0.port) }
+    }
 
+    override public func didApplyStrategy()
+    {
+        super.didApplyStrategy()
         self.resetSequence()
     }
 
@@ -140,8 +133,8 @@ public class NumberIndexGeneratorNode : StrategyNode
                                  commandBuffer: MTLCommandBuffer)
     throws
     {
-        // Mode lives on the Settings strategy now, not a port; switching it rebuilds
-        // ports and resets the sequence via rebuildPorts, so it needs no change-check here.
+        // Mode lives on the Settings strategy, not a port; switching it resets the
+        // sequence in didApplyStrategy, so it needs no change-check here.
         let loopPort: ParameterPort<Bool>? = self.inputLoop
         let anyChanged = self.inputSignal.valueDidChange
             || self.inputSize.valueDidChange

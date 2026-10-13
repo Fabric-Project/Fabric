@@ -338,7 +338,7 @@ internal import AnyCodable
             }
         }
         
-        // Node inits (including their dynamic-port rebuilds) are done; end
+        // Node inits (including the reconciles they make) are done; end
         // each node's hydration window. Whatever state remains unconsumed
         // matched nothing the code declares, and closing the window here means
         // ports added later in the document's life cannot resurrect stale
@@ -1004,7 +1004,10 @@ internal import AnyCodable
 
     public func disconnectAll(from port: Port)
     {
-        guard port.node?.graph === self, nodePort(forID: port.id) === port else { return }
+        // A port its node has just retired is found under no id here, and its
+        // wires still go; a stale port whose id another now stands under is
+        // not acted on.
+        guard port.node?.graph === self, nodePort(forID: port.id).map({ $0 === port }) ?? true else { return }
 
         let ownedConnections = port.connections.filter { $0.graph === self }
         guard !ownedConnections.isEmpty else { return }

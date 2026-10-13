@@ -18,14 +18,7 @@ public class ComposeOrientationArrayNode: StrategyNode
 
     public override class var strategyOptions: [any NodeStrategyOption] { OrientationCompositionMode.allCases }
 
-    private static let allDynamicNames: Set<String> = [
-        "inputEulerAngles",
-        "inputAxes", "inputAngles",
-        "inputPositions", "inputTargets", "inputUpOrientations", "inputAimOffsets",
-        "outputOrientations",
-    ]
-
-    public override func rebuildPorts(forStrategy strategy: String)
+    override public func declaredPorts() -> [PortDeclaration]
     {
         let wanted: [(name: String, port: Port)]
         switch strategy
@@ -59,15 +52,7 @@ public class ComposeOrientationArrayNode: StrategyNode
             wanted = []
         }
 
-        let wantedNames = Set(wanted.map(\.name))
-        for name in Self.allDynamicNames.subtracting(wantedNames)
-        {
-            if let p = findPort(named: name) { removePort(p) }
-        }
-        for (name, p) in wanted where findPort(named: name) == nil
-        {
-            addDynamicPort(p, name: name)
-        }
+        return super.declaredPorts() + wanted.map { PortDeclaration(registryKey: $0.name, port: $0.port) }
     }
 
     public override func execute(renderer: GraphRenderer,

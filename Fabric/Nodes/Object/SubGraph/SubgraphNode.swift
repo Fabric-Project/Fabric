@@ -28,6 +28,8 @@ open class SubgraphNode: BaseObjectNode
 
     override open var ports:[Port] { self.proxyPorts + super.ports }
 
+    override var parameterGroupPorts: [Port] { self.ports }
+
     private func proxyID(for port: Port) -> UUID
     {
         port.id
@@ -163,16 +165,7 @@ open class SubgraphNode: BaseObjectNode
     private func proxiesDidChange()
     {
         self.invalidatePortCaches()
-
-        self.parameterGroup.clear()
-        for port in self.ports
-        {
-            if let param = port.parameter
-            {
-                self.parameterGroup.append(param)
-            }
-        }
-        self.synchronizeParameters()
+        self.rebuildParameterGroup()
 
         self.graph?.markConnectionsChanged()
         self.portsChangedSubject.send()

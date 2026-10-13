@@ -27,14 +27,16 @@ public final class EasingNode: NumericTypeAgnosticNode
     public var inputProgress: ParameterPort<Float> { port(named: "inputProgress") }
     public var inputEasing: ParameterPort<String> { port(named: "inputEasing") }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
         let portType = selectedNumericPortType
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputFrom", displayName: "From", portType: portType, kind: .Inlet, description: "Start value")
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputTo", displayName: "To", portType: portType, kind: .Inlet, description: "End value")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputValue", displayName: "Value", portType: portType, kind: .Outlet, description: "Interpolated value")
-        reorderPorts(named: ["inputFrom", "inputTo", "inputProgress", "inputEasing", "outputValue"])
+
+        return [
+            PortDeclaration(registryKey: "inputFrom", portType: portType, kind: .Inlet, name: "From", description: "Start value"),
+            PortDeclaration(registryKey: "inputTo", portType: portType, kind: .Inlet, name: "To", description: "End value"),
+        ] + super.declaredPorts() + [
+            PortDeclaration(registryKey: "outputValue", portType: portType, kind: .Outlet, name: "Value", description: "Interpolated value"),
+        ]
     }
 
     override public func execute(renderer: GraphRenderer,

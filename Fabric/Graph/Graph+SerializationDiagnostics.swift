@@ -10,7 +10,7 @@ extension Graph
     // MARK: - Diagnostic Types
 
     /// Port state a document carried for registry keys the node's code no
-    /// longer declares or rebuilds. That state (and any wires into those
+    /// longer declares. That state (and any wires into those
     /// ports) is dropped on load — deliberately, the code owns the port set —
     /// and surfaced here so hosts can warn instead of losing data silently.
     public struct DroppedPortStateDiagnostic

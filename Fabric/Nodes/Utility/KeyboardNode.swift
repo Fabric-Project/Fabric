@@ -287,28 +287,15 @@ public class KeyboardNode : Node
 
     private func rebuildPorts()
     {
-        let portNamesWeNeed = self.keyBindings.compactMap { self.portNameForKeyBinding($0) }
-        let existingPortNames = self.outputPorts().map { $0.name }
+        self.reconcilePorts()
+    }
 
-        let portNamesToRemove = Set(existingPortNames).subtracting(Set(portNamesWeNeed))
-        let portNamesToAdd = Set(portNamesWeNeed).subtracting(portNamesToRemove)
-
-        for portName in portNamesToRemove
-        {
-            if let port = self.findPort(named: portName) as? NodePort<Bool>
-            {
-                self.removePort(port)
-            }
-        }
-
-        for portName in portNamesToAdd
-        {
-            if self.findPort(named: portName) == nil
-            {
-                let port = NodePort<Bool>(name: portName, kind: .Outlet,
-                                         description: "True when key '\(portName)' is pressed")
-                self.addDynamicPort(port)
-            }
+    /// A Bool outlet for each bound key, in binding order.
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + self.keyBindings.compactMap { self.portNameForKeyBinding($0) }.map { portName in
+            PortDeclaration(registryKey: portName,
+                            port: NodePort<Bool>(name: portName, kind: .Outlet, description: "True when key '\(portName)' is pressed"))
         }
     }
 

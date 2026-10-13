@@ -45,12 +45,7 @@ public class GeometryToTransformArrayNode : StrategyNode
     public var inputPort:NodePort<Geometry> { port(named: "inputPort") }
     public var inputTransform:NodePort<simd_float4x4> { port(named: "inputTransform") }
 
-    private static let allDynamicNames: Set<String> = [
-        "outputTransforms",
-        "outputPositions", "outputOrientations", "outputUVs",
-    ]
-
-    public override func rebuildPorts(forStrategy strategy: String)
+    override public func declaredPorts() -> [PortDeclaration]
     {
         let wanted: [(name: String, port: Port)]
         switch strategy
@@ -73,15 +68,7 @@ public class GeometryToTransformArrayNode : StrategyNode
             wanted = []
         }
 
-        let wantedNames = Set(wanted.map(\.name))
-        for name in Self.allDynamicNames.subtracting(wantedNames)
-        {
-            if let p = findPort(named: name) { removePort(p) }
-        }
-        for (name, p) in wanted where findPort(named: name) == nil
-        {
-            addDynamicPort(p, name: name)
-        }
+        return super.declaredPorts() + wanted.map { PortDeclaration(registryKey: $0.name, port: $0.port) }
     }
 
     override public func execute(renderer:GraphRenderer,

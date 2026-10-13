@@ -42,10 +42,4 @@ public class DictionaryTypeAgnosticNode: TypeAgnosticNode
     var valueType: PortType { selectedPortType }
     var dictionaryType: PortType { valueType.dictionaryPortType }
     var valuesArrayType: PortType { valueType.arrayPortType }
-
-    func reorderPorts(named portNames: [String])
-    {
-        let reordered: [Port] = portNames.compactMap { name in let port: Port? = findPort(named: name); return port }
-        if reordered.count == self.ports.count { reorderPorts(reordered) }
-    }
 }

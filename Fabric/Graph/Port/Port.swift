@@ -81,8 +81,9 @@ extension UTType
         hasher.combine(name)
     }
     
-    /// Mutable only via hydrate(from:) during decode, which adopts the
-    /// document's saved identity so UUID-keyed connections can rebind.
+    /// Mutable only before the port registers: hydrate(from:) adopts the
+    /// document's saved identity so UUID-keyed connections can rebind, and a
+    /// replacement takes the id of the port it replaces.
     public private(set) var id:UUID
 
     public let name: String
@@ -207,10 +208,10 @@ extension UTType
     public var displayName: String { publishedName ?? name }
 
     /// Identity for view code that must re-identify a port view when its type
-    /// changes: `id` alone survives a TypeAgnosticNode Settings-driven type
-    /// swap unchanged (addOrReplaceDynamicPortPreservingIdentity preserves it
-    /// so wires reconnect), so views keyed on `id` alone see no change and
-    /// skip re-rendering the stale type.
+    /// changes: `id` alone survives a Settings-driven retype unchanged (a
+    /// replaced port stands under the id it replaced, so wires reconnect), so
+    /// views keyed on `id` alone see no change and skip re-rendering the stale
+    /// type.
     public var identitySignature: String { "\(id):\(portType.rawValue)" }
 
     public var connectedPorts: [Port]
@@ -278,6 +279,13 @@ extension UTType
         {
             self.restoreValue(from: boxedValue)
         }
+    }
+
+    /// Gives a port about to register the id it stands under. See
+    /// PortDeclaration.makePort.
+    internal func adoptID(_ id: UUID)
+    {
+        self.id = id
     }
 
     /// Takes everything `state` holds onto a port about to register, id first:

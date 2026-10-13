@@ -25,14 +25,16 @@ public final class RepeatNode: NumericTypeAgnosticNode
 
     public var inputCount: ParameterPort<Int> { port(named: "inputCount") }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
         let valueType = selectedNumericPortType
         let arrayType: PortType = valueType == .NumericVirtual ? .NumericVirtual : .Array(portType: valueType)
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputValue", displayName: "Value", portType: valueType, kind: .Inlet, description: "Value to repeat")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputArray", displayName: "Array", portType: arrayType, kind: .Outlet, description: "Repeated values")
-        reorderPorts(named: ["inputValue", "inputCount", "outputArray"])
+
+        return [
+            PortDeclaration(registryKey: "inputValue", portType: valueType, kind: .Inlet, name: "Value", description: "Value to repeat"),
+        ] + super.declaredPorts() + [
+            PortDeclaration(registryKey: "outputArray", portType: arrayType, kind: .Outlet, name: "Array", description: "Repeated values"),
+        ]
     }
 
     override public func execute(renderer: GraphRenderer,

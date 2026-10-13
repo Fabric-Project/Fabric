@@ -22,33 +22,21 @@ public class ComposeVectorNode: StrategyNode
     // plain type-name title rather than leading it with the strategy.
     override public func deriveSubtitle() -> String? { nil }
 
-    private static let allDynamicNames: Set<String> = [
-        "inputComponent0", "inputComponent1", "inputComponent2", "inputComponent3",
-        "outputVector",
-    ]
-
     public convenience init(context: Context, vectorType: VectorType)
     {
         self.init(context: context, strategy: vectorType)
     }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        guard let vt: VectorType = Self.strategyOption(matching: strategy) else { return }
+        guard let vt: VectorType = Self.strategyOption(matching: strategy) else { return super.declaredPorts() }
 
-        // Remove component ports beyond the needed count
-        for i in vt.componentLabels.count..<4 {
-            if let p: Port = findPort(named: "inputComponent\(i)") { removePort(p) }
-        }
-        // Add missing component ports
-        for (i, label) in vt.componentLabels.enumerated() {
-            if findPort(named: "inputComponent\(i)") == nil {
-                let p = ParameterPort(parameter: FloatParameter(label, 0.0, .inputfield, "\(label) component"))
-                addDynamicPort(p, name: "inputComponent\(i)")
+        return super.declaredPorts()
+            + vt.componentLabels.enumerated().map { index, label in
+                PortDeclaration(registryKey: "inputComponent\(index)",
+                                port: ParameterPort(parameter: FloatParameter(label, 0.0, .inputfield, "\(label) component")))
             }
-        }
-
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputVector", displayName: vt.portType.rawValue, portType: vt.portType, kind: .Outlet, description: "Combined \(vt.portType.rawValue)")
+            + [PortDeclaration(registryKey: "outputVector", portType: vt.portType, kind: .Outlet, name: vt.portType.rawValue, description: "Combined \(vt.portType.rawValue)")]
     }
 
     override public func execute(renderer: GraphRenderer,

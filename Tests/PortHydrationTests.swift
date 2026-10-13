@@ -730,11 +730,12 @@ struct PortHydrationTests
     {
         guard let context = makeContext() else { return }
 
-        // No controller is present in tests; adding the ports directly stands
-        // in for what a connected profile does via synchronizePorts.
+        // No controller is present in tests; the saved profile stands in for
+        // what a connected controller gives.
         let node = GameControllerNode(context: context)
-        node.addDynamicPort(NodePort<Float>(name: "Left Stick X", kind: .Outlet))
-        node.addDynamicPort(NodePort<Bool>(name: "A", kind: .Outlet))
+        node.apply(GameControllerSettings(selectedControllerID: nil,
+                                          portDescriptors: [DeviceOutputPortDescriptor(name: "Left Stick X", isButton: false),
+                                                            DeviceOutputPortDescriptor(name: "A", isButton: true)]))
         let savedPortIDs = node.ports.map(\.id)
 
         let decoded = try roundTrip(node, context: context)
@@ -772,6 +773,7 @@ struct PortHydrationTests
     }
 
     @Test("Ports added after graph decode cannot resurrect stale snapshot state")
+    @available(*, deprecated, message: "Adds a port directly, as a plugin may.")
     func latePortsDoNotResurrectStaleSnapshotState() throws
     {
         guard let context = makeContext() else { return }
@@ -826,6 +828,7 @@ struct PortHydrationTests
     }
 
     @Test("Duplicating a node closes its hydration window")
+    @available(*, deprecated, message: "Adds a port directly, as a plugin may.")
     func duplicatingANodeClosesItsHydrationWindow() throws
     {
         guard let context = makeContext() else { return }
@@ -874,22 +877,25 @@ struct PortHydrationTests
     }
 }
 
-/// Stands in for the remove-then-recreate a material sync performs when a
-/// uniform's backing type changes underneath an already hydrated port.
+/// Declares its port as Int until its decode is under way and then as Float,
+/// as a node whose source it reads after super.init retypes a port it has
+/// already declared and hydrated.
 private final class RecreatingPortNode: Node
 {
     override class var name: String { "Recreating Port" }
     override class var nodeType: Node.NodeType { .Utility }
     override class var nodeExecutionMode: Node.ExecutionMode { .Processor }
     override class var nodeTimeMode: Node.TimeMode { .None }
-    override class var nodeDescription: String { "Test node that rebuilds a declared port during decode." }
+    override class var nodeDescription: String { "Test node that retypes a declared port during decode." }
 
-    var value: NodePort<Float> { port(named: "value") }
+    var value: Fabric.Port { port(named: "value") }
 
-    override class func registerPorts(context: Context) -> [(name: String, port: Fabric.Port)]
+    private var sourceRead = true
+
+    override func declaredPorts() -> [PortDeclaration]
     {
-        super.registerPorts(context: context) + [
-            ("value", NodePort<Float>(name: "Value", kind: .Inlet)),
+        super.declaredPorts() + [
+            PortDeclaration(registryKey: "value", portType: sourceRead ? .Float : .Int, kind: .Inlet, name: "Value"),
         ]
     }
 
@@ -900,10 +906,11 @@ private final class RecreatingPortNode: Node
 
     required init(from decoder: any Decoder) throws
     {
+        self.sourceRead = false
         try super.init(from: decoder)
 
-        self.removePort(self.value)
-        self.addDynamicPort(NodePort<Float>(name: "Value", kind: .Inlet), name: "value")
+        self.sourceRead = true
+        self.reconcilePorts()
     }
 }
 

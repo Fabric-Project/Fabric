@@ -18,13 +18,7 @@ public class DecomposeTransformNode: StrategyNode
 
     public override class var strategyOptions: [any NodeStrategyOption] { TransformCompositionMode.allCases }
 
-    private static let allDynamicNames: Set<String> = [
-        "inputTransform",
-        "outputTranslation", "outputScale", "outputRotation",
-        "outputColumn0", "outputColumn1", "outputColumn2", "outputColumn3",
-    ]
-
-    public override func rebuildPorts(forStrategy strategy: String)
+    override public func declaredPorts() -> [PortDeclaration]
     {
         let wanted: [(name: String, port: Port)]
         switch strategy
@@ -52,15 +46,7 @@ public class DecomposeTransformNode: StrategyNode
             wanted = []
         }
 
-        let wantedNames = Set(wanted.map(\.name))
-        for name in Self.allDynamicNames.subtracting(wantedNames)
-        {
-            if let p = findPort(named: name) { removePort(p) }
-        }
-        for (name, p) in wanted where findPort(named: name) == nil
-        {
-            addDynamicPort(p, name: name)
-        }
+        return super.declaredPorts() + wanted.map { PortDeclaration(registryKey: $0.name, port: $0.port) }
     }
 
     override public func execute(renderer: GraphRenderer,

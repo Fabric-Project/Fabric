@@ -51,36 +51,26 @@ public final class MatrixSwitchNode: RoutingNodeBase
         ]
     }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
-        let portType = PortType(rawValue: strategy) ?? .Virtual
+        super.declaredPorts()
+            + (0..<routeCount).map { index in
+                routePortDeclaration(registryKey: Self.inputPortName(index),
+                                     name: "Input \(index)",
+                                     kind: .Inlet,
+                                     description: "Value for input \(index)")
+            }
+            + (0..<routeCount).map { index in
+                routePortDeclaration(registryKey: Self.outputPortName(index),
+                                     name: "Output \(index)",
+                                     kind: .Outlet,
+                                     description: "Value routed to output \(index)")
+            }
+    }
 
-        for index in 0..<routeCount
-        {
-            addOrReplaceDynamicPortPreservingIdentity(name: Self.inputPortName(index),
-                                                      displayName: "Input \(index)",
-                                                      portType: portType,
-                                                      kind: .Inlet,
-                                                      description: "Value for input \(index)")
-        }
-
-        for index in 0..<routeCount
-        {
-            addOrReplaceDynamicPortPreservingIdentity(name: Self.outputPortName(index),
-                                                      displayName: "Output \(index)",
-                                                      portType: portType,
-                                                      kind: .Outlet,
-                                                      description: "Value routed to output \(index)")
-        }
-
-        removeRoutingPortsAboveRouteCount(named: Self.inputPortName)
-        removeRoutingPortsAboveRouteCount(named: Self.outputPortName)
-
-        let orderedPortNames = [Self.indexMapPortName]
-            + (0..<routeCount).map(Self.inputPortName)
-            + (0..<routeCount).map(Self.outputPortName)
-        applyPortOrder(orderedPortNames)
+    public override func didApplyStrategy()
+    {
+        super.didApplyStrategy()
 
         inputMap.onValueChanged = { [weak self] in
             self?.updateConnectionTopology()

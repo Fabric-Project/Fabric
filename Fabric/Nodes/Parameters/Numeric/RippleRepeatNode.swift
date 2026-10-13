@@ -34,14 +34,21 @@ public final class RippleRepeatNode: NumericTypeAgnosticNode
     public var inputCount: ParameterPort<Int> { port(named: "inputCount") }
     public var inputDelaySecs: ParameterPort<Float> { port(named: "inputDelaySecs") }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
         let valueType = selectedNumericPortType
         let arrayType: PortType = valueType == .NumericVirtual ? .NumericVirtual : .Array(portType: valueType)
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputValue", displayName: "Value", portType: valueType, kind: .Inlet, description: "Animated value to stagger")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputArray", displayName: "Array", portType: arrayType, kind: .Outlet, description: "Rippled repeated values")
-        reorderPorts(named: ["inputValue", "inputCount", "inputDelaySecs", "outputArray"])
+
+        return [
+            PortDeclaration(registryKey: "inputValue", portType: valueType, kind: .Inlet, name: "Value", description: "Animated value to stagger"),
+        ] + super.declaredPorts() + [
+            PortDeclaration(registryKey: "outputArray", portType: arrayType, kind: .Outlet, name: "Array", description: "Rippled repeated values"),
+        ]
+    }
+
+    public override func didApplyStrategy()
+    {
+        super.didApplyStrategy()
         history.removeAll()
         oldest = nil
         lastTime = nil

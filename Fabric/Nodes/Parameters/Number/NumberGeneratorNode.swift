@@ -66,16 +66,12 @@ public class NumberGeneratorNode : StrategyNode
 
     private static let goldenRatioConjugate: Float = 0.6180339887498949
 
-    private static let allDynamicNames: Set<String> = [
-        "inputSignal", "inputMinChange", "inputDistribution", "inputStepSize", "outputValue",
-    ]
-
     private var value: Float = 0
     private var spreadPhase: Float = 0 // raw low-discrepancy phase for Even Spread
     private var previousSignal: Bool? = nil
     private var hasEmitted: Bool = false
 
-    override public func rebuildPorts(forStrategy strategy: String)
+    override public func declaredPorts() -> [PortDeclaration]
     {
         let mode = NumberGeneratorMode(rawValue: strategy) ?? .random
 
@@ -97,16 +93,12 @@ public class NumberGeneratorNode : StrategyNode
 
         wanted.append(("outputValue", NodePort<Float>(name: "Number", kind: .Outlet, description: "Current value in [0, 1]")))
 
-        let wantedNames = Set(wanted.map(\.name))
-        for name in Self.allDynamicNames.subtracting(wantedNames)
-        {
-            if let p = findPort(named: name) { removePort(p) }
-        }
-        for (name, p) in wanted where findPort(named: name) == nil
-        {
-            addDynamicPort(p, name: name)
-        }
+        return super.declaredPorts() + wanted.map { PortDeclaration(registryKey: $0.name, port: $0.port) }
+    }
 
+    override public func didApplyStrategy()
+    {
+        super.didApplyStrategy()
         self.resetGeneratorState()
     }
 

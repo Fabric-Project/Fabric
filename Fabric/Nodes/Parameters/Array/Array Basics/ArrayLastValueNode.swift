@@ -16,21 +16,16 @@ public class ArrayLastValueNode: TypeAgnosticNode
     override public class var nodeDescription: String { "Returns the last element of an array. Choose element type in Settings." }
     override public class var includesArrayTypesInStrategy: Bool { false }
 
-    private static let dynamicPortNames: Set<String> = ["inputPort", "outputPort"]
-
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
-        guard let elementType = PortType(rawValue: strategy) else { return }
+        guard let elementType = PortType(rawValue: strategy) else { return super.declaredPorts() }
 
         let arrayType: PortType = .Array(portType: elementType)
 
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputPort", displayName: "Array", portType: arrayType, kind: .Inlet, description: "Input array to get the last value from")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputPort", displayName: "Value", portType: elementType, kind: .Outlet, description: "Last element of the array")
-
-        let portOrder = ["inputPort", "outputPort"]
-        let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }
-        if reordered.count == self.ports.count { reorderPorts(reordered) }
+        return [
+            PortDeclaration(registryKey: "inputPort", portType: arrayType, kind: .Inlet, name: "Array", description: "Input array to get the last value from"),
+            PortDeclaration(registryKey: "outputPort", portType: elementType, kind: .Outlet, name: "Value", description: "Last element of the array"),
+        ] + super.declaredPorts()
     }
 
     override public func execute(renderer: GraphRenderer,

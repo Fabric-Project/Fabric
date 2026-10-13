@@ -16,8 +16,6 @@ public class ArraySplitAtIndexNode: TypeAgnosticNode
     override public class var nodeDescription: String { "Splits an array at Index into two: elements before the index and elements from the index onward. Choose element type in Settings." }
     override public class var includesArrayTypesInStrategy: Bool { false }
 
-    private static let dynamicPortNames: Set<String> = ["inputPort", "outputBefore", "outputFrom"]
-
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
     {
         super.registerPorts(context: context) + [
@@ -27,20 +25,18 @@ public class ArraySplitAtIndexNode: TypeAgnosticNode
 
     public var inputIndex: ParameterPort<Int> { port(named: "inputIndex") }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
-        guard let elementType = PortType(rawValue: strategy) else { return }
+        guard let elementType = PortType(rawValue: strategy) else { return super.declaredPorts() }
 
         let arrayType: PortType = .Array(portType: elementType)
 
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputPort", displayName: "Array", portType: arrayType, kind: .Inlet, description: "Input array to split")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputBefore", displayName: "Before", portType: arrayType, kind: .Outlet, description: "Elements at indices 0 ..< Index")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputFrom", displayName: "From", portType: arrayType, kind: .Outlet, description: "Elements at indices Index ..< count")
-
-        let portOrder = ["inputPort", "inputIndex", "outputBefore", "outputFrom"]
-        let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }
-        if reordered.count == self.ports.count { reorderPorts(reordered) }
+        return [
+            PortDeclaration(registryKey: "inputPort", portType: arrayType, kind: .Inlet, name: "Array", description: "Input array to split"),
+        ] + super.declaredPorts() + [
+            PortDeclaration(registryKey: "outputBefore", portType: arrayType, kind: .Outlet, name: "Before", description: "Elements at indices 0 ..< Index"),
+            PortDeclaration(registryKey: "outputFrom", portType: arrayType, kind: .Outlet, name: "From", description: "Elements at indices Index ..< count"),
+        ]
     }
 
     override public func execute(renderer: GraphRenderer,

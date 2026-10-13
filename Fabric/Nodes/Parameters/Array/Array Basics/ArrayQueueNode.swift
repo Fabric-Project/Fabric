@@ -20,8 +20,6 @@ public class ArrayQueueNode: TypeAgnosticNode
     override public class var nodeDescription: String { "Inserts items into the beginning of an array queue. Choose element type in Settings." }
     override public class var includesArrayTypesInStrategy: Bool { false }
 
-    private static let dynamicPortNames: Set<String> = ["inputPort", "outputPort"]
-
     override public class func registerPorts(context: Context) -> [(name: String, port: Port)]
     {
         super.registerPorts(context: context) + [
@@ -36,21 +34,23 @@ public class ArrayQueueNode: TypeAgnosticNode
     // Type-agnostic queue; PortValue boxing lets this work identically for Virtual and typed ports.
     private var queue: ContiguousArray<PortValue> = []
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
-        guard let elementType = PortType(rawValue: strategy) else { return }
+        guard let elementType = PortType(rawValue: strategy) else { return super.declaredPorts() }
 
         let arrayType: PortType = .Array(portType: elementType)
 
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputPort", displayName: "Value", portType: elementType, kind: .Inlet, description: "Value to insert at the front of the queue")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputPort", displayName: "Array", portType: arrayType, kind: .Outlet, description: "Array containing the queued values")
+        return [
+            PortDeclaration(registryKey: "inputPort", portType: elementType, kind: .Inlet, name: "Value", description: "Value to insert at the front of the queue"),
+        ] + super.declaredPorts() + [
+            PortDeclaration(registryKey: "outputPort", portType: arrayType, kind: .Outlet, name: "Array", description: "Array containing the queued values"),
+        ]
+    }
 
+    public override func didApplyStrategy()
+    {
+        super.didApplyStrategy()
         queue.removeAll()
-
-        let portOrder = ["inputPort", "inputSizeParam", "resetPort", "outputPort"]
-        let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }
-        if reordered.count == self.ports.count { reorderPorts(reordered) }
     }
 
     override public func execute(renderer: GraphRenderer,

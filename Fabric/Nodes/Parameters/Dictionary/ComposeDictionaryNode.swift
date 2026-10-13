@@ -12,15 +12,13 @@ public final class ComposeDictionaryNode: DictionaryTypeAgnosticNode
     public override class var name: String { "Compose Dictionary" }
     override public class var nodeDescription: String { "Builds a dictionary from string keys and values. Choose value type in Settings." }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
-
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputKeys",        displayName: "Keys",       portType: .Array(portType: .String), kind: .Inlet,  description: "String keys")
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputValues",      displayName: "Values",     portType: valuesArrayType,           kind: .Inlet,  description: "Values matching the keys")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputDictionary", displayName: "Dictionary", portType: dictionaryType,            kind: .Outlet, description: "Dictionary built from keys and values")
-
-        reorderPorts(named: ["inputKeys", "inputValues", "outputDictionary"])
+        return [
+            PortDeclaration(registryKey: "inputKeys", portType: .Array(portType: .String), kind: .Inlet, name: "Keys", description: "String keys"),
+            PortDeclaration(registryKey: "inputValues", portType: valuesArrayType, kind: .Inlet, name: "Values", description: "Values matching the keys"),
+            PortDeclaration(registryKey: "outputDictionary", portType: dictionaryType, kind: .Outlet, name: "Dictionary", description: "Dictionary built from keys and values"),
+        ] + super.declaredPorts()
     }
 
     override public func execute(renderer: GraphRenderer,

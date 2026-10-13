@@ -101,16 +101,12 @@ public class NumberSmoothNode : StrategyNode
     private static let springMaxStepAngle: Double = 0.25
     private static let springMaxSubsteps: Int = 64
 
-    private static let allDynamicNames: Set<String> = [
-        "inputNumber", "inputSmoothing", "inputResponsiveness", "inputDamping", "inputDirection", "outputNumber",
-    ]
-
     private let oneEuroFilter = OneEuroFilter(freq: 120.0)
     private var heldValue: Float = 0
     private var velocity: Float = 0
     private var hasValue: Bool = false
 
-    override public func rebuildPorts(forStrategy strategy: String)
+    override public func declaredPorts() -> [PortDeclaration]
     {
         let mode = SmoothFilterMode(rawValue: strategy) ?? .oneEuro
 
@@ -133,16 +129,12 @@ public class NumberSmoothNode : StrategyNode
         wanted.append(("inputDirection", ParameterPort(parameter: StringParameter("Direction", SmoothDirection.upDown.rawValue, SmoothDirection.allCases.map(\.rawValue), .dropdown, "Which direction is smoothed; the other tracks instantly. Down is VU-meter style."))))
         wanted.append(("outputNumber", NodePort<Float>(name: "Number", kind: .Outlet, description: "Smoothed value")))
 
-        let wantedNames = Set(wanted.map(\.name))
-        for name in Self.allDynamicNames.subtracting(wantedNames)
-        {
-            if let p = findPort(named: name) { removePort(p) }
-        }
-        for (name, p) in wanted where findPort(named: name) == nil
-        {
-            addDynamicPort(p, name: name)
-        }
+        return super.declaredPorts() + wanted.map { PortDeclaration(registryKey: $0.name, port: $0.port) }
+    }
 
+    override public func didApplyStrategy()
+    {
+        super.didApplyStrategy()
         self.resetSmoothingState()
     }
 

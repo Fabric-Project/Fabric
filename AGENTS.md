@@ -114,8 +114,13 @@ For all development:
 ### 2.2  Ports & Registration
 - **Registry = source of truth.**  
 - Subclasses implement `class func registerPorts(context:)`, call `super`, preserve order.
-- **Dynamic ports are supported through the Registry.** See TypeAgnosticNode
-- UI and serialization order derive from registration.
+- **A node's port set and order are a function of its fixed declarations and its current settings value.** Equal settings give equal ports, in equal order, under equal ids for surviving keys, however the node got there. Order is not document-owned: a document's ports match by registry key and the code decides their order. Three responsibilities, kept apart:
+  - **The node declares.** `open func declaredPorts() -> [PortDeclaration]` returns the node's whole interface as an ordered list: registry key, kind, port type, display name, description, and how to make the port. It defaults to `registerPorts(context:)`. A node whose ports follow its settings, or a source or device it reads at runtime, overrides it and computes from that state; fixed and derived ports interleave freely, and the list is the order. It makes no ports it does not return and changes nothing.
+  - **The registry reconciles.** `PortRegistry.reconcile(to:owner:hydrating:)` keeps a port whose key, kind and type match (the same object, wires and value), replaces a retyped one in place under its id, makes a missing key with the state undo or decode holds for it, removes an undeclared one, and leaves the list's order. It returns what changed and does not touch the graph.
+  - **The node hands the change to the graph.** `Node.reconcilePorts()` runs the reconcile and applies it through the graph as edits: unpublish and disconnect for removed ports, rebind and the replaced event for retyped ones, publish for added published ones; then rebuilds the parameter group from port order. Every edit registers; nothing suspends registration around it.
+- The base `apply(_:)` reconciles once, after every level has set its part of the settings; init and decode reconcile once the settings are set, before `super.init` where the node can read them there. A node whose interface changes outside its settings, a script recompiling or a controller connecting, calls `reconcilePorts()` once it has changed what `declaredPorts()` reads.
+- An expression, script or shader that does not compile declares the interface of the last that did, so a half-typed edit keeps its ports and wires. Ports a document holds that a node cannot yet declare at all (an unparseable script, a shader that does not compile, on open) are kept, declared after the node's own, until it can (`adoptRemainingSnapshotPortsAsFallback`, `discardUndeclaredSnapshotPorts`).
+- `addDynamicPort` is deprecated: a port it adds is declared after the node's own for the rest of the node's life.
 - `NodeRegistry` should support this as it’s the single source of truth for nodes.
 - **Typed ports only** (for now).  
   Any “virtual” or generic ports must remain type-safe and backward-compatible.
@@ -156,7 +161,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 
 - Default to `PortType.Virtual`, which accepts any connection and requires no configuration.
 - Virtual appears first in the type picker, separated from concrete types.
-- Switching type rebuilds the dynamic ports; port order must be explicit and stable.
+- Switching type changes the ports `declaredPorts()` gives for the strategy; a port that survives keeps its id, and its position is the declaration's.
 - When a concrete type is active, the node's display name reflects it (e.g. `"Sample and Hold Float"`).
 - `snapshotValue()` / `sendBoxed()` are the runtime-polymorphic read/write API for ports whose type is only known at runtime.
 
@@ -209,6 +214,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 - [ ] Node has semantically correct type, execution mode, and time mode. 
 - [ ] Node metadata present and stable  
 - [ ] `registerPorts(context:)` calls `super`, order intentional  
+- [ ] A node with dynamic ports declares them in `declaredPorts()` and never adds, removes, replaces or orders ports itself; it calls `reconcilePorts()` only when its interface changes outside its settings
 - [ ] Lifecycle overrides call `super` after their own work; editing code never calls them
 - [ ] Every edit registers, through the graph it was made in; a compound edit is an undo group, and nothing inside it suspends registration. `withoutUndoRegistration` is only for construction, decode and the primitives an undo handler has no API for
 - [ ] Undo steps register through `Graph.registerUndo(_:)` (or `registerUndo(on:_:)` for a node) on the graph the edit was made in, never on the undo manager directly: the graph is the one place that sees every edit (`UndoRegistrationTests` checks core code). A step holds ids and values and finds what it acts on in the graph it is handed, never holding the graph's nodes, ports, wires or notes: something may have put another object under the same id by the time it runs
@@ -218,7 +224,7 @@ Some nodes operate identically regardless of what data flows through them (e.g. 
 - [ ] No recursive topology recompute
 - [ ] Subgraph nodes discover cameras and apply state before execute
 - [ ] Serialization via registry + UUID
-- [ ] If Node dynamically changes port count or type, we should only trigger via Setting in Settings View, not within the graph
+- [ ] If Node dynamically changes port count or type, we should only trigger via Setting in Settings View, not within the graph (`DeclaredPortsInvariantTests` checks every core node's ports against a node opened from its current settings, through edits, undo and redo)
 - [ ] If we have a Settings View, we should have a custom initializer so procedural graph creation has an entry to settings.
 - [ ] A node with settings exposes them as one `NodeSettings` value through `settings` and `apply(_:)`, and offers `init(context:settings:)` (`SettingsUndoTests` checks that every core node applies and gives back its own value with its ports, and saves and opens it unchanged)
 - [ ] A settings view commits a draft through `Graph.setSettings`, never writing the node as it edits

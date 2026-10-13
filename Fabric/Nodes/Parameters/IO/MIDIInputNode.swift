@@ -862,19 +862,26 @@ public class MIDIInputNode: Node
 
     // MARK: - Port Management
 
-    private func rebuildPorts()
+    /// An outlet for each configured control, in the order configured.
+    override public func declaredPorts() -> [PortDeclaration]
     {
         let descriptors = configuredInputs.map {
             DeviceOutputPortDescriptor(name: $0.portName, isButton: $0.type == .noteGate)
         }
 
-        let created = Set(synchronizeDeviceOutputPorts(to: descriptors,
-                                                       buttonDescription: "MIDI note gate (true while note is held)",
-                                                       axisDescription: "MIDI value normalized from 0 to 1").map(\.name))
+        return super.declaredPorts() + Self.deviceOutputPortDeclarations(for: descriptors,
+                                                                         buttonDescription: "MIDI note gate (true while note is held)",
+                                                                         axisDescription: "MIDI value normalized from 0 to 1")
+    }
 
-        // Values are keyed by control identity rather than port name, so the
-        // seeding cannot ride along inside the sync.
-        for input in configuredInputs where created.contains(input.portName)
+    private func rebuildPorts()
+    {
+        let existing = Set(ports.compactMap { registryKey(of: $0) })
+        reconcilePorts()
+
+        // Values are keyed by control identity rather than port name, so a
+        // new port's value is seeded here.
+        for input in configuredInputs where !existing.contains(input.portName)
         {
             if input.type == .noteGate
             {

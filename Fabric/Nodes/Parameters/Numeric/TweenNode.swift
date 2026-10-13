@@ -26,7 +26,6 @@ public final class TweenNode: NumericTypeAgnosticNode
         super.registerPorts(context: context) + [
             ("inputDuration", ParameterPort(parameter: FloatParameter("Duration", 1.0, .inputfield, "Tween duration in seconds"))),
             ("inputEasing", ParameterPort(parameter: StringParameter("Easing", "Linear", TweenEasing.titles, .dropdown, "Easing curve"))),
-            ("outputProgress", NodePort<Float>(name: "Progress", kind: .Outlet, description: "Tween progress (0-1)"))
         ]
     }
 
@@ -34,13 +33,21 @@ public final class TweenNode: NumericTypeAgnosticNode
     public var inputEasing: ParameterPort<String> { port(named: "inputEasing") }
     public var outputProgress: NodePort<Float> { port(named: "outputProgress") }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
         let portType = selectedNumericPortType
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputTarget", displayName: "Target", portType: portType, kind: .Inlet, description: "Target value")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputValue", displayName: "Value", portType: portType, kind: .Outlet, description: "Current tweened value")
-        reorderPorts(named: ["inputTarget", "inputDuration", "inputEasing", "outputValue", "outputProgress"])
+
+        return [
+            PortDeclaration(registryKey: "inputTarget", portType: portType, kind: .Inlet, name: "Target", description: "Target value"),
+        ] + super.declaredPorts() + [
+            PortDeclaration(registryKey: "outputValue", portType: portType, kind: .Outlet, name: "Value", description: "Current tweened value"),
+            PortDeclaration(registryKey: "outputProgress", port: NodePort<Float>(name: "Progress", kind: .Outlet, description: "Tween progress (0-1)")),
+        ]
+    }
+
+    public override func didApplyStrategy()
+    {
+        super.didApplyStrategy()
         from = nil
         to = nil
         current = nil

@@ -27,15 +27,17 @@ public final class ArrayRangeInterpolateNode: NumericTypeAgnosticNode
     public var inputCount: ParameterPort<Int> { port(named: "inputCount") }
     public var inputEasing: ParameterPort<String> { port(named: "inputEasing") }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
         let valueType = selectedNumericPortType
         let arrayType: PortType = valueType == .NumericVirtual ? .NumericVirtual : .Array(portType: valueType)
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputFrom", displayName: "From", portType: valueType, kind: .Inlet, description: "Start value")
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputTo", displayName: "To", portType: valueType, kind: .Inlet, description: "End value")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputArray", displayName: "Array", portType: arrayType, kind: .Outlet, description: "Generated interpolated values")
-        reorderPorts(named: ["inputFrom", "inputTo", "inputCount", "inputEasing", "outputArray"])
+
+        return [
+            PortDeclaration(registryKey: "inputFrom", portType: valueType, kind: .Inlet, name: "From", description: "Start value"),
+            PortDeclaration(registryKey: "inputTo", portType: valueType, kind: .Inlet, name: "To", description: "End value"),
+        ] + super.declaredPorts() + [
+            PortDeclaration(registryKey: "outputArray", portType: arrayType, kind: .Outlet, name: "Array", description: "Generated interpolated values"),
+        ]
     }
 
     override public func execute(renderer: GraphRenderer,

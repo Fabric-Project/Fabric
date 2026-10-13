@@ -62,7 +62,6 @@ public class DisplacementMaterialNode: BaseMaterialNode
     required public init(context: Context) {
         self._material = Self.makeMaterial(context: context)
         super.init(context: context)
-        self.addMaterialParameterPorts()
     }
 
     public required init(from decoder: any Decoder) throws {
@@ -70,21 +69,20 @@ public class DisplacementMaterialNode: BaseMaterialNode
 
         self._material = Self.makeMaterial(context: context)
         try super.init(from: decoder)
-        self.addMaterialParameterPorts()
     }
 
-    private func addMaterialParameterPorts() {
-        // Only shader-authored controls become ports; texture transforms stay internal.
-        // The port wraps the material's parameter directly, including during hydration.
-        let inheritedPorts = self.ports.filter { $0.parameter != nil || $0.kind == .Outlet }
-        for parameter in self.material.parameters.params where parameter.controlType != .none {
-            if let port = PortType.port(for: parameter) {
-                self.addDynamicPort(port)
-            }
-        }
-        self.reorderPorts(self.ports.filter { port in
-            !inheritedPorts.contains(where: { $0.id == port.id })
-        } + inheritedPorts)
+    /// The image inlets, then the shader's controls, then the inherited
+    /// parameters and the outlet. Only shader-authored controls become ports;
+    /// texture transforms stay internal. Each port wraps the material's
+    /// parameter directly, hydration included.
+    override public func declaredPorts() -> [PortDeclaration] {
+        let inherited = super.declaredPorts()
+        let isMaterialSetting: (PortDeclaration) -> Bool = { $0.isParameterPort == true || $0.kind == .Outlet }
+        let controls = self._material.parameters.params
+            .filter { $0.controlType != .none }
+            .compactMap { parameter in PortType.port(for: parameter).map { PortDeclaration(registryKey: $0.name, port: $0) } }
+
+        return inherited.filter { !isMaterialSetting($0) } + controls + inherited.filter(isMaterialSetting)
     }
 
     override public func evaluate(material: Material, atTime: TimeInterval) -> Bool

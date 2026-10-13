@@ -804,25 +804,27 @@ public class HIDNode: Node
 
     // Cache for current port names mapping
     @ObservationIgnored private var currentPortNames: [String: String] = [:]
+    @ObservationIgnored private var portDescriptors: [DeviceOutputPortDescriptor] = []
 
     private func rebuildPorts()
     {
         // Build unique port names, adding suffix only when needed for duplicates
         currentPortNames = buildUniquePortNames(for: deviceElements)
 
-        let descriptors = deviceElements.compactMap { element -> DeviceOutputPortDescriptor? in
+        portDescriptors = deviceElements.compactMap { element -> DeviceOutputPortDescriptor? in
             guard let portName = currentPortNames[element.id] else { return nil }
             return DeviceOutputPortDescriptor(name: portName, isButton: element.isButton)
         }
 
-        let created = synchronizeDeviceOutputPorts(to: descriptors,
-                                                   buttonDescription: "HID button state (true when pressed)",
-                                                   axisDescription: "HID axis value normalized from 0 to 1")
+        reconcilePorts()
+    }
 
-        for descriptor in created
-        {
-            print("Added HID port: \(descriptor.name)")
-        }
+    /// An outlet for each element of the selected device, in its order.
+    override public func declaredPorts() -> [PortDeclaration]
+    {
+        super.declaredPorts() + Self.deviceOutputPortDeclarations(for: portDescriptors,
+                                                                  buttonDescription: "HID button state (true when pressed)",
+                                                                  axisDescription: "HID axis value normalized from 0 to 1")
     }
 
     /// Build unique port names, only adding numeric suffix when there are duplicates

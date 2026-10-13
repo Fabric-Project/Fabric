@@ -21,14 +21,13 @@ public final class DictionaryHasKeyNode: DictionaryTypeAgnosticNode
 
     private var inputKey: ParameterPort<String> { port(named: "inputKey") }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
-
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputDictionary",   displayName: "Dictionary",   portType: dictionaryType, kind: .Inlet,  description: "Dictionary to test")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputContainsKey", displayName: "Contains Key", portType: .Bool,          kind: .Outlet, description: "Whether the key exists")
-
-        reorderPorts(named: ["inputDictionary", "inputKey", "outputContainsKey"])
+        return [
+            PortDeclaration(registryKey: "inputDictionary", portType: dictionaryType, kind: .Inlet, name: "Dictionary", description: "Dictionary to test"),
+        ] + super.declaredPorts() + [
+            PortDeclaration(registryKey: "outputContainsKey", portType: .Bool, kind: .Outlet, name: "Contains Key", description: "Whether the key exists"),
+        ]
     }
 
     override public func execute(renderer: GraphRenderer,

@@ -12,15 +12,13 @@ public final class DictionaryMergeNode: DictionaryTypeAgnosticNode
     public override class var name: String { "Dictionary Merge" }
     override public class var nodeDescription: String { "Merges two dictionaries. Values from B replace values from A. Choose value type in Settings." }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
-
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputDictionaryA", displayName: "Dictionary A", portType: dictionaryType, kind: .Inlet,  description: "Base dictionary")
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputDictionaryB", displayName: "Dictionary B", portType: dictionaryType, kind: .Inlet,  description: "Dictionary whose values override A")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputDictionary", displayName: "Dictionary",   portType: dictionaryType, kind: .Outlet, description: "Merged dictionary")
-
-        reorderPorts(named: ["inputDictionaryA", "inputDictionaryB", "outputDictionary"])
+        return [
+            PortDeclaration(registryKey: "inputDictionaryA", portType: dictionaryType, kind: .Inlet, name: "Dictionary A", description: "Base dictionary"),
+            PortDeclaration(registryKey: "inputDictionaryB", portType: dictionaryType, kind: .Inlet, name: "Dictionary B", description: "Dictionary whose values override A"),
+            PortDeclaration(registryKey: "outputDictionary", portType: dictionaryType, kind: .Outlet, name: "Dictionary", description: "Merged dictionary"),
+        ] + super.declaredPorts()
     }
 
     override public func execute(renderer: GraphRenderer,

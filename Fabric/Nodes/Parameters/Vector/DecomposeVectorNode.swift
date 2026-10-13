@@ -22,33 +22,21 @@ public class DecomposeVectorNode: StrategyNode
     // plain type-name title rather than leading it with the strategy.
     override public func deriveSubtitle() -> String? { nil }
 
-    private static let allDynamicNames: Set<String> = [
-        "inputVector",
-        "outputComponent0", "outputComponent1", "outputComponent2", "outputComponent3",
-    ]
-
     public convenience init(context: Context, vectorType: VectorType)
     {
         self.init(context: context, strategy: vectorType)
     }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        guard let vt: VectorType = Self.strategyOption(matching: strategy) else { return }
+        guard let vt: VectorType = Self.strategyOption(matching: strategy) else { return super.declaredPorts() }
 
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputVector", displayName: vt.portType.rawValue, portType: vt.portType, kind: .Inlet, description: "Vector to decompose")
-
-        // Remove component output ports beyond the needed count
-        for i in vt.componentLabels.count..<4 {
-            if let p: Port = findPort(named: "outputComponent\(i)") { removePort(p) }
-        }
-        // Add missing component output ports
-        for (i, label) in vt.componentLabels.enumerated() {
-            if findPort(named: "outputComponent\(i)") == nil {
-                let p = NodePort<Float>(name: label, kind: .Outlet, description: "\(label) component")
-                addDynamicPort(p, name: "outputComponent\(i)")
+        return super.declaredPorts()
+            + [PortDeclaration(registryKey: "inputVector", portType: vt.portType, kind: .Inlet, name: vt.portType.rawValue, description: "Vector to decompose")]
+            + vt.componentLabels.enumerated().map { index, label in
+                PortDeclaration(registryKey: "outputComponent\(index)",
+                                port: NodePort<Float>(name: label, kind: .Outlet, description: "\(label) component"))
             }
-        }
     }
 
     override public func execute(renderer: GraphRenderer,

@@ -18,8 +18,6 @@ public class SampleAndHoldNode: TypeAgnosticNode
     override public class var nodeTimeMode: Node.TimeMode { .None }
     override public class var nodeDescription: String { "Samples any value type when enabled and holds it until reset. Choose the value type in Settings." }
 
-    private static let dynamicPortNames: Set<String> = ["inputValue", "outputValue"]
-
     public var inputSample: ParameterPort<Bool> { port(named: "inputSample") }
     public var inputReset: ParameterPort<Bool>  { port(named: "inputReset") }
 
@@ -33,19 +31,20 @@ public class SampleAndHoldNode: TypeAgnosticNode
         ]
     }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
-        guard let portType = PortType(rawValue: strategy) else { return }
+        guard let portType = PortType(rawValue: strategy) else { return super.declaredPorts() }
 
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputValue",  displayName: "Value", portType: portType, kind: .Inlet,  description: "Value to sample and hold")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputValue", displayName: "Value", portType: portType, kind: .Outlet, description: "The last sampled value")
+        return [
+            PortDeclaration(registryKey: "inputValue",  portType: portType, kind: .Inlet,  name: "Value", description: "Value to sample and hold"),
+            PortDeclaration(registryKey: "outputValue", portType: portType, kind: .Outlet, name: "Value", description: "The last sampled value"),
+        ] + super.declaredPorts()
+    }
 
+    public override func didApplyStrategy()
+    {
+        super.didApplyStrategy()
         heldValue = nil
-
-        let portOrder = ["inputValue", "outputValue", "inputSample", "inputReset"]
-        let reordered: [Port] = portOrder.compactMap { name in let p: Port? = findPort(named: name); return p }
-        if reordered.count == self.ports.count { reorderPorts(reordered) }
     }
 
     override public func execute(renderer: GraphRenderer,

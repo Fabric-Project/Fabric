@@ -12,15 +12,13 @@ public final class DecomposeDictionaryNode: DictionaryTypeAgnosticNode
     public override class var name: String { "Decompose Dictionary" }
     override public class var nodeDescription: String { "Outputs dictionary keys and values sorted by key. Choose value type in Settings." }
 
-    public override func rebuildPorts(forStrategy strategy: String)
+    public override func declaredPorts() -> [PortDeclaration]
     {
-        super.rebuildPorts(forStrategy: strategy)
-
-        addOrReplaceDynamicPortPreservingIdentity(name: "inputDictionary", displayName: "Dictionary", portType: dictionaryType,            kind: .Inlet,  description: "Dictionary to decompose")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputKeys",      displayName: "Keys",       portType: .Array(portType: .String), kind: .Outlet, description: "Dictionary keys sorted by key")
-        addOrReplaceDynamicPortPreservingIdentity(name: "outputValues",    displayName: "Values",     portType: valuesArrayType,           kind: .Outlet, description: "Values sorted by key")
-
-        reorderPorts(named: ["inputDictionary", "outputKeys", "outputValues"])
+        return [
+            PortDeclaration(registryKey: "inputDictionary", portType: dictionaryType, kind: .Inlet, name: "Dictionary", description: "Dictionary to decompose"),
+            PortDeclaration(registryKey: "outputKeys", portType: .Array(portType: .String), kind: .Outlet, name: "Keys", description: "Dictionary keys sorted by key"),
+            PortDeclaration(registryKey: "outputValues", portType: valuesArrayType, kind: .Outlet, name: "Values", description: "Values sorted by key"),
+        ] + super.declaredPorts()
     }
 
     override public func execute(renderer: GraphRenderer,
